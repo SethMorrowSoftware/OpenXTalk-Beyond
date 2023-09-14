@@ -83,6 +83,21 @@ private on setupTextMenu
    put the fontNames into tFontNames
    replace "/" with "\" in tFontNames
    sort lines of tFontNames
+   filter lines of tFontNames without "@*"  --filter out 144 unnecessary fonts
+   filter lines of tFontNames without "amiri*"
+   filter lines of tFontNames without "arabic*"
+   filter lines of tFontNames without "arial *"
+   filter lines of tFontNames without "bahnschrift *"
+   filter lines of tFontNames without "courier new *"
+   filter lines of tFontNames without "dejavu*"
+   filter lines of tFontNames without "*ming*"
+   filter lines of tFontNames without "microsoft*"
+   filter lines of tFontNames without "ms**"
+   filter lines of tFontNames without "noto*"
+   filter lines of tFontNames without "segoe ui *"
+   filter lines of tFontNames without "source*"
+   filter lines of tFontNames without "times new roman *"
+   filter lines of tFontNames without "yu*"
    
    /* Fake fonts begin with "(", but the menu code interprets a "(" at 
    the beginning of the item to mean the item is disabled. 
@@ -115,7 +130,8 @@ private on setupTextMenu
    put "Color" & cr after tText
    
    local tColors
-   put format("Use Owner's Color\n-\nBlack\nWhite\nRed\nGreen\nBlue\nYellow\n-\nPen Color") into tColors
+   put format("Use Owner's Color\n-\nBlack\nWhite\nRed\nGreen\nBlue\nYellow\nYellow Hilite\n-\nPen Color") into tColors
+   --put format("Use Owner's Color\n-\nBlack\nWhite\nRed\nGreen\nBlue\nYellow\n-\nPen Color") into tColors
    repeat for each line tColor in tColors
       if tColor is "-" then
          put tab & tColor & return after tText
@@ -246,6 +262,7 @@ on setMenuProperties
       put space & "(" & item 2 of the version && item 3 of the version & ")" after tTitle
    end if
    set the itemDelimiter to comma
+   put "OpenXTalk Lite .91" into tTitle
    set the title of me to tTitle
    
    local tScreenRect
@@ -662,7 +679,7 @@ on layoutMenu
             tLeft, \
             tMenuBarHeight + (tHeight - the height of group "upgrade" of me) / 2
       
-      add the width of group "upgrade" of me + kPadding to tLeft
+      --add the width of group "upgrade" of me + kPadding to tLeft
    else
       hide tLastDivide
       hide group "tutorial" of me
@@ -1368,14 +1385,14 @@ private function revMenubarFileMenu pContext
    put "&New Stack" & return after tFile
    put tab & "Default Size" & return after tFile
    put tab & "-" & return after tFile
-   put tab & "iPhone 4 (320x480)" & return after tFile
-   put tab & "iPhone 5 (320x568)" & return after tFile
-   put tab & "iPhone 6 (375x667)" & return after tFile
-   put tab & "iPhone 6 Plus (414x736)" & return after tFile
-   put tab & "iPad//Tablet Portrait (768x1024)" & return after tFile
-   put tab & "iPad//Tablet Landscape (1024x768)" & return after tFile
-   put tab & "-" & return after tFile
-   put tab & "Script only Stack" & return after tFile
+   --put tab & "iPhone 4 (320x480)" & return after tFile
+   --put tab & "iPhone 5 (320x568)" & return after tFile
+   --put tab & "iPhone 6 (375x667)" & return after tFile
+   --put tab & "iPhone 6 Plus (414x736)" & return after tFile
+   --put tab & "iPad//Tablet Portrait (768x1024)" & return after tFile
+   --put tab & "iPad//Tablet Landscape (1024x768)" & return after tFile
+   --put tab & "-" & return after tFile
+   put tab & "Script Only Stack" & return after tFile
    
    if tIsUserTarget and not tIsScriptOnly then
       put "&New Substack of" && char 1 to 20 of the mainStack of the topStack & "/|New Substack" & return after tFile
@@ -1426,8 +1443,8 @@ private function revMenubarFileMenu pContext
    put enableMenuItem("&Revert to Saved...", tIsUserTarget and the effective filename of the topStack is not empty) & return after tFile
    put "-" & return after tFile
    
-   put enableMenuItem("&Share this stack...", tCanSaveStack) & return after tFile
-   put "-" & return after tFile
+   --put enableMenuItem("&Share this stack...", tCanSaveStack) & return after tFile
+   --put "-" & return after tFile
    
    put enableMenuItem("Standalone Application Settings...", tIsUserTarget) & return after tFile
    put enableMenuItem("Save as Standalone Application...", tIsUserTarget) & return after tFile
@@ -1662,14 +1679,14 @@ private function revMenubarObjectMenu pContext
    local tGroupLines
    if the selectedImage is empty and pContext["objectsSelected"] then
       if word 1 of (the selObj) is "group" and the number of lines in (the selObj) is 1 then   
-         put "&Ungroup Selected/G" & return & "&Edit Group/R" & return & "Remove Group"into tGroupLines   
+         put "&Ungroup Selected/G" & return & "&Edit Group/R" & return & "Remove Group From Card"into tGroupLines   
       else if word 1 of (the selObj) is not among the items of "card,stack" then
-         put "&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group"into tGroupLines
+         put "&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group From Card"into tGroupLines
       else
-         put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group" into tGroupLines
+         put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group From Card" into tGroupLines
       end if
    else
-      put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group" into tGroupLines   
+      put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group From Card" into tGroupLines   
    end if
    if the editBackground of the topStack and word 1 of (the selObj) is not "group" then
       put "&Stop Editing Group" into line 2 of tGroupLines
@@ -1680,9 +1697,9 @@ private function revMenubarObjectMenu pContext
    local tGroupNames
    put buildGroupSubmenu(the short name of the topStack) into tGroupNames
    if the mode of the topStack is not 1 or tGroupNames is empty then 
-      put "(Place Group" & return after tObject   
+      put "(Place Group On Card" & return after tObject   
    else
-      put "Place Group" & return & tGroupNames & return after tObject 
+      put "Place Group On Card" & return & tGroupNames & return after tObject 
    end if
    put "-" & return after tObject
    
@@ -1893,6 +1910,20 @@ private function revMenubarHelpMenu pContext
    local tHelp
    # AL-2015-07-10: Temporarily remove welcome screen option from help menu
    //put "Welcome Screen/|Welcome" & return after tHelp
+   put "Dictionary/|Dictionary" & return after tHelp  --reorganize help menu
+   put "User Guide" & return after tHelp
+   put "Data Grid Guide" & return after tHelp
+   put "Tutorials" & return after tHelp
+   put "-" & return after tHelp
+   put "Forums" & return after tHelp
+   put "Sample Stacks" & return after tHelp
+   put "Lessons" & return after tHelp
+   put "Donate" & return after tHelp
+   put "-" & return after tHelp
+   put "Release Notes/|Release Notes" & return after tHelp
+   put "-" & return  after tHelp
+   put "About/|About" after tHelp
+   /*  --start block comment
    put "Start Center/|Start Center" & return after tHelp
    put "User Guide" & return after tHelp
    put "Dictionary (API)/|Dictionary" & return after tHelp
@@ -1922,7 +1953,7 @@ private function revMenubarHelpMenu pContext
    put "Check For Updates/|Update" & return after tHelp
    put "-" & return after tHelp
    put "About LiveCode/|About" after tHelp
-   
+   */  --end block comment
    return modifyMenu("Help", tHelp)
 end revMenubarHelpMenu
 
@@ -1938,8 +1969,8 @@ private function revMenubarViewMenu pContext
    put enableMenuItem("Go &Last/4", the mode of the topStack is 1) & return after tView
    put enableMenuItem("Go Recent/5", the mode of the topStack is 1) & return after tView
    put "-" & return after tView
-   put toggleMenuItem("Toolbar Text", the cToolbarText of stack "revPreferences") & return after tView
    put toggleMenuItem("Toolbar Icons", the cToolbarIcons of stack "revPreferences") & return after tView
+   put toggleMenuItem("Toolbar Text", the cToolbarText of stack "revPreferences") & return after tView
    put "-" & return after tView
    put toggleMenuItem("Palettes", gREVPalettes is empty) & return after tView
    put "-" & return after tView
@@ -2938,10 +2969,10 @@ on revMenubarObjectMenuPick pWhich
       case "New Widget"
          revIDEActionCreateObject item 2 of pWhich
          break
-      case "Place Group"
+      case "Place Group On Card"
          revIDEPlaceGroupOnCard item 2 of pWhich
          break
-      case "Remove Group"
+      case "Remove Group From Card"
          revIDEActionRemoveGroupFromCard
          break
       case "Send to Back"
@@ -3176,6 +3207,9 @@ on revMenubarHelpMenuPick pWhich
       case "Buy"
       case "Support"
       case "User Guide"
+      case "Data Grid Guide"
+      case "Lessons"
+      case "Donate"
       case "License Agreement"
       case "Release Notes"
       case "Sample Stacks"

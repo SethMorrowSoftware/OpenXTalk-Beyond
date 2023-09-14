@@ -51,18 +51,11 @@ on preOpenCard
    put the cIDE_SAGeneralTipShow of stack "revPreferences" into tShowTip
    put the cIDE_SAGeneralTipLastShown of stack "revPreferences" into tTipLastShown
    
-   if revLicenseType() is "commercial" or revLicenseType() is "professional" then
+   if revLicenseType() is among the items of "commercial,professional,community" then
       put false into tShowTip
       set the cIDE_SAGeneralTipShow of stack "revPreferences" to false
    end if
-   
-   if tShowTip is false then
-      if  revLicenseType() is "community" then
-         if the seconds > (tTipLastShown + 2419200) then
-            put true into tShowTip
-         end if
-      end if
-   end if   
+    
    if tShowTip is empty then put true into tShowTip
    
    set the visible of group "generalCommercialTip" to tShowTip

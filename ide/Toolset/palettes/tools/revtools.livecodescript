@@ -1,4 +1,4 @@
-﻿script "revTools"
+﻿script "revTools" with behavior "revPaletteBehavior"
 constant BLOCK_SIZE = 20
 
 constant kToolsColumnCountDefault = 3
@@ -231,16 +231,19 @@ on generatePalette
    set the linesize of the templategraphic to 0
    set the width of the templategraphic to BLOCK_SIZE
    set the height of the templategraphic to BLOCK_SIZE
-   set the backgroundcolor of the templategraphic to revIDEColor("edition_color")
+   -- changes the hilited colour behind the paint and draw tools (tperry) "255,0,255" = purple
+   set the backgroundcolor of the templategraphic to "175,175,175" -- was: revIDEColor("edition_color")
    
    # Create hilite and hover graphic for tools
    create graphic "tool_hover" in group "contents"
-   set the backgroundcolor of the templategraphic to "175,175,175"
+   -- this changes the colour behind the "pointer" and "browse" tool when chosen (tperry)
+   set the backgroundcolor of the templategraphic to "175,175,175" -- was "175,175,175" which was grey
    create graphic "tool_hilite" in group "contents"
    
    set the visible of the templategraphic to true
    set the height of the templategraphic to 1
-   set the backgroundcolor of the templategraphic to "200,200,200"
+   -- this is the dividing line between sections in the tools palette (tperry)
+   set the backgroundcolor of the templategraphic to "175,175,175" -- was "200,200,200" which was light grey
    
    set the itemdel to "."
    create group "images" in group "contents"
@@ -356,7 +359,7 @@ on generatePalette
             create widget tControlTypeID as "com.livecode.widget.svgpath" in group tView of group "contents"
             set the width of widget tControlTypeID to BLOCK_SIZE * 2
             set the height of widget tControlTypeID to BLOCK_SIZE
-            set the foregroundColor of widget tControlTypeID to 100,100,100
+            set the foregroundColor of widget tControlTypeID to 100,100,100 -- this is the initial colour of the widget icons on load. This gets changed though when being used (tperry)
             set the iconpath of widget tControlTypeID to sViewsData[tView][tControlTypeID]["svgicon"]
             set the cType of widget tControlTypeID to tView
             set the cStyle of widget tControlTypeID to sViewsData[tView][tControlTypeID]["properties"]["style"]["default"]
@@ -721,11 +724,12 @@ on mouseEnter
    if the cDisabled of the target is true then exit mouseEnter
    if word 1 of the target is "widget" then
       revIDESetCursor "com.livecode.cursor.grab"
-      set the foregroundColor of the target to revIDEColor("edition_color")
+      -- finally, found where the widgets get their hover colour from (tperry)
+      set the foregroundColor of the target to "90,0,90" -- was revIDEColor("edition_color")
    else if the cTool of the target is empty and the cStatus of the target is not "error" then 
       # We are hovering over a draggable item
       revIDESetCursor "com.livecode.cursor.grab"
-      set the coloroverlay["opacity"] of the target to "50"
+      set the coloroverlay["opacity"] of the target to "100" -- was 50 (tperry)
       set the coloroverlay["color"] of the target to "0,0,0"
    else if the cStatus of the target is "error" then
       # Not working on windows.. get the egg timer so disabling for now
@@ -780,7 +784,8 @@ private on __hiliteAdd pStackLongID
    put tCardID into sHighlightedCard
    put the backcolor of tCardID into sOldBGColor
    put the backPattern of tCardID into sOldBGPattern
-   set the backgroundcolor of tCardID to revIDEColor("edition_color")
+   -- the colour the card changes when you drag in a control from the tools palette (tperry)
+   --set the backgroundcolor of tCardID to "114,0,114" -- was: revIDEColor("edition_color") --commented out (tlittle)
    
    unlock messages
    unlock screen

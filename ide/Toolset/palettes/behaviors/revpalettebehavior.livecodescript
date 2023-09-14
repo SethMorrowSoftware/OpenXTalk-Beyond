@@ -345,7 +345,8 @@ on generateFrame
       else
          set the showNavIcons of widget "header_background" of group "background" of me to true
       end if
-      set the hiliteColor of widget "header_background" of group "background" of me to revIDEColor("edition_color")
+      -- changing the hover and clicked colour of the buttons in the inspector palette (tperry)--(tlittle) changed from "255,0,255"
+      set the hiliteColor of widget "header_background" of group "background" of me to "175,175,175" -- was: set the hiliteColor of widget "header_background" of group "background" of me to revIDEColor("edition_color")
       set the borderColor of widget "header_background" of group "background" of me to "178,178,178"
    else
       if there is a widget "header_background" of group "background" of me then 
@@ -360,7 +361,8 @@ on generateFrame
       set the isHeader of widget "footer_background" of group "background" of me to false
       set the actionData of widget "footer_background" of group "background" of me to tFooterActionDataA
       set the navData of widget "footer_background" of group "background" of me to empty
-      set the hiliteColor of widget "footer_background" of group "background" of me to revIDEColor("edition_color")
+      -- changing footer bkgnd colours (tperry)--(tlittle) changed from "255,0,255"
+      set the hiliteColor of widget "footer_background" of group "background" of me to "175,175,175" -- was: revIDEColor("edition_color")
       set the borderColor of widget "footer_background" of group "background" of me to "178,178,178"
    else
       if there is a widget "footer_background" of group "background" of me then 
@@ -561,8 +563,9 @@ end preOpenStack
 after preOpenStack
    revIDESubscribe "ideDesktopChanged"
    if sHideFrame is not true then
-      put revIDEColor("edition_color") into TAB_SELECTED_TEXT_COLOR
-      put revIDEColor("edition_color") into TAB_HOVER_TEXT_COLOR
+      -- changing tab selected and hover colours to purple (tperry)--(tlittle) changed from "255,0,255"
+      put "175,175,175" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_SELECTED_TEXT_COLOR
+      put "175,175,175" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_HOVER_TEXT_COLOR
       revIDESubscribe "idePreferenceChanged:revPaletteFrameSize"
       generateFrame
       

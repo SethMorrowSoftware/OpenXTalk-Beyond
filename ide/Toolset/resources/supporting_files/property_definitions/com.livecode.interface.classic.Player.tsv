@@ -4,7 +4,7 @@ title	Player
 												
 -----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----
 name												
-filename							execute:get revIDESpecialFolderPath("IDE") & "/Resources/Sample.mpg"	video,audio,media,all				
+filename								video,audio,media,all				
 tooltip												
 alwaysBuffer							false					
 visible							true					

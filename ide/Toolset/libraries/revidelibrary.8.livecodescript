@@ -8538,17 +8538,17 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             set the textStyle[pWhich] of tTarget to true
          end if
          break
-
+         
       case "subscript"
       case "superscript"
          local tTextShiftAmount
-
+         
          if pWhich is "superscript" then put -4 into tTextShiftAmount
          else put 4 into tTextShiftAmount
          if the textShift of tTarget is a number AND the textShift of tTarget is not 0 then 
             put 0 into tTextShiftAmount
          end if
-
+         
          set the textShift of tTarget to tTextShiftAmount
          break
       case "font"
@@ -8569,10 +8569,20 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             end if
          end if
          break
+         --case "color"
+         --if pValue is "Use Owner's Color" then set the textColor of tTarget to empty
+         --else if pValue is "Pen Color" then set textColor of tTarget to the penColor
+         --else set textColor of tTarget to pValue
+         --break
       case "color"
-         if pValue is "Use Owner's Color" then set the textColor of tTarget to empty
-         else if pValue is "Pen Color" then set textColor of tTarget to the penColor
-         else set textColor of tTarget to pValue
+         if pValue is "Use Owner's Color" then
+            set the textColor of tTarget to empty  --remove text color
+            set the backColor of tTarget to empty  --remove hilite
+         else if pValue is "Pen Color" then set the textColor of tTarget to the penColor
+         else if pValue is "Yellow Hilite" then
+            set the backColor of tTarget  to "255,255,170"  --lite yellow hilite
+            set the textColor of tTarget to "0,0,0"  -- explicitly set to black
+         else set the textColor of tTarget to pValue
          break
       case "align"
          // If there is a selection we want to sent the alignment of the paragraph(s) in question
@@ -8850,7 +8860,7 @@ on revIDEToggleShowIDEStacksInLists
    if tFrontStack is not empty then
       set the wholeMatches to true
       local tBringToFront
-      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("revApplicationOverview", tOpenStacks) then
+      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("App Browser", tOpenStacks) then
          put true into tBringToFront
       end if
    end if
@@ -8931,11 +8941,30 @@ on revIDELaunchResource pName
          launch document (revEnvironmentToolsPath() & slash & "Release Notes.pdf")
          break
       case "User Guide"
-         launch document revEnvironmentDocumentationPath() & "/pdf/LiveCode User Guide.pdf"
+         launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "User Guide.pdf")
+         break
+      case "Data Grid Guide"
+         launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "Data Grid Guide.pdf")
+         break
+      case "Tutorials"
+         answer file "Please select a tutorial stack..." with (specialFolderPath("engine") & "/Resources/Examples/")
+         if it = empty then exit to top
+         open stack it
+         break
+      case "Forums"
+         launch url "https://www.openxtalk.org/forum"
          break
       case "Sample Stacks"
-         set the _ideoverride of stack "revonline" to true
-         go stack "revOnline"
+         launch url "https://livecodeshare.runrev.com/"
+         break
+      case "Lessons"
+         launch url "https://lessons.livecode.com/m/4071"
+         break
+      case "Donate"
+         answer "OpenXTalk.org is a volunteer non-profit project." &cr& \
+               "Donations are not yet being accepted." with "Cancel" or "OK" titled "Thank You"
+         if it = "Cancel" then exit to top
+         --launch url "https://www.xxx.com"  --goFundMe?
          break
       case "Sample Scripts"
          launch url "http://lessons.runrev.com/m/2592"
@@ -8943,13 +8972,13 @@ on revIDELaunchResource pName
       case "Beginners Guide"
          launch url "https://livecode.com/resources/guides/beginners-guide/"
          break
-      case "Tutorials"
+         --case "Tutorials"
          launch url "http://livecode.com/links/livecode/tutorials"
          break
       case "All Guides"
          launch url "http://livecode.com/links/livecode/guides"
          break
-      case "Forums"
+         --case "Forums"
          launch url "http://livecode.com/links/livecode/forum"
          break
       case "Technical Questions"

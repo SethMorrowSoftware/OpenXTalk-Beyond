@@ -1,15 +1,11 @@
 ﻿script "revAboutCardBehavior"
 on preOpenStack
    local tEdition, tPath
-   
    lock screen
-   
-   put revEnvironmentEditionProperty("name") && "Edition" into field "Edition"
-   
-   put the version && "| Build" && the buildNumber into field "version"
+   --put revEnvironmentEditionProperty("name") && "Edition" into field "Edition"
+   --put the version && "| Build" && the buildNumber into field "version"
    set the blendLevel of field "version" to 40
-   
-   set the htmlText of field "Copyright" of me to "<p>&copy; 2000-" & word -1 of the long date && "LiveCode Ltd.</p>"
+   set the htmlText of field "Copyright" of me to "<p>(c)" && word -1 of the long date && "OpenXTalk.org</p>"
    revFontApplySystemStyle the long id of field "Copyright" of me, empty, empty
    
    set the textColor of char 1 to -1 of field "displayData" of me to empty

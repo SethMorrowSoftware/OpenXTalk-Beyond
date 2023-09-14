@@ -1,4 +1,4 @@
-In common with many other platforms the LiveCode Software uses open source
+In common with many other platforms this software uses open source
 software to deliver some functionality. Here are copies of all the relevant
 licenses.
 
@@ -263,7 +263,7 @@ mozilla-license
 Source files containing code taken from the Mozilla project relates to
 drawing themed controls using GTK APIs.
 
-The revPDFPrinter component of LiveCode uses a slightly modified version of
+The revPDFPrinter component of this software uses a slightly modified version of
 cairo-1.9.4. The modifications are a combination of minor fixes, tweaks to
 make it run on iOS and additions to PDF output to support links, bookmarks
 and metadata.
