@@ -231,13 +231,13 @@ on generatePalette
    set the linesize of the templategraphic to 0
    set the width of the templategraphic to BLOCK_SIZE
    set the height of the templategraphic to BLOCK_SIZE
-   -- changes the hilited colour behind the paint and draw tools (tperry) "255,0,255" = purple
-   set the backgroundcolor of the templategraphic to "175,175,175" -- was: revIDEColor("edition_color")
+   -- changes the hilited colour behind the paint and draw tools (tperry)
+   set the backgroundcolor of the templategraphic to "255,0,255" -- was: revIDEColor("edition_color")
    
    # Create hilite and hover graphic for tools
    create graphic "tool_hover" in group "contents"
    -- this changes the colour behind the "pointer" and "browse" tool when chosen (tperry)
-   set the backgroundcolor of the templategraphic to "175,175,175" -- was "175,175,175" which was grey
+   set the backgroundcolor of the templategraphic to "255,0,255" -- was "175,175,175" which was grey
    create graphic "tool_hilite" in group "contents"
    
    set the visible of the templategraphic to true
@@ -785,7 +785,7 @@ private on __hiliteAdd pStackLongID
    put the backcolor of tCardID into sOldBGColor
    put the backPattern of tCardID into sOldBGPattern
    -- the colour the card changes when you drag in a control from the tools palette (tperry)
-   --set the backgroundcolor of tCardID to "114,0,114" -- was: revIDEColor("edition_color") --commented out (tlittle)
+   set the backgroundcolor of tCardID to "114,0,114" -- was: revIDEColor("edition_color")
    
    unlock messages
    unlock screen

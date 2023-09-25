@@ -34,7 +34,8 @@ command paneOpenControl
    set the name of the templateField to "View"
    set the lockText of the templateField to true
    set the traversalOn of the templateField to true
-   set the backgroundColor of the templateField to "255,255,255"
+   -- set the backgroundColor of the templateField to "255,255,255" -- tperry - no thanks, don't want background colour to assume it's white
+   set the backgroundColor of the templateField to ""
    set the showBorder of the templateField to false
    set the lockLocation of the templateField to true
    set the margins of the templateField to sMetrics["viewFieldMargins"]

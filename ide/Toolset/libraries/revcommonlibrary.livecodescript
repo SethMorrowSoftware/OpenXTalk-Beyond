@@ -132,7 +132,12 @@ end revRunningWindowsNT
 on revSetWindowsShellCommand
   if the platform is not "Win32" then exit revSetWindowsShellCommand
   set the hideConsoleWindows to true
-  set the shellCommand to $COMSPEC
+  if $COMSPEC is not empty then set the shellCommand to $COMSPEC
+  else
+    --just in case some windows versions don't use $COMSPEC
+    if revRunningWindowsNT() then set the shellCommand to "cmd.exe"
+    else set the shellCommand to "command.com"
+  end if
 end revSetWindowsShellCommand
 
 
@@ -1181,7 +1186,8 @@ function revAnswerFile pType, pPrompt
   -- any corrections can be made in one place
   switch pType
   case "stack"
-    answer file pPrompt with type "LiveCode Stacks|livecode,rev,mc|RSTK,MSTK" or type "All Files|"
+    -- answer file pPrompt with type "LiveCode Stacks|livecode,rev,mc|RSTK,MSTK" or type "All Files|" -- old version
+    answer file pPrompt with type "Stacks|livecode,rev,mc,livecodescript,oxtstack,oxtscript|RSTK,MSTK,STAK" or type "All Files|"  -- (nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
     break
   case "image"
     answer file pPrompt with type "All Picture Files|png,gif,jpg,jpeg,bmp,pct,xbm,xpm,xwd,pbm,ppm,pgm" or type "Portable Network Graphics|png" or type "Joint Photographics Experts Group|jpg,jpeg" or type "Graphics Interchange Format|gif" or type "Windows Bitmap|bmp" or type "Unix Formats|xbm,xpm,xwd,pbm,ppm,pgm" or type "Macintosh PICT - displays on MacOS only|pct" or type "All Files|"
@@ -1204,7 +1210,8 @@ end revAnswerFile
 function revAnswerFiles pType, pPrompt
   switch pType
   case "stack"
-    answer files pPrompt with type "LiveCode Stacks|livecode,rev,mc,livecodescript|RSTK,MSTK" or type "All Files|"
+  -- answer files pPrompt with type "LiveCode Stacks|livecode,rev,mc,livecodescript|RSTK,MSTK" or type "All Files|" -- old version
+     answer files pPrompt with type "Stacks|livecode,rev,mc,livecodescript,oxtstack,oxtscript|RSTK,MSTK,STAK" or type "All Files|" -- (nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
     break
   case "image"
     answer files pPrompt with type "All Picture Files|png,gif,jpg,jpeg,bmp,pct,xbm,xpm,xwd,pbm,ppm,pgm" or type "Portable Network Graphics|png" or type "Joint Photographics Experts Group|jpg,jpeg" or type "Graphics Interchange Format|gif" or type "Windows Bitmap|bmp" or type "Unix Formats|xbm,xpm,xwd,pbm,ppm,pgm" or type "Macintosh PICT - displays on MacOS only|pct" or type "All Files|"

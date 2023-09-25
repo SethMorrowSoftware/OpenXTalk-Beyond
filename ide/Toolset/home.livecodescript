@@ -549,7 +549,7 @@ function revInternal__StackFiles
    put item 1 of the version into tIDEVersion
    repeat for each line tPath in tFolders
       repeat for each line tFile in files(tPath)
-         if the last item of tFile is not among the items of "rev.livecode.livecodescript" then next repeat
+            if the last item of tFile is not among the items of "rev.livecode.livecodescript.stk.oxtstack.oxtscript" then next repeat  -- (nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
          
          put item 1 to -2 of tFile into tStackName
          
@@ -1402,6 +1402,7 @@ command revInternal__InitialiseDefaults
          break
       case "Windows"
          set the hidePalettes to false
+         set the shellCommand to "cmd.exe"
          hide stack "revCursors"
          break
       case "Linux"

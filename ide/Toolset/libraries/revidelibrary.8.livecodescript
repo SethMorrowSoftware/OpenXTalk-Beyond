@@ -5116,6 +5116,12 @@ private on __setPropertyOfObject pObject, pProperty, pValue
 end __setPropertyOfObject
 
 function ideCheckStackName pName
+   -- tperry, stop the error if I try to pick a name of a stack already in use
+   put the openStacks into tOpenStacksList
+   if tOpenStacksList contains pName then
+      answer error revIDELocalise("This stack name is already in use. Please choose a different name.")
+      return false
+   end if
    if char 1 to 3 of pName is "rev" then
       answer warning revIDELocalise("Using rev in the first three characters of a stack name is reserved for use by the LiveCode development environment and advanced users creating Plug-ins. If you use these characters, your stack may not behave as expected.") with revIDELocalise("OK") and revIDELocalise("Cancel")
       if it is revIDELocalise("Cancel") then
@@ -7100,7 +7106,8 @@ function revIDEAcceptedTypes pType
       case "media"
          return revIDEAcceptedTypes("audio") & comma & revIDEAcceptedTypes("video")
       case "stack"
-         return "livecode,rev,lc,livecodescript,mc"
+      -- this bit makes OpenXTalk Lite aware of oxtfiles in the file > open dialog (added by tperry 24-09-2023)
+         return "livecode,rev,lc,livecodescript,mc,oxtstack,oxtscript,stk" -- (nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
       case "text"
          return "txt"
       case "graph"
@@ -7264,7 +7271,7 @@ Launches the standard ask dialog and returns the users selection.
 
 pType (String): The type of file the be selected. If pType is not empty and not among the options below, it is assumed to be a custom filter in the form required by the ask command.
 - image: Launches an ask dialog filtering for the following image file types: JPEG, GIF, PNG.
-- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode.
+- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode, oxtstack.
 - audio: Launches an ask dialog filtering for the following audio file types: mp3, aiif, wav.
 - video: Launches an ask dialog filtering for the following audio file types: mov, mp4.
  pBasePath (Optional String): The default path that the ask dialog should point to when opened. If pBasePath is not specified, the "defaultFolder" is used.
@@ -7299,7 +7306,7 @@ Launches the standard ask dialog and returns the users selection.
 
 pType (String): The type of file the be selected. If pType is not empty and not among the options below, it is assumed to be a custom filter in the form required by the ask command.
 - image: Launches an ask dialog filtering for the following image file types: JPEG, GIF, PNG.
-- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode.
+- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode, oxtstack.
 - audio: Launches an ask dialog filtering for the following audio file types: mp3, aiif, wav.
 - video: Launches an ask dialog filtering for the following audio file types: mov, mp4.
  pBasePath (Optional String): The default path that the ask dialog should point to when opened. If pBasePath is not specified, the "defaultFolder" is used.
@@ -7360,7 +7367,7 @@ private function __answerGetTypeString pType
    local tTagString
    switch pType
       case "stack"
-         put revIDELocalise("LiveCode Stacks") into tTagString
+         put revIDELocalise("OpenXTalk and Livecode Stacks") into tTagString -- (tperry 24-09-2023) -- changed to show we can open both formats in stack open dialog.
          break
       case "image"
          put revIDELocalise("Images") into tTagString
@@ -7392,7 +7399,7 @@ end __answerGetTypeString
 private function __answerGetDefaultInstructions pType
    switch pType
       case "stack"
-         return revIDELocalise("Please select a LiveCode stack") 
+         return revIDELocalise("Please select an OpenXTalk stack") 
       case "image"
          return revIDELocalise("Please select an image") 
       case "video"
@@ -7863,13 +7870,14 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    put tShortName into tSubstitutions[1]
 
    local tStackFilter, tStack24Filter, tStack27Filter, tStack55Filter, tStack70Filter, tStack80Filter
-   put (revIDELocalise("LiveCode Stack") & "|livecode,rev|RSTK") into tStackFilter
+   put (revIDELocalise("OpenXTalk Stack") & "|oxtstack,livecode,rev|STAK|RSTK") into tStackFilter
    put (revIDELocalise("Legacy LiveCode Stack (2.4)") & "|livecode,rev|RSTK") into tStack24Filter
    put (revIDELocalise("Legacy LiveCode Stack (2.7)") & "|livecode,rev|RSTK") into tStack27Filter
    put (revIDELocalise("Legacy LiveCode Stack (5.5)") & "|livecode,rev|RSTK") into tStack55Filter
    put (revIDELocalise("Legacy LiveCode Stack (7.0)") & "|livecode,rev|RSTK") into tStack70Filter
    put (revIDELocalise("Legacy LiveCode Stack (8.0)") & "|livecode,rev|RSTK") into tStack80Filter
    
+   replace "livecode" with "oxtstack" in tStackName -- (tperry) this part gives us the 'oxtstack' extension as default!
    local tVersion
    switch 
       case the scriptOnly of stack tShortName
@@ -7926,8 +7934,8 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    
    # MacOS Auotmatically appends the filetype to the filename
    local tFilePath
-   if the platform is not "MacOS" and not (it ends with ".rev" or it ends with ".livecode" or it ends with ".livecodescript") then
-      put ".livecode" after it
+   if the platform is not "MacOS" and not (it ends with ".rev" or it ends with ".oxtstack" or it ends with ".livecodescript") then
+      put ".oxtstack" after it
       if the scriptOnly of stack tShortName then
          put "script" after it
       end if

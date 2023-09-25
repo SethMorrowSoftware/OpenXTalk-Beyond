@@ -262,7 +262,7 @@ on setMenuProperties
       put space & "(" & item 2 of the version && item 3 of the version & ")" after tTitle
    end if
    set the itemDelimiter to comma
-   put "OpenXTalk Lite .91" into tTitle
+   put "OpenXTalk Lite .9" into tTitle
    set the title of me to tTitle
    
    local tScreenRect
@@ -1183,7 +1183,31 @@ on revMenubarMenuButtonClicked pWhich
          revIDEOpenPalette "Resource Center"
          break
       case "Dictionary"
-         revIDEDocumentationLoad "API", "LiveCode Script"
+      -- (change tperry)
+      set cursor to watch
+      if the shiftkey is down then
+       revIDEDocumentationLoad "API", "LiveCode Script" -- old code where the dictionary was generated from db
+      else
+      -- ensure the behaviour is uniform across all systems when showing the dictionary
+      -- work out current path of dictionary
+      put the long name of this stack into tDictionaryPath
+      if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
+      if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
+      if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
+      replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
+      -- get home folder
+      put specialFolderPath("Home") into tUserFolder
+      if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
+      -- create OXT_Guide/api.html if it doesn't exist
+      if not (there is a file (tUserFolder & ".openxtalk/OXT_Guide/api.html")) then
+         create folder tUserFolder & ".openxtalk"
+         revDeleteFolder (tUserFolder & ".openxtalk/OXT_Guide/")
+      end if
+      revCopyFolder tDictionaryPath, (tUserFolder & ".openxtalk/")
+      -- lastly open in browser
+      launch url (tUserFolder & ".openxtalk/OXT_Guide/api.html")
+      end if 
+         -- end change (tperry)
          break
       case "Test"
          revIDEDeployAction
