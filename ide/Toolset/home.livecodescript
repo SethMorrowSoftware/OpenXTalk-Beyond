@@ -247,6 +247,8 @@ on revInternal__openStack
       revIDEOpenPalette "Welcome"
    else if revIDEPrefGet("StartPageShow") is not "false" then
       */
+
+/* -- disable all this section (tperry)
       if revIDEGetPreference("cStartPageShow") is not "false" then
          revIDEOpenPalette "Start Center"
       end if
@@ -282,6 +284,7 @@ on revInternal__openStack
          put tOldPath into $PATH
       end if
       
+ */
       close stack "revSplash"
       
       revInternal__Log "Leave", "revInternal__openStack"
@@ -786,6 +789,8 @@ command revInternal__ResetPreferences
    put format("blue\nbrown\ndarkorange\nred") into tPropsArray["cBuiltInColors"]
    put "don't remove" into tPropsArray["cASKDestroy"]
    put "Gray50" into tPropsArray["cSelectionHandle"]
+   put "Purple1" into tPropsArray["cToolSelectorColor"] -- tperry
+   put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
    put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
    put "true" into tPropsArray["suppressIDE"]
    put "Property Inspector" into tPropsArray["cABOptionDoubleClick"]
@@ -896,6 +901,7 @@ command revInternal__ResetPreferences
    set the customProperties["cABOptionDoubleClick"] of stack "revPreferences" to tPropsArray
    delete variable tPropsArray
    
+   
    revInternal__SavePreferences
 end revInternal__ResetPreferences
 
@@ -949,19 +955,24 @@ function revInternal__CheckFileAssociations
    set the itemDelimiter to ":"
    put item 2 to -1 of the address into tEnginePath
    
-   if the platform is "win32" then
+   if the platform contains "win" then
       -- If .rev, .livecode or .livecodescript classes are not present, then we need new assocs
       # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
-      if queryRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\") is not "RevolutionStack" or \
+      if queryRegistry("HKEY_CURRENT_USER\Software\Classes\.oxtstack\") is not "OpenXTalkStack" or \  -- added this line (tperry) for oxtstack files
+            queryRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\") is not "RevolutionStack" or \
             queryRegistry("HKEY_CURRENT_USER\Software\Classes\.livecode\") is not "LiveCodeStack" or \ 
             queryRegistry("HKEY_CURRENT_USER\Software\Classes\.livecodescript\") is not "LiveCodeScriptOnlyStack"
       then 
          return true 
       end if 
       
-      -- If .rev, .livecode or .livecodescript classes are not present, then we need new assocs
+      -- If .oxtstack, .rev, .livecode or .livecodescript classes are not present, then we need new assocs
       # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
       replace slash with backslash in tEnginePath
+      get queryRegistry("HKEY_CURRENT_USER\Software\Classes\OpenXTalkStack\Shell\Open\Command\")  -- added this line (tperry) for oxtstack files
+      if word 1 of it is not quote & tEnginePath & quote then 
+         return true 
+      end if 
       get queryRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\Shell\Open\Command\") 
       if word 1 of it is not quote & tEnginePath & quote then 
          return true 
@@ -975,7 +986,15 @@ function revInternal__CheckFileAssociations
          return true 
       end if 
    else
-      -- Do Linux at some point!
+      -- linux file associations are normally handled by the installer. (tperry)
+      -- this doesn't apply for all users  (situations where there are multiple user accounts, or it's a shared device)
+      -- what I add here  is the check for linux file associations for each user who might log in
+      if the platform contains "linux" then
+         doLinuxFileAssociations
+      end if
+      
+      -- if wondering about mac file associations, this is done by the plist file in macOS,
+      -- so it's set for all users automatically by the system
    end if
    
    return false 
@@ -986,10 +1005,12 @@ command revInternal__InstallFileAssociations
    set the itemDelimiter to ":"
    put item 2 to -1 of the address into tEnginePath
    
-   if the platform is "win32" then
+   if the platform contains "win" then -- changed this -- seemed only to look at 32-bit Windows previously (tperry)
       replace slash with backslash in tEnginePath
       # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
-      get setRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\", "RevolutionStack") and \
+      get setRegistry("HKEY_CURRENT_USER\Software\Classes\.oxtstack\", "OpenXTalkStack") and \ -- added these two lines (tperry) for oxtstack files
+            setRegistry("HKEY_CURRENT_USER\Software\Classes\OpenXTalkStack\Shell\Open\Command\", quote & tEnginePath & quote && quote & "%1" & quote) and \ -- second line added (tperry)
+            setRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\", "RevolutionStack") and \
             setRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\Shell\Open\Command\", quote & tEnginePath & quote && quote & "%1" & quote) and \
             setRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\DefaultIcon\", tEnginePath & comma & "1") and \
             setRegistry("HKEY_CURRENT_USER\Software\Classes\.livecode\", "LiveCodeStack") and \
@@ -1447,6 +1468,10 @@ command revInternal__InitialiseOptions
       set the selectionHandleColor to the cSelectionHandleColor of stack "revPreferences"
    end if
    
+    if the cToolSelectorColor of stack "revPreferences" is empty then
+      set the cToolSelectorColor of stack "revPreferences" to "Purple1"
+   end if
+   
    set the navigationArrows to the cNavigationArrows of stack "revPreferences"
    
    global gREVShowStacks, gREVDevelopment
@@ -1713,9 +1738,11 @@ command revInternal__InitialiseFinalSteps
    end if
    
    revInternal__Log "Message", "Closing Splash"
+/* get rid of wait (tperry)
    if the milliseconds - sSplashStartTime < 500 then
       wait 500 - (the milliseconds - sSplashStartTime) milliseconds
    end if
+*/
    close stack "home"
    
    revInternal__Log "Message", "Resetting Cursors"
@@ -2333,11 +2360,104 @@ private function revEnvironmentGuessRepositoryPath pEnginePath
    return tRepositoryPath
 end revEnvironmentGuessRepositoryPath
 
---------------------------------------------------------------------------------
--- Global Environment Functions - General Support
---
-
-function revEnvironmentPlatform
+on doLinuxFileAssociations
+   --------------------------------------------------------------------------------------
+   -- this is where we run the check and the set for linux file associations (tperry)
+   --------------------------------------------------------------------------------------
+   put specialFolderPath("Home") into tHomeFolder
+   if the last char of tHomeFolder is not "/" then put tHomeFolder & "/" into tHomeFolder
+   
+   -- ensure we always have a mimeapps.list
+   create folder (tHomeFolder & ".config/")
+   get shell("touch " & QUOTE & tHomeFolder & ".config/mimeapps.list" & QUOTE)
+   
+   put (tHomeFolder & ".config/mimeapps.list") into tMimeFilename
+   if there is a file (tMimeFilename) then
+      open file tMimeFilename
+      read from file tMimeFilename until EOF
+      put it into tData
+      close file tMimeFilename
+      --
+      put "application/x-extension-oxtstack=openxtalk.desktop;" into tReplaceString
+      if tData contains tReplaceString then
+         -- already has an association
+      else
+         -- there's something for me to do
+         
+         -- first copy the relevant files
+         put the long name of this stack into tBasepath
+         if word 1 of tBasepath is "stack" then delete word 1 of tBasepath
+         if char 1 of tBasepath is QUOTE then delete char 1 of tBasepath
+         if last char of tBasepath is QUOTE then delete last char of tBasepath
+         set the itemdelimiter to "/"
+         delete the last item of tBasepath
+         if the last char of tBasepath is not "/" then put tBasepath & "/" into tBasepath
+         put tBasepath & "Resources/Linux-mimetypes/" into tBasepath
+         --
+         -- get location of xml
+         put "application-extension-oxtstack.xml" into tShortFilename
+         put tBasepath & tShortFilename into tSourceFile
+         create folder tHomeFolder & ".local/"
+         create folder tHomeFolder & ".local/share/"
+         create folder tHomeFolder & ".local/share/mime/"
+         create folder tHomeFolder & ".local/share/mime/packages/"
+         put tHomeFolder & ".local/share/mime/packages/" into tDestFolder
+         set the defaultFolder to tDestFolder
+         put the files into tFileScan
+         if not (tFileScan contains tShortFilename) then
+            get shell ("cp " & QUOTE & tSourceFile & QUOTE & " " & QUOTE & tDestFolder & QUOTE)
+         else
+            -- file already exists, don't copy
+         end if
+         
+         -- get location of xml
+         put "openxtalk.desktop" into tShortFilename
+         put tBasepath & tShortFilename into tSourceFile
+         create folder tHomeFolder & ".local/"
+         create folder tHomeFolder & ".local/share/"
+         create folder tHomeFolder & ".local/share/applications/"
+         put tHomeFolder & ".local/share/applications/" into tDestFolder
+         set the defaultFolder to tDestFolder
+         put the files into tFileScan
+         if not (tFileScan contains tShortFilename) then
+            get shell ("cp " & QUOTE & tSourceFile & QUOTE & " " & QUOTE & tDestFolder & QUOTE)
+         else
+            -- file already exists, don't copy
+         end if
+         
+         -- add association
+         put 0 into tcount
+         put "[Added Associations]" into tLookingFor
+         repeat the number of lines in tData
+            add 1 to tcount
+            if line tcount of tData contains tLookingFor then
+               put line tcount of tData & return & tReplaceString into line tcount of tData
+               exit repeat
+            end if
+         end repeat
+         delete file tMimeFilename
+         open file tMimeFilename
+         write tData to file tMimeFilename
+         close file tMimeFilename
+         
+         -- update database (not strictly necessary)
+         get shell ("update-mime-database ~/.local/share/mime")
+      end if
+      -- 
+   else
+      -- no file exists
+   end if
+   
+   --------------------------------------------------------------------------------------
+   -- end of where we run the check and the set for linux file associations (tperry)
+   --------------------------------------------------------------------------------------
+end doLinuxFileAssociations
+   
+   --------------------------------------------------------------------------------
+   -- Global Environment Functions - General Support
+   --
+   
+   function revEnvironmentPlatform
    local tPlatform
    
    switch the platform

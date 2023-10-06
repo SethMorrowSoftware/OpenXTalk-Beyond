@@ -15,11 +15,6 @@ on preOpenCard
       put true into tStandaloneSettingsA["MacOSX x86-64"]
    end if
    
-   if tStandaloneSettingsA["MacOSX x86-32"] then
-      delete variable tStandaloneSettingsA["MacOSX x86-32"]
-      put true into tStandaloneSettingsA["MacOSX x86-64"]
-   end if
-   
    setSettings tStandaloneSettingsA
    
    set the enabled of group "OSX" to false

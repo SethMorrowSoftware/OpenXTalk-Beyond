@@ -1,4 +1,4 @@
-﻿script "revInspectorBehavior"
+﻿script "revInspectorBehavior" with behavior "revPaletteBehavior"
 constant kMaxLabelSize = 200
 
 # The inspector data
@@ -40,6 +40,7 @@ before openStack
    set the stackfiles of me to tStackFiles
    revIDEPopDefaultFolder
    put true into sStackIsInFront
+   
 end openStack
 
 on resizeInspector
@@ -51,6 +52,9 @@ end resizeInspector
 constant kInspectorMinHeight = 200
 constant kInspectorMinWidth = 220
 on inspectorOpenEditor pEditor
+   
+  tCheckBuntuEditing -- #workaround bug with inspector under Ubuntu (tperry 02-09-2023)
+   
    # Check if the stack is already open
    if there is a stack pEditor then exit inspectorOpenEditor
    
@@ -752,3 +756,27 @@ on ideStyleTextRequest pWhich, pValue, pSelectedChunk, pSelectedObject
       end if
    end if
 end ideStyleTextRequest
+
+
+on faultlog
+   if there is a cd fld "result" of wd "debug" then put the ticks into cd fld "result" of wd "debug"
+end faultlog
+
+
+on tCheckBuntuEditing
+   if the platform contains "linux" then
+      if $desktop_session contains "ubuntu" then
+         -- we are going to ignore what's set in the preferences
+         -- we need to hide the message box and the Inspector palette
+         put  the openstacks into tStackList
+         if tStackList contains "revNewScriptEditor 1"then
+            if tStackList contains "Message Box" then hide message box
+            if there is a stack "revPropertyInspector 1" then
+               if the visible of stack "revPropertyInspector 1" is true then
+                  close stack "revPropertyInspector 1"
+               end if
+            end if
+         end if
+      end if
+   end if
+end tCheckBuntuEditing

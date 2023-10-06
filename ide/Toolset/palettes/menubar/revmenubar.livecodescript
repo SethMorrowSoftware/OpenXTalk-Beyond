@@ -19,6 +19,21 @@ on preOpenStack
    # Since the menubar is topleveled on Linux and Windows, set the cantModify to true
    # to prevent users being able to alter the menubar stack.
    set the cantModify of me to true
+   
+   set the decorations of stack "revMenubar" to empty -- don't need a huge close-box (tperry)
+   
+   -- mac specific fix for placement
+   if the platform contains "mac" then set the top of wd "revMenuBar" to 22
+   -- linux & win specific fix for placement (going top left - should ignore menubar and panels in a good linux distro!) -- tperry
+   if the platform contains "linux" or the platform contains "win" then 
+      set the top of wd "revMenuBar" to 0
+      set the left of  wd "revMenuBar" to 0
+   end if
+   
+   
+   -- # bug - window juggling, only affects ubuntu I think? (tperry 02-09-2023)
+   tCheckBuntuWdBug
+   
 end preOpenStack
 
 on closeStackRequest
@@ -225,12 +240,12 @@ function revMenuBarRecentFiles
          put return & tab & revMenubarEscapeStackNameForMenu(tRecentFiles[x]["label"]) & "/|" & tRecentFiles[x]["filename"] after tMenu
       end if
    end repeat
-
+   
    if tMenu is not empty then
       put return & tab & "-" after tMenu
       put return & tab & "Clear Recent Files" & "/|" & kClearRecentFiles after tMenu
    end if
-
+   
    return tMenu
 end revMenuBarRecentFiles
 
@@ -261,10 +276,18 @@ on setMenuProperties
    if item 2 of the version is not empty then
       put space & "(" & item 2 of the version && item 3 of the version & ")" after tTitle
    end if
-   set the itemDelimiter to comma
-   put "OpenXTalk Lite .9" into tTitle
+   
+   -- dynamically change title to whatever is in file about.dat (tperry)
+   -- just means it's reading from the same place as the about stack, so one place to change everything when it comes to modifying version
+   set the itemDelimiter to "/"
+   put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
+   put textDecode(url ("binfile:" & tFilePath), "utf-8") into tAboutInfoText
+   put line 1 of tAboutInfoText into tAboutInfoText
+   if not isNumber(last char of tAboutInfoText) then delete last char of tAboutInfoText -- strip CR line endings if present
+   put tAboutInfoText into tTitle
    set the title of me to tTitle
    
+   set the itemDelimiter to comma
    local tScreenRect
    put revIDEStackScreenRect(the short name of this stack, true) into tScreenRect
    
@@ -845,7 +868,7 @@ on updateButtonHilite pTargetName, pValue
    end if
    
    set the showIcon of tTargetLongID to tShowIcon
-
+   
    unlock messages
    unlock screen
 end updateButtonHilite
@@ -1005,7 +1028,7 @@ private on setButtonDepressed pTarget
    end if
    setButtonHilite pTarget, not the hilite of pTarget
    set the showIcon of pTarget to tShowIcon
-
+   
    unlock messages
    unlock screen
 end setButtonDepressed
@@ -1183,30 +1206,28 @@ on revMenubarMenuButtonClicked pWhich
          revIDEOpenPalette "Resource Center"
          break
       case "Dictionary"
-      -- (change tperry)
-      set cursor to watch
-      if the shiftkey is down then
-       revIDEDocumentationLoad "API", "LiveCode Script" -- old code where the dictionary was generated from db
-      else
-      -- ensure the behaviour is uniform across all systems when showing the dictionary
-      -- work out current path of dictionary
-      put the long name of this stack into tDictionaryPath
-      if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
-      if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
-      if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
-      replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
-      -- get home folder
-      put specialFolderPath("Home") into tUserFolder
-      if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
-      -- create OXT_Guide/api.html if it doesn't exist
-      if not (there is a file (tUserFolder & ".openxtalk/OXT_Guide/api.html")) then
-         create folder tUserFolder & ".openxtalk"
-         revDeleteFolder (tUserFolder & ".openxtalk/OXT_Guide/")
-      end if
-      revCopyFolder tDictionaryPath, (tUserFolder & ".openxtalk/")
-      -- lastly open in browser
-      launch url (tUserFolder & ".openxtalk/OXT_Guide/api.html")
-      end if 
+         -- (change tperry)
+         -- by the way, if you think this method is complex, you should see the method of generating the database from the sql api!
+         set cursor to watch
+         if the shiftkey is down then
+            -- if shiftkey clicked, then ALWAYS generate from api (ignore preferences)
+            revIDEDocumentationLoad "API", "LiveCode Script" -- old code where the dictionary was generated from db
+         else
+            -- shiftkey isn't being touched and for showing dictionary method, use what is specified in the preferences
+            if the cDictionaryDisplayMethod of stack "revPreferences" is true then
+               -- show in external browser
+               if the platform contains "mac" or the platform contains "linux" then
+                  tShowDictionaryMacLin
+               end if
+               if the platform contains "win" then 
+                  tShowDictionaryWin
+               end if
+            else
+               -- checkbox to use external browser is off - use old API (built-in widget method)
+               -- this will likely fail on most Linux distros
+               revIDEDocumentationLoad "API", "LiveCode Script" -- old code where the dictionary was generated from db
+            end if
+         end if
          -- end change (tperry)
          break
       case "Test"
@@ -1888,9 +1909,9 @@ end buildRotateSubmenu
 
 private function buildDistributeSubmenu
    return \
-   tab & tab & "First to last selected" & return & \
-   tab & tab & "Edge to edge" & return & \
-   tab & tab & "Across card"
+         tab & tab & "First to last selected" & return & \
+         tab & tab & "Edge to edge" & return & \
+         tab & tab & "Across card"
 end buildDistributeSubmenu
 
 private function buildAlignSubmenu
@@ -2539,7 +2560,7 @@ on iconifyStack
    put the openStacks into tOpenStackslist
    repeat for each line l in tOpenStacksList
       if l is "revMenuBar" then next repeat
-       
+      
       -- Fix for stacks reappearing if they were hidden before a minimize.
       revMetaDataSet the name of stack l, "general", "AlreadyHidden", not the visible of stack l
       
@@ -3064,7 +3085,7 @@ on revMenubarTextMenuPick pWhich
    else 
       put pWhich into tPickedItem
    end if
-
+   
    switch tPickedItem
       case "plain"
          revIDEStyleTextPlain
@@ -3257,3 +3278,116 @@ on revMenubarHelpMenuPick pWhich
          break
    end switch
 end revMenubarHelpMenuPick
+
+
+on tCheckBuntuWdBug
+   -- bug fix for weird 'window juggling' behaviour under Ubuntu (and 'buntu-based) distros
+   -- tperry 02-09-2023
+   if the platform contains "linux" then
+      if $desktop_session contains "ubuntu" then
+         lock screen
+         set lockmessages to true
+         if there is a wd "RevTools" then
+            set the style of wd "RevTools" to modeless
+            set the systemwindow of wd "RevTools" to false
+         end if
+         if there is a wd "Message Box" then
+            set the style of wd "Message Box" to modeless
+            set the systemwindow of wd "Message Box" to false
+         end if
+         if there is a wd "RevInspector" then
+            set the style of wd "RevInspector" to modeless
+            set the systemwindow of wd "RevInspector" to false
+         end if
+         if there is a wd "revSETemplate" then
+            set the style of wd "revSETemplate" to toplevel
+            set the systemwindow of wd "revSETemplate" to false
+         end if
+         if there is a wd "App Browser" then
+            set the style of wd "App Browser" to toplevel
+            set the systemwindow of wd "App Browser" to false
+         end if
+         set lockmessages to false
+         unlock screen
+      end if
+   end if
+end tCheckBuntuWdBug
+
+on tShowDictionaryMacLin
+   -- work out current path of dictionary
+   put the long name of this stack into tDictionaryPath
+   if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
+   if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
+   if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
+   replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
+   -- get home folder
+   put specialFolderPath("Home") into tUserFolder
+   if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
+   -- create OXT_Guide/api.html if it doesn't exist
+   if not (there is a file (tUserFolder & ".openxtalk/OXT_Guide/api.html")) then
+      create folder tUserFolder & ".openxtalk" -- make sure we have an openxtalk folder
+      revDeleteFolder (tUserFolder & ".openxtalk/OXT_Guide/") -- delete the guide if incomplete
+   end if
+   if the last char of tDictionaryPath is "/" then delete the last char of tDictionaryPath
+   put "cp -R " & QUOTE & tDictionaryPath & QUOTE & " " & QUOTE & (tUserFolder & ".openxtalk/") & QUOTE into ttermcmd
+   -- answer ttermcmd -- debug
+   set the hideConsoleWindows to true
+   get shell (ttermcmd)
+   -- lastly open in browser (platform specific I've found!)
+   if the platform contains "mac" then -- open dictionary method for mac
+      put ("open " & QUOTE & (tUserFolder & ".openxtalk/OXT_Guide/api.html") & QUOTE) into tcommand
+      put "exec " & tcommand & " > /dev/null 2>/dev/null & " into tNoWaitShellCommand
+      get shell(tNoWaitShellCommand)
+   else
+      -- going to be linux
+      put ("xdg-open " & QUOTE & (tUserFolder & ".openxtalk/OXT_Guide/api.html") & QUOTE) into tcommand
+      put "exec " & tcommand & " > /dev/null 2>/dev/null & " into tNoWaitShellCommand
+      get shell(tNoWaitShellCommand)
+   end if
+end tShowDictionaryMacLin
+
+on tShowDictionaryWin
+   put specialfolderpath("support") into tUserFolder
+   if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
+   create folder tUserFolder & "RunRev/" -- make sure runRev folder exists
+   if not (there is a folder (tUserFolder & "RunRev/Dictionary/")) then
+      -- dictionary not present
+      -- work out current path of dictionary (ugh, Windows)
+      put the long name of stack "revMenubar" into tDictionaryPath
+      set the itemdelimiter to "/"
+      if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
+      if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
+      repeat 3
+         if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
+      end repeat
+      create folder tUserFolder & "RunRev/Dictionary/" -- create Dictionary folder
+      create folder tUserFolder & "RunRev/Dictionary/OXT_Guide" -- create OXT_Guide folder
+      replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
+      put tUserFolder & "RunRev/Dictionary/OXT_Guide" into tDestination
+      put item 1 of tDictionaryPath into tDriveLetterSrc
+      put item 1 of tDestination into tDriveLetterDest
+      replace "/" with "\" in tDictionaryPath
+      replace "/" with "\" in tDestination
+      if char 1 of tDictionaryPath is "\" then delete char 1 of tDictionaryPath
+      if char 1 of tDestination is "\" then delete char 1 of tDestination
+      set the itemdelimiter to "\"
+      put tDriveLetterSrc into item 1 of tDictionaryPath
+      put tDriveLetterDest into item 1 of tDestination
+      set the itemdelimiter to "/"
+      replace "/\" with "/" in tDictionaryPath
+      replace "/\" with "/" in tDestination
+      if the last char of tDictionaryPath is "\" then delete last char of tDictionaryPath
+      if the last char of tDestination is "\" then delete last char of tDestination
+      set the hideConsoleWindows to true
+      put "xcopy " & QUOTE & tDictionaryPath & QUOTE & " " &  QUOTE & tDestination & QUOTE & " /E/H/C/I/Q" into tTermCommand
+      -- put tTermCommand --
+      get shell(tTermCommand)
+      -- revCopyFolder(tDictionaryPath, tDestination) -- doesn't work!
+   else
+      -- dictionary already present
+   end if
+   set the hideConsoleWindows to true
+   replace "/" with "\" in tUserFolder
+   put tUserFolder & "RunRev\Dictionary\OXT_Guide\api.html" into tURL
+   get shell (QUOTE & tURL & QUOTE) -- this will lock OXT until a browser closed unfortunately
+end tShowDictionaryWin

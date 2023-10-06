@@ -32,7 +32,7 @@ end preOpenStack
 
 on preOpenCard
    if the editionType is "commercial" and revLicenseInfo["com.livecode.norevenuelimit"] is empty then
-      set the visible of field "License" to true
+      set the visible of field "License" to false
    else
       set the visible of field "License" to false
    end if
@@ -55,16 +55,23 @@ end setBackgroundImage
 
 on loadText pType
    local tFilePath
-   set the itemDel to "/"
+   set the itemDelimiter to "/"
    switch pType
       case "about"
-         put item 1 to -3 of the filename of stack "home" & "/about.txt" into tFilePath
+         put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
          break
       case "legal"
          put item 1 to -3 of the filename of stack "home" & "/Open Source Licenses.txt" into tFilePath
          break
    end switch
-   put textDecode(url ("binfile:" & tFilePath), "utf-8") into field "credits" of me
+   put textDecode(url ("binfile:" & tFilePath), "utf-8") into tAboutFieldData
+   put line 1 of tAboutFieldData into tAboutInfoText
+   delete line 1 of tAboutFieldData
+   put tAboutFieldData into field "credits" of me
+   --
+   put line 1 of tAboutInfoText into tAboutInfoText
+   if not isNumber(last char of tAboutInfoText) then delete last char of tAboutInfoText -- strip CR line endings if present
+   put tAboutInfoText into cd fld "Edition" of me
 end loadText
 
 function aboutHiliteColor
