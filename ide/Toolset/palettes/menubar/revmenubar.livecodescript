@@ -1,5 +1,6 @@
 ﻿script "revMenuBar"
 local sMenuTarget
+
 on preOpenStack
    global gREVDontLoadMenus
    if gREVDontLoadMenus then
@@ -30,10 +31,20 @@ on preOpenStack
       set the left of  wd "revMenuBar" to 0
    end if
    
-   
+   -- tperry (draw a drag handle on the left)
+	tMenuBar_MakeDragHandle
+
+-- move location of dictionary button (tperry)
+set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
+            
    -- # bug - window juggling, only affects ubuntu I think? (tperry 02-09-2023)
    tCheckBuntuWdBug
    
+   -- truncate size of revmenubar
+   tMenuBar_AdjustWDSize
+   
+   -- darkmode check
+   send tDarkLightCheck to this stack in 1 tick -- gets ignored if Linux
 end preOpenStack
 
 on closeStackRequest
@@ -383,7 +394,7 @@ on generateMenubarUI
    set the threed of the templatebutton to false
    set the borderwidth of the templatebutton to 0
    set the blendlevel of the templatebutton to 0
-   set the margins of the templatebutton to "4,0,4,1"
+   set the margins of the templatebutton to "3,0,3,1" -- truncate width slightly (for smaller screens) - tperry
    set the traversalOn of the templatebutton to false
    set the autoHilite of the templatebutton to false
    
@@ -453,14 +464,14 @@ on generateMenubarUI
    set the disabledIcon of the templatebutton to 0
    
    generateTutorialGroup
-   generateUpgradeGroup
+   generateUpgradeGroup -- can I comment this without causing errors? (no, it seems)
    
    reset the templategraphic
    reset the templatebutton
    reset the templateimage
    reset the templatefield
    
-   unlock messages
+   unlock messages 
 end generateMenubarUI
 
 private command generateTutorialGroup
@@ -506,6 +517,7 @@ private command generateUpgradeGroup
       delete group "upgrade" of me
    end if
    
+   
    create group "upgrade"
    set the margins of it to 0
    
@@ -527,6 +539,7 @@ private command generateUpgradeGroup
    set the textColor of it to "white"
    
    hide group "upgrade" of me
+  
 end generateUpgradeGroup
 
 on generateMenuGroup
@@ -620,7 +633,7 @@ on layoutMenu
    local tLeft, tTop
    put kPadding into tLeft
    
-   if the platform is "macos" then 
+   if the platform is "macos" then -- menu on mac is always drawn, even if not visible? (tperry - query this)
       put kMenuBarTop into tTop
    else
       put kMenuBarTop + kMenuBarHeight into tTop
@@ -1957,17 +1970,20 @@ private function revMenubarHelpMenu pContext
    //put "Welcome Screen/|Welcome" & return after tHelp
    put "Dictionary/|Dictionary" & return after tHelp  --reorganize help menu
    put "User Guide" & return after tHelp
-   put "Data Grid Guide" & return after tHelp
-   put "Tutorials" & return after tHelp
-   put "-" & return after tHelp
-   put "Forums" & return after tHelp
-   put "Sample Stacks" & return after tHelp
-   put "Lessons" & return after tHelp
-   put "Donate" & return after tHelp
-   put "-" & return after tHelp
-   put "Release Notes/|Release Notes" & return after tHelp
-   put "-" & return  after tHelp
+   --put "Data Grid Guide" & return after tHelp -- (tperry) remove & simplify this menu using additional commenting out --
+   --put "Tutorials" & return after tHelp
+   --put "-" & return after tHelp
+   --put "Forums" & return after tHelp
+   --put "Sample Stacks" & return after tHelp
+   --put "Lessons" & return after tHelp
+   --put "Donate" & return after tHelp
+   --put "-" & return after tHelp
+   --put "Release Notes/|Release Notes" & return after tHelp
+   --put "-" & return  after tHelp
    put "About/|About" after tHelp
+   
+   
+  
    /*  --start block comment
    put "Start Center/|Start Center" & return after tHelp
    put "User Guide" & return after tHelp
@@ -3391,3 +3407,103 @@ on tShowDictionaryWin
    put tUserFolder & "RunRev\Dictionary\OXT_Guide\api.html" into tURL
    get shell (QUOTE & tURL & QUOTE) -- this will lock OXT until a browser closed unfortunately
 end tShowDictionaryWin
+
+
+on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the revMenubar. As discussed on the OpenXTalk forum.
+   set the right of group "toolbar" to the right of stack "revMenubar" +4 -- position toolbar group to the right-hand edge of wd (tperry)
+   set the cantmodify of stack "revMenubar" to false
+   if there is no graphic "draghandle" of card 1 of this stack then
+      create graphic "draghandle" in card 1 of this stack 
+   end if
+   if the platform contains "mac" then
+      set the height of graphic "draghandle" to 47 -- yeah, fixed height as mac won't behave itself
+      set the bottom of graphic "draghandle" of stack "revMenubar" to 47
+   else
+      set the height of graphic "draghandle" to the height of group "toolbar" of stack "revMenubar" -2
+      set the bottomleft of graphic "draghandle" to the bottomleft of this wd
+   end if	
+   set the width of graphic "draghandle" to 10 -- how large you want the handle (made smaller)
+   set the linesize of graphic "draghandle" to 0
+   set the opaque of graphic "draghandle" to true
+   set the backgroundPattern of graphic "draghandle" to 210091
+   set the blendlevel of graphic "draghandle" to 50
+   set the left of graphic "draghandle" to 0
+   set the ink of graphic "draghandle" to blendDifference
+   -------------------------------------------------------------------
+   put "local sgDragging, sgLeftOffset, sgTopOffset" & return &¬
+   "on mouseDown" & return &¬
+   "	put item 1 of the mouseLoc into sgLeftOffset" & return &¬
+   "	put item 2 of the mouseLoc into sgTopOffset" & return &¬
+   "	put true into sgDragging" & return &¬
+   "end mouseDown" & return &¬
+   "on mouseMove" & return &¬
+   "	lock screen" & return &¬
+   "	if sgDragging is true then" & return &¬
+   "		set the left of this stack to item 1 of globalloc(the mouseLoc) - sgLeftOffset -1" & return &¬
+   "		set the top of this stack to item 2 of globalloc(the mouseLoc) - sgTopOffset" & return &¬
+   "	end if" & return &¬
+   "   	if the mouse is up then put false into sgDragging" & return &¬
+   "	unlock screen" & return &¬
+   "end mouseMove" & return &¬
+   "on mouseRelease" & return &¬
+   "   	put false into sgDragging" & return &¬
+   "end mouseRelease" & return &¬
+   "on mouseLeave" & return &¬
+   "   	put false into sgDragging" & return &¬
+   "end mouseLeave" into tNewDragScript
+   set the script of graphic "draghandle" to tNewDragScript
+   -------------------------------------------------------------------
+   set the cantmodify of stack "revMenubar" to true
+end tMenuBar_MakeDragHandle
+
+on tMenuBar_AdjustWDSize
+-- clean up the MenuBar (tperry)
+   -- remove stuff that is broken as of 26-10-2023
+   if there is a cd btn "Sample Stacks" of card 1 of wd "revMenuBar" then -- needs cleanup
+   hide cd btn "Sample Stacks" of cd 1 of wd "revMenuBar"
+      if there is a cd btn "Tutorials" of card 1 of wd "revMenuBar" then hide cd btn "Tutorials" of card 1 of wd "revMenuBar"
+      if there is a cd btn "Resources" of card 1 of wd "revMenuBar" then hide cd btn "Resources" of card 1 of wd "revMenuBar"
+      if there is a cd btn "Test" of card 1 of wd "revMenuBar" then hide cd btn "Test" of card 1 of wd "revMenuBar"
+   end if  
+   
+-- shorten the size of the revMenubar stack (tperry)
+-- assuming the "Dictionary" button is going to be the last on the right
+set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Dictionary" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
+end tMenuBar_AdjustWDSize
+
+on tDarkLightCheck
+   ---------------------------------------- dark mode check (tperry) ------------------------------------------
+   put "light" into tAppearanceMode
+   if the platform contains "mac" then
+      -- this returns the correct information if the user is using dark or light mode
+      put the systemAppearance into tAppearanceMode
+   end if
+   if the platform contains "linux" then
+      -- don't do anything special for linux. It seems to know what to use 'out-of-the-box'
+      put "skip" into tAppearanceMode
+   end if
+   if the platform contains "win" then
+      put "reg Query " & QUOTE & "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" & QUOTE & " /v SystemUsesLightTheme" into tWinCmd
+      set the hideConsoleWindows to true
+      put shell(tWinCmd) into tWinAppearanceMode
+      filter lines of tWinAppearanceMode without empty
+      if tWinAppearanceMode contains "0x0" then
+         put "skip" into tAppearanceMode
+         send tApplyTheme_Win_Dark to stack "home"
+      else
+         put "skip" into tAppearanceMode
+         send tApplyTheme_Win_Light to stack "home"
+      end if
+   end if
+   --
+   if not (tAppearanceMode contains "skip") then
+      if tAppearanceMode is "dark" then
+         setAppToDarkMode
+      else
+         setAppToLightMode
+      end if
+   else
+      -- we are on linux, so skip theming
+   end if  
+   ------------------------------------- end dark mode check (tperry) ------------------------------------------
+end tDarkLightCheck

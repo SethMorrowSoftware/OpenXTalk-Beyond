@@ -8812,6 +8812,30 @@ on revIDEToggle pProperty
             unlock messages
          end if
          break
+         case "Layout Guides" -- tperry, nicked this from RC4 version. Thanks to Paul for this!
+         if the cLayoutGuides of stack "revPreferences" is true then
+            -- the guides are on so turn them off
+            lock screen
+            send "extensionFinalize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
+               revInternal__UnloadLibrary "community.ferruslogic.plugin.devguides"
+               -- lock messages
+                close stack "community.ferruslogic.plugin.devguides"
+                revIDESetPreference "cLayoutGuides", false
+               -- unlock messages
+               unlock screen
+         else -- the guides are off so turn them on
+            lock screen
+            send "extensionInitialize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
+            revInternal__LoadLibrary "community.ferruslogic.plugin.devguides"
+            -- lock messages
+             open stack "community.ferruslogic.plugin.devguides"
+             revIDESetPreference "cLayoutGuides", true
+            -- unlock messages
+            unlock screen
+         end if
+         # No need to send toggle message as idePreferenceChanged will be sent
+         exit revIDEToggle
+         break
       case "Backdrop"
          if the backDrop is "none" then
             set the backDrop to revIDEGetPreference("cBackDropColor")

@@ -1,4 +1,4 @@
-﻿script "revSEStackBehavior"
+script "revSEStackBehavior"
 
 on setBehaviors
    set the behavior of group "Editor" of me to the long id of stack revIDEScriptEditorBehavior("editor")
@@ -2571,7 +2571,7 @@ command revSEInitialize pDontCheckTarget
    # On OS X, toplevel windows have a white background, which is both inconsistent with the rest of the IDE
    # and looks bad.
    if seGetPlatform() is "MacOS" then
-      set the backgroundColor of me to "236,236,236"
+      -- set the backgroundColor of me to "236,236,236" -- commented out (tperry)
    end if
    
    actionResizeStack true
