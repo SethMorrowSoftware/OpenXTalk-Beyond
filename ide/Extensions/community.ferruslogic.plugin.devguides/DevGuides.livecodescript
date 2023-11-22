@@ -13,7 +13,19 @@ local  sMessageID,  sGridSystem, sThisCard, sControls, sLabels
 constant kGuideLineColor = "255,0,255", kGuideLabelColor = "56,56,255", kGuideLineCardColor = "255,128,0", kGuideLabelCardColor = "0,128,0"
 
 on extensionInitialize
-    if the target is not me or the long id  of me is among the lines of the backscripts then  pass extensionInitialize
+   -- revised the layoutguides (22-11-2023), made this an option in prefs (tperry)
+   if the cLayoutGuides of stack "revPreferences" is true then
+      -- guides are on
+   else
+      -- guides are off, unload
+      revIDEUnsubscribeAll the long id of me
+      remove the script of me from back
+      set the destroyStack of this stack to true
+      close this stack
+	  exit extensionInitialize
+   end if
+   
+   if the target is not me or the long id  of me is among the lines of the backscripts then  pass extensionInitialize
 
     insert the script of me into back
     set the _ideoverride of me to true

@@ -516,6 +516,13 @@ on mouseDoubleUp
    local tObject
    revIDECreateObject the short name of the target, the long ID of the topStack, the loc of this cd of the topStack
    put the result into tObject
+   
+   -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by double clicking
+   -- (if that option is turned on in the preferences)
+   if the cPrePopulateScripts of stack "revpreferences" is true then
+      -- this is turned on, so adding script to the new object that has just been created (by double click)
+      put tPopulateWithScript(tObject) into tPopulateResult -- store the result (we could do something if unsuccessful here)
+   end if
    choose pointer tool
    select tObject
    unlock screen
@@ -714,6 +721,12 @@ on mouseDown pButton
          set the defaultstack to tToolsStackID
          revIDESetTool "pointer"
          select tCreateObjectID
+         -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by dragging
+         -- (if that option is turned on in the preferences)
+         if the cPrePopulateScripts of stack "revpreferences" is true then
+            -- this is turned on, so adding script to the new object that has just been created (by double click)
+            put tPopulateWithScript(tCreateObjectID) into tPopulateResult -- store the result (we could do something if unsuccessful here)
+         end if
          exit repeat 
       end if
    end repeat
@@ -1262,3 +1275,67 @@ on moveStack
    ideSetWindowBoundingRect
    pass moveStack
 end moveStack
+
+function tPopulateWithScript tNewObject
+   put the effective filename of stack "revTools" into tToolsPath
+   set the itemdelimiter to "/"
+   put "" into tNewObjectStyle
+   put "" into tShortScriptFN
+   put "" into tLongScriptFN
+   delete the last item of tToolsPath
+   put tToolsPath & "/scriptsnippets/" into tToolsPath
+   -- conditional, depending on what is added
+   put word 1 of tNewObject into tNewObjectType
+   if tNewObjectType is "button" then -- work out what the script snippet path would be
+      put "put the style of " & tNewObject & " into tNewObjectStyle" into tStyleFind
+      do tStyleFind
+      if word 1 of the short name of tNewObject is "option" then put "optionmenu" into tNewObjectStyle
+      if word 1 of the short name of tNewObject is "pulldown" then put "pulldownmenu" into tNewObjectStyle
+      if word 1 of the short name of tNewObject is "combobox" then put "combobox" into tNewObjectStyle
+      put tNewObjectStyle & "_" & tNewObjectType & ".snippet" into tShortScriptFN
+   end if
+   if tNewObjectType is "field" then -- work out what the script snippet path would be
+      put "put word 1 of the short name of " & tNewObject & " into tNewObjectStyle" into tStyleFind
+      do tStyleFind
+      if the vScrollbar of tNewObject is true then 
+         put "scrollingfield" into tNewObjectStyle
+         if the lockText of tNewObject is true then
+            put "scrollinglistfield" into tNewObjectStyle
+            if word 1 of the short name of tNewObject is "table" then put "table" into tNewObjectStyle
+         end if
+      end if
+      put tNewObjectStyle & "_" & tNewObjectType & ".snippet" into tShortScriptFN
+   end if
+   if tNewObject contains "group" then
+      put word 1 of the short name of  tNewObject  into tNewObjectStyle
+      if tNewObjectStyle contains "datagrid" then put  "datagrid" & "_" & tNewObjectType & ".snippet" into tShortScriptFN
+   end if
+   if tNewObjectType is "scrollbar" then -- scrollbars
+      put word 1 of the short name of tNewObject & "_" & tNewObjectType & ".snippet" into tShortScriptFN
+   end if
+   if word 1 of tNewObject is "image" then put "image"  & ".snippet" into tShortScriptFN
+   if word 1 of tNewObject is "player" then exit tPopulateWithScript -- player is broken as far as I'm concerned
+   if word 1 of tNewObject is "graphic" then 
+      put "graphic"  & ".snippet" into tShortScriptFN
+      send mouseup to tNewObject in 5 ticks -- send the mouseup message to the new graphic, but give it a few moments for the graphic to have it's script populated.
+   end if
+   
+   put toLower(tShortScriptFN) into tShortScriptFN -- make sure it's always lowercase, as MacOS and Linux are case sensitive File systems
+   -- set the script
+   put tToolsPath & tShortScriptFN into tLongScriptFN
+   if there is a file tLongScriptFN then
+      open file tLongScriptFN
+      read from file tLongScriptFN until EOF
+      put it into tScriptData
+      close file tLongScriptFN
+      if tScriptData is "" then 
+         put "please change access permissions on file:  '" & tLongScriptFN & "'"-- show path in message box if can't read it! (likely permissions related)
+      else
+         put "set the script of " & tNewObject & " to tScriptData" into tScriptEx
+         do tScriptEx -- set the script on the object
+      end if
+   else
+      -- snippet does not exist
+      put "please create a snippet for: '" & tLongScriptFN & "'" -- note to user, for what snippet is missing
+   end if
+end tPopulateWithScript

@@ -381,7 +381,16 @@ private function __propertyInfoFilename
 end __propertyInfoFilename
 
 private function __classicToolsOrderFilename
-   return "classicToolsOrder.tsv"
+   -- tperry (put this in on Linux to disable the player until it's fixed) 21-11-2023 (part 1 of 2)
+   if the platform contains "linux" then
+      if (the cDisablePlayerTool of stack "revPreferences" is true) then
+         return "classicToolsOrder_noplayer.tsv"
+      else
+      return "classicToolsOrder.tsv"
+      end if
+   else 
+      return "classicToolsOrder.tsv"
+   end if
 end __classicToolsOrderFilename 
 
 private on __orderClassicTools
@@ -420,6 +429,12 @@ private on __objectPropertiesRead
       # Get the name of the object
       set the itemdel to "."
       if the last item of tObjectType is "tsv" then delete the last item of tObjectType
+      -- tperry (put this in on Linux to disable the player until it's fixed) 21-11-2023 (part 2 of 2)
+      if the platform contains "linux" then
+        if (the cDisablePlayerTool of stack "revPreferences" is true) then
+          if tObjectType contains "classic.Player" then next repeat
+        end if
+      end if
       if tObjectType is empty then next repeat
       
       __setPropertyDataOfObjectFromFile tObjectType, tObjectDefinitionsPath & slash & tFile, tPropertiesInfo

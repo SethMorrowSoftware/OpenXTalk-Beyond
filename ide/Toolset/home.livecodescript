@@ -26,9 +26,8 @@ on startup
    catch tError
       revInternal__Log "Error", tError
    end try
-   
-   -- moved darkmode / lightmode check to revmenubar
-   
+      
+      
    -- tperry, this bit taken from RC4 version. Thanks again Paul McClernan!
    if not (the cLayoutGuides of stack "revPreferences" is true) then -- unload guide library if guides are turned off
       -- guides prefs are turned off so unload lib
@@ -41,6 +40,7 @@ on startup
       -- unlock screen
    end if
    
+   tApplyTheme_nullify -- remove all custom theming (tperry 8-11-23)
    
    revInternal__Log "Leave", "Startup"
    
@@ -350,7 +350,7 @@ on revInternal__openStack
    local sOverrideRuntimePath, sTestEnvironment
    
    -- Parameterize this so it makes it easier to change.
-   constant kProductName = "LiveCode"
+   constant kProductName = "OpenXTalk"
    
    --------------------------------------------------------------------------------
    -- Internal Setup Functions
@@ -358,20 +358,24 @@ on revInternal__openStack
    
    private command revInternal__SetupLicense 
       revInternal__Log "Enter", "License Setup"
+      --put line 1 of the revLicenseInfo into sLicenseName
+      --put line 2 of the revLicenseInfo into sLicenseOrganization
+      --put line 3 of the revLicenseInfo into sLicenseClass
+      --put line 4 of the revLicenseInfo into sLicenseMultiplicity
       
-      put line 1 of the revLicenseInfo into sLicenseName
-      put line 2 of the revLicenseInfo into sLicenseOrganization
-      put line 3 of the revLicenseInfo into sLicenseClass
-      put line 4 of the revLicenseInfo into sLicenseMultiplicity
+      -- overrides as 'licensing' no longer matters (tperry 20-11-2023)
+      -- this mod at least replaces LC strings with OXT ones.
+      put "OpenXTalk User" into sLicenseName
+      put "OpenXTalk" into sLicenseOrganization
+      put "open-source" into sLicenseClass
+      put 1 into sLicenseMultiplicity
+      put "Windows,Mac OS X,Linux,iOS,Android,HTML5" into sLicensePlatform
       
       if sLicenseMultiplicity is empty then
          put 1 into sLicenseMultiplicity
       end if
-      
-      put the version && "build" && the buildnumber into sLicenseVersion
-      
-      put revEnvironmentPlatform() into sLicensePlatform
-      
+      --put the version && "build" && the buildnumber into sLicenseVersion
+      --put revEnvironmentPlatform() into sLicensePlatform
       revInternal__Log "Leave", "License Setup"
    end revInternal__SetupLicense
    
@@ -384,68 +388,70 @@ on revInternal__openStack
       set the itemDelimiter to "/"
       put item 1 to -3 of tHomePath into sToolsPath
       
-      -- MW-2013-06-13: Extract the engine path from 'the address' (needs adjustment
-      --    per platform).
-      local tEnginePath
-      set the itemDelimiter to ":"
-      put item 2 to -1 of the address into tEnginePath
-      set the itemDelimiter to "/"
-      switch revEnvironmentPlatform()
-         case "Linux"
-            local tOldFolder
-            put the folder into tOldFolder
-            set the folder to "~"
-            put the folder & slash & ".runrev/revolution/enterprise/preferences" into sOldPreferencesPath
-            if there is no folder sOldPreferencesPath then
-               put the folder & slash & ".runrev/revolution/studio/preferences" into sOldPreferencesPath
-            end if
-            if there is no folder sOldPreferencesPath then
-               put the folder & slash & ".runrev/revolution/media/preferences" into sOldPreferencesPath
-            end if
-            put the folder & slash & ".runrev/preferences" into sPreferencesPath
-            put the folder & slash & ".runrev/cache" into sCachePath
-            put the folder & slash & ".runrev/crashlogs" into sCrashLogPath
-            put the folder & slash & ".runrev/documentationcache" into sUserDocsPath
-            set the folder to tOldFolder
-            
-            -- MW-2013-06-13: Adjust the engine path for Linux
-            put item 1 to -2 of tEnginePath into tEnginePath
-            break
-         case "MacOS X"
-            put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Enterprise" into sOldPreferencesPath
-            if there is no folder sOldPreferencesPath then
-               put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Studio" into sOldPreferencesPath
-            end if
-            if there is no folder sOldPreferencesPath then
-               put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Media" into sOldPreferencesPath
-            end if
-            put specialFolderPath("Preferences") & "/RunRev" into sPreferencesPath
-            put specialFolderPath("cusr") & "/Library/Application Support/RunRev/Cache" into sCachePath
-            put specialFolderPath("cusr") & "/Library/Application Support/RunRev/Crash Logs" into sCrashLogPath
-            put specialFolderPath("cusr") & "/Library/Application Support/RunRev/Documentation Cache" into sUserDocsPath
-            
-            -- MW-2013-06-13: Adjust the engine path for Mac
-            put item 1 to -5 of tEnginePath into tEnginePath
-            break
-         case "Windows"
-            -- We put prefereces into the 'Roaming' AppData folder.
-            put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Enterprise/Preferences" into sOldPreferencesPath
-            if there is no folder sOldPreferencesPath then
-               put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Studio/Preferences" into sOldPreferencesPath
-            end if
-            if there is no folder sOldPreferencesPath then
-               put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Media/Preferences" into sOldPreferencesPath
-            end if
-            put specialFolderPath(0x001a) & "/RunRev/Preferences" into sPreferencesPath
-            -- We put everything else in the 'Local' AppData folder.
-            put specialFolderPath(0x001c) & "/RunRev/Cache" into sCachePath
-            put specialFolderPath(0x001c) & "/RunRev/Crash Logs" into sCrashLogPath
-            put specialFolderPath(0x001c) & "/RunRev/Documentation Cache" into sUserDocsPath
-            
-            -- MW-2013-06-13: Adjust the engine path for Windows
-            put item 1 to -2 of tEnginePath into tEnginePath
-            break
-      end switch
+      -- MW-2013-06-13: Extract the engine path from 'the address' (needs adjustment per platform).
+      -- adjustments by Paul McClernan (& pasted into here by tperry 3-11-23)
+   local tEnginePath
+   set the itemDelimiter to ":"
+   put item 2 to -1 of the address into tEnginePath
+   set the itemDelimiter to "/"
+   -- (tperry 20-11-23) change this to the name of whatever fork you want to use.
+   -- I'm simply using xtalk here to make it as generic as possible
+   put "xtalk" into tForkName
+   --
+   switch revEnvironmentPlatform()
+      case "Linux"
+         local tOldFolder
+         put the folder into tOldFolder
+         set the folder to "~"
+         put the folder & slash & ".runrev/revolution/enterprise/preferences" into sOldPreferencesPath
+         if there is no folder sOldPreferencesPath then
+            put the folder & slash & ".runrev/revolution/studio/preferences" into sOldPreferencesPath
+         end if
+         if there is no folder sOldPreferencesPath then
+            put the folder & slash & ".runrev/revolution/media/preferences" into sOldPreferencesPath
+         end if
+         put the folder & slash & "." & tForkName & "/preferences" into sPreferencesPath
+         put the folder & slash & "." & tForkName & "/cache" into sCachePath
+         put the folder & slash & "." & tForkName & "/crashlogs" into sCrashLogPath
+         put the folder & slash & "." & tForkName & "/documentationcache" into sUserDocsPath
+         set the folder to tOldFolder
+         -- MW-2013-06-13: Adjust the engine path for Linux
+         put item 1 to -2 of tEnginePath into tEnginePath
+         break
+      case "MacOS X"
+         put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Enterprise" into sOldPreferencesPath
+         if there is no folder sOldPreferencesPath then
+            put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Studio" into sOldPreferencesPath
+         end if
+         if there is no folder sOldPreferencesPath then
+            put specialFolderPath("Preferences") & "/Runtime Revolution/Revolution Media" into sOldPreferencesPath
+         end if
+         put specialFolderPath("Preferences") & "/" & tForkName into sPreferencesPath
+         put specialFolderPath("cusr") & "/Library/Application Support/" & tForkName & "/Cache" into sCachePath
+         put specialFolderPath("cusr") & "/Library/Application Support/" & tForkName & "/Crash Logs" into sCrashLogPath
+         put specialFolderPath("cusr") & "/Library/Application Support/" & tForkName & "/Documentation Cache" into sUserDocsPath
+         -- MW-2013-06-13: Adjust the engine path for Mac
+         put item 1 to -5 of tEnginePath into tEnginePath
+         break
+      case "Windows"
+         -- We put preferences into the 'Roaming' AppData folder.
+         put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Enterprise/Preferences" into sOldPreferencesPath
+         if there is no folder sOldPreferencesPath then
+            put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Studio/Preferences" into sOldPreferencesPath
+         end if
+         if there is no folder sOldPreferencesPath then
+            put specialFolderPath(0x001a) & "/Runtime Revolution/Revolution Media/Preferences" into sOldPreferencesPath
+         end if
+         put specialFolderPath(0x001a) & "/" & tForkName & "/Preferences" into sPreferencesPath
+         -- We put everything else in the 'Local' AppData folder.
+         put specialFolderPath(0x001c) & "/" & tForkName & "/Cache" into sCachePath
+         put specialFolderPath(0x001c) & "/" & tForkName & "/Crash Logs" into sCrashLogPath
+         put specialFolderPath(0x001c) & "/" & tForkName & "/Documentation Cache" into sUserDocsPath
+         -- MW-2013-06-13: Adjust the engine path for Windows
+         put item 1 to -2 of tEnginePath into tEnginePath
+         break
+   end switch
+   -- end pasted section (tperry 3-11-23)
       
       # The docs cache is per-version and edition
       local tEdition
@@ -714,211 +720,212 @@ end revInternal__SetupCustomizationPath
       palette stack "revSplash"
    end revInternal__SetupSplash
    
-   command revInternal__ResetPreferences
-      -- clear the preferences stack
-      set the customKeys of stack "revPreferences" to empty
-      set the customPropertySets of stack "revPreferences" to empty
-      
-      local tPropsArray
-      -- default custom property set
-      put "true" into tPropsArray["cREVToolsPaintToolsVisible"]
-      put "false" into tPropsArray["cDestroyStack"]
-      put "false" into tPropsArray["cRevPopups"]
-      put "417,113" into tPropsArray["cREVMsgTabRectGlobalProperties"]
-      put "155" into tPropsArray["cREVPlayerWidth"]
-      put "23" into tPropsArray["cButtonHeight"]
-      put "true" into tPropsArray["cShowProfileEditor"]
-      put "200" into tPropsArray["cScrollbarwidth"]
-      put "false" into tPropsArray["cREVMsgShowUIMessages"]
-      put "false" into tPropsArray["cSEHidePalettes"]
-      put "120" into tPropsArray["cREVImageWidth"]
-      put "500" into tPropsArray["tooltip delay"]
-      put "417,72" into tPropsArray["cREVMsgTabRectSingle Line"]
-      put "false" into tPropsArray["cREVMsgShowUIBackScripts"]
-      put "539,432" into tPropsArray["cREVGeoTopLeft"]
-      put "70378" into tPropsArray["cREVDBCode"]
-      put "276" into tPropsArray["cREVScriptHeight"]
-      put "2" into tPropsArray["cGridSize"]
-      put "483,214,1015,476" into tPropsArray["cVariableWatcherRect"]
-      put "false" into tPropsArray["cShowrevProps"]
-      put "Pixels" into tPropsArray["cREVRulerMeasurement"]
-      put "100" into tPropsArray["cMacOSScrollbarWidth"]
-      put "1,2,3,4,5,7" into tPropsArray["cControlTabs"]
-      put "500" into tPropsArray["cREVToolTipDelay"]
-      put "250" into tPropsArray["cTabButtonwidth"]
-      put "true" into tPropsArray["cGoAlign"]
-      put "0" into tPropsArray["cREVRotatePrev2"]
-      put "993,712" into tPropsArray["cREVPropertyPaletteTopLeft"]
-      put "true" into tPropsArray["cLiveColor"]
-      put "modification date" into tPropsArray["cRecentSort"]
-      put "true" into tPropsArray["cDocsFirstRun"]
-      put "86400" into tPropsArray["cUpdate,MaxAutoPopupFrequency"]
-      put "true" into tPropsArray["cREVExtension"]
-      put "102" into tPropsArray["cMenuWidth"]
-      put "417,72" into tPropsArray["cREVMsgTabRectcard id 1147"]
-      put "468,131" into tPropsArray["cAppearanceTopLeft"]
-      put "false" into tPropsArray["cREVDefaultMenubar"]
-      put "417,113" into tPropsArray["cREVMsgTabRectbackScripts"]
-      put "true" into tPropsArray["cGrid"]
-      put "30" into tPropsArray["cNumRecent"]
-      put "false" into tPropsArray["cShowAsHandlers"]
-      put "false" into tPropsArray["revDocsAlreadySeen"]
-      put "120" into tPropsArray["cREVImageHeight"]
-      put "82" into tPropsArray["cButtonWidth"]
-      put "true" into tPropsArray["cREVProfileReadOnlyWarning"]
-      put "6,7,9" into tPropsArray["cCardTabs"]
-      put "16" into tPropsArray["cMacOSScrollbarHeight"]
-      put "true" into tPropsArray["cFirstRun"]
-      put "14" into tPropsArray["cMacOSProgressScrollbarHeight"]
-      put "mouseMove" into tPropsArray["suppressedMessages"]
-      put "true" into tPropsArray["cAutoFormat"]
-      put "true" into tPropsArray["cREVScriptShortcut"]
-      put "false" into tPropsArray["cShowRevolutionStacks"]
-      put "22" into tPropsArray["cMenuHeight"]
-      put "1067,251,1882,827" into tPropsArray["cRevDocsRect"]
-      put "Gray88" into tPropsArray["cBackDropColor"]
-      put "Gray88" into tPropsArray["cBackdrop"]
-      put "false" into tPropsArray["cREVMsgShowUIFrontScripts"]
-      put "false" into tPropsArray["revstack"]
-      put "100" into tPropsArray["cMacOSProgressScrollbarWidth"]
-      put "false" into tPropsArray["cREVUIScriptShortcut"]
-      put "60,27" into tPropsArray["cREVMenuBarTopLeft"]
-      put "322" into tPropsArray["cREVFieldFirstTabHeight"]
-      put "500" into tPropsArray["cTraceDelay"]
-      put "0" into tPropsArray["cREVRotatePrev1"]
-      put "250" into tPropsArray["cFieldWidth"]
-      put "16" into tPropsArray["cScrollbarHeight"]
-      put "true" into tPropsArray["cToolbarIcons"]
-      put "true" into tPropsArray["cShowAudioclipsclips"]
-      put "1,2,3,4,5" into tPropsArray["cAudioclipTabs"]
-      put "620,235" into tPropsArray["cREVMsgTabRectSingleLine"]
-      put "Sections List" into tPropsArray["revHelpDefaultSection"]
-      put "false" into tPropsArray["cCaseSensitive"]
-      put "auto" into tPropsArray["cLargeFonts"]
-      put "Yellow" into tPropsArray["yellow"]
-      put "417,113" into tPropsArray["cREVMsgTabRectGlobalVariables"]
-      put "417,113" into tPropsArray["cREVMsgTabRectpendingMessages"]
-      put "Property Inspector" into tPropsArray["cABCommandDoubleClick"]
-      put "1" into tPropsArray["cREVTipNumber"]
-      put "417,113" into tPropsArray["cREVMsgTabRectstacksInUse"]
-      put format("blue\nbrown\ndarkorange\nred") into tPropsArray["cBuiltInColors"]
-      put "don't remove" into tPropsArray["cASKDestroy"]
-      put "Gray50" into tPropsArray["cSelectionHandle"]
-      put "Purple1" into tPropsArray["cToolSelectorColor"] -- tperry
-      put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
-      put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
-      put "true" into tPropsArray["suppressIDE"]
-      put "Property Inspector" into tPropsArray["cABOptionDoubleClick"]
-      put "45" into tPropsArray["cREVRotatePrev5"]
-      put "170,131" into tPropsArray["cPaletteTopLeft"]
-      put "false" into tPropsArray["cNOPICTWarning"]
-      put "470,460" into tPropsArray["cREVMsgTopLeft"]
-      put format("cButtonWidth,100\ncButtonHeight,20\ncTabButtonwidth,250\ncTabButtonHeight,160\ncMenuWidth,130\ncMenuHeight,20\ncFieldWidth,250\ncFieldHeight,160\ncLabelFieldWidth,100\ncLabelFieldHeight,20\ncMacOSScrollbarHeight,16\ncMacOSProgressScrollbarHeight,14\ncScrollbarWidth,200\ncScrollbarHeight,20\ncREVGraphicWidth,120\ncREVGraphicHeight,120\ncREVImageWidth,120\ncREVImageHeight,120\ncREVPlayerWidth,320\ncREVPlayerHeight,256") into tPropsArray["New Field 2"]
-      put "120" into tPropsArray["cREVGraphicHeight"]
-      put "Dictionary" into tPropsArray["cRevDocsCurrentCard"]
-      put "385" into tPropsArray["cREVScriptWidth"]
-      put "487" into tPropsArray["cREVUnmaximizedScriptWidth"]
-      put "false" into tPropsArray["cREVDontMaximizeScriptEditor"]
-      put "true" into tPropsArray["cDontWrap"]
-      put "false" into tPropsArray["cVariableChecking"]
-      put "302" into tPropsArray["cAppBrowserWidgetLeft"]
-      put "true" into tPropsArray["cUngroupWarning"]
-      put "false" into tPropsArray["resizeable"]
-      put "false" into tPropsArray["cNavigationArrows"]
-      put "457,430,853,680" into tPropsArray["cMessageWatcherRect"]
-      put "287,261" into tPropsArray["cREVMsgTabRectrevbasic"]
-      put "true" into tPropsArray["cSort"]
-      put "false" into tPropsArray["cREVMsgAutoRefresh"]
-      put "true" into tPropsArray["cVariablePreservation"]
-      put "100" into tPropsArray["cLabelFieldWidth"]
-      put "false" into tPropsArray["cREVMsgShowUIVariables"]
-      put "false" into tPropsArray["cHandlerList"]
-      put "red" into tPropsArray["red"]
-      put "selectedObject" into tPropsArray["cREVMsgIntelligenceObject"]
-      put "false" into tPropsArray["cSEHideErrors"]
-      put "56" into tPropsArray["cFieldHeight"]
-      put "300" into tPropsArray["cREVUnmaximizedScriptHeight"]
-      put "13,125" into tPropsArray["cToolsTopLeft"]
-      put "--" into tPropsArray["cCommentCharacter"]
-      put "97,92,657,440" into tPropsArray["cScriptEditorRect"]
-      put "11" into tPropsArray["cREVRotatePrev4"]
-      put "530,564" into tPropsArray["cREVMsgTabRectrevscript"]
-      put "146,123,800,408" into tPropsArray["cAppBrowserRect"]
-      put "true" into tPropsArray["cREVAutoCreateProfilesWarning"]
-      put "false" into tPropsArray["cREVSaveStacksAfterMoving"]
-      put "false" into tPropsArray["cREVAutoCreateProfiles"]
-      put "417,113" into tPropsArray["cREVMsgTabRectGlobal Variables"]
-      put "118" into tPropsArray["cREVPlayerHeight"]
-      put "true" into tPropsArray["cShowVideoclips"]
-      put "false" into tPropsArray["cWholeMatches"]
-      put "false" into tPropsArray["cVerboseDebug"]
-      put "417,99" into tPropsArray["cREVMsgTabRectMultipleLines"]
-      put "true" into tPropsArray["cBreakPoints"]
-      put "false" into tPropsArray["cREVGeoOpen"]
-      put "462,120" into tPropsArray["cREVAOTopLeft"]
-      put "blackgreen" into tPropsArray["cCustomColorsList"]
-      put "Penguin" into tPropsArray["revHelpUnixReligion"]
-      put format("cButtonWidth,82\ncButtonHeight,23\ncTabButtonwidth,250\ncTabButtonHeight,160\ncMenuWidth,102\ncMenuHeight,22\ncFieldWidth,250\ncFieldHeight,56\ncLabelFieldWidth,100\ncLabelFieldHeight,21\ncMacOSScrollbarHeight,16\ncMacOSProgressScrollbarHeight,14\ncScrollbarWidth,200\ncScrollbarHeight,16\ncREVGraphicWidth,120\ncREVGraphicHeight,120\ncREVImageWidth,120\ncREVImageHeight,120\ncREVPlayerWidth,155\ncREVPlayerHeight,118") into tPropsArray["cDefaultSizes"]
-      put "false" into tPropsArray["cSelectGrouped"]
-      put "false" into tPropsArray["cSEHideMessageBox"]
-      put "1,2,3,4,5" into tPropsArray["cVideoclipTabs"]
-      put "true" into tPropsArray["cREVMacOSMenubar"]
-      put "false" into tPropsArray["cREVProfileReadOnly"]
-      put "Yellow" into tPropsArray["revHelpHiliteColor"]
-      put "true" into tPropsArray["cToolbarText"]
-      put "true" into tPropsArray["cREVScriptDebugMode"]
-      put "21" into tPropsArray["cLabelFieldHeight"]
-      put "120" into tPropsArray["cREVGraphicWidth"]
-      put "417,99" into tPropsArray["cREVMsgTabRectMultiple Lines"]
-      put "30" into tPropsArray["Num Recent Files"]
-      put "568,259" into tPropsArray["cREVProfileEditorTopLeft"]
-      put "417,113" into tPropsArray["cREVMsgTabRectfrontScripts"]
-      put "11" into tPropsArray["cREVRotatePrev3"]
-      put "338" into tPropsArray["cREVButtonSecondTabHeight"]
-      put "true" into tPropsArray["cREVHelpText"]
-      put "160" into tPropsArray["cTabButtonHeight"]
-      put "287,261" into tPropsArray["cREVMsgTabRectrevstack"]
-      put "417,113" into tPropsArray["cREVMsgTabRectGlobal Properties"]
-      put "true" into tPropsArray["cShowAudioclipclips"]
-      put "revolutionli" into tPropsArray["cREVDBName"]
-      put "true" into tPropsArray["cDocsQuickLinksVisible"]
-      put "true" into tPropsArray["cStartPageShow"]
-      put "278" into tPropsArray["cREVErrorsPaletteExpandedHeight"]
-      put "true" into tPropsArray["cShowAudioclips"]
-      put "filtering" into tPropsArray["revHelpListMethod"]
-      set the customProperties[""] of stack "revPreferences" to tPropsArray
-      delete variable tPropsArray
-      
-      -- cABDoubleClick
-      put "Play" into tPropsArray["videoclips"]
-      put "Toplevel" into tPropsArray["stacks"]
-      put "Property Inspector" into tPropsArray["controls"]
-      put "Play" into tPropsArray["audioclips"]
-      put "Go" into tPropsArray["cards"]
-      set the customProperties["cABDoubleClick"] of stack "revPreferences" to tPropsArray
-      delete variable tPropsArray
-      
-      -- cABCommandDoubleClick
-      put "Edit Script" into tPropsArray["videoclips"]
-      put "Edit Script" into tPropsArray["stacks"]
-      put "Edit Script" into tPropsArray["controls"]
-      put "Edit Script" into tPropsArray["audioclips"]
-      put "Edit Script" into tPropsArray["cards"]
-      set the customProperties["cABCommandDoubleClick"] of stack "revPreferences" to tPropsArray
-      delete variable tPropsArray
-      
-      -- cABOptionDoubleClick
-      put "Property Inspector" into tPropsArray["videoclips"]
-      put "Property Inspector" into tPropsArray["stacks"]
-      put "Property Inspector" into tPropsArray["controls"]
-      put "Property Inspector" into tPropsArray["audioclips"]
-      put "Property Inspector" into tPropsArray["cards"]
-      set the customProperties["cABOptionDoubleClick"] of stack "revPreferences" to tPropsArray
-      delete variable tPropsArray
-      
-      
-      revInternal__SavePreferences
-   end revInternal__ResetPreferences
+command revInternal__ResetPreferences
+   -- clear the preferences stack
+   set the customKeys of stack "revPreferences" to empty
+   set the customPropertySets of stack "revPreferences" to empty
+   
+   local tPropsArray
+   -- default custom property set
+   put "true" into tPropsArray["cREVToolsPaintToolsVisible"]
+   put "false" into tPropsArray["cDestroyStack"]
+   put "false" into tPropsArray["cRevPopups"]
+   put "417,113" into tPropsArray["cREVMsgTabRectGlobalProperties"]
+   put "155" into tPropsArray["cREVPlayerWidth"]
+   put "23" into tPropsArray["cButtonHeight"]
+   put "true" into tPropsArray["cShowProfileEditor"]
+   put "200" into tPropsArray["cScrollbarwidth"]
+   put "false" into tPropsArray["cREVMsgShowUIMessages"]
+   put "false" into tPropsArray["cSEHidePalettes"]
+   put "120" into tPropsArray["cREVImageWidth"]
+   put "500" into tPropsArray["tooltip delay"]
+   put "417,72" into tPropsArray["cREVMsgTabRectSingle Line"]
+   put "false" into tPropsArray["cREVMsgShowUIBackScripts"]
+   put "539,432" into tPropsArray["cREVGeoTopLeft"]
+   put "70378" into tPropsArray["cREVDBCode"]
+   put "276" into tPropsArray["cREVScriptHeight"]
+   put "2" into tPropsArray["cGridSize"]
+   put "483,214,1015,476" into tPropsArray["cVariableWatcherRect"]
+   put "false" into tPropsArray["cShowrevProps"]
+   put "Pixels" into tPropsArray["cREVRulerMeasurement"]
+   put "100" into tPropsArray["cMacOSScrollbarWidth"]
+   put "1,2,3,4,5,7" into tPropsArray["cControlTabs"]
+   put "500" into tPropsArray["cREVToolTipDelay"]
+   put "250" into tPropsArray["cTabButtonwidth"]
+   put "true" into tPropsArray["cGoAlign"]
+   put "0" into tPropsArray["cREVRotatePrev2"]
+   put "993,712" into tPropsArray["cREVPropertyPaletteTopLeft"]
+   put "true" into tPropsArray["cLiveColor"]
+   put "modification date" into tPropsArray["cRecentSort"]
+   put "true" into tPropsArray["cDocsFirstRun"]
+   put "86400" into tPropsArray["cUpdate,MaxAutoPopupFrequency"]
+   put "true" into tPropsArray["cREVExtension"]
+   put "102" into tPropsArray["cMenuWidth"]
+   put "417,72" into tPropsArray["cREVMsgTabRectcard id 1147"]
+   put "468,131" into tPropsArray["cAppearanceTopLeft"]
+   put "false" into tPropsArray["cREVDefaultMenubar"]
+   put "417,113" into tPropsArray["cREVMsgTabRectbackScripts"]
+   put "true" into tPropsArray["cGrid"]
+   put "30" into tPropsArray["cNumRecent"]
+   put "false" into tPropsArray["cShowAsHandlers"]
+   put "false" into tPropsArray["revDocsAlreadySeen"]
+   put "120" into tPropsArray["cREVImageHeight"]
+   put "82" into tPropsArray["cButtonWidth"]
+   put "true" into tPropsArray["cREVProfileReadOnlyWarning"]
+   put "6,7,9" into tPropsArray["cCardTabs"]
+   put "16" into tPropsArray["cMacOSScrollbarHeight"]
+   put "true" into tPropsArray["cFirstRun"]
+   put "14" into tPropsArray["cMacOSProgressScrollbarHeight"]
+   put "mouseMove" into tPropsArray["suppressedMessages"]
+   put "true" into tPropsArray["cAutoFormat"]
+   put "true" into tPropsArray["cREVScriptShortcut"]
+   put "false" into tPropsArray["cShowRevolutionStacks"]
+   put "22" into tPropsArray["cMenuHeight"]
+   put "1067,251,1882,827" into tPropsArray["cRevDocsRect"]
+   put "Gray88" into tPropsArray["cBackDropColor"]
+   put "Gray88" into tPropsArray["cBackdrop"]
+   put "false" into tPropsArray["cREVMsgShowUIFrontScripts"]
+   put "false" into tPropsArray["revstack"]
+   put "100" into tPropsArray["cMacOSProgressScrollbarWidth"]
+   put "false" into tPropsArray["cREVUIScriptShortcut"]
+   put "60,27" into tPropsArray["cREVMenuBarTopLeft"]
+   put "322" into tPropsArray["cREVFieldFirstTabHeight"]
+   put "500" into tPropsArray["cTraceDelay"]
+   put "0" into tPropsArray["cREVRotatePrev1"]
+   put "250" into tPropsArray["cFieldWidth"]
+   put "16" into tPropsArray["cScrollbarHeight"]
+   put "true" into tPropsArray["cToolbarIcons"]
+   put "true" into tPropsArray["cShowAudioclipsclips"]
+   put "1,2,3,4,5" into tPropsArray["cAudioclipTabs"]
+   put "620,235" into tPropsArray["cREVMsgTabRectSingleLine"]
+   put "Sections List" into tPropsArray["revHelpDefaultSection"]
+   put "false" into tPropsArray["cCaseSensitive"]
+   put "auto" into tPropsArray["cLargeFonts"]
+   put "Yellow" into tPropsArray["yellow"]
+   put "417,113" into tPropsArray["cREVMsgTabRectGlobalVariables"]
+   put "417,113" into tPropsArray["cREVMsgTabRectpendingMessages"]
+   put "Property Inspector" into tPropsArray["cABCommandDoubleClick"]
+   put "1" into tPropsArray["cREVTipNumber"]
+   put "417,113" into tPropsArray["cREVMsgTabRectstacksInUse"]
+   put format("blue\nbrown\ndarkorange\nred") into tPropsArray["cBuiltInColors"]
+   put "don't remove" into tPropsArray["cASKDestroy"]
+   put "Gray50" into tPropsArray["cSelectionHandle"]
+   put "Purple1" into tPropsArray["cToolSelectorColor"] -- tperry
+   put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
+   put "False" into tPropsArray["MakeRevToolBarDraggable"] -- tperry (default, should revMenuBar be draggable?)
+   put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
+   put "true" into tPropsArray["suppressIDE"]
+   put "Property Inspector" into tPropsArray["cABOptionDoubleClick"]
+   put "45" into tPropsArray["cREVRotatePrev5"]
+   put "170,131" into tPropsArray["cPaletteTopLeft"]
+   put "false" into tPropsArray["cNOPICTWarning"]
+   put "470,460" into tPropsArray["cREVMsgTopLeft"]
+   put format("cButtonWidth,100\ncButtonHeight,20\ncTabButtonwidth,250\ncTabButtonHeight,160\ncMenuWidth,130\ncMenuHeight,20\ncFieldWidth,250\ncFieldHeight,160\ncLabelFieldWidth,100\ncLabelFieldHeight,20\ncMacOSScrollbarHeight,16\ncMacOSProgressScrollbarHeight,14\ncScrollbarWidth,200\ncScrollbarHeight,20\ncREVGraphicWidth,120\ncREVGraphicHeight,120\ncREVImageWidth,120\ncREVImageHeight,120\ncREVPlayerWidth,320\ncREVPlayerHeight,256") into tPropsArray["New Field 2"]
+   put "120" into tPropsArray["cREVGraphicHeight"]
+   put "Dictionary" into tPropsArray["cRevDocsCurrentCard"]
+   put "385" into tPropsArray["cREVScriptWidth"]
+   put "487" into tPropsArray["cREVUnmaximizedScriptWidth"]
+   put "false" into tPropsArray["cREVDontMaximizeScriptEditor"]
+   put "true" into tPropsArray["cDontWrap"]
+   put "false" into tPropsArray["cVariableChecking"]
+   put "302" into tPropsArray["cAppBrowserWidgetLeft"]
+   put "true" into tPropsArray["cUngroupWarning"]
+   put "false" into tPropsArray["resizeable"]
+   put "false" into tPropsArray["cNavigationArrows"]
+   put "457,430,853,680" into tPropsArray["cMessageWatcherRect"]
+   put "287,261" into tPropsArray["cREVMsgTabRectrevbasic"]
+   put "true" into tPropsArray["cSort"]
+   put "false" into tPropsArray["cREVMsgAutoRefresh"]
+   put "true" into tPropsArray["cVariablePreservation"]
+   put "100" into tPropsArray["cLabelFieldWidth"]
+   put "false" into tPropsArray["cREVMsgShowUIVariables"]
+   put "false" into tPropsArray["cHandlerList"]
+   put "red" into tPropsArray["red"]
+   put "selectedObject" into tPropsArray["cREVMsgIntelligenceObject"]
+   put "false" into tPropsArray["cSEHideErrors"]
+   put "56" into tPropsArray["cFieldHeight"]
+   put "300" into tPropsArray["cREVUnmaximizedScriptHeight"]
+   put "13,125" into tPropsArray["cToolsTopLeft"]
+   put "--" into tPropsArray["cCommentCharacter"]
+   put "97,92,657,440" into tPropsArray["cScriptEditorRect"]
+   put "11" into tPropsArray["cREVRotatePrev4"]
+   put "530,564" into tPropsArray["cREVMsgTabRectrevscript"]
+   put "146,123,800,408" into tPropsArray["cAppBrowserRect"]
+   put "true" into tPropsArray["cREVAutoCreateProfilesWarning"]
+   put "false" into tPropsArray["cREVSaveStacksAfterMoving"]
+   put "false" into tPropsArray["cREVAutoCreateProfiles"]
+   put "417,113" into tPropsArray["cREVMsgTabRectGlobal Variables"]
+   put "118" into tPropsArray["cREVPlayerHeight"]
+   put "true" into tPropsArray["cShowVideoclips"]
+   put "false" into tPropsArray["cWholeMatches"]
+   put "false" into tPropsArray["cVerboseDebug"]
+   put "417,99" into tPropsArray["cREVMsgTabRectMultipleLines"]
+   put "true" into tPropsArray["cBreakPoints"]
+   put "false" into tPropsArray["cREVGeoOpen"]
+   put "462,120" into tPropsArray["cREVAOTopLeft"]
+   put "blackgreen" into tPropsArray["cCustomColorsList"]
+   put "Penguin" into tPropsArray["revHelpUnixReligion"]
+   put format("cButtonWidth,82\ncButtonHeight,23\ncTabButtonwidth,250\ncTabButtonHeight,160\ncMenuWidth,102\ncMenuHeight,22\ncFieldWidth,250\ncFieldHeight,56\ncLabelFieldWidth,100\ncLabelFieldHeight,21\ncMacOSScrollbarHeight,16\ncMacOSProgressScrollbarHeight,14\ncScrollbarWidth,200\ncScrollbarHeight,16\ncREVGraphicWidth,120\ncREVGraphicHeight,120\ncREVImageWidth,120\ncREVImageHeight,120\ncREVPlayerWidth,155\ncREVPlayerHeight,118") into tPropsArray["cDefaultSizes"]
+   put "false" into tPropsArray["cSelectGrouped"]
+   put "false" into tPropsArray["cSEHideMessageBox"]
+   put "1,2,3,4,5" into tPropsArray["cVideoclipTabs"]
+   put "true" into tPropsArray["cREVMacOSMenubar"]
+   put "false" into tPropsArray["cREVProfileReadOnly"]
+   put "Yellow" into tPropsArray["revHelpHiliteColor"]
+   put "true" into tPropsArray["cToolbarText"]
+   put "true" into tPropsArray["cREVScriptDebugMode"]
+   put "21" into tPropsArray["cLabelFieldHeight"]
+   put "120" into tPropsArray["cREVGraphicWidth"]
+   put "417,99" into tPropsArray["cREVMsgTabRectMultiple Lines"]
+   put "30" into tPropsArray["Num Recent Files"]
+   put "568,259" into tPropsArray["cREVProfileEditorTopLeft"]
+   put "417,113" into tPropsArray["cREVMsgTabRectfrontScripts"]
+   put "11" into tPropsArray["cREVRotatePrev3"]
+   put "338" into tPropsArray["cREVButtonSecondTabHeight"]
+   put "true" into tPropsArray["cREVHelpText"]
+   put "160" into tPropsArray["cTabButtonHeight"]
+   put "287,261" into tPropsArray["cREVMsgTabRectrevstack"]
+   put "417,113" into tPropsArray["cREVMsgTabRectGlobal Properties"]
+   put "true" into tPropsArray["cShowAudioclipclips"]
+   put "revolutionli" into tPropsArray["cREVDBName"]
+   put "true" into tPropsArray["cDocsQuickLinksVisible"]
+   put "true" into tPropsArray["cStartPageShow"]
+   put "278" into tPropsArray["cREVErrorsPaletteExpandedHeight"]
+   put "true" into tPropsArray["cShowAudioclips"]
+   put "filtering" into tPropsArray["revHelpListMethod"]
+   set the customProperties[""] of stack "revPreferences" to tPropsArray
+   delete variable tPropsArray
+   
+   -- cABDoubleClick
+   put "Play" into tPropsArray["videoclips"]
+   put "Toplevel" into tPropsArray["stacks"]
+   put "Property Inspector" into tPropsArray["controls"]
+   put "Play" into tPropsArray["audioclips"]
+   put "Go" into tPropsArray["cards"]
+   set the customProperties["cABDoubleClick"] of stack "revPreferences" to tPropsArray
+   delete variable tPropsArray
+   
+   -- cABCommandDoubleClick
+   put "Edit Script" into tPropsArray["videoclips"]
+   put "Edit Script" into tPropsArray["stacks"]
+   put "Edit Script" into tPropsArray["controls"]
+   put "Edit Script" into tPropsArray["audioclips"]
+   put "Edit Script" into tPropsArray["cards"]
+   set the customProperties["cABCommandDoubleClick"] of stack "revPreferences" to tPropsArray
+   delete variable tPropsArray
+   
+   -- cABOptionDoubleClick
+   put "Property Inspector" into tPropsArray["videoclips"]
+   put "Property Inspector" into tPropsArray["stacks"]
+   put "Property Inspector" into tPropsArray["controls"]
+   put "Property Inspector" into tPropsArray["audioclips"]
+   put "Property Inspector" into tPropsArray["cards"]
+   set the customProperties["cABOptionDoubleClick"] of stack "revPreferences" to tPropsArray
+   delete variable tPropsArray
+   
+   
+   revInternal__SavePreferences
+end revInternal__ResetPreferences
    
    --------------------------------------------------------------------------------
    -- Internal Utility Functions
@@ -973,7 +980,9 @@ end revInternal__SetupCustomizationPath
       if the platform is "win32" then
          -- If .rev, .livecode or .livecodescript classes are not present, then we need new assocs
          # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
-         if queryRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\") is not "RevolutionStack" or \
+         -- tperry 20-11-2023 (added oxtstack checking for Windows)
+         if queryRegistry("HKEY_CURRENT_USER\Software\Classes\.oxtstack\") is not "OXTStack" or \ 
+               queryRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\") is not "RevolutionStack" or \ 
                queryRegistry("HKEY_CURRENT_USER\Software\Classes\.livecode\") is not "LiveCodeStack" or \ 
                queryRegistry("HKEY_CURRENT_USER\Software\Classes\.livecodescript\") is not "LiveCodeScriptOnlyStack"
          then 
@@ -983,6 +992,11 @@ end revInternal__SetupCustomizationPath
          -- If .rev, .livecode or .livecodescript classes are not present, then we need new assocs
          # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
          replace slash with backslash in tEnginePath
+         -- tperry 20-11-2023 (added oxtstack checking for Windows)
+         get queryRegistry("HKEY_CURRENT_USER\Software\Classes\OXTStack\Shell\Open\Command\") 
+         if word 1 of it is not quote & tEnginePath & quote then 
+            return true 
+         end if 
          get queryRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\Shell\Open\Command\") 
          if word 1 of it is not quote & tEnginePath & quote then 
             return true 
@@ -1010,7 +1024,11 @@ end revInternal__SetupCustomizationPath
       if the platform is "win32" then
          replace slash with backslash in tEnginePath
          # AL-2015-03-13: [[ Bug 14910 ]] Add .livecodescript to valid stack file extensions on windows 
-         get setRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\", "RevolutionStack") and \
+         -- tperry 20-11-2023 (added oxtstack checking for Windows)
+         get setRegistry("HKEY_CURRENT_USER\Software\Classes\.oxtstack\", "OXTStack") and \
+               setRegistry("HKEY_CURRENT_USER\Software\Classes\OXTStack\Shell\Open\Command\", quote & tEnginePath & quote && quote & "%1" & quote) and \
+               setRegistry("HKEY_CURRENT_USER\Software\Classes\OXTStack\DefaultIcon\", tEnginePath & comma & "1") and \
+               setRegistry("HKEY_CURRENT_USER\Software\Classes\.rev\", "RevolutionStack") and \
                setRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\Shell\Open\Command\", quote & tEnginePath & quote && quote & "%1" & quote) and \
                setRegistry("HKEY_CURRENT_USER\Software\Classes\RevolutionStack\DefaultIcon\", tEnginePath & comma & "1") and \
                setRegistry("HKEY_CURRENT_USER\Software\Classes\.livecode\", "LiveCodeStack") and \
@@ -1447,79 +1465,106 @@ end revInternal__SetupCustomizationPath
       return true
    end revInternal__InitialiseDefaults
    
-   command revInternal__InitialiseOptions
-      revInternal__Log "Enter", "Options Initialisation"
-      
-      set the selectGroupedControls to the cSelectGrouped of stack "revPreferences"
-      set the tooltipDelay to the cREVToolTipDelay of stack "revPreferences"
-      set the grid to the cGrid of stack "revPreferences"
-      set the scriptTextFont to the cREVScriptFont of stack "revPreferences"
-      set the scriptTextSize to the cREVScriptSize of stack "revPreferences"
-      
-      if the cHttpProxy of stack "revPreferences" is not empty then
-         set the httpProxy to the cHttpProxy of stack "revPreferences"
-      end if
-      
-      set the gridSize to the cGridSize of stack "revPreferences"
-      
-      if the cSelectionHandleColor of stack "revPreferences" is empty then
-         set the selectionHandleColor to "Gray50"
-      else
-         set the selectionHandleColor to the cSelectionHandleColor of stack "revPreferences"
-      end if
-      
-      if the cToolSelectorColor of stack "revPreferences" is empty then
-         set the cToolSelectorColor of stack "revPreferences" to "Purple1"
-      end if
-      
-      set the navigationArrows to the cNavigationArrows of stack "revPreferences"
-      
-      global gREVShowStacks, gREVDevelopment
-      if gREVDevelopment then
-         put true into gREVShowStacks
-      else if the cShowRevolutionStacks of stack "revPreferences" is empty then
-         put false into gREVShowStacks
-      else
-         put the cShowRevolutionStacks of stack "revPreferences" into gREVShowStacks
-      end if
-      
-      global gREVLanguageNames
-      put the cLanguageNames of card 1 of stack "revPreferences" into gREVLanguageNames
-      
-      revInternal__Log "Message", "Obtained preference languageNames = " & gREVLanguageNames
-      
-      global gREVPopups
-      put the cRevPopups of stack "revPreferences" into gREVPopups
-      
-      global gREVAutoFormat
-      put the cAutoFormat of stack "revPreferences" into gREVAutoFormat
-      
-      global gREVUIScriptShortcut
-      put the cREVUIScriptShortcut of stack "revPreferences" into gREVUIScriptShortcut
-      
-      global gREVScriptShortcut
-      put the cREVScriptShortcut of stack "revPreferences" into gREVScriptShortcut
-      
-      global gREVCommentCharacter
-      if the cCommentCharacter of stack "revPreferences" is not empty then
-         put the cCommentCharacter of stack "revPreferences" into gREVCommentCharacter
-      else
-         put "--" into gREVCommentCharacter
-      end if
-      
-      global gREVTemplateMasterName
-      put the cREVTemplateMasterName of stack "revPreferences" into gREVTemplateMasterName
-      
-      global gREVAutoCreateProfiles
-      put the cREVAutoCreateProfiles of stack "revPreferences" into gREVAutoCreateProfiles
-      
-      global gREVProfileReadOnly
-      put the cREVProfileReadOnly of stack "revPreferences" into gREVProfileReadOnly
-      
-      revInternal__Log "Leave", "Options Initialisation"
-      
-      return true
-   end revInternal__InitialiseOptions
+command revInternal__InitialiseOptions
+   revInternal__Log "Enter", "Options Initialisation"
+   
+   set the selectGroupedControls to the cSelectGrouped of stack "revPreferences"
+   set the tooltipDelay to the cREVToolTipDelay of stack "revPreferences"
+   set the grid to the cGrid of stack "revPreferences"
+   set the scriptTextFont to the cREVScriptFont of stack "revPreferences"
+   set the scriptTextSize to the cREVScriptSize of stack "revPreferences"
+   
+   if the cHttpProxy of stack "revPreferences" is not empty then
+      set the httpProxy to the cHttpProxy of stack "revPreferences"
+   end if
+   
+   set the gridSize to the cGridSize of stack "revPreferences"
+   
+   if the cSelectionHandleColor of stack "revPreferences" is empty then
+      set the selectionHandleColor to "Gray50"
+   else
+      set the selectionHandleColor to the cSelectionHandleColor of stack "revPreferences"
+   end if
+   
+   if the cToolSelectorColor of stack "revPreferences" is empty then
+      set the cToolSelectorColor of stack "revPreferences" to "Purple1"
+   end if
+   
+   set the navigationArrows to the cNavigationArrows of stack "revPreferences"
+   
+   global gREVShowStacks, gREVDevelopment
+   if gREVDevelopment then
+      put true into gREVShowStacks
+   else if the cShowRevolutionStacks of stack "revPreferences" is empty then
+      put false into gREVShowStacks
+   else
+      put the cShowRevolutionStacks of stack "revPreferences" into gREVShowStacks
+   end if
+   
+   global gREVLanguageNames
+   put the cLanguageNames of card 1 of stack "revPreferences" into gREVLanguageNames
+   
+   revInternal__Log "Message", "Obtained preference languageNames = " & gREVLanguageNames
+   
+   global gREVPopups
+   put the cRevPopups of stack "revPreferences" into gREVPopups
+   
+   global gREVAutoFormat
+   put the cAutoFormat of stack "revPreferences" into gREVAutoFormat
+   
+   global gREVUIScriptShortcut
+   put the cREVUIScriptShortcut of stack "revPreferences" into gREVUIScriptShortcut
+   
+   global gREVScriptShortcut
+   put the cREVScriptShortcut of stack "revPreferences" into gREVScriptShortcut
+   
+   global gREVCommentCharacter
+   if the cCommentCharacter of stack "revPreferences" is not empty then
+      put the cCommentCharacter of stack "revPreferences" into gREVCommentCharacter
+   else
+      put "--" into gREVCommentCharacter
+   end if
+   
+   global gREVTemplateMasterName
+   put the cREVTemplateMasterName of stack "revPreferences" into gREVTemplateMasterName
+   
+   global gREVAutoCreateProfiles
+   put the cREVAutoCreateProfiles of stack "revPreferences" into gREVAutoCreateProfiles
+   
+   global gREVProfileReadOnly
+   put the cREVProfileReadOnly of stack "revPreferences" into gREVProfileReadOnly
+   
+   -- tperry 20-11-2023 (added this global variable, which can be accessed through the message box).
+   -- just so we can reliably get the system version for all major desktop OS versions
+   
+   global tSystemVersionNumber
+   put "" into tShellCmd
+   set hideConsoleWindows to true
+   if the platform contains "linux" then put "lsb_release -r |cut -f2" into tShellCmd
+   if the platform contains "mac" then put "sw_vers -productVersion" into tShellCmd
+   if the platform contains "win" then put "systeminfo | findstr /C:" & QUOTE & "OS Version" & QUOTE into tShellCmd
+   put shell(tShellCmd) into tSystemVersionNumber
+   
+   -- tidy up for Windows
+   if the platform contains "win" then 
+      put line 1 of tSystemVersionNumber into tSystemVersionNumber
+      replace " N/A " with "-" in tSystemVersionNumber
+      replace ":" with return in tSystemVersionNumber
+      if the number of lines in tSystemVersionNumber >1 then put line 2 of tSystemVersionNumber into tSystemVersionNumber
+      replace "Build " with return in tSystemVersionNumber
+      if the number of lines in tSystemVersionNumber >1 then put line 1 of tSystemVersionNumber into tSystemVersionNumber
+      replace " " with "" in tSystemVersionNumber
+      replace "-" with " " in tSystemVersionNumber
+   end if
+   
+   global tSystemVersion
+   put the platform & " " & tSystemVersionNumber into tSystemVersion
+   -- the above would return "MacOS 14" for example.
+   
+   revInternal__Log "Leave", "Options Initialisation"
+   
+   return true
+end revInternal__InitialiseOptions
    
    command revInternal__InitialiseUserLibraries
       local tEnvironmentIcons, tUserIcons, tList
@@ -2392,36 +2437,20 @@ end revInternal__SetupCustomizationPath
    -- it might be better to have a generic script that swaps foreground and background colors on objects
    ---------------------------------------------------------------------------------
    
-   -- tperry (Tried this, but some stuff is platform specific to get the right look-and-feel)
-   -- this stuff is all theming, and there's a lot of it. Just because it's made to work on all platforms.
+   -- tperry (Tried this, not happy with the result on mac and windows, so have removed it)
+   -- all that happens now is that all custom colour properties are stripped out
    
-   on IDEToLightMode
-      lock screen
-      if the platform contains "linux" then tApplyTheme_Linux_Light
-      if the platform contains "mac" then tApplyTheme_Mac_Light
-      if the platform contains "win" then tApplyTheme_Win_Light
-      unlock screen
-   end IDEToLightMode
-   
-   on IDEToDarkMode
-      lock screen
-      if the platform contains "linux" then tApplyTheme_Linux_Dark
-      if the platform contains "mac" then tApplyTheme_Mac_Dark
-      if the platform contains "win" then tApplyTheme_Win_Dark
-      unlock screen
-   end IDEToDarkMode
-   
-on tApplyTheme_Linux_Light
-   -- apply linux light theme
-   -- actually, just nullify (reset everything to default) - removing all custom colours
+on IDEToLightMode
+   lock screen
    tApplyTheme_nullify
-end tApplyTheme_Linux_Light
+   unlock screen
+end IDEToLightMode
    
-on tApplyTheme_Linux_Dark
-   -- apply linux dark theme
-   -- actually, just nullify (reset everything to default) - removing all custom colours
+on IDEToDarkMode
+   lock screen
    tApplyTheme_nullify
-end tApplyTheme_Linux_Dark
+   unlock screen
+end IDEToDarkMode
    
 on tApplyTheme_nullify
    lock screen
@@ -2437,8 +2466,7 @@ on tApplyTheme_nullify
    set the backGroundColor of stack "Message Box" to ""
    set the backgroundColor of stack "revPreferencesGUI" to ""
    set the foreGroundColor of stack "revPreferencesGUI" to ""
-   -- set controls to things that look native in light mode
-   -- reset appearance to empty
+   -- set controls to things that look native, reset appearance to empty
    put 0 into tcardnumber
    put "revPreferencesGUI" into tTargStack
    if there is a stack tTargStack then
@@ -2446,26 +2474,28 @@ on tApplyTheme_nullify
       repeat the number of cards of stack tTargStack
          add 1 to tcardnumber
          put 0 into tcount
-         put the number of buttons of cd tcardnumber of wd tTargStack into tBTNCount
-         -- style buttons appropriately
-         repeat tBTNCount
-            add 1 to tcount
-            if there is a btn tcount of card tcardnumber of wd tTargStack then set the threeD of btn tcount of card tcardnumber of wd tTargStack to true
-            if there is a btn tcount of card tcardnumber of wd tTargStack then
-               if the style of btn tcount of card tcardnumber of wd tTargStack is "standard" or the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                  set the showBorder of btn tcount of card tcardnumber of wd tTargStack to true
-                  set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                  set the borderwidth of btn tcount of card tcardnumber of wd tTargStack to 2
-                  set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-               end if
-               if the backgroundColor of btn tcount of card tcardnumber of wd tTargStack is not "" & the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                  set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                  set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-               end if
-               
-               if (the number of lines of the text of btn tcount of card tcardnumber of wd tTargStack >1) then set the ForegroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-            end if               
-         end repeat
+         if (the filename of stack tTargStack contains "/Toolset/") then -- only try to de-theme stacks that are part of the IDE
+            put the number of buttons of cd tcardnumber of wd tTargStack into tBTNCount
+            -- un-style buttons appropriately
+            repeat tBTNCount
+               add 1 to tcount
+               if there is a btn tcount of card tcardnumber of wd tTargStack then set the threeD of btn tcount of card tcardnumber of wd tTargStack to true
+               if there is a btn tcount of card tcardnumber of wd tTargStack then
+                  if the style of btn tcount of card tcardnumber of wd tTargStack is "standard" or the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
+                     set the showBorder of btn tcount of card tcardnumber of wd tTargStack to true
+                     set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
+                     set the borderwidth of btn tcount of card tcardnumber of wd tTargStack to 2
+                     set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
+                  end if
+                  if the backgroundColor of btn tcount of card tcardnumber of wd tTargStack is not "" & the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
+                     set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
+                     set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
+                  end if
+                  
+                  if (the number of lines of the text of btn tcount of card tcardnumber of wd tTargStack >1) then set the ForegroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
+               end if               
+            end repeat
+         end if
       end repeat
    end if
    -- other little bits I've noticed in the IDE
@@ -2512,223 +2542,6 @@ on tApplyTheme_nullify
    do tStackList
 end tApplyTheme_nullify
 
-on tApplyTheme_Mac_Light
-   -- apply mac light theme
-   setAppToLightMode
-   set the backGroundColor of stack "revTools" to empty -- "Gray30"
-   set the foreGroundColor of stack "revTools" to empty -- "White"
-   if there is a group "widget" of stack "revTools" then 
-      set the foreGroundColor of group "widget" of stack "revTools" to  "Black"
-      set the backgroundColor of group "widget" of stack "revTools" to empty -- "Gray50"
-   end if
-   set the foreGroundColor of group "background" of stack "revTools" to "White"
-   set the backgroundColor of group "classic" of stack "revTools" to empty -- "Gray60"
-   set the foreGroundColor of stack "Message Box" to "Black" -- empty
-   set the backGroundColor of stack "Message Box" to "White"-- "Black"
-   set the backgroundColor of stack "revPreferencesGUI" to "White"
-   set the foreGroundColor of stack "revPreferencesGUI" to "Black"
-   -- set controls to things that look native in light mode
-   put "236,236,236" into tLightFill -- light grey window colour sampled from Mac
-   put 0 into tcardnumber
-   put "revPreferencesGUI" into tTargStack
-   if there is a stack tTargStack then
-      repeat the number of cards of stack tTargStack
-         add 1 to tcardnumber
-         put 0 into tcount
-         put the number of buttons of cd tcardnumber of wd tTargStack into tBTNCount
-         -- style buttons appropriately
-         repeat tBTNCount
-            add 1 to tcount
-            if there is a btn tcount of card tcardnumber of wd tTargStack then set the threeD of btn tcount of card tcardnumber of wd tTargStack to true
-            if there is a btn tcount of card tcardnumber of wd tTargStack then
-               if the style of btn tcount of card tcardnumber of wd tTargStack is "standard" or the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                  set the showBorder of btn tcount of card tcardnumber of wd tTargStack to true
-                  set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                  set the borderwidth of btn tcount of card tcardnumber of wd tTargStack to 2
-                  set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-               end if
-               if the backgroundColor of btn tcount of card tcardnumber of wd tTargStack is not "" & the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                  set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                  set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-               end if
-               
-               if (the number of lines of the text of btn tcount of card tcardnumber of wd tTargStack >1) then set the ForegroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-            end if               
-         end repeat
-      end repeat
-   end if
-   -- other little bits I've noticed in the IDE
-   if there is a fld "menu" of cd "General" of wd "revPreferencesGUI" then 
-      set the backgroundColor of fld "menu" of cd "General" of wd "revPreferencesGUI" to tLightFill
-   end if
-end tApplyTheme_Mac_Light
-
-on tApplyTheme_Mac_Dark
-   -- apply mac dark theme
-   setAppToDarkMode
-   set the backGroundColor of stack "revTools" to empty -- "Gray30"
-   set the foreGroundColor of stack "revTools" to empty -- "White"
-   if there is a group "widget" of stack "revTools" then 
-      set the foreGroundColor of group "widget" of stack "revTools" to  "White"
-      set the backgroundColor of group "widget" of stack "revTools" to empty -- "Gray50"
-   end if
-   set the foreGroundColor of group "background" of stack "revTools" to "White"
-   set the backgroundColor of group "classic" of stack "revTools" to empty -- "Gray60"
-   set the foreGroundColor of stack "Message Box" to "White" -- empty
-   set the backGroundColor of stack "Message Box" to "Gray35"-- "Black"
-   set the backgroundColor of stack "revPreferencesGUI" to "Gray20"
-   set the foreGroundColor of stack "revPreferencesGUI" to "White"
-   --
-   set the backgroundcolor of stack "Message Box" to ""
-   set the foregroundcolor of stack "Message Box" to ""
-   set the theme of stack "Message Box" to native
-   set the backgroundcolor of stack "revNewScriptEditor" to ""
-   set the foregroundcolor of stack "revNewScriptEditor" to ""
-   set the theme of stack "revNewScriptEditor" to native
-   set the backgroundcolor of stack "revSETemplate" of stack "revNewScriptEditor" to ""
-   set the foregroundcolor of stack "revSETemplate" of stack "revNewScriptEditor" to ""
-   set the theme of stack "revSETemplate" of stack "revNewScriptEditor" to native
-   set the backgroundcolor of stack "revPreferencesGUI" to ""
-   set the foregroundcolor of stack "revPreferencesGUI" to ""
-   set the theme of stack "revPreferencesGUI" to native
-   --
-   put "31,31,40" into tDarkFill -- dark window colour sampled from Mac
-   put "104,105,107" into tDarkBtnColor -- dark button colour sampled from Mac
-   -- set controls to things that look native in dark mode
-   put 0 into tcardnumber
-   put "revPreferencesGUI" into tTargStack
-   if there is a stack tTargStack then
-      repeat the number of cards of stack tTargStack
-         add 1 to tcardnumber
-         put 0 into tcount
-         put the number of buttons of cd tcardnumber of wd tTargStack into tBTNCount
-         -- style buttons appropriately
-         repeat tBTNCount
-            add 1 to tcount
-            if there is a btn tcount of card tcardnumber of wd tTargStack then set the threeD of btn tcount of card tcardnumber of wd tTargStack to false
-            if there is a btn tcount of card tcardnumber of wd tTargStack then
-               if the style of btn tcount of card tcardnumber of wd tTargStack is "standard" then 
-                  set the showBorder of btn tcount of card tcardnumber of wd tTargStack to true
-                  set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to tDarkBtnColor
-                  set the borderwidth of btn tcount of card tcardnumber of wd tTargStack to 0
-                  set the style of btn tcount of card tcardnumber of wd tTargStack to "RoundRect"
-               end if
-               if (the number of lines of the text of btn tcount of card tcardnumber of wd tTargStack >1) then set the ForegroundColor of btn tcount of card tcardnumber of wd tTargStack to tDarkFill
-            end if
-         end repeat
-      end repeat
-   end if
-   -- other little bits I've noticed in the IDE
-   if there is a fld "menu" of cd "General" of wd "revPreferencesGUI" then 
-      set the backgroundColor of fld "menu" of cd "General" of wd "revPreferencesGUI" to tDarkBtnColor
-   end if
-end tApplyTheme_Mac_Dark
-
-
-on tApplyTheme_Win_Light
-   -- apply windows light theme
-   put "255,255,255" into tNewBackgroundCol
-   put "0,0,0" into tNewForegroundCol
-   
-   lock screen
-   -- set to all windows
-   put the mainstacks & return & the openstacks into tStackList
-   put 0 into tcount
-   repeat the number of lines in tStackList
-      add 1 to tcount
-      if there is a stack (line tcount of tStackList) then
-         set the backgroundColor of stack (line tcount of tStackList) to tNewBackgroundCol
-         set the foregroundColor of stack (line tcount of tStackList) to tNewForegroundCol
-      end if
-   end repeat
-   put "" into tStackList
-   -- anything else specifically? (specify in this format!) -- this is ugly, but it works
-   -- this does the script editor as an example, but really the change needs to apply to every stack opened under win and mac
-   put "set the backgroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to tNewBackgroundCol" into line (the number of lines in tStackList +1) of tStackList
-   put "set the foregroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to tNewForegroundCol" into line (the number of lines in tStackList +1) of tStackList
-   
-   -- the following objects and stacks need setting too, but they aren't open at startup
-   -- so a workaround is to set the colour settings back into the revPreferences stack with:
-   set the cAppearanceBackgroundCol of stack "revPreferences" to tNewBackgroundCol
-   set the cAppearanceForegroundCol of stack "revPreferences" to tNewForegroundCol
-   
-   
-   -- workarounds for revMenubar
-   if there is a group "revMenuBar" of cd 1 of stack "revMenuBar" then
-      set the ink of group "revMenuBar" of cd 1 of stack "revMenuBar" to "srcCopy"
-      put 0 into tBtnCount
-      repeat the number of buttons in group  "revMenuBar" of cd 1 of stack "revMenuBar"
-         add 1 to tBtnCount
-         set the foregroundColor of btn tBtnCount of group "revMenuBar" of cd 1 of stack "revMenuBar" to tNewForegroundCol
-      end repeat
-   end if 
-   -- fix for script editor
-   if there is a group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" then
-      set the ink of group "MenuBar" of cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to "srcCopy"
-      put 0 into tBtnCount
-      repeat the number of buttons in group "MenuBar" of cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor"
-         add 1 to tBtnCount
-         set the foregroundColor of btn tBtnCount of group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to tNewForegroundCol
-      end repeat
-   end if 
-   
-   filter lines of tStackList without empty
-   do tStackList
-   
-   unlock screen
-end tApplyTheme_Win_Light
-
-on tApplyTheme_Win_Dark
-   -- apply windows dark theme
-   put "31,31,31" into tNewBackgroundCol
-   put "255,255,255" into tNewForegroundCol
-   
-   lock screen
-   -- set to all windows
-   put the mainstacks & return & the openstacks into tStackList
-   put 0 into tcount
-   repeat the number of lines in tStackList
-      add 1 to tcount
-      if there is a stack (line tcount of tStackList) then
-         set the backgroundColor of stack (line tcount of tStackList) to tNewBackgroundCol
-         set the foregroundColor of stack (line tcount of tStackList) to tNewForegroundCol
-      end if
-   end repeat
-   put "" into tStackList
-   -- anything else specifically? (specify in this format!) -- this is ugly, but it works
-   -- this does the script editor as an example, but really the change needs to apply to every stack opened under win and mac
-   put "set the backgroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to tNewBackgroundCol" into line (the number of lines in tStackList +1) of tStackList
-   put "set the foregroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to tNewForegroundCol" into line (the number of lines in tStackList +1) of tStackList
-   
-   -- the following objects and stacks need setting too, but they aren't open at startup
-   -- so a workaround is to set the colour settings back into the revPreferences stack with:
-   set the cAppearanceBackgroundCol of stack "revPreferences" to tNewBackgroundCol
-   set the cAppearanceForegroundCol of stack "revPreferences" to tNewForegroundCol
-   
-   
-   -- workarounds for revMenubar
-   set the ink of group "revMenuBar" of cd 1 of stack "revMenuBar" to "blendSoftLight"
-   put 0 into tBtnCount
-   repeat the number of buttons in group  "revMenuBar" of cd 1 of stack "revMenuBar"
-      add 1 to tBtnCount
-      set the foregroundColor of btn tBtnCount of group "revMenuBar" of cd 1 of stack "revMenuBar" to 0,0,0
-   end repeat
-   
-   -- fix for script editor
-   if there is a group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" then
-      set the ink of group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to "blendSoftLight"
-      put 0 into tBtnCount
-      repeat the number of buttons in group "MenuBar" of  cd "Templates"of stack "revSETemplate" of stack "revNewScriptEditor"
-         add 1 to tBtnCount
-         set the foregroundColor of btn tBtnCount of group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to 0,0,0
-      end repeat
-   end if 
-   
-   filter lines of tStackList without empty
-   do tStackList
-   
-   unlock screen
-end tApplyTheme_Win_Dark
 
 -- on iconMenuOpening
 --   -- lock screen
@@ -2751,16 +2564,3 @@ end tApplyTheme_Win_Dark
 --   end if
 --   -- pass iconMenuPick
 -- end iconMenuPick
-
-on systemAppearanceChanged
-   put the systemAppearance into tAppearance
-   -- put "Home Stack Message Recieved:" &cr& "systemAppearanceChanged" && tAppearance & cr after msg
-   if tAppearance is "dark" then
-      send "IDEToDarkMode" to stack "home" in 1 milliseconds
-   else
-      send "IDEToLightMode" to me in 1 milliseconds
-   end if
-   send tSortTheme to stack "revPreferencesGUI" -- pass to prefs
-   send tTPLinkColours to stack "App Browser"
-   pass systemAppearanceChanged
-end systemAppearanceChanged

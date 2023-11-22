@@ -32,19 +32,19 @@ on preOpenStack
    end if
    
    -- tperry (draw a drag handle on the left)
-	tMenuBar_MakeDragHandle
-
--- move location of dictionary button (tperry)
-set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
-            
+   if the cMakeRevMenuBarDraggable of stack "revPreferences" is true then tMenuBar_MakeDragHandle
+   
+   -- move location of dictionary button (tperry)
+   set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
+   
    -- # bug - window juggling, only affects ubuntu I think? (tperry 02-09-2023)
    tCheckBuntuWdBug
    
    -- truncate size of revmenubar
-   tMenuBar_AdjustWDSize
+  tMenuBar_AdjustWDSize
    
-   -- darkmode check
-   send tDarkLightCheck to this stack in 1 tick -- gets ignored if Linux
+   -- tperry (8/11/23) removed all light/darkmode checking. Not happy with result. This is now nullified and any custom appearances are deleted.
+   -- see tApplyTheme_nullify in the home stack
 end preOpenStack
 
 on closeStackRequest
@@ -2353,16 +2353,6 @@ function revMenubarContextMenu pType, pTarget
          put toggleMenuItem("Lock Text", the lockText of pTarget) & return after tText
          put toggleMenuItem("Can Receive Keyboard Focus", the traversalOn of pTarget) & return after tText
          break
-      case "player"
-         put "-" & return after tText
-         put enableMenuItem("Play", word 1 of the tool is "browse") & return after tText
-         put enableMenuItem("Stop", word 1 of the tool is "browse") & return after tText
-         if the paused of pTarget then
-            put enableMenuItem("Unpause", word 1 of the tool is "browse") & return after tText
-         else
-            put enableMenuItem("Pause", word 1 of the tool is "browse") & return after tText
-         end if
-         break
       case "menu"
          put enableMenuItem("TopLevel Panel Stack", the menuName of pTarget is not empty) & return after tText
          break
@@ -2422,7 +2412,6 @@ on revMenubarPopupContextualMenu pTargets
          case "group"
          case "image"
          case "field"
-         case "player"
          case "widget"
             revMenubarSetContextMenu tType, tTarget
             break
@@ -3457,53 +3446,19 @@ on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the r
 end tMenuBar_MakeDragHandle
 
 on tMenuBar_AdjustWDSize
--- clean up the MenuBar (tperry)
+   -- clean up the MenuBar (tperry)
    -- remove stuff that is broken as of 26-10-2023
    if there is a cd btn "Sample Stacks" of card 1 of wd "revMenuBar" then -- needs cleanup
-   hide cd btn "Sample Stacks" of cd 1 of wd "revMenuBar"
+      hide cd btn "Sample Stacks" of cd 1 of wd "revMenuBar"
       if there is a cd btn "Tutorials" of card 1 of wd "revMenuBar" then hide cd btn "Tutorials" of card 1 of wd "revMenuBar"
       if there is a cd btn "Resources" of card 1 of wd "revMenuBar" then hide cd btn "Resources" of card 1 of wd "revMenuBar"
       if there is a cd btn "Test" of card 1 of wd "revMenuBar" then hide cd btn "Test" of card 1 of wd "revMenuBar"
    end if  
    
--- shorten the size of the revMenubar stack (tperry)
--- assuming the "Dictionary" button is going to be the last on the right
-set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Dictionary" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
+   -- shorten the size of the revMenubar stack (tperry)
+   -- assuming the "Dictionary" button is going to be the last on the right
+   set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Dictionary" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
+   
+   if the cMakeRevMenuBarDraggable of stack "revPreferences" is false then set the left of  group "toolbar" of wd "revMenubar" to 0 -- make sure group moves over if we don't have a drag handle (tperry 10-11-2023)
 end tMenuBar_AdjustWDSize
 
-on tDarkLightCheck
-   ---------------------------------------- dark mode check (tperry) ------------------------------------------
-   put "light" into tAppearanceMode
-   if the platform contains "mac" then
-      -- this returns the correct information if the user is using dark or light mode
-      put the systemAppearance into tAppearanceMode
-   end if
-   if the platform contains "linux" then
-      -- don't do anything special for linux. It seems to know what to use 'out-of-the-box'
-      put "skip" into tAppearanceMode
-   end if
-   if the platform contains "win" then
-      put "reg Query " & QUOTE & "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" & QUOTE & " /v SystemUsesLightTheme" into tWinCmd
-      set the hideConsoleWindows to true
-      put shell(tWinCmd) into tWinAppearanceMode
-      filter lines of tWinAppearanceMode without empty
-      if tWinAppearanceMode contains "0x0" then
-         put "skip" into tAppearanceMode
-         send tApplyTheme_Win_Dark to stack "home"
-      else
-         put "skip" into tAppearanceMode
-         send tApplyTheme_Win_Light to stack "home"
-      end if
-   end if
-   --
-   if not (tAppearanceMode contains "skip") then
-      if tAppearanceMode is "dark" then
-         setAppToDarkMode
-      else
-         setAppToLightMode
-      end if
-   else
-      -- we are on linux, so skip theming
-   end if  
-   ------------------------------------- end dark mode check (tperry) ------------------------------------------
-end tDarkLightCheck
