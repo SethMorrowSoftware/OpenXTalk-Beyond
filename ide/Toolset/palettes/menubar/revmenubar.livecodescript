@@ -23,14 +23,6 @@ on preOpenStack
    
    set the decorations of stack "revMenubar" to empty -- don't need a huge close-box (tperry)
    
-   -- mac specific fix for placement
-   if the platform contains "mac" then set the top of wd "revMenuBar" to 22
-   -- linux & win specific fix for placement (going top left - should ignore menubar and panels in a good linux distro!) -- tperry
-   if the platform contains "linux" or the platform contains "win" then 
-      set the top of wd "revMenuBar" to 0
-      set the left of  wd "revMenuBar" to 0
-   end if
-   
    -- tperry (draw a drag handle on the left)
    if the cMakeRevMenuBarDraggable of stack "revPreferences" is true then tMenuBar_MakeDragHandle
    
@@ -41,7 +33,20 @@ on preOpenStack
    tCheckBuntuWdBug
    
    -- truncate size of revmenubar
-  tMenuBar_AdjustWDSize
+   tMenuBar_AdjustWDSize
+   
+   -- fix for placement (reordered 26-11-23)
+   if the platform contains "mac" then set the top of wd "revMenuBar" to 22
+   -- linux & win specific fix for placement (going top left - should ignore menubar and panels in a good linux distro!) -- tperry
+   if the platform contains "linux" or the platform contains "win" then 
+      set the top of wd "revMenuBar" to 0
+      set the left of  wd "revMenuBar" to 0
+   end if
+   -- overrides, in case you are on an OS that is behaving oddly with the menubar (tperry 26-11-23)
+   if the cTweakMenuBarOffset of stack "revPreferences" is true then
+      set the top of wd "revMenuBar" to the cTweakMenuBarT of stack "revPreferences" 
+      set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
+   end if
    
    -- tperry (8/11/23) removed all light/darkmode checking. Not happy with result. This is now nullified and any custom appearances are deleted.
    -- see tApplyTheme_nullify in the home stack
@@ -288,15 +293,40 @@ on setMenuProperties
       put space & "(" & item 2 of the version && item 3 of the version & ")" after tTitle
    end if
    
-   -- dynamically change title to whatever is in file about.dat (tperry)
+   -- dynamically change title as needed (tperry 26-11-23)
    -- just means it's reading from the same place as the about stack, so one place to change everything when it comes to modifying version
    set the itemDelimiter to "/"
+   put item 1 to -3 of the filename of stack "home" & "/.version" into tFilePath
+   put textDecode(url ("binfile:" & tFilePath), "utf-8") into tVersionNumber
+   put line 1 of tVersionNumber into tVersionNumber
+   if not isNumber(last char of tVersionNumber) then delete last char of tVersionNumber -- strip CR line endings if present
    put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
-   put textDecode(url ("binfile:" & tFilePath), "utf-8") into tAboutInfoText
-   put line 1 of tAboutInfoText into tAboutInfoText
-   if not isNumber(last char of tAboutInfoText) then delete last char of tAboutInfoText -- strip CR line endings if present
-   put tAboutInfoText into tTitle
+   put textDecode(url ("binfile:" & tFilePath), "utf-8") into tForkName
+   put line 1 of tForkName into tForkName
+   put tForkName & " " & tVersionNumber  into tTitle
    set the title of me to tTitle
+   
+   ----------------------- this section is for the automatic updates, tperry 24-11-23 ----------------------------------------
+   -------------------------------------------------------------------------------------------------------------------------------
+   put tTitle into fld "tPrefFootnote" of cd "Automatic Updates" of stack "revPreferencesGUI" -- make a note of the version in prefs wd  (tperry 24-11-23)
+   -- always update the buildnumber from this file
+   -- from this point in time onward (24-11-23) we will always have a build number to track automatic updates
+   -- we also make sure we write the build number to file, in case the user decides to reset their preferences, thereby erasing the build number
+   put item 1 to -3 of the filename of stack "home" & "/.buildnumber" into tBuildNumberfile -- was just checking windows supports this, but it does.
+   open file tBuildNumberfile
+   read from file tBuildNumberfile until EOF
+   put it into tBuildNumber
+   close file tBuildNumberfile
+   -- do a sanity check, just in case of permissions
+   if tBuildNumber is "" then put "202311240000" into tBuildNumber -- in case we couldn't read it, assume lowest build number.
+   set the cBuildNumber of stack "revPreferences" to tBuildNumber -- store it back into prefs so from this point on, we have a build number
+   put tBuildNumber into line 2 of fld "tPrefFootnote" of cd "Automatic Updates" of stack "revPreferencesGUI" -- record this in the updates window
+   -- while we are dealing with updates, lets initiate the check
+   if not (the pendingmessages contains "tAutoUpdatesHook") then
+      send tAutoUpdatesHook to cd "Automatic Updates" of stack "revPreferencesGUI" in 10 seconds -- start checks for auto updates, but give time for everything else to load
+   end if
+   -------------------------------------------------------------------------------------------------------------------------------
+   -------------------------------------------------------------------------------------------------------------------------------
    
    set the itemDelimiter to comma
    local tScreenRect
