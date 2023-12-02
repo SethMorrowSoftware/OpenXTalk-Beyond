@@ -1,4 +1,4 @@
-﻿script "com.livecode.pi.geometry.behavior"
+﻿script "com.livecode.pi.geometry.behavior" with behavior "revInspectorEditorBehavior"
 on editorInitialize
    set the editorMinWidth of me to 220
    put the editorLabel of me into field "rowlabel" of me
@@ -6,12 +6,19 @@ on editorInitialize
    
    set the cMode of me to "scaling"
    
-   if the platform is "MacOS" then 
-      set the icon of btn "Window" to 202854
-      set the top of btn "window" to 106
-   else 
-      set the icon of btn "Window" to 202855
+   -- (edit tperry 4-12-23)
+   -- update the geometry graphic, and add support for Linux properly too
+   if the platform contains "Mac" then 
+      set the icon of btn "Window" to 210117
+      set the top of btn "window" to 104
+   end if
+   if the platform contains "win" then 
+      set the icon of btn "Window" to 210116
       set the top of btn "Window" to 102
+   end if
+   if the platform contains "linux" then 
+      set the icon of btn "Window" to 210118
+      set the top of btn "Window" to 104
    end if
 end editorInitialize
 

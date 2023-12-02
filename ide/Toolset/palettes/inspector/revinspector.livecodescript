@@ -82,6 +82,23 @@ on ideInspectObjects pObjects
    
    lock screen 
    lock messages
+   
+   -- fix for multiple inspectors being generated (tperry 4-12-23)
+   -- before creating a new inspector, just double check that a track of the existing one hasn't been lost
+   put the openstacks into tTempInspectors
+   if tTempInspectors contains "revPropertyInspector" then
+      -- there's at least one inspector I think...
+      filter lines of tTempInspectors with regex pattern "revPropertyInspector*" into tListofInspectors
+      filter lines of tListofInspectors without empty
+      sort lines of tListofInspectors
+      if the number of lines in tListofInspectors >1 then
+         put tTargetInspector into tFilterWithout
+         filter lines of tListofInspectors without tFilterWithout
+         if there is a stack (line 1 of tListofInspectors) then send closestack to stack (line 1 of tListofInspectors)
+         -- put tListofInspectors & return & "-" & return & sInspectorMax & return & tIndex & return & "-" & return & tTargetInspector & return & the ticks -- debug
+      end if
+   end if
+   
    # If all the inspectors are locked, or there aren't any, create a new one.
    if tTargetInspector is empty then
       local tNewInspectorName
@@ -98,7 +115,7 @@ on ideInspectObjects pObjects
    palette stack tTargetInspector
    unlock messages
    set the cSelectedObjects of stack tTargetInspector to tSelectedObjects
-  
+   
    unlock screen
 end ideInspectObjects
 
@@ -199,6 +216,16 @@ end ideMainstackChanged
 
 # Sent by the IDE when the selection changed
 on ideSelectedObjectChanged
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+   if there is a window "Properties Inspector" then
+      if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+            if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+         end if
+      end if
+   end if 
+   
+   
    local tObjects
    put revIDESelectedObjects() into tObjects
    
@@ -227,6 +254,15 @@ on ideSelectedObjectChanged
       put kPropertyInspectorPrefix && tKey into tStackName
       if the cLocked of stack tStackName is false and the mode of stack tStackName is not 0 then
          ideInspectObjects tObjects
+         -- fix for ubuntu inspector bug, when inspecting stack object (tperry 29-11-23)
+           if $desktop_session contains "ubuntu" then
+             if there is a wd "revPropertyInspector 1" then
+               if word 1 of the title of wd "revPropertyInspector 1" is "stack" then
+                 -- here's where the race condition starts in Ubuntu Linux (tperry 29-11-23)
+                 set the style of wd "revPropertyInspector 1" to toplevel
+               end if
+             end if
+           end if
          exit repeat
       end if
    end repeat

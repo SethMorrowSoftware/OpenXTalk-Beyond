@@ -58,6 +58,10 @@ on openStack
    registerForMessages
    set the visible of me to true
    unlock screen
+   
+   -- is this the last thing that gets called?
+   -- change the cursor state to show that we have finished loading the IDE
+   set the defaultCursor to 0 -- sets to normal arrow
 end openStack
 
 on registerForMessages

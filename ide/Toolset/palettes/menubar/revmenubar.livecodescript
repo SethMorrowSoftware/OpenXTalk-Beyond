@@ -32,6 +32,9 @@ on preOpenStack
    -- # bug - window juggling, only affects ubuntu I think? (tperry 02-09-2023)
    tCheckBuntuWdBug
    
+   -- change the cursor state to show that we are still loading
+   set the defaultCursor to 14 -- sets to spinner
+   
    -- truncate size of revmenubar
    tMenuBar_AdjustWDSize
    
@@ -44,12 +47,21 @@ on preOpenStack
    end if
    -- overrides, in case you are on an OS that is behaving oddly with the menubar (tperry 26-11-23)
    if the cTweakMenuBarOffset of stack "revPreferences" is true then
-      set the top of wd "revMenuBar" to the cTweakMenuBarT of stack "revPreferences" 
-      set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
+      if isNumber(the cTweakMenuBarT of stack "revPreferences") then  
+         set the top of wd "revMenuBar" to the cTweakMenuBarT of stack "revPreferences" 
+         set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
+      end if
    end if
    
    -- tperry (8/11/23) removed all light/darkmode checking. Not happy with result. This is now nullified and any custom appearances are deleted.
    -- see tApplyTheme_nullify in the home stack
+   
+   send tApplyGridSetting to this stack in 3 ticks -- makes sure grid is set (tperry 2-12-23)
+   
+   -- close off stacks that are no longer needed after the IDE starts (tperry 3-12-23)
+   if the cTidyUpStacks of stack "revPreferences" is true then
+      send tTidyUpStacks to stack "revMenubar" in 3 ticks
+   end if   
 end preOpenStack
 
 on closeStackRequest
@@ -299,10 +311,26 @@ on setMenuProperties
    put item 1 to -3 of the filename of stack "home" & "/.version" into tFilePath
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tVersionNumber
    put line 1 of tVersionNumber into tVersionNumber
+   
    if not isNumber(last char of tVersionNumber) then delete last char of tVersionNumber -- strip CR line endings if present
    put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
+  
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tForkName
    put line 1 of tForkName into tForkName
+   
+   -- now try and get rid of the junk that textDecode has put in!
+   -- edit, couldn't reliably read the file with binfile as it won't strip returns properly, so compensating :(
+   replace "%" with return in tForkName
+   put line 1 of tForkName into tForkName
+   
+   repeat 20
+      if isNumber(char 1 of tVersionNumber) then
+         exit repeat
+      else
+         delete char 1 of tVersionNumber
+      end if
+   end repeat
+ 
    put tForkName & " " & tVersionNumber  into tTitle
    set the title of me to tTitle
    
@@ -353,6 +381,12 @@ end setMenuProperties
 
 on ideSelectedObjectChanged
    updateButtonState
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+   if there is a window "Properties Inspector" then
+      if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+      end if
+   end if 
 end ideSelectedObjectChanged
 
 on ideActiveStacksChanged
@@ -988,6 +1022,10 @@ on updateButtonState
       end if
    end if
    
+   -- rename a few things 5-12-23
+   set the label of cd btn "Code" of cd 1 of wd "revMenubar" to "Script" -- it's called 'Script' everywhere else
+   set the label of cd btn "Sample Stacks" of cd 1 of wd "revMenubar" to "User guides" -- using the already existing button for my purposes here
+   
    unlock messages
    unlock screen
 end updateButtonState
@@ -1242,6 +1280,12 @@ on revMenubarMenuButtonClicked pWhich
          revIDEToggle "Suppress Errors"
          break
       case "Sample Stacks"
+         if the cDictionaryDisplayMethod of stack "revPreferences" is true then
+            send tOpenAllGuides to this stack in 1 ticks -- tperry 8-12-23 (new all guides button)
+         else
+            revIDEOpenPalette "guide" -- old behaviour (comment out eventually)
+         end if
+         break
       case "Tutorials"
          revIDELaunchResource pWhich
          break
@@ -1249,6 +1293,11 @@ on revMenubarMenuButtonClicked pWhich
          revIDEOpenPalette "Resource Center"
          break
       case "Dictionary"
+         -- change again 8-12-23
+         -- got cheesed off with the dictionary not displaying!
+         send tNewDictionaryDisplay to stack "revMenuBar" in 1 tick
+         break
+         /*
          -- (change tperry)
          -- by the way, if you think this method is complex, you should see the method of generating the database from the sql api!
          set cursor to watch
@@ -1273,6 +1322,7 @@ on revMenubarMenuButtonClicked pWhich
          end if
          -- end change (tperry)
          break
+         */
       case "Test"
          revIDEDeployAction
          break
@@ -1755,12 +1805,15 @@ private function revMenubarObjectMenu pContext
    
    ### Initial sections
    put enableMenuItem("&Object Inspector", tIsObjectTarget) & return after tObject
-   put enableMenuItem("&Card Inspector", tIsUserTarget) & return after tObject
+   put enableMenuItem("&Card Inspector/J", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
+   -- put enableMenuItem("&Card Inspector", tIsUserTarget) & return after tObject
    put enableMenuItem("&Stack Inspector/K", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    put enableMenuItem("Object Script/E", tIsObjectTarget) & return after tObject
-   put enableMenuItem("Card Script", tIsUserTarget) & return after tObject
-   put enableMenuItem("Stack Script", tIsUserTarget) & return after tObject
+   put enableMenuItem("&Card Script/^@C", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
+   --put enableMenuItem("Card Script", tIsUserTarget) & return after tObject
+   put enableMenuItem("&Stack Script/^@S", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
+   --put enableMenuItem("Stack Script", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    
    ### Lines 9 to 11: Group, Edit Group, Remove Group
@@ -1998,8 +2051,12 @@ private function revMenubarHelpMenu pContext
    local tHelp
    # AL-2015-07-10: Temporarily remove welcome screen option from help menu
    //put "Welcome Screen/|Welcome" & return after tHelp
+   put "About/|About" & return after tHelp
    put "Dictionary/|Dictionary" & return after tHelp  --reorganize help menu
-   put "User Guide" & return after tHelp
+   put "User Guide PDF" & return after tHelp -- This is Terry L's PDF version
+   put "User Guides" & return after tHelp -- Paul's revised documentation
+   put "-" & return after tHelp -- divider
+   put "Examples" after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putti
    --put "Data Grid Guide" & return after tHelp -- (tperry) remove & simplify this menu using additional commenting out --
    --put "Tutorials" & return after tHelp
    --put "-" & return after tHelp
@@ -2009,11 +2066,9 @@ private function revMenubarHelpMenu pContext
    --put "Donate" & return after tHelp
    --put "-" & return after tHelp
    --put "Release Notes/|Release Notes" & return after tHelp
-   --put "-" & return  after tHelp
-   put "About/|About" after tHelp
+   --put "-" & return  after tHelp   
    
    
-  
    /*  --start block comment
    put "Start Center/|Start Center" & return after tHelp
    put "User Guide" & return after tHelp
@@ -3277,7 +3332,23 @@ on revMenubarHelpMenuPick pWhich
    put item 1 of pWhich into tPick
    switch tPick
       case "Dictionary"
-         revIDEDocumentationLoad "API", "LiveCode Script"
+         send tNewDictionaryDisplay to stack "revMenuBar" in 1 tick -- tperry 8/12/23
+         /*
+         -- revIDEDocumentationLoad "API", "LiveCode Script"
+         if the cDictionaryDisplayMethod of stack "revPreferences" is true then
+            -- show in external browser
+            if the platform contains "mac" or the platform contains "linux" then
+               tShowDictionaryMacLin
+            end if
+            if the platform contains "win" then 
+               tShowDictionaryWin
+            end if
+         else
+            -- checkbox to use external browser is off - use old API (built-in widget method)
+            -- this will likely fail on most Linux distros
+            revIDEDocumentationLoad "API", "LiveCode Script" -- old code where the dictionary was generated from db
+         end if
+         */
          break
       case "Start Center"
       case "Welcome"
@@ -3286,7 +3357,12 @@ on revMenubarHelpMenuPick pWhich
          break
       case "Buy"
       case "Support"
-      case "User Guide"
+      case "User Guide PDF"
+         revIDELaunchResource "User Guide"
+         break
+      case "Examples"
+         send tOpenNewGuides to this stack in 1 ticks -- tperry 5-12-23 (new user guides button)
+         break
       case "Data Grid Guide"
       case "Lessons"
       case "Donate"
@@ -3302,8 +3378,12 @@ on revMenubarHelpMenuPick pWhich
       case "Newsletters"
          revIDELaunchResource tPick
          break
-      case "All Guides"
-         revIDEOpenPalette "guide"
+      case "User Guides"
+         if the cDictionaryDisplayMethod of stack "revPreferences" is true then
+            send tOpenAllGuides to this stack in 1 ticks -- tperry 8-12-23 (new all guides button)
+         else
+            revIDEOpenPalette "guide" -- old behaviour (comment out)
+         end if
          break
       case "Relicense"
          revIDEActionRelicense
@@ -3348,7 +3428,24 @@ on tCheckBuntuWdBug
    end if
 end tCheckBuntuWdBug
 
-on tShowDictionaryMacLin
+
+on tNewDictionaryDisplay
+   -- new method for displaying the dictionary
+   put specialFolderPath("engine") into tnopeFolder
+   if the platform contains "mac" then
+      -- make some allowances for the path if we are on the mac
+      set the itemdelimiter to "/"
+      delete last item of tnopeFolder
+      put tnopeFolder & "/Tools" into tnopeFolder
+   end if
+   put (tnopeFolder & "/Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack") into tNewDict
+   -- put tNewDict -- debug
+   open stack (tNewDict)
+   send tTackOnColours to stack "revMenubar" in 2 seconds
+end tNewDictionaryDisplay
+
+   /*
+   on tShowDictionaryMacLin
    -- work out current path of dictionary
    put the long name of this stack into tDictionaryPath
    if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
@@ -3427,9 +3524,11 @@ on tShowDictionaryWin
    get shell (QUOTE & tURL & QUOTE) -- this will lock OXT until a browser closed unfortunately
 end tShowDictionaryWin
 
+*/
+
 
 on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the revMenubar. As discussed on the OpenXTalk forum.
-   set the right of group "toolbar" to the right of stack "revMenubar" +4 -- position toolbar group to the right-hand edge of wd (tperry)
+   set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group 12 px from the left edge
    set the cantmodify of stack "revMenubar" to false
    if there is no graphic "draghandle" of card 1 of this stack then
       create graphic "draghandle" in card 1 of this stack 
@@ -3444,10 +3543,18 @@ on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the r
    set the width of graphic "draghandle" to 10 -- how large you want the handle (made smaller)
    set the linesize of graphic "draghandle" to 0
    set the opaque of graphic "draghandle" to true
-   set the backgroundPattern of graphic "draghandle" to 210091
-   set the blendlevel of graphic "draghandle" to 50
-   set the left of graphic "draghandle" to 0
-   set the ink of graphic "draghandle" to blendDifference
+   set the backgroundPattern of graphic "draghandle" of stack "revMenubar" to the id of image "dragbar" of cd "Appearance" of wd "revPreferencesGUI"
+   set the blendlevel of graphic "draghandle" of stack "revMenubar" to 0
+   --
+   -- why won't the mac behave? -- I have to specify this here, probably because of various other bits LC have done further up the message path (tperry 10-12-23)
+   if the platform contains "mac" then
+      -- mac specific because it won't behave
+      set the left of graphic "draghandle" of stack "revMenubar" to 1
+      set the top of graphic "draghandle" of stack "revMenubar" to 0
+   end if
+   --
+   set the ink of graphic "draghandle" of stack "revMenubar" to srcCopy
+   if there is a btn "file" of stack "revMenubar" then set the topleft of graphic "draghandle" of stack "revMenubar" to the bottomleft of btn "file" of stack "revMenubar"  -- adjust vert pos of draghandle (28-11-23 - tperry)
    -------------------------------------------------------------------
    put "local sgDragging, sgLeftOffset, sgTopOffset" & return &¬
    "on mouseDown" & return &¬
@@ -3477,18 +3584,84 @@ end tMenuBar_MakeDragHandle
 
 on tMenuBar_AdjustWDSize
    -- clean up the MenuBar (tperry)
+   -- should this be draggable?
+   if the cMakeRevMenuBarDraggable of stack "revPreferences" is false then
+      set the left of  group "toolbar" of wd "revMenubar" to 0 -- make sure group moves over if we don't have a drag handle (tperry 10-11-2023)
+      if there is a graphic "draghandle" of card 1 of this stack then 
+         hide graphic "draghandle" of cd 1 of this stack
+      end if
+   else
+      if there is no graphic "draghandle" of card 1 of this stack then tMenuBar_MakeDragHandle
+      set the left of  group "toolbar" of wd "revMenubar" to 12
+      if there is a graphic "draghandle" of card 1 of this stack then 
+         show graphic "draghandle" of cd 1 of this stack
+         if the platform contains "mac" then
+            -- because the mac won't behave 11-12-23 (tperry)
+            set the top of graphic "draghandle" of stack "revMenubar" to 0
+         end if
+      end if
+   end if
    -- remove stuff that is broken as of 26-10-2023
-   if there is a cd btn "Sample Stacks" of card 1 of wd "revMenuBar" then -- needs cleanup
-      hide cd btn "Sample Stacks" of cd 1 of wd "revMenuBar"
+   if there is a cd btn "Resources" of card 1 of wd "revMenuBar" then -- needs cleanup
+      hide cd btn "Resources" of cd 1 of wd "revMenuBar"
       if there is a cd btn "Tutorials" of card 1 of wd "revMenuBar" then hide cd btn "Tutorials" of card 1 of wd "revMenuBar"
-      if there is a cd btn "Resources" of card 1 of wd "revMenuBar" then hide cd btn "Resources" of card 1 of wd "revMenuBar"
       if there is a cd btn "Test" of card 1 of wd "revMenuBar" then hide cd btn "Test" of card 1 of wd "revMenuBar"
    end if  
-   
+   -- change layout slightly 5-12-23
+   if there is a cd btn "Sample Stacks" of card 1 of wd "revMenuBar" then 
+      show cd btn "Sample Stacks" of card 1 of wd "revMenuBar"
+      set the left of cd btn "Sample Stacks" of cd 1 of wd "revMenuBar" to the right of cd btn "Dictionary" of cd 1 of wd "revMenubar" +10
+   end if
    -- shorten the size of the revMenubar stack (tperry)
-   -- assuming the "Dictionary" button is going to be the last on the right
-   set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Dictionary" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
-   
-   if the cMakeRevMenuBarDraggable of stack "revPreferences" is false then set the left of  group "toolbar" of wd "revMenubar" to 0 -- make sure group moves over if we don't have a drag handle (tperry 10-11-2023)
+   -- now assuming the "Sample Stacks" button is going to be the last on the right (5-12-23)
+   set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Sample Stacks" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
 end tMenuBar_AdjustWDSize
 
+on tApplyGridSetting
+ -- tperry, 2-12-23 (moved this after the gridSize is set first, before potentially turning it on)
+   if the cGrid of stack "revPreferences" is true then
+      set the grid to true
+   else
+      set the grid to false
+   end if
+ set the gridSize to fld "gridSize" of cd "Appearance" of stack "revPreferencesGUI"
+end tApplyGridSetting
+
+on tTidyUpStacks
+   -- close off stacks that are no longer needed
+   put "RevSplash,RevSplashStackBehavior,revOnlineLibrary,revExtensionBuilder,revExtensionBuilderBehavior" into tCloseTheseStacks
+   put the itemDelimiter into tOldDelim
+   set the itemDelimiter to ","
+   put 0 into tCloseCount
+   repeat the number of items in tCloseTheseStacks
+      add 1 to tCloseCount
+      put item tCloseCount of tCloseTheseStacks into tStackToClose
+      if there is a stack (tStackToClose) then
+         -- close this as it's in our list
+         set the destroystack of stack (tStackToClose) to true -- remove from memory
+         close stack (tStackToClose)
+      end if
+   end repeat
+   set the itemDelimiter to tOldDelim
+end tTidyUpStacks
+
+on tOpenNewGuides
+   -- this should open the user submitted guides
+   set the itemdelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/userguides.livecode" into tFilePath
+   open stack tFilePath
+end tOpenNewGuides
+
+on tOpenAllGuides
+   -- this should open the new 'All Guides' stack
+   set the itemdelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/allguides.oxtstack" into tFilePath
+   open stack tFilePath
+end tOpenAllGuides
+
+on tTackOnColours
+   if there is a wd "tinyDictionary_0_8_3" then
+      set the linkColor of stack "tinyDictionary_0_8_3" to "0,125,255"
+      set the linkVisitedColor of stack "tinyDictionary_0_8_3" to "0,125,255"
+   end if
+end tTackOnColours

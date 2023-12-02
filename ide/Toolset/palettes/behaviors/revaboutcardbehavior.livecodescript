@@ -70,6 +70,7 @@ on loadText pType
          break
    end switch
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tAboutFieldData
+   replace "%" with return in tAboutFieldData
    put line 1 of tAboutFieldData & " " & tVersionNumber into field "edition" of me
    delete line 1 of tAboutFieldData
    put tAboutFieldData into field "credits" of me

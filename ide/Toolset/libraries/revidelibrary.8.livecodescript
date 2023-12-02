@@ -3588,9 +3588,18 @@ end revIDESetPropertyOfObject
 command revIDEInspectObjects pObjects
    lock screen
    
-   revIDEOpenPalette "inspector"
+     revIDEOpenPalette "inspector"
+     ideMessageSend "ideInspectObjects", pObjects
 
-   ideMessageSend "ideInspectObjects", pObjects
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
+   
    unlock screen
 end revIDEInspectObjects
 
@@ -3771,6 +3780,16 @@ command revIDESelectObjects pObjects
    set the lockMessages to tOldLockMessages
    
    send "ideMessageSend" && "ideSelectedObjectChanged" to me in 0 milliseconds
+   
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
+     
 end revIDESelectObjects
 
 command revIDERefreshProjectBrowser
@@ -8886,6 +8905,12 @@ on revIDEToggleToolbar pWhich
       put revIDEGetPreference("cToolbarIcons") is true into tCurrentPref
       revIDESetPreference "cToolbarIcons", not tCurrentPref
    end if
+   
+   -- respect the new OXT Lite icon spacing (tperry 30-11-23)
+   -- move location of dictionary button (tperry)
+   set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
+   send tMenuBar_AdjustWDSize to stack "revMenuBar"
+   set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group to the right-hand edge of wd (tperry)   
 end revIDEToggleToolbar
 
 on revIDEToggleShowIDEStacksInLists

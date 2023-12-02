@@ -6,6 +6,24 @@ on extensionInitialize
    end if
 end extensionInitialize
 
+on closecard
+   if "cREVGeometryCache" is among the lines of the customPropertySets of this card of stack REVTargetStack() then
+     revCacheGeometry
+     revUpdateGeometry
+     send resizeStack to stack "revgeometrylibrary"
+   end if
+   pass closecard
+end closecard
+
+on opencard
+   if "cREVGeometryCache" is among the lines of the customPropertySets of this card of stack REVTargetStack() then
+     revCacheGeometry
+     revUpdateGeometry
+     send resizeStack to stack "revgeometrylibrary"
+   end if
+   pass opencard
+end opencard
+
 on extensionFinalize
    if the target is me then
       remove the script of me from back
@@ -33,6 +51,7 @@ on resizeStack p1, p2, p3, p4
     end if
   end if
   
+  revCacheGeometry -- tperry 3-12-23 (geometry fix)
   if "cREVGeometryCache" is among the lines of the customPropertySets of this card of stack REVTargetStack() then 
     revUpdateGeometry
   end if
@@ -1140,3 +1159,4 @@ command revClearExtraGeometrySettings
    end if
    set the customProperties["cRevGeometry"] of lGeometryObject to tGeometry
 end revClearExtraGeometrySettings
+

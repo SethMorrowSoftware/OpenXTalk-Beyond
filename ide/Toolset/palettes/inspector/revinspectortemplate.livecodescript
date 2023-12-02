@@ -126,8 +126,17 @@ local sPropertyChangedMsg
 
 on idePropertyChanged
    cancel sPropertyChangedMsg
-   send "__IdePropertyChanged" to me in 200 milliseconds
+   if not (the pendingmessages contains "IdePropertyChanged") then send "__IdePropertyChanged" to me in 200 milliseconds -- tperry, 28-11-23 (stops it being sent recursively)
    put the result into sPropertyChangedMsg
+   
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
 end idePropertyChanged
 
 on __IdePropertyChanged
