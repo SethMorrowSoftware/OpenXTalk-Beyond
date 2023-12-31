@@ -113,17 +113,22 @@ on commandKeyDown pWhich
       pass commandKeyDown
    end if
    
-   if the optionKey is down and pWhich is "S" and the shiftKey is not down then
-      --command-option-S saves all stacks
-      local tOpenStacks
-      put revFilterStacksList(the openStacks) into tOpenStacks
-      repeat for each line tStack in tOpenStacks
-         if the effective fileName of stack tStack is not empty
-         then revSave tStack
-         else revSaveAs tStack
-      end repeat
-      exit commandKeyDown
-   end if
+   -- in OpenXTalk command-option-S is now "Save As..." since that's far more traditional app behavior
+   --  as well as far more useful in my opinion - Paul McClernan 7/15/22
+   -- commented out the following script because it was blocking that shortcut key change:
+   --
+   -- 
+   --if the optionKey is down and pWhich is "S" and the shiftKey is not down then
+      -- --command-option-S saves all stacks
+      --local tOpenStacks
+      --put revFilterStacksList(the openStacks) into tOpenStacks
+      --repeat for each line tStack in tOpenStacks
+         --if the effective fileName of stack tStack is not empty
+         --then revSave tStack
+         --else revSaveAs tStack
+      --end repeat
+      --exit commandKeyDown
+   --end if
    
    if the shiftKey is not down then
       switch pWhich

@@ -2,6 +2,9 @@
 local sMenuTarget
 
 on preOpenStack
+set the visible of stack "revMenubar" to false
+   lock screen
+   
    global gREVDontLoadMenus
    if gREVDontLoadMenus then
       put false into gREVDontLoadMenus
@@ -20,24 +23,15 @@ on preOpenStack
    # Since the menubar is topleveled on Linux and Windows, set the cantModify to true
    # to prevent users being able to alter the menubar stack.
    set the cantModify of me to true
-   
    set the decorations of stack "revMenubar" to empty -- don't need a huge close-box (tperry)
-   
    -- tperry (draw a drag handle on the left)
-   if the cMakeRevMenuBarDraggable of stack "revPreferences" is true then tMenuBar_MakeDragHandle
-   
+   if the cMakeRevMenuBarDraggable of stack "revPreferences" is true then send tMenuBar_MakeDragHandle to this stack in 1 millisecond
    -- move location of dictionary button (tperry)
    set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
-   
    -- # bug - window juggling, only affects ubuntu I think? (tperry 02-09-2023)
-   tCheckBuntuWdBug
-   
-   -- change the cursor state to show that we are still loading
-   set the defaultCursor to 14 -- sets to spinner
-   
+   send tCheckBuntuWdBug to this stack
    -- truncate size of revmenubar
-   tMenuBar_AdjustWDSize
-   
+   send tMenuBar_AdjustWDSize to this stack
    -- fix for placement (reordered 26-11-23)
    if the platform contains "mac" then set the top of wd "revMenuBar" to 22
    -- linux & win specific fix for placement (going top left - should ignore menubar and panels in a good linux distro!) -- tperry
@@ -52,16 +46,15 @@ on preOpenStack
          set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
       end if
    end if
-   
    -- tperry (8/11/23) removed all light/darkmode checking. Not happy with result. This is now nullified and any custom appearances are deleted.
    -- see tApplyTheme_nullify in the home stack
-   
-   send tApplyGridSetting to this stack in 3 ticks -- makes sure grid is set (tperry 2-12-23)
-   
+   send tApplyGridSetting to this stack in 1 millisecond -- makes sure grid is set (tperry 2-12-23)
    -- close off stacks that are no longer needed after the IDE starts (tperry 3-12-23)
    if the cTidyUpStacks of stack "revPreferences" is true then
-      send tTidyUpStacks to stack "revMenubar" in 3 ticks
+      send tTidyUpStacks to stack "revMenubar" in 1 ticks
    end if   
+   
+   unlock screen
 end preOpenStack
 
 on closeStackRequest
@@ -165,7 +158,8 @@ private on setupTextMenu
    put "Size" & return after tText
    
    local tFontSizes
-   put format("Use Owner's Size\n-\n8\n9\n10\n12\n14\n18\n24\n36\n48\n-\nOther...") into tFontSizes
+   --comeback
+   put format("Use Owner's Size\n-\n8\n9\n10\n12\n14\n18\n24\n36\n48\n-\nSmaller&/-\nBigger&/=\n-\nOther...") into tFontSizes -- added smaller and bigger option (tperry 30-12-23)
    repeat for each line l in tFontSizes
       if l is "-" then put tab & l & cr after tText
       else put "!u" & tab & l & cr after tText
@@ -182,7 +176,7 @@ private on setupTextMenu
          put "!u" & tab & tColor & return after tText
       end if
    end repeat
-   put  "-" & return & "&Align" & return & "!u"  & tab & "Left" & return & "!u" & tab & "Center" & return & "!u" & tab & "Right" after tText
+   put  "-" & return & "&Align" & return & "!u"  & tab & "Left&/^@L" & return & "!u" & tab & "Center" & return & "!u" & tab & "Right&/^@R" after tText
    
    # Cache the text menu text in non-disabled state
    put tText into sTextMenuText
@@ -536,6 +530,7 @@ on generateMenubarUI
    reset the templatefield
    
    unlock messages 
+   set the visible of stack "revMenubar" to false
 end generateMenubarUI
 
 private command generateTutorialGroup
@@ -1576,7 +1571,7 @@ private function revMenubarFileMenu pContext
    put "-" & return after tFile
    
    put enableMenuItem("&Save/S", tCanSaveStack) & return after tFile
-   put enableMenuItem("Save &As...", tCanSaveStack) & return after tFile
+   put enableMenuItem("Save &As.../#@S", tCanSaveStack) & return after tFile -- tperry (changed to alt shift s)
    put enableMenuItem("Move S&ubstack to File...", tIsUserTarget and the short name of the topStack is not the mainStack of the topStack) & return after tFile
    put enableMenuItem("&Revert to Saved...", tIsUserTarget and the effective filename of the topStack is not empty) & return after tFile
    put "-" & return after tFile
@@ -1687,8 +1682,8 @@ private function revMenubarToolsMenu pContext
    put toggleMenuItem("&Tools Palette/T", revIDEPaletteIsVisible("tools")) & return after tTools
    put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of revIDEGetPreference("revTools_show")) & return after tTools
    put "-" & return after tTools
-   
-   put toggleMenuItem("Project Browser", revIDEPaletteIsVisible("project browser")) & return after tTools
+   put "App Browser/^@A" & return after tTools -- (tperry, put this back in 21-12-23 - Richmond asked for it a while back)
+   put toggleMenuItem("Project Browser/^@P", revIDEPaletteIsVisible("project browser")) & return after tTools -- tperry, 21-12-23 added shortcut for project browser
    put toggleMenuItem("&Message Box/M", revIDEPaletteIsVisible("message box")) & return after tTools
    put toggleMenuItem("Extension Manager", revIDEPaletteIsVisible("extension manager")) & return after tTools
    put toggleMenuItem("Extension Builder", revIDEPaletteIsVisible("extension builder")) & return after tTools
@@ -1755,7 +1750,6 @@ private function revMenubarTextMenu pContext
       local tStartNum
       put lineOffset("Size"&cr,tText) into tStartNum   
       if tSize is empty then put "Use Owner's Size" into tSize   
-      
       put lineOffset(tSize,tText,tStartNum)+tStartNum into tLineNo   
       if tLineNo is not 0 and tSize is not "Multiple" then   
          if tSize is not among the items of "Use Owner's Size,8,9,10,12,14,18,24,36,48" then put lineOffset("Other..."&cr,tText) into tLineNo   
@@ -1804,7 +1798,8 @@ private function revMenubarObjectMenu pContext
    put not revIDEStackIsIDEStack(the topstack) into tIsUserTarget
    
    ### Initial sections
-   put enableMenuItem("&Object Inspector", tIsObjectTarget) & return after tObject
+   put enableMenuItem("&Object Inspector/^@I", tIsObjectTarget) & return after tObject -- tperry 14-12-23 (Richmond asked for Object inspector shortcut)
+   -- put enableMenuItem("&Object Inspector", tIsObjectTarget) & return after tObject
    put enableMenuItem("&Card Inspector/J", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
    -- put enableMenuItem("&Card Inspector", tIsUserTarget) & return after tObject
    put enableMenuItem("&Stack Inspector/K", tIsUserTarget) & return after tObject
@@ -1812,7 +1807,7 @@ private function revMenubarObjectMenu pContext
    put enableMenuItem("Object Script/E", tIsObjectTarget) & return after tObject
    put enableMenuItem("&Card Script/^@C", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
    --put enableMenuItem("Card Script", tIsUserTarget) & return after tObject
-   put enableMenuItem("&Stack Script/^@S", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
+   put enableMenuItem("&Stack Script/^@S", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23 /#@S
    --put enableMenuItem("Stack Script", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    
@@ -2056,7 +2051,9 @@ private function revMenubarHelpMenu pContext
    put "User Guide PDF" & return after tHelp -- This is Terry L's PDF version
    put "User Guides" & return after tHelp -- Paul's revised documentation
    put "-" & return after tHelp -- divider
-   put "Examples" after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putti
+   put "Examples" & return after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putting together
+   put "-" & return after tHelp -- divider
+   put "Check for updates" after tHelp -- tperry 24-12-23 -- added option to check for updates here
    --put "Data Grid Guide" & return after tHelp -- (tperry) remove & simplify this menu using additional commenting out --
    --put "Tutorials" & return after tHelp
    --put "-" & return after tHelp
@@ -3061,7 +3058,15 @@ on revMenubarToolsMenuPick pWhich
          revIDETogglePaintAndDrawTools
          break
       case "Menu Builder"
+         revIDETogglePalette "Menu Builder"
+         break
       case "Message Box"
+         revIDETogglePalette "Message Box"
+         if there is a wd "Message Box" then set the toplevel of wd "Message Box" to true
+         break
+      case "App Browser"
+         revIDEOpenPlugin "App Browser" -- tperry 21-12-23
+         break
       case "Project Browser"
       case "Extension Manager"
       case "Extension Builder"
@@ -3363,6 +3368,9 @@ on revMenubarHelpMenuPick pWhich
       case "Examples"
          send tOpenNewGuides to this stack in 1 ticks -- tperry 5-12-23 (new user guides button)
          break
+      case "Check for updates"
+         if not (the pendingmessages contains "tCheckForUpdates") then send tCheckForUpdates to card "Automatic Updates" of stack "revPreferencesGUI"
+         break
       case "Data Grid Guide"
       case "Lessons"
       case "Donate"
@@ -3403,15 +3411,21 @@ on tCheckBuntuWdBug
          lock screen
          set lockmessages to true
          if there is a wd "RevTools" then
-            set the style of wd "RevTools" to modeless
+            if not (the platform contains "linux") then
+               set the style of wd "RevTools" to modeless
+            end if
             set the systemwindow of wd "RevTools" to false
          end if
          if there is a wd "Message Box" then
-            set the style of wd "Message Box" to modeless
+            if not (the platform contains "linux") then
+               set the style of wd "Message Box" to modeless -- tperry 20-12-23 (make conditional for anything except linux)
+            end if
             set the systemwindow of wd "Message Box" to false
          end if
          if there is a wd "RevInspector" then
-            set the style of wd "RevInspector" to modeless
+            if not (the platform contains "linux") then
+               set the style of wd "RevInspector" to modeless
+            end if
             set the systemwindow of wd "RevInspector" to false
          end if
          if there is a wd "revSETemplate" then
@@ -3554,7 +3568,10 @@ on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the r
    end if
    --
    set the ink of graphic "draghandle" of stack "revMenubar" to srcCopy
-   if there is a btn "file" of stack "revMenubar" then set the topleft of graphic "draghandle" of stack "revMenubar" to the bottomleft of btn "file" of stack "revMenubar"  -- adjust vert pos of draghandle (28-11-23 - tperry)
+   if not (the platform contains "mac") then
+      -- because Linux and Windows draw the menubar onto the revMenubar stack (and MacOS uses the global menu bar) we position the draghandle below the "file" menu button
+      if there is a btn "file" of stack "revMenubar" then set the topleft of graphic "draghandle" of stack "revMenubar" to the bottomleft of btn "file" of stack "revMenubar"  -- adjust vert pos of draghandle (28-11-23 - tperry)
+   end if
    -------------------------------------------------------------------
    put "local sgDragging, sgLeftOffset, sgTopOffset" & return &¬
    "on mouseDown" & return &¬

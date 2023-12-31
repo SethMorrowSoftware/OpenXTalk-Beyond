@@ -1,5 +1,6 @@
 ﻿script "home"
 constant kImportantTextColor = "#569e54"
+global tForkName
 
 on startup
    revSetTestEnvironment($TRAVIS is true)
@@ -28,22 +29,21 @@ on startup
    end try
       
       
-   -- tperry, this bit taken from RC4 version. Thanks again Paul McClernan!
-   if not (the cLayoutGuides of stack "revPreferences" is true) then -- unload guide library if guides are turned off
-      -- guides prefs are turned off so unload lib
-      lock screen
-      send "extensionFinalize" to stack "community.ferruslogic.plugin.devguides" in 30 millisecs
-      revInternal__UnloadLibrary "community.ferruslogic.plugin.devguides"
-      -- lock messages
-      close stack "community.ferruslogic.plugin.devguides"
-      -- unlock messages
-      -- unlock screen
+    -- revised the layoutguides (22-11-2023), made this an option in prefs
+   if the cLayoutGuides of stack "revPreferences" is true then
+      -- guides are on
+   else
+      -- guides are off, unload
+      put "community.ferruslogic.plugin.devguides" into tCloseFerrus
+      send "extensionFinalize" to stack tCloseFerrus
+      set the destroyStack of stack tCloseFerrus to true
+      close stack tCloseFerrus
    end if
    
    tApplyTheme_nullify -- remove all custom theming (tperry 8-11-23)
-   
+
    revInternal__Log "Leave", "Startup"
-   
+  
    return tError
 end startup
 
@@ -235,7 +235,6 @@ on revInternal__openStack
       
       if tSuccess then
          revInternal__setSplashStatus "Performing Final Steps..."
-         revInternal__setSplashStatus ""
          revInternal__InitialiseFinalSteps
          
          put the result into tSuccess
@@ -259,7 +258,7 @@ on revInternal__openStack
    # AL-2015-07-10: Temporarily disable welcome screen
    /*
    if revIDEGetPreference("welcomeScreenShown") is not "true" then
-      revIDEOpenPalette "Welcome"
+      --  revIDEOpenPalette "Welcome" -- (don't show welcome, ever) -- tperry 29-12-23 
    else if revIDEPrefGet("StartPageShow") is not "false" then
       */
       
@@ -300,13 +299,18 @@ on revInternal__openStack
       end if
       
       */
-      close stack "revSplash"
+      
+      -- calling late inits
+      revInternal__setSplashStatus "Finishing loading the IDE..."
       
       revInternal__Log "Leave", "revInternal__openStack"
       revInternal__Log "End"
       
-      -- Now the home stack has loaded, we can allow interrupts..
-      set the allowInterrupts to true
+      -- calling late inits
+      revInternal__setSplashStatus "Finish IDE loading, and restoring control..."
+      
+      --
+      send tdelayClosingSplash to me in 3 ticks
    end revInternal__openStack
    
    on revInternal__setSplashStatus pMessage
@@ -314,6 +318,12 @@ on revInternal__openStack
       set the statusMessage of stack "revSplash" to pMessage
    end revInternal__setSplashStatus
    
+on tdelayClosingSplash
+   revInternal__setSplashStatus ""
+   if there is a stack "revsplash" then close stack "revSplash"
+   -- Now the home stack has loaded, we can allow interrupts..
+   set the allowInterrupts to true
+end tdelayClosingSplash
    
    local sLicensePlatform
    local sLicenseClass
@@ -1470,7 +1480,7 @@ command revInternal__InitialiseOptions
    
    set the selectGroupedControls to the cSelectGrouped of stack "revPreferences"
    set the tooltipDelay to the cREVToolTipDelay of stack "revPreferences"
-   set the grid to the cGrid of stack "revPreferences"
+
    set the scriptTextFont to the cREVScriptFont of stack "revPreferences"
    set the scriptTextSize to the cREVScriptSize of stack "revPreferences"
    
@@ -1727,7 +1737,7 @@ end revInternal__InitialiseOptions
       if the platform is among the items of "MacOS,Win32" then
          set the style of stack "Message Box" to "palette"
       else
-         set the style of stack "Message Box" to "modeless"
+         set the style of stack "Message Box" to toplevel -- tperry (21-12-23)
       end if
       dispatch "ideInitialiseMessageBox" to stack "Message Box"
       

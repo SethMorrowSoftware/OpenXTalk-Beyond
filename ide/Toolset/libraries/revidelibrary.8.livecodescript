@@ -8602,6 +8602,12 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             set the textSize of tTarget to empty
          else if pValue is a number then
             set textSize of tTarget to pValue
+         else if pValue contains "smaller" then -- added smaller and bigger options to text size menu (tperry 30-12-23)
+            put tMakeObjTextSmaller(tTarget) into pValue
+            set the textSize of tTarget to pValue
+         else if pValue contains "bigger" then -- added smaller and bigger options to text size menu (tperry 30-12-23)
+            put tMakeObjTextBigger(tTarget) into pValue
+            set the textSize of tTarget to pValue
          else if pValue is "Other..." then
             ask "Choose the text size"
             if it is empty then
@@ -9013,7 +9019,9 @@ on revIDELaunchResource pName
          launch document (revEnvironmentToolsPath() & slash & "Release Notes.pdf")
          break
       case "User Guide"
-         launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "User Guide.pdf")
+         set the itemdelimiter to "/"
+         put item 1 to -3 of the filename of stack "home" into tPDFPath
+         launch document (tPDFPath & "/Documentation/PDF/" & "User Guide.pdf") -- changed for specific MacOS support 24-12-23 (tperry)
          break
       case "Data Grid Guide"
          launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "Data Grid Guide.pdf")
@@ -12418,3 +12426,20 @@ command ideSetWindowBoundingRect
       set the windowBoundingRect to tWindowRect
    end if
 end ideSetWindowBoundingRect
+
+function tMakeObjTextSmaller tThisObject
+   -- makes text of selected object smaller (text menu > size > smaller)
+   put the textSize of tThisObject into tCurSize
+   if not (isNumber(tCurSize)) then put "14" into tCurSize
+   subtract 2 from tCurSize
+   if tCurSize <1 then put 1 into tCurSize
+   return tCurSize
+end tMakeObjTextSmaller
+
+function tMakeObjTextBigger tThisObject
+   -- makes text of selected object bigger (text menu > size > bigger)
+   put the textSize of tThisObject into tCurSize
+   if not (isNumber(tCurSize)) then put "14" into tCurSize
+   add 2 to tCurSize
+   return tCurSize
+end tMakeObjTextBigger
