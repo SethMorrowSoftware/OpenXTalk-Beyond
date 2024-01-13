@@ -2,7 +2,9 @@
 local sMenuTarget
 
 on preOpenStack
-set the visible of stack "revMenubar" to false
+   if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 100 -- don't show it yet
+   
+   set the visible of stack "revMenubar" to false
    lock screen
    
    global gREVDontLoadMenus
@@ -46,13 +48,13 @@ set the visible of stack "revMenubar" to false
          set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
       end if
    end if
-   -- tperry (8/11/23) removed all light/darkmode checking. Not happy with result. This is now nullified and any custom appearances are deleted.
-   -- see tApplyTheme_nullify in the home stack
    send tApplyGridSetting to this stack in 1 millisecond -- makes sure grid is set (tperry 2-12-23)
    -- close off stacks that are no longer needed after the IDE starts (tperry 3-12-23)
    if the cTidyUpStacks of stack "revPreferences" is true then
       send tTidyUpStacks to stack "revMenubar" in 1 ticks
    end if   
+   -- check if revMenubar should be a standard window (tperry 04-01-2024)
+   send tMenuBar_WDdecorations to this stack in 1 tick
    
    unlock screen
 end preOpenStack
@@ -176,7 +178,8 @@ private on setupTextMenu
          put "!u" & tab & tColor & return after tText
       end if
    end repeat
-   put  "-" & return & "&Align" & return & "!u"  & tab & "Left&/^@L" & return & "!u" & tab & "Center" & return & "!u" & tab & "Right&/^@R" after tText
+   -- shortcuts on align left, right (tperry 30-11-24)
+   put  "-" & return & "&Align" & return & "!u"  & tab & "Left&/^@L" & return & "!u" & tab & "Center&/^@C" & return & "!u" & tab & "Right&/^@R" after tText
    
    # Cache the text menu text in non-disabled state
    put tText into sTextMenuText
@@ -308,7 +311,7 @@ on setMenuProperties
    
    if not isNumber(last char of tVersionNumber) then delete last char of tVersionNumber -- strip CR line endings if present
    put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
-  
+   
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tForkName
    put line 1 of tForkName into tForkName
    
@@ -324,7 +327,7 @@ on setMenuProperties
          delete char 1 of tVersionNumber
       end if
    end repeat
- 
+   
    put tForkName & " " & tVersionNumber  into tTitle
    set the title of me to tTitle
    
@@ -598,7 +601,7 @@ private command generateUpgradeGroup
    set the textColor of it to "white"
    
    hide group "upgrade" of me
-  
+   
 end generateUpgradeGroup
 
 on generateMenuGroup
@@ -1571,7 +1574,7 @@ private function revMenubarFileMenu pContext
    put "-" & return after tFile
    
    put enableMenuItem("&Save/S", tCanSaveStack) & return after tFile
-   put enableMenuItem("Save &As.../#@S", tCanSaveStack) & return after tFile -- tperry (changed to alt shift s)
+   put enableMenuItem("Save &As.../^@S", tCanSaveStack) & return after tFile -- tperry (changed to ctrl shift s)
    put enableMenuItem("Move S&ubstack to File...", tIsUserTarget and the short name of the topStack is not the mainStack of the topStack) & return after tFile
    put enableMenuItem("&Revert to Saved...", tIsUserTarget and the effective filename of the topStack is not empty) & return after tFile
    put "-" & return after tFile
@@ -1798,16 +1801,16 @@ private function revMenubarObjectMenu pContext
    put not revIDEStackIsIDEStack(the topstack) into tIsUserTarget
    
    ### Initial sections
-   put enableMenuItem("&Object Inspector/^@I", tIsObjectTarget) & return after tObject -- tperry 14-12-23 (Richmond asked for Object inspector shortcut)
+   put enableMenuItem("&Object Inspector/#@I", tIsObjectTarget) & return after tObject -- tperry 14-12-23 (Richmond asked for Object inspector shortcut)
    -- put enableMenuItem("&Object Inspector", tIsObjectTarget) & return after tObject
    put enableMenuItem("&Card Inspector/J", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
    -- put enableMenuItem("&Card Inspector", tIsUserTarget) & return after tObject
    put enableMenuItem("&Stack Inspector/K", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    put enableMenuItem("Object Script/E", tIsObjectTarget) & return after tObject
-   put enableMenuItem("&Card Script/^@C", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
+   put enableMenuItem("&Card Script/#@C", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23
    --put enableMenuItem("Card Script", tIsUserTarget) & return after tObject
-   put enableMenuItem("&Stack Script/^@S", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23 /#@S
+   put enableMenuItem("&Stack Script/#@S", tIsUserTarget) & return after tObject -- terryL suggestion 6-12-23 , added by tperry on 10-12-23 /#@S
    --put enableMenuItem("Stack Script", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    
@@ -2112,18 +2115,27 @@ private function revMenubarViewMenu pContext
    put enableMenuItem("Go &Last/4", the mode of the topStack is 1) & return after tView
    put enableMenuItem("Go Recent/5", the mode of the topStack is 1) & return after tView
    put "-" & return after tView
-   put toggleMenuItem("Toolbar Icons", the cToolbarIcons of stack "revPreferences") & return after tView
-   put toggleMenuItem("Toolbar Text", the cToolbarText of stack "revPreferences") & return after tView
+   put toggleMenuItem("Toolbar Icons/^@I", the cToolbarIcons of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar icons)
+   put toggleMenuItem("Toolbar Text/^@T", the cToolbarText of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar text)
    put "-" & return after tView
    put toggleMenuItem("Palettes", gREVPalettes is empty) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Rulers", the mode of stack "revRulersH" is not 0) & return after tView
    put toggleMenuItem("Grid", the grid) & return after tView
-   put toggleMenuItem("Backdrop", the backdrop is not "none") & return after tView
+   put toggleMenuItem("Backdrop/^@B", the backdrop is not "none") & return after tView -- tperry 13-1-24 (ctrl-shift-b shortcut for background)
    put toggleMenuItem("Show IDE Stacks In Lists", gREVShowStacks) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Show &Invisible Objects" , the showInvisibles) & return after tView
-   
+   put "-" & return after tView
+   if the platform contains "linux" then
+      put "(" into tDis
+   else put "" into tDis
+   put "Appearance" & return after tView
+   put tab & tDis & "Default" & return after tView
+   put tab & tDis & "Dark mode" & return after tView
+   put tab & tDis & "Light mode" & return after tView
+   put tab & "-" & return after tView
+   put tab & "Theme Preferences" & return after tView
    return modifyMenu("View", tView)
 end revMenubarViewMenu
 
@@ -2226,7 +2238,7 @@ function revMenubarAdditionalContextMenu pIndent
    local tText
    put return & tIndent & "-" after tText
    put return & tIndent & "Show In Project Browser" after tText
-   put return & tIndent & "Show Documentation" after tText
+   -- put return & tIndent & "Show Documentation" after tText -- commented this out (tperry 13-1-24)
    return tText
 end revMenubarAdditionalContextMenu
 
@@ -3290,6 +3302,35 @@ on revMenubarDevelopmentMenuPick pWhich
 end revMenubarDevelopmentMenuPick
 
 on revMenubarViewMenuPick pWhich
+   -- setting theme from menubar, tperry 13-1-24
+   if pWhich contains "Theme Preferences" then
+      -- remember to check tApplyTheme_nullify in the home stack
+      tOpenThemePrefs
+   end if
+   -- these should be disabled under linux, as they aren't needed.
+   -- they should only show under MacOS and Windows
+   if pWhich contains "default" then
+      -- set prefs
+      set the cUseThemeDefault of stack "revPreferences" to true
+      set the cUseThemeDark of stack "revPreferences" to false
+      set the cUseThemelight of stack "revPreferences" to false
+      send tApplyTheme_nullify to stack "home"
+   end if
+   if pWhich contains "Dark mode" then
+      -- set prefs
+      set the cUseThemeDefault of stack "revPreferences" to false
+      set the cUseThemeDark of stack "revPreferences" to true
+      set the cUseThemelight of stack "revPreferences" to false
+      send IDEToDarkMode to stack "home"
+   end if
+   if pWhich contains "Light mode" then
+      -- set prefs
+      set the cUseThemeDefault of stack "revPreferences" to false
+      set the cUseThemeDark of stack "revPreferences" to false
+      set the cUseThemelight of stack "revPreferences" to true
+      send IDEToLightMode to stack "home"
+   end if
+   
    switch pWhich
       case "Show IDE Stacks In Lists"
       case "Show Invisible Objects"
@@ -3321,6 +3362,7 @@ on revMenubarViewMenuPick pWhich
          revIDETogglePaletteView
          break
    end switch
+   
 end revMenubarViewMenuPick
 
 on revMenubarWindowMenuPick pWhich
@@ -3458,8 +3500,8 @@ on tNewDictionaryDisplay
    send tTackOnColours to stack "revMenubar" in 2 seconds
 end tNewDictionaryDisplay
 
-   /*
-   on tShowDictionaryMacLin
+/*
+on tShowDictionaryMacLin
    -- work out current path of dictionary
    put the long name of this stack into tDictionaryPath
    if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
@@ -3635,13 +3677,13 @@ on tMenuBar_AdjustWDSize
 end tMenuBar_AdjustWDSize
 
 on tApplyGridSetting
- -- tperry, 2-12-23 (moved this after the gridSize is set first, before potentially turning it on)
+   -- tperry, 2-12-23 (moved this after the gridSize is set first, before potentially turning it on)
    if the cGrid of stack "revPreferences" is true then
       set the grid to true
    else
       set the grid to false
    end if
- set the gridSize to fld "gridSize" of cd "Appearance" of stack "revPreferencesGUI"
+   set the gridSize to fld "gridSize" of cd "Appearance" of stack "revPreferencesGUI"
 end tApplyGridSetting
 
 on tTidyUpStacks
@@ -3682,3 +3724,58 @@ on tTackOnColours
       set the linkVisitedColor of stack "tinyDictionary_0_8_3" to "0,125,255"
    end if
 end tTackOnColours
+
+on tMenuBar_WDdecorations
+   -- handler to see if the revMenubar should be shown as a standard window
+   -- tperry 04-01-2024
+   -- Requested by TerryL
+   
+   lock screen
+   if the cMakeRevMenuBarStandard of stack "revPreferences" is true then
+      set the decorations of stack "revMenubar" to "title,menu,minimize,close"
+   else
+      if not (the decorations of stack "revMenubar" is "") then set the decorations of stack "revMenubar" to ""
+   end if
+   -- now check position
+   if the cTweakMenuBarOffset of stack "revPreferences" is true then
+      -- we have offsets specified
+      set the top of wd "revMenuBar" to the cTweakMenuBarT of stack "revPreferences" 
+      set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences" 
+   else
+      if the platform contains "mac" then
+         -- we make some special allowances for MacOS here
+         set the top of stack "revMenubar" to 23
+         set the left of stack "revMenubar" to 0 -- moves revMenubar back to left of screen
+         if the cMakeRevMenuBarStandard of stack "revPreferences" is true & the platform contains "mac" then
+            -- more allowances for macOS here
+            set the top of stack "revMenubar" to 45
+         end if
+      else
+         -- linux
+         if not (the top of stack "revMenubar" is "0") then
+            set the top of stack "revMenubar" to 0 -- moves revMenubar back to top of screen
+            set the left of stack "revMenubar" to 0 -- moves revMenubar back to left of screen
+         end if
+         -- win 
+         -- make some allowances for Windows here -- 12-01-2024 (tperry)
+         if the platform contains "win" then
+            if the cMakeRevMenuBarStandard of stack "revPreferences" is true & the platform contains "win" then
+               set the top of stack "revMenubar" to 30 -- moves revMenubar back to top of screen
+               set the left of stack "revMenubar" to 0 -- moves revMenubar back to left of screen
+            else
+               set the top of stack "revMenubar" to 0 -- moves revMenubar back to top of screen
+               set the left of stack "revMenubar" to 0 -- moves revMenubar back to left of screen
+            end if
+         end if
+      end if
+   end if
+   unlock screen
+end tMenuBar_WDdecorations
+
+
+on tOpenThemePrefs
+   -- when choosing the appearance theme preferences from the viewMenu
+   open  stack "revPreferencesGUI"
+   go card "Extras" of stack "revPreferencesGUI"
+   set the hilitedLine of fld "menu" of stack "revPreferencesGUI" to 4
+end tOpenThemePrefs

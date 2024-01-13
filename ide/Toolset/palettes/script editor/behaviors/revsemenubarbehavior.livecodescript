@@ -274,6 +274,8 @@ end buildWindowMenu
 
 private command buildHelpMenu pContext
    local tText
+   -- tperry 5-1-24 (modify the old help menu to just what works)
+   /*
    put "Documentation Pane" & return & \
           "-" & return & \
           "Dictionary"  & return & \
@@ -282,7 +284,8 @@ private command buildHelpMenu pContext
           "Start Center" & return & \
           "User Guide" & return & \
           "About LiveCode" into tText
-   
+   */
+   put "User Guide" & return into tText
    set the text of button "Help" of me to modifyMenu("Help", tText)
 end buildHelpMenu
 

@@ -7,6 +7,8 @@ on preOpenStack
    
    set the title of me to "Tools"
    
+ if there is a stack "revTools" then set the blendlevel of stack "revTools" to 100 -- make it transparent while we set it up
+   
    # Preferences
    if revIDEGetPreference("revTools_columns") is not a number then revIDESetPreference "revTools_columns", kToolsColumnCountDefault
    addFrameItem "revTools_columns", "header", "preference", "View Columns", "enum","2,3,4", "framePreferenceSelected", the long id of me
@@ -62,7 +64,22 @@ on openStack
    -- is this the last thing that gets called?
    -- change the cursor state to show that we have finished loading the IDE
    set the defaultCursor to 0 -- sets to normal arrow
+   
+   if the cREVLaunching of stack "Home" is false then
+      -- if we reopened the tools palette, now make it visible
+      -- (this instance is not called when the IDE is booting)
+      if there is a stack "revTools" then 
+         set the blendlevel of stack "revTools" to 0
+      end if
+   end if
 end openStack
+
+on ensureToolsIsDraggable
+   -- make sure the tools are draggable (tperry 14-1-24)
+   set the decorations of this wd to "title,menu,close"
+   set the style of stack "revTools" to "toplevel"
+   set the cantmodify of stack "revTools" to true
+end ensureToolsIsDraggable
 
 on registerForMessages
    ### Messages

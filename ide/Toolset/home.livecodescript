@@ -1,6 +1,7 @@
 ﻿script "home"
 constant kImportantTextColor = "#569e54"
 global tForkName
+global tSystemVersionNumber
 
 on startup
    revSetTestEnvironment($TRAVIS is true)
@@ -40,8 +41,6 @@ on startup
       close stack tCloseFerrus
    end if
    
-   tApplyTheme_nullify -- remove all custom theming (tperry 8-11-23)
-
    revInternal__Log "Leave", "Startup"
   
    return tError
@@ -242,9 +241,7 @@ on revInternal__openStack
    catch tError
       revInternal__Log "Error", tError
    end try
-   
-   set the cREVLaunching of stack "Home" to false
-   
+      
    if not tSuccess then
       quit
    end if
@@ -256,50 +253,6 @@ on revInternal__openStack
    end if
    
    # AL-2015-07-10: Temporarily disable welcome screen
-   /*
-   if revIDEGetPreference("welcomeScreenShown") is not "true" then
-      --  revIDEOpenPalette "Welcome" -- (don't show welcome, ever) -- tperry 29-12-23 
-   else if revIDEPrefGet("StartPageShow") is not "false" then
-      */
-      
-      /* -- disable all this section (tperry)
-      if revIDEGetPreference("cStartPageShow") is not "false" then
-         revIDEOpenPalette "Start Center"
-      end if
-      
-      -- MM-2011-09-27: The new auto update process is handled entirely by the installer.
-      -- Luanch the installer in update mode to begin update process.
-      --
-      if line 3 of revLicenseInfo is not "evaluation" then
-         local tCommand, tOldPath
-         put $PATH into tOldPath
-         set the itemdelimiter to "/"
-         switch the platform
-            case "MacOS"
-               put item 1 to -5 of the filename me & "/Contents/MacOS/autoupdater" into tCommand
-               put quote & tCommand & quote && "install -update" into tCommand
-               break
-            case "Win32"
-               put item 1 to -3 of the filename me & "/.setup.exe" into tCommand
-               put quote & tCommand & quote && "install -update" into tCommand
-               break
-            case "Linux"
-               -- MDW-2015-12-19 [[fix_installer]] LC8-style setup filename
-               if the processor is "x86_64" then
-                  put item 1 to -3 of the filename me & "/setup.x86_64" into tCommand
-               else
-                  put item 1 to -3 of the filename me & "/setup.x86" into tCommand
-               end if
-               put tCommand && "install -update" into tCommand
-               break
-         end switch
-         set the itemDel to comma
-         open process tCommand for neither
-         put tOldPath into $PATH
-      end if
-      
-      */
-      
       -- calling late inits
       revInternal__setSplashStatus "Finishing loading the IDE..."
       
@@ -307,23 +260,40 @@ on revInternal__openStack
       revInternal__Log "End"
       
       -- calling late inits
-      revInternal__setSplashStatus "Finish IDE loading, and restoring control..."
+      revInternal__setSplashStatus "Finish IDE loading, applying theme..."
       
       --
       send tdelayClosingSplash to me in 3 ticks
    end revInternal__openStack
    
-   on revInternal__setSplashStatus pMessage
+on tdelayClosingSplash
+   -- Now the home stack has loaded, we can allow interrupts..
+   set the allowInterrupts to true
+   set the cREVLaunching of stack "Home" to false
+   
+   -- apply a theme
+   if the cUseThemeDefault of stack "revPreferences" is true then send tApplyTheme_nullify to stack "home"
+   if the cUseThemeDark of stack "revPreferences" is true then send IDEToDarkMode to stack "home"
+   if the cUseThemelight of stack "revPreferences" is true then send IDEToLightMode to stack "home"
+   
+   -- now make tools visible (now that theme has applied)
+   if there is a stack "revTools" then 
+      toplevel stack "revTools"
+      set the blendlevel of stack "revTools" to 0
+      close stack "revTools"
+      revIDETogglePalette "tools"
+   end if
+   -- now make menubar visible, now that theme has applied
+   if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
+   
+   if there is a stack "revsplash" then close stack "revSplash"
+end tdelayClosingSplash
+
+on revInternal__setSplashStatus pMessage
       revInternal__Log "Message", pMessage
       set the statusMessage of stack "revSplash" to pMessage
    end revInternal__setSplashStatus
    
-on tdelayClosingSplash
-   revInternal__setSplashStatus ""
-   if there is a stack "revsplash" then close stack "revSplash"
-   -- Now the home stack has loaded, we can allow interrupts..
-   set the allowInterrupts to true
-end tdelayClosingSplash
    
    local sLicensePlatform
    local sLicenseClass
@@ -1547,7 +1517,6 @@ command revInternal__InitialiseOptions
    -- tperry 20-11-2023 (added this global variable, which can be accessed through the message box).
    -- just so we can reliably get the system version for all major desktop OS versions
    
-   global tSystemVersionNumber
    put "" into tShellCmd
    set hideConsoleWindows to true
    if the platform contains "linux" then put "lsb_release -r |cut -f2" into tShellCmd
@@ -2447,130 +2416,605 @@ end revInternal__InitialiseOptions
    -- it might be better to have a generic script that swaps foreground and background colors on objects
    ---------------------------------------------------------------------------------
    
-   -- tperry (Tried this, not happy with the result on mac and windows, so have removed it)
-   -- all that happens now is that all custom colour properties are stripped out
+   -- tperry (Tried this, not happy with the result on windows, so have removed it)
+   -- updated 13-1-2024 -- I did try various other methods, but settled on this.
    
 on IDEToLightMode
-   lock screen
-   tApplyTheme_nullify
-   unlock screen
+   if the cREVLaunching of stack "Home" is false then
+      lock screen
+      -- set prefs
+      set the cUseThemeDefault of stack "revPreferences" to false
+      set the cUseThemeDark of stack "revPreferences" to false
+      set the cUseThemelight of stack "revPreferences" to true
+      
+      if the platform contains "win" then send IDEtoLightWin to this stack
+      if the platform contains "mac" then send IDEtoDefaultMac to this stack -- remove theme for mac
+      
+      unlock screen
+   end if
 end IDEToLightMode
    
 on IDEToDarkMode
-   lock screen
-   tApplyTheme_nullify
-   unlock screen
+   if the cREVLaunching of stack "Home" is false then
+      lock screen
+      -- set prefs
+      set the cUseThemeDefault of stack "revPreferences" to false
+      set the cUseThemeDark of stack "revPreferences" to true
+      set the cUseThemelight of stack "revPreferences" to false
+      
+      if the platform contains "win" then send IDEtoDarkWin to this stack
+      if the platform contains "mac" then send IDEtoDarkMac to this stack
+      
+      unlock screen
+   end if
 end IDEToDarkMode
    
 on tApplyTheme_nullify
-   lock screen
-   set the backGroundColor of stack "revTools" to ""
-   set the foreGroundColor of stack "revTools" to empty
-   if there is a group "widget" of stack "revTools" then 
-      set the foreGroundColor of group "widget" of stack "revTools" to  ""
-      set the backgroundColor of group "widget" of stack "revTools" to empty
+   if the cREVLaunching of stack "Home" is false then
+      if the platform contains "win" then send IDEtoDefaultWin to this stack -- remove theme for windows
+      if the platform contains "mac" then send IDEtoDefaultMac to this stack -- remove theme for mac
+      
    end if
-   set the foreGroundColor of group "background" of stack "revTools" to ""
-   set the backgroundColor of group "classic" of stack "revTools" to empty
-   set the foreGroundColor of stack "Message Box" to ""
-   set the backGroundColor of stack "Message Box" to ""
-   set the backgroundColor of stack "revPreferencesGUI" to ""
-   set the foreGroundColor of stack "revPreferencesGUI" to ""
-   -- set controls to things that look native, reset appearance to empty
-   put 0 into tcardnumber
-   put "revPreferencesGUI" into tTargStack
-   if there is a stack tTargStack then
-      set the backgroundColor of fld "menu" of cd "General" of wd "revPreferencesGUI" to ""
-      repeat the number of cards of stack tTargStack
-         add 1 to tcardnumber
-         put 0 into tcount
-         if (the filename of stack tTargStack contains "/Toolset/") then -- only try to de-theme stacks that are part of the IDE
-            put the number of buttons of cd tcardnumber of wd tTargStack into tBTNCount
-            -- un-style buttons appropriately
-            repeat tBTNCount
-               add 1 to tcount
-               if there is a btn tcount of card tcardnumber of wd tTargStack then set the threeD of btn tcount of card tcardnumber of wd tTargStack to true
-               if there is a btn tcount of card tcardnumber of wd tTargStack then
-                  if the style of btn tcount of card tcardnumber of wd tTargStack is "standard" or the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                     set the showBorder of btn tcount of card tcardnumber of wd tTargStack to true
-                     set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                     set the borderwidth of btn tcount of card tcardnumber of wd tTargStack to 2
-                     set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-                  end if
-                  if the backgroundColor of btn tcount of card tcardnumber of wd tTargStack is not "" & the style of btn tcount of card tcardnumber of wd tTargStack is "roundRect" then 
-                     set the backgroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-                     set the style of btn tcount of card tcardnumber of wd tTargStack to "Standard"
-                  end if
-                  
-                  if (the number of lines of the text of btn tcount of card tcardnumber of wd tTargStack >1) then set the ForegroundColor of btn tcount of card tcardnumber of wd tTargStack to ""
-               end if               
-            end repeat
-         end if
-      end repeat
-   end if
-   -- other little bits I've noticed in the IDE
-   -- set to all windows
-   put the mainstacks & return & the openstacks into tStackList
-   put 0 into tcount
-   repeat the number of lines in tStackList
-      add 1 to tcount
-      if there is a stack (line tcount of tStackList) then
-         set the backgroundColor of stack (line tcount of tStackList) to ""
-         set the foregroundColor of stack (line tcount of tStackList) to ""
-      end if
-   end repeat
-   put "" into tStackList
-   -- this does the script editor as an example, but really the change needs to apply to every stack opened under win and mac
-   put "set the backgroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to " & QUOTE & QUOTE into line (the number of lines in tStackList +1) of tStackList
-   put "set the foregroundColor of card " & QUOTE & "main" & QUOTE & " of stack " & QUOTE & "revSETemplate" & QUOTE & " of stack " & QUOTE & "revNewScriptEditor"  & QUOTE & " to " & QUOTE & QUOTE into line (the number of lines in tStackList +1) of tStackList
-   
-   -- the following objects and stacks need setting too, but they aren't open at startup
-   -- so a workaround is to set the colour settings back into the revPreferences stack with:
-   set the cAppearanceBackgroundCol of stack "revPreferences" to ""
-   set the cAppearanceForegroundCol of stack "revPreferences" to ""
-   
-   -- workarounds for revMenubar
-   if there is a group "revMenuBar" of cd 1 of stack "revMenuBar" then
-      set the ink of group "revMenuBar" of cd 1 of stack "revMenuBar" to "srcCopy"
-      put 0 into tBtnCount
-      repeat the number of buttons in group  "revMenuBar" of cd 1 of stack "revMenuBar"
-         add 1 to tBtnCount
-         set the foregroundColor of btn tBtnCount of group "revMenuBar" of cd 1 of stack "revMenuBar" to ""
-      end repeat
-   end if 
-   -- fix for script editor
-   if there is a group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" then
-      set the ink of group "MenuBar" of cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to "srcCopy"
-      put 0 into tBtnCount
-      repeat the number of buttons in group "MenuBar" of cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor"
-         add 1 to tBtnCount
-         set the foregroundColor of btn tBtnCount of group "MenuBar" of  cd "Templates" of stack "revSETemplate" of stack "revNewScriptEditor" to ""
-      end repeat
-   end if 
-   
-   filter lines of tStackList without empty
-   do tStackList
 end tApplyTheme_nullify
 
+--------------------------------------------------------------------------------------------------------
+-- all the stuff past this point just applies / removes custom colour properties --
+-- I've tried to make this as straightforward as possible, but will probably refine using a --
+-- variable function at some point (once I know it's working well) -- tperry 13-1-2024
+--------------------------------------------------------------------------------------------------------
+on IDEtoDefaultWin
+   lock screen
+   
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to ""
+         set the backgroundColor of stack (line tcount of tStacks) to ""
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                  set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to ""
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "srcCopy"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to ""
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "srcCopy"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to ""
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor native colours
+      put "255,255,255" into tCustColor
+      put "Default" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   -- if on windows, write a registry change
+   if the platform contains "win" then
+      set the hideConsoleWindows to true
+      put "reg add HKCU\SOFTWARE\Microsoft\Windows\DWM /t REG_DWORD /v ColorPrevalence /d 00000000 /f" into tCmd
+      get shell(tCmd)
+   end if
+   unlock screen
+end IDEtoDefaultWin
 
--- on iconMenuOpening
---   -- lock screen
---   if the cREVLaunching of me is true then exit iconMenuOpening
---   set the iconMenu to (tab & "Utilities" & cr & tab & tab & "Gather Windows")
---   -- set the icon of this stack to image id
---   -- set the statusIconMenu to iconMenuSpec
---   -- set the statusIconToolTip to "app toolTip here"
+on IDEtoDarkWin
+   lock screen
+   put "225,225,255" into tLightGrey-- very light grey
+   put "50,50,50" into tDarkGrey-- very dark grey
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to tLightGrey
+         set the backgroundColor of stack (line tcount of tStacks) to tDarkGrey
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  if the height of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) >22 then
+                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  else
+                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "130,130,130"
+                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  end if
+                  if (line tcount of tStacks) contains "revMenubar" or (line tcount of tStacks) contains "standalone" then
+                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "blendSrc"
+                  else
+                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  end if
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "blendExclusion"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey 
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "blendSoftLight"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to tLightGrey
+      put 0 into tMenuBtnCount
+      repeat the number of buttons of group "revMenuBar" of stack "revMenubar"
+         add 1 to tMenuBtnCount
+         set the foregroundColor of btn tMenuBtnCount of group "revMenubar" of stack "revMenubar" to "0,0,0" -- black
+         set the ink of of btn tMenuBtnCount of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      end repeat
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "blendSoftLight"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to "0,0,0"
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "blendSoftLight"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "0,0,0"
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor dark colours
+      put "51,51,51" into tCustColor
+      put "Dark Mode" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"  
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   -- if on windows, write a registry change
+   if the platform contains "win" then
+      set the hideConsoleWindows to true
+      put "reg add HKCU\SOFTWARE\Microsoft\Windows\DWM /t REG_DWORD /v ColorPrevalence /d 00000001 /f" into tCmd
+      get shell(tCmd)
+   end if
+   unlock screen 
+end IDEtoDarkWin
 
---   -- put "Home Stack Message Recieved:" &cr& "IconMenuOpening" & cr after msg
---   -- pass iconMenuOpening
---   -- unlock screen
----- end iconMenuOpening
+on IDEtoLightWin
+   lock screen
+   put "255,255,255" into tWhiteBkgnd-- bright white
+   put "0,0,0" into tDarkText-- black text
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to tDarkText
+         set the backgroundColor of stack (line tcount of tStacks) to tWhiteBkgnd
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkText
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                  set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
+                  set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to tDarkText
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "srcCopy"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to tDarkText
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "srcCopy"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to tDarkText
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor white colours
+      put "255,255,255" into tCustColor
+      put "Revolution Classic" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   -- if on windows, write a registry change
+   if the platform contains "win" then
+      set the hideConsoleWindows to true
+      put "reg add HKCU\SOFTWARE\Microsoft\Windows\DWM /t REG_DWORD /v ColorPrevalence /d 00000000 /f" into tCmd
+      get shell(tCmd)
+   end if
+   unlock screen
+end IDEtoLightWin
 
----- on iconMenuPick pParamMaybe
---   if the cREVLaunching of me is true then exit iconMenuPick
---   put "Home Stack Message Recieved:" &cr& "iconMenuPick" & cr after msg
---   if pParamMaybe is not empty then
---      put pParamMaybe after msg
---   end if
---   -- pass iconMenuPick
--- end iconMenuPick
+on IDEtoDefaultMac
+   lock screen
+   
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to ""
+         set the backgroundColor of stack (line tcount of tStacks) to ""
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
+                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                  else
+                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                     else
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                     end if
+                  end if
+                  set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to ""
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "srcCopy"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to ""
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "srcCopy"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to ""
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor native colours
+      put "255,255,255" into tCustColor
+      put "Default" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   -- now do the window titles, (thanks to Paul McClernan for all his work on this)
+   put the itemdelimiter into tOldDelim
+   put tSystemVersionNumber into tCheckSys
+   set the itemdelimiter to "."
+   if item 1 of tCheckSys is 10 or item 1 of tCheckSys > 10 then
+      if item 2 of tCheckSys > 14 then
+         -- we are on an OS higher than 10.15
+         setAppToLightMode
+      end if
+   end if
+   set the itemdelimiter to tOldDelim
+   
+   unlock screen
+end IDEtoDefaultMac
+
+
+on IDEtoDarkMac
+   lock screen
+   put "225,225,255" into tLightGrey-- very light grey
+   put "50,50,50" into tDarkGrey-- very dark grey
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to tLightGrey
+         set the backgroundColor of stack (line tcount of tStacks) to tDarkGrey
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
+                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                  else
+                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                     else
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                     end if
+                  end if
+                  if the height of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) >22 then
+                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "standard" then
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+                     else
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+                     end if
+                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  else
+                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "130,130,130"
+                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  end if
+                  if (line tcount of tStacks) contains "revMenubar" or (line tcount of tStacks) contains "standalone" then
+                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "blendSrc"
+                  else
+                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  end if
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "blendExclusion"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey 
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "blendSoftLight"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to tLightGrey
+      put 0 into tMenuBtnCount
+      repeat the number of buttons of group "revMenuBar" of stack "revMenubar"
+         add 1 to tMenuBtnCount
+         set the foregroundColor of btn tMenuBtnCount of group "revMenubar" of stack "revMenubar" to "0,0,0" -- black
+         set the ink of of btn tMenuBtnCount of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      end repeat
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "blendSoftLight"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to "0,0,0"
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "blendSoftLight"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "0,0,0"
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor dark colours
+      put "51,51,51" into tCustColor
+      put "Dark Mode" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"  
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   -- now do the window titles, (thanks to Paul McClernan for all his work on this)
+   put the itemdelimiter into tOldDelim
+   put tSystemVersionNumber into tCheckSys
+   set the itemdelimiter to "."
+   if item 1 of tCheckSys is 10 or item 1 of tCheckSys > 10 then
+      if item 2 of tCheckSys > 14 then
+         -- we are on an OS higher than 10.15
+         setAppToDarkMode
+      end if
+   end if
+   set the itemdelimiter to tOldDelim
+   
+   unlock screen 
+end IDEtoDarkMac
