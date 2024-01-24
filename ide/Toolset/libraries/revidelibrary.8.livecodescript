@@ -3287,7 +3287,7 @@ on revIDECreateObject pObjectTypeID, pTarget, pLoc
    end if
    
    if not exists(pTarget) then return __revIDEError("Cannot create object. Target does not exist: " && pTarget)
-   if not pObjectTypeID begins with "com.livecode" then return __revIDEError("No such object type ID: " && pTarget)
+   -- if not pObjectTypeID begins with "com.livecode" then return __revIDEError("No such object type ID: " && pTarget) -- commented out to allow 3rd party widgets (tperry 20-1-2024)
    
    if sClassicObjectProperties is empty then __objectPropertiesRead
    # Set the default stack to the target we're creating the object on
@@ -4431,7 +4431,8 @@ function revIDEPaletteToStackName pPalette
       case "plugin preferences"
          return "revPlugInEditor"
       case "about"
-         return "revAbout"
+         if there is a stack "revMenubar" then send tOpenAbout to stack "revMenubar" in 1 tick -- don't make a palette, just open
+         break
       case "dictionary"
       case "guide"
          return "revDictionary"
@@ -9024,7 +9025,10 @@ on revIDELaunchResource pName
          launch document (tPDFPath & "/Documentation/PDF/" & "User Guide.pdf") -- changed for specific MacOS support 24-12-23 (tperry)
          break
       case "Data Grid Guide"
-         launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "Data Grid Guide.pdf")
+         set the itemdelimiter to "/"
+         put item 1 to -3 of the filename of stack "home" into tPDFPath
+         launch document (tPDFPath & "/Documentation/PDF/" & "Data Grid Guide.pdf") -- changed for specific MacOS support 19-1-24 (tperry)
+         -- launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "Data Grid Guide.pdf")
          break
       case "Tutorials"
          answer file "Please select a tutorial stack..." with (specialFolderPath("engine") & "/Resources/Examples/")

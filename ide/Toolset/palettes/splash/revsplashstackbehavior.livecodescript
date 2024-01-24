@@ -12,7 +12,7 @@ on preOpenStack
    set the filename of image "Splash" to tSplashPath
    set the id of image "Splash" to the id of stack "revIcons"
    set the location of me to the screenLoc
-   
+   set the foregroundColor of this card to "255,255,255"
    set the htmlText of field "License" to revEnvironmentEditionProperty("splash_strap")
    
    unlock messages

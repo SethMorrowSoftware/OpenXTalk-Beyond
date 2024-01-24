@@ -1,6 +1,7 @@
 ﻿script "revInspector"
 constant kPropertyInspectorPrefix = "revPropertyInspector"
 on preOpenStack
+   set the blendlevel of this stack to 100
    inspectorMessagesRegister
 end preOpenStack
 
@@ -115,6 +116,7 @@ on ideInspectObjects pObjects
    palette stack tTargetInspector
    unlock messages
    set the cSelectedObjects of stack tTargetInspector to tSelectedObjects
+   set the blendlevel of this stack to 0
    
    unlock screen
 end ideInspectObjects
@@ -254,15 +256,19 @@ on ideSelectedObjectChanged
       put kPropertyInspectorPrefix && tKey into tStackName
       if the cLocked of stack tStackName is false and the mode of stack tStackName is not 0 then
          ideInspectObjects tObjects
+         -- tperry 15-1-24
+         -- ignore this, I found a better way to stop race condition
+         /*
          -- fix for ubuntu inspector bug, when inspecting stack object (tperry 29-11-23)
-           if $desktop_session contains "ubuntu" then
-             if there is a wd "revPropertyInspector 1" then
+         if $desktop_session contains "ubuntu" then
+            if there is a wd "revPropertyInspector 1" then
                if word 1 of the title of wd "revPropertyInspector 1" is "stack" then
-                 -- here's where the race condition starts in Ubuntu Linux (tperry 29-11-23)
-                 set the style of wd "revPropertyInspector 1" to toplevel
+                  -- here's where the race condition starts in Ubuntu Linux (tperry 29-11-23)
+                  set the style of wd "revPropertyInspector 1" to toplevel
                end if
-             end if
-           end if
+            end if
+         end if
+         */
          exit repeat
       end if
    end repeat

@@ -200,6 +200,27 @@ on generatePalette
    # Get the appropriate platform theme folder
    local tThemePath
    put revIDEThemePath() into tThemePath
+   -- tperry 19-1-24 (add in support for variable dark themes)
+   put "" into tThemeClarify
+   if the cUseThemeDark of stack "revPreferences" is true then put "dark" into tThemeClarify
+   --
+   if the platform contains "linux" then
+      -- we assess linux dark mode a bit differently
+      put the effective Backgroundcolor of this stack into tColourDecision
+      put the itemDelimiter into tOldDelim
+      set the itemDelimiter to ","
+      put item 1 of tColourDecision + item 2 of tColourDecision + item 3 of tColourDecision into tMaxColValues
+      -- put tMaxColValues -- debug
+      if tMaxColValues <234 then
+         -- dark in dark mode
+         put "dark" into tThemeClarify
+      else
+         -- linux in light mode
+         put "" into tThemeClarify
+      end if
+   end  if
+   --
+   if tThemeClarify is not empty then put tThemePath & slash & tThemeClarify into tThemePath
    
    # Get the data used for generating the palette
    local tViews, sViewsData
@@ -324,7 +345,8 @@ on generatePalette
          else if there is a file (tThemePath & slash & tControlTypeID & ".icon.png") then 
             put tThemePath & slash & tControlTypeID & ".icon.png" into tFilename
          else
-            put revIDEDefaultExtensionIcon("widget") into tFilename
+            -- put revIDEDefaultExtensionIcon("widget") into tFilename -- previously, replaced with a 'widget' graphic if it can't find the tool (19-1-24)
+            put tThemePath & slash & tControlTypeID & ".icon.png" into tFilename
          end if
          set the name of the templateimage to tControlTypeID & ".icon.png"
          set the visible of the templateimage to false

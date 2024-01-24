@@ -235,13 +235,12 @@ on revInternal__openStack
       if tSuccess then
          revInternal__setSplashStatus "Performing Final Steps..."
          revInternal__InitialiseFinalSteps
-         
          put the result into tSuccess
       end if
    catch tError
       revInternal__Log "Error", tError
    end try
-      
+   
    if not tSuccess then
       quit
    end if
@@ -253,18 +252,35 @@ on revInternal__openStack
    end if
    
    # AL-2015-07-10: Temporarily disable welcome screen
-      -- calling late inits
-      revInternal__setSplashStatus "Finishing loading the IDE..."
-      
-      revInternal__Log "Leave", "revInternal__openStack"
-      revInternal__Log "End"
-      
-      -- calling late inits
-      revInternal__setSplashStatus "Finish IDE loading, applying theme..."
-      
-      --
-      send tdelayClosingSplash to me in 3 ticks
-   end revInternal__openStack
+   -- calling late inits
+   revInternal__setSplashStatus "Finishing loading the IDE..."
+   
+   revInternal__Log "Leave", "revInternal__openStack"
+   revInternal__Log "End"
+   
+   
+   -- tperry 15-1-24, make sure my recently added preferences aren't set to empty
+   if the cMakeRevMenuBarDraggable of stack "revPreferences" is empty then set the cMakeRevMenuBarDraggable of stack "revPreferences" to false
+   if the cMakeRevMenuBarStandard of stack "revPreferences" is empty then set the cMakeRevMenuBarStandard of stack "revPreferences" to false
+   if the cGrid of stack "revPreferences" is empty then set the cGrid of stack "revPreferences" to false
+   if the cTidyUpStacks of stack "revPreferences" is empty then set the cTidyUpStacks of stack "revPreferences" to true
+   if the cUseThemeDefault of stack "revPreferences" is empty then 
+      set the cUseThemeDefault of stack "revPreferences" to true
+      set the cUseThemeDark of stack "revPreferences" to false
+      set the cUseThemelight of stack "revPreferences" to false
+      set the cReplaceSECol of stack "revPreferences" to false
+   end if
+   if the cReplaceSECol of stack "revPreferences" is empty then set the cReplaceSECol of stack "revPreferences" to false
+   if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
+   if the cDisablePlayerTool of stack "revPreferences" is empty then set the cDisablePlayerTool of stack "revPreferences" to false
+   if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
+
+   -- calling late inits
+   revInternal__setSplashStatus "Finish IDE loading.."
+   
+   --
+   send tdelayClosingSplash to me in 3 ticks
+end revInternal__openStack
    
 on tdelayClosingSplash
    -- Now the home stack has loaded, we can allow interrupts..
@@ -272,21 +288,35 @@ on tdelayClosingSplash
    set the cREVLaunching of stack "Home" to false
    
    -- apply a theme
+   revInternal__setSplashStatus "Applying theme..."
+   -- (only one of these conditions can be true)
    if the cUseThemeDefault of stack "revPreferences" is true then send tApplyTheme_nullify to stack "home"
    if the cUseThemeDark of stack "revPreferences" is true then send IDEToDarkMode to stack "home"
    if the cUseThemelight of stack "revPreferences" is true then send IDEToLightMode to stack "home"
    
    -- now make tools visible (now that theme has applied)
+   revInternal__setSplashStatus "Redrawing Tools..."
    if there is a stack "revTools" then 
       toplevel stack "revTools"
       set the blendlevel of stack "revTools" to 0
+      lock screen
       close stack "revTools"
       revIDETogglePalette "tools"
+      unlock screen
    end if
    -- now make menubar visible, now that theme has applied
+   revInternal__setSplashStatus "Creating menus..."
    if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
    
-   if there is a stack "revsplash" then close stack "revSplash"
+   if there is a stack "revsplash" then 
+      revInternal__setSplashStatus "Closing splash..."
+      set the destroyStack of stack "revSplash" to true
+      close stack "revSplash"
+      if there is a stack "revSplashStackBehavior" then
+         set the destroyStack of stack "revSplashStackBehavior" to true
+         close stack "revSplashStackBehavior"
+      end if
+   end if
 end tdelayClosingSplash
 
 on revInternal__setSplashStatus pMessage
@@ -1918,175 +1948,175 @@ end revInternal__InitialiseOptions
       return hookToolsPath("toolset", sToolsPath & "/Toolset")
    end revEnvironmentToolsetPath
    
-   function revEnvironmentEditionProperty pProp, pEdition
-      if pEdition is empty then
-         put the editionType into pEdition
-      end if
-      
-      if pProp is "skin" then
-         return revEnvironmentToolsetPath() & "/resources/" & pEdition & "/ideSkin"
-      end if
-      
-      switch pEdition
-         case "community"
-            switch pProp
-               case "name"
-                  return "Community"
-               case "color"
-                  return 173,208,54
-               case "pb_line_selected_color"
-                  return 226,238,185
-               case "revonline_hilite_color"
-                  return 156,199,45
-               case "revabout_hilite_color"
-                  return 106,139,15
-               case "revsplash_text_color"
-                  return 0,0,0
-               case "start_center_tile_color_step"
-                  return -9
-               case "password_protection"
-                  return false
-               case "open_source_required"
-                  return true
-               case "splash_strap"
+function revEnvironmentEditionProperty pProp, pEdition
+   if pEdition is empty then
+      put the editionType into pEdition
+   end if
+   
+   if pProp is "skin" then
+      return revEnvironmentToolsetPath() & "/resources/" & pEdition & "/ideSkin"
+   end if
+   
+   switch pEdition
+      case "community"
+         switch pProp
+            case "name"
+               return "Community"
+            case "color"
+               return 208,54,195 -- muted magenta
+            case "pb_line_selected_color"
+               return 226,238,185
+            case "revonline_hilite_color"
+               return 196,45,199 -- darker magenta
+            case "revabout_hilite_color"
+               return 255,0,255 -- magenta
+            case "revsplash_text_color"
+               return 255,255,255 -- white
+            case "start_center_tile_color_step"
+               return -9
+            case "password_protection"
+               return false
+            case "open_source_required"
+               return true
+            case "splash_strap"
+               return empty
+            case "upgrade_mini_url"
+               return "https://www.openxtalk.org/forum/"
+            case "upgrade_url"
+               return "https://www.openxtalk.org/forum/"  
+            case "upgrade_edition"
+               return "communityplus"
+            case "edition_external_url"
+               return "https://www.openxtalk.org/forum/"
+            case "autocomplete"
+            case "autocomplete_pro"
+               return false
+            case "script_profiler"
+               return false
+         end switch
+         break
+      case "communityplus"
+         switch pProp
+            case "name"
+               return "Community Plus"
+            case "color"
+               return 49,163,102
+            case "pb_line_selected_color"
+               return 226,238,185
+            case "revonline_hilite_color"
+               return 49,163,102
+            case "revabout_hilite_color"
+               return 49,163,102
+            case "revsplash_text_color"
+               return 0,0,0
+            case "start_center_tile_color_step"
+               return -9
+            case "password_protection"
+               return false
+            case "open_source_required"
+               return true
+            case "splash_strap"
+               return empty
+            case "upgrade_mini_url"
+               return empty
+            case "upgrade_url"
+               return empty
+            case "upgrade_edition"
+               return "commercial"
+            case "edition_external_url"
+               return "https://livecode.com/products/community-plus-edition/"
+            case "autocomplete"
+               return true
+            case "autocomplete_pro"
+               return false
+            case "script_profiler"
+               return false
+         end switch
+         break
+      case "indy"
+      case "commercial"
+         switch pProp
+            case "name"
+               return "Indy"
+            case "color"
+               return 28,154,206
+            case "pb_line_selected_color"
+               return 222,243,255
+            case "revonline_hilite_color"
+               return 124,193,222
+            case "revabout_hilite_color"
+               return 44,113,170
+            case "revsplash_text_color"
+               return 0,0,0
+            case "start_center_tile_color_step"
+               return 0
+            case "password_protection"
+               return true
+            case "open_source_required"
+               return false
+            case "splash_strap"
+               if revLicenseInfo["com.livecode.norevenuelimit"] is not empty then
                   return empty
-               case "upgrade_mini_url"
-                  return "https://livecode.com/products/community-plus-ide-2/"
-               case "upgrade_url"
-                  return "https://livecode.com/products/community-plus-ide/"  
-               case "upgrade_edition"
-                  return "communityplus"
-               case "edition_external_url"
-                  return "https://livecode.com/products/community-edition/"
-               case "autocomplete"
-               case "autocomplete_pro"
-                  return false
-               case "script_profiler"
-                  return false
-            end switch
-            break
-         case "communityplus"
-            switch pProp
-               case "name"
-                  return "Community Plus"
-               case "color"
-                  return 49,163,102
-               case "pb_line_selected_color"
-                  return 226,238,185
-               case "revonline_hilite_color"
-                  return 49,163,102
-               case "revabout_hilite_color"
-                  return 49,163,102
-               case "revsplash_text_color"
-                  return 0,0,0
-               case "start_center_tile_color_step"
-                  return -9
-               case "password_protection"
-                  return false
-               case "open_source_required"
-                  return true
-               case "splash_strap"
-                  return empty
-               case "upgrade_mini_url"
-                  return empty
-               case "upgrade_url"
-                  return empty
-               case "upgrade_edition"
-                  return "commercial"
-               case "edition_external_url"
-                  return "https://livecode.com/products/community-plus-edition/"
-               case "autocomplete"
-                  return true
-               case "autocomplete_pro"
-                  return false
-               case "script_profiler"
-                  return false
-            end switch
-            break
-         case "indy"
-         case "commercial"
-            switch pProp
-               case "name"
-                  return "Indy"
-               case "color"
-                  return 28,154,206
-               case "pb_line_selected_color"
-                  return 222,243,255
-               case "revonline_hilite_color"
-                  return 124,193,222
-               case "revabout_hilite_color"
-                  return 44,113,170
-               case "revsplash_text_color"
-                  return 0,0,0
-               case "start_center_tile_color_step"
-                  return 0
-               case "password_protection"
-                  return true
-               case "open_source_required"
-                  return false
-               case "splash_strap"
-                  if revLicenseInfo["com.livecode.norevenuelimit"] is not empty then
-                     return empty
-                  else
-                     return "<p>This Indy license is only valid for organizations with annual revenues of $500,000 USD or less</p>"
-                  end if
-               case "upgrade_mini_url"
-                  return empty
-               case "upgrade_url"
-                  return empty
-               case "upgrade_edition"
-                  return "professional"
-               case "edition_external_url"
-                  return "https://livecode.com/products/indy-edition/"
-               case "autocomplete"
-               case "autocomplete_pro"
-                  return true
-               case "script_profiler"
-                  return false
-            end switch
-            break
-         case "business"
-         case "professional"
-            switch pProp
-               case "name"
-                  return "Business"
-               case "color"
-                  return 82,82,82
-               case "pb_line_selected_color"
-                  return 222,243,255
-               case "revonline_hilite_color"
-                  return 124,193,222
-               case "revabout_hilite_color"
-                  return 44,113,170
-               case "revsplash_text_color"
-                  return 255,255,255
-               case "start_center_tile_color_step"
-                  return 0
-               case "password_protection"
-                  return true
-               case "open_source_required"
-                  return false
-               case "splash_strap"
-                  return empty
-               case "upgrade_mini_url"
-                  return empty
-               case "upgrade_url"
-                  return empty
-               case "upgrade_edition"
-                  return empty
-               case "edition_external_url"
-                  return "https://livecode.com/products/business-edition/"
-               case "autocomplete"
-               case "autocomplete_pro"
-                  return true
-               case "script_profiler"
-                  return true
-            end switch
-            break
-      end switch
-      
-      throw "Unknown edition property"
-   end revEnvironmentEditionProperty
+               else
+                  return "<p>This Indy license is only valid for organizations with annual revenues of $500,000 USD or less</p>"
+               end if
+            case "upgrade_mini_url"
+               return empty
+            case "upgrade_url"
+               return empty
+            case "upgrade_edition"
+               return "professional"
+            case "edition_external_url"
+               return "https://livecode.com/products/indy-edition/"
+            case "autocomplete"
+            case "autocomplete_pro"
+               return true
+            case "script_profiler"
+               return false
+         end switch
+         break
+      case "business"
+      case "professional"
+         switch pProp
+            case "name"
+               return "Business"
+            case "color"
+               return 82,82,82
+            case "pb_line_selected_color"
+               return 222,243,255
+            case "revonline_hilite_color"
+               return 124,193,222
+            case "revabout_hilite_color"
+               return 44,113,170
+            case "revsplash_text_color"
+               return 255,255,255
+            case "start_center_tile_color_step"
+               return 0
+            case "password_protection"
+               return true
+            case "open_source_required"
+               return false
+            case "splash_strap"
+               return empty
+            case "upgrade_mini_url"
+               return empty
+            case "upgrade_url"
+               return empty
+            case "upgrade_edition"
+               return empty
+            case "edition_external_url"
+               return "https://livecode.com/products/business-edition/"
+            case "autocomplete"
+            case "autocomplete_pro"
+               return true
+            case "script_profiler"
+               return true
+         end switch
+         break
+   end switch
+   
+   throw "Unknown edition property"
+end revEnvironmentEditionProperty
    
    function revEnvironmentPluginsPath
       return hookToolsPath("plugins", sToolsPath & "/Plugins")
@@ -2453,7 +2483,7 @@ on tApplyTheme_nullify
    if the cREVLaunching of stack "Home" is false then
       if the platform contains "win" then send IDEtoDefaultWin to this stack -- remove theme for windows
       if the platform contains "mac" then send IDEtoDefaultMac to this stack -- remove theme for mac
-      
+      if the platform contains "linux" then send IDEtoDefaultLin to this stack -- remove any theming for Linux
    end if
 end tApplyTheme_nullify
 
@@ -2462,6 +2492,112 @@ end tApplyTheme_nullify
 -- I've tried to make this as straightforward as possible, but will probably refine using a --
 -- variable function at some point (once I know it's working well) -- tperry 13-1-2024
 --------------------------------------------------------------------------------------------------------
+
+on IDEtoDefaultLin
+   lock screen
+   
+   
+   put the mainstacks into tStacks
+   filter tStacks without "rev*Behavior"
+   filter tStacks without "com.*"
+   filter tStacks without "*Library"
+   lock screen
+   put 0 into tcount
+   repeat the number of lines in tStacks
+      add 1 to tcount
+      if there is a stack (line tcount of tStacks) then
+         -- set stack colour
+         set the foregroundColor of stack (line tcount of tStacks) to ""
+         set the backgroundColor of stack (line tcount of tStacks) to ""
+         put 0 into tCardCount
+         repeat the number of cards of stack (line tcount of tStacks)
+            -- set card colour
+            add 1 to tCardCount
+            set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+            put 0 into tBtnCount
+            if not (the title of stack (line tcount of tStacks) is "Tools") then
+               -- set btn colour
+               repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tBtnCount
+                  if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
+                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                  else
+                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                     else
+                        if the long name of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) contains ("group " & QUOTE & toolbar & QUOTE) then
+                           set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false -- don't make toolbar btns opaque
+                        else
+                           set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                        end if
+                     end if
+                  end if
+                  set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+               -- set fld colour
+               put 0 into tFldCount
+               repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                  add 1 to tFldCount
+                  if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                  else
+                     set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                  end if
+                  set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                  set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+               end repeat
+            else
+               -- we don't theme the tools stack's buttons!
+            end if
+         end repeat
+      else
+         -- stack did not exist
+      end if
+   end repeat
+   -- manual changes
+   -- menubar on main stack
+   if there is a group "revMenubar" of stack "revMenubar" then
+      set the ink of group "revMenubar" of stack "revMenubar" to "srcCopy"
+      set the foregroundColor of group "revMenubar" of stack "revMenubar" to ""
+   end if 
+   -- menubar on script editor
+   if there is a group "Menubar" of card "Main" of stack "revSETemplate" then
+      set the ink of group "Menubar" of card "Main" of stack "revSETemplate" to "srcCopy"
+      set the foregroundColor group "Menubar" of card "Main" of stack "revSETemplate" to ""
+   end if 
+   
+   -- if there's an open script editor - menubar on open script editors
+   if there is a stack "revNewScriptEditor 1" then
+      if there is a group "Menubar" of card "Main" of stack "revNewScriptEditor 1" then
+         set the ink of group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to "srcCopy"
+         set the foregroundColor group "Menubar" of card "Main" of stack "revNewScriptEditor 1" to ""
+      end if 
+   end if
+   
+   if the cReplaceSECol of stack "revPreferences" is true then
+      -- script editor native colours
+      put "255,255,255" into tCustColor
+      put "Default" into pItemName
+      revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+      set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor
+      revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor
+      send updateSwatches to group "Script Editor" of cd "Script Editor" of stack "revPreferencesGUI"
+      send updateOpenScriptEditors to stack "revPreferencesGUI"
+   end if
+   
+   -- app browser colours
+   if there is a stack "App Browser" then send tTPLinkColours to stack "App Browser"
+   
+   unlock screen
+end IDEtoDefaultLin
+
+
 on IDEtoDefaultWin
    lock screen
    
@@ -2563,7 +2699,7 @@ end IDEtoDefaultWin
 on IDEtoDarkWin
    lock screen
    put "225,225,255" into tLightGrey-- very light grey
-   put "50,50,50" into tDarkGrey-- very dark grey
+   put "30,30,30" into tDarkGrey-- very dark grey
    
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
@@ -2773,6 +2909,7 @@ on IDEtoLightWin
    end if
    unlock screen
 end IDEtoLightWin
+
 
 on IDEtoDefaultMac
    lock screen

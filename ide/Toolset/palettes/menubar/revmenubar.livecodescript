@@ -160,7 +160,6 @@ private on setupTextMenu
    put "Size" & return after tText
    
    local tFontSizes
-   --comeback
    put format("Use Owner's Size\n-\n8\n9\n10\n12\n14\n18\n24\n36\n48\n-\nSmaller&/-\nBigger&/=\n-\nOther...") into tFontSizes -- added smaller and bigger option (tperry 30-12-23)
    repeat for each line l in tFontSizes
       if l is "-" then put tab & l & cr after tText
@@ -282,6 +281,9 @@ on moveStack
    end if
    revIDESetPaletteRectPreference the short name of me
    ideSetWindowBoundingRect
+   -- tperry, store as offset (21-1-24)
+   send tVisOffsets to stack "revMenuBar"
+   send tSetOffsets to stack "revMenuBar"
    
    pass moveStack
 end moveStack
@@ -662,6 +664,9 @@ on generateMenuGroup
    else
       create invisible button "Divider" in group "revMenuBar"
    end if
+   
+   tApplyGridSetting -- tperry (make sure grid checkbox is correct in menu when it's first generated, 21-1-24)
+   
    reset the templatebutton
    unlock messages
 end generateMenuGroup
@@ -2047,59 +2052,17 @@ end buildGroupSubmenu
 
 private function revMenubarHelpMenu pContext
    local tHelp
-   # AL-2015-07-10: Temporarily remove welcome screen option from help menu
-   //put "Welcome Screen/|Welcome" & return after tHelp
    put "About/|About" & return after tHelp
    put "Dictionary/|Dictionary" & return after tHelp  --reorganize help menu
-   put "User Guide PDF" & return after tHelp -- This is Terry L's PDF version
-   put "User Guides" & return after tHelp -- Paul's revised documentation
    put "-" & return after tHelp -- divider
-   put "Examples" & return after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putting together
+   put "User Guide PDF" & return after tHelp -- This is Terry L's PDF version 18-1-2024
+   put "Data Grid Guide PDF" & return after tHelp -- This is Terry L's PDF version 18-1-2024
    put "-" & return after tHelp -- divider
-   put "Check for updates" after tHelp -- tperry 24-12-23 -- added option to check for updates here
-   --put "Data Grid Guide" & return after tHelp -- (tperry) remove & simplify this menu using additional commenting out --
-   --put "Tutorials" & return after tHelp
-   --put "-" & return after tHelp
-   --put "Forums" & return after tHelp
-   --put "Sample Stacks" & return after tHelp
-   --put "Lessons" & return after tHelp
-   --put "Donate" & return after tHelp
-   --put "-" & return after tHelp
-   --put "Release Notes/|Release Notes" & return after tHelp
-   --put "-" & return  after tHelp   
-   
-   
-   /*  --start block comment
-   put "Start Center/|Start Center" & return after tHelp
-   put "User Guide" & return after tHelp
-   put "Dictionary (API)/|Dictionary" & return after tHelp
-   
-   put "-" & return  after tHelp
-   
-   put "Sample Stacks" & return after tHelp
-   put "Sample Scripts" & return after tHelp
-   put "-" & return after tHelp
-   put "Beginners Guide" & return after tHelp
-   put "All Guides" & return after tHelp
-   put "Tutorials" & return after tHelp
-   put "-" & return after tHelp
-   put "Forums" & return after tHelp
-   put "Technical Questions" & return after tHelp
-   put "Discussion List" & return after tHelp
-   put "Newsletters" & return after tHelp
-   put "-" & return after tHelp
-   put "Release Notes/|Release Notes" & return after tHelp
-   put "License Agreement/|License Agreement" & return after tHelp
-   put "-" & return after tHelp
-   put "&Buy a License.../|Buy" & return after tHelp
-   put "&Support.../|Support" & return after tHelp
-   put "-" & return after tHelp
-   put enableMenuItem("Re-license LiveCode/|Relicense", line 7 of the revLicenseInfo is not "Global") & return after tHelp
-   put "-" & return after tHelp
-   put "Check For Updates/|Update" & return after tHelp
-   put "-" & return after tHelp
-   put "About LiveCode/|About" after tHelp
-   */  --end block comment
+   put "Guides" & return after tHelp -- the 'allguides.oxtstack' revised user guide
+   -- put "Examples" & return after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putting together
+   put "Lessons" & return after tHelp
+   put "-" & return after tHelp -- divider
+   put "Check for Updates" after tHelp -- tperry 24-12-23 -- added option to check for updates here
    return modifyMenu("Help", tHelp)
 end revMenubarHelpMenu
 
@@ -2118,7 +2081,7 @@ private function revMenubarViewMenu pContext
    put toggleMenuItem("Toolbar Icons/^@I", the cToolbarIcons of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar icons)
    put toggleMenuItem("Toolbar Text/^@T", the cToolbarText of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar text)
    put "-" & return after tView
-   put toggleMenuItem("Palettes", gREVPalettes is empty) & return after tView
+   put toggleMenuItem("Palettes/^tab", gREVPalettes is empty) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Rulers", the mode of stack "revRulersH" is not 0) & return after tView
    put toggleMenuItem("Grid", the grid) & return after tView
@@ -2136,6 +2099,7 @@ private function revMenubarViewMenu pContext
    put tab & tDis & "Light mode" & return after tView
    put tab & "-" & return after tView
    put tab & "Theme Preferences" & return after tView
+   tApplyGridSetting -- tperry (make sure grid checkbox is correct in menu 21-1-24)
    return modifyMenu("View", tView)
 end revMenubarViewMenu
 
@@ -3400,21 +3364,22 @@ on revMenubarHelpMenuPick pWhich
       case "Start Center"
       case "Welcome"
       case "About"
-         revIDEOpenPalette tPick
+         send tOpenAbout to this stack in 1 tick
          break
       case "Buy"
       case "Support"
       case "User Guide PDF"
          revIDELaunchResource "User Guide"
          break
-      case "Examples"
-         send tOpenNewGuides to this stack in 1 ticks -- tperry 5-12-23 (new user guides button)
+      case "Data Grid Guide PDF"
+         revIDELaunchResource "Data Grid Guide"
+         break
+      case "Lessons"
+         send tOpenNewGuides to this stack in 1 ticks -- tperry 18-1-23 (changed to open Lessons)
          break
       case "Check for updates"
          if not (the pendingmessages contains "tCheckForUpdates") then send tCheckForUpdates to card "Automatic Updates" of stack "revPreferencesGUI"
          break
-      case "Data Grid Guide"
-      case "Lessons"
       case "Donate"
       case "License Agreement"
       case "Release Notes"
@@ -3428,11 +3393,11 @@ on revMenubarHelpMenuPick pWhich
       case "Newsletters"
          revIDELaunchResource tPick
          break
-      case "User Guides"
+      case "Guides"
          if the cDictionaryDisplayMethod of stack "revPreferences" is true then
             send tOpenAllGuides to this stack in 1 ticks -- tperry 8-12-23 (new all guides button)
          else
-            revIDEOpenPalette "guide" -- old behaviour (comment out)
+            revIDEOpenPalette "guide" -- old behaviour (comment out eventually)
          end if
          break
       case "Relicense"
@@ -3448,6 +3413,10 @@ end revMenubarHelpMenuPick
 on tCheckBuntuWdBug
    -- bug fix for weird 'window juggling' behaviour under Ubuntu (and 'buntu-based) distros
    -- tperry 02-09-2023
+   
+   
+   exit tCheckBuntuWdBug -- doing this differently now (tperry 8-1-24)
+   
    if the platform contains "linux" then
       if $desktop_session contains "ubuntu" then
          lock screen
@@ -3500,88 +3469,6 @@ on tNewDictionaryDisplay
    send tTackOnColours to stack "revMenubar" in 2 seconds
 end tNewDictionaryDisplay
 
-/*
-on tShowDictionaryMacLin
-   -- work out current path of dictionary
-   put the long name of this stack into tDictionaryPath
-   if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
-   if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
-   if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
-   replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
-   -- get home folder
-   put specialFolderPath("Home") into tUserFolder
-   if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
-   -- create OXT_Guide/api.html if it doesn't exist
-   if not (there is a file (tUserFolder & ".openxtalk/OXT_Guide/api.html")) then
-      create folder tUserFolder & ".openxtalk" -- make sure we have an openxtalk folder
-      revDeleteFolder (tUserFolder & ".openxtalk/OXT_Guide/") -- delete the guide if incomplete
-   end if
-   if the last char of tDictionaryPath is "/" then delete the last char of tDictionaryPath
-   put "cp -R " & QUOTE & tDictionaryPath & QUOTE & " " & QUOTE & (tUserFolder & ".openxtalk/") & QUOTE into ttermcmd
-   -- answer ttermcmd -- debug
-   set the hideConsoleWindows to true
-   get shell (ttermcmd)
-   -- lastly open in browser (platform specific I've found!)
-   if the platform contains "mac" then -- open dictionary method for mac
-      put ("open " & QUOTE & (tUserFolder & ".openxtalk/OXT_Guide/api.html") & QUOTE) into tcommand
-      put "exec " & tcommand & " > /dev/null 2>/dev/null & " into tNoWaitShellCommand
-      get shell(tNoWaitShellCommand)
-   else
-      -- going to be linux
-      put ("xdg-open " & QUOTE & (tUserFolder & ".openxtalk/OXT_Guide/api.html") & QUOTE) into tcommand
-      put "exec " & tcommand & " > /dev/null 2>/dev/null & " into tNoWaitShellCommand
-      get shell(tNoWaitShellCommand)
-   end if
-end tShowDictionaryMacLin
-
-on tShowDictionaryWin
-   put specialfolderpath("support") into tUserFolder
-   if the last char of tUserFolder is not "/" then put tUserFolder & "/" into tUserFolder
-   create folder tUserFolder & "RunRev/" -- make sure runRev folder exists
-   if not (there is a folder (tUserFolder & "RunRev/Dictionary/")) then
-      -- dictionary not present
-      -- work out current path of dictionary (ugh, Windows)
-      put the long name of stack "revMenubar" into tDictionaryPath
-      set the itemdelimiter to "/"
-      if word 1 of tDictionaryPath is "stack" then delete word 1 of tDictionaryPath
-      if last char of tDictionaryPath is QUOTE then delete last char of tDictionaryPath
-      repeat 3
-         if char 1 of tDictionaryPath is QUOTE then delete char 1 of tDictionaryPath
-      end repeat
-      create folder tUserFolder & "RunRev/Dictionary/" -- create Dictionary folder
-      create folder tUserFolder & "RunRev/Dictionary/OXT_Guide" -- create OXT_Guide folder
-      replace "/Toolset/palettes/menubar/revmenubar.livecodescript" with "/Dictionary/OXT_Guide/" in tDictionaryPath -- location of api.html
-      put tUserFolder & "RunRev/Dictionary/OXT_Guide" into tDestination
-      put item 1 of tDictionaryPath into tDriveLetterSrc
-      put item 1 of tDestination into tDriveLetterDest
-      replace "/" with "\" in tDictionaryPath
-      replace "/" with "\" in tDestination
-      if char 1 of tDictionaryPath is "\" then delete char 1 of tDictionaryPath
-      if char 1 of tDestination is "\" then delete char 1 of tDestination
-      set the itemdelimiter to "\"
-      put tDriveLetterSrc into item 1 of tDictionaryPath
-      put tDriveLetterDest into item 1 of tDestination
-      set the itemdelimiter to "/"
-      replace "/\" with "/" in tDictionaryPath
-      replace "/\" with "/" in tDestination
-      if the last char of tDictionaryPath is "\" then delete last char of tDictionaryPath
-      if the last char of tDestination is "\" then delete last char of tDestination
-      set the hideConsoleWindows to true
-      put "xcopy " & QUOTE & tDictionaryPath & QUOTE & " " &  QUOTE & tDestination & QUOTE & " /E/H/C/I/Q" into tTermCommand
-      -- put tTermCommand --
-      get shell(tTermCommand)
-      -- revCopyFolder(tDictionaryPath, tDestination) -- doesn't work!
-   else
-      -- dictionary already present
-   end if
-   set the hideConsoleWindows to true
-   replace "/" with "\" in tUserFolder
-   put tUserFolder & "RunRev\Dictionary\OXT_Guide\api.html" into tURL
-   get shell (QUOTE & tURL & QUOTE) -- this will lock OXT until a browser closed unfortunately
-end tShowDictionaryWin
-
-*/
-
 
 on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the revMenubar. As discussed on the OpenXTalk forum.
    set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group 12 px from the left edge
@@ -3626,16 +3513,23 @@ on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the r
    "	if sgDragging is true then" & return &¬
    "		set the left of this stack to item 1 of globalloc(the mouseLoc) - sgLeftOffset -1" & return &¬
    "		set the top of this stack to item 2 of globalloc(the mouseLoc) - sgTopOffset" & return &¬
+   "           send tVisOffsets to me" & return &¬
    "	end if" & return &¬
-   "   	if the mouse is up then put false into sgDragging" & return &¬
+   "   	if the mouse is up then" & return &¬
+   "      send mouseLeave to me" & return &¬
+   "      put false into sgDragging" & return &¬
+   "   end if" & return &¬
    "	unlock screen" & return &¬
    "end mouseMove" & return &¬
    "on mouseRelease" & return &¬
    "   	put false into sgDragging" & return &¬
+   "   send tVisOffsets to stack " & QUOTE & "revMenuBar" & QUOTE & return &¬
    "end mouseRelease" & return &¬
    "on mouseLeave" & return &¬
    "   	put false into sgDragging" & return &¬
-   "end mouseLeave" into tNewDragScript
+   "   send tVisOffsets to stack " & QUOTE & "revMenuBar" & QUOTE & return &¬
+   "   send tSetOffsets to stack " & QUOTE & "revMenuBar" & QUOTE & return &¬
+   "end mouseLeave"  into tNewDragScript
    set the script of graphic "draghandle" to tNewDragScript
    -------------------------------------------------------------------
    set the cantmodify of stack "revMenubar" to true
@@ -3680,15 +3574,19 @@ on tApplyGridSetting
    -- tperry, 2-12-23 (moved this after the gridSize is set first, before potentially turning it on)
    if the cGrid of stack "revPreferences" is true then
       set the grid to true
+      put the cGridSize of stack "revPreferences" into tGridSzTest
+      if isNumber(tGridSzTest) then
+         set the gridSize to tGridSzTest
+      end if
    else
       set the grid to false
    end if
-   set the gridSize to fld "gridSize" of cd "Appearance" of stack "revPreferencesGUI"
+   
 end tApplyGridSetting
 
 on tTidyUpStacks
    -- close off stacks that are no longer needed
-   put "RevSplash,RevSplashStackBehavior,revOnlineLibrary,revExtensionBuilder,revExtensionBuilderBehavior" into tCloseTheseStacks
+   put "RevSplash,RevSplashStackBehavior,revOnlineLibrary,revExtensionBuilder,revExtensionBuilderBehavior,revGeneralPatterns" into tCloseTheseStacks
    put the itemDelimiter into tOldDelim
    set the itemDelimiter to ","
    put 0 into tCloseCount
@@ -3717,6 +3615,13 @@ on tOpenAllGuides
    put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/allguides.oxtstack" into tFilePath
    open stack tFilePath
 end tOpenAllGuides
+
+on tOpenAbout
+   -- this should open the 'about' stack (tperry 20-1-24)
+   set the itemdelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & slash & "about.oxtstack" into tFilePath
+   open stack tFilePath
+end tOpenAbout
 
 on tTackOnColours
    if there is a wd "tinyDictionary_0_8_3" then
@@ -3772,10 +3677,26 @@ on tMenuBar_WDdecorations
    unlock screen
 end tMenuBar_WDdecorations
 
-
 on tOpenThemePrefs
    -- when choosing the appearance theme preferences from the viewMenu
-   open  stack "revPreferencesGUI"
+   open stack "revPreferencesGUI"
    go card "Extras" of stack "revPreferencesGUI"
    set the hilitedLine of fld "menu" of stack "revPreferencesGUI" to 4
+   send tchkblendlvl to graphic "redborder" of card "Extras" of stack "revPreferencesGUI"
 end tOpenThemePrefs
+
+on tVisOffsets
+   if there is a stack "revPreferencesGUI" then
+      -- visually update the offsets
+      set the hilite of btn "cMenuBarOffset" of cd "compatibility" of stack "revPreferencesGUI" to true
+      put the top of  this stack into fld "tweakR" of cd "compatibility" of stack "revPreferencesGUI"
+      put the left of  this stack into fld "tweakL" of cd "compatibility" of stack "revPreferencesGUI"
+   end if
+end tVisOffsets
+
+on tSetOffsets
+   -- we just set an offset, so save it...
+   set the cTweakMenuBarOffset of stack "revPreferences" to true
+   set the cTweakMenuBarL of stack "revPreferences"  to fld "tweakL" of cd "compatibility" of stack "revPreferencesGUI"
+   set the cTweakMenuBarT of stack "revPreferences"  to fld "tweakR" of cd "compatibility"of stack "revPreferencesGUI"
+end tSetOffsets

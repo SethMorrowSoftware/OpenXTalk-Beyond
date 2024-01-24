@@ -285,7 +285,7 @@ private command buildHelpMenu pContext
           "User Guide" & return & \
           "About LiveCode" into tText
    */
-   put "User Guide" & return into tText
+   put "Guides" & return into tText
    set the text of button "Help" of me to modifyMenu("Help", tText)
 end buildHelpMenu
 
@@ -582,8 +582,13 @@ private command handleHelpMenuPick pItemName
       case "Start Center"
          revIDEOpenPalette pItemName
          break
-      case "User Guide"
-         revIDELaunchResource pItemName
+      case "Guides"
+         if the cDictionaryDisplayMethod of stack "revPreferences" is true then
+            send tOpenAllGuides to stack "revMenubar" in 1 ticks -- tperry 8-12-23 (new all guides button)
+         else
+            revIDEOpenPalette "guide" -- old behaviour (comment out eventually)
+         end if
+         --revIDELaunchResource pItemName
          break
       case "About LiveCode"
          revIDEOpenPalette "About"

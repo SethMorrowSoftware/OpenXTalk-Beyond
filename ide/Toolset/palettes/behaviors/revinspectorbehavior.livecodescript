@@ -764,6 +764,10 @@ end faultlog
 
 
 on tCheckBuntuEditing
+   -- tperry 16-1-23 (found a better way to do this)
+   -- so this is ignored
+   exit tCheckBuntuEditing
+   /*
    if the platform contains "linux" then
       if $desktop_session contains "ubuntu" then
          -- we are going to ignore what's set in the preferences
@@ -779,4 +783,5 @@ on tCheckBuntuEditing
          end if
       end if
    end if
+   */
 end tCheckBuntuEditing

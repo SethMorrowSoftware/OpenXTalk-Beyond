@@ -1,4 +1,4 @@
-﻿script "revMessageBoxBehavior"
+﻿script "revMessageBoxBehavior" with behavior "revPaletteBehavior"
 ##GH created 12/11/2014
 ##GH last updated 31/12/2014
 
@@ -94,6 +94,12 @@ on openStack
    
    lock messages
    set the minHeight of me to tMinHeight
+   
+   
+   -- tperry 16-1-24
+   set the blendlevel of stack "message box" to 100 -- a trick to make it invisible (without using visible or hide)
+   --
+   
    moveMsgBoxStack
    
    __UpdateMessageColors
