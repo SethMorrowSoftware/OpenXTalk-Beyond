@@ -623,6 +623,7 @@ on mouseDown pButton
    
    if the tool is not "browse tool" and the tool is not "pointer tool" then 
       choose "pointer" tool
+      send tCursFixup to stack "revTools"
    end if
    
    lock messages
@@ -1382,3 +1383,13 @@ function tPopulateWithScript tNewObject
       put "please create a snippet for: '" & tLongScriptFN & "'" -- note to user, for what snippet is missing
    end if
 end tPopulateWithScript
+
+on tCursFixup
+   -- cursor fix after pruning revicons (tperry 26-1-24)
+   -- I may add in custom cursor options
+   if the platform contains "win" then
+      set the defaultcursor to 1135
+   else
+      set the defaultcursor to 1134
+   end if
+end tCursFixup

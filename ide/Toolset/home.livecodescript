@@ -28,9 +28,9 @@ on startup
    catch tError
       revInternal__Log "Error", tError
    end try
-      
-      
-    -- revised the layoutguides (22-11-2023), made this an option in prefs
+   
+   
+   -- revised the layoutguides (22-11-2023), made this an option in prefs
    if the cLayoutGuides of stack "revPreferences" is true then
       -- guides are on
    else
@@ -42,7 +42,7 @@ on startup
    end if
    
    revInternal__Log "Leave", "Startup"
-  
+   
    return tError
 end startup
 

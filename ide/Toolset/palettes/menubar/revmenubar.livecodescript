@@ -3465,7 +3465,7 @@ on tNewDictionaryDisplay
    end if
    put (tnopeFolder & "/Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack") into tNewDict
    -- put tNewDict -- debug
-   open stack (tNewDict)
+   open stack (tNewDict) as modeless
    send tTackOnColours to stack "revMenubar" in 2 seconds
 end tNewDictionaryDisplay
 
@@ -3605,7 +3605,7 @@ end tTidyUpStacks
 on tOpenNewGuides
    -- this should open the user submitted guides
    set the itemdelimiter to slash
-   put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/userguides.livecode" into tFilePath
+   put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/userguides.oxtstack" into tFilePath
    open stack tFilePath
 end tOpenNewGuides
 

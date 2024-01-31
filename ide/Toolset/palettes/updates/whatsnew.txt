@@ -1,0 +1,2 @@
+added TerryL's lessons into the 'userguides' stack
+Fixed cursor issue
