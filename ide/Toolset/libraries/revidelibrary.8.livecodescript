@@ -7532,7 +7532,6 @@ function revIDEStackFileVersion pStackFile
    close file pStackFile
    if it begins with "REVO" then
       delete byte 1 to 4 of it
-      
       if it mod 100 is 0 then
          return it div 1000 & "." & it mod 1000 div 100
       else
@@ -7867,18 +7866,18 @@ end revIDESaveStackAs
 
 on revIDEActionSaveStackAs pStackID, pSubstackOnly
    if not exists(pStackID) then __revIDEError("Target stack does not exist")
-
+   
    local tMakeMainStack, tMainStackName, tStackName, tShortName
    put the short name of pStackID into tShortName
-
+   
    global gREVMessageDispatch
    repeat for each line tStack in gREVMessageDispatch["revSaveStackRequest"]
       send "revSaveStackRequest" to this cd of stack tStack
    end repeat
-
+   
    local tDefaultStackBackup
    put the defaultStack into tDefaultStackBackup
-
+   
    # Saving if a substack
    put true into tMakeMainStack
    put the mainStack of stack tShortName into tMainStackName
@@ -7888,9 +7887,9 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
          put tMainStackName into tShortName
       end if
    end if
-
+   
    put revFixPath(tShortName) into tStackName
-
+   
    // MM-2012-03-09: Added new 5.5 stack file format to drop down.
    local tStackFileType
    local tStackFileIsScriptOnly = true
@@ -7903,7 +7902,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    # Prepare substitutions for localisation
    local tSubstitutions
    put tShortName into tSubstitutions[1]
-
+   
    local tStackFilter, tStack24Filter, tStack27Filter, tStack55Filter, tStack70Filter, tStack80Filter
    put (revIDELocalise("OpenXTalk Stack") & "|oxtstack,livecode,rev|STAK|RSTK") into tStackFilter
    put (revIDELocalise("Legacy LiveCode Stack (2.4)") & "|livecode,rev|RSTK") into tStack24Filter
@@ -7915,16 +7914,19 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    replace "livecode" with "oxtstack" in tStackName -- (tperry) this part gives us the 'oxtstack' extension as default!
    local tVersion
    switch 
+      default
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
       case the scriptOnly of stack tShortName
          put "script" after tStackName
          ask file revIDELocalise("Save script only stack %1 as:", tSubstitutions) with tStackName with type (revIDELocalise("LiveCode Script Only Stack") & "|livecodescript|RSTK")
          break
-	  case tStackFileType is 8.0
-	     ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack80Filter or type tStackFilter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-		 break
-	  case tStackFileType is 7.0
-	     ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack70Filter or type tStackFilter or type tStack80Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-		 break
+      case tStackFileType is 8.0
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack80Filter or type tStackFilter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
+      case tStackFileType is 7.0
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
       case tStackFileType is 5.5
          ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack55Filter or type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack27Filter or type tStack24Filter
          break
@@ -7934,13 +7936,13 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       case tStackFileType is 2.4
          ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack24Filter or type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter
          break
-      default
-         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-         break
    end switch
    put the result into tVersion
    
    switch tVersion
+      case revIDELocalise("OpenXTalk Stack")
+         put 8.0 into tVersion
+         break
       case revIDELocalise("Legacy LiveCode Stack (8.0)")
          put 8.0 into tVersion
          break
@@ -7997,7 +7999,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       answer revIDELocalise("Saving in script only format will result in loss of data as only" & \
             " the script will be saved. Are you sure you wish to continue?") with revIDELocalise("No") and revIDELocalise("Yes")
       if it is not revIDELocalise("Yes") then
-        revIDESetEdited tShortName
+         revIDESetEdited tShortName
          return "Cancelled"
       end if
    end if
@@ -8009,7 +8011,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
          return "Cancelled"
       end if
    end if
-
+   
    # When making a substack a mainstack, it must clone default colors set on mainstack to substack
    # so that inherited values are preserved.
    local tStackColors, tHomeColors
@@ -8027,22 +8029,22 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       revRemoveRevOnlineKey "fingerprint",tMainStackName
       revIDESaveStack tMainStackName
    end if
-
-
+   
+   
    set the cursor to watch
    lock messages
-
+   
    # RevOnline fingerprint enables the revOnline uploader automatically overwrite the stack if already uploaded.
    # Because you're saving as a new stack, this fingerprint should be removed.
    revRemoveRevOnlineKey "fingerprint",tShortName
-
+   
    -- Synthesize a "saveStackRequest" message
    if ideDispatchSaveStackRequest(tShortName) is not "handled" then
       revIDESaveStackAs the long id of stack tShortName, tFilePath, tVersion
    end if
-
+   
    unlock messages
-
+   
    return empty
 end revIDEActionSaveStackAs
 

@@ -1,2 +1,1 @@
-added TerryL's lessons into the 'userguides' stack
-Fixed cursor issue
+Fixed 'save as' > openxtalk not being the default option.
