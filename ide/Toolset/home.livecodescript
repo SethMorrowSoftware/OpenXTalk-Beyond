@@ -3144,12 +3144,17 @@ on IDEtoDarkMac
    -- now do the window titles, (thanks to Paul McClernan for all his work on this)
    put the itemdelimiter into tOldDelim
    put tSystemVersionNumber into tCheckSys
-   set the itemdelimiter to "."
-   if item 1 of tCheckSys is 10 or item 1 of tCheckSys > 10 then
-      if item 2 of tCheckSys > 14 then
-         -- we are on an OS higher than 10.15
+   if tCheckSys contains "." then replace "." with return in tCheckSys
+   if line 2 of tCheckSys < 10 then
+      -- we are on something .9
+      if line 1 of tCheckSys >10 then
+         -- not 10.9
          setAppToDarkMode
+      else
+         -- we are on 10.9, so don't fire off dark mode for wd titles
       end if
+   else
+      setAppToDarkMode -- we know this isn't MacOS something.9, so we can set to dark
    end if
    set the itemdelimiter to tOldDelim
    
