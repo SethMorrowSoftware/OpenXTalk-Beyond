@@ -1180,8 +1180,12 @@ private function __ScriptLibraries
    // SN-2015-10-19: [[ Bug 16238 ]] Add DataGrid library amongst the libraries
    local tLibs
    put kScriptLibraries into tLibs
+   if the cDisableDataGrid of stack "revPreferences" is true then -- don't load datagrid libs if it's disabled (tperry 13-4-24)
+      replace "Datagrid"  with "" in tLibs
+   end if
+   replace ",," with "," in tLibs -- sanity check
+   --
    replace comma with return in tLibs
-   
    -- user script libraries
    local tEnvironmentScripts
    put revAbsoluteFolderListing(revEnvironmentResourcesPath("Script Libraries")) into tEnvironmentScripts
@@ -1196,7 +1200,6 @@ private function __ScriptLibraries
          put return & the short name of stack tLine after tLibs
       end if
    end repeat
-   
    return tLibs
 end __ScriptLibraries
 
@@ -2287,7 +2290,11 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
       -- Special-case data grid at the moment, as it is not initialised 
       -- using extensionInitialize
       if tLibrary is "DataGrid" then
-         put true into tIncludeDataGrid
+         if the cDisableDataGrid of stack "revPreferences" is true then -- don't load datagrid libs if it's disabled (tperry 13-4-24)
+            put false into tIncludeDataGrid
+         else
+            put true into tIncludeDataGrid
+         end if
          next repeat
       end if
       # AL-2015-03-05: [[ Bug 14813 ]] Transform script library display name to stack name at deploy time
@@ -2330,9 +2337,13 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
       prependToStringList tInitScript, tStartupScript
    end if
    
-   -- If the datagrid is used, then include the library as an aux stack
-   if tIncludeDataGrid or "data grid templates" is in the subStacks of stack pStack and there is a stack "revDataGridLibrary" then
-      revSBAddDataGridToAuxiliaryStackFiles tAuxiliaryStackFiles
+   if the cDisableDataGrid of stack "revPreferences" is true then
+      -- data grids are disabled (tperry 13-4-24)
+   else
+      -- If the datagrid is used, then include the library as an aux stack
+      if tIncludeDataGrid or "data grid templates" is in the subStacks of stack pStack and there is a stack "revDataGridLibrary" then
+         revSBAddDataGridToAuxiliaryStackFiles tAuxiliaryStackFiles
+      end if
    end if
    
    put tAuxiliaryStackFiles into xDeployParams["auxiliary_stackfiles"]
@@ -2343,6 +2354,7 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
 end revSBUpdateDeployParams
 
 command revSBAddDataGridToAuxiliaryStackFiles @xAuxiliaryStackFiles
+   if the cDisableDataGrid of stack "revPreferences" is true then exit revSBAddDataGridToAuxiliaryStackFiles
    local tStackFiles
    put the stackFiles of stack "revDataGridLibrary" into tStackFiles
    split tStackFiles by return and comma

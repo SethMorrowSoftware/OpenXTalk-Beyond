@@ -12,7 +12,7 @@ local ITEM_SPACING = 10
 CONSTANT TAB_TEXT_COLOR = "150,150,150"
 local TAB_SELECTED_COLOR
 local TAB_SELECTED_TEXT_COLOR
-CONSTANT TAB_HOVER_COLOR = "200,200,200"
+CONSTANT TAB_HOVER_COLOR = "255,80,0"
 local TAB_HOVER_TEXT_COLOR
 CONSTANT TAB_DISABLED_COLOR = "200,200,200"
 
@@ -362,7 +362,7 @@ on generateFrame
       set the actionData of widget "footer_background" of group "background" of me to tFooterActionDataA
       set the navData of widget "footer_background" of group "background" of me to empty
       -- changing footer bkgnd colours (tperry)
-      set the hiliteColor of widget "footer_background" of group "background" of me to "255,0,255" -- was: revIDEColor("edition_color")
+      set the hiliteColor of widget "footer_background" of group "background" of me to "255,80,0" -- orange (19-4-24) -- was: revIDEColor("edition_color")
       set the borderColor of widget "footer_background" of group "background" of me to "178,178,178"
    else
       if there is a widget "footer_background" of group "background" of me then 
@@ -564,8 +564,8 @@ after preOpenStack
    revIDESubscribe "ideDesktopChanged"
    if sHideFrame is not true then
    -- changing tab selected and hover colours to purple (tperry)
-      put "255,0,255" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_SELECTED_TEXT_COLOR
-      put "255,0,255" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_HOVER_TEXT_COLOR
+      put "255,80,0" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_SELECTED_TEXT_COLOR
+      put "255,80,0" into TAB_SELECTED_TEXT_COLOR -- was: put revIDEColor("edition_color") into TAB_HOVER_TEXT_COLOR
       revIDESubscribe "idePreferenceChanged:revPaletteFrameSize"
       generateFrame
       
@@ -807,3 +807,7 @@ end actionSelected
 on navSelected
    pass navSelected
 end navSelected
+
+on faultlog
+   if there is a cd fld "result" of wd "debug" then put the ticks into cd fld "result" of wd "debug"
+end faultlog

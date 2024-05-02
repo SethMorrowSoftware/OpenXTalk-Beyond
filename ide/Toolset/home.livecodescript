@@ -1,7 +1,8 @@
 ﻿script "home"
-constant kImportantTextColor = "#569e54"
+constant kImportantTextColor = "#FF8B00"
 global tForkName
 global tSystemVersionNumber
+global IDEBootTimeInSeconds
 
 on startup
    revSetTestEnvironment($TRAVIS is true)
@@ -122,6 +123,7 @@ on revInternal__openStack
    put the milliseconds into sSplashStartTime
    
    set the cREVLaunching of stack "Home" to true
+   put the seconds into IDEBootTimeInSeconds -- set a marker for the IDE boot time (tperry 20-4-24)
    
    local tSuccess
    put true into tSuccess
@@ -254,12 +256,12 @@ on revInternal__openStack
    # AL-2015-07-10: Temporarily disable welcome screen
    -- calling late inits
    revInternal__setSplashStatus "Finishing loading the IDE..."
-   
    revInternal__Log "Leave", "revInternal__openStack"
    revInternal__Log "End"
    
    
    -- tperry 15-1-24, make sure my recently added preferences aren't set to empty
+   revInternal__setSplashStatus "Validating preference settings..."
    if the cMakeRevMenuBarDraggable of stack "revPreferences" is empty then set the cMakeRevMenuBarDraggable of stack "revPreferences" to false
    if the cMakeRevMenuBarStandard of stack "revPreferences" is empty then set the cMakeRevMenuBarStandard of stack "revPreferences" to false
    if the cGrid of stack "revPreferences" is empty then set the cGrid of stack "revPreferences" to false
@@ -272,12 +274,50 @@ on revInternal__openStack
    end if
    if the cReplaceSECol of stack "revPreferences" is empty then set the cReplaceSECol of stack "revPreferences" to false
    if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
-   if the cDisablePlayerTool of stack "revPreferences" is empty then set the cDisablePlayerTool of stack "revPreferences" to false
    if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
-
-   -- calling late inits
-   revInternal__setSplashStatus "Finish IDE loading.."
+   -- added as of 13-4-24 (tperry)
+   if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
+   if the cDisableBrowserWidget of stack "revPreferences" is empty then
+      if the platform contains "linux" then
+         set the cDisableBrowserWidget of stack "revPreferences" to true
+      else
+         set the cDisableBrowserWidget of stack "revPreferences" to false
+      end if
+   end if
+   if the cDisablePlayerTool of stack "revPreferences" is empty then
+      if the platform contains "linux" then
+         set the cDisablePlayerTool of stack "revPreferences" to true
+      else
+         set the cDisablePlayerTool of stack "revPreferences" to false
+      end if
+   end if
+   if the cScrnSharedMem of stack "revPreferences" is empty then 
+      if the platform contains "linux" then 
+         set the cScrnSharedMem of stack "revPreferences" to true
+      else
+         set the cScrnSharedMem of stack "revPreferences" to false
+      end if
+   end if
+   if the cQuickDictionary of stack "revPreferences" is empty then set the cQuickDictionary of stack "revPreferences" to false -- tperry 17-4-24
+   if the cDesktopClickToHide of stack "revPreferences" is empty then  -- tperry 24-4-24
+      if the platform contains "win" then 
+         set the cDesktopClickToHide of stack "revPreferences" to false
+      else
+         set the cDesktopClickToHide of stack "revPreferences" to true
+      end if
+   end if
    
+   -- set the default cursor (27-4-24)
+   tUpdBrowseCursors
+   
+   -- can we make linux redraw faster? (yes)
+   hToggleScreenSharedMemory
+   
+   -- eliminate delays for subsequent launches
+   set the cTraceDelay of stack "revPreferences" to 0
+   
+   -- calling late inits
+   revInternal__setSplashStatus "IDE loaded.."
    --
    send tdelayClosingSplash to me in 3 ticks
 end revInternal__openStack
@@ -286,30 +326,32 @@ on tdelayClosingSplash
    -- Now the home stack has loaded, we can allow interrupts..
    set the allowInterrupts to true
    set the cREVLaunching of stack "Home" to false
+   send tCloseSplashFully to me
    
    -- apply a theme
-   revInternal__setSplashStatus "Applying theme..."
    -- (only one of these conditions can be true)
    if the cUseThemeDefault of stack "revPreferences" is true then send tApplyTheme_nullify to stack "home"
    if the cUseThemeDark of stack "revPreferences" is true then send IDEToDarkMode to stack "home"
    if the cUseThemelight of stack "revPreferences" is true then send IDEToLightMode to stack "home"
    
-   -- now make tools visible (now that theme has applied)
-   revInternal__setSplashStatus "Redrawing Tools..."
+   -- now ensure tools are correct
    if there is a stack "revTools" then 
-      toplevel stack "revTools"
-      set the blendlevel of stack "revTools" to 0
-      lock screen
-      close stack "revTools"
-      revIDETogglePalette "tools"
-      unlock screen
+      set the blendlevel of stack "revTools" to 0 -- tperry 1/5/24
+      put revIDEPaletteToStackName("revTools") into tStackName
+      if there is a stack tStackName then
+         palette stack tStackName
+      end if
    end if
-   -- now make menubar visible, now that theme has applied
-   revInternal__setSplashStatus "Creating menus..."
-   if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
    
+   -- now make menubar visible, now that theme has applied
+   if there is a stack "revMenuBar" then 
+      send tMenuBar_AdjustWDSize to stack "revMenubar" -- fix annoying revMenubar dragger if turned off (5/4/24 --tperry)
+      if the blendlevel of stack "revMenuBar" >0 then set the blendlevel of stack "revMenuBar" to 0 -- tperry 1/5/24
+   end if
+end tdelayClosingSplash
+
+on tCloseSplashFully
    if there is a stack "revsplash" then 
-      revInternal__setSplashStatus "Closing splash..."
       set the destroyStack of stack "revSplash" to true
       close stack "revSplash"
       if there is a stack "revSplashStackBehavior" then
@@ -317,7 +359,7 @@ on tdelayClosingSplash
          close stack "revSplashStackBehavior"
       end if
    end if
-end tdelayClosingSplash
+end tCloseSplashFully
 
 on revInternal__setSplashStatus pMessage
       revInternal__Log "Message", pMessage
@@ -820,7 +862,7 @@ command revInternal__ResetPreferences
    put format("blue\nbrown\ndarkorange\nred") into tPropsArray["cBuiltInColors"]
    put "don't remove" into tPropsArray["cASKDestroy"]
    put "Gray50" into tPropsArray["cSelectionHandle"]
-   put "Purple1" into tPropsArray["cToolSelectorColor"] -- tperry
+   put "255,140,0" into tPropsArray["cToolSelectorColor"] -- tperry
    put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
    put "False" into tPropsArray["MakeRevToolBarDraggable"] -- tperry (default, should revMenuBar be draggable?)
    put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
@@ -1480,7 +1522,7 @@ command revInternal__InitialiseOptions
    
    set the selectGroupedControls to the cSelectGrouped of stack "revPreferences"
    set the tooltipDelay to the cREVToolTipDelay of stack "revPreferences"
-
+   
    set the scriptTextFont to the cREVScriptFont of stack "revPreferences"
    set the scriptTextSize to the cREVScriptSize of stack "revPreferences"
    
@@ -1491,13 +1533,13 @@ command revInternal__InitialiseOptions
    set the gridSize to the cGridSize of stack "revPreferences"
    
    if the cSelectionHandleColor of stack "revPreferences" is empty then
-      set the selectionHandleColor to "Gray50"
+      set the selectionHandleColor to "150,80,0" -- dark orange
    else
       set the selectionHandleColor to the cSelectionHandleColor of stack "revPreferences"
    end if
    
    if the cToolSelectorColor of stack "revPreferences" is empty then
-      set the cToolSelectorColor of stack "revPreferences" to "Purple1"
+      set the cToolSelectorColor of stack "revPreferences" to "255,140,0" -- orange
    end if
    
    set the navigationArrows to the cNavigationArrows of stack "revPreferences"
@@ -1963,15 +2005,15 @@ function revEnvironmentEditionProperty pProp, pEdition
             case "name"
                return "Community"
             case "color"
-               return 208,54,195 -- muted magenta
+               return 210,115,50 -- lighter orange
             case "pb_line_selected_color"
-               return 226,238,185
+               return 240,200,180 -- pastel orange
             case "revonline_hilite_color"
-               return 196,45,199 -- darker magenta
+               return 200,90,50 -- darker orange
             case "revabout_hilite_color"
-               return 255,0,255 -- magenta
+               return 255,140,0 -- orange
             case "revsplash_text_color"
-               return 255,255,255 -- white
+               return 255,240,210 -- white, with a hint of orange
             case "start_center_tile_color_step"
                return -9
             case "password_protection"
@@ -2439,16 +2481,25 @@ end revEnvironmentEditionProperty
       return tPlatform
    end revEnvironmentPlatform
    
+on hToggleScreenSharedMemory
+   if the platform contains "linux" then
+      if the cScrnSharedMem of stack "revPreferences" is true then
+         set the screenSharedMemory to true
+      else
+         set the screenSharedMemory to false
+      end if
+   end if
+end hToggleScreenSharedMemory
    
-   ---------------------------------------------------------------------------------
-   -- Paul McClernan, This is all dark mode stuff ----------------------------------
-   -- Paul McClernan - 1/16/22
-   -- it might be better to have a generic script that swaps foreground and background colors on objects
-   ---------------------------------------------------------------------------------
-   
-   -- tperry (Tried this, not happy with the result on windows, so have removed it)
-   -- updated 13-1-2024 -- I did try various other methods, but settled on this.
-   
+      ---------------------------------------------------------------------------------
+      -- Paul McClernan, This is all dark mode stuff ----------------------------------
+      -- Paul McClernan - 1/16/22
+      -- it might be better to have a generic script that swaps foreground and background colors on objects
+      ---------------------------------------------------------------------------------
+      
+      -- tperry (Tried this, not happy with the result on windows, so have removed it)
+      -- updated 13-1-2024 -- I did try various other methods, but settled on this.
+      
 on IDEToLightMode
    if the cREVLaunching of stack "Home" is false then
       lock screen
@@ -2487,13 +2538,26 @@ on tApplyTheme_nullify
    end if
 end tApplyTheme_nullify
 
---------------------------------------------------------------------------------------------------------
--- all the stuff past this point just applies / removes custom colour properties --
--- I've tried to make this as straightforward as possible, but will probably refine using a --
--- variable function at some point (once I know it's working well) -- tperry 13-1-2024
---------------------------------------------------------------------------------------------------------
 
-on IDEtoDefaultLin
+on tUpdBrowseCursors
+   -- changes the default cursor as selected in prefs (tperry 27-4-24)
+   if the cBrowseIconIsArrow of stack "revPreferences" is empty then set the cBrowseIconIsArrow of stack "revPreferences" to false
+   if the cBrowseIconIsArrow of stack "revPreferences" is false then
+      -- set the hand tool
+      set the defaultcursor to 0
+   else
+      -- set to the arrow tool (relative to what the IDE has already set)
+      set the defaultcursor to (the id of image "com.livecode.tool.Browse.icon.png" of stack "revTools")
+   end if
+end tUpdBrowseCursors
+
+   --------------------------------------------------------------------------------------------------------
+   -- all the stuff past this point just applies / removes custom colour properties --
+   -- I've tried to make this as straightforward as possible, but will probably refine using a --
+   -- variable function at some point (once I know it's working well) -- tperry 13-1-2024
+   --------------------------------------------------------------------------------------------------------
+   
+   on IDEtoDefaultLin
    lock screen
    
    

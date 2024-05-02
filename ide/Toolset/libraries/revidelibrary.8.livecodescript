@@ -381,16 +381,8 @@ private function __propertyInfoFilename
 end __propertyInfoFilename
 
 private function __classicToolsOrderFilename
-   -- tperry (put this in on Linux to disable the player until it's fixed) 21-11-2023 (part 1 of 2)
-   if the platform contains "linux" then
-      if (the cDisablePlayerTool of stack "revPreferences" is true) then
-         return "classicToolsOrder_noplayer.tsv"
-      else
-      return "classicToolsOrder.tsv"
-      end if
-   else 
-      return "classicToolsOrder.tsv"
-   end if
+   -- this is the file the IDE reads to determine the list of 'classic tools'
+   return "classicToolsOrder.tsv"
 end __classicToolsOrderFilename 
 
 private on __orderClassicTools
@@ -398,10 +390,17 @@ private on __orderClassicTools
    put revIDESpecialFolderPath("Object Property Definitions") & slash & __classicToolsOrderFilename() into tToolsOrderFile
    
    local tOrder
-   repeat for each line tTool in url ("file:" & tToolsOrderFile)
+   -- modular 'classic tools' loading (tperry 13-4-2024)
+   -- also see function "revIDEAvailableControls"
+   put url ("file:" & tToolsOrderFile) into tToolsToLoad -- we store this in a variable, makes the next part easier
+   -- we can now filter out what 'classic tools' are turned off
+   if (the cDisablePlayerTool of stack "revPreferences" is true) then filter lines of tToolsToLoad without "*classic.Player"  -- player is turned off
+   
+   repeat for each line tTool in tToolsToLoad
       add 1 to tOrder
       put tOrder into sClassicObjectProperties[tTool]["order"]
    end repeat
+   
 end __orderClassicTools
 
 # Reads in the basic property data for classic controls
@@ -9401,6 +9400,7 @@ end revIDEActionEditScriptOfStack
 Returns an array with keys the object types and values the corresponding 'kinds'
 */
 function revIDEAvailableControls
+   -- tperry 13-4-24 (this needs to be modular)
    local tObjectsA, tType, tTitle
    repeat for each key tTypeID in sClassicObjectProperties
       put sClassicObjectProperties[tTypeID]["type"] into tType

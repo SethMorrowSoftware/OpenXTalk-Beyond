@@ -197,19 +197,25 @@ end editScript
 on resumeStack
    global gREVScriptEdit
    put true into gREVScriptEdit
-
+   
    revSetActiveStacks
-
+   
    global gREVMessageDispatch
    repeat for each line l in gREVMessageDispatch["revResumeStack"]
       send "revResumeStack" to this cd of stack l
    end repeat
-
+   
+   -- this is to fix a bug reported by overclockedmind 24-4-24 (tperry)
+   if not (the pendingmessages contains "hSwitchedBack") then send hSwitchedBack to stack "revMenubar" in 1 tick
+   
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass resumeStack
 end resumeStack
 
 on suspendStack
    global gREVScriptEdit, gREVBuildingPaletteExemption
+   -- this is to fix a bug reported by overclockedmind 24-4-24 (tperry)
+   if not (the pendingmessages contains "hSwitchedAway") then send hSwitchedAway to stack "revMenubar" in 2 ticks
+   
    --suspendStack sent during the palette building process
    --it doesn't count then for selecting the background
    if not gREVBuildingPaletteExemption then put false into gREVScriptEdit
@@ -227,6 +233,7 @@ end newStack
 
 on revSetActiveStacks
    ideMessageSend "ideActiveStacksChanged"
+  
 end revSetActiveStacks
 
 
