@@ -3,10 +3,7 @@ local sMenuTarget
 local tPaletteList
 
 on preOpenStack
-   if the crevlaunching of stack "home" is true then
-      set the blendlevel of stack "revMenubar" to 99 -- experimenting with this (tperry 1-5-24)
-      -- if the platform contains "mac" then set the blendlevel of stack "revMenubar" to 99
-   end if
+   if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99 -- tperry 1/5/24
    
    global gREVDontLoadMenus
    if gREVDontLoadMenus then
@@ -2214,8 +2211,7 @@ function revMenubarAdditionalContextMenu pIndent
 
    local tText
    put return & tIndent & "-" after tText
-   put return & tIndent & "Show In Project Browser" after tText
-   put return & tIndent & "Show Documentation" after tText
+   put return & tIndent & "Show In Project Browser" after tText -- put return & tIndent & "Show Documentation" after tText -- commented this out, tperry 6/5/24
    return tText
 end revMenubarAdditionalContextMenu
 
@@ -3525,17 +3521,11 @@ on tMenuBar_MakeDragHandle -- (tperry) makes a draggable area (topleft) of the r
    -- why won't the mac behave? -- I have to specify this here, probably because of various other bits LC have done further up the message path (tperry 10-12-23)
    if the platform contains "mac" then
       -- mac specific because it won't behave
-      set the left of graphic "draghandle" of stack "revMenubar" to 1
+      set the left of graphic "draghandle" of stack "revMenubar" to -1
       set the top of graphic "draghandle" of stack "revMenubar" to 0
    end if
    --
    set the ink of graphic "draghandle" of stack "revMenubar" to srcCopy
-   /* -- commented out 26-4-24 tperry
-   if not (the platform contains "mac") then
-      -- because Linux and Windows draw the menubar onto the revMenubar stack (and MacOS uses the global menu bar) we position the draghandle below the "file" menu button
-      if there is a btn "file" of stack "revMenubar" then set the topleft of graphic "draghandle" of stack "revMenubar" to the bottomleft of btn "file" of stack "revMenubar"  -- adjust vert pos of draghandle (28-11-23 - tperry)
-   end if
-   */
    -------------------------------------------------------------------
    put "local sgDragging, sgLeftOffset, sgTopOffset" & return &¬
    "on mouseDown" & return &¬
@@ -3602,7 +3592,7 @@ on tMenuBar_AdjustWDSize
    end if
    -- shorten the size of the revMenubar stack (tperry)
    -- now assuming the "Sample Stacks" button is going to be the last on the right (5-12-23)
-   set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Sample Stacks" of cd 1 of wd "revMenuBar" +10, the bottom of wd "revMenubar"
+   set the rect of wd "revMenuBar" to the left of wd "revMenubar", the top of wd "revMenuBar", the right of cd btn "Sample Stacks" of cd 1 of wd "revMenuBar" +10 +(the left of wd "revMenuBar"), the bottom of wd "revMenubar"
 end tMenuBar_AdjustWDSize
 
 on tApplyGridSetting
@@ -3895,6 +3885,7 @@ end resumestack
 
 on hSwitchedAway
    if the cDesktopClickToHide of stack "revPreferences" is false then exit hSwitchedAway
+   set the tLastTop of  stack "revTools" to the top of stack "revTools"  -- save tools wd vert pos (tperry 11,5,24)
    put "" into tSwitchedTo
    if the platform contains "mac" then
       put "tell application " & QUOTE & "System Events" & QUOTE & return & ¬
@@ -3961,6 +3952,12 @@ on fIDEWindows tWhat
          add 1 to tShowCount
          put QUOTE & line tShowCount of tPaletteList & QUOTE into tWdName
          put "show stack " & tWdName into tDoThis
+         -- restore tools wd vert pos (tperry 11,5,24)
+         if tWdName contains "tools" then
+            if isNumber(the tLastTop of  stack "revTools") then
+               set the top of stack "revTools" to the tLastTop of  stack "revTools"
+            end if
+         end if
          do tDoThis
       end repeat
    end if

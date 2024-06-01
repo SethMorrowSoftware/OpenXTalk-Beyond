@@ -17,6 +17,7 @@ on startup
    revInternal__Log "Start"
    revInternal__Log "Enter", "Startup"
    
+   --
    try
       revInternal__SetupLicense
       revInternal__SetupPaths
@@ -198,24 +199,6 @@ on revInternal__openStack
       end if
       
       if tSuccess then
-         revInternal__setSplashStatus "Loading Tools..."
-         revInternal__InitialiseTools
-         put the result into tSuccess
-      end if
-      
-      if tSuccess then
-         revInternal__setSplashStatus "Loading Project Browser..."
-         revInternal__InitialiseProjectBrowser
-         put the result into tSuccess
-      end if
-      
-      if tSuccess then
-         revInternal__setSplashStatus "Loading Message Box..."
-         revInternal__InitialiseMessageBox
-         put the result into tSuccess
-      end if
-      
-      if tSuccess then
          revInternal__setSplashStatus "Loading Plug-ins..."
          revInternal__InitialisePlugIns
          put the result into tSuccess
@@ -316,6 +299,24 @@ on revInternal__openStack
    -- eliminate delays for subsequent launches
    set the cTraceDelay of stack "revPreferences" to 0
    
+   if tSuccess then
+      revInternal__setSplashStatus "Loading Tools..."
+      revInternal__InitialiseTools
+      put the result into tSuccess
+   end if
+   
+   if tSuccess then
+      revInternal__setSplashStatus "Loading Project Browser..."
+      revInternal__InitialiseProjectBrowser
+      put the result into tSuccess
+   end if
+   
+   if tSuccess then
+      revInternal__setSplashStatus "Loading Message Box..."
+      revInternal__InitialiseMessageBox
+      put the result into tSuccess
+   end if
+   
    -- calling late inits
    revInternal__setSplashStatus "IDE loaded.."
    --
@@ -325,32 +326,32 @@ end revInternal__openStack
 on tdelayClosingSplash
    -- Now the home stack has loaded, we can allow interrupts..
    set the allowInterrupts to true
-   set the cREVLaunching of stack "Home" to false
-   send tCloseSplashFully to me
    
    -- apply a theme
    -- (only one of these conditions can be true)
+   set the cREVLaunching of stack "Home" to false
    if the cUseThemeDefault of stack "revPreferences" is true then send tApplyTheme_nullify to stack "home"
    if the cUseThemeDark of stack "revPreferences" is true then send IDEToDarkMode to stack "home"
    if the cUseThemelight of stack "revPreferences" is true then send IDEToLightMode to stack "home"
+   set the cREVLaunching of stack "Home" to true
    
    -- now ensure tools are correct
    if there is a stack "revTools" then 
-      set the blendlevel of stack "revTools" to 0 -- tperry 1/5/24
+     hide stack "revTools"
       put revIDEPaletteToStackName("revTools") into tStackName
       if there is a stack tStackName then
          palette stack tStackName
       end if
    end if
    
-   -- now make menubar visible, now that theme has applied
-   if there is a stack "revMenuBar" then 
-      send tMenuBar_AdjustWDSize to stack "revMenubar" -- fix annoying revMenubar dragger if turned off (5/4/24 --tperry)
-      if the blendlevel of stack "revMenuBar" >0 then set the blendlevel of stack "revMenuBar" to 0 -- tperry 1/5/24
-   end if
+   -- just check menubar is all good
+   if there is a stack "revMenuBar" then send tMenuBar_AdjustWDSize to stack "revMenubar" -- fix annoying revMenubar dragger if turned off (5/4/24 --tperry)
+   
+   send tCloseSplashFully to me
 end tdelayClosingSplash
 
 on tCloseSplashFully
+   set the cREVLaunching of stack "Home" to false
    if there is a stack "revsplash" then 
       set the destroyStack of stack "revSplash" to true
       close stack "revSplash"
@@ -359,6 +360,13 @@ on tCloseSplashFully
          close stack "revSplashStackBehavior"
       end if
    end if
+   
+   -- make all stacks visible at the same time 3/5/24 (tperry)
+   revInternal__InitialiseTools
+   if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
+   if there is a stack "Message Box" then set the blendlevel of stack "Message Box" to 0
+   
+   
 end tCloseSplashFully
 
 on revInternal__setSplashStatus pMessage
@@ -1666,30 +1674,39 @@ end revInternal__InitialiseOptions
       return true
    end revInternal__InitialiseErrors
    
-   command revInternal__InitialiseTools
-      revInternal__Log "Enter", "Tools Initialisation"
-      
-      local tToolsStackName
-      put revIDEPaletteToStackName("Tools") into tToolsStackName
-      
-      --PM-2015-10-05: [[ Bug 16099 ]] IDE should default to Pointer tool and highlight its icon on the Tools palette
-      revIDESetTool "pointer"
-      
-      lock screen
-      go invisible stack tToolsStackName as palette
-      revIDEPositionPalette("tools")
-      
-      # IM-2016-03-01: [[ Bug 16244 ]] IDE stacks should always hide invisible objects
-      set the showInvisibles of stack tToolsStackName to false
-      set the _ideoverride of stack tToolsStackName to true
-      
-      show stack tToolsStackName
-      unlock screen 
-      
-      revInternal__Log "Leave", "Tools Initialisation"
-      
-      return true
-   end revInternal__InitialiseTools
+command revInternal__InitialiseTools
+   revInternal__Log "Enter", "Tools Initialisation"
+   
+   local tToolsStackName
+   put revIDEPaletteToStackName("Tools") into tToolsStackName
+   
+   --PM-2015-10-05: [[ Bug 16099 ]] IDE should default to Pointer tool and highlight its icon on the Tools palette
+   revIDESetTool "pointer"
+   
+   lock screen
+   go invisible stack tToolsStackName as palette
+   
+   
+   if the cRevLaunching of stack "home" is true then
+      set the blendlevel of stack tToolsStackName to 99
+      hide stack tToolsStackName -- keep it hidden (tperry )
+   else
+      show stack tToolsStackName -- keep it hidden (tperry )
+      set the blendlevel of stack tToolsStackName to 0
+   end if
+   
+   revIDEPositionPalette("tools")
+   
+   # IM-2016-03-01: [[ Bug 16244 ]] IDE stacks should always hide invisible objects
+   set the showInvisibles of stack tToolsStackName to false
+   set the _ideoverride of stack tToolsStackName to true
+   
+   unlock screen 
+   
+   revInternal__Log "Leave", "Tools Initialisation"
+   
+   return true
+end revInternal__InitialiseTools
    
    command revInternal__InitialiseIcons
       revInternal__Log "Enter", "Icons Initialisation"
@@ -1752,58 +1769,66 @@ end revInternal__InitialiseOptions
       return true
    end revInternal__InitialiseMenus
    
-   command revInternal__InitialiseProjectBrowser
-      revInternal__Log "Enter", "Project Browser Initialisation"
-      
-      if the cAppOverview of stack "revPreferences" and there is a stack "revApplicationOverview" then
-         set the _ideoverride of stack "revApplicationOverview" to true
-         toplevel "revApplicationOverview"
-      end if
-      
-      // EJB
-      if there is a stack "revProjectBrowser" then
-         if the cIDEProjectBrowserOpen of stack "revPreferences" is not false then
-            modeless "revProjectBrowser"
-         end if
-      end if
-      
-      revInternal__Log "Leave", "Project Browser Initialisation"
-      
-      return true
-   end revInternal__InitialiseProjectBrowser
+command revInternal__InitialiseProjectBrowser
+   revInternal__Log "Enter", "Project Browser Initialisation"
    
-   command revInternal__InitialiseMessageBox
-      revInternal__Log "Enter", "Message Box Initialisation"
-      
-      if the platform is among the items of "MacOS,Win32" then
-         set the style of stack "Message Box" to "palette"
-      else
-         set the style of stack "Message Box" to toplevel -- tperry (21-12-23)
-      end if
-      dispatch "ideInitialiseMessageBox" to stack "Message Box"
-      
-      revInternal__Log "Leave", "Message Box Initialisation"
-      
-      return true
-   end revInternal__InitialiseMessageBox
+   if the cAppOverview of stack "revPreferences" and there is a stack "revApplicationOverview" then
+      set the _ideoverride of stack "revApplicationOverview" to true
+      toplevel "revApplicationOverview"
+   end if
    
-   command revInternal__InitialisePlugIns
-      revInternal__Log "Enter", "Plug-Ins Initialisation"
-      
-      revIDEUpdatePlugins
-      
-      local tPluginInfo
-      put revIDEPlugins() into tPluginInfo
-      repeat for each key tPlugin in revIDEPlugins()
-         if tPluginInfo[tPlugin]["startup"] is true then
-            revIDEOpenPlugin tPlugin
-         end if
-      end repeat
-      
-      revInternal__Log "Leave", "Plug-Ins Initialisation"
-      
-      return true
-   end revInternal__InitialisePlugIns
+   // EJB
+   if there is a stack "revProjectBrowser" then
+      if the cIDEProjectBrowserOpen of stack "revPreferences" is not false then
+         modeless "revProjectBrowser"
+      end if
+   end if
+   
+   revInternal__Log "Leave", "Project Browser Initialisation"
+   
+   return true
+end revInternal__InitialiseProjectBrowser
+
+command revInternal__InitialiseMessageBox
+   revInternal__Log "Enter", "Message Box Initialisation"
+   
+   if the cRevLaunching of stack "home" is true then
+      set the blendlevel of stack "Message Box" to 99
+      hide stack "Message Box" -- keep it hidden (tperry )
+   else
+      show stack "Message Box" -- keep it hidden (tperry )
+      set the blendlevel of stack "Message Box" to 0
+   end if
+   
+   if the platform is among the items of "MacOS,Win32" then
+      set the style of stack "Message Box" to "palette"
+   else
+      set the style of stack "Message Box" to toplevel -- tperry (21-12-23)
+   end if
+   dispatch "ideInitialiseMessageBox" to stack "Message Box"
+   
+   revInternal__Log "Leave", "Message Box Initialisation"
+   
+   return true
+end revInternal__InitialiseMessageBox
+   
+command revInternal__InitialisePlugIns
+   revInternal__Log "Enter", "Plug-Ins Initialisation"
+   
+   revIDEUpdatePlugins
+   
+   local tPluginInfo
+   put revIDEPlugins() into tPluginInfo
+   repeat for each key tPlugin in revIDEPlugins()
+      if tPluginInfo[tPlugin]["startup"] is true then
+         revIDEOpenPlugin tPlugin
+      end if
+   end repeat
+   
+   revInternal__Log "Leave", "Plug-Ins Initialisation"
+   
+   return true
+end revInternal__InitialisePlugIns
    
    command revInternal__InitialiseFinalSteps
       revInternal__Log "Enter", "Final Initialisation"

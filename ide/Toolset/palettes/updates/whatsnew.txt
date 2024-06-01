@@ -1,1 +1,1 @@
-Fixed 'save as' > openxtalk not being the default option.
+Additional change to the updates window and updating the MacOS draghandle.

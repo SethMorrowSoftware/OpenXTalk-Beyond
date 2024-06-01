@@ -2,22 +2,18 @@
 ﻿script "revTools" with behavior "revPaletteBehavior"
 constant BLOCK_SIZE = 20
 
-constant kToolsColumnCountDefault = 3
+constant kToolsColumnCountDefault = 2
 on preOpenStack
-   if the crevlaunching of stack "home" is true then
-      set the blendlevel of stack "revTools" to 99 -- tperry 1/5/24
-   end if
+   if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99 -- tperry 1/5/24
    
    dispatch "setAsBehavior" to revIDEFrameBehavior() with the long id of me
    
    set the title of me to "Tools"
    
-   --if there is a stack "revTools" then set the blendlevel of stack "revTools" to 99 -- make it transparent while we set it up
-   
    # Preferences
    if revIDEGetPreference("revTools_columns") is not a number then revIDESetPreference "revTools_columns", kToolsColumnCountDefault
-   addFrameItem "revTools_columns", "header", "preference", "View Columns", "enum","2,3,4", "framePreferenceSelected", the long id of me
-   addFrameItem "add_widget","header", "action", "Find More Widgets", "plus", "plus","findMoreWidgets", the long id of me
+   --addFrameItem "revTools_columns", "header", "preference", "View Columns", "enum","2,3,4", "framePreferenceSelected", the long id of me
+   --addFrameItem "add_widget","header", "action", "Find More Widgets", "plus", "plus","findMoreWidgets", the long id of me
    
    # Look at the preference setting and validate the entries against the tool data
    local tAllViewList, tObjectData
@@ -49,7 +45,7 @@ on preOpenStack
    if tObjectViewsToShow is not tObjectViewsPreferenceSetting then 
       revIDESetPreference "revTools_show", tObjectViewsToShow
    end if
-   addFrameItem "revTools_show", "header", "preference", "Show Sections", "set","widget:Widgets Controls,classic:Classic Controls,graphic:Graphic Objects,graphictools:Graphic Tools,paint:Paint Tools", "framePreferenceSelected", the long id of me
+   --addFrameItem "revTools_show", "header", "preference", "Show Sections", "set","widget:Widgets Controls,classic:Classic Controls,graphic:Graphic Objects,graphictools:Graphic Tools,paint:Paint Tools", "framePreferenceSelected", the long id of me
    
    ### Properties
    set the resizable of me to false
@@ -69,14 +65,6 @@ on openStack
    -- is this the last thing that gets called?
    -- change the cursor state to show that we have finished loading the IDE
    set the defaultCursor to 0 -- sets to normal arrow
-   
-   if the cREVLaunching of stack "Home" is false then
-      -- if we reopened the tools palette, now make it visible
-      -- (this instance is not called when the IDE is booting)
-      if there is a stack "revTools" then 
-         set the blendlevel of stack "revTools" to 0
-      end if
-   end if
 end openStack
 
 
@@ -97,11 +85,11 @@ on registerForMessages
 end registerForMessages
 
 on findMoreWidgets
-    lock screen
-    revIDEFindMoreWidgets
-    unlock screen
- end findMoreWidgets
- 
+   lock screen
+   revIDEFindMoreWidgets
+   unlock screen
+end findMoreWidgets
+
 on ideExtensionsChanged
    lock screen
    generatePalette
@@ -442,6 +430,9 @@ on generatePalette
    reset the templategraphic
    reset the templateimage
    
+   -- ensure we have paint colours correctly set (tperry 5/5/24)
+   initPaintCol
+   
    unlock messages
    unlock screen
 end generatePalette
@@ -580,20 +571,26 @@ on layoutPalette
       set the traversalOn of fld tFldName to false
       set the showFocusBorder of fld tFldName to false
       -- conditional positioning
-      if tFldName is "divHeaderVectorShapes" then
-         set the top of fld tFldName to the bottom of graphic "graphic"
-         show fld tFldName
-         put "Vector Shapes" into fld tFldName
+      if there is a graphic "graphic" then
+         if tFldName is "divHeaderVectorShapes" then
+            set the top of fld tFldName to the bottom of graphic "graphic"
+            show fld tFldName
+            put "Vector Shapes" into fld tFldName
+         end if
       end if
-      if tFldName is "divHeaderVectorTools" then
-         set the top of fld tFldName to the bottom of graphic "graphictools"
-         show fld tFldName
-         put "Vector Tools" into fld tFldName
+      if there is a graphic "graphictools" then
+         if tFldName is "divHeaderVectorTools" then
+            set the top of fld tFldName to the bottom of graphic "graphictools"
+            show fld tFldName
+            put "Vector Tools" into fld tFldName
+         end if
       end if
-      if tFldName is "divHeaderPaintTools" then
-         set the top of fld tFldName to the bottom of graphic "paint"
-         show fld tFldName
-         put "Paint Tools" into fld tFldName
+      if there is a graphic "paint" then
+         if tFldName is "divHeaderPaintTools" then
+            set the top of fld tFldName to the bottom of graphic "paint"
+            show fld tFldName
+            put "Paint Tools" into fld tFldName
+         end if
       end if
    end repeat
    
@@ -603,11 +600,48 @@ on layoutPalette
    --tToolsOnShow
    
    
-   
    reset the templatebutton
    set the rect of me to tStackLeft, the top of me, tStackLeft+tStackWidth, tTop + the top of me +10 -- added +10 tperry
+   
    ideToolChanged
    --layoutFrame
+   
+   -- really don't want a 'header' widget, and deleting it might cause problems. So I simply hide that here.
+   --if there is a widget "header_background" of cd 1 of this stack then hide widget "header_background" of cd 1 of this stack
+   -- even better, can I delete the widget without causing problems? (yes!)
+   if there is a widget "header_background" of cd 1 of this stack then delete widget "header_background" of cd 1 of this stack
+   
+   -- better make sure we have a way to choose tool options
+   ---------------------------------- revised popup menu button
+   put "toolsOVERRIDEmenu" into tOverideBtnMenu
+   if not(there is a btn tOverideBtnMenu of cd 1 of stack "revTools") then create btn tOverideBtnMenu in cd 1 of stack "revTools"
+   set the icon of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to 205209 -- arrow > icon
+   set the opaque of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the showname of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the showborder of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the borderWidth of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to 0
+   set the label of btn tOverideBtnMenu of cd 1 of stack "revTools" to "*"
+   set the width of btn tOverideBtnMenu of cd 1 of stack "revTools" to "24"
+   set the height of btn tOverideBtnMenu of cd 1 of stack "revTools" to "24"
+   set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
+   put the long name of stack "revTools" into tLongToolsName
+   if word 1 of tLongToolsName is "stack" then delete word 1 of tLongToolsName
+   if char 1 of tLongToolsName is QUOTE then delete char 1 of tLongToolsName
+   if last char of tLongToolsName is QUOTE then delete last char of tLongToolsName
+   set the itemdelimiter to slash
+   delete last item of tLongToolsName
+   put tLongToolsName into tLongPopupName
+   put tLongToolsName & SLASH & "toolsPopupOptions.oxtstack" into tLongPopupName
+   set the cSpawnPopup of stack "revTools" to tLongPopupName
+   put "on mousedown" & return & "   put the the cSpawnPopup of this stack into tTargStack" & return & "   if the isViewing of stack tTargStack is true then" & return &¬ 
+   "      close stack tTargStack" & return & "   else" & return & "      open stack (tTargStack)" & return & "   end if" & return & "end mousedown" into tScriptToSet
+   set the script of btn tOverideBtnMenu of cd 1 of stack "revTools" to tScriptToSet
+   ------------------------------ end revised popup menu button
+   
+   if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
+      set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
+   end if
+   
    unlock messages
    unlock screen
 end layoutPalette
@@ -684,7 +718,7 @@ on mouseDown pButton
          revIDESetTool tTool
          put hCreateSuitableImage (tTool) into tImgCmd
          send tDoImgCmd to me in 1 ticks
-                  
+         
          -- Set the tool cursor
          -- The tool does not actually work without doing this
          switch tTool
@@ -1201,7 +1235,6 @@ on revToolsOptionClicked pButton, pTarget
          break
       case "graphic fill color tool"
       case "graphic line color tool"
-         beep
          # Popup the system color dialog (this for graphics, not paint)
          answer color with sToolColors[tToolName] -- this pops up the system colour select dialog
          -- richmond had talked about possibly replacing this with the old "revcolorchooser.rev"
@@ -1413,9 +1446,9 @@ on hApplyThePopupSelection
       choose Polygon Tool
       exit hApplyThePopupSelection
    end if
-      if tChosenPopupItem is "Line Tool" then
-         choose Line Tool
-         exit hApplyThePopupSelection
+   if tChosenPopupItem is "Line Tool" then
+      choose Line Tool
+      exit hApplyThePopupSelection
    end if
    if tChosenTool is "paint line size tool" then
       -- set line size for paint objects
@@ -1478,9 +1511,9 @@ on hApplyThePopupSelection
       set the polySides to tPolySidesToSet
    end if
 end hApplyThePopupSelection
-   
+
 on revToolsConfigureTemplateGraphic pStyle, pName
-      # Make sure the template graphic has the properties selected in the tools palette
+   # Make sure the template graphic has the properties selected in the tools palette
    --reset the templategraphic
    if pStyle is not empty then
       set the style of the templategraphic to pStyle
@@ -1634,5 +1667,94 @@ on tDoImgCmd -- handler to actually create the paint image we are missing (tperr
    set the rect of image tImgName of card id tImgID of stack tImgStack to 0,0,the width of stack tImgStack, the height of stack tImgStack
    set the layer of image tImgName of card id tImgID of stack tImgStack to bottom -- just to make sure it doesn't obscure any buttons (tperry 23-4-24)
 end tDoImgCmd
+
+
+on initPaintCol
+   -- default paint colours for when the IDE starts
+   put white into sToolColors["paint fill color tool"]
+   put black into sToolColors["paint line color tool"]
+end initPaintCol
+
+
+on tAdjWdRounding theStack
+   if theStack is empty then exit tAdjWdRounding
+   set the itemdelimiter to ","
+   put "visArea,knockoutArea" into tRectsList -- specify rectangle graphics I want to make
+   put theStack into sMatchStack -- this is the stack we are interested in
+   if there is a stack sMatchStack then 
+      put "_wdshape_" into tWdGrp
+      if not(there is a group tWdGrp of cd 1 of stack sMatchStack) then create group tWdGrp in cd 1 of stack sMatchStack
+      put 0 into tCount
+      repeat the number of items in tRectsList -- make the rectangle graphics specified above
+         add 1 to tCount
+         put item tCount of tRectsList into tGra
+         if not (there is a graphic tGra of group tWdGrp of card 1 of stack sMatchStack) then create graphic tGra in group tWdGrp of card 1 of stack sMatchStack -- ensure it exists, now set props
+         set the opaque of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to true
+         set the antialiased of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to false
+         set the lineSize of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the backgroundcolor of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to none
+         set the width of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to the width of stack sMatchStack
+         set the height of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to the height of stack sMatchStack
+         set the top of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the left of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the style of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to "roundRect"
+         set the roundRadius of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 14
+      end repeat
+      -- set properties of the group
+      set the layer of group tWdGrp of cd 1 of stack sMatchStack to top
+      set the margins of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the topleft of group tWdGrp of cd 1 of stack sMatchStack to 0,0
+      --
+      set the decorations of stack sMatchStack to none -- now hide the normal window decorations
+      --set the top of stack sMatchStack to the bottom of stack "revMenubar" +4 -- keep stack anchored to bottom of revmenubar
+      -- we need to provide a way for the window to be dragged now, so prepare the drag script
+      put "local sgDragging, sgLeftOffset, sgTopOffset" & return & "on mousedown" & return & "put item 1 of the mouseLoc into sgLeftOffset" & return & ¬
+      "put item 2 of the mouseLoc into sgTopOffset" & return & "put true into sgDragging" & return &  ¬
+      "if not (the pendingmessages contains " & QUOTE & "tDragMove" & QUOTE & ") then send tDragMove to me in 1 millisecond" & return &¬
+      "end mousedown" & return & ¬ 
+      "on tDragMove" & return & "lock screen" & return & "if sgDragging is true then" & return & "set the left of this stack to item 1 of globalloc(the mouseLoc) - sgLeftOffset" & return &¬
+      "set the top of this stack to item 2 of globalloc(the mouseLoc) - sgTopOffset " & return & "end if"  & return & "unlock screen" & return & "if the mouse is up then" & return & ¬
+      "put false into sgDragging" & return & "else" & return & "send tDragMove to me in 1 millisecond" & return & "end if" & return & "end tDragMove" into tDragScript
+      -- now make the button that allows the drag
+      if not (there  is a button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack) then create button "test-drag" in group tWdGrp of cd 1 of stack sMatchStack
+      -- set props of drag button
+      set the autohilite of button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the script of button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to tDragScript
+      set the opaque of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the style of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to "transparent"
+      set the threeD of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the showBorder of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the borderWidth of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to 0
+      put theStack into tLabelTitle
+      if char 1 to 3 of tLabelTitle is "rev" then delete char 1 to 3 of tLabelTitle
+      set the label of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to tLabelTitle
+      set the width of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to the width of stack sMatchStack - 50
+      if there is a widget "header_background" of cd 1 of stack sMatchStack then set the height of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to the height of widget "header_background" of cd 1 of stack sMatchStack
+      set the top of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the left of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the script of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to tDragScript
+      set the textSize of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 12
+      set the textAlign of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to left
+      -- now we set the window shape
+      put the windowshape of this stack into tWdID
+      if tWDID is "0" then
+         -- set to custom shape
+         put "_maskholder_" into tCustomWDImage
+         if not (there is an image tCustomWDImage of cd 1 of stack sMatchStack) then create image tCustomWDImage in card 1 of stack sMatchStack
+         hide image tCustomWDImage of cd 1 of stack sMatchStack
+         export snapshot from group tWdGrp of cd 1 of stack sMatchStack to image tCustomWDImage of cd 1 of this stack as png -- with mask
+         set the windowShape of stack sMatchStack to (the ID of image tCustomWDImage of cd 1 of this stack)
+         put 0 into tCount
+         repeat the number of items in tRectsList -- now we clean up our rects
+            add 1 to tCount
+            put item tCount of tRectsList into tGra
+            if there is a graphic tGra of group tWdGrp of card 1 of stack sMatchStack then hide graphic tGra of group tWdGrp of card 1 of stack sMatchStack
+         end repeat
+      else
+         -- window is already a custom shape (?)
+      end if
+   end if
+end tAdjWdRounding
+
 
 
