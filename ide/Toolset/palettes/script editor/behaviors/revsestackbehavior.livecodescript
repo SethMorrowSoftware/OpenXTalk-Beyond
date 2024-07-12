@@ -2784,7 +2784,7 @@ end seUpdateWindowTitle
 #   The title that the script editor window should have if pObject is the current object
 #   being edited.
 function seCreateWindowTitle pObject
-   return revDebuggerObjectLongName(pObject) & " - Code Editor"
+   return revDebuggerObjectLongName(pObject) & " - Script Editor"
 end seCreateWindowTitle
 
 command seUpdateCheckSum pObject, @pScript

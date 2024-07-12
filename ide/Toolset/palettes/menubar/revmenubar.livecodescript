@@ -562,7 +562,15 @@ on generateMenuGroup
    set the script of the templatebutton to tButtonScript
    
    local tGroupScript
-   put  "on mouseDown; revMenubarBuildMenus; end mouseDown" into tGroupScript
+   --put  "on mouseDown; revMenubarBuildMenus; end mouseDown" into tGroupScript
+   -- tperry 28-6-24 (modify the way this group script is triggered)
+   put "on mouseDown" & return &¬
+   "   revMenubarBuildMenus" & return &¬
+   "end mouseDown" & return &¬
+   "on mouseEnter" & return &¬
+   "   revMenubarBuildMenus" & return &¬
+   "end mouseEnter" into tGroupScript
+   --
    create invisible group "revMenuBar"
    set the script of it to tGroupScript
    
@@ -874,23 +882,29 @@ end enableToolbar
 on updateButtonHilite pTargetName, pValue
    lock screen
    lock messages
-
+   
    local tTargetLongID
    put the long id of button pTargetName of group "toolbar" of me into tTargetLongID
-
+   
    local tShowIcon
    put the showIcon of tTargetLongID into tShowIcon
-
+   
    setButtonHilite tTargetLongID, pValue
-   set the label of tTargetLongID to revMenubarButtonText(pTargetName, pValue)
+   -- changing 'code' to script -- tperry 12-7-24
+   if pTargetname contains "Code" then
+      set the label of btn "Code" of stack "revMenubar" to "Script"
+   else
+      set the label of tTargetLongID to revMenubarButtonText(pTargetName, pValue)
+   end if
+   -- end change 'code' button to 'script'
    if pValue then
       set the icon of tTargetLongID to the cHighlightedIcon of tTargetLongID
    else
       set the icon of tTargetLongID to the cIcon of tTargetLongID
    end if
-
+   
    set the showIcon of tTargetLongID to tShowIcon
-
+   
    unlock messages
    unlock screen
 end updateButtonHilite
@@ -1057,18 +1071,19 @@ end setButtonDepressed
 private on setButtonReleased pTarget
    updateButtonState
 end setButtonReleased
--- chack if clicked in the IDE Menus or clicked is in 'toolBar'
+
+
 on mouseDown
    if the short name of the owner of the target is "revMenuBar" then
       revMenubarBuildMenus
    else if the short name of the owner of the target is "toolbar" and the target begins with "button" then
       setButtonDepressed the long id of the target
-      -- else
-      --   pass mouseDown
-      end if
+      put the short name of the long id of the target into tLastClicked
+      set the tLastButtonClicked of stack "revMenubar" to tLastClicked
+   end if
 end mouseDown
 
--- chack if released click is in 'toolBar'
+
 on mouseRelease
    if the short name of the owner of the target is "toolbar" and the target begins with "button" then
       setButtonReleased the long id of the target
@@ -1173,8 +1188,10 @@ private function rectOfMacMenuItem pItem
    end switch
    return tLeft, 0, tRight, 15
 end rectOfMacMenuItem
+
 -- this appears to be used for drawing a line around the
 -- IDE menu names or toolBar buttons, for use with guided tutorial system
+
 function absoluteRectOfObject pObject
    local tRect
    if there is a button pObject of group "revMenuBar" of me then
@@ -1422,17 +1439,21 @@ function buildMenuContext
    repeat for each line l in tSelectedObject
       switch word 1 of l
          case "graphic"
-            if the style of l is among the items of "rectangle,roundrect,line,oval,regular,line,curve,polygon" then
+            if the style of l is among the items of "rectangle,roundrect,line,oval,regular,curve,polygon" then
                put false into tAllImages
             else
                put false into tEnableFlipandRotate
             end if
             break
          case "image"
+            break
+            -- wanted to disable this for image rotating for gifs, but it breaks group selection operations (28-6-24)
+            /*
             put pIsThisAGif(tSelectedObject) into pIsGif
             if pIsGif is true then put false into tEnableFlipandRotate -- if it's a gif, we disable the flip and rotate (tperry 7/4/24)
-            put false into tAllGraphics
+            put true into tAllGraphics
             break
+            */
          default
             -- put false into tAllGraphics
             put false into tAllImages
@@ -1784,13 +1805,18 @@ private function revMenubarObjectMenu pContext
    
    ### Lines 9 to 11: Group, Edit Group, Remove Group
    local tGroupLines
+   set the itemdelimiter to "," -- don't assume itemdelim is set correctly (tperry 28-6-24)
    if the selectedImage is empty and pContext["objectsSelected"] then
       if word 1 of (the selObj) is "group" and the number of lines in (the selObj) is 1 then
          put "&Ungroup Selected/G" & return & "&Edit Group/R" & return & "Remove Group"into tGroupLines
-      else if word 1 of (the selObj) is not among the items of "card,stack" then
+      else -- if word 1 of (the selObj) is not among the items of "card,stack" then
          put "&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group"into tGroupLines
+         -- commented out the following as not interested in disabling group object option
+         /*
       else
          put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group" into tGroupLines
+         */
+         -- end my adjustments (tperry 28-6-24)
       end if
    else
       put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group" into tGroupLines
@@ -1934,6 +1960,7 @@ private function revMenubarObjectMenu pContext
    put enableMenuItem("Move Backward/[", pContext["objectsSelected"] and tCanRelayer and tCanMoveBack) & return after tObject
    put enableMenuItem("Move For&ward/]", pContext["objectsSelected"] and tCanRelayer and tCanMoveForward) & return after tObject
    put enableMenuItem("Bring to &Front", pContext["objectsSelected"] and tCanRelayer and tCanMoveForward) & return after tObject
+   
    
    return modifyMenu("Object", tObject)
 end revMenubarObjectMenu
@@ -2099,6 +2126,8 @@ private function revMenubarViewMenu pContext
    put tab & tDis & "Light mode" & return after tView
    put tab & "-" & return after tView
    put tab & "Theme Preferences" & return after tView
+   put tab & "-" & return after tView
+   put tab & "Ignore default IDE theme in this stack" & return after tView
    tApplyGridSetting -- tperry (make sure grid checkbox is correct in menu 21-1-24)
    return modifyMenu("View", tView)
 end revMenubarViewMenu
@@ -3346,6 +3375,10 @@ on revMenubarViewMenuPick pWhich
          -- remember to check tApplyTheme_nullify in the home stack
          tOpenThemePrefs
          break
+      case "Appearance|Ignore default IDE theme in this stack"
+         -- remember to check tApplyTheme_nullify in the home stack
+         tIgnoreThemingInThisStack
+         break
    end switch
    
 end revMenubarViewMenuPick
@@ -3962,3 +3995,38 @@ on fIDEWindows tWhat
       end repeat
    end if
 end fIDEWindows
+
+on tIgnoreThemingInThisStack
+   -- this sets a custom property in the topstack, to not use whatever theme the IDE is using
+   -- by setting this on a stack, the responsibility of how a stack looks is down to the stack developer
+   -- (tperry) 21-6-24
+   put the long name of the topStack into tIgnoreThemeStackLong
+   put the short name of the topStack into tIgnoreThemeStackShort
+   put false into tIsThisIDEStack
+   if tIgnoreThemeStackLong contains (slash & "rev") then put true into tIsThisIDEStack
+   if tIgnoreThemeStackShort contains (slash & "rev") then put true into tIsThisIDEStack
+   put specialFolderPath("Engine") into tProgDir
+   if tIgnoreThemeStackLong contains (tProgDir) then put true into tIsThisIDEStack
+   if tIsThisIDEStack is true then
+      Answer "It seems the current stack '" & tIgnoreThemeStackShort & "' is part of the IDE. You cannot apply this to a stack that is part of the IDE." with "Cancel"
+      exit tIgnoreThemingInThisStack
+   else
+      Answer "The IDE will no longer attempt to theme the current stack '" & tIgnoreThemeStackShort & "'. " & ¬
+      "You will now be able to manually set the colors of this stack via the inspector, or via script." & return & ¬
+      "They will not be overridden by the IDE in future." with "Proceed" or "Cancel"
+      if it is "Proceed" then
+         -- set a custom property so IDE theming is not followed
+         if there is a stack (tIgnoreThemeStackLong) then
+            set the ignoreIDETheme of stack (tIgnoreThemeStackLong) to true
+            if the ignoreIDETheme of stack (tIgnoreThemeStackLong) is true then
+               -- custom property set (validated)
+               Answer "Please feel free to set the colors of stack '" & tIgnoreThemeStackShort & "' using the " & ¬
+               "inspector or via script, then save those changes." with "Okay"
+            end if
+            -- end custom prop check
+         end if
+         -- end stack exists check
+      end if
+   end if
+   --put tIgnoreThemeStack
+end tIgnoreThemingInThisStack

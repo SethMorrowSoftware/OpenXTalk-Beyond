@@ -65,6 +65,20 @@ on openStack
    -- is this the last thing that gets called?
    -- change the cursor state to show that we have finished loading the IDE
    set the defaultCursor to 0 -- sets to normal arrow
+ 
+   
+   -- check to see if we need to adjust the tools
+   if pWhich is 1 then
+      if the platform contains "linux" then -- check to see if we are linux
+         put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+         set the itemdelimiter to ","
+         if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then
+            set the style of this stack to modeless -- fix tools mode
+         end if -- end linux session check
+      end if -- end linux check
+   end if -- end mouse button check
+   --
+   
 end openStack
 
 
@@ -641,6 +655,10 @@ on layoutPalette
    if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
       set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
    end if
+   
+   --
+   
+   --
    
    unlock messages
    unlock screen
@@ -1671,8 +1689,8 @@ end tDoImgCmd
 
 on initPaintCol
    -- default paint colours for when the IDE starts
-   put white into sToolColors["paint fill color tool"]
-   put black into sToolColors["paint line color tool"]
+   put 150,150,150 into sToolColors["paint fill color tool"]
+   put 150,150,150 into sToolColors["paint line color tool"]
 end initPaintCol
 
 

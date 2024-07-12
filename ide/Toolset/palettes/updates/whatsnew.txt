@@ -1,1 +1,1 @@
-Additional change to the updates window and updating the MacOS draghandle.
+Renamed 'Code' to 'Script' on the toolbar and in the title of script editor windows, so that it's consistent with the rest of the IDE.

@@ -41,6 +41,7 @@ before openStack
    revIDEPopDefaultFolder
    put true into sStackIsInFront
    
+   if the platform is "linux" then send tFixUpInspector to me in 20 ticks
 end openStack
 
 on resizeInspector
@@ -55,6 +56,15 @@ on inspectorOpenEditor pEditor
    
   tCheckBuntuEditing -- #workaround bug with inspector under Ubuntu (tperry 02-09-2023)
    
+/*
+   # check for wd probs in icewm (tperry 27-6-24)
+   if the platform contains "linux" then
+      if $DESKTOP_SESSION_WM contains "icewm" then
+         set the style of this stack to modeless
+      end if
+   end if
+  
+*/ 
    # Check if the stack is already open
    if there is a stack pEditor then exit inspectorOpenEditor
    
@@ -439,6 +449,7 @@ private on inspectorGenerate
    else
       inspectorGenerateGroups tPropertyData["grouplist"]
    end if
+
 end inspectorGenerate
 
 on tabKey
@@ -613,7 +624,8 @@ on inspectorChanged
    
    # Layout
    inspectorLayout true
-   
+ 
+
    unlock screen
 end inspectorChanged
 
@@ -696,6 +708,7 @@ on inspectorClear
    end repeat
    
    rowLabelWidthSet 0
+   --set the tHasBeenCorrected of this stack to false
    unlock messages
    unlock screen
 end inspectorClear
@@ -785,3 +798,23 @@ on tCheckBuntuEditing
    end if
    */
 end tCheckBuntuEditing
+
+on tFixUpInspector
+   if the platform contains "linux" then
+      if $DESKTOP_SESSION_WM contains "icewm" then
+         lock screen
+         lock messages
+         if there is a stack "revPropertyInspector 1" then
+            if the tHasBeenCorrected of this stack is true then
+            -- do nothing, ignore
+            else
+               set the tHasBeenCorrected of this stack to true
+               set the style of stack "revPropertyInspector 1" to modeless
+            end if
+            --
+         end if
+         unlock messages
+         unlock screen
+      end if
+   end if
+end tFixUpInspector

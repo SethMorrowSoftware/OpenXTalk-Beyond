@@ -499,19 +499,57 @@ end revCloseUpdate
 
 on mouseDown pWhich
    if pWhich is 1 then
-      -- hook for stack inspector (tperry 10-5-24) -- not detected properly otherwise
+      -- hook for stack inspector (tperry 10-5-24) -- not detected properly on all platforms otherwise
       put "Properties" into tNewInspector
       if there is a stack tNewInspector then
          if the visible of stack tNewInspector is true then
-            -- properties inspector exists, and is visible
-            if the current tool contains "pointer" then -- and if pointer tool is chosen
-               set the isStackInspecting of stack tNewInspector to true
-               send ideNewSelectedObj to stack tNewInspector
+            if the screenmouseloc is not within the rect of stack tNewInspector then
+               -- properties inspector exists, and is visible
+               if the current tool contains "pointer" then -- and if pointer tool is chosen
+                  set the isStackInspecting of stack tNewInspector to true
+                  send ideNewSelectedObj to stack tNewInspector
+               end if
             end if
          end if
       end if
    end if
    -- end inspector mod
+   
+   -- check to see if we need to adjust the inspector
+   if pWhich is 1 then
+      if the platform contains "linux" then -- check to see if we are linux
+         put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+         lock screen
+         set the itemdelimiter to ","
+         if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then
+            put "revPropertyInspector 1,message box,revTools,App Browser" into tStacksToFix
+            put 0 into tStFixCount
+            repeat the number of items in tStacksToFix
+               add 1 to tStFixCount
+               put item tStFixCount of tStacksToFix into tStackThat
+               if there is a stack tStackThat then -- the inspector is active
+                  if the style of stack tStackThat is not modeless then set the style of stack tStackThat to modeless -- fix it
+               end if
+            end repeat
+            --
+            unlock screen
+         end if -- end linux session check
+      end if -- end linux check
+   end if -- end mouse button check
+   --
+   
+   if pWhich is "2" then
+      -- middle click tool toggle (20-6-24)
+      if the cMiddleBtnToggle of stack "revPreferences" is true then
+         -- toggle the tool between browse and pointer
+         put word 1 of the tool into tTool
+         if tTool contains "browse" then
+            choose pointer tool
+         else
+            choose browse tool
+         end if
+      end if
+   end if
    
    local tResult
    revIDEHandleMouseDown pWhich, the long id of the target
@@ -530,8 +568,8 @@ on mouseDown pWhich
          end if
    end switch
 end mouseDown
-
-on mouseUp pWhich
+   
+   on mouseUp pWhich
   local tTarget
   put the long id of the target into tTarget
 

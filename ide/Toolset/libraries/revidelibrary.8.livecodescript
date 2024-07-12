@@ -8965,12 +8965,28 @@ end revIDEToggleShowIDEStacksInLists
 on revIDETogglePalette pPaletteName
    local tStackName
    put revIDEPaletteToStackName(pPaletteName) into tStackName
-
+   --
+   lock screen
+   lock messages
+   put false into tChangeWDMode
    if the mode of stack tStackName is 0 or the visible of stack tStackName is false then
-      revIDEOpenPalette pPaletteName
+      -- it's not visible, so show it
+      if the platform contains "linux" then -- check to see if we are linux
+         put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+         set the itemdelimiter to ","
+         if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then put true into tChangeWDMode
+      end if -- not linux
+      revIDEOpenPalette pPaletteName -- open the wd as palette
+      if tChangeWDMode is true then -- we should change the mode
+         -- change the wd mode
+         set the style of stack tStackName to modeless -- mode of this stack
+      end if
    else
+      -- it was visible, so close it
       close stack tStackName
    end if
+   unlock messages
+   unlock screen
 end revIDETogglePalette
 
 on revIDETogglePaintAndDrawTools
