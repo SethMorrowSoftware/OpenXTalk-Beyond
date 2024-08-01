@@ -1,0 +1,41 @@
+ThisWidget
+(expression)
+Returns the current widget.
+
+Syntax:
+this widget
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- In a widget
+private variable mSelf as Widget
+public handler OnCreate() returns nothing
+	-- Keep a reference to this widget
+	put this widget into mSelf
+
+	-- defined in separate module library
+	SetEventCallback(EventCallback)
+end handler
+
+-- may be called from another module library
+private handler EventCallback() returns nothing
+	-- update internal variables
+
+	-- notify ide of changes
+	trigger all in mSelf
+end handler
+----
+
+Description:
+This widget evaluates to the current widget. This can be used to retain a reference for occasions where widget handlers may be called from another module, where the current widget may not be valid.
+
+This is useful when LCB handlers within a widget module are used as asynchronous callback functions passed to foreign functions, as these may be called at a time when the widget is not the currently active widget. Using the reference prevents updates being seen as coming from the wrong widget.
+
+Values:
+A widget object. 
+
+OS:

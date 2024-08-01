@@ -1,0 +1,32 @@
+mobileSoundChannelStatus
+(function)
+Returns the current status of the given channel.
+
+Syntax:
+mobileSoundChannelStatus()
+----
+
+Synonyms:
+iphonesoundchannelstatus
+
+Params:
+
+Examples:
+get mobileSoundChannelStatus()
+----
+put mobileSoundChannelStatus() into tChannelStatus
+----
+
+Description:
+Use the mobileSoundChannelStatus function to find the status of the given channel.
+
+Values:
+The mobileSoundChannelStatus function returns a string value.
+
+
+playing: a sound is currently playing
+stopped: there is no sound currently playing, nor any sound scheduled to be playing
+paused: there are sounds scheduled to be played but the channel is currently paused
+
+OS:
+ios,android

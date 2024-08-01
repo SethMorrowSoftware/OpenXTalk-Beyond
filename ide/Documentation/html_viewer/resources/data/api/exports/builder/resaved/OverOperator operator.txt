@@ -1,0 +1,26 @@
+OverOperator
+(operator)
+Binary division operator.
+
+Syntax:
+{Left} / {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put 3 / 5 into tVar -- tVar contains 0.6
+----
+
+Description:
+Binary division operator.
+
+Values:
+The result of dividing the number Left by Right. 
+
+OS:

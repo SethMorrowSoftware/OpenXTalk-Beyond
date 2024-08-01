@@ -1,0 +1,22 @@
+StringIsNotString
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is not {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a string.
+Right ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+The ```is not``` operator is case sensitive.
+
+Values:
+Returns true if Left is not identical to Right. 
+
+OS:

@@ -1,0 +1,23 @@
+IsAnArray
+(operator)
+Determines whether Target is an array or not.
+
+Syntax:
+{Target} is an array
+----
+
+Synonyms:
+
+Params:
+Target ( ): Any expression
+
+Examples:
+Description:
+Determines whether Target is an array or not.
+
+Values:
+Returns true if the given expression Target is an array, and false if not.
+
+
+
+OS:

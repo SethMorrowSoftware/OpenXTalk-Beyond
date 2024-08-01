@@ -1,0 +1,26 @@
+TheRowDelimiter
+(expression)
+Fetches the `rowDelimiter` property from script context
+
+Syntax:
+the row delimiter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+  -- Split a string into a list using the row delimiter
+   variable tItems
+   put "alice\nbob\neve" into tItems
+   split tItems by the row delimiter
+   -- tItems is now a list: ["alice", "bob", "eve"]
+----
+
+Description:
+Fetches the calling (script) handler's `rowDelimiter` property, or linefeed (U+000A) if no script context is available.
+
+Values:
+
+OS:

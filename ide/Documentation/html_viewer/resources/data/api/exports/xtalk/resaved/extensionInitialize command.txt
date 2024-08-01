@@ -1,0 +1,19 @@
+extensionInitialize
+(command)
+Called when loading the IDE library
+
+Syntax:
+extensionInitialize
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Called when loading the IDE library
+
+Values:
+
+OS:

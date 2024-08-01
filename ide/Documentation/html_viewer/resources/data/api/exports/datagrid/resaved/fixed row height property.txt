@@ -1,0 +1,19 @@
+fixed row height
+(property)
+Set to true if all of your data will be drawn at the same height.
+
+Syntax:
+put the dgProp["fixed row height"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true if all of your data will be drawn at the same height. Setting this to true will dramatically improve performance the first time the data grid is drawn as the data grid does not have to determine the height of all of your records before drawing. Default value is true.
+
+Values:
+
+OS:

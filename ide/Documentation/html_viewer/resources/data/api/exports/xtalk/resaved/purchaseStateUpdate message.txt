@@ -1,0 +1,60 @@
+purchaseStateUpdate
+(message)
+Sent by the store to notify the app of any changes in state to the purchase request.
+
+Syntax:
+purchaseStateUpdate {pPurchaseID}, {pProductID}, {pState}
+----
+
+Synonyms:
+
+Params:
+pPurchaseID ( ): The identifier of the purchase request
+pProductID ( ): The product identifier for which the purchase request was made
+pState (enum ): The state of the purchase request
+
+Examples:
+on purchaseStateUpdate pPurchaseID, pProductID, pState
+ switch pState
+  case "paymentReceived"
+   answer "payment received!"
+   offerPurchasedProduct pProductID      
+   mobileStoreConfirmPurchase pProductID
+   mobileStoreDisablePurchaseUpdates
+
+  case "error"
+   answer "Error occurred during purchase handling:" \
+         && mobileStorePurchaseError(pPurchaseID)
+   mobileStoreDisablePurchaseUpdates
+
+  case "invalidSKU"
+   answer "Invalid SKU."
+   mobileStoreDisablePurchaseUpdates
+
+  case "alreadyEntitled"
+   answer "Already Owned."
+   mobileStoreDisablePurchaseUpdates
+
+  case "restored"
+   answer "restored!"
+   offerPurchasedProduct pProductID         
+   mobileStoreConfirmPurchase pProductID
+   mobileStoreDisablePurchaseUpdates
+
+  case "cancelled"
+   answer "Purchase Cancelled:" && pProductID
+   mobileStoreDisablePurchaseUpdates
+
+ end switch
+end purchaseStateUpdate
+----
+
+Description:
+Use the purchaseStateUpdate message to notify the app of any changes in state to the purchase request.
+
+The message purchaseStateUpdate is used to notify the app of any changes in state to the purchase request. It is sent by the store in response to new purchase requests or restore completed purchases requests. 
+
+Values:
+
+OS:
+ios,android

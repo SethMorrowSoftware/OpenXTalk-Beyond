@@ -1,0 +1,29 @@
+aliasReference
+(function)
+return|Returns the name and location of the file or folder that an alias, symbolic link, or shortcut refers to.
+
+Syntax:
+the aliasReference of {aliasPath}
+----
+aliasReference({aliasPath})
+----
+
+Synonyms:
+
+Params:
+aliasPath ( ): The location and name of the alias whose referenced file or folder you want to get. If you specify a name but not a location, the engine assumes the file is in the defaultFolder.
+
+Examples:
+the aliasReference of "/Disk/Folder/Alias"
+----
+put the aliasReference of it into fileToOpen
+----
+
+Description:
+Use the aliasReference function to perform an operation on a file after the user has selected an alias, symbolic link, or shortcut to the file.
+
+Values:
+The aliasReference function return|returns the name and location of a file or folder. If the aliasPath does not exist, the aliasReference function returns empty and the result is set to "can't get". 
+
+OS:
+mac,windows,linux,ios,android

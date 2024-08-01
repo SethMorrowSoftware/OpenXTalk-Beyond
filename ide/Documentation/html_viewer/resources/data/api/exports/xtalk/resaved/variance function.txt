@@ -1,0 +1,32 @@
+variance
+(function)
+return|Returns the sample variance of a list of numbers.
+
+Syntax:
+variance({numbersList})
+----
+
+Synonyms:
+sampvariance
+
+Params:
+•	numbersList ( ): A comma-separated list of numbers, or an expression that evaluates to such a list, or an array containing only numbers.
+	
+Examples:
+variance(8,10,12) -- returns 4
+----
+put variance(studentScores) into field "Sample Variance"
+----
+
+Description:
+Use the variance function to analyze the amount of spread in a list of numbers.
+
+The variance function was added in version 6.1 to complement the standardDeviation function. The variance is a measure of how widely distributed the numbers in the numbersList are.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The variance function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,21 @@
+iconSize
+(property)
+The width and height of the rectangles in which the icons are rendered
+
+Syntax:
+set the iconSize of {widget} to pSize
+get the iconSize of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The width and height of the rectangles in which the icons are rendered
+
+Values:
+A two-item list with the width and height of the rect in which the icons are rendered 
+
+OS:

@@ -1,0 +1,16 @@
+RTF
+(glossary)
+
+Syntax:
+Synonyms:
+rtf, rtf format, rich text format, rtf file
+
+Params:
+
+Examples:
+Description:
+Rich Text Format. A format for text files, codified by Microsoft Corporation, that includes information about text styles in plain text format. 
+
+Values:
+
+OS:

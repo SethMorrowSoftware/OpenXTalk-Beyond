@@ -1,0 +1,22 @@
+sortOrder
+(property)
+Manipulates the order in which elements of the tree view are displayed, with respect to the current sortType.
+
+Syntax:
+get the sortOrder of {widget}
+----
+set the sortOrder of {widget} to {pOrder}
+----
+
+Synonyms:
+
+Params:
+pOrder ( ): The order in which to display elements of the tree view. - "ascending": Display from first to last in the order. This is the default - "descending": Display from last to first in the order.
+
+Examples:
+Description:
+Use the sortOrder property to display the elements of the tree view in ascending or descending order of the keys of its arrayData, given the current sortType.
+
+Values:
+
+OS:

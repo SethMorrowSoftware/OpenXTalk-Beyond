@@ -1,0 +1,20 @@
+revIDEGraphicTools
+(function)
+Returns information about the graphic creation tools.
+
+Syntax:
+revIDEGraphicTools()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns information about the graphic creation tools.
+
+Values:
+an array, keyed by the graphic creation tool types that appear in the Tools palette, of properties associated with the objects created by each of those graphic creation tools. 
+
+OS:

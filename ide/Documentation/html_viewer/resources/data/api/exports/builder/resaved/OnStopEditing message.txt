@@ -1,0 +1,19 @@
+OnStopEditing
+(message)
+Sent when the browse tool is selected.
+
+Syntax:
+OnStopEditing
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the OnStopEditing message to perform an action when the browse tool is selected.
+
+Values:
+
+OS:

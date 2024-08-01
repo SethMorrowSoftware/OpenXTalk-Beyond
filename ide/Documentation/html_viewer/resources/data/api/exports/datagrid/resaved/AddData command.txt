@@ -1,0 +1,19 @@
+AddData
+(command)
+Use this command to add data to the data grid after you have already populated it by setting the dgData or dgText.
+
+Syntax:
+dispatch "AddData" to group "DataGrid" with pDataArray,pLine
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+pDataArray is an array of custom data to add to the data grid and pLine is the line number where it should be added. All data appearing at or after pLine will be shifted down 1. You will not overwrite any data. If pLine is empty then the data will be added to the end of the existing data. If the data is successfully added then the index of the data will be returned in the result, otherwise an error is returned.
+
+Values:
+
+OS:

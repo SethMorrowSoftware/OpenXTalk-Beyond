@@ -1,0 +1,19 @@
+rtftext
+(property)
+Set to a string that will be assigned to the rtftext property of the field editor.
+
+Syntax:
+put the dgTemplateFieldEditor["rtftext"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to a string that will be assigned to the rtftext property of the field editor.
+
+Values:
+
+OS:

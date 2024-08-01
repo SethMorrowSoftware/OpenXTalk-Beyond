@@ -1,0 +1,27 @@
+dropboxListFolderMembersContinue
+(command)
+Once a cursor has been retrieved from dropboxListFolderMembers, use this to paginate through all shared folder members.
+
+Syntax:
+dropboxListFolderMembersContinue {pAccessToken}, {pCursor}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pCursor ( ): The cursor returned by your last call to dropboxListFolderMembers or dropboxListFolderMembersContinue.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+Apps must have full Dropbox access to use this endpoint.
+
+If a cursor is present then use the value with dropboxListFolderMembersContinue to obtain more results.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { "users": [ { "access_type": { ".tag": "owner" }, "user": { "account_id": "dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc", "same_team": true, "team_member_id": "dbmid:abcd1234" }, "permissions": [], "is_inherited": false } ], "groups": [ { "access_type": { ".tag": "editor" }, "group": { "group_name": "Test group", "group_id": "g:e2db7665347abcd600000000001a2b3c", "group_management_type": { ".tag": "user_managed" }, "group_type": { ".tag": "user_managed" }, "is_member": false, "is_owner": false, "same_team": true, "member_count": 10 }, "permissions": [], "is_inherited": false } ], "invitees": [ { "access_type": { ".tag": "viewer" }, "invitee": { ".tag": "email", "email": "jessica@example.com" }, "permissions": [], "is_inherited": false } ], "cursor": "ZtkX9_EHj3x7PMkVuFIhwKYXEpwpLwyxp9vMKomUhllil9q7eWiAu" } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

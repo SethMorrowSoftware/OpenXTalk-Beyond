@@ -1,0 +1,26 @@
+PowOperator
+(operator)
+Binary exponentiation operation.
+
+Syntax:
+{Left} ^ {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put 5^2 into tVar -- tVar contains 25
+----
+
+Description:
+Binary exponentiation operation.
+
+Values:
+The result of raising Left to the power Right. 
+
+OS:

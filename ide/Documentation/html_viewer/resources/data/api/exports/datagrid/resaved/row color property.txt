@@ -1,0 +1,19 @@
+row color
+(property)
+The primary row color.
+
+Syntax:
+put the dgProp["row color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The primary row color. This color alternates with 'alternate row color'. Prefix property name with "effective" to get the color being used when this property is set to empty
+
+Values:
+
+OS:

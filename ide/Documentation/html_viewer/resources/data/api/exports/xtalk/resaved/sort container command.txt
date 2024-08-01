@@ -1,0 +1,53 @@
+sort container
+(command)
+Sorts the lines or items of a container into a new order.
+
+Syntax:
+sort [{lines | items} of] {container} [{direction}] [{sortType}] [by {sortKey} ]
+----
+
+Synonyms:
+
+Params:
+container ( ): A reference to a field, button, variable, or the message box.
+direction (enum ): If you don't specify a , the sort is `ascending`.
+sortType (enum ): If you don't specify a , the  is `text`.
+sortKey ( ): An expression that evaluates to a value for each line or  in the container. If the  contains a chunk expression, the keyword  indicates that the  is evaluated for each line or . If you don't specify a , the entire line (or )  is used as the .
+
+Examples:
+sort field "Output"
+----
+local tNumbers
+put "5,4,3,2,1" into tNumbers
+sort items of tNumbers ascending numeric -- 5,4,3,2,1 becomes 1,2,3,4,5
+----
+local tData
+put "1,ben" into line 1 of tData
+put "2,elanor" into line 2 of tData
+put "3,ali" into line 3 of tData
+sort lines of tData descending numeric by item 1 of each 
+
+# RESULT
+# 3,ali
+# 2,elanor
+# 1,ben
+----
+local myInfo
+sort items of myInfo by word 2 of each -- sort by word 2 of the line
+----
+
+Description:
+Use the sort container command to shuffle the order of lines or  item|items in a container.
+
+If you don't specify lines or item|items, the lines of the container  are sorted.
+
+The each keyword, when used in the sortKey, specifies the entire line or item. You can use the each keyword in an expression, as a placeholder for the current line or item. For example, this statement sorts the lines of a variable by the third word of each line:      sort lines of myVariable by word 3 of each  You can use the each keyword in any expression, not just chunk expression|chunk expressions.
+
+The sort container command is a stable sort. This means that if the sortKey for two item|items or lines is the same, sorting does not  change their order, so you can do two successive sorts to create  subcategories within the major sort categories.
+
+*Tip:* To create a custom sort order, use the each keyword to pass   each line or item to a custom function. The value returned by the   function is used as the sortKey for that line or item. It is not   currently possible to debug custom sort functions, and doing so could   make the IDE unstable. It is recommended to use logging messages   instead.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

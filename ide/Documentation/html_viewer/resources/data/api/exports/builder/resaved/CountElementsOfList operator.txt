@@ -1,0 +1,27 @@
+CountElementsOfList
+(operator)
+Returns the number of elements in Target
+
+Syntax:
+the number of elements in {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tVar as List
+put [1,2,3,4,5] into tVar
+variable tNum as Number
+put the number of elements in tVar into tNum -- tNum is 5
+----
+
+Description:
+Returns the number of elements in the list.
+
+Values:
+The number of elements in the list Target. 
+
+OS:

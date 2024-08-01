@@ -1,0 +1,22 @@
+UnitTestFails
+(statement)
+Make a failing unit test assertion
+
+Syntax:
+broken test {Condition}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+broken test 1 } 2
+----
+
+Description:
+Make a unit test assertion, in the expectation that it will fail, and without providing a description or reason.  It is usually more helpful to use UnitTestFailsDescriptionAndReason.
+
+Values:
+
+OS:

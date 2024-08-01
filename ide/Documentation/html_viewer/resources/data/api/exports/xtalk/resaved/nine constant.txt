@@ -1,0 +1,23 @@
+nine
+(constant)
+Equivalent to the number 9.
+
+Syntax:
+nine
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if offset(it,pathName) > nine then put true into longFldr
+----
+
+Description:
+Use the nine constant when it is easier to read than  the numeral 9. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

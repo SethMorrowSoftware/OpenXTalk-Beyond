@@ -1,0 +1,20 @@
+DeleteFile
+(statement)
+Delete a file from the filesystem.
+
+Syntax:
+delete file {File}
+----
+
+Synonyms:
+
+Params:
+File ( ): An expression that evaluates to a filesystem path.
+
+Examples:
+Description:
+Deletes the specified file.  The file must exist.
+
+Values:
+
+OS:

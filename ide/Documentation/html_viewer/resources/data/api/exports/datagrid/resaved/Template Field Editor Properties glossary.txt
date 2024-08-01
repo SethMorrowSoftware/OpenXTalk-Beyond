@@ -1,0 +1,21 @@
+Template Field Editor Properties
+(glossary)
+Datagrid cells can be edited. These property configure that editor.
+
+Syntax:
+Template Field Editor Properties
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The template field editor properties are set using the dgTemplateFieldEditor custom property.
+
+	set the dgTemplateFieldEditor["PROPERTY_NAME"] \ 		of group "Data Grid" to SOME_VALUE
+
+Values:
+
+OS:

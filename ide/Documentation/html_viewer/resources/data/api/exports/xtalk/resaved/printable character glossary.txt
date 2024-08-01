@@ -1,0 +1,16 @@
+printable character
+(glossary)
+
+Syntax:
+Synonyms:
+printable character, printable
+
+Params:
+
+Examples:
+Description:
+A character that can be displayed as-is on the screen: a letter, digit, or punctuation mark.
+
+Values:
+
+OS:

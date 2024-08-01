@@ -1,0 +1,24 @@
+CanvasPropertyFont
+(operator)
+The current font of a canvas.
+
+Syntax:
+the font of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Use 20pt Arial for text drawing on canvas
+set the font of this canvas to font "Arial" at size 20
+----
+
+Description:
+The font used when drawing text on mCanvas as a font.
+
+Values:
+
+OS:

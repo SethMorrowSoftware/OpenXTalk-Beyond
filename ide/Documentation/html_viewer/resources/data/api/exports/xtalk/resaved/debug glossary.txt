@@ -1,0 +1,16 @@
+debug
+(glossary)
+
+Syntax:
+Synonyms:
+debugging, debug, debugged
+
+Params:
+
+Examples:
+Description:
+To find and fix anomaly|anomalies in a handler that cause error|errors or unsatisfactory results when the handler is execute|executed. 
+
+Values:
+
+OS:

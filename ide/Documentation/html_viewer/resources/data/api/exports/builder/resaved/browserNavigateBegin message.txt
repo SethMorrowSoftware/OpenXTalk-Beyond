@@ -1,0 +1,20 @@
+browserNavigateBegin
+(message)
+Sent when the browser begins navigation to a new page.
+
+Syntax:
+browserNavigateBegin {pUrl}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the new page.
+
+Examples:
+Description:
+The browserNavigateBegin message is sent to the widget's script object  when the browser begins navigation to a new page. This can be triggered  by launching a URL in the browser, or clicking a link within the  browser. The pUrl parameter contains the URL of the new page.
+
+Values:
+
+OS:

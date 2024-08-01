@@ -1,0 +1,21 @@
+hilitedTextColor
+(property)
+The label or icon color for highlighted segments
+
+Syntax:
+get the hilitedTextColor of {widget}
+----
+set the hilitedTextColor of {widget} to {pColor}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The hilitedTextColor property controls the color used to draw segments' labels or icons when they are highlighted.
+
+Values:
+
+OS:

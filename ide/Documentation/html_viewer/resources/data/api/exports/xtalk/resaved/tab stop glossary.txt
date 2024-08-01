@@ -1,0 +1,16 @@
+tab stop
+(glossary)
+
+Syntax:
+Synonyms:
+tabstop, tab stop
+
+Params:
+
+Examples:
+Description:
+Distance from the left edge of a field to the position of the insertion point when you press Tab.
+
+Values:
+
+OS:

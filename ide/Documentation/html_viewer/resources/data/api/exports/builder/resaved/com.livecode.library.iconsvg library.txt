@@ -1,0 +1,16 @@
+com.livecode.library.iconsvg
+(library)
+This is an SVG icon path library.
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This is an SVG icon path library.
+
+Values:
+
+OS:

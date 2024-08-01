@@ -1,0 +1,31 @@
+ColorPropertyAlpha
+(operator)
+The alpha component of a color value.
+
+Syntax:
+the alpha of {mColor}
+----
+
+Synonyms:
+
+Params:
+mColor ( ): An expression which evaluates to a color.
+
+Examples:
+variable tColor
+put color [0.75, 1.0, 0.5] into tColor
+
+// Store the old alpha value
+variable tAlpha
+put the alpha of tColor into tAlpha
+
+// Make the color semi-transparent
+set the alpha of tColor to 0.5
+----
+
+Description:
+The alpha component of mColor  *Note:* The alpha value represents the opacity of the color, expressed as a real number between 0 (fully transparent) and 1 (fully opaque).
+
+Values:
+
+OS:

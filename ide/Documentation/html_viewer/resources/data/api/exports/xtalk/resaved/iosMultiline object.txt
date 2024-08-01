@@ -1,0 +1,29 @@
+iosMultiline
+(object)
+A native iOS control, UITextView, which allows the editing of multiple lines of text.
+
+Syntax:
+iosMultiline
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+mobileControlCreate "multiline"
+----
+mobileControlCreate "multiline", "name entry"
+----
+
+Description:
+A multi-line iOS Text Input (UITextView) control is created using a control type of "multiline".
+
+The input control allows multiple lines of text to be edited with the 'return' key ending each line.
+
+*Note:* For full details of what the UITextView control is capable of  and a background on it, see the iOS reference document.
+
+Values:
+
+OS:
+ios

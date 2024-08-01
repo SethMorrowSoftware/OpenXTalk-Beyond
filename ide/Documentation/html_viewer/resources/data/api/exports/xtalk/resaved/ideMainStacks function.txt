@@ -1,0 +1,20 @@
+ideMainStacks
+(function)
+A list of the current mainstacks
+
+Syntax:
+ideMainStacks()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the ideMainStacks function to retrieve a list of the names of the mainstacks in memory, taking into account the Show IDE Stacks preference.
+
+Values:
+A list of the names of the mainstacks currently in memory, one per line 
+
+OS:

@@ -1,0 +1,16 @@
+current card
+(glossary)
+
+Syntax:
+Synonyms:
+current card
+
+Params:
+
+Examples:
+Description:
+The card currently being displayed in a stack window.
+
+Values:
+
+OS:

@@ -1,0 +1,24 @@
+androidRecorderSetRecordFormat
+(handler)
+Set the record output format
+
+Syntax:
+androidRecorderSetRecordFormat({pRecordFormat})
+----
+
+Synonyms:
+
+Params:
+pRecordFormat ( ): The record output format "ThreeGPP": "MPEG-4": "AMR WB": "AAC ADTS": "WebM":
+
+Examples:
+androidRecorderSetRecordFormat "ThreeGPP"
+----
+
+Description:
+Use the androidRecorderSetRecordFormat handler to set the format of  the output file.
+
+Values:
+
+OS:
+android

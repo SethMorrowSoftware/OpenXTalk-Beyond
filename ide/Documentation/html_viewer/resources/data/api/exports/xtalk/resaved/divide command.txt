@@ -1,0 +1,46 @@
+divide
+(command)
+Divides a container by a number and places the resulting value in the container.
+
+Syntax:
+divide [{chunk} of] {container} by {number}
+----
+divide {arrayContainer} by {{number} | {array}}
+----
+
+Synonyms:
+
+Params:
+chunk ( ): A chunk expression specifying a portion of the container.
+container ( ): A field, button, or variable, or the message box.
+number ( ): Any expression that evaluates to a number.
+arrayContainer (array ): 
+array (array ): 
+
+Examples:
+divide field 1 by 52
+----
+divide field "Total Income" by 12
+----
+divide line x of field "Expenses" by percentageRate
+----
+put 100 into tValue
+divide tValue by 2
+----
+
+Description:
+Use the divide command to divide a container or a portion of a container by a number, or to divide two array|arrays containing numbers.
+
+The contents of the container (or the chunk of the container) must be a number or an expression that evaluate|evaluates to a number.
+
+If an arrayContainer is divided by a number, each element is divided by the number. If an arrayContainer is divided by an array, both array|arrays must have the same number of element(glossary)|elements and the same dimension, and each element(keyword) in the arrayContainer is divided by the corresponding element(keyword) of the array.
+
+If the container or an element(keyword) of the arrayContainer is empty, the divide command treats its contents as zero.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+If container is a field or button, the format of the result is determined by the numberFormat property. 
+
+OS:
+mac,windows,linux,ios,android

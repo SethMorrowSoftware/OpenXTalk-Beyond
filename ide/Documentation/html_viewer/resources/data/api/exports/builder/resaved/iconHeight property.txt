@@ -1,0 +1,22 @@
+iconHeight
+(property)
+Custom icon height for the widget
+
+Syntax:
+get the iconHeight of {widget}
+----
+set the iconHeight of {widget} to {pIconHeight}
+----
+
+Synonyms:
+
+Params:
+pIconHeight ( ): Custom icon height for the widget
+
+Examples:
+Description:
+Use the iconHeight property to set a custom icon size for the widget.  The default value is 10.
+
+Values:
+
+OS:

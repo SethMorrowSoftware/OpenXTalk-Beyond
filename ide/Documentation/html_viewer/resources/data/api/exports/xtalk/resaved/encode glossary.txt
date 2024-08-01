@@ -1,0 +1,16 @@
+encode
+(glossary)
+
+Syntax:
+Synonyms:
+encoded, encoding, encode
+
+Params:
+
+Examples:
+Description:
+To translate data into a different format.
+
+Values:
+
+OS:

@@ -1,0 +1,20 @@
+httpdStop
+(command)
+Stop a HTTP server
+
+Syntax:
+httpdStop {pPorts}
+----
+
+Synonyms:
+
+Params:
+pPorts ( ): A return delimited list of server ports to stop. If empty all servers are stopped.
+
+Examples:
+Description:
+Stop all or some HTTP servers by closing the socket and deleting server metadata.
+
+Values:
+
+OS:

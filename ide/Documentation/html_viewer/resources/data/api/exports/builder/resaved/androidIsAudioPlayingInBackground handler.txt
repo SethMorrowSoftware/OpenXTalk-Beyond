@@ -1,0 +1,25 @@
+androidIsAudioPlayingInBackground
+(handler)
+Whether there is currently any audio playing in the background
+
+Syntax:
+androidIsAudioPlayingInBackground()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+    if androidIsAudioPlayingInBackground() then
+       androidPauseAudioPlayingInBackground
+    end if
+----
+
+Description:
+Use the androidIsAudioPlayingInBackground to find out if there is any audio playback currently occurring in the background.
+
+Values:
+
+OS:
+android

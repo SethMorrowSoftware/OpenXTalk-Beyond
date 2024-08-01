@@ -1,0 +1,21 @@
+extensionGenerateManifestForLCSExtension
+(command)
+Generate manifest for Script extension
+
+Syntax:
+extensionGenerateManifestForLCSExtension {pDocsParser},{pSourceFolder}
+----
+
+Synonyms:
+
+Params:
+pDocsParser ( ): The path to the docs parser script.
+pSourceFolder ( ): The folder in which to find the lcs extension
+
+Examples:
+Description:
+Generate manifest for Script extension
+
+Values:
+
+OS:

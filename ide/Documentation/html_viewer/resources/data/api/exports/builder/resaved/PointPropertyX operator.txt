@@ -1,0 +1,31 @@
+PointPropertyX
+(operator)
+The x coordinate of a point value.
+
+Syntax:
+the x of {mPoint}
+----
+
+Synonyms:
+
+Params:
+mPoint ( ): An expression which evaluates to a point.
+
+Examples:
+variable tPoint
+put point [50, 100] into tPoint
+
+// Store the x-coordinate of the point in a variable
+variable tX
+put the x of tPoint into tX
+
+// Move the point 10 units to the right
+set the x of tPoint to (tX + 10)
+----
+
+Description:
+The x coordinate of mPoint.
+
+Values:
+
+OS:

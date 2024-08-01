@@ -1,0 +1,16 @@
+parameter variable
+(glossary)
+
+Syntax:
+Synonyms:
+parameter variable
+
+Params:
+
+Examples:
+Description:
+A special variable whose name is one of the parameter|parameters of the current handler, and whose value is whatever value was passed to the handler for that parameter.
+
+Values:
+
+OS:

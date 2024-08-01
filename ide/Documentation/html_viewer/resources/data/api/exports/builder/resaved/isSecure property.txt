@@ -1,0 +1,20 @@
+isSecure
+(property)
+Indicates if all resources in the current document have been loaded through securely encrypted connections.
+
+Syntax:
+get the isSecure of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the isSecure property to determine if all resources in the current document have been loaded through securely encrypted connections. If the current document is still loading, this will return false 
+
+Values:
+`true` if all resources in the current document have been loaded through securely encrypted connections; `false` otherwise. 
+
+OS:

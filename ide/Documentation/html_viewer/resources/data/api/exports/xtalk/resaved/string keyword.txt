@@ -1,0 +1,27 @@
+string
+(keyword)
+Used with the find command to search for a string of characters without regard to whether they occur at the start of a word.
+
+Syntax:
+string
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+find string "Help"
+----
+find string "run" -- finds "run", "grunt", or "running"
+----
+
+Description:
+Use the string keyword to find a string.
+
+When used with the find command, the string keyword finds card|cards that contain the specified string, whether each word in it is found as an entire word or not.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

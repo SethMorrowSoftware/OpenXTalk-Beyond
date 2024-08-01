@@ -1,0 +1,19 @@
+dgIndex
+(property)
+The index used to uniquely identify the record being displayed in the copy of the template.
+
+Syntax:
+get the dgIndex of this control
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The index used to uniquely identify the record being displayed in the copy of the template.
+
+Values:
+
+OS:

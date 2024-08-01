@@ -1,0 +1,19 @@
+dgVScrollPercent
+(property)
+Get/set the percentage of the vertical scroll.
+
+Syntax:
+set the dgVScrollPercent of group "DataGrid" to pPercent
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the percentage of the vertical scroll. A number between 0 and 1.
+
+Values:
+
+OS:

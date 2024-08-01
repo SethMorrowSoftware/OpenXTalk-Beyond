@@ -1,0 +1,29 @@
+show menubar
+(command)
+Displays the menu bar on Mac OS|Mac OS systems.
+
+Syntax:
+show menubar
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+show menubar
+----
+if the mouseV < 20 then show menubar
+----
+
+Description:
+Use the show menubar command to display the menu bar if it has been hidden. For example, if the menu bar is hidden, you might want to show it only if the user moves the mouse to the top of the screen.
+
+The menu bar can be hidden only on Mac OS systems. This command has no effect on Windows or Unix systems.
+
+Hiding the menu bar in OpenXTalk does not affect its appearance in other applications; if the user switches to another application, the menu bar becomes visible. If the user switches back to OpenXTalk, the menu bar is hidden again.
+
+Values:
+
+OS:
+mac

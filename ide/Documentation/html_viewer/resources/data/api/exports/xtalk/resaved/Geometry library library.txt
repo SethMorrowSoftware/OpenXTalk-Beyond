@@ -1,0 +1,16 @@
+Geometry library
+(library)
+
+Syntax:
+Synonyms:
+geometry libraries, geometry library
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports the Geometry pane in the property inspector. The revCacheGeometry and revUpdateGeometry command|commands are part of the Geometry library.
+
+Values:
+
+OS:

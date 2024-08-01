@@ -1,0 +1,16 @@
+data fork
+(glossary)
+
+Syntax:
+Synonyms:
+datafork, data fork
+
+Params:
+
+Examples:
+Description:
+The part of a Mac OS file that holds unstructured data (as opposed to the resource fork).
+
+Values:
+
+OS:

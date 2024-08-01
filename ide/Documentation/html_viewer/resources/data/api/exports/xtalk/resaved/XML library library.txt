@@ -1,0 +1,16 @@
+XML library
+(library)
+
+Syntax:
+Synonyms:
+xml library, xml libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports parsing and manipulating XML data and creating XML document|XML files. 
+
+Values:
+
+OS:

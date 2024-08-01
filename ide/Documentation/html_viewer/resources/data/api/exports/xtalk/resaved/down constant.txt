@@ -1,0 +1,25 @@
+down
+(constant)
+Equivalent to the string "down".
+
+Syntax:
+down
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+wait while the mouse is down
+----
+if the altKey is down then showHelpText
+----
+
+Description:
+Use the down constant to indicate the state of a mouse button or modifier key, or in an arrowKey handler.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

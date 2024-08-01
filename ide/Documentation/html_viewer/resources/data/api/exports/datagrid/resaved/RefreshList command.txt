@@ -1,0 +1,19 @@
+RefreshList
+(command)
+Redraws the data displayed in the data grid.
+
+Syntax:
+dispatch "RefreshList" to group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Redraws the data displayed in the data grid.
+
+Values:
+
+OS:

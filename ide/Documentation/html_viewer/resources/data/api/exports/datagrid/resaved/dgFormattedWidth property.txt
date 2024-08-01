@@ -1,0 +1,19 @@
+dgFormattedWidth
+(property)
+Returns the formatted width of the columns in a data grid.
+
+Syntax:
+get the dgFormattedWidth of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the formatted width of the columns in a data grid. This is only useful in tables as forms don't scroll horizonally.
+
+Values:
+
+OS:

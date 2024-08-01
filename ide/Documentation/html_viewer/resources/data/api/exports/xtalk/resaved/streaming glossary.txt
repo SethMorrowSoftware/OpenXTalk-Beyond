@@ -1,0 +1,16 @@
+streaming
+(glossary)
+
+Syntax:
+Synonyms:
+streaming, stream, streamed, streaming media, streaming video, streaming audio, video stream, audio stream
+
+Params:
+
+Examples:
+Description:
+Playing a sound or movie file as it is being download|downloaded from a server, rather than waiting for the whole file to be download|downloaded first.
+
+Values:
+
+OS:

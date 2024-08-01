@@ -1,0 +1,30 @@
+recordSampleSize
+(property)
+Specifies how large each chunk of data should be when recording sound.
+
+Syntax:
+set the recordSampleSize to {sizeInBits}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the recordSampleSize to 16
+----
+
+Description:
+Use the recordSampleSize property to trade off between sound quality and disk space when you record a sound.
+
+The recordSampleSize property determines the sound sample size when you use the record sound command to record sound to a file.
+
+The possible recordSampleSize depend on the system's capabilities, but are typically 8 and 16.
+
+*Note:* The answer record command sets the recordSampleSize  property according to what the user chose in the answer record  dialog box.
+
+Values:
+The recordSampleSize is a positive integer. By default, the recordSampleSize property is set to 8. 
+
+OS:
+mac,windows

@@ -1,0 +1,15 @@
+mergDevice
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+mergDevice is an iOS external to access information from the device that is not currently available in the engine. 
+
+Values:
+
+OS:

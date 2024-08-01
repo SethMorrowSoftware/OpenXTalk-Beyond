@@ -1,0 +1,19 @@
+auto hilite
+(property)
+Enables the data grid to automatically handle row highlighting.
+
+Syntax:
+put the dgProp["auto hilite"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true if you would like the data grid to automatically handle row highlighting in response to user interaction.
+
+Values:
+
+OS:

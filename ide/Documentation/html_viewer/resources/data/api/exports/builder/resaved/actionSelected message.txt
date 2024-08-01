@@ -1,0 +1,20 @@
+actionSelected
+(message)
+Sent when an action item is clicked
+
+Syntax:
+actionSelected {pItemName}
+----
+
+Synonyms:
+
+Params:
+pItemName ( ): The name of the clicked action item
+
+Examples:
+Description:
+Sent when an action item is clicked
+
+Values:
+
+OS:

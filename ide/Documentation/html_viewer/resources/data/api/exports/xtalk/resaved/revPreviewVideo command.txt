@@ -1,0 +1,35 @@
+revPreviewVideo
+(command)
+Displays the video input in the video grabber without recording it.
+
+Syntax:
+revPreviewVideo
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+revPreviewVideo
+----
+if the hilite of button "Preview Only" then revPreviewVideo
+----
+
+Description:
+Use the revPreviewVideo command to see the image from a video camera on the screen.
+
+You must use the revInitializeVideoGrabber command to open the  video grabber before you can use the revPreviewVideo command.
+
+The revPreviewVideo command shows the input from the video source in the video grabber|video grabber window, but does not record it. To save the video as a file while displaying it, use the revRecordVideo command instead.
+
+If the video grabber was already recording video to a file, the revPreviewVideo command stops the recording.
+
+To stop displaying the video input, use the revStopPreviewingVideo command.
+
+*Important:*  The revPreviewVideo command is part of the   Video library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the  "Video Grabber"   library checkbox is checked.
+
+Values:
+
+OS:
+windows

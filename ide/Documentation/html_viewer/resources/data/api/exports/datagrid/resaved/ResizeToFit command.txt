@@ -1,0 +1,19 @@
+ResizeToFit
+(command)
+Used internally when the rect of the data grid changes.
+
+Syntax:
+dispatch "ResizeToFit" to group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Used internally when the rect of the data grid changes. Normally you will not need to call this handler as setting the rect of the data grid will trigger it.
+
+Values:
+
+OS:

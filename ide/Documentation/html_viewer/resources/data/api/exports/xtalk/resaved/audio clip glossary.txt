@@ -1,0 +1,16 @@
+audio clip
+(glossary)
+
+Syntax:
+Synonyms:
+audioclip, audio clip
+
+Params:
+
+Examples:
+Description:
+An object(glossary) that holds sound data. Audio clips are stored in a stack, instead of being stored in separate file|files.
+
+Values:
+
+OS:

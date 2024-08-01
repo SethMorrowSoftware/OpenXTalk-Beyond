@@ -1,0 +1,30 @@
+menuName
+(property)
+Specifies the stack where the menu associated with a button is located. 
+
+Syntax:
+set the menuName of {button} to {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the menuName of button "Popup" to "Items"
+----
+
+Description:
+Use the menuName property to associate a stack menu with a button.
+
+When the button is clicked, the specified stack is opened as a menu. The appearance and behavior of the menu depend on the setting of the button's menuMode property.
+
+If the menuName of a button is empty, its text is used as the contents of the menu.
+
+If the button's style property is not menu, the setting of this property has no effect.
+
+Values:
+The menuName of a button is a object reference|stack reference. By default, the menuName property of newly created button|buttons is set to empty. 
+
+OS:
+mac,windows,linux

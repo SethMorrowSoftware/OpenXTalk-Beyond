@@ -1,0 +1,34 @@
+rowDelimiter
+(property)
+Specifies the character|character(s) used to separate rows in a string. 
+
+Syntax:
+set the rowDelimiter to {character(s)}
+----
+get the rowDelimiter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the rowDelimiter to comma
+----
+put the rowDelimiter into tRowDelimiter
+----
+set the rowDelimiter to ";;"
+----
+
+Description:
+Use the rowDelimiter property in conjunction with the split command to divide text into an array of rows or with the combine command to combine an array of rows into a string.
+
+From version 7.0, rowDelimiter can be a string of one or several character|characters.
+
+Since the rowDelimiter is a local property, its value is reset to return when the current handler finishes executing. It retains its value only for the current handler and setting it in one handler does not affect its value in other handlers called.
+
+Values:
+From version 7.0, rowDelimiter can be a string of one or several character|characters. By default, the rowDelimiter is set to return. 
+
+OS:
+mac,windows,linux,ios,android

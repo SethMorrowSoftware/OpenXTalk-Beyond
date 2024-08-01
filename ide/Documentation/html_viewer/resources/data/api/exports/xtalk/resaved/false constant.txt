@@ -1,0 +1,25 @@
+false
+(constant)
+Equivalent to the string "false".
+
+Syntax:
+false
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the showLines of field "Tryout" to false
+----
+if the filled is false then set the filled to true
+----
+
+Description:
+Use the false constant to indicate that a property is turned off or that a logical expression evaluate|evaluates to false.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

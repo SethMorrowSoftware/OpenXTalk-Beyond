@@ -1,0 +1,30 @@
+scrollbarWidth
+(property)
+Specifies the width of the scrollbar associated with a scrolling field or group.
+
+Syntax:
+set the scrollbarWidth of {{field} | {group}} to {pixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the scrollbarWidth of the last field to 20
+----
+
+Description:
+Use the scrollbarWidth property to specify how much of a scrolling field|field's or group|group's width is taken up by the vertical scrollbar.
+
+Setting a field's or group's vScrollbar or hScrollbar property to true changes its scrollbarWidth to 16 on Mac OS|Mac OS systems, and to 20 on Unix and Windows|Windows systems.
+
+If a field's vScrollbar is false and its style is not scrolling, its scrollbarWidth property has no effect. If a group|group's vScrollbar is false, its scrollbarWidth has no effect.
+
+*Cross-platform note:* On Mac OS systems with the native theme enabled,  scrollbars can only be rendered at certain widths and will be padded  with the background color to achieve the chosen width.
+
+Values:
+The scrollbarWidth of a field or group is an integer between 1 and the object|object's width. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+tick
+(glossary)
+
+Syntax:
+Synonyms:
+tick
+
+Params:
+
+Examples:
+Description:
+One sixtieth of a second.
+
+Values:
+
+OS:

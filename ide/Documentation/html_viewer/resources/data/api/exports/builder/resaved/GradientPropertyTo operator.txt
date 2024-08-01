@@ -1,0 +1,31 @@
+GradientPropertyTo
+(operator)
+The to point of a gradient paint.
+
+Syntax:
+the to of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+variable tRect
+put rectangle [ 20, 10, 120, 60 ] into tRect
+
+// Set the end point of the gradient to the right of tRect
+set the from of tGradient to point [the right of tRect, (the top of tRect + the bottom of tRect) / 2]
+----
+
+Description:
+The to point of mGradient as a point. Defines the end point when drawing the gradient.
+
+Values:
+
+OS:

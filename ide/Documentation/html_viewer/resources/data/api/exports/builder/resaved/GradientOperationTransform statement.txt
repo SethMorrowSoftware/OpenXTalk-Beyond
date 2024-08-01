@@ -1,0 +1,29 @@
+GradientOperationTransform
+(statement)
+Apply a transform to a gradient paint.
+
+Syntax:
+transform {mGradient} by {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Scale the gradient with a transform
+transform tGradient by transform with scale [2,2]
+----
+
+Description:
+Concatenates the transform of mGradient with mTransform.
+
+Values:
+
+OS:

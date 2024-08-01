@@ -1,0 +1,34 @@
+right
+(property)
+Specifies how far an object|object's right edge is from the left edge of the window or screen.
+
+Syntax:
+set the right of {object} to {pixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the right of last field to 22
+----
+set the right of me to item 1 of the clickLoc
+----
+
+Description:
+Use the right property to change the horizontal placement of a control or window.
+
+The right of a stack is in  absolute coordinates|absolute (screen) coordinates. The right of a  card is always the width of the stack window; setting the right of  a card does not cause a error|script error, but it has no effect.  The right of a group or control is in  relative coordinates|relative (window) coordinates.
+
+Changing the right of an object(glossary) shifts it to the new position without resizing it. To change an object|object's width, set its width or rectangle property.
+
+The width property of an object(glossary) is equal to its right minus its left.
+
+Values:
+The right of an object(glossary) is an integer. A negative integer indicates that the position is to the left of the left edge of the screen or card (and therefore cannot be seen). A stack's right is the distance in pixels from the left edge of the screen to the right edge of the stack window.
+
+A card's or control's right is the distance in pixels from the left edge of the card to the right edge of the card or control. 
+
+OS:
+mac,windows,linux,ios,android

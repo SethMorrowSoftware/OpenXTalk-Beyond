@@ -1,0 +1,28 @@
+NewLineCharacter
+(expression)
+The new line character
+
+Syntax:
+newline
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tList as List
+push "line 1" onto tList
+push "line 2" onto tList
+push "line 3" onto tList
+
+variable tLines as String
+combine tList with newline into tLines -- tLines has 3 lines
+----
+
+Description:
+Use the newline constant to add new lines to a string variable.
+
+Values:
+
+OS:

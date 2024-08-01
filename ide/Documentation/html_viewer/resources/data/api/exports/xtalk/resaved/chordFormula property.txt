@@ -1,0 +1,27 @@
+chordFormula
+(property)
+Specifies additional keys that each key should trigger
+
+Syntax:
+get the chordFormula of {widget}
+----
+set the chordFormula of {widget} to {pChordFormula}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+   -- keys will trigger a 1st-Inversion Major Triad Chord:
+  set the chordFormula of widget "Piano Widget" -5,-8
+end mouseUp
+----
+
+Description:
+The chordFormula property if optionally specified, can be set to a list of integers to indicate which additional piano key(s) should be triggered based on the half-step distance from the origin root key. For example, to trigger the same note name as the root key but 1 octave lower set this property to -12, for one octave lower and one octave higher set this property to -12,12. To clear the current chordFormula set it to empty.
+
+Values:
+
+OS:

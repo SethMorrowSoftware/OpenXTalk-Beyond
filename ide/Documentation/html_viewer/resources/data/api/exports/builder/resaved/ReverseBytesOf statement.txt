@@ -1,0 +1,31 @@
+ReverseBytesOf
+(statement)
+Reverse binary data
+
+Syntax:
+reverse {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A binary data string
+
+Examples:
+variable tForward
+put 5 random bytes into tForward
+
+variable tReversed
+put tForward into tReversed
+reverse tReversed
+
+expect that the first byte of tForward is the last byte of tReversed
+expect that the last byte of tForward is the first byte of tReversed
+----
+
+Description:
+Reverses the order of bytes in the Target.
+
+Values:
+
+OS:

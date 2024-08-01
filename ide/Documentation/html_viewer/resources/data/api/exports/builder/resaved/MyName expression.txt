@@ -1,0 +1,20 @@
+MyName
+(expression)
+Returns the name of the widget's script object
+
+Syntax:
+my name
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the name of the widget's script object
+
+Values:
+The name of the widget's script object 
+
+OS:

@@ -1,0 +1,29 @@
+focusPixel
+(property)
+Specifies which entry in the color table is used for the color of an object|object's outline when it has the insertion point or is explicit focus|active focused.
+
+Syntax:
+set the focusPixel of {object} to {colorNumber}
+----
+
+Synonyms:
+eighthpixel
+
+Params:
+
+Examples:
+set the focusPixel of this stack to 33
+----
+
+Description:
+Use the focusPixel property to change the focus color of an object(glossary) when the bit depth of the screen is 8 bit|bits (256 colors) or less.
+
+The focusPixel property specifies which entry in the color table is used for an object|object's focus color. It is similar to the focusColor property, but is specified as an entry in the current color table, rather than as a color reference.
+
+The color table can be set by changing the colorMap property.
+
+Values:
+The focusPixel of an object(glossary) is an integer between zero and (the screenColors - 1). It designates an entry in the current color table. By default, the focusPixel for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

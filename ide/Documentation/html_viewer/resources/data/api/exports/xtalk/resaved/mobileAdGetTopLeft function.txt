@@ -1,0 +1,27 @@
+mobileAdGetTopLeft
+(function)
+Returns the topLeft position of an ad.
+
+Syntax:
+mobileAdGetTopLeft ({adName})
+----
+
+Synonyms:
+
+Params:
+adName ( ): The name of ad (as specified in mobileAdCreate).
+
+Examples:
+put mobileAdGetTopLeft("my ad") into tTopLeft
+----
+
+Description:
+Use the mobileAdGetTopLeft function to retrieve the top left postition of an ad.
+
+The mobileGetTopLeft function returns the topLeft position of an ad.
+
+Values:
+Returns the topLeft position of an ad. This is 2 comma separated values giving the left and top coordinates of the ad relative to the topLeft corner of the stack, which is 0,0. Returns "ad not found" if the ad does not exist. Before calling this function you must have registered your app's id using mobileAdRegister. If not, the result will contain "not registered with service".  
+
+OS:
+ios,android

@@ -1,0 +1,25 @@
+AbsOperator
+(operator)
+Absolute value operator.
+
+Syntax:
+the abs of {Operand}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put the trunc of 3.9 into tVar -- tVar contains 3
+----
+
+Description:
+The absolute value of Operand is the value of Operand if it is greater than or equal to 0, or the negation of the value of Operand if it is less than zero.
+
+Values:
+The absolute value of Operand. 
+
+OS:

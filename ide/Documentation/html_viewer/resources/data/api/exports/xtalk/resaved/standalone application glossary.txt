@@ -1,0 +1,16 @@
+standalone application
+(glossary)
+
+Syntax:
+Synonyms:
+standalone, standalone application, exe, .exe, executable
+
+Params:
+
+Examples:
+Description:
+An application build|built with OpenXTalk that can run on its own, without needing the OpenXTalk development environment.
+
+Values:
+
+OS:

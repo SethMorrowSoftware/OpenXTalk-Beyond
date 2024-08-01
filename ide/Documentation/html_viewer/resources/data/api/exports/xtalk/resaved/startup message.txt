@@ -1,0 +1,40 @@
+startup
+(message)
+Sent to the first card opened when the application starts up.
+
+Syntax:
+startup {pMode}
+----
+
+Synonyms:
+
+Params:
+•	pMode (enum ): If you are developing your application to work from a U3 compliant drive, you can use  to respond to U3 actions.
+	
+Examples:
+on startup pMode
+   global gRunningFromU3Drive
+   switch pMode
+      case "u3launch"
+         put true into gRunningFromU3Drive
+         break
+      case empty
+         put false into gRunningFromU3Drive
+         break
+   end switch
+end startup
+----
+
+Description:
+Handle the startup message if you want to do initialization or other tasks when the application starts up.  The target of the startup message is the first card of the application's initial stack.
+
+The startup message is sent only when the application starts up, not when a stack is opened when the application is already running.
+
+If the application is opened with multiple stacks, the startup message is sent to the first card of the first stack opened.
+
+You will only get the U3 actions u3install, u3configure, u3cleanup and u3uninstall if the corresponding tick boxes have been checked in the advanced U3 settings of the Standalone Settings.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

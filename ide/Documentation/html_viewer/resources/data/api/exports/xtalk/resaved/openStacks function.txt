@@ -1,0 +1,35 @@
+openStacks
+(function)
+return|Returns a list of the names of all open stacks.
+
+Syntax:
+the openStacks
+----
+openStacks()
+----
+
+Synonyms:
+windows
+
+Params:
+
+Examples:
+the openStacks
+----
+if it is not among the lines of the openStacks then open stack it
+----
+
+Description:
+Use the openStacks function to determine which stacks are open.
+
+The list includes stacks that are part of the OpenXTalk development environment (such as the message box and menu bar).
+
+The list also includes open stacks that cannot be seen because their visible property is set to false.
+
+The order of the list is determined by the order of the windows on the screen. The frontmost window is first.
+
+Values:
+The openStacks function return|returns a list with the short name property of each open stack, one per line. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+TCP
+(glossary)
+
+Syntax:
+Synonyms:
+tcp, tcpip, tcp/ip
+
+Params:
+
+Examples:
+Description:
+Transmission Control Protocol. Used to establish a connection between two systems that are both connected to the Internet.
+
+Values:
+
+OS:

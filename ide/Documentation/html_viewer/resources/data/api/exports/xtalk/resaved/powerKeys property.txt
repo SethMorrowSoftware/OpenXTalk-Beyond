@@ -1,0 +1,21 @@
+powerKeys
+(property)
+Has no effect and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the powerKeys to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the powerKeys property determines whether certain keyboard shortcuts can be used with the paint tool|paint tools. In OpenXTalk, these shortcuts are not used.
+
+The powerKeys property is set to true by default. A handler can change this property without causing a error|script error, but the setting has no effect.
+
+Values:
+
+OS:

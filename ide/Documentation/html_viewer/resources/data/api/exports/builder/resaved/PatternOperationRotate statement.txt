@@ -1,0 +1,29 @@
+PatternOperationRotate
+(statement)
+Apply a rotation to a pattern.
+
+Syntax:
+rotate {mPattern} by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mPattern ( ): An expression which evaluates to a pattern.
+mRotation ( ): An expression which evaluates to a number of degrees.
+
+Examples:
+// Create a new pattern paint from an image file
+variable tPattern
+put pattern with image from file "images/pattern.png" into tPattern
+
+// Rotate the pattern through 30 degrees
+rotate tPattern by 30
+----
+
+Description:
+Rotates the transform of mPattern by mRotation
+
+Values:
+
+OS:

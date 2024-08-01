@@ -1,0 +1,29 @@
+msgChanged
+(message)
+Sent to the object that altered the msg global variable using the put command.
+
+Syntax:
+msgChanged {handlerName}, {lineNumber}
+----
+
+Synonyms:
+
+Params:
+handlerName (string ): The name of the handler that modified 
+lineNumber (integer ): The line number within the script that modified 
+
+Examples:
+on msgChanged pHandler, pLine
+  set the text of field "Message" of stack "Message Box" to msg
+end msgChanged
+----
+
+Description:
+Use the msgChanged message to display or log the value of msg when it is changed by a script.
+
+If the msgChanged message is not handled the value of the  msg will be logged to the system log unless the engine is running in no ui (command line) mode, in which case the value will be written to stdout.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

@@ -1,0 +1,16 @@
+insertion point
+(glossary)
+
+Syntax:
+Synonyms:
+insertion point
+
+Params:
+
+Examples:
+Description:
+The location in a field or text box where text you type will appear. Also, the blinking vertical bar that marks that location.
+
+Values:
+
+OS:

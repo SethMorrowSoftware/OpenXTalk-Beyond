@@ -1,0 +1,21 @@
+androidStartAudioPlayingInBackground
+(handler)
+Start playing audio in the background.
+
+Syntax:
+androidStartAudioPlayingInBackground({pAudio})
+----
+
+Synonyms:
+
+Params:
+pAudio ( ): The full path to the audio file to start playing
+
+Examples:
+Description:
+Use the androidStartAudioPlayingInBackground handler to start playing the audio contained in the file pAudio in the background. The audio continues playing until it finishes while the app is suspended, or until it is paused or stopped using the androidStopAudioPlayingInBackground  or androidPauseAudioPlayingInBackground handlers are used.
+
+Values:
+
+OS:
+android

@@ -1,0 +1,16 @@
+Display PostScript
+(glossary)
+
+Syntax:
+Synonyms:
+display postscript
+
+Params:
+
+Examples:
+Description:
+An implementation of the PostScript page display language specialized for screen display.
+
+Values:
+
+OS:

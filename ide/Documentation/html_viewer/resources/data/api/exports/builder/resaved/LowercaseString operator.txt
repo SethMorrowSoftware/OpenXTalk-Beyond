@@ -1,0 +1,21 @@
+LowercaseString
+(operator)
+Lowercases Source.
+
+Syntax:
+the lower of {Source}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+Uppercase letters, including special characters with diacritical marks, are converted to the lowercase equivalents. All other characters, including lowercase letters, numbers, punctuation, and special characters with no upper or lower case, are left unchanged.
+
+Values:
+Source with each of its chars lowercased. 
+
+OS:

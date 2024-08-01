@@ -1,0 +1,19 @@
+redo
+(command)
+The redo command is not implemented and is reserved word|reserved.
+
+Syntax:
+redo
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The redo command is not implemented and is reserved word|reserved for possible future implementation
+
+Values:
+
+OS:

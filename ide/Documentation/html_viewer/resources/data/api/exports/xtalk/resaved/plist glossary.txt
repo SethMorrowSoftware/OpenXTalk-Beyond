@@ -1,0 +1,16 @@
+plist
+(glossary)
+
+Syntax:
+Synonyms:
+plist, plist file, property list, property list file
+
+Params:
+
+Examples:
+Description:
+A specially-formatted XML document that OS X uses to store data about applications.
+
+Values:
+
+OS:

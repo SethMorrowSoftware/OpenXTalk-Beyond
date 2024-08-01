@@ -285,11 +285,15 @@ on revInternal__openStack
    end if
    if the cQuickDictionary of stack "revPreferences" is empty then set the cQuickDictionary of stack "revPreferences" to false -- tperry 17-4-24
    if the cDesktopClickToHide of stack "revPreferences" is empty then  -- tperry 24-4-24
-      if the platform contains "win" then 
+      if the platform contains "win" or the platform contains "lin" then 
          set the cDesktopClickToHide of stack "revPreferences" to false
       else
          set the cDesktopClickToHide of stack "revPreferences" to true
       end if
+   end if
+   -- tperry 13-7-24 (default setting for theming third-party stacks)
+   if the cThemeThirdPartyStacks of stack "revPreferences" is empty then
+      set the cThemeThirdPartyStacks of stack "revPreferences" to false
    end if
    
    -- set the default cursor (27-4-24)
@@ -955,6 +959,16 @@ command revInternal__ResetPreferences
    put "278" into tPropsArray["cREVErrorsPaletteExpandedHeight"]
    put "true" into tPropsArray["cShowAudioclips"]
    put "filtering" into tPropsArray["revHelpListMethod"]
+   put "2" into tPropsArray["revTools_columns"] -- default 2 column (tperry 27-7-24)
+   put "false" into tPropsArray["cStartPageShow"] -- don't show start page (tperry 27-7-24)
+   put "Gray40" into tPropsArray["cBackdropColor"] -- set backdrop colour (tperry 27-7-24)
+   put "255,140,0" into tPropsArray["cToolSelectorColor"] -- set tool hilite colour (tperry 27-7-24)
+   put "255,212,0" into tPropsArray["cRevHelpHiliteColor"] -- set link colour (tperry 27-7-24)
+   put "Red" into tPropsArray["cSelectionHandleColor"] -- set object handle colour (tperry 27-7-24)
+   put "classic,graphictools,runedit,graphic,paint" into tPropsArray["revTools_show"] -- set tools that should be visible
+   put "none" into tPropsArray["cBackdrop"] -- backdrop off as default (tperry 27-7-24)
+   put "true" into tPropsArray["cMiddleBtnToggle"] -- allow middle button to toggle browse and pointer tool (tperry 27-7-24)
+   put "false" into tPropsArray["cDesktopClickToHide"] -- turn this off on linux, as it might give issues with xfce and 'buntu distros (tperry 31-7-24)
    set the customProperties[""] of stack "revPreferences" to tPropsArray
    delete variable tPropsArray
    
@@ -2568,10 +2582,11 @@ on IDEToDarkMode
 end IDEToDarkMode
    
 on tApplyTheme_nullify
+   
    if the cREVLaunching of stack "Home" is false then
-      if the platform contains "win" then send IDEtoDefaultWin to this stack -- remove theme for windows
-      if the platform contains "mac" then send IDEtoDefaultMac to this stack -- remove theme for mac
-      if the platform contains "linux" then send IDEtoDefaultLin to this stack -- remove any theming for Linux
+         if the platform contains "win" then send IDEtoDefaultWin to this stack -- remove theme for windows
+         if the platform contains "mac" then send IDEtoDefaultMac to this stack -- remove theme for mac
+         if the platform contains "linux" then send IDEtoDefaultLin to this stack -- remove any theming for Linux
    end if
 end tApplyTheme_nullify
 
@@ -2596,8 +2611,11 @@ end tUpdBrowseCursors
    
 on IDEtoDefaultLin
    lock screen
-   
-   
+   --
+   put specialFolderPath("engine") into tIgnoreInsideEngine
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
@@ -2606,56 +2624,69 @@ on IDEtoDefaultLin
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
+      put "continue" into tDoSkip
       if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to ""
-            set the backgroundColor of stack (line tcount of tStacks) to ""
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
-                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
-                     else
-                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack (line tcount of tStacks) with false -- sends the darkMode message (requested by mwieder)
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack (line tcount of tStacks) contains tIgnoreInsideEngine or the filename of stack (line tcount of tStacks) contains tIgnoreInsidePlugins or the filename of stack (line tcount of tStacks) contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+            end if
+         end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
+               -- set stack colour
+               set the foregroundColor of stack (line tcount of tStacks) to ""
+               set the backgroundColor of stack (line tcount of tStacks) to ""
+               put 0 into tCardCount
+               repeat the number of cards of stack (line tcount of tStacks)
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  put 0 into tBtnCount
+                  if not (the title of stack (line tcount of tStacks) is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tBtnCount
+                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
                            set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
                         else
-                           if the long name of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) contains ("group " & QUOTE & toolbar & QUOTE) then
-                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false -- don't make toolbar btns opaque
+                           if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
                            else
-                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                              if the long name of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) contains ("group " & QUOTE & toolbar & QUOTE) then
+                                 set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false -- don't make toolbar btns opaque
+                              else
+                                 set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                              end if
                            end if
                         end if
-                     end if
-                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
+                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            else
+            end if -- end if statement in case third party theming is off
          else
             -- stack did not exist
          end if
@@ -2703,6 +2734,12 @@ end IDEtoDefaultLin
 
 on IDEtoDefaultWin
    lock screen
+   --
+   put specialFolderPath("documents") into tIgnoreInsideDocs
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
+   if tIgnoreInsidePlugins is "" then put specialFolderPath("engine") & SLASH & "Extensions" into tIgnoreInsidePlugins
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
@@ -2711,48 +2748,60 @@ on IDEtoDefaultWin
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
-      if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to ""
-            set the backgroundColor of stack (line tcount of tStacks) to ""
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
-                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
-         else
-            -- stack did not exist
+      put "continue" into tDoSkip
+      try
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack (line tcount of tStacks) with false -- sends the darkMode message (requested by mwieder)
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack (line tcount of tStacks) contains tIgnoreInsideEngine or the filename of stack (line tcount of tStacks) contains tIgnoreInsidePlugins or the filename of stack (line tcount of tStacks) contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+            end if
          end if
-      end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
+               -- set stack colour
+               set the foregroundColor of stack (line tcount of tStacks) to ""
+               set the backgroundColor of stack (line tcount of tStacks) to ""
+               put 0 into tCardCount
+               repeat the number of cards of stack (line tcount of tStacks)
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  put 0 into tBtnCount
+                  if not (the title of stack (line tcount of tStacks) is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tBtnCount
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            end if
+         end if
+      catch e
+         --put e
+      end try
    end repeat
    -- manual changes
    -- menubar on main stack
@@ -2803,67 +2852,90 @@ on IDEtoDarkWin
    lock screen
    put "225,225,255" into tLightGrey-- very light grey
    put "30,30,30" into tDarkGrey-- very dark grey
+   --
+   put specialFolderPath("documents") into tIgnoreInsideDocs
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
    
+   if tIgnoreInsidePlugins is "" then put specialFolderPath("engine") & SLASH & "Extensions" into tIgnoreInsidePlugins
+   --put tIgnoreInsideDocs & return & tIgnoreInsidePlugins & return &tIgnoreInsideHome 
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
    filter tStacks without "*Library"
+   -- put tStacks into cd fld "out"
    lock screen
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
-      if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to tLightGrey
-            set the backgroundColor of stack (line tcount of tStacks) to tDarkGrey
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tLightGrey
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     if the height of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) >22 then
-                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
-                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey
-                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     else
-                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
-                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "130,130,130"
-                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     end if
-                     if (line tcount of tStacks) contains "revMenubar" or (line tcount of tStacks) contains "standalone" then
-                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "blendSrc"
-                     else
-                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     end if
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "blendExclusion"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey 
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
-         else
-            -- stack did not exist
+      put "continue" into tDoSkip
+      put line tcount of tStacks into tTryStack
+      try
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack tTryStack with true -- sends the darkMode message (requested by mwieder)
+         -- set the textcolor of line tcount of cd fld "out" to 0,255,0 -- green
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack tTryStack contains tIgnoreInsideDocs or the filename of stack tTryStack contains tIgnoreInsidePlugins or the filename of stack tTryStack contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+               --set the textcolor of line tcount of cd fld "out" to 0,0,255 -- blue
+            end if
          end if
-      end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack tTryStack is "" or the ignoreIDETheme of stack tTryStack is false then
+               -- set stack colour
+               set the foregroundColor of stack tTryStack to tLightGrey
+               set the backgroundColor of stack tTryStack to tDarkGrey
+               put 0 into tCardCount
+               repeat the number of cards of stack tTryStack
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack tTryStack to tLightGrey
+                  set the backgroundColor of card tCardCount of stack tTryStack to tDarkGrey
+                  put 0 into tBtnCount
+                  if not (the title of stack tTryStack is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack tTryStack
+                        add 1 to tBtnCount
+                        if the height of btn tBtnCount of card tCardCount of stack tTryStack >22 then
+                           set the opaque of btn tBtnCount of card tCardCount of stack tTryStack to false
+                           set the foregroundColor of btn tBtnCount of card tCardCount of stack tTryStack to tLightGrey
+                           set the backgroundColor of btn tBtnCount of card tCardCount of stack tTryStack to ""
+                        else
+                           set the opaque of btn tBtnCount of card tCardCount of stack tTryStack to false
+                           set the foregroundColor of btn tBtnCount of card tCardCount of stack tTryStack to "130,130,130"
+                           set the backgroundColor of btn tBtnCount of card tCardCount of stack tTryStack to ""
+                        end if
+                        if tTryStack contains "revMenubar" or tTryStack contains "standalone" then
+                           set the ink of btn tBtnCount of card tCardCount of stack tTryStack to "blendSrc"
+                        else
+                           set the ink of btn tBtnCount of card tCardCount of stack tTryStack to "srcCopy"
+                        end if
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack tTryStack
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack tTryStack is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack tTryStack to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack tTryStack to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack tTryStack to "blendExclusion"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack tTryStack to tLightGrey 
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack tTryStack to tDarkGrey
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            end if
+         end if
+      catch e
+         --put e
+      end try
    end repeat
    -- manual changes
    -- menubar on main stack
@@ -2920,57 +2992,80 @@ on IDEtoLightWin
    lock screen
    put "255,255,255" into tWhiteBkgnd-- bright white
    put "0,0,0" into tDarkText-- black text
+   --
+   put specialFolderPath("documents") into tIgnoreInsideDocs
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
    
+   if tIgnoreInsidePlugins is "" then put specialFolderPath("engine") & SLASH & "Extensions" into tIgnoreInsidePlugins
+   --put tIgnoreInsideDocs & return & tIgnoreInsidePlugins & return &tIgnoreInsideHome 
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
    filter tStacks without "*Library"
+   -- put tStacks into cd fld "out"
    lock screen
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
-      if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to tDarkText
-            set the backgroundColor of stack (line tcount of tStacks) to tWhiteBkgnd
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkText
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
-                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
-                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
-         else
-            -- stack did not exist
+      put "continue" into tDoSkip
+      put line tcount of tStacks into tTryStack
+      try
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack tTryStack with false -- sends the darkMode message (requested by mwieder)
+         -- set the textcolor of line tcount of cd fld "out" to 0,255,0 -- green
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack tTryStack contains tIgnoreInsideDocs or the filename of stack tTryStack contains tIgnoreInsidePlugins or the filename of stack tTryStack contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+               --set the textcolor of line tcount of cd fld "out" to 0,0,255 -- blue
+            end if
          end if
-      end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack tTryStack is "" or the ignoreIDETheme of stack tTryStack is false then
+               -- set stack colour
+               set the foregroundColor of stack (line tcount of tStacks) to tDarkText
+               set the backgroundColor of stack (line tcount of tStacks) to tWhiteBkgnd
+               put 0 into tCardCount
+               repeat the number of cards of stack (line tcount of tStacks)
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkText
+                  set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+                  put 0 into tBtnCount
+                  if not (the title of stack (line tcount of tStacks) is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tBtnCount
+                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
+                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkText
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tWhiteBkgnd
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            end if
+         end if
+      catch e
+         -- put e
+      end try
    end repeat
    -- manual changes
    -- menubar on main stack
@@ -3014,12 +3109,17 @@ on IDEtoLightWin
       put "reg add HKCU\SOFTWARE\Microsoft\Windows\DWM /t REG_DWORD /v ColorPrevalence /d 00000000 /f" into tCmd
       get shell(tCmd)
    end if
-unlock screen
+   unlock screen
 end IDEtoLightWin
 
 
 on IDEtoDefaultMac
    lock screen
+   --
+   put specialFolderPath("engine") into tIgnoreInsideEngine
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
@@ -3028,52 +3128,65 @@ on IDEtoDefaultMac
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
+      put "continue" into tDoSkip
       if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to ""
-            set the backgroundColor of stack (line tcount of tStacks) to ""
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
-                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
-                     else
-                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack (line tcount of tStacks) with false -- sends the darkMode message (requested by mwieder)
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack (line tcount of tStacks) contains tIgnoreInsideEngine or the filename of stack (line tcount of tStacks) contains tIgnoreInsidePlugins or the filename of stack (line tcount of tStacks) contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+            end if
+         end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
+               -- set stack colour
+               set the foregroundColor of stack (line tcount of tStacks) to ""
+               set the backgroundColor of stack (line tcount of tStacks) to ""
+               put 0 into tCardCount
+               repeat the number of cards of stack (line tcount of tStacks)
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to ""
+                  put 0 into tBtnCount
+                  if not (the title of stack (line tcount of tStacks) is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tBtnCount
+                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
                            set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
                         else
-                           set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                           if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                           else
+                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                           end if
                         end if
-                     end if
-                     set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
+                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to ""
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            else
+            end if -- end if statement in case third party theming is off
          else
             -- stack did not exist
          end if
@@ -3135,7 +3248,11 @@ on IDEtoDarkMac
    lock screen
    put "225,225,255" into tLightGrey-- very light grey
    put "50,50,50" into tDarkGrey-- very dark grey
-   
+   --
+   put specialFolderPath("engine") into tIgnoreInsideEngine
+   if the cCustomizationPath of stack "revPreferences" is not empty then put the cCustomizationPath of stack "revPreferences" into tIgnoreInsidePlugins
+   put specialFolderPath("home") into tIgnoreInsideHome
+   --
    put the mainstacks into tStacks
    filter tStacks without "rev*Behavior"
    filter tStacks without "com.*"
@@ -3144,65 +3261,78 @@ on IDEtoDarkMac
    put 0 into tcount
    repeat the number of lines in tStacks
       add 1 to tcount
+      put "continue" into tDoSkip
       if there is a stack (line tcount of tStacks) then
-         if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
-            -- set stack colour
-            set the foregroundColor of stack (line tcount of tStacks) to tLightGrey
-            set the backgroundColor of stack (line tcount of tStacks) to tDarkGrey
-            put 0 into tCardCount
-            repeat the number of cards of stack (line tcount of tStacks)
-               -- set card colour
-               add 1 to tCardCount
-               set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tLightGrey
-               set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
-               put 0 into tBtnCount
-               if not (the title of stack (line tcount of tStacks) is "Tools") then
-                  -- set btn colour
-                  repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tBtnCount
-                     if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
-                        set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
-                     else
-                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+         -- added this to ignore third party stacks (tperry 13-7-24  - for a quiet life)
+         dispatch "darkMode" to stack (line tcount of tStacks) with true -- sends the darkMode message (requested by mwieder)
+         if the cThemeThirdPartyStacks of stack "revPreferences" is false then
+            if the filename of stack (line tcount of tStacks) contains tIgnoreInsideEngine or the filename of stack (line tcount of tStacks) contains tIgnoreInsidePlugins or the filename of stack (line tcount of tStacks) contains tIgnoreInsideHome then
+               -- we ignore this stack from theming
+               put "skip" into tDoSkip
+            end if
+         end if
+         if tDoSkip is not "skip" then
+            --
+            if the ignoreIDETheme of stack (line tcount of tStacks) is "" or the ignoreIDETheme of stack (line tcount of tStacks) is false then
+               -- set stack colour
+               set the foregroundColor of stack (line tcount of tStacks) to tLightGrey
+               set the backgroundColor of stack (line tcount of tStacks) to tDarkGrey
+               put 0 into tCardCount
+               repeat the number of cards of stack (line tcount of tStacks)
+                  -- set card colour
+                  add 1 to tCardCount
+                  set the foregroundColor of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+                  set the backgroundColor of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+                  put 0 into tBtnCount
+                  if not (the title of stack (line tcount of tStacks) is "Tools") then
+                     -- set btn colour
+                     repeat the number of btns of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tBtnCount
+                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "checkbox" then
                            set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
                         else
-                           set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                           if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "radiobutton" then
+                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to false
+                           else
+                              set the opaque of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to true
+                           end if
                         end if
-                     end if
-                     if the height of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) >22 then
-                        if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "standard" then
-                           set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+                        if the height of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) >22 then
+                           if the style of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) is "standard" then
+                              set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+                           else
+                              set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+                           end if
+                           set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
                         else
-                           set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey
+                           set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "130,130,130"
+                           set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
                         end if
-                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     else
-                        set the foregroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "130,130,130"
-                        set the backgroundColor of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to ""
-                     end if
-                     if (line tcount of tStacks) contains "revMenubar" or (line tcount of tStacks) contains "standalone" then
-                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "blendSrc"
-                     else
-                        set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
-                     end if
-                  end repeat
-                  -- set fld colour
-                  put 0 into tFldCount
-                  repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
-                     add 1 to tFldCount
-                     if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
-                     else
-                        set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
-                     end if
-                     set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "blendExclusion"
-                     set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey 
-                     set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
-                  end repeat
-               else
-                  -- we don't theme the tools stack's buttons!
-               end if
-            end repeat
+                        if (line tcount of tStacks) contains "revMenubar" or (line tcount of tStacks) contains "standalone" then
+                           set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "blendSrc"
+                        else
+                           set the ink of btn tBtnCount of card tCardCount of stack (line tcount of tStacks) to "srcCopy"
+                        end if
+                     end repeat
+                     -- set fld colour
+                     put 0 into tFldCount
+                     repeat the number of fields of card tCardCount of stack (line tcount of tStacks)
+                        add 1 to tFldCount
+                        if the showborder of fld tFldCount of card tCardCount of stack (line tcount of tStacks) is true then
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to true
+                        else
+                           set the opaque of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to false
+                        end if
+                        set the ink of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to "blendExclusion"
+                        set the foregroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tLightGrey 
+                        set the backgroundColor of fld tFldCount of card tCardCount of stack (line tcount of tStacks) to tDarkGrey
+                     end repeat
+                  else
+                     -- we don't theme the tools stack's buttons!
+                  end if
+               end repeat
+            else
+            end if -- end if statement in case third party theming is off
          else
             -- stack did not exist
          end if

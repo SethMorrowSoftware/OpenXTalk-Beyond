@@ -1,0 +1,16 @@
+color palette
+(glossary)
+
+Syntax:
+Synonyms:
+color palette
+
+Params:
+
+Examples:
+Description:
+The set of all colors used in an image.
+
+Values:
+
+OS:

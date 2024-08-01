@@ -1,0 +1,35 @@
+answer color
+(command)
+Displays the operating system's standard color-selection dialog box.
+
+Syntax:
+answer color [with {startingColor}]
+----
+
+Synonyms:
+
+Params:
+startingColor ( ): A  in one of the following forms: -  a standard color name -  three comma-separated integers between zero and 255, specifying the    level of each of red, green, and blue -  an HTML-style color consisting of a hash mark (#) followed by three    hexadecimal numbers, one for each of red, green, and blue.
+
+Examples:
+answer color
+----
+if theItem is "Custom Color..." then answer color
+----
+answer color with "#FF0033"
+----
+answer color with "AliceBlue"
+----
+
+Description:
+Use the answer color command to select a custom color.
+
+The answer color command displays a dialog box where the user can select a color. (This dialog box is displayed by the operating system.)  If you specify a startingColor, the dialog box displays that color by default.
+
+The color is returned in the form of three comma-separated integers between zero and 255, specifying the level of each of red, green, and blue. This format can be used directly to set any color property.
+
+Values:
+If the user cancels the dialog box|dialog, the it variable is set to empty, and the result function return|returns "Cancel". The color the user chooses is placed in the it variable. 
+
+OS:
+mac,windows,linux

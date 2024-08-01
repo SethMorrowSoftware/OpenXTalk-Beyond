@@ -1,0 +1,16 @@
+Oracle Media Objects
+(glossary)
+
+Syntax:
+Synonyms:
+omo, oracle media objects
+
+Params:
+
+Examples:
+Description:
+A graphical authoring environment from Oracle Corporation. Its scripting language is called MediaTalk. 
+
+Values:
+
+OS:

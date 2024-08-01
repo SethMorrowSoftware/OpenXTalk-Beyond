@@ -1,0 +1,29 @@
+selection
+(keyword)
+The selection is a reference to the currently selected text.
+
+Syntax:
+the selection
+----
+selection()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put empty into the selection -- deletes the selection
+----
+
+Description:
+Use the selection keyword to get the currently selected text or to replace the selection.
+
+Certain command|commands--in particular, the cut and copy command|commands--operate on the selected text.
+
+*Note:* The selection keyword is implemented internally as a  function(control structure) and appears in the functionNames.  However, unlike most function(glossary)|functions, the selection  lets you put things into it, and behaves like a container rather  than a function(control structure).
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

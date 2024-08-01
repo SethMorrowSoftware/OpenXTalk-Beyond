@@ -1,0 +1,26 @@
+revZipRenameItem
+(command)
+Renames an item in a zip archive.
+
+Syntax:
+revZipRenameItem {archiveName}, {itemName}, {newName}
+----
+
+Synonyms:
+
+Params:
+archiveName ( ): The absolute path to the zip archive to process.
+itemName ( ): The name of the item in the zip archive to rename.
+newName ( ): The new name to give the item. If the revZipRenameItem command encounters an error, then the result will be set to an error code beginning with "ziperr", otherwise the result will be empty.
+
+Examples:
+revZipRenameItem tArchive, "myZippedItem", "myNewZippedItem"
+----
+
+Description:
+Use the revZipRenameItem command to change the name of an item in an open zip archive. The archive must have first been opened using the revZipOpenArchive command.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

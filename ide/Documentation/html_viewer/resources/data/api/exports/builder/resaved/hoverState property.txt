@@ -1,0 +1,20 @@
+hoverState
+(property)
+The hover state of the tile 
+
+Syntax:
+set the hoverState of {widget} to { true | false }
+get the hoverState of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The hover state of the tile 
+
+Values:
+
+OS:

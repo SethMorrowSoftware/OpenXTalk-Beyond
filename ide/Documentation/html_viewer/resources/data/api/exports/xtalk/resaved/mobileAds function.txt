@@ -1,0 +1,28 @@
+mobileAds
+(function)
+Return a list of all mobile ads that have been created.
+
+Syntax:
+mobileAds()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get mobileAds()
+----
+if "bannerAd" is among the lines of mobileAds() then
+   mobileAdDelete "bannerAd"
+end if
+----
+
+Description:
+Use the mobileAds function to get a list of all the ads that have been created using the mobileAdCreate command.
+
+Values:
+The mobileAds function returns a return delimited list of names of adverts created using the mobileAdCreate command. 
+
+OS:
+ios,android

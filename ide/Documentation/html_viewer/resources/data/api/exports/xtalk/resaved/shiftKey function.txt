@@ -1,0 +1,28 @@
+shiftKey
+(function)
+return|Returns the state of the Shift key.
+
+Syntax:
+the shiftKey
+----
+shiftKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if shiftKey() is down then beep
+----
+set the locked of me to (the shiftKey is up)
+----
+
+Description:
+Use the shiftKey function to check whether the user is pressing the Shift key.
+
+Values:
+The shiftKey function return|returns down if the key is pressed and up if it's not. 
+
+OS:
+mac,windows,linux

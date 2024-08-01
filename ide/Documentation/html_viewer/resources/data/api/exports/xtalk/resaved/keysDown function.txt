@@ -1,0 +1,32 @@
+keysDown
+(function)
+return|Returns a list of the keys currently being pressed.
+
+Syntax:
+the keysDown
+----
+keysDown()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the keysDown
+----
+if myKey is in the keysDown then exit to top
+----
+
+Description:
+Use the keysDown function to respond to a keypress while a handler is being execute|executed.
+
+The keycodes returned by the keysDown function are the same as those pass|passed as parameter|parameters with the rawKeyDown and rawKeyUp message|messages.
+
+The keysDown function returns empty if no keys are being pressed.
+
+Values:
+The keysDown function return|returns a list of keycode|keycodes of pressed keys, separated by commas if more than one key is being pressed.  
+
+OS:
+mac,windows,linux

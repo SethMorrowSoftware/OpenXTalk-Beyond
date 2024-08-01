@@ -1,0 +1,47 @@
+lock screen
+(command)
+Sets the lockScreen property to true, temporarily preventing the screen from being updated.
+
+Syntax:
+lock screen [for visual effect [in rect[angle] {rectString}]]
+----
+
+Synonyms:
+
+Params:
+rectString ( ): A string containing the rectangle of the object represented  as 4 comma separated values. left, top, right, bottom. (0,0,100,100).
+
+Examples:
+lock screen
+hide image 1
+unlock screen
+----
+lock screen for visual effect
+show control 1
+unlock screen with visual effect "dissolve"
+----
+lock screen for visual effect in rect (the rect of control 1)
+show control 1
+show image 1
+unlock screen with visual effect "dissolve"
+----
+if the shiftKey is not down then lock screen
+----
+
+Description:
+Use the lock screen command to rearrange items on the screen or to change locations without the user seeing the transition.
+
+Use the (optional) `for visual effect` variant of the lock screen command if you want to subsequently unlock screen|unlock the screen  using a visual effect.
+
+Use the (optional) rectString parameter of the lock screen command  if you want to subsequently unlock screen|unlock the screen using a  visual effect in a particular area of the screen.
+
+A handler may need to open a stack and then close it before the  handler is completed, or to move or change the appearance of a number  of objects on the screen. If the screen is locked before these changes  occur, the user does not see the changes happen on screen. Locking the  screen can prevent user confusion or unsightly screen flashing. It also  increases the speed of the handler, since OpenXTalk does not have to  redraw all the intermediate states of the screen.
+
+The lock screen command sets the lockScreen property to true. When  all pending handler|handlers are finished executing, the lockScreen  property is set back to false and the user sees the current state of  stack windows on the screen.
+
+ *Note:* When using script debug mode, the screen cannot be locked and  the lock screen command has no effect.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

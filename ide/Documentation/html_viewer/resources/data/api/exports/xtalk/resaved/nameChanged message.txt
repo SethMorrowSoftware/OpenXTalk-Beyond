@@ -1,0 +1,30 @@
+nameChanged
+(message)
+Sent to an object(glossary) when its name is changed.
+
+Syntax:
+nameChanged {pOldName}, {pNewName}
+----
+
+Synonyms:
+
+Params:
+pOldName ( ): The object's original name.
+pNewName ( ): The object's new name.
+
+Examples:
+on nameChanged myOldName,myNewName -- replace name in a menu button
+  put lineOffset(myOldName,button "Window List") into namePosition
+  put myNewName into line namePosition of button "Window List"
+end nameChanged
+----
+
+Description:
+Handle the nameChanged message if you want to make updates when an object|object's name is changed. For example, if you have a  popup menu with the names of stacks, the menu should be updated  when a stack|stack's name changes.
+
+The actual change is not triggered by the nameChanged message, so trap|trapping the message and not allowing it to pass does not prevent the name from being changed.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

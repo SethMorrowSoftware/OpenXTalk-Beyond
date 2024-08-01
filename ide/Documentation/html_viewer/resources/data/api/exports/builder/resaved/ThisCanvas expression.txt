@@ -1,0 +1,25 @@
+ThisCanvas
+(expression)
+The canvas used when drawing a widget.
+
+Syntax:
+this canvas
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Draw the label centered on the rect of the widget
+set the paint of this canvas to solid paint with color [1,1,1]
+fill text "Start" at center of my rectangle on this canvas
+----
+
+Description:
+The canvas used when drawing a widget.
+
+Values:
+The target canvas for widget drawing operations. 
+
+OS:

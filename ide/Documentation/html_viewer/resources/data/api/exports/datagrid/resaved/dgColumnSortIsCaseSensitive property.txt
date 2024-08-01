@@ -1,0 +1,19 @@
+dgColumnSortIsCaseSensitive
+(property)
+Get/set whether or not column sort is case sensitive.
+
+Syntax:
+put the dgColumnSortIsCaseSensitive["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set whether or not column sort is case sensitive. Default value is false.
+
+Values:
+
+OS:

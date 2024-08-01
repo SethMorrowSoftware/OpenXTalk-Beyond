@@ -1,0 +1,40 @@
+PathOperationArcTo
+(statement)
+Adds an arc to a path.
+
+Syntax:
+arc through {mThrough} to {mTo} with radius {mRadius} on {mPath}
+----
+
+Synonyms:
+
+Params:
+mThrough ( ): An expression which evaluates to a point.
+mTo ( ): An expression which evaluates to a point.
+mRadius ( ): An expression which evaluates to a number.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Construct a path tracing out a rectangle with rounded bottom corners.
+variable tPath
+put the empty path into tPath
+
+// Begin a new subpath
+move to point [0, 0] on tPath
+
+// Continue path with an arc to the bottom edge
+arc through point [0, my height] to point [25, my height] with radius 25 on tPath
+
+// Continue path with an arc to the right edge
+arc through point [my width, my height] to point [my width, 0] with radius 25 on tPath
+
+// Close the path with a line back to the starting point
+close path on tPath
+----
+
+Description:
+Adds an arc between the points of a circle with radius mRadius tangent to the lines from the current point to mThrough, and from mThrough to mTo.
+
+Values:
+
+OS:

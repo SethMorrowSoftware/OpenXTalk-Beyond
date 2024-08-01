@@ -1,0 +1,16 @@
+decode
+(glossary)
+
+Syntax:
+Synonyms:
+decoding, decoded, decode
+
+Params:
+
+Examples:
+Description:
+To translate encode|encoded data back to its original format.
+
+Values:
+
+OS:

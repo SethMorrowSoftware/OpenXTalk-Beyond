@@ -1,0 +1,29 @@
+it
+(keyword)
+
+Syntax:
+it
+
+Summary:
+A special local variable that is used with commands such as get, read from file, convert, ask, and answer.
+
+Examples:
+get the date
+put it into field "Date"
+
+Description:
+Use the it keyword to get the result of certain commands, or as a handy temporary storage place.
+
+The it keyword designates a special local variable. It can be used like any other local variable: you can put a value into it, or put it into another container.
+
+The commands that use the it variable are: answer, answer color, answer effect, answer file, answer folder, ask, ask file, ask password, clone, convert, copy, create, get, paste, post, read from driver, read from file, read from process, read from socket, request, and request appleEvent.
+
+Unlike other local variables, it can change even if you don't explicitly change its value. Certain commands use it to store their result. Therefore, if you need to use the value of it, make sure none of these commands is executed between the time you set it and the time you read its value. If you need to save the value of it for later use, store it in another variable :
+
+put it into tSavedFilePath
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

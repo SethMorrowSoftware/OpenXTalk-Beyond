@@ -1,0 +1,48 @@
+on
+(control structure)
+
+Syntax:
+[private] on messageName [parametersList]
+   statementList
+end messageName
+
+Summary:
+Defines a message handler.
+
+Parameters:
+messageName
+		
+The name of the handler. The messageName must not be a xTalk reserved word.
+
+Examples:
+on resizeStack pNewWidth, pNewHeight
+  set the rect of field "Background" of me to the rect of card 1 of me
+end resizeStack
+command processData pData
+  -- Do some work
+end processData
+
+Note: As the result is a global property, if you do not explicitly return a value, then will no change, but reflect the last engine command, engine function or command or function handler that did return a value.
+
+Description:
+Use the on control structure to handle a message, or to implement a custom command.
+
+Form: The first line of a message handler consists of the word "on" followed by the message's name. If the handler has any parameters, their names come after the message name, separated by commas.
+
+The last line of a message handler consists of the word "end" followed by the handler's name.
+
+The purpose of a message handler is to perform an action, or actions, when the message is received.
+
+A message handler can contain any set of xTalk statements.
+
+The messageName is the name of the message to be handled. This can be either a built-in message (such as mouseDown or openCard) or a message that triggers a custom command handler. In either case, when a message called messageName, traversing the message path, arrives at an object, xTalk checks that object's script to see whether it has a message handler corresponding to the message. If it does, the statements in that message handler are executed.
+
+You create a custom command by writing an on message handler for it. When you use the command in a script, a message corresponding to that command is passed through the message path. When it reaches the object whose script contains the on handler, the statements in the handler are executed.
+
+Note: If you want to declare a handler that is local to the script it is contained in then you can use the private keyword, please see the dictionary entry for the private keyword for more information
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

@@ -1,0 +1,16 @@
+Carbon
+(glossary)
+
+Syntax:
+Synonyms:
+carbon
+
+Params:
+
+Examples:
+Description:
+One of two available frameworks and sets of programming interface for creating native OS X applications. (The other is called Cocoa.) OpenXTalk creates Carbon applications for OS X, and the OpenXTalk development environment for OS X is a Carbon application.
+
+Values:
+
+OS:

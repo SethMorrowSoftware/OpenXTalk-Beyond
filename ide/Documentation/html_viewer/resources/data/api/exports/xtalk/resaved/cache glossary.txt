@@ -1,0 +1,18 @@
+cache
+(glossary)
+
+Syntax:
+Synonyms:
+cache, cached, caching
+
+Params:
+
+Examples:
+Description:
+A temporary storage area on disk or in memory.
+
+Also, to place information in a cache for later use. 
+
+Values:
+
+OS:

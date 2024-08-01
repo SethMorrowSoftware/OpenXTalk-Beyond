@@ -1,0 +1,26 @@
+ReplaceString
+(statement)
+Replaces occurrences of Pattern within Target in Replacement Source:An expression which evaluates to a string.
+
+Syntax:
+replace {Pattern} with {Replacement} in {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to a string container.
+Replacement ( ): An expression which evaluates to a string.
+
+Examples:
+variable tString as String
+put "purple" into tString
+replace "p" with "t" in tString -- tString is "turtle"
+----
+
+Description:
+Replaces each occurrence of the string Pattern in Target with Replacement.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+IsNothing
+(operator)
+Determines whether Target is nothing or not.
+
+Syntax:
+{Target} is nothing
+----
+
+Synonyms:
+
+Params:
+Target ( ): Any expression
+
+Examples:
+Description:
+Use the IsNothing operator to test if operators or handlers have returned anything.
+
+Values:
+Returns true if the given expression Target is nothing, and false otherwise. 
+
+OS:

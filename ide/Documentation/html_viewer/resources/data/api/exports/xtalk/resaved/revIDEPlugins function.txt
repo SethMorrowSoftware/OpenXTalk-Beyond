@@ -1,0 +1,23 @@
+revIDEPlugins
+(function)
+Use to get an array with information about installed IDE Plugins
+
+Syntax:
+revIDEPlugins()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the keys of revIDEPlugins() -- a list of the Plugins
+----
+
+Description:
+Use to get an array with information about installed IDE Plugins
+
+Values:
+Return an array with information about installed IDE Plugins. 
+
+OS:

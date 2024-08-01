@@ -1,0 +1,28 @@
+DivideNumberBy
+(statement)
+Divides Target by Value.
+
+Syntax:
+divide {Target} by {Value}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a numeric variable.
+Value ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar
+put 3 into tVar
+divide tVar by 2 -- tVar contains 1.5
+----
+
+Description:
+Divides the number Target by Value.
+
+*Note:* It is a syntax error if Target does not evaluate to a variable.
+
+Values:
+
+OS:

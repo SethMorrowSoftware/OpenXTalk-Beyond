@@ -1,0 +1,27 @@
+measureUnicodeText
+(function)
+Returns the width, size or bounds of the unicode text drawn with the effective font attribute of the given object.
+
+Syntax:
+measureUnicodeText(unicodeText,object reference,[mode])
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put measureUnicodeText(theText,me) into theTextWidth
+----
+put measureUnicodeText(theText,me,"size") into theTextSize
+----
+put measureUnicodeText(theText,me,"bounds") into theTextBounds
+----
+
+Description:
+Use the measureUnicodeText function to find the dimensions of unicode text drawn with the effective font attributes of an object.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

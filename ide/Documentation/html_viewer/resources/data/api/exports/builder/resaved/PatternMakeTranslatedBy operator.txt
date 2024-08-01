@@ -1,0 +1,33 @@
+PatternMakeTranslatedBy
+(operator)
+Creates a new translated pattern paint.
+
+Syntax:
+pattern with {mImage} translated by {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+mTranslation ( ): An expression which evaluates to a list of 2 numbers, the x and y offsets of the translation.
+
+Examples:
+// Load the pattern image.
+variable tImage
+put image from file "images/backgroundpattern.png" into tImage
+
+// Create a new pattern paint, offsetting the image to the top-left of tRect
+variable tPaint
+variable tRect
+put rectangle [20, 50, 120, 100] into tRect
+put pattern with tImage translated by [the left of tRect, the top of tRect] into tPaint
+----
+
+Description:
+Creates a new translated pattern paint.
+
+Values:
+A new pattern paint based on mImage with the specified translation applied. 
+
+OS:

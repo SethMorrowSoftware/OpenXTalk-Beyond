@@ -1,0 +1,32 @@
+TransformOperationTranslate
+(statement)
+Apply a translation to a transform.
+
+Syntax:
+translate {mTransform} by {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mTranslation ( ): An expression which evaluates to a list of 2 numbers, the x and y offsets of the translation.
+
+Examples:
+// Create a new transform
+variable tTransform
+put the identity transform into tTransform
+
+variable tRect
+put rectangle [10, 20, 110, 170] into tRect
+
+// Translate the transform to the top-left of tRect
+translate tTransform by [the left of tRect, the top of tRect]
+----
+
+Description:
+Apply a translation to mTransform. This is equivalent to concatenating mTransform with a new translation transform.
+
+Values:
+
+OS:

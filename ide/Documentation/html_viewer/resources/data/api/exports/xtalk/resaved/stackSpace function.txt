@@ -1,0 +1,21 @@
+stackSpace
+(function)
+Does not return a meaningful value and is included in OpenXTalk for compatibility with imported HyperCard stacks.
+
+Syntax:
+the stackSpace
+----
+stackSpace()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the stackSpace function return(glossary)|returns the disk size of the current stack. In OpenXTalk, this function does not return(constant) a meaningful value.
+
+Values:
+
+OS:

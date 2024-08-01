@@ -1,0 +1,18 @@
+referenced control
+(glossary)
+
+Syntax:
+Synonyms:
+referenced control, referenced player, referenced image
+
+Params:
+
+Examples:
+Description:
+A control (image or player) whose contents are located in a separate file, instead of being stored in the stack.
+
+The control|control's filename property determines where the contents are located.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+formatStringListAsItems
+(handler)
+Format a list of strings as a comma-delimited "item" string
+
+Syntax:
+formatStringListAsItems({pList})
+----
+
+Synonyms:
+
+Params:
+pList ( ): A list of strings
+
+Examples:
+Description:
+Helper function for converting a list of strings into a LiveCode Script "item" list, obeying the LiveCode Script rules for items.
+
+Values:
+A comma-delimited LiveCode Script-compatible "item" string 
+
+OS:

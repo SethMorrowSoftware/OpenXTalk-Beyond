@@ -1,0 +1,31 @@
+revZipAddItemWithData
+(command)
+Adds an item to a zip archive and puts the specified data into it
+
+Syntax:
+revZipAddItemWithData {archivePath}, {itemName}, {variableName}
+----
+
+Synonyms:
+
+Params:
+archivePath ( ): The absolute path to the zip archive to add the file to.
+itemName ( ): The unique name of the item to create in the zip archive.
+variableName ( ): The name of a variable in your program containing data to place into the item in the zip archive. If the revZipAddItemWithData command encounters an error then the result will be set to an error code beginning with "ziperr", otherwise the result will be empty.
+
+Examples:
+-- Add a text file directly to the zip file, using the UTF-8
+-- text encoding
+local tContent, tData
+put "Hello, world!" into tContent
+put textEncode(tContent, "utf-8") into tData
+revZipAddItemWithData tArchive, "hello-world.txt", "tData"
+----
+
+Description:
+Use the revZipAddItemWithData command to put data from a OpenXTalk variable into a file in a zip archive. The archive must have first been opened with revZipOpenArchive.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

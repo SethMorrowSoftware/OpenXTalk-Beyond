@@ -1,0 +1,25 @@
+rightIndent
+(property)
+Determines the indentation of a paragraph in a field.
+
+Syntax:
+set the rightIndent of {line} of {field} to {pixels}
+----
+
+Synonyms:
+
+Params:
+pixels (integer ): The number of pixels to indent the right of a paragraph of text.
+
+Examples:
+set the rightIndent of line 1 of field 1 to 15
+----
+
+Description:
+Use the rightIndent property to indent the right side of whole paragraphs of text in a field.
+
+Values:
+The rightIndent of a line of text in a field returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

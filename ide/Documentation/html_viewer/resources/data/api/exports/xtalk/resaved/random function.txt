@@ -1,0 +1,35 @@
+random
+(function)
+return|Returns a random integer.
+
+Syntax:
+the random of {upperLimit}
+----
+random({upperLimit})
+----
+
+Synonyms:
+
+Params:
+upperLimit ( ): Any positive number that would be rounded to an integer greater  than or equal to 1.
+
+Examples:
+random(22) -- returns a number between 1 and 22
+----
+random(item 1 of field "Numbers")
+----
+sort lines of myVar by random(the number of lines of myVar)
+----
+
+Description:
+Use the random function to pick a random member of a set, or to generate a random number.
+
+If the upperLimit is a positive integer, the random function return|returns an integer between 1 and the upperLimit. If the upperLimit is a number that is not an integer, the random function return|returns an integer between 1 and round(upperLimit).
+
+To generate a random number between two integers, use a handler like this:       function randomInRange lowerLimit,upperLimit         return random(upperLimit - lowerLimit + 1) + lowerLimit - 1     end randomInRange
+
+Values:
+The random function return|returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

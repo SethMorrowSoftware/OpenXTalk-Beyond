@@ -1,0 +1,31 @@
+lineIndex
+(property)
+The line offset in the field of the start of the chunk.
+
+Syntax:
+get the lineIndex of {fieldChunk}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Example: 2 lines of text in a field
+-- Hello World
+-- Goodbye World
+
+the lineIndex of char 7 of field 1 -- 1
+-- char 7 is on line 1
+----
+the lineIndex of word 4 of field 1 -- 2
+-- word 4 is on line 2
+----
+
+Description:
+The lineIndex of a field chunk returns the line offset in the field of the start of the chunk.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

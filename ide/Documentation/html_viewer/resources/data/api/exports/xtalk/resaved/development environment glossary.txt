@@ -1,0 +1,16 @@
+development environment
+(glossary)
+
+Syntax:
+Synonyms:
+development environment, dev environment
+
+Params:
+
+Examples:
+Description:
+The user interface OpenXTalk provides for development, including the standard menus, message box, debugger, tool palette|palettes, and so on.
+
+Values:
+
+OS:

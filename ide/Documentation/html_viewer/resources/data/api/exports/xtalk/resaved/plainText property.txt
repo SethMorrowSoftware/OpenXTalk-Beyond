@@ -1,0 +1,35 @@
+plainText
+(property)
+Returns the contents of a field chunk as plain text.
+
+Syntax:
+set the plainText of [{chunk} of] {field} to {string}
+----
+get the plainText of [{chunk} of] {field}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+write the plainText of field 1 to file myTextFile
+----
+get the plainText of field "Field"
+answer it with "okay"
+----
+put the plainText of word 2 to -2 of field "list"
+----
+
+Description:
+Use the plainText property to get the content of a field as plain text with any listStyle properties being converted appropriately into plain-text for the paragraphs the affect.
+
+When you get a field|field's plainText, the field|field's text is converted to plain text with any listStyle property being converted appropriately into plain-text.
+
+Any paragraphs with listStyle set are prefixed by an appropriate plain-text form of the bullet or index. The property returns text encoded in the native platform encoding with '?' replacing any non-convertible characters.
+
+Values:
+The plainText of a field is a string. 
+
+OS:
+mac,windows,linux

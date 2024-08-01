@@ -1,0 +1,16 @@
+arm
+(glossary)
+
+Syntax:
+Synonyms:
+armed, arming, arm
+
+Params:
+
+Examples:
+Description:
+To change the appearance of a control (such as a button) when the mouse pointer moves into it.
+
+Values:
+
+OS:

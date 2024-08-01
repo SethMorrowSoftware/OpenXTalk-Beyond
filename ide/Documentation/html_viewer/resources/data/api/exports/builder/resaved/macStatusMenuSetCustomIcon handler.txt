@@ -1,0 +1,25 @@
+macStatusMenuSetCustomIcon
+(handler)
+Create a custom icon for use when setting menu items
+
+Syntax:
+macStatusMenuSetCustomIcon({pCharacter},{pImage})
+----
+
+Synonyms:
+
+Params:
+pCharacter ( ): a single character to associate with the icon. May not be c, n or m as those characters are reserved
+pImage ( ): the path to an image file or a reference to an image object. If it is an imported image then it must be in a format supported by `NSImage -initWithContentsOfFile`.
+
+Examples:
+macStatusMenuCreate "r", the long id of image "dot"
+----
+
+Description:
+When creating the menu items the icon to use for the item is identified by `!` followed by a character. The builtin icons are `c` (checkmark), `n` (no checkmark) and `m` (mixed state). Use macStatusMenuSetCustomIcon to add another custom icon to use. 
+
+Values:
+
+OS:
+mac

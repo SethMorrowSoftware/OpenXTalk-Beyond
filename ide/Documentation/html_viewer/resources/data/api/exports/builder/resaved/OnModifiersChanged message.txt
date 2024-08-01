@@ -1,0 +1,19 @@
+OnModifiersChanged
+(message)
+Sent when the keyboard modifiers are changed.
+
+Syntax:
+OnModifiersChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the keyboard modifiers are changed.
+
+Values:
+
+OS:

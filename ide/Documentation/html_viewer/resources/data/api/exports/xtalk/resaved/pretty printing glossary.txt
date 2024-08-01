@@ -1,0 +1,18 @@
+pretty printing
+(glossary)
+
+Syntax:
+Synonyms:
+pretty printing, pretty print, pretty printed, pretty-printing, pretty-print, pretty-printed
+
+Params:
+
+Examples:
+Description:
+Formatting a script by indenting lines to clarify the control structures in the code.
+
+Pretty printing does not change the way the code works, but it makes it easier to read. 
+
+Values:
+
+OS:

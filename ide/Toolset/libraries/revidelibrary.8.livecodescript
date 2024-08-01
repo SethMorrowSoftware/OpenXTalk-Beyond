@@ -10833,7 +10833,14 @@ end revIDETutorialSkipToNextSkipPoint
 #
 ##################################################
 
+-- I made this conditional 24-7-24 because there's no point loading all
+-- this if you aren't generating the dictionary using the old method.
+-- commenting ends at line 11481 something (tperry)
+
 private function escape pString, pConvertLineEndings
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit escape -- we exit this handler if not using it (tperry 24-7-24)
+   --
    replace "\" with "\\" in pString
    replace quote with ("\" & quote) in pString
    
@@ -10850,6 +10857,9 @@ private function escape pString, pConvertLineEndings
 end escape
 
 private function __getLCBSourceFile pFolder
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit __getLCBSourceFile -- we exit this handler if not using it (tperry 24-7-24)
+   --
    revIDEPushDefaultFolder pFolder
    # Isolate the source file
    local tSource
@@ -10860,6 +10870,9 @@ private function __getLCBSourceFile pFolder
 end __getLCBSourceFile
 
 private function revIDEGetBaseDocsData pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetBaseDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    local tAPIPath, tLibs
@@ -10880,6 +10893,9 @@ private function revIDEGetBaseDocsData pWhich
 end revIDEGetBaseDocsData 
 
 private function revIDEGetExtensionDocsData pAPI
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetExtensionDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tExtensionDocsDataA
    put revIDEExtensionDocsData(pAPI) into tExtensionDocsDataA
    
@@ -10950,14 +10966,14 @@ private function revIDEGetExtensionDocsData pAPI
             end try
             if tStack is not empty and tPassword is empty then
                dispatch function "revDocsGenerateDocsFileFromText" \
-                  to stack "revDocsParser" with \
-                  the script of tStack, tStack
+                     to stack "revDocsParser" with \
+                     the script of tStack, tStack
                put the result into tDoc
             end if
          end if
          if tDoc is not empty then
             # Output the lcdoc file
-		    revIDESetUTF8FileContents tAPIDoc, tDoc
+            revIDESetUTF8FileContents tAPIDoc, tDoc
          end if
       end if
       
@@ -11001,6 +11017,9 @@ private function revIDEGetExtensionDocsData pAPI
 end revIDEGetExtensionDocsData
 
 private function revIDEGetDocsAPIData pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsAPIData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData, tExtensions
    put revIDEGetBaseDocsData(pWhich) into tData
    put revIDEGetExtensionDocsData(pWhich) into tExtensions
@@ -11011,6 +11030,9 @@ private function revIDEGetDocsAPIData pWhich
 end revIDEGetDocsAPIData 
 
 private function revIDEGetDocsGuideData
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsGuideData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    local tGuidePath
@@ -11074,6 +11096,9 @@ private function revIDEGetDocsGuideData
 end revIDEGetDocsGuideData
 
 on revIDERegenerateBuiltGuides
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltGuides -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    # Get the location of the distributed guide
@@ -11093,6 +11118,9 @@ end revIDERegenerateBuiltGuides
 
 constant kAPIs = "LiveCode Script,livecode_script|LiveCode Builder,livecode_builder|LiveCode IDE,livecode_ide"
 on revIDERegenerateBuiltAPIs
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData, tAPIData
    set the lineDelimiter to "|"
    repeat for each line tAPI in kAPIs
@@ -11123,11 +11151,17 @@ on revIDERegenerateBuiltAPIs
 end revIDERegenerateBuiltAPIs
 
 on revIDERegenerateBuiltDictionaryData
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltDictionaryData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    revIDERegenerateBuiltAPIs
    revIDERegenerateBuiltGuides
 end revIDERegenerateBuiltDictionaryData
 
 on revIDEGenerateDistributedDocs
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedDocs -- we exit this handler if not using it (tperry 24-7-24)
+   --
    start using stack (revEnvironmentRepositoryPath() & slash & "ide-support" & slash & "revdocsparser.livecodescript")
    revIDEGenerateDistributedGuide
    revIDEGenerateDistributedAPI
@@ -11135,12 +11169,16 @@ on revIDEGenerateDistributedDocs
 end revIDEGenerateDistributedDocs
 
 private on revIDEGenerateDistributedGuide
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedGuide -- we exit this handler if not using it (tperry 24-7-24)
+   --
    # Set the default folder to where the guide markdown files are stored in the IDE
    local tGuideFoldersWithLocationA
    put revIDESpecialFolderPath("ide guides") into tGuideFoldersWithLocationA[1]["folder"]
    put "ide" into tGuideFoldersWithLocationA[1]["location"]
    
    if not revEnvironmentIsInstalled() then
+      
       put revIDESpecialFolderPath("repo guides") into tGuideFoldersWithLocationA[2]["folder"]
       put "repo" into tGuideFoldersWithLocationA[2]["location"]
    end if
@@ -11148,7 +11186,7 @@ private on revIDEGenerateDistributedGuide
    local tGuideJSONFile
    put revIDESpecialFolderPath("guide") & slash & "distributed_guide.js" \
          into tGuideJSONFile
-
+   
    # Check if the distributed guide is out of date
    local tKey, tInputFiles, tNeedUpdate, tError
    repeat for each key tKey in tGuideFoldersWithLocationA
@@ -11156,7 +11194,7 @@ private on revIDEGenerateDistributedGuide
    end repeat
    put revIDEIsFilesetStale(tInputFiles, tGuideJSONFile, true, tError) \
          into tNeedUpdate
-
+   
    # If we don't need to regenerate, exit
    if tNeedUpdate is not true then
       exit revIDEGenerateDistributedGuide
@@ -11179,6 +11217,9 @@ private on revIDEGenerateDistributedGuide
 end revIDEGenerateDistributedGuide
 
 private command revIDEGenerateDistributedAPI
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedAPI -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tRepoPath
    put revEnvironmentRepositoryPath() into tRepoPath
    
@@ -11198,7 +11239,7 @@ private command revIDEGenerateDistributedAPI
    put revIDEIsFilesetStale(tInputs, tOutput, true, tError) into tNeedUpdate
    
    # Regenerate dictionary if necessary
-   if tNeedUpdate then
+   if tNeedUpdate then      
       local tScriptA
       put "LiveCode Script" into tScriptA["display name"]
       put revDocsModifyForUrl(tScriptA["display name"]) into tScriptA["name"]
@@ -11285,7 +11326,7 @@ private command revIDEGenerateDistributedAPI
    if tNeedUpdate then
       local tLibA
       put revDocsParseDocFileToLibraryArray(tFolder & slash & "datagrid.lcdoc", "DataGrid", "LiveCode") into tLibA
-
+      
       # Update the database
       ideDocsUpdateDatabase "livecode_script", tLibA, true
       put revDocsFormatLibraryDocArrayAsJSON(tLibA) into tJSON
@@ -11319,7 +11360,7 @@ private command revIDEGenerateDistributedAPI
          end try
          if tStack is not empty and tPassword is empty then
             put revDocsGenerateDocsFileFromText(the script of tStack, \ 
-               tStack) into tDoc
+                  tStack) into tDoc
          end if
          if tDoc is not empty then
             put tDoc into tIDEA[tIDECount]
@@ -11378,28 +11419,40 @@ private command revIDEGenerateDistributedAPI
 end revIDEGenerateDistributedAPI
 
 on revIDEEnsureDictionaryUrl pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEEnsureDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tInput, tOutput
    put revIDEGetDictionaryHTMLTemplate(pWhich) into tInput
    put revIDEGetDictionaryUrl(pWhich) into tOutput
-
+   
    local tNeedUpdate, tError
    put revIDEIsFilesetStale(revIDEGetDictionaryHTMLTemplate(pWhich), \
          revIDEGetDictionaryUrl(pWhich), false, tError) into tNeedUpdate
-
+   
    if tNeedUpdate is true then
       revIDEGenerateDictionaryHTML pWhich
    end if
 end revIDEEnsureDictionaryUrl
 
 function revIDEGetDictionaryUrl pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   --
    return revEnvironmentUserDocsPath() & slash & pWhich & ".html"
 end revIDEGetDictionaryUrl
 
 function revIDEGetDictionaryHTMLTemplate pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryHTMLTemplate -- we exit this handler if not using it (tperry 24-7-24)
+   --
    return revIDESpecialFolderPath("documentation") & slash & "html_viewer" & slash & pWhich & ".html.template"
 end revIDEGetDictionaryHTMLTemplate
 
 on revIDEGenerateDictionaryHTML pWhich, pInitialLibrary, pInitialEntryName, pInitialEntryType
+   -- do not generate if this is turned off
+  if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDictionaryHTML -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tGeneratedHTMLFile
    put revIDEGetDictionaryUrl(pWhich) into tGeneratedHTMLFile
    
@@ -11426,6 +11479,7 @@ on revIDEGenerateDictionaryHTML pWhich, pInitialLibrary, pInitialEntryName, pIni
    revIDESetUTF8FileContents tGeneratedHTMLFile, tTemplate
 end revIDEGenerateDictionaryHTML
 
+*/
 ##################################################
 #
 #          COLORS

@@ -1,0 +1,16 @@
+OpenXTalk
+(glossary)
+
+Syntax:
+Synonyms:
+openxtalk, openxtalk script, xtalk
+
+Params:
+
+Examples:
+Description:
+An IDE for xTalk script|scripts that is based on the LiveCode Community Edition which is no longer supported by LiveCode Ltd.  NOTE:OpenXTalk.org is in no way affiliated with LiveCode Ltd.
+
+Values:
+
+OS:

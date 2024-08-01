@@ -1,0 +1,16 @@
+return value
+(glossary)
+
+Syntax:
+Synonyms:
+returned value, return value
+
+Params:
+
+Examples:
+Description:
+The result of a function; the value that a function calculates and return|returns to the handler that call|called it.
+
+Values:
+
+OS:

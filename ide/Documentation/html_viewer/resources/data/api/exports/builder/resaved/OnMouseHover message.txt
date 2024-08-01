@@ -1,0 +1,19 @@
+OnMouseHover
+(message)
+Sent when the mouse pointer hovers over the widget's rect.
+
+Syntax:
+OnMouseHover
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer hovers over the widget's rect.
+
+Values:
+
+OS:

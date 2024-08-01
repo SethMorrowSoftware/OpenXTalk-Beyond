@@ -1,0 +1,36 @@
+monthNames
+(function)
+return|Returns a list of month names used by the date function.
+
+Syntax:
+the [{ long | abbreviated | short }] [{ english | system }] monthNames
+----
+monthNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the monthNames into listToDelete
+----
+get the long english monthNames
+----
+
+Description:
+Use the monthNames function to let the user choose from a list of month names, or to display a list of months in the language of the user's system preferences.
+
+For each form of the monthNames, if the useSystemDate property is set to true, or if you specify the system monthNames, the list of names is provided in the language specified by the user's system preferences. If the useSystemDate is false or you specify the english monthNames, the list of names is provided in English.
+
+Values:
+The monthNames function returns a set of twelve month names, one per line. The monthNames form returns the full name of each month, as used in the long date.
+
+The long monthNames form returns the same result as the monthNames form.
+
+The abbreviated monthNames form returns the first three letters of the name of each month, as used in the abbreviated date.
+
+The short monthNames form returns the month number of each month, as used in the short date. 
+
+OS:
+mac,windows,linux,ios,android

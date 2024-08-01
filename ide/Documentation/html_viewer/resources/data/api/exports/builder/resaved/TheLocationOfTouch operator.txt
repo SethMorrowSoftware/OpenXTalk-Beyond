@@ -1,0 +1,27 @@
+TheLocationOfTouch
+(operator)
+The location of a specific touch
+
+Syntax:
+the position of touch {Id}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+   variable tID as Number
+   put the touch id into tID
+
+   variable tPosition as Point
+   put the position of touch tID into tPosition
+----
+
+Description:
+The location of a specific touch
+
+Values:
+The positon of a specific touch id relative to the widget 
+
+OS:

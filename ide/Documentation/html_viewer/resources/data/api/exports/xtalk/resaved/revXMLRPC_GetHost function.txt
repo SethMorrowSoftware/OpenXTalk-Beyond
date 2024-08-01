@@ -1,0 +1,27 @@
+revXMLRPC_GetHost
+(function)
+
+Syntax:
+revXMLRPC_GetHost(XMLRPCdocumentID)
+
+Summary:
+This function returns the target host of an XML-RPC document.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+local tHost
+put revXMLRPC_GetHost(tRequest) into tHost
+
+The revXMLRPC_GetHost function returns the IP address or domain name of the host that is the target of the XML-RPC document.
+
+Description:
+Use the revXMLRPC_GetHost function to retrieve the host that is the target of the execution of an XML-RPC request.
+
+If the revXMLRPC_GetHost function encounters an error, it returns an error message starting with "xmlrpcerr" .
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

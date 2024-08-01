@@ -1,0 +1,16 @@
+GIF
+(glossary)
+
+Syntax:
+Synonyms:
+gif file, gif
+
+Params:
+
+Examples:
+Description:
+Graphic Interchange Format. A bitmapped color picture format.
+
+Values:
+
+OS:

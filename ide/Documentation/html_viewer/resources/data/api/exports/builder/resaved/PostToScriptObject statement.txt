@@ -1,0 +1,30 @@
+PostToScriptObject
+(statement)
+Post a message to a script object.
+
+Syntax:
+post {Message} [ to {Object} ] [ with {Arguments} ]
+----
+
+Synonyms:
+
+Params:
+Message ( ): The message to dispatch.
+Object ( ): The script object to dispatch the message to.
+Arguments ( ): A list of arguments for the message.
+
+Examples:
+public handler OnMouseUp() returns nothing
+	// Send a message to the script so it can handle it.
+	post "buttonClicked" to my script object
+end handler
+----
+
+Description:
+Post a message to the given script object and returns immediately. Posting a message will cause the message to be sent at the next wait point (usually when the current event has finished being handled).
+
+If no target object is specified, the message is posted to the widget's script object (if used in a root widget module), or to the widget's parent (if used in a non-root widget module), or to the default stack otherwise.
+
+Values:
+
+OS:

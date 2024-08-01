@@ -1,0 +1,16 @@
+disclosure triangle
+(glossary)
+
+Syntax:
+Synonyms:
+disclosure triangle, disclosure arrow, flip arrow, flip-down arrow
+
+Params:
+
+Examples:
+Description:
+A small triangle or arrow in a list or at the edge of a window or palette that, when clicked, flips over and expands the window to show additional options.
+
+Values:
+
+OS:

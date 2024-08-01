@@ -1,0 +1,21 @@
+autoFoldStateReset
+(property)
+Automatically reset fold state when array data is set.
+
+Syntax:
+get the autoFoldStateReset of {widget}
+----
+set the autoFoldStateReset of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the autoFoldStateReset property to determine if the fold state is reset (tree is completely folded) when the arrayData property is set.
+
+Values:
+
+OS:

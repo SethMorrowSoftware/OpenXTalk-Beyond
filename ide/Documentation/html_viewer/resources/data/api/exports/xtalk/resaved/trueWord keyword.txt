@@ -1,0 +1,35 @@
+trueWord
+(keyword)
+Designates a string as part of a chunk expression, delimited by Unicode word breaks, as determined by the ICU Library.
+
+Syntax:
+trueWord
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put "?????????" & return into tText
+put "Language Learning and Teaching" & return after tText
+put "???????? ? ???????? ??????????? ??????" after tText
+put trueWord 4 of tText -- returns "??"
+----
+put "?????????" & return into tText
+put "Language Learning and Teaching" & return after tText
+put "???????? ? ???????? ??????????? ??????" after tText
+put trueWord 3 of line 3 of tText -- returns "????????"
+----
+get trueWord 4 of ("The programme output:" && quote & "Hello World!" & quote) -- yields Hello
+----
+
+Description:
+Use the trueWord keyword to refer to one or more words, delimited by Unicode word breaks.
+
+A trueWord is a word chunk, delimited by Unicode word breaks, as determined by the ICU Library. When there are no alphabetic or numeric characters between two word breaks, that string is not considered by OpenXTalk to be a trueWord.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

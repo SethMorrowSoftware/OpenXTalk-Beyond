@@ -1,0 +1,29 @@
+revStopSpeech
+(command)
+Halts a speech that was started with the revSpeak command.
+
+Syntax:
+revStopSpeech
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+revStopSpeech
+----
+if userCanHaltSpeech then revStopSpeech
+----
+
+Description:
+Use the revStopSpeech command to let the user interrupt a lengthy speech, or to stop a speech before it's finished.
+
+You can use the revIsSpeaking function to determine whether there's currently a speech in progress.
+
+*Important:*  The revStopSpeech command is part of the   Speech library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Speech"   library checkbox is checked.
+
+Values:
+
+OS:
+mac,windows

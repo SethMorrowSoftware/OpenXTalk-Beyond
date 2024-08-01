@@ -1,0 +1,31 @@
+revIDEGetPropertiesOfObjects
+(function)
+For a given list of objects, returns a structured array of properties, values and other meta data.
+
+pObjects (string list): A list of IDs of the objects to obtain the properties for.
+
+Syntax:
+revIDEGetPropertiesOfObjects({pObjects})
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+local tPropsArray
+create button
+put revIDEGetPropertiesOfObjects(it) into tPropsArray
+
+# Get a list of the sections needed to display this object's property inspector
+local tSections
+put the keys of tPropsArray into tSections
+----
+
+Description:
+revIDEGetPropertiesOfObjects returns an array of data about the given objects' shared properties, in a form used by the property inspector. The array has a sub-array for each section of the inspector in which one of the shared properties falls. Each of these sub-arrays has a sub-array for each group within the section in which one of the shared properties falls, each of which in turn has a sub-array for each property, containing the values and metadata associated with it.
+
+Values:
+An array of data about the objects' properties. 
+
+OS:

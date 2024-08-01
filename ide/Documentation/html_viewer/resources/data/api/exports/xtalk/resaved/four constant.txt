@@ -1,0 +1,23 @@
+four
+(constant)
+Equivalent to the number 4.
+
+Syntax:
+four
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+divide quarterlyRevenue by four -- same as "...by 4"
+----
+
+Description:
+Use the four constant when it is easier to read in a handler than the numeral 4.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

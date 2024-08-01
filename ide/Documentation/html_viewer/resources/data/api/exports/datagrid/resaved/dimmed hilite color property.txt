@@ -1,0 +1,19 @@
+dimmed hilite color
+(property)
+Color that highlighted lines will be when control is not focused.
+
+Syntax:
+put the dgProp["dimmed hilite color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Color that highlighted lines will be when control is not focused. Prefix property name with "effective" to get the color being used when this property is set to empty.
+
+Values:
+
+OS:

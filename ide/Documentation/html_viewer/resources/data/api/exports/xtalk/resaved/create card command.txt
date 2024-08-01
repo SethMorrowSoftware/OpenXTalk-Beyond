@@ -1,0 +1,37 @@
+create card
+(command)
+Makes a new card with the same background (s) as the current card.
+
+Syntax:
+create card [{cardName}] [in stack {stack}]
+----
+
+Synonyms:
+new card
+
+Params:
+cardName ( ): The name property of the new card. If you don't specify a cardName, the new card's name is empty.
+stack ( ): A reference or and expression that evaluates to a reference to a stack. If you specify a stack, the card will be a member of that stack, otherwise it will be a member of the .
+
+Examples:
+create card
+----
+create card "Main"
+----
+create card (field "output")
+----
+create card "Main" in stack "Stack"
+----
+
+Description:
+Use the create card command to add a new card to the  current stack.
+
+The new card is placed after the current card. If stackName is specified, it will be placed in stackName, otherwise  in the defaultStack. When the card is created, you go to the new card.
+
+Any groups on the current card whose backgroundBehavior is set to true will be placed on the newly-created card automatically.
+
+Values:
+The create card command places the ID property of the newly created card in the it variable. 
+
+OS:
+mac,windows,linux,ios,android

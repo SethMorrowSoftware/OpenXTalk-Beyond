@@ -1,0 +1,57 @@
+TheTarget
+(expression)
+The child widget that started the current execution.
+
+Syntax:
+the target
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- In the child widget
+public handler OnMouseUp() returns nothing
+    -- handled in the parent
+end handler
+
+-- in the parent
+public handler OnMouseUp() returns nothing
+    variable tComponent as optional Widget
+    put the target into tComponent
+    if tComponent is not nothing then
+        variable tName as String
+        put annotation "Name" of tComponent into tName
+        -- notify the parent or the script object which component was clicked
+        post "componentClicked" with [tName]
+    else
+        -- the mouseUp was not over a child widget
+    end if
+end handler
+----
+-- In the child widget
+public handler OnClick() returns nothing
+    post "componentClicked"
+end handler
+
+-- In the parent widget
+public handler OnComponentClicked() returns nothing
+    variable tComponent as optional Widget
+    put the target into tComponent
+    if tComponent is not nothing then
+        variable tName as String
+        put annotation "Name" of tComponent into tName
+        -- notify the parent or the script object which component was clicked
+        post "componentClicked" with [tName]
+    end if
+end handler
+----
+
+Description:
+The target evaluates to either the first widget object in a chain of event handlers (eg OnMouseUp) or the widget from which a message was Post|posted.
+
+Values:
+A widget object. 
+
+OS:

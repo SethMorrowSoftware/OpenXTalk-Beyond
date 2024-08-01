@@ -1,0 +1,19 @@
+show header
+(property)
+Toggles the visibility of the header. Default value is true.
+
+Syntax:
+put the dgProp["show header"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Toggles the visibility of the header. Default value is true.
+
+Values:
+
+OS:

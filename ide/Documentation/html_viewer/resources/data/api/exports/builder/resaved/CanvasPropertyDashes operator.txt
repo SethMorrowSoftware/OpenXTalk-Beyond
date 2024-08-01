@@ -1,0 +1,25 @@
+CanvasPropertyDashes
+(operator)
+The current dashes of a canvas.
+
+Syntax:
+the dashes of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw a rectangle with short, widely spaced dashes
+set the dashes of this canvas to [10, 40]
+stroke rectangle path of rectangle [50, 50, 200, 200] on this canvas
+----
+
+Description:
+The dashes as a list of numbers. The dashes specifies a sequence of lengths that alternately represent space and dash lengths when stroking a path.
+
+Values:
+
+OS:

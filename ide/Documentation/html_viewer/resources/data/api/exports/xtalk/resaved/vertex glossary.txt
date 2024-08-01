@@ -1,0 +1,16 @@
+vertex
+(glossary)
+
+Syntax:
+Synonyms:
+vertexes, vertices, vertex
+
+Params:
+
+Examples:
+Description:
+The point where two lines are joined at an angle. A corner of a polygon shape.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+backColor
+(property)
+The color of the navigation bar background
+
+Syntax:
+get the backColor of {widget}
+----
+set the backColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+When the navigation bar has an opaque background, it is filled with the backColor.
+
+Values:
+
+OS:

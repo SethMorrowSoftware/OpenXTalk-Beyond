@@ -1,0 +1,26 @@
+SolidPaintMake
+(operator)
+Creates a new solid color paint.
+
+Syntax:
+solid paint with {mColor}
+----
+
+Synonyms:
+
+Params:
+mColor ( ): An expression which evaluates to a color.
+
+Examples:
+// Create a new green paint
+variable tPaint
+put solid paint with color [0,1,0] into tPaint
+----
+
+Description:
+Creates a new solid color paint.
+
+Values:
+A new paint using mColor. 
+
+OS:

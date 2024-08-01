@@ -1,0 +1,20 @@
+Return
+(statement)
+Causes execution of the current handler to end, and control return to the caller.
+
+Syntax:
+return [{returnValue}]
+----
+
+Synonyms:
+
+Params:
+returnValue (any ): The value to return
+
+Examples:
+Description:
+Use the return control structure to halt execution of the current handler, to return control to the caller, and optionally to return a value. Note:It is a checked runtime error for a value returned from a handler to not match the return type of the handler it is in.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+control type
+(property)
+Returns "data grid"
+
+Syntax:
+put the dgProp["control type"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns "data grid". You can check this property to determine if a group is a data grid.
+
+Values:
+
+OS:

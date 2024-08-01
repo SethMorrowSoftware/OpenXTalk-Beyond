@@ -1,0 +1,35 @@
+revOpenDatabases
+(function)
+return|Returns a list of open database|databases.
+
+Syntax:
+revOpenDatabases()
+----
+
+Synonyms:
+revdb_connections
+
+Params:
+
+Examples:
+revOpenDatabases()
+----
+repeat for each item thisConnection in revOpenDatabases()
+----
+if revOpenDatabases is empty then cleanUp
+----
+
+Description:
+Use the revOpenDatabases function to find out how many database|databases are open, or in a repeat loop to access all the open database|databases in turn.
+
+The database ID returned by the revOpenDatabases function is the same as the number return|returned by the revOpenDatabase function when the database was opened.
+
+If the operation is not successful, the revOpenDatabases function return|returns an error message that begins with the string "revdberr".
+
+*Important:*  The revOpenDatabases command is part of the   Database library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revOpenDatabases function return|returns a list of database IDs separated by commas. 
+
+OS:
+mac,windows,linux,ios,android

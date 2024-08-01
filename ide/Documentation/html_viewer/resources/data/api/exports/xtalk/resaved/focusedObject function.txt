@@ -1,0 +1,30 @@
+focusedObject
+(function)
+return|Returns the currently active control|focused control.
+
+Syntax:
+the focusedObject
+----
+focusedObject()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the focusedObject
+----
+put the focusedObject into objectToReturnTo
+----
+
+Description:
+Use the focusedObject function to determine which object(glossary) receives any keystrokes that are typed by the user or created by the type command.
+
+The focusedObject can be any control on the current card. If no object(glossary) has the focus, the focusedObject is the  current card. 
+
+Values:
+The focusedObject function return|returns the long ID property of the object(glossary). 
+
+OS:
+mac,windows,linux,ios,android

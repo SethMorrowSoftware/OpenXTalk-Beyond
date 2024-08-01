@@ -1,0 +1,31 @@
+getNativeThemeName
+(handler)
+Get the canonical name of the current "native" mobile theme
+
+Syntax:
+getNativeThemeName()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tNativeTheme as String
+put getNativeThemeName() into tNativeTheme
+
+if tNativeTheme is "android" then
+	-- Draw Android themed UI
+else
+	-- Draw iOS themed UI
+end if
+----
+
+Description:
+Returns the name of the current theme that should be used when the theme is "native".
+
+Currently, this will return either "iOS" or "Android".
+
+Values:
+
+OS:

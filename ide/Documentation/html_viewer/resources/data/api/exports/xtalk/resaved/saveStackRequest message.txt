@@ -1,0 +1,30 @@
+saveStackRequest
+(message)
+Sent to the current card when the stack is about to be saved.
+
+Syntax:
+saveStackRequest
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on saveStackRequest -- delete all cards but the first
+  repeat with x = the number of cards down to 2
+    delete card x
+  end repeat
+  pass saveStackRequest -- or the stack won't be saved
+end saveStackRequest
+----
+
+Description:
+Handle the saveStackRequest message if you need to do cleanup or other actions before a stack is saved. For example, if the stack creates temporary object|objects that should not be saved with the stack, you can write a saveStackRequest handler to delete those object|objects before the stack is saved.
+
+The save action is triggered by the saveStackRequest message. This means that trap|trapping the saveStackRequest message and not pass|passing it prevents the stack from being saved. The OpenXTalk IDE locks messages when Save or Save As... are chosen from the File menu to ensure that the save occurs.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

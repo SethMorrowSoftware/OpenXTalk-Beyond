@@ -1,0 +1,33 @@
+sharedGroupNames
+(property)
+Reports the names of all the shared groups of the card or stack
+
+Syntax:
+get the sharedGroupNames of {{card} | {stack}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the sharedGroupNames of stack myStack
+----
+put the sharedGroupNames of this stack into tGroupIds
+----
+get the sharedGroupNames of this card
+put it into tGroupIds
+----
+repeat for each line tGroupName in the sharedGroupNames of this card
+   remove group tGroupName from this card
+end repeat
+----
+
+Description:
+Use the sharedGroupNames property to get a list of all the names of the shared groups on the card or stack.
+
+Values:
+The sharedGroupNames of a stack returns a list of short names, one per line, of all groups owned by the stack which have sharedBehavior set to true regardless of which cards they may be placed on. The sharedGroupNames of a card returns a list of short names, one per line, of all groups which are placed onto the card which have sharedBehavior set to true. 
+
+OS:
+mac,windows,linux,ios,android

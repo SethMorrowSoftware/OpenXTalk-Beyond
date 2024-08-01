@@ -1,0 +1,36 @@
+kill
+(command)
+Signals or quits another process or application on the same system.
+
+Syntax:
+kill [{{signalNumber} | {signalName}}] process {processName}
+----
+
+Synonyms:
+
+Params:
+signalNumber ( ): The number of the Unix signal to send to the process.  >*Note:* The  parameter is ignored on Mac OS and Windows systems.
+signalName ( ): The name of a Unix signal, minus the leading "SIG". (For example, to send SIGHUP to a process, use HUP as the .) >*Note:* The  parameter is ignored on Mac OS and Windows systems.
+processName ( ): The name of a currently executing process.
+
+Examples:
+kill process "rnews"
+----
+kill 9 process myProcess -- terminate with extreme prejudice
+----
+kill QUIT process it
+----
+
+Description:
+Use the kill command to send a signal to a process (on Unix|Unix systems), or to terminate a process with extreme prejudice.
+
+On Mac OS systems, the kill command sends a "Quit Application" Apple Event|Apple event to the specified application.
+
+On Unix systems, the kill command sends the specified signal to the process. If no signal is specified, the kill command sends SIGTERM. Check the Unix documentation for information about available signals. The file /usr/include/sys/signal.h lists signals and their corresponding signal numbers.
+
+If possible, use the close process command instead of the kill command to terminate a process. The kill command causes an immediate exit, and may prevent the process from removing temporary files or doing other cleanup tasks.
+
+Values:
+
+OS:
+mac,windows,linux

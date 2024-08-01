@@ -1,0 +1,26 @@
+ReverseElementsOfList
+(statement)
+Reverse a list
+
+Syntax:
+reverse {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A list
+
+Examples:
+variable tList
+put [1, 2, 3] into tList
+reverse tList
+expect that tList is [3, 2, 1]
+----
+
+Description:
+Reverses the order of elements in the Target.
+
+Values:
+
+OS:

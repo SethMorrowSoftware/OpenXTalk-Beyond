@@ -1,0 +1,22 @@
+UnitTest
+(statement)
+Make a unit test assertion
+
+Syntax:
+test {Condition}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+test 2 } 1
+----
+
+Description:
+Make a basic unit test assertion, with no test description.  It is usually more helpful to use UnitTestDescription.
+
+Values:
+
+OS:

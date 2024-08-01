@@ -1,0 +1,30 @@
+CountElementsOfArray
+(operator)
+Returns the number of elements in Target
+
+Syntax:
+the number of elements in {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to an array.
+
+Examples:
+variable tArray as Array
+put the empty array into tArray
+put 1 into tArray["key1"]
+put 2 into tArray["key2"]
+put 3 into tArray["key3"]
+
+variable tVar as Number
+put the number of elements in tArray into tVar -- tVar contains 3
+----
+
+Description:
+The number of elements in tArray returns the number of key-value pairs stored in the array.
+
+Values:
+
+OS:

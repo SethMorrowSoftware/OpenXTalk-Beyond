@@ -1,0 +1,23 @@
+showValues
+(property)
+Whether the values are displayed or not
+
+Syntax:
+get the showValues of {widget}
+----
+set the showValues of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the showValues property to display or hide the values of the arrayData   of the tree view widget.  This setting will be useful when using the widget as a menu for navigation purposes.
+
+Hiding values effectively hides the separator as well.
+
+Values:
+
+OS:

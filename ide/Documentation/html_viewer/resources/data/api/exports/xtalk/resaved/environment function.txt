@@ -1,0 +1,36 @@
+environment
+(function)
+Returns the type of running environment the stack is in.
+
+Syntax:
+the environment
+----
+environment()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the environment
+----
+if the environment is "development" then showDevelopOptions
+----
+
+Description:
+Use the environment function to change a stack's behavior depending on how the stack was opened.
+
+Values:
+The environment function returns one of:  
+"mobile": The stack is running on a mobile device.
+"server": The stack is running in OpenXTalk server.
+"development command line": The stack is running in the development environment with the "-ui" command line option.
+"standalone application": The stack is running as a standalone application.
+"command line": The stack is running as a standalone application with the "-ui" command line option.
+"development": The stack is running under the development environment.
+"helper application": OpenXTalk is running as a standalone with the secureMode property set to true.
+"browser": The stack is running as a OpenXTalk applet.
+
+OS:
+mac,windows,linux,ios,android

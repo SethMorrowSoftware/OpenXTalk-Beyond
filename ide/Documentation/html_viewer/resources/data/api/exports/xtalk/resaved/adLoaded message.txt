@@ -1,0 +1,29 @@
+adLoaded
+(message)
+Sent when an ad had loaded (or reloaded).
+
+Syntax:
+adLoaded {pAdName}, {pDefault}
+----
+
+Synonyms:
+
+Params:
+pAdName ( ): The name of ad that has loaded (as specified in )
+pDefault (bool ): True or false, specifying if the loaded ad is a default ad.
+
+Examples:
+on adLoaded pAd
+   enable button "move next"
+end adLoaded
+----
+
+Description:
+Handle the adLoaded message if you want to perform an action when an ad finishes loading.
+
+The adLoaded message is sent to the object that created the ad when the ad has loaded, or reloaded.
+
+Values:
+
+OS:
+ios,android

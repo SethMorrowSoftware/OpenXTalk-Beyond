@@ -1,0 +1,28 @@
+octaveCount
+(property)
+The amount of octaves in the piano's current visible note range.
+
+Syntax:
+get the octaveCount of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+  -- set the left most octave to start at MIDI Note Number 0 (C-1)
+  set the lowOctave of widget "Piano Widget" to -1
+  -- set the right most octave to start at MIDI Note Number 36 (C2)
+  set the highOctave of widget "Piano Widget" to 2
+  get the octaveCount of of widget "Piano Widget" -- octaveCount containss 4
+end mouseUp
+----
+
+Description:
+The octaveCount is a read-only property that returns the amount of octaves  that are currently visible on the Piano's keyboard. It is the same as the count from lowOctave to highOctave. 
+
+Values:
+
+OS:

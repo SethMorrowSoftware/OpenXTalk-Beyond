@@ -1,0 +1,19 @@
+OnAttach
+(message)
+Sent when the widget is attached.
+
+Syntax:
+OnAttach
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget is attached.
+
+Values:
+
+OS:

@@ -1,0 +1,34 @@
+recordCompression
+(property)
+Specifies which codec is used to compress recorded sounds.
+
+Syntax:
+set the recordCompression to {codecName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the recordCompression to "MAC6"
+----
+if the recordCompression is "raw " then requestAnotherType
+----
+
+Description:
+Use the recordCompression property to trade off between sound quality and disk space when you record a sound.
+
+The recordCompression property determines what kind of compress|compression is used when you use the record sound command to record sound to a file.
+
+Not all codecs are compatible with all supported sound file formats. If you try to record sound using a recordCompression that is not compatible with the file format specified by the recordFormat property, the compress|compression type will be changed automatically to a codec that is compatible with the specified recordFormat.
+
+The codecs are installed by QuickTime. You can obtain a list of available codec|codecs using the recordCompressionTypes function. The default setting, "raw " (note the trailing space), indicates no compress|compression will be used.
+
+*Note:* The answer record command sets the recordCompression  property according to what the user chose in the answer record  dialog box.
+
+Values:
+The recordCompression is a four-character string. By default, the recordCompression property is "raw ". 
+
+OS:
+mac,windows

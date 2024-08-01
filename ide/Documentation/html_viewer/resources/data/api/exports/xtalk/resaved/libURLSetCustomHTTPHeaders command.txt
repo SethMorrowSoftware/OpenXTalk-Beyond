@@ -1,0 +1,38 @@
+libURLSetCustomHTTPHeaders
+(command)
+Sets the headers to be sent with each request to an HTTP server.
+
+Syntax:
+libURLSetCustomHTTPHeaders {headersList}
+----
+
+Synonyms:
+
+Params:
+headersList ( ): A , or an  that  to a .
+
+Examples:
+libURLSetCustomHTTPHeaders "GET /catsdata/coldat.dat HTTP/1.1"
+----
+libURLSetCustomHTTPHeaders field "Headers"
+----
+
+Description:
+Use the libURLSetCustomHTTPHeaders command to implement an HTTP method other than GET, POST, DELETE, or PUT.
+
+Whenever OpenXTalk contacts a web server (with the load command, the post command, or by using an HTTP URL in an expression), the headersList is sent to the web server.
+
+Usually, the headersList will include multiple lines. A typical headersList might look like the following example:      GET /catsdata/coldat.dat HTTP/1.1 Connection:Close     User-Agent: My Fancy Browser Host:www.cats-training.com Accept:image/gif, image/x-xbitmap, image/jpeg, image/png, */*     Accept-Encoding: gzip     Accept-Charset: iso-8859-1,*,utf-8  The libURLSetCustomHTTPHeaders setting takes effect for the next HTTP transaction. After the transaction, the headers are set back to the default. This means that if you want to do multiple HTTP transactions using the same set of custom headers, you must use the libURLSetCustomHTTPHeaders command before each transaction.
+
+The libURLSetCustomHTTPHeaders setting replaces the Internet library|Internet library's default headers. To add to the default headers instead of replacing them, use the httpHeaders property instead.
+
+If you specify a set of headers using the libURLSetCustomHTTPHeaders command, the Internet library|Internet library's default headers and the setting of the httpHeaders property are ignored, and the headers set by libURLSetCustomHTTPHeaders are used instead.
+
+*Important:* The libURLSetCustomHTTPHeaders command is part of the   Internet library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Internet"   script library is selected.
+
+For technical information about the standard headers recognized in the HTTP 1.1 protocol, see [RFC 2616](https://tools.ietf.org/html/rfc2616).
+
+Values:
+
+OS:
+mac,windows,linux,html5

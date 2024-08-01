@@ -1,0 +1,28 @@
+unIconifyStack
+(message)
+Sent when a stack is un-minimized.
+
+Syntax:
+unIconifyStack
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on unIconifyStack -- in stack script
+  put return & the short name of me after field "List" \
+    of stack "Open Windows List"
+end unIconifyStack
+----
+
+Description:
+Handle the unIconifyStack message if you want to do something special when the user expands the window to normal size.
+
+The terminology varies depending on platform. The unIconifyStack message is sent when the user expands (Mac OS|Mac OS systems), un-iconifies (Unix|Unix systems), or un-minimizes (Windows|Windows systems) the stack window.
+
+Values:
+
+OS:
+mac,windows,linux

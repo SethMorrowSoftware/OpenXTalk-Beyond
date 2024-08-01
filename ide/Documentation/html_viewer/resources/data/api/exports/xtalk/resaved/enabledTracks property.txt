@@ -1,0 +1,26 @@
+enabledTracks
+(property)
+Specifies which tracks in a QuickTime movie are available to be played. 
+
+Syntax:
+set the enabledTracks of {player} to {tracksList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the enabledTracks of player "Arctic" to 3 & return & 2
+----
+
+Description:
+Use the enabledTracks property to control the user's ability to play a QuickTime movie.
+
+A movie can contain multiple tracks intended to be played at the same time (for example, an audio and a video track), or tracks that are separate (for example, an alternative audio track). You can list the tracks in a movie using the tracks property.
+
+Values:
+The enabledTracks is a list of tracks, one per line. Each track is a track ID (a positive integer). 
+
+OS:
+mac,linux

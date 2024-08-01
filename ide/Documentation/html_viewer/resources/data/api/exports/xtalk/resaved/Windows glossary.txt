@@ -1,0 +1,16 @@
+Windows
+(glossary)
+
+Syntax:
+Synonyms:
+windows 95, windows 98, windows 2000, windows, windows system
+
+Params:
+
+Examples:
+Description:
+An operating system from Microsoft Corporation that typically runs on Intel-based computer systems. 
+
+Values:
+
+OS:

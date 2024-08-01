@@ -1,0 +1,34 @@
+eventControlKey
+(function)
+return|Returns the state of the Control key.
+
+Syntax:
+the eventControlKey
+----
+eventControlKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put (the eventControlKey is up) and (the eventShiftKey is up) into ctrlShift
+----
+if eventControlKey() is down then go back
+----
+
+Description:
+Use the eventControlKey function to check whether the Control key was pressed at the time the current event was dispatched.
+
+If you want to check the state of the Control key at the current time, rather than when the event was dispatched, use the controlKey function.
+
+On Unix and Windows systems, the eventCommandKey function return|returns the same value as the eventControlKey function(control structure): the two function(glossary)|functions are synonyms.
+
+ **Warning**: the value of this function is undefined after performing  a wait operation; it may no longer be the same as the value when the  event was dispatched.
+
+Values:
+The eventControlKey function(control structure) return|returns down if the control key was pressed at the time the current event was dispatched.  
+
+OS:
+mac,windows,linux

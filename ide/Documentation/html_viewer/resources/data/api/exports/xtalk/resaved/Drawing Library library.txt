@@ -1,0 +1,15 @@
+Drawing Library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This script library implements an SVG compiler for turning SVG files into 'drawing metafiles'. A simple and efficient binary format for representing complex vector graphics, supported directly by the image object.
+
+Values:
+
+OS:

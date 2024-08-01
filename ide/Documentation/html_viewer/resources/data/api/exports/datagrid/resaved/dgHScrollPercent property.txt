@@ -1,0 +1,19 @@
+dgHScrollPercent
+(property)
+Get/set the percentage of the horizontal scroll.
+
+Syntax:
+set the dgHScrollPercent of group "DataGrid" to pPercent
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the percentage of the horizontal scroll. A number between 0 and 1. This only applies to tables as forms do not scroll horizontally.
+
+Values:
+
+OS:

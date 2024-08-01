@@ -1,0 +1,16 @@
+factor
+(glossary)
+
+Syntax:
+Synonyms:
+factor
+
+Params:
+
+Examples:
+Description:
+The first fully-resolvable part of an expression : a value, source of value, or combination of value|values that does not contain any binary operator|operators outside parentheses.
+
+Values:
+
+OS:

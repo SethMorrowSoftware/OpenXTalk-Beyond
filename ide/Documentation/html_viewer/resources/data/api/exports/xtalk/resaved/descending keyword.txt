@@ -1,0 +1,27 @@
+descending
+(keyword)
+Used with the sort and sort container command|commands to sort in reverse order (from greater to less).
+
+Syntax:
+descending
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+sort marked cards descending by the name of this card
+----
+sort field 3 descending dateTime by item 2 of each
+----
+
+Description:
+Use the descending keyword to sort backwards.
+
+The descending keyword reverses the normal sort order:  * A descending text sort puts Z first, A last. * A descending numeric sort puts large numbers first, small numbers   last.  * A descending dateTime sort puts later times first, earlier times last.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

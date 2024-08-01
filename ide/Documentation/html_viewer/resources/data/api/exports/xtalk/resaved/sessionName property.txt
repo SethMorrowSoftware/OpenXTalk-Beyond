@@ -1,0 +1,30 @@
+sessionName
+(property)
+Specifies the name of the cookie used to store the session id.
+
+Syntax:
+set the sessionName to {cookieName}
+----
+
+Synonyms:
+
+Params:
+cookieName ( ): the name of the cookie
+
+Examples:
+set the sessionName to tCookieName
+----
+set the sessionName to "MYSESSION"
+----
+
+Description:
+Use the sessionName property to set the name of the cookie used to store the session id.
+
+Use the sessionName property to set the the name of the cookie used to store the session id.
+
+If the sessionName is not specified then the default, LCSESSION, is used. 
+
+Values:
+
+OS:
+mac,windows,linux

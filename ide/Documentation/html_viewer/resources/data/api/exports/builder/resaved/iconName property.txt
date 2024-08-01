@@ -1,0 +1,24 @@
+iconName
+(property)
+The name of the currently chosen icon.
+
+Syntax:
+get the iconName of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the iconName of widget "SVG Icon"
+----
+
+Description:
+use the IconName to get the name of the currently chosen icon.
+
+You can get a list of available predefined path names by running `put iconNames()` in the Message Box.
+
+Values:
+
+OS:

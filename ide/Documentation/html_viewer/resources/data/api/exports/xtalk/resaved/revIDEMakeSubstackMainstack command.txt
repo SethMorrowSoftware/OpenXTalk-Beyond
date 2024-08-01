@@ -1,0 +1,19 @@
+revIDEMakeSubstackMainstack
+(command)
+Used by the PI to make a substack into a mainstack
+
+Syntax:
+revIDEMakeSubstackMainstack {pObj}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Used by the PI to make a substack into a mainstack
+
+Values:
+
+OS:

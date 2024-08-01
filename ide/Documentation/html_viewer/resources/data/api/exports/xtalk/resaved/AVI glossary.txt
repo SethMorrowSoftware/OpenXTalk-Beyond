@@ -1,0 +1,16 @@
+AVI
+(glossary)
+
+Syntax:
+Synonyms:
+.avi, avi
+
+Params:
+
+Examples:
+Description:
+Audio-Video Interleave. A format for video files produced by Microsoft's VFW|Video for Windows. The name of a file in this format usually ends with ".avi".
+
+Values:
+
+OS:

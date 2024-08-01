@@ -1,0 +1,28 @@
+itemArray
+(property)
+The full navigation item data.
+
+Syntax:
+get the itemArray of {widget}
+----
+set the itemArray of {widget} to {array}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The itemArray is a numerically keyed array.  Each element of the array contains an array describing the name, label and icons of the navigation item at that index.
+
+The itemArray can be used to access and modify all of the navigation data at once, rather than setting the itemNames, itemLabels, itemIcons and hilitedItemIcons individually.
+
+The structure of the itemArray is:  ``` { key (integer): The index of the navigation item 	value (array): The array containing the data for the item at this index 	{ key : "label" 		value (string): The label of this item 		key : "name" 		value (string): The name of this item 		key : "icon_name" 		value (string) : The name of the icon to display when the item is not highlighted 		key : "hilited_icon_name" 		value (string) : The name of the icon to display when the item is highlighted 	} } ```  Any individual keys ("label", "icon_name", "hilited_icon_name") missing when setting the itemArray will be added, and set to their defaults - "circle" for the icons, and "New Item" for the label.
+
+**Note:** When setting the itemArray, an error will be thrown if the new value is not a numerically-keyed array.
+
+Values:
+An array containing all the navigation data. 
+
+OS:

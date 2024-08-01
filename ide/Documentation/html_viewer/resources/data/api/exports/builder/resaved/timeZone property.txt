@@ -1,0 +1,21 @@
+timeZone
+(property)
+The time zone offset from UTC, in seconds, or the empty string
+
+Syntax:
+get the timeZone of {widget}
+----
+set the timeZone of {widget} to {pOffset}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The timeZone is used to allow the clock widget to display a time other than the local time.  If the timeZone is empty, then the clock displays the local time.  Otherwise, the timeZone should be the number of seconds different from UTC that the clock should display. 
+
+Values:
+
+OS:

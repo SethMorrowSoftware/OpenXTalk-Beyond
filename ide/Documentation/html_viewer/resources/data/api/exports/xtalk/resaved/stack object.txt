@@ -1,0 +1,32 @@
+stack
+(object)
+The basic OpenXTalk object(glossary): a window.
+
+Syntax:
+stack
+----
+
+Synonyms:
+window, wd
+
+Params:
+
+Examples:
+go to stack "Help"
+----
+put the short name of stack 3 after field "Stacks List"
+----
+
+Description:
+Use the stack object type to display a window, palette, or  dialog box.
+
+A stack corresponds to a single window. Each OpenXTalk file contains one  or more stacks. The first stack in a stack file is called the main  stack; any other stacks in the stack file are called substacks of the  main stack.
+
+Stacks contain one or more cards, and may optionally contain  backgrounds.
+
+*Note:* The type of window a stack is displayed in depends on the  stack|stack's style property and whether the stack was opened  with the go, topLevel, palette, modal, or modeless command.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,24 @@
+revIDEObjectPropertyInfo
+(function)
+Information pertaining to the property pPropName in the context of pObjectType.
+
+Syntax:
+revIDEObjectPropertyInfo({pObjectType},{pPropName})
+----
+
+Synonyms:
+
+Params:
+pPropName ( ): One of the IDE canonical object property names.
+pObjectType ( ): One of the IDE's object types.
+
+Examples:
+Description:
+This function returns the information pertaining to the object property pPropName, parsed from the files in Toolset/resources/supporting_files/. In some cases an individual property's data can be overridden for a particular object type.
+
+For a list of the canonical property names which are valid inputs to this function, see the idePropertyNames function. For a list of the object type IDs which are valid inputs to this function, see the ideObjectTypes function.
+
+Values:
+An array of information pertaining to the given property. 
+
+OS:

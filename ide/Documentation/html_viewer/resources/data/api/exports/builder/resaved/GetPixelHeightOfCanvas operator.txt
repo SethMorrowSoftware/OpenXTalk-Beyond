@@ -1,0 +1,21 @@
+GetPixelHeightOfCanvas
+(operator)
+Get the height of a canvas in pixels.
+
+Syntax:
+the pixel height of {Canvas}
+----
+
+Synonyms:
+
+Params:
+Canvas ( ): The canvas to be examined.
+
+Examples:
+Description:
+Get the height of a canvas in pixels.
+
+Values:
+The height of the canvas, in pixels. 
+
+OS:

@@ -1,0 +1,16 @@
+text to speech
+(glossary)
+
+Syntax:
+Synonyms:
+text to speech, text-to-speech, synthesized speech, speech synthesis, speech
+
+Params:
+
+Examples:
+Description:
+A feature of some operating systems that allows the computer to speak a phrase in a human-sounding synthesized voice. Text to speech is supported in OpenXTalk with the Speech library.
+
+Values:
+
+OS:

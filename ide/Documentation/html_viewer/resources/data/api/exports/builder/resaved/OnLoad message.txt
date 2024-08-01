@@ -1,0 +1,19 @@
+OnLoad
+(message)
+Sent when the widget is loaded.
+
+Syntax:
+OnLoad
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handler the OnLoade message to execute code when a stack containing the widget is loaded, for example setting default values of instance variables. *Note:* Access to most script object operations is not allowed whilst an OnLoad handler is running.
+
+Values:
+
+OS:

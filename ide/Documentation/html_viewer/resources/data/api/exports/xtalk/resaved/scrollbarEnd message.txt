@@ -1,0 +1,31 @@
+scrollbarEnd
+(message)
+Sent to a scrollbar when the user Shift-clicks its increase arrow.
+
+Syntax:
+scrollbarEnd {pEnd}
+----
+
+Synonyms:
+
+Params:
+pEnd ( ): The new position of the scrollbar thumb. This is the same as the scrollbar's  property.
+
+Examples:
+on scrollbarEnd -- use a scroll bar to navigate among cards
+  visual effect scroll up
+  go last card
+end scrollbarEnd
+----
+
+Description:
+Handle the scrollbarEnd message if you want to respond to the use of Shift-click to move the scrollbar thumb directly to the end (the bottom or right) of the scrollbar.
+
+Dragging the scrollbar thumb to the end position, or otherwise moving it to the end, does not send a scrollbarEnd message.
+
+If the scrollbarEnd message is not handled, a scrollbarDrag message is sent in addition.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

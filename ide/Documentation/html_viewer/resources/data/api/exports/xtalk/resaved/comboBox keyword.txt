@@ -1,0 +1,29 @@
+comboBox
+(keyword)
+Specifies one of the menu types that can be used with the menuMode property. 
+
+Syntax:
+comboBox
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the menuMode of button "Aptness" to comboBox
+----
+
+Description:
+Use the comboBox keyword to create a combo box menu.
+
+Combo box menus are normally used to designate a state. Choosing an item from a combo box changes the current setting.
+
+Using the text box at the top of the combo box, the user can specify a state that is not in the menu's list of states. This menu type is suitable for situations in which the user probably will choose one of the predefined states, but might need to specify a different state.
+
+*Note:* If a button(object)|button's menuMode is set to "comboBox",  the button(keyword) receives field message|messages. For  example, when the user clicks in the editable field, an openField  message is sent to the button(keyword).
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

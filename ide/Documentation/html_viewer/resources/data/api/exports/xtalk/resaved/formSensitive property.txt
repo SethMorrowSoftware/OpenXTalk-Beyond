@@ -1,0 +1,31 @@
+formSensitive
+(property)
+Controls how text with minor differences is treated in comparison operations. 
+
+Syntax:
+set the formSensitive to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the formSensitive to true
+----
+set the formSensitive to true
+put "e" & numToCodepoint("0x301") into tExample        -- Acute accent
+put tExample is "é" -- Returns false
+put normalizeText(tExample, "NFC") is "é"            -- Returns true
+----
+
+Description:
+Use the formSensitive property to control how text with minor differences is treated in comparison operations.
+
+Normalization is a process defined by the Unicode standard for removing minor encoding differences for a small set of characters and is more fully described in the normalizeText function.
+
+Values:
+The formSensitive is true or false. By default, the formSensitive property is set to false. 
+
+OS:
+mac,windows,linux,ios,android

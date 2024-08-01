@@ -1,0 +1,51 @@
+hilitePattern
+(property)
+Specifies the fill pattern used for the background when an object(glossary), or text in an object(glossary), is highlight|highlighted. 
+
+Syntax:
+set the hilitePattern of {object} to {{patternNumber} | {imageID} | empty}
+----
+
+Synonyms:
+markerpattern, thirdpattern
+
+Params:
+
+Examples:
+set the hilitePattern to 3859
+----
+
+Description:
+Use the hilitePattern property to specify the background pattern used for the select|selected text in a field, or the highlight|highlighted pattern of a clicked object(glossary), or the pattern of graphic markers.
+
+Pattern images can be color or black-and-white.
+
+*Cross-platform note:*  To be used as a pattern on   Mac OS|Mac OS systems, an image must be 128x128 pixels or less,   and both its height and width must be a power of 2. To be used on  Windows and Unix|Unix systems, height and width must be   divisible by 8. To be used as a fully cross-platform pattern, both an  image's dimensions should be one of 8, 16, 32, 64, or 128.
+
+The hilitePattern of control(object)|controls is drawn starting at the control(object)|control's upper right corner: if the control(keyword) is moved, the pattern does not shift.
+
+The setting of the hilitePattern property has different effects, depending on the object type:  * The hilitePattern of a stack, card, or group determines the   hilitePattern of any object(glossary) in the stack, card, or   group that does not have its own hilitePattern.
+
+ * The hilitePattern of a button is used for the background of the   button when it is highlight|highlighted. If the button(keyword) is   a menu, the hilitePattern is used to highlight the   button(keyword), but not the active menu choice. The hilitePattern   has no effect if the button(keyword) is a tabbed button. The   hilitePattern has no effect until the button(keyword) is   highlight|highlighted.
+
+ *Cross-platform note:*  If the lookAndFeel is set to  "Appearance Manager", standard and rectangle button(object)|buttons  are drawn by the operating system if the backgroundColor and  backgroundPattern of the button(keyword) and all of its  owner|owners is empty. In this case, the button(object)|button's  hilitePattern has no effect. Otherwise, the button(keyword) is  drawn by OpenXTalk. If the lookAndFeel is "Appearance Manager",  button menu|button menus whose menuMode is set to "option" are  always drawn by the operating system, and the setting of the  button(object)|button's hilitePattern does not affect them.
+
+* The hilitePattern of a field determines the background color of   text selection|selections in the field.
+
+ * The hilitePattern of a scrollbar fills the arrow boxes at the ends   of the scrollbar when the arrows are clicked. The hilitePattern   has no effect until the arrows are clicked.
+
+ * The hilitePattern of a graphic, image, player, or EPS|EPS   object has no effect.
+
+ If the object's hilitePattern is set, the pattern is shown instead of the color specified by hiliteColor.
+
+*Note:* Unlike the hiliteColor property, the hilitePattern is not  a global property. Setting the hilitePattern of an  object(glossary) to empty causes the hilitePattern of the  object|object's owner to be used for the object(glossary).
+
+Values:
+The hilitePattern of an object(glossary) is a pattern specifier. A patternNumber is a built-in pattern number between 1 and 164. These patterns are provided for compatibility with patterns available in MetaCard and correspond to xTalk's built in image id 137 to 300. As with MetaCard pattern numbers 105 to 114 and 146 and above are  unavailable.
+
+An imageID is the ID of an image to use for a pattern. OpenXTalk looks for the specified image first in the current stack, then in other open stacks.
+
+By default, the hilitePattern for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

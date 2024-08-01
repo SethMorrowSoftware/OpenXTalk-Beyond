@@ -1,0 +1,18 @@
+matched
+(glossary)
+
+Syntax:
+Synonyms:
+unmatched, matched, matching
+
+Params:
+
+Examples:
+Description:
+Containing both the start and end word or symbol.
+
+For example, an expression with matched parentheses contains a close parenthesis ")" for each open parenthesis "(".
+
+Values:
+
+OS:

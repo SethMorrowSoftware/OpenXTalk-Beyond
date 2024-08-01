@@ -1,0 +1,27 @@
+until
+(keyword)
+Used with the repeat control structure to specify that the loop is to repeat until the specified conndition becomes true.
+
+Syntax:
+until
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+repeat until the seconds >= tTimeToStop
+----
+
+Description:
+Use the until keyword to repeat a sequence of statement|statements until a condition becomes true.
+
+OpenXTalk evaluates the condition each time the loop repeats, at the top of the loop (before the statements in the repeat control structure|structure are execute|executed). If the condition is true, the loop is skipped and execute|execution resumes with the statement after the end repeat statement.
+
+If the condition is already true when OpenXTalk reaches the repeat statement, the loop is not execute|executed at all.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

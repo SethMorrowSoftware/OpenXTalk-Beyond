@@ -1,0 +1,19 @@
+Datagrid General Properties
+(glossary)
+General properties of the datagrid are applicable whether the 'style' property is set to 'form' or 'table'
+
+Syntax:
+Datagrid General Properties
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+All general data grid properties are stored in the dgProps custom property set. To access a property you can use dgProps or dgProp:  	put the dgProp[ "PROPERTY_NAME" ] of group "Data Grid"
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+mobileControlTarget
+(function)
+Fetches the name or id (if no name is set) of the native mobile control that sent the message.
+
+Syntax:
+the mobileControlTarget
+----
+mobileControlTarget()
+----
+
+Synonyms:
+iphonecontroltarget
+
+Params:
+
+Examples:
+put mobileControlTarget() into tTarget
+----
+if mobileControlTarget() is "myControl" then
+  ...
+end if
+----
+
+Description:
+While in the context of a message that has been dispatched from a native mobile control created using mobileControlCreate, you can use the mobileControlTarget function to fetch the name or id (if no name is set) of the control that sent the message.
+
+*Note:*  In general, messages dispatched by the native control are sent  to the object containing the script which created it.
+
+Values:
+The mobileControlTarget function returns the name or id (if no name is set) of the control. 
+
+OS:
+ios,android

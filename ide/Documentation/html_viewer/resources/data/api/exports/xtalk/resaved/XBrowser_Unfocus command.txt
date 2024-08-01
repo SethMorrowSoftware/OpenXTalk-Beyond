@@ -1,0 +1,24 @@
+XBrowser_Unfocus
+(command)
+
+Syntax:
+XBrowser_Unfocus [instanceId]
+
+Summary:
+Has no affect, included for backwards compatibility
+
+Examples:
+XBrowser_Unfocus tBrowserId
+
+The XBrowser_Unfocus command puts empty into the result.
+
+Description:
+The XBrowser_Unfocus command has no affect and is included for backwards compatibility with older applications.
+
+Note: For general information on using the browser library, see the notes in the revBrowserOpen function reference.
+
+OS:
+mac, windows
+
+Platforms:
+desktop

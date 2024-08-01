@@ -1,0 +1,25 @@
+tab
+(constant)
+Equivalent to the tab character (ASCII 9, Control-I).
+
+Syntax:
+tab
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+write field nextField & tab to file exportFile
+----
+
+Description:
+Use the tab constant as an easier-to-read substitute for numToChar(9).
+
+The tab constant is needed because you can't type the character it represents in a script.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

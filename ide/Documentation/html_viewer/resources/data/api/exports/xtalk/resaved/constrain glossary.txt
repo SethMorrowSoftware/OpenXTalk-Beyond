@@ -1,0 +1,18 @@
+constrain
+(glossary)
+
+Syntax:
+Synonyms:
+constrain, constraint, constrained, constraining
+
+Params:
+
+Examples:
+Description:
+To limit an action.
+
+For example, holding down the Shift key while drawing a rectangle constrains its height to be the same as its width.
+
+Values:
+
+OS:

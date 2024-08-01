@@ -1,0 +1,22 @@
+UnitTestSkipReason
+(statement)
+Record a skipped test with a reason for skipping
+
+Syntax:
+skip test because {Reason}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+skip test because "not implemented"
+----
+
+Description:
+Record that a test was skipped, including a reason for skipping the test.  The Reason is a short message that describes why the test has to be skipped.
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+FontOperationTextLayoutBounds
+(operator)
+Measure text when drawn with a font.
+
+Syntax:
+the [ layout ] bounds of text {mText} with {mFont}
+----
+
+Synonyms:
+
+Params:
+mText ( ): An expression which evaluates to a string.
+mFont ( ): An expression which evaluates to a font.
+
+Examples:
+// Set up tFont as size 18 Arial
+variable tFont as Font
+put font "Arial" at size 18 into tFont
+
+// Measure text with tFont
+variable tBounds as Rectangle
+put the bounds of text "Sample text" with tFont into tBounds
+----
+
+Description:
+The layout bounds of the text, constructed from the ascent and descent values of the font, and the width of the text string.
+
+*Note:* The layout bounds is used to position blocks of text relative to each other, so the text may overlap these bounds.
+
+Values:
+The bounding box of mText when drawn at point 0,0 with font mFont. Returns the bounds as a rectangle. 
+
+OS:

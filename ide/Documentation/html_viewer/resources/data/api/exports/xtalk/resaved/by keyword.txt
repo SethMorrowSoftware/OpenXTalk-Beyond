@@ -1,0 +1,29 @@
+by
+(keyword)
+Used with the divide and multiply command|commands to specify a number; used with the rotate command to specify how far to rotate; used with the sort and sort container command|commands to specify the sort key; used with the combine and split command|commands to specify the delimiter|delimiters for transforming a variable between an array and a string.
+
+Syntax:
+by
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+divide myVariable by 2
+----
+rotate image "Calliope" by -45
+----
+sort lines of field "Data" by item 2 of each
+----
+
+Description:
+Use the by keyword to divide or multiply a container by a number or to specify how to sort.
+
+When used with the combine or split command, the by keyword is a synonym for the using keyword.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

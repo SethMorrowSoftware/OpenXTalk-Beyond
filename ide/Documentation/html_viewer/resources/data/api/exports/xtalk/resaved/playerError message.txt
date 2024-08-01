@@ -1,0 +1,27 @@
+playerError
+(message)
+Sent when the content stops playing to due to an error.
+
+Syntax:
+playerError
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on playerError
+    answer "Stopped playing due to an error." with "Okay"
+end playerError
+----
+
+Description:
+Handle the playerError message when the content finishes playing as a result of an error.
+
+Use the mobileControlGet function to request more information about the player properties.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,31 @@
+TheTouchLocation
+(expression)
+The location of the current touch
+
+Syntax:
+the touch position
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+   variable tPosition as Point
+   put the touch position into tPosition
+
+   variable tRect as Rectangle
+   put my bounds into tRect
+
+   if tPosition is within tRect then
+      // touch position is within the widget bounds
+   end if
+----
+
+Description:
+The location of the current touch
+
+Values:
+The position of the current touch relative to the widget 
+
+OS:

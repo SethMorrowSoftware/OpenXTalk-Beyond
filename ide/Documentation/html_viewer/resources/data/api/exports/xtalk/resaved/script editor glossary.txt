@@ -1,0 +1,16 @@
+script editor
+(glossary)
+
+Syntax:
+Synonyms:
+script editor, script window, script palette
+
+Params:
+
+Examples:
+Description:
+The window in which you edit script|scripts. You can open the script editor by selecting the object(glossary) and clicking on the Script button in the OpenXTalk Menubar or choosing Development ? Object Script from the menubar, by using the contextual-menu shortcut, or by using the edit command.
+
+Values:
+
+OS:

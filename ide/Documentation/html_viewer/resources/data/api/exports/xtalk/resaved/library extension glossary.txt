@@ -1,0 +1,16 @@
+library extension
+(glossary)
+
+Syntax:
+Synonyms:
+extension builder library, lcb library
+
+Params:
+
+Examples:
+Description:
+A library extension is an extension to the OpenXTalk environment written in the OpenXTalk Builder language. When a library is loaded it has its public handlers added to the bottom of the message path. These public handlers can be called in OpenXTalk in exactly the same way as script handlers.
+
+Values:
+
+OS:

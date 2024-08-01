@@ -1,0 +1,20 @@
+showNavIcons
+(property)
+Whether to show the nav icons or not
+
+Syntax:
+set the showNavIcons of {widget} to { true | false }
+get the showNavIcons of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Whether to show the nav icons or not
+
+Values:
+
+OS:

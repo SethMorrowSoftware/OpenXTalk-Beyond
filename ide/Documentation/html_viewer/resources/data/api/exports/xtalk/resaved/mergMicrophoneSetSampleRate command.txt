@@ -1,0 +1,21 @@
+mergMicrophoneSetSampleRate
+(command)
+Set the sample rate measure in hertz (number of samples to take per second - 44100 is CD quality)
+
+Syntax:
+mergMicrophoneSetSampleRate {sampleRate}
+----
+
+Synonyms:
+
+Params:
+sampleRate ( ): 
+
+Examples:
+Description:
+ Setting the sample rate only has effect the next time recording is started.
+
+Values:
+
+OS:
+ios,mac

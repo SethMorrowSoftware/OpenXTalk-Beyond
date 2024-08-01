@@ -1,0 +1,39 @@
+offset
+(function)
+return|Returns the number of characters between the first character of a value and an occurrence of a specified string.
+
+Syntax:
+offset({charsToFind}, {stringToSearch} [, {charsToSkip}])
+----
+
+Synonyms:
+
+Params:
+•	charsToFind (string ): 
+•	stringToSearch (string ): 
+•	charsToSkip ( ): A non-negative integer. If you don't specify how many charsToSkip, the offset function does not skip any items and starts at the beginning of the stringToSearch.
+	
+Examples:
+offset("c","abcde") -- returns 3
+----
+offset("b","abacadabra",2) -- returns 6
+----
+offset("bark","embarking") -- returns 3
+----
+
+Description:
+Use the offset function to find where a string occurs in another string.
+
+The value returned by the offset function is the number of the character where charsToFind appears in stringToSearch. If the charsToFind is not in stringToSearch, the offset function return|returns zero.
+
+If the charsToFind contains more than one character, and the entire charsToFind appears in the stringToSearch, the offset function return|returns the character number where the charsToFind starts.
+
+If you specify how many charsToSkip, the offset function skips the specified number of characters in the stringToSearch. The value return|returned is relative to this starting point instead of the beginning of the stringToSearch.
+
+*Note:* The offset is affected by the caseSensitive property. By default, this property is set to false, meaning uppercase letters and their lowercase equivalents are treated as the same. For example,     offset("A","abcABC")  returns 1 by default, however after setting the caseSensitive to  true, it returns 4 instead.
+
+Values:
+The offset function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

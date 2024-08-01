@@ -1,0 +1,31 @@
+closeCard
+(message)
+Sent to the current card when the user goes to another card.
+
+Syntax:
+closeCard
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on closeCard -- record date and time the card was last viewed
+  -- in a custom property of the card
+  set the lastAccessDate of the target to the seconds
+  pass closeCard
+end closeCard
+----
+
+Description:
+Handle the closeCard message if you want to perform cleanup or do other tasks when the user leaves a card.
+
+A card is closed when the user either goes to another card in the same stack, or closes the stack.
+
+The actual navigation is not triggered by the closeCard message, so trap|trapping the message and not allowing it to pass does not prevent the card from closing.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

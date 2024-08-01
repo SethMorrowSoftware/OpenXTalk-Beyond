@@ -1,0 +1,26 @@
+write to driver
+(command)
+Sends data to a peripheral device|device that has been opened with the open driver command.
+
+Syntax:
+write {value} to driver {deviceName}
+----
+
+Synonyms:
+
+Params:
+value (string ): 
+deviceName ( ): The name of a device driver that's installed on the system and that you have previously opened with the open driver command.
+
+Examples:
+write "test" & return to driver "/dev/cu.modem"
+----
+
+Description:
+Use the write to driver command to control a peripheral device or send data through it.
+
+Values:
+The device to write to must be opened first with the open driver command, and the mode the device was opened in must be either write or update. If the device is not open or is open read-only, the result function is set to "File is not open for write.". 
+
+OS:
+mac,windows,linux

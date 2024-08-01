@@ -1,0 +1,16 @@
+root node
+(glossary)
+
+Syntax:
+Synonyms:
+root node
+
+Params:
+
+Examples:
+Description:
+The topmost node in an XML tree. Each XML tree has one and only one root node.
+
+Values:
+
+OS:

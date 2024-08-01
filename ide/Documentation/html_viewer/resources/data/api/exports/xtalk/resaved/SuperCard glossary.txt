@@ -1,0 +1,16 @@
+SuperCard
+(glossary)
+
+Syntax:
+Synonyms:
+supertalk, st, sc, supercard
+
+Params:
+
+Examples:
+Description:
+A graphical xTalk authoring environment from Solutions Etcetera (formerly published by Incwell Ltd.). It was the first third party xTalk IDE released after HyperCard, and included additional features such as full color support. Its scripting language is called SuperTalk. Some version of SuperCards xTalk engine can run on macOS System 7 through 10.14 (32bit-only as of Sept. 2022). 
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+column visibility
+(property)
+Allows you to set the visible property for all columns at once.
+
+Syntax:
+put the dgProp["column visibility"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Allows you to set the visible property for all columns at once. Line delimited list of boolean values.
+
+Values:
+
+OS:

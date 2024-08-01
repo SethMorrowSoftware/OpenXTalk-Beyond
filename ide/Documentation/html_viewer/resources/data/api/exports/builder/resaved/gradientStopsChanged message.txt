@@ -1,0 +1,25 @@
+gradientStopsChanged
+(message)
+Sent when the gradientStops property of the widget changes
+
+Syntax:
+gradientStopsChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+    on gradientStopsChanged
+        set the fillGradient["ramp"] of graphic 1 to \
+           the gradientStops of the target
+    end gradientStopsChanged
+----
+
+Description:
+Handle the gradientStopsChanged message to perform an operation when  the gradientStops property of a gradient ramp editor widget changes.
+
+Values:
+
+OS:

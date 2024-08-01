@@ -1,0 +1,20 @@
+SortListAscendingBinary
+(statement)
+Sorts Target in ascending binary order.
+
+Syntax:
+sort {Target} in ascending byte order
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list of binary data.
+
+Examples:
+Description:
+Binary sort is performed by comparing data elements on a byte by byte basis. *Note:* It is an error if Target contains any elements of non-data type.
+
+Values:
+
+OS:

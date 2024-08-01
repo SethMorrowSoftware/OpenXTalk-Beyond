@@ -1,0 +1,20 @@
+showFrameBorder
+(property)
+Whether the icon picker has a border or not
+
+Syntax:
+set the showFrameBorder of {widget} to {true | false}
+get the showFrameBorder of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Whether the icon picker has a border or not
+
+Values:
+
+OS:

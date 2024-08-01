@@ -1,0 +1,32 @@
+set
+(command)
+Assigns a value to a property.
+
+Syntax:
+set [the] {property} [of {object}] to {value}
+----
+
+Synonyms:
+
+Params:
+•	property ( ): A built-in property name or custom property name.
+•	object ( ): Any object reference. If you don't specify an object, the property must be a global property.
+•	value (string ): 
+	
+Examples:
+set the textFont of button "next" to "Arial"
+----
+set the cursor to watch
+----
+set the backgroundcolor of graphic "background" to green
+----
+
+Description:
+Use the set command to change the setting of a property or  custom property.
+
+If you specify a property that doesn't exist, OpenXTalk creates a custom property with that name for the object(glossary).
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

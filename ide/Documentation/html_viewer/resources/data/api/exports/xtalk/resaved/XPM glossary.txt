@@ -1,0 +1,16 @@
+XPM
+(glossary)
+
+Syntax:
+Synonyms:
+xpm, .xpm
+
+Params:
+
+Examples:
+Description:
+X Pix Map. A color icon format used on some Unix|Unix systems.
+
+Values:
+
+OS:

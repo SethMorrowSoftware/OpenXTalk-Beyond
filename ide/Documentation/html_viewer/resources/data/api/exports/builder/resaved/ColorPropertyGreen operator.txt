@@ -1,0 +1,31 @@
+ColorPropertyGreen
+(operator)
+The green component of a color value.
+
+Syntax:
+the green of {mColor}
+----
+
+Synonyms:
+
+Params:
+mColor ( ): An expression which evaluates to a color.
+
+Examples:
+variable tColor
+put color [0.75, 1.0, 0.5] into tColor
+
+// Store the old green value
+variable tGreen
+put the green of tColor into tGreen
+
+// Remove any green component from the color
+set the green of tColor to 0
+----
+
+Description:
+The green component of mColor  *Note:* The component value denotes the intensity of that component, expressed as a real number between 0 and 1.
+
+Values:
+
+OS:

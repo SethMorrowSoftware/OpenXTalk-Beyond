@@ -1,0 +1,44 @@
+SendToScriptObject
+(statement)
+Send a message to a script object.
+
+Syntax:
+send ( function | command ) {Message} [ to {Object} ] [ with {Arguments} ]
+----
+
+Synonyms:
+
+Params:
+Message ( ): The message to dispatch.
+Object ( ): The script object to dispatch the message to.
+Arguments ( ): A list of arguments for the message.
+
+Examples:
+public handler OnMouseUp() returns nothing
+	// Send a message to the script so it can handle it.
+	send "buttonClicked" to my script object
+end handler
+----
+// myScriptFunction takes three arguments and performs some kind of calculation
+
+variable tObject as ScriptObject
+resolve script object "this stack"
+put the result into tObject
+send function "myScriptFunction" to tObject with [ 2, 3, 4 ]
+
+// the result contains the return value of 'myScriptFunction'
+----
+
+Description:
+Sends a message to the given script object and waits for it to finish so that it can return a value.
+
+If no target object is specified, the message is sent to the widget's script object (if used in a root widget module), or to the default stack otherwise.
+
+After a send, 'the message was handled' predicate can be used to determine if the message passed through the message path untouched.
+
+*Note:* An error is thrown if this syntax is used in a context where access to script objects is not allowed.
+
+Values:
+The result of the message dispatch 
+
+OS:

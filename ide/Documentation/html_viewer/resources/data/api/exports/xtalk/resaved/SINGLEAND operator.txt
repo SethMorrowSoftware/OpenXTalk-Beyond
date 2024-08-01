@@ -1,0 +1,31 @@
+&
+(operator)
+concatenate|Concatenates two string|strings.
+
+Syntax:
+{string1} & {string2}
+----
+
+Synonyms:
+
+Params:
+string1 (string ): A  of  ( with  ), or  that evaluate  to . 
+string2 (string ): A  of  ( with  ), or  that evaluate  to . 
+
+Examples:
+put "foo" & "bar" -- evaluates to "foobar"
+----
+local myVar, otherVar
+put myVar & quote & "hello" & quote into otherVar
+----
+local theData
+get offset(return & space, theData)
+----
+
+Description:
+Use the & operator to create a single string out of two or more parts. That is, string2 is appended immediately after string1  with no intervening space. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

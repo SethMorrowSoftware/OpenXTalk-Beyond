@@ -1,0 +1,20 @@
+endFrame
+(property)
+The endFrame property is not implemented and is  reserved word|reserved.
+
+Syntax:
+endFrame
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+reserved word|Reserved for internal use.
+
+Values:
+
+OS:
+ios,android

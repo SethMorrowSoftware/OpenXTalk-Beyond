@@ -1,0 +1,25 @@
+inverse
+(keyword)
+Used with the visual effect command, included in OpenXTalk for compatibility with imported HyperCard stacks.
+
+Syntax:
+inverse
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+visual effect dissolve to inverse
+----
+
+Description:
+In HyperCard, the inverse keyword indicates that the color inverse of the current card is shown at the end of the visual effect.
+
+In OpenXTalk, the inverse keyword is a synonym of the white keyword. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

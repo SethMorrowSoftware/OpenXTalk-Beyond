@@ -1,0 +1,33 @@
+WidgetWidthProperty
+(operator)
+Manipulates the height property of a child widget
+
+Syntax:
+the width of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+end handler
+
+public handler OnGeometryChanged() returns nothing
+    -- ensure child widget remains half the width of the parent
+    set the width of mChild to my width / 2
+end handler
+----
+
+Description:
+Use the width property to set the width of a child widget.
+
+Values:
+
+OS:

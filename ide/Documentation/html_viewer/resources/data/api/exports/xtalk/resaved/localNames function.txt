@@ -1,0 +1,30 @@
+localNames
+(function)
+return|Returns a list of all local variable|local variables.
+
+Syntax:
+the localNames
+----
+localNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the localNames
+----
+repeat with x = 1 to the number of items of line 2 of the localNames
+----
+
+Description:
+Use the localNames function to determine which local variable|local variables are available to the current handler, or to make sure a local variable name has not already been used before declare|declaring it.
+
+Local variables are created either implicitly, by putting a value into them, or explicitly with the local command. They can be deleted with the delete variable command.
+
+Values:
+The localNames function return|returns a value consisting of three lines:  1. Parameters passed to the current handler 2. Local variables created in the current handler 3. Local variables created in the current script but outside all handlers.  
+
+OS:
+mac,windows,linux,ios,android

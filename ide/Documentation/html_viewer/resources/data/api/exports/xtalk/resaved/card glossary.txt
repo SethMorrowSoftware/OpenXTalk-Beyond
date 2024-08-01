@@ -1,0 +1,18 @@
+card
+(glossary)
+
+Syntax:
+Synonyms:
+card
+
+Params:
+
+Examples:
+Description:
+An object(glossary) that can contain any combination of button|buttons, field|fields, group|groups, scrollbar|scrollbars, image|images, graphic|graphics, player|players, and EPS|EPS objects.
+
+One card of a stack can appear at a time.
+
+Values:
+
+OS:

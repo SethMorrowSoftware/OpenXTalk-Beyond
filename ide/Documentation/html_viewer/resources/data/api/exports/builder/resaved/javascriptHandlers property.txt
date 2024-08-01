@@ -1,0 +1,37 @@
+javascriptHandlers
+(property)
+A list of LiveCode handlers that are made available to JavaScript calls within the browser.
+
+Syntax:
+set the javascriptHandlers of {widget} to {pHanderList}
+get the javascriptHandlers of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Define a handler to respond to javascript calls.
+on myJSHandler pMessage, pValue
+	-- Do appropriate actions here.
+	-- ...
+end myJSHandler
+
+-- Set up the browser javascript handler list
+-- This code goes in a suitable setup handler
+set the javascriptHandlers to "myJSHandler" & return & "myOtherJSHandler"
+
+// Calling the handler from JavaScript within the browser
+liveCode.myJSHandler("myMessage", 12345);
+----
+
+Description:
+The javascriptHandlers is a list of LiveCode handlers that are made available to JavaScript calls within the browser. The handlers will appear as methods attached to a global `liveCode` object. You can call these methods as you would any other JavaScript function and pass whatever parameters you require.
+
+*Warning:* Setting the javascriptHandlers property gives JavaScript running within the Web browser permission to execute parts of your application through the handlers you choose to expose. If using this feature, make sure that you have complete control over the webpages which you load into the browser widget, and consider using HTTPS to ensure that third-parties cannot inject malicious code into them.
+
+Values:
+A return-separated list of handler names. 
+
+OS:

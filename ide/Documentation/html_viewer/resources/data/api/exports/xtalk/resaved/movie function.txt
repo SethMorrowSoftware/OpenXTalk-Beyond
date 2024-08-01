@@ -1,0 +1,31 @@
+movie
+(function)
+return|Returns the name of the currently playing video clip.
+
+Syntax:
+the movie
+----
+movie()
+----
+
+Synonyms:
+movies
+
+Params:
+
+Examples:
+the movie
+----
+repeat until myMovie is not among the lines of the movies
+----
+
+Description:
+Use the movie function to synchronize other actions with sounds.
+
+If no video clip is playing, the movie function return|returns done. 
+
+Values:
+The movie function return|returns a list of video clip names, one per line. 
+
+OS:
+mac,windows,linux

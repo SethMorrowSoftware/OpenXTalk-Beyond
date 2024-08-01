@@ -1,0 +1,34 @@
+showFocusBorder
+(property)
+Displays a border around the active control.
+
+Syntax:
+set the showFocusBorder of {control} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the showFocusBorder of field "Answer" to false
+----
+set the showFocusBorder of myControl to (the platform is not "MacOS")
+----
+
+Description:
+Use the showFocusBorder property to turn off the standard (for Unix|Unix systems) focus border around the active control, or to show which field(keyword) has the insertion point in a dialog box.
+
+The appearance of the focus border is set by the focusColor and focusPattern properties.
+
+If the lookAndFeel property is set to "Macintosh" or "Appearance Manager", the setting of the showFocusBorder property affects only field(object)|fields, image|images, and EPS|EPS objects. (To comply with user interface guidelines, this property should be set to true for fields in modal and modeless dialog box|dialog boxes.)  If the lookAndFeel is set to "Motif", the showFocusBorder property affects all control|controls.
+
+If the lookAndFeel is set to "Windows 95", the showFocusBorder property has no effect.
+
+The focusBorder of card|cards and stacks has no effect.
+
+Values:
+The showFocusBorder of an object(glossary) is true or false. By default, the showFocusBorder property of newly created object|objects is set to true. 
+
+OS:
+mac,linux,ios,android

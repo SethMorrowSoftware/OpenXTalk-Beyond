@@ -1,0 +1,21 @@
+mergScreenGetBrightness
+(function)
+Get the brightness of the screen
+
+Syntax:
+mergScreenGetBrightness()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the brightness of the screen
+
+Values:
+A number between 0 and 100 where 0 is black 
+
+OS:
+ios

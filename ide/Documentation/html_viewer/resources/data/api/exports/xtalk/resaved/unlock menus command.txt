@@ -1,0 +1,29 @@
+unlock menus
+(command)
+Sets the lockMenus property to false, so the menu bar is updated when the menus are changed.
+
+Syntax:
+unlock menus
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+unlock menus
+----
+if the lockScreen is false then unlock menus
+----
+
+Description:
+Use the unlock menus command to show changes in the menu bar to the user.
+
+The unlock menus command sets the lockMenus property to false.
+
+When all pending handlers are finished executing, the lockMenus property is set to false, undo|undoing the lock menus command|command's action. Any changes made to the menus become visible to the user.
+
+Values:
+
+OS:
+mac,windows,linux

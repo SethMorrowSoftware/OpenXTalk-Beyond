@@ -1,0 +1,29 @@
+second
+(keyword)
+Designates the second member of a set.
+
+Syntax:
+second
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+go to the second card of stack "Games Central"
+----
+put "b" into second character of theLetters
+----
+
+Description:
+Use the second keyword in an object reference or chunk expression.
+
+The second keyword can be used to specify any object whose number property is 2. It can also be used to designate the second chunk in a chunk expression.
+
+The word "the" is optional when using the second keyword
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

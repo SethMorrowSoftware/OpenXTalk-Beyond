@@ -1,0 +1,20 @@
+colorPalette
+(keyword)
+reserved word|Reserved for internal use.
+
+Syntax:
+colorPalette
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color palette|colorPalette keyword is reserved word|reserved for internal use only.
+
+Values:
+
+OS:
+mac,windows,linux

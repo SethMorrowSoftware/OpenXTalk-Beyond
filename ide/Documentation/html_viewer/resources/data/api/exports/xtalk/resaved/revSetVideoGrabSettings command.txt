@@ -1,0 +1,27 @@
+revSetVideoGrabSettings
+(command)
+Restores video settings saved by the revVideoGrabSettings function.
+
+Syntax:
+revSetVideoGrabSettings {variableName}
+----
+
+Synonyms:
+
+Params:
+variableName ( ): The name of a OpenXTalk variable that contains the settings string. The settings string is a block of binary data returned by the revVideoGrabSettings function.
+
+Examples:
+local tSettings
+put the cSavedSettings of me into tSettings
+revSetVideoGrabSettings "tSettings"
+----
+
+Description:
+The revSetVideoGrabSettings is ignored and and has no effect.
+
+*Important:*  The revSetVideoGrabSettings command is part of the   Video library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the  "Video Grabber"   library checkbox is checked.
+
+Values:
+
+OS:

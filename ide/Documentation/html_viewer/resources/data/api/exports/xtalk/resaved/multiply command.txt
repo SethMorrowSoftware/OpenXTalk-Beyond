@@ -1,0 +1,43 @@
+multiply
+(command)
+Multiplies a number by a container and places the resulting value in the container.
+
+Syntax:
+multiply [{chunk} of] {container} by {number}
+----
+multiply {arrayContainer} by {{number} | {array}}
+----
+
+Synonyms:
+
+Params:
+•	chunk ( ): A chunk expression specifying a portion of the container.
+•	container ( ): A field, button, or variable, or the message box.
+•	number ( ): Any expression that evaluates to a number.
+•	arrayContainer (array ): An array variable each of whose elements is a number.
+•	array (array ): 
+	
+Examples:
+multiply field 17 by it
+----
+multiply yearlyTotals by yearlyPercentages
+----
+multiply line thisLine of myVariable by theFactor
+----
+
+Description:
+Use the multiply command to multiply a container or a portion of a container by a number, or to multiply two array|arrays containing numbers.
+
+The contents of the container (or the chunk of the container) must be a number or an expression that evaluate|evaluates to a number.
+
+If an arrayContainer is multiplied by a number, each element is multiplied by the number. If an arrayContainer is multiplied by an array, both array|arrays must have the same number of element(glossary)|elements and the same dimension, and each element(keyword) in the arrayContainer is multiplied by the corresponding element(keyword) of the array.
+
+If the container or an element(keyword) of the arrayContainer is empty, the multiply command treats its contents as zero.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+If container is a field or button, the format of the result is determined by the numberFormat property. 
+
+OS:
+mac,windows,linux,ios,android

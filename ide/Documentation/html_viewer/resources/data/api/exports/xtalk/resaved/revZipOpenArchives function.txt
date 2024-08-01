@@ -1,0 +1,28 @@
+revZipOpenArchives
+(function)
+Lists the currently open zip archives.
+
+Syntax:
+revZipOpenArchives()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put revZipOpenArchives() into tArchives
+----
+if tArchive is among the lines of revZipOpenArchives() then 
+  beep
+end if
+----
+
+Description:
+Use the revZipOpenArchives function if you need to know the paths of the archives that have been loaded using revZipOpenArchive.
+
+Values:
+The revZipOpenArchives function returns a list of absolute file paths, one per line, or empty if no archives are open. 
+
+OS:
+mac,windows,linux,ios,android

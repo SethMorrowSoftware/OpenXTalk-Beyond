@@ -1,0 +1,31 @@
+ColorPropertyBlue
+(operator)
+The blue component of a color value.
+
+Syntax:
+the blue of {mColor}
+----
+
+Synonyms:
+
+Params:
+mColor ( ): An expression which evaluates to a color.
+
+Examples:
+variable tColor
+put color [0.75, 1.0, 0.5] into tColor
+
+// Store the old blue value
+variable tBlue
+put the blue of tColor into tBlue
+
+// Set the blue component of the color to full intensity
+set the blue of tColor to 1
+----
+
+Description:
+The blue component of mColor  *Note:* The component value denotes the intensity of that component, expressed as a real number between 0 and 1.
+
+Values:
+
+OS:

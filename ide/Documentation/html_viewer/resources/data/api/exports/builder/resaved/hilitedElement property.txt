@@ -1,0 +1,22 @@
+hilitedElement
+(property)
+Select the row corresponding to pPath
+
+Syntax:
+get the hilitedElement of {widget}
+----
+set the hilitedElement of {widget} to {pPath}
+----
+
+Synonyms:
+
+Params:
+pPath ( ): A comma delimited list of array keys.
+
+Examples:
+Description:
+pPath is a list of the keys which determine the row to be selected. For example, if tArray is the arrayData of the widget, to select a row corresponding to tArray["key1"]["subkey2"]["subsubkey5"], simply execute  ``` set the hilitedElement of widget "Array Viewer" to "key1,subkey2,subsubkey5" ```  Setting to an invalid path or to `empty` will unselect the currently selected row.
+
+Values:
+
+OS:

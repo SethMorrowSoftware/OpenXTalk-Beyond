@@ -1,0 +1,30 @@
+$_POST
+(keyword)
+$_POST is an array variable, formed from reading stdin and translating the url-form-encoded or multi-part-encoded data.
+
+Syntax:
+$_POST
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put $_POST into tPOSTArray
+----
+put $_POST["name"] into tName
+----
+
+Description:
+Use the $_POST keyword to access posted form data. It is an array formed from reading stdin and translating the data.
+
+$_POST is only available when running in CGI mode (Server).
+
+The data is converted to the native character set from the character set defined in the outputTextEncoding. The $_POST keyword supports multi dimensional arrays.
+
+Values:
+If the data is not url-form-encoded or multi-part-encoded then the result is empty. 
+
+OS:
+mac,windows,linux

@@ -1,0 +1,31 @@
+FontOperationTextImageBoundsOnCanvas
+(operator)
+Measure text precisely when drawn to a canvas.
+
+Syntax:
+the image bounds of text {mText} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mText ( ): An expression which evaluates to a string.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Set the canvas font
+set the font of this canvas to font "Arial" at size 18
+
+variable tBounds as Rectangle
+put the image bounds of text "Sample text" on this canvas into tBounds
+----
+
+Description:
+The exact bounds of the text, which will fully enclose each character.
+
+*Note:* This can be more time-consuming to compute than the layout bounds.
+
+Values:
+The bounding box of mText when drawn at point 0,0 with the current font of mCanvas. Returns the bounds as a rectangle. 
+
+OS:

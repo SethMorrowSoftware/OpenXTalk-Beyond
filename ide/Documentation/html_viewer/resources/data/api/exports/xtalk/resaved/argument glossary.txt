@@ -1,0 +1,16 @@
+argument
+(glossary)
+
+Syntax:
+Synonyms:
+argument
+
+Params:
+
+Examples:
+Description:
+A value that is pass|passed to an operator, function or command. 
+
+Values:
+
+OS:

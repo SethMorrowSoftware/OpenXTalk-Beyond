@@ -1,0 +1,30 @@
+lowOctave
+(property)
+The starting, left most octave for the piano's visible note range
+
+Syntax:
+get the lowOctave of {widget}
+----
+set the lowOctave of {widget} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+  -- set the left most octave to start at MIDI Note Number 0 (C-1)
+  set the lowOctave of widget "Piano Widget" to -1
+  -- set the right most octave to start at MIDI Note Number 36 (C2)
+  set the highOctave of widget "Piano Widget" to 2
+  get the octaveCount of of widget "Piano Widget" -- octaveCount containss 4
+end mouseUp
+----
+
+Description:
+The lowOctave property is used in conjunction with highOctave to specify the visible note range of the piano's keyboard by specifying the starting octave and ending octave between -1 (which starts at MIDI note 0 C) to 9 (Which starts at MIDI number 120 C and is actually 7/12th of an octave ending at the MIDI Note 127 G). If lowOctave is greater than highOctave or highOctave is less than lowOctave then the opposite property will automatically be ajusted to match, resulting in a single octave range.
+
+Values:
+
+OS:

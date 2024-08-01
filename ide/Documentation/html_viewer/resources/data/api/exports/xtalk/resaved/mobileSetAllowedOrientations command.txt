@@ -1,0 +1,35 @@
+mobileSetAllowedOrientations
+(command)
+Set the list of allowed orientations.
+
+Syntax:
+mobileSetAllowedOrientations {orientations}
+----
+
+Synonyms:
+iphonesetallowedorientations
+
+Params:
+orientations (enum ): A comma delimited list consisting of at least one of: - "portrait" - "portrait upside down" - "landscape left" - "landscape right"
+
+Examples:
+mobileSetAllowedOrientations "portrait,portrait upside down"
+----
+mobileSetAllowedOrientations "landscape left"
+----
+
+Description:
+Use the mobileSetAllowedOrientations command to set the currently allowed orientations.
+
+Use the mobileSetAllowedOrientations command to configure which orientations the application supports.
+
+The setting take affect the next time an orientation change is applied. The interface orientation only changes if the new orientation is among the configured list.
+
+*Note:* Due to the limitation of the Android operating system,  landscape left and portrait upside-down are only supported on Android  2.3 and later.
+
+*Note:* The iPhone X model doesn?t currently support upside-down portrait   mode. Other Apple iPad and iPhone devices continue to support both  standard and upside-down portait and landscape orientations.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,45 @@
+mobileStorePurchaseError
+(function)
+Get more detailed information about errors in the purchase request.
+
+Syntax:
+mobileStorePurchaseError (purchaseID)
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on purchaseStateUpdate pPurchaseID, pProductID, pState
+ switch pState
+  case "paymentReceived" 
+   ...   
+  case "error"
+   answer "Error occurred during purchase handling:" \
+         && mobilePurchaseError(pPurchaseID)
+   mobileStoreDisablePurchaseUpdates
+
+  case "invalidSKU"
+   ...
+  case "alreadyEntitled"
+   ...
+  case "restored"
+   ...
+  case "cancelled"
+   ...    
+ end switch
+end purchaseStateUpdate
+----
+
+Description:
+Use the mobileStorePurchaseError function to get more detailed information about errors in the purchase request.
+
+The function mobileStorePurchaseError is used to get more detailed information about errors in the purchase request.
+
+*Note:*  This function should be called in purchaseStateUpdate  message when pState = "error".
+
+Values:
+
+OS:
+ios,android

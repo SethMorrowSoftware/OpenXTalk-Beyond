@@ -1,0 +1,19 @@
+OnMouseLeave
+(message)
+Sent when the mouse pointer leaves the widget's rect.
+
+Syntax:
+OnMouseLeave
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer leaves the widget's rect.
+
+Values:
+
+OS:

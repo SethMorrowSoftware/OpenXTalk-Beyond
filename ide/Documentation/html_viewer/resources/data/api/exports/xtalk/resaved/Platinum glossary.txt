@@ -1,0 +1,16 @@
+Platinum
+(glossary)
+
+Syntax:
+Synonyms:
+platinum, platinum appearance
+
+Params:
+
+Examples:
+Description:
+The standard appearance for controls, windows, and menus on Mac OS|Mac OS systems. Platinum is the default, Apple-supplied user-interface theme for Mac OS.
+
+Values:
+
+OS:

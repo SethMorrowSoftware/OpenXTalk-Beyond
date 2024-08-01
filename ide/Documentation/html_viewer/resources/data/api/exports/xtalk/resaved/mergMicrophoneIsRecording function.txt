@@ -1,0 +1,21 @@
+mergMicrophoneIsRecording
+(function)
+This handler returns true if recording is currently in progress and false if it is not
+
+Syntax:
+mergMicrophoneIsRecording()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This handler returns true if recording is currently in progress and false if it is not
+
+Values:
+boolean 
+
+OS:
+ios,mac

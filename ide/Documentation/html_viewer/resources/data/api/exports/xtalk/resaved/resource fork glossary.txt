@@ -1,0 +1,16 @@
+resource fork
+(glossary)
+
+Syntax:
+Synonyms:
+resource fork
+
+Params:
+
+Examples:
+Description:
+The part of a Mac OS file that holds structured data in the form of resource|resources (as opposed to the data fork).
+
+Values:
+
+OS:

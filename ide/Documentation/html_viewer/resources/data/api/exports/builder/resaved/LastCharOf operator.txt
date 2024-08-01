@@ -1,0 +1,29 @@
+LastCharOf
+(operator)
+Designates the last char in Target.
+
+Syntax:
+the last char of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+variable tVar as String
+put "char" into tVar
+
+variable tLast as String
+put the last char of tVar into tLast -- tLast contains "r"
+----
+
+Description:
+Either locates the last char for use as the target container of another operation, or evaluates the last char as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

@@ -1,0 +1,29 @@
+TransformOperationRotate
+(statement)
+Apply a rotation to a transform.
+
+Syntax:
+rotate {mTransform} by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mRotation ( ): An expression which evaluates to a number of degrees.
+
+Examples:
+// Create a new transform
+variable tTransform
+put the identity transform into tTransform
+
+// Rotate the transform by 90 degrees
+rotate tTransform by 90
+----
+
+Description:
+Apply a rotation by mRotation degrees to mTransform. This is equivalent to concatenating mTransform with a new rotation transform.
+
+Values:
+
+OS:

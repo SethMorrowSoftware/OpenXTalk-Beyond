@@ -1,0 +1,29 @@
+externalFunctions
+(property)
+Lists the available external|external functions for a stack.
+
+Syntax:
+get the externalFunctions of {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the externalFunctions of this stack after functionsList
+----
+if "measures" is among the lines of the externalFunctions \
+  of this stack then get measures(field 1)
+----
+
+Description:
+Use the externalFunctions property to find out whether a particular external|external function is available for use in handler|handlers, or to list all the available external|external functions.
+
+You use an external function in a handler the same way you use one of xTalk's built-in functions.
+
+Values:
+The externalFunctions of a stack reports a list of available external|external functions, one per line. This property is read-only and cannot be set. 
+
+OS:
+windows,linux

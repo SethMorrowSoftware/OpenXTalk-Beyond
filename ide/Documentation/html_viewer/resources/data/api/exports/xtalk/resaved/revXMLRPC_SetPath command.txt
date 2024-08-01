@@ -1,0 +1,27 @@
+revXMLRPC_SetPath
+(command)
+
+Syntax:
+revXMLRPC_SetPath XMLRPCdocumentID, filePath
+
+Summary:
+Sets the path in an XML-RPC document structure.
+
+The number returned by the revXMLRPC_CreateRequest when you created the
+request.
+
+Examples:
+revXMLRPC_SetMethod theRequest,"sample.elizabethanInsult"
+
+If the revXMLRPC_SetPath command encounters an error, the result is set to an error message beginning with "xmlerr" or "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_SetMethod command to set the path of the resource to be called upon execution of an existing XML-RPC document.
+
+Where the of the XML-RPC document tells the server which resource will handle the request, the method name tells that resource which method is being called specifically within that resource.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

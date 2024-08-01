@@ -1,0 +1,26 @@
+TransformMakeTranslation
+(operator)
+Creates a new translation transform.
+
+Syntax:
+transform with translation {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mTranslation ( ): An expression which evaluates to a list of 2 numbers, the x and y offsets of the translation.
+
+Examples:
+// Create translation transform to offset coordinates by 50,100
+variable tTransform
+put transform with translation [50,100] into tTransform
+----
+
+Description:
+Creates a new translation transform.
+
+Values:
+A new translation transform. 
+
+OS:

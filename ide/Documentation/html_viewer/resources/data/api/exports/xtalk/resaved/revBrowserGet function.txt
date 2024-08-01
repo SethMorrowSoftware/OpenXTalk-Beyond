@@ -1,0 +1,33 @@
+revBrowserGet
+(function)
+Retrieves a property from the specified browser object.
+
+Syntax:
+revBrowserGet({instanceId}, {propertyName})
+----
+XBrowser_Get({propertyName} [, {instanceId}])
+----
+
+Synonyms:
+xbrowser_get
+
+Params:
+instanceId ( ): The integer identifier of a browser object.
+propertyName (enum ): The name of the property to retrieve, see below for a full list.
+
+Examples:
+put revBrowserGet(tBrowserId, "rect") into tBrowserRect
+----
+
+Description:
+Use the revBrowserGet function to obtain information about the browser object specified by the instanceId by returning the value of one of the browser properties.
+
+*Note:* The "advanced" callback messages are: browserClick,  browserOver and browserOut. These messages are only sent  when the "messages" property is set to true. Other callback messages  are always sent.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserGet command returns the value of the specified property if it was successful. 
+
+OS:
+mac,windows

@@ -1,0 +1,30 @@
+stacksInUse
+(property)
+Reports the stacks that have been placed in the message path by the start using command.
+
+Syntax:
+get the stacksInUse
+----
+
+Synonyms:
+libraries
+
+Params:
+
+Examples:
+if the short name of this stack is not among the lines \
+   of the stacksInUse then start using this stack
+----
+
+Description:
+Use the stacksInUse property to find out which stack script|scripts can intercept message|messages.
+
+The value reported by the stacksInUse property is a list of the short names of the stacks that have been added to the message path, one stack per line.
+
+Add stacks to the message path with the start using command; remove them with the stop using command.
+
+Values:
+The stacksInUse property reports a list of stack names, one per line. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,42 @@
+shell
+(function)
+Runs a shell command and returns its output.
+
+Syntax:
+the shell of {commandLine}
+----
+shell({commandLine})
+----
+
+Synonyms:
+
+Params:
+commandLine (string ): 
+
+Examples:
+local tMyList
+put shell("ls -l *.txt") into tMyList -- returns a listing of the current dir on Unix
+----
+get shell(field "Command") -- runs the shell command entered into the field labelled "Command"
+----
+get shell("attrib main.rev +R") -- sets the read-only (+R or +r) attribute of file "main.rev" on MSWindows
+----
+get shell("say" && "hello world") -- Will say the phrase on MacOS
+----
+
+Description:
+Use the shell function to execute a command line.
+
+The commandLine must be a valid shell command on the current operating system. Use the shellCommand property to set the shell you want to use. The command is executed in the current defaultFolder.
+
+*Note:* If you use a file path in the shell command on a Windows  system, the file path must be in Windows form, not the Unix-style  file path|file paths that OpenXTalk uses internally.
+
+To prevent a console window from appearing when the shell command is executed, set the hideConsoleWindows property to true.
+
+*Tip:*  If you are having problems with the shell function, try  execute|executing the commandLine at your operating system's  shell prompt. (For example, on an OS X|OS X system, try executing  the commandLine in the Terminal window.) If a commandLine does not  work at the shell prompt, it won't work with the shell function  either, so trying this can be useful when debug|debugging.
+
+Values:
+The shell function's exit code. If the exit code is 0 then empty is returned. The result of the commandLine, including any error message|error messages the commandLine generates. (On Unix|Unix systems, the stdout and stderr are combined to create the return value.) The current handler pauses until the shell function returns its result. If the command was successful but did not return anything, the shell function returns empty.  
+
+OS:
+mac,windows,linux

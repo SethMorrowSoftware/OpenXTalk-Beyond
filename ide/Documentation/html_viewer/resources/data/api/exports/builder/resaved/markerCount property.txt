@@ -1,0 +1,21 @@
+markerCount
+(property)
+The number of markers to display in the spinner
+
+Syntax:
+set the markerCount of {widget} to {markers}
+get the markerCount of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The markerCount is an integer greater than 4. The default value is 8.
+
+Values:
+The number of markers to display around the circle 
+
+OS:

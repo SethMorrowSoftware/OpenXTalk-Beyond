@@ -1,0 +1,33 @@
+paragraphOffset
+(function)
+Returns the number of paragraphs between the beginning of a value and an occurrence of a specified string.
+
+Syntax:
+paragraphOffset({stringToFind}, {stringToSearch} [, {paragraphsToSkip}])
+----
+
+Synonyms:
+
+Params:
+stringToFind (string ): 
+stringToSearch (string ): 
+paragraphsToSkip ( ): The paragraphsToSkip is a non-negative integer. If you don't specify how many paragraphsToSkip, the paragraphOffset function does not skip any paragraphs. 
+
+Examples:
+paragraphOffset("This is the second paragraph. It follows the first paragraph of this piece of text.", tSampleText)
+----
+put tReplacement into paragraph (paragraphOffset(tOriginal,tReceivedData)) of tReceivedData
+----
+
+Description:
+Use the paragraphOffset function to find which paragraph a string occurs in.
+
+The value returned by the paragraphOffset function is the number of the paragraph where the stringToFind first appears in stringToSearch. If the stringToFind is not in stringToSearch, the paragraphOffset function returns zero. If the stringToFind itself contains more than one paragraph, the paragraphOffset function always returns zero, even if the stringToFind appears in the stringToSearch.
+
+If you specify how many paragraphsToSkip, the paragraphOffset function skips the specified number of paragraphs in the stringToSearch. The value returned is relative to this starting point instead of the beginning of the stringToSearch.
+
+Values:
+The paragraphOffset function returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,32 @@
+SortListAscendingText
+(statement)
+Sorts Target in ascending text order.
+
+Syntax:
+sort {Target} in ascending text order
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list of strings.
+
+Examples:
+    variable tTestList as List
+
+	variable tChar
+	repeat for each char tChar in "spoilage"
+		push tChar onto tTestList
+	end repeat
+
+    sort tTestList in ascending text order
+    variable tString as String
+    combine tTestList with "" into tString -- tString is "aegilops"
+----
+
+Description:
+Text sort is performed by comparing string elements on a codepoint by codepoint basis. *Note:* It is an error if Target contains any elements of non-string type.
+
+Values:
+
+OS:

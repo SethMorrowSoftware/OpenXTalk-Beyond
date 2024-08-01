@@ -1,0 +1,29 @@
+revIDEPushDefaultFolder
+(command)
+Stores the current default folder.
+
+Syntax:
+revIDEPushDefaultFolder {pFolder}
+----
+
+Synonyms:
+
+Params:
+pFolder ( ): The new defaultFolder
+
+Examples:
+on myHandler
+   revIDEPushDefaultFolder "/"
+   repeat for each line tLine in the files
+      # Do something to the files
+   end repeat
+   revIDEPopDefaultFolder
+end myHandler
+----
+
+Description:
+Pushes the current defaultFolder onto a list of defaultFolders. If pFolder is specified, then the defaultFolder is set to pFolder. revIDEPopDefaultFolder then pops the list and sets the default folder to the popped value.
+
+Values:
+
+OS:

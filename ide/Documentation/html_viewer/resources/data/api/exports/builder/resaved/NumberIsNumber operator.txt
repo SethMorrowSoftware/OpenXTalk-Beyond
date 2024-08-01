@@ -1,0 +1,22 @@
+NumberIsNumber
+(operator)
+Determines if Left is Right.
+
+Syntax:
+{Left} is {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Identical to the NumberIsEqualToNumber operator.
+
+Values:
+True if Left is equal to Right, and false otherwise. 
+
+OS:

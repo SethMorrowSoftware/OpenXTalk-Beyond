@@ -1,0 +1,30 @@
+StringParsedAsBoolean
+(operator)
+Parses a string as a boolean value
+
+Syntax:
+{Operand} parsed as boolean
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a string.
+
+Examples:
+variable tString as String
+variable tBool as optional Boolean
+put "false" into tString
+put tString parsed as boolean into tBool -- tBool contains false
+----
+variable tBool as optional Boolean
+put "flase" parsed as boolean into tBool -- tBool is nothing
+----
+
+Description:
+Use StringParsedAsBoolean when you want to determine if a string contains "true" or "false"  *Note:* Only the strings "true" and "false" will parse to give a boolean value. Any other input will cause an error to be thrown.
+
+Values:
+true or false 
+
+OS:

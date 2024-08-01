@@ -1,0 +1,33 @@
+revCacheGeometry
+(command)
+Updates Geometry settings.
+
+Syntax:
+revCacheGeometry
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+revCacheGeometry
+----
+if the rect of me is not savedRect then revCacheGeometry
+----
+
+Description:
+Use the revCacheGeometry command to update the Geometry pane's internal settings, after changing the size or position of control|controls that you have used the Geometry pane to specify behavior for.
+
+The revCacheGeometry command rebuilds the Geometry pane|pane's internal settings for the controls on the current card, storing the baseline position that the automatic positioning and scaling uses as a starting point.
+
+The OpenXTalk development environment automatically executes the revCacheGeometry command when a resizeControl or moveControl message is sent. This means that when you move or resize a control in the development environment, its stored Geometry baseline is normally updated automatically.
+
+Normally, you do not need to use the revCacheGeometry command at all, since OpenXTalk automatically updates the geometry settings when a control is moved or resized. However, if you move or resize control|controls manually or in a handler, and the resizeControl or moveControl message is not sent, you may need to use the revCacheGeometry command to update the baseline positions.
+
+To update the settings, use the following statement in a handler or the message box, before changing cards or resizing the window:      revCacheGeometry   *Important:*  The revCacheGeometry command is part of the   Geometry library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Geometry"   library checkbox is checked.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

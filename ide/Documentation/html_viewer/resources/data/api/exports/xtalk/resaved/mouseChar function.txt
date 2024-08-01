@@ -1,0 +1,32 @@
+mouseChar
+(function)
+return|Returns the character the mouse pointer is over.
+
+Syntax:
+the mouseChar
+----
+mouseChar()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the mouseChar
+----
+if the mouseChar is a number then goToFootnote
+----
+
+Description:
+Use the mouseChar function within a handler to determine which character the mouse is hovering over, in order to take some action based on the current character.
+
+The mouseChar function only return|returns characters in a field. If the mouse pointer is not over a field, the mouseChar function return|returns empty.
+
+To find the position of the mouseChar within the field, use the mouseCharChunk function.
+
+Values:
+The mouseChar function return|returns a character. 
+
+OS:
+mac,windows,linux,ios,android

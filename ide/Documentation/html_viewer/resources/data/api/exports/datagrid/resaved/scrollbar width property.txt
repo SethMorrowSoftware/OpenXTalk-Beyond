@@ -1,0 +1,19 @@
+scrollbar width
+(property)
+Set the width of the scrollbars
+
+Syntax:
+put the dgProp["scrollbar width"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to an integer or to auto if you would like the data grid to set the appropriate width based on the platform it is being displayed on. Default is auto. When set to auto you can retrieve the actual width in pixels using effective scrollbar width.
+
+Values:
+
+OS:

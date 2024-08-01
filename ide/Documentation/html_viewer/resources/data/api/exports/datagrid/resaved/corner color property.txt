@@ -1,0 +1,19 @@
+corner color
+(property)
+The color of the corner piece that appears when both horizontal and vertical scrollbars are visible.
+
+Syntax:
+put the dgProp["corner color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color of the corner piece that appears when both horizontal and vertical scrollbars are visible. You set set to a solid color, a gradient (two colors, one per line) or an array containing the keys of the fillGradient property.
+
+Values:
+
+OS:

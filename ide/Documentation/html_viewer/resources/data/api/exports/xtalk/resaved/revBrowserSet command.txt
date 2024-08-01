@@ -1,0 +1,46 @@
+revBrowserSet
+(command)
+Sets a given property of a specified browser.
+
+Syntax:
+revBrowserSet {instanceId}, {propertyName}, {propertyValue}
+----
+XBrowser_Set {propertyName}, {propertyValue} ,[{instanceid}]
+----
+
+Synonyms:
+xbrowser_set
+
+Params:
+instanceId ( ): The integer identifier of a browser object.
+propertyName (enum ): The name of the property to set. See below for a full list.
+propertyValue ( ): The value to set the property to.
+
+Examples:
+revBrowserSet tBrowserId, "url", "http://www.OpenXTalk.org"
+----
+answer file "Please choose a file to display"
+if the result is not "cancel" then
+  put it into tFile
+  revBrowserSet tBrowserID,"url","file://" & tFile     
+end if
+----
+
+Description:
+The revBrowserSet command sets the value of the property propertyName to the value propertyValue for the browser specified by the instanceId.
+
+*Note:*  The "advanced" callback messages are: browserClick ,  browserOut and browserOver . These messages are only sent when the  "messages" property is set to true. The other callback messages are  always sent.
+
+*Note:*  Setting the selected property selects the first instance of  that text. Setting the property repeatedly to the same value will  cycle through each occurrence of the value. Setting the selected to  empty or to a string not present in the current document will reset  the selected text, ie subsequently setting the selected to any string  will select the first occurrence again. This behavior is similar to  that of the find command.
+
+To resolve this problem a new property was added in version 4.5.1 to browser instances windowId. The windowId property allows the stack to which a browser instance is attached to be changed after it has been created.
+
+If the windowId is set to 0, the browser instance is temporary hidden. If the windowId is set to a valid stack windowId, the browser instance will move to that stack.
+
+For example, to toggle the resizable property of a stack hosting a browser use the following code:      revBrowserSet pBrowserId, "windowId", 0     set the resizable of stack pBrowserStack to pNewResizeableValue     revBrowserSet pBrowserId, "windowId", the windowId of stack     pBrowserStack   Cross Platform Caution: Due to a limitation in the current browser implementation, the behavior of the scrollbars property is slightly different on Windows and OS X. In particular, under OS X, when navigating to a page for the first time after disabling scrollbars, revBrowser won't allow you to turn scrollbars back on. The way to work around this and create a browser that allows scrollbars to be toggled on both platforms is like this:      local sBrowserId      on browserOpen         put revBrowserOpen(the windowId \           of me, http://www.OpenXTalk.org) into sBrowserId         if the platform is MacOS then             send browserDisableScrollbars to me in 1 second         else             revBrowserSet sBrowserId, scrollbars, false         end if     end browserOpen      on browserDisableScrollbars         revBrowserSet sBrowserId, scrollbars, false     end browserDisableScrollbars      on browserToggleScrollbars         revBrowserSet sBrowserId, scrollbars, \           (not(revBrowserGet(sBrowserId, scrollbars)))      end browserToggleScrollbars   *Note:*  For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserSet command puts empty into the result if successful. 
+
+OS:
+mac,windows

@@ -1,0 +1,28 @@
+DeleteObjcBlockPointer
+(handler)
+Delete an Objective-C block pointer.
+
+Syntax:
+DeleteObjcBlockPointer({pBlockPointer})
+----
+
+Synonyms:
+
+Params:
+pBlockPointer ( ): An Objective-C block pointer created with 
+
+Examples:
+public handler AudioLibraryFinalize()
+	if sRequestPermissionsCompletionHandler is not nothing then
+		DeleteObjcBlockPointer(sRequestPermissionsCompletionHandler)
+		put nothing into sRequestPermissionsCompletionHandler
+	end if
+end handler
+----
+
+Description:
+Use the DeleteObjcBlockPointer handler to delete an Objective-C block pointer created with CreateObjcBlockPointerFromHandler
+
+Values:
+
+OS:

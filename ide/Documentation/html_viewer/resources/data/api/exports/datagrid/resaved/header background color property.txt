@@ -1,0 +1,19 @@
+header background color
+(property)
+The background color of the header.
+
+Syntax:
+put the dgProp["header background color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The background color of the header. You set set to a solid color, a gradient (two colors, one per line) or an array containing the keys of the fillGradient property.
+
+Values:
+
+OS:

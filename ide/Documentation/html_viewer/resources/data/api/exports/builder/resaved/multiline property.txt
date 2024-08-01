@@ -1,0 +1,21 @@
+multiline
+(property)
+Whether the field can contain multiple lines or not.
+
+Syntax:
+set the multiline of {widget} to {true | false}
+get the multiline of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the multiline property to allow or disallow the user to enter multiple lines of text in the field.
+
+Values:
+
+OS:
+android

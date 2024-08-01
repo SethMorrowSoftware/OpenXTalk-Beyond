@@ -1,0 +1,26 @@
+paused
+(property)
+Specifies whether a sound or movie is paused.
+
+Syntax:
+set the paused of {player} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the paused of player "Oops!" to true -- pause the movie
+----
+
+Description:
+Use the paused property to pause or resume a movie or sound, or to check whether the user has done so.
+
+When a player is not playing, its paused reports true.
+
+Values:
+The paused of a player is true or false. 
+
+OS:
+mac,windows,linux,ios,android

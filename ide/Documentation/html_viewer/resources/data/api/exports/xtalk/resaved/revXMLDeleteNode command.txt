@@ -1,0 +1,30 @@
+revXMLDeleteNode
+(command)
+Removes a node from an XML tree.
+
+Syntax:
+revXMLDeleteNode {treeID}, {nodeToDelete}
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the revXMLCreateTree or revXMLCreateTreeFromFile function when you created the XML tree.
+nodeToDelete ( ): The path to the node you want to remove.
+
+Examples:
+revXMLDeleteNode 3,"/Works/Books/Fiction"
+----
+revXMLDeleteNode line 3 of theTrees,currNodePath
+----
+
+Description:
+Use the revXMLDeleteNode command to remove part of an XML tree you're working with.
+
+*Important:*  The revXMLDeleteNode command is part of the   XML library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+If the revXMLDeleteNode command encounters an error, the result is set to an error message beginning with "xmlerr". 
+
+OS:
+mac,windows,linux,ios,android

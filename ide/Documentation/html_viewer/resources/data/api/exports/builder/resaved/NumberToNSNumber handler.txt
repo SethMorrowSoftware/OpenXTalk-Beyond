@@ -1,0 +1,21 @@
+NumberToNSNumber
+(handler)
+Convert a Number into an Objective-C number
+
+Syntax:
+NumberToNSNumber({pNumber})
+----
+
+Synonyms:
+
+Params:
+pNumber ( ): The Number to convert
+
+Examples:
+Description:
+Convert a Number into an Objective-C number
+
+Values:
+A Objective-C object of type NSNumber  Description Use NumberToNSNumber to convert a variable of type Number to an Objective-C number object (NSNumber). 
+
+OS:

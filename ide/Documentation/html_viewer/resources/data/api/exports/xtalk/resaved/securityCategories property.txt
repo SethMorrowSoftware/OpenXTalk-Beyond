@@ -1,0 +1,23 @@
+securityCategories
+(property)
+Returns a list of security categories that can be set in the engine.
+
+Syntax:
+put the securityCategories
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the securityCategories
+----
+
+Description:
+Use the securityCategories property to get a list of all the supported security categories. Returned values are:    * disk - accessing files   * network - using sockets and url commands   * process - running external processes such as shell and open process   * registryRead - reading from the system registry (windows only)   * registryWrite - writing to the system registry (windows only)   * printing - access to the system printer   * privacy - taking snapshots of the screen and recording sounds   * applescript - receiving apple events   * doalternate - use of the 'do ... as ...' alternate language     execution feature   * external - loading externals   * extension - loading extensions from file or data. Extensions included when   building a standalone are not restricted.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

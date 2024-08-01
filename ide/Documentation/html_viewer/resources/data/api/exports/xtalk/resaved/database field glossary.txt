@@ -1,0 +1,16 @@
+database field
+(glossary)
+
+Syntax:
+Synonyms:
+database field
+
+Params:
+
+Examples:
+Description:
+The smallest part of a database. One kind of information is stored in each database field, one value for each record in the database.
+
+Values:
+
+OS:

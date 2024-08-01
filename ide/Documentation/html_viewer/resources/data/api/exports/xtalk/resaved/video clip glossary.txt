@@ -1,0 +1,16 @@
+video clip
+(glossary)
+
+Syntax:
+Synonyms:
+videoclip, video clip
+
+Params:
+
+Examples:
+Description:
+An object(glossary) that contains movie data. Video clips are imported into a stack, instead of being stored in separate file|files like a player. 
+
+Values:
+
+OS:

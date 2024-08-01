@@ -1,0 +1,16 @@
+HTML
+(glossary)
+
+Syntax:
+Synonyms:
+html
+
+Params:
+
+Examples:
+Description:
+HyperText Markup Language. The language used for creating web pages.
+
+Values:
+
+OS:

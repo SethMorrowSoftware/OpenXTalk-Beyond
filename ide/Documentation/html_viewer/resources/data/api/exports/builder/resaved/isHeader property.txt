@@ -1,0 +1,20 @@
+isHeader
+(property)
+Whether the widget is a header or footer
+
+Syntax:
+set the isHeader of {widget} to { true | false }
+get the isHeader of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Whether the widget is a header or footer
+
+Values:
+
+OS:

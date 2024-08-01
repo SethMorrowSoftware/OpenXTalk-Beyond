@@ -1,0 +1,30 @@
+interrupt
+(function)
+return|Returns true if the allowInterrupts property is false and the user has attempted to halt the current handler with a  key combination. 
+
+Syntax:
+the interrupt
+----
+interrupt()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the interrupt then doCleanExit
+----
+
+Description:
+Use the interrupt function within a handler to check whether the user has attempted to stop the handler by typing Control-period or Control-break (on Windows or Unix) or Command-period (on Mac OS).
+
+Normally, pressing one of the key combinations stops any running handlers. If the allowInterrupts property is set to false, the user cannot interrupt a handler in this way.
+
+To let the user interrupt a handler when the allowInterrupts is false, check the interrupt function periodically. If it return|returns true, the user has attempted to stop the handler. You can then perform any needed cleanup tasks before exit|exiting the handler.
+
+Values:
+The interrupt function return|returns true or false. 
+
+OS:
+mac,windows,linux,ios,android

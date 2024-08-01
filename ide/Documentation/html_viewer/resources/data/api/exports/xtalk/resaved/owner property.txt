@@ -1,0 +1,40 @@
+owner
+(property)
+Reports which object(glossary) is next in the object hierarchy.
+
+Syntax:
+get the [{ long | abbreviated | short }] owner of {object}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the owner of me is not the name of card 1 then go to previous card
+----
+
+Description:
+Use the owner property to find out which object(glossary) another object(glossary) belongs to in the object hierarchy.
+
+If the owner's name is empty, the ID is reported instead of the name.
+
+The long, abbreviated, and short owner formats are described in detail in the entries for the name and ID properties. If you don't specify a format, the abbreviated owner is reported.
+
+The owner of a main stack is empty.
+
+The owner of a substack is its main stack.
+
+The owner of a card is the stack it resides in.
+
+The owner of a grouped control is its group.
+
+The owner of a card control is the card it resides on.
+
+The owner of an audio clip or video clip is the stack it resides in. 
+
+Values:
+The owner of an object(glossary) is a string, which is the name property of the owning object(glossary). The owner property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

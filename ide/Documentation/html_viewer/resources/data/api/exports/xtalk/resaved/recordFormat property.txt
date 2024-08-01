@@ -1,0 +1,30 @@
+recordFormat
+(property)
+Specifies the file format for sound files recorded with the  record sound command.
+
+Syntax:
+set the recordFormat to {fileFormat}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the recordFormat to "wave"
+----
+set the recordFormat to the storedSoundFormat of me
+----
+
+Description:
+Use the recordFormat property to specify what kind of file to create when recording a sound, depending on how the file will be used.
+
+The recordFormat property determines what kind of file is created when you use the record sound command to record sound. The  recordFormats function returns a list of supported recordFormat  values.
+
+Not all sound file formats are compatible with all supported codecs. If you try to record sound using a recordCompression that is not compatible with the recordFormat, the compress|compression type will be changed automatically to a codec that is compatible with the specified recordFormat.
+
+Values:
+*Important:*  If the recordFormat is set to "movie", the resulting  file is in the QuickTime file format. QuickTime files cannot be  played as audio clip|audio clips. To play such a sound, either  create a player and set its filename property to the   file path|path of the file you recorded, or use the play   videoclip form of the play command. The file format of the created recording. 
+
+OS:
+mac

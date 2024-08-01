@@ -1,0 +1,28 @@
+SingletonElementOfArray
+(operator)
+Designates the element with key Key in Target. Index:An expression which evaluates to a string.
+
+Syntax:
+{Target} [ {Key} ]
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to an array.
+
+Examples:
+variable tArray as Array
+put the empty array into tArray
+put "value" into tArray["key"]
+
+variable tVar as String
+put tArray["key"] into tVar -- tVar contains "value"
+----
+
+Description:
+Either locates the element container with the given key for use as the target container of another operation, or evaluates the element with the given key as the source of another operation.
+
+Values:
+
+OS:

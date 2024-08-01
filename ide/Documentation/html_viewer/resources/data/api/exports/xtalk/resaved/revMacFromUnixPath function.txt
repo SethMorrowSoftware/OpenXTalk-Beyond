@@ -1,0 +1,38 @@
+revMacFromUnixPath
+(function)
+Converts a Unix-style file path|pathname to a Mac OS-style file path|pathname. 
+
+Syntax:
+revMacFromUnixPath({unixPathname} [, {convertOSX}])
+----
+
+Synonyms:
+
+Params:
+unixPathname ( ): A file or folder pathname in the standard format used by OpenXTalk for file paths.
+convertOSX (bool ): If you don't specify the , if OS X is running, OpenXTalk assumes you want to convert an OS X-style path to a Mac OS-style path; otherwise, it assumes you don't want to convert between the OS X style and Mac OS style.
+
+Examples:
+revMacFromUnixPath("/usr/bin/stuff")
+----
+revMacFromUnixPath(it)
+----
+
+Description:
+Use the revMacFromUnixPath function to convert a OpenXTalk-style file path to the Mac OS file path format (for example, if you need to pass a file path|pathname to an external).
+
+The revMacFromUnixPath function converts slashes (/) to colons (:), the folder-level delimiter for Mac OS file path|pathnames. It also deletes leading slashes, so that file path|pathnames are rooted in the volume name (the standard for Mac OS file path|pathnames). It also adjusts relative pathnames.
+
+On Mac OS systems, absolute paths always begin with the name of the disk that the file or folder is on. On OS X systems, the startup disk's name does not appear in absolute file paths. Instead, if a file or folder is on the startup disk, the first part of the file path is the top-level folder that the file is in. If a file or folder is on a disk other than the startup disk, its absolute path starts with "Volumes", followed by the disk name.
+
+The OS X path convention is used by OpenXTalk, but the old Mac OS-style path convention is required by certain applications (such as AppleScript), even on OS X systems. If the convertOSX is true (or if you don't specify the convertOSX and the application is running under OS X), the revMacFromUnixPath function automatically converts absolute file path|absolute paths from the OS X standard to the Mac OS standard, adding the startup disk's name to paths that are on the startup disk, and stripping the "Volumes" element from paths that are not on the startup disk. If the convertOSX is false, the revMacFromUnixPath function does not make these changes to absolute file path|absolute paths.
+
+OpenXTalk always uses the Unix pathname standard for cross-platform compatibility, and automatically converts pathnames to the correct standard for the current platform when executing commands. You need to convert the pathname only if you are passing it to another program or external. If you are using only OpenXTalk commands and functions, you do not need to convert the pathname, since OpenXTalk does it for you.
+
+*Note:* When included in a standalone application, the Common  library is implemented as a hidden group and made available when  the group receives its first openBackground message. During the  first part of the application|application's startup process, before  this message is sent, the revMacFromUnixPath function is not yet  available. This may affect attempts to use this function in  startup, preOpenStack, openStack, or preOpenCard  handler|handlers in the main stack. Once the application has  finished starting up, the library is available and the  revMacFromUnixPath function can be used in any handler.
+
+Values:
+The revMacFromUnixPath function returns a string with the file path in the format expected by the Mac OS. 
+
+OS:
+mac,windows,linux

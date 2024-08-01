@@ -1,0 +1,28 @@
+defaultCursor
+(property)
+Specifies the default shape of the cursor.
+
+Syntax:
+set the defaultCursor to {imageID}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the defaultCursor to arrow
+----
+
+Description:
+Use the defaultCursor property to change the cursor(property) used when the Browse tool is being used from a hand to some other cursor(property) shape.
+
+*Tip:*  OpenXTalk includes several built-in cursor(glossary)|cursors  whose names you can use in place of their image IDs. The built-in  cursors are described in the entry for the cursor(property)  property.
+
+If the lockCursor property is set to false, the cursor(property) changes shape automatically as the mouse moves. (For example, the cursor(property) normally turns into an arrow over a menu, an I-beam over an editable field, and so on.) The defaultCursor is the shape used automatically when the mouse pointer is in a stack window, but not in an editable field.
+
+Values:
+The defaultCursor is the ID of an image to use for a cursor(property). OpenXTalk looks for the specified image in the following order:  1. The stack of the current object's behavior (if applicable) 2. The stack of the owner of the current object's behavior (if applicable) 3. The stack of the current object's stack's behavior (if applicable) 4. The current object's stack 5. The current object's stack's mainstack (if a substack) 6. The current object's stack's mainstacks substacks 7. The list of open stacks, in order they were loaded 
+
+OS:
+mac,windows,linux,ios,android

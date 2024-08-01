@@ -1,0 +1,21 @@
+navData
+(property)
+The array of navigation data
+
+Syntax:
+set the navData of {widget} to {pNavArray}
+get the navData of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The array of navigation data
+
+Values:
+An array describing the navNames, navIcons and navLabels of the widget. 
+
+OS:

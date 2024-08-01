@@ -1,0 +1,27 @@
+DeleteFirstCodeunitOf
+(statement)
+Deletes the first codeunit in Target.
+
+Syntax:
+delete the first codeunit of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A string container.
+
+Examples:
+variable tVar as String
+put "seven" into tVar
+delete the first codeunit of tVar -- tVar contains "even"
+----
+
+Description:
+Replaces the first codeunit in Target with the empty string.
+
+*Note:* It is an error if Target is the empty string.
+
+Values:
+
+OS:

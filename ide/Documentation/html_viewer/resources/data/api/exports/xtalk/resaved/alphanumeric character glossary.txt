@@ -1,0 +1,18 @@
+alphanumeric character
+(glossary)
+
+Syntax:
+Synonyms:
+alphanumeric character, alphanumeric, alpha-numeric
+
+Params:
+
+Examples:
+Description:
+A character that is either a letter (A-Z or a-z) or a digit (0-9).
+
+Punctuation marks and whitespace characters are not alphanumeric characters. 
+
+Values:
+
+OS:

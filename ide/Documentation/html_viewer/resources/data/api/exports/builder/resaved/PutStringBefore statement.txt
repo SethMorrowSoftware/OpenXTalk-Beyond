@@ -1,0 +1,28 @@
+PutStringBefore
+(statement)
+Prepends Source to Target.
+
+Syntax:
+put {Source} before {Target}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a string.
+Target ( ): An expression which evaluates to a string container.
+
+Examples:
+variable tVar as String
+put "" into tVar
+put "abc" before tVar -- tVar contains "abc"
+put "lpha" before char 2 of tVar
+put "eti" before char -1 of tVar -- tVar contains "alphabetic"
+----
+
+Description:
+Use to insert a string without replacement. Can be used either with a chunk expression to insert at a specified location, or without to prepend to the target string.
+
+Values:
+
+OS:

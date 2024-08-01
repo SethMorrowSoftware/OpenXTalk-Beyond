@@ -1,0 +1,18 @@
+variable watcher
+(glossary)
+
+Syntax:
+Synonyms:
+variable watcher, variable window
+
+Params:
+
+Examples:
+Description:
+Part of the OpenXTalk development environment, a pane that displays the current values of variable|variables during script execute|execution.
+
+To display the variable watcher, click the variables pane in the  script editor. To display the variable watcher from the Menubar, choose  Debug ? Variables. If you are not debugging a script, this will allow you to watch global variables.
+
+Values:
+
+OS:

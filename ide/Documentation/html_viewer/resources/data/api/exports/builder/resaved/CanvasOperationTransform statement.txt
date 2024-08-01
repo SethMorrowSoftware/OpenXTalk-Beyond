@@ -1,0 +1,25 @@
+CanvasOperationTransform
+(statement)
+Apply a transform to a canvas.
+
+Syntax:
+transform {mCanvas} by {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Scale the canvas with a transform
+transform this canvas by transform with scale [2,2]
+----
+
+Description:
+Concatenates the transform of mCanvas with mTransform.
+
+Values:
+
+OS:

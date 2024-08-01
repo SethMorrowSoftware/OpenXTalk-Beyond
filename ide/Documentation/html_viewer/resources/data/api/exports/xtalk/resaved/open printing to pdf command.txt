@@ -1,0 +1,38 @@
+open printing to pdf
+(command)
+Starts a print loop that outputs directly to pdf rather that the currently configured printer.
+
+Syntax:
+open printing to pdf {filename} [ with options {optionArray} ]
+----
+
+Synonyms:
+
+Params:
+filename ( ): The path to the PDF file to be created.
+optionArray (array ): An optional array allowing entries to be added to the resulting PDF's Documemt Information Dictionary.
+
+Examples:
+open printing to pdf "mypdf.pdf"
+----
+open printing to pdf "help.pdf" with options tOptionArray
+----
+
+Description:
+Use the open printing to pdf command to print multiple cards directly to a pdf file.
+
+The open printing to pdf command starts a print loop that outputs directly to a PDF file rather that the currently configured printer.
+
+ The following handler prints cards that have been collected in a global variable:       on printSomeCards         global cardsToPrint         open printing to pdf "test.pdf"         repeat with x = 1 to the number of lines of cardsToPrint            print card (line x of cardsToPrint)         end repeat     close printing -- send group of cards to printer      end printSomeCards   *Note:* It is not necessary to set the formatForPrinting option on  stacks which are being printed to PDF.
+
+The following keys are supported: Title, Author, Subject, Keywords, Creator, Producer Their values can be any string.
+
+*Important:* The implementation of pdf printing resides in a dynamic  library called revpdfprinter. The standalone builder will  automatically include this in the appropriate place when building  standalones.
+
+Any custom code that deals with standalones which use this feature must make sure that the revpdfprinter library resides next to the engine executable. 
+
+Values:
+if the result is "Cancel" then exit printSomeCards. The options array which can be optionally specified when opening a print loop for pdf allows you to add entries to the resulting PDF's Document Information Dictionary.  
+
+OS:
+mac,windows,linux,ios,android

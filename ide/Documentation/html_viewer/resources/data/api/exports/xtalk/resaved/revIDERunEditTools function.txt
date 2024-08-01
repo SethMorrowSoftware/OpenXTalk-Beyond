@@ -1,0 +1,20 @@
+revIDERunEditTools
+(function)
+Returns information about the run and edit tools.
+
+Syntax:
+revIDERunEditTools()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns information about the run and edit tools.
+
+Values:
+an array, keyed by the run and edit tool type IDs, of properties associated with each of those tools. 
+
+OS:

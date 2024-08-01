@@ -1,0 +1,32 @@
+vGrid
+(property)
+Specifies whether a field|field's tab stop|tab stops are treated as cell boundaries.
+
+Syntax:
+set the vGrid [of line {lineNumber}] of {field} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the vGrid of the templateField to true
+----
+set the vGrid of line 10 to -1 of field 1 to true
+----
+
+Description:
+Use the vGrid property to make a field behave like a spreadsheet with a grid of cells.
+
+If the  vGrid property is true, OpenXTalk draws a vertical line at each tab stop position in the field(keyword). The lines are drawn in the field(object)|field's borderColor. This property is useful for field(object)|fields that are used like a spreadsheet, with each  tab stop marking a column.
+
+Any text in a column is truncated when it reaches the right edge of the column. To show the entire contents of the column, drag over the text to select it. If text at the end of a line does not have a tab following it--that is, if it's the last column in the field--it is not truncated.
+
+If the field's tabStops property is set to empty, the vGrid lines are drawn every 32 pixels, but the text is not truncated to individual cells. 
+
+Values:
+The vGrid of a field(keyword) is true or false. By default, the vGrid property of newly created field(object)|fields is set to false. 
+
+OS:
+mac,windows,linux,ios,android

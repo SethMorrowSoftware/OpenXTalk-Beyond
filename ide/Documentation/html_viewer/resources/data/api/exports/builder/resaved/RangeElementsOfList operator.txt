@@ -1,0 +1,32 @@
+RangeElementsOfList
+(operator)
+Designates the elements between indices Start and Finish in Target.
+
+Syntax:
+element {Start} to {Finish} of {Target}
+----
+
+Synonyms:
+
+Params:
+Start ( ): An expression which evaluates to a valid integer index of .
+Finish ( ): An expression which evaluates to a valid integer index of .
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tList as List
+put [1,2,3] into tList
+
+put tList into element 1 to 2 of tList -- tList is [[1,2,3],3]
+----
+
+Description:
+Either locates the element containers between the given indices for use as a list container for the target of another operation, or evaluates the elements between the given indices as a list.
+
+*Note:* It is an error if either Start or Finish are out of range.
+
+*Note:* If a list is the source of ``put tList into element 1 to 3 of tOtherList```, then tList is *not* inserted element-wise. The entire list is inserted as an element, so that element 1 of tOtherList is tList.
+
+Values:
+
+OS:

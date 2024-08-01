@@ -1,0 +1,30 @@
+recordChannels
+(property)
+Specifies whether to record sound in stereo or mono.
+
+Syntax:
+set the recordChannels to {1 | 2}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the recordChannels to 1 -- record in mono
+----
+if the recordChannels is 2 then hilite button "Stereo"
+----
+
+Description:
+Use the recordChannels property to trade off between sound quality and disk space when you record a sound.
+
+The recordChannels property determines the kind of recording made when you use the record sound command to record a sound.
+
+*Note:* The answer record command sets the recordChannels  property according to what the user chose in the answer record  dialog box.
+
+Values:
+The recordChannels is either 1 or 2. By default, the recordChannels property is set to 1 (monophone). 
+
+OS:
+mac,windows

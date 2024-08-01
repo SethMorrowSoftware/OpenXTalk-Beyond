@@ -1,0 +1,38 @@
+fullDragData
+(property)
+Provides access to the contents of the drag-and-drop clipboard.
+
+Syntax:
+set the fullDragData[{key}] to {data}
+----
+set the fullDragData to empty
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the keys of the fullDragData
+----
+lock the clipboard
+set the fullDragData["text"] to "Hello, World!"
+set the fullDragData["html"] to "<p>Hello, World!</p>"
+set the fullDragData["private"] to "MyCustomData"
+unlock the clipboard
+----
+
+Description:
+Use the fullDragData to gain access to the system drag-and-drop clipboard.
+
+If the contents of the drag-and-drop clipboard were placed there by another app, the clipboard will be automatically cleared when written to. If you want to do this explicitly, use ``set the fullDragData to empty``.
+
+The ``text``, ``rtftext``, ``htmltext``, ``styles`` and ``styledtext`` properties are handled specially by OpenXTalk: adding any one of them will cause the rest to be automatically generated and added.
+
+If you require lower-level access to the drag-and-drop clipboard, see the rawDragData property.
+
+Values:
+The fullDragData pseudo-array provides access to the data on the drag-and-drop clipboard. It should only be accessed during drag-and-drop operations. The keys for the fullDragData are:    - "text": plain text   - "rtftext": OpenXTalk rich text format data   - "htmltext": OpenXTalk HTML text   - "styledtext": array of OpenXTalk styled text   - "image": any of PNG, GIF or JPEG image   - "png": PNG image   - "gif": GIF image   - "jpeg": JPEG image   - "rtf": Rich Text Format data   - "html": HTML   - "styles": OpenXTalk styled text data   - "objects": OpenXTalk objects   - "files": List of newline-separated file paths   - "private": available for in-app use   *Note:* More keys and data types may be added in the future 
+
+OS:
+mac,windows,linux

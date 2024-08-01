@@ -1,0 +1,16 @@
+synchronize
+(glossary)
+
+Syntax:
+Synonyms:
+synchronized, synchronizing, sync, syncing, synced, in sync, synchronize
+
+Params:
+
+Examples:
+Description:
+To cause to happen at the same time; to coordinate two or more actions so they start and end at the same time.
+
+Values:
+
+OS:

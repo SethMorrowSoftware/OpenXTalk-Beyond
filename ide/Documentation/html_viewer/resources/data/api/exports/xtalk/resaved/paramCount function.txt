@@ -1,0 +1,30 @@
+paramCount
+(function)
+return|Returns the number of parameter|parameters pass|passed to the current handler.
+
+Syntax:
+the paramCount
+----
+paramCount()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the paramCount
+----
+repeat with thisParam = 1 to the paramCount
+----
+
+Description:
+Use the paramCount function to find out how many parameter|parameters were pass|passed to the current handler.
+
+The paramCount function return|returns the number of parameter|parameters pass|passed to the current handler. If no parameter|parameters were pass|passed, the paramCount function return|returns zero.
+
+Values:
+The paramCount function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

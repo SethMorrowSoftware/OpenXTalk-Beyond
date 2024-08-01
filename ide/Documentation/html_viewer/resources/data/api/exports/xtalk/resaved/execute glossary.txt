@@ -1,0 +1,16 @@
+execute
+(glossary)
+
+Syntax:
+Synonyms:
+execution, executing, executed, execute
+
+Params:
+
+Examples:
+Description:
+To run a handler or to perform a command.
+
+Values:
+
+OS:

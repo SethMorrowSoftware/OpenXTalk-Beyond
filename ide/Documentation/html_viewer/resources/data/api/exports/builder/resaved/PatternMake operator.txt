@@ -1,0 +1,30 @@
+PatternMake
+(operator)
+Creates a new pattern paint.
+
+Syntax:
+pattern with {mImage}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+
+Examples:
+// Load the pattern image.
+variable tImage
+put image from file "images/backgroundpattern.png" into tImage
+
+// Create a new pattern based on the image
+variable tPaint
+put pattern with tImage into tPaint
+----
+
+Description:
+Creates a new pattern paint.
+
+Values:
+A new pattern paint based on mImage. 
+
+OS:

@@ -1,0 +1,27 @@
+revXMLRPC_GetResponse
+(function)
+
+Syntax:
+revXMLRPC_GetResponse(XMLRPCdocumentID)
+
+Summary:
+If the execution of an XML-RPC request was successful, this function returns the response document.
+
+The number returned by the revXMLRPC_CreateRequest function when you created the XML-RPC request. If the revXMLRPC_GetResponse function encounters an error, it returns an error message starting with "xmlrpcerr" ..
+
+Examples:
+local tResponse
+put revXMLRPC_GetResponse(tRequest) into tResponse
+
+The response of the document. If an error was encountered during the execution of the XML-RPC request, you can retrieve the error by calling the revXMLRPC_Error function.
+
+Description:
+Use the revXMLRPC_GetResponse function to retrieve the response to the execution of an XML-RPC request.
+
+Important: The revXMLRPC_GetResponse function is part of the XML-RPC library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure the "XML-RPC" library checkbox is checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

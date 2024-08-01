@@ -1,0 +1,16 @@
+modal dialog box
+(glossary)
+
+Syntax:
+Synonyms:
+modal, modal dialog box, modal dialog boxes, modal dialog
+
+Params:
+
+Examples:
+Description:
+A dialog box that requires a response before you can use any other window. 
+
+Values:
+
+OS:

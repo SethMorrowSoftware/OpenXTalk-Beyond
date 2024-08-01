@@ -1,0 +1,19 @@
+OnTouchStart
+(message)
+Sent when the widget is the target for touch events and a touch is started.
+
+Syntax:
+OnTouchStart
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The widget becomes the target for touch events when the first touch is within its rect. The widget remains the target for touch events until all touches end or are cancelled.
+
+Values:
+
+OS:

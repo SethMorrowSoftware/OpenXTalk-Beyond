@@ -1,0 +1,19 @@
+dgFormattedHeight
+(property)
+Returns the formatted height of the data in the data grid.
+
+Syntax:
+get the dgFormattedHeight of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the formatted height of the data in the data grid. The table header is not included in the formatted height.
+
+Values:
+
+OS:

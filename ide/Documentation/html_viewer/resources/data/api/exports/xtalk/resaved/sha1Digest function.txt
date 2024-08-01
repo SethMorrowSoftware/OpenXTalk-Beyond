@@ -1,0 +1,32 @@
+sha1Digest
+(function)
+Computes a SHA-1 cryptographic message digest.
+
+Syntax:
+the sha1Digest of {message}
+----
+sha1Digest({message})
+----
+
+Synonyms:
+
+Params:
+message (data ): A  string.
+
+Examples:
+get the sha1Digest of "OpenXTalk"
+----
+put textEncode("Message to verify", "UTF-8") into tMessage
+get sha1Digest(tMessage)
+----
+
+Description:
+Compute a message digest of message using the SHA-1 cryptographic hash function.
+
+ *Warning:* Serious flaws have been found in the SHA-1 hash algorithm  that make it unsuitable to use for security-critical purposes.  Unless you need backwards compatibility with existing systems, use  one of the other algorithms available with the messageDigest function
+
+Values:
+Returns the message digest of the message as a 20 byte  binary data string. 
+
+OS:
+mac,windows,linux

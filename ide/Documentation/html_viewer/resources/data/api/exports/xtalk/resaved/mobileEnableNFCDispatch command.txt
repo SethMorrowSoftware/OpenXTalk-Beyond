@@ -1,0 +1,25 @@
+mobileEnableNFCDispatch
+(command)
+Ensure any detected NFC tags are dispatched to the app while running in the foreground.
+
+Syntax:
+mobileEnableNFCDispatch
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+mobileEnableNFCDispatch
+----
+
+Description:
+NFC tag events will normally be dispatched to whichever app is configured to handle the data on each tag. You can use the mobileEnableNFCDispatch command to override normal NFC tag event dispatching to prevent other applications from being launched, and ensure tag data is dispatched to your app while it is running in the foreground.
+
+You can resume normal NFC tag handling by calling mobileDisableNFCDispatch. 
+
+Values:
+
+OS:
+android

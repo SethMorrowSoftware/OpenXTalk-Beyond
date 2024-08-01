@@ -1,0 +1,18 @@
+subfolder
+(glossary)
+
+Syntax:
+Synonyms:
+subdirectory, subdirectories, subfolder
+
+Params:
+
+Examples:
+Description:
+A folder inside another folder.
+
+If Folder A contains Folder B (and possibly other folder|folders and file|files), B is a subfolder of A.
+
+Values:
+
+OS:

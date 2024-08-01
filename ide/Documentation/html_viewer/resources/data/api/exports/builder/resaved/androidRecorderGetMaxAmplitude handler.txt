@@ -1,0 +1,29 @@
+androidRecorderGetMaxAmplitude
+(handler)
+Returns the max amplitude of the recording since last sampled
+
+Syntax:
+androidRecorderGetMaxAmplitude()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Poll amplitude every 30 millisecs, and output values
+command LogAmplitude
+   put androidRecorderGetMaxAmplitude()
+   send "LogAmplitude" to me in 30 millisecs
+end LogAmplitude
+----
+
+Description:
+Use the androidRecorderGetMaxAmplitude handler to retrieve the maximum amplitude value reached during recording from the selected input source since the amplitude was last retrieved.
+
+androidRecorderGetMaxAmplitude returns 0 if no recording is currently happening. 
+
+Values:
+
+OS:
+android

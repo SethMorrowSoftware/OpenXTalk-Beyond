@@ -1,0 +1,31 @@
+PointPropertyY
+(operator)
+The y coordinate of a point value.
+
+Syntax:
+the y of {mPoint}
+----
+
+Synonyms:
+
+Params:
+mPoint ( ): An expression which evaluates to a point.
+
+Examples:
+variable tPoint
+put point [50, 100] into tPoint
+
+// Store the y-coordinate of the point in a variable
+variable tY
+put the y of tPoint into tY
+
+// Move the point 10 units downward.
+set the y of tPoint to (tY + 10)
+----
+
+Description:
+The y coordinate of mPoint.
+
+Values:
+
+OS:

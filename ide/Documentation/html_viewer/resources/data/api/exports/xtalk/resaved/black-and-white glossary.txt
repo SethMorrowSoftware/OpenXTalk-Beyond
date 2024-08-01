@@ -1,0 +1,16 @@
+black-and-white
+(glossary)
+
+Syntax:
+Synonyms:
+black and white, black-and-white, monochrome
+
+Params:
+
+Examples:
+Description:
+A picture consisting only of black and white with no other colors, or a screen that can show only black and white and cannot show any other colors. 
+
+Values:
+
+OS:

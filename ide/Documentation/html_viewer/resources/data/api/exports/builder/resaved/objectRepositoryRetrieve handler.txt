@@ -1,0 +1,21 @@
+objectRepositoryRetrieve
+(handler)
+Retrieve an object long id from the object repository
+
+Syntax:
+objectRepositoryRetrieve({pID})
+----
+
+Synonyms:
+
+Params:
+pID ( ): An object repository ID
+
+Examples:
+Description:
+As long ID of an object may mutate during a session the IDE needs an object reference that can handle that mutation.
+
+Values:
+An object long ID or empty if the object is not in the repository or no longer exists 
+
+OS:

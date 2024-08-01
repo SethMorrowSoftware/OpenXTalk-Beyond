@@ -1,0 +1,25 @@
+PointMake
+(operator)
+Creates a new point value.
+
+Syntax:
+point {mPoint}
+----
+
+Synonyms:
+
+Params:
+mPoint ( ): An expression which evaluates to a list of 2 numbers, the x and y coordinates of the point.
+
+Examples:
+variable tPoint
+put point [50, 100] into tPoint
+----
+
+Description:
+Creates a new point value.
+
+Values:
+A new point with the given coordinates 
+
+OS:

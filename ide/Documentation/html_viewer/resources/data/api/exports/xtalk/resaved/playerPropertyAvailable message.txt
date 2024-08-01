@@ -1,0 +1,28 @@
+playerPropertyAvailable
+(message)
+Sent when sufficient information about a given property has become available. 
+
+Syntax:
+playerPropertyAvailable {pPropertyName}
+----
+
+Synonyms:
+
+Params:
+pPropertyName (enum ): The name of the property that has become available. These  properties can be: 
+
+Examples:
+on playerPropertyAvailable pPropertyName
+    if pPropertyName is "duration" then
+        answer "You can now query the length of the movie"
+    end if
+end playerPropertyAvailable
+----
+
+Description:
+Handle the playerPropertyAvailable message when sufficient information about a given player property has become available so that information about that property can be accessed.
+
+Values:
+
+OS:
+ios,android

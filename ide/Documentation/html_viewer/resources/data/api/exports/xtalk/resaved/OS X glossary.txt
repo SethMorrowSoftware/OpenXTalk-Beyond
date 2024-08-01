@@ -1,0 +1,16 @@
+OS X
+(glossary)
+
+Syntax:
+Synonyms:
+os x, osx, os x system, osx system
+
+Params:
+
+Examples:
+Description:
+An operating system from Apple Computer that runs on recent Macintosh computer systems, the successor to Mac OS.
+
+Values:
+
+OS:

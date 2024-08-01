@@ -1,0 +1,29 @@
+browserLoadFailed
+(message)
+Sent when the given URL fails to load.
+
+Syntax:
+browserLoadFailed {pUrl}, {pError}
+----
+
+Synonyms:
+
+Params:
+pUrl ( ): The URL that failed to load.
+pError ( ): The error message.
+
+Examples:
+on browserLoadFailed pURL, pError
+  put "Failed to load" && pURL && "Error:" && pError into field "status"
+end browserLoadFailed
+----
+
+Description:
+Handle the browserLoadFailed message to perform an action when a URL fails to load in a native mobile browser created using mobileControlCreate.
+
+The browserLoadFailed message is sent to the object containing the script that created the mobile browser control when a URL fails to load.
+
+Values:
+
+OS:
+ios,android

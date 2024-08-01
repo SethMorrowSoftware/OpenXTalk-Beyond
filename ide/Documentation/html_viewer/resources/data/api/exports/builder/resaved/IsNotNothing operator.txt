@@ -1,0 +1,28 @@
+IsNotNothing
+(operator)
+Determines whether Target is nothing or not.
+
+Syntax:
+{Target} is not nothing
+----
+
+Synonyms:
+
+Params:
+Target ( ): Any expression
+
+Examples:
+public handler CanBeNumber(in pString as String) returns Boolean
+    variable tNum as optional Number
+    put pString parsed as number into tNum
+    return tNum is not nothing
+end handler
+----
+
+Description:
+Use the IsNotNothing operator to test if operators or handlers have returned anything.
+
+Values:
+Returns false if the given expression Target is nothing, and true otherwise. 
+
+OS:

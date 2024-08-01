@@ -1,0 +1,16 @@
+dock
+(glossary)
+
+Syntax:
+Synonyms:
+dock, docked
+
+Params:
+
+Examples:
+Description:
+On OS X|OS X systems, an area of the screen that contains icons for running applications, minimize|minimized windows, and other items.
+
+Values:
+
+OS:

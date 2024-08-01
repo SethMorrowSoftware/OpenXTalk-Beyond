@@ -1,0 +1,16 @@
+control structure
+(glossary)
+
+Syntax:
+Synonyms:
+structure, control structure
+
+Params:
+
+Examples:
+Description:
+A statement (or set of statement|statements) that determines the order in which other statement|statements are execute|executed.
+
+Values:
+
+OS:

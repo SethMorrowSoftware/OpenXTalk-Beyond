@@ -1,0 +1,29 @@
+ends with
+(operator)
+The ends with operator takes two strings and returns true if the second string matches the end of the first string.
+
+Syntax:
+{string} ends with {suffix}
+----
+
+Synonyms:
+
+Params:
+string (string ): 
+suffix ( ): 
+
+Examples:
+"foobar" ends with "bar" -- evaluates to true
+----
+"foobar" ends with "baz" -- evaluates to false
+----
+
+Description:
+For the expression to evaluate to true suffix must match the end of string. For example, if suffix contains three characters these must match the the last three characters of string (in order).
+
+This takes into consideration the value of the caseSensitive property.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

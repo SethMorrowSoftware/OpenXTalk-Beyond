@@ -1,0 +1,30 @@
+screenVendor
+(function)
+return|Returns version information about the producer of the windowing software. 
+
+Syntax:
+the screenVendor
+----
+screenVendor()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the screenVendor
+----
+if the screenVendor is originalVendor then pass mouseUp
+----
+
+Description:
+Use the screenVendor function to get information about the XWindows software version.
+
+The return value usually includes the company or organization that produced the screen driver, along with version information.
+
+Values:
+The screenVendor function return|returns a string. 
+
+OS:
+linux

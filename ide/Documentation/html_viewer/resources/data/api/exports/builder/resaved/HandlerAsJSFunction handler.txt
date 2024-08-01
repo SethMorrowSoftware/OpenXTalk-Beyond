@@ -1,0 +1,38 @@
+HandlerAsJSFunction
+(handler)
+Wrap a LiveCode Builder handler within a JavaScript function, suitable for passing as an event handler.
+
+Syntax:
+HandlerAsJSFunction({pHandler})
+----
+
+Synonyms:
+
+Params:
+pHandler ( ): The handler to wrap
+
+Examples:
+variable mButton as JSObject
+variable mOnClickHandler as JSObject
+
+private handler OnJSClick(pEvent as JSObject) returns nothing
+	SetLabel("Clicked!")
+end handler
+
+private handler SetJSEventHandler(in pElement as JSObject, in pEvent as String, in pHandler as JSObject)
+	EvalJavaScriptWithArguments("arguments[0].addEventListener(arguments[1], arguments[2]);", [pElement, pEvent, pHandler])
+end handler
+
+private handler SetupEventHandler()
+	put HandlerAsJSFunction(OnJSClick) into mOnClickHandler
+	SetJSEventHandler(mButton, "click", mOnClickHandler)
+end handler
+----
+
+Description:
+Use HandlerAsJSFunction to convert a handler reference to a JavaScript function object reference.
+
+Values:
+A JavaScript function object, wrapping the handler 
+
+OS:

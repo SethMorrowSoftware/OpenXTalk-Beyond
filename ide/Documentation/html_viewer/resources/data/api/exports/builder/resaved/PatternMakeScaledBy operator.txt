@@ -1,0 +1,31 @@
+PatternMakeScaledBy
+(operator)
+Creates a new scaled pattern paint.
+
+Syntax:
+pattern with {mImage} scaled by {mScale}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+mScale ( ): An expression which evaluates to a list of 1 or 2 numbers, the x-axis scale and y-axis scale, or the uniform scale when only a single value is given.
+
+Examples:
+// Load the pattern image.
+variable tImage
+put image from file "images/backgroundpattern.png" into tImage
+
+// Create a new pattern paint, scaling the image to half size
+variable tPaint
+put pattern with tImage scaled by [0.5] into tPaint
+----
+
+Description:
+Creates a new scaled pattern paint.
+
+Values:
+A new pattern paint based on mImage with the specified scale applied. 
+
+OS:

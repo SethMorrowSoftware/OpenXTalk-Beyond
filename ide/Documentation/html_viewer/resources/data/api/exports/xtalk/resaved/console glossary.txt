@@ -1,0 +1,16 @@
+console
+(glossary)
+
+Syntax:
+Synonyms:
+console window, console
+
+Params:
+
+Examples:
+Description:
+The window that appears when you run a DOS program on a Windows|Windows system. 
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+noteOn
+(message)
+Sent when a key on the piano set to it's 'on' state.
+
+Syntax:
+noteOn {pNoteNum}, {pNoteName}
+----
+
+Synonyms:
+
+Params:
+pNoteNum ( ): The MIDI note number(s) of the note key (exp. 63), this can be an item delimited list of multiple key numbers (chords)
+pNoteName ( ): The Name of the note key (exp. D#Eb), this can be an item delimited list of multiple key numbers (chords)
+
+Examples:
+on noteOn pNoteNum,pNoteName
+	put "noteOn " & pNoteNum && pNoteName
+end noteOn
+----
+
+Description:
+Handle the noteOn message in the widget's object script to respond to 'note down' clicks on the piano's individual note keys.
+
+Values:
+
+OS:
+mac,ios,android,win

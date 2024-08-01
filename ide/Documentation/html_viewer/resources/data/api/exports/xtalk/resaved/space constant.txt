@@ -1,0 +1,25 @@
+space
+(constant)
+Equivalent to the space character (ASCII 32).
+
+Syntax:
+space
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+"a" & space & "b"
+----
+put firstName & space & lastName into fullName
+----
+
+Description:
+Use the space constant as an easier-to-read substitute for " ".
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

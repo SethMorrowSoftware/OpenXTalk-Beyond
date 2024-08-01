@@ -1,0 +1,31 @@
+TransformPropertyInverse
+(operator)
+The inverse of a transform.
+
+Syntax:
+the inverse of {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+variable tTransform
+put transform with matrix [0,2,-2,0,50,100] into tTransform
+
+// Get the inverse of the current transform
+variable tInverse
+put the inverse of tTransform into tInverse
+
+// Combine the transform with its inverse to produce the identity transform
+concat tTransform with tInverse
+----
+
+Description:
+The inverse of mTransform  *Note:* The inverse of a transform matrix is the transform that reverses the effect of the original. Combining a transform with its inverse will produce the identity transform.
+
+Values:
+
+OS:

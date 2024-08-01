@@ -1,0 +1,25 @@
+comma
+(constant)
+Equivalent to the , character (ASCII 44).
+
+Syntax:
+comma
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put "3" & comma & "287" into tDollarAmount
+----
+if char 3 of it is comma then get field "Circus"
+----
+
+Description:
+Use the comma constant as an easier-to-read replacement for ",".
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

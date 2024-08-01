@@ -1,0 +1,28 @@
+CanvasOperationClip
+(statement)
+Clip to a rectangle on a canvas.
+
+Syntax:
+clip to {mRect} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+// Set the canvas clip
+clip to rectangle [50,50,100,100] on this canvas
+
+// Fill rectangle path on canvas. only the region of the rectangle that falls within the canvas clip will be rendered.
+fill rectangle path of rectangle [25, 25, 75, 75] on this canvas
+----
+
+Description:
+Modifies the clip of mCanvas by intersecting with mRect. Drawing operations on mCanvas will be confined to the clip region.
+
+Values:
+
+OS:

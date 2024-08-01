@@ -1,0 +1,20 @@
+revIDEEditableStacks
+(function)
+Use to get a complete list of all editable stacks in the IDE.
+
+Syntax:
+revIDEEditableStacks()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use to get a complete list of all editable stacks in the IDE.
+
+Values:
+A return delimited list of stack names 
+
+OS:

@@ -1,0 +1,28 @@
+mobileCanTrackHeading
+(function)
+Returns true if the device can track the heading using a digital compass, false otherwise.
+
+Syntax:
+mobileCanTrackHeading()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get mobileCanTrackHeading()
+----
+if mobileCanTrackHeading() is "true" then 
+  answer "The heading can be tracked"
+end if
+----
+
+Description:
+Use the mobileCanTrackHeading function to check whether the device has the necessary hardware support for tracking the heading using a digital compass. 
+
+Values:
+The mobileCanTrackHeading function returns true if the device can track the heading and false otherwise. 
+
+OS:
+ios,android

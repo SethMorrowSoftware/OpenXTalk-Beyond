@@ -1,0 +1,23 @@
+UnitTestDescription
+(statement)
+Make a unit test assertion with a description
+
+Syntax:
+test {Description} when {Condition}
+----
+
+Synonyms:
+
+Params:
+Condition ( ): An expression that evaluates to `true` if the test is successful
+
+Examples:
+test "integer greater than" when 2 } 1
+----
+
+Description:
+Make a unit test assertion.  The test is considered to have passed if Condition is true.  The Description string is a short message that summarises what the test is checking.
+
+Values:
+
+OS:

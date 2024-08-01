@@ -1,0 +1,21 @@
+mergMicrophoneGetAudioFormat
+(function)
+Get the audio format to output
+
+Syntax:
+mergMicrophoneGetAudioFormat()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the audio format to output
+
+Values:
+audio-format-enum 
+
+OS:
+ios,mac

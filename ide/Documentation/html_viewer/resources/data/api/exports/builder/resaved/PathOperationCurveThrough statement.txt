@@ -1,0 +1,37 @@
+PathOperationCurveThrough
+(statement)
+Adds a curve to a path.
+
+Syntax:
+curve through {mThroughA} [ then {mThroughB} ] to {mTo} on {mPath}
+----
+
+Synonyms:
+
+Params:
+mThroughA ( ): An expression which evaluates to a point.
+mThroughB ( ): An expression which evaluates to a point.
+mTo ( ): An expression which evaluates to a point.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a new empty path
+variable tPath as Path
+put the empty path into tPath
+
+// Begin a new subpath of tPath
+move to point [25, 50] on tPath
+
+// Continue path with a curve through 25,100 to 50,100
+curve through point [25,100] to point [50,100] on tPath
+
+// Continue path with a curve through 50,75 then 50,50 to 50,100
+curve through point [50,75] then point [50,50] to point [25,50] on tPath
+----
+
+Description:
+Adds a curve from the previous point through one or two control points to mTo on mPath.
+
+Values:
+
+OS:

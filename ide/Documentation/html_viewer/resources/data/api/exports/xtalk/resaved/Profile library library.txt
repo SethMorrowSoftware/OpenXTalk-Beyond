@@ -1,0 +1,16 @@
+Profile library
+(library)
+
+Syntax:
+Synonyms:
+profiles library, profiles libraries, profile library, profile libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports property profile|property profiles. The property profile|profile property is part of the Profile library.
+
+Values:
+
+OS:

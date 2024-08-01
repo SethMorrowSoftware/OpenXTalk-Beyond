@@ -1,0 +1,26 @@
+codeunits
+(keyword)
+Used with the number function(glossary) to designate codeunits as part of a Unicode string.
+
+Syntax:
+codeunits
+----
+
+Synonyms:
+codeunits
+
+Params:
+
+Examples:
+get the number of codeunits of tString
+----
+
+Description:
+Use the codeunits keyword to count the number of codeunits making up a string.
+
+A codeunit refers to the encoded units in which codepoints are stored (e.g. 16 bit words in UTF-16 or 8-bit bytes in UTF-8)  Use the expression       the number of codeunits of tString  to find out how many codeunits make up a Unicode string.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

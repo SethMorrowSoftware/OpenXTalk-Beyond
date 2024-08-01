@@ -1,0 +1,29 @@
+unhilite
+(command)
+Sets a button|button's hilite property to false.
+
+Syntax:
+unhilite {button}
+----
+
+Synonyms:
+dehilite
+
+Params:
+button ( ): Any button reference.
+
+Examples:
+unhilite button 1
+----
+unhilite button 1 of group 1
+----
+
+Description:
+Use the unhilite command to turn off the highlight|highlighting of a button and restore it to its normal unhighlighted state, or to turn off a checkbox or radio button.
+
+The unhilite command sets the button|button's hilite property to false.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

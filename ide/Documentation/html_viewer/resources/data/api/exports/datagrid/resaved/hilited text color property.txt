@@ -1,0 +1,19 @@
+hilited text color
+(property)
+The color to apply to text when a row is highlighted.
+
+Syntax:
+put the dgProp["hilited text color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color to apply to text when a row is highlighted. By default this property is empty in which case the color is black if the average of the RGB value for the hilite color  128, white otherwise.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+CountBytesOf
+(operator)
+Counts the number of bytes in Target.
+
+Syntax:
+the number of bytes in {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+Counts the number of bytes in Target.
+
+Values:
+The number of bytes in Target 
+
+OS:

@@ -1,0 +1,33 @@
+CanvasOperationFill
+(statement)
+Fill a path on a canvas.
+
+Syntax:
+fill [ {mPath} on ] {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Fill a circle path on the canvas
+fill circle path centered at point [100,100] with radius 50 on this canvas
+----
+// Add a path to the canvas
+move to point [50,50] on this canvas
+line to point [50,100] on this canvas
+line to point [100,100] on this canvas
+
+// Fill the current canvas path
+fill this canvas
+----
+
+Description:
+Fills the region bound by mPath with the current canvas paint. If mPath is not specified then the current canvas path will be closed and filled, then emptied from the canvas.
+
+Values:
+
+OS:

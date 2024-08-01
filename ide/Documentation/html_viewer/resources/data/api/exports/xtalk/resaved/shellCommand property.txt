@@ -1,0 +1,28 @@
+shellCommand
+(property)
+Specifies the name and location of the command used for the shell function. 
+
+Syntax:
+set the shellCommand to {shellPath}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the shellCommand to "/bin/sh/ksh"
+----
+
+Description:
+Use the shellCommand property to execute a command with a particular shell.
+
+When you use the shell function, the command line you specify is sent to the program specified in the shellCommand.
+
+On OS X and Unix systems, the shellCommand is the file path|path to an executable file. On Windows|Windows systems, the shellCommand is a DOS command.
+
+Values:
+The shellCommand is a string. By default, the shellCommand property is set to "/bin/sh" (the Bourne shell) on Unix|Unix systems, and to the value of the COMSPEC environment variable on Windows|Windows systems.  
+
+OS:
+mac,windows,linux

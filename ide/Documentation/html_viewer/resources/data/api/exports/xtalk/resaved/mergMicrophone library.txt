@@ -1,0 +1,15 @@
+mergMicrophone
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+mergMicrophone is a basic wrapper around the iOS AVAudioRecorder class, enabling audio recording to be performed in iOS applications. It is a modified version of rremicrophone which is provided as part of the Externals SDK. The rremicrophone license requires modified source versions to be distributed without the rre handler prefix or com_runrev class prefix. The changes ar licensed under the extremely permissive Boost Software License http://www.boost.org/LICENSE_1_0.txt
+
+Values:
+
+OS:

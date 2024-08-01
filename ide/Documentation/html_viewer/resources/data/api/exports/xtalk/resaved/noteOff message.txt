@@ -1,0 +1,29 @@
+noteOff
+(message)
+Sent when a key on the piano released from it's 'on' state.
+
+Syntax:
+noteOff {pNoteNum}, {pNoteName}
+----
+
+Synonyms:
+
+Params:
+pNoteNum ( ): The MIDI note number(s) of the note key (exp. 63), this can be an item delimited list of multiple key numbers (chords)
+pNoteName ( ): The Name of the note key (exp. D#Eb), this can be an item delimited list of multiple key names (chords)
+
+Examples:
+on noteOff pNoteNum,pNoteName
+	put "noteOff " & pNoteNum && pNoteName
+end noteOff
+----
+
+Description:
+Handle the noteOff message in the widget's object script to respond to 'note release' messages from the piano's individual note keys.
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+Values:
+
+OS:
+mac,ios,android,win

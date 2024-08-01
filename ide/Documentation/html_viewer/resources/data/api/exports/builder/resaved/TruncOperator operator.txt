@@ -1,0 +1,25 @@
+TruncOperator
+(operator)
+Truncation operator.
+
+Syntax:
+the trunc of {Operand}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put the trunc of 3.9 into tVar -- tVar contains 3
+----
+
+Description:
+The trunc of Operand is the integer part of the decimal representation of Operand.
+
+Values:
+Operand truncated. 
+
+OS:

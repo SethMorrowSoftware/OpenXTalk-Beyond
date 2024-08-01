@@ -1,0 +1,27 @@
+activatePalettes
+(property)
+Specifies whether palettes have the same appearance when active and inactive. 
+
+Syntax:
+set the activatePalettes to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the activatePalettes to false
+----
+if the activatePalettes then hideAllPalettes
+----
+
+Description:
+By default, the activatePalettes is true if OpenXTalk is running on a Mac OS system and false otherwise.
+
+If the activatePalettes is true, all palettes look the same. If it is false, the active palette window looks different from the other palette windows. 
+
+Values:
+
+OS:
+mac,windows,linux

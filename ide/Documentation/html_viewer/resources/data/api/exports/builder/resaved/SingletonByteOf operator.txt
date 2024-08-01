@@ -1,0 +1,23 @@
+SingletonByteOf
+(operator)
+Designates the byte of data at index Index in Target.
+
+Syntax:
+byte {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Index ( ): An expression which evaluates to a valid integer index of .
+•	Target ( ): An expression which evaluates to binary data.
+	
+Examples:
+Description:
+Either locates the byte at the given index for use as the target container of another operation, or evaluates the byte at the given index as the source of another operation.
+
+*Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

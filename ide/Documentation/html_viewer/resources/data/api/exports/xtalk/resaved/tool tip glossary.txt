@@ -1,0 +1,16 @@
+tool tip
+(glossary)
+
+Syntax:
+Synonyms:
+tooltip, tool tip
+
+Params:
+
+Examples:
+Description:
+Explanatory text box that pops up when the mouse pointer hovers over an item on the screen.
+
+Values:
+
+OS:

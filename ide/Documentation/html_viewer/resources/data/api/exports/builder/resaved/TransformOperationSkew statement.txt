@@ -1,0 +1,28 @@
+TransformOperationSkew
+(statement)
+Apply a skew to a transform.
+
+Syntax:
+skew {mTransform} by {mSkew}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mSkew ( ): An expression which evaluates to a list of 2 numbers, the x-axis skew and y-axis skew.
+
+Examples:
+variable tTransform
+// Create a new transform
+put the identity transform into tTransform
+// Apply a skew to the transform
+skew tTransform by [1, 0]
+----
+
+Description:
+Apply the given skew to mTransform
+
+Values:
+
+OS:

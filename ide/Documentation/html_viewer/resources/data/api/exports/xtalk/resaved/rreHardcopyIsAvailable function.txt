@@ -1,0 +1,38 @@
+rreHardcopyIsAvailable
+(function)
+This handler returns true if printing is available on the current device.
+
+Syntax:
+rreHardcopyIsAvailable()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+command PrintDocument pFilePath
+  if rreHardcopyIsAvailable() then
+	  rreHardcopyPrintPDF pFilePath, "Print Document", the rect of the target
+		switch the result
+		  case "printing cancelled"
+			case ""
+			  -- do nothing
+				break
+			default
+			  answer "There was a problem printing the document:" & return & the result
+		end switch
+	else
+	  answer "Printing is not available on this device"
+	end if
+end PrintDocument
+----
+
+Description:
+This handler returns true if printing is available on the current device.
+
+Values:
+true if printing is available. 
+
+OS:
+ios

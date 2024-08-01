@@ -1,0 +1,16 @@
+comment
+(glossary)
+
+Syntax:
+Synonyms:
+comment, commented, commenting, comment out, commented out, comments out, commenting out, comment in, commented in, comments in, commenting in, uncomment, uncommented, uncommenting, remark
+
+Params:
+
+Examples:
+Description:
+A remark placed in a script to explain the script or part of it. OpenXTalk ignores comments when execute|executing a handler.
+
+Values:
+
+OS:

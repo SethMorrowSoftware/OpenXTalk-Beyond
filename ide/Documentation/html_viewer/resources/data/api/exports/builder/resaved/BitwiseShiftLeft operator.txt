@@ -1,0 +1,26 @@
+BitwiseShiftLeft
+(operator)
+Shifts the bits of Operand left.
+
+Syntax:
+{Operand} shifted left by {Shift} bitwise
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression which evaluates to an integer.
+Shift ( ): An expression which evaluates to an integer.
+
+Examples:
+variable tVar
+put 7 shifted left by 2 bitwise into tVar -- tVar contains 28
+----
+
+Description:
+Shifts the bits of Operand left. Shifting the bits of Operand left by x is equivalent to multiplying by 2^x.
+
+Values:
+The result of bit-shifting Operand left by Shift places. 
+
+OS:

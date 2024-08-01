@@ -1,0 +1,16 @@
+popup menu
+(glossary)
+
+Syntax:
+Synonyms:
+popup, popup menu, pop-up menu
+
+Params:
+
+Examples:
+Description:
+A list of choices that appears where the mouse is clicked.
+
+Values:
+
+OS:

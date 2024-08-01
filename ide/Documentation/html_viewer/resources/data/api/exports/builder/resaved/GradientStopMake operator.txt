@@ -1,0 +1,36 @@
+GradientStopMake
+(operator)
+Creates a new gradient stop.
+
+Syntax:
+gradient stop at {mOffset} with {mColor}
+----
+
+Synonyms:
+
+Params:
+mOffset ( ): An expression which evaluates to a number.
+mColor ( ): An expression which evaluates to a color.
+
+Examples:
+// List to hold gradient stops
+variable tRamp
+put the empty list into tRamp
+
+// First gradient stop is red at position 0
+push gradient stop at 0 with color [1,0,0] onto tRamp
+
+// Second stop is half-transparent green at position 0.5
+push gradient stop at 0.5 with color [0,1,0,0.5] onto tRamp
+
+// Third stop is blue at position 1
+push gradient stop at 1 with color [0,0,1] onto tRamp
+----
+
+Description:
+Creates a new gradient stop.
+
+Values:
+A new gradient stop. 
+
+OS:

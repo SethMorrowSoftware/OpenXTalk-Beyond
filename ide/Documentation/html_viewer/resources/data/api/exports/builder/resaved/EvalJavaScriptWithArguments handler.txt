@@ -1,0 +1,29 @@
+EvalJavaScriptWithArguments
+(handler)
+Evaluate JavaScript code within the browser with arguments
+
+Syntax:
+EvalJavaScriptWithArguments({pScript},{pArgs})
+----
+
+Synonyms:
+
+Params:
+pScript ( ): The script to evaluate
+pArgs ( ): The list of arguments to pass to the script
+
+Examples:
+variable mButton as JSObject
+
+public handler SetButtonText(in pText as String)
+	EvalJavaScriptWithArguments("arguments[0].innerHTML = arguments[1]", [mButton, pText])
+end handler
+----
+
+Description:
+Use EvalJavaScriptWithArguments to get the result of running a block of JavaScript code, where you need to pass values to the script.
+
+Values:
+A value of any type 
+
+OS:

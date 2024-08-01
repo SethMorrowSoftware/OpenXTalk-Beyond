@@ -1,0 +1,16 @@
+bitwise
+(glossary)
+
+Syntax:
+Synonyms:
+bitwise, bit-wise
+
+Params:
+
+Examples:
+Description:
+An operation done on each individual bit in a number's binary representation, rather than on the entire number.
+
+Values:
+
+OS:

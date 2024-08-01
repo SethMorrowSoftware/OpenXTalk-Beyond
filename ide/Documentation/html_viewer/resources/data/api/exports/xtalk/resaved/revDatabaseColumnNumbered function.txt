@@ -1,0 +1,40 @@
+revDatabaseColumnNumbered
+(function)
+return|Returns data from a specified database field.
+
+Syntax:
+revDatabaseColumnNumbered({recordSetID}, {columnNumber} [, {holderVariable}])
+----
+
+Synonyms:
+revdb_columnbynumber
+
+Params:
+recordSetID (integer ): The number returned by the revQueryDatabase when the record set was created.
+columnNumber (integer ): The number of a database field.
+holderVariable (string ): Any valid variable name or the name of an array element.
+
+Examples:
+revDatabaseColumnNumbered(customerServiceDB, 3)
+----
+revDatabaseColumnNumbered(7, 3, "tNewColumn") -- puts column 3 into tNewColumn
+----
+revDatabaseColumnNumbered(USCustomers, x, "tFoundZipCodes")
+----
+revDatabaseColumnNumbered(tCursor, 1, "tRetrievedDataArray[id]")
+----
+
+Description:
+Use the revDatabaseColumnNumbered function to obtain the contents of a given database field, in the current record of the specified record set.
+
+If you specify a holderVariable, the data is placed in that variable. Otherwise, the data is return|returned by the function. In order to retrieve binary data, a holder variable must be specified, otherwise the revDatabaseColumnNumbered function may return truncated data. This is due to limitations in the current architecture.
+
+If the attempt to get the data is not successful, the revDatabaseColumnNumbered function returns an error message that begins with the string "revdberr".
+
+*Important:*  The revDatabaseColumnNumbered function is part of  the Database library. To ensure that the function works in a  standalone application, you must include this  OpenXTalk custom library|custom library when you create your  standalone application|standalone. In the Inclusions pane of the  Standalone Application Settings window, make sure both the  "Database" library checkbox and those of the database drivers you are  using are checked.
+
+Values:
+If no holderVariable is specified, the revDatabaseColumnNumbered function returns text data from the specified field of the current record. If a holderVariable is specified, then the function returns empty and the text data from the specified field of the current record is placed in that variable. 
+
+OS:
+mac,windows,linux,ios,android

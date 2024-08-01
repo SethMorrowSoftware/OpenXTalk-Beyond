@@ -1,0 +1,24 @@
+LayoutControl
+(message)
+The EditValue message is sent to a table column control when EditCell or EditCellOfIndex is called.
+
+Syntax:
+on LayoutControl pControlRect, pWorkingRect
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on LayoutControl pControlRect, pWorkingRect
+	set the rect of field "FirstName" to pControlRect
+end LayoutControl
+----
+
+Description:
+LayoutControl is sent to your custom template when it is time to position all of the controls. pControlRect is the rectangle that the data grid has resized your control to. This is useful for knowing the left (item 1 of pControlRect), top (item 2 of pControlRect), right (item 3 of pControlRect) and bottom (item 4 of pControlRect) bounds you can position controls at. pWorkingRect is the rectangle within which you can safely position your controls without overlapping with any edit mode controls. Note that if you have a data grid form that does not have fixed height set to true then you can ignore the bottom (item 4 of pControlRect) and make your control as tall as you need.
+
+Values:
+
+OS:

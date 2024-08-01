@@ -1,0 +1,24 @@
+mirrored
+(property)
+Specifies whether a player displays the video frames in "mirrored" mode. 
+
+Syntax:
+set the mirrored of {player} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the mirrored of player "myPlayer" to true
+----
+
+Description:
+Use the mirrored property to flip horizontally the frames of a player. 
+
+Values:
+The mirrored of a player is true or false. 
+
+OS:
+mac,windows

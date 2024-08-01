@@ -1,0 +1,32 @@
+stackFileType
+(property)
+Specifies the creator signature and type signature|file type for saved stack file|stack files.
+
+Syntax:
+set the stackFileType to {creator} & {type}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the stackFileType to "myapSTCK"
+----
+
+Description:
+Use the stackFileType property to ensure that stacks that a standalone application creates are recognized by the operating system as belonging to the standalone application|standalone.
+
+When a file is saved on a Mac OS system, a 4-character file type and 4-character creator signature are saved with it. The creator signature specifies which application owns the file, and the file type is used to determine which applications (other than the owner) can work with the file.
+
+*Note:* xTalk's creator signature is 'OXTk'. The file type for a  stack file created by OpenXTalk is 'STAK'.
+
+The stackFileType property is used to set the type signature|file type and creator signature|creator for stack file|stack files your application creates with the save command. (To specify the type signature|file type and creator signature|creator for files created by the open file command or by putting data into a file, binfile, or resfile URL that doesn't yet exist, use the fileType property instead.)  The setting of this property has no effect on Unix and Windows systems.
+
+*Important:*  To avoid conflicts with other applications, register any  new creator signature|creator signatures with Apple Computer if you  plan to distribute a stack or standalone application that uses  this property.
+
+Values:
+The stackFileType is an eight- character string. The first four characters are the creator signature, and the last four are the type signature|file type. By default, the stackFileType is set to "RevoRSTK". 
+
+OS:
+mac

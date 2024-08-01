@@ -1,0 +1,29 @@
+LastCodeunitOf
+(operator)
+Designates the last codeunit in Target.
+
+Syntax:
+the last codeunit of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+variable tVar as String
+put "codeunit" into tVar
+
+variable tLast as String
+put the last codeunit of tVar into tLast -- tLast contains "r"
+----
+
+Description:
+Either locates the last codeunit for use as the target container of another operation, or evaluates the last codeunit as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

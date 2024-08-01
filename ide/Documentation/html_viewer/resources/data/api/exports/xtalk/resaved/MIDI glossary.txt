@@ -1,0 +1,16 @@
+MIDI
+(glossary)
+
+Syntax:
+Synonyms:
+playsentence, midi, musical instrument digital interface, playpmd
+
+Params:
+
+Examples:
+Description:
+MIDI (Musical Instrument Digital Interface) is a set of standards for interaction between musical hardware and software such as drum machines, synthesizer keyboards, or sample players
+
+Values:
+
+OS:

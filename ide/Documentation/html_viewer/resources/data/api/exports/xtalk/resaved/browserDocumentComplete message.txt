@@ -1,0 +1,34 @@
+browserDocumentComplete
+(message)
+Sent when a browser object has finished loading a url
+
+Syntax:
+browserDocumentComplete {pInstanceId}, {pUrl}
+----
+XBrowser_DocumentComplete {pUrl}, {pInstanceId}
+----
+
+Synonyms:
+xbrowser_documentcomplete
+
+Params:
+pInstanceId ( ): The integer identifier of the browser object
+pUrl ( ): The url that has finished loading
+
+Examples:
+on browserDocumentComplete pInstanceId, pUrl
+  enable button "Go"
+end browserDocumentComplete
+----
+
+Description:
+The browserDocumentComplete message is sent to the current card of a stack containing a browser object when the browser object has finished loading a url and all its dependent resources.
+
+If the target is the main frame of the browser (e.g. the html page with the "FRAMESET" declaration), then the browserDocumentComplete message is sent. Otherwise the browserDocumentCompleteFrame message is sent instead.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+
+OS:
+mac,windows

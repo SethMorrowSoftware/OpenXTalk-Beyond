@@ -1,0 +1,31 @@
+libURLSetSSLVerification
+(command)
+Allows for server credential authentication.
+
+Syntax:
+libURLSetSSLVerification {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+libURLSetSSLVerification true
+----
+libURLSetSSLVerification false
+----
+
+Description:
+libURLSetSSLVerification sets whether or not the server credentials are authenticated. If libURLSetSSLVerification is set to true then the server credentials are authenticated. If libURLSetSSLVerification is set to false, then the server credentials are not authenticated and any connection is accepted.
+
+*Important:*  The libURLSetSSLVerification command is part of the  Internet library on desktop platforms. To ensure that the command  works in a desktop standalone application, you must include this  OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the  Standalone Application Settings window, make sure the "Internet"  script library is selected.
+
+*Cross-platform note:* On iOS and Android, libURLSetSSLVerification  is implemented in the engine. Therefore the Internet library is not  needed to ensure the command works in a mobile  standalone application. If included, the Internet library  implementation will be used instead of the engine implementation.
+
+ *Cross-platform note:* The HTML5 engine will always verify server  credentials.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

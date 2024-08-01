@@ -1,0 +1,19 @@
+ScrollIndexIntoView
+(command)
+Scrolls the data grid so that the line associated with pIndex in the internal data array is in view.
+
+Syntax:
+dispatch "ScrollIndexIntoView" to group "DataGrid" with pIndex
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Scrolls the data grid so that the line associated with pIndex in the internal data array is in view.
+
+Values:
+
+OS:

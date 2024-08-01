@@ -1,0 +1,20 @@
+Extension Builder extension
+(glossary)
+
+Syntax:
+Synonyms:
+lcb extension
+
+Params:
+
+Examples:
+Description:
+An extension to the OpenXTalk environment written in the OpenXTalk Builder language. The extension can be either a widget or a library extension|library.
+
+A widget when loaded is a control that can be created on the stack by dragging it out from the tools palette, or using the create widget command.
+
+A library extension|library when loaded has its public handlers added to the bottom of the message path and then called in OpenXTalk in exactly the same way as script handlers.
+
+Values:
+
+OS:

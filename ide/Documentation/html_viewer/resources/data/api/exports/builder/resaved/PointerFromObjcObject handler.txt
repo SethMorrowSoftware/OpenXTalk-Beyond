@@ -1,0 +1,21 @@
+PointerFromObjcObject
+(handler)
+Convert an ObjcObject into a Pointer
+
+Syntax:
+PointerFromObjcObject({pObjcObject})
+----
+
+Synonyms:
+
+Params:
+pObjcObject ( ): The ObjcObject to convert
+
+Examples:
+Description:
+Use PointerFromObjcObject to convert a variable of type ObjcObject to one of type Pointer.
+
+Values:
+The Pointer wrapped by the ObjcObject 
+
+OS:

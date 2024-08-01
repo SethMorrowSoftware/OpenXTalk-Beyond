@@ -1,0 +1,53 @@
+switch
+(control structure)
+Chooses among several possible value(glossary)|values for an expression, and execute|executes a set of statement|statements that depends on the value(function).
+
+Syntax:
+switch {switchExpression}
+   case {caseValue}
+       {statementList}
+       [break]
+   [default
+       {defaultStatementList}]
+end switch
+----
+switch
+   case {caseCondition}
+       {statementList}
+       [break]
+   [default
+       {defaultStatementList}]
+end switch
+----
+
+Synonyms:
+
+Params:
+•	switchExpression ( ): Any expression.
+•	caseValue ( ): Any . (If the  evaluates to the same  as the , the condition is matched for that  section.) 
+•	caseCondition (bool ): Any  that  to true or false. (If the   to true, the condition is matched for that  section.)
+•	statementList ( ): Of one or more  , and can also include , , , or   . 
+•	defaultStatementList ( ): Of one or more  .
+	
+Examples:
+Description:
+Use the switch control structure to select among multiple possible conditions, performing a different set of actions for each possibility.
+
+**Form:** The switch control structure begins with the word switch on a single line, with an optional switchExpression.
+
+The switch line is followed by one or more case sections. Each case section begins with the case keyword, followed by either a caseValue (if a switchExpression was included on the switch line) or a caseCondition (if no switchExpression was included). If the caseValue is equal to the switchExpression, or the caseCondition evaluate|evaluates to true, OpenXTalk begins execute|executing the following statement|statements.
+
+The case sections may be followed by an optional default section. If no break statement has been encountered yet in the switch  control structure, the statement|statements in the default section are executed.
+
+The switch structure ends with an end switch statement.     Flow of control in a switch control structure|structure is less complicated than it looks. In general, when OpenXTalk enters a switch control structure, it looks for the first case section whose caseValue is equal to the switchExpression, or whose caseCondition is true. When a matching condition is found, all statement|statements following it are executed--even statements in another case section--until either a break statement is encountered or the switch control structure ends.
+
+This means that if you do not end a case section's statementList with a break statement, the statement|statements in all the following case sections (and the default section) are execute|executed even if those case sections don't have a matching caseValue or a true caseCondition. Occasionally, this behavior is useful. However, in most cases, you should place a break statement at the end of each statementList. This ensures that only one statementList is execute|executed, and the rest are skipped.
+
+This also means that you can attach more than one caseValue or caseCondition to the same statementList, simply by placing one case line above the next. The following example beeps if the  current card is either the last or first card, and goes to the  next card otherwise:       switch (the number of this card)     case 1     case (the number of cards)       -- both of the above case conditions execute the following       -- statements:       beep       break     default       go next card     end switch   There is no limit to the number of case sections you can include in a switch control structure, although the more case sections there are, the more expression|expressions OpenXTalk must evaluate and the more slowly the switch control structure|structure execute|executes.
+
+*Note:* The switch control structure is implemented internally as a  command and appears in the commandNames.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

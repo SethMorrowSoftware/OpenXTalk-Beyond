@@ -1,0 +1,21 @@
+NativeLayerOfWidget
+(operator)
+Get a widget's native layer pointer
+
+Syntax:
+native layer of {Widget}
+----
+
+Synonyms:
+
+Params:
+Widget ( ): The widget to examine
+
+Examples:
+Description:
+Get a widget's native layer pointer
+
+Values:
+A platform-specific native layer pointer 
+
+OS:

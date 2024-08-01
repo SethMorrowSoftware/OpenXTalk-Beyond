@@ -1,0 +1,20 @@
+MyEnabled
+(expression)
+Returns the enabled state of the widget.
+
+Syntax:
+my enabled
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the enabled state of the widget.
+
+Values:
+The enabled state of the widget. 
+
+OS:

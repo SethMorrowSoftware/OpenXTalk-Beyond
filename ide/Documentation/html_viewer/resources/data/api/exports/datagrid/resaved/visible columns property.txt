@@ -1,0 +1,19 @@
+visible columns
+(property)
+Line delimited list of columns in your table that are visible.
+
+Syntax:
+put the dgProp["visible columns"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Line delimited list of columns in your table that are visible.
+
+Values:
+
+OS:

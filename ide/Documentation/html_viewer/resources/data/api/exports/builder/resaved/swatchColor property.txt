@@ -1,0 +1,38 @@
+swatchColor
+(property)
+Determines the color displayed by the swatch.
+
+Syntax:
+set the swatchColor of {widget} to {pColor}
+get the swatchColor of {widget}
+----
+
+Synonyms:
+
+Params:
+pColor ( ): The color of the swatch in RGB or RGBA format, or empty.
+
+Examples:
+set the swatchColor of widget "Color Swatch" to empty
+----
+    on copySwatchColorToGraphic pSwatchName, pGraphicName
+        local tColorWithAlpha
+        put the swatchColor of widget pSwatchName into tColorWithAlpha
+
+        local tColor, tBlendLevel
+        put item 1 to 3 of tColorWithAlpha into tColor
+        put (255 - item 4 of tColorWithAlpha) / 2.55 into tBlendLevel
+
+        set the backcolor of graphic pGraphicName to tColor
+        set the blendLevel of graphic pGraphicName to tBlendLevel
+    end copySwatchColorToGraphic
+----
+
+Description:
+Use the iconColor property to set the color of the widget icon. The color is in the form of a 3 or 4 item string, the 4th optional item being the alpha value, all between 0 and 255.
+
+*Note:* The color returned by the swatchColor property, if not empty, always includes an alpha value which is 255 by default. 
+
+Values:
+
+OS:

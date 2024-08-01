@@ -1,0 +1,16 @@
+user interface
+(glossary)
+
+Syntax:
+Synonyms:
+user-interface, user interface
+
+Params:
+
+Examples:
+Description:
+The way the user controls a computer or computer program, and the way the computer or program reports results to the user.
+
+Values:
+
+OS:

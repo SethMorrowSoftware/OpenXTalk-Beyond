@@ -1,0 +1,16 @@
+timestamp
+(glossary)
+
+Syntax:
+Synonyms:
+timestamp
+
+Params:
+
+Examples:
+Description:
+A date and time attached to an object(glossary) or file.
+
+Values:
+
+OS:

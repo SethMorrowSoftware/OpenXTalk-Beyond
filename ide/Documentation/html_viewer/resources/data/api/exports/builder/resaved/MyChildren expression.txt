@@ -1,0 +1,41 @@
+MyChildren
+(expression)
+The currently placed child widgets of this widget.
+
+Syntax:
+my children
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler OnCreate() returns nothing
+    repeat 10 times
+        place a new widget "com.livecode.widget.button"
+    end repeat
+end handler
+
+public handler OnGeometryChanged() returns nothing
+    variable tChildren as List
+    put my children into tChildren
+
+    variable tChild as Widget
+    variable tLeft as Number
+    put 0 into tLeft
+    -- arrange children from left to right
+    repeat for each element tChild in tChildren
+        set the rectangle of tChild to [tLeft, 0, tLeft + 50, my height]
+        add 50 to tLeft
+    end repeat
+end handler
+----
+
+Description:
+The list of widget objects returned by MyChildren|my children is in placement (i.e. layer) order.
+
+Values:
+A list of the child widgets of this widget. 
+
+OS:

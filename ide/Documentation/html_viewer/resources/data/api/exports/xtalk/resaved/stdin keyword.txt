@@ -1,0 +1,31 @@
+stdin
+(keyword)
+Used with the read from file command to designate the  standard input. 
+
+Syntax:
+stdin
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+read from stdin until EOF
+----
+
+Description:
+Use the stdin keyword to read data from the standard input, usually the keyboard.
+
+On Unix systems, input to a program is normally read from the keyboard, but can be redirected to come from another device, process or file. This redirection is done on the command line when the program is started up.
+
+On a server in CGI mode, stdin is assumed to contain post data, and reading from it prevents the engine's automatic processing of such information.
+
+When you use the read from file command with the stdin keyword, the engine reads data from the standard input.
+
+Support for using stdin on Server was added in version 4.6.3.
+
+Values:
+
+OS:
+mac,windows,linux

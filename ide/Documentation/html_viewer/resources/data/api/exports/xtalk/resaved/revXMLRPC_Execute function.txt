@@ -1,0 +1,23 @@
+revXMLRPC_Execute
+(function)
+
+Syntax:
+revXMLRPC_Execute(XMLRPCdocumentID)
+
+Summary:
+Executes an XML-RPC request and returns the result as an XML-RPC document structure.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+local tResponse
+put revXMLRPC_Execute(tRequest) into tResponse
+
+Description:
+Use revXMLRPC_Execute to execute an XML-RPC request.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

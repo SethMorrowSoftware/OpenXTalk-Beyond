@@ -1,0 +1,27 @@
+unlock clipboard
+(command)
+Unlocks the clipboard and pushes the changes to the system clipboard.
+
+Syntax:
+unlock [the] clipboard
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+unlock the clipboard
+----
+
+Description:
+Use the unlock clipboard command to make the contents of the clipboard available to other apps.
+
+*Note:* If you use the clipboardData or fullClipboardData  properties, locking the clipboard is not required (it will be done  automatically) but is recommended.
+
+*Tip:* Use lock clipboard to ensure the clipboard does not change  between accesses.
+
+Values:
+
+OS:
+mac,windows,linux

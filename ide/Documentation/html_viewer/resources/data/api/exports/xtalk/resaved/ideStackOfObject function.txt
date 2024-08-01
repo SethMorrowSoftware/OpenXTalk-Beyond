@@ -1,0 +1,21 @@
+ideStackOfObject
+(function)
+The parent stack of an object
+
+Syntax:
+ideStackOfObject({pLongID})
+----
+
+Synonyms:
+
+Params:
+pLongID ( ): The long id of an object
+
+Examples:
+Description:
+Returns the long id of the (immediate) parent stack of the object with long id pLongID. To retrieve the mainstack of an object, use the ideMainStackOfObject function.
+
+Values:
+the long id of the parent stack of pLongID 
+
+OS:

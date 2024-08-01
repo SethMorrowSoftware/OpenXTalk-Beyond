@@ -1,0 +1,26 @@
+BitwiseShiftRight
+(operator)
+Shifts the bits of Operand right.
+
+Syntax:
+{Operand} shifted right by {Shift} bitwise
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression which evaluates to an integer.
+Shift ( ): An expression which evaluates to an integer.
+
+Examples:
+variable tVar
+put 7 shifted right by 2 bitwise into tVar -- tVar contains 1
+----
+
+Description:
+Shifts the bits of Operand right. Shifting the bits of Operand right by x is equivalent to dividing by 2^x (rounding down)
+
+Values:
+The result of bit-shifting Operand right by Shift places. 
+
+OS:

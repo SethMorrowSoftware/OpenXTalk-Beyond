@@ -1,0 +1,27 @@
+minimize
+(keyword)
+Used with the decorations property to indicate whether the  minimize button appears in a window's title bar.
+
+Syntax:
+minimize
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the decorations of stack "Help" to "minimize, menu"
+----
+
+Description:
+Use the minimize keyword to turn a systemWindow|window's minimize button  on or off.
+
+Setting a stack's decorations property to minimize automatically includes 'title' in the value of the decorations, turning on the systemWindow|window's title bar. The name on the title bar can be set  using the systemWindow|window's label property.
+
+On Windows systems, the menu decorations|decoration must be set along with minimize : you cannot use minimize without including menu.
+
+Values:
+
+OS:
+windows,linux

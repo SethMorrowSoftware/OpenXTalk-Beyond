@@ -1,0 +1,29 @@
+graphData
+(property)
+The data displayed by the graph.
+
+Syntax:
+set the graphData of {widget} to {pData}
+get the graphData of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+    local tVar
+    put "mon,1000,300,0\ntue,720,340,123\nwed,889,400,80\nthu,800,360,10\nfri,1000,301,234\nsat,964,400,200\nsun,1000,500,0" into tVar
+    replace "\n" with return in tVar
+    set the graphData of widget "My Graph" to tVar
+----
+
+Description:
+The graphData is the data to be displayed by the graph widget.
+
+Each line of the graphData should be a a comma delimited list.  The first item of each line is the label for that point on the x-axis. The second and following items are the values for each series of data to plot.
+
+Values:
+A line delimited list of the data for each point on the x-axis. 
+
+OS:

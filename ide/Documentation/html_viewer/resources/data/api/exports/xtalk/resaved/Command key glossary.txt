@@ -1,0 +1,18 @@
+Command key
+(glossary)
+
+Syntax:
+Synonyms:
+apple key, open apple key, propellor key, command key
+
+Params:
+
+Examples:
+Description:
+A modifier key on Mac OS and OS X|OS X systems, located at the right of the spacebar.
+
+The Command key is used for some actions, such as shortcuts for menu item|menu items, that require the Control key on Unix and Windows|Windows systems.
+
+Values:
+
+OS:

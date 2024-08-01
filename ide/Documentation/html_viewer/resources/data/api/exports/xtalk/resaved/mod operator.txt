@@ -1,0 +1,38 @@
+mod
+(operator)
+Evaluates to the remainder left over when one number is divided by another. 
+
+Syntax:
+{number} mod {divisor}
+----
+
+Synonyms:
+
+Params:
+•	number ( ): A number, or an expression that evaluates to a number, or an array containing only numbers.
+•	divisor ( ): Any non-zero number. If the number is an array, the divisor is either a non-zero number or an array containing only non-zero numbers.
+	
+Examples:
+23 mod 5 -- evaluates to 3 (23 div 5 is 4, with 3 left over)
+----
+12 mod 4 -- evaluates to zero
+----
+23 mod -5 -- evaluates to 3
+----
+
+Description:
+Use the mod operator to perform modulus arithmetic.
+
+If the number to be divided is an array, each of the array element(glossary)|elements must be a number. If an array is divided by a number, each element(keyword) is divided by the number. If an array is divided by an array, both array|arrays must have the same number of element(glossary)|elements and the same dimension, and each element(keyword) in one array is divided by the corresponding element(keyword) of the other array.
+
+If an element of an array is empty, the mod operator treats its contents as zero.
+
+If number can be divided evenly into divisor, the expression number mod divisor is zero.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+*Note:* Using non-integer number and divisor usually produces  sensible results. However, mathematically, modulus is generally  defined as a function over the integers, and the results using  non-integers may not consistently be what you expect. 
+
+OS:
+mac,windows,linux,ios,android

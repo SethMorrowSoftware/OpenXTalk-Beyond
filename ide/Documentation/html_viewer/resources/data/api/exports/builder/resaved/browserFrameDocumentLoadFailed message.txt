@@ -1,0 +1,21 @@
+browserFrameDocumentLoadFailed
+(message)
+Sent when a document has failed to load in a frame of the browser.
+
+Syntax:
+browserFrameDocumentLoadFailed {pUrl}, {pError}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the document.
+pError (string ): An error message describing the reason for the failure.
+
+Examples:
+Description:
+The browserFrameDocumentLoadFailed message is sent to the widget's  script object when a new document has failed to load in a frame of the  browser. The pUrl parameter contains the URL of the document, and the  pError parameter gives the reason for the failure.
+
+Values:
+
+OS:

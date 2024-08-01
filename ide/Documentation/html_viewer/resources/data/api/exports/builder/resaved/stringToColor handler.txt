@@ -1,0 +1,35 @@
+stringToColor
+(handler)
+Converts a string to a color
+
+Syntax:
+stringToColor({pString})
+----
+
+Synonyms:
+
+Params:
+pString ( ): A comma delimited string representing a color in RGB / RGBA format
+
+Examples:
+property widgetColor 	get getColor	set setColor
+metadata widgetColor.editor is "com.livecode.pi.colorwithalpha"
+
+private variable mColor as Color
+
+public handler OnLoad(in pProperties as Array)
+	setColor(pProperties["color"])
+end handler
+
+public handler setColor(in pColor as String)
+	put stringToColor(pColor) into mColor
+	redraw all
+end handler
+----
+
+Description:
+Use the stringToColor handler when receiving colors from a script via a property setter, or from the widget's stored properties array when loading.
+
+Values:
+
+OS:

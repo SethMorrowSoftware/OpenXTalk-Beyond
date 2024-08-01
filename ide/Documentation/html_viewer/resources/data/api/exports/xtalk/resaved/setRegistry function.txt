@@ -1,0 +1,39 @@
+setRegistry
+(function)
+Sets an entry in the registry|Windows system registry.
+
+Syntax:
+setRegistry({keyPath}, {value} [, {type}])
+----
+
+Synonyms:
+
+Params:
+keyPath ( ): The keyPath parameter is the path to a registry entry.
+value ( ): The new setting for the entry specified by the keyPath.
+type (enum ): 
+
+Examples:
+setRegistry("HKEY_CLASSES_ROOT\.txt\", "NotePad")
+----
+if setRegistry(myEntry & "/",myValue) then open file myFile
+----
+setRegistry(theKey,empty)
+----
+
+Description:
+Use the setRegistry function to change the behavior of Windows.
+
+The first part of the keyPath should be one of the predefined handle values. If the keyPath ends in "\", the new setting becomes the default value. For example, if you want file|files ending in ".rev" to automatically launch OpenXTalk, use the following command :      get setRegistry("HKEY_CLASSES_ROOT\.rev\", "OpenXTalk")   If the key doesn't exist, the setRegistry function creates it in the registry.
+
+To delete a subkey, set the subkey's value to empty.
+
+If the type is a binary type, make sure the value is binary. (You can encode a string as binary file|binary data using the binaryEncode function.)  On Mac OS and Unix systems, the setRegistry function return|returns "not supported".
+
+*Warning:*  Be careful to use only carefully debugged entries with the  setRegistry function. Changing entries in the registry|Windows  registry to invalid values can cause the system to behave  unexpectedly or stop functioning altogether.
+
+Values:
+The setRegistry function return|returns true if the setting was successfully changed, false otherwise. If Windows sends an error message to the application, the result function return|returns the error message. 
+
+OS:
+windows

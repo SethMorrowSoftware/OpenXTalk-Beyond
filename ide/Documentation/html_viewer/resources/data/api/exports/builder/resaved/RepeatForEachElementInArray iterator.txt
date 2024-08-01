@@ -1,0 +1,39 @@
+RepeatForEachElementInArray
+(iterator)
+Repeat over the elements of an array.
+
+Syntax:
+element {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): Any variable of appropriate type.
+
+Examples:
+    variable tArray as Array
+    put the empty array into tArray
+    put 1 into tArray["key1"]
+    put 2 into tArray["key2"]
+    put 3 into tArray["key3"]
+
+	variable tSum as Number
+	put 0 into tSum
+
+    variable tElement
+    repeat for each element tElement in tArray
+        add tElement to tSum
+    end repeat
+
+    // tSum is 6
+----
+
+Description:
+Use repeat for each element to iterate over the elements of an array in no particular order. On each iteration, the Iterand will contain the next element of the array being iterated over.
+
+*Note:* If Iterand is typed, then an error will be thrown if the array being iterated over contains any elements of a different type.
+
+Values:
+
+OS:

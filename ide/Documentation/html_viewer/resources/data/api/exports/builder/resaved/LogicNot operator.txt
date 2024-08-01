@@ -1,0 +1,25 @@
+LogicNot
+(operator)
+Returns the boolean-logical value of the expression 'not Operand'
+
+Syntax:
+not {Operand}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a boolean value
+
+Examples:
+variable tBool is bool
+put not not not not true into tBool is true
+----
+
+Description:
+Returns the boolean-logical value of the expression 'not Operand'
+
+Values:
+If the operand expression evaluates to true, the value of the expression is false.             Otherwise, the value of the expression is true. 
+
+OS:

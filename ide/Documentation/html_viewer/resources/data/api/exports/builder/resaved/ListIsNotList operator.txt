@@ -1,0 +1,29 @@
+ListIsNotList
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is not {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a list.
+Right ( ): An expression which evaluates to a list.
+
+Examples:
+variable tList as List
+put ["a", "b", "c"] into tList
+variable tIsNot as Boolean
+
+put tList is not ["A", "b", "c"] into tIsNot -- tIs is true
+----
+
+Description:
+Two lists are not equal if any corresponding elements are of non-comparable types, or if the default equality of that type does not holds between the elements. In particular, this means that comparison between string elements is case sensitive.
+
+Values:
+Returns true if Left is not identical to Right. 
+
+OS:

@@ -1,0 +1,40 @@
+unlock screen
+(command)
+Sets the lockScreen property to false, updating the screen and displaying any changes made since the screen was lock|locked.
+
+Syntax:
+unlock screen [with visual [effect] {effectName} [{speed}] [to {finalImage}] [with sound {audioClip}]]
+----
+
+Synonyms:
+
+Params:
+effectName ( ): Works as described in the  .
+speed ( ): Works as described in the  .
+finalImage ( ): Works as described in the  .
+audioClip ( ): Works as described in the  .
+
+Examples:
+lock screen
+hide image 1
+unlock screen
+----
+lock screen for visual effect
+hide image 1
+show control 1
+unlock screen with visual effect dissolve
+----
+lock screen
+show field 1
+unlock screen with visual barn door open to white with sound "Yelp"
+----
+
+Description:
+Use the unlock screen command to allow changes to the screen appearance to be seen.
+
+The unlock screen command sets the lockScreen property to false. When all pending handler|handlers are finished execute|executing, the lockScreen property is automatically set to false.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+HTTP
+(glossary)
+
+Syntax:
+Synonyms:
+http
+
+Params:
+
+Examples:
+Description:
+HyperText Tranfer Protocol. The protocol used for transferring web pages from a web server to a system accessing the web page.
+
+Values:
+
+OS:

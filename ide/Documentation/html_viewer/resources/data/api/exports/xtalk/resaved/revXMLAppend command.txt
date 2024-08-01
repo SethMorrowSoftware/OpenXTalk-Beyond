@@ -1,0 +1,31 @@
+revXMLAppend
+(command)
+Adds XML text to an XML tree.
+
+Syntax:
+revXMLAppend {treeID}, {parentNode}, {newXML}
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the revXMLCreateTree or revXMLCreateTreeFromFile function when you created the XML tree.
+parentNode ( ): The path to the node where the newXML will be inserted. Any elements in the newXML will become child nodes of the parentNode. If no parentNode is specified, the newXML is inserted at the end of the XML tree.
+newXML ( ): The XML text to be inserted.
+
+Examples:
+revXMLAppend 4,"/Publications/Fiction/SF",URL "file:SF Books.xml"
+----
+revXMLAppend thisTree,the currNode of me,the text of me
+----
+
+Description:
+Use the revXMLAppend command to add new XML data to an existing XML tree.
+
+*Important:*  The revXMLAppend command is part of the   XML library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+If the revXMLAppend command encounters an error, the result is set to an error message beginning with "xmlerr". 
+
+OS:
+mac,windows,linux,ios,android

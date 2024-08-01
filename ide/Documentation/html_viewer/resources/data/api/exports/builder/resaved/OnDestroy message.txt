@@ -1,0 +1,19 @@
+OnDestroy
+(message)
+Sent when the widget is deleted.
+
+Syntax:
+OnDestroy
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the OnDestroy message to have the widget perform an action when it is deleted.
+
+Values:
+
+OS:

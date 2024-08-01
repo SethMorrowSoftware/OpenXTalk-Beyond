@@ -1,0 +1,35 @@
+hilite
+(property)
+Determines whether a button is highlight|highlighted.
+
+Syntax:
+set the hilite of {button} to {true | false}
+----
+
+Synonyms:
+highlight, highlite, hilight, highlighted, highlited, hilighted, hilited
+
+Params:
+
+Examples:
+set the hilite of button "Option 1" to true
+----
+set the hilite of me to not the hilite of me
+----
+
+Description:
+Use the hilite property to provide visual feedback when a button(keyword) is pressed, or to reflect the state of a setting.
+
+The effect of the hilite property on a button(keyword) depends on the style, threeD, and hiliteBorder of the button(keyword).
+
+If the button's hiliteBorder and threeD property|properties are true, the topColor and bottomColor (or topPattern and bottomPattern) are reversed when the button(keyword) is highlight|highlighted.
+
+If a radio button's or checkbox's hilite is true, the radio button or checkbox option is selected. If the hilite is false, the option is not selected.
+
+For buttons of any other style, if the hilite is true, the button(object)|button's background is drawn in the hiliteColor (or the hilitePattern, if the button(object)|button's hiliteFill property is true).
+
+Values:
+The hilite of a button is true or false. By default, the hilite property of a newly created button is set to false. 
+
+OS:
+mac,windows,linux,ios,android

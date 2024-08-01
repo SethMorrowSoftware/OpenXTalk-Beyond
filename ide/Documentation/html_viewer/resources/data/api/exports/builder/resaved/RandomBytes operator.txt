@@ -1,0 +1,20 @@
+RandomBytes
+(operator)
+Generate random data
+
+Syntax:
+{Count} random bytes
+----
+
+Synonyms:
+
+Params:
+Count ( ): Expression evaluating to the number of bytes to generate
+
+Examples:
+Description:
+Generates the requested number of bytes of cryptographic-quality random data.
+
+Values:
+
+OS:

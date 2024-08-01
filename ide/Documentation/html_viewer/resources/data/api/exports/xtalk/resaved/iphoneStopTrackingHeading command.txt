@@ -1,0 +1,31 @@
+iphoneStopTrackingHeading
+(command)
+Stops tracking the heading of the device.
+
+Syntax:
+iphoneStopTrackingHeading
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+iphoneStopTrackingHeading
+----
+if tTrackingOn is "false" then
+   iphoneStopTrackingHeading
+end if
+----
+
+Description:
+Use the iphoneStopTrackingHeading command to stop tracking the current heading of the device.
+
+The iphoneStopTrackingHeading command stops tracking the heading of the device using the digital compass.
+
+*Note:* The digital compass is only supported in iOS 4.0 and later.
+
+Values:
+
+OS:
+ios

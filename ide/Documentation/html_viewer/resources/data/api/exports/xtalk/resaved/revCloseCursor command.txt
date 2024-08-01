@@ -1,0 +1,31 @@
+revCloseCursor
+(command)
+Closes a redcord set|record set (database cursor).
+
+Syntax:
+revCloseCursor {recordSetID}
+----
+
+Synonyms:
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revCloseCursor 3
+----
+revCloseCursor finalResults
+----
+
+Description:
+Use the revCloseCursor command to clean up after using a  record set in a database.
+
+All open record sets are closed automatically when the database they are associated with is closed. However, it is recommended practice to explicitly close record sets when your stack is finished with them.
+
+*Important:*  The revCloseCursor command is part of the   Database library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+If the closure is not successful, the result is set to an error message. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,28 @@
+disable
+(command)
+Dims a control so that it no longer responds to user actions.
+
+Syntax:
+disable {object}
+----
+
+Synonyms:
+
+Params:
+object ( ): Any control in an open stack.
+
+Examples:
+disable field 1
+----
+disable button 2 of card 7 of stack "Overall Controls"
+----
+
+Description:
+Use the disable command to prevent an object(glossary) from responding to mouse clicks or keyboard presses.
+
+The disable command is equivalent to setting the object|object's disabled property to true.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

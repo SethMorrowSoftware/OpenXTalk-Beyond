@@ -1,0 +1,35 @@
+ideSubscribe
+(command)
+Subscribes the calling object to receive the specified IDE message
+
+Syntax:
+ideSubscribe {pMessage},{pObjectList}
+----
+
+Synonyms:
+
+Params:
+pMessage ( ): The message to subscribe to.
+pObjectList ( ): A list of objects, one per line, determining which calling objects the message should be restricted to.
+
+Examples:
+on preOpenStack
+   ideSubscribe "ideSelectedObjectsChanged"
+end preOpenStack
+
+on ideSelectedObjectsChanged
+   # Handle the notification
+end ideSelectedObjectsChanged
+----
+-- When the selection changes, subscribe to the idePropertyChanged message for the newly selected objects
+on ideSelectedObjectsChanged
+   ideSubscribe "idePropertyChanged", revIDESelectedObjects()
+end ideSelectedObjectsChanged
+----
+
+Description:
+Subscribe to messages to have a notification sent for particular IDE actions.
+
+Values:
+
+OS:

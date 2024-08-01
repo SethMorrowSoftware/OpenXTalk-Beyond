@@ -1,0 +1,32 @@
+toLower
+(function)
+return|Returns a string converted to all lowercase letters.
+
+Syntax:
+the toLower of {stringToConvert}
+----
+toLower({stringToConvert})
+----
+
+Synonyms:
+lower
+
+Params:
+stringToConvert (string ): Any string or expression that evaluates to a string.
+
+Examples:
+toLower("This is a 30 test.") -- returns "this is a 30 test."
+----
+toLower("NO, MAANA!") -- returns "no, maana!"
+----
+
+Description:
+Use the toLower function to change the case of a string.
+
+Uppercase letters, including special characters with diacritical marks, are converted to the lowercase equivalents. All other characters, including lowercase letters, numbers, punctuation, and special characters with no upper or lower case, are left unchanged by the toLower function.
+
+Values:
+The toLower function return|returns a string the same length as the stringToConvert. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+syntax
+(glossary)
+
+Syntax:
+Synonyms:
+syntactical, syntaxes, syntax
+
+Params:
+
+Examples:
+Description:
+The structure of a programming language or of a statement in a programming language.
+
+Values:
+
+OS:

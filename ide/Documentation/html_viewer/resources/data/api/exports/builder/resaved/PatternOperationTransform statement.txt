@@ -1,0 +1,29 @@
+PatternOperationTransform
+(statement)
+Apply a transform to a pattern.
+
+Syntax:
+transform {mPattern} by {mTransform}
+----
+
+Synonyms:
+
+Params:
+mPattern ( ): An expression which evaluates to a pattern.
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+// Create a new pattern paint from an image file
+variable tPattern
+put pattern with image from file "images/pattern.png" into tPattern
+
+// Apply transform to the pattern.
+transform tPattern by transform with matrix [0,2,-2,0,5,10]
+----
+
+Description:
+Modifies the transform of mPattern by concatentation with mTransform
+
+Values:
+
+OS:

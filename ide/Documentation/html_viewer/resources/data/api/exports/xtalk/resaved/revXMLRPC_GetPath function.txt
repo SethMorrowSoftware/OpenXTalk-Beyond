@@ -1,0 +1,25 @@
+revXMLRPC_GetPath
+(function)
+
+Syntax:
+revXMLRPC_GetPath(XMLRPCdocumentID)
+
+Summary:
+This function returns the target path of an XML-RPC document.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+local tPath
+put revXMLRPC_GetPath(tRequest) into tPath
+
+Description:
+Use the revXMLRPC_GetPath function to retrieve the path that is the target of the execution of an XML-RPC request.
+
+If the revXMLRPC_GetPath function encounters an error, it returns an error message starting with "xmlrpcerr" ..

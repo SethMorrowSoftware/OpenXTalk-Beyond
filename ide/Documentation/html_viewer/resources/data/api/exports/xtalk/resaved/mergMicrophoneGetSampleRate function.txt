@@ -1,0 +1,21 @@
+mergMicrophoneGetSampleRate
+(function)
+Get the sample rate measure in hertz (number of samples to take per second - 44100 is CD quality)
+
+Syntax:
+mergMicrophoneGetSampleRate()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the sample rate measure in hertz (number of samples to take per second - 44100 is CD quality)
+
+Values:
+real 
+
+OS:
+ios,mac

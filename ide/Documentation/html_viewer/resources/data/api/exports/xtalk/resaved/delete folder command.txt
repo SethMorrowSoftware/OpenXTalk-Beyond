@@ -1,0 +1,39 @@
+delete folder
+(command)
+Removes a folder from the user's system.
+
+Syntax:
+delete folder {pathname}
+----
+
+Synonyms:
+clear folder, delete directory, clear directory
+
+Params:
+pathName ( ): Specifies the name and location of the folder. If you specify a name but not a location, the engine assumes the folder is in the defaultFolder.
+
+Examples:
+delete folder "/bin/badprogram/"
+----
+delete folder "../Last Version"
+----
+answer folder "Choose the folder you wish to delete."
+put it into tChosenFolder
+delete folder tChosenFolder
+----
+
+Description:
+Use the delete folder command to clean up by removing a folder you created.
+
+If a folder contains any files or folders, it cannot be deleted with the delete folder command until the items inside it are deleted or moved. To delete a folder that is not empty, use the revDeleteFolder command.
+
+This command can also be used to remove folders your stack did not create. Of course, a stack should not remove folders it did not create without obtaining explicit confirmation from the user.
+
+*Note:* iOS imposes strict controls over what you can and cannot  access. Each application in iOS is stored in its own 'sandbox' folder  (referred to as the home folder). An application is free to read and  write files within this folder and its descendants, but it is not  allowed to access anything outside of the 'sandbox'.
+
+*Note:* An Android application is installed on the phone in the form of  its zip package. This means that any assets that are included are not  available as discrete files in the native filesystem. In order to  manage this the engine essentially 'virtualizes' the asset files you  include, allowing (read-only) manipulation with all the standard  file and folder handling syntax.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

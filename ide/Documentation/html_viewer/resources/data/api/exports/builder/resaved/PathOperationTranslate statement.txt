@@ -1,0 +1,29 @@
+PathOperationTranslate
+(statement)
+Apply a translation to a path.
+
+Syntax:
+translate {mPath} by {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mTranslation ( ): An expression which evaluates to a list of numbers.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a rectangle path
+variable tPath as Path
+put rectangle path of rectangle [10,10,210,60] into tPath
+
+// Translate the path
+translate tPath by [50,100]
+----
+
+Description:
+Translates mPath by mTranslation.
+
+Values:
+
+OS:

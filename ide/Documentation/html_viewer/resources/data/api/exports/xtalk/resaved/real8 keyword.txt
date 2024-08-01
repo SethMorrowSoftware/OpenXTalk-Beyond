@@ -1,0 +1,27 @@
+real8
+(keyword)
+Used with the read from file, read from process, and  read from socket command|commands to signify a chunk of  binary file|binary data the size of a signed 8- byte real.
+
+Syntax:
+real8
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+read from process currentInput for 1 real8
+----
+read from file "Thing.jpg" for 12 real8
+----
+
+Description:
+Use the real8 keyword to read data from a binary file.
+
+If you specify real8 as the chunk type in a read from file,  read from process, or read from socket command, the data is  returned as a series of numbers separated by commas, one for each  chunk read.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

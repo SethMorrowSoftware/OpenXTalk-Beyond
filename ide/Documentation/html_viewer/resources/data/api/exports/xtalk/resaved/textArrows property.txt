@@ -1,0 +1,30 @@
+textArrows
+(property)
+Specifies whether the arrow keys move the insertion point when there is a text selection.
+
+Syntax:
+set the textArrows to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textArrows to true
+----
+
+Description:
+Use the textArrows property to control the application|application's response to arrow keys.
+
+If there is an insertion point or text selection in a field, and the textArrows is true, the arrow keys move the insertion point one character left or right, or one line up or down.
+
+If there is no insertion point or text selection, the setting of the textArrows property has no effect.
+
+If a group's tabGroupBehavior is true, you cannot press the arrow keys to move around in any of the field|fields in the group, regardless of the setting of the textArrows property. Pressing an arrow key moves from control to control instead.
+
+Values:
+The textArrows is true or false. By default, the textArrows property is set to true. 
+
+OS:
+mac,windows,linux,ios,android

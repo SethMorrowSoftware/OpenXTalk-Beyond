@@ -1,0 +1,30 @@
+screenNoPixmaps
+(property)
+Specifies whether OpenXTalk creates a data structure to hold the screen image of each window.
+
+Syntax:
+set the screenNoPixmaps to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the screenNoPixmaps to true
+----
+
+Description:
+Use the screenNoPixmaps property to trade off lower memory usage for possible screen flashing.
+
+If the screenNoPixmaps property is set to false, OpenXTalk creates a pixmap data control structure|structure for each of its windows. Changes to the appearance of the window are created in this offscreen image, then drawn to the actual window all at once. This minimizes screen flashing when object|objects are redraw|redrawn.
+
+If the screenNoPixmaps property is true, no offscreen images are created, and drawing is done into the actual window. This reduces the memory needed for the window, but can result in screen flashing.
+
+If the application is started from a Unix command line, this property can be set to true on startup by using the -nopixmaps option.
+
+Values:
+The screenNoPixmaps is true or false. By default, the screenNoPixmaps property is set to false. 
+
+OS:
+mac,windows,linux

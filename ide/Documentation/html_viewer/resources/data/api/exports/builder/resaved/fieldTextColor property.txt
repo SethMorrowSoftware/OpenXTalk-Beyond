@@ -1,0 +1,25 @@
+fieldTextColor
+(property)
+The color of the text of the field widget.
+
+Syntax:
+set the fieldTextColor of {widget} to {pColor}
+get the fieldTextColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the fieldTextColor of widget "Android Field" to "255,0,0,128"
+----
+
+Description:
+Use the fieldTextColor property to change the color of the text of the field widget.
+
+Values:
+A comma delimited string representing a color in RGB / RGBA format 
+
+OS:
+android

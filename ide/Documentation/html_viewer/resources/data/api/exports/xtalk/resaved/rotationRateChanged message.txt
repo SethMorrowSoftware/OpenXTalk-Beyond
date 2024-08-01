@@ -1,0 +1,31 @@
+rotationRateChanged
+(message)
+Sent to the current card of the default stack when the rotation of the device changes.
+
+Syntax:
+rotationRateChanged {pXRate}, {pYRate}, {pZRate}
+----
+
+Synonyms:
+
+Params:
+pXRate ( ): the rate of acceleration around the x axis, in radians/second
+pYRate ( ): the rate of acceleration around the y axis, in radians/second
+pZRate ( ): the rate of acceleration around the z axis, in radians/second
+
+Examples:
+on rotationRateChanged pXRate, pYRate, pZRate
+   -- display the rotation rate along the x axis
+   put pXRate into tXAxisRate
+end rotationRateChanged
+----
+
+Description:
+Handle the rotationRateChanged message if you want to perform an action when the rate of acceleration along any axis changes.
+
+The rotationRateChanged message is sent to the current card of the default stack when the rate of rotation of the device changes.
+
+Values:
+
+OS:
+ios,android

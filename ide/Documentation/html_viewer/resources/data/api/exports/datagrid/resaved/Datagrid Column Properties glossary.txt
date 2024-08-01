@@ -1,0 +1,19 @@
+Datagrid Column Properties
+(glossary)
+These properties allow you to set properties of individual columns in a table when the 'style' property is set to 'table'.
+
+Syntax:
+Datagrid Column Properties
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+These properties allow you to set properties of individual columns in a table. The syntax you use resembles: set the dgColumnSortType ["COLUMN"] of group "Data Grid" to "numeric" where "COLUMN" is the name of the column you are targeting.
+
+Values:
+
+OS:

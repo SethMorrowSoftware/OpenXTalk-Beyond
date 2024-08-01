@@ -1,0 +1,16 @@
+AIFF
+(glossary)
+
+Syntax:
+Synonyms:
+.aiff, aiff
+
+Params:
+
+Examples:
+Description:
+Audio Interchange File Format. A format for sound files developed by Apple Computer and often used on Mac OS|Mac OS systems.
+
+Values:
+
+OS:

@@ -1,0 +1,18 @@
+child node
+(glossary)
+
+Syntax:
+Synonyms:
+child node, children node
+
+Params:
+
+Examples:
+Description:
+A node beneath another node in an XML tree. Any node can have any number of child nodes.
+
+A child node corresponds to an element that is enclosed in the  parent node. 
+
+Values:
+
+OS:

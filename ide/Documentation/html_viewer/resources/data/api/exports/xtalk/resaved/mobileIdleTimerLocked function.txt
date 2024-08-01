@@ -1,0 +1,29 @@
+mobileIdleTimerLocked
+(function)
+Determine whether the idleTimer is currently locked.
+
+Syntax:
+mobileIdleTimerLocked()
+----
+
+Synonyms:
+iphoneidletimerlocked
+
+Params:
+
+Examples:
+mobileIdleTimerLocked()
+----
+if mobileIdleTimerLocked() is true then 
+  mobileUnlockIdleTimer
+end if
+----
+
+Description:
+Use the mobileIdleTimerLocked command to determine whether the idleTimer is currently locked. By default, iOS and Android devices will dim the screen and eventually lock the device after periods of no user interaction. Use the mobileLockIdleTimer and mobileUnlockIdleTimer to control the idleTimer.
+
+Values:
+The mobileIdleTimerLocked function returns true if the idle timer is currently locked or false otherwise. 
+
+OS:
+ios,android

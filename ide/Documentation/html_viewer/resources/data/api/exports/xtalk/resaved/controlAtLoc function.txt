@@ -1,0 +1,27 @@
+controlAtLoc
+(function)
+Returns the control at the specified location.
+
+Syntax:
+controlAtLoc({coordinates})
+----
+
+Synonyms:
+
+Params:
+coordinates (point ): A location, relative to the current stack
+
+Examples:
+put controlAtLoc((10,10))
+----
+get the name of (controlAtLoc(the mouseLoc))
+----
+
+Description:
+The controlAtLoc function returns the control at the given location. The function returns the number of the control, below are examples of getting the name or long id of the control      get the name of (controlAtLoc(coordinates))      get the long ID of (controlAtLoc(coordinates))
+
+Values:
+The control at the given location, in the form: control control_number. 
+
+OS:
+mac,windows,linux,ios,android

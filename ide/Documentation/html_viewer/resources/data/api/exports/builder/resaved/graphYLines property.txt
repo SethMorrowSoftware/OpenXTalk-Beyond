@@ -1,0 +1,21 @@
+graphYLines
+(property)
+Whether vertical grid lines are displayed
+
+Syntax:
+set the graphYLines of {widget} to { true | false }
+get the graphYLines of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If true, the graph widget will draw vertical grid lines on the graph. The number and spacing of the grid lines is determined automatically.
+
+Values:
+True if grid lines should be shown; false otherwise 
+
+OS:

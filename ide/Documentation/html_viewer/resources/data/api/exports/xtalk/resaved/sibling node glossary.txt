@@ -1,0 +1,16 @@
+sibling node
+(glossary)
+
+Syntax:
+Synonyms:
+sibling node
+
+Params:
+
+Examples:
+Description:
+A node in an XML tree that has the same parent node.
+
+Values:
+
+OS:

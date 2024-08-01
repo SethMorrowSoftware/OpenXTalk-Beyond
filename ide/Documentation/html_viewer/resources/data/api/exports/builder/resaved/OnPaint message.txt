@@ -1,0 +1,27 @@
+OnPaint
+(message)
+Sent when the widget is to be drawn.
+
+Syntax:
+OnPaint
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler OnPaint()
+	variable tCirclePath as Path
+	put circle path centered at point [the width of my bounds/2,the height of my bounds/2] with radius (the width of my bounds/2) into tFacePath
+	set the paint of this canvas to solid paint with color [1, 0, 1]
+	fill tFacePath on this canvas
+end handler
+----
+
+Description:
+Handle the OnPaint message to draw the widget when it needs to be updated. *Note:* Access to most script object operations is not allowed whilst an OnPaint handler is running.
+
+Values:
+
+OS:

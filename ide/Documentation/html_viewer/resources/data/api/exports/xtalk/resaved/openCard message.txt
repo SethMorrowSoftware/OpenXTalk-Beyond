@@ -1,0 +1,29 @@
+openCard
+(message)
+Sent to a card right after you go to the card.
+
+Syntax:
+openCard
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on openCard
+  select text of field "Search"
+end openCard
+----
+
+Description:
+Handle the openCard message to change a card(object)|card's object|objects, or perform other updates, when the card(keyword) is visited.
+
+The openCard message is sent after the destination card(keyword) is visible. To make changes that take effect before the card(keyword) becomes visible on the screen, use the preOpenCard message instead.
+
+The actual navigation is not triggered by the openCard message, so trap|trapping the message and not allowing it to pass does not prevent the card(keyword) from appearing.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

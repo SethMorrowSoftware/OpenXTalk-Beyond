@@ -1,0 +1,29 @@
+controlKey
+(function)
+return|Returns the state of the Control key.
+
+Syntax:
+the controlKey
+----
+controlKey()
+----
+
+Synonyms:
+ctrlkey
+
+Params:
+
+Examples:
+put (the controlKey is up) and (the shiftKey is up) into ctrlShift
+----
+if controlKey() is down then go back
+----
+
+Description:
+Use the controlKey function to check whether the user is pressing the Control key.
+
+Values:
+The controlKey function return|returns down if the key is pressed and up if it's not. On Unix and Windows systems, the commandKey function return|returns the same value as the controlKey function: the two function|functions are synonyms. 
+
+OS:
+mac,windows,linux

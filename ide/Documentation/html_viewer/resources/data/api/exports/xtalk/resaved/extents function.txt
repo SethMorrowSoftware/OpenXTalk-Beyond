@@ -1,0 +1,31 @@
+extents
+(function)
+Returns a list of the smallest and largest keys for each dimension of an array.
+
+Syntax:
+the extents of {array}
+----
+extents({array})
+----
+
+Synonyms:
+
+Params:
+array (array ): 
+
+Examples:
+the extents of myArray
+----
+put item 1 of line 2 of the extents of theFigures into columnsMinimum
+----
+
+Description:
+Use the extents function to find the minimum and maximum row and column numbers of an array whose keys are integer|integers.
+
+If any of the keys of the array is non-numeric, the extents function returns empty.
+
+Values:
+The extents function returns one line for each dimension of the array. Each line contains two numbers separated by commas. The first item is the lowest key number in that dimension, and the second item is the highest key number. 
+
+OS:
+mac,windows,linux,ios,android

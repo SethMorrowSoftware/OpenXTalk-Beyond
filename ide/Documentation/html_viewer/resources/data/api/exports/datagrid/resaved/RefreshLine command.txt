@@ -1,0 +1,19 @@
+RefreshLine
+(command)
+Redraws row using latest data.
+
+Syntax:
+dispatch "RefreshLine" to group "DataGrid" with pLines
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Redraws row using latest data. Use this command in conjunction with SetDataOfLine. pLines can be a comma delimited list of lines.
+
+Values:
+
+OS:

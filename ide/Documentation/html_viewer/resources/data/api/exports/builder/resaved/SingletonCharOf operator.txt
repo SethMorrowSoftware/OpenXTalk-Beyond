@@ -1,0 +1,28 @@
+SingletonCharOf
+(operator)
+Designates the char at index Index in Target.
+
+Syntax:
+char {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Index ( ): An expression which evaluates to a valid integer index of .
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+put the empty string into char 5 of tString // Locates char 5 and removes it from tString
+----
+get char 5 of tString // Evaluates char 5
+----
+
+Description:
+Either locates the char at the given index for use as the target container of another operation, or evaluates the char at the given index as the source of another operation.
+
+*Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

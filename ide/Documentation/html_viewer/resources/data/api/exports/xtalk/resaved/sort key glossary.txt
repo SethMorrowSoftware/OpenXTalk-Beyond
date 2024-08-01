@@ -1,0 +1,16 @@
+sort key
+(glossary)
+
+Syntax:
+Synonyms:
+sort key
+
+Params:
+
+Examples:
+Description:
+The part of a chunk or card that's used to determine the chunk|chunk's or card|card's position when sort|sorting.
+
+Values:
+
+OS:

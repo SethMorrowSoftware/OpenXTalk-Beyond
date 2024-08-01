@@ -1,0 +1,30 @@
+availablePrinters
+(property)
+Reports a list of all the printers available on the current system.
+
+Syntax:
+get the availablePrinters
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if tPrinter is not among the lines of the availablePrinters then
+  answer error "Printer not found"
+end if
+----
+set the printerName to (line 1 of the availablePrinters)
+----
+
+Description:
+Use the availablePrinters property to find out the names of the printers installed on the current system.
+
+The availablePrinters property is read-only and cannot be set.
+
+Values:
+The availablePrinters is a return-delimited list of printer names (i.e. one per line). 
+
+OS:
+mac,windows,linux

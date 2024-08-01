@@ -1,0 +1,21 @@
+navIcons
+(property)
+The icons of the nav items
+
+Syntax:
+set the navIcons of {widget} to {pIconList}
+get the navIcons of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The icons of the nav items
+
+Values:
+A list of icons of the nav items 
+
+OS:

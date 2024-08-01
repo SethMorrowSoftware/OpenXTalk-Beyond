@@ -1,0 +1,29 @@
+$_SESSION
+(keyword)
+$_SESSION is an array variable that contains the data for the current active session.
+
+Syntax:
+$_SESSION
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put $_SESSION into tSessionArray
+----
+put "ben" into $_SESSION["user_name"]
+----
+put $_SESSION["id"] into tSessionID
+----
+
+Description:
+Use the $_SESSION keyword to access the array containing the data for the current active session.
+
+$_SESSION is only available when running in CGI mode (Server).
+
+Values:
+
+OS:
+mac,windows,linux

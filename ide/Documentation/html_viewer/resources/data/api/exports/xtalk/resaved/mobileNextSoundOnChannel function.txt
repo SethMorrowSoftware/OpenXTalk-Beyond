@@ -1,0 +1,28 @@
+mobileNextSoundOnChannel
+(function)
+Returns the sound that is scheduled to play next (if any) on the given channel. 
+
+Syntax:
+mobileNextSoundOnChannel({channel})
+----
+
+Synonyms:
+iphonenextsoundonchannel
+
+Params:
+channel ( ): The name of the channel.
+
+Examples:
+get mobileNextSoundOnChannel(theChannel)
+----
+put mobileNextSoundOnChannel("current") into tNextSound
+----
+
+Description:
+Use the mobileNextSoundOnChannel function to find what sound (if any) is scheduled to play next on the current channel.
+
+Values:
+The mobileNextSoundOnChannel function returns the name of the sound file that is scheduled to play next on the given channel. If no sound is scheduled or the channel doesn't exit then empty is returned. 
+
+OS:
+ios,android

@@ -1,0 +1,29 @@
+padding
+(property)
+Determines the padding of the cells of a table in a field.
+
+Syntax:
+set the padding of line {lineNumber} of {fieldReference} to {pixels}
+----
+
+Synonyms:
+
+Params:
+pixels ( ): The number of pixels to add as padding around the contents of the cells in a table.
+
+Examples:
+set the padding of line 5 of field 1 to 10
+----
+
+Description:
+Use the padding property to add padding to table cells.
+
+The padding property adds padding to all sides of a table cell. The padding property only has an effect on a table in a field.
+
+To create a table within a field use the tabStops property.
+
+Values:
+The padding of a line or field returns the padding size as a number. 
+
+OS:
+mac,windows,linux,ios,android

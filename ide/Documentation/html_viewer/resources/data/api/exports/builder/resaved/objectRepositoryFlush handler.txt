@@ -1,0 +1,19 @@
+objectRepositoryFlush
+(handler)
+Flush deleted objects from the repository
+
+Syntax:
+objectRepositoryFlush()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+As long ID of an object may mutate during a session the IDE needs an object reference that can handle that mutation.
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+revGetDatabaseDriverPath
+(function)
+Returns the folder where the Database library looks for database drivers
+
+Syntax:
+revGetDatabaseDriverPath()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if revGetDatabaseDriverPath is not tCustomDriverFolder then
+  revSetDatabaseDriverPath tCustomDriverFolder
+end if
+----
+
+Description:
+Use the revGetDatabaseDriverPath function if you need to know where  the Database library is currently loading drivers from. This is useful if you are using custom database drivers or if you want to obtain a list of available drivers.
+
+*Important:*  The revGetDatabaseDriverPath function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Database"   library checkbox is checked.
+
+Values:
+
+OS:
+mac,windows,linux

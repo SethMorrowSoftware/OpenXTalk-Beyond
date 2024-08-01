@@ -1,0 +1,16 @@
+menu item
+(glossary)
+
+Syntax:
+Synonyms:
+menu item, menuitem
+
+Params:
+
+Examples:
+Description:
+One of the available choices (lines) in a menu.
+
+Values:
+
+OS:

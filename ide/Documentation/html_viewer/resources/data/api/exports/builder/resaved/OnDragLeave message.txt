@@ -1,0 +1,19 @@
+OnDragLeave
+(message)
+Sent when an object is dragged outside of the widget rect.
+
+Syntax:
+OnDragLeave
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when an object is dragged outside of the widget rect.
+
+Values:
+
+OS:

@@ -1,0 +1,28 @@
+CanvasOperationAddPath
+(statement)
+Add a path to a canvas.
+
+Syntax:
+add {mPath} to {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Add a path to the canvas
+add rectangle path of rectangle [0,0,50,100] to this canvas
+
+// Fill the canvas path
+fill this canvas
+----
+
+Description:
+Adds mPath to the current path of mCanvas
+
+Values:
+
+OS:

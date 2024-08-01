@@ -1,0 +1,19 @@
+QR Code Generator
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The QR Code Generator library generates QR codes according to the ISO international standard (ISO/IEC18004).
+
+'QR Code' is a registered trademark of DENSO WAVE INCORPORATED.
+
+All versions (1 - 40) and all error correction levels (L, M, Q, H) are supported.
+
+Values:
+
+OS:

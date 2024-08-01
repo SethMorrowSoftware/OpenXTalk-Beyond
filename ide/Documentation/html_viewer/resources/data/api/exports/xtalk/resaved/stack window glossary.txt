@@ -1,0 +1,18 @@
+stack window
+(glossary)
+
+Syntax:
+Synonyms:
+stack window, stack's window
+
+Params:
+
+Examples:
+Description:
+The window that displays a stack, in which the stack|stack's current card is shown.
+
+A stack can be displayed as an editable window, a palette, or a modal dialog box|modal or modeless dialog box.
+
+Values:
+
+OS:

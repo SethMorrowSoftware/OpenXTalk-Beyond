@@ -1,0 +1,39 @@
+base64Decode
+(function)
+return|Returns the original data from a base 64-encode|encoded string. 
+
+Syntax:
+the base64Decode of {encodedData}
+----
+base64Decode({encodedData})
+----
+
+Synonyms:
+
+Params:
+encodedData (string ): A string of of any length. Valid base 64-encoded data can include uppercase and lowercase letters, digits, +, /, and =. Other characters are ignored.
+
+Examples:
+put base64Decode(receivedData) into URL "file:download.mov"
+----
+base64Decode(base64Encode(myData))
+----
+
+Description:
+Use the base64Decode function to take a base 64-encode|encoded string and transform it back into the original binary file|binary data.
+
+The base64Decode function is the inverse of the base64Encode function.
+
+The decoded result is generally smaller than the encoded data.
+
+Base 64-encoded data does not necessarily contain any = signs. If a run of one or more = signs is present, it indicates the end of the data.
+
+The base 64 encoding scheme is often used to encode binary data for MIME mail and HTTP transfers.
+
+For technical information about base 64 encoding, see [RFC 2045, section 6.8](https://tools.ietf.org/html/rfc2045#section-6.8). 
+
+Values:
+The base64Decode function return|returns the original binary file|binary data. 
+
+OS:
+mac,windows,linux,ios,android

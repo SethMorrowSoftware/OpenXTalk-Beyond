@@ -1,0 +1,26 @@
+ModOperator
+(operator)
+Mod operator.
+
+Syntax:
+{Left} mod {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put 4^((7 - 1)/2) mod 7 into tVar -- tVar contains 1
+----
+
+Description:
+Returns the remainder on dividing Left by Right
+
+Values:
+Left mod Right. 
+
+OS:

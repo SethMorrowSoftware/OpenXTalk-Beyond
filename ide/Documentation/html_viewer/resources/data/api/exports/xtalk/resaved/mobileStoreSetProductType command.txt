@@ -1,0 +1,38 @@
+mobileStoreSetProductType
+(command)
+Set the type of an in-app purchase.
+
+Syntax:
+mobileStoreSetProductType {productID}, {productType}
+----
+
+Synonyms:
+
+Params:
+productID ( ): The identifier of the requested item.
+productType ( ): The type of the requested item.
+
+Examples:
+mobileStoreSetProductType "com.runrev.sampleapp.consumable" , "inapp"
+----
+on buyConsumable
+   mobileStoreEnablePurchaseUpdates
+   mobileStoreSetProductType "com.runrev.sampleapp.consumable", "inapp"
+   mobileStoreMakePurchase "com.runrev.sampleapp.consumable" \
+         , "1", "This belongs to me"
+end buyConsumable
+----
+
+Description:
+Use the mobileStoreSetProductType command to set the type of an in-app purchase item.
+
+The command mobileStoreSetProductType is used to set the type of an in-app purchase item.
+
+The productID is the identifier of the in-app purchase you created in the vendor's App Store for which you wish to set the type. The productType is the type of the in-app purchase item. This can either be inapp for consumable and non-consumable items, or subs for subscription items.
+
+*Note:*  This command is actually necessary when interacting with  Google Play Store. However, we suggest that you use it for every  store. Failure to specify the item type will result in your purchase  requests not being processed.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,25 @@
+mobileToast
+(handler)
+Display a toast notification
+
+Syntax:
+mobileToast({pMessage},{pDuration})
+----
+
+Synonyms:
+
+Params:
+pMessage ( ): The message to display
+pDuration ( ): The duration of the notification. Either a positive integer, the string "long" or the string "short".
+
+Examples:
+mobileToast "Hello, I am a toast!", "short"
+----
+
+Description:
+Use the mobileToast handler to display a temporary non-modal  notification with a specified message, for the given duration. 
+
+Values:
+
+OS:
+android

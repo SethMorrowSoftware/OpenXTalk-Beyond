@@ -1,0 +1,24 @@
+dragDelta
+(property)
+Specifies the distance the pointer must be moved to initialise drag behaviour. 
+
+Syntax:
+set the dragDelta to {numberOfPixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dragDelta to 10
+----
+
+Description:
+Use the dragDelta property to fine-tune drag behaviour.
+
+Values:
+The dragDelta is an integer greater than 0. The default value is the system default. This specifies the number of pixels the mouse pointer must be moved after a mouse button has been pressed for a dragStart message to be sent to the current control. 
+
+OS:
+mac,windows,linux

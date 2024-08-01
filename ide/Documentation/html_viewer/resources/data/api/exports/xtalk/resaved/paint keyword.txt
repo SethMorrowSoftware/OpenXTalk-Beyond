@@ -1,0 +1,27 @@
+paint
+(keyword)
+Used with the import and export command|commands to specify that the file to be import|imported or export|exported is in a bitmap|bitmapped format.
+
+Syntax:
+paint
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+import paint from file it
+----
+
+Description:
+Use the paint keyword to indicate that you are import|importing or export|exporting a bitmap|bitmapped image.
+
+When the paint keyword is used with the export command, the specified image is exported as a PBM file.
+
+When the paint keyword is used with the import command, a GIF, JPEG, PNG, BMP, XWD, XBM, XPM, or PBM, PGM, or PBM file can be import|imported. On Mac OS|Mac OS systems, PICT files can also be import|imported (but they cannot be displayed on Unix or Windows|Windows systems).
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

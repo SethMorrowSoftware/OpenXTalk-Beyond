@@ -1,0 +1,27 @@
+revLoadSpeech
+(command)
+Loads the operating system's text-to-speech software from memory.
+
+Syntax:
+revLoadSpeech
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+revLoadSpeech
+----
+if field "Speak Next" is not empty then revLoadSpeech
+----
+
+Description:
+Load the text-to-speech software into memory when its needed by any of  the commands and functions in the Speech library.  The software should be removed from memory when it is no longer needed by using the revUnloadSpeech.
+
+*Important:*  The revLoadSpeech command is part of the   Speech library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Speech"   library checkbox is checked.
+
+Values:
+
+OS:
+mac,windows

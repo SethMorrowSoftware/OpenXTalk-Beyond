@@ -1,0 +1,29 @@
+inputBeginEditing
+(message)
+Sent when a mobile text input control has become focused and editing has commenced. 
+
+Syntax:
+inputBeginEditing
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on inputBeginEditing -- disable the next button while editing
+   disable button "next"
+end inputBeginEditing
+----
+
+Description:
+The inputBeginEditing message is sent when an mobile text input control has become focused and editing has commenced.
+
+Handle the inputBeginEditing message if you want to move OpenXTalk controls, make changes to the interface or perform an action when the user starts editing text in an iosTextInput, iosMultiline, androidTextInput or androidMultiline control.
+
+The inputBeginEditing message is sent to the object containing the script that created the text input control.
+
+Values:
+
+OS:
+ios,android

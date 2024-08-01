@@ -1,0 +1,16 @@
+PBM
+(glossary)
+
+Syntax:
+Synonyms:
+pbm, .pbm
+
+Params:
+
+Examples:
+Description:
+Portable Bit Map. A black-and-white picture format created for the "pbmplus" image conversion program and usually used on Unix|Unix systems. 
+
+Values:
+
+OS:

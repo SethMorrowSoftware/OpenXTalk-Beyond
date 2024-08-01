@@ -1,0 +1,22 @@
+addIcon
+(handler)
+Add an icon to the iconsvg library.
+
+Syntax:
+addIcon({pName},{pSVG},{pCodepoint})
+----
+
+Synonyms:
+
+Params:
+pName ( ): The name of the icon.  By default, new icons are added to the "custom" family.  The family may be specified by including the family  name and a "/" before the icon name (`bootstrap/adjust`).
+pSVG ( ): The SVG path for the icon.
+pCodepoint ( ): The codepoint for the icon.
+
+Examples:
+Description:
+Add an icon to the iconsvg library.  By default, new icons are added to the "custom" family.  The family may be specified by including the  family name and a "/" before the icon name (`bootstrap/adjust`).
+
+Values:
+
+OS:

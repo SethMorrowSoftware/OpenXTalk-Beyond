@@ -1,0 +1,32 @@
+revXMLTrees
+(function)
+return|Returns a list of all XML tree|XML trees in memory.
+
+Syntax:
+revXMLTrees()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+revXMLTrees()
+----
+if myTree is not among the lines of revXMLTrees() then loadTree myTree
+----
+
+Description:
+Use the revXMLTrees function to find out which XML tree|XML trees have been created, or when you want to perform an action on all the  XML tree|XML trees you're working with.
+
+Each tree ID is the number returned by the revXMLCreateTree or revXMLCreateTreeFromFile function when you created the XML tree.
+
+If the revXMLTrees function encounters an error, it return|returns an error message starting with "xmlerr".
+
+*Important:*  The revXMLTrees function is part of the   XML library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+The revXMLTrees function returns a list of tree IDs, one per line. 
+
+OS:
+mac,windows,linux,ios,android

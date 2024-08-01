@@ -1,0 +1,30 @@
+unicodeTitle
+(property)
+Specifies the string shown in a stack window's title bar as a unicode string. 
+
+Syntax:
+set the unicodeTitle of stack to titleString
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the unicodeTitle of stack "My Stack" to uniEncode("My Stack's Name")
+----
+set the unicodeTitle of stack "My Stack" to tUTF16EncodedString
+----
+
+Description:
+Use the unicodeTitle property to set the title of a stack's window to a unicode string, or to get the current title of a stack's window as a unicode string.
+
+Windows 98SE and Windows ME do not support unicode window titles. On these systems, the string displayed in the title bar will be the closest approximation possible on the running system.
+
+*Important:* As this property is deprecated, it should not be used in new   code; simply set the title as normal. Assigning values other than those   returned from uniEncode to this property will not produce the desired   results. The following are now equivalent:       set the unicodeTitle of this stack to tText     set the title of this stack to textDecode(tText, "UTF16")
+
+Values:
+The unicodeTitle of an object is a string of double-byte characters in the same format as returned from functions such as uniEncode. 
+
+OS:
+mac,windows,linux,ios,android

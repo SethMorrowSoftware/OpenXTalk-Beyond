@@ -1,0 +1,16 @@
+NNTP
+(glossary)
+
+Syntax:
+Synonyms:
+nntp
+
+Params:
+
+Examples:
+Description:
+Network News Transfer Protocol. The protocol used to transmit posts on Usenet newsgroups.
+
+Values:
+
+OS:

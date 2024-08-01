@@ -1,0 +1,16 @@
+WAV
+(glossary)
+
+Syntax:
+Synonyms:
+.wav, wav
+
+Params:
+
+Examples:
+Description:
+WAVeform. A sound file format that is often used on Windows|Windows systems. The name of a file in this format usually ends with ".wav". 
+
+Values:
+
+OS:

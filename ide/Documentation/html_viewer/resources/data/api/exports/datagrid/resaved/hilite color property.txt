@@ -1,0 +1,19 @@
+hilite color
+(property)
+The color to use when highlighting a row.
+
+Syntax:
+put the dgProp["hilite color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color to use when highlighting a row. If empty then the hiliteColor property is used. Prefix property name with "effective" to get the color being used when this property is set to empty.
+
+Values:
+
+OS:

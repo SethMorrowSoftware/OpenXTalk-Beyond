@@ -1,0 +1,16 @@
+operator
+(glossary)
+
+Syntax:
+Synonyms:
+operator
+
+Params:
+
+Examples:
+Description:
+A symbol or word that changes a single value or combines two value|values to produce a result.
+
+Values:
+
+OS:

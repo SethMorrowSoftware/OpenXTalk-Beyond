@@ -1,0 +1,32 @@
+WidgetLocationProperty
+(operator)
+Manipulates the location property of a child widget
+
+Syntax:
+the location of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    -- place the child widget at the center of this widget
+    variable tLoc as Point
+    put point [my width / 2, my height / 2] into tLoc
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+    set the location of mChild to tLoc
+end handler
+----
+
+Description:
+Use the location property to set the location of a child widget relative to the top left of the parent. The location property is of type com.livecode.canvas.Point.
+
+Values:
+
+OS:

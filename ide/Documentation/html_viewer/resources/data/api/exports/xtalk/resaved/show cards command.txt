@@ -1,0 +1,32 @@
+show cards
+(command)
+Flips through card|cards in the current stack.
+
+Syntax:
+show {{number} | all} cards
+----
+
+Synonyms:
+
+Params:
+number ( ): The number of cards to display or all cards.
+
+Examples:
+show 15 cards
+----
+show all cards
+----
+show (the number of cards of this stack) cards
+----
+
+Description:
+Use the show cards command to do "flipbook"-style animation or to display a number of card|cards quickly to the user.
+
+The 'show number cards' form displays the number of card|cards,  starting with the current card.
+
+The 'show all cards' form displays all the cards in the current stack,  starting and ending with the current card.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

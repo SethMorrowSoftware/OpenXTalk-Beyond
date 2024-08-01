@@ -1,0 +1,47 @@
+cancel
+(command)
+Removes a message that was queued with the send command and is waiting to be sent.
+
+Syntax:
+cancel {messageQueueID}
+----
+
+Synonyms:
+
+Params:
+messageQueueID (integer ): The ID number of the message.
+
+Examples:
+cancel 2298
+----
+cancel item 1 of last line of the pendingMessages
+----
+# Assume these two handlers in a card script.
+# Call scheduleBeep to queue a message
+# Call cancelBeep to cancel the pending message
+
+local sMessageID
+
+on scheduleBeep
+  send "beep" to this card in 20 seconds
+  put the result into sMessageID
+end scheduleBeep
+
+on cancelBeep
+  cancel sMessageID
+end cancelBeep
+----
+
+Description:
+Use the cancel command to get rid of message|messages that were set up but are no longer required.
+
+The ID number of the message is returned by the send command that sent the message. This number is also the first item of the line corresponding to the message in the pendingMessages function.
+
+All pendingMessages|pending messages are automatically canceled when  the application quits.
+
+It is common to need to cancel a number of message|messages when leaving a card or stack, if the message|messages only pertain to that card or stack. For example, you might have queued a number of message|messages that create an animated display on the current card, and need to cancel them when the user goes to another card. The best solution in a case like this is to place each messageQueueID in a script local variable, a global variable, or a  custom property at the time the message is sent. Then you can  cancel all those message|messages in a repeat loop :      global gMyPendingMessages # you've stored the message IDs here     on closeCard       repeat for each line tThisMessageID in gMyPendingMessages         cancel tThisMessageID       end repeat     end closeCard
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

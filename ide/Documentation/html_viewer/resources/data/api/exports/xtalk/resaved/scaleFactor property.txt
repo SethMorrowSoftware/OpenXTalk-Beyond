@@ -1,0 +1,34 @@
+scaleFactor
+(property)
+Determines the custom scale factor for a stack.
+
+Syntax:
+set the scaleFactor of {stack} to {scale}
+----
+
+Synonyms:
+
+Params:
+stack ( ): A reference to a stack or an expression that evaluates to a stack.
+scale ( ): A non-zero real number value which represents the scale multiplier.
+
+Examples:
+-- scales the stack to half size
+set the scaleFactor of stack "myLargeStack" to 0.5
+----
+-- Preview the stack appearance on a high-density display
+set the scaleFactor of stack "myApp" to 1.5
+----
+
+Description:
+Use the scaleFactor property when developing to scale down stacks that are larger than the available screen space.
+
+We do not recommend setting the scaleFactor property above 2. The higher the value, the more pixels must be rendered. For example, setting the scaleFactor property to 10 will cause 100 times the number of pixels to be rendered causing the IDE to run slowly.
+
+ *Note:* The scaleFactor is not a persistent property of the stack when   building a standalone. To have scaleFactor applied to a standalone upon  opening, it must be coded in a preOpenStack handler. For example:      on preOpenStack         set the scaleFactor of me to 0.75     end preOpenStack
+
+Values:
+The scaleFactor property returns a a non-zero real number or empty. 
+
+OS:
+mac,windows,linux

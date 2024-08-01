@@ -1,0 +1,30 @@
+scrollerEndDrag
+(message)
+Sent when a scroll initiating drag is finished.
+
+Syntax:
+scrollerEndDrag {pDidDecelerate}
+----
+
+Synonyms:
+
+Params:
+pDidDecelerate ( ): Either 'true' or 'false' depending on whether the scroll decelerated or not (iOS Only)
+
+Examples:
+on scrollerEndDrag
+   put "Scroll by dragging finished" into field "scroller status"
+end scrollerEndDrag
+----
+
+Description:
+The scrollerEndDrag message is sent when a scroll that was initiated by dragging on a scroller control created using the mobileControlCreate command finishes.
+
+Handle the scrollerEndDrag message if you want to move OpenXTalk controls, make changes to the interface or set the appropriate scroll properties of groups and fields to get a native scrolling effect.
+
+The scrollerEndDrag message is sent to the object containing the script that created the scroller control.
+
+Values:
+
+OS:
+ios,android

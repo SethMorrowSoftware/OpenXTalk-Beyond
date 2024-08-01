@@ -1,0 +1,35 @@
+PatternMakeTransformed
+(operator)
+Creates a new transformed pattern paint.
+
+Syntax:
+pattern with {mImage} transformed by {mTransform}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+// Load the pattern image.
+variable tImage
+put image from file "images/backgroundpattern.png" into tImage
+
+// Set up the pattern transform
+variable tTransform
+put transform from matrix [0,2,-2,0,0,0] into tTransform
+
+// Create a new pattern paint, applying a transform to the image
+variable tPaint
+put pattern with tImage transformed by tTransform into tPaint
+----
+
+Description:
+Creates a new transformed pattern paint.
+
+Values:
+A new pattern paint based on mImage with the specified transform applied. 
+
+OS:

@@ -1,0 +1,16 @@
+desktop
+(glossary)
+
+Syntax:
+Synonyms:
+desktop, desktop background, background window
+
+Params:
+
+Examples:
+Description:
+The whole area of the screen, underneath any windows; the part of the screen where there are no windows, menus, icons, or other elements. 
+
+Values:
+
+OS:

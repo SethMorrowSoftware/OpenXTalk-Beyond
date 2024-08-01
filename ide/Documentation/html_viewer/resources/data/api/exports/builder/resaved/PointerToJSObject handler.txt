@@ -1,0 +1,31 @@
+PointerToJSObject
+(handler)
+Convert a Pointer into a JavaScript object
+
+Syntax:
+PointerToJSObject({pPointer})
+----
+
+Synonyms:
+
+Params:
+pPointer ( ): The Pointer to convert
+
+Examples:
+variable mButtonPointer as Pointer
+
+public handler SetButtonText(in pText as String)
+	variable tJSButton as JSObject
+	put PointerToJSObject(mButtonPointer) into tJSButton
+
+	EvalJavaScriptWithArguments("arguments[0].innerHTML = arguments[1]", [tJSButton, pText])
+end handler
+----
+
+Description:
+Use PointerToJSObject to convert a variable of type Pointer to a JavaScript object.
+
+Values:
+An value of type JSObject 
+
+OS:

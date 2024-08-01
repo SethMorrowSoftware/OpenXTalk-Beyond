@@ -1,0 +1,21 @@
+NewCanvasWithSize
+(operator)
+Create a new canvas
+
+Syntax:
+a new canvas with size {Size}
+----
+
+Synonyms:
+
+Params:
+Size ( ): A list containing the width and height of the new canvas in pixels
+
+Examples:
+Description:
+Create and return a new temporary canvas of the specified pixel width and height.
+
+Values:
+A newly-created canvas 
+
+OS:

@@ -1,0 +1,20 @@
+dgHilitedLines
+(property)
+Returns a comma delimited list of the line numbers that are currently selected.
+
+Syntax:
+set the dgHilitedLines of group "DataGrid" to pLine
+----
+
+Synonyms:
+dghilitedline
+
+Params:
+
+Examples:
+Description:
+Returns a comma delimited list of the line numbers that are currently selected.
+
+Values:
+
+OS:

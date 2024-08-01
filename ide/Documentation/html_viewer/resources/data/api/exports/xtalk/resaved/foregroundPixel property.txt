@@ -1,0 +1,29 @@
+foregroundPixel
+(property)
+Specifies which entry in the color table is used for an object|object's text and borders.
+
+Syntax:
+set the foregroundPixel of {object} to {colorNumber}
+----
+
+Synonyms:
+forepixel, firstpixel
+
+Params:
+
+Examples:
+set the foregroundPixel of this stack to 0
+----
+
+Description:
+Use the foregroundPixel property to change the foreground color of an object(glossary) when the bit depth of the screen is 8 bit|bits (256 colors) or less.
+
+The foregroundPixel property specifies which entry in the color table is used for an object|object's foreground color. It is similar to the foregroundColor property, but is specified as an entry in the current color table, rather than as a color reference.
+
+The color table can be set by changing the colorMap property.
+
+Values:
+The foregroundPixel of an object(glossary) is an integer between zero and (the screenColors - 1). It designates an entry in the current color table. By default, the foregroundPixel for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

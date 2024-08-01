@@ -1,0 +1,26 @@
+EffectMake
+(expression)
+Creates a new effect.
+
+Syntax:
+{mType} effect
+----
+
+Synonyms:
+
+Params:
+mType ( ): One of color overlay, inner shadow, outer shadow, inner glow, outer glow.
+
+Examples:
+// Create an effect with default properties
+variable tEffect as Effect
+put outer shadow effect into tEffect
+----
+
+Description:
+Creates a new effect.
+
+Values:
+A new effect of type mType with default property values. 
+
+OS:

@@ -1,0 +1,32 @@
+CommandArguments
+(expression)
+The command arguments
+
+Syntax:
+the command arguments
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Program that only succeeds if it's run as the "true"
+-- command.
+variable tCommand as String
+put the command name into tCommand
+if tCommand ends with "true" then
+	quit with status 0
+else
+	quit with status 1
+end if
+----
+
+Description:
+Evaluates to a list of command-line arguments passed to the program. Some arguments may not be passed in if they are "used up" by the LiveCode run-time environment (for example, the LiveCode IDE will detect and "use" the `-mmap` argument).
+
+ **Note:** No filename conversion is performed on command line  arguments, so some processing may be required before using a command  line argument with any of the file handling syntax provided by the  `com.livecode.file` module.
+
+Values:
+
+OS:

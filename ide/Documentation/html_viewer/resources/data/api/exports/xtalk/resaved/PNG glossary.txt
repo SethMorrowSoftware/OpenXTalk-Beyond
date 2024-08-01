@@ -1,0 +1,16 @@
+PNG
+(glossary)
+
+Syntax:
+Synonyms:
+.png, png
+
+Params:
+
+Examples:
+Description:
+Portable Network Graphics. A bitmapped color picture format.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+ResetSystemError
+(statement)
+Clear the system error code.
+
+Syntax:
+reset system error
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Reset the system error code to its platform-dependent default ("no error") value.
+
+Values:
+
+OS:

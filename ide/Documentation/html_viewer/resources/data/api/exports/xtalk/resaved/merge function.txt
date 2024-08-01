@@ -1,0 +1,29 @@
+merge
+(function)
+evaluate|Evaluates any expression|expressions in a string, replaces them with their value, and return|returns the transformed string. 
+
+Syntax:
+merge({stringToEvaluate})
+----
+
+Synonyms:
+
+Params:
+stringToEvaluate (string ): A string of any length, which may include expressions enclosed in double square brackets ([[expression]]) and return statements enclosed in "" ().
+
+Examples:
+merge("1+1 equals [[1+1]]") -- returns "1+1 equals 2"
+----
+merge("The current folder is [[the defaultFolder]]")
+----
+
+Description:
+The merge function evaluate|Evaluates any expression|expressions in double square brackets, and replaces them with the expression|expression's value.
+
+It also executes any return statement|statements enclosed in "<?" and "?>", and replaces them by the value returned.
+
+Values:
+The merge function returns a string. Use the merge function to combine text with the result of evaluate|evaluating expression|expressions in a single string. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,28 @@
+mobileStoreVerifyPurchase
+(command)
+Confirm or reject a purchase in the unverified state.
+
+Syntax:
+mobileStoreVerifyPurchase {purchaseID}, {verified}
+----
+
+Synonyms:
+mobilepurchaseverify
+
+Params:
+purchaseID ( ): The identifier of the purchase request.
+verified (boolean ): A boolean that specifies the state of the purchaseStateUpdate message to be sent. True indicates current state of the purchase request. False sends an error at this state.
+
+Examples:
+mobileStoreVerifyPurchase thePurchaseId, true
+----
+
+Description:
+Use mobileStoreVerifyPurchase to confirm or reject a purchase.
+
+The command mobileStoreVerifyPurchase is used to confirm or reject a purchase in the unverified state.
+
+Values:
+
+OS:
+android

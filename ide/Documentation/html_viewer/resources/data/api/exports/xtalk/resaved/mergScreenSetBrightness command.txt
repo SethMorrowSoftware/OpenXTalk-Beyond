@@ -1,0 +1,21 @@
+mergScreenSetBrightness
+(command)
+Set the brightness of the screen
+
+Syntax:
+mergScreenSetBrightness {pBrightness}
+----
+
+Synonyms:
+
+Params:
+pBrightness ( ): A number between 0 and 100 where 0 is black
+
+Examples:
+Description:
+Set the brightness of the screen
+
+Values:
+
+OS:
+ios

@@ -1,0 +1,26 @@
+itemLabels
+(property)
+The labels of the navigation items
+
+Syntax:
+get the itemLabels of {widget}
+----
+set the itemLabels of {widget} to {labels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The display labels for the navigation items of the widget.
+
+Setting the itemLabels can add items to the navigation bar.  If the new value of the itemLabels has more items than the navigation bar, as many new navigation items as necessary are created and added to the end of the navigation bar, using a default itemNames|name, itemIcons|icon and hilitedItemIcons|highlighted icon.
+
+If the new value of the itemLabels has fewer items than the navigation bar, the remaining navigation items have their labels reset to the default icon.
+
+Values:
+A comma-delimited list of labels. 
+
+OS:

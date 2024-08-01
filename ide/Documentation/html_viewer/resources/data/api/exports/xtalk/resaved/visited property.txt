@@ -1,0 +1,30 @@
+visited
+(property)
+Specifies whether a button or grouped text has been clicked during the current session.
+
+Syntax:
+set the visited of {button} to {true | false}
+----
+set the visited of {chunk} of {field} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the visited of button "Start Here" to false
+----
+if the visited of the clickChunk then go back
+----
+
+Description:
+Use the visited property to determine whether the user has previously used a function or traversed a link.
+
+The visited property is automatically reset to false when the stack is closed (and purged from memory).
+
+Values:
+The visited of a button or chunk is true or false. By default, the visited of a button or chunk is set to false when the stack opens. 
+
+OS:
+mac,windows,linux,ios,android

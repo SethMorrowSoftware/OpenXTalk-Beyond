@@ -1,0 +1,19 @@
+dgHeaderControl
+(property)
+Returns the long id of the group that contains the controls for a column header.
+
+Syntax:
+put the dgHeaderControl of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the long id of the group that contains the controls for a column header. Use this property in a mouseDown/mouseUp handler to determine if the user clicked on a column header. If the dgHeaderControl of the target is not empty then... (user clicked in a column header).
+
+Values:
+
+OS:

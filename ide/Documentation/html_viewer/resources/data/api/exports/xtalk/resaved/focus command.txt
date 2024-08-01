@@ -1,0 +1,44 @@
+focus
+(command)
+Places the insertion point in a field, makes a control active, or removes focus from all controls.
+
+Syntax:
+focus [on] {object}
+----
+focus on nothing
+----
+
+Synonyms:
+
+Params:
+•	object ( ): Any object on the current card.
+	
+Examples:
+focus on field 1
+----
+focus on the mouseControl
+----
+focus on graphic "Move Me"
+----
+focus on nothing
+----
+
+Description:
+Use the focus command to make a control active--that is, to make it receive any keystrokes the user types.
+
+If the object's traversalOn property is false, it cannot receive the focus, and the focus command causes an error.
+
+If the lookAndFeel is set to "Motif", the active control|focused control is outlined, and the control receives any keystrokes (and the message|messages associated with them).
+
+If the lookAndFeel is set to "Appearance Manager" or "Macintosh", an outline is drawn around field(object)|fields, image|images, and EPS|EPS objects whose showFocusBorder property is set to true. Otherwise, the appearance of the active control|focused control does not change, but it receives keystroke message|messages.
+
+If the lookAndFeel is set to "Windows 95", a dotted outline is drawn within button|buttons when they receive the focus.
+
+If the object(glossary) is an unlock|unlocked field(object), the insertion point is restored to the location at which it was located the last time the field(object) was focused.  If the field(object) was not previously focused, then the insertion point is placed at the beginning of the text in the field(object).
+
+Use the ``focus on nothing`` command to remove focus from all objects on a card.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

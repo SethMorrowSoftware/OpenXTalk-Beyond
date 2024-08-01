@@ -1,0 +1,19 @@
+ColumnControlOfIndex
+(function)
+Returns the control for the column of index pIndex in the Data Grid.
+
+Syntax:
+put ColumnControlOfIndex(pColumnName, pIndex)
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+DATA GRID TABLES ONLY! Returns the control for the column of index pIndex in the Data Grid. If "cache" controls" is not true then this may return empty if the row the index is displayed in is currently offscreen.
+
+Values:
+
+OS:

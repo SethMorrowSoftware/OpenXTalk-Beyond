@@ -1,0 +1,36 @@
+read from process
+(command)
+Accepts the output of a process that was opened with the open process command, placing the data in the it variable.
+
+Syntax:
+read from process {processName} [at {start}] {until {{string} | empty | end | EOF} | for {amount} [{chunkType}]} [in {time}]
+----
+
+Synonyms:
+
+Params:
+processName (string ): The processName specifies the name and location of the process you want to read from. It must be the same as the path you used with the open process command. >*Important:*  The  is , even on >  where file names are not . It > must be exactly the same--including the case of characters--as the > name you used with the  .
+start (string ): The  specifies the  or  position in the  output where you want to begin reading.
+chunkType ( ): The  is one of chars, characters, words, items, lines, int1, uInt1, int2, uint2, int4, or uint4. The   reads  of the specified . If you don't specify a ,   are read.
+time ( ): The  is the time to wait for the read to be completed, in , seconds, or .
+string (string ): The  is any  that  to a . When OpenXTalk encounters the  in the  output, it stops reading. If the  is not encountered, the   continues reading as long as there is data to be read. 
+amount (integer ): The  is a positive  and specifies how much data to read.
+
+Examples:
+read from process "compileData" for 20
+----
+read from process "/etc/pr" at 2 until linefeed -- skip 2 chars
+----
+read from process myProcess for 10 int4s in 250 milliseconds
+----
+
+Description:
+Use the read from process command to get the output data from another program.
+
+The **until** form reads data until the specified string is encountered.  The until end and until eof forms read data until the process specifies it is finished.  When until empty is used the data is read in at specified time intervals. If, when checked, the data is empty, the openProcesses function is used  to check whether the process has finished. 
+
+Values:
+The process to read from must be opened first with the open process command, and the mode the process was opened in must be read or update. If the process is not running or is write-only, the result function is set to "Process is not open for read.". If the read from process command encounters the end of the data output, the result function is set to "eof". If you specify a time and the read is not completed when that time has elapsed, the result function is set to "time out". If the read was successful, the result is set to empty. The data is placed in the it variable after reading. If you specified a binary file|binary data chunkType (int1, uInt1, int2, uint2, int4, or uint4), the data consists of a comma-separated list of numbers, one for the numerical value of each chunk that was read. Otherwise, the data is placed in the it variable as it appears in the output. 
+
+OS:
+mac,windows,linux

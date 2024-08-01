@@ -1,0 +1,28 @@
+blinkRate
+(property)
+Specifies the interval in milliseconds between the time the  insertion point blinks on and the time it blinks off.
+
+Syntax:
+set the blinkRate to {blinkDelayInMilliseconds}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the blinkRate to 1000
+----
+if the blinkRate > 400 then set the borderColor to red
+----
+
+Description:
+Use the blinkRate property to control how fast the text  insertion point blinks.
+
+The blinkRate should be a multiple of the idleRate.
+
+Values:
+The blinkRate is an integer between 1 and 65535. By default, the blinkRate is 200 (one-fifth of a second). 
+
+OS:
+mac,windows,linux,ios,android

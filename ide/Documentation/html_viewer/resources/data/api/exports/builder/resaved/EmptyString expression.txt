@@ -1,0 +1,25 @@
+EmptyString
+(expression)
+Designates the string of length zero.
+
+Syntax:
+the empty string
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as String
+variable tCount as Number
+put the empty string into tVar
+put the number of chars in tVar into tCount -- tCount is 0
+----
+
+Description:
+Use ```the empty string``` to initialise a string variable. The empty string is synonymous with the string literal ""
+
+Values:
+
+OS:

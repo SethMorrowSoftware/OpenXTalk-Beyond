@@ -1,0 +1,25 @@
+contentType
+(property)
+What kind of content the field contains.
+
+Syntax:
+set the contentType of {widget} to {pType}
+get the contentType of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the contentType of widget "Android Field" to "password"
+----
+
+Description:
+Use the contentType property to determine what kind of content the control contains.
+
+Values:
+- "plain": plain, unstyled text - "password": plain text displayed in the standard password style 
+
+OS:
+android

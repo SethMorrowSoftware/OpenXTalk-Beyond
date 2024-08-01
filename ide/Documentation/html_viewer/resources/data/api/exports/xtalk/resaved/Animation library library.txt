@@ -1,0 +1,16 @@
+Animation library
+(library)
+
+Syntax:
+Synonyms:
+animation library, animation libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports animations created with the Animation Builder. The revGoToFramePaused, revPlayAnimation, and revStopAnimation command|commands are part of the Animation library.
+
+Values:
+
+OS:

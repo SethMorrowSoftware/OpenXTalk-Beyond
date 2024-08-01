@@ -1,0 +1,16 @@
+grouped text
+(glossary)
+
+Syntax:
+Synonyms:
+grouped text, text group
+
+Params:
+
+Examples:
+Description:
+A part of the text in a field whose text style is "link".
+
+Values:
+
+OS:

@@ -1,0 +1,26 @@
+RowSwipedLeft
+(message)
+Sent when the user swipes a data grid row left.
+
+Syntax:
+on RowSwipedLeft
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on RowSwipedLeft
+   dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+end RowSwipedLeft
+----
+
+Description:
+RowSwipedLeft is sent to your data grid's custom row template when the user swipes a row of the data grid left. Handle RowSwipedLeft if you want to perform a custom action on a left swipe.
+
+The default action is to show the right swipe control.
+
+Values:
+
+OS:

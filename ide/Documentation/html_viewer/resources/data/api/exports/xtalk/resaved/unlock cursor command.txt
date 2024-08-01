@@ -1,0 +1,27 @@
+unlock cursor
+(command)
+Sets the lockCursor property to false, allowing the cursor shape to change normally depending on what the mouse pointer is over.
+
+Syntax:
+unlock cursor
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+unlock cursor
+----
+
+Description:
+Use the unlock cursor command to allow the engine to change the cursor rather than retaining the cursor you set.
+
+The unlock cursor command sets the lockCursor property to false. When all pending handler|handlers are finished execute|executing, the lockCursor property is set to false automatically.
+
+Set the cursor property to change the cursor.
+
+Values:
+
+OS:
+mac,windows,linux

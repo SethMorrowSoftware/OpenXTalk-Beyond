@@ -1,0 +1,20 @@
+CodeOfByte
+(operator)
+Get the numeric value of a single byte.
+
+Syntax:
+the code of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A 1-byte binary data value.
+
+Examples:
+Description:
+Returns the numeric representation of a single byte of binary data.
+
+Values:
+
+OS:

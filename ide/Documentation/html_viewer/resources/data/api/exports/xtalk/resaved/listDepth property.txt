@@ -1,0 +1,31 @@
+listDepth
+(property)
+Specifies the depth of a line in a list.
+
+Syntax:
+set the listDepth of {line} of {field} to 1
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the listDepth of line 1 of field 1 to 5
+----
+-- Make a list have a maximum depth of 2
+repeat with x = 0 to the number of lines of field 1
+   if the listDepth of line x of field 1 > 2 then
+      set the listDepth of line x of field 1 to 2
+   end if
+end repeat
+----
+
+Description:
+Use the listStyle property to control the depth of a line in a list.
+
+Values:
+The listDepth of a line of a field returns the depth of the list line as a number. 
+
+OS:
+mac,windows,linux,ios,android

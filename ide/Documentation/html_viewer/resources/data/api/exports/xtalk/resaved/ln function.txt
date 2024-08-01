@@ -1,0 +1,39 @@
+ln
+(function)
+
+Syntax:
+the ln of number
+ln(number)
+
+Summary:
+Returns the natural logarithm of a number.
+
+Examples
+ln(1) -- returns zero
+ln(0.15) -- returns -1.89712
+ln(10) -- returns 2.302585
+
+
+Related:
+return, math operation
+
+Description:
+Use the ln function to obtain a base e logarithm.
+
+The natural logarithm of a number is the power to which e must be raised to obtain the number.
+
+The transcendental number e appears in many mathematical formulas.
+
+To find the logarithm of a number in any base, use the following function:
+
+function logarithm theBase,theNumber
+    return ln(theNumber)/ln(theBase)
+end logarithm
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operations for more information.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

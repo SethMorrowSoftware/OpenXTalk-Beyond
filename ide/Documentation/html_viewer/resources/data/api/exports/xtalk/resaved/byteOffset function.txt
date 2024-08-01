@@ -1,0 +1,39 @@
+byteOffset
+(function)
+return|Returns the byte position of the first occourence of the specified string of binary data within container of binary data.
+
+Syntax:
+byteOffset({bytesToFind},{binaryStringToSearch} [,{bytesToSkip}])
+----
+
+Synonyms:
+
+Params:
+bytesToFind (data ): a string of  to find
+binaryStringToSearch (data ): a container with 
+bytesToSkip ( ): A non-negative integer. If you don't specify how many , the   does not skip any bytes and starts at the beginning of the .
+
+Examples:
+byteOffset("c","abcde") -- returns 3
+----
+byteOffset("b","abacadabra",2) -- returns 6
+----
+byteOffset("bark","embarking") -- returns 3
+----
+byteOffset(null & numberToByte(255),"End" & null & numberToByte(255)) -- returns 4
+----
+
+Description:
+Use the byteOffset function to find where a string of binary data  occurs within a container of binary data.
+
+The value returned by the byteOffset function is the number of the bytes where bytesToFind appears in binaryStringToSearch. If the bytessToFind is not in binaryStringToSearch, the byteOffset function return|returns zero.
+
+If the bytesToFind contains more than one byte, and the entire bytesToFind appears in the bytesToSearch, the byteOffset function return|returns the byte number where the bytesToFind starts.
+
+If you specify how many bytesToSkip, the byteOffset function skips the specified number of bytes in the binaryStringToSearch. The value return|returned is relative to this starting point instead of the beginning of the binaryStringToSearch.
+
+Values:
+The byteOffset function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

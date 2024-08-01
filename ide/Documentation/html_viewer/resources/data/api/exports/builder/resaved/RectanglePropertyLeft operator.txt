@@ -1,0 +1,33 @@
+RectanglePropertyLeft
+(operator)
+The left edge of a rectangle value.
+
+Syntax:
+the left of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+variable tRect
+put rectangle [50,100,150,200] into tRect
+
+// Store the left edge of the rectangle in a variable
+variable tLeft
+put the left of tRect into tLeft
+
+// Move the rectangle horizontally to a new position.
+set the left of tRect to 20
+----
+
+Description:
+The location along the x-axis of the left edge of the rectangle.
+
+*Note:* Setting the left of a rectangle will reposition it without altering the width or height.
+
+Values:
+
+OS:

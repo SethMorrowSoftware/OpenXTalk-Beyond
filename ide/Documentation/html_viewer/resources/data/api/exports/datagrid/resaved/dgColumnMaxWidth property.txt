@@ -1,0 +1,19 @@
+dgColumnMaxWidth
+(property)
+Get/Set the maximum width that a column can be resized to.
+
+Syntax:
+put the dgColumnMaxWidth["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/Set the maximum width that a column can be resized to.
+
+Values:
+
+OS:

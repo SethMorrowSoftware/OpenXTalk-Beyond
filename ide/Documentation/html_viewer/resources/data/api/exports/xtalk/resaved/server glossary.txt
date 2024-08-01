@@ -1,0 +1,16 @@
+server
+(glossary)
+
+Syntax:
+Synonyms:
+server
+
+Params:
+
+Examples:
+Description:
+A system that provides services to other systems on the same network. For example, a web server provides access to web pages.
+
+Values:
+
+OS:

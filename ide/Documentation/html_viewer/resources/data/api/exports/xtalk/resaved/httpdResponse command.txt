@@ -1,0 +1,46 @@
+httpdResponse
+(command)
+Respond to a HTTP request
+
+Syntax:
+httpdResponse {pSocketID},{pResponseCode},{pContent},{pHeaders}
+----
+
+Synonyms:
+
+Params:
+pSocketID ( ): The socket ID sent to the request callback
+pResponseCode ( ): A HTTP response code. See [here](https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html) for more detail.
+pContent ( ): This is the content to respond to the request with.
+pHeaders ( ): Any additional headers to send with the response. Content-Length, Server, Date and Connection are set by default.
+
+Examples:
+on mouseUp
+   httpdStart "NewRequest", 12345, "My Server"
+   launch url ("http://localhost:" & it)
+end mouseUp
+
+on NewRequest pSocketID, pRequest
+   local tPath
+   put the effective filename of me into tPath
+   set the itemDelimiter to slash
+
+   put "files/" & pRequest["resource"] into the last item of tPath
+
+   if there is a file tPath then
+      local tData
+      put url ("binfile:" & tPath) into tData
+      httpdResponse pSocketID, 200, tData
+   else
+      -- not found
+      httpdResponse pSocketID, 404
+   end if
+end NewRequest
+----
+
+Description:
+Handle the callback set when starting the server and respond to the request according to your requirements.
+
+Values:
+
+OS:

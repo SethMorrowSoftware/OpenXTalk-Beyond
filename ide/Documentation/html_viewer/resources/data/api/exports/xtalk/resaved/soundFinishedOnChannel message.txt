@@ -1,0 +1,34 @@
+soundFinishedOnChannel
+(message)
+Sent to the object which played a sound when a sound finishes playing.
+
+Syntax:
+soundFinishedOnChannel {pChannel}, {pSound}
+----
+
+Synonyms:
+
+Params:
+pChannel ( ): The name of the channel the sound was played on.
+pSound ( ): The sound file that was played.
+
+Examples:
+soundFinishedOnChannel theChannel, theSound
+----
+soundFinishedOnChannel "queued", "sounds/warning.mp4"
+----
+on soundFinishedOnChannel pChannel, pSound
+   put pChannel into field "channel"
+   put pSound into field "finished sound"
+end soundFinishedOnChannel
+----
+
+Description:
+Handle the soundFinishedOnChannel message if you want to perform a task or take an action when a sound finishes playing.
+
+When a sound has finished playing naturally (not stopped or replaced) on a given channel the soundFinishedOnChannel message is sent to the object which played the sound.
+
+Values:
+
+OS:
+ios,android

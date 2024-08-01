@@ -1,0 +1,30 @@
+socketTimeoutInterval
+(property)
+Specifies how long to wait for a read from socket or write to socket command to finish before timeout|timing out.
+
+Syntax:
+set the socketTimeoutInterval to {milliseconds}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the socketTimeoutInterval to 100 -- one-tenth of a second
+----
+
+Description:
+Use the socketTimeoutInterval to specify a time to wait for socket actions to complete.
+
+If the socketTimeoutInterval passes and no data has been transmitted yet, the socketTimeout message is sent to the object(glossary) whose script contains the read from socket or write to socket command.
+
+OpenXTalk checks the socketTimeoutInterval every time a  read from socket or write to socket command is execute|executed,  so you can specify different intervals for different command|commands  by changing the socketTimeoutInterval before issuing the command.
+
+As long as the action is still pending, the socketTimeout message is sent every time the socketTimeoutInterval elapses. For example, if the socketTimeoutInterval is 1000 milliseconds (one second), a socketTimeout message is sent every second until the action completes. 
+
+Values:
+The socketTimeoutInterval is a positive integer. By default, the socketTimeoutInterval is 10000 (ten seconds). 
+
+OS:
+mac,windows,linux,ios,android

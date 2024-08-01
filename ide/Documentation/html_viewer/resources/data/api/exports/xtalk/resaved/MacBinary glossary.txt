@@ -1,0 +1,16 @@
+MacBinary
+(glossary)
+
+Syntax:
+Synonyms:
+macbinary
+
+Params:
+
+Examples:
+Description:
+A format for transferring a Mac OS file from one system to another. The MacBinary format preserves the data fork and  resource fork of the file, as well as additional information such  as the file|file's type signature and creator signature.
+
+Values:
+
+OS:

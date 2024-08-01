@@ -1,0 +1,31 @@
+TheClickLocation
+(expression)
+Determines the location of a mouse click.
+
+Syntax:
+the ( current ) click position
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tClick as Point
+put the click position into tClick
+
+variable tRect as Rectangle
+put my bounds into tRect
+
+if tClick is within tRect then
+	// click was within widget bounds
+end if
+----
+
+Description:
+Use the mouse location to obtain the location of the mouse pointer when it was last clicked. Use the 'current' form to obtain the asynchronous click position.
+
+Values:
+The location of the mouse pointer when it was clicked. 
+
+OS:

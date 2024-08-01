@@ -1,0 +1,20 @@
+selectedColor
+(property)
+The selectedColor property is reserved word|reserved for internal use.
+
+Syntax:
+selectedColor
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+reserved word|Reserved for internal use.
+
+Values:
+
+OS:
+ios,android

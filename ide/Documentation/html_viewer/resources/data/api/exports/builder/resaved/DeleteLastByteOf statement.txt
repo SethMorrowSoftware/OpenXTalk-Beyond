@@ -1,0 +1,22 @@
+DeleteLastByteOf
+(statement)
+Deletes the last byte in Target.
+
+Syntax:
+delete the last byte of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A binary data container.
+
+Examples:
+Description:
+Replaces the last byte in Target with the empty data.
+
+*Note:* It is an error if Target is the empty data.
+
+Values:
+
+OS:

@@ -1,0 +1,32 @@
+revBrowserMakeTextBigger
+(command)
+Makes the text bigger in the specified browser
+
+Syntax:
+revBrowserMakeTextBigger {instanceId}
+----
+XBrowser_MakeTextBigger [{instanceId}]
+----
+
+Synonyms:
+xbrowser_maketextbigger
+
+Params:
+instanceId ( ): The integer identifier of a browser object
+
+Examples:
+revBrowserMakeTextBigger tBrowserId
+----
+
+Description:
+The revBrowserMakeTextBigger command increases the size of the text in the browser specified by the instanceId.
+
+*Cross-platform note:*  On a Windows system, executing the  revBrowserMakeTextBigger command is equivalent to increasing the  text size via the View -> Text Size menu in Internet Explorer menu.  On an OS X system it is equivalent to inceasing the text by clicking  on View -> Make Text Bigger.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserMakeTextBigger command puts empty into the result. 
+
+OS:
+mac,windows

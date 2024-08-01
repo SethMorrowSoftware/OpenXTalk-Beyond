@@ -1,0 +1,16 @@
+metal window
+(glossary)
+
+Syntax:
+Synonyms:
+metal, metallic, metal window, textured window
+
+Params:
+
+Examples:
+Description:
+On OS X|OS X systems, a window whose background has a brushed-metal appearance. 
+
+Values:
+
+OS:

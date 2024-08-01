@@ -1,0 +1,24 @@
+CanvasPropertyPaint
+(operator)
+The current paint of a canvas.
+
+Syntax:
+the paint of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Set canvas to paint with solid blue
+set the paint of this canvas to solid paint with color [0,0,1]
+----
+
+Description:
+The paint used for fill / stroke operations on mCanvas.
+
+Values:
+
+OS:

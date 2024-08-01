@@ -1,0 +1,32 @@
+revBrowserSnapshot
+(command)
+Takes a snapshot of the current browser page.
+
+Syntax:
+revBrowserSnapshot {instanceId}, {variableName}
+----
+
+Synonyms:
+
+Params:
+instanceId ( ): The integer identifier of a browser object.
+variableName ( ): The name of a variable to place the resulting image data into.
+
+Examples:
+local tSnapshot
+----
+revBrowserSnapshot sBrowserId, "tSnapshot"
+----
+set the imageData of image "Browser Thumbnail" to tSnapshot
+----
+
+Description:
+The revBrowserSnapshot command takes a snapshot of the page currently being displayed in the specified browser object.
+
+The variableName should be the name of a declared variable. This means that before calling revBrowserSnapshot a variable to place the image data into should be declared using the local command.
+
+Values:
+The revBrowserSnapshot command puts empty into the result. 
+
+OS:
+mac,windows

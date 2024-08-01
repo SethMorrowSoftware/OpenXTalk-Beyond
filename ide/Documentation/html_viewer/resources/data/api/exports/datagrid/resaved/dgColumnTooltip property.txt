@@ -1,0 +1,19 @@
+dgColumnTooltip
+(property)
+Set the tooltip that appears when the mouse is over the column header.
+
+Syntax:
+put the dgColumnTooltip["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set the tooltip that appears when the mouse is over the column header.
+
+Values:
+
+OS:

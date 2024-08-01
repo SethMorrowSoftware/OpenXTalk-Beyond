@@ -1,0 +1,19 @@
+dgLine
+(property)
+The line (or row) number that is being displayed in the copy of the template.
+
+Syntax:
+get the dgLine of this control
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The line (or row) number that is being displayed in the copy of the template.
+
+Values:
+
+OS:

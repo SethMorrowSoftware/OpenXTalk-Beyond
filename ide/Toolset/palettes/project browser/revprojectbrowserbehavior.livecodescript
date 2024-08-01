@@ -1,4 +1,4 @@
-﻿script "revProjectBrowserBehavior" with behavior "revPaletteBehavior"
+﻿script "revProjectBrowserBehavior"
 local sDisplayArray, sLongIDToRow, sObjectToParent
 
 on arrowKey pDirection
@@ -130,6 +130,12 @@ on preOpenStack
    set the rect of group "content" of card 1 of me to the contentRect of me
    ideSelectedObjectChanged
 end preOpenStack
+
+on resizeStack
+   lock screen
+   set the rect of group "content" of card 1 of me to the contentRect of me
+   unlock screen
+end resizeStack
 
 on closeStack
    local tExpanded

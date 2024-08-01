@@ -1,0 +1,18 @@
+variable
+(glossary)
+
+Syntax:
+Synonyms:
+var
+
+Params:
+
+Examples:
+Description:
+A container in memory. You can put data of any kind into a variable, and read its contents.
+
+Unlike other container|containers, variables are not permanent. A local variable|local variable's existence ends when the handler stops; a global|global variable's existence ends when you quit the application. 
+
+Values:
+
+OS:

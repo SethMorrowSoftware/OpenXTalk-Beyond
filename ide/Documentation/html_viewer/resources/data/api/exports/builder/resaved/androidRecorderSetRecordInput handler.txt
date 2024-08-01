@@ -1,0 +1,24 @@
+androidRecorderSetRecordInput
+(handler)
+Set the record input source
+
+Syntax:
+androidRecorderSetRecordInput({pInputSource})
+----
+
+Synonyms:
+
+Params:
+pInputSource ( ): The record input source - "Default": The device's default record input source - "Mic": Microphone audio source - "VoiceUplink": Voice call uplink (Tx) audio source - "VoiceDownlink": Voice call uplink (Tx) audio source. - "VoiceCall": Voice call uplink + downlink audio source - "Camcorder": Microphone audio source tuned for video recording, with the same orientation as the camera if available - "VoiceRecognition": Microphone audio source tuned for voice recognition - "VoiceCommunication": Microphone audio source tuned for voice recognition - "RemoteSubmix": Audio source for a submix of audio streams to be presented remotely - "Unprocessed": Microphone audio source tuned for unprocessed (raw) sound if available, behaves like Default otherwise
+
+Examples:
+androidRecorderSetRecordInput "mic"
+----
+
+Description:
+Use the androidRecorderSetRecordInput handler to control the source  and tuning of the record input.
+
+Values:
+
+OS:
+android

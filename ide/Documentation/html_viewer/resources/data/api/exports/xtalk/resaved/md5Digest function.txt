@@ -1,0 +1,32 @@
+md5Digest
+(function)
+Computes a MD5 cryptographic message digest.
+
+Syntax:
+the md5Digest of {message}
+----
+md5Digest({message})
+----
+
+Synonyms:
+
+Params:
+message (data ): A  string.
+
+Examples:
+get the md5Digest of "OpenXTalk"
+----
+put textEncode("Message to verify", "UTF-8") into tMessage
+get md5Digest(tMessage)
+----
+
+Description:
+Compute a message digest of message using the MD5 cryptographic hash function.
+
+ *Warning:* Serious flaws have been found in the MD5 hash algorithm  that make it unsuitable to use for security-critical purposes.  Unless you need backwards compatibility with existing systems, use  one of the other algorithms available with the messageDigest function
+
+Values:
+Returns the message digest of the message as a 16 byte  binary data string. 
+
+OS:
+mac,windows,linux

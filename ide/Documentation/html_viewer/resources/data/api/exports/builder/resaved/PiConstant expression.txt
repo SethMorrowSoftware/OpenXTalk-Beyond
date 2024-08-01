@@ -1,0 +1,23 @@
+PiConstant
+(expression)
+The constant pi
+
+Syntax:
+pi
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as Number
+put the cos of pi into tVar -- tVar contains -1
+----
+
+Description:
+The ratio of a circle's circumference to its diameter.
+
+Values:
+
+OS:

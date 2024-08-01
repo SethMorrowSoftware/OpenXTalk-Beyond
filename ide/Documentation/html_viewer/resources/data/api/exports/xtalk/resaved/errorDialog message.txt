@@ -1,0 +1,36 @@
+errorDialog
+(message)
+Sent to an object(glossary) when one of its handler|handlers cannot be run due to an execution error.
+
+Syntax:
+errorDialog {pExecutionError}, {pParseError}
+----
+
+Synonyms:
+
+Params:
+pExecutionError ( ): Describes the error that occurred in the form of a standard OpenXTalk error backtrace: error-code,line-number,column-number[, hint] 
+pParseError ( ): Deprecated
+
+Examples:
+on errorDialog pExecutionError, pParseError
+    answer "An error occurred on line: " & item 2 \
+          of line 1 of pExecutionError
+end errorDialog
+----
+
+Description:
+Handle the errorDialog message to prevent the standard error window from appearing, when you want to handle the error in a custom handler.
+
+Standard error descriptions are stored in the cErrorsList of the first card of stack "revErrorDisplay". The error-code refers to the line number in this custom property which contains the error description.
+
+You can look up the description of an error using this line of code:      answer line (item 1 of line 1 of pExecutionError) of the scriptExecutionErrors  *Note:* The exact format of the executionError may change from  release to release.
+
+If the lockErrorDialogs property is true, the errorDialog message is sent to the object(glossary) that set the lockErrorDialogs, rather than to the object(glossary) whose script contained the error. The lockErrorDialogs can be set to true either by setting the property directly, or with the lock error dialogs command.
+
+*Note:* The errorDialog message is only sent while Script Debug mode  is turned off. To toggle Script Debug mode, click on the Development  menu of xTalk's menubar.
+
+Values:
+
+OS:
+mac,windows,linux

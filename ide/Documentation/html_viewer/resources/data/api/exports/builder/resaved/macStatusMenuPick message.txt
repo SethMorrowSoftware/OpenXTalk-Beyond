@@ -1,0 +1,22 @@
+macStatusMenuPick
+(message)
+Sent when an item is picked from the menu
+
+Syntax:
+macStatusMenuPick {pName}, {pChosenItem}
+----
+
+Synonyms:
+
+Params:
+pName ( ): The name of the status menu that the item was picked from
+pChosenItem ( ): The label of the menu item the user chose. If the menu item chosen is part of a submenu, the menu item label is followed by a vertical bar (|) and the submenu's label.
+
+Examples:
+Description:
+The macStatusMenuPick message is sent to the object that created the status menu using the macStatusMenuCreate handler.
+
+Values:
+
+OS:
+mac

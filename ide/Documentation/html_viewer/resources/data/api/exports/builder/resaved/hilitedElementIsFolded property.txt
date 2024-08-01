@@ -1,0 +1,21 @@
+hilitedElementIsFolded
+(property)
+Determine if the selected element is folded
+
+Syntax:
+get the hilitedElementIsFolded of {widget}
+----
+set the hilitedElementIsFolded of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Value is true if the selected element is folded.  False is returned in all other cases including when nothing is selected and when a leaf node is selected.  When setting the fold state, attempts to set the value for a leaf  node will have no effect.  Setting the fold state when no element is selected  has no effect.
+
+Values:
+
+OS:

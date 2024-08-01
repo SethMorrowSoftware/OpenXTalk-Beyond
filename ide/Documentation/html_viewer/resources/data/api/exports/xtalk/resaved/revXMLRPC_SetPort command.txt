@@ -1,0 +1,20 @@
+revXMLRPC_SetPort
+(command)
+
+Syntax:
+revXMLRPC_SetPort XMLRPCdocumentID, RPCport
+
+Summary:
+Sets the port of an XML-RPC document structure.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request.
+If the revXMLRPC_SetPort command encounters an error, the result is set to an error message beginning with "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_SetPort command to set the port that is the target of the execution of an XML-RPC request.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

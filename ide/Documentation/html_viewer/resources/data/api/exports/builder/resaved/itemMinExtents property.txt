@@ -1,0 +1,26 @@
+itemMinExtents
+(property)
+The minimum width of each segment
+
+Syntax:
+get the itemMinExtents of {widget}
+----
+set the itemMinExtents of {widget} to {numberList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The minimum width of each segment in the control.  Each of the itemMinExtents must be a positive number.
+
+When you set the itemMinExtents to a string that has fewer than itemCount numbers in it, the remaining segments are given a minimum a width of 0.
+
+When you set the itemMinExtents to a string that has more than itemCount numbers in it, the extra numbers are ignored.
+
+Values:
+A comma-delimited list of positive numbers. 
+
+OS:

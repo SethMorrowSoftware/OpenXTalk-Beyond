@@ -1,0 +1,26 @@
+mobileDisableAccelerometer
+(command)
+Disabled the accelerometer so that accelerationChanged events are not delivered. 
+
+Syntax:
+mobileDisableAccelerometer
+----
+
+Synonyms:
+iphonedisableaccelerometer
+
+Params:
+
+Examples:
+mobileDisableAccelerometer
+----
+
+Description:
+The mobileDisableAccelerometer command disables the accelerometer on the device.
+
+The mobileDisableAccelerometer command stops accelerationChanged events being delivered.
+
+Values:
+
+OS:
+ios,android

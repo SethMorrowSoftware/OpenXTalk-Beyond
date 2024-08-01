@@ -1,0 +1,28 @@
+mobilePurchaseSet
+(command)
+Sets the value of a property of an in-app purchase.
+
+Syntax:
+mobilePurchaseSet {purchaseID}, {propertyName}, {value}
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): a numeric purchase request identifier.
+propertyName (enum ): the name of a purchase request property.
+value ( ): The value the property is set to.
+
+Examples:
+mobilePurchaseSet tPurchaseID, "quantity", 10
+----
+
+Description:
+Use the mobilePurchaseSet command to set the value of a property of an in-app purchase.
+
+Before sending a purchase request using the mobilePurchaseSendRequest command, you can configure aspects of it by setting certain properties, this is done using the mobilePurchaseSet command, specifying the purchase, the property being set and its value.
+
+Values:
+
+OS:
+ios,android

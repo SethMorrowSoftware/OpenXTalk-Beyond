@@ -1,0 +1,25 @@
+verticalTextAlign
+(property)
+The vertical text alignment of the field widget.
+
+Syntax:
+set the verticalTextAlign of {widget} to {pAlign}
+get the verticalTextAlign of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the verticalTextAlign of widget "Android Field" to "middle"
+----
+
+Description:
+Use the textAlign property to change the vertical text alignment of the field widget.
+
+Values:
+- "top": Top-aligned text - "middle": Middle-aligned text - "bottom": Bottom-aligned text 
+
+OS:
+android

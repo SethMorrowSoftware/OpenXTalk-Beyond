@@ -1,0 +1,26 @@
+hilitedItemNames
+(property)
+The currently highlighted segment names
+
+Syntax:
+get the hilitedItemNames of {widget}
+----
+set the hilitedItemNames of {widget} to {nameList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the highlighted segments of the control.  Each item in the hilitedItemNames is a segment itemNames|name.
+
+If the multipleHilites is `false` when setting the hilitedItemNames, then the first name in the hilitedItemNames determines which segment is highlighted, and the remainder of the hilitedItemNames are ignored.
+
+The hiliteChanged message is sent when setting the hilitedItemNames, unless it doesn't change which segments are highlighted.
+
+Values:
+A comma-delimited list of segment names. 
+
+OS:

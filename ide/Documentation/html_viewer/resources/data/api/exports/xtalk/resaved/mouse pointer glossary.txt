@@ -1,0 +1,16 @@
+mouse pointer
+(glossary)
+
+Syntax:
+Synonyms:
+pointer, mouse pointer
+
+Params:
+
+Examples:
+Description:
+The point on the screen whose position is controlled by moving the mouse. 
+
+Values:
+
+OS:

@@ -1,0 +1,18 @@
+subsidiary window
+(glossary)
+
+Syntax:
+Synonyms:
+subsidiary window, child window, subwindow
+
+Params:
+
+Examples:
+Description:
+A window that is part of another window or associated with it in some way.
+
+Subsidiary window types include drawer|drawers (which slide out from one edge of a parent window) and sheet|sheets (which are  dialog box|dialog boxes associated with a parent window).
+
+Values:
+
+OS:

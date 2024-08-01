@@ -1,0 +1,42 @@
+textStyle
+(property)
+Specifies the style or styles applied to text in an object(glossary).
+
+Syntax:
+set the textStyle of {object} to {empty | plain | {stylesList}}
+----
+set the textStyle of [{chunk} of] {field} to {empty | plain | {stylesList}}
+----
+set the textStyle[{style}] of object to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textStyle of line 2 of field "Choices" to "italic,underline"
+----
+set the textStyle of the selectedChunk to "box"
+----
+set the textStyle of button "Off" to "italic,bold"
+----
+set the textStyle["bold"] of field "name" to true
+----
+
+Description:
+Use the textStyle property to change the appearance of text.
+
+Setting the textStyle to "plain" turns off all styles. (Setting the textStyle to "plain" plus one or more additional styles may result in anomalous behavior.)  Setting the textStyle of an object(glossary) to empty allows the textStyle of the object|object's owner to show through. Use the effective keyword to find out what style is used for the object(glossary), even if its own textStyle is empty. Similarly, use the effective keyword to find out what style is used for a chunk of text, even if the chunk|chunk's textStyle is empty.
+
+If you request the textStyle of a chunk which includes multiple style runs--for example, some bold and some plain text--the property reports "mixed".
+
+The "link" style can be used only for chunks of a field, not for objects. Setting the textStyle of a chunk to "link" turns it into a grouped text|text group.
+
+    the textStyle [<style>]  Here, style can be one of bold, condensed, expanded, italic, oblique, box, threedbox, underline, strikeout, link. For example:      set the textStyle ["bold"] of field 1 to true
+
+Values:
+The textStyle of an object(glossary) or chunk is either "plain", empty, "mixed", or one or more of the following, separated by commas:  - bold  - italic  - underline  - strikeout  - box   - threeDbox  - link (or group) 
+
+OS:
+mac,windows,linux,ios,android

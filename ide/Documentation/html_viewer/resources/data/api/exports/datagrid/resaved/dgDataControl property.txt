@@ -1,0 +1,21 @@
+dgDataControl
+(property)
+This is a custom property defined in the behavior script for your template
+
+Syntax:
+getProp dgDataControl
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Your template should 'return the long id of me' in this getprop handler. This helps the data grid identify your row template.
+
+*Important:* This is required for the Datagrid to work properly
+
+Values:
+
+OS:

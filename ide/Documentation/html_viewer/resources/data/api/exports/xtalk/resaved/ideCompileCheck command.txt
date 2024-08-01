@@ -1,0 +1,20 @@
+ideCompileCheck
+(command)
+Attempts to compile the target script
+
+Syntax:
+ideCompileCheck {pScript}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Attempts to compile the target script
+
+Values:
+If the compilation fails, the result is set to the description of the compile error 
+
+OS:

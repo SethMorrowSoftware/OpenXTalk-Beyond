@@ -1,0 +1,38 @@
+mobilePurchaseState
+(function)
+Returns the status of an active purchase.
+
+Syntax:
+mobilePurchaseState({purchaseID})
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): a numeric purchase identifier
+
+Examples:
+put mobilePurchaseState(tPurchaseID) into tPurchaseState
+----
+if mobilePurchaseState(tPurchaseID) is "initialized" then
+   updateProperties
+end if
+----
+
+Description:
+Use the mobilePurchaseState function to retrieve the status of a purchase.
+
+The mobilePurchaseState function returns a string describing the current state of the purchase defined by purchaseID.
+
+Values:
+ 
+cancelled: the purchase was cancelled by the user before payment was received.
+sendingRequest: the purchase request is being sent to the store/marketplace.
+paymentReceived: the requested item has been paid for. The item should now be delivered to the user and confirmed cia the  command.
+restored: the purchase has been restored after a call to . The purchase should now be delivered to the user and confirmed via the  command.
+initialized: the purchase request has been created but not sent. In this state additional properties such as the item quantity can be set.
+complete: the purchase has now been paid for and delivered.
+error: An error occurred during the payment request. More detailed information is available from the  function
+
+OS:
+ios,android

@@ -1,0 +1,38 @@
+locationChanged
+(message)
+Sent to the current card of the default stack when the location of the device changes.
+
+Syntax:
+locationChanged {pLatitude}, {pLongitude}, {pAltitude}
+----
+
+Synonyms:
+
+Params:
+pLatitude ( ): the latitude of the device
+pLongitude ( ): the longitude of the device
+pAltitude ( ): the altitude of the device
+
+Examples:
+on locationChanged pLatitude, pLongitude, pAltitude
+   put pAltitude into field "altitude"
+end locationChanged
+----
+on locationChanged
+   put mobileSensorReading("location", true) into theLocation
+    -- update the marker on the map showing the current location
+   updateMapPosition theLocation
+end locationChanged
+----
+
+Description:
+Handle the locationChanged message if you want to perform tasks when the location of the device changes.
+
+The locationChanged message is sent to the current card of the default stack when the location of the device changes.
+
+If location tracking cannot be started (typically due to the user 'not allowing' access to CoreLocation) then a trackingError message is sent instead. 
+
+Values:
+
+OS:
+ios,android

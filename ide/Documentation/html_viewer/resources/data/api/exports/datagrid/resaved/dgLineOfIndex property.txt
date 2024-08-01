@@ -1,0 +1,19 @@
+dgLineOfIndex
+(property)
+Returns the line associated with the given index.
+
+Syntax:
+put the dgLineOfIndex[pIndex] of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the line associated with the given index.
+
+Values:
+
+OS:

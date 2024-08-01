@@ -1,0 +1,16 @@
+print job
+(glossary)
+
+Syntax:
+Synonyms:
+print job, printjob
+
+Params:
+
+Examples:
+Description:
+A single print task; a single item to be printed. One print job can include multiple pages and multiple card|cards, and is treated by the printer software as a single printout.
+
+Values:
+
+OS:

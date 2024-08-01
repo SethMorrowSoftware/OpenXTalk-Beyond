@@ -1,0 +1,26 @@
+ConcatenateStrings
+(operator)
+Concatenates Left and Right.
+
+Syntax:
+{Left} & {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a string.
+Right ( ): An expression which evaluates to a string.
+
+Examples:
+variable tVar as String
+put "car" & "pet" into tVar -- tVar contains "carpet"
+----
+
+Description:
+The result consists of the chars of Left followed by those of Right.
+
+Values:
+The result of concatenating Left and Right. 
+
+OS:

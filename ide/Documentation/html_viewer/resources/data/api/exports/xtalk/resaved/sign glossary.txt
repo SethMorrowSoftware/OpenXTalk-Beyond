@@ -1,0 +1,16 @@
+sign
+(glossary)
+
+Syntax:
+Synonyms:
+sign
+
+Params:
+
+Examples:
+Description:
+The symbol + or - that indicates whether a number is positive or negative. 
+
+Values:
+
+OS:

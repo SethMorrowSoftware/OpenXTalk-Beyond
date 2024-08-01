@@ -1,0 +1,27 @@
+screen
+(property)
+Returns the screen number that the stack is on. The number corresponds to the line of the rect of the screen returned by the screenrects.
+
+Syntax:
+put the screen of {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+  put line (the screen of stack "My Stack" ) of \ 
+        the screenRects into theRectOfScreenStackIsOn
+end mouseUp
+----
+
+Description:
+Use the screen property to determine which monitor the stack appears on or the pixel density of the monitor it is on.
+
+Values:
+The screen property of a stack is an integer. 
+
+OS:
+mac,windows,linux

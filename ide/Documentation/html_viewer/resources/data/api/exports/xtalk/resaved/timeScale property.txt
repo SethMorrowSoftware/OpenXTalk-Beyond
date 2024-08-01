@@ -1,0 +1,28 @@
+timeScale
+(property)
+Reports the number of intervals per second of a movie or sound.
+
+Syntax:
+get the timeScale of {player}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the timeScale of last player into intervalsPerSecond
+----
+put (the duration of me/the timeScale of me) into runTime
+----
+
+Description:
+Use the timeScale property to convert internal movie or sound times into seconds.
+
+The timeScale is the number of intervals per second of a movie or sound. These intervals are used for the player|player's startTime, endTime, duration, and currentTime properties, and you can use the timeScale property to convert from the time scale used by the movie or sound to seconds.
+
+Values:
+The timeScale of a player is a positive integer. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux

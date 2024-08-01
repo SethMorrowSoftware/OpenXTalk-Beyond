@@ -1,0 +1,30 @@
+revBrowserInstances
+(function)
+Returns a list of the open browser instances.
+
+Syntax:
+revBrowserInstances()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+local tInstances, tInstance
+put revBrowserInstances() into tInstances
+repeat for each item tInstance in tInstances
+  revBrowserClose tInstance
+end repeat
+----
+
+Description:
+Use the revBrowserInstances function to obtain a list of the ids of all the open browser objects.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserInstances function returns a comma-delimited list of integer browser ids, or empty if no browsers are open. 
+
+OS:
+mac,windows

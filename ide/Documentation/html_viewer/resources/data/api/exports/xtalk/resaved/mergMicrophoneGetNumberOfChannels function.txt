@@ -1,0 +1,21 @@
+mergMicrophoneGetNumberOfChannels
+(function)
+Get the number of channels to record (either mono - 1 channel, or stereo - 2 channels)
+
+Syntax:
+mergMicrophoneGetNumberOfChannels()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the number of channels to record (either mono - 1 channel, or stereo - 2 channels)
+
+Values:
+number-of-channels-enum 
+
+OS:
+ios,mac

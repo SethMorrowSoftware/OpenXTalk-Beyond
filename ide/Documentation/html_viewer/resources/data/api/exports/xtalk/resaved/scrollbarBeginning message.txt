@@ -1,0 +1,31 @@
+scrollbarBeginning
+(message)
+Sent to a scrollbar when the user Shift-clicks its decrease arrow.
+
+Syntax:
+scrollbarBeginning {pStart}
+----
+
+Synonyms:
+
+Params:
+pStart ( ): The new position of the scrollbar thumb. This is the same as the scrollbar's  property.
+
+Examples:
+on scrollbarBeginning theStartValue
+-- this scroll bar controls what's in a field
+  put theStartValue into field "Count"
+end scrollbarBeginning
+----
+
+Description:
+Handle the scrollbarBeginning message if you want to respond to the use of Shift-click to move the scrollbar thumb directly to the beginning (the top or left) of the scrollbar.
+
+Dragging the scrollbar thumb to the beginning position, or otherwise moving it to the beginning, does not send a scrollbarBeginning message.
+
+If the scrollbarBeginning message is not handled, a scrollbarDrag message is sent in addition.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

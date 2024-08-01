@@ -1,0 +1,34 @@
+maxWidth
+(property)
+Specifies how wide a stack window can be made when it's resized.
+
+Syntax:
+set the maxWidth of {stack} to {pixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the maxWidth of the defaultStack to 300
+----
+set the maxWidth of stack "Prefs" to the height of stack "Prefs"
+----
+
+Description:
+Use the maxWidth property if you want the user to be able to resize the stack window, but no larger than a width you choose.
+
+The maxWidth is the maximum width in pixels. The width does not include the window's borders.
+
+The maxWidth property does not prevent a handler from changing the stack|stack's width property (or related properties such as the rectangle). It affects only user actions. If you set the stack|stack's width to a value greater than the maxWidth, it is reset to the maxWidth when you close and reopen the stack.
+
+If the stack's resizable property is false, the setting of this property has no effect.
+
+*Note:* The current architecture uses 16-bit signed integers for all  co-ordinates, which means that the value range is -32768 to 32767.
+
+Values:
+The maxWidth of a stack is a positive integer. By default, the maxWidth property of newly created stacks is set to 65535. 
+
+OS:
+mac,windows,linux,ios,android

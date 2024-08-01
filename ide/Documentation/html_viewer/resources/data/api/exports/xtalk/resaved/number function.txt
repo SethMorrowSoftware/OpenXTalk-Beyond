@@ -1,0 +1,51 @@
+number
+(function)
+return|Returns the number of object|objects of a certain kind, or the number of chunk|chunks in a string.
+
+Syntax:
+the number of [{card|cd|background|bkgnd|bg}] {{objectType} | parts | controls}
+----
+the number of {{objectType} | parts | controls} [{in | of} {groupRef}]
+----
+the number of {backgrounds | groups} [ [{in | of} {cardRef}] {in | of} {stackRef}]
+----
+the number of [marked] cards [{in | of} {stackRef}]
+----
+the number of {char[acters] | items | words | lines} {in | of} {textString}
+----
+the number of elements {in | of} {arrayExpr}
+----
+
+Synonyms:
+num
+
+Params:
+•	objectType (enum ): 
+•	groupRef ( ): A reference to any group in the current stack.
+•	cardRef ( ): A reference to any card in the current stack.
+•	stackRef ( ): Any stack reference.
+•	textString (string ): Any string or expression that evaluates to a string.
+•	arrayExpr (array ): Any array or expression that evaluates to an array.
+	
+Examples:
+repeat for the number of words in inputString
+----
+if the number of card buttons > 0 then doTheButtons
+----
+
+Description:
+Use the number function to find out how many of a thing there are.
+
+If you use the form `the number of card controls`, the number function returns the number of control|controls on the current card that are not members of a group(command). The form `the number of background controls` returns the number of grouped controls that are in a group(command) whose backgroundBehavior property is set to true.
+
+The expression      the number of chars in <textString>  is equivalent to:      the length of <textString>  The expression      the number of backgrounds of <stackRef>  return|returns the number of group(glossary)|groups in the stack.
+
+The expression      the number of groups of <stackRef>  returns the number of group(glossary)|groups on the current card of the stack. group(glossary)|Groups that are nest|nested inside another group(command) are not counted.
+
+*Note:* The number is implemented as a read-only global  property, but can be more conveniently thought of as a function.
+
+Values:
+The number function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

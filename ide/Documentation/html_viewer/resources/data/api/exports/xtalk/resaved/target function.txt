@@ -1,0 +1,34 @@
+target
+(function)
+return|Returns the object(glossary) which received the message that started execute|execution.
+
+Syntax:
+the target
+----
+target()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the target
+----
+if word 1 of the target is "button" then clickedAButton
+----
+set the backgroundColor of the target to "black"
+----
+
+Description:
+Use the target function within a message handler to determine which object(glossary) originally received the message.
+
+Suppose a card script contains a mouseDown handler. If the user clicks a button(keyword), a mouseDown message is sent to the button(keyword). If the button(object)|button's script does not contain a mouseDown handler, the message is pass|passed to the card, and handle|handled by the card(object)|card's mouseDown handler.
+
+The target function is similar to the me keyword. In the example described above, within the card(object)|card's handler, the target function return|returns the button(object)|button's name, because the button(keyword) is the object(glossary) that first received the mouseDown message. However, the me keyword is a object reference|reference to the card, because the card is the object(glossary) whose script contains the mouseDown handler that is execute|executing.
+
+Values:
+The target function return|returns the name property of the object(glossary).  
+
+OS:
+mac,windows,linux,ios,android

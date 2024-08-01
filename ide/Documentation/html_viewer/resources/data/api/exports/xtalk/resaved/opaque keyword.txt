@@ -1,0 +1,27 @@
+opaque
+(keyword)
+Used with the style property to indicate an opaque button or field. 
+
+Syntax:
+opaque
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the style of button "Cancel" to opaque
+----
+
+Description:
+Use the opaque keyword to create a control that blocks the view of any object(glossary) underneath it.
+
+The field or button is filled with its backgroundColor. If the field or button|button's backgroundColor is empty, it is filled with the backgroundColor of the object|object's owner.
+
+Setting a control's style property to "opaque" sets its opaque property to true.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

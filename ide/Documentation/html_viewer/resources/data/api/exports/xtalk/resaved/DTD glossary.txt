@@ -1,0 +1,18 @@
+DTD
+(glossary)
+
+Syntax:
+Synonyms:
+dtd, document type definition, document type declaration
+
+Params:
+
+Examples:
+Description:
+Document Type Definition. A collection of XML declarations that define the structure of a particular XML document.
+
+The DTD defines which tags are permitted, as well as their relationships. 
+
+Values:
+
+OS:

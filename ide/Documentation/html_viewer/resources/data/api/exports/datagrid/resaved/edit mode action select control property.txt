@@ -1,0 +1,20 @@
+edit mode action select control
+(property)
+Set the action select control to display when the data grid is in edit mode.
+
+Syntax:
+set the dgProp["edit mode action select control"] of group "Data Grid"
+to the long id of {control}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use edit mode action select control to specify the action select control to display when the data grid is in edit mode. This defaults to a red stop icon. Set to empty to prevent the action select control from being displayed.
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+is among
+(operator)
+Evaluates to true if a chunk is equal to one of the chunks in a string, false otherwise.
+
+Syntax:
+{valueToFind} is among the {paragraphs | sentences | lines | items | words | segments | trueWords | tokens | codePoints | codeUnits | bytes} of {stringToSearch}
+----
+
+Synonyms:
+
+Params:
+valueToFind (string ): 
+stringToSearch (string ): 
+
+Examples:
+"Hello" is among the words of "Hello World" -- evaluates to true
+----
+"Hell" is among the words of "Hello World" -- evaluates to false
+----
+
+Description:
+Use the is among operator to find out whether a string exists as an entire word, item, or line of another string.
+
+The valueToFind must be a single word, item, or line (whichever chunk type you have specified). If you specify a string containing more than one chunk, the is among operator evaluates to false, even if all the chunks are in the stringToSearch.
+
+The is among operator is the logical inverse of the is not among operator. When one is true, the other is false.
+
+'is among the bytes' should be used to check if a binary strings contains the given bytes.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

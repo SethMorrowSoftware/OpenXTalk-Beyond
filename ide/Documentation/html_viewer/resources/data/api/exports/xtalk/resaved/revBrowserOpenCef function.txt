@@ -1,0 +1,41 @@
+revBrowserOpenCef
+(function)
+Opens and initialises a new Chrome-based browser.
+
+Syntax:
+revBrowserOpenCef( {windowId} [, {url} ] )
+----
+
+Synonyms:
+
+Params:
+windowID ( ): the operating system ID for a stack window as given by the stack windowID property.
+url ( ): the initial url to navigate to when opening the browser. The URL can be a page from a web server, beginning "http://", or a local file, beginning "file://"
+
+Examples:
+local tBrowserId
+put revBrowserOpenCef(the windowId \
+      of this stack, "http://www.OpenXTalk.org" ) into tBrowserId
+if tBrowserId is not an integer then
+  answer "Failed to open browser"
+end if
+----
+local tBrowserId, tFile   
+answer file "Please choose a file to display"
+if the result is not "cancel" then
+  put it into tFile
+  put revBrowserOpenCef(the windowId \
+        of this stack, "file://" & tFile) into tBrowserId
+end if
+----
+
+Description:
+The revBrowserOpenCef function creates a new Chrome-baseed browser in the window with the given windowId. If a url is given, the browser immediately navigates to this url.
+
+The revBrowserOpenCef function creates a new Chrome-baseed browser in the window with the given windowId. If a url is given, the browser immediately navigates to this url.
+
+Values:
+The revBrowserOpenCef function returns a value. If successful this will be an integer browser instance id, if unsuccessful, the result will be empty. If successful this will be an integer browser instance id, if unsuccessful, the result will be empty. 
+
+OS:
+windows

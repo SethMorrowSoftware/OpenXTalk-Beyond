@@ -1,0 +1,27 @@
+empty
+(constant)
+Equivalent to nothing, the empty string "".
+
+Syntax:
+empty
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put empty into field "Results" -- clears the field
+----
+
+Description:
+Use the empty constant as an easier-to-read substitute for a quoted string with nothing inside the quotes, "".
+
+Putting empty into a field or variable clears it.
+
+Putting empty into a nonexistent variable creates the variable with no content.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

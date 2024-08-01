@@ -1,0 +1,22 @@
+ByteIsInData
+(operator)
+Determines whether Needle is in Target.
+
+Syntax:
+{Needle} is in {Target}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to a single byte of binary data.
+Target ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+*Note:* It is an error if Needle evaluates to data consisting of more than one byte.
+
+Values:
+True if Needle is among the bytes of Target, and false otherwise. 
+
+OS:

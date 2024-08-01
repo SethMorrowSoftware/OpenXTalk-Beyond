@@ -1,0 +1,56 @@
+URL
+(keyword)
+Designates a container consisting of an Internet resource or  local file in the form of a URL(glossary).
+
+Syntax:
+URL
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get URL "http://www.xworlds.com/index.html"
+----
+put URL "binfile:/Users/myuser/Files/example.gif" into image "Example Logo"
+----
+post field "Results" to URL "http://www.example.org/current.txt"
+----
+local tURL
+put "http://www.xworlds.com/index.html" into tURL
+get URL tURL
+----
+put "Hello World" into URL "file:/Users/myuser/Documents/sample.txt"
+----
+-- Writing the contents of a field to an external file, preserving text encoding
+on textSave
+   put "???? ??????" into field "russiantext"
+   put textEncode(field "russiantext" ,"UTF-8") into URL "binfile:/Users/myuser/Documents/russtext.txt"
+end textSave
+
+# Reading contents of a file into OpenXTalk, preserving text encoding
+on textRead
+   local tText
+   put URL "binfile:/Users/myuser/Documents/russtext.txt" into tText
+   put textDecode(tText,"UTF-8") into field "russiantext"
+end textRead
+----
+
+Description:
+Use the URL(keyword) keyword to access the contents of a  local file or a file(glossary) accessible on the Web.
+
+A URL(keyword) is a method of designating a file(glossary) or other resource. You can use a URL(keyword) like any other container. You can get the contents of a URL(keyword) or use its contents in any expression. OpenXTalk supports the following URL scheme|URL schemes:  * http: a page from a web server * ftp: a directory or file on an FTP server * file(keyword): a text file on the local disk (not on a server) * binfile: a binary file * resfile: on Mac OS and OS X systems, the resource fork of a   file(glossary)    All actions that refer to a URL(keyword) container are blocking: that is, the handler pauses until OpenXTalk is finished accessing the URL(glossary). Since fetching a web page may take some time due to network lag, accessing URL|URLs may take long enough to be noticeable to the user. To avoid this delay, use the load command (which is non-blocking) to cache web pages before you need them.
+
+For technical information about URL(glossary)|URLs and URL scheme|URL schemes, see [RFC 1630](https://tools.ietf.org/html/rfc1630).
+
+*Important:*  The http, ftp and https keyword|keywords are  part   of the Internet library on desktop platform|platforms. To ensure   that the keyword|keywords work in a desktop   standalone application,  you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions   pane of the Standalone Application Settings window, make sure the   "Internet" script library is selected.
+
+*Cross-platform note:* On iOS and Android, you can use the http,  ftp and https keyword|keywords without the need for the   Internet library. When specifying URL(glossary)|URLs for iOS and   Android, you must use the appropriate form that conforms to   [RFC 1630](https://tools.ietf.org/html/rfc1630).
+
+*Important:*  The space character is not valid in URL(glossary)|URLs,  however the Internet library (Desktop platforms) replaces this character with the required '%20'. This is something that the mobile and server platforms do not do. Be careful to construct valid URLs when working on fully cross platform applications.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

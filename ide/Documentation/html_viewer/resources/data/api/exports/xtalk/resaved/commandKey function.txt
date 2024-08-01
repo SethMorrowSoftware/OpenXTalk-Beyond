@@ -1,0 +1,31 @@
+commandKey
+(function)
+return|Returns the state of the Command key.
+
+Syntax:
+the commandKey
+----
+commandKey()
+----
+
+Synonyms:
+cmdkey
+
+Params:
+
+Examples:
+put commandKey() after keyHistory
+----
+if the commandKey is down then edit script of me
+----
+
+Description:
+Use the commandKey function(control structure) to check whether the Command key is being pressed.
+
+On Unix and Windows systems, the commandKey function return|returns the same value as the controlKey function(control structure): the two function(glossary)|functions are synonyms.
+
+Values:
+The commandKey function return|returns "down" if the key is pressed and "up" if it's not. 
+
+OS:
+mac,windows,linux

@@ -1,0 +1,19 @@
+OnDetach
+(message)
+Sent when the widget is detached.
+
+Syntax:
+OnDetach
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget is detached.
+
+Values:
+
+OS:

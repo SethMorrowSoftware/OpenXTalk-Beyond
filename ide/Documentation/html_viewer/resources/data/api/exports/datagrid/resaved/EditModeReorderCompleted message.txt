@@ -1,0 +1,22 @@
+EditModeReorderCompleted
+(message)
+Sent when a user completes a dynamic reordering of a data grid.
+
+Syntax:
+EditModeReorderCompleted pIndex, pStartLineNo, pNewLineNo
+----
+
+Synonyms:
+
+Params:
+pIndex ( ): The index of the reordered row.
+pStartLineNo ( ): The original line sequence number of the row within the data grid.
+pNewLineNo ( ): The new line sequence number of the row within the data grid.
+
+Examples:
+Description:
+EditModeReorderCompleted is sent to your data grid when a user completes a dynamic reordering.
+
+Values:
+
+OS:

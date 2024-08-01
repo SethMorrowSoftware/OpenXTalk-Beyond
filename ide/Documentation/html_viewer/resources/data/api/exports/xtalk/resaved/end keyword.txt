@@ -1,0 +1,25 @@
+end
+(keyword)
+Marks the end of a handler.
+
+Syntax:
+end
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+end thisFunction
+----
+
+Description:
+Use the end keyword to end an on, function, getProp, or setProp control structure.
+
+The last line of a handler of any kind always begins with the end keyword, followed by the name of the handler.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

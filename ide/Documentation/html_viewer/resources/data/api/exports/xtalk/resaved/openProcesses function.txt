@@ -1,0 +1,32 @@
+openProcesses
+(function)
+return|Returns the names of process|processes that have been opened with the open process command, but have not yet exit|exited.
+
+Syntax:
+the openProcesses
+----
+openProcesses()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the openProcesses
+----
+put the openProcesses into processesToClose
+----
+
+Description:
+Use the openProcesses function to find out which process|processes need to be closed, or to check whether a process is already running before communicating with it.
+
+The list of process names is in the same order used by openProcessIDs function, which is the same order that the process|processes were opened.
+
+Programs that were not started by OpenXTalk are not included in the list returned by the openProcesses function.
+
+Values:
+The openProcesses function return|returns a list of process names, one per line. 
+
+OS:
+mac,windows,linux

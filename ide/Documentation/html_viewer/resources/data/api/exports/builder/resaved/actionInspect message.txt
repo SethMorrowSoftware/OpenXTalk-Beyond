@@ -1,0 +1,20 @@
+actionInspect
+(message)
+Sent when an the inspect icon is clicked in read only mode
+
+Syntax:
+actionInspect {pPath}
+----
+
+Synonyms:
+
+Params:
+pPath ( ): The path to the clicked element
+
+Examples:
+Description:
+The actionInspect message is sent to the widget's script object when the inspect icon is clicked on. The inspect icon appears when the value string of a particular array element contains a newline character, or if it is too large to fit in the space provided. The pPath parameter contains the path to the  element whose icon was clicked.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+script debug mode
+(glossary)
+
+Syntax:
+Synonyms:
+script debug mode, script debugging mode, script debugger mode
+
+Params:
+
+Examples:
+Description:
+Mode of the OpenXTalk development environment in which the Script Debug window is open. When in script debug mode, execute|executing the breakpoint command halts the current handler.
+
+Values:
+
+OS:

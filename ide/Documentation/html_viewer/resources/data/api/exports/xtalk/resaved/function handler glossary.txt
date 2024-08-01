@@ -1,0 +1,16 @@
+function handler
+(glossary)
+
+Syntax:
+Synonyms:
+function handler
+
+Params:
+
+Examples:
+Description:
+A OpenXTalk handler you write that defines a custom function. Function handlers begin with the function control structure.
+
+Values:
+
+OS:

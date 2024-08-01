@@ -1,0 +1,19 @@
+dgHeaderAlignment
+(property)
+Get/set the alignment for a column's header.
+
+Syntax:
+put the dgHeaderAlignment["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the alignment for a column's header.
+
+Values:
+
+OS:

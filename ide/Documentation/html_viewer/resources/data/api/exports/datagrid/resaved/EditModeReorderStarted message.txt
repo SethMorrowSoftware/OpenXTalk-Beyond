@@ -1,0 +1,21 @@
+EditModeReorderStarted
+(message)
+Sent when a user starts a dynamic reordering of a data grid.
+
+Syntax:
+EditModeReorderStarted pIndex, pLineNo
+----
+
+Synonyms:
+
+Params:
+pIndex ( ): The index of the row being reordered.
+pLineNo ( ): The line sequence number of the row within the data grid.
+
+Examples:
+Description:
+EditModeReorderStarted is sent to your data grid when a user starts a dynamic reordering.
+
+Values:
+
+OS:

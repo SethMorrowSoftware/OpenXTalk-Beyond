@@ -1,0 +1,19 @@
+header text font
+(property)
+The font to apply to the header area of a table.
+
+Syntax:
+put the dgProp["header text font"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The font to apply to the header area of a table. Prefix property name with "effective" to get the font being used when this property is set to empty
+
+Values:
+
+OS:

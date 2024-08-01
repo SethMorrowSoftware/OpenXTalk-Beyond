@@ -1,0 +1,23 @@
+delete session
+(command)
+Ends the current session and deletes it from the server.
+
+Syntax:
+delete session
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+delete session
+----
+
+Description:
+Use the delete session command to end the current session, expiring the session cookie and discarding any values contained in the $_SESSION variable. 
+
+Values:
+
+OS:
+mac,windows,linux

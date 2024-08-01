@@ -1,0 +1,25 @@
+keyboardActivated
+(message)
+Sent to the current card of the defaultStack when the keyboard is shown 
+
+Syntax:
+keyboardActivated
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on keyboardActivated
+   answer "The keyboard was activated" with "Okay"
+end keyboardActivated
+----
+
+Description:
+Handle the keyboardActivated message to move controls or change the display layout to take account of the restricted screen area that is available. 
+
+Values:
+
+OS:
+ios,android

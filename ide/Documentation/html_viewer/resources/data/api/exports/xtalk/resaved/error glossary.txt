@@ -1,0 +1,16 @@
+error
+(glossary)
+
+Syntax:
+Synonyms:
+error, script error
+
+Params:
+
+Examples:
+Description:
+A problem or mistake in a program or handler, which prevents it from being compile|compiled (compile error) or from running  (execution error). 
+
+Values:
+
+OS:

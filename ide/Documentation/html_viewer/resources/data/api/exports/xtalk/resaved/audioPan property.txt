@@ -1,0 +1,30 @@
+audioPan
+(property)
+Specifies the proportion of audio panned from one stereo channel to the other.
+
+Syntax:
+set the audioPan of {player} to {positive/negative percentage}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the audioPan of player "myVideoPlayer" to 0 -- stereo channels unaffected
+----
+set the audioPan of player "myVideoPlayer" to -50 -- 50% of the right channel audio moved to the left.
+----
+set the audioPan of player "myVideoPlayer" to 100 -- 100% of the left channel audio moved to the right.
+----
+
+Description:
+Use the audioPan property to pan audio from either the left or right channel to the other. Negative values move audio from the right channel to the left. Positive values move audio from the left channel to the right. Setting the audioPan back to 0 will disable panning.
+
+**Important:** This property only has an effect on media files that contain stereo audio tracks.  Mono audio tracks cannot currently be panned.
+
+Values:
+The audioPan is a number between -100 and 100. By default, the audioPan property is 0. 
+
+OS:
+mac

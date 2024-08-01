@@ -1,0 +1,31 @@
+CanvasOperationMoveTo
+(statement)
+Move to a point on a canvas.
+
+Syntax:
+move to {mPoint} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mPoint ( ): An expression which evaluates to a point.
+
+Examples:
+// move to a point on the canvas
+move to point [0,50] on this canvas
+
+// add a line to the canvas path
+line to point [50,50] on this canvas
+
+// stroke the canvas path
+stroke this canvas
+----
+
+Description:
+Moves to mPoint on the current path of mCanvas
+
+Values:
+
+OS:

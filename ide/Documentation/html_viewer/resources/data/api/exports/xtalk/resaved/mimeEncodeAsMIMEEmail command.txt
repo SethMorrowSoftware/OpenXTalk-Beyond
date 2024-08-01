@@ -1,0 +1,40 @@
+mimeEncodeAsMIMEEmail
+(command)
+Create data to be sent as an email
+
+Syntax:
+mimeEncodeAsMIMEEmail {pBody},{pFrom},{pTo},{pCc},{pSubject},{pAttachmentA}
+----
+
+Synonyms:
+
+Params:
+pBody ( ): The pre-encoded body of the email. See the   for an easy way to generate the body from field content.
+pFrom ( ): From email address
+pTo ( ): Recipient email addresses with one per line
+pCc ( ): Copy to email addresses with one per line
+pSubject ( ): Email subject line
+pAttachmentA ( ): A numerically indexed (1..N) multi-dimensional array. Each element describes a different attachment. The elements of the array may contain the following keys. - "filepath": The full path to the file. Optional if the "data" element has a value - "data": The file data. Optional if the "filepath" element has a value - "name": The file name. Optional if the "filepath" element has a value - "mimetype": The file mime type. Optional if the "filepath" or "name" element has an extension
+
+Examples:
+put mimeEncodeFieldAsMIMEMultipartDocument(the long id of field "email") into tBody
+mimeEncodeAsMIMEEmail tBody, "hello@openxtalk.org", field "email", , "Purchase order"
+
+local tBytes, tSettings, tResponseHeaders
+put "username" into tSettings["username"]
+put "p@$$w0rd" into tSettings["password"]
+
+local tResult
+put tsNetSmtpSync("smtps://mail.opentxalk.org:465", "hello@opentxalk.org", field "email", it, tResponseHeaders,tBytes,tSettings) into tResult
+if tResult begins with "tsneterr:" then
+   answer error "Error:" & word 2 to -1 of tResult
+end if
+----
+
+Description:
+Creates the data to be sent as an email via an SMTP server
+
+Values:
+An error message if an error was encountered Set to the email body including headers 
+
+OS:

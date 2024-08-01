@@ -1,0 +1,22 @@
+MyScriptObject
+(expression)
+Returns the widget script object.
+
+Syntax:
+my script object
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the widget script object.
+
+Values:
+The widget script object.
+
+
+
+OS:

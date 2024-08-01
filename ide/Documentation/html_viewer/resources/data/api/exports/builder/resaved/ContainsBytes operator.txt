@@ -1,0 +1,22 @@
+ContainsBytes
+(operator)
+Determines whether Needle contains Target.
+
+Syntax:
+{Target} contains {Needle}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to binary data.
+Target ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+*Note:* Since the empty data is a subsequence of every sequence of bytes, every sequence of bytes contains the empty data.
+
+Values:
+True if the bytes of Needle occur as a subsequence of the bytes of Target, and false otherwise. 
+
+OS:

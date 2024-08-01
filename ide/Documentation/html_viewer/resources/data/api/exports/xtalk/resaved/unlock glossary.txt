@@ -1,0 +1,16 @@
+unlock
+(glossary)
+
+Syntax:
+Synonyms:
+unlocked, unlocking, unlock
+
+Params:
+
+Examples:
+Description:
+To set something up so that it can be changed by the user. For example, an unlocked field|field's text can be changed.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+upload
+(glossary)
+
+Syntax:
+Synonyms:
+uploaded, uploading, upload
+
+Params:
+
+Examples:
+Description:
+To put a file on another system.
+
+Values:
+
+OS:

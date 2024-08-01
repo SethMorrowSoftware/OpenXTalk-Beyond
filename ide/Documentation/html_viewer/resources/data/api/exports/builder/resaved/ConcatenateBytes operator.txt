@@ -1,0 +1,22 @@
+ConcatenateBytes
+(operator)
+Concatenates Left and Right.
+
+Syntax:
+{Left} & {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to binary data.
+Right ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+The result consists of the bytes of Left followed by those of Right.
+
+Values:
+Binary data consisting of the value of the left hand expression with the value of the right hand expression appended to the end. 
+
+OS:

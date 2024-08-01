@@ -1,0 +1,173 @@
+AddData command.txt
+AddLine command.txt
+allow column resizing property.txt
+allow editing property.txt
+alternate row color property.txt
+alternate row colors property.txt
+animate actions property.txt
+auto hilite property.txt
+background color property.txt
+cache controls property.txt
+column alignments property.txt
+column divider color property.txt
+column labels property.txt
+column margins property.txt
+column visibility property.txt
+column widths property.txt
+ColumnControlOfIndex function.txt
+columns property.txt
+control type property.txt
+corner color property.txt
+Data Grid object.txt
+Datagrid Column Properties glossary.txt
+Datagrid Commands glossary.txt
+Datagrid General Properties glossary.txt
+Datagrid Table Properties glossary.txt
+Datagrid Template Custom Properties & Messages glossary.txt
+default column behavior property.txt
+default header behavior property.txt
+DeleteIndex command.txt
+DeleteIndexes command.txt
+DeleteLine command.txt
+DeleteLines command.txt
+dgColumn property.txt
+dgColumnAlignment property.txt
+dgColumnIsEditable property.txt
+dgColumnIsResizable property.txt
+dgColumnIsVisible property.txt
+dgColumnLabel property.txt
+dgColumnMaxWidth property.txt
+dgColumnMinWidth property.txt
+dgColumnName property.txt
+dgColumnNumber property.txt
+dgColumnSortDirection property.txt
+dgColumnSortIsCaseSensitive property.txt
+dgColumnSortType property.txt
+dgColumnTemplate property.txt
+dgColumnTooltip property.txt
+dgColumnWidth property.txt
+dgControl property.txt
+dgData property.txt
+dgDataControl property.txt
+dgDataControlOfIndex property.txt
+dgDataControlOfLine property.txt
+dgDataOfIndex property.txt
+dgDataOfLine property.txt
+dgEditMode property.txt
+dgFocus property.txt
+dgFormattedHeight property.txt
+dgFormattedWidth property.txt
+dgHeader property.txt
+dgHeaderAlignment property.txt
+dgHeaderControl property.txt
+dgHeaderTemplate property.txt
+dgHilite property.txt
+dgHilitedIndexes property.txt
+dgHilitedLines property.txt
+dgHScroll property.txt
+dgHScrollPercent property.txt
+dgIndex property.txt
+dgIndexes property.txt
+dgIndexOfLine property.txt
+dgLine property.txt
+dgLineOfIndex property.txt
+dgNumberOfLines property.txt
+dgNumberOfRecords property.txt
+dgRectOfIndex property.txt
+dgRectOfLine property.txt
+dgText property.txt
+dgVisibleLines property.txt
+dgVScroll property.txt
+dgVScrollPercent property.txt
+dim on focusOut property.txt
+dimmed hilite color property.txt
+edit mode action control property.txt
+edit mode action select control property.txt
+edit mode reorder control property.txt
+EditCell command.txt
+EditCellOfIndex command.txt
+EditFieldText command.txt
+EditKey command.txt
+EditKeyOfIndex command.txt
+EditModeActionControlClicked message.txt
+EditModeActionControlHidden message.txt
+EditModeActionSelectControlClicked message.txt
+EditModeHideActionControl command.txt
+EditModeReorderCompleted message.txt
+EditModeReorderStarted message.txt
+EditModeShowActionControlForIndex command.txt
+EditValue message.txt
+enable swipe property.txt
+FillInData message.txt
+FindIndex command.txt
+fixed row height property.txt
+GetDataOfIndex function.txt
+GetDataOfLine function.txt
+GetEditModeActionControl message.txt
+GetEditModeActionSelectControl message.txt
+GetEditModeReorderControl message.txt
+GetLeftSwipeControl message.txt
+GetRightSwipeControl message.txt
+header background color property.txt
+header background hilite color property.txt
+header height property.txt
+header margins property.txt
+header text color property.txt
+header text font property.txt
+header text size property.txt
+header text style property.txt
+hilite color property.txt
+hilited text color property.txt
+htmltext property.txt
+LayoutControl message.txt
+left swipe control property.txt
+multiple lines property.txt
+opaque property.txt
+persistent data property.txt
+RefreshIndex command.txt
+RefreshLine command.txt
+RefreshList command.txt
+ResetControl command.txt
+ResetList command.txt
+ResizeToFit command.txt
+right swipe control property.txt
+row color property.txt
+row height property.txt
+row template property.txt
+RowLeftSwipeControlClicked message.txt
+RowLeftSwipeControlHidden message.txt
+RowRightSwipeControlClicked message.txt
+RowRightSwipeControlHidden message.txt
+RowSwipedLeft message.txt
+RowSwipedRight message.txt
+RowSwipeHideControl command.txt
+RowSwipeShowControlForIndexAndSide command.txt
+rtftext property.txt
+scroll when hscrollbar is hidden property.txt
+scroll when vscrollbar is hidden property.txt
+scrollbar corner offset property.txt
+scrollbar width property.txt
+ScrollIndexIntoView command.txt
+ScrollLineIntoView command.txt
+select text property.txt
+SelectAll command.txt
+selectionChanged message.txt
+SetDataOfIndex command.txt
+SetDataOfLine command.txt
+show column dividers property.txt
+show header property.txt
+show hscrollbar property.txt
+show vscrollbar property.txt
+sort by column property.txt
+SortByColumn command.txt
+SortDataByKey command.txt
+style property.txt
+Template Field Editor Properties glossary.txt
+text color property.txt
+text font property.txt
+text property.txt
+text size property.txt
+text style property.txt
+unicodetext property.txt
+utf8text property.txt
+visible columns property.txt

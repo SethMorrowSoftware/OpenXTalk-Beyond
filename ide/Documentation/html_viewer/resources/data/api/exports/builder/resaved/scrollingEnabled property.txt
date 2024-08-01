@@ -1,0 +1,21 @@
+scrollingEnabled
+(property)
+Whether the field can be scrolled or not.
+
+Syntax:
+set the scrollingEnabled of {widget} to {true | false}
+get the scrollingEnabled of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the scrollingEnabled property to allow or disallow the user to scroll the field.
+
+Values:
+
+OS:
+android

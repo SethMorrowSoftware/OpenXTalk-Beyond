@@ -1,0 +1,38 @@
+linkHiliteColor
+(property)
+Specifies the color of grouped text that is being clicked.
+
+Syntax:
+set the linkHiliteColor to {{colorName} | {RGBColor}}
+----
+set the linkHiliteColor of {stack} to {empty | {colorName} | {RGBColor}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the linkHiliteColor to "125,0,255"
+----
+set the linkHiliteColor of this stack to myColor
+----
+
+Description:
+Use the linkHiliteColor property to make grouped text look and behave like links in a browser|web browser.
+
+The linkHiliteColor appears to show that grouped text is being clicked. When the mouse button is released, the text color changes to the linkVisitedColor.
+
+If the linkHiliteColor of a stack is empty, grouped text in that stack is shown with the global linkHiliteColor property when being clicked.
+
+If the linkHiliteColor of a stack is not empty, grouped text in that stack is shown with the stack|stack's linkHiliteColor property, regardless of the global setting.
+
+Values:
+The linkHiliteColor is a color reference. A colorName is any standard color name.
+
+An RGBColor consists of three comma-separated integer|integers between zero and 255, specifying the level of each of red, green, and blue; or an HTML-style color consisting of a hash mark (#) followed by three hexadecimal numbers, one for each of red, green, and blue.
+
+By default, the linkHiliteColor is set to "255,0,0" (bright red). The linkHiliteColor of a newly created stack is set to empty by default.  
+
+OS:
+mac,windows,linux,ios,android

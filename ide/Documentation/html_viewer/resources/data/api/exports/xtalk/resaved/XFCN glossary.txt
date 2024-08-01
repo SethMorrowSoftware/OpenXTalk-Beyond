@@ -1,0 +1,16 @@
+XFCN
+(glossary)
+
+Syntax:
+Synonyms:
+xfcn, external function
+
+Params:
+
+Examples:
+Description:
+external|External function for Mac OS and OS X|OS X systems. A custom function that has been written in a programming language and compiled into a resource of type XFCN.
+
+Values:
+
+OS:

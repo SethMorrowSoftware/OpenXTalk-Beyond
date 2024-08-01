@@ -1,0 +1,22 @@
+hilitedElementFoldState
+(property)
+Get/set the fold state of the selected element
+
+Syntax:
+get the hilitedElementFoldState of {widget}
+----
+set the hilitedElementFoldState of {widget} to {pFoldState}
+----
+
+Synonyms:
+
+Params:
+pFoldState ( ): The fold state of the selected element. - "folded": Sub-array for the selected element is hidden. - "unfolded": Sub-array for the selected element is visible. - "leaf": Selected element is a leaf node.  This value may not be set.
+
+Examples:
+Description:
+pFoldState is the fold state of the selected element.  When setting the fold state, attempts to set the value for a leaf node will have no effect.  Setting the fold state when no element is selected has no effect.
+
+Values:
+
+OS:

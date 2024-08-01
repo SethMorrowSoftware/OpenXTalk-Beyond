@@ -1,0 +1,26 @@
+iconPresetName
+(property)
+A predefined SVG icon path names.
+
+Syntax:
+set the iconPresetName of {widget} to {pIconName}
+get the iconPresetName of {widget}
+----
+
+Synonyms:
+
+Params:
+pIconName ( ): The name of the icon to display.
+
+Examples:
+set the iconPresetName of widget "SVG Icon" to "thumbs up"
+----
+
+Description:
+Use the iconPresetName property to set the icon of the widget to one of the predefined graphics provided by the "IconSVG" library.
+
+You can get a list of available predefined path names by running `put iconNames()` in the Message Box.
+
+Values:
+
+OS:

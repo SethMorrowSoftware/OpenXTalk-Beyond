@@ -1,0 +1,16 @@
+ISO 8859
+(glossary)
+
+Syntax:
+Synonyms:
+iso character set, iso-8859, iso-8859-1, iso-8859-1', iso 8859-1, iso 8859-1', iso-latin, iso-latin', iso latin, iso latin', iso latin-1, iso 8859
+
+Params:
+
+Examples:
+Description:
+The character set used by Unix and Windows|Windows systems.
+
+Values:
+
+OS:

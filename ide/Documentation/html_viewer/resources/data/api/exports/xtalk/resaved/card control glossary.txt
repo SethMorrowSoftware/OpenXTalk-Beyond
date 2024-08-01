@@ -1,0 +1,16 @@
+card control
+(glossary)
+
+Syntax:
+Synonyms:
+card button, card field, card control, card object
+
+Params:
+
+Examples:
+Description:
+A control (such as a field or button) that is not part of a group and therefore appears on only one card of a stack.
+
+Values:
+
+OS:

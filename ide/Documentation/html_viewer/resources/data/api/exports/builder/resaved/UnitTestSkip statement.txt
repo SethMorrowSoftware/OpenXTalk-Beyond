@@ -1,0 +1,19 @@
+UnitTestSkip
+(statement)
+Record a skipped test
+
+Syntax:
+skip test
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Record that a test was skipped, with no description or reason.  It is usually more helpful to use UnitTestSkipDescriptionAndReason.
+
+Values:
+
+OS:

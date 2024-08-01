@@ -1,0 +1,35 @@
+or
+(operator)
+
+Syntax:
+value1 or value2
+
+Summary:
+Evaluates to true if either operand is true, false if both operands are false.
+
+Parameters:
+value1	bool	
+The value1 and value2 are true or false, or expressions that evaluate to true or false.
+
+Examples:
+("a" > "b") or ("b" > "a") -- evaluates to true
+(1 < 0) or (1 = 0) -- evaluates to false
+wait until the controlKey is up or the commandKey is up
+
+Related:
+not, and, bitOr, bitXor
+
+Description:
+Use the or operator to combine two or more logical (true or false) values.
+
+If value1 is true or value2 is true, or if both value1 and value2 are true, then the or operation evaluates to true. Only if both value1 and value2 are false does the expression value1 or value2 evaluate to false.
+
+You can combine the logical operators and, or, and not in an expression.
+
+Note: xTalk uses what is known as "short-circuit evaluation" for logical operators. This means that value1 is evaluated first. If value1 is true, the expression value1 or value2 is true regardless of what value2 is (because the expression evaluates to true as long as at least one of the values is true). In this case, xTalk does not evaluate value2, since doing so is not necessary to determine the value of value1 or value2. For example, evaluating the expression asin(2) normally causes an execution error (because 2 is not a legal argument for the arc sine function), but evaluating the expression (1 = 1) or (asin(2) = 1) does not cause an error: since (1 = 1) is always true, the whole statement is always true and xTalk never tries to evaluate the asin function.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

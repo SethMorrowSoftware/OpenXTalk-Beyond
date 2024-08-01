@@ -1,0 +1,34 @@
+GetEditModeActionControl
+(message)
+Handle this message to specify a custom data grid action control.
+
+Syntax:
+on GetEditModeActionControl
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on GetEditModeActionControl
+   return group "my custom action control"
+end GetEditModeActionControl
+
+on GetEditModeActionControl
+   -- Hide for the data grid row number 5
+   if the dgIndex of me is 5 then
+      return empty
+   end if
+   pass GetEditModeActionControl
+end GetEditModeActionControl
+----
+
+Description:
+GetEditModeActionControl is sent to your data grid's custom row template. Handle GetEditModeActionControl if you want to specify a custom action control. Return the id of the control you want to display. Returning empty will result in no control being displayed.
+
+Handing this message will override the edit mode action control property.
+
+Values:
+
+OS:

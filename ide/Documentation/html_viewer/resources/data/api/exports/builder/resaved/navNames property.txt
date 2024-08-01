@@ -1,0 +1,21 @@
+navNames
+(property)
+The names of the nav items
+
+Syntax:
+set the navNames of {widget} to {pNameList}
+get the navNames of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the nav items
+
+Values:
+A list of names of the nav items 
+
+OS:

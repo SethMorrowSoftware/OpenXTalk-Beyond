@@ -1,0 +1,23 @@
+slash
+(constant)
+Equivalent to the / character (ASCII 47).
+
+Syntax:
+slash
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if last char of it is slash then put true into tIsAFolder
+----
+
+Description:
+Use the slash constant as an easier-to-read replacement for "/".
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

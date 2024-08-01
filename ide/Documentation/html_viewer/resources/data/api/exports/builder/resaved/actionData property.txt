@@ -1,0 +1,21 @@
+actionData
+(property)
+The array of action data
+
+Syntax:
+set the actionData of {widget} to {pActionArray}
+get the actionData of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The array of action data
+
+Values:
+An array describing the actionNames, actionIcons and actionLabels of the widget. 
+
+OS:

@@ -1,0 +1,34 @@
+EditModeActionSelectControlClicked
+(message)
+Sent when a user clicks on a data grid edit mode action select control.
+
+Syntax:
+on EditModeActionSelectControlClicked pTarget
+----
+
+Synonyms:
+
+Params:
+pTarget ( ): The target of the click. Use this to determine where in the action select control the user clicked.
+
+Examples:
+on EditModeActionSelectControlClicked pTarget
+   switch the name of the target
+      case "show"
+         dispatch "EditModeShowActionControlForIndex" to group "DataGrid" with the dgIndex of me
+         break
+      default
+         set the dgEditMode of group "DataGrid" to false
+         break
+   end switch
+end EditModeActionSelectControlClicked
+----
+
+Description:
+EditModeActionSelectControlClicked is sent to your data grid's custom row template when the user clicks on a row's action select control. Handle EditModeActionSelectControlClicked if you wish to perform a custom behavior.
+
+The default behavior is to show the edit mode action control.
+
+Values:
+
+OS:

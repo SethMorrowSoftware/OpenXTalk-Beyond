@@ -1,0 +1,33 @@
+scriptStatus
+(property)
+Determine the status of the last script compilation of an object.
+
+Syntax:
+get the scriptStatus of {object}
+----
+
+Synonyms:
+
+Params:
+object ( ): The name or ID of the object.
+
+Examples:
+if the scriptStatus of stack "MyStack" is "error" then
+   edit the script of stack "MyStack"
+end if
+----
+
+Description:
+Use the scriptStatus property to determine the success of the last compilation of the object's script. Compilation of scripts occurs when a stack is loaded into memory and when the script property is set.
+
+*Note:* The OpenXTalk IDE script editor uses an intermediate object to test compilation, therefore, the script editor may display compilation errors when the scriptStatus returns empty.
+
+Values:
+The status of the last compile  
+"uncompiled": The OpenXTalk engine compiles scripts on demand, therefore, if an object is loaded into memory but has not been sent any messages it will be in an uncompiled state.
+"compiled": Compiled with no errors. Any handlers will be in the message path.
+"warning": One or more warnings. Currently unused but reserved for future use.
+"error": One or more errors in the script causing the script to remain in an uncompiled state.
+
+OS:
+mac,windows,linux,ios,android,html5

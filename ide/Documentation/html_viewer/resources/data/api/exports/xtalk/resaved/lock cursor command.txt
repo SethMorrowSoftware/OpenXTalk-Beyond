@@ -1,0 +1,29 @@
+lock cursor
+(command)
+Sets the lockCursor property to true, preventing the cursor shape from changing.
+
+Syntax:
+lock cursor
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+lock cursor
+----
+if the mouse is not down then lock cursor
+----
+
+Description:
+Use the lock cursor command to make the cursor retain a specified appearance until you change it.
+
+The lock cursor command sets the lockCursor property to true.
+
+Set the cursor property to change the cursor.
+
+Values:
+
+OS:
+mac,windows,linux

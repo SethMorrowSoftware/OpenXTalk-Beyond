@@ -1,0 +1,30 @@
+threeDHilite
+(property)
+Specifies whether selected lines in a list field look like they're receding into the screen.
+
+Syntax:
+set the threeDHilite of {field} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the threeDHilite of field "Options" to false
+----
+set the threeDHilite of the templateField to true
+----
+
+Description:
+Use the threeDHilite property to control the appearance of list field|list fields.
+
+If the threeDHilite property is true, select|selected lines in a list field are drawn with a three-D box around them. (The box is drawn using the field|field's effective topColor and bottomColor properties.) If the threeDHilite is false, the select|selected lines are simply highlight|highlighted.
+
+If the field's listBehavior property is set to false, this property has no effect.
+
+Values:
+The threeDHilite of a field(keyword) is true or false. By default, the threeDHilite property of newly created field(object)|fields is set to false. 
+
+OS:
+mac,windows,linux,ios,android

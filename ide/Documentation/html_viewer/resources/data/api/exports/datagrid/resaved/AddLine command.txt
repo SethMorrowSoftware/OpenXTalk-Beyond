@@ -1,0 +1,20 @@
+AddLine
+(command)
+Add tab delimited text to the data grid after you have already populated it by setting the dgData or dgText.
+
+Syntax:
+dispatch "AddLine" to group "DataGrid" with pText, pColumns,
+pLine
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use this command to add tab delimited text to the data grid after you have already populated it by setting the dgData or dgText. pText is tab delimited text to add to the data grid. pColumns is a cr delimited list of column names that text items map to. pLine is the line number where it should be added. All data appearing at or after pLine will be shifted down 1. You will not overwrite any data. If pColumns is empty then the "columns" property of the data grid is assumed. If pLine is empty then the data will be added to the end of the existing data.
+
+Values:
+
+OS:

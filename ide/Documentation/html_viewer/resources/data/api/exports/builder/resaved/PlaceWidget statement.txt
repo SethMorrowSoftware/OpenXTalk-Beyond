@@ -1,0 +1,25 @@
+PlaceWidget
+(statement)
+Add a child widget to the parent.
+
+Syntax:
+place {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object.
+
+Examples:
+variable tNavbar as Widget
+put a new widget "com.livecode.widget.navbar" into tNavbar
+place tNavbar
+----
+
+Description:
+Adds a the specified child object to the widget in which the place statement is used. mWidget will reside on the layer above all previously placed widgets.
+
+Values:
+
+OS:

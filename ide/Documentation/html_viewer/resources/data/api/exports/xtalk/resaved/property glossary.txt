@@ -1,0 +1,18 @@
+property
+(glossary)
+
+Syntax:
+Synonyms:
+properties, property
+
+Params:
+
+Examples:
+Description:
+An attribute of an object(glossary), or a global attribute of the OpenXTalk environment.
+
+An object|object's property|properties consist of its built-in property|built-in properties, plus any custom property|custom properties you have specified for that object(glossary).
+
+Values:
+
+OS:

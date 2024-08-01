@@ -1,0 +1,29 @@
+dropboxUploadSessionAppend
+(command)
+Append more data to an upload session.
+
+Syntax:
+dropboxUploadSessionAppend {pAccessToken}, {pSession}, {pOffset}, {pData}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pSession ( ): A session ID as returned by dropboxUploadSessionStart.
+pOffset ( ): The amount of data that has been uploaded so far. We use this to make sure upload data isn't lost or duplicated in the event of a network error.
+pData ( ): The binary file data
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+ *Note:* A single request should not upload more than 150 MB of file contents.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function.
+
+If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

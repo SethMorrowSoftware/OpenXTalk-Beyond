@@ -1,0 +1,47 @@
+save
+(command)
+Saves a stack file on the user's system.
+
+Syntax:
+save {stack} [as {filePath}] [with {format {stackFormat} | newest format}]
+----
+
+Synonyms:
+
+Params:
+•	stack ( ): Any open stack.
+•	filePath ( ): The  specifies the name and location of the file you want to save to. If you specify a name but not a location, the engine assumes the file is in the . If the file does not exist, OpenXTalk creates it.
+•	stackFormat ( ): The  to use when saving.
+	
+Examples:
+save stack "project1" with newest format
+----
+save this stack as "Backup"
+----
+save stack "project1" as "/Disk/Folder/File"
+----
+save stack "MyOldApp" with format 7.0
+----
+
+Description:
+Use the save command to save changes to a stack or to save a copy of a stack into another file.
+
+The save command saves all stacks stored in the same file as the specified stack. That is, if you save a main stack, all substacks of that stack are also saved in the same file, and if you save a substack, its main stack and any other substacks are also saved.
+
+If the stack has not yet been saved and doesn't have a filename, you must use the `as` form.
+
+You cannot save to a standalone application's file;  standalone application|standalones are read-only.
+
+The save command can save the stack in several different versions of the OpenXTalk stack file format.
+
+* If you use the `with newest format` form of the save command, the   stack is saved using the newest stack version. * If you use the `with format` form of the save command, the   stackFormat should be the particular stack version you want the   stack to be saved as. * If you do not specify a format to use, the current value of the   stackFileVersion property is used.
+
+ **Warning:** If you save in an older stack version that doesn't support all of the features used in the stack, then some of contents of the stack may be lost. In general, you are recommended to use the `with newest format` form of the save command.
+
+*Note:* You can use the minStackFileVersion property to determine if your stack will lose data when save|saved with a particular stack version.
+
+Values:
+If the stack cannot be saved (for example, if you try to save it to a nonexistent drive or to a CD-ROM), the result will contain an error message. Otherwise, the result will be empty. 
+
+OS:
+mac,windows,linux,ios,android,html5

@@ -1,0 +1,25 @@
+UnitTestFailsDescription
+(statement)
+Make a failing unit test assertion with a description
+
+Syntax:
+broken test {Description} when {Condition}
+----
+
+Synonyms:
+
+Params:
+Condition ( ): An expression that evaluates to `true` if the test is successful
+
+Examples:
+broken test "weird comparison" when 1 } 2
+----
+
+Description:
+Make a unit test assertion, in the expectation that it will fail. The test is considered to have passed if Condition is true.  The Description string is a short message that summarises what the test is checking.
+
+If the test fails, it will not cause a test suite failure; instead, an "expected failure" will be recorded.  If the test passes, an "unexpected pass" will be recorded instead of a normal test pass.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+dgDataControlOfIndex
+(property)
+Returns the long id of the data control associated with an index.
+
+Syntax:
+get the dgDataControlOfIndex[pIndex] of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the long id of the data control associated with an index. If "cache controls" is not turned on then this property returns empty if the index has no control associated with it because it is offscreen.
+
+*Important:* The dgDataControlOfIndex property is available only for Datagrids whose style property is set to 'form'.
+
+Values:
+
+OS:

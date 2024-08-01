@@ -1,0 +1,21 @@
+StringToNSString
+(handler)
+Convert a String into an Objective-C string
+
+Syntax:
+StringToNSString({pString})
+----
+
+Synonyms:
+
+Params:
+pString ( ): The String to convert
+
+Examples:
+Description:
+Convert a String into an Objective-C string
+
+Values:
+A Objective-C object of type NSString  Description Use StringToNSString to convert a variable of type String to an Objective-C string object (NSString). 
+
+OS:

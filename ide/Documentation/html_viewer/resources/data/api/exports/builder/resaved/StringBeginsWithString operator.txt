@@ -1,0 +1,32 @@
+StringBeginsWithString
+(operator)
+Determines whether Source begins with Prefix
+
+Syntax:
+{Source} begins with {Prefix}
+----
+
+Synonyms:
+
+Params:
+Prefix ( ): An expression which evaluates to a string.
+Source ( ): An expression which evaluates to a string.
+
+Examples:
+variable tVar as String
+variable tResult as String
+put "abcde" into tVar
+if tVar begins with "abc" then
+	put "success" into tResult
+end if	
+----
+
+Description:
+Source begins with Prefix if and only if the chars of Prefix occur as an initial subsequence of the chars of Source.
+
+*Note:* Since "" is an initial substring of every string, every string begins with the empty string.
+
+Values:
+Returns true if Source begins with Prefix. 
+
+OS:

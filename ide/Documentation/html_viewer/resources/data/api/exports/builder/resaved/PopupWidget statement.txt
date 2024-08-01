@@ -1,0 +1,44 @@
+PopupWidget
+(statement)
+Opens a widget within a popup window.
+
+Syntax:
+popup widget {Kind} at {Location} [ with properties {Properties} ]
+----
+
+Synonyms:
+
+Params:
+Kind ( ): The unique identifier of the widget to use for the popup.
+Location ( ): An expression that evaluates to a  relative to the current widget. The topleft corner of the popup window will be placed here.
+Properties ( ): An expression that evaluates to an . For each key of the array, the popup widget will be initialized by setting that property to the value for that key.
+
+Examples:
+private variable mColor as Color
+
+public handler OnClick()
+	variable tProperties as Array
+	put the empty array into tProperties
+	put mColor into tProperties["currentColor"]
+
+	popup widget "com.livecode.widget.ColorPicker" at the mouse position with properties tProperties
+	if the result is not nothing then
+		put the result into mColor
+		redraw all
+	end if
+end handler
+
+public handler OnPaint()
+	...
+	set the paint of this canvas to solid paint with color mColor
+	...
+end handler
+----
+
+Description:
+Use to display a widget within a popup window, for example as a tooltip or picker dialog.
+
+Values:
+The result returned by the popup. If the popup is dismissed (by clicking outside the bounds of the popup) this value will be nothing. 
+
+OS:

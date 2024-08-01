@@ -1,0 +1,16 @@
+BLOB
+(glossary)
+
+Syntax:
+Synonyms:
+blob
+
+Params:
+
+Examples:
+Description:
+Binary Long OBject. A SQL database data structure capable of holding more than 64K of binary file|binary data.
+
+Values:
+
+OS:

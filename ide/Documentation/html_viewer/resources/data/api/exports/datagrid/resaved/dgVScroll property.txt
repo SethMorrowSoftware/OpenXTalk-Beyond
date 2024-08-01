@@ -1,0 +1,19 @@
+dgVScroll
+(property)
+Get/set the vertical scroll of the data grid.
+
+Syntax:
+set the dgVScroll of group "DataGrid" to pInteger
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the vertical scroll of the data grid.
+
+Values:
+
+OS:

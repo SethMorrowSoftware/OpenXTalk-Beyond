@@ -1,0 +1,31 @@
+max
+(function)
+return|Returns the largest number from a list of numbers.
+
+Syntax:
+max({numbersList})
+----
+
+Synonyms:
+
+Params:
+numbersList ( ): A comma-separated list of numbers, or an expression that evaluates to such a list, or an array containing only numbers.
+
+Examples:
+max(17,34,8,1) -- returns 34
+----
+put max(returnedValues) into upperLimit
+----
+
+Description:
+Use the max function(control structure) to find the highest value in a set of value|values.
+
+You can use the max and min function(glossary)|functions together to limit a value to a certain range. For example, the expression max(10,min(myValue,100)) yields a number between 10 and 100. If myValue is within the limits, the expression is equal to myValue; if it is greater than 100, the expression evaluates to 100; and if it is less than 10, the expression evaluates to 10.
+
+If the numbersList is empty, the max function(control structure) returns zero.
+
+Values:
+The max function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

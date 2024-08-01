@@ -1,0 +1,20 @@
+MaxListOperator
+(operator)
+Max operator. List:An expression that evaluates to a list.
+
+Syntax:
+the maximum value of {ValueList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+*Note:* It is an error if any element of List is non-numeric.
+
+Values:
+The maximum value attained by the elements of List. 
+
+OS:

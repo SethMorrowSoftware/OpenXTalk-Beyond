@@ -1,0 +1,30 @@
+radioBehavior
+(property)
+Specifies that only one radio button in a group can be highlight|highlighted at a time.
+
+Syntax:
+set the radioBehavior of {group} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the radioBehavior of last group to true
+----
+
+Description:
+Use the radioBehavior property to create a  radio button|radio-button cluster.
+
+If a group's radioBehavior property is set to true, highlight|highlighting any radio button(keyword) in the group unhighlights any other radio buttons--that is, the button(object)|buttons in the group behave like a  radio button|radio-button cluster, with the options being mutually  exclusive.
+
+If the radioBehavior is false, highlight|highlighting a button does not affect the hilite property of other button(object)|buttons in the group.
+
+The radioBehavior property does not affect button(object)|buttons whose style is not set to radioButton.
+
+Values:
+The radioBehavior of a group(command) is true or false. By default, the radioBehavior property of newly created group(glossary)|groups is set to true. 
+
+OS:
+mac,windows,linux,ios,android

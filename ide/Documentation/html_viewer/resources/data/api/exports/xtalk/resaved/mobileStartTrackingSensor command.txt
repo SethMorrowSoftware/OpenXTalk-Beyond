@@ -1,0 +1,29 @@
+mobileStartTrackingSensor
+(command)
+Starts listening for readings from the named sensor.
+
+Syntax:
+mobileStartTrackingSensor {sensor}, [{loosely}]
+----
+
+Synonyms:
+
+Params:
+sensor (enum ): The name of the sensor you wish to start using
+loosely (enum ): How accurate the readings from sensors should be. The default value is false 
+
+Examples:
+mobileStartTrackingSensor "location"
+----
+mobileStartTrackingSensor "heading",true
+----
+
+Description:
+Use the mobileStartTrackingSensor command to start listening for readings from a sensor.
+
+The mobileStartTrackingSensor command starts listening for readings from the named sensor.
+
+Values:
+
+OS:
+ios,android

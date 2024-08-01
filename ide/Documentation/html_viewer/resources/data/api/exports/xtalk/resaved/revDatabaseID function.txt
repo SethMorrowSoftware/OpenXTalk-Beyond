@@ -1,0 +1,36 @@
+revDatabaseID
+(function)
+return|Returns the database ID of the database that opened a  record set.
+
+Syntax:
+revDatabaseID({recordSetID})
+----
+
+Synonyms:
+revdb_cursorconnection
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revDatabaseID(weeklyOccupancy)
+----
+if revDatabaseID(currentCursor) is not field "DB ID" then
+  next repeat
+end if
+----
+
+Description:
+Use the revDatabaseID function to find out which database a record set belongs to.
+
+The returned value is the same as the value returned by the revOpenDatabase function when the database was first opened.
+
+You can use the returned value to close a database after your stack is finished with it.
+
+*Important:*  The revDatabaseID function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revDatabaseID function returns a positive integer. 
+
+OS:
+mac,windows,linux,ios,android

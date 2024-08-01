@@ -1,0 +1,34 @@
+bottom
+(property)
+Specifies how far an object|object's bottom edge is from the top of the window or screen.
+
+Syntax:
+set the bottom of {object} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the bottom of this stack > 600 then changeStackPlacement
+----
+set the bottom of card field 1 to the height of this stack
+----
+
+Description:
+Use the bottom property to change the vertical placement of a control or window.
+
+The bottom of a stack is in  absolute coordinates(glossary)|absolute (screen) coordinates.  The bottom of a card is always equal to the height of the stack window; setting the bottom of a card does not cause a error|script error, but it has no effect. The bottom of a group or control is in  relative coordinates(glossary)|relative (window) coordinates.
+
+Changing the bottom of an object(glossary) shifts it to the new position without resizing it. To change an object|object's height, set its height or rectangle property.
+
+The height property of an object(glossary) is equal to its bottom minus its top.
+
+Values:
+The bottom of an object(glossary) is an integer. A negative integer indicates that the position is above the top of the screen or card (and therefore cannot be seen). A stack's bottom is the distance in pixels from the top edge of the screen.
+
+A card's or control's bottom is the distance in pixels from the top edge of the card to the bottom edge of the card or control. 
+
+OS:
+mac,windows,linux,ios,android

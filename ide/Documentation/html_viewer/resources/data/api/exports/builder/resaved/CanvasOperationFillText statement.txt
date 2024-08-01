@@ -1,0 +1,29 @@
+CanvasOperationFillText
+(statement)
+Render filled text on a canvas.
+
+Syntax:
+fill text {mText} at {mPoint} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mText ( ): An expression which evaluates to a string.
+mPoint ( ): An expression which evaluates to a point.
+
+Examples:
+// Set the canvas font
+set the font of this canvas to font "Helvetica"
+
+// Draw the text
+fill text "Widget Label" at point [50,50] on this canvas
+----
+
+Description:
+Renders mText at mPoint on mCanvas using the current font setting.
+
+Values:
+
+OS:

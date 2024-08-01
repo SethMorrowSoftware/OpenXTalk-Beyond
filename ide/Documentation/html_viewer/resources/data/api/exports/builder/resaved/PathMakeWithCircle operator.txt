@@ -1,0 +1,27 @@
+PathMakeWithCircle
+(operator)
+Creates a new path.
+
+Syntax:
+circle path centered at {mCenter} with radius {mRadius}
+----
+
+Synonyms:
+
+Params:
+mCenter ( ): An expression which evaluates to a point.
+mRadius ( ): An expression which evaluates to a number.
+
+Examples:
+// Create a circle path
+variable tPath as Path
+put circle path centered at point [100,100] with radius 50 into tPath
+----
+
+Description:
+Creates a new path.
+
+Values:
+A new circle path. 
+
+OS:

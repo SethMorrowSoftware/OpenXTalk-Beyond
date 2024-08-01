@@ -1,0 +1,28 @@
+groupIDs
+(property)
+Reports the group|groups on a card.
+
+Syntax:
+get the groupIDs of {card}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+repeat with x = 1 to the number of lines of the groupIDs of this card
+----
+
+Description:
+Use the groupIDs property to find out which group|groups are placed on a card.
+
+If a group on the card contains group|groups, only the top-level group|groups are reported.
+
+To find out which groups are in a stack, use the backgroundIDs property. 
+
+Values:
+The groupIDs of a card reports a list of short ID properties of group|groups, one per line. This property is read-only and cannot be set.  
+
+OS:
+mac,windows,linux,ios,android

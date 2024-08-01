@@ -1,0 +1,19 @@
+dgColumnWidth
+(property)
+Get/set the width of a column.
+
+Syntax:
+put the dgColumnWidth["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the width of a column.
+
+Values:
+
+OS:

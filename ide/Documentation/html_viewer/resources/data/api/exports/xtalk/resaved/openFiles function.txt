@@ -1,0 +1,34 @@
+openFiles
+(function)
+return|Returns a list of files that have been opened with the  open file command, but not yet closed with the close file command.
+
+Syntax:
+the openFiles
+----
+openFiles()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the openFiles
+----
+if it is not among the lines of the openFiles then open file it
+----
+repeat until the openFiles is empty
+----
+
+Description:
+Use the openFiles function to find out which files need to be closed, or to check whether a file is already open before reading from it or writing to it.
+
+The list of file paths is in the same order that the files were opened.
+
+Open files that were not opened by OpenXTalk are not included in the list returned by the openFiles function.
+
+Values:
+The openFiles function return|returns a list of file path|file paths, one file per line. 
+
+OS:
+mac,windows,linux,ios,android

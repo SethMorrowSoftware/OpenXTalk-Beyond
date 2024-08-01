@@ -1,0 +1,32 @@
+ceiling
+(function)
+return|Returns the smallest integer greater than or equal to number.
+
+Syntax:
+the ceiling of {number}
+----
+ceiling({number})
+----
+
+Synonyms:
+ceil
+
+Params:
+number ( ): Any number, or expression that evaluates to a number.
+
+Examples:
+ceiling(33.567) -- result is 34
+----
+ceiling(-6.3) -- result is -6
+----
+
+Description:
+Use the ceiling function to return the greatest integer less than or equal to a number.
+
+The ceiling function does not always return the integer closest to the number. For example, `ceiling(5.1)` return(glossary)|returns 6, but `ceiling(4.99)` return(glossary)|returns 5.
+
+Values:
+The ceiling function return|returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

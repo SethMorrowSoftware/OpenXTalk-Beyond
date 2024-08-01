@@ -1,0 +1,21 @@
+objectRepositoryStore
+(handler)
+Store an object in the object repository and get its ID
+
+Syntax:
+objectRepositoryStore({pObject})
+----
+
+Synonyms:
+
+Params:
+pObject ( ): An object long ID
+
+Examples:
+Description:
+As long ID of an object may mutate during a session the IDE needs an object reference that can handle that mutation.
+
+Values:
+An object repository ID which can be used to get the current long id of the object 
+
+OS:

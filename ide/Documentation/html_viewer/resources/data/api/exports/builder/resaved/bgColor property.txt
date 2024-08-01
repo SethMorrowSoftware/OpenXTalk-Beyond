@@ -1,0 +1,21 @@
+bgColor
+(property)
+The background color of the tile
+
+Syntax:
+set the bgColor of {widget} to {pColor}
+get the bgColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The background color of the tile
+
+Values:
+A color in RGB form - comma separated values from 0 - 255 
+
+OS:

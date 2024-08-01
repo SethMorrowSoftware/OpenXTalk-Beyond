@@ -1,0 +1,19 @@
+OnMouseDown
+(message)
+Sent when the mouse button is pushed within the widget's rect.
+
+Syntax:
+OnMouseDown
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse button is pushed within the widget's rect.
+
+Values:
+
+OS:

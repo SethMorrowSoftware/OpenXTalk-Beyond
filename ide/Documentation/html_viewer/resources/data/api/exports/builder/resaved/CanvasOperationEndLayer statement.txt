@@ -1,0 +1,37 @@
+CanvasOperationEndLayer
+(statement)
+End the current drawing layer on a canvas.
+
+Syntax:
+end layer on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw two overlapping rectangles grouped with half transparency
+set the opacity of this canvas to 0.5
+begin layer on this canvas
+fill rectangle path of rectangle path [50,50,100,100] on this canvas
+fill rectangle path of rectangle path [75,75,125,125] on this canvas
+end layer on this canvas
+----
+// Create an effect for the new layer
+variable tEffect as Effect
+put outer shadow effect into tEffect
+
+// Draw rectangle with an effect applied
+begin layer with tEffect on this canvas
+fill rectangle path of rectangle [50,50,100,100] on this canvas
+end layer on this canvas
+----
+
+Description:
+Ends the layer on mCanvas, rendering to the previous layer with the opacity, blend mode, and effect properties set when the layer began.
+
+Values:
+
+OS:

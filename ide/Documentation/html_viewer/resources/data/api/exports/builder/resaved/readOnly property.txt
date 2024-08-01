@@ -1,0 +1,21 @@
+readOnly
+(property)
+Whether the options to modify elements of the underlying array are present or not.
+
+Syntax:
+get the readOnly of {widget}
+----
+set the readOnly of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The readOnly property controls whether the widget presents the option to add elements to arrays or not. If false, the first row of the widget is always "Add new element", and when rows are hovered over, icons appear at the right to enable the removal of that element, or the addition of a new subelement.
+
+Values:
+
+OS:

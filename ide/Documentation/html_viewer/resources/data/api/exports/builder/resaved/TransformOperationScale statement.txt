@@ -1,0 +1,32 @@
+TransformOperationScale
+(statement)
+Apply a scale to a transform.
+
+Syntax:
+scale {mTransform} by {mScale}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mScale ( ): An expression which evaluates to a list of 1 or 2 numbers, the x-axis scale and y-axis scale, or the uniform scale when only a single value is given.
+
+Examples:
+// Create a new transform
+variable tTransform
+put the identity transform into tTransform
+
+// Apply a uniform scale to the transform
+scale tTransform by [0.5]
+
+// Apply a non-uniform scale to the transform
+scale tTransform by [2.2, 3]
+----
+
+Description:
+Apply the given scale to mTransform. This is equivalent to concatenating mTransform with a new scale transform.
+
+Values:
+
+OS:

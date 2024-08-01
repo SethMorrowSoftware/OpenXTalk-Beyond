@@ -1,0 +1,29 @@
+inputEndEditing
+(message)
+Sent when a mobile text input control has lost focus and editing has ceased. 
+
+Syntax:
+inputEndEditing
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on inputEndEditing -- enable the next button while editing is finished
+   enable button "next"
+end inputEndEditing
+----
+
+Description:
+The inputEndEditing message is sent when a mobile text input control has lost focus and editing has ceased.
+
+Handle the inputEndEditing message if you want to move OpenXTalk controls, make changes to the interface or perform an action when the user stops editing text in an iosTextInput, iosMultiline, androidTextInput or androidMultiline control.
+
+The inputEndEditing message is sent to the object containing the script that created the text input control.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,16 @@
+checkbox
+(glossary)
+
+Syntax:
+Synonyms:
+checkbox, checkboxes, check box, check boxes
+
+Params:
+
+Examples:
+Description:
+A special button type consisting of a box with a mark in it. Clicking the button turns the mark on or off.
+
+Values:
+
+OS:

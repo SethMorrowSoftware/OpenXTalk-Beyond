@@ -1,0 +1,31 @@
+min
+(function)
+return|Returns the smallest number of a list of numbers.
+
+Syntax:
+min({numbersList})
+----
+
+Synonyms:
+
+Params:
+numbersList ( ): A comma-separated list of numbers, or an expression that evaluates to such a list, or an array containing only numbers.
+
+Examples:
+min(12,3,8,7) -- returns 3
+----
+min(0,8,-436) -- returns -436
+----
+
+Description:
+Use the min function(control structure) to find the lowest value(function) in a group of value(glossary)|values.
+
+You can use the min and max function(glossary)|functions together to limit a value(function) to a certain range. For example, the expression min(1,max(myValue,0)) yields a number between zero and 1. If myValue is within the limits, the expression is equal to myValue; if it is greater than 1, the expression evaluate|evaluates to 1; and if it is less than zero, the expression evaluate|evaluates to zero.
+
+If the numbersList is empty, the min function(control structure) returns zero.
+
+Values:
+The min function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

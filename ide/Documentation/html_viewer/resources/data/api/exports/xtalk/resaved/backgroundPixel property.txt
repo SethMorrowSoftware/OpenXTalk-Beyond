@@ -1,0 +1,29 @@
+backgroundPixel
+(property)
+Specifies which entry in the color table is used for an object|object's background color.
+
+Syntax:
+set the backgroundPixel of {object} to {colorNumber}
+----
+
+Synonyms:
+backpixel, secondpixel
+
+Params:
+
+Examples:
+set the backgroundPixel of button 3 to field "Selected Color"
+----
+
+Description:
+Use the backgroundPixel property to change the background color of an object(glossary) when the bit depth of the screen is 8 bit|bits (256 colors) or less.
+
+The backgroundPixel property specifies which entry in the color table is used for an object's background color. It is similar to the backgroundColor property, but is specified as an entry in the current color table, rather than as a color reference.
+
+The color table can be set by changing the colorMap property.
+
+Values:
+The backgroundPixel of an object(glossary) is an integer between zero and (the screenColors - 1). It designates an entry in the current color table. By default, the backgroundPixel for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

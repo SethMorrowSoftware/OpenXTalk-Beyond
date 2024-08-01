@@ -1,0 +1,29 @@
+defaultMenubar
+(property)
+Specifies which menu bar is displayed on Mac OS systems when the active window|active window's menubar property is empty.
+
+Syntax:
+set the defaultMenubar to {group}
+----
+
+Synonyms:
+
+Params:
+group ( ): A group reference or an expression that evaluates to a group reference.
+
+Examples:
+set the defaultMenubar to the long ID of group 1 of stack "Menubars"
+----
+
+Description:
+Use the defaultMenubar property to change the menus used by stacks that don't have their own custom menu bar.
+
+The defaultMenuBar specifies a group of buttons. Each button in the group becomes a menu in the menu bar.
+
+The setting of the defaultMenubar property has no effect on Unix and Windows systems, except that references to menus are taken as referring to the defaultMenubar if the stack in the active window has no menu bar of its own.
+
+Values:
+The defaultMenubar property returns the long ID of the group. 
+
+OS:
+mac

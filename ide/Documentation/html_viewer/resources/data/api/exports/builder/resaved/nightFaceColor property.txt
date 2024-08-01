@@ -1,0 +1,21 @@
+nightFaceColor
+(property)
+Determines the color of the face of the clock during the night
+
+Syntax:
+get the nightFaceColor of {widget}
+----
+set the nightFaceColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the nightFaceColor property to get or set the color of the face of the clock during the night. To determine if the clock is displaying its daytime or night-time colors, use the read-only property isDay.
+
+Values:
+
+OS:

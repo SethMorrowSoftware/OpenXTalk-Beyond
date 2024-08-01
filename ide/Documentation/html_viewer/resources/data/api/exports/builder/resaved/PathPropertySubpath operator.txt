@@ -1,0 +1,34 @@
+PathPropertySubpath
+(operator)
+The subpaths of a path.
+
+Syntax:
+subpath {mStart} [ to {mEnd} ] of {mPath}
+----
+
+Synonyms:
+
+Params:
+mPath ( ): An expression which evaluates to a path.
+mStart ( ): An expression which evaluates to a number.
+mEnd ( ): An expression which evaluates to a number.
+
+Examples:
+// Create a path with multiple subpaths
+variable tPath as Path
+put path "M50,50 L100,50 M100,100 L150,100 M150,150 L200,150"
+
+// Split out the first subpath of a path
+variable tSubPath as Path
+put subpath 1 of tPath into tSubPath
+
+// Store the remaining subpaths in the original path
+put subpath 2 to -1 of tPath into tPath
+----
+
+Description:
+The subpaths of mPath in the range mStart to mEnd. Each subpath or range of subpaths is itself a path.
+
+Values:
+
+OS:

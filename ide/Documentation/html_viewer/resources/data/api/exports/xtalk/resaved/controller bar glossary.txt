@@ -1,0 +1,16 @@
+controller bar
+(glossary)
+
+Syntax:
+Synonyms:
+controller bar, player controller
+
+Params:
+
+Examples:
+Description:
+The area at the bottom of a movie containing controls to play, stop, or move frame-by-frame through the movie.
+
+Values:
+
+OS:

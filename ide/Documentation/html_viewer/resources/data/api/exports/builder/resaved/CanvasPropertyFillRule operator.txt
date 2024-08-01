@@ -1,0 +1,24 @@
+CanvasPropertyFillRule
+(operator)
+The current fill rule of a canvas.
+
+Syntax:
+the fill rule of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Set canvas fill rule to non-zero.
+set the fill rule of this canvas to "non-zero"
+----
+
+Description:
+The rule used to determine when to fill enclosed regions of a path. Can be "even odd" or "non-zero".
+
+Values:
+
+OS:

@@ -1,0 +1,23 @@
+one
+(constant)
+Equivalent to the number 1.
+
+Syntax:
+one
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+add one to field "Total" -- same as "add 1 to..."
+----
+
+Description:
+Use the one constant when it is easier to read than the numeral 1. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

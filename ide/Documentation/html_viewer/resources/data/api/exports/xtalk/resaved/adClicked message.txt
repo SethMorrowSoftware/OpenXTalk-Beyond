@@ -1,0 +1,28 @@
+adClicked
+(message)
+Sent when the user clicks on an ad.
+
+Syntax:
+adClicked {pAdName}
+----
+
+Synonyms:
+
+Params:
+pAdName ( ): The name of ad that has been clicked (as specified in )
+
+Examples:
+on adClicked pAdName
+   goToAddInfo pAdName
+end adClicked
+----
+
+Description:
+Handle the adClicked message if you want to perform an action when a user clicks on an ad.
+
+The adClicked message is sent to the object that created the ad when the user clicks on ad.
+
+Values:
+
+OS:
+ios,android

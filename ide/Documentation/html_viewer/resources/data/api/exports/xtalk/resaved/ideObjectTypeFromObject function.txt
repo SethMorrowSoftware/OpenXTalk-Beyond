@@ -1,0 +1,27 @@
+ideObjectTypeFromObject
+(function)
+The IDE object type corresponding to the given object
+
+Syntax:
+ideObjectTypeFromObject({pObjectID})
+----
+
+Synonyms:
+
+Params:
+pObjectID ( ): An object ID
+
+Examples:
+create field
+put ideObjectTypeFromObject(it)  -- outputs com.xtalk.interface.classic.Field
+set the listBehavior of it to true
+put ideObjectTypeFromObject(it)  -- outputs com.xtalk.interface.classic.ListField
+----
+
+Description:
+*Note:* The type returned by ideObjectTypeFromObject can depend on the values of the object's properties.
+
+Values:
+The IDE object type associated with the objects pObjectID 
+
+OS:

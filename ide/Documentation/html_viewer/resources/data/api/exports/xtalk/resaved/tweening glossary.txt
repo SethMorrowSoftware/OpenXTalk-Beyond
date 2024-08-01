@@ -1,0 +1,18 @@
+tweening
+(glossary)
+
+Syntax:
+Synonyms:
+tween, tweened, tweening
+
+Params:
+
+Examples:
+Description:
+The process of automatically generating intermediate frame|frames in an animation.
+
+Tweening lets you specify only the frame|frames where a change takes place, rather than having to generate all the details of each frame.
+
+Values:
+
+OS:

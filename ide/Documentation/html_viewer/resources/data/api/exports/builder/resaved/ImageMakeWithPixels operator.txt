@@ -1,0 +1,31 @@
+ImageMakeWithPixels
+(operator)
+Creates a new image using raw pixel data.
+
+Syntax:
+image of size {mSize} with pixels {mPixels}
+----
+
+Synonyms:
+
+Params:
+mSize ( ): An expression which evaluates to a list of integers.
+mPixels ( ): An expression which evaluates to binary data
+
+Examples:
+// Read pixel data from file
+variable tPixelData as Data
+put the contents of file "image_argb_320x480.bin" into tPixelData
+
+// Create image from pixel data
+variable tImage as Image
+put image of size [320, 480] with pixels tPixelData into tImage
+----
+
+Description:
+Creates a new image using raw pixel data.
+
+Values:
+A new image of the given size, using the provided ARGB pixel data. 
+
+OS:

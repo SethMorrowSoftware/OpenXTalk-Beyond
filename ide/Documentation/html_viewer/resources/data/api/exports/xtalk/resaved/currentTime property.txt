@@ -1,0 +1,28 @@
+currentTime
+(property)
+Specifies the elapsed time in a movie or sound.
+
+Syntax:
+set the currentTime of {player} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the currentTime of player "Open Door" to 300
+----
+
+Description:
+Use the currentTime property during playing to find out the progress of the movie or sound, or to skip ahead or back.
+
+The currentTime is the number of the interval where the current position is.
+
+The number of intervals per second is specified by the player's timeScale property. The total number of intervals is given in the player|player's duration property.
+
+Values:
+The currentTime of a player(keyword) is an integer between zero and the player(object)|player's duration. 
+
+OS:
+mac,windows,linux

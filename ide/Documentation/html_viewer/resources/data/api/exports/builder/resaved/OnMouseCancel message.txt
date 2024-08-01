@@ -1,0 +1,19 @@
+OnMouseCancel
+(message)
+Sent when something happens which should cause the previous mouse down action to be considered cancelled. For example, opening a popup during OnMouseDown.
+
+Syntax:
+OnMouseCancel
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when something happens which should cause the previous mouse down action to be considered cancelled. For example, opening a popup during OnMouseDown.
+
+Values:
+
+OS:

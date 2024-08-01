@@ -1,0 +1,24 @@
+revXMLRPC_SetSocket
+(command)
+
+Syntax:
+revXMLRPC_SetSocket XMLRPCdocumentID, RPCsocket
+
+Summary:
+Sets the socket of an XML-RPC document.
+
+Examples:
+revXMLRPC_SetSocket tRequest,tOpenSocket
+
+If the revXMLRPC_SetSocket command encounters an error, it returns an error message starting with "xmlrpcerr" ..
+
+Description:
+Use the revXMLRPC_SetSocket function to set the network socket used in the execution of an XML-RPC request. By default, XML-RPC uses the post command to execute an XML-RPC request, but this has the overhead of opening and closing a new socket every time. You can avoid this by re-using an already opened socket.
+
+Important: The revXMLRPC_SetSocket command is part of the XML-RPC library. To ensure that the command works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure the "XML-RPC" library checkbox is checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

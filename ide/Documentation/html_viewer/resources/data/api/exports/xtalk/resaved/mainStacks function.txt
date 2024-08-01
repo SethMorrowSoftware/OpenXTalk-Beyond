@@ -1,0 +1,32 @@
+mainStacks
+(function)
+return|Returns a list of the main stack|main stacks that are  loaded into memory.
+
+Syntax:
+the mainStacks
+----
+mainStacks()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the mainStacks
+----
+repeat while myStack is among the lines of the mainStacks
+----
+
+Description:
+Use the mainStacks function to find out which main stack|main stacks are currently available.
+
+Stacks that have not yet been saved are included in the list.
+
+The list includes stacks that are part of the OpenXTalk development environment (such as the message box and menu bar).
+
+Values:
+The mainStacks function return|returns a list with the short name property of each main stack, one stack per line. 
+
+OS:
+mac,windows,linux,ios,android

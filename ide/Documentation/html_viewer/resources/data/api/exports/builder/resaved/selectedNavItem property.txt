@@ -1,0 +1,21 @@
+selectedNavItem
+(property)
+The name of the currently selected nav item
+
+Syntax:
+set the selectedNavItem of {widget} to {pItemName}
+get the selectedNavItem of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The name of the currently selected nav item
+
+Values:
+The item in the navNames corresponding to the selected nav item 
+
+OS:

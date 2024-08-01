@@ -1,0 +1,30 @@
+hiliteBorder
+(property)
+Specifies whether a three-D button appears to be pushed in when it is highlight|highlighted. 
+
+Syntax:
+set the hiliteBorder of {button} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the hiliteBorder of last button to true
+----
+
+Description:
+Use the hiliteBorder property to affect the appearance of a three-D button(keyword) when it is clicked.
+
+If a button's hiliteBorder property is true, the button(object)|button's highlight action is affected, depending on the style of the button(keyword). For radio button|radio buttons and checkbox|checkboxes, a border is drawn around the entire button(keyword) if its hilite is true. For other button(keyword) styles, the button(object)|button's effective topColor is used for the bottom and right edges, and the bottomColor is used for the top and left edges (reversing the normal effect), when the button(keyword) is highlight|highlighted.
+
+If the lookAndFeel property is "Macintosh", the hiliteBorder property has no effect on button(keyword) styles other than  radio button|radio buttons and checkbox|checkboxes.
+
+If the button's threeD property is false, the hiliteBorder property has no effect.
+
+Values:
+The hiliteBorder of a button is true or false. 
+
+OS:
+mac,windows,linux,ios,android

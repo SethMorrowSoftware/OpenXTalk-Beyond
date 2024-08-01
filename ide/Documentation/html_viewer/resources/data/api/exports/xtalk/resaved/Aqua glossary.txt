@@ -1,0 +1,16 @@
+Aqua
+(glossary)
+
+Syntax:
+Synonyms:
+aqua
+
+Params:
+
+Examples:
+Description:
+The "lickable" look and feel designed for OS X. When the lookAndFeel property is set to "Appearance Manager", a OpenXTalk application displays the Aqua appearance when running on OS X.
+
+Values:
+
+OS:

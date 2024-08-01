@@ -1,0 +1,18 @@
+Alt key
+(glossary)
+
+Syntax:
+Synonyms:
+altkey, alt, alt key, alt-key
+
+Params:
+
+Examples:
+Description:
+A modifier key on Windows|Windows systems, usually located at the right of the Control key.
+
+(The Mac OS and OS X equivalent is the Option key. The Unix equivalent is the Meta key.)
+
+Values:
+
+OS:

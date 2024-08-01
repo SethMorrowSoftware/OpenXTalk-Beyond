@@ -1,0 +1,16 @@
+custom function
+(glossary)
+
+Syntax:
+Synonyms:
+user-defined function, custom function
+
+Params:
+
+Examples:
+Description:
+A function whose behavior is defined by a function handler that you write, as opposed to a built-in function.
+
+Values:
+
+OS:

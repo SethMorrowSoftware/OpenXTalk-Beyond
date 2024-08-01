@@ -1,0 +1,16 @@
+cascading menu
+(glossary)
+
+Syntax:
+Synonyms:
+cascading menu, hierarchical menu, submenu, pull-right menu
+
+Params:
+
+Examples:
+Description:
+A menu that appears when you choose a menu item in the parent menu. 
+
+Values:
+
+OS:

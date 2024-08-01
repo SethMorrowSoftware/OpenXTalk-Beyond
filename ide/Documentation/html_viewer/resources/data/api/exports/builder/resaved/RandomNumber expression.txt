@@ -1,0 +1,24 @@
+RandomNumber
+(expression)
+Generates a pseudo-random number.
+
+Syntax:
+any number
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as Number
+put any number into tVar -- 0 {= tVar {= 1
+----
+
+Description:
+Generates a pseudo-random number.
+
+Values:
+A real between 0.0 and 1.0. 
+
+OS:

@@ -1,0 +1,31 @@
+OnGeometryChanged
+(message)
+Sent when the widget geometry changed.
+
+Syntax:
+OnGeometryChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+private variable mLabel as String
+
+public handler OnGeometryChanged()
+	if my width is not my height then
+		put "Rectangle" into mLabel
+	else
+		put "Square" into mLabel
+	end if
+	redraw all	
+end handler
+----
+
+Description:
+Handle the OnGeometryChanged message to perform specific actions that depend on the geometry of the widget, for example the locations on the canvas where parts of the widget are drawn.
+
+Values:
+
+OS:

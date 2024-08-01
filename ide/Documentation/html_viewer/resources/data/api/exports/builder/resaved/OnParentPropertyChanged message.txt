@@ -1,0 +1,19 @@
+OnParentPropertyChanged
+(message)
+Sent when a property of the widget parent is changed.
+
+Syntax:
+OnParentPropertyChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the OnParentPropertyChanged message when a widget property depends on the properties of a parent object.
+
+Values:
+
+OS:

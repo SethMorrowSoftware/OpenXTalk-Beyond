@@ -1,0 +1,30 @@
+reset
+(command)
+return|Returns the specified template object(glossary) to its default settings.
+
+Syntax:
+reset [the] template{{objectType}}
+----
+
+Synonyms:
+
+Params:
+•	objectType ( ): One of xTalk's objects: stack, group, card, field, button, graphic, image, scrollbar, player, audioClip, videoClip, or EPS.
+	
+Examples:
+reset the templateGraphic
+----
+reset the templateStack
+----
+
+Description:
+Use the reset command to change a template object(glossary) back to its default|defaults after you have changed it temporarily.
+
+Change the property|properties of template object|objects temporarily  to easily create a number of object|objects of that type with the property  settings you want.
+
+*Note:* The OpenXTalk development environment makes changes to template  object|objects when it creates new object|objects. This means that   object|objects you create in the development environment may not have the   same property settings as object|objects you create in a   standalone application.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

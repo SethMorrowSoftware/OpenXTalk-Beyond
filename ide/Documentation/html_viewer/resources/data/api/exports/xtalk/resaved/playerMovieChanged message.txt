@@ -1,0 +1,27 @@
+playerMovieChanged
+(message)
+Sent when the content of the player has changed.
+
+Syntax:
+playerMovieChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on playerMovieChanged
+    answer "Your movie content has changed?" with "Okay"
+end playerMovieChanged
+----
+
+Description:
+Handle the playerMovieChanged message when the content of the movie player has changed.
+
+You can probe the filename or URL of the movie by using the function mobileControlGet. 
+
+Values:
+
+OS:
+ios

@@ -1,0 +1,16 @@
+look and feel
+(glossary)
+
+Syntax:
+Synonyms:
+look and feel
+
+Params:
+
+Examples:
+Description:
+The overall appearance and behavior of a computer system.
+
+Values:
+
+OS:

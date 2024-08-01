@@ -1,0 +1,26 @@
+RowSwipedRight
+(message)
+Sent when the user swipes a data grid row right.
+
+Syntax:
+on RowSwipedRight
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on RowSwipedRight
+   dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+end RowSwipedRight
+----
+
+Description:
+RowSwipedRight is sent to your data grid's custom row template when the user swipes a row of the data grid right. Handle RowSwipedRight if you want to perform a custom action on a right swipe.
+
+The default action is to show the left swipe control.
+
+Values:
+
+OS:

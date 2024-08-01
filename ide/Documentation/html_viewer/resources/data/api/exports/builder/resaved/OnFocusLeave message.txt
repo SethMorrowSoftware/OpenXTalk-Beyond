@@ -1,0 +1,19 @@
+OnFocusLeave
+(message)
+Sent when the widget loses focus.
+
+Syntax:
+OnFocusLeave
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget loses focus.
+
+Values:
+
+OS:

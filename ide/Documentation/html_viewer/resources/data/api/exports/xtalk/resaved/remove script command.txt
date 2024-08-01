@@ -1,0 +1,28 @@
+remove script
+(command)
+Takes an object(glossary) out of the message path that was placed in the message path with the insert script command.
+
+Syntax:
+remove [the] script of {object} from {front | back}
+----
+
+Synonyms:
+
+Params:
+object ( ): Any object in an open stack.
+
+Examples:
+remove the script of button ID 2 from front
+----
+remove the script of this card from back
+----
+
+Description:
+Use the remove script command to remove an object(glossary) from the message path.
+
+You can remove a script only if it has previously been inserted in the message path with the insert script command. The remove script command does not affect object|objects that are normally in the message path or script|scripts that were placed in the  message path with the start using command.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

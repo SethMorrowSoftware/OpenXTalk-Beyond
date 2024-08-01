@@ -1,0 +1,20 @@
+mobileToastCancel
+(handler)
+Cancel the current toast
+
+Syntax:
+mobileToastCancel()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use mobileToastCancel to cancel the currently displayed toast.
+
+Values:
+
+OS:
+android

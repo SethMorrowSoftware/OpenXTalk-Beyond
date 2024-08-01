@@ -1,0 +1,19 @@
+dgVisibleLines
+(property)
+Returns the first and last line being displayed in the data grid as a comma delimited list.
+
+Syntax:
+get the dgVisibleLines of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the first and last line being displayed in the data grid as a comma delimited list. Useful if you want to provide visual feedback as to which lines are being displayed.
+
+Values:
+
+OS:

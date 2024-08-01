@@ -1,0 +1,29 @@
+unlock recent
+(command)
+Sets the lockRecent property to false, allowing card|cards to be added to the recent cards|recent cards list.
+
+Syntax:
+unlock recent
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+unlock recent
+----
+if the short name of this card is "Overview" then unlock recent
+----
+
+Description:
+Use the unlock recent command to have card|cards added to the recent cards|recent cards list when you navigate between cards.
+
+When either the user or a handler navigates to a card, that card is placed on the recent cards list, and the user can return to it with the go command or by choosing View ? Go Recent from the menubar.
+
+The unlock recent command sets the lockRecent property to false. When all pending handler|handlers are finished execute|executing, the lockRecent property is automatically set to false.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,29 @@
+DeleteRangeCodeunitOf
+(statement)
+Deletes the codeunits between indices Start and Finish in Target.
+
+Syntax:
+delete codeunit {Start} to {Finish} of {Target}
+----
+
+Synonyms:
+
+Params:
+Start ( ): An expression which evaluates to a valid integer index of .
+Finish ( ): An expression which evaluates to a valid integer index of .
+Target ( ): A string container.
+
+Examples:
+variable tVar as String
+put "surround" into tVar
+delete codeunit 2 to 4 of tVar -- tVar contains "sound"
+----
+
+Description:
+Replaces the codeunits between the given indices with the empty string.
+
+*Note:* It is an error if either Start or Finish are out of range.
+
+Values:
+
+OS:

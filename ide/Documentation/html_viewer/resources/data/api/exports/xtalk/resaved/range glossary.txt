@@ -1,0 +1,16 @@
+range
+(glossary)
+
+Syntax:
+Synonyms:
+range
+
+Params:
+
+Examples:
+Description:
+The allowable extent of a value, from the least possible value to the greatest.
+
+Values:
+
+OS:

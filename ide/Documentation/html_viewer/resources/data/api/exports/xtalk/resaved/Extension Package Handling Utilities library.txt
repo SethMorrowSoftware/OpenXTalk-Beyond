@@ -1,0 +1,16 @@
+Extension Package Handling Utilities
+(library)
+This library provides handlers for managing extension packages
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This library provides handlers for managing extension packages
+
+Values:
+
+OS:

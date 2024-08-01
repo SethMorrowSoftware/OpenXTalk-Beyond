@@ -1,0 +1,20 @@
+MyPaint
+(expression)
+Returns a particular paint of the widget.
+
+Syntax:
+my ( foreground |             background |             highlight |             border |             top |             bottom |             shadow |             focus ) paint
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use 'my ... paint' to fetch the paint to use for the given theme property of the widget. The returned paint will either be a solid color, or a pattern depending on the effective color and pattern properties of the widget's object.
+
+Values:
+The current setting of the specified paint of the widget. 
+
+OS:

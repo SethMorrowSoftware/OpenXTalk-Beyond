@@ -1,0 +1,38 @@
+mobilePlaySoundOnChannel
+(command)
+Plays a sound on a given channel.
+
+Syntax:
+mobilePlaySoundOnChannel {sound}, {channel}, {type}
+----
+
+Synonyms:
+iphoneplaysoundonchannel
+
+Params:
+sound ( ): The sound file to be played.
+channel ( ): The name of the channel to play the sound on.
+type (enum ): 
+
+Examples:
+mobilePlaySoundOnChannel theSound, theChannel, theType
+----
+mobilePlaySoundOnChannel "sounds/warning.mp4", "queued", "next"
+----
+put specialFolderPath("engine") & "/sounds/applause.mp4" into tSoundFile
+mobilePlaySoundOnChannel tSoundFile, "current", "now"
+----
+
+Description:
+Use the mobilePlaySoundOnChannel command to play a sound on a given channel.
+
+If a sound channel with the given name doesn't exist a new one is created. When queuing a sound using next, the engine will 'pre-prepare' the sound long before the current sound is played, this ensures minimal latency between the current sound ending and the next one beginning.
+
+If an empty string is passed as the sound parameter, the current and scheduled sound on the given channel will be stopped and cleared.
+
+When the sound has finished playing naturally (not stopped/replaced) on a given channel, a soundFinishedOnChannel message is sent to the object which played the sound.
+
+Values:
+
+OS:
+ios,android

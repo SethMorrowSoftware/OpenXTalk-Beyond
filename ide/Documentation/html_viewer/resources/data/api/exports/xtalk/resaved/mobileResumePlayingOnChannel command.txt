@@ -1,0 +1,29 @@
+mobileResumePlayingOnChannel
+(command)
+Resumes playback of the current sound on the given channel.
+
+Syntax:
+mobileResumePlayingOnChannel {channel}
+----
+
+Synonyms:
+iphoneresumeplayingonchannel
+
+Params:
+channel ( ): The name of the channel the sound is playing on.
+
+Examples:
+mobileResumePlayingOnChannel theChannel
+----
+mobileResumePlayingOnChannel "current"
+----
+
+Description:
+Use the mobileResumePlayingOnChannel command to resume playing a sound on a channel.
+
+The mobileResumePlayingOnChannel command resumes playback of the current sound on the given channel.
+
+Values:
+
+OS:
+ios,android

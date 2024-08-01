@@ -1,0 +1,37 @@
+numToChar
+(function)
+return|Returns the character corresponding to an ASCII|ASCII value. 
+
+Syntax:
+the numToChar of {ASCIIValue}
+----
+numToChar({ASCIIValue})
+----
+
+Synonyms:
+
+Params:
+ASCIIValue ( ): an integer between zero and 255, or an expression that evaluates to such an integer. If the useUnicode property is set to true, the ASCIIValue is an integer between zero and 65535.
+
+Examples:
+numToChar(65)
+----
+numToChar(0)
+----
+
+Description:
+Use the numToChar function to translate numbers into their character equivalents, or to interpret a character (such as a control character) that can't be displayed.
+
+*Important:*  As of version 7.0 the numToChar and charToNum functions have been deprecated. They will continue to work as in previous versions but should not be used with Unicode text as unexpected results may occur. If working with Unicode text use the numToCodepoint and codepointToNum functions, for native text use numToNativeChar and nativeCharToNum functions. If working with binary data use the numToByte and byteToNum functions.
+
+The numToChar function is the inverse of the charToNum function.
+
+If the ASCIIValue is between 127 and 255, the character return|returned by the numToChar function depends on the character set currently in use. On Mac OS|Mac OS systems this is usually the Mac OS|Macintosh character set; on Unix systems, this is usually ISO 8859; on Windows|Windows systems, this is usually Code Page 1252, a variant of ISO 8859.
+
+If the useUnicode property is set to true, the numToChar function return|returns a double-byte character. If the useUnicode is false and you specify an ASCIIValue greater than 255, the numToChar function return|returns the character corresponding to the ASCIIValue mod 256.
+
+Values:
+The numToChar function return|returns a single character. 
+
+OS:
+mac,windows,linux,ios,android

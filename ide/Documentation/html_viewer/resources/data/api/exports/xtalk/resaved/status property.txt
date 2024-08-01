@@ -1,0 +1,36 @@
+status
+(property)
+Specifies the current status of a player object
+
+Syntax:
+put the status of player "myPlayer" into tStatus
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the status of player "myPlayer" into tStatus
+if tStatus is "loading" then
+   put "Loading" && CR after fld "myField"
+else if tStatus is "playing" then 
+   put "Playing" && CR after fld "myField"
+else
+   put "Paused" && CR after fld "myField"
+end if
+----
+
+Description:
+Use the status property to find out the current status of a player object. 
+
+Values:
+This property is read-only and cannot be set.
+
+
+paused: 
+loading: for remote multimedia files only
+playing: 
+
+OS:
+mac

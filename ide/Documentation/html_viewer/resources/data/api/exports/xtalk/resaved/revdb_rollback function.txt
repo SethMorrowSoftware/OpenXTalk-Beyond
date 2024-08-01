@@ -1,0 +1,28 @@
+revdb_rollback
+(function)
+
+Syntax:
+revdb_rollback(databaseID)
+
+Summary:
+Executes the revRollBackDatabase command.
+
+The number returned by the revOpenDatabase function when the database was opened.
+
+Examples:
+revdb_rollback(monthlyExpensesConnection)
+
+The revdb_rollback function returns empty if the changes were successfully rolled back.
+
+Description:
+Use the revdb_rollback function to discard changes to a database.
+
+Evaluating the revdb_rollback function has the same effect as executing the revRollBackDatabase command. The only difference is that one is a function call and the other is a command.
+
+Important: The revdb_rollback function is part of the Database library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure both the "Database" library checkbox and those of the database drivers you are using are checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

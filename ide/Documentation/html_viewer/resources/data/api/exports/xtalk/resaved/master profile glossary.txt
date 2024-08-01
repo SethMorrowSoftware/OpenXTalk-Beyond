@@ -1,0 +1,16 @@
+master profile
+(glossary)
+
+Syntax:
+Synonyms:
+master profile, master property profile
+
+Params:
+
+Examples:
+Description:
+The default property profile of an object(glossary). The master profile holds the default settings for the object|object's property|properties, which are used if no other  property profile|profile is active.
+
+Values:
+
+OS:

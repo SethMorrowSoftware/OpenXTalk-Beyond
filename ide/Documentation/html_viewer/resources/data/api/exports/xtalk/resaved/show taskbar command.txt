@@ -1,0 +1,29 @@
+show taskbar
+(command)
+Displays the task bar on Windows|Windows systems.
+
+Syntax:
+show taskbar
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+show taskbar
+----
+if the controlKey is down then show taskbar
+----
+
+Description:
+Use the show taskbar command to display the task bar if it has been hidden. For example, if the task bar is hidden, you might want to show it only if the user holds down the Control key.
+
+The hide taskbar command can produce unexpected result when used in conjunction with backdrop operations. See the  hide taskbar|dictionary entry for more information.
+
+ The task bar can be hidden only on Windows systems. This command has no effect on Mac OS, OS X, or Unix systems.
+
+Values:
+
+OS:
+windows

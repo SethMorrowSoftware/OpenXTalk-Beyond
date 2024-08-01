@@ -1,0 +1,26 @@
+uInt1
+(keyword)
+Used with the read from file, read from process, and  read from socket command|commands to signify a chunk of  binary file|binary data the size of an unsigned 1-byte integer.
+
+Syntax:
+uInt1
+----
+
+Synonyms:
+uint1s
+
+Params:
+
+Examples:
+read from file myFile for 3 uInt1
+----
+
+Description:
+Use the uInt1 keyword to read data from a binary file.
+
+If you specify uInt1 as the chunk type in a read from file,  read from process, or read from socket command, the data is returned  as a series of numbers separated by commas, one for each unsigned integer read. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

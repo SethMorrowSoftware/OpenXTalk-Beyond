@@ -1,0 +1,33 @@
+RectanglePropertyHeight
+(operator)
+The height of a rectangle value.
+
+Syntax:
+the height of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+variable tRect
+put rectangle [50,100,150,200] into tRect
+
+// Store the height of the rectangle in a variable
+variable tHeight
+put the height of tRect into tHeight
+
+// Increase the height of the rectangle
+set the height of tRect to (tHeight + 10)
+----
+
+Description:
+The height of the rectangle.
+
+*Note:* Setting the height of a rectangle will resize it without moving the top edge, expanding or contracting from the bottom.
+
+Values:
+
+OS:

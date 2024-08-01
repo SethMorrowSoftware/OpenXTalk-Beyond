@@ -1,0 +1,30 @@
+CommandName
+(expression)
+The command name
+
+Syntax:
+the command name
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Program that only succeeds if it's run as the "true"
+-- command.
+variable tCommand as String
+put the command name into tCommand
+if tCommand ends with "true" then
+	quit with status 0
+else
+	quit with status 1
+end if
+----
+
+Description:
+Evaluates to the name that was used to execute the program, possibly including path information. 
+
+Values:
+
+OS:

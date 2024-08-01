@@ -1,0 +1,16 @@
+socket
+(glossary)
+
+Syntax:
+Synonyms:
+socket
+
+Params:
+
+Examples:
+Description:
+One of the endpoints of a connection between two process|processes (which may be running on different systems). Two cooperating sockets, one on each end, form a connection.
+
+Values:
+
+OS:

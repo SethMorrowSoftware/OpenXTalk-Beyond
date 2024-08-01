@@ -1,0 +1,22 @@
+extensionCheckModuleVersion
+(function)
+Check the module bytecode is the same version as a particular lc-compile
+
+Syntax:
+extensionCheckModuleVersion({pLCCompile},{pModule})
+----
+
+Synonyms:
+
+Params:
+pLCCompile ( ): The path to the lc-compile program. If empty, this will be computed.
+pModule ( ): The path to the compiled module bytecode file (.lcm)
+
+Examples:
+Description:
+Check the module bytecode is the same version as a particular lc-compile
+
+Values:
+true if the version of lc-compile matches that of the bytecode file, false otherwise. 
+
+OS:

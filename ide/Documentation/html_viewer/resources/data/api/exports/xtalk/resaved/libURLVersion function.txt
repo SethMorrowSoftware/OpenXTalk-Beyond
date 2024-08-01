@@ -1,0 +1,30 @@
+libURLVersion
+(function)
+return|Returns the version of the Internet library.
+
+Syntax:
+libURLVersion()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get libURLVersion()
+----
+if libURLVersion is field "Latest" then go next card
+----
+
+Description:
+Use the libURLVersion function to check whether the Internet library supports a given feature, or when reporting problems.
+
+There is no special significance to the version number returned by libURLVersion.
+
+*Important:* The libURLVersion function is part of the   Internet library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Internet"   script library is selected.
+
+Values:
+The libURLVersion function return|returns a string indicating the version of the Internet library. 
+
+OS:
+mac,windows,linux,html5

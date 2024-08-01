@@ -1,0 +1,28 @@
+endTime
+(property)
+Specifies the end of the selected portion of a sound or movie.
+
+Syntax:
+set the endTime of {player} to {endPoint}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the endTime of player 1 to 1000
+----
+
+Description:
+Use the endTime property to set or get the selection in a player(keyword).
+
+If the playSelection property is true, only the selected portion plays, so you can use the startTime and endTime properties of the player(keyword) to play whatever portion of the sound or movie you want.
+
+The endTime is the number of the interval where the selection ends. (The number of intervals per second is specified by the player's timeScale property. The total number of intervals is given in the player(object)|player's duration property.) If there is no selection, the endTime is empty.
+
+Values:
+The endTime of a player(keyword) is an integer between zero and the player(object)|player's duration. By default, the endTime property of newly created player(object)|players is set to empty. 
+
+OS:
+mac,windows,linux,ios,android

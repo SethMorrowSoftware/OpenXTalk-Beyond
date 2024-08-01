@@ -1,0 +1,17 @@
+mergJSON
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+mergJSON is an external for encoding and decoding [JSON](http://json.org).
+
+This external has been implemented to encode/decode UTF8 JSON to an array as quickly as possible. Currently externals can not work with multi-dimensional arrays so the intention is it is used with two functions like this:      function ArrayToJSON pArray,pForceRootType,pPretty         repeat for each key tKey in pArray             if pArray[tKey] is an array then                 put "}"&ArrayToJSON(pArray[tKey]) into pArray[tKey]             end if         end repeat         return(mergJSONEncode("pArray",pForceRootType,pPretty))     end ArrayToJSON      function JSONToArray pJSON         local tArray,tKeys         repeat for each line tKey in mergJSONDecode(pJSON,"tArray")             put JSONToArray(tArray[tKey]) into tArray[tKey]         end repeat         return tArray     end JSONToArray
+
+Values:
+
+OS:

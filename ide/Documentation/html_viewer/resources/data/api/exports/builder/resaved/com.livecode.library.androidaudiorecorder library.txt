@@ -1,0 +1,19 @@
+com.livecode.library.androidaudiorecorder
+(library)
+This library provides Android audio recording functionality, via the  android.media.MediaRecorder class.
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use this library to record audio on Android.
+
+*Note:* This library requires RECORD_AUDIO, WRITE_EXTERNAL_STORAGE and  CAPTURE_AUDIO_OUTPUT permissions. These will be automatically added to   the application manifest when an application including this library is   built.
+
+Values:
+
+OS:
+android

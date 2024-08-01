@@ -1,0 +1,16 @@
+key frame
+(glossary)
+
+Syntax:
+Synonyms:
+key frame, keyframe
+
+Params:
+
+Examples:
+Description:
+A frame in an animation that is specified by the creator of the animation, rather than generated automatically by tweening.
+
+Values:
+
+OS:

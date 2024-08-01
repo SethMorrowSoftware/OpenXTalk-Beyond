@@ -1,0 +1,36 @@
+ExitRepeat
+(control structure)
+Exit a repeat loop.
+
+Syntax:
+exit repeat
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+	public handler ListUpToSentinel(in pList as list, in pSentinel as string) as list
+
+		variable tElement
+		variable tNewList as list
+		put the empty list into tNewList
+
+		repeat for each element tElement in pList
+			if tElement is a string and tElement is pSentinel then
+				exit repeat
+			end if
+			push tElement onto tNewList
+		end repeat
+
+		return tNewList
+	end handler
+----
+
+Description:
+Use ExitRepeat|exit repeat to exit a repeat loop, for example when a certain condition is met.
+
+Values:
+
+OS:

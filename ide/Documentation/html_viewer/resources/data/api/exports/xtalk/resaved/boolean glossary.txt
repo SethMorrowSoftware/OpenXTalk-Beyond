@@ -1,0 +1,16 @@
+boolean
+(glossary)
+
+Syntax:
+Synonyms:
+boolean, boolean value
+
+Params:
+
+Examples:
+Description:
+A value that can be either true or false.
+
+Values:
+
+OS:

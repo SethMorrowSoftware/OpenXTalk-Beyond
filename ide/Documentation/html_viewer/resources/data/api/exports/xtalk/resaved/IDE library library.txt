@@ -1,0 +1,16 @@
+IDE library
+(library)
+Main IDE library providing functionality for palettes and other IDE add-ons.
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Main IDE library providing functionality for palettes and other IDE add-ons.
+
+Values:
+
+OS:

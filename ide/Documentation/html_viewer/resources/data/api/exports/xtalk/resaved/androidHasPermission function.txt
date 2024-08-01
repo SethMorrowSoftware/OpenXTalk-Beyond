@@ -1,0 +1,35 @@
+androidHasPermission
+(function)
+Returns if permission permissionName has been granted by the user.
+
+Syntax:
+androidHasPermission({permissionName})
+----
+
+Synonyms:
+
+Params:
+permissionName (enum ): The name of the permission to request.
+
+Examples:
+local tLocationPermissionGranted
+put androidHasPermission("android.permission.ACCESS_FINE_LOCATION") into tLocationPermissionGranted
+if not tLocationPermissionGranted then
+   androidRequestPermission "android.permission.ACCESS_FINE_LOCATION"
+end if
+if not tLocationPermissionGranted then
+   answer "This app is not permitted to access the device location. You can change this" && \
+         "in the Settings app."
+end if
+----
+
+Description:
+Use the androidRequestPermission function to find out if permission permissionName has been granted by the user.
+
+*Note:* Permission names are case sensitive. 
+
+Values:
+True if permission has been granted, false otherwise. 
+
+OS:
+android

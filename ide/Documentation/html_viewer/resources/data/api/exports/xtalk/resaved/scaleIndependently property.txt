@@ -1,0 +1,30 @@
+scaleIndependently
+(property)
+Specifies whether an EPS|EPS object's vertical and horizontal dimensions are sized independently or proportionally.
+
+Syntax:
+set the scaleIndependently of {EPSObject} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the scaleIndependently of EPS 2 to false
+----
+
+Description:
+Use the scaleIndependently property to control the screen appearance of an EPS object(glossary).
+
+If the scaleIndependently is true, the PostScript image is scaled vertically to fit the full height of the EPS|EPS object and horizontally to fit the full width, even if this causes the image to be distorted.
+
+If the scaleIndependently is false, the PostScript image is scaled proportionally to fit at least one dimension, even if the other dimension does not completely fill the EPS|EPS object's rectangle.
+
+This property is supported only on Unix systems with Display PostScript installed. 
+
+Values:
+The scaleIndependently of an EPS|EPS object is true or false. 
+
+OS:
+linux,ios,android

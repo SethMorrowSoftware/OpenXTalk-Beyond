@@ -1,0 +1,18 @@
+contextual menu
+(glossary)
+
+Syntax:
+Synonyms:
+right-click menu, right click menu, contextual menu, context menu
+
+Params:
+
+Examples:
+Description:
+A popup menu whose menu item|menu items apply to the object or area that the user clicked.
+
+Contextual menus usually appear when you Control-click (on Mac OS and OS X|OS X systems) or right-click (on Unix and Windows|Windows systems). 
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+collapse
+(glossary)
+
+Syntax:
+Synonyms:
+collapse, collapsing, collapsed, collapsation
+
+Params:
+
+Examples:
+Description:
+To hide all of a window except its title bar in order to move it out of the way. Clicking the collapse box in the title bar restores the window to its original form.
+
+Values:
+
+OS:

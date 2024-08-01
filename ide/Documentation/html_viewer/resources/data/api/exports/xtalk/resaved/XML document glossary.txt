@@ -1,0 +1,16 @@
+XML document
+(glossary)
+
+Syntax:
+Synonyms:
+xml document, xml file
+
+Params:
+
+Examples:
+Description:
+A text file that contains XML markup.
+
+Values:
+
+OS:

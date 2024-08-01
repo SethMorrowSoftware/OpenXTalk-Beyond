@@ -1,0 +1,18 @@
+Browse tool
+(glossary)
+
+Syntax:
+Synonyms:
+browse tool, hand tool
+
+Params:
+
+Examples:
+Description:
+Tool used in the OpenXTalk development environment to interact with a stack, click button|buttons, type text in field|fields, and test stack operations.
+
+When the Browse tool is being used, the cursor is in the shape of a pointing hand. You change this shape by setting the defaultCursor property. 
+
+Values:
+
+OS:

@@ -1,0 +1,20 @@
+revEnvironmentCustomizationPath
+(function)
+Get the path of the IDE User's IDE Customization folder
+
+Syntax:
+revEnvironmentCustomizationPath()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the revEnvironmentToolsetPath function to get the path of the path of the IDE User's IDE Customization folder which can contain subfolders for user installed IDE Plugins, Extensions, Externals and other customizations.
+
+Values:
+the path of the IDE User's IDE Customization folder 
+
+OS:

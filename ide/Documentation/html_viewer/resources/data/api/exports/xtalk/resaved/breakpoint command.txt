@@ -1,0 +1,27 @@
+breakpoint
+(command)
+Pauses the handler and displays the debugger window.
+
+Syntax:
+breakpoint
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+breakpoint
+----
+if x > 0 then breakpoint
+----
+
+Description:
+Use the breakpoint command to aid in debug|debugging a handler. It is especially useful for checking to see whether value|values are staying in the correct range as the handler execute|executes.
+
+The breakpoint command has no effect unless the stack is running in the development environment..
+
+Values:
+
+OS:
+mac,windows,linux

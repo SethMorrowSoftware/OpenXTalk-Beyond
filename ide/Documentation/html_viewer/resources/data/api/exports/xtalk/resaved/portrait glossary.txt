@@ -1,0 +1,16 @@
+portrait
+(glossary)
+
+Syntax:
+Synonyms:
+portrait mode, portrait
+
+Params:
+
+Examples:
+Description:
+The orientation of a printed page that is taller than it is wide.
+
+Values:
+
+OS:

@@ -1,0 +1,32 @@
+cantModify
+(property)
+Specifies whether the user can make changes to a stack.
+
+Syntax:
+set the cantModify of {stack} to { true | false }
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the cantModify of stack "Help" to true
+----
+
+Description:
+Use the cantModify property to protect the object|objects in a stack from changes.
+
+If a stack's cantModify property is set to true, the user cannot choose any tool except the Browse tool. This prevents the user from moving, resizing, creating, or deleting object|objects.
+
+If a stack's cantModify is false and its label property is empty, an asterisk (*) appears in the stack|stack's title bar, indicating that the stack can be modified.
+
+The cantModify property restricts user actions, but does not affect actions performed by a handler. To prevent either user action or a handler from deleting a card, group, or stack, use the cantDelete property.
+
+*Important:*  If a modifiable stack is open in an editable window,  the modifiable stack takes precedence over any non-modifiable  stacks, because its mode property is lower. This means that menu  items (such as Object ? Stack Properties) that act on the current  stack may not be able to operate correctly with a stack whose  cantModify is set to true as long as another, modifiable stack is  open. 
+
+Values:
+The cantModify of a stack is true or false. By default, the cantModify property of newly created stacks is set to false. 
+
+OS:
+mac,windows,linux,ios,android

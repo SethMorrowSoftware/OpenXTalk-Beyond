@@ -1,0 +1,39 @@
+rreHardcopyPrintPDF
+(command)
+This handler presents the standard printing interface controller, offering to print the given PDF file with the specified job name.
+
+Syntax:
+rreHardcopyPrintPDF {pdfFile}, {jobName}, [{fromRect}]
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+command PrintDocument pFilePath
+  if rreHardcopyIsAvailable() then
+	  rreHardcopyPrintPDF pFilePath, "Print Document", the rect of the target
+		switch the result
+		  case "printing cancelled"
+			case ""
+			  -- do nothing
+				break
+			default
+			  answer "There was a problem printing the document:" & return & the result
+		end switch
+	else
+	  answer "Printing is not available on this device"
+	end if
+end PrintDocument
+
+----
+
+Description:
+This handler presents the standard printing interface controller, offering to print the given PDF file with the specified job name.
+
+Values:
+one of:   * empty - if there were no issues printing  * "printing not available"  * "file does not exist"  * "cannot print that file"  * "printing cancelled"  * "printing failed" 
+
+OS:
+ios

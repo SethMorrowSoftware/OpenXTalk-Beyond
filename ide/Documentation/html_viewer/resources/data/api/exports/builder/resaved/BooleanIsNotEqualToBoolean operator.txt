@@ -1,0 +1,26 @@
+BooleanIsNotEqualToBoolean
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is not {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a boolean value.
+Right ( ): An expression which evaluates to a boolean value.
+
+Examples:
+variable tBool is bool
+put true is not false into tBool -- tBool is true
+----
+
+Description:
+Determines whether Left and Right are equal or not.
+
+Values:
+Returns true if Left evaluates to the opposite boolean value as Right. 
+
+OS:

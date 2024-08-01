@@ -1,0 +1,16 @@
+virtual property
+(glossary)
+
+Syntax:
+Synonyms:
+virtual property, virtual properties, virtual custom property, virtual custom properties
+
+Params:
+
+Examples:
+Description:
+A custom property for which an object(glossary) has a getProp or setProp handler, but which is never attached to the object(glossary). 
+
+Values:
+
+OS:

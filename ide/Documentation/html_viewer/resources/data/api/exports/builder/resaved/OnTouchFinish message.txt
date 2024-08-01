@@ -1,0 +1,19 @@
+OnTouchFinish
+(message)
+Sent to the target for touch events when a touch event ends.
+
+Syntax:
+OnTouchFinish
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent to the target for touch events when a touch event ends.
+
+Values:
+
+OS:

@@ -1,0 +1,29 @@
+GradientOperationTranslate
+(statement)
+Apply a translation to a gradient paint.
+
+Syntax:
+translate {mGradient} by {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mTranslation ( ): An expression which evaluates to a list of numbers.
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Translate the gradient
+translate tGradient by [50,100]
+----
+
+Description:
+Translates the transform of mGradient by mTranslation.
+
+Values:
+
+OS:

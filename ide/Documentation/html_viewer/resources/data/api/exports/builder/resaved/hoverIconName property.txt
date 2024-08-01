@@ -1,0 +1,21 @@
+hoverIconName
+(property)
+The name of the icon to display when hovering over the tile
+
+Syntax:
+set the hoverIconName of {widget} to {pName}
+get the hoverIconName of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The name of the icon to display when hovering over the tile
+
+Values:
+The icon name 
+
+OS:

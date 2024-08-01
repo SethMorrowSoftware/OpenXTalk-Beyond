@@ -1,0 +1,20 @@
+MyPixelScale
+(expression)
+Returns the scaling factor of pixels for the widget
+
+Syntax:
+my pixel scale
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the widget's pixel scale to calculate the size of an image to draw. For example, when drawing an image to `my bounds` create an image sized using `my width * my pixel scale, my height * my pixel scale` otherwise the image will be stretched to match the pixel scale. The pixel scale is a per-window/screen property so may change if the user moves a window to a new screen.
+
+Values:
+The current scaling factor of pixels for the widget 
+
+OS:

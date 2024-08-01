@@ -1,0 +1,32 @@
+standardDeviation
+(function)
+return|Returns the sample standard deviation of a list of numbers.
+
+Syntax:
+standardDeviation({numbersList})
+----
+
+Synonyms:
+samplestandarddeviation, sampstddev, stddev
+
+Params:
+•	numbersList ( ): A comma-separated list of numbers, or an expression that evaluates to such a list, or an array containing only numbers.
+	
+Examples:
+standardDeviation(8,10,12) -- returns 2
+----
+put standardDeviation(studentScores) into field "Sample Standard Deviation"
+----
+
+Description:
+Use the standardDeviation function to analyze the amount of spread in a list of numbers.
+
+The sample standard deviation is a measure of how widely distributed the numbers in the numbersList are.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The standardDeviation function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

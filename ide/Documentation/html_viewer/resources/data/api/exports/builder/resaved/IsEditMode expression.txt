@@ -1,0 +1,19 @@
+IsEditMode
+(expression)
+Determines whether the IDE is in edit mode.
+
+Syntax:
+in edit mode
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Determines whether the IDE is in edit mode.
+
+Values:
+
+OS:

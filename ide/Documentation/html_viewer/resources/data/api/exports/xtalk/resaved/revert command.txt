@@ -1,0 +1,30 @@
+revert
+(command)
+Restores a stack to its state when last saved, deleting all changes made since the last save.
+
+Syntax:
+revert [{targetStack}]
+----
+
+Synonyms:
+
+Params:
+targetStack ( ): An optional stack reference.
+
+Examples:
+revert
+----
+revert stack "MyStack"
+----
+
+Description:
+Use the revert command to back out of any changes made to a stack  since the last save.
+
+If no targetStack is specified, the revert command acts on the  current stack.
+
+The revert command also undo|undoes changes made to other stacks stored in the same stack file. That is, if you revert a main stack, all substacks of that stack also revert to the last save, and if you revert a substack, its main stack and any other substacks also revert.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

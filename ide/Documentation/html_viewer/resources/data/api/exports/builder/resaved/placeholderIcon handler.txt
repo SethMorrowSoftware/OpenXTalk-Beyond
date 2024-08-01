@@ -1,0 +1,20 @@
+placeholderIcon
+(handler)
+Returns a placeholder icon for a given operating system
+
+Syntax:
+placeholderIcon({pOS})
+----
+
+Synonyms:
+
+Params:
+pOS ( ): The operating system. - "mac" - "ios" - "android" - "windows" - "linux" - "emscripten"
+
+Examples:
+Description:
+Use placeholderIcon to fetch an SVG icon that can be used as the placeholder image for a widget that is native to, and therefore only available on, a given operating system.
+
+Values:
+
+OS:

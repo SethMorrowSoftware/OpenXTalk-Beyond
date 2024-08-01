@@ -1,0 +1,29 @@
+stop using
+(command)
+Removes a stack from the message path that was placed in it with the start using command.
+
+Syntax:
+stop using {stack}
+----
+
+Synonyms:
+release library
+
+Params:
+stack ( ): Any stack reference.
+
+Examples:
+stop using stack "project1"
+----
+
+Description:
+Use the stop using command to remove a stack|stack's script(property) from the message path.
+
+You can stop using a stack only if it has previously been inserted in the message path with the start using command. The stop using command does not affect the current stack, which is normally in the message path, or script(glossary)|scripts that were placed in the message path with the insert script command.
+
+When you stop using a stack, the releaseStack message is sent to the stack. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+lock
+(glossary)
+
+Syntax:
+Synonyms:
+locked, locking, lock
+
+Params:
+
+Examples:
+Description:
+To set something up so it cannot be changed. For example, a locked field|field's text cannot be edited.
+
+Values:
+
+OS:

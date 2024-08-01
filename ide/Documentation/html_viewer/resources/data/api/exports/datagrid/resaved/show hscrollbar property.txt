@@ -1,0 +1,19 @@
+show hscrollbar
+(property)
+Toggles the visibility of the horizontal scrollbar for a table. True, false or auto.
+
+Syntax:
+put the dgProp["show hscrollbar"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Toggles the visibility of the horizontal scrollbar for a table. True, false or auto.
+
+Values:
+
+OS:

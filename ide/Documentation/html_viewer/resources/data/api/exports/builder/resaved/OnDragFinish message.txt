@@ -1,0 +1,19 @@
+OnDragFinish
+(message)
+Sent when the widget finishes being dragged
+
+Syntax:
+OnDragFinish
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget finishes being dragged
+
+Values:
+
+OS:

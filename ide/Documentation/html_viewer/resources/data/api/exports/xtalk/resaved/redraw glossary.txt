@@ -1,0 +1,16 @@
+redraw
+(glossary)
+
+Syntax:
+Synonyms:
+redrawn, redrawing, redrew, redraw
+
+Params:
+
+Examples:
+Description:
+To update a window, or the screen, to display new information.
+
+Values:
+
+OS:

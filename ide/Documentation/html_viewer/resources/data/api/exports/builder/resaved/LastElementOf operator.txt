@@ -1,0 +1,22 @@
+LastElementOf
+(operator)
+Designates the last element in Target.
+
+Syntax:
+the last element of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to a list.
+	
+Examples:
+Description:
+Either locates the first element for use as the target container of another operation, or evaluates the first element as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

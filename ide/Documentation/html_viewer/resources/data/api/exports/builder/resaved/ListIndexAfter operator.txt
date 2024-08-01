@@ -1,0 +1,32 @@
+ListIndexAfter
+(operator)
+Find the first or last occurrence of Needle within the tail of Haystack Target:An expression which evaluates to a list.
+
+Syntax:
+the ( first | last ) index of {Needle} after {After} in {Haystack}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to any value.
+After ( ): An expression which evaluates to a valid index in Target.
+
+Examples:
+variable tVar as List
+variable tOffset as Number
+put ["a", "b", "c", "d", "b"]
+put the index of "b" after 1 in tVar into tOffset
+--tOffset contains 2
+
+put the last index of "b" after 2 in tVar into tOffset
+--tOffset contains 5
+----
+
+Description:
+Use `the index of?Ķ after` to find where particular elements occur within a list.  Starting from but not including the position After, Haystack is scanned for an element that is equal to Needle, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.
+
+Values:
+Returns the index in Haystack relative to After. 
+
+OS:

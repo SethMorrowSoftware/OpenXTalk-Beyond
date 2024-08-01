@@ -1,0 +1,33 @@
+accelerationChanged
+(message)
+Sent to the current card of the defaultStack at the interval specified by the mobileEnableAccelerometer command.
+
+Syntax:
+accelerationChanged {pXAccel}, {pYAccel}, {pZAccel}
+----
+
+Synonyms:
+
+Params:
+pXAccel ( ): the acceleration along the x axis relative to gravity
+pYAccel ( ): the acceleration along the y axis relative to gravity
+pZAccel ( ): the acceleration along the z axis relative to gravity
+
+Examples:
+on accelerationChanged pXAccel, pYAccel, pZAccel
+   -- display the acceleration along the x axis
+   put pXAccel into tXAxisAcceleration
+end accelerationChanged
+----
+
+Description:
+Handle the accelerationChanged message if you want to perform an action when the acceleration along any axis changes  The accelerationChanged message is sent to the current card of the defaultStack at the interval specified by the  mobileEnableAccelerometer command.
+
+You can use the difference between the time values in two accelerationChanged events to give an indication of how much time passed between the samples.
+
+*Note:* On Android, the change in acceleration output is in meters   per second squared whereas on iOS, it is in G-forces. In order to   normalize these changes in acceleration, you must detect the   platform and convert appropriately. For example:      on accelerationChanged pXAccel, pYAccel, pZAccel         if the platform is "iphone" then         -- Convert from g-forces to m/s^2             multiply pXAccel by 9.81             multiply pYAccel by 9.81             multiply pZAccel by 9.81         end if         -- the rest of your code     end accelerationChanged
+
+Values:
+
+OS:
+ios,android

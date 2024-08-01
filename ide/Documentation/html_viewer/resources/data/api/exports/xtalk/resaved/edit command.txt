@@ -1,0 +1,32 @@
+edit
+(command)
+Opens the script of an object(glossary) in the development environment.
+
+Syntax:
+edit [the] script of {object} [at line,column]
+----
+
+Synonyms:
+
+Params:
+•	object ( ): Any object reference. Using the optional at syntax will pass the subsequent items to the editScript handler as a second parameter. By convention the first two parameters should be a line number and a column character offset from the start of the line.
+	
+Examples:
+edit the script of this card
+----
+edit the script of button 1
+----
+edit the script of player "Show Me"
+----
+
+Description:
+Use the edit command in the development environment to open the script editor with the script of the specified object(glossary).
+
+The edit command is equivalent to selecting the object and choosing Object menu then Object Script.
+
+*Important:* . If the script editor is not open, the edit command  opens a window that shows the script.
+
+Values:
+
+OS:
+mac,windows,linux

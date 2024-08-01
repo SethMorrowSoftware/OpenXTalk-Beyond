@@ -1,0 +1,31 @@
+arrayDecode
+(function)
+Converts a serialized array back into the original array.
+
+Syntax:
+arrayDecode({encodedArray})
+----
+
+Synonyms:
+
+Params:
+encodedArray (array ): A binary string representing an array, as returned by the arrayEncode function.
+
+Examples:
+put arrayDecode(loadPreferencesData("displayOptions")) into sDisplayOptionsArray
+----
+read from socket tClient until linefeed
+put urlDecode(arrayDecode(it)) into tClientDataArray
+----
+
+Description:
+Use the arrayDecode function to rebuild an array from an encoded string produced by the arrayEncode function.
+
+Encoding and decoding arrays is designed to allow arrays to be written to a file on disk, or sent across a network. See the arrayEncode reference for more information on doing this.
+
+*Note:* It is possible for two different strings to produce the same  array. This is due to arrays having a different ordering of keys. To  see if two encoded arrays are equal, first decode them back into the  original array, then directly compare them using the = operator.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

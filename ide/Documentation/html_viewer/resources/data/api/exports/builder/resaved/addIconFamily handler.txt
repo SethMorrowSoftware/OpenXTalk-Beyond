@@ -1,0 +1,23 @@
+addIconFamily
+(handler)
+Add an icon family to the iconsvg library.
+
+Syntax:
+addIconFamily({pFamily},{pIconData})
+----
+
+Synonyms:
+
+Params:
+pFamily ( ): The family for the icons.
+pIconData ( ): The icon data.  Each key is an icon name with a key for the SVG data and a key for the codepoint.
+
+Examples:
+Description:
+Add icons to the iconsvg library.
+
+ Note:  If the family already exists, then the data will be merged. Icons with matching names will be replaced. To replace a family, use deleteIconFamily first.
+
+Values:
+
+OS:

@@ -1,0 +1,32 @@
+optionKey
+(function)
+return|Returns the state of the Option key.
+
+Syntax:
+the optionKey
+----
+optionKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+wait until the optionKey is down
+----
+put the optionKey into item 2 of keyState
+----
+
+Description:
+Use the optionKey function(control structure) to check whether the Option key, Meta key, or Alt key is being pressed. You can use optionKey to add alternative capabilities to user actions such as clicking.
+
+The altKey and optionKey function(glossary)|functions both return the same value. Which one to use is a matter of preference.
+
+The terminology varies depending on platform. Users of different operating systems may know this key as the Option key (Mac OS systems), Meta key (Unix systems), or Alt key (Windows systems).
+
+Values:
+The optionKey function return|returns down if the key is pressed and up if it's not. 
+
+OS:
+mac,windows,linux

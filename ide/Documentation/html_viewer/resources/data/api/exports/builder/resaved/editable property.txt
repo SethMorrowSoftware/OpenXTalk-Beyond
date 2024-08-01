@@ -1,0 +1,21 @@
+editable
+(property)
+Whether the field can be edited or not
+
+Syntax:
+set the editable of {widget} to {true | false}
+get the editable of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the editable property to allow or disallow the user to enter text in the field.
+
+Values:
+
+OS:
+android

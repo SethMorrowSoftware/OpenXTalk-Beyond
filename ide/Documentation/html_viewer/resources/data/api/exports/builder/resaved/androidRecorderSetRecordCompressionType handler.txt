@@ -1,0 +1,24 @@
+androidRecorderSetRecordCompressionType
+(handler)
+Set the record compression type
+
+Syntax:
+androidRecorderSetRecordCompressionType({pCompressionType})
+----
+
+Synonyms:
+
+Params:
+pCompressionType ( ): The record compression type - "Default": The default compression type - "AMR NB": AMR Narrowband - "AMR WB": AMR Wideband - "AAC": AAC Low Complexity (AAC-LC) - "HE AAC": High Efficiency AAC (HE-AAC) - "AAC ELD": Enhanced Low Delay AAC (AAC-ELD) - "Vorbis" : Ogg Vorbis
+
+Examples:
+androidRecorderSetRecordCompressionType "AMR NB"
+----
+
+Description:
+Use the androidRecorderSetRecordCompressionType handler to control the  audio encoding used by the audio recorder.
+
+Values:
+
+OS:
+android

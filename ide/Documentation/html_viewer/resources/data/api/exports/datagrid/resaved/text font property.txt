@@ -1,0 +1,19 @@
+text font
+(property)
+The font to apply to the data area of a table or form.
+
+Syntax:
+put the dgProp["text font"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The font to apply to the data area of a table or form. Prefix property name with "effective" to get the font being used when this property is set to empty.
+
+Values:
+
+OS:

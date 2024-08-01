@@ -1,0 +1,24 @@
+BaseConvertTo
+(operator)
+Converts the base of Operand
+
+Syntax:
+{Operand} converted to base {Target}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to an integer.
+Target ( ): An expression that evaluates to an integer.
+
+Examples:
+Description:
+Converts a decimal into the desired base, and returns a string representation.
+
+*Note:* The destination base must be an integer between 2 and 32.
+
+Values:
+A string representation of Operand in base Target. 
+
+OS:

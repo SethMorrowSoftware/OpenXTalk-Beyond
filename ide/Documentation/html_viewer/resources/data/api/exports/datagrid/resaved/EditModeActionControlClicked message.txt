@@ -1,0 +1,43 @@
+EditModeActionControlClicked
+(message)
+Sent when a user clicks on a data grid edit mode action control.
+
+Syntax:
+on EditModeActionControlClicked pTarget
+----
+
+Synonyms:
+
+Params:
+pTarget ( ): The target of the click. Use this to determine where in the action control the user clicked.
+
+Examples:
+on EditModeActionControlClicked pTarget
+   answer "Confirm delete" with "Yes" and "No"
+   if it is "Yes" then
+      dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+   else
+      dispatch "EditModeHideActionControl" to group "DataGrid" with the dgIndex of me.
+   end if
+end EditModeActionControlClicked
+
+on EditModeActionControlClicked pTarget
+   switch the name of the target
+      case "show"
+         dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+         break
+      case "archive"
+         dispatch "EditModeHideActionControl" to group "DataGrid"
+         break
+   end switch
+end EditModeActionControlClicked
+----
+
+Description:
+EditModeActionControlClicked is sent to your data grid's custom row template when the user clicks on a row's action control. Handle EditModeActionControlClicked if you wish to perform a custom behavior.
+
+The default behavior is to delete the current row.
+
+Values:
+
+OS:

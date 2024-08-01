@@ -1,0 +1,27 @@
+into
+(keyword)
+Used with the put command to place a value in a container.
+
+Syntax:
+into
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put myVariable into field "Contents"
+----
+
+Description:
+Use the into keyword to designate a destination container.
+
+If the container is a variable name, and the variable does not already exist, the put command creates it as a local variable and sets it to the designated value.
+
+If the container already exists, the into keyword replaces its former contents.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

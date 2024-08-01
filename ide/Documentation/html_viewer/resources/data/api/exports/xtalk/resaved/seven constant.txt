@@ -1,0 +1,23 @@
+seven
+(constant)
+Equivalent to the number 7.
+
+Syntax:
+seven
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+subtract seven from tDayOfWeek
+----
+
+Description:
+Use the seven constant when it is easier to read than the numeral 7. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,23 @@
+two
+(constant)
+Equivalent to the number 2.
+
+Syntax:
+two
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+go to card two -- same as "go to card 2"
+----
+
+Description:
+Use the two constant when it is easier to read than the numeral 2.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

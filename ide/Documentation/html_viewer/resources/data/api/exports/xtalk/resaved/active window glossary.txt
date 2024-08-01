@@ -1,0 +1,16 @@
+active window
+(glossary)
+
+Syntax:
+Synonyms:
+activate, activated, activating, inactive window, active window, frontmost stack, active stack
+
+Params:
+
+Examples:
+Description:
+The window that is frontmost on the screen. The active window receives clicks and typed characters, and its appearance may be different from the appearance of inactive windows.
+
+Values:
+
+OS:

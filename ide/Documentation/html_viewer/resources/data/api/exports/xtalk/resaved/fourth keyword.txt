@@ -1,0 +1,29 @@
+fourth
+(keyword)
+Designates the fourth member of a set.
+
+Syntax:
+fourth
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+select after text of fourth field
+----
+put empty into the fourth char of thisName
+----
+
+Description:
+Use the fourth keyword in an object reference or  chunk expression.
+
+The fourth keyword can be used to specify any object(glossary) whose number property is 4. It can also be used to designate the fourth chunk in a chunk expression.
+
+The word the is optional when using the fourth keyword.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

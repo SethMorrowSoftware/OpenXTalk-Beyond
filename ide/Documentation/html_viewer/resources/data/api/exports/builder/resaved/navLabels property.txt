@@ -1,0 +1,21 @@
+navLabels
+(property)
+The labels of the nav items
+
+Syntax:
+set the navLabels of {widget} to {pLabelList}
+get the navLabels of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The labels of the nav items
+
+Values:
+A list of labels of the nav items 
+
+OS:

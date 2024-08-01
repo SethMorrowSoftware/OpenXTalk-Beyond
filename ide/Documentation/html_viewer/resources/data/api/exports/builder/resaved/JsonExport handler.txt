@@ -1,0 +1,21 @@
+JsonExport
+(handler)
+Format a LiveCode value as JSON text
+
+Syntax:
+JsonExport({pValue})
+----
+
+Synonyms:
+
+Params:
+pValue ( ): A LiveCode value (Array, List, String, Number, Boolean, or nothing)
+
+Examples:
+Description:
+JsonExport is used to convert a LiveCode value into data encoded in JSON format.  If pValue is of a type that cannot be converted to JSON, an error is thrown.
+
+Values:
+A string containing JSON-formatted text. 
+
+OS:

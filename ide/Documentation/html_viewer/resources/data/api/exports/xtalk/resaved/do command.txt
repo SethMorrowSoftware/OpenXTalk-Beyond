@@ -1,0 +1,36 @@
+do
+(command)
+
+Syntax:
+do statementList [in caller]
+
+Summary:
+Executes a list of statements.
+
+A xTalk statement, a container with one or more statements, or a string that evaluates to a statement.
+
+Examples:
+do "go next card"
+do "put" && tNewValue && "into tNumberOfRecords"
+-- If tNewValue is 3, this would become "put 3 into tNumberOfRecords"
+do "select" && line 3 of field "Objects"
+
+Related:
+message box
+
+Description
+Use the do command to execute statements in a container, or to execute a statement that consists partly of a literal string and partly of a container or the return value from a function.
+
+Using the do command is slower than directly executing the commands, because each statement must be compiled every time the do command is executed.
+
+When the do statementList in caller form of the do command is used, the statementList is evaluated in the context of the handler where the do command appears.
+
+To see how to create a numbered set of variables see the dictionary entry for the local command.
+
+You can use the do as alternateLanguage variant of the do command to evaluate a statementList written in a non-xTalk programming language.
+
+OS:
+mac, windows, linux, ios, android, html5
+
+Platforms:
+desktop, server, mobile

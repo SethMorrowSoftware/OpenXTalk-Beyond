@@ -1,0 +1,27 @@
+TheTouchId
+(expression)
+The id of the current touch
+
+Syntax:
+the touch id
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+   variable tID as Number
+   put the touch id into tID
+
+   variable tPosition as Point
+   put the position of touch tID into tPosition
+----
+
+Description:
+The id of the current touch
+
+Values:
+An integer id for the current touch 
+
+OS:

@@ -1,0 +1,35 @@
+record sound
+(command)
+Starts recording from the system's audio input to a file.
+
+Syntax:
+record sound file {filePath}
+----
+
+Synonyms:
+
+Params:
+filePath ( ): The name and location of the file that will hold the recorded sound data.
+
+Examples:
+record sound file "Testing"
+----
+record sound file it
+----
+
+Description:
+Use the record sound command to record the user's speech, import sound data from a CD into an audio file, or record music from an external microphone.
+
+The record sound command uses QuickTime to record.
+
+While recording is going on, the recording property is set to true. To stop recording, use the stop recording command or set the recording to false.
+
+The technical specifications of the recording are determined by the settings of the recordCompression, recordChannels, recordRate, and recordSampleSize properties. The file format is determined by the recordFormat property.
+
+*Note:* If you choose to record to a file that already exists, the  record sound command will overwrite the existing file, it will not  append the new recording to the end.
+
+Values:
+*Important:*  If the recordFormat is set to "movie", the resulting  file is in the QuickTime file format. QuickTime files cannot be  played as audio clip|audio clips. To play such a sound, either  create a player and set its filename property to the  file path|path of the file you recorded, or use the play videoclip  form of the play command. 
+
+OS:
+mac

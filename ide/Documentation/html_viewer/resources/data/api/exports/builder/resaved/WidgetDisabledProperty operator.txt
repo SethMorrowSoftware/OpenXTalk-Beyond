@@ -1,0 +1,30 @@
+WidgetDisabledProperty
+(operator)
+Manipulates the disabled property of a child widget
+
+Syntax:
+the disabled of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+    -- mChild is initially disabled
+    set the disabled of mChild to true
+end handler
+----
+
+Description:
+Use the disabled property to control the disabled/enabled state of child widgets. The child widget can change its appearance and behavior based on the result of the 'MyDiabled|my disabled' expression.
+
+Values:
+
+OS:

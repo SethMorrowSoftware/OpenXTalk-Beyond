@@ -1,0 +1,37 @@
+EffectMakeWithProperties
+(operator)
+Creates a new effect.
+
+Syntax:
+{mType} effect with properties {mProperties}
+----
+
+Synonyms:
+
+Params:
+mType ( ): One of color overlay, inner shadow, outer shadow, inner glow, outer glow.
+mProperties ( ): An expression which evaluates to an array.
+
+Examples:
+// Create an effect from an array of properties
+variable tProps as Array
+put the empty array into tProps
+
+put color [0,0,0] into tProps["color"]
+put "source over" into tProps["blend mode"]
+put 0 into tProps["spread"]
+put 5 into tProps["size"]
+put 5 into tProps["distance"]
+put 60 into tProps["angle"]
+
+variable tEffect as Effect
+put outer shadow effect with properties tProps into tEffect
+----
+
+Description:
+Creates a new effect.
+
+Values:
+A new effect of type mType with properties read from mProperties. 
+
+OS:

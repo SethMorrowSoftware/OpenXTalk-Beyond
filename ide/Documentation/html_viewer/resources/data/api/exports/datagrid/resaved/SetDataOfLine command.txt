@@ -1,0 +1,20 @@
+SetDataOfLine
+(command)
+Updates the internal array of line pLine in the data grid.
+
+Syntax:
+dispatch "SetDataOfLine" to group "DataGrid" with pLine, pKey,
+pValue
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Updates the internal array of line pLine in the data grid. See notes for SetDataOfIndex.
+
+Values:
+
+OS:

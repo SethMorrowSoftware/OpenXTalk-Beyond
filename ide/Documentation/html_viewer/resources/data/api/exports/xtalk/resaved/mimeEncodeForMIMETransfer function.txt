@@ -1,0 +1,26 @@
+mimeEncodeForMIMETransfer
+(function)
+Encode data in content transfer encoding
+
+Syntax:
+mimeEncodeForMIMETransfer({pData},{pEncoding})
+----
+
+Synonyms:
+
+Params:
+pData ( ): The data to be encoded. If the parameter is not binary data then it will be encoded to binary as UTF-8 encoded text before encoding with the requested form.
+pEncoding ( ): The encoding to return the data in - "quoted-printable": Quoted printable encoding. Most likely used for text with many ASCII characters - "base64": Base 64 encoding
+
+Examples:
+put tHeaders & crlf & crlf & \
+      mimeEncodeForMIMETransfer(tEmailBody, "quoted-printable") into tContentA[1]
+----
+
+Description:
+Use the mimeEncodeForMIMETransfer function to encode data for transfer
+
+Values:
+The encoded data 
+
+OS:

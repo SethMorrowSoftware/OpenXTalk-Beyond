@@ -1,0 +1,22 @@
+arrayData
+(property)
+The array being displayed by the widget
+
+Syntax:
+get the arrayData of {widget}
+----
+set the arrayData of {widget} to {pArray}
+----
+
+Synonyms:
+
+Params:
+pArray ( ): The array data.
+
+Examples:
+Description:
+The arrayData is the data currently being displayed by the tree view widget.
+
+Values:
+
+OS:

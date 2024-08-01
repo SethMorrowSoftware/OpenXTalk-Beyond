@@ -1,0 +1,16 @@
+column
+(glossary)
+
+Syntax:
+Synonyms:
+column, database column
+
+Params:
+
+Examples:
+Description:
+In a database, all the values of a particular field from all record|records in the database.
+
+Values:
+
+OS:

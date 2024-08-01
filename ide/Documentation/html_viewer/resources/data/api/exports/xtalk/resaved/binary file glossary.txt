@@ -1,0 +1,16 @@
+binary file
+(glossary)
+
+Syntax:
+Synonyms:
+binaries, binary file, binary data
+
+Params:
+
+Examples:
+Description:
+A file that contains data other than plain text.
+
+Values:
+
+OS:

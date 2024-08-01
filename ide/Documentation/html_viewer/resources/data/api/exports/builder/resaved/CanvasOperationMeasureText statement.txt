@@ -1,0 +1,28 @@
+CanvasOperationMeasureText
+(statement)
+Measure text when drawn to a canvas.
+
+Syntax:
+measure {mText} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mText ( ): An expression which evaluates to a string.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Measure text drawn on the canvas
+variable tBounds as Rectangle
+measure "Sample text" on this canvas
+put the result into tBounds
+----
+
+Description:
+Measure text when drawn to a canvas.
+
+Values:
+The bounding box of mText when drawn at point 0,0 with the current font of mCanvas. Returns the bounds as a rectangle in the result. 
+
+OS:

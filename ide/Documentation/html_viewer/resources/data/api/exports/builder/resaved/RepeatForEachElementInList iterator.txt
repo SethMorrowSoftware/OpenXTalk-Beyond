@@ -1,0 +1,34 @@
+RepeatForEachElementInList
+(iterator)
+Repeat over the elements of a list
+
+Syntax:
+element {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): Any variable of appropriate type.
+
+Examples:
+    variable tList as List
+    put [1, 1, 2, 3, 5, 8, 13] into tList
+
+    variable tRelist as List
+    variable tElement as any
+    put the empty list into tRelist
+
+    repeat for each element tElement in tList
+        push tElement onto tRelist
+    end repeat
+
+    // tRelist is the same as tList
+----
+
+Description:
+Use repeat for each to perform an operation on each element of a list. On each iteration, the Iterand will contain the next element of the list being iterated over. *Note:* If Iterand is typed, then an error will be thrown if the list being iterated over contains any elements of a different type.
+
+Values:
+
+OS:

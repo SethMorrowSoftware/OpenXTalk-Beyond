@@ -1,0 +1,20 @@
+revIDEGlobalVariables
+(function)
+Use to get a list of of all the global variables.
+
+Syntax:
+revIDEGlobalVariables()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use to get a list of of all the global variables.
+
+Values:
+A comma delimited list of global variable names 
+
+OS:

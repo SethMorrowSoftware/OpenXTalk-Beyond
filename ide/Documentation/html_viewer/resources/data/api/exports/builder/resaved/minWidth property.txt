@@ -1,0 +1,32 @@
+minWidth
+(property)
+Specifies how narrow a stack window can be made when it's resized.
+
+Syntax:
+set the minWidth of {stack} to {pixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the minWidth of this stack to 200
+----
+
+Description:
+Use the minWidth property if you want the user to be able to resize the stack window, but no smaller than a width you choose. For example, you might want to let the user make the stack smaller, but not so small that the stack|stack's navigation button|buttons can't be displayed.
+
+The minWidth is the minimum width in pixels. The height does not include the window's title bar or borders.
+
+The minWidth property does not prevent a handler from changing the stack|stack's width property (or related properties such as the rectangle). It affects only user actions. If you set the stack|stack's width to a value less than the minWidth, it is reset to the minWidth when you close and reopen the stack.
+
+If the stack's resizable property is false, the setting of this property has no effect.
+
+*Note:* The current architecture uses 16-bit signed integers for all  co-ordinates, which means that the value range is -32768 to 32767.
+
+Values:
+The minWidth of a stack is a positive integer. By default, the minWidth property of newly created stacks is set to 32. 
+
+OS:
+mac,windows,linux,ios,android

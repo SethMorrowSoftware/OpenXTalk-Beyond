@@ -1,0 +1,21 @@
+scaleMarkers
+(property)
+Whether to scale the markers to or maintain a constant size
+
+Syntax:
+set the scaleMarkers of {widget} to { true | false }
+get the scaleMarkers of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If true, the markers will be scaled as in addition to changing transparency. The default value is true. 
+
+Values:
+True if markers should be scaled; false otherwise 
+
+OS:

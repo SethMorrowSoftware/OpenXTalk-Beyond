@@ -1,0 +1,40 @@
+TransformOperationConcat
+(statement)
+Concatenate transform a with transform b.
+
+Syntax:
+concat {mTransformA} with {mTransformB}
+----
+
+Synonyms:
+
+Params:
+mTransformA ( ): An expression which evaluates to a transform.
+mTransformB ( ): An expression which evaluates to a transform.
+
+Examples:
+// Create a new scaling transform
+variable tScale
+put transform with scale [5,10] into tScale
+
+// Create a new rotation transform
+variable tRotation
+put transform with rotation by 30 into tRotation
+
+variable tTransform
+
+// Create a transform representing a rotation followed by a scale
+put tScale into tTransform
+concat tTransform with tRotation
+
+// Create a transform representing a scale followed by a rotation
+put tRotation into tTransform
+concat tTransform with tScale
+----
+
+Description:
+Concatenating transforms modifies the original transform to produce a single transform that is the equivalent of applying the new transform followed by the original. Changing the order of concatenation will result in a transform with different effects.
+
+Values:
+
+OS:

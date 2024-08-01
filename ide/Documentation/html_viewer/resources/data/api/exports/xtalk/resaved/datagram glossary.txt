@@ -1,0 +1,16 @@
+datagram
+(glossary)
+
+Syntax:
+Synonyms:
+datagram
+
+Params:
+
+Examples:
+Description:
+A self-contained clump of data that contains information about the route it should take to the system intended to receive it.
+
+Values:
+
+OS:

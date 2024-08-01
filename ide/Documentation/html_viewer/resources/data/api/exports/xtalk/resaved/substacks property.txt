@@ -1,0 +1,36 @@
+substacks
+(property)
+Specifies which stacks are associated with a main stack, and saved in the same file.
+
+Syntax:
+set the substacks of {stack} to {substacksList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the substacks of this stack after loadedStacks
+----
+if the substacks of stack "Hello" contains "Goodbye" then exit mouseUp
+----
+get the substacks of stack "/Disk/Folder/stackfile.rev"
+----
+
+Description:
+Use the substacks property to organize stacks in files.
+
+Each stack file contains either a single main stack, or a main stack and one or more substacks. The substacks property reports on the substacks of a main stack.
+
+The substacks of a substack is empty. Attempting to set the substacks property of a substack causes an execution error.
+
+Setting the substacks of a main stack to empty removes all the substacks from memory. The next time the main stack is saved, the substacks are removed permanently.
+
+*Warning:*  You can move a substack from one main stack to another  by setting the substacks property of the destination stack.  However, since this may cause a conflict if more than one substack  with the same name is open or in memory, it is safer to move a  substack by setting the substack|substack's mainStack  property.
+
+Values:
+The substacks of a stack is a list of stacks, one per line. 
+
+OS:
+mac,windows,linux,ios,android

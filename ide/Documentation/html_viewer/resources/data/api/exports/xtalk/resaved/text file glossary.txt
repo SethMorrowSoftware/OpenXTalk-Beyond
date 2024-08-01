@@ -1,0 +1,16 @@
+text file
+(glossary)
+
+Syntax:
+Synonyms:
+ascii file, text file
+
+Params:
+
+Examples:
+Description:
+A file that contains only plain, unformatted text.
+
+Values:
+
+OS:

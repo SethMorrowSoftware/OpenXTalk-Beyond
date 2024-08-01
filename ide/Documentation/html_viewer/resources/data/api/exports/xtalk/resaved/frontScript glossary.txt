@@ -1,0 +1,16 @@
+frontScript
+(glossary)
+
+Syntax:
+Synonyms:
+frontscript
+
+Params:
+
+Examples:
+Description:
+A script that has been inserted into the message path before all other object|objects, and receives all message|messages before any other object|objects in the message path.
+
+Values:
+
+OS:

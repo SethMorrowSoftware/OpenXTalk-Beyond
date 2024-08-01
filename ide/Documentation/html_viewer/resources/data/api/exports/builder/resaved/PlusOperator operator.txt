@@ -1,0 +1,26 @@
+PlusOperator
+(operator)
+Binary plus operator.
+
+Syntax:
+{Left} + {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put 5 + 4 + 3 into tVar -- tVar contains 12
+----
+
+Description:
+Binary plus operator.
+
+Values:
+The result of adding the numbers Left and Right. 
+
+OS:

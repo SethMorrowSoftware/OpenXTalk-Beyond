@@ -1,0 +1,28 @@
+printRowsFirst
+(property)
+Specifies whether card|cards are printed down first or across first.
+
+Syntax:
+set the printRowsFirst to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the printRowsFirst to false
+----
+
+Description:
+Use the printRowsFirst property to determine the layout of card|cards on the page when printing multiple card|cards.
+
+When printing multiple cards using the open printing command, the application uses the printRowsFirst property to determine how the card|cards are arranged on the page. If the printRowsFirst is set to true, the card|cards are laid out across from left to right, then from top to bottom. If the printRowsFirst is false, the card|cards are laid out down from top to bottom, then from left to right.
+
+By default, the printRowsFirst property is set to true.
+
+Values:
+The printRowsFirst is true or false. By default, the printRowsFirst property is set to true. 
+
+OS:
+mac,windows,linux,ios

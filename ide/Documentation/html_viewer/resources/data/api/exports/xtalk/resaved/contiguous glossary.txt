@@ -1,0 +1,16 @@
+contiguous
+(glossary)
+
+Syntax:
+Synonyms:
+non-contiguous, discontiguous, contiguous, contiguity
+
+Params:
+
+Examples:
+Description:
+Next to each other; adjacent to each other.
+
+Values:
+
+OS:

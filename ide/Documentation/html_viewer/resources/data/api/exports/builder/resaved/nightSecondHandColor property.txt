@@ -1,0 +1,21 @@
+nightSecondHandColor
+(property)
+Determines the color of the second hand on the clock during the night
+
+Syntax:
+get the nightSecondHandColor of {widget}
+----
+set the nightSecondHandColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the nightSecondHandColor property to get or set the color of the second hand of the clock during the night. To determine if the clock is displaying its daytime or night-time colors, use the read-only property isDay.
+
+Values:
+
+OS:

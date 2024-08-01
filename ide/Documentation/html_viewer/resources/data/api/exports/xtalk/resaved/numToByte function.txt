@@ -1,0 +1,31 @@
+numToByte
+(function)
+Returns the byte corresponding to a numeric value in the range 0-255.
+
+Syntax:
+the numToByte of {numericValue}
+----
+numToByte({numericValue})
+----
+
+Synonyms:
+
+Params:
+numericValue ( ): An  between zero and 255, or an  that  to such an .
+
+Examples:
+numToByte(65) -- returns a byte with numeric value 65
+----
+numToByte(0) -- returns a byte with numeric value 0
+----
+
+Description:
+Use the byteToNum function to translate numbers into their byte equivalents, or to interpret a byte (such as a control character) that can't be displayed.
+
+The numToByte function is the inverse of the byteToNum function.
+
+Values:
+The numToByte function returns a single byte. 
+
+OS:
+mac,windows,linux,ios,android

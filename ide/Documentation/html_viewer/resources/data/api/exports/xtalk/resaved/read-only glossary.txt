@@ -1,0 +1,16 @@
+read-only
+(glossary)
+
+Syntax:
+Synonyms:
+read only, readonly, read-only
+
+Params:
+
+Examples:
+Description:
+Information that can be looked at, but not changed or deleted.
+
+Values:
+
+OS:

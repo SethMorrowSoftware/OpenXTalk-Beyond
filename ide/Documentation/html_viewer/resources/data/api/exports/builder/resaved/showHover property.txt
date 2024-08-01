@@ -1,0 +1,21 @@
+showHover
+(property)
+Whether the widget has a hover row displayed or not.
+
+Syntax:
+get the showHover of {widget}
+----
+set the showHover of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the showHover property to show or hide the hover row of the widget  object.
+
+Values:
+
+OS:

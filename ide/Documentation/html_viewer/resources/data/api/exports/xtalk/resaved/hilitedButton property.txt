@@ -1,0 +1,34 @@
+hilitedButton
+(property)
+Specifies which button in a group is currently highlight|highlighted. 
+
+Syntax:
+set the hilitedButton of {group} to {buttonNumber}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the hilitedButton of group "Options" to 2 -- 2nd button in group
+----
+set the hilitedButton of group ID 8 to zero -- unhilites all buttons
+----
+
+Description:
+Use the hilitedButton property to change the current setting in a radio button|radio-button cluster.
+
+The hilitedButton specifies which button(keyword) in a group is currently highlight|highlighted. If the hilitedButton of a group is zero, none of the button(object)|buttons in the group is currently highlight|highlighted. If the hilitedButton is 1, the button(keyword) with the lowest layer in the group is currently highlight|highlighted; if the hilitedButton is 2, the button(keyword) with the second-lowest layer is currently highlight|highlighted; and so forth.
+
+Setting the hilitedButton of a group sets the hilite property of the rest of the button(object)|buttons to false.
+
+The hilitedButton property is most useful in  radio button|radio-button clusters. In a  radio button|radio-button cluster, only one button(keyword) can be  highlight|highlighted at once: clicking another button(keyword)  unhighlights the first one. The radioBehavior property of a group  of button(object)|buttons specifies whether they act as a  radio button|radio-button cluster.
+
+The hilitedButton, hilitedButtonName(property), and hilitedButtonID(property) property|properties all refer in different ways to the same button(object). When any of them changes, all of them change. 
+
+Values:
+The hilitedButton of a group is an integer between zero and the number of button|buttons in the group. 
+
+OS:
+mac,windows,linux,ios,android

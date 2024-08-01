@@ -1,0 +1,18 @@
+dereference
+(glossary)
+
+Syntax:
+Synonyms:
+dereference, dereferencing, dereferenced
+
+Params:
+
+Examples:
+Description:
+To access a value that a variable points to.
+
+For example, if a variable contains a property name, the variable is said to reference the property. Dereferencing the variable|variable's value means getting the value of the referenced property. 
+
+Values:
+
+OS:

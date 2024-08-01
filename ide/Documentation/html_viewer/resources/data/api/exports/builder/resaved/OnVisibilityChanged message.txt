@@ -1,0 +1,27 @@
+OnVisibilityChanged
+(message)
+Sent when the widget visibility changed.
+
+Syntax:
+OnVisibilityChanged {isVisible}
+----
+
+Synonyms:
+
+Params:
+isVisible (bool ): Whether the widget is now visible or not.
+
+Examples:
+private variable mAnimate as Boolean
+
+public handler OnVisibilityChanged(in pVisible as Boolean)
+	put pVisible into mAnimate
+end handler
+----
+
+Description:
+Handle the OnVisibilityChanged message to execute code when the widget becomes visible or invisible.
+
+Values:
+
+OS:

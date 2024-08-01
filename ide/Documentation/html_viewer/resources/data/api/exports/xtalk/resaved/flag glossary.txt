@@ -1,0 +1,16 @@
+flag
+(glossary)
+
+Syntax:
+Synonyms:
+flag
+
+Params:
+
+Examples:
+Description:
+A parameter that can take one of two value|values and indicates whether a setting is on or off.
+
+Values:
+
+OS:

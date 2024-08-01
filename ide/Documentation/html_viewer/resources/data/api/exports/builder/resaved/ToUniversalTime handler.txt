@@ -1,0 +1,30 @@
+ToUniversalTime
+(handler)
+Convert local time to universal time
+
+Syntax:
+ToUniversalTime({pSeconds},{pTimeZone})
+----
+
+Synonyms:
+
+Params:
+pSeconds ( ): The local time
+pTimeZone ( ): The time zone, in the form returned by the  function.
+
+Examples:
+local tDateTime
+put "2018,2,14,13,38,0,4" into tDateTime
+convert tDateTime to seconds
+put ToUniversalTime(tDateTime, "Africa/Windhoek") into tDateTime
+convert tDateTime to dateitems
+-- tDateTime contains "2018,2,14,11,38,0,4"
+----
+
+Description:
+Use the ToUniversalTime function to find the universal time, given the  local time for the specified time zone. 
+
+Values:
+The universal time 
+
+OS:

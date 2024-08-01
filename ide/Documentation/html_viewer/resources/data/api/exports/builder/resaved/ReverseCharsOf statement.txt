@@ -1,0 +1,26 @@
+ReverseCharsOf
+(statement)
+Reverse a string
+
+Syntax:
+reverse {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A string
+
+Examples:
+variable tString
+put "abcdef" into tString
+reverse tString
+expect that tString is "fedcba"
+----
+
+Description:
+Reverses the order of characters in the Target.
+
+Values:
+
+OS:

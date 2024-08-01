@@ -1,0 +1,28 @@
+raiseMenus
+(property)
+Specifies whether the window with the menu bar comes to the front when the user opens a menu.
+
+Syntax:
+set the raiseMenus to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the raiseMenus to true
+----
+
+Description:
+Use the raiseMenus property to control the behavior of windows.
+
+On some Unix systems, setting this property to true may cause menus to appear under the window.
+
+The setting of this property has no effect on Mac OS systems.
+
+Values:
+The raiseMenus is true or false. By default, the raiseMenus property is set to false. 
+
+OS:
+windows,linux

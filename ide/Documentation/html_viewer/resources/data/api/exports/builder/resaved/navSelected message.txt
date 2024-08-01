@@ -1,0 +1,20 @@
+navSelected
+(message)
+Sent when a nav item is selected
+
+Syntax:
+navSelected {pItemName}
+----
+
+Synonyms:
+
+Params:
+pItemName ( ): The name of the selected nav item
+
+Examples:
+Description:
+Sent when a nav item is selected
+
+Values:
+
+OS:

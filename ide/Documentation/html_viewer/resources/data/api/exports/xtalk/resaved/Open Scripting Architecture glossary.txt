@@ -1,0 +1,16 @@
+Open Scripting Architecture
+(glossary)
+
+Syntax:
+Synonyms:
+open scripting architecture, osa, osa language
+
+Params:
+
+Examples:
+Description:
+System for creating and integrating system-wide scripting languages, developed by Apple Computer. 
+
+Values:
+
+OS:

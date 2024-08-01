@@ -1,0 +1,16 @@
+BMP
+(glossary)
+
+Syntax:
+Synonyms:
+.bmp, bmp
+
+Params:
+
+Examples:
+Description:
+BitMaP. A format for bitmapped pictures, developed by Microsoft and usually used on Windows|Windows systems.
+
+Values:
+
+OS:

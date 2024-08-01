@@ -1,0 +1,28 @@
+TheTouchIDs
+(expression)
+The touch IDs
+
+Syntax:
+the touch ids
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tIDs as optional List
+put the touch ids into tIDs
+if tIDs is not nothing then
+    variable tPosition as Point
+    put the position of touch tIDs[1] into tPosition
+end if
+----
+
+Description:
+The touch IDs
+
+Values:
+The a list of currently active touch IDs 
+
+OS:

@@ -1,0 +1,16 @@
+getProp handler
+(glossary)
+
+Syntax:
+Synonyms:
+getprop handler
+
+Params:
+
+Examples:
+Description:
+A OpenXTalk handler you write that defines optional actions when a custom property's value is requested. GetProp handler|handlers begin with the getProp control structure.
+
+Values:
+
+OS:

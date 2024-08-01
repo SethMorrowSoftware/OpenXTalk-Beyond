@@ -1,0 +1,16 @@
+proxy server
+(glossary)
+
+Syntax:
+Synonyms:
+proxy, proxies, proxy server
+
+Params:
+
+Examples:
+Description:
+A server that intercepts requests for a particular service (such as a web document).
+
+Values:
+
+OS:

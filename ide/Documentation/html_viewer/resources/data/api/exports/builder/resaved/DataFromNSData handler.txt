@@ -1,0 +1,23 @@
+DataFromNSData
+(handler)
+Convert a Objective-C data into a Data
+
+Syntax:
+DataFromNSData({pObjcData})
+----
+
+Synonyms:
+
+Params:
+pObjcData ( ): The NSData to convert
+
+Examples:
+Description:
+Convert a Objective-C data into a Data
+
+Values:
+A Data value  Description Use DataFromNSData to convert an Objective-C data object (NSData) to a variable of type Data.
+
+
+
+OS:

@@ -1,0 +1,20 @@
+EditCellOfIndex
+(command)
+Same as EditCell but uses an index rather than a line number to locate the line to edit.
+
+Syntax:
+dispatch "EditCellOfIndex" to group "DataGrid" with pColumnName,
+pIndex
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Same as EditCell but uses an index rather than a line number to locate the line to edit.
+
+Values:
+
+OS:

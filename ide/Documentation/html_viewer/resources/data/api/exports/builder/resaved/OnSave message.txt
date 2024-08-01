@@ -1,0 +1,19 @@
+OnSave
+(message)
+Sent when the widget is saved.
+
+Syntax:
+OnSave
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handler the OnSave message to execute code when a stack containing the widget is saved. *Note:* Access to most script object operations is not allowed whilst an OnSave handler is running.
+
+Values:
+
+OS:

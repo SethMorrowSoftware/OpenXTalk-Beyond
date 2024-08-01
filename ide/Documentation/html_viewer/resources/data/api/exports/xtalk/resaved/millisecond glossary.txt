@@ -1,0 +1,16 @@
+millisecond
+(glossary)
+
+Syntax:
+Synonyms:
+millisecond
+
+Params:
+
+Examples:
+Description:
+One thousandth of a second.
+
+Values:
+
+OS:

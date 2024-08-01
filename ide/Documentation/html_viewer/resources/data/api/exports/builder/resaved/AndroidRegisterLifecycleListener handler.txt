@@ -1,0 +1,45 @@
+AndroidRegisterLifecycleListener
+(handler)
+Register handlers to be called when on application lifecycle events.
+
+Syntax:
+AndroidRegisterLifecycleListener({pPauseHandler},{pResumeHandler})
+----
+
+Synonyms:
+
+Params:
+pPauseHandler ( ): The handler to be called when the application is paused
+pResumeHandler ( ): The handler to be called when the application is resumed
+
+Examples:
+private variable mLifecycleListener as optional JObject
+
+public handler OnOpen() returns nothing
+    put AndroidRegisterLifecycleListener(OnMyWidgetPaused, OnMyWidgetResumed) into mLifecycleListener
+end handler
+
+public handler OnClose() returns nothing
+    AndroidUnregisterLifecycleListener(mLifecycleListener)
+    put nothing into mLifecycleListener
+end handler
+
+private handler OnMyWidgetPaused() returns nothing
+    -- Perform pause actions
+end handler
+
+private handler OnMyWidgetResumed() returns nothing
+    -- Perform resume actions
+end handler
+----
+
+Description:
+Use the AndroidRegisterLifecycleListener handler to register handlers to application lifecycle events. The handler pPauseHandler will be called when the application is paused and enters into the background. The handler pResumeHandler will be called when the application is resumed and returns from the background.
+
+A listener object will be returned that wraps the registered handlers and can be used with AndroidUnregisterLifecycleListener to cancel the registration.
+
+Values:
+A listener object that wraps the registered handlers. 
+
+OS:
+android

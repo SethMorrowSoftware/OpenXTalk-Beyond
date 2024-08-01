@@ -1,0 +1,26 @@
+revZipExtractItemToVariable
+(command)
+Extracts the data from an item in a zip archive and places it in a variable
+
+Syntax:
+revZipExtractItemToVariable {archivePath}, {itemName}, {variableName}
+----
+
+Synonyms:
+
+Params:
+archivePath ( ): The absolute path to the zip archive to extract from.
+itemName ( ): The name of the item in the zip archive to extract.
+variableName ( ): The name of a variable in your program to place the extracted data. If the revZipExtractItemToVariable command encounters an error, then the result will be set to an error code beginning with "ziperr", otherwise the result will be empty.
+
+Examples:
+revZipExtractItemToVariable tArchive, "myZippedItem", "tItemData"
+----
+
+Description:
+Use the revZipExtractItemToVariable command to load an item from a zip archive into memory as a variable in your program. The archive must already have been opened by using the revZipOpenArchive (command) command.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

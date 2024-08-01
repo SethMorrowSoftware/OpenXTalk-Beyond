@@ -1,0 +1,30 @@
+mobileStoreConsumePurchase
+(command)
+Consume a purchased item.
+
+Syntax:
+mobileStoreConsumePurchase {productID}
+----
+
+Synonyms:
+
+Params:
+productID ( ): The identifier of the requested product.
+
+Examples:
+mobileStoreConsumePurchase "com.runrev.sampleapp.consumable"
+----
+
+Description:
+Use the mobileStoreConsumePurchase function to consume a purchased item.
+
+The command mobileStoreConsumePurchase is used to consume a purchased item. This removes the item from the user's inventory.
+
+*Note:*  This command is only used when interacting with Google Play  Store in-app purchasing API. This is due to a Google API restriction  that ensures a consumable product is consumed before another instance  is purchased. Consume means that the purchase is removed from the  user's inventory of purchased items, allowing the user buy that  product again.
+
+*Note:*  This command must only be called on consumable products. If  you call mobileStoreConsumePurchase on a non-consumable product, then  you no longer own that product.
+
+Values:
+
+OS:
+ios,android

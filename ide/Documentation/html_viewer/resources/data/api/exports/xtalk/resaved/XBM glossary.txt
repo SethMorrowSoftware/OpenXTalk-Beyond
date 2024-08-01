@@ -1,0 +1,16 @@
+XBM
+(glossary)
+
+Syntax:
+Synonyms:
+.xbm, xbm
+
+Params:
+
+Examples:
+Description:
+X Bit Map. A black-and-white icon format used on some Unix|Unix systems. 
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+isNumber
+(function)
+return|Returns true if a value is a number, false if it is not.
+
+Syntax:
+the isNumber of {value}
+----
+isNumber({value})
+----
+
+Synonyms:
+
+Params:
+value ( ): Any source of value.
+
+Examples:
+isNumber(8) -- returns true
+----
+isNumber(1+5) -- returns true
+----
+isNumber(foo) -- returns false
+----
+
+Description:
+Use the isNumber function to determine whether a value is a number. For example, attempting to do an arithmetic operation on a value that's not a number causes an error. You can check the value beforehand to prevent this.
+
+This function exists for compatibility with imported SuperCard projects. You can use the is a operator to validate numbers, as well as other data types.
+
+Values:
+The isNumber function return|returns true or false. 
+
+OS:
+mac,windows,linux,ios,android

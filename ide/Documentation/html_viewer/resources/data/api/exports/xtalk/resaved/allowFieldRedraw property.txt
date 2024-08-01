@@ -1,0 +1,21 @@
+allowFieldRedraw
+(property)
+Has no effect and is included for compatibility with imported SuperCard projects.
+
+Syntax:
+set the allowFieldRedraw to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In SuperCard, the allowFieldRedraw property determines whether scrolling field|fields are redraw|redrawn after scrolling. In OpenXTalk, scrolling field|fields are always redraw|redrawn.
+
+The allowFieldRedraw property is always set to false. A handler can set it to any value without causing a error|script error, but the actual value is not changed.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+ideNewControl
+(message)
+Sent when a control is created in the IDE
+
+Syntax:
+on ideNewControl
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the ideNewControl message to respond to the creation of controls using one of the IDE palettes, or the create command.
+
+*Note:* The ideNewControl message is only sent to objects which have subscribed to it. See the revIDESubscribe command for more details.
+
+Values:
+
+OS:

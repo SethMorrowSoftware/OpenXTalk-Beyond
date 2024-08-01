@@ -1,0 +1,32 @@
+IsPointNotWithinRect
+(operator)
+Determines whether a point is within a rectangle.
+
+Syntax:
+{Point} is not within {Rect}
+----
+
+Synonyms:
+
+Params:
+Point ( ): An expression that evaluates to a Point.
+Rect ( ): An expression that evaluates to a Rectangle.
+
+Examples:
+variable tClick as Point
+put the click position into tClick
+
+variable tRect as Rectangle
+put my bounds into tRect
+
+if tClick is not within tRect then
+	// click was outside of widget bounds
+end if
+----
+
+Description:
+Determines whether a point is within a rectangle.
+
+Values:
+
+OS:

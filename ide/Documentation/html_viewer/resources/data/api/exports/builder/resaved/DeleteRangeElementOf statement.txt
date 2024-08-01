@@ -1,0 +1,24 @@
+DeleteRangeElementOf
+(statement)
+Deletes the elements between indices Start and Finish in Target.
+
+Syntax:
+delete element {Start} to {Finish} of {Target}
+----
+
+Synonyms:
+
+Params:
+Start ( ): An expression which evaluates to a valid integer index of .
+Finish ( ): An expression which evaluates to a valid integer index of .
+Target ( ): A list container.
+
+Examples:
+Description:
+Removes the elements between the given indices from the list.
+
+*Note:* It is an error if either Start or Finish are out of range.
+
+Values:
+
+OS:

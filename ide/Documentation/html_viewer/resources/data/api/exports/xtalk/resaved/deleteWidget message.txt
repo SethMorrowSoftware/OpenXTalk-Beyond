@@ -1,0 +1,31 @@
+deleteWidget
+(message)
+Sent to a widget just before it is removed from the stack.
+
+Syntax:
+deleteWidget
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on deleteWidget
+   -- Save the state by storing value in the stack
+   dispatch "saveWidgetState" to this stack \
+         with "the name of me,the cStateValue of me"
+end deleteWidget
+----
+
+Description:
+Handle the deleteWidget message if you want to perform cleanup before a widget is removed from the stack.
+
+The actual deletion is not triggered by the deleteWidget message, so trap|trapping the message and not allowing it to pass does not prevent the widget from being removed.
+
+However, the undo command will restore a widget after it is deleted by the user.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

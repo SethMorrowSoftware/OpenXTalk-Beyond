@@ -1,0 +1,21 @@
+iconDataForFamily
+(handler)
+Return the available icon data in the specified icon family.
+
+Syntax:
+iconDataForFamily({pFamily})
+----
+
+Synonyms:
+
+Params:
+pFamily ( ): The name of the icon family
+
+Examples:
+Description:
+Return an LCB array of the icon data in the iconsvg library's specified icon family.
+
+Values:
+The specified icon family's data (name, SVG path, codepoint). 
+
+OS:

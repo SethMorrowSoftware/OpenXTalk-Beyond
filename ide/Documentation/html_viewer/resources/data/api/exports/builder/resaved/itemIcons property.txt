@@ -1,0 +1,28 @@
+itemIcons
+(property)
+The normal-state icons for the navigation items
+
+Syntax:
+get the itemIcons of {widget}
+----
+set the itemIcons of {widget} to {icons}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the icons displayed by the navigation items when not highlighted.
+
+Each icon name must be one of the graphics supplied by the "IconSVG" library.  You can get a list of available predefined path names by running `put iconNames()` in the Message Box.  See the  com.livecode.library.iconsvg|Icon SVG Library documentation for handlers to manage user icon families.
+
+Setting the itemIcons can add items to the navigation bar.  If the new value of the itemIcons has more items than the navigation bar, as many new navigation items as necessary are created and added to the end of the navigation bar, using a default itemNames|name, itemLabels|label and hilitedItemIcons|highlighted icon.
+
+If the new value of the itemIcons has fewer items than the navigation bar, the remaining navigation items have their icons reset to the default icon.
+
+Values:
+A comma-delimited list of icon names. 
+
+OS:

@@ -1,0 +1,38 @@
+colorToString
+(handler)
+Converts a color to a string representing the color
+
+Syntax:
+colorToString({pColor},{pIncludeAlpha})
+----
+
+Synonyms:
+
+Params:
+pColor ( ): A value of type com.livecode.canvas.Color
+pIncludeAlpha ( ): Whether to include the alpha value in the string or not
+
+Examples:
+property widgetColor 	get getColor
+metadata widgetColor.editor is "com.livecode.pi.colorwithalpha"
+
+private variable mColor as Color
+
+public handler OnSave(out rProperties as Array)
+	put colorToString(mColor, true) into rProperties["color with alpha"]
+end handler
+
+public handler getColor() returns String
+	-- the editor used for the widgetColor property expects the alpha value to be included
+	return colorToString(mColor, true)
+end handler
+----
+log colorToString(color [0.4,0.4,0.4,0.4])			-- logs "102,102,102,102"
+----
+
+Description:
+Use the colorToString handler when logging colors, returning them to a script via a property getter, or serialising them in the widget's stored properties array for saving.
+
+Values:
+
+OS:

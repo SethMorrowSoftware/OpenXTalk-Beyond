@@ -1,0 +1,33 @@
+$_COOKIE
+(keyword)
+$_COOKIE is an array variable that contains the data for all cookies set in the visiting browser.
+
+Syntax:
+$_COOKIE
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put $_COOKIE into tCookiesArray
+----
+put $_COOKIE["user"] into tUser
+----
+if $_COOKIE["user"] is not empty then
+  -- ... pre-populate user login Id ...
+end if
+----
+
+Description:
+Use the $_COOKIE keyword to access the array containing the data for cookies sent by the visiting browser, for the given URL.
+
+$_COOKIE is only available when running in CGI mode (Server).
+
+For more information on cookies and how to set them, see put cookie.
+
+Values:
+
+OS:
+mac,windows,linux

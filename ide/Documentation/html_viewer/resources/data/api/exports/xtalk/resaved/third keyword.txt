@@ -1,0 +1,29 @@
+third
+(keyword)
+Designates the third member of a set.
+
+Syntax:
+third
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the hilite of the third button to true
+----
+repeat until third line of tKeysPressed is "Control"
+----
+
+Description:
+Use the third keyword in an object reference or  chunk expression.
+
+The third keyword can be used to specify any object(glossary) whose number property is 3. It can also be used to designate the third chunk in a chunk expression.
+
+The word the is optional when using the third keyword.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

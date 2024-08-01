@@ -1,0 +1,28 @@
+mobilePurchaseGet
+(function)
+Returns the value of a property of an in-app purchase.
+
+Syntax:
+mobilePurchaseGet({purchaseID}, {propertyName})
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): a numeric purchase request identifier.
+propertyName (enum ): the name of a purchase request property.
+
+Examples:
+put mobilePurchaseGet(tPurchaseID, "quantity") into tQuantity
+----
+
+Description:
+Use the mobilePurchaseGet function to get the value of a property of an in-app purchase.
+
+The mobilePurchaseGet function returns the value of an in-app purchase property. 
+
+Values:
+Returns the value of the property, propertyName, for the in-app purchase, purchaseID. 
+
+OS:
+ios,android

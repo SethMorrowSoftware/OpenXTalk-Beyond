@@ -1,0 +1,30 @@
+itemNames
+(property)
+The names of the navigation items
+
+Syntax:
+get the itemNames of {widget}
+----
+set the itemNames of {widget} to {names}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the navigation items of the widget.  These are the names used internally to identify each navigation item, rather than the itemLabels displayed to the user.
+
+Setting the itemNames can add or remove items to the navigation bar.
+
+If the new value of the itemNames has more items than the navigation bar, as many new navigation items as necessary are created and added to the end of the navigation bar, using the default label and icons.
+
+If the new value of the itemNames has fewer items than the navigation bar, items are removed from the end of the navigation bar as required.
+
+It is not possible to re-order the navigation items by setting the itemNames.
+
+Values:
+A comma-delimited list of navigation item names. 
+
+OS:

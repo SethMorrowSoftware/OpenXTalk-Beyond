@@ -1,0 +1,19 @@
+OnDoubleClick
+(message)
+Sent when the widget is double-clicked.
+
+Syntax:
+OnDoubleClick
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget is double-clicked.
+
+Values:
+
+OS:

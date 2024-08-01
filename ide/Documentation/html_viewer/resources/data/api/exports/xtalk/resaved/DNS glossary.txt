@@ -1,0 +1,16 @@
+DNS
+(glossary)
+
+Syntax:
+Synonyms:
+dns, domain name service
+
+Params:
+
+Examples:
+Description:
+Domain Name Service. The service that translates domain name|domain names into the corresponding Internet addresses.
+
+Values:
+
+OS:

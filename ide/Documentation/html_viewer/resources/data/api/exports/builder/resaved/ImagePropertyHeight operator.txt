@@ -1,0 +1,29 @@
+ImagePropertyHeight
+(operator)
+The height of an image.
+
+Syntax:
+the height of {mImage}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+
+Examples:
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// Get the image height
+variable tHeight as Integer
+put the height of tImage into tHeight
+----
+
+Description:
+The height of the image in pixels.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+column alignments
+(property)
+Allows you to set all column alignment values at once.
+
+Syntax:
+put the dgProp["column alignments"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Allows you to set all column alignment values at once. Line delimited list of alignment values.
+
+Values:
+
+OS:

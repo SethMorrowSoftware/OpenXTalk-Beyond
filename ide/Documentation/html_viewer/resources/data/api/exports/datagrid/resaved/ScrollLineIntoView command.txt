@@ -1,0 +1,19 @@
+ScrollLineIntoView
+(command)
+Scrolls the data grid so that pLine is in view.
+
+Syntax:
+dispatch "ScrollLineIntoView" to group "DataGrid" with pLine
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Scrolls the data grid so that pLine is in view.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+actionIcons
+(property)
+The icons of the action items
+
+Syntax:
+set the actionIcons of {widget} to {pIconList}
+get the actionIcons of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The icons of the action items
+
+Values:
+A list of icons of the action items 
+
+OS:

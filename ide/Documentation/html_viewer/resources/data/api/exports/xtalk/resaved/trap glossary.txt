@@ -1,0 +1,16 @@
+trap
+(glossary)
+
+Syntax:
+Synonyms:
+trap, trapped, trapping
+
+Params:
+
+Examples:
+Description:
+To stop a message from proceeding further along the message path.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+OnMouseStillHover
+(message)
+Sent when the mouse pointer continues to hover over the widget's rect.
+
+Syntax:
+OnMouseStillHover
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer continues to hover over the widget's rect.
+
+Values:
+
+OS:

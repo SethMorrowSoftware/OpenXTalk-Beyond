@@ -1,0 +1,31 @@
+SolidPaintPropertyColor
+(operator)
+The color of a solid paint value. mPaint:An expression which evaluates to a solid paint.
+
+Syntax:
+the color of {mSolid}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Create a new green paint
+variable tPaint
+put solid paint with color [0,1,0] into tPaint
+
+// Store the old color of tPaint
+variable tColor
+put the color of tPaint into tColor
+
+// Set the color of tPaint to blue
+set the color of tPaint to color [0,0,1]
+----
+
+Description:
+The color of mPaint.
+
+Values:
+
+OS:

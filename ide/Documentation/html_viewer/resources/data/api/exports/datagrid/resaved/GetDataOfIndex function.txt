@@ -1,0 +1,19 @@
+GetDataOfIndex
+(function)
+Retrieves the internal array for key pIndex of the internal array in the data grid.
+
+Syntax:
+put GetDataOfIndex(pIndex, pKey)
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Retrieves the internal array for key pIndex of the internal array in the data grid. If pKey is empty then the array associated with key pIndex in the internal data array will be returned. If pKey is not empty  then the value of that key for key pIndex of the internal data array will be returned.
+
+Values:
+
+OS:

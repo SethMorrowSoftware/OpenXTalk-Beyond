@@ -1,0 +1,33 @@
+iphoneStartTrackingHeading
+(command)
+Starts tracking the heading of the device.
+
+Syntax:
+iphoneStartTrackingHeading
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+iphoneStartTrackingHeading
+----
+if tTrackingOn is "true" then
+   iphoneStartTrackingHeading
+end if
+----
+
+Description:
+Use the iphoneStartTrackingHeading command to start tracking the current heading of the device.
+
+The iphoneStartTrackingHeading command starts tracking the heading of the device using the digital compass.
+
+Starting to track the heading may request the user to calibrate the magnetometer.
+
+*Note:* The digital compass is only supported in iOS 4.0 and later.
+
+Values:
+
+OS:
+ios

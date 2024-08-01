@@ -1,0 +1,21 @@
+revIDESubscribedObjects
+(function)
+Use to find out which objects are subscribed to a given message
+
+Syntax:
+revIDESubscribedObjects({pMessage})
+----
+
+Synonyms:
+
+Params:
+pMessage ( ): The name of the message.
+
+Examples:
+Description:
+Use to find out which objects are subscribed to a given message
+
+Values:
+Return delimited list of object ID's, 1 per line. 
+
+OS:

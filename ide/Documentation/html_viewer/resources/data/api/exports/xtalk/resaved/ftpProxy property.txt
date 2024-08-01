@@ -1,0 +1,19 @@
+ftpProxy
+(property)
+The ftpProxy property is not implemented and is reserved word|reserved.
+
+Syntax:
+ftpProxy
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+reserved word|Reserved for internal use.
+
+Values:
+
+OS:

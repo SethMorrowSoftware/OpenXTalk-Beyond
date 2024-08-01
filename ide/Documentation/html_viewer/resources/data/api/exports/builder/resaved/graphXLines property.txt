@@ -1,0 +1,21 @@
+graphXLines
+(property)
+Whether horizontal grid lines are displayed
+
+Syntax:
+set the graphXLines of {widget} to { true | false }
+get the graphXLines of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If true, the graph widget will draw horizontal grid lines on the graph.  The number and spacing of the grid lines is determined automatically.
+
+Values:
+True if grid lines should be shown; false otherwise 
+
+OS:

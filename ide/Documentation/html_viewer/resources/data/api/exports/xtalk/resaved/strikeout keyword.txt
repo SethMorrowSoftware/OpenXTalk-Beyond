@@ -1,0 +1,25 @@
+strikeout
+(keyword)
+Used with the textStyle property to draw text with a horizontal line through it.
+
+Syntax:
+strikeout
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textStyle of the selectedChunk to strikeout
+----
+
+Description:
+Use the strikeout keyword to indicate that text has been removed or superceded.
+
+You can apply the strikeout style to an object(glossary) (striking out all the text displayed by the object(glossary)) or a chunk in a field or button.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

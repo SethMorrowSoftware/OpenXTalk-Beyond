@@ -1,0 +1,20 @@
+OnKeyPress
+(message)
+Sent when a key is pressed while the widget has focus.
+
+Syntax:
+OnKeyPress {keyText}
+----
+
+Synonyms:
+
+Params:
+•	keyText (string ): The key pressed
+	
+Examples:
+Description:
+Sent when a key is pressed while the widget has focus.
+
+Values:
+
+OS:

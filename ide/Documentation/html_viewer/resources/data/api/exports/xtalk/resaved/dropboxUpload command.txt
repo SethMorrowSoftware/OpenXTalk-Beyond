@@ -1,0 +1,29 @@
+dropboxUpload
+(command)
+Create a new file with the contents provided in the request.
+
+Syntax:
+dropboxUpload {pAccessToken}, {pPath}, {pMode}, {pAutorename}, {pMute}, {pData}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pPath ( ): Path in the user's Dropbox to upload to.
+pMode ( ): Selects what to do if the file already exists. The default for this union is add. - "add": Do not overwrite an existing file if there is a conflict. The autorename strategy is to append a number to the file name. For example, "document.txt" might become "document (2).txt". - "overwrite": Always overwrite the existing file. The autorename strategy is the same as it is for add. - "update": Overwrite if the given "rev" matches the existing file's "rev". The autorename strategy is to append the string "conflicted copy" to the file name. For example, "document.txt" might become "document (conflicted copy).txt" or "document (Panda's conflicted copy).txt".
+pAutoRename ( ): If there's a conflict, as determined by mode, have the Dropbox server try to autorename the file to avoid conflict. The default for this field is False.
+pMute ( ): Normally, users are made aware of any file modifications in their Dropbox account via notifications in the client software. If true, this tells the clients that this modification shouldn't result in a user notification. The default for this field is False
+pData ( ): The binary file data
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+ *Note:* Do not use this to upload a file larger than 150 MB. Instead, create an upload  session with dropboxUploadSessionStart.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { "name": "Prime_Numbers.txt", "id": "id:a4ayc_80_OEAAAAAAAAAXw", "client_modified": "2015-05-12T15:50:38Z", "server_modified": "2015-05-12T15:50:38Z", "rev": "a1c10ce0dd78", "size": 7212, "path_lower": "/homework/math/prime_numbers.txt", "path_display": "/Homework/math/Prime_Numbers.txt", "sharing_info": { "read_only": true, "parent_shared_folder_id": "84528192421", "modified_by": "dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc" }, "property_groups": [ { "template_id": "ptid:1a5n2i6d3OYEAAAAAAAAAYa", "fields": [ { "name": "Security Policy", "value": "Confidential" } ] } ], "has_explicit_shared_members": false } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

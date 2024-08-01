@@ -1,0 +1,18 @@
+Pointer tool
+(glossary)
+
+Syntax:
+Synonyms:
+pointer tool, arrow tool
+
+Params:
+
+Examples:
+Description:
+tool|Tool used in the OpenXTalk development environment to select, move, and resize control|controls.
+
+When the Pointer tool is being used, the cursor is in the shape of an arrow. 
+
+Values:
+
+OS:

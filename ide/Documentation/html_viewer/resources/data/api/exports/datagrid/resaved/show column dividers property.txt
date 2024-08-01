@@ -1,0 +1,19 @@
+show column dividers
+(property)
+Toggles the visibility of the column dividers in the data display area.
+
+Syntax:
+put the dgProp["show column dividers"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Toggles the visibility of the column dividers in the data display area. Default value is true.
+
+Values:
+
+OS:

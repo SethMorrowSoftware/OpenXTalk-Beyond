@@ -1,0 +1,38 @@
+PathOperationEllipticArcToWithFlags
+(statement)
+Adds an arc to a path.
+
+Syntax:
+arc to {mEnd} with radii {mRadii} rotated by {mAngle} taking ( largest | smallest ) ( clockwise | anticlockwise ) route on {mPath}
+----
+
+Synonyms:
+
+Params:
+mEnd ( ): An expression which evaluates to a point.
+mRadii ( ): An expression which evaluates to a list of numbers.
+mAngle ( ): An expression which evaluates to a number.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+variable tPath
+put the empty path into tPath
+
+// Begin a new subpath
+move to point [25, 50] on tPath
+
+// Continue path with an arc to 50,25
+arc to point [50, 25] with radii [25, 25] rotated by 0 taking smallest clockwise route on tPath
+
+// Begin a new subpath
+move to point [75, 50] on tPath
+// Continue path with a large arc to 50,75
+arc to point [50, 75] with radii [25, 25] rotated by 0 taking largest clockwise route on tPath
+----
+
+Description:
+Adds an arc from the previous point to mEnd on mPath, following a section of an ellipse with the given radii & angle.   As there can be two different ellipses that match the parameters, and two potential arcs for each ellipse, the *largest*, *smallest*, *clockwise*, and *anticlockwise* options allow one arc to specified from the four potential arcs.
+
+Values:
+
+OS:

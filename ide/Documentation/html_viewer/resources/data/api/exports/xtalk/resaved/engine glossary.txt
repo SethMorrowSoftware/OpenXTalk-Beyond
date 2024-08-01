@@ -1,0 +1,18 @@
+engine
+(glossary)
+
+Syntax:
+Synonyms:
+engine
+
+Params:
+
+Examples:
+Description:
+The back-end software that powers the OpenXTalk  development environment, as well as  standalone application|standalone applications created with OpenXTalk.
+
+The engine includes the OpenXTalk compile|compiler, the  object hierarchy, and object(glossary) display routines.
+
+Values:
+
+OS:

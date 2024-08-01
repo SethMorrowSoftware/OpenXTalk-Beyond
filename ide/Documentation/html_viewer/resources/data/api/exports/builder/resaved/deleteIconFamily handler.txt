@@ -1,0 +1,22 @@
+deleteIconFamily
+(handler)
+Delete an icon family from the iconsvg library.
+
+Syntax:
+deleteIconFamily({pFamily})
+----
+
+Synonyms:
+
+Params:
+pFamily ( ): The family to delete.
+
+Examples:
+Description:
+Delete an icon family from the iconsvg library.
+
+ Note:  The current icon family may not be deleted.
+
+Values:
+
+OS:

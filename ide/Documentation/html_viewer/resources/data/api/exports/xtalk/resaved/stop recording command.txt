@@ -1,0 +1,27 @@
+stop recording
+(command)
+Stops the current sound recording.
+
+Syntax:
+stop recording
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the mouse is down then stop recording
+----
+
+Description:
+Use the stop recording command to halt a recording being made. For example, you can use the stop recording command in the script of a button, to let the user click to stop recording sound.
+
+The stop recording command stops a recording started with the record sound command.
+
+The stop recording command sets the recording property to false.
+
+Values:
+
+OS:
+mac,windows

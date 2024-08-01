@@ -1,0 +1,16 @@
+keyboard equivalent
+(glossary)
+
+Syntax:
+Synonyms:
+key shortcut, keyboard shortcut, key equivalent, keyboard equivalent
+
+Params:
+
+Examples:
+Description:
+A key (or key combination) that acts as a shortcut to choose a  menu item or button.
+
+Values:
+
+OS:

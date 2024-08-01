@@ -1,0 +1,16 @@
+iconify
+(glossary)
+
+Syntax:
+Synonyms:
+iconifies, iconification, iconified, iconify, iconifying
+
+Params:
+
+Examples:
+Description:
+To change a window into a desktop icon in order to move it out of the way. (On Windows|Windows systems, the term "minimize" is usually used instead.)
+
+Values:
+
+OS:

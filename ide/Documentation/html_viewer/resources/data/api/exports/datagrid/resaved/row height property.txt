@@ -1,0 +1,19 @@
+row height
+(property)
+This represents the height that your rows will be drawn at.
+
+Syntax:
+put the dgProp["row height"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+For tables and forms whose 'fixed row height' property is true this represents the height that your rows will be drawn at. If this property is not set for a form whose 'fixed control height' is true then the record template group height is used. For forms whose 'fixed control height' is false this represents the height that alternating rows that contain no data will be drawn at.
+
+Values:
+
+OS:

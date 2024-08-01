@@ -1,0 +1,22 @@
+DeleteLastElementOf
+(statement)
+Deletes the last element of Target.
+
+Syntax:
+delete the last element of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A list container.
+
+Examples:
+Description:
+Removes the last element of Target.
+
+*Note:* It is an error if Target is the empty list.
+
+Values:
+
+OS:

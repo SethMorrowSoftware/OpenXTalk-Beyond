@@ -1,0 +1,16 @@
+download
+(glossary)
+
+Syntax:
+Synonyms:
+downloading, downloaded, download
+
+Params:
+
+Examples:
+Description:
+To receive a file from another system.
+
+Values:
+
+OS:

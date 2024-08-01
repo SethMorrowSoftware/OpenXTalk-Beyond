@@ -1,0 +1,30 @@
+polySides
+(property)
+Specifies how many sides a regular polygon has.
+
+Syntax:
+set the polySides [of {graphic}] to {numberOfSides}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the polySides to 3 -- to make triangles
+----
+set the polySides of graphic "Hex" to 6 -- hexagon
+----
+
+Description:
+Use the polySides property to change the appearance of polygon(glossary)|polygons.
+
+The polySides property affects only graphic|graphics whose style property is set to regular.
+
+The global setting of the polySides property controls the appearance of polygon(glossary)|polygons drawn with the paint tool|paint tools. Once a paint polygon(keyword) is drawn, its appearance can no longer be changed by changing the global polySides property.
+
+Values:
+The polySides of a graphic is an integer greater than 2. By default, the polySides of a newly created graphic is 4. 
+
+OS:
+mac,windows,linux,ios,android

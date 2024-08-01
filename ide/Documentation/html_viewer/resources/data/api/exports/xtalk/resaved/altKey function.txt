@@ -1,0 +1,32 @@
+altKey
+(function)
+return|Returns the state of the Alt key.
+
+Syntax:
+the altKey
+----
+altKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the altKey into keyState
+----
+if the altKey is down then exit mouseUp
+----
+repeat until altKey() = up
+----
+
+Description:
+Use the altKey function(control structure) to check whether the  Alt key, Meta key, or Option key is being pressed. You can use  altKey to add alternative capabilities to user actions such as  clicking.
+
+The altKey, optionKey, and metaKey function(glossary)|functions all return the same value. Which one to use is a matter of preference. The terminology varies depending on platform. Users of different operating systems may know this key as the Option key (Mac OS systems), Meta key (Unix systems), or Alt key (Windows systems).
+
+Values:
+The altKey function return|returns down if the key is pressed and up if it's not. 
+
+OS:
+mac,windows,linux

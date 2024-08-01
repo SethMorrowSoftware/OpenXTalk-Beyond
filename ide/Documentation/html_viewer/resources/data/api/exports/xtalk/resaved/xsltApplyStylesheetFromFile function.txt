@@ -1,0 +1,26 @@
+xsltApplyStylesheetFromFile
+(function)
+Returns the data set resulting from applying the xslt document in the specified file against the specified xml document.
+
+Syntax:
+xsltApplyStylesheetFromFile ({xmlDocID},{pathToXSLTFile})
+----
+
+Synonyms:
+
+Params:
+xmlDocID (string ): The ID of the xml document to use.
+pathToXSLTFile (string ): The file path to the xslt document that will be applied to the xml document.
+
+Examples:
+put xsltApplyStylesheetFromFile(tDocID, "getData.xml" ) into tProcessedData
+put xsltApplyStylesheetFromFile(tDocID, tFilePath) into tProcessedData
+----
+
+Description:
+The xsltApplyStylesheetFromFile function returns the data set resulting from applying the xslt document in the specified file against the specified xml document. For instance, given xml data of      <sales>          <division id="North">          <revenue>10</revenue>         <growth>9</growth>         <bonus>7</bonus>          </division>         <division id="South">          <revenue>4</revenue>         <growth>3</growth>         <bonus>4</bonus>          </division>         <division id="West">          <revenue>6</revenue>         <growth>-1.5</growth>         <bonus>2</bonus>          </division>      </sales>  and a file containing xslt data of      <html xsl:version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" lang="en">         <head>          <title>Sales Results By Division</title>         </head>         <body>          <table border="1">          <tr>          <th>Division</th>         <th>Revenue</th>         <th>Growth</th>         <th>Bonus</th>          </tr>         <xsl:for-each select="sales/division">          <!-- order the result by revenue -->         <xsl:sort select="revenue"             data-type="number"             order="descending"/>          <tr>          <td>          <em><xsl:value-of select="@id"/></em>          </td>         <td>          <xsl:value-of select="revenue"/>          </td>         <td>          <!-- highlight negative growth in red -->         <xsl:if test="growth < 0">          <xsl:attribute name="style">          <xsl:text>color:red</xsl:text>          </xsl:attribute>          </xsl:if>         <xsl:value-of select="growth"/>          </td>         <td>          <xsl:value-of select="bonus"/>          </td>          </tr>          </xsl:for-each>          </table>         </body>      </html>  You would end up with      <html lang="en">     <head>     <meta http-equiv="Content-Type" content="text/html;     charset=UTF-8"> <title>Sales Results By Division</title>     </head>     <body><table border="1">     <tr>     <th>Division</th>     <th>Revenue</th>     <th>Growth</th>     <th>Bonus</th>     </tr>     <tr>     <td><em>North</em></td>     <td>10</td>     <td>9</td>     <td>7</td>     </tr>     <tr>     <td><em>West</em></td>     <td>6</td>     <td style="color:red">-1.5</td>     <td>2</td>     </tr>     <tr>     <td><em>South</em></td>     <td>4</td>     <td>3</td>     <td>4</td>     </tr>     </table></body>     </html>
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

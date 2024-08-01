@@ -1,0 +1,25 @@
+MinusUnaryOperator
+(operator)
+Unary minus operator.
+
+Syntax:
+- {Operand}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put -(5 + 4) into tVar -- tVar contains -9
+----
+
+Description:
+Unary minus operator.
+
+Values:
+The negated result of evaluating Operand. 
+
+OS:

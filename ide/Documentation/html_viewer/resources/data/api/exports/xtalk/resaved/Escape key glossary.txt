@@ -1,0 +1,16 @@
+Escape key
+(glossary)
+
+Syntax:
+Synonyms:
+escape, esc, escape key
+
+Params:
+
+Examples:
+Description:
+A key commonly used to stop a program's operation. On most keyboards, the Escape key is near the upper left corner.
+
+Values:
+
+OS:

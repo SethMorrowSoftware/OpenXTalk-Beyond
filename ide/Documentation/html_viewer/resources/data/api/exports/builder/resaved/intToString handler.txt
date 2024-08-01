@@ -1,0 +1,24 @@
+intToString
+(handler)
+Formats an integer as a string
+
+Syntax:
+intToString({pNumber})
+----
+
+Synonyms:
+
+Params:
+pNumber ( ): The integer to format
+
+Examples:
+log 5 formatted as string 			-- logs 5.000000
+log intToString(5)						 -- logs 5
+----
+
+Description:
+intToString formats an integer as a string, removing the decimal place and any zeros thereafter.
+
+Values:
+
+OS:

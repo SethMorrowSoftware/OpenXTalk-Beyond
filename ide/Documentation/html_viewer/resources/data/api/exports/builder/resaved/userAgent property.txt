@@ -1,0 +1,31 @@
+userAgent
+(property)
+The identifier sent by the browser when fetching content from remote URLs.
+
+Syntax:
+set the userAgent of {widget} to {pUserAgent}
+get the userAgent of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Set a custom User-Agent header. The remote web server may
+-- be configured to deliver custom content for browsers using
+-- this User-Agent.
+set the userAgent of widget "myBrowser" to "myAppEmbeddedBrowser"
+launch url "https://myexampleserver.com/content.html" in widget "myBrowser"
+----
+
+Description:
+The userAgent is the identifier sent by the browser when fetching content from remote HTTP servers.
+
+The userAgent must conform to the requirements for the `User-Agent` header described in the HTTP specification.  See [RFC 2616, section 14.43](https://tools.ietf.org/html/rfc2616#section-14.43).
+
+Values:
+A suitable HTTP user agent string. 
+
+OS:
+mac,windows,linux,android,ios

@@ -1,0 +1,16 @@
+landscape
+(glossary)
+
+Syntax:
+Synonyms:
+landscape mode, landscape
+
+Params:
+
+Examples:
+Description:
+The orientation of a printed page that is wider than it is tall.
+
+Values:
+
+OS:

@@ -1,0 +1,17 @@
+com.livecode.library.androidbgaudio
+(library)
+This library provides an API for playing background audio on Android
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use this library to start and control a background audio service that will continue playing when the current application is suspended.
+
+Values:
+
+OS:
+android

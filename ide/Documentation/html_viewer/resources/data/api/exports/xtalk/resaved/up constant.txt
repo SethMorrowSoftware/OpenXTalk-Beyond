@@ -1,0 +1,22 @@
+up
+(constant)
+
+Syntax:
+up
+
+Summary:
+Equivalent to the string "up".
+
+Examples:
+if the shiftKey is up then beep
+wait while the mouse is up
+Relatedkeyword: string
+
+Description
+Use the up constant to indicate the state of a mouse button or modifier key, or in an arrowKey handler.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

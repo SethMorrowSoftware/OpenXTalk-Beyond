@@ -1,0 +1,20 @@
+scriptTextSize
+(property)
+Deprecated and will be removed in a future release.
+
+Syntax:
+set the scriptTextSize to {pointSize}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The scriptTextSize property is present in OpenXTalk for compatibility with scripts imported from HyperCard and should not be used in new code. It will be removed entirely in a future release. 
+
+Values:
+
+OS:
+mac,windows,linux

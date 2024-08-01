@@ -1,0 +1,19 @@
+background color
+(property)
+The background color of the data grid.
+
+Syntax:
+put the dgProp["background color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The background color of the data grid. Note that if 'alternate row colors' is true then the alternating row colors will cover the background.
+
+Values:
+
+OS:

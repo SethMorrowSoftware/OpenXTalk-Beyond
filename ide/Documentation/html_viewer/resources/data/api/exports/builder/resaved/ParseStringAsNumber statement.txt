@@ -1,0 +1,35 @@
+ParseStringAsNumber
+(statement)
+Parses a string as an number
+
+Syntax:
+parse {Operand} as number
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a string.
+
+Examples:
+variable tString as String
+put "5.6" into tString
+parse tString as number -- the result is 5.6
+----
+variable tResult as optional String
+variable tNum as optional Number
+
+parse "aaaa" as number into tNum
+
+if tNum is nothing then
+	put "unable to parse string" into tResult
+end if
+----
+
+Description:
+Use ParseStringAsNumber when you want to interpret text numerically. The result is nothing if parsing was not possible.
+
+Values:
+Operand parsed as a number, or nothing. 
+
+OS:

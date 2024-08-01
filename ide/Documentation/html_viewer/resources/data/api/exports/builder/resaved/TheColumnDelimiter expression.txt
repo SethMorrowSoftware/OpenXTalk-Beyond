@@ -1,0 +1,26 @@
+TheColumnDelimiter
+(expression)
+Fetches the `columnDelimiter` property from script context
+
+Syntax:
+the column delimiter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+   -- Split a string into a list using the column delimiter
+   variable tItems
+   put "alice\tbob\teve" into tItems
+   split tItems by the column delimiter
+   -- tItems is now a list: ["alice", "bob", "eve"]
+----
+
+Description:
+Fetches the calling (script) handler's `columnDelimiter` property, or horizontal tab (U+0009) if no script context is available.
+
+Values:
+
+OS:

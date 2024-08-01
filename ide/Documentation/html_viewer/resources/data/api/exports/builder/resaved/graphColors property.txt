@@ -1,0 +1,29 @@
+graphColors
+(property)
+The colors for drawing lines on the graph
+
+Syntax:
+set the graphColors of {widget} to {pColors}
+get the graphColors of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+local tVar
+put "255,0,155,255\n155,100,255,255\n100,255,100,255" into tVar
+replace "\n" with return in tVar
+set the graphColors of widget "My Graph" to tVar
+----
+
+Description:
+The graphColors are the colors of each line in the graph widget.
+
+Each line of the graphColors should be a comma delimited list with four items.  The items are the red, green, blue, and alpha (opacity) components of the line color.
+
+Values:
+A line-delimited list of the colors for each line on the graph 
+
+OS:

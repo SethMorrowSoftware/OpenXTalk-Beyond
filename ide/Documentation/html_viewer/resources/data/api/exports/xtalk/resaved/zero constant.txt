@@ -1,0 +1,24 @@
+zero
+(constant)
+Equivalent to the number 0.
+
+Syntax:
+zero
+----
+
+Synonyms:
+none
+
+Params:
+
+Examples:
+if the number of fields is zero then beep
+----
+
+Description:
+Use the zero constant when it is easier to read than the numeral 0. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+platform
+(glossary)
+
+Syntax:
+Synonyms:
+platform
+
+Params:
+
+Examples:
+Description:
+A combination of computer hardware and software that defines a standard. 
+
+Values:
+
+OS:

@@ -1,0 +1,22 @@
+sortType
+(property)
+Manipulates the type of ordering in which elements of the tree view are displayed.
+
+Syntax:
+get the sortType of {widget}
+----
+set the sortType of {widget} to {pType}
+----
+
+Synonyms:
+
+Params:
+pType ( ): The type of ordering to use in displaying elements of the tree view. - "text": Display in alphabetical order of the keys - "numeric": Display in numeric order of the keys. This is the default
+
+Examples:
+Description:
+Use the sortType property to use text or numeric comparison when ordering the keys of the arrayData of the tree view widget.
+
+Values:
+
+OS:

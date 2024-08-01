@@ -1,0 +1,22 @@
+DataIsNotData
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is not {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to binary data.
+Right ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+Performs a byte by byte comparison of Left and Right, returning true if there is any difference.
+
+Values:
+Returns false if the result of evaluating Left is the same as that of Right, and true otherwise. 
+
+OS:

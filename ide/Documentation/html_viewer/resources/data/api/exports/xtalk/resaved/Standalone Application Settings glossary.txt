@@ -1,0 +1,18 @@
+Standalone Application Settings
+(glossary)
+
+Syntax:
+Synonyms:
+distribution builder, build distribution, standalone application settings
+
+Params:
+
+Examples:
+Description:
+Part of the OpenXTalk development environment, the window where you define the settings for creating a standalone application .
+
+To display the Standalone Application Settings, choose File ? Standalone Application Settings?
+
+Values:
+
+OS:

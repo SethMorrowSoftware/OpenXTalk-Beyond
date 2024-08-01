@@ -1,0 +1,30 @@
+address
+(property)
+Reports the name of the system the application is running on.
+
+Syntax:
+get the address
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the address into myAddress
+----
+put last item of the address into theAppName
+----
+
+Description:
+Use the address property to find out the path to the application, or the name of the system.
+
+For example, if OpenXTalk is running on a Mac OS system named "Heliand", and the OpenXTalk folder is located on a volume called "Fnord", its address property is Heliand:/Fnord/OpenXTalk/OpenXTalk.
+
+On Unix systems, the computer's name is its domain name. On Mac OS|Mac OS systems, the name is the one set in the File Sharing control panel. 
+
+Values:
+The address reports the computer's name, a colon, and the file path|path to the application. The address property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

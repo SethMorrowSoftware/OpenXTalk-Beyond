@@ -1,0 +1,24 @@
+put binary
+(command)
+Write a binary string to stdout.
+
+Syntax:
+put [ binary ] {value}
+----
+
+Synonyms:
+
+Params:
+value (string ): A string containing the binary data to output.
+
+Examples:
+put binary the compress of tMyString
+----
+
+Description:
+Use the put binary command to write a binary string to stdout. No processing is done on the string and it is written directly to stdout with no intervening processing.
+
+Values:
+
+OS:
+mac,windows,linux

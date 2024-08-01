@@ -1,0 +1,28 @@
+FontPropertyItalic
+(operator)
+The italic setting of a font.
+
+Syntax:
+the italic of {mFont}
+----
+
+Synonyms:
+
+Params:
+mFont ( ): An expression which evaluates to a font.
+
+Examples:
+// Create a font
+variable tFont as Font
+put font "Arial" at size 20 into tFont
+
+// Set the font to italic
+set the italic of tFont to true
+----
+
+Description:
+The italic flag of mFont as a boolean. If true, then mFont is italic.
+
+Values:
+
+OS:

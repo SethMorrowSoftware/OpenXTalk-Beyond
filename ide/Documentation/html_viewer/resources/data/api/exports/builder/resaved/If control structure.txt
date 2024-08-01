@@ -1,0 +1,30 @@
+If
+(control structure)
+Executes a list of statements depending on the value of a condition.
+
+Syntax:
+if {IfCondition} then 
+	{IfStatementList} 
+[else if {ElseCondition} then 
+	{ElseIfStatementList}] 
+[else 
+	{ElseStatementList}]
+end if
+----
+
+Synonyms:
+
+Params:
+•	IfCondition (bool ): An expression which evaluates to a boolean.
+•	IfStatementList ( ): A set of statements.
+•	ElseCondition (bool ): An expression which evaluates to a boolean.
+•	ElseIfStatementList ( ): A set of statements.
+•	ElseStatementList ( ): A set of statements.
+	
+Examples:
+Description:
+Use the if control structure to execute a statement (or list of statements) only under certain circumstances. If IfCondition evaluates to true, the statements in IfStatementList are executed. For each condition ElseCondition such that none of the previous conditions evaluates to true, the condition is evaluated and the corresponding statements in ElseIfStatementList are executed. If none of the conditions evaluate to true, the statements in ElseStatementList are executed.
+
+Values:
+
+OS:

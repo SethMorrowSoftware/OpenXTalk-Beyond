@@ -1,0 +1,21 @@
+allowUserInteraction
+(property)
+Controls whether the browser responds to user interaction.
+
+Syntax:
+set the allowUserInteraction of {widget} to {allowInteraction}
+get the allowUserInteraction of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the allowUserInteraction property to control if the browser should respond to user interaction.
+
+Values:
+`true` if the browser should respond to user interaction; `false` otherwise. 
+
+OS:

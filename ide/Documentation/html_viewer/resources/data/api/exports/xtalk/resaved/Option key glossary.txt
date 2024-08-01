@@ -1,0 +1,18 @@
+Option key
+(glossary)
+
+Syntax:
+Synonyms:
+option key, option-key
+
+Params:
+
+Examples:
+Description:
+Modifier key on Mac OS and OS X|OS X systems, usually located at the left of the Command key.
+
+(The Unix equivalent is the Meta key. The Windows equivalent is the Alt key.)
+
+Values:
+
+OS:

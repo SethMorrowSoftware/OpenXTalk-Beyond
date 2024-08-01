@@ -1,0 +1,16 @@
+file dialog box
+(glossary)
+
+Syntax:
+Synonyms:
+standard file, standard file dialog, file selector, file requestor, file dialog, file dialog box, file dialog boxes
+
+Params:
+
+Examples:
+Description:
+A dialog box that displays the file|files in a folder, and lets you move from folder to folder. You use file dialog boxes to select a file or to name a new file.
+
+Values:
+
+OS:

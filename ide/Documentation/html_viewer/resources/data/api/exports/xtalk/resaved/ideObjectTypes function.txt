@@ -1,0 +1,20 @@
+ideObjectTypes
+(function)
+A list of the object types, in 'type ID' form
+
+Syntax:
+ideObjectTypes()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This function returns a list of the object types in the form used by the IDE.
+
+Values:
+A list of the object types, one per line. 
+
+OS:

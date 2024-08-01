@@ -1,0 +1,28 @@
+FontPropertySize
+(operator)
+The size of a font.
+
+Syntax:
+the size of {mFont}
+----
+
+Synonyms:
+
+Params:
+mFont ( ): An expression which evaluates to a font.
+
+Examples:
+// Create a font
+variable tFont as Font
+put font "Arial" at size 20 into tFont
+
+// Set the font size to 30pt
+set the size of tFont to 30
+----
+
+Description:
+The size of mFont as a number of points.
+
+Values:
+
+OS:

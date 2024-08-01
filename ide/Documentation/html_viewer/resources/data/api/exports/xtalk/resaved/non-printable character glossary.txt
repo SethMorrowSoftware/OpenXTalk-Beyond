@@ -1,0 +1,16 @@
+non-printable character
+(glossary)
+
+Syntax:
+Synonyms:
+non-printable character, unprintable character
+
+Params:
+
+Examples:
+Description:
+A character such as backspace that has an ASCII code, but has no visual representation.
+
+Values:
+
+OS:

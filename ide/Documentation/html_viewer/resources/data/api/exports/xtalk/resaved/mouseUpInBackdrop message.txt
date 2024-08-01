@@ -1,0 +1,30 @@
+mouseUpInBackdrop
+(message)
+Sent when the user releases the mouse button, while the  mouse pointer is in the backdrop.
+
+Syntax:
+mouseUpInBackdrop {pButtonNumber}
+----
+
+Synonyms:
+
+Params:
+pButtonNumber (enum ): Specifies which mouse button was pressed:
+
+Examples:
+on mouseUpInBackdrop
+  go to stack "Main" -- brings to front, if already open
+end mouseUpInBackdrop
+----
+
+Description:
+Handle the mouseUpInBackdrop message to perform an action when the user releases the mouse button after clicking in the backdrop.
+
+The mouseUpInBackdrop message is sent to the current card.
+
+If the backdrop property is set to "none", the mouseUpInBackdrop message is not sent.
+
+Values:
+
+OS:
+mac,windows,linux

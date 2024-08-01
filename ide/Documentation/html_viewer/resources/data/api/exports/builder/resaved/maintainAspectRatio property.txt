@@ -1,0 +1,20 @@
+maintainAspectRatio
+(property)
+Whether the SVG path maintains its aspect ratio when resized.
+
+Syntax:
+set the maintainAspectRatio of {widget} to {true|false}
+get the maintainAspectRatio of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the maintainAspectRatio of the SVG path is `true`, the icon will be its maximum size within its bounds while maintaining the original ratio of width to height. If `false`, it will stretch to fit the extent of its bounds.
+
+Values:
+
+OS:

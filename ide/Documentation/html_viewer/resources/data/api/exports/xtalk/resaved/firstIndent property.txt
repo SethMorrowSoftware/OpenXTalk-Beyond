@@ -1,0 +1,29 @@
+firstIndent
+(property)
+Determines the indentation of the first line of a paragraph in a field. 
+
+Syntax:
+set the firstIndent [of {line}] of {field} to {pixels}
+----
+
+Synonyms:
+
+Params:
+pixels ( ): The number of pixels to indent the first line of a paragraph of text. The the pixels is set to a negative number, the first line will be outdented by that number of pixels.
+
+Examples:
+set the firstIndent of field 1 to 10
+----
+set the firstIndent of line 5 of field 1 to 10
+----
+
+Description:
+Use the firstIndent property to created indented paragraphs.
+
+By default, the firstIndent property of newly created fields is set to zero. 
+
+Values:
+The firstIndent of a line or field returns an the indent size as a number.  
+
+OS:
+mac,windows,linux,ios,android

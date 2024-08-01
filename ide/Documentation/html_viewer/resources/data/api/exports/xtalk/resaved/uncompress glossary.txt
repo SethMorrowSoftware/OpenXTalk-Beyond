@@ -1,0 +1,16 @@
+uncompress
+(glossary)
+
+Syntax:
+Synonyms:
+uncompressed, uncompressing, uncompress, decompressed, decompressing, decompress
+
+Params:
+
+Examples:
+Description:
+To return compress|compressed data to its original state.
+
+Values:
+
+OS:

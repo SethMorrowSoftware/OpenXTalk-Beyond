@@ -1,0 +1,29 @@
+dropboxGetThumbnail
+(command)
+Get a thumbnail for an image.
+
+Syntax:
+dropboxGetThumbnail {pAccessToken}, {pPath}, {pFormat}, {pSize}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pPath ( ): Path in the user's Dropbox to be deleted.
+pFormat ( ): The format for the thumbnail image - "jpeg" - "png"
+pSize ( ): The value will be one of the following datatypes: - "w32h32": 32 by 32 px. - "w64h64": 64 by 64 px. - "w128h128": 128 by 128 px. - "w640h480": 640 by 480 px. - "w1024h768": 1024 by 768 px.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+This method currently supports files with the following file extensions: jpg, jpeg, png, tiff, tif, gif and bmp. Photos that are larger than 20MB in size won't be converted to a thumbnail.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will contain the data of the thumbnail image.
+
+If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

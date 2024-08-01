@@ -1,0 +1,29 @@
+ElementIsInList
+(operator)
+Determines if a given element is in Target
+
+Syntax:
+{Needle} is in {Target}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): Any expression.
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tList as List
+put [ "a", "b", "c", "d" ] into tList
+
+variable tIsIn as Boolean
+put "a" is in tList into tIsIn -- tIsIn contains true
+----
+
+Description:
+Needle must be an element of Target rather than a sublist, or contained within a list element of Target.
+
+Values:
+Returns true if Needle can be found among the elements of Target. 
+
+OS:

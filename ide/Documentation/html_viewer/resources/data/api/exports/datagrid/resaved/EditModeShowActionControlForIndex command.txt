@@ -1,0 +1,20 @@
+EditModeShowActionControlForIndex
+(command)
+Display the action control for the data grid row with the given index.
+
+Syntax:
+dispatch "EditModeShowActionControlForIndex" to group "DataGrid" with
+{row index}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Display the action control for the data grid row with the given index. The data grid must be in edit mode for the action control to be displayed.
+
+Values:
+
+OS:

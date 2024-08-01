@@ -1,0 +1,26 @@
+customPropertySets
+(property)
+Lists all the custom property sets that can apply to an object(glossary). 
+
+Syntax:
+get the customPropertySets of {object}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if it is among the lines of the customPropertySets of me then doItOver
+----
+
+Description:
+Use the customPropertySets property to find out what property sets are defined for an object(glossary).
+
+You can delete an object's custom property sets by setting the object's customPropertySets to empty.
+
+Values:
+The customPropertySets of an object(glossary) is a list of all the custom property sets belonging to the specified object(glossary), one per line. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,24 @@
+ContainsChars
+(operator)
+Determines whether Source contains Needle.
+
+Syntax:
+{Source} contains {Needle}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to a string.
+Source ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+Source contains Needle if and only if the chars of Needle occur as a subsequence of the chars of Source.
+
+*Note:* Since "" is a substring of every string, every string contains the empty string.
+
+Values:
+Returns true if Source contains Needle. 
+
+OS:

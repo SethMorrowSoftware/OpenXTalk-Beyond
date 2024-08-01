@@ -1,0 +1,16 @@
+custom command
+(glossary)
+
+Syntax:
+Synonyms:
+user-defined command, custom command
+
+Params:
+
+Examples:
+Description:
+A command whose behavior is defined in a message handler that you write, as opposed to a built-in command.
+
+Values:
+
+OS:

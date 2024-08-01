@@ -1,0 +1,26 @@
+FormatBooleanAsString
+(statement)
+Formats a boolean value as a string
+
+Syntax:
+format {Operand} as string
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a boolean value.
+
+Examples:
+variable tVar as String
+format 1 = 0 as String into tVar
+put "e" into char 3 of tVar -- tVar is "tree"
+----
+
+Description:
+Use FormatBooleanAsString when you want to manipulate a boolean value as text.
+
+Values:
+"true" or "false" 
+
+OS:

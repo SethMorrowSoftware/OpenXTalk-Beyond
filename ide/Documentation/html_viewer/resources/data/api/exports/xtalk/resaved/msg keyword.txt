@@ -1,0 +1,29 @@
+msg
+(keyword)
+A special global variable that is used with the put command when no other destination container is specified.
+
+Syntax:
+msg
+----
+
+Synonyms:
+msg
+
+Params:
+
+Examples:
+-- set msg to foobar
+put "foobar"
+----
+put "baz" after msg
+----
+
+Description:
+When msg is modified by a command the msgChanged message is sent to the object that modified it. If the msgChanged message is unhandled or passed then the value of msg will be written to the system log or in no ui mode (command line) to stdout.
+
+In OpenXTalk IDE msg and the msgChanged message are used to implement the message box.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

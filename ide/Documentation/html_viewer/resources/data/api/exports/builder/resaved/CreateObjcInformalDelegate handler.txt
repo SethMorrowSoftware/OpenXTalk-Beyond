@@ -1,0 +1,47 @@
+CreateObjcInformalDelegate
+(handler)
+Create an Objective-C object with LCB implementations of methods of an informal protocol.
+
+Syntax:
+CreateObjcInformalDelegate({pProtocol},{pHandlerMapping})
+----
+
+Synonyms:
+
+Params:
+pProtocol ( ): A list of foreign handlers which bind to protocol methods
+pHandlerMapping ( ): A mapping from the protocol's selector names to LCB handlers
+
+Examples:
+foreign handler Objc_NSPortMessageGetMsgId(in pMessage as ObjcId) returns UInt32 \
+    binds to "objc:NSPort.-msgid"
+
+handler HandlePortMessageCallback(in pMessage as ObjcId) returns nothing
+    post "portMessage" with [Objc_NSPortMessageGetMsgId(pMessage)]
+end handler
+
+foreign handler Objc_NSPortDelegateHandlePortMessage(in pTarget as ObjcId, in pPortMessage as ObjcId) returns nothing \
+    binds to "objc:.-handlePortMessage:"
+
+public handler GetNSPortDelegate()
+    return CreateObjcInformalDelegate([Objc_NSPortDelegateHandlePortMessage], \
+                                      { "handlePortMessage:": \
+                                        HandlePortMessageCalback })
+end handler
+----
+
+Description:
+Use the CreateObjcInformalDelegate handler to create instances of  Objective-C delegate classes with LCB implementations of protocol  methods, when the Protocol object cannot be found at runtime. This  occurs for example when all of the protocol methods are optional.
+
+Instead of a protocol name (as with CreateObjcDelegate), the  pProtocol argument of CreateObjcInformalDelegate must be a proper  list of foreign handlers for each of the methods of the protocol for  which LCB callbacks are provided in the pHandlerMapping array.
+
+Once created an informal delegate can be set in the usual way on an  instance of the appropriate class (by binding to `-setDelegate:`),  typically so that callbacks triggered by user interaction with a widget  can be handled in LCB.
+
+If any context is required to be passed as a parameter to the callback, use CreateObjcInformalDelegateWithContext.
+
+If the protocol can be resolved at runtime, it is generally easier to  use the CreateObjcDelegate handler.
+
+Values:
+An Objective-C object which calls the appropriate LCB handler on receiving any of the specified selectors.  
+
+OS:

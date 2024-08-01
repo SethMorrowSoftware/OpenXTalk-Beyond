@@ -1,0 +1,30 @@
+selectionMode
+(property)
+Determines which object|objects are selected when you drag a rectangle with the Pointer tool.
+
+Syntax:
+set the selectionMode to {intersect | surround}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the selectionMode to "intersect"
+----
+
+Description:
+Use the selectionMode property to change the behavior of drag selections.
+
+When you choose the Pointer tool, click in the window, and drag diagonally to select a rectangle, objects within the rectangle are selected. The selectionMode property determines which object|objects are included inside the dragged rectangle.
+
+If the selectionMode is set to "intersect", all object|objects that are partially or completely inside the rectangle are selected. If the selectionMode is set to "surround", only object|objects that are completely inside the rectangle are selected.
+
+*Tip:*  You can also set the selectionMode by choosing Edit ?  Intersected Selections from the menubar.
+
+Values:
+The selectionMode is either intersect or surround. 
+
+OS:
+mac,windows,linux,ios,android

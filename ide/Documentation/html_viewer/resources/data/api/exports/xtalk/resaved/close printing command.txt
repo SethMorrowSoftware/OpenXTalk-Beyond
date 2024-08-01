@@ -1,0 +1,35 @@
+close printing
+(command)
+Sends the current print job to the printer.
+
+Syntax:
+close printing
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+close printing
+----
+if tPrinting is "complete" then close printing
+----
+open printing
+repeat with x = 1 to the number of cards
+   print card
+end repeat
+close printing
+----
+
+Description:
+Use the close printing command to print card(object)|cards that you've selected with the print card command.
+
+If you use print after the open printing command, the card(object)|cards you print are saved up to be printed as a single batch. The close printing command prints out this batch of card(object)|cards, enabling you to print multiple card(object)|cards on a page.
+
+If no print card(keyword) command|commands have been execute|executed since the open printing command, the  close printing command prints a blank page. If you used the form of the open printing command, and the user canceled the  dialog box|dialog, you don't need to issue a close printing  command.
+
+Values:
+
+OS:
+mac,windows,linux,ios

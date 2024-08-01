@@ -1,0 +1,28 @@
+enable
+(command)
+Enables a control so that it responds to user actions.
+
+Syntax:
+enable {object}
+----
+
+Synonyms:
+
+Params:
+object ( ): Any control in an open stack.
+
+Examples:
+enable the selectedObject
+----
+enable field "Info" of stack "Entry"
+----
+
+Description:
+Use the enable command to allow an object(glossary) to respond to mouse clicks or keypresses.
+
+The enable command is equivalent to setting the object|object's enabled property to true.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

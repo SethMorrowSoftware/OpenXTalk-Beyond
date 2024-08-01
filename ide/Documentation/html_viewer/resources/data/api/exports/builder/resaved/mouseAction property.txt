@@ -1,0 +1,31 @@
+mouseAction
+(property)
+The header action that the mouse pointer is currently over.
+
+Syntax:
+get the mouseAction of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Go to the previous card when the header's "back" action is
+-- clicked.
+on mouseUp
+   if the mouseAction of the target is "back" then
+      go previous
+   end if
+end mouseUp
+----
+
+Description:
+The mouseAction property contains the itemNames|name of the action that was just clicked, or empty when no action was clicked.
+
+You can read the mouseAction property to detect which action was activated when handling the mouseUp message.
+
+Values:
+The name of the header action that the mouse pointer is currently over. 
+
+OS:

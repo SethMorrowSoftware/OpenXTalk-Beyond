@@ -1,0 +1,24 @@
+charsToTrimFromKey
+(property)
+The number of leading characters to trim from the key for display.
+
+Syntax:
+get the charsToTrimFromKey of {widget}
+----
+set the charsToTrimFromKey of {widget} to {pChars}
+----
+
+Synonyms:
+
+Params:
+pChars ( ): Number of leading characters to trim from the key.
+
+Examples:
+Description:
+The charsToTrimFromKey property controls the number of leading characters that  are removed from the keys of the arrayData of the widget.  This allows a custom sort where the sort portion of the key is not displayed.
+
+With charsToTrimFromKey set to 2, the following array: ``` 	[1 CCC] 	[2 BBB] 	[3 AAA] ```  Would display in the widget as: ``` [CCC] [BBB] [AAA] ```
+
+Values:
+
+OS:

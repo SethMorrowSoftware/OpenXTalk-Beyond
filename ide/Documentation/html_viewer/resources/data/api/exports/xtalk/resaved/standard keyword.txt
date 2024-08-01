@@ -1,0 +1,23 @@
+standard
+(keyword)
+Used with the style property to indicate a button that looks and behaves like a standard button for the current platform.
+
+Syntax:
+standard
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the style of button "Cancel" to standard
+----
+
+Description:
+Use the standard keyword to create a button that looks like a standard dialog-box button.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

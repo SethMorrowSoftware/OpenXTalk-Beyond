@@ -1,0 +1,19 @@
+header height
+(property)
+The height of the header are of the table.
+
+Syntax:
+put the dgProp["header height"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The height of the header are of the table.
+
+Values:
+
+OS:

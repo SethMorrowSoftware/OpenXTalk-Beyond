@@ -1,0 +1,16 @@
+Data Grid
+(object)
+An object for forms or tables
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The Data Grid enables you to integrate powerful tables and forms into your projects. Data grids combine groups and behaviors to provide you with a simple, yet flexible means of displaying your data in just about any way you want. See [the datagrid lessson](http://lessons.livecode.com/m/datagrid/l/7301-what-is-the-data-grid) for full documentation, lessons, and tutorials.
+
+Values:
+
+OS:

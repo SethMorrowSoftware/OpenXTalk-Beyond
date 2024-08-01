@@ -1,0 +1,32 @@
+iphoneFileDataProtection
+(function)
+Retrieves the data protection level of a file.
+
+Syntax:
+iphoneFileDataProtection ({filename})
+----
+
+Synonyms:
+
+Params:
+filename (string ): A string containing the path to the file.
+
+Examples:
+if iphoneFileDataProtection(tFile) is "none" then
+   iphoneSetFileDataProtection tFile, "complete"
+end if
+----
+
+Description:
+Use the iphoneFileDataProtection function to query the current level of protection of a particular file set using the command iphoneSetFileDataProtection. 
+
+Values:
+ 
+"complete until first user authentication": The file is fully protected until the user unlocks the device for this first time.
+"empty": The file was not accessible or argument not specified.
+"none": No protection.
+"complete": The file is not accessible, for read or write, while the device is locked.
+"complete unless open": The file is fully protected when the device is locked, unless it was already open.
+
+OS:
+ios

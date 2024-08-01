@@ -1,0 +1,26 @@
+SortListDescendingNumeric
+(statement)
+Sorts Target in descending numeric order.
+
+Syntax:
+sort {Target} in descending numeric order
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list of numbers.
+
+Examples:
+    variable tTestList as List
+    put [3,4,5,1,2] into tTestList
+
+    sort tTestList in descending numeric order -- tTestList is [5,4,3,2,1]
+----
+
+Description:
+Numeric sort is performed by comparing numeric elements by cardinality. *Note:* It is an error if Target contains any elements of non-numeric type.
+
+Values:
+
+OS:

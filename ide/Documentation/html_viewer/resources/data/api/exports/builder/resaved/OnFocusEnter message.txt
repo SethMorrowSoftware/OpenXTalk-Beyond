@@ -1,0 +1,19 @@
+OnFocusEnter
+(message)
+Sent when the widget gains focus.
+
+Syntax:
+OnFocusEnter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget gains focus.
+
+Values:
+
+OS:

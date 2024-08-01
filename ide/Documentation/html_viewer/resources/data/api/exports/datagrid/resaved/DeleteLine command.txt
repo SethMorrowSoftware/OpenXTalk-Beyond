@@ -1,0 +1,19 @@
+DeleteLine
+(command)
+Deletes the specified lines from the data grid.
+
+Syntax:
+dispatch "DeleteLine" to group "DataGrid" with pLine
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Deletes the specified line from the data grid. pLine is an integer.
+
+Values:
+
+OS:

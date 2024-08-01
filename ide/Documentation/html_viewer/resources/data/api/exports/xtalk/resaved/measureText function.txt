@@ -1,0 +1,41 @@
+measureText
+(function)
+return|Returns the width, size or bounds of the text drawn with the effective font attribute of the given object.
+
+Syntax:
+measureText({text},{objectReference},[{mode}])
+----
+
+Synonyms:
+
+Params:
+text (string ): Any text string, or an  that  to  a string.
+objectReference (string ): An expression that  to an object reference.
+mode (enum ): 
+
+Examples:
+local tText, tTextWidth
+put "Hello world" into tText
+put measureText(tText,field "myField") into tTextWidth
+----
+local tText, tTextSize
+put "Hello world" into field "someField"
+put field "someField" into tText
+put measureText(tText,field "someField","size") into tTextSize
+----
+# handler in a field
+on textChanged
+  local tTextBounds
+  put measureText("foo",me,"bounds") into tTextBounds
+  put "The text in this field has these bounds: " & tTextBounds
+end textChanged
+----
+
+Description:
+Use the measureText function to find the dimensions of the given  text if drawn using the effective font attributes of the object  specified in the objectReference parameter.
+
+Values:
+-   width (number): the width of the text -   size (int,int): the width and height of the text as a  comma-separated list; e.g. width,height -   bounds (rect): a rectangle identifying the bounds of the text in the form `0,-ascent,width,descent` where ascent and descent are relative to a 0 baseline the text is drawn on. 
+
+OS:
+mac,windows,linux,ios,android

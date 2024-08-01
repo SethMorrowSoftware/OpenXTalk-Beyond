@@ -1,0 +1,25 @@
+launchDataChanged
+(message)
+Sent to the current card when the application's launch data is changed by a new request from another app.
+
+Syntax:
+launchDataChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on launchDataChanged
+   myLaunchHandler mobileGetLaunchData()
+end launchDataChanged
+----
+
+Description:
+An Android app may be suspended in the background when it receives a request from another app. When this happens, the app's launch data is updated to contain the data for the new request and the app is resumed. The new launch data can be obtained from the mobileGetLaunchData function. 
+
+Values:
+
+OS:
+android

@@ -1,0 +1,33 @@
+RectanglePropertyWidth
+(operator)
+The width of a rectangle value.
+
+Syntax:
+the width of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+variable tRect
+put rectangle [50,100,150,200] into tRect
+
+// Store the width of the rectangle in a variable
+variable tWidth
+put the width of tRect into tWidth
+
+// Increase the width of the rectangle
+set the width of tRect to (tWidth + 10)
+----
+
+Description:
+The width of the rectangle.
+
+*Note:* Setting the width of a rectangle will resize it without moving the left edge, expanding or contracting from the right.
+
+Values:
+
+OS:

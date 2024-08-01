@@ -1,0 +1,21 @@
+extensionLCCompileVersion
+(function)
+Return the bytecode version of a particular lc-compile
+
+Syntax:
+extensionLCCompileVersion({pLCCompile})
+----
+
+Synonyms:
+
+Params:
+pLCCompile ( ): The path to the lc-compile program. If empty, this will be computed.
+
+Examples:
+Description:
+Return the bytecode version of a particular lc-compile
+
+Values:
+An integer, the version of the bytecode output by pLCCompile 
+
+OS:

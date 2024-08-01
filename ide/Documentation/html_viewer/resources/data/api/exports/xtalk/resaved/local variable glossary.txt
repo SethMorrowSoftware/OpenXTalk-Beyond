@@ -1,0 +1,16 @@
+local variable
+(glossary)
+
+Syntax:
+Synonyms:
+local variable, local
+
+Params:
+
+Examples:
+Description:
+A variable that is accessible in only one handler and whose existence ends when the handler stops execute|executing.
+
+Values:
+
+OS:

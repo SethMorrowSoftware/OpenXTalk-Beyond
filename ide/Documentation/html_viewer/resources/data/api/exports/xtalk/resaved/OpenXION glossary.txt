@@ -1,0 +1,16 @@
+OpenXION
+(glossary)
+
+Syntax:
+Synonyms:
+openxion, xion, xtalk
+
+Params:
+
+Examples:
+Description:
+OpenXION is a xTalk interpreter from Rebecca G. Bettencourt which runs on JVMs (JAVA virtual machines). OpenXION seeks to be a reference platform for xTalk scripting language implementation, and as such it uses text-console interaction by default and does not include a graphical user interface construction toolkit. It does include syntax for media and sound functionality. Its xTalk is highly compatible with HyperTalk script, and includes additional syntax for object-oriented part (aka widget or control) construction, as well as some syntax found in later xTalk implementations. Additionally OpenXION includes 'do [code] as [alternativeLanguage]' syntax so it can call out to other scripting languages such as AppleScript, Python, VBScript, JavaScript. 
+
+Values:
+
+OS:

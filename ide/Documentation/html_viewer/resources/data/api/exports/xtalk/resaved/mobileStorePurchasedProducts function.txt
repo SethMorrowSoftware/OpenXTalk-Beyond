@@ -1,0 +1,28 @@
+mobileStorePurchasedProducts
+(function)
+Get the list of all known completed purchases.
+
+Syntax:
+mobileStorePurchasedProducts()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+answer mobileStorePurchasedProducts()
+----
+
+Description:
+Use the mobileStorePurchasedProducts function to get a list of all known completed purchases.
+
+The function mobileStorePurchasedProducts is used to get a list of all known restored or newly bought purchases.
+
+*Note:*  In iOS, consumable products as well as non-renewable  subscriptions are not contained in this list.
+
+Values:
+It returns a return-separated list of product identifiers, of restored or newly bought purchases which are confirmed as complete. 
+
+OS:
+ios,android

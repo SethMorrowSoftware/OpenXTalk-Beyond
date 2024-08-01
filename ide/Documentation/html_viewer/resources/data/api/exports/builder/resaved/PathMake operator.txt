@@ -1,0 +1,26 @@
+PathMake
+(operator)
+Creates a new path.
+
+Syntax:
+path {mInstructions}
+----
+
+Synonyms:
+
+Params:
+mInstructions ( ): An expression which evaluates to a string.
+
+Examples:
+// Create a closed path with a line and some curves
+variable tPath as Path
+put path "M10,10 L50,100 Q100,100 100,50 C75,50 50,25 50,10z" into tPath
+----
+
+Description:
+Creates a new path.
+
+Values:
+A new path created from the instructions provided. The format of the path instructions is the same as that used for SVG path data as defined here - http://www.w3.org/TR/SVG/paths.html#PathData 
+
+OS:

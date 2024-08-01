@@ -1,0 +1,24 @@
+ANewWidget
+(operator)
+Create a widget object of the specified kind
+
+Syntax:
+a new widget {mKind}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tNavbar as Widget
+put a new widget "com.livecode.widget.navbar" into tNavbar
+----
+
+Description:
+Create a new widget object of the specified kind. The widget can then be placed with the PlaceWidget|place statement.
+
+Values:
+A widget object. 
+
+OS:

@@ -1,0 +1,19 @@
+dgColumnNumber
+(property)
+Get the column number relative to all visible columns.
+
+Syntax:
+get the dgColumnNumber of me
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+When working with a data grid table you can use the dgColumnNumber of me in a custom template behavior to get the column number relative to all visible columns. To use this property in other scripts you use the target or the mousecontrol as the target as well.
+
+Values:
+
+OS:

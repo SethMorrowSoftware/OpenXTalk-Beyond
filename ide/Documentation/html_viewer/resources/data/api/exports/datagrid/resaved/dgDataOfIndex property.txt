@@ -1,0 +1,29 @@
+dgDataOfIndex
+(property)
+Get or set the data associated with a particular index.
+
+Syntax:
+get the dgDataOfIndex[pIndex] of group "DataGrid"
+----
+set the dgDataOfIndex[pIndex] of group "DataGrid" to {value}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dgDataOfIndex[pIndex] of group "DataGrid" to pDataA
+----
+put the dgDataOfIndex[1] of group "DataGrid" into theMessageA
+put theMessageA["message"] -- puts "hi"
+----
+
+Description:
+Get or set the data associated with a particular index. The value is the array assigned to that index.
+
+*Note:* Setting the data of an index will cause the data grid to refresh the row associated with the index if it is visible on screen.
+
+Values:
+
+OS:

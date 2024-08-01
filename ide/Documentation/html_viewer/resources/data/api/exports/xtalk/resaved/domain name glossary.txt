@@ -1,0 +1,16 @@
+domain name
+(glossary)
+
+Syntax:
+Synonyms:
+domain name
+
+Params:
+
+Examples:
+Description:
+The name of a computer connected to the Internet. A domain name corresponds to one or more numeric IP address|IP addresses.
+
+Values:
+
+OS:

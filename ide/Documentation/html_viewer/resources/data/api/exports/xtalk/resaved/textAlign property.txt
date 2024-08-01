@@ -1,0 +1,27 @@
+textAlign
+(property)
+Specifies how text is aligned or justified in a field or button.
+
+Syntax:
+set the textAlign [of {line}] of {{button} | {field}} to {left | center | right}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textAlign of field "myField" to center
+----
+set the textAlign of line 1 of field "myField" to right
+----
+
+Description:
+Use the textAlign property to change the alignment of individual lines of text in a field, the whole field or button|buttons.
+
+By default, the textAlign of newly created fields and buttons is "left". 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

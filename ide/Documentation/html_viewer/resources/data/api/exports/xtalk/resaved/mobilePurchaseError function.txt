@@ -1,0 +1,31 @@
+mobilePurchaseError
+(function)
+Returns detailed information about errors in a purchase.
+
+Syntax:
+mobilePurchaseError({purchaseID})
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): a numeric purchase identifier
+
+Examples:
+put mobilePurchaseError(tPurchaseID) into tPurchaseError
+----
+if mobilePurchaseError(15) is empty then
+   answer "There were no errors with this purchase"
+end if
+----
+
+Description:
+Use the mobilePurchaseError function to retrieve detailed information about errors in a purchase.
+
+The mobilePurchaseError function returns a string containing detailed error information related to the specified purchase.
+
+Values:
+Returns the error information for the in-app purchase, purchaseID, if no error occurred empty is returned. 
+
+OS:
+ios,android

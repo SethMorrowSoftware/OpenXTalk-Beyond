@@ -1,0 +1,16 @@
+IDE
+(glossary)
+
+Syntax:
+Synonyms:
+ide
+
+Params:
+
+Examples:
+Description:
+An acronym for Integrated (or Interactive) Development Environment. An all-in-one environment for developing applications. 
+
+Values:
+
+OS:

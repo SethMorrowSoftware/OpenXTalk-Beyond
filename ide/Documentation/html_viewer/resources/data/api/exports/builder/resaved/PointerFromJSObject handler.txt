@@ -1,0 +1,31 @@
+PointerFromJSObject
+(handler)
+Convert a JavaScript object value to a pointer
+
+Syntax:
+PointerFromJSObject({pObj})
+----
+
+Synonyms:
+
+Params:
+pObj ( ): The object to convert
+
+Examples:
+public handler InitNativeButton()
+	variable tButton as JSObject
+	put EvalJavaScript("document.createElement('button')") into tButton
+
+	variable tPointer as Pointer
+	put PointerFromJSObject(tButton) into tPointer
+
+	set my native layer to tPointer
+end handler
+----
+
+Description:
+Use PointerFromJSObject to convert a JavaScript object to a variable of type Pointer.
+
+Values:
+
+OS:

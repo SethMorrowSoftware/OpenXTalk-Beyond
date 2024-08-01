@@ -1,0 +1,26 @@
+RectangleMake
+(operator)
+Creates a new rectangle value.
+
+Syntax:
+rectangle {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a list of 4 numbers, the left, top, right and bottom edges of the rectangle.
+
+Examples:
+// Initialize tRect to a rectangle value with origin at point 50,50 and size 100x50
+variable tRect
+put rectangle [50, 50, 150, 100] into tRect
+----
+
+Description:
+Creates a new rectangle value.
+
+Values:
+A new rectange with the given edges. 
+
+OS:

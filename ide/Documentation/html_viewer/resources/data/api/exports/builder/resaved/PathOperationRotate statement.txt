@@ -1,0 +1,29 @@
+PathOperationRotate
+(statement)
+Apply a rotation to a path.
+
+Syntax:
+rotate {mPath} by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mRotation ( ): An expression which evaluates to a number.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a rectangle path
+variable tPath as Path
+put rectangle path of rectangle [10,10,210,60] into tPath
+
+// Rotate the path
+rotate tPath by 45
+----
+
+Description:
+Rotates mPath by mRotation degrees.
+
+Values:
+
+OS:

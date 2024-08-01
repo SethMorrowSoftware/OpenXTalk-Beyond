@@ -1,0 +1,16 @@
+built-in message
+(glossary)
+
+Syntax:
+Synonyms:
+built-in message, builtin message
+
+Params:
+
+Examples:
+Description:
+One of the message|messages built into OpenXTalk, which are sent when the user performs an action such as clicking or typing.
+
+Values:
+
+OS:

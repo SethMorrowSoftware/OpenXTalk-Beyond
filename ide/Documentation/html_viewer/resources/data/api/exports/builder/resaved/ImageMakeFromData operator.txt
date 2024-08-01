@@ -1,0 +1,29 @@
+ImageMakeFromData
+(operator)
+Creates a new image.
+
+Syntax:
+image from data {mData}
+----
+
+Synonyms:
+
+Params:
+mData ( ): An expression which evaluates to binary data
+
+Examples:
+// Load image from a block of data
+variable tData
+put the contents of file "images/logo.png" into tData
+
+variable tImage
+put image from data tData into tImage
+----
+
+Description:
+Creates a new image.
+
+Values:
+A new image decoded from the data provided. 
+
+OS:

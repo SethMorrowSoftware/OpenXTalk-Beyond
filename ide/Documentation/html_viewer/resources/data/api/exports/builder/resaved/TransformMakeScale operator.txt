@@ -1,0 +1,29 @@
+TransformMakeScale
+(operator)
+Creates a new scaling transform value.
+
+Syntax:
+transform with scale {mScale}
+----
+
+Synonyms:
+
+Params:
+mScale ( ): An expression which evaluates to a list of 1 or 2 numbers, the x-axis scale and y-axis scale, or the uniform scale when only a single value is given.
+
+Examples:
+// Create x2 uniformly scaling transform
+variable tTransform
+put transform with scale [2] into tTransform
+
+// Create transform which only scales in the direction of the x axis
+put transform with scale [ 2, 1 ] into tTransform
+----
+
+Description:
+Creates a new scaling transform value.
+
+Values:
+A new scale transform. 
+
+OS:

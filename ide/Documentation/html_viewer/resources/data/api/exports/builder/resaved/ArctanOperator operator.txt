@@ -1,0 +1,27 @@
+ArctanOperator
+(operator)
+Arctan operator.
+
+Syntax:
+atan({Operand})
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put atan(-1) into tVar -- tVar contains -pi / 4
+----
+variable tVar as Number
+put the arctangent of 1 into tVar -- tVar contains pi / 4
+----
+
+Description:
+The inverse of the tan operator.
+
+Values:
+
+OS:

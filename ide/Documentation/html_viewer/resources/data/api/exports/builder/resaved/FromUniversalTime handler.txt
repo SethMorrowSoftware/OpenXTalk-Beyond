@@ -1,0 +1,30 @@
+FromUniversalTime
+(handler)
+Convert universal time to local time
+
+Syntax:
+FromUniversalTime({pSeconds},{pTimeZone})
+----
+
+Synonyms:
+
+Params:
+pSeconds ( ): The universal time, i.e. seconds since the beginning of the epoch.
+pTimeZone ( ): The time zone, in the form returned by the  function.
+
+Examples:
+local tDateTime
+put "2018,2,14,13,38,0,4" into tDateTime
+convert tDateTime to seconds
+put FromUniversalTime(tDateTime, "Antarctica/Vostok") into tDateTime
+convert tDateTime to dateitems
+-- tDateTime contains "2018,2,14,19,38,0,4"
+----
+
+Description:
+Use the FromUniversalTime function to find the local time for the  specified timezone, given the universal time.
+
+Values:
+The local time 
+
+OS:

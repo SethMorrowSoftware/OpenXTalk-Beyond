@@ -1,0 +1,27 @@
+end if
+(keyword)
+Ends an if control control structure|structure.
+
+Syntax:
+end if
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+end if
+----
+
+Description:
+Use the end if keyword to mark the end of an if  control structure.
+
+The end if keyword is used only with certain forms of the if control structure. If the entire if control structure is on one line, or if the else clause is on one line, the end if keyword is not used.
+
+The end if keyword occurs on a line by itself.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

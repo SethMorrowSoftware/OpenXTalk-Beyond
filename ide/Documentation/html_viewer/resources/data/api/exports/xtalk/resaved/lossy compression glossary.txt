@@ -1,0 +1,16 @@
+lossy compression
+(glossary)
+
+Syntax:
+Synonyms:
+lossy compression, lossy compression method, lossy
+
+Params:
+
+Examples:
+Description:
+A type of compress|compression technique, used for pictures, that discards some of the data in order to compress it better. The compression used to store JPEG file|files is lossy.
+
+Values:
+
+OS:

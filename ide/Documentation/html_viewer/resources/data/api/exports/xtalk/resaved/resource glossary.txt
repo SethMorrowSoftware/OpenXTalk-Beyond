@@ -1,0 +1,16 @@
+resource
+(glossary)
+
+Syntax:
+Synonyms:
+resource
+
+Params:
+
+Examples:
+Description:
+A type of data stored in the resource fork of Mac OS file|files. Each resource is identified by a four-letter resource type and a resource ID number.
+
+Values:
+
+OS:

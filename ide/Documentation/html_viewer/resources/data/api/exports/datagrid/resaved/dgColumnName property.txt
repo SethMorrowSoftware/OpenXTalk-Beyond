@@ -1,0 +1,19 @@
+dgColumnName
+(property)
+Set a new name for a column.
+
+Syntax:
+set the dgColumnName["col1"] of group "Data Grid" to pNewName
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set a new name for a column.
+
+Values:
+
+OS:

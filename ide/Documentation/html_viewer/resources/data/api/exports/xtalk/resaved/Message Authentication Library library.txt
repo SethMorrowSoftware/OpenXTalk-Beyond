@@ -1,0 +1,15 @@
+Message Authentication Library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This script library implements message authentication codes
+
+Values:
+
+OS:

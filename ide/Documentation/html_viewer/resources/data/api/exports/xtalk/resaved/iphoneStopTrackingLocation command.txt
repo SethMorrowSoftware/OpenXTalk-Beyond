@@ -1,0 +1,25 @@
+iphoneStopTrackingLocation
+(command)
+Stops tracking the location of the device.
+
+Syntax:
+iphoneStopTrackingLocation
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+iphoneStopTrackingLocation
+----
+
+Description:
+Use the iphoneStopTrackingLocation command to stop tracking the location of the device.
+
+The iphoneStopTrackingLocation command stops tracking the location of the device using CoreLocation.
+
+Values:
+
+OS:
+ios

@@ -1,0 +1,24 @@
+of
+(keyword)
+
+Syntax:
+of
+
+Summary:
+Designates the object a property belongs to, or the parameter of a function, or the string that contains a chunk expression.
+
+Examples:
+set the backgroundColor of field "Alert" to red
+get the length of thisDate
+put word 12 of it after field "Go On"
+
+Related:
+
+Description
+The of keyword is used to provide a connection between the property of an object , a parameter of a function, or the chunk expression of a string
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

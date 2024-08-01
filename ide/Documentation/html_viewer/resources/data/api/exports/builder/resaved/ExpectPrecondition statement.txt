@@ -1,0 +1,31 @@
+ExpectPrecondition
+(statement)
+Check a precondition
+
+Syntax:
+expect [that] {Condition}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+handler BoxValue(in pValue as any) returns Array
+	return { "__VALUE": pValue }
+end handler
+
+handler UnBoxValue(in pBox as Array) returns any
+	expect that "__VALUE" is among the elements of pBox
+	return pBox["__VALUE"]
+end handler
+----
+
+Description:
+Use this statement at the start of a handler to check that necessary preconditions for the handler are satisfied.  For example, the handler may require that its parameters have a particular structure or fall within a particular range, or may need the system to be in a specific state.
+
+Note that if the Condition is false, this statement will throw an error with the slightly-unhelpful message that "assertion failed". Usually, it will be more useful to use ExpectsPreconditionWithReason instead.
+
+Values:
+
+OS:

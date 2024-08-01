@@ -1,0 +1,24 @@
+stripZeros
+(handler)
+Removes any superfluous zeros and decimal places.
+
+Syntax:
+stripZeros({pString})
+----
+
+Synonyms:
+
+Params:
+pString ( ): The string to remove zeros from
+
+Examples:
+log stripZeros("5.0000000")			-- logs 5
+log stripZeros("5.432100")			-- logs 5.4321
+----
+
+Description:
+Use stripZeros to remove any superfluous zeros and decimal places from pString which have been added by the  `tNumber formatted as string`  syntax.
+
+Values:
+
+OS:

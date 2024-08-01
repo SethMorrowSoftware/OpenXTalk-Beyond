@@ -1,0 +1,34 @@
+ElementsOfArray
+(operator)
+Returns the elements of an array.
+
+Syntax:
+the elements of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to an array.
+	
+Examples:
+variable tArray as Array
+put the empty array into tArray
+put 1 into tArray["key1"]
+put 2 into tArray["key2"]
+put 3 into tArray["key3"]
+
+variable tElements as List
+put the elements of tArray into tElements
+sort tElements in ascending numeric order
+
+// tElements is [1, 2, 3]
+----
+
+Description:
+*Note:* The resulting list is not necessarily ordered in any way. Use the com.livecode.sort library to sort the elements.
+
+Values:
+A list whose elements are the elements of Target. 
+
+OS:

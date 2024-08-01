@@ -1,0 +1,36 @@
+KeysOfArray
+(operator)
+Returns the keys of an array.
+
+Syntax:
+the keys of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to an array.
+	
+Examples:
+variable tArray as Array
+put the empty array into tArray
+put "value1" into tArray["key1"]
+put "value2" into tArray["key2"]
+put "value3" into tArray["key3"]
+
+variable tKeys as List
+put the keys of tArray into tKeys
+sort tKeys in ascending order
+
+variable tKeysString as String
+combine tKeys with "," into tKeysString 
+// tKeysString is "key1,key2,key3"
+----
+
+Description:
+*Note:* The resulting list is not necessarily ordered in any way. Use the com.livecode.sort library to sort the keys.
+
+Values:
+A list whose elements are the keys of Target. 
+
+OS:

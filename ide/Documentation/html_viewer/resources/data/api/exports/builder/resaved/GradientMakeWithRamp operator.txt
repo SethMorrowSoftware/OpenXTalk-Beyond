@@ -1,0 +1,35 @@
+GradientMakeWithRamp
+(operator)
+Creates a new gradient paint.
+
+Syntax:
+{mType} gradient with ramp {mRamp}
+----
+
+Synonyms:
+
+Params:
+mRamp ( ): An expression which evaluates to a list of gradient stops.
+
+Examples:
+// List to hold gradient stops
+variable tRamp
+put the empty list into tRamp
+
+// Set up gradient stops
+push gradient stop at 0 with color [1,0,0] onto tRamp
+push gradient stop at 0.5 with color [0,1,0,0.5] onto tRamp
+push gradient stop at 1 with color [0,0,1] onto tRamp
+
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp tRamp into tGradient
+----
+
+Description:
+Creates a new gradient paint.
+
+Values:
+A new gradient paint. 
+
+OS:

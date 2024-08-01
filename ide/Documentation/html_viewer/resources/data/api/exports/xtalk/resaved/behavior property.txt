@@ -1,0 +1,43 @@
+behavior
+(property)
+Allows an object(glossary) to inherit its script handler|handlers from another object(glossary).
+
+Syntax:
+set the behavior of {object} to {{button} | {stack}}
+----
+
+Synonyms:
+parentscript
+
+Params:
+
+Examples:
+local tNewGroup
+set the behavior of tNewGroup to \
+   the long id of button "myBehavior" of card "Behaviors"
+----
+set the behavior of stack "foo" to the long id of stack "foobehavior"
+----
+
+Description:
+Behaviors are a method to create common functionality between object|objects without duplicating the script|scripts.
+
+The value of the behavior property is a object reference|reference to a button or stack containing the script to use.  The format stored in the object it's assigned to is similar to a id(property)|long ID.  The main difference is that where a long ID includes the full path to the stack file, the form stored in the behavior includes only the stack name, allowing the reference to continue to work after the stack file has been moved to another computer. If you set the behavior to a long ID, OpenXTalk converts it to a rugged form without the stack file path.
+
+By default, the behavior of newly created objects is empty.
+
+An object with a behavior set will act as though its script was set to the script of the behavior button or stack. If multiple objects share the same behavior, each will have its own set of script local variable|script local variables. Any references to `me`, `the owner of me`, and so on, will resolve to the child object currently executing.
+
+The button or stack containing the behavior script can be located anywhere. In particular this allows for it be located in a password protected stack, allowing you to protect the script without need to protect the controls using it.
+
+Behaviors are resolved by OpenXTalk immediately after loading a stack file. The engine acts as though it is resolving a control reference of the form:   button id *id* of stack *stack name* [ of stack *mainstack name* ]   Thus the stackFiles property will be searched and stacks loaded into memory as appropriate.
+
+The behavior property does not track changes to the name of the stack and/or substack - if the name of a stack containing behavior objects is changed, then all references to these behavior|behaviors will be broken. This apparent strictness is necessary to ensure that behaviors act consistently while OpenXTalk is running.
+
+For example, let's say you have the following setup:  * field "Action" - behavior set to button "Derived" * button "Derived" - behavior set to button "Root" * button "Root"   Then the message path will be:  1. field "Action" 2. button "Derived" 3. button "Root"   **Note:** The synonym `parentScript` is deprecated and should not be used. 
+
+Values:
+A object reference|reference to a button or stack containing the script to use as a behavior, or empty if the control should have no behavior. 
+
+OS:
+mac,windows,linux,ios,android,html5

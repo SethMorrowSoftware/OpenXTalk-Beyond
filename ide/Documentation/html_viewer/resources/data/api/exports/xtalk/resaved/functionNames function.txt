@@ -1,0 +1,30 @@
+functionNames
+(function)
+return|Returns a list of all built-in function|functions in OpenXTalk. 
+
+Syntax:
+the functionNames
+----
+functionNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the functionNames
+----
+if myHandlerName is in the functionNames then answer "Choose another name."
+----
+
+Description:
+Use the functionNames function(control structure) to check whether a particular function(control structure) already exists in OpenXTalk, to avoid using a reserved word for your own custom function handler|handlers.
+
+The functionNames function(control structure) return|returns all the built-in function(glossary)|functions that can be used in OpenXTalk, including synonyms.
+
+Values:
+The functionNames function return|returns one function name per line.  
+
+OS:
+mac,windows,linux,ios,android

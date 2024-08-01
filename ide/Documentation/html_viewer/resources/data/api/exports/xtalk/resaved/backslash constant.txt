@@ -1,0 +1,23 @@
+backslash
+(constant)
+Equivalent to the \ character (ASCII 92).
+
+Syntax:
+backslash
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put theDrive & backslash & theNode into windowsStylePath
+----
+
+Description:
+Use the backslash constant as an easier-to-read replacement for "\". 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

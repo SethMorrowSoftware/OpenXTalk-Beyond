@@ -1,0 +1,21 @@
+IsAData
+(operator)
+Determines whether Target is data or not.
+
+Syntax:
+{Target} is a data
+----
+
+Synonyms:
+
+Params:
+Target ( ): Any expression
+
+Examples:
+Description:
+Determines whether Target is data or not.
+
+Values:
+Returns true if the given expression Target is data, and false if not. 
+
+OS:

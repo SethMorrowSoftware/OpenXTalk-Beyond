@@ -1,0 +1,29 @@
+mobileBuildInfo
+(function)
+Returns information about the current device.
+
+Syntax:
+mobileBuildInfo({propertyInfo})
+----
+
+Synonyms:
+
+Params:
+propertyInfo (enum ): The name of the property to be retrieved.
+
+Examples:
+get mobileBuildInfo("MODEL")
+----
+put mobileBuildInfo("SERIAL") into tDeviceSerialNumber
+----
+
+Description:
+Use the mobileBuildInfo function to fetch information about the current device, such as the manufacturer and device name.
+
+*Note:* Property names are case sensitive. 
+
+Values:
+The requested information about the current device. 
+
+OS:
+android

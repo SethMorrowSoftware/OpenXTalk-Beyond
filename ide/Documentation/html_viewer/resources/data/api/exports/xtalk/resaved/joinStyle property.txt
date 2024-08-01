@@ -1,0 +1,34 @@
+joinStyle
+(property)
+Specifies how joins between two lines appear.
+
+Syntax:
+set the joinStyle [of graphic] to {style}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the joinstyle of graphic 1 of card "myCard" to "bevel"
+----
+set the joinstyle of the selectedobject to "round"
+----
+
+Description:
+Set the joinStyle property to specify how joins between two lines appear.
+
+This property can be set for the line, freehand polygon and freehand curve graphic types.
+
+*Note:*  This only affects polygon, freehand curve and line   graphic|graphics which have their antialiased set to true.
+
+Values:
+The joinStyle of a graphic is one of the following:  - "round" - A circular arc is drawn between the outer edges of the adjoining lines. This is the default.
+
+ "bevel" - A straight line is drawn between the outer edges of the adjoining lines.
+
+ "miter" - Outer edges are extended to meet at a sharp point.  If the distance from the corner exceeds the miterLimit, a bevel join is used for the corner. 
+
+OS:
+mac,windows,linux,ios,android
