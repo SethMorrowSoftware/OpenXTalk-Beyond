@@ -1,0 +1,3 @@
+Version 0.99, build 202401190740
+Tools stack - themed icon support for MacOS and Windows (Linux one already done).
+Changes to the preferences, the splash screen, the menubar... also updated the about text, the allguides stack (continued) and fixed some bugs in the App Browser (refreshing the window now if the target control can't be found).

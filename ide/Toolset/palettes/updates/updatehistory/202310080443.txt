@@ -1,0 +1,2 @@
+Version 0.93, build 202310080443
+Modified preferences stack. In this version, I have reduced the number of pickable colours in the menus to a sensible number. I've also made the swatches clickable.

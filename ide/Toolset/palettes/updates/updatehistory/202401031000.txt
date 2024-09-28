@@ -1,0 +1,2 @@
+Version 0.98, build 202401031000
+Revised the allguides stack, gathering up the referenced stacks that are mentioned in the guide - to ensure they aren't lost. Changes to the preferences as spotted more LC references.

@@ -1,0 +1,3 @@
+Version 1.07, build 202408241830
+Added a timer to the standalone success alert.
+ 

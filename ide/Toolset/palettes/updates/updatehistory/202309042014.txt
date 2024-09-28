@@ -1,0 +1,3 @@
+Version 0.92, build 202309042014
+Changes the name shown in the menubar under MacOS.
+Changes from "Livecode" to "OpenXTalk 0.9", file: info.plist

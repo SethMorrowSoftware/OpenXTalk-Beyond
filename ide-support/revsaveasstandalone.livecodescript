@@ -216,9 +216,11 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
    end if
    
    local tError
+   local tBuildInitInSeconds -- variable for holding a build timer
    # Do the check and continue building as normal.
    if revSaveCheck(pStack) then
       local tStandalonePaths
+      put the milliseconds into tBuildInitInSeconds
       revDoSaveAsStandalone pStack, pFolder, ,tStandalonePaths
       put the result into tError
    else
@@ -230,7 +232,19 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
       set the cWarnings of stack "revBuildResults" to revStandaloneGetWarnings()
    else
       if not revSBSuppressDialogs() and pSuppressSuccessMsg is not true and tError is empty then
-         answer information "Standalone application saved successfully."
+         put false into tTimeInMS
+         put the milliseconds - tBuildInitInSeconds into tMillisecondsTaken
+         put tMillisecondsTaken div 1000 into tSecondsTaken
+         if tSecondsTaken <1 then put true into tTimeInMS
+         convert tSecondsTaken to dateItems
+         if tTimeInMS is true then
+            -- took less than a second, so we measure in milliseconds
+            put tMillisecondsTaken & " milliseconds." into tDuration
+         else
+            put item 5 of tSecondsTaken & " mins, " & item 6 of tSecondsTaken & " seconds." into tDuration
+         end if
+         answer information "Standalone application saved successfully." & return &¬
+         "Time taken: " & tDuration
       end if
       
       if pPreview is not "false" and sStubPath is not empty then

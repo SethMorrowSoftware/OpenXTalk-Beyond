@@ -1,0 +1,2 @@
+Version 0.99, build 202401180915
+Adding TerryL's user guide pdf, data grid guide pdf, the linked files in the allguides, and TerryL's lessons - will be in the help menu.

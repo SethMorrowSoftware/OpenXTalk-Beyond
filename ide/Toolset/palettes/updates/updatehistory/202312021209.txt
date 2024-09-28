@@ -1,0 +1,22 @@
+Version 0.96, build 202312021209
+This adjusts the grab handle in the revMenubar to look more like a grab handle.
+this also adds a visual preview of the grab handle in preferences > appearance
+Also fixed is a code error in the 'App Browser', (corrects a false logic statement on fld "controls" in "App Browser", line 34)
+While still looking at the 'App Browser', it now works out what the link colour should be in a more robust way (tpLinkColours, App Browser > stack script)
+Additionally, a fix has been added for the inspector loop condition that can happen in Ubuntu-based linux distros with the inspector palettes.
+(I made that fix conditional to detect if the user was in Ubuntu or not)
+Corrected a few typos in the Tools Palette (only visible in script), not user-facing
+updated the updates stack (confused?) this now removes it from memory when the updates are done
+also fixed a bug where the truncated toolbar did not stay truncated if the user toggled 'toolbar icons' / 'toolbar text'
+Replaced the LC icon in the Answer and Ask dialogs. Hopefully always shows the OXT icon now if the user forgets to specify one.
+Spotted that the 'View' menu > 'Grid' wasn't remembering it's setting between launches, so fixed that
+Also tweaked the about text (it contained windows \cr returns), - changed how this loads so it's the same across all platforms.
+Added a feature (credit to Richmond here). You can now have custom alert icons in the Ask and Answer dialogs. You just need to have an image called 'appicon.png" in card 1 of your stack.
+Added an option in Preferences > Extras to close unnecessary stacks, after the IDE starts 
+Fixed geometry resizing bug in revgeometrylibrary.livecodescript
+Modified the inspector so that the chances of getting many, many inspectors is greatly lessened.
+You can now toggle the revMenubar drag handle on or off without restarting the IDE
+Implemented the additional shortcuts in Object menu (card inspector = ctrl J, card script = ctrl shift C, Stack script = ctrl shift S) - Credit to TerryL for this suggestion
+started adding a revamped 'all guides' stack (in progress) - can be turned on under Preferences > Dictionary > "Use 'All Guides' experimental stack"
+revMenumanager - updated by TerryL, revSetEdited command was causing a blocking error
+reportBuilder - suggestion by TerryL to increase the preview window scaling. (tperry: I've added a slider so it can be adjusted 11-12-23)

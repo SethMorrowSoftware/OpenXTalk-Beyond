@@ -1,0 +1,2 @@
+Version 0.92, build 202310040946
+Adds the preference option for toggling the dictionary to open in the old method (generating by API), or by opening in an external browser (more compatible across all OSs). Note: you can still shift-click the dictionary button to ignore whatever preference is set and open via the API method.

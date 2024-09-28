@@ -1,0 +1,2 @@
+Version 1.07, build 202409211313
+Modifies the updates stack to use curl, rather than the engine's put URL method when downloading files.

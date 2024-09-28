@@ -1,0 +1,2 @@
+Version 0.92, build 202309231840
+Adds the option in the script editor for dark mode syntax colours. (Removes any background colours from the script editor)

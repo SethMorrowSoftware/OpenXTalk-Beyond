@@ -1,0 +1,2 @@
+Version 0.98, build 202401130753
+Gathering more stuff to include in the allguides stack, and the referenced files that go with it.

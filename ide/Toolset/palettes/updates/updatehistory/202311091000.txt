@@ -1,0 +1,3 @@
+Version 0.94, build 202311091000
+This mod allows the tools palette to populate new object with script presets.
+There's a toggle in the preferences > dictionay to turn this on or off

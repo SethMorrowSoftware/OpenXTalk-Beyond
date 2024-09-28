@@ -1,0 +1,3 @@
+Version 1.0, build 202401311057
+Work on converting the user guide to a stack version continues...
+Updated behaviour stack (datagridbutton) - this was firing off error messages in the IDE sporadically because of a typo. Fixed typo and the error log stops generating problems.

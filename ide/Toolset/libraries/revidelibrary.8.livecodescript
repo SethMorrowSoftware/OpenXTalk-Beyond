@@ -1845,6 +1845,11 @@ function revIDEPaintToolControllers
    put "Set number of paint polygon sides" into tTooltip
    updateOptionArray tName, "paint polygon sides tool", tTooltip, tCount, tDataA
    
+   add 1 to tCount
+   put "com.livecode.tool.RoundRadius" into tName
+   put "Set corner radius for RoundRect tool" into tTooltip
+   updateOptionArray tName, "paint polygon radius tool", tTooltip, tCount, tDataA
+   
    return tDataA
 end revIDEPaintToolControllers
 
@@ -7024,12 +7029,19 @@ on revIDERemoveFromMemory pStackID
    
    local tStacks 
    put tMainStack & cr & tSubstacks into tStacks
-   answer warning "Really remove the stack file" && pStackID && "from memory?" & cr & "Any changes made since saving will be lost from the following stacks:" & cr & cr & tStacks with "Cancel" or "OK" as sheet
-   if it is "Cancel" then 
-      exit revIDERemoveFromMemory
-   end if
    
-   __ideRemoveFromMemory the long id of stack tMainstack
+   -- add option to close and remove from memory without asking (tperry 5-9-24)
+   if the cCloseNoWarn of stack "revPreferences" is true then
+      __ideRemoveFromMemory the long id of stack tMainstack
+   else
+      answer warning "Really remove the stack file" && pStackID && "from memory?" & cr & "Any changes made since saving will be lost from the following stacks:" & cr & cr & tStacks with "Cancel" or "OK" as sheet
+      if it is "Cancel" then 
+         exit revIDERemoveFromMemory
+      end if
+      if it is "Ok" then
+         __ideRemoveFromMemory the long id of stack tMainstack
+      end if
+   end if
    
    # Send the 'ideDestroyStack' message
    ideMessageSend "ideDestroyStack", pStackID

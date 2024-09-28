@@ -1,0 +1,2 @@
+Version 0.94, build 202311221851
+This makes the devguides into a toggle option in preferences

@@ -1,0 +1,3 @@
+Version 1.07, build 202409280728
+This update adds the option to turn off any warnings when "close and remove from memory" is chosen. The new option is in the Preferences > Files & Memory
+ 

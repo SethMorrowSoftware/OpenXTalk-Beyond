@@ -1,0 +1,41 @@
+Version 1.04, build 202405021247
+Disabled the flip and rotate commands for gifs, via menubar. This is to stop any animations being lost.
+Adjusted the layout of the preferences window a bit
+Additional slight optimisation for menu drawing (all platforms) - (only a few milliseconds)
+A few extra optimisations to IDE loading time (making a few handlers and functions more efficient)
+Option to toggle the preset-sizes in the file > new stack submenu.
+Option to toggle the icon sizes of palettes in preferences
+Option to turn on the ScreenSharedMemory buffer to improve performance (linux only)
+Option to toggle the browser widget (preferences > compatibility)
+Option to toggle data grids (preferences > compatibility)
+Fixed a few typos in inline comments inside various scripts
+Increased the initial typing responsiveness of the dictionary stacks
+Modified the "Quick Dictionary" plugin somewhat, with options to iconify it (additional option in Preferences > Dictionary).
+Some additional tweaks to sample scripts (if you have those turned on in Preferences > Dictionary).
+Change the way some submenu-items are generated (they are not generated needlessly & continuously), but only if there are changes.
+Fixed a bug with the paint tools not saving correctly - thanks to Richmond62 and Micmac for reporting
+Fixed numerous bugs with the paint tools. Okay: a better description - almost entirely recreated the way paint tools are selected and their properties are set.
+Changed the appearance of the Tools palette, so that various sections are clearly defined.
+Added the option to hide the Tools (and Message box if open) in OXT Lite - when the desktop is clicked. (Applies to Mac and Linux).
+Added the preference option to select either the pointing hand tool, or the arrow tool (requested by micmac)
+The graphics tools suffered from the same issue as the paint tools, so I fixed those too.
+Changed the 'single line' message box slightly, so when you open it, it selects the text of the field for you (ready for copying or simply typing over).
+Paul McClernan noticed that the line tool (bitmap version) has been missing from LCC (and OXT) for a while. I've fixed & restored this - thank you Paul for noticing.
+Changed the 'Read this first' file (Mac) - It may ask for Finder permissions, but this is to create first-run-files and preferences if they don't exist.
+
+Note: the following fixes do NOT apply to the mac or windows versions, as they come from the engine. As I'm experiencing engine compile issues on MacOS, and extreme slowness with the recompiled engine on Windows, - the following fixes are only for Linux at this time:
+
+If lots of fonts are loaded into memory, the time to quit the IDE has been improved.
+If an engine runtime error occurs, an error dialog will be displayed rather than failing silently.
+While typing in the script editor, performance has been improved.
+If you open and close the message box, the IDE used to get slower. Fixed.
+
+These fixes to be added when recompiled for MacOS: (DO NOT INCLUDE IN RELEASE NOTES)
+
+X and Y Co-ordinates now should be correct for multi-screen macOS systems.
+Placing buttons and progress bars on a card will no longer cause slowdowns on macOS 10.10 or later.
+When opening the IDE menus on macOS, there should no longer be a delay.
+The engine will no longer crash when accessing the camera or microphone on recent versions of macOS X.
+Scripts which run without locking the screen are a lot faster (macOS Big Sur and later)
+MacOS date and time formats right now on Sonoma?
+The engine will now return the correct value for the systemVersion on all macOS versions. Previously, when running on macOS 11.0 and above, the system version would be reported as 10.16.0

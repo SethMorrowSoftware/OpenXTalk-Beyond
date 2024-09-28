@@ -1,0 +1,2 @@
+Version 1.06, build 202406020936
+Added an option to middle-click (mousewheel button) & toggle between browse and pointer tool.

@@ -1,0 +1,2 @@
+Version 1.06, build 202406251558
+Added a Linux file associations script. There's already a windows one built in, so this 'does linux' too now. (This was the 'do linux at some point' note in the home stack)

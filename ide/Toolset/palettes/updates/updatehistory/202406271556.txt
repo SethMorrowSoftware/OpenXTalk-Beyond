@@ -1,0 +1,3 @@
+Version 1.06, build 202406271556
+Fixes the window juggling on Linux distros with iceWM window manager.
+(good if you are using a patched Chromebook with Linux on it).

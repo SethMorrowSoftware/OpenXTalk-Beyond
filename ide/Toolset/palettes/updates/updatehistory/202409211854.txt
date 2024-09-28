@@ -1,0 +1,2 @@
+Version 1.07, build 202409211854
+In the Help menu > Lessons, this adds Paul's "Intro to eXTension Builder Widgets", lesson 70.

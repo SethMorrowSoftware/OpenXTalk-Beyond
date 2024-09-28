@@ -1,0 +1,4 @@
+Version 0.93, build 202310120927
+Because I want to regain the wasted space that window controls take up, I've hidden these.
+However, this means the window is no longer draggable.
+This mod creates a drag-handle on the far left of the window. I also shortened the length of the window slightly (to work on smaller screens), and nudged it over slightly to hide the erronious last divider where the 'upgrade' button would normally start.

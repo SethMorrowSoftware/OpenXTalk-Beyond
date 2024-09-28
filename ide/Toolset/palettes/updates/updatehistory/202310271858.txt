@@ -1,0 +1,4 @@
+Version 0.93, build 202310271858
+Files for dark mode on Macs (round 2)
+This is a continuation of removing custom colour properties where they should not be set.
+You can install them on windows and linux, but they won't do anything

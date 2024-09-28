@@ -1,0 +1,2 @@
+Version 1.03, build 202403291937
+Replaced the busy cursor with a logical counting hand.

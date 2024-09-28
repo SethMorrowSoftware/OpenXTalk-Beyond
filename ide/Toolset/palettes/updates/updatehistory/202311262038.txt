@@ -1,0 +1,9 @@
+Version 0.95, build 202311262038
+These are cumulative changes from 0.94 to 0.95
+Made drawing the layout guides an option in the preferences
+Re-enabled online updates. From now on, I'd like all new versions to be delivered this way rather than a 400MB+ download each time. (this will come back online automatically in 5 days - on the 1st of December)
+fixed grid (size) not applying correctly
+Added a confirmation dialog when resetting the preferences
+If using multiple displays, and in the rare instance where it's positioned incorrectly, added a compatibility option to tweak the menubar stack placement under the preferences.
+Codesigning issues (MacOS only). Hopefully this is now solved. There are additional instructions inside the mac dmg to help with this if you run into problems.
+updated splash screen

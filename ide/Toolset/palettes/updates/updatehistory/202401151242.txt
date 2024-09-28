@@ -1,0 +1,2 @@
+Version 0.99, build 202401151242
+Fixes to message box focus, home stack load times, project browser bug fixes, inspector (multiple instances spawning)

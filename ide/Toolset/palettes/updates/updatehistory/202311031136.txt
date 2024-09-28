@@ -1,0 +1,3 @@
+Version 0.94, build 202311031136
+This renames the "My Livecode" folder it creates for user extensions to "xTalk extensions". It also changes the default config folder for saving preferences to "xtalk".
+You can change this for whatever you call your fork. Just change the variable "tForkName" inside home.livecodescript

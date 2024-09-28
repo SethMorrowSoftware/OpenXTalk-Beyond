@@ -1,0 +1,2 @@
+Version 0.92, build 202310011350
+This is a modification to the revnomessages library. When you quit, on older versions of MacOS (10.9), it can sometimes hang. This makes sure that doesn't happen.

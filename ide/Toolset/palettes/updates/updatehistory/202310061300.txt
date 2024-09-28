@@ -1,0 +1,6 @@
+Version 0.92, build 202310061300
+-- this is probably the first part of file extension recognition for OpenXTalk Lite.
+-- this currently identifies .oxtstack files on Mac and Linux (you can double-click them to open in OpenXTalk Lite 0.92).
+-- To apply these fixes, it's a bit involved and requires tinkering with Application binaries to some extent. (Or at least the plist files on MacOS) On the mac, this changes it for all users in multi-user setups.
+
+-- For linux, the "add-linux-associations.bin" program is now run by the installer (making sure the "application-extension-oxtstack.xml and openxtalk.desktop" files are in the same folder when it runs). This ensures the file associations are set automatically for the person installing the program. However, this doesn't deal with multi-user setups. For that, I've added the code into the home stack, so this is now checked and set per-user.

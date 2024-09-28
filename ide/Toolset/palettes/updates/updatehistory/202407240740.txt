@@ -1,0 +1,2 @@
+Version 1.06, build 202407240740
+Changed a few icons on the toolbar as requested, fixed the brush popup (for smaller screens), and a small set of optimisations in the revIdeLibrary stack.

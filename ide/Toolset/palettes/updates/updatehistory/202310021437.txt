@@ -1,0 +1,2 @@
+Version 0.92, build 202310021437
+Goes some way to fix weird 'window juggling', this is at it's worst when you are running a Ubuntu-based linux distro & XFCE window manager

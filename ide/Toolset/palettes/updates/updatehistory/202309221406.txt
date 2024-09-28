@@ -1,0 +1,2 @@
+Version 0.92, build 202309221406
+Modified preferences stack. It has the OXT references included, and the inactive items cleaned from the options. This version also adds the ability to select more colours for the backdrop and object handles.

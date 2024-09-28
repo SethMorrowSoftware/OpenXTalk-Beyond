@@ -1,0 +1,4 @@
+Version 0.93, build 202310241636
+This modification adds visual positioning guides when you are dragging objects around the card. (Helps position things quickly and precisely).
+A huge thanks, and credit to Paul McClernan for this.
+Also, thanks to Ferrus Logic (https://github.com/Ferruslogic/DevGuides)

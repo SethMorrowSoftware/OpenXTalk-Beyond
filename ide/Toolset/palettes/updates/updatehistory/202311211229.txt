@@ -1,0 +1,4 @@
+Version 0.94, build 202311211229
+Adds a persistant global variable, which you can reference from either the messagebox or you can run:
+put tSystemVersionNumber
+This will display the version number of the system reliably

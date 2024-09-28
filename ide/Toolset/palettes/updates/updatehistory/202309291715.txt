@@ -1,0 +1,2 @@
+Version 0.92, build 202309291715
+Modified the About Dialog, removed LCC branding

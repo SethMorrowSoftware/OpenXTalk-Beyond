@@ -1,0 +1,3 @@
+Version 0.94, build 202311101300
+You can now toggle if you want the draggable area on the menubar to appear (or not)
+(option is under 'Appearance' under preferences)

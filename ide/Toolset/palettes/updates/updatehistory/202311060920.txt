@@ -1,0 +1,3 @@
+Version 0.94, build 202311060920
+Modified preferences stack. Spotted that the colour swatch wasn't applying the colour correctly, so fixed.
+This also adds some additional colourisation options for script syntax

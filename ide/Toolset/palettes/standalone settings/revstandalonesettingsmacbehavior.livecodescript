@@ -10,6 +10,7 @@ on preOpenCard
       put true into tStandaloneSettingsA["MacOSX x86-64"]
    end if
    
+   
    if tStandaloneSettingsA["MacOSX PowerPC-32"] then
       delete variable tStandaloneSettingsA["MacOSX PowerPC-32"]
       put true into tStandaloneSettingsA["MacOSX x86-64"]
@@ -61,5 +62,30 @@ on preOpenCard
       put the cSize of group "choose" into item 2 of tSize
    end if
    set the cSize of this cd to tSize
+   
+   if tStandaloneSettingsA["Sonoma"] = "" then
+      put false into tStandaloneSettingsA["Sonoma"]
+   end if
+   put tStandaloneSettingsA["Sonoma"] into tIsSonoma
+   set the hilite of btn "sonoma" to tIsSonoma
+   
+   
+   -- make sure that we don't trigger windows or linux builds by mistake (tperry 28-8-24)
+   -- Thanks to Richmond for finding this in the OXT Lite v1.08 beta!
+   put the visible of btn "Windowschecked" of cd "Windows" into tWinBuild
+   if tWinBuild is true then 
+      put true into tStandaloneSettingsA["Windows"]
+   else
+      put false into tStandaloneSettingsA["Windows"]
+   end if
+   put the visible of btn "Unixchecked" of cd "UNIX" into tLinBuild
+   -- someone should inform the original author of this stack that Linux is not Unix.
+   if tLinBuild is true then 
+      put true into tStandaloneSettingsA["Linux"] -- but here they call it linux, mixed metaphors
+   else
+      put false into tStandaloneSettingsA["Linux"] -- as above
+   end if   
+   -- save all that to array
+   setSettings tStandaloneSettingsA
    pass preOpenCard
 end preOpenCard

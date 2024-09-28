@@ -1,0 +1,4 @@
+Version 0.93, build 202311012217
+Theme support should be working now on Mac, Windows and Linux (although was on Linux anyway)
+These mods also remove most branding (unbranding, rather than rebranding).
+It also renames the "My Livecode" folder it creates for user extensions to "xTalk extensions"

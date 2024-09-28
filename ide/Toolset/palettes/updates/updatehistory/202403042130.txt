@@ -1,0 +1,3 @@
+Version 1.02, build 202403042130
+When the message box is shown, ensure the text is focussed - ready to be typed over.
+More work on the automatic updates - I want this to be able to update without user interaction (or minimal user interaction)...

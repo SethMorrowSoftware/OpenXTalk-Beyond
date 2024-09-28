@@ -1,0 +1,2 @@
+Version 1.06, build 202406232320
+A small visual tweak in the preferences, and a small adjustment to answer & ask stacks.

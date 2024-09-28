@@ -1,0 +1,3 @@
+Version 0.92, build 202309291821
+Changes the tools palette, and the inspector to have colour hilights when hovering over the buttons
+These colours are now whatever the cToolSelector colour is set to in the preferences.

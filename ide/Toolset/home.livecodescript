@@ -32,16 +32,20 @@ on startup
    end try
    
    
-   -- revised the layoutguides (22-11-2023), made this an option in prefs
-   if the cLayoutGuides of stack "revPreferences" is true then
-      -- guides are on
-   else
-      -- guides are off, unload
-      put "community.ferruslogic.plugin.devguides" into tCloseFerrus
-      send "extensionFinalize" to stack tCloseFerrus
-      set the destroyStack of stack tCloseFerrus to true
-      close stack tCloseFerrus
-   end if
+   try
+      -- revised the layoutguides (22-11-2023), made this an option in prefs
+      if the cLayoutGuides of stack "revPreferences" is true then
+         -- guides are on
+      else
+         -- guides are off, unload
+        -- put "community.ferruslogic.plugin.devguides" into tCloseFerrus
+        -- send "extensionFinalize" to stack tCloseFerrus
+        -- set the destroyStack of stack tCloseFerrus to true
+        -- close stack tCloseFerrus
+      end if
+   catch tError
+      -- fail silently
+   end try
    
    revInternal__Log "Leave", "Startup"
    

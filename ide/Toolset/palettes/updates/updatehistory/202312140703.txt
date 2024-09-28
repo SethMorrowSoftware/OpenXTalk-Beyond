@@ -1,0 +1,11 @@
+Version 0.97, build 202312140703
+Continued work on the 'All Guides' stack
+Added shortcut for Object Inspector ctrl-shift-i (Credit to Richmond for this suggestion)
+added a resizeable indicator to the report builder's 'report' window (Richmond requested 14-12-23)
+(Report builder also now does dark-mode properly if you are on Linux with a dark theme)
+Updates stack: stopped using the unreliable libURLDownloadToFile
+Dictionary stack - resized certain elements and turned off bits we aren't using
+Added shortcuts for the Project Browser (ctrl-shift-P) and the Application browser (ctrl-shift-A)
+moved 'Application Browser' back into the "Tools" menu (actually, left it in plugins too as it's a plugin)
+Added an option to "Check for updates" via the help menu
+Corrected the hilite colour for info-tips (normally shown in iOS standalone settings) to use cToolSelector colour in prefs

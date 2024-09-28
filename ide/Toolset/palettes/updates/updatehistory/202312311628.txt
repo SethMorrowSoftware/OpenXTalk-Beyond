@@ -1,0 +1,2 @@
+Version 0.97, build 202312311628
+Added shortcuts for Save As, Stack Script, and the Align menus

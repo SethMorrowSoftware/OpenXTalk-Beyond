@@ -1,0 +1,4 @@
+Version 0.92, build 202309161317
+Changes the dictionary button when clicked to show the OXT documentation, without recompiling the dictionary from DB each time.
+This results in faster loading of the dictionary page, especially on slower computers
+If you want the normal behaviour, upon clicking the 'Dictionary' icon on the toolbar, hold the shift key.

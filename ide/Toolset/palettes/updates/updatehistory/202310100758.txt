@@ -1,0 +1,2 @@
+Version 0.93, build 202310100758
+Changes the Script Editor appearance so it shows the list of handlers in a neutral light grey. This is so it'll be visible regardless if you have a light or dark theme applied.

@@ -65,7 +65,7 @@ on openStack
    -- is this the last thing that gets called?
    -- change the cursor state to show that we have finished loading the IDE
    set the defaultCursor to 0 -- sets to normal arrow
- 
+   
    
    -- check to see if we need to adjust the tools
    if pWhich is 1 then
@@ -647,21 +647,31 @@ on layoutPalette
    put tLongToolsName into tLongPopupName
    put tLongToolsName & SLASH & "toolsPopupOptions.oxtstack" into tLongPopupName
    set the cSpawnPopup of stack "revTools" to tLongPopupName
-   put "on mousedown" & return & "   put the the cSpawnPopup of this stack into tTargStack" & return & "   if the isViewing of stack tTargStack is true then" & return &¬ 
-   "      close stack tTargStack" & return & "   else" & return & "      open stack (tTargStack)" & return & "   end if" & return & "end mousedown" into tScriptToSet
-   set the script of btn tOverideBtnMenu of cd 1 of stack "revTools" to tScriptToSet
-   ------------------------------ end revised popup menu button
-   
-   if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
-      set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
-   end if
-   
-   --
-   
-   --
-   
-   unlock messages
-   unlock screen
+   put "on mousedown" & return &¬
+   "   put the cSpawnPopup of this stack into tTargStack" & return &¬
+   "   if the isViewing of stack tTargStack is true then"  & return &¬
+   "   set the isViewing of stack tTargStack to false"  & return &¬
+   "   set the blendLevel of stack tTargStack to 100"  & return &¬
+   "   close stack tTargStack" & return &¬
+"else"  & return &¬
+"     set the isViewing of stack tTargStack to true" & return &¬
+"   set the blendLevel of stack tTargStack to 1" & return &¬
+"   open stack tTargStack" & return &¬
+"   end if" & return &¬
+"end mousedown" into tScriptToSet
+set the script of btn tOverideBtnMenu of cd 1 of stack "revTools" to tScriptToSet
+------------------------------ end revised popup menu button
+
+if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
+   set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
+end if
+
+--
+
+--
+
+unlock messages
+unlock screen
 end layoutPalette
 
 function objectTypes
@@ -1302,6 +1312,9 @@ on revToolsOptionClicked pButton, pTarget
       case "paint polygon sides tool"
          revToolsPopupPolygonSidesMenu tToolName
          break
+      case "paint polygon radius tool"
+         revToolsPopupRadiusMenu tToolName
+         break
       case "paint brush pattern tool"
          local tBrush, tTool
          put the tool into tTool
@@ -1361,6 +1374,8 @@ end setChecked
 
 constant kLineSizeMenu = "None\n1\n2\n3\n4\n6\n8\n10\n-\nOther..."
 constant kPolygonSidesMenu = "3\n4\n5\n6\n7\n8\n9\n10\n-\nOther..."
+constant kPolygonRadiusMenu = "0\n2\n4\n6\n8\n10\n12\n14\n16\n-\nOther..."
+
 on revToolsPopupLineSizeMenu pTarget
    set the cChosenTool of this card to pTarget -- store tool in card props
    if there is a fld "debug" of stack "untitled 1" then
@@ -1382,6 +1397,15 @@ on revToolsPopupPolygonSidesMenu pTarget
    end if
    revToolsPopupMenu "polygonSidesMenu", pTarget, kPolygonSidesMenu, 4
 end revToolsPopupPolygonSidesMenu
+
+-- restoring the ability to set a radius on the roundRect paint tool
+on revToolsPopupRadiusMenu pTarget
+   if there is a fld "debug" of stack "untitled 1" then
+      put pTarget into cd fld "debug" of stack "Untitled 1"
+   end if
+   set the cChosenTool of this card to pTarget -- store tool in card props
+   revToolsPopupMenu "polygonRadiusMenu", pTarget, kPolygonRadiusMenu, 4
+end revToolsPopupRadiusMenu
 
 # Generic popup menu creation
 on revToolsPopupMenu pButtonName, pTool, pMenuText, pDefault
@@ -1441,7 +1465,10 @@ on hApplyThePopupSelection
    -- output a debug
    -- make a new stack, called "untitled 1" and place a field called "debug" on it to see the following output
    if there is a fld "debug" of stack "untitled 1" then
-      put tPopupBtnName & return & tPopupBtnID & return & tChosenPopupLine & return & tChosenPopupItem & return & tChosenTool into fld "debug" of stack "untitled 1"
+      put "name: " & tPopupBtnName & return & tPopupBtnID & return & tChosenPopupLine & return & tChosenPopupItem & return & "Tool: " & tChosenTool into fld "debug" of stack "untitled 1"
+      if the shiftkey is down then
+         answer "name: " & tPopupBtnName & return & tPopupBtnID & return & tChosenPopupLine & return & tChosenPopupItem & return & "Tool: " & tChosenTool into fld "debug" of stack "untitled 1"
+      end if
    end if
    -- choose the tool in the polygon menu
    if tChosenPopupItem is "Rectangle Tool" then
@@ -1526,7 +1553,31 @@ on hApplyThePopupSelection
          if tInputCheck < 3 then exit hApplyThePopupSelection -- smaller than minimum allowed value
          put tInputCheck into tPolySidesToSet
       end if
+      -- tperry 13-8-24 - fix bug setting correct number of polygon sides
       set the polySides to tPolySidesToSet
+      repeat 2
+         choose regular polygon tool
+         set the polySides to tPolySidesToSet
+      end repeat
+      set the tPassVar of this stack to tPolySidesToSet
+      send tDelayedPolysides to me in 3 ticks
+   end if
+   -- here we set radius of roundrect paint tool (tperry 14-8-2024)
+   if tPopupBtnName contains "RadiusMenu" then
+      -- we set roundRect radius here (for paint tool)
+      put tChosenPopupItem into tRRectRadiusToSet
+      if tRRectRadiusToSet contains "other" then
+         ask "Please specify radius in pixels (max 400):" with the roundRadius
+         put it into tInputCheck
+         if isNumber(tInputCheck) is false then exit hApplyThePopupSelection -- not a number!
+         if tInputCheck > 400 then exit hApplyThePopupSelection -- larger than maximum allowed value
+         if tInputCheck < 3 then exit hApplyThePopupSelection -- smaller than minimum allowed value
+         put tInputCheck into tRRectRadiusToSet
+      end if
+      repeat 2
+         choose rounded rectangle tool
+         set the roundRadius to tRRectRadiusToSet
+      end repeat
    end if
 end hApplyThePopupSelection
 
@@ -1775,4 +1826,9 @@ on tAdjWdRounding theStack
 end tAdjWdRounding
 
 
-
+on tDelayedPolysides
+   -- we do this for MacOS, because it's being stubborn!
+   put the tPassVar of this stack into tPolySidesToSet
+   set the polysides to tPolySidesToSet
+   set the tPassVar of this stack to ""
+end tDelayedPolysides

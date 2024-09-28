@@ -1,0 +1,2 @@
+Version 0.92, build 202309062202
+Modifies the standalone builder to not show the message about closing source

@@ -1,0 +1,2 @@
+Version 0.92, build 202309031842
+This changes the splash stack (when OpenXTalk Lite is first launched)

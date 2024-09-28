@@ -1,0 +1,3 @@
+Version 0.92, build 202309250618
+This gives OpenXTalk the ability to open and save oxtstack files. It'll then recognise them in open dialogs, and allow you to save .oxtstack files as default.
+credit to Paul McClernan for this

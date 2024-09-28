@@ -1,0 +1,2 @@
+Version 0.93, build 202310131723
+This is a modified preferences stack. "reset preferences to default" button is enabled again

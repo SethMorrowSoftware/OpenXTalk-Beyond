@@ -2089,6 +2089,7 @@ private function revMenubarHelpMenu pContext
    -- put "Examples" & return after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putting together
    put "Lessons" & return after tHelp
    put "-" & return after tHelp -- divider
+   put "Release Notes"& return  after tHelp
    put "Check for Updates" after tHelp -- tperry 24-12-23 -- added option to check for updates here
    return modifyMenu("Help", tHelp)
 end revMenubarHelpMenu
@@ -3412,7 +3413,6 @@ on revMenubarHelpMenuPick pWhich
       case "Support"
       case "User Guide"
       case "License Agreement"
-      case "Release Notes"
       case "Sample Stacks"
       case "Sample Scripts"
       case "Beginners Guide"
@@ -3437,6 +3437,9 @@ on revMenubarHelpMenuPick pWhich
          break
       case "Lessons"
          send tOpenNewGuides to this stack -- tperry 18-1-23 (changed to open Lessons)
+         break
+      case "Release Notes"
+         send tOpenReleaseNotes to card "Automatic Updates" of stack "revPreferencesGUI"
          break
       case "Check for updates"
          send tCheckForUpdates to card "Automatic Updates" of stack "revPreferencesGUI"

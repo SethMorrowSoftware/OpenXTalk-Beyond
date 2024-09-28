@@ -1,0 +1,2 @@
+Version 0.92, build 202309181842
+Disabled the LCC Auto-updater (Mac) (not relevant to us anymore)
