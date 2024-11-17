@@ -911,7 +911,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
             put pSettings["android,splash"] into tDeploy["splash"]
          end if
       end if
-
+      
       repeat for each key tArch in tArchLibsBuildFolders
          -- Engine to use
          put mapFilePath(revMobileRuntimeFolder(pTarget) & slash & tArch & slash & "Standalone") into tDeploy["engine"]
@@ -954,9 +954,10 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
                tAarResFolderOpts, "--auto-add-overlay"
       end if
       put the result into tAaptResult
+      
       processAaptResult tAaptResult
       if tAaptResult is not empty then
-         throw "could not generate package manifest"
+         throw "could not generate package manifest" & return & " " & return & tAaptResult -- tperry, a bit more verbose error here
       end if
       
       revZipOpenArchive tAssetArchive, "update"
@@ -1020,7 +1021,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
             end if
          end repeat
       end repeat
-
+      
       -- Work out whether to produce an unsigned apk
       local tUnsignedParam
       if (pTarget contains "build") and tUnsigned then
@@ -1040,7 +1041,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
             throw "apk preparation failed"
          end if
       end repeat
-
+      
       ------- Signing the Package
       if pTarget contains "build" and tKey is not empty then
          revStandaloneProgress "Signing package..."
@@ -1090,7 +1091,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       
       executeShellCommand pathToZipAlign(), "-f", "-v", "4", tUnalignedApkFile, pApkFile
       if not (line -1 of the result begins with "Verification succes")  or there is no file pApkFile then
-         throw "apk finalization failed"
+         throw "apk finalization failed" & return & pathToZipAlign()
       end if
    catch tError
    end try

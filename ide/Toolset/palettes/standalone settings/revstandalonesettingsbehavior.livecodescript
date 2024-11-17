@@ -404,7 +404,8 @@ end revRecursiveRemoveStackFiles
 on navigateToCard pCardName
    if the short name of this card is "Android" then
       if not androidIdentifierValid() then
-         exit navigateToCard
+         -- why would this be set to exit?
+         --exit navigateToCard
       end if
    end if
    

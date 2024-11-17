@@ -347,7 +347,7 @@ on tdelayClosingSplash
    
    -- now ensure tools are correct
    if there is a stack "revTools" then 
-     hide stack "revTools"
+      hide stack "revTools"
       put revIDEPaletteToStackName("revTools") into tStackName
       if there is a stack tStackName then
          palette stack tStackName
@@ -356,6 +356,12 @@ on tdelayClosingSplash
    
    -- just check menubar is all good
    if there is a stack "revMenuBar" then send tMenuBar_AdjustWDSize to stack "revMenubar" -- fix annoying revMenubar dragger if turned off (5/4/24 --tperry)
+   
+   revInternal__setSplashStatus "Restoring list of recently used fonts..."
+   if the cRecentFontsList of stack "revPreferences" is not empty then 
+      set the cFreqFonts of stack "revMenubar" to the cRecentFontsList of stack "revPreferences" -- load recent fonts at IDE launch
+      if there is a stack "revMenuBar" then send setupTextMenu to stack "revMenubar" in 10 milliseconds -- refresh recent fonts
+   end if
    
    send tCloseSplashFully to me
 end tdelayClosingSplash

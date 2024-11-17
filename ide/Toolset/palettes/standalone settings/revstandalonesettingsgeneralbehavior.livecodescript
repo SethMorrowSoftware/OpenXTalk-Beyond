@@ -69,6 +69,11 @@ on preOpenCard
    tipPreferenceSet tShowTip
    tipDisplayUpdate  
    
+   if cd fld "Default Build Folder" is empty then
+      -- fill in desktop folder (tperry 3-10-2024)
+      -- this has been annoying me for years!
+      put specialFolderPath("Desktop") into cd fld "Default Build Folder"
+   end if
    pass preOpenCard
 end preOpenCard
 

@@ -1,0 +1,3 @@
+Version 1.08, build 202410022216
+Modifies the Standalone builder settings stack (fixes android tab issue and erroneous layout errors). Modifies the Preferences stack to better support mobile builds and installing linux dependencies.
+ 

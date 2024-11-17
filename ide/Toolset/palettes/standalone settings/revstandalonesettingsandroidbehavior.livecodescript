@@ -42,7 +42,6 @@ on initialize
    updateSettings
    updateAndroidSettingState
    
-   set the cSize of this card to 568,720
 end initialize
 
 on updateSettings

@@ -8715,7 +8715,47 @@ on revIDEStyleTextSuperscript
 end revIDEStyleTextSuperscript
 
 on revIDESetTextFont pFont
-      ideActionStyleText "font", pFont
+   -- adding part 2 of TerryL's "Frequent Fonts" script here 7-11-24 (tperry)
+   local tSkipAddFont
+   local tFreqFonts
+   local pPick
+   local tWdCount
+   local tWord
+   put false into tSkipAddFont
+   put the cFreqFonts of stack "revMenubar" into tFreqFonts
+   filter lines of tFreqFonts without empty -- we ignore empty lines in frequent fonts
+   put pFont into pPick
+   if char 1 of pPick is "(" then put true into tSkipAddFont -- we don't want to add things with the "(" character
+   if pPick contains "use Owner's font" then put true into tSkipAddFont -- we don't want duplicates of "use owner's font"
+   if pPick contains "rebuild font menu" then 
+      put true into tSkipAddFont -- we skip & exit if this is chosen
+      exit revIDESetTextFont
+   end if
+   if pPick contains "Clear recent fonts list" then 
+      put true into tSkipAddFont -- we skip & exit if this is chosen
+      exit revIDESetTextFont
+   end if
+   --
+   if tSkipAddFont is false then
+      replace "|" with space in pPick  --reconstruct font full name if submenu
+      get lineOffset(cr& pPick &cr, cr& tFreqFonts &cr)  --line # where string = line
+      if it <> "0" then delete line it of tFreqFonts  --already in list
+      -- we sort out capitalisation
+      put 0 into tWdCount
+      repeat the number of words in pPick
+         add 1 to tWdCount
+         put word tWdCount of pPick into tWord
+         put toUpper(char 1 of tWord) into tCapChar
+         put tCapChar into char 1 of word tWdCount of pPick
+      end repeat
+      -- end sort capitalisation
+      put pPick &cr before tFreqFonts  --add pPick to top of list, no sort
+      if number(lines in tFreqFonts) > "10" then put line 1 to 10 of tFreqFonts into tFreqFonts  --max 10 fonts, discard last oldest font
+      set the cFreqFonts of stack "revMenubar" to tFreqFonts  --update list (custom property)
+      set the cRecentFontsList of stack "revPreferences" to tFreqFonts -- save it to prefs
+      send setupTextMenu to stack "revMenubar" in 1 millisecond -- need to trigger font menu rebuild
+   end if
+   ideActionStyleText "font", pFont
 end revIDESetTextFont
 
 on revIDESetTextSize pSize

@@ -106,7 +106,7 @@ private on setupDevelopmentMenu
    put tPluginMenuText into sPluginMenuText
 end setupDevelopmentMenu
 
-private on setupTextMenu
+on setupTextMenu
    local tText
    put toggleMenuItem("Plain/;", false) & return after tText
    put toggleMenuItem("&Bold/B", false) & return after tText
@@ -137,7 +137,16 @@ private on setupTextMenu
       end if
    end repeat
    
-   put "Use Owner's Font" & return & "-" & return before tFontNames
+   -- adding part 1 of TerryL's "frequent fonts" idea here (7-11-24 - tperry)
+   -- see stack "revidelibrary" (revIDESetTextFont) for part 2 of this
+   put the cFreqFonts of this stack into tFreqFonts
+   filter lines of tFreqFonts without empty
+   if tFreqFonts is "" then
+      put "Use Owner's Font" & return & "Rebuild font menu" & return & "-" & return before tFontNames
+   else
+      put tFreqFonts & return & "-" & return & "Use Owner's Font" & return & "Rebuild font menu" & return & "Clear recent fonts list" & return & "-" & return before tFontNames
+   end if
+   -- end freq fonts part 1
    
    local fontnum
    put 1 into fontnum
@@ -1315,6 +1324,8 @@ on highlightMenuItem pMenu, pSubMenus
 end highlightMenuItem
 
 command revMenubarBuildMenus
+   if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus -- tperry 10-11-24
+   if the platform contains "linux" then set the acceleratedRendering of this stack to true -- tperry 10-11-24
    local tContext
    put buildMenuContext() into tContext
    -- put ArrayToJSON(tContext,true,true) -- for debugging
@@ -1322,10 +1333,11 @@ command revMenubarBuildMenus
    lock messages
    lock menus
    repeat for each item tMenu in revMenubarMenus()
-      set the text of button tMenu of group "revMenuBar" of me to revMenubarBuildMenu(tMenu, tContext)
+      set the text of button tMenu of group "revMenuBar" of this stack to revMenubarBuildMenu(tMenu, tContext)
       enable button tMenu of group "revMenuBar"
    end repeat
-
+   
+   /* -- we aren't using 'IDETutorials' -- tperry 10-11-24
    if revIDETutorialInProgress() is not empty then
       repeat for each item tMenu in revMenubarMenus()
          # Don't disable the help menu during tutorials
@@ -1334,18 +1346,56 @@ command revMenubarBuildMenus
          end if
          disable button tMenu of group "revMenuBar" of me
       end repeat
-
       repeat for each key tMenu in sMenuHighlight
          enable button tMenu of group "revMenuBar" of me
          highlightMenuItem tMenu, sMenuHighlight[tMenu]
       end repeat
    end if
+   */
    unlock menus
    unlock messages
    unlock screen
 end revMenubarBuildMenus
 
 function revMenubarBuildMenu pMenu, pContext
+   if pMenu is "File" then
+      return revMenubarFileMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Edit" then
+      return revMenubarEditMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Tools" then
+      return revMenubarToolsMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Object" then
+      return revMenubarObjectMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Text" then
+      return revMenubarTextMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Development" then
+      return revMenubarDevelopmentMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "View" then
+      return revMenubarViewMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Window" then
+      return revMenubarWindowMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   if pMenu is "Help" then
+      return revMenubarHelpMenu(pContext)
+      exit revMenubarBuildMenu
+   end if
+   
+   /* -- experimenting NOT using switch case
    switch pMenu
       case "File"
          return revMenubarFileMenu(pContext)
@@ -1368,8 +1418,8 @@ function revMenubarBuildMenu pMenu, pContext
       default
          break
    end switch
-
    return empty
+   */
 end revMenubarBuildMenu
 
 # Returns an array containing the context needed to build the menus. This is stuff like which images / objects / text is selected etc.
@@ -3198,7 +3248,7 @@ end revMenubarObjectMenuPick
 
 on revMenubarTextMenuPick pWhich
    local tPickedItem, tPickedParams
-
+   
    // tPickedItem could have parameters
    set the itemdel to "|"
    if the number of items of pWhich > 1 then
@@ -3207,7 +3257,27 @@ on revMenubarTextMenuPick pWhich
    else
       put pWhich into tPickedItem
    end if
-
+   
+   -- tperry 7-11-24 -- part of the "frequent fonts" script idea by TerryL (modified a bit by tperry)
+   -- include a "rebuild font menu" option which forces the fonts here to be rebuilt.
+   -- (otherwise it only happens upon IDE relaunch)
+   -- see stack "revidelibrary" (revIDESetTextFont) for part 2 of this
+   if tPickedItem is "font" then
+      if tPickedParams is "Rebuild font menu" then
+         set cursor to busy
+         setupTextMenu -- force updating font menu
+         exit revMenubarTextMenuPick -- we don't go any further along message path
+      end if
+      if tPickedParams is "Clear recent fonts list" then
+         set cursor to busy
+         set the cFreqFonts of this stack to empty
+         set the cRecentFontsList of stack "revPreferences" to empty -- clear it from prefs
+         setupTextMenu -- force updating font menu
+         exit revMenubarTextMenuPick -- we don't go any further along message path
+      end if
+   end if
+   
+   
    switch tPickedItem
       case "plain"
          revIDEStyleTextPlain
@@ -3442,7 +3512,7 @@ on revMenubarHelpMenuPick pWhich
          send tOpenReleaseNotes to card "Automatic Updates" of stack "revPreferencesGUI"
          break
       case "Check for updates"
-         send tCheckForUpdates to card "Automatic Updates" of stack "revPreferencesGUI"
+         send tCheckForUpdatesVis to card "Automatic Updates" of stack "revPreferencesGUI"
          break
    end switch
 end revMenubarHelpMenuPick

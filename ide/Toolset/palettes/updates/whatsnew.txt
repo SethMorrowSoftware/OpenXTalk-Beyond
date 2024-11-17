@@ -1,1 +1,1 @@
-This update adds the option to turn off any warnings when "close and remove from memory" is chosen. The new option is in the Preferences > Files & Memory
+Changed the IDE's menus to use if statements rather than switch case statements. Seems to dodge a memory leak in the engine. Original links for LCC in release notes now point to archive.org
