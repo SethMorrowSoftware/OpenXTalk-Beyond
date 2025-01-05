@@ -1,0 +1,3 @@
+Version 1.09, build 202412231952
+When making a new stack, the user will now be prompted to set a unique stack name (Thanks to TerryL and OpenXTalkPaul for the suggestion).
+Also added initial support for external script editing. (more to follow on this). Also added check for curl on linux in the updater, just in case it's not installed.

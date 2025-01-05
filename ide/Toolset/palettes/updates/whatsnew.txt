@@ -1,1 +1,1 @@
-Changed the IDE's menus to use if statements rather than switch case statements. Seems to dodge a memory leak in the engine. Original links for LCC in release notes now point to archive.org
+Added prompt to set a unique stack name (Thanks to TerryL and OpenXTalkPaul for the suggestion). (Made an option) Also added initial support for external script editing. (more to follow on this). Added check for curl on linux.

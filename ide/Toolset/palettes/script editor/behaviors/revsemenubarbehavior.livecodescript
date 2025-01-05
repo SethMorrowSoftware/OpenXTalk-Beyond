@@ -118,10 +118,10 @@ private command buildEditMenu pContext
    
    if pContext["textSelected"] then
       put "Cut/X" & return & \
-             "Copy/C" & return after tEdit
+            "Copy/C" & return after tEdit
    else
       put "(Cut/X" & return & \
-             "(Copy/C" & return after tEdit
+            "(Copy/C" & return after tEdit
    end if
    
    put "Paste/V" & return & \
@@ -138,7 +138,7 @@ private command buildEditMenu pContext
    
    if revEnvironmentEditionProperty("autocomplete_pro") then
       put "Autocomplete Snippets..." & return after tEdit
-   end if
+   end if   
    
    put "Options" & return after tEdit
    put toggleMenuItem(tab & "Variable Checking", sePrefGet("explicitVariables")) & return after tEdit
@@ -147,13 +147,16 @@ private command buildEditMenu pContext
    put toggleMenuItem(tab & "Bracket Highlighting", sePrefGet("editor,brackethighlighting")) & return after tEdit
    put toggleMenuItem(tab & "Control Structure Completion", sePrefGet("editor,autocomplete")) & return after tEdit
    
+   /*
    if revEnvironmentEditionProperty("autocomplete") then
       put toggleMenuItem(tab & "Autocomplete", sePrefGet("editor,providercompletion")) & return after tEdit
    end if
+   */
+   put toggleMenuItem(tab & "Autocomplete", sePrefGet("editor,providercompletion")) & return after tEdit
    put toggleMenuItem(tab & "Autoformat", sePrefGet("editor,autoformat")) & return after tEdit
    
    put "-" & return & \
-          "Preferences" after tEdit
+         "Preferences" after tEdit
    
    set the text of button "Edit" of me to modifyMenu("Edit", tEdit)
 end buildEditMenu
@@ -285,7 +288,7 @@ private command buildHelpMenu pContext
           "User Guide" & return & \
           "About LiveCode" into tText
    */
-   put "Guides" & return into tText
+   put "User Guide" & return into tText
    set the text of button "Help" of me to modifyMenu("Help", tText)
 end buildHelpMenu
 
@@ -582,13 +585,8 @@ private command handleHelpMenuPick pItemName
       case "Start Center"
          revIDEOpenPalette pItemName
          break
-      case "Guides"
-         if the cDictionaryDisplayMethod of stack "revPreferences" is true then
-            send tOpenAllGuides to stack "revMenubar" in 1 ticks -- tperry 8-12-23 (new all guides button)
-         else
-            revIDEOpenPalette "guide" -- old behaviour (comment out eventually)
-         end if
-         --revIDELaunchResource pItemName
+      case "User Guide"
+         revIDELaunchResource pItemName
          break
       case "About LiveCode"
          revIDEOpenPalette "About"

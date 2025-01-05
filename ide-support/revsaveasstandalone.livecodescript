@@ -1520,7 +1520,7 @@ private command revCopyIcons pStack
    lock screen
    if keys(sIconA) is not "" then
       create invisible stack "revCopiedIcons"
-      set the destroyStack of stack "revCopiedIcons" to true
+      set the destroyStack of stack "revCopiedIcons" to false
       set the mainStack of stack "revCopiedIcons" to pStack
       -- get the icon libraries
       
@@ -1550,6 +1550,10 @@ private command revCopyIcons pStack
             end repeat
          end repeat
       end repeat
+      -- doesn't seem to work, so try alternative method -- tperry 22-12-24
+      copy card 1 of stack "revGeneralIcons" to stack "revCopiedIcons"
+      set the name of last card of stack "revCopiedIcons" to "theAlertIcons"
+      close stack "revCopiedIcons"
       close stack "revCopiedIcons"
    end if
    unlock screen

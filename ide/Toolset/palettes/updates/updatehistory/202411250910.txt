@@ -1,0 +1,2 @@
+Version 1.09, build 202411250910
+Modified the updates stack to deal with %20 filenames.

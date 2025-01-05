@@ -489,7 +489,8 @@ command log pMessage
 end log
 
 command logFile pMessage
-   put pMessage & return after url ("file:" & specialFolderPath("desktop") & "/Script Editor Log.txt")
+   -- adjusted as linux does not understand specialFolderPath("Desktop") -- tperry 8/12/24
+   put pMessage & return after url ("file:" & specialFolderPath("Home") & slash & "Desktop" & slash & "Script Editor Log.txt")
 end logFile
 
 command printArray pArray
@@ -824,9 +825,6 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "class number none 48,164,170" & return & \
                "class keyword none 0,125,28" & return & \
                "class operator none 119,0,255" & return & \
-               "class continuation none 167,57,155" & return & \
-               "keyword command bold 68,58,43" & return & \
-               "keyword private bold 0,0,255" & return & \
                "keyword on bold 255,105,0" & return & \
                "keyword end bold 255,105,0" & return & \
                "keyword if bold 0,80,43" & return & \
@@ -841,9 +839,7 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword catch bold 88,34,197" & return & \
                "keyword case bold 3,104,52" & return & \
                "keyword default bold 67,54,23" & return & \
-               "keyword finally bold 54,0,3" & return & \
-               "keyword next bold 53,1,4" & return & \
-               "keyword exit bold 52,2,5" & return into pPreferencesArray["colorization,config"]
+               "keyword finally bold 54,0,3" into pPreferencesArray["colorization,config"]
          break
       case "oxt lite dark"
          put "group commands bold 222,0,241" & return & \
@@ -857,9 +853,6 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "class number none 48,164,170" & return & \
                "class keyword none 0,187,161" & return & \
                "class operator none 201,81,255" & return & \
-               "class continuation none 255,132,255" & return & \
-               "keyword command bold 223,190,125" & return & \
-               "keyword private bold 0,0,255" & return & \
                "keyword on bold 255,105,0" & return & \
                "keyword end bold 255,105,0" & return & \
                "keyword if bold 0,255,43" & return & \
@@ -874,9 +867,7 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword catch bold 88,34,197" & return & \
                "keyword case bold 3,143,101" & return & \
                "keyword default bold 149,128,90" & return & \
-               "keyword finally bold 0,255,255" & return & \
-               "keyword next bold 0,255,255" & return & \
-               "keyword exit bold 0,255,255" & return into pPreferencesArray["colorization,config"]
+               "keyword finally bold 0,255,255" into pPreferencesArray["colorization,config"]
          break
       case "dark mode"
          put "group commands bold 116,116,231" & return & \
@@ -911,40 +902,7 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword next bold 190,255,120" & return & \
                "keyword exit bold 190,255,120" & return into pPreferencesArray["colorization,config"]
          break
-      case "retro-beige"
-         put "group commands bold 59,0,61" & return & \
-               "group properties none 46,36,12" & return & \
-               "group functions none 16,36,0" & return & \
-               "class error none 255,0,0" & return & \
-               "class singlecomment bold 0,103,0" & return & \
-               "class multicomment italic 20,107,0" & return & \
-               "class identifier none 17,17,17" & return & \
-               "class literal none 17,29,48" & return & \
-               "class number none 48,16,35" & return & \
-               "class keyword none 91,42,28" & return & \
-               "class operator none 119,0,255" & return & \
-               "class continuation none 255,83,206" & return & \
-               "keyword command bold 0,0,0" & return & \
-               "keyword private bold 0,0,0" & return & \
-               "keyword on bold 0,0,48" & return & \
-               "keyword end bold 0,9,48" & return & \
-               "keyword if bold 0,80,43" & return & \
-               "keyword then bold 0,67,0" & return & \
-               "keyword else bold 0,52,0" & return & \
-               "keyword function bold 0,0,100" & return & \
-               "keyword setprop bold 0,0,87" & return & \
-               "keyword getprop bold 0,0,67" & return & \
-               "keyword repeat bold 65,0,32" & return & \
-               "keyword switch bold 41,4,17" & return & \
-               "keyword try bold 30,29,23" & return & \
-               "keyword catch bold 26,28,45" & return & \
-               "keyword case bold 3,42,52" & return & \
-               "keyword default bold 67,54,23" & return & \
-               "keyword finally bold 54,0,3" & return & \
-               "keyword next bold 53,1,4" & return & \
-               "keyword exit bold 52,2,5" & return into pPreferencesArray["colorization,config"]
-         break
-      case "no colorization"
+      case "none"
          put "group commands none 0,0,0" & return & \
                "group properties none 0,0,0" & return & \
                "group functions none 0,0,0" & return & \
@@ -972,6 +930,33 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword default none 0,0,0" & return & \
                "keyword finally none 0,0,0" into pPreferencesArray["colorization,config"]
          break
+      case "none inverted"
+         put "group commands none 255,255,255" & return & \
+               "group properties none 255,255,255" & return & \
+               "group functions none 255,255,255" & return & \
+               "class error none 255,255,255" & return & \
+               "class singlecomment none 255,255,255" & return & \
+               "class multicomment none 255,255,255" & return & \
+               "class identifier none 255,255,255" & return & \
+               "class literal none 255,255,255" & return & \
+               "class number none 255,255,255" & return & \
+               "class keyword none 255,255,255" & return & \
+               "class operator none 255,255,255" & return & \
+               "keyword on none 255,255,255" & return & \
+               "keyword end none 255,255,255" & return & \
+               "keyword if none 255,255,255" & return & \
+               "keyword then none 255,255,255" & return & \
+               "keyword else none 255,255,255" & return & \
+               "keyword function none 255,255,255" & return & \
+               "keyword setprop none 255,255,255" & return & \
+               "keyword getprop none 255,255,255" & return & \
+               "keyword repeat none 255,255,255" & return & \
+               "keyword switch none 255,255,255" & return & \
+               "keyword try none 255,255,255" & return & \
+               "keyword catch none 255,255,255" & return & \
+               "keyword case none 255,255,255" & return & \
+               "keyword default none 255,255,255" & return & \
+               "keyword finally none 255,255,255" into pPreferencesArray["colorization,config"]
    end switch
 end seColorizationLoadScheme
 

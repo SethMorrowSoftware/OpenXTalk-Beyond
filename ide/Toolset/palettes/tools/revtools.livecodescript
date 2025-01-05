@@ -78,11 +78,15 @@ on openStack
       end if -- end linux check
    end if -- end mouse button check
    --
-   
+   send tfixwindowsToolsDrag to me in 1 second
 end openStack
 
-
-on ensureToolsIsDraggable
+on tfixwindowsToolsDrag
+   if the platform contains "win" then set the systemwindow of this stack to true
+end tfixwindowsToolsDrag
+   
+   
+   on ensureToolsIsDraggable
    -- make sure the tools are draggable (tperry 14-1-24)
    set the decorations of this wd to "title,menu,close"
    --set the style of stack "revTools" to "toplevel"
@@ -563,6 +567,20 @@ on layoutPalette
    if there is a graphic "paint" of stack "revTools" then
       set the top of graphic "paint" of stack "revTools" to the top of graphic "paint" of stack "revTools" +10
    end if
+   
+   local tVectorSectionHeightAdj
+   put 0 into tVectorSectionHeightAdj
+   -- fix for vector tools align section (tperry 29-12-24)
+   if the revTools_columns of stack "revPreferences" >3 then
+      if there is a group "graphictools" then
+         if there is a group "graphictoolscontrols" then 
+            set the left of group "graphictoolscontrols" to the right of group "graphictools" -6
+            set the top of group "graphictoolscontrols" to the top of group "graphictools"
+            put the height of group "graphictoolscontrols" into tVectorSectionHeightAdj
+         end if
+      end if
+   end if
+   
    -- create various fields if they don't exist
    put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
    replace "," with return in tToolSectionHeaders
@@ -667,7 +685,21 @@ if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
 end if
 
 --
-
+-- if we adjusted the vertical position of things earlier, pick up on those adjustments now
+if tVectorSectionHeightAdj > "0" then
+   if there is a graphic "paint" then set the top of graphic "paint" to the top of graphic "paint" - tVectorSectionHeightAdj
+   if there is a fld "divHeaderPaintTools" then set the top of fld "divHeaderPaintTools" to the top of fld "divHeaderPaintTools" - tVectorSectionHeightAdj
+   if there is a group "paint" then set the top of group "paint" to the top of group "paint" - tVectorSectionHeightAdj
+   if there is a group "paintcontrols" then set the top of group "paintcontrols" to the top of group "paintcontrols" - tVectorSectionHeightAdj
+   set the height of this wd to the height of this wd - tVectorSectionHeightAdj
+   if the revTools_columns of stack "revPreferences" is 8 then
+      if there is a group "paintcontrols" then set the top of group "paintcontrols" to the top of group "paint"
+      if there is a group "paintcontrols" then set the left of group "paintcontrols" to the right of group "paint" -6
+      if the revTools_show of stack "revPreferences" contains "paint" then
+         set the height of this wd to the height of this wd - tVectorSectionHeightAdj
+      end if
+   end if
+end if
 --
 
 unlock messages
@@ -770,18 +802,24 @@ on mouseDown pButton
          revIDESetCursor "com.livecode.cursor.grabclose"
          break
    end switch
+   
+   /*
    if the cTool of the target is not empty then 
       exit mouseDown
    end if
+   */
    
    reset the templategraphic
    
+   /*
    if the tool is not "browse tool" and the tool is not "pointer tool" then 
       choose "pointer" tool
    end if
    
-   lock messages
+   */
    
+   
+   lock messages
    # Wait until the mouse has moved a decent distance
    local tStartLoc
    put the screenMouseLoc into tStartLoc
@@ -797,26 +835,14 @@ on mouseDown pButton
    end repeat
    unlock messages
    
+   
    local tTarget, tObjectTypeID, tToolsStackID
    put the long ID of the target into tTarget
    put the short name of the target into tObjectTypeID
    put the long ID of this stack into tToolsStackID
    
    # Generate the drag stack
-   lock screen
-   lock messages
-   
-   reset the templatestack
-   set the name of the templateStack to "revDragControl"
-   set the visible of the templateStack to false
-   set the backGroundColor of the templateStack to the hiliteColor
-   set the decorations of the templateStack to "noShadow"
-   set the blendLevel of the templateStack to 25
-   set the loc of the templatestack to -500,-500
-   
-   create invisible stack
-   reset the templatestack
-   set the defaultStack to "revDragControl"
+   if not (there is a stack "revDragControl") then hGenDragStack
    
    # Create a control and Generate a drag image
    
@@ -1832,3 +1858,25 @@ on tDelayedPolysides
    set the polysides to tPolySidesToSet
    set the tPassVar of this stack to ""
 end tDelayedPolysides
+
+
+on hGenDragStack
+   --generate the drag stack
+   lock screen
+   lock messages
+   
+   reset the templatestack
+   set the name of the templateStack to "revDragControl"
+   set the visible of the templateStack to false
+   set the backGroundColor of the templateStack to the hiliteColor
+   set the decorations of the templateStack to "noShadow"
+   set the blendLevel of the templateStack to 25
+   set the loc of the templatestack to -500,-500
+   
+   create invisible stack
+   reset the templatestack
+   set the defaultStack to "revDragControl"
+   --show stack "revDragControl"
+   unlock messages
+   unlock screen
+end hGenDragStack

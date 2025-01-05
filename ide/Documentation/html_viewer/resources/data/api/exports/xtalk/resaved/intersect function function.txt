@@ -1,0 +1,36 @@
+intersect
+(function)
+return|Returns true if two object|objects overlap, false otherwise.
+
+Syntax:
+intersect({object}, {object} [, {threshold}] )
+----
+
+Synonyms:
+
+Params:
+•	object ( ): an object reference.
+•	threshold (enum ): The amount of transparency that pixels in the objects must have in order to be counted during the intersect calculation. Alternative (readable) theshold options
+
+Examples:
+intersect(field "Comment",the selectedField)
+----
+if intersect(button "target", button "crosshairs") then flashScreen
+----
+if intersect(graphic "spaceship", graphic "asteroid", "opaque pixels") then endGame
+----
+answer intersect(image "gradient", grc "solid",125)
+----
+
+Description:
+Use the intersect function to determine whether one object(glossary) obscures part of another object(glossary), or whether one object(glossary) is over another object(glossary).
+
+If both objects are stacks or card(object)|cards, the intersect function return(glossary)|returns true if the stack window|windows overlap.
+
+The intersect function uses screen coordinates for stacks and card|cards, and relative coordinates|coordinates for control|controls. This means that if one object|object is a stack or card|card and the other is a control|control, the intersect function does not return|return a reliable result.
+
+Values:
+The intersect function return|returns true or false.
+
+OS:
+mac,windows,linux,ios,android

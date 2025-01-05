@@ -635,6 +635,10 @@ function idePropertyNames pObjectType
    return tProps
 end idePropertyNames
 
+on ideResumeStack
+   pass ideResumeStack -- this is to prevent recursive error (tperry 30-11-24)
+end ideResumeStack
+
 /**
 A list of the object types, in 'type ID' form
 
@@ -1550,7 +1554,7 @@ function revIDEMessages
          "ideAnswerDialogClosed,ideControlDeleted,ideCardDeleted,ideEditScript,ideExtensionLog,ideExtensionsChanged,ideExtensionStatusChanged,ideFindMoreWidgets," \
          & "ideInspectedObjectsChanged,ideLibraryStack,ideNewCard,ideNewStack,ideNewControl,revIDENameChanged,ideObjectSelectionStarted,ideOpenStack," \
          & "idePluginsChanged,idePreferenceChanged,idePropertyChanged,ideReleaseStack,ideResumeStack,ideSelectedObjectChanged,ideStackDeleted,ideToolChanged," \
-         & "ideTutorialProgressChanged,ideWindowsChanged,ideMouseMove,ideDesktopChanged" \
+         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged" \
          )
 end revIDEMessages
 
@@ -3644,75 +3648,112 @@ on revIDEEditScriptOfObject pObject
       exit revIDEEditScriptOfObject
    end if
    
-   # Send the ideEditScript message
-   send "ideMessageSend ideEditScript","pObject" to stack "revIDELibrary" in 0 milliseconds
-
-   # First obtain a correct object reference. The reason for this is edit group mode
-   local tObject
-   put revRuggedId(pObject) into tObject
-   
-   # Update the currently editing objects
-   revIDEStartEditingScript pObject
-
-   # OK-2008-08-19 : Bug 6957
-   # Dispatch the "revEditScript" message to any plugins that require it.
-   global gREVMessageDispatch
-   repeat for each line tPlugin in gREVMessageDispatch["revEditScript"]
-      try
-         send "revEditScript tObject" to this card of stack tPlugin
-      end try
-   end repeat
-
-   # Search for existing editor first.
-   local tExistingEditor
-   put revScriptEditor(tObject) into tExistingEditor
-   if tExistingEditor is not empty then
-      send "revSESetCurrentObject tObject" to stack tExistingEditor
-      toplevel stack tExistingEditor
-      exit revIDEEditScriptOfObject
-   end if
-
-   # MW-2012-02-21: If we are editing the "Template Stack" behavior then we create a new
-   #   window in 'special' mode.
-   if revRuggedId(the long id of stack revIDEScriptEditorBehavior("stack")) is tObject then
-      revEditScriptInNewWindow pObject, true
-      exit revIDEEditScriptOfObject
-   end if
-
-   # If the preference is to use tabs, then we find the topmost script editor
-   # and add the specified object as a tab to it.
-   local tUseTabs
-
-   local tUseTabsString
-   put "useTabs" into tUseTabsString
-
-   send "revSEGetPreference tUseTabsString" to revScriptEditorMain()
-   put the result into tUseTabs
-
-   if tUseTabs then
-      local tEditor
-      put revTopMostScriptEditor() into tEditor
-
-      # Do not allow a script editor to edit its own objects, force a new window
-      # this makes debugging the script editor easier.
-      local tStack
-      put revTargetStack(tObject) into tStack
-      if tEditor is empty then
-         revEditScriptInNewWindow pObject
-      else if tStack is the short name of tEditor then
-         revEditScriptInNewWindow pObject
+   if the cExternalScriptEditor of stack "revPreferences" is true then
+      -- prepare our script editor for external script editing
+      put pObject into tFilename
+      replace " " with "_" in tFilename
+      replace QUOTE with "" in tFilename
+      replace slash with return in tFilename
+      if line 1 of tFilename is "stack_" then
+         put last line of tFilename into tFilename
       else
-         # OK-2008-07-24 : Use call instead of send here to prevent problems with the defaultStack changing.
-         # Specifically this fixes an issue when debugging, if the user steps into a handler located in a script that
-         # is not being edited, the script gets added to the editor, which causes the the defaultStack to change
-         # and potentially breaks the debug being run in the debugger.
-         call "revSEAddTargetObject tObject" to tEditor
-         call "revSESetCurrentObject tObject" to tEditor
-         revGoScriptEditor tEditor
+         put line 1 of tFilename into tFilename
       end if
+      put specialFolderpath("home") & slash & "Documents" & slash & "IDEScriptEdits" into tFolderpath
+      create folder tFolderpath
+      put tFolderpath & slash & tFilename into tAbsFilename 
+      put the script of pObject into tRetrieveScript
+      delete file tAbsFilename
+      open file tAbsFilename
+      write tRetrieveScript to file tAbsFilename
+      close file tAbsFilename
+      -- we add this to the list of things being tracked for edits
+      put "community.openxtalk.plugin.oxtlite" into tOXTLibStack
+      if there is a stack (tOXTLibStack) then
+         if not (there is a fld "pendingEdits" of card 1 of stack tOXTLibStack) then
+            create fld "pendingEdits" in card 1 of stack tOXTLibStack
+         end if
+         set the cFolderpath of fld "pendingEdits" of cd 1 of stack tOXTLibStack to tFolderpath
+         if not (fld "pendingEdits" of cd 1 of stack tOXTLibStack contains pObject) then
+            put pObject into line (the number of lines in fld "pendingEdits" of cd 1 of stack tOXTLibStack) +1 of fld  "pendingEdits" of cd 1 of stack tOXTLibStack
+         end if
+         set the cEditingNow of fld "pendingEdits" of cd 1 of stack tOXTLibStack to tFilename
+         set the cEditTarget of fld "pendingEdits" of cd 1 of stack tOXTLibStack to pObject
+         send ideCheckExternalEditors to stack tOXTLibStack in 1 millisecond
+      end if
+      
    else
-      # If the preference is not to use tabs, then we create a new script editor for the object.
-      revEditScriptInNewWindow tObject
+      -- we edit with the built in script editor
+      # Send the ideEditScript message
+      send "ideMessageSend ideEditScript","pObject" to stack "revIDELibrary" in 0 milliseconds
+      
+      # First obtain a correct object reference. The reason for this is edit group mode
+      local tObject
+      put revRuggedId(pObject) into tObject
+      
+      # Update the currently editing objects
+      revIDEStartEditingScript pObject
+      
+      # OK-2008-08-19 : Bug 6957
+      # Dispatch the "revEditScript" message to any plugins that require it.
+      global gREVMessageDispatch
+      repeat for each line tPlugin in gREVMessageDispatch["revEditScript"]
+         try
+            send "revEditScript tObject" to this card of stack tPlugin
+         end try
+      end repeat
+      
+      # Search for existing editor first.
+      local tExistingEditor
+      put revScriptEditor(tObject) into tExistingEditor
+      if tExistingEditor is not empty then
+         send "revSESetCurrentObject tObject" to stack tExistingEditor
+         toplevel stack tExistingEditor
+         exit revIDEEditScriptOfObject
+      end if
+      
+      # MW-2012-02-21: If we are editing the "Template Stack" behavior then we create a new
+      #   window in 'special' mode.
+      if revRuggedId(the long id of stack revIDEScriptEditorBehavior("stack")) is tObject then
+         revEditScriptInNewWindow pObject, true
+         exit revIDEEditScriptOfObject
+      end if
+      
+      # If the preference is to use tabs, then we find the topmost script editor
+      # and add the specified object as a tab to it.
+      local tUseTabs
+      
+      local tUseTabsString
+      put "useTabs" into tUseTabsString
+      
+      send "revSEGetPreference tUseTabsString" to revScriptEditorMain()
+      put the result into tUseTabs
+      
+      if tUseTabs then
+         local tEditor
+         put revTopMostScriptEditor() into tEditor
+         
+         # Do not allow a script editor to edit its own objects, force a new window
+         # this makes debugging the script editor easier.
+         local tStack
+         put revTargetStack(tObject) into tStack
+         if tEditor is empty then
+            revEditScriptInNewWindow pObject
+         else if tStack is the short name of tEditor then
+            revEditScriptInNewWindow pObject
+         else
+            # OK-2008-07-24 : Use call instead of send here to prevent problems with the defaultStack changing.
+            # Specifically this fixes an issue when debugging, if the user steps into a handler located in a script that
+            # is not being edited, the script gets added to the editor, which causes the the defaultStack to change
+            # and potentially breaks the debug being run in the debugger.
+            call "revSEAddTargetObject tObject" to tEditor
+            call "revSESetCurrentObject tObject" to tEditor
+            revGoScriptEditor tEditor
+         end if
+      else
+         # If the preference is not to use tabs, then we create a new script editor for the object.
+         revEditScriptInNewWindow tObject
+      end if
    end if
 end revIDEEditScriptOfObject
 
@@ -6817,7 +6858,7 @@ on revIDEActionNewMainstack pStackType
       delete item 1 of pStackType
       delete the last char of pStackType
       set the itemdel to "x"
-
+      
       # Check that the width and height are valid numbers
       if item 1 of pStackType is a number and item 2 of pStackType is a number then
          revIDENewMainstack item 1 of pStackType, item 2 of pStackType
@@ -6826,8 +6867,10 @@ on revIDEActionNewMainstack pStackType
       end if
    end if
    
-   # Return the created stack long id
-   return the result
+   # name the new stack & Return the created stack long id (tperry 23-12-24)
+   put the result into tNewLongID
+  if the cAskForNewStackRename of stack "revPreferences" is true then send tNameNewStack(tNewLongID) to me in 10 ticks
+   return tNewLongID
 end revIDEActionNewMainstack
 
 on revIDEActionNewCard
@@ -7648,6 +7691,17 @@ on revIDESaveStack pStackID
    # Check if the stack has a filename. IF not, redirect to save as
    if the effective filename of stack tStackName is empty then
       revIDEActionSaveStackAs the long ID of stack tStackName
+      -- terryL's script for renaming the stack on save
+      put the itemDelimiter into tOldDelim
+      set the itemDelimiter to slash
+      get item -1 of the effective filename of stack tStackName  --short name.extention
+      if it <> empty then  --user entered a name
+         set the itemDel to "."
+         if the title of stack tStackName is "" then set the title of stack tStackName to item 1 of it
+         set the name of stack tStackName to item 1 of it  --short name
+      end if
+      set the itemDelimiter to tOldDelim
+      -- end terryL's script (28-12-24)
       exit revIDESaveStack
    end if
    
@@ -10086,6 +10140,13 @@ on revIDEUpdateWindowList
    
    if tStacks is not sWindowList then
       put tStacks into sWindowList
+      if there is a stack "revmenubar" then 
+         local tTrimStackNames 
+         put tStacks into tTrimStackNames
+         replace ("stack " & quote) with "" in tTrimStackNames
+         replace quote with "" in tTrimStackNames
+         set the cWindowList of stack "revmenubar" to tTrimStackNames -- keep track of wds with custom prop (tperry 15-11-24)
+      end if
    end if
 end revIDEUpdateWindowList
 
@@ -10490,6 +10551,7 @@ on revIDEStopTutorial
 end revIDEStopTutorial
 
 function revIDETutorialInProgress
+   exit revIDETutorialInProgress -- not using
    return sTutorialInfo
 end revIDETutorialInProgress
 
@@ -12571,3 +12633,62 @@ function tMakeObjTextBigger tThisObject
    add 2 to tCurSize
    return tCurSize
 end tMakeObjTextBigger
+
+function tNameNewStack tStackID
+   local tExistsAlready
+   local tResponse
+   local tRandomName
+   put false into tExistsAlready
+   -- clean up stack name
+   if word 1 of tStackID is "stack" then delete word 1 of tStackID
+   replace "'" with "" in tStackID
+   replace QUOTE with "" in tStackID
+   put tRandName() into tRandomName
+   put ("Stack_" & tRandomName) into tRandomName
+   if the last char of tRandomName is "_" then delete last char of tRandomName
+   ask "<b>Please rename this stack</b><BR><br>Old name: " & tStackID & "<br><br>" & "New name: " with tRandomName
+   put it into tResponse
+   if there is a stack (tResponse) then put true into tExistsAlready
+   if tResponse is empty or tResponse is cancel or tResponse is tStackID or (tExistsAlready is true) then
+      -- not acceptable. We ask again
+      Answer "You need to pick a unique stack name."
+      send tNameNewStack(tStackID) to me in 10 ticks
+   else
+      set the title of stack (tStackID) to it
+      set the name of stack (tStackID) to it
+   end if 
+end tNameNewStack
+
+function tRandName
+   local tRandNames
+   local tOldDelim
+   local tRandTotals
+   local tSecs
+   local tDateForm
+   put the itemdelimiter into tOldDelim
+   set the itemdelimiter to ","
+   put "" into tDateForm
+   if the cRenameWithDateStamp of stack "revPreferences" is true then
+      put the seconds into tSecs
+      convert tSecs to dateItems
+      put item 3 of tSecs into tDateForm -- Day
+      put "_" & item 2 of tSecs after tDateForm -- Month
+      put "_" & item 1 of tSecs & "_" after tDateForm -- Year
+   end if
+   --
+   put "" into tRandNames
+   if the cRenameWithRandChars of stack "revPreferences" is true then
+      put "BSDs,Bern,Bret,Clay,Cote,Dare,East,Edna,Eris,Etna,Evan,Giza,Grus,Head,Irma,Jess,Juno,Kern,Lily,Lulu,Moss,Oahu,Roeg,STOL,Suva,Togo,Wasp,Watt,Webb,Yule,aced,ares,auto,beak,boat,bode,bold,bosh,bugs,burs,cape,cord,dabs,dams,dots,ease,else,ergs,excl,feud,flag,frat,from,geez,glow,gnus,gunk,hats,haws,hurl,iffy,imps,jeer,join,junk,just,lash,lees,lent,lint,lorn,loth,mean,mite,moth,nite,nose,pace,pant,pays,pine,pray,rate,root,rosy,scar,shim,side,sots,spit,spot,sulk,swan,teak,tell,thud,urea,wary,wive,yack" into tRandNames
+      put the number of items in tRandNames into tRandTotals
+      -- reusing var names here
+      put random(tRandTotals) into tRandTotals
+      put item tRandTotals of tRandNames into tRandNames
+      put the number of chars in tRandNames into tRandTotals
+      put random(tRandTotals) into tRandTotals
+      put random(9) into char tRandTotals of tRandNames
+   end if
+   put tDateForm & tRandNames into tRandNames
+   set the itemdelimiter to tOldDelim
+   if the last char of tRandNames is "_" then delete last char of tRandNames
+   return tRandNames
+end tRandName

@@ -195,6 +195,14 @@ on editScript pObject, pAt
 end editScript
 
 on resumeStack
+   -- treat all windows as one layer!! (thanks Paul) Added 27-11-24 (tperry)
+   if the CRaiseWindows of stack "revPreferences" is true then
+      set the raiseWindows to true
+   else
+      set the raiseWindows to false
+   end if
+   --
+   
    global gREVScriptEdit
    put true into gREVScriptEdit
    
@@ -207,11 +215,20 @@ on resumeStack
    
    -- this is to fix a bug reported by overclockedmind 24-4-24 (tperry)
    if not (the pendingmessages contains "hSwitchedBack") then send hSwitchedBack to stack "revMenubar" in 1 tick
+   if there is a stack "revMenubar" then send hFixUpRestoreState to stack "revMenubar"
    
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass resumeStack
 end resumeStack
 
 on suspendStack
+   -- treat all palettes as grouped!! (thanks Paul) Added 27-11-24 (tperry)
+   if the CRaisePalettes of stack "revPreferences" is true then
+      set the raisePalettes to true
+   else
+      set the raisePalettes to false
+   end if
+   --
+   
    global gREVScriptEdit, gREVBuildingPaletteExemption
    -- this is to fix a bug reported by overclockedmind 24-4-24 (tperry)
    if not (the pendingmessages contains "hSwitchedAway") then send hSwitchedAway to stack "revMenubar" in 2 ticks
@@ -233,7 +250,6 @@ end newStack
 
 on revSetActiveStacks
    ideMessageSend "ideActiveStacksChanged"
-  
 end revSetActiveStacks
 
 
@@ -515,9 +531,11 @@ on mouseDown pWhich
    end if
    -- end inspector mod
    
+   -- window focus fix methods (originally labelled as '#buntuBug' by me)
    -- check to see if we need to adjust the inspector
    if pWhich is 1 then
       if the platform contains "linux" then -- check to see if we are linux
+         set the pointerFocus to true -- good suggestion by Paul McClernan (15-11-24)
          put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
          lock screen
          set the itemdelimiter to ","

@@ -1,0 +1,2 @@
+Version 1.09, build 202411250915
+This adds the 'intersect' function and keyword back in the dictionary. It also adds the 'replicate' menu back in the 'edit' menu, which used to be part of LCC7.

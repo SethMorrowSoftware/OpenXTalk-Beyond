@@ -18,6 +18,7 @@ command deployInitialize
 end deployInitialize
 
 function deployListTargets
+   if the pendingmessages contains "deployListTargets" then exit deployListTargets -- stops it firing multiple times
    local tTargets
    get the keys of sAvailableDevices
    sort it
