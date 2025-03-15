@@ -27,6 +27,12 @@ on preOpenStack
    set the height of me to the height of me + the height of button "OK" of me + tMargin
    
    reset the templatebutton
+   
+   -- this is a bit of a cheat, but stops input
+   set the decorations of me to none
+   set the style of me to modal
+   --
+   
    unlock messages
 end preOpenStack
 
@@ -40,14 +46,20 @@ on openStack
 end openStack
 
 on ensureOnScreen
-   if (the right of revIDEStackOfObject(sTarget) + 5 + the width of me) < item 3 of the screenrect then
-      set the left of me to the right of revIDEStackOfObject(sTarget) + 5
+   if there is a stack "revPropertyInspector 1" then
+      -- appear like a modal dialog if the inspector is open -- tperry 10-01-2025
+      set the loc of me to the loc of stack "revPropertyInspector 1"
    else
-      set the right of me to the left of revIDEStackOfObject(sTarget) - 5
+      if (the right of revIDEStackOfObject(sTarget) + 5 + the width of me) < item 3 of the screenrect then
+         set the left of me to the right of revIDEStackOfObject(sTarget) + 5
+      else
+         set the right of me to the left of revIDEStackOfObject(sTarget) - 5
+      end if
    end if
 end ensureOnScreen
 
 on closeStack
+   set the destroystack of me to true
    send "popupDismissed" to sTarget in 0 millisecs
 end closeStack
 
@@ -62,6 +74,8 @@ end editorValueChanged
 on mouseUp
    if the long id of the target is the long id of button "OK" of me then
       send "popupDismissed" to sTarget in 0 millisecs
+      set the destroystack of me to true
+      close this stack
    end if
 end mouseUp
 

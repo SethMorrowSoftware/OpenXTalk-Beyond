@@ -1,0 +1,2 @@
+Version 1.10, build 202501102110
+This should fix the effects palette (stop it from glitching out).

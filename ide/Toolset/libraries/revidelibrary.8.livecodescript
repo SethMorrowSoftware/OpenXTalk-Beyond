@@ -7015,7 +7015,24 @@ on revIDEActionOpenStack
       if there is not a file tStackFilePath then exit revIDEActionOpenStack
       
       # Open the stack
-      revIDEOpenStack tStackFilePath
+      -- tperry 21-1-25 -- caution prompt when opening stacks
+      if the cDontUseCaution of stack "revPreferences" is true then
+         -- we aren't using caution prompt
+         revIDEOpenStack tStackFilePath
+      else
+         -- we use caution prompt (default)
+         local tOldDelim
+         local tCautionStack
+         put the itemdelimiter into tOldDelim
+         set the itemdelimiter to slash
+         put item 1 to -3 of the filename of stack "revMenubar" & "/cautionUponOpening.oxtstack" into tCautionStack
+         open stack tCautionStack
+         if there is a fld "infotext" of cd 1 of stack tCautionStack then
+            set the cfilename of stack tCautionStack to tStackFilePath
+            put the last item of tStackFilePath into line 4 of fld "infotext" of cd 1 of stack tCautionStack
+         end if
+         set the itemdelimiter to tOldDelim
+      end if
    end repeat
 end revIDEActionOpenStack
 
@@ -8861,6 +8878,16 @@ on revIDEToggle pProperty
          
          local tLine
          if not gREVSuppressMessages then
+            -- ask for confirmation?
+            if the cPromptToggleMsgSuppress of stack "revPreferences" is true then
+               Answer "<b>Are you sure you want to suppress messages?</b> <br><br>" & return &¬
+               "Suppressing IDE Messages is likely to prevent parts of the IDE working properly. It's best to leave this alone if you are unsure.<br> <br>" &¬
+               "You can turn off this warning in the 'General' section of the preferences." with "Suppress" or "Cancel"
+               if it is "Cancel" then
+                  exit revIDEToggle
+               end if
+            end if
+            --- end confirmation
             put true into gREVSuppressMessages
             # Send the suppress messages toggle message before actually suppressing messages
             ideMessageSend "ideToggleChanged:" & tToggleMessage
@@ -8960,24 +8987,24 @@ on revIDEToggle pProperty
             unlock messages
          end if
          break
-         case "Layout Guides" -- tperry, nicked this from RC4 version. Thanks to Paul for this!
+      case "Layout Guides" -- tperry, nicked this from RC4 version. Thanks to Paul for this!
          if the cLayoutGuides of stack "revPreferences" is true then
             -- the guides are on so turn them off
             lock screen
             send "extensionFinalize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
-               revInternal__UnloadLibrary "community.ferruslogic.plugin.devguides"
-               -- lock messages
-                close stack "community.ferruslogic.plugin.devguides"
-                revIDESetPreference "cLayoutGuides", false
-               -- unlock messages
-               unlock screen
+            revInternal__UnloadLibrary "community.ferruslogic.plugin.devguides"
+            -- lock messages
+            close stack "community.ferruslogic.plugin.devguides"
+            revIDESetPreference "cLayoutGuides", false
+            -- unlock messages
+            unlock screen
          else -- the guides are off so turn them on
             lock screen
             send "extensionInitialize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
             revInternal__LoadLibrary "community.ferruslogic.plugin.devguides"
             -- lock messages
-             open stack "community.ferruslogic.plugin.devguides"
-             revIDESetPreference "cLayoutGuides", true
+            open stack "community.ferruslogic.plugin.devguides"
+            revIDESetPreference "cLayoutGuides", true
             -- unlock messages
             unlock screen
          end if

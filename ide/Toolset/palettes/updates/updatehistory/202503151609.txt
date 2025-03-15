@@ -1,1 +1,2 @@
+Version 1.10, build 202503151609
 Added the ability to change the label sections colour in the inspector - requested by Richmond62.

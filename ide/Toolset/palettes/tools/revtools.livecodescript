@@ -66,27 +66,29 @@ on openStack
    -- change the cursor state to show that we have finished loading the IDE
    set the defaultCursor to 0 -- sets to normal arrow
    
-   
-   -- check to see if we need to adjust the tools
-   if pWhich is 1 then
-      if the platform contains "linux" then -- check to see if we are linux
-         put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
-         set the itemdelimiter to ","
-         if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then
-            set the style of this stack to modeless -- fix tools mode
-         end if -- end linux session check
-      end if -- end linux check
-   end if -- end mouse button check
-   --
+  tToolsFixup
    send tfixwindowsToolsDrag to me in 1 second
 end openStack
+
+on tToolsFixup
+   if the platform contains "linux" then
+      -- check to see if we need to adjust for problem distros?
+      put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+      set the itemdelimiter to ","
+      if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then
+         -- do I need to do anything for problematic distros?
+         set the decorations of this stack to none
+         if there is a stack "revMenubar" then set the top of this stack to the bottom of stack "revMenubar"
+         set the left of this stack to "0"
+      end if -- end linux session check
+   end if
+end tToolsFixup
 
 on tfixwindowsToolsDrag
    if the platform contains "win" then set the systemwindow of this stack to true
 end tfixwindowsToolsDrag
-   
-   
-   on ensureToolsIsDraggable
+
+on ensureToolsIsDraggable
    -- make sure the tools are draggable (tperry 14-1-24)
    set the decorations of this wd to "title,menu,close"
    --set the style of stack "revTools" to "toplevel"
@@ -540,91 +542,111 @@ on layoutPalette
             add BLOCK_SIZE + (tPalettePadding) to tTop
          end if
       end repeat
-      put the bottom of tObjectID +10 + tPaletteMargin into tTop
+      
+      -- sections padding should now be conditional (tperry 15-1-25)
+      if the cToolsSectionNames of stack "revPreferences" is true then
+         put 10 into tExtraVertSpacing
+      else 
+         put 0 into tExtraVertSpacing
+      end if
+      put the bottom of tObjectID +tExtraVertSpacing + tPaletteMargin into tTop
    end repeat
    
-   
-   -- added +10 on the line above to give a bit more space between sections (tperry 25-4-24)
-   -- tweaking vertical spacing of things a bit here... and other bits (I will refine this)
-   if there is a group "graphic" of stack "revTools" then 
-      set the top of group "graphic" of stack "revTools" to the top of group "graphic" of stack "revTools" +20
-   end if
-   if there is a group "graphictoolscontrols" of stack "revTools" then 
-      set the top of group "graphictoolscontrols" of stack "revTools" to the top of group "graphictoolscontrols" of stack "revTools" +20
-   end if
-   if there is a group "graphictools" of stack "revTools" then 
-      set the top of group "graphictools" of stack "revTools" to the top of group "graphictools" of stack "revTools" +30
-   end if
-   if there is a graphic "graphictools" of stack "revTools" then
-      set the top of graphic "graphictools" of stack "revTools" to the top of graphic "graphictools" of stack "revTools" +10
-   end if
-   if there is a group "paintcontrols" of stack "revTools" then 
-      set the top of group "paintcontrols" of stack "revTools" to the top of group "paintcontrols" of stack "revTools" +20
-   end if
-   if there is a group "paint" of stack "revTools" then 
-      set the top of group "paint" of stack "revTools" to the top of group "paint" of stack "revTools" +30
-   end if
-   if there is a graphic "paint" of stack "revTools" then
-      set the top of graphic "paint" of stack "revTools" to the top of graphic "paint" of stack "revTools" +10
-   end if
-   
-   local tVectorSectionHeightAdj
-   put 0 into tVectorSectionHeightAdj
-   -- fix for vector tools align section (tperry 29-12-24)
-   if the revTools_columns of stack "revPreferences" >3 then
-      if there is a group "graphictools" then
-         if there is a group "graphictoolscontrols" then 
-            set the left of group "graphictoolscontrols" to the right of group "graphictools" -6
-            set the top of group "graphictoolscontrols" to the top of group "graphictools"
-            put the height of group "graphictoolscontrols" into tVectorSectionHeightAdj
+   -- make section names conditional (tperry 15-1-25)
+   if the cToolsSectionNames of stack "revPreferences" is true then
+      
+      -- added +10 on the line above to give a bit more space between sections (tperry 25-4-24)
+      -- tweaking vertical spacing of things a bit here... and other bits (I will refine this)
+      if there is a group "graphic" of stack "revTools" then 
+         set the top of group "graphic" of stack "revTools" to the top of group "graphic" of stack "revTools" +20
+      end if
+      if there is a group "graphictoolscontrols" of stack "revTools" then 
+         set the top of group "graphictoolscontrols" of stack "revTools" to the top of group "graphictoolscontrols" of stack "revTools" +20
+      end if
+      if there is a group "graphictools" of stack "revTools" then 
+         set the top of group "graphictools" of stack "revTools" to the top of group "graphictools" of stack "revTools" +30
+      end if
+      if there is a graphic "graphictools" of stack "revTools" then
+         set the top of graphic "graphictools" of stack "revTools" to the top of graphic "graphictools" of stack "revTools" +10
+      end if
+      if there is a group "paintcontrols" of stack "revTools" then 
+         set the top of group "paintcontrols" of stack "revTools" to the top of group "paintcontrols" of stack "revTools" +20
+      end if
+      if there is a group "paint" of stack "revTools" then 
+         set the top of group "paint" of stack "revTools" to the top of group "paint" of stack "revTools" +30
+      end if
+      if there is a graphic "paint" of stack "revTools" then
+         set the top of graphic "paint" of stack "revTools" to the top of graphic "paint" of stack "revTools" +10
+      end if
+      -- fix for vector tools align section (tperry 29-12-24)
+      local tVectorSectionHeightAdj
+      put 0 into tVectorSectionHeightAdj
+      if the revTools_columns of stack "revPreferences" >3 then
+         if there is a group "graphictools" then
+            if there is a group "graphictoolscontrols" then 
+               set the left of group "graphictoolscontrols" to the right of group "graphictools" -6
+               set the top of group "graphictoolscontrols" to the top of group "graphictools"
+               put the height of group "graphictoolscontrols" into tVectorSectionHeightAdj
+            end if
          end if
       end if
-   end if
-   
-   -- create various fields if they don't exist
-   put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
-   replace "," with return in tToolSectionHeaders
-   filter lines of tToolSectionHeaders without empty
-   put 0 into tToolSectionCount
-   repeat the number of lines in tToolSectionHeaders
-      add 1 to tToolSectionCount
-      put line tToolSectionCount of tToolSectionHeaders into tFldName
-      if not (there is a field tFldName) then create field tFldName
-      hide fld tFldName
-      set the dontwrap of fld tFldName to true
-      set the locktext of fld tFldName to true
-      set the Opaque of fld tFldName to false
-      set the threeD of fld tFldName to false
-      set the showBorder of fld tFldName to false
-      set the height of fld tFldName to 23
-      set the left of fld tFldName to 0
-      set the textSize of fld tFldName to 11
-      set the foregroundColor of fld tFldName to "127,127,127"
-      set the traversalOn of fld tFldName to false
-      set the showFocusBorder of fld tFldName to false
-      -- conditional positioning
-      if there is a graphic "graphic" then
-         if tFldName is "divHeaderVectorShapes" then
-            set the top of fld tFldName to the bottom of graphic "graphic"
-            show fld tFldName
-            put "Vector Shapes" into fld tFldName
+      -- create various fields if they don't exist
+      put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
+      replace "," with return in tToolSectionHeaders
+      filter lines of tToolSectionHeaders without empty
+      put 0 into tToolSectionCount
+      repeat the number of lines in tToolSectionHeaders
+         add 1 to tToolSectionCount
+         put line tToolSectionCount of tToolSectionHeaders into tFldName
+         if not (there is a field tFldName) then create field tFldName
+         hide fld tFldName
+         set the dontwrap of fld tFldName to true
+         set the locktext of fld tFldName to true
+         set the Opaque of fld tFldName to false
+         set the threeD of fld tFldName to false
+         set the showBorder of fld tFldName to false
+         set the height of fld tFldName to 23
+         set the left of fld tFldName to 0
+         set the textSize of fld tFldName to 11
+         set the foregroundColor of fld tFldName to "127,127,127"
+         set the traversalOn of fld tFldName to false
+         set the showFocusBorder of fld tFldName to false
+         -- conditional positioning
+         if there is a graphic "graphic" then
+            if tFldName is "divHeaderVectorShapes" then
+               set the top of fld tFldName to the bottom of graphic "graphic"
+               show fld tFldName
+               put "Vector Shapes" into fld tFldName
+            end if
          end if
-      end if
-      if there is a graphic "graphictools" then
-         if tFldName is "divHeaderVectorTools" then
-            set the top of fld tFldName to the bottom of graphic "graphictools"
-            show fld tFldName
-            put "Vector Tools" into fld tFldName
+         if there is a graphic "graphictools" then
+            if tFldName is "divHeaderVectorTools" then
+               set the top of fld tFldName to the bottom of graphic "graphictools"
+               show fld tFldName
+               put "Vector Tools" into fld tFldName
+            end if
          end if
-      end if
-      if there is a graphic "paint" then
-         if tFldName is "divHeaderPaintTools" then
-            set the top of fld tFldName to the bottom of graphic "paint"
-            show fld tFldName
-            put "Paint Tools" into fld tFldName
+         if there is a graphic "paint" then
+            if tFldName is "divHeaderPaintTools" then
+               set the top of fld tFldName to the bottom of graphic "paint"
+               show fld tFldName
+               put "Paint Tools" into fld tFldName
+            end if
          end if
-      end if
-   end repeat
+      end repeat
+   else
+      -- section names are hidden (tperry 15-1-25)
+      put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
+      replace "," with return in tToolSectionHeaders
+      filter lines of tToolSectionHeaders without empty
+      put 0 into tToolSectionCount
+      repeat the number of lines in tToolSectionHeaders
+         add 1 to tToolSectionCount
+         put line tToolSectionCount of tToolSectionHeaders into tFldName
+         if not (there is a field tFldName) then create field tFldName
+         hide fld tFldName
+      end repeat
+   end if -- end conditional section headings (tperry 15-1-25)
    
    -- revTools_show
    put revIDEGetPreference("revTools_show") into tToolsOnShow
@@ -638,9 +660,7 @@ on layoutPalette
    ideToolChanged
    --layoutFrame
    
-   -- really don't want a 'header' widget, and deleting it might cause problems. So I simply hide that here.
-   --if there is a widget "header_background" of cd 1 of this stack then hide widget "header_background" of cd 1 of this stack
-   -- even better, can I delete the widget without causing problems? (yes!)
+   -- can I delete the widget without causing problems? (yes!)
    if there is a widget "header_background" of cd 1 of this stack then delete widget "header_background" of cd 1 of this stack
    
    -- better make sure we have a way to choose tool options
@@ -802,24 +822,18 @@ on mouseDown pButton
          revIDESetCursor "com.livecode.cursor.grabclose"
          break
    end switch
-   
-   /*
    if the cTool of the target is not empty then 
       exit mouseDown
    end if
-   */
    
    reset the templategraphic
    
-   /*
    if the tool is not "browse tool" and the tool is not "pointer tool" then 
       choose "pointer" tool
    end if
    
-   */
-   
-   
    lock messages
+   
    # Wait until the mouse has moved a decent distance
    local tStartLoc
    put the screenMouseLoc into tStartLoc
@@ -834,7 +848,6 @@ on mouseDown pButton
       end if
    end repeat
    unlock messages
-   
    
    local tTarget, tObjectTypeID, tToolsStackID
    put the long ID of the target into tTarget
@@ -870,8 +883,8 @@ on mouseDown pButton
    unlock screen
    
    # AL-2015-03-26: [[ Bug 14892 ]] Simply set the visible of the revDragControl stack to true
-   set the loc of this stack to the screenmouseloc
-   show this stack
+   set the loc of stack "revDragControl" to the screenmouseloc
+   show stack "revDragControl"
    
    # Let the user drag around
    local tValidDropStacks
@@ -1858,7 +1871,6 @@ on tDelayedPolysides
    set the polysides to tPolySidesToSet
    set the tPassVar of this stack to ""
 end tDelayedPolysides
-
 
 on hGenDragStack
    --generate the drag stack

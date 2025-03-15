@@ -41,7 +41,10 @@ before openStack
    revIDEPopDefaultFolder
    put true into sStackIsInFront
    
-   if the platform is "linux" then send tFixUpInspector to me in 20 ticks
+   if the platform is "linux" then send tFixUpInspector to me in 1 millisecond
+   send hFixPropertyPopup to me in 1 millisecond
+   
+   updateInspector
 end openStack
 
 on resizeInspector
@@ -352,6 +355,8 @@ on inspectorLayoutGroups pGroupList, pForceHeight
    # adapt right size of controls to vScrollbar on and off
    if tvScrollChanged then resizeInspector
    
+   -- reset the effects palette between uses (tperry 10-1-2025)
+   send hFixPropertyPopup to this stack in 1 millisecond
    unlock screen
 end inspectorLayoutGroups
 
@@ -627,6 +632,7 @@ on inspectorChanged
  
 
    unlock screen
+   send hFixPropertyWithClose to this stack in 1 millisecond
 end inspectorChanged
 
 # Sent when the user changes the section
@@ -641,6 +647,8 @@ on inspectorSectionChanged pSection
    inspectorSectionSet pSection
    
    inspectorChanged
+   
+   send hFixPropertyWithClose to this stack in 1 millisecond
 end inspectorSectionChanged
 
 on updateFocusedEditor
@@ -800,21 +808,57 @@ on tCheckBuntuEditing
 end tCheckBuntuEditing
 
 on tFixUpInspector
-   if the platform contains "linux" then
-      if $DESKTOP_SESSION_WM contains "icewm" then
-         lock screen
-         lock messages
-         if there is a stack "revPropertyInspector 1" then
-            if the tHasBeenCorrected of this stack is true then
-            -- do nothing, ignore
-            else
-               set the tHasBeenCorrected of this stack to true
-               set the style of stack "revPropertyInspector 1" to modeless
-            end if
-            --
-         end if
-         unlock messages
-         unlock screen
-      end if
-   end if
+   -- ignore this
 end tFixUpInspector
+
+on hFixPropertyPopup
+ -- this resets the property popup stack between uses
+   local tFXCount
+   local fxNames
+   set the itemdelimiter to ","
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into fxNames
+   put 0 into tFXCount
+   repeat the number of items in fxNames
+   add 1 to tFXCount
+      put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
+      set the destroystack of stack tTryDestroyAndCloseStack to true
+   end repeat
+end hFixPropertyPopup
+
+
+on hFixPropertyWithClose
+   lock screen
+   lock messages
+ -- this resets the property popup stack between uses & CLOSES
+ -- experimental. Will refine
+   local tFXCount
+   local fxNames
+   set the itemdelimiter to ","
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into fxNames
+   put 0 into tFXCount
+   repeat the number of items in fxNames
+   add 1 to tFXCount
+      put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
+      set the destroystack of stack tTryDestroyAndCloseStack to true
+      try
+         close stack tTryDestroyAndCloseStack
+      catch e
+      end try
+   end repeat
+   unlock messages
+   unlock screen
+end hFixPropertyWithClose
+
+on updateInspector
+   -- should this be coloured?
+   -- we attempt to set the card backgroundcolor (requested by Richmond 10-3-2025)
+   if the cInspectorBackgroundColor of stack "revPreferences" is not "" then
+      try
+         put the cInspectorBackgroundColor of stack "revPreferences" into tColValue
+         set the backgroundcolor of this stack to tColValue
+      catch e
+      end try
+   else
+      set the backgroundcolor of this stack to ""
+   end if
+end updateInspector

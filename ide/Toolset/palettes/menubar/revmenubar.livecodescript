@@ -1138,8 +1138,9 @@ end setButtonReleased
 
 
 on mouseDown
+   revMenubarBuildMenus -- always rebuild menus. tperry 15/2/25
    if the short name of the owner of the target is "revMenuBar" then
-      revMenubarBuildMenus
+      --revMenubarBuildMenus
    else if the short name of the owner of the target is "toolbar" and the target begins with "button" then
       setButtonDepressed the long id of the target
       put the short name of the long id of the target into tLastClicked
@@ -1379,7 +1380,8 @@ on highlightMenuItem pMenu, pSubMenus
 end highlightMenuItem
 
 command revMenubarBuildMenus
-   if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus -- tperry 10-11-24
+   -- commented this line out, as should prevent Richmond's erratic cut, copy, paste experience -- tperry 15/2/25 
+   --if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus -- tperry 10-11-24
    if the platform contains "linux" then set the acceleratedRendering of this stack to true -- tperry 10-11-24
    local tContext
    put buildMenuContext() into tContext
@@ -1413,6 +1415,9 @@ command revMenubarBuildMenus
 end revMenubarBuildMenus
 
 function revMenubarBuildMenu pMenu, pContext
+   -- go back to slower case statements as Richmond reports erratic cut, copy, paste
+   -- tperry 15/2/2025
+   /* 
    if pMenu is "File" then
       return revMenubarFileMenu(pContext)
       exit revMenubarBuildMenu
@@ -1449,8 +1454,8 @@ function revMenubarBuildMenu pMenu, pContext
       return revMenubarHelpMenu(pContext)
       exit revMenubarBuildMenu
    end if
+   */
    
-   /* -- experimenting NOT using switch case
    switch pMenu
       case "File"
          return revMenubarFileMenu(pContext)
@@ -1474,7 +1479,6 @@ function revMenubarBuildMenu pMenu, pContext
          break
    end switch
    return empty
-   */
 end revMenubarBuildMenu
 
 # Returns an array containing the context needed to build the menus. This is stuff like which images / objects / text is selected etc.

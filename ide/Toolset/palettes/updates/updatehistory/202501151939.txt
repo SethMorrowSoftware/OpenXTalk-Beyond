@@ -1,0 +1,2 @@
+Version 1.10, build 202501151939
+This gives greater control over how the tools palette is rendered. Section names are also now optional.

@@ -250,6 +250,7 @@ on revInternal__openStack
    
    
    -- tperry 15-1-24, make sure my recently added preferences aren't set to empty
+   -- prefchecksection
    revInternal__setSplashStatus "Validating preference settings..."
    if the cMakeRevMenuBarDraggable of stack "revPreferences" is empty then set the cMakeRevMenuBarDraggable of stack "revPreferences" to false
    if the cMakeRevMenuBarStandard of stack "revPreferences" is empty then set the cMakeRevMenuBarStandard of stack "revPreferences" to false
@@ -300,8 +301,9 @@ on revInternal__openStack
       set the cThemeThirdPartyStacks of stack "revPreferences" to false
    end if
    
-   -- set the default cursor (27-4-24)
-   tUpdBrowseCursors
+   -- tperry (19-1-25) -- by default, prompt before suppressing IDE messages
+   if the cPromptToggleMsgSuppress of stack "revPreferences" is empty then set the cPromptToggleMsgSuppress of stack "revPreferences" to true
+   
    
    -- can we make linux redraw faster? (yes)
    hToggleScreenSharedMemory
@@ -362,7 +364,8 @@ on tdelayClosingSplash
       set the cFreqFonts of stack "revMenubar" to the cRecentFontsList of stack "revPreferences" -- load recent fonts at IDE launch
       if there is a stack "revMenuBar" then send setupTextMenu to stack "revMenubar" in 10 milliseconds -- refresh recent fonts
    end if
-   
+   -- set the default cursor (27-4-24)
+   send tUpdBrowseCursors to me in 3 seconds
    send tCloseSplashFully to me
 end tdelayClosingSplash
 
@@ -589,7 +592,7 @@ command revInternal__SetupCustomizationPath
             put specialFolderPath("docs") & "/xTalk extensions" into sCustomizationPath
             break
       end switch
-      
+      set the cCustomizationPath of stack "revPreferences" to sCustomizationPath -- make sure it actually gets set! (tperry 20-1-25)
       revInternal__Log "Message", "Customization Path = " & sCustomizationPath
    end if
    
@@ -979,6 +982,8 @@ command revInternal__ResetPreferences
    put "none" into tPropsArray["cBackdrop"] -- backdrop off as default (tperry 27-7-24)
    put "true" into tPropsArray["cMiddleBtnToggle"] -- allow middle button to toggle browse and pointer tool (tperry 27-7-24)
    put "false" into tPropsArray["cDesktopClickToHide"] -- turn this off on linux, as it might give issues with xfce and 'buntu distros (tperry 31-7-24)
+   put "true" into tPropsArray["cPromptToggleMsgSuppress"] -- warn if user tries to suppress IDE messages (tperry 19-1-25)
+   
    set the customProperties[""] of stack "revPreferences" to tPropsArray
    delete variable tPropsArray
    
@@ -2602,6 +2607,7 @@ end tApplyTheme_nullify
 
 
 on tUpdBrowseCursors
+   try
    -- changes the default cursor as selected in prefs (tperry 27-4-24)
    if the cBrowseIconIsArrow of stack "revPreferences" is empty then set the cBrowseIconIsArrow of stack "revPreferences" to false
    if the cBrowseIconIsArrow of stack "revPreferences" is false then
@@ -2611,6 +2617,8 @@ on tUpdBrowseCursors
       -- set to the arrow tool (relative to what the IDE has already set)
       set the defaultcursor to (the id of image "com.livecode.tool.Browse.icon.png" of stack "revTools")
    end if
+catch e
+   end try
 end tUpdBrowseCursors
 
    --------------------------------------------------------------------------------------------------------

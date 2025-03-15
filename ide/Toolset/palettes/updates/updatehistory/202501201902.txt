@@ -1,0 +1,2 @@
+Version 1.10, build 202501201902
+Makes sure the "User Extension" path gets asserted properly. Please check in Preferences > "Files & Memory". User confirmation option when toggling "Suppress Messages".
