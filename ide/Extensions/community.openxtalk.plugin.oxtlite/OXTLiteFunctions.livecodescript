@@ -11,7 +11,6 @@
 */
 
 local  sMessageID,  sGridSystem, sThisCard, sControls, sLabels
-constant kGuideLineColor = "255,0,255", kGuideLabelColor = "56,56,255", kGuideLineCardColor = "255,128,0", kGuideLabelCardColor = "0,128,0"
 local tEditingNow
 local tFileNames
 
@@ -67,7 +66,6 @@ on rawKeyDown pKeyCode
    pass rawKeyDown
 end rawKeyDown
 
-
 on rawKeyUp pKeyCode
    -- a certain raw key released
    pass rawKeyUp
@@ -77,35 +75,6 @@ on ideResumeStack
    set the tResumedStack of this stack to true
    pass ideResumeStack
 end ideResumeStack
-   
-   
-   function OSVersion withplat
-   -- return the correct system version
-   put "" into tShellCmd
-   set hideConsoleWindows to true
-   if the platform contains "linux" then put "lsb_release -r |cut -f2" into tShellCmd
-   if the platform contains "mac" then put "sw_vers -productVersion" into tShellCmd
-   if the platform contains "win" then put "systeminfo | findstr /C:" & QUOTE & "OS Version" & QUOTE into tShellCmd
-   put shell(tShellCmd) into tSystemVersionNumber
-   -- tidy up for Windows
-   if the platform contains "win" then 
-      put line 1 of tSystemVersionNumber into tSystemVersionNumber
-      replace " N/A " with "-" in tSystemVersionNumber
-      replace ":" with return in tSystemVersionNumber
-      if the number of lines in tSystemVersionNumber >1 then put line 2 of tSystemVersionNumber into tSystemVersionNumber
-      replace "Build " with return in tSystemVersionNumber
-      if the number of lines in tSystemVersionNumber >1 then put line 1 of tSystemVersionNumber into tSystemVersionNumber
-      replace " " with "" in tSystemVersionNumber
-      replace "-" with " " in tSystemVersionNumber
-   end if
-   if withplat is "platform" then
-      put the platform & " " & tSystemVersionNumber into tSystemVersion
-      -- the above would return "MacOS 14" for example.
-      return line 1 of tSystemVersion
-   else
-      return line 1 of tSystemVersionNumber
-   end if
-end OSVersion
 
 -----------------------------------------------------------------------------------------------------------
 ---------------------- the following is all about external script editing ---------------------------------
@@ -276,3 +245,8 @@ on hEditorCheckLoop
       end if
    end if
 end hEditorCheckLoop
+
+on keydown
+   if the platform contains "mac" then send revMenubarBuildMenus to stack "revmenubar" in 20 milliseconds -- workaround for unresponsive redraw on MacOS
+   pass keydown
+end keydown

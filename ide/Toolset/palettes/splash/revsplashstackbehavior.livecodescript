@@ -3,8 +3,16 @@ on preOpenStack
    local tSplashPath
    
    lock messages
-   put revEnvironmentEditionProperty("skin") & "/splash.png" into tSplashPath
-   set the textColor of this card to revEnvironmentEditionProperty("revsplash_text_color")
+   if the systemappearance is "dark" then put revEnvironmentEditionProperty("skin") & "/splash.png" into tSplashPath
+   if the systemappearance is "light" then put revEnvironmentEditionProperty("skin") & "/splash-light.png" into tSplashPath
+   --
+   if the systemappearance is "dark" then set the foregroundColor of this card to white
+   if the systemappearance is "light" then set the foregroundColor of this card to black
+   --
+   if the platform contains "mac" then set the textfont of this stack to "Lucida Grande"
+   if the platform contains "win" then set the textfont of this stack to "Arial"
+   if the platform contains "lin" then set the textfont of this stack to "Liberation Sans"
+   --
    set the textAlign of field "status" to "left"
    set the top of field "status" to 270
    set the width of field "status" to the width of card 1 of me * 0.8
@@ -12,7 +20,6 @@ on preOpenStack
    set the filename of image "Splash" to tSplashPath
    set the id of image "Splash" to the id of stack "revIcons"
    set the location of me to the screenLoc
-   set the foregroundColor of this card to "255,255,255"
    set the htmlText of field "License" to revEnvironmentEditionProperty("splash_strap")
    
    unlock messages

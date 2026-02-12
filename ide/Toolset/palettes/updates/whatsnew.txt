@@ -1,1 +1,9 @@
-Added the ability to change the label sections colour in the inspector - requested by Richmond62.
+Tweaks to preferences,
+changes to updater stack, 
+default script editor size increased,
+alt-tab should now swtch windows,
+splash screen now light/dark mode aware,
+splash screen font tweaks,
+specific macOS menu guards (to prevent engine error),
+respring implemented for updater,
+(more to follow)

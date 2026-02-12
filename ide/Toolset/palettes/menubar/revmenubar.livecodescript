@@ -65,7 +65,8 @@ on preOpenStack
    if the platform contains "linux" then set the style of stack "revMenubar" to modeless -- tperry 15-11-24
    --
    set the cantModify of me to true
-   
+   --
+   send tMenuBar_legacyMac to this stack in 30 ticks
    unlock screen
    
 end preOpenStack
@@ -147,9 +148,9 @@ on setupTextMenu
    put the cFreqFonts of this stack into tFreqFonts
    filter lines of tFreqFonts without empty
    if tFreqFonts is "" then
-      put "Use Owner's Font" & return & "Rebuild font menu" & return & "-" & return before tFontNames
+      put "Use Owner's Font" & return & "Rebuild Font Menu" & return & "-" & return before tFontNames
    else
-      put tFreqFonts & return & "-" & return & "Use Owner's Font" & return & "Rebuild font menu" & return & "Clear recent fonts list" & return & "-" & return before tFontNames
+      put tFreqFonts & return & "-" & return & "Use Owner's Font" & return & "Rebuild Font Menu" & return & "Clear Recent Fonts List" & return & "-" & return before tFontNames
    end if
    -- end freq fonts part 1
    
@@ -173,7 +174,7 @@ on setupTextMenu
    put "Color" & cr after tText
    
    local tColors
-   put format("Use Owner's Color\n-\nBlack\nWhite\nRed\nGreen\nBlue\nYellow\n-\nPen Color") into tColors
+   put format("Use Owner's Color\n-\nBlack\nWhite\nRed\nGreen\nBlue\nYellow\nYellow Hilite\n-\nPen Color") into tColors
    repeat for each line tColor in tColors
       if tColor is "-" then
          put tab & tColor & return after tText
@@ -288,6 +289,10 @@ end moveStack
 on hCheckMacUp
    if the mouse is up then
       -- this is just a fix for MacOS
+      
+      if the platform contains "mac" then send revMenubarBuildMenus to this stack in 20 milliseconds -- workaround for slow menubar update on MacOS (tperry 27/9/2025)
+      
+      
       -- when you drag the revmenubar stack, the icons become unclickable under MacOS
       -- this regenerates the icons
       
@@ -350,6 +355,7 @@ on setMenuProperties
 end setMenuProperties
 
 on ideSelectedObjectChanged
+   if the platform contains "mac" then send revMenubarBuildMenus to this stack in 1 millisecond -- workaround for slow menubar update on MacOS (tperry 27/9/2025)
    updateButtonState
 end ideSelectedObjectChanged
 
@@ -1138,9 +1144,8 @@ end setButtonReleased
 
 
 on mouseDown
-   revMenubarBuildMenus -- always rebuild menus. tperry 15/2/25
    if the short name of the owner of the target is "revMenuBar" then
-      --revMenubarBuildMenus
+      revMenubarBuildMenus
    else if the short name of the owner of the target is "toolbar" and the target begins with "button" then
       setButtonDepressed the long id of the target
       put the short name of the long id of the target into tLastClicked
@@ -1380,8 +1385,7 @@ on highlightMenuItem pMenu, pSubMenus
 end highlightMenuItem
 
 command revMenubarBuildMenus
-   -- commented this line out, as should prevent Richmond's erratic cut, copy, paste experience -- tperry 15/2/25 
-   --if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus -- tperry 10-11-24
+   if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus -- tperry 10-11-24
    if the platform contains "linux" then set the acceleratedRendering of this stack to true -- tperry 10-11-24
    local tContext
    put buildMenuContext() into tContext
@@ -1415,9 +1419,6 @@ command revMenubarBuildMenus
 end revMenubarBuildMenus
 
 function revMenubarBuildMenu pMenu, pContext
-   -- go back to slower case statements as Richmond reports erratic cut, copy, paste
-   -- tperry 15/2/2025
-   /* 
    if pMenu is "File" then
       return revMenubarFileMenu(pContext)
       exit revMenubarBuildMenu
@@ -1454,8 +1455,8 @@ function revMenubarBuildMenu pMenu, pContext
       return revMenubarHelpMenu(pContext)
       exit revMenubarBuildMenu
    end if
-   */
    
+   /* -- experimenting NOT using switch case
    switch pMenu
       case "File"
          return revMenubarFileMenu(pContext)
@@ -1479,6 +1480,7 @@ function revMenubarBuildMenu pMenu, pContext
          break
    end switch
    return empty
+   */
 end revMenubarBuildMenu
 
 # Returns an array containing the context needed to build the menus. This is stuff like which images / objects / text is selected etc.
@@ -1609,7 +1611,7 @@ private function revMenubarFileMenu pContext
    
    local tFile
    put "&New Stack" & return after tFile
-   put tab & "Default Size/cmd shift n" & return after tFile
+   put tab & "Default Size/cmd shift N" & return after tFile
    if the cShowPresetSizes of stack "revPreferences" is true then 
       put tab & "-" & return after tFile
       put tab & "HVGA (320x480)" & return after tFile
@@ -1676,13 +1678,15 @@ private function revMenubarFileMenu pContext
    put "-" & return after tFile
    
    put enableMenuItem("&Save/S", tCanSaveStack) & return after tFile
-   put enableMenuItem("Save &As.../cmd option s", tCanSaveStack) & return after tFile
+   put enableMenuItem("Save &As.../cmd shift S", tCanSaveStack) & return after tFile
    put enableMenuItem("Move S&ubstack to File...", tIsUserTarget and the short name of the topStack is not the mainStack of the topStack) & return after tFile
    put enableMenuItem("&Revert to Saved...", tIsUserTarget and the effective filename of the topStack is not empty) & return after tFile
    put "-" & return after tFile
    
+   /*
    put enableMenuItem("&Share this stack...", tCanSaveStack) & return after tFile
    put "-" & return after tFile
+   */
    
    put enableMenuItem("Standalone Application Settings...", tIsUserTarget) & return after tFile
    put enableMenuItem("Save as Standalone Application...", tIsUserTarget) & return after tFile
@@ -1877,6 +1881,7 @@ private function revMenubarTextMenu pContext
       put lineOffset("Color"&cr,tText) into tStartNum
       if tColor is empty then put "Use Owner's Color" into tColor
       if tColor is the penColor then put "pen color" into tColor
+      
       put lineOffset(tColor,tText,tStartNum)+tStartNum into tLineNo
       if tLineNo is not 0 and tLineNo is not tStartNum then
          put "c" into char 2 of line tLineNo of tText
@@ -1905,12 +1910,12 @@ private function revMenubarObjectMenu pContext
    
    ### Initial sections
    put enableMenuItem("&Object Inspector", tIsObjectTarget) & return after tObject
-   put enableMenuItem("&Card Inspector", tIsUserTarget) & return after tObject
+   put enableMenuItem("&Card Inspector/J", tIsUserTarget) & return after tObject
    put enableMenuItem("&Stack Inspector/K", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    put enableMenuItem("Object Script/E", tIsObjectTarget) & return after tObject
-   put enableMenuItem("Card Script/cmd option shift c", tIsUserTarget) & return after tObject
-   put enableMenuItem("Stack Script/cmd option shift s", tIsUserTarget) & return after tObject
+   put enableMenuItem("Card Script/^@F", tIsUserTarget) & return after tObject
+   put enableMenuItem("Stack Script/^@G", tIsUserTarget) & return after tObject
    put "-" & return after tObject
    
    ### Lines 9 to 11: Group, Edit Group, Remove Group
@@ -1918,9 +1923,9 @@ private function revMenubarObjectMenu pContext
    set the itemdelimiter to "," -- don't assume itemdelim is set correctly (tperry 28-6-24)
    if the selectedImage is empty and pContext["objectsSelected"] then
       if word 1 of (the selObj) is "group" and the number of lines in (the selObj) is 1 then
-         put "&Ungroup Selected/G" & return & "&Edit Group/R" & return & "Remove Group"into tGroupLines
+         put "&Ungroup Selected/G" & return & "&Edit Group/R" & return & "Remove Group From Card"into tGroupLines
       else -- if word 1 of (the selObj) is not among the items of "card,stack" then
-         put "&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group"into tGroupLines
+         put "&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group From Card"into tGroupLines
          -- commented out the following as not interested in disabling group object option
          /*
       else
@@ -1929,7 +1934,7 @@ private function revMenubarObjectMenu pContext
          -- end my adjustments (tperry 28-6-24)
       end if
    else
-      put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group" into tGroupLines
+      put "(&Group Selected/G" & return & "(&Edit Group/R" & return & "(Remove Group From Card" into tGroupLines
    end if
    if the editBackground of the topStack and word 1 of (the selObj) is not "group" then
       put "&Stop Editing Group" into line 2 of tGroupLines
@@ -1940,9 +1945,9 @@ private function revMenubarObjectMenu pContext
    local tGroupNames
    put buildGroupSubmenu(the short name of the topStack) into tGroupNames
    if the mode of the topStack is not 1 or tGroupNames is empty then
-      put "(Place Group" & return after tObject
+      put "(Place Group On Card" & return after tObject
    else
-      put "Place Group" & return & tGroupNames & return after tObject
+      put "Place Group On Card" & return & tGroupNames & return after tObject
    end if
    put "-" & return after tObject
    
@@ -2189,8 +2194,8 @@ end buildGroupSubmenu
 
 private function revMenubarHelpMenu pContext
    local tHelp
-   put "IDE Information" & return after tHelp
    put "Dictionary/|Dictionary" & return after tHelp  --reorganize help menu
+   put "Dictionary Online" & return after tHelp -- Online version
    put "-" & return after tHelp -- divider
    put "User Guide PDF" & return after tHelp -- This is Terry L's PDF version 18-1-2024
    put "Data Grid Guide PDF" & return after tHelp -- This is Terry L's PDF version 18-1-2024
@@ -2198,9 +2203,13 @@ private function revMenubarHelpMenu pContext
    put "Guides" & return after tHelp -- the 'allguides.oxtstack' revised user guide
    -- put "Examples" & return after tHelp -- tperry 6-12-23 -- this is my user guides stack that I'm putting together
    put "Lessons" & return after tHelp
+   put "Demos" & return after tHelp
+   put "Forums" & return after tHelp
    put "-" & return after tHelp -- divider
-   put "Release Notes"& return  after tHelp
-   put "Check for Updates" after tHelp -- tperry 24-12-23 -- added option to check for updates here
+   put "Release Notes" & return  after tHelp
+   put "Check for Updates" & return after tHelp -- tperry 24-12-23 -- added option to check for updates here
+   put "-" & return after tHelp -- divider
+   put "About" after tHelp
    return modifyMenu("Help", tHelp)
 end revMenubarHelpMenu
 
@@ -2216,7 +2225,7 @@ private function revMenubarViewMenu pContext
    put enableMenuItem("Go &Last/4", the mode of the topStack is 1) & return after tView
    put enableMenuItem("Go Recent/5", the mode of the topStack is 1) & return after tView
    put "-" & return after tView
-   put enableMenuItem("Card Navigator/^@G", the mode of the topStack is 1) & return after tView
+   put enableMenuItem("Card Navigator/6", the mode of the topStack is 1) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Toolbar Icons/^@I", the cToolbarIcons of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar icons)
    put toggleMenuItem("Toolbar Text/^@T", the cToolbarText of stack "revPreferences") & return after tView -- tperry 13-1-24 (ctrl-shift-i shortcut for toolbar text)
@@ -2229,18 +2238,6 @@ private function revMenubarViewMenu pContext
    put toggleMenuItem("Show IDE Stacks In Lists", gREVShowStacks) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Show &Invisible Objects" , the showInvisibles) & return after tView
-   put "-" & return after tView
-   if the platform contains "linux" then
-      put "(" into tDis
-   else put "" into tDis
-   put "Appearance" & return after tView
-   put tab & tDis & "Default" & return after tView
-   put tab & tDis & "Dark mode" & return after tView
-   put tab & tDis & "Light mode" & return after tView
-   put tab & "-" & return after tView
-   put tab & "Theme Preferences" & return after tView
-   put tab & "-" & return after tView
-   put tab & "Ignore default IDE theme in this stack" & return after tView
    tApplyGridSetting -- tperry (make sure grid checkbox is correct in menu 21-1-24)
    return modifyMenu("View", tView)
 end revMenubarViewMenu
@@ -2327,16 +2324,16 @@ private function revMenubarWindowMenu pContext
    -- added a few checks to return the visibility of the following 3 stacks in the window menu (tperry 26-4-24)
    put sWindowMenuWindows into tWdListToShow
    if revIDEPaletteIsVisible("Message Box") is true then put tWdListToShow & return & "!nMessage Box/|stack " & QUOTE & "Message Box" & QUOTE into tWdListToShow
-   if revIDEPaletteIsVisible("Tools") is true then put tWdListToShow & return & "!nTools/|stack " & QUOTE & "revTools" & QUOTE into tWdListToShow
    if revIDEPaletteIsVisible("Project Browser") is true then put tWdListToShow & return & "!nProject Browser/|stack " & QUOTE & "revIDEProjectBrowser" & QUOTE into tWdListToShow
+   if revIDEPaletteIsVisible("Tools") is true then put tWdListToShow & return & "!nTools/|stack " & QUOTE & "revTools" & QUOTE into tWdListToShow
    filter lines of tWdListToShow without empty
-   --
-   -- if there is a fld "debug" of stack "untitled 1" then put tWdListToShow into fld "debug" of stack "untitled 1" --debug
    if tWdListToShow is empty then
       put "(No Windows Open" into tWindow
    else
       put tWdListToShow & return & "-" & return & "Send Window to Back/`" into tWindow
+      put tWindow & return & "Raise Next Window in List/Opt TAB" into tWindow
    end if
+   --
    
    return modifyMenu("Window", tWindow)
 end revMenubarWindowMenu
@@ -3326,7 +3323,7 @@ on revMenubarTextMenuPick pWhich
       put pWhich into tPickedItem
    end if
    
-   -- tperry 7-11-24 -- part of the "frequent fonts" script idea by TerryL (modified a bit by tperry)
+   -- tperry 7-11-24 -- part of the "recent fonts" script idea by TerryL (modified a bit by tperry)
    -- include a "rebuild font menu" option which forces the fonts here to be rebuilt.
    -- (otherwise it only happens upon IDE relaunch)
    -- see stack "revidelibrary" (revIDESetTextFont) for part 2 of this
@@ -3537,10 +3534,50 @@ end tMBSetIconsAndText
 on revMenubarWindowMenuPick pWhich
    if pWhich is "Send Window To Back" then
       revIDESendCurrentWindowToBack
+   end if
+   if pWhich contains "Raise Next Window in List" then
+      send hRaiseNextWD to this stack in 1 millisecond
    else
       revIDESendWindowToFront pWhich
    end if
 end revMenubarWindowMenuPick
+
+on hRaiseNextWD
+   lock messages
+   local tWDList
+   put the windows into tWDList
+   local tCurrentStackName
+   local myLastChosenStack
+   local tWDPick
+   put the short name of the topstack into tCurrentStackName
+   if tCurrentStackName contains QUOTE then put "" into tCurrentStackName -- invalid result catch
+   filter lines of tWDList without empty
+   filter lines of tWDList without "(*"
+   filter lines of tWDList without tCurrentStackName
+   sort lines of tWDList ascending
+   -- cycle wd code
+   put the cWDPick of this stack into tWDPick
+   if tWDPick is "" then put "0" into tWDPick
+   if tWDPick +1 > the number of lines in tWDList then
+      put "1" into tWDPick
+      set the cWDPick of this stack to tWDPick
+      go stack the topstack
+      exit hRaiseNextWD
+   end if
+   add 1 to tWDPick
+   set the cWDPick of this stack to tWDPick
+   --
+   set the hWDList of this stack to tWDList
+   put line tWDPick of tWDList into myLastChosenStack
+   --put myLastChosenStack into field "debug" of stack "mytest" -- debug
+   --put the cWDPick of this stack into line 2 of field "debug" of stack "mytest" -- debug
+   --
+   if there is a wd myLastChosenStack then go wd myLastChosenStack
+   --put tWDList into field "OUTPUT" of stack "mytest" -- debug
+   --answer tCurrentStackName
+   unlock messages
+end hRaiseNextWD
+
 
 on revMenubarHelpMenuPick pWhich
    set the itemDel to "|"
@@ -3555,18 +3592,26 @@ on revMenubarHelpMenuPick pWhich
             send tNewDictionaryDisplay to this stack 
          end if
          break
+      case "Dictionary Online"
+         send tOpenOnlineDict to this stack
+         break
       case "Start Center"
       case "Welcome"
-      case "IDE Information"
+      case "About"  --"IDE Information"
          send tOpenAbout to this stack
          break
       case "Support"
-      case "User Guide"
+      case "User Guide PDF"
+         revIDELaunchResource "User Guide"
+         break
       case "License Agreement"
       case "Sample Stacks"
       case "Sample Scripts"
       case "Beginners Guide"
       case "Tutorials"
+      case "Demos"
+         send tOpenDemos to this stack
+         break
       case "Forums"
       case "Technical Questions"
       case "Discussion List"
@@ -3856,8 +3901,22 @@ on tOpenAbout
    -- this should open the 'about' stack (tperry 20-1-24)
    set the itemdelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & slash & "about.oxtstack" into tFilePath
+   set the itemdelimiter to ","
    open stack tFilePath
 end tOpenAbout
+
+on tOpenOnlineDict
+   -- this should open the online dictionary in the default browser (tperry 20-1-24)
+   revGoURL "https://openxtalk-org.github.io/OpenXTalk_Syntax_Dictionary/"
+end tOpenOnlineDict
+   
+   on tOpenDemos
+   -- this should open the 'demos' stack (tperry 17-1-26)
+   set the itemdelimiter to slash
+   put item 1 to -5 of the filename of stack "revMenubar" & slash & "Resources" & slash & "Examples" & slash & "demos.oxtstack" into tFilePath
+   set the itemdelimiter to ","
+   open stack tFilePath
+end tOpenDemos
 
 on tMenuBar_WDdecorations
    -- handler to see if the revMenubar should be shown as a standard window
@@ -3918,7 +3977,23 @@ on tMenuBar_WDdecorations
    end try
    unlock messages
    unlock screen
+   
 end tMenuBar_WDdecorations
+
+on tMenuBar_legacyMac
+   -- need to add this in as we have an NSMenu guard in place for MacOS 10.15
+   -- we have this in the engine, this is just a visual check
+   -- tperry 13-02-2026
+   if the systemappearance is "dark" then
+      if the platform contains "mac" then
+         if the systemversion <12 then
+            if the effective backgroundColor of this stack is "255,255,255" then
+               set the backgroundColor of this stack to "61,61,61"
+            end if
+         end if
+      end if
+   end if
+end tMenuBar_legacyMac
 
 on tOpenThemePrefs
    -- when choosing the appearance theme preferences from the viewMenu
@@ -4250,7 +4325,7 @@ on tIgnoreThemingInThisStack
 end tIgnoreThemingInThisStack
 
 on tApplyMBCardScript
-   -- set the script on the card because livecodescript files don't store card scripts on save
+   -- set the script on the card because livecodescript files don't store card scripts of temp objects on save
    put "on movestack" & return &¬
    "   if not (the pendingmessages contains " & QUOTE & "hSetMBOffsets" & QUOTE & ") then send hSetMBOffsets to this card in 400 milliseconds" & return &¬
    "   pass movestack" & return &¬
@@ -4271,3 +4346,22 @@ on tApplyMBCardScript
    "end hSetMBOffsets" into tNewCardScript
    set the script of card 1 of stack "revMenubar" to tNewCardScript
 end tApplyMBCardScript
+
+
+on fixthemebtn pTarget
+   if there is a field "output" of stack "output" then
+      put "" into field "output" of stack "output"
+   end if
+   put 0 into mycount
+   put the number of buttons of pTarget into myRpt
+   repeat myRpt
+      add 1 to mycount
+      put the id of button mycount of pTarget into tID
+      put "button id " & tID && "of" && pTarget into pBtn
+      if there is pBtn then
+         if the style of pBtn is not "transparent" then
+            put pBtn & return before field "output" of stack "output"
+         end if
+      end if
+   end repeat
+end fixthemebtn

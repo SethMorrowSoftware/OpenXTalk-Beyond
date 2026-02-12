@@ -269,10 +269,26 @@ private command buildWindowMenu pContext
    else
       # Put a checkmark against the 'topmost' stack
       put "!c" into char 1 to 2 of line 1 of tMenu
-      put return & "-" & return & "Send Window to Back/`" after tMenu
+      --put return & "-" & return & "Send Window to Back/`" after tMenu
+      
+      local tWindow
+      local tWdListToShow
+      -- added a few checks to return the visibility of the following 3 stacks in the window menu (tperry 26-4-24)
+      put tMenu into tWdListToShow
+      if revIDEPaletteIsVisible("Message Box") is true then put tWdListToShow & return & "!nMessage Box/|stack " & QUOTE & "Message Box" & QUOTE into tWdListToShow
+      if revIDEPaletteIsVisible("Project Browser") is true then put tWdListToShow & return & "!nProject Browser/|stack " & QUOTE & "revIDEProjectBrowser" & QUOTE into tWdListToShow
+      if revIDEPaletteIsVisible("Tools") is true then put tWdListToShow & return & "!nTools/|stack " & QUOTE & "revTools" & QUOTE into tWdListToShow
+      filter lines of tWdListToShow without empty
+      if tWdListToShow is empty then
+         put "(No Windows Open" into tWindow
+      else
+         put tWdListToShow & return & "-" & return & "Send Window to Back/`" into tWindow
+         put tWindow & return & "Raise Next Window in List/Opt TAB" into tWindow
+      end if
+      --
    end if
    
-   set the text of button "Window" of me to modifyMenu("Window", tMenu)
+   set the text of button "Window" of me to modifyMenu("Window", tWindow)
 end buildWindowMenu
 
 private command buildHelpMenu pContext
@@ -560,6 +576,11 @@ private command handleWindowMenuPick pItemName
    
    if pItemName is "Send Window to back" then
       actionSendWindowToBack
+      exit handleWindowMenuPick
+   end if
+   
+   if pItemName contains "Raise Next" then
+      go stack the topstack
       exit handleWindowMenuPick
    end if
    

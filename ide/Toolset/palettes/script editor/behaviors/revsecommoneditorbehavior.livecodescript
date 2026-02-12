@@ -1,4 +1,4 @@
-script "com.livecode.scripteditor.behavior.editorcommon"
+﻿script "com.livecode.scripteditor.behavior.editorcommon"
 local sObjectId
 
 # The following variables store information used for the undo / redo system.
@@ -2545,12 +2545,17 @@ on tabKey
       pass tabKey
    end if
    
+   -- to prevent interference with the alt-tab window switching (apparently!) 14-02-2026 -- tperry
+   if the altkey is "down" then
+      go stack the topstack
+   end if
+   
    # bhall2001-2017-07-18: Bug 18366 On MacOS, to prevent interference
    # with the use of control+tab to cycle between tabs
    if (the platform is "MacOS") and (the controlKey is "down") then
       pass tabKey
    end if 
-
+   
    if scriptLocked() then
       exit tabKey
    end if
