@@ -1,6 +1,6 @@
 effective
 (keyword)
-Used with inheritance|inherited properties to specify the object|object's own setting or the setting inheritance|inherited from the object|object's owner, whichever is actually displayed.
+Used with inherit|inherited properties to specify the object|object's own setting or the setting inherit|inherited from the object|object's owner, whichever is actually displayed.
 
 Syntax:
 effective
@@ -12,16 +12,45 @@ Params:
 
 Examples:
 put the effective textColor of me into myColor
+put the effective visible of button "new button" into myVisibility
 ----
 
 Description:
-Use the effective keyword to get the displayed color or font of an object(glossary), regardless of whether the object(glossary) itself has that property set. The effective keyword can also be used to get the filename of a substack or the current rectangle of an object(glossary).
+Use the effective keyword to get the displayed color or font of an object|object, regardless of whether the object|object itself has that property set. The effective keyword can also be used to get the filename of a substack or the current rectangle of an object|object.
 
-If one of an object's text, color, or pattern properties is set to empty, the owner's setting is used instead. (If the owner's setting is empty, the setting of that object's owner is used.)  For example, if a card button's backgroundColor property is empty, the backgroundColor of the card is used as the button(object)|button's backgroundColor. You use the effective keyword to get the color that is actually used. If the button(object)|button's backgroundColor is not set to empty, the effective keyword gets the setting for the button(keyword), since that setting is what the button(keyword) displays as its background color.
+If one of an object's text, color, or pattern properties is set to empty, the owner's setting is used instead. (If the owner's setting is empty, the setting of that object's owner is used.)  For example, if a card button's backgroundColor property is empty, the backgroundColor of the card is used as the button|button's backgroundColor. You use the effective keyword to get the color that is actually used. If the button|button's backgroundColor is not set to empty, the effective keyword gets the setting for the button(keyword), since that setting is what the button(keyword) displays as its background color.
 
-The effective keyword can be used with the following inherited properties :  * backgroundColor property * backgroundPattern property * backgroundPixel property * bottomColor property * bottomPattern property * bottomPixel property * focusColor property * focusPattern property * focusPixel property * foregroundColor property * foregroundPattern property * foregroundPixel property * hiliteColor property * hilitePattern property * hilitePixel property * topColor property * topPattern property * topPixel property * shadowColor property * shadowPattern property * shadowPixel property   * textFont property * textHeight property * textSize property * textStyle property   * filename of stack property * rectangle property   * layerMode property   *Note:* The effective keyword is implemented internally as a property  and appears in the propertyNames. However, it cannot be used as a prop  in an expression, nor with the set com.
+The effective keyword can be used with the following inherited properties :
+* backgroundColor property
+* backgroundPattern property
+* backgroundPixel property
+* bottomColor property
+* bottomPattern property
+* bottomPixel property
+* filename of stack property
+* focusColor property
+* focusPattern property
+* focusPixel property
+* foregroundColor property
+* foregroundPattern property
+* foregroundPixel property
+* hiliteColor property
+* hilitePattern property 
+* hilitePixel property 
+* layerMode property
+* rectangle property
+* topColor property 
+* topPattern property 
+* topPixel property 
+* shadowColor property 
+* shadowPattern property 
+* shadowPixel property   
+* textFont property 
+* textHeight property 
+* textSize property 
+* textStyle property   
+* visible property   
 
-Values:
-
+The effective keyword is implemented internally as a property and appears in the propertyNames. However, it cannot be used as a prop in an expression, nor with the set command.
 OS:
 mac,windows,linux,ios,android

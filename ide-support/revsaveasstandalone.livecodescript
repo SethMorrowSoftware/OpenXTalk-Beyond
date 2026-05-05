@@ -162,6 +162,7 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
       delete variable tSettings["MacOSX"]
       put true into tSettings["MacOSX x86-32"]
       put true into tEdited
+      
    end if
    if tSettings["MacOSX PowerPC-32"] then
       delete variable tSettings["MacOSX PowerPC-32"]
@@ -169,7 +170,31 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
       put true into tEdited
    end if
    
+   
+   if tSettings["MacOSX x64-ARM64"] then
+      if the platform contains "Mac" then
+         put the systemversion into mysys
+         replace "." with return in mysys
+         put word 1 of line 1 of mysys into mysys
+         if mysys <14 then
+            -- on mac, but systemversion is too low
+            Answer "Building for MacOS Intel 64-bit and ARM64 (universal) is only possible on MacOS Sonoma and above." with "Cancel"
+            exit revSaveAsStandalone
+         else
+            -- on mac, and systemversion is okay
+            -- we let this fall through and continue
+           
+         end if
+      else
+         -- not on mac
+         Answer "Building for MacOS Intel 64-bit and ARM64 (universal) is only possible on MacOS Sonoma and above." with "Cancel"
+         exit revSaveAsStandalone
+      end if
+      -- end arm mac if statement
+   end if
+   
    -- Make sure there is actually something to build..
+   
    if revSBNoPlatforms(tSettings) then
       local tMessage
       put "You have not selected any platforms to build for. Please do so using Standalone Settings." into tMessage
@@ -281,10 +306,14 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    
    local tError, tStandaloneFolder
    
+   -- shut that noise
+   
+   /*
    -- Don't build for any platform we are not licensed for
    local tRemoved
    put revSBRemoveUnlicensedTargetsFromSettings(sStandaloneSettingsA) into tRemoved
    replace return with comma in tRemoved
+   
    
    if revSBNoPlatforms(sStandaloneSettingsA) then
       local tMessage
@@ -298,6 +327,7 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    if tRemoved is not empty then
       revStandaloneAddWarning "Not licensed to build for the following selected platforms:" && tRemoved
    end if
+   */
    
    revStandaloneProgress "Preparing to build standalone..."
    
@@ -364,6 +394,7 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
             revSBEnsureFolder tTargetFolder
          end if
          
+         -- we have our target platforms (specified in revSBLibrary) -- look for "constant kDesktopTargets" 
          switch tPlatform
             case "iOS"
                if not (the platform begins with "MacOS") then
@@ -444,13 +475,20 @@ private function revStandalonePlatformDetails pTarget
    local tArchFolder
    switch tPlatform
       case "MacOSX"
-         -- MM-2014-03-21: [[ PPC Support Dropped ]] We now only support intel Mac builds. Assume all mac builds to be intel.
-         -- MW-2013-06-13: [[ CloneAndRun ]] If not installated type, then take from the binaries folder.
-         put "Mac OS X/x86-32" into tArchFolder
+         -- tperry 25-09-2025: Support ARM64 Mac builds
+         if pTarget contains "x64-ARM64" then
+            put "Mac OS X/x64-ARM64" into tArchFolder
+            put "arm64" into tDetailsA["architecture"]
+         else if pTarget contains "x86-64" then
+            put "Mac OS X/x86-64" into tArchFolder
+            put "x86-64" into tDetailsA["architecture"]
+         else
+            put "Mac OS X/x86-32" into tArchFolder
+            put "x86-32" into tDetailsA["architecture"]
+         end if
          put ".bundle" into tDetailsA["loadable_extension"]
          put ".dylib" into tDetailsA["shared_extension"]
          put "MacOSX" into  tDetailsA["platform"]
-         put "x86-32" into tDetailsA["architecture"]
          break
       case "Windows"
          if pTarget is "Windows" then
@@ -471,7 +509,7 @@ private function revStandalonePlatformDetails pTarget
             -- MW-2013-11-06: [[ LinuxX64 ]] Compute the correct path for 64-bit linux.
             put "Linux/x86-64" into tArchFolder
             put "x86-64" into tDetailsA["architecture"]
-         else -- if pPlatform is "Linux armv6-hf" then
+         else if pPlatform is "Linux armv6-hf" then
             -- FG-2014-08-19: [[ RPi ]] Compute the correct path for 64-bit Linux
             put "Linux/armv6-hf" into tArchFolder
             put "armv6-hf" into tDetailsA["architecture"]
@@ -676,7 +714,15 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
    local tArchitectures
    if sStandaloneSettingsA["MacOSX x86-32"] then put "i386," after tArchitectures
    if sStandaloneSettingsA["MacOSX x86-64"] then put "x86-64," after tArchitectures
+   if sStandaloneSettingsA["MacOSX x64-ARM64"] then put "arm64," after tArchitectures -- ARM64 deploy expects 'arm64' not 'x64-ARM64'
+   
    delete char -1 of tArchitectures
+   /*
+   if tArchitectures contains "x64-ARM64" then
+      Answer "Stop here for the moment - I'm not ready for this right now!: " & tDirectory with "Cancelled"
+      exit revSaveAsMacStandalone
+   end if
+   */
    
    -- keep a copy of the standalone settings to restore after each build
    local tStandaloneSettingsA
@@ -688,6 +734,8 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
       -- Ensure standalone settings script local is reset when building for subsequent targets
       put tStandaloneSettingsA into sStandaloneSettingsA
       
+      
+      
       revStandalonePreBuild pStack, pFolder, "macosx", tArchitectures, tStackName, tStackFileList
       if the result is not empty then 
          return the result
@@ -696,6 +744,21 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
       -- copy files to each directory
       -- put the path to the engine into tEngineSourceFile
       put revSBEnginePath(tTarget) into tEngineSourceFile
+      
+      if sStandaloneSettingsA["MacOSX x86-64"] then
+         put tEngineSourceFile into tx64
+         replace "/x86-32/Standalone.app" with "/x86-64/Standalone.app" in tx64
+         put tx64 into tEngineSourceFile
+      end if
+      
+      if sStandaloneSettingsA["MacOSX x64-ARM64"] then
+         put tEngineSourceFile into tARM64
+         replace "/x86-32/Standalone.app" with "/x64-ARM64/Standalone-blank.app" in tARM64
+         put tARM64 into tEngineSourceFile
+      end if
+      
+      --answer tEngineSourceFile -- debug output the standalone path!
+      
       
       -- Allows the test system to build a standalone against any version   
       if revOverrideRuntimePath() is not empty then
@@ -834,6 +897,9 @@ command revSaveAsWindowsStandalone pStack, pRestoreFileName, pFolder, @xStandalo
       if word 2 of tTarget is among the items of "x64,x86-64,x86_64" then
          put "x86_64" into tArch
          put "x86-64" into tRuntimeDir
+      else if word 2 of tTarget is among the items of "x64-ARM64" then
+         put "x64-ARM64" into tArch
+         put "x64-ARM64" into tRuntimeDir
       else if word 2 of tTarget is not empty then
          put word 2 of tTarget into tArch
          put word 2 of tTarget into tRuntimeDir
@@ -854,7 +920,7 @@ command revSaveAsWindowsStandalone pStack, pRestoreFileName, pFolder, @xStandalo
       if revOverrideRuntimePath() is not empty then
          put revOverrideRuntimePath() into tEngineSourceFile
       end if
-
+      
       -- Ensure executable is at the expected location
       if there is not a file tEngineSourceFile then
          throw "Standalone: Ensure that you have not renamed the main LiveCode executable file: " \
@@ -1029,6 +1095,17 @@ command revSaveAsLinuxStandalone pStack, pRestoreFileName, pFolder, @xStandalone
       revStandaloneCopyInclusions pStack, tStackFileList, tStackSourceFile, \ 
             tTarget, tDirectory, tStackPath, tStandalonePath, tEngineSourceFile
       
+      
+      -- Copy bundled system libraries for portable Linux standalones
+      local tRuntimeLibFolder
+      local tOldDelimiter
+      put the itemDelimiter into tOldDelimiter
+      set the itemDelimiter to slash
+      put item 1 to -2 of tEngineSourceFile & "/lib" into tRuntimeLibFolder
+      set the itemDelimiter to tOldDelimiter
+      if there is a folder tRuntimeLibFolder then
+         revSBCopyFolderToDestination tRuntimeLibFolder, tDirectory, "revStandaloneProgressCallback", the long id of me
+      end if
       local tDeployInfo
       put revStandaloneInitialDeployParams(tTarget, tStackSourceFile, \ 
             tStandalonePath, tEngineSourceFile) into tDeployInfo

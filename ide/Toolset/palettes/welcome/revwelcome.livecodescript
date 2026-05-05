@@ -9,6 +9,7 @@ end preOpenStack
 on openStack
    set the decorations of me to empty
    show me
+   pass openstack
 end openStack
 
 on stackGenerate

@@ -38,6 +38,14 @@ before openStack
       end if
    end repeat
    set the stackfiles of me to tStackFiles
+   -- HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
+   -- tperry 17-1-2026 (not very elegant, but it works to combat the bug)
+   if the name of this stack contains "revPropertyPopup" then
+      if there is a stack "revPropertyInspector 1" then
+         send gluetoLeft to me in 10 milliseconds
+         -- we have to send this with a delay for it to work
+      end if
+   end if
    revIDEPopDefaultFolder
    put true into sStackIsInFront
    
@@ -46,6 +54,10 @@ before openStack
    
    updateInspector
 end openStack
+
+on gluetoLeft
+   set the right of this stack to the left of stack "revPropertyInspector 1"
+end gluetoLeft
 
 on resizeInspector
    lock screen
@@ -100,6 +112,7 @@ end inspectorOpenEditor
 
 # Layout inspector
 on inspectorLayout pForceHeight
+   
    //put "layout inspector" & return after msg
    lock screen
    
@@ -812,14 +825,14 @@ on tFixUpInspector
 end tFixUpInspector
 
 on hFixPropertyPopup
- -- this resets the property popup stack between uses
+   -- this resets the property popup stack between uses
    local tFXCount
    local fxNames
    set the itemdelimiter to ","
-   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into fxNames
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay,fillGradient,strokeGradient" into fxNames
    put 0 into tFXCount
    repeat the number of items in fxNames
-   add 1 to tFXCount
+      add 1 to tFXCount
       put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
       set the destroystack of stack tTryDestroyAndCloseStack to true
    end repeat
@@ -829,15 +842,15 @@ end hFixPropertyPopup
 on hFixPropertyWithClose
    lock screen
    lock messages
- -- this resets the property popup stack between uses & CLOSES
- -- experimental. Will refine
+   -- this resets the property popup stack between uses & CLOSES
+   -- experimental. Will refine
    local tFXCount
    local fxNames
    set the itemdelimiter to ","
-   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into fxNames
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay,fillGradient,strokeGradient" into fxNames
    put 0 into tFXCount
    repeat the number of items in fxNames
-   add 1 to tFXCount
+      add 1 to tFXCount
       put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
       set the destroystack of stack tTryDestroyAndCloseStack to true
       try
@@ -846,10 +859,12 @@ on hFixPropertyWithClose
       end try
    end repeat
    unlock messages
+   
    unlock screen
 end hFixPropertyWithClose
 
 on updateInspector
+   
    -- should this be coloured?
    -- we attempt to set the card backgroundcolor (requested by Richmond 10-3-2025)
    if the cInspectorBackgroundColor of stack "revPreferences" is not "" then

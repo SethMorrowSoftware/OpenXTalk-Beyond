@@ -1,0 +1,15 @@
+on mousedown
+   set the startvalue of me to 0
+   set the endvalue of me to 50
+   set the thumbposition of me to  0 -- start at bar empty
+   -- send progress bar update in repeat loop
+   if not (the pendingmessages contains "tProgUpdate") then
+      send tProgUpdate to me in 1 tick
+   end if 
+end mousedown
+
+on tProgUpdate
+   set the thumbposition of me to (the thumbposition of me +1)
+   if the thumbposition of me is the endvalue of me then exit tProgUpdate -- don't send anymore - bar is full
+   send tProgUpdate to me in 1 tick
+end tProgUpdate

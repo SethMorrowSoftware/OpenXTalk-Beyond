@@ -1,8 +1,10 @@
 ﻿script "revStandaloneSettingsAndroidBehavior"
 on preOpenCard
+   send hUpdateHeights to stack "revStandaloneSettings" in 10 milliseconds
+   
    initialize
-   pass preOpenCard
 end preOpenCard
+
 
 on initialize
    local tSettings
@@ -253,3 +255,4 @@ on closeCard
    end if
    
 end closeCard
+

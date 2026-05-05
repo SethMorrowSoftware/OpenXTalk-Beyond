@@ -18,7 +18,6 @@ command deployInitialize
 end deployInitialize
 
 function deployListTargets
-   if the pendingmessages contains "deployListTargets" then exit deployListTargets -- stops it firing multiple times
    local tTargets
    get the keys of sAvailableDevices
    sort it
@@ -204,16 +203,10 @@ function deployIsValidJDK pPath
       return false
    end if
    
-   // newer versions of SDK Tools require Java 8
-   if pathToSDKClasses() contains "sdklib-" and not pPath contains "jdk1.8" then
-      answer error "The version of Java installed in your system is not compatible with the current version of Android SDK Tools. Please install Java 8 to continue."
-      return false
-   end if
-   
    return true
 end deployIsValidJDK
 
-constant kDeployAndroidTargetSDK = "29"
+constant kDeployAndroidTargetSDK = "33"
 function deployTargetSdkVersion
    return kDeployAndroidTargetSDK
 end deployTargetSdkVersion
@@ -228,9 +221,8 @@ end deployRequiredSDK
 
 function deployIsValidSDK pPath 
    if there is no folder (pPath & slash & "platforms") or \
-         there is no folder (pPath & slash & "platform-tools") or \
-         there is no folder (pPath & slash & "tools") then
-      --return "could not find platforms, platform-tools or tools folders at that path."
+         there is no folder (pPath & slash & "platform-tools") then
+      --return "could not find platforms or platform-tools folders at that path."
       return false
    end if
    
@@ -251,11 +243,6 @@ function deployIsValidSDK pPath
    
    if there is no file pathToAdb(pPath) then
       --return "missing adb tool, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   if there is no file pathToSDKClasses(pPath) then
-      --return "missing sdklib.jar, make sure your SDK install has not become corrupted"
       return false
    end if
    
@@ -293,6 +280,11 @@ function deployGetVersionsMap
    put "8.1" into tMap[27]
    put "9.0 - Pie" into tMap[28]
    put "10 - Q" into tMap[29]
+   put "11 - R" into tMap[30]
+   put "12 - S" into tMap[31]
+   put "12L - S" into tMap[32]
+   put "13 - T" into tMap[33]
+   put "14 - U" into tMap[34]
    return tMap
 end deployGetVersionsMap
 
@@ -369,28 +361,13 @@ function pathToRootClasses pRoot
 end pathToRootClasses
 
 function pathToSDKClasses pRoot
-   if pRoot is empty then
-      put sAndroidRoot into pRoot
-   end if
-   local tLibs,tSdkLib
-   put files(pRoot&"/tools/lib") into tLibs
-   if tLibs contains "sdklib.jar" then 
-      return pRoot & slash & "tools/lib/sdklib.jar"
-   else
-      filter tLibs with "sdklib-[0-9]*" into tSdkLib
-      if tSdkLib is empty then return empty
-      return pRoot & "/tools/lib/" & tSdkLib
-   end if
+   -- Modern build pipeline no longer requires sdklib.jar
+   return empty
 end pathToSDKClasses
 
 function pathToCommonClasses pRoot
-   if pRoot is empty then
-      put sAndroidRoot into pRoot
-   end if
-   local tCommonLib
-   filter files(pRoot&"/tools/lib") with "common-*" into tCommonLib
-   if tCommonLib is empty then return empty
-   return pRoot & slash & "tools/lib/" & tCommonLib
+   -- Modern build pipeline no longer requires common-*.jar
+   return empty
 end pathToCommonClasses
 
 private function searchTools pRoot, pCommand
@@ -512,7 +489,7 @@ function pathToZipAlign pRoot
 end pathToZipAlign
 
 function pathToDex pRoot
-   local tCommand = "dx"
+   local tCommand = "d8"
    if the platform is "win32" then put ".bat" after tCommand
    
    return pathToPlatformTool(pRoot, tCommand)
@@ -538,6 +515,15 @@ function pathToJarSigner pRoot
    end if
    return pRoot & slash & "bin" & slash & executableName("jarsigner")
 end pathToJarSigner
+
+function pathToApkSigner pRoot
+   if pRoot is empty then
+      put sAndroidRoot into pRoot
+   end if
+   local tCommand = "apksigner"
+   if the platform is "win32" then put ".bat" after tCommand
+   return pathToPlatformTool(pRoot, tCommand)
+end pathToApkSigner
 
 function pathToJar pRoot
    if pRoot is empty then

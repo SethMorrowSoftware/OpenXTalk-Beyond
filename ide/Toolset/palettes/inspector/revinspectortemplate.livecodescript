@@ -25,6 +25,7 @@ on openStack
    unlock screen
    
    set the visible of me to true
+   pass openstack
 end openStack
 
 on closeStack
@@ -170,6 +171,7 @@ on inspectorTreeMenuDisplay
    set the menumode of button "inspectMenu" of me to "popup"
    set the visible of button "inspectMenu" of me to false
    set the script of button "inspectMenu" of me to "on menuPick pItem;send" && quote & "menuPick pItem" & quote && "to this stack; end menuPick"
+   
    unlock messages
    
    local tInspect

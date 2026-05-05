@@ -18,6 +18,8 @@ on preOpenCard
    set the cStackPaths of field "stackfiles" to tStackFiles["full"]
    set the hilitedLines of field "stackfiles" to 1
    send "mouseUp" to field "stackfiles"
+   
+   fixUItheme
    unlock messages
    pass preOpenCard
 end preOpenCard
@@ -81,3 +83,8 @@ command updateCard
    put tSettings["substackFolder"] into field "substackFolder"
    set the enabled of group "moveSubstacks" to (tSettings["moveSubstacks"] = true)
 end updateCard
+
+on fixUItheme
+   -- appearance correction due to engine shortcomings
+   
+end fixUItheme

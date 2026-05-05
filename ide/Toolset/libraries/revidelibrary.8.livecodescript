@@ -2510,19 +2510,51 @@ function revIDEPlatformVersion
 end revIDEPlatformVersion
 
 function revIDEColor pTag
+   
+   --# Added by skids 7 Dec 2025.
+   put the SystemAppearance into tAppearance
+   --
+   
    if pTag is "edition_color" then
       return revEnvironmentEditionProperty("color")
    end if
    
+   -- Change by Skids, 7 Dec 2025, added colour switching to text based on systemappearance 
+   -- which is stored in var tAppearance. First 3 case clauses have been modified with the
+   -- original code commented out.
+   
    switch pTag
+      --case "text_1"
+      --return "0,0,0"
+      --break
+      --case "text_2"
+      --return "125,125,125"
+      --break
+      --case "text_3"
+      -- return "255,255,255"
+      --break
+      
+      -- Colour switching added by Skids 7 Dec 2025 first 3 clause
       case "text_1"
-         return "0,0,0"
+         if tAppearance is dark then
+            return "255,255,255"
+         else
+            return "0,0,0"
+         end if
          break
       case "text_2"
-         return "125,125,125"
+         if tAppearance is dark then
+            return "201,201,201"
+         else
+            return "125,125,125"
+         end if
          break
       case "text_3"
-         return "255,255,255"
+         if tAppearance is dark then
+            return "255,255,255"  --white
+         else
+            return "0,0,0"
+         end if
          break
       case "dataView_rowColor"
          return "255,255,255"
@@ -2537,7 +2569,7 @@ function revIDEColor pTag
          return "34,154,206"
          break
       case "dataView_TextHiliteColor"
-         return "255,255,255"
+         return the accentColor
          break
       case "dataView_scriptBackgroundColor"
          return "34,154,206"
@@ -3543,6 +3575,35 @@ on revIDEActionUngroup
    revIDEUngroup the selobj
 end revIDEActionUngroup
 
+on revIDEActionUnlock
+   -- tperry 07-05-2026 (fed up with having to unlock and remove drop shadows manually!)
+   local allMyObjects
+   local myObjectNow
+   local tCount
+   local myEffects
+   local myEffectProc
+   local myCmd
+   -- what a pain it is having to declare all that junk!
+   put the selectedObjects into allMyObjects
+   put 1 into tCount
+   repeat the number of lines in allMyObjects
+      put line tCount of allMyObjects into myObjectNow
+      set the lockLoc of myObjectNow to false
+      -- fx
+      put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into myEffects
+      repeat the number of items in myEffects
+         try
+            put item 1 of myEffects into myEffectProc
+            delete item 1 of myEffects
+            put "set the " & myEffectProc & " of " & myObjectNow & " to empty" into myCmd
+            do myCmd
+         catch e
+         end try
+      end repeat
+      add 1 to tCount
+   end repeat
+end revIDEActionUnlock
+
 on revIDEUngroup pGroup
    if word 1 of pGroup is not "group" then
       exit revIDEUngroup
@@ -3550,6 +3611,7 @@ on revIDEUngroup pGroup
    revIDESelectObjects pGroup
    ungroup
 end revIDEUngroup
+
 
 /*
 Sets the tool.
@@ -6747,7 +6809,7 @@ Tags: ide
 */
 on revIDENewMainstack pWidth, pHeight
    # Set the width and height of the template stack
-
+   
    # Generate a unique name for the stack
    local tNumber
    put 1 into tNumber
@@ -6755,10 +6817,11 @@ on revIDENewMainstack pWidth, pHeight
       if there is a stack ("Untitled" && tNumber) then  add 1 to tNumber
       else exit repeat
    end repeat
-
+   
    # Setup the template stack
    set the name of the templateStack to "Untitled" && tNumber
    set the visible of the templateStack to false
+   set the textSize of the templateStack to "16"  --tl 26-5, new stack textSize 16
    if pWidth > 100 then
       set the width of the templateStack to pWidth
    else
@@ -6773,7 +6836,7 @@ on revIDENewMainstack pWidth, pHeight
       set the destroyStack of the templateStack to true
       set the destroyWindow of the templateStack to true
    end if
-
+   
    local tToolsRight
    put the right of stack revIDEPaletteToStackName("tools") into tToolsRight
    
@@ -6782,20 +6845,20 @@ on revIDENewMainstack pWidth, pHeight
    if tToolsRight < (item 3 of tScreenRect / 2) then put tToolsRight + 20 into tLeft
    else put item 1 of tScreenRect + 20 into tLeft
    set the topLeft of the templateStack to tLeft,(the bottom of stack revIDEPaletteToStackName("menubar") + 40)
-
+   
    # Create the new stack
    lock messages
    create stack
    show stack it
    unlock messages
-
+   
    # Final items
    reset the templateStack
    
    # Send the 'ideNewStack' message
    ideMessageSend "ideNewStack", it
    
-    # Update the active stacks
+   # Update the active stacks
    ideMessageSend "ideActiveStacksChanged"
    
    # Return the created stack long id
@@ -7034,6 +7097,9 @@ on revIDEActionOpenStack
          set the itemdelimiter to tOldDelim
       end if
    end repeat
+   
+   -- we should create a thumbnail for it
+   send generateThumbOfStack to stack "revIDElibrary"
 end revIDEActionOpenStack
 
 /*
@@ -7698,6 +7764,7 @@ on revIDESaveStack pStackID
    
    local tStackName
    put the short name of pStackID into tStackName
+   put the effective filename of stack tStackName into tStackFullPath
    
    # Old style message handling. Queue of stacks to save are being notified to save
    global gREVMessageDispatch
@@ -7889,6 +7956,20 @@ on revIDESaveStack pStackID
       if the mouseClick then exit repeat
    end repeat
    
+   --
+   -- do we save custom icon?
+   if the cMacCustomStackIcon of stack "revPreferences" is true then
+      set cursor to watch
+      if tStackFullPath contains "toolset" or tStackFullPath contains ".app" then
+         -- we don't save a custom icon, because this is an IDE stack!
+      else
+         put revIDELocalise("Saving custom icon...") into line -1 of field 1 of stack "revSaving"
+         set the pStackCustIcon of stack "revSaving" to tStackFullPath
+         send saveCustomIcon to card 1 of stack "revSaving"
+      end if
+   end if
+   
+   --
    close stack "revSaving"
    set the defaultStack to tStackName
    
@@ -8497,7 +8578,13 @@ on revIDEActionDuplicate
 end revIDEActionDuplicate
 
 on revIDEDuplicateCard
+   local tStoreDefaultStack  --tl 26-5, restore clone card
+   lock screen; lock messages
+   put the defaultStack into tStoreDefaultStack
+   set the defaultStack to the topStack
    clone this card
+   set the defaultStack to tStoreDefaultStack
+   unlock screen; unlock messages
 end revIDEDuplicateCard
 
 on revIDESelectAll
@@ -12719,3 +12806,67 @@ function tRandName
    if the last char of tRandNames is "_" then delete last char of tRandNames
    return tRandNames
 end tRandName
+
+
+function fixthemebtn tid tStackName
+   -- support theming of btns (to make up for shortcoming of engine)
+   -- tperry 13-09-2025
+   put "50,50,50" into tDarkGrey-- very dark grey
+   put "225,225,255" into tLightGrey-- very light grey
+   put "48,113,250" into tDefaultBtnColour -- MacOS blue default colour
+   put "86,84,93" into tMacBtnCol -- MacOS dark background for button
+   
+   if the cUseThemeDark of stack "revPreferences" is true then
+      -- dark mode
+      if there is a btn tid of stack tStackName then
+         set the foregroundColor of btn id tID of stack tStackName to black -- black text
+         if the platform contains "mac" then
+            if the height of btn id tID of stack tStackName <50 then 
+               set the backgroundColor of btn id tID of stack tStackName to tMacBtnCol
+               set the style of btn id tID of stack tStackName to "roundRect"
+               set the borderWidth of btn id tID of stack tStackName to 0
+               set the foregroundColor of btn id tID of stack tStackName to white
+               if the default of btn id tID of stack tStackName is true then set the backgroundColor of btn id tID of stack tStackName to tDefaultBtnColour
+            end if
+         else
+            -- not mac, but dark mode on another platform
+            if the height of btn id tID of stack tStackName <50 then 
+               set the backgroundColor of btn id tID of stack tStackName to ""
+               set the style of btn id tID of stack tStackName to "roundRect"
+               set the borderWidth of btn id tID of stack tStackName to 0
+               set the foregroundColor of btn id tID of stack tStackName to ""
+            end if
+         end if
+      else
+         -- light mode
+         
+         set the foregroundColor of btn id tID of stack tStackName to ""
+         set the backgroundColor of btn id tID of stack tStackName to ""
+         if the height of btn id tID of stack tStackName <40 then set the borderWidth of btn id tID of stack tStackName to 2
+         if the height of btn id tID of stack tStackName <40 then set the style of btn id tID of stack tStackName to "standard"
+         
+      end if
+   end if
+end fixthemebtn
+
+on generateThumbOfStack
+   try
+      put specialFolderPath("Documents") & slash & "OXTRecentStacks" into myThumbFolder
+      create folder myThumbFolder
+      put the long name of the topStack into myStackFilename
+      replace QUOTE with "" in myStackFilename
+      set the itemdelimiter to "."
+      put the last item of myStackFilename into myStackExtension
+      replace "livecode" with "png" in myStackExtension
+      replace "oxtstack" with "png" in myStackExtension
+      replace "rev" with "png" in myStackExtension
+      --
+      put myStackExtension into the last item of myStackFilename
+      set the itemdelimiter to slash
+      put the last item of myStackFilename into myStackShortFilename
+      set the itemdelimiter to ","
+      --
+      export snapshot from card 1 of the topstack to file myThumbFolder & slash & myStackShortFilename as png
+   catch e
+   end try
+end generateThumbOfStack

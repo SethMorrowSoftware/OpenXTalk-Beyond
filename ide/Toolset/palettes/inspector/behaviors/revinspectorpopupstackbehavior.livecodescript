@@ -29,9 +29,13 @@ on preOpenStack
    reset the templatebutton
    
    -- this is a bit of a cheat, but stops input
-   set the decorations of me to none
-   set the style of me to modal
+   -- set the decorations of me to none -- not needed now
+   set the style of me to modeless -- was modal, tperry 25-11-2025
+   if the name of this stack contains "Gradient" then
+      send delayshowMe to this stack in 1 milliseconds
+   end if
    --
+   
    
    unlock messages
 end preOpenStack
@@ -44,6 +48,12 @@ on openStack
    unlock messages
    unlock screen
 end openStack
+
+on delayshowMe
+   show this stack
+   go this stack
+   set the left of this stack to the right of the topstack +5
+end delayshowMe
 
 on ensureOnScreen
    if there is a stack "revPropertyInspector 1" then

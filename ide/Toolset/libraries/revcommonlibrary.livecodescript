@@ -1300,7 +1300,7 @@ function revFontGetSystemFont
          break
          
       case "Linux"
-         return "Helvetica"
+         return "Liberation Sans"
          break
          
       case "iphone"

@@ -435,7 +435,6 @@ dashes property.txt
 data fork glossary.txt
 database driver glossary.txt
 database field glossary.txt
-database library library.txt
 Database library library.txt
 datagram glossary.txt
 date function.txt
@@ -830,7 +829,6 @@ front keyword.txt
 frontScript glossary.txt
 frontScripts function.txt
 FTP glossary.txt
-ftp glossary.txt
 ftpProxy property.txt
 fullClipboardData property.txt
 fullDragData property.txt
@@ -928,7 +926,6 @@ hScrollbar property.txt
 HTML glossary.txt
 HTMLText property.txt
 HTTP glossary.txt
-http glossary.txt
 HTTPD Library library.txt
 httpdResponse command.txt
 httpdStart command.txt
@@ -993,7 +990,6 @@ int1 keyword.txt
 int2 keyword.txt
 int4 keyword.txt
 integer keyword.txt
-internet library library.txt
 Internet library library.txt
 interrupt function.txt
 intersect command.txt
@@ -1711,7 +1707,6 @@ points property.txt
 poll glossary.txt
 polygon keyword.txt
 polySides property.txt
-pop glossary.txt
 POP glossary.txt
 populationStandardDeviation function.txt
 populationVariance function.txt

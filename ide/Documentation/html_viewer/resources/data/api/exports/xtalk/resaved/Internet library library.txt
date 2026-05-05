@@ -1,0 +1,16 @@
+Internet library
+(library)
+
+Syntax:
+Synonyms:
+internet library, internet libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports use of the ftp and http protocol|protocols.
+
+Values:
+
+OS:

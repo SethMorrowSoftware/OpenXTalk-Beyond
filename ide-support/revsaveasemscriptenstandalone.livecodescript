@@ -499,11 +499,11 @@ private function getEngineFiles
    local tFiles
    
    -- Engine JavaScript
-   put mapBinPath("standalone-" & getEngineType() & "-" & the version & ".js") into tFiles[1]
-   
+   --put mapBinPath("standalone-" & getEngineType() & "-" & the version & ".js") into tFiles[1]
+   put mapBinPath("standalone-community-9.6.3.js") into tFiles[1] 
    -- Memory initialisation file
-   put mapBinPath("standalone-" & getEngineType() & "-" & the version & ".html.mem") into tFiles[2]
-   
+   --put mapBinPath("standalone-" & getEngineType() & "-" & the version & ".html.mem") into tFiles[2]
+   put mapBinPath("standalone-community-9.6.3.js") into tFiles[2] 
    return tFiles
 end getEngineFiles
 

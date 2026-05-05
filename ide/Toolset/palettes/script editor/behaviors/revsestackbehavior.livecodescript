@@ -1,4 +1,4 @@
-script "revSEStackBehavior"
+﻿script "revSEStackBehavior"
 
 on setBehaviors
    set the behavior of group "Editor" of me to the long id of stack revIDEScriptEditorBehavior("editor")
@@ -9,7 +9,7 @@ on setBehaviors
    set the behavior of group "Left Bar" of me to the long id of stack revIDEScriptEditorBehavior("leftbar")
    set the behavior of field "Filter" of group "Left Bar" of me to the long id of stack revIDEScriptEditorBehavior("filterfield")
    set the behavior of group "Variables" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("variablespane")
-   set the behavior of group "Documentation" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("documentationpane")
+   -- set the behavior of group "Documentation" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("documentationpane")
    set the behavior of group "Breakpoints" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("breakpointpane")
    set the behavior of group "Errors" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("errorspane")
    set the behavior of field "Filter" of group "Variables" of group "Panes" of me to the long id of stack revIDEScriptEditorBehavior("filterfield")
@@ -310,7 +310,8 @@ command revSEUpdate pPrefsChanged
       send "reapplyPreferences" to group "Editor" of of me
       send "reapplyPreferences" to group "Variables" of me
    end if
-end revSEUpdate
+   
+   end revSEUpdate
 
 # Parameters
 #   pObject : reference to the object executing. Must be an open object in the script editor.
@@ -831,7 +832,9 @@ end seSetObjectState
 # Returns
 #  A comma delimited list of the panes that are available, in order. This may be extended to allow user panes to be added etc.
 function seAvailablePanes
-   return "Errors,Variables,Documentation,Breakpoints,Search Results"
+   return "Errors,Variables,Breakpoints,Search Results"
+   -- return "Errors,Variables,Documentation,Breakpoints,Search Results"
+   
 end seAvailablePanes
 
 # Returns
@@ -1103,6 +1106,7 @@ local sHandlerListShowing = "false"
 command seShowHandlerList
    put true into sHandlerListShowing
    send "showHandlerList" to group "Toolbar" of me
+   
 end seShowHandlerList
 
 # Description
@@ -2458,12 +2462,15 @@ end binaryEquals
 on resizeStack
    revIDESetPaletteRectPreference the short name of me
    actionResizeStack
+   send pFixupMacElements to stack "revseutilities" in 1 milliseconds
 end resizeStack
 
 # Description
 #    Sent when the script editor is moved. Saves the new size in the preferences.
 on moveStack
    revIDESetPaletteRectPreference the short name of me
+   send pFixupMacElements to stack "revseutilities" in 10 milliseconds
+   
 end moveStack
 
 # Description
@@ -2504,12 +2511,18 @@ on resumeStack
    if tCurrentPane is "Variables" then
       send "update" to group "Variables" of me
    end if
+   
+   -- tperry 13-09-2025 -- fix UI apparance
+   send pFixupMacElements to stack "revseutilities" in 3 milliseconds
+   
 end resumeStack
 
 # Description
 #   Sent when the script editor stack is opened. Initialises the stack...
 on preOpenStack pDontCheckTarget
    revSEInitialize pDontCheckTarget
+   send pFixupMacElements to stack "revseutilities" in 10 milliseconds
+   
 end preOpenStack
 
 # OK-2008-08-20 : Bug 6971 - This must use a non-engine message as suppress messages will block it otherwise due to the use of "call" instead of "send"

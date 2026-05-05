@@ -73,7 +73,11 @@ on preOpenCard
       -- fill in desktop folder (tperry 3-10-2024)
       -- this has been annoying me for years!
       put specialFolderPath("Desktop") into cd fld "Default Build Folder"
+      put cd fld "Default Build Folder" into myDefaFold
+      set the cRevStandaloneSettings["defaultBuildFolder"] of the topstack to myDefaFold 
    end if
+   
+   fixUItheme
    pass preOpenCard
 end preOpenCard
 
@@ -92,3 +96,7 @@ on tipPreferenceSet pValue
    set the cIDE_SAGeneralTipShow of stack "revPreferences" to pValue
    set the cIDE_SAGeneralTipLastShown of stack "revPreferences" to the seconds
 end tipPreferenceSet
+
+on fixUItheme
+   -- appearance correction due to engine shortcomings
+end fixUItheme

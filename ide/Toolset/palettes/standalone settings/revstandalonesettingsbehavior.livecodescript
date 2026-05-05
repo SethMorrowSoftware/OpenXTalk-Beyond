@@ -3,11 +3,11 @@ on preOpenStack
    local tLicenseType
    
    start using stack "revSaveAsStandalone"
-  
+   
    if getTargetStackName() is not among the lines of the mainStacks then
       revStandaloneSettings the mainStack of the topStack
    end if
-
+   
    repeat with X=1 to the number of buttons of group "flavors" of card "Unix"
       set the enabled of button X of group "flavors" of card "Unix" to true
    end repeat
@@ -20,13 +20,14 @@ on preOpenStack
       set the showBorder of button X of group "cards" to false
    end repeat
    helpButtons
+   send hUpdateHeights to me in 40 ticks
 end preOpenStack
 
 constant kButtonList = "General,Stacks,Copy Files,Inclusions,OS X,Windows,Unix,iOS,Android,Emscripten,Bug Reports"
 private command updateTabButtons pSettings
    local tEnableMacTick
    put false into tEnableMacTick
-   repeat for each item tItem in "MacOSX,MacOSX PowerPC-32,MacOSX x86-32,MacOSX x86-64"
+   repeat for each item tItem in "MacOSX,MacOSX PowerPC-32,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64"
       put tEnableMacTick or pSettings[tItem] into tEnableMacTick
    end repeat
    set the visible of button "OSXchecked" of group "checks" of me to tEnableMacTick
@@ -163,6 +164,11 @@ on preOpenCard
    updateLabel the short name of this card of me
    unlock screen
 end preOpenCard
+
+on opencard
+   send hUpdateHeights to me in 10 milliseconds
+   pass opencard
+end opencard
 
 command updateCardSize
    if the cSize of this card of me is not empty then
@@ -311,7 +317,7 @@ function getTargetStackName
 end getTargetStackName
 
 function getSettings
-   return the customProperties["cRevStandaloneSettings"] of getTargetStack()
+   return the customProperties["cRevStandaloneSettings"] of getTargetStack()   
 end getSettings
 
 function getSetting pKey
@@ -402,15 +408,10 @@ on revRecursiveRemoveStackFiles pStack,pRemoveList, @xStackFileList
 end revRecursiveRemoveStackFiles
 
 on navigateToCard pCardName
-   if the short name of this card is "Android" then
-      if not androidIdentifierValid() then
-         -- why would this be set to exit?
-         --exit navigateToCard
-      end if
-   end if
    
    lock screen
    go cd pCardName
+   --hUpdateHeights
    
    repeat with X=1 to the number of btns of group "cards" of me
       if the short name of btn X of group "cards" of me <> pCardName then 
@@ -422,6 +423,8 @@ on navigateToCard pCardName
       end if
    end repeat
    unlock screen
+   send hUpdateHeights to me in 40 milliseconds
+   
 end navigateToCard
 
 on updateLabel pCardName
@@ -542,3 +545,26 @@ function canIncludeStackFiles
    end repeat
    return tCan
 end canIncludeStackFiles
+
+on hUpdateHeights
+   -- I'm fed up with this messing me about, so I'm going to correct it here properly!
+   --put the short name of the current card of stack "revStandAloneSettings" && the ticks -- debug
+   put the short name of the current card of stack "revStandAloneSettings" into tSelectedOpt
+   if tSelectedOpt is "Android" then 
+      set the rect of stack "revStandaloneSettings" to (item 1 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings"), (item 3 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings" +700)
+   end if
+   --
+   if tSelectedOpt is "iOS" then 
+      set the rect of stack "revStandaloneSettings" to (item 1 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings"), (item 3 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings" +600)  
+   end if
+   --
+   
+   if tSelectedOpt is "UNIX" then 
+      set the rect of stack "revStandaloneSettings" to (item 1 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings"), (item 3 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings" +300)
+   end if
+   --
+   if tSelectedOpt is "OS X" then 
+      set the rect of stack "revStandaloneSettings" to (item 1 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings"), (item 3 of the rect of stack "revStandaloneSettings"), (item 2 of the rect of stack "revStandaloneSettings" +600)
+   end if
+   --
+end hUpdateHeights

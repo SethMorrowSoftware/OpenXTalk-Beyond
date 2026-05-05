@@ -1,0 +1,24 @@
+import module com.livecode.widget.piechart
+  use com.livecode.canvas
+  use com.livecode.array
+  use com.livecode.list
+  use com.livecode.widget
+  use com.livecode.arithmetic
+  use com.livecode.binary
+  use com.livecode.logic
+  use com.livecode.string
+  use com.livecode.type
+  use com.livecode.math
+  use com.livecode.mathfoundation
+  use com.livecode.engine
+  use com.livecode.typeconvert
+  handler OnCreate() returns optional any
+  handler OnPaint() returns optional any
+  handler OnMouseUp() returns optional any
+  handler OnSave(out rProperties as Array) returns optional any
+  handler OnLoad(in pProperties as Array) returns optional any
+  handler colorList(in pNumber as optional any) returns List
+  handler setValues(in pValues as String) returns nothing
+  handler setLabels(in pValues as String) returns nothing
+  handler setShowLabels(in pShow as Boolean) returns nothing
+end module

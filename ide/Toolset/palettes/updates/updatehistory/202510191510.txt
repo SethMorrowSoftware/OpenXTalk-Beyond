@@ -1,0 +1,21 @@
+Version 1.14, build 202510191510 [mod 4]
+Removed "Documentation" tab
+MacOS menubar code fix (engine) -- fix recursive loop in dskmac and stack2 (mac only)
+MacOS IDE fix (script) -- fix revMenubarBuildMenus not being called when objects selected (mac only)
+Engine version now on "9.7.1-oxt"
+Started to prepare standalone settings for ARM64 Mac builds (not yet finished)
+This fixes the systemversion properly (macOS) - no more tSystemversion variable
+Added a fix in the script editor for the handler hilite colour
+Improved responsiveness in the script editor when editing large scripts (MacOS & Linux)
+Native dark mode support, MacOS version now sets the titlebar and window colours from the engine directly. No need for the "macosnativeapptools" plugin to do this bit anymore.
+Native dark mode support also extends to x64 standalones too.
+Using get the systemAppearance now returns "dark" or "light" correctly on MacOS
+Fixed inspector (MacOS) so it's usable in dark mode
+Build check in the standalone settings: Now understands that certain verisons of MacOS can't use lipo to make 32-bit apps.
+Standalones built in 64-bit mode now understand dark mode correctly
+Standalones built in 64-bit mode also do not crash when attempting to draw a menu on MacOS Sonoma and higher.
+Removed "Share" menuitem from "File" menu
+Startup process of IDE should also be faster (engine malloc bug)
+Restored "UI Tweaks" card of Preferences
+Updated "Option menu" and "Pulldown menu" classic controls to use NS Controls, instead of HIToolbox legacy carbon versions (Mac)
+Tools palette is now aware of the accentColor (Mac)

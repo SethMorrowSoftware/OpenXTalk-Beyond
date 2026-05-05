@@ -1,0 +1,55 @@
+<package version="0.0">
+  <name>com.livecode.widget.calendar</name>
+  <title>Calendar</title>
+  <author>LiveCode</author>
+  <version>1.0.0</version>
+  <license>community</license>
+  <type>widget</type>
+  <requires name="com.livecode.canvas"/>
+  <requires name="com.livecode.library.widgetutils"/>
+  <requires name="com.livecode.date"/>
+  <requires name="com.livecode.array"/>
+  <requires name="com.livecode.list"/>
+  <requires name="com.livecode.widget"/>
+  <requires name="com.livecode.arithmetic"/>
+  <requires name="com.livecode.string"/>
+  <requires name="com.livecode.logic"/>
+  <requires name="com.livecode.math"/>
+  <requires name="com.livecode.binary"/>
+  <requires name="com.livecode.type"/>
+  <requires name="com.livecode.typeconvert"/>
+  <requires name="com.livecode.char"/>
+  <requires name="com.livecode.engine"/>
+  <metadata key="preferredSize">150,150</metadata>
+  <property name="selectedDate" get="string" set="string"/>
+  <metadata key="selectedDate.label">Selected date</metadata>
+  <property name="dayNames" get="string" set="string"/>
+  <metadata key="dayNames.label">Day names</metadata>
+  <metadata key="dayNames.default">Su,Mo,Tu,We,Th,Fr,Sa</metadata>
+  <property name="monthNames" get="string" set="string"/>
+  <metadata key="monthNames.label">Month names</metadata>
+  <metadata key="monthNames.default">Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec</metadata>
+  <property name="headerColor" get="string" set="string"/>
+  <metadata key="headerColor.editor">com.livecode.pi.color</metadata>
+  <metadata key="headerColor.label">Header color</metadata>
+  <metadata key="headerColor.default">0,0,255</metadata>
+  <metadata key="headerColor.section">Colors</metadata>
+  <property name="hiliteStyle" get="string" set="string"/>
+  <metadata key="hiliteStyle.editor">com.livecode.pi.enum</metadata>
+  <metadata key="hiliteStyle.options">Text,Background</metadata>
+  <metadata key="hiliteStyle.default">background</metadata>
+  <metadata key="hiliteStyle.label">Hilite style</metadata>
+  <metadata key="backgroundColor.label">Background color</metadata>
+  <metadata key="backgroundColor.default">255,255,255</metadata>
+  <metadata key="foregroundColor.label">Text color</metadata>
+  <metadata key="foregroundColor.default">128,128,128</metadata>
+  <metadata key="borderColor.label">Border color</metadata>
+  <metadata key="borderColor.default">128,128,128</metadata>
+  <metadata key="hiliteColor.label">Hilite color</metadata>
+  <metadata key="hiliteColor.default">255,0,0</metadata>
+  <handler name="OnCreate" parameters="" return="any"/>
+  <handler name="OnPaint" parameters="" return="any"/>
+  <handler name="OnSave" parameters="out array" return="any"/>
+  <handler name="OnLoad" parameters="in array" return="any"/>
+  <handler name="OnMouseUp" parameters="" return="any"/>
+</package>

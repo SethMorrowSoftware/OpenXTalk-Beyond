@@ -67,7 +67,8 @@ on openStack
    set the defaultCursor to 0 -- sets to normal arrow
    
   tToolsFixup
-   send tfixwindowsToolsDrag to me in 1 second
+  send tfixwindowsToolsDrag to me in 1 second
+  pass openstack
 end openStack
 
 on tToolsFixup
@@ -218,7 +219,9 @@ on generatePalette
    put revIDEThemePath() into tThemePath
    -- tperry 19-1-24 (add in support for variable dark themes)
    put "" into tThemeClarify
-   if the cUseThemeDark of stack "revPreferences" is true then put "dark" into tThemeClarify
+   if the platform contains "mac" then 
+      if the systemAppearance is "dark" then put "dark" into tThemeClarify
+   end if
    --
    if the platform contains "linux" then
       -- we assess linux dark mode a bit differently
@@ -426,14 +429,41 @@ on generatePalette
             --set the blendlevel of the templatebutton to 50
          end if
          
+         put "" into myAccBtnNames
          if sViewsData[tView][tControlTypeID]["svgicon"] is empty then
             create button tControlTypeID in group tView of group "contents"
+            if the platform contains "mac" then
+               -- we now need to support accent colours behind buttons! -- macOS only
+               put the short name of button tControlTypeID of group tView of group "contents" into myAccName
+               if there is a graphic myAccName then
+                  -- accent colour already exists
+               else
+                  if myAccName contains "classic" then
+                     if myAccName contains "Graphic" or myAccName contains "rectangleButton" or myAccName contains "scrollbar" or myAccName contains "classic.button" or myAccName contains "slider" or myAccName contains "classic.label" or myAccName contains "classic.arrow" or myAccName contains "star" or myAccName contains "image" or myAccName contains "player" or myAccName contains "textArea" or myAccName contains "bubble" or myAccName contains "classic.field" then
+                        -- skip
+                     else
+                        create graphic myAccName
+                        set the height of graphic myAccName to 10
+                        set the width of graphic myAccName to 10
+                        set the backgroundColor of graphic myAccName to the accentColor
+                        put return & myAccName & return after myAccBtnNames
+                     end if
+                  end if
+               end if
+            end if
+            -- end support for accent colour creation
             set the cType of button tControlTypeID to tView
          else
             create widget tControlTypeID as "com.livecode.widget.svgpath" in group tView of group "contents"
             set the width of widget tControlTypeID to BLOCK_SIZE * 2
             set the height of widget tControlTypeID to BLOCK_SIZE
-            set the foregroundColor of widget tControlTypeID to 100,100,100 -- this is the initial colour of the widget icons on load. This gets changed though when being used (tperry)
+            -- widget icons should be easier to see in dark mode
+            if the systemAppearance is "dark" then
+               set the foregroundColor of widget tControlTypeID to 210,210,210
+            else
+               set the foregroundColor of widget tControlTypeID to 100,100,100
+            end if
+            
             set the iconpath of widget tControlTypeID to sViewsData[tView][tControlTypeID]["svgicon"]
             set the cType of widget tControlTypeID to tView
             set the cStyle of widget tControlTypeID to sViewsData[tView][tControlTypeID]["properties"]["style"]["default"]
@@ -722,6 +752,8 @@ if tVectorSectionHeightAdj > "0" then
 end if
 --
 
+if the platform contains "mac" then hPositionAccentsInTools
+
 unlock messages
 unlock screen
 end layoutPalette
@@ -765,6 +797,7 @@ on mouseDoubleUp
    revIDECreateObject the short name of the target, the long ID of the topStack, the loc of this cd of the topStack
    put the result into tObject
    
+         
    -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by double clicking
    -- (if that option is turned on in the preferences)
    if the cPrePopulateScripts of stack "revpreferences" is true then
@@ -957,13 +990,25 @@ on mouseDown pButton
          put the result into tCreateObjectID
          set the defaultstack to tToolsStackID
          revIDESetTool "pointer"
-         select tCreateObjectID
+         select tCreateObjectID    
+         
+         -- this flat rectangle graphic doesn't seem to have an NS styles equivalent in MacOS
+         -- we use a kind of hybrid approach of HIToolbox and NSStyles on MacOS
+         if the platform contains "mac" then
+            if the style of tCreateObjectID is "Rectangle" then
+               set the threeD of tCreateObjectID to false
+               set the borderWidth of tCreateObjectID to 1
+               set the borderColor of tCreateObjectID to "137,137,137"
+            end if
+         end if
+         
          -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by dragging
          -- (if that option is turned on in the preferences)
          if the cPrePopulateScripts of stack "revpreferences" is true then
             -- this is turned on, so adding script to the new object that has just been created (by double click)
             put tPopulateWithScript(tCreateObjectID) into tPopulateResult -- store the result (we could do something if unsuccessful here)
          end if
+         
          exit repeat 
       end if
    end repeat
@@ -1001,7 +1046,12 @@ on mouseLeave
    if the cDisabled of the target is true then exit mouseLeave
    try
       if word 1 of the target is "widget" then
-         set the foregroundColor of the target to "100,100,100"
+         -- widget icons should be easier to see in dark mode
+         if the systemAppearance is "dark" then
+            set the foregroundColor of the target to 210,210,210
+         else
+            set the foregroundColor of the target to 100,100,100
+         end if
       else
          hide graphic "tool_hover" of group "contents" 
          if the cTool of the target is empty then
@@ -1892,3 +1942,145 @@ on hGenDragStack
    unlock messages
    unlock screen
 end hGenDragStack
+
+on hPositionAccentsInTools
+   if the platform contains "mac" then
+      put 0 into mycount
+      put the number of graphics of stack "revTools" into myRpt
+      repeat myRpt
+         add 1 to mycount
+         if the short name of graphic mycount of stack "revTools" contains "com.livecode.interface.classic" then
+            put the short name of graphic mycount of stack "revTools" & return after myaccBtnNames
+         end if
+      end repeat
+      filter lines of myaccBtnNames without empty
+      put 0 into mycount
+      repeat the number of lines of myaccBtnNames
+         add 1 to mycount
+         put line mycount of myaccBtnNames into myAcc
+         set the layer of graphic myAcc of stack "revTools" to top
+         -----------------------------------------
+         -- conditional adjustment (for each one!)
+         -----------------------------------------
+         if myAcc contains "classic.checkbox" then
+            set the width of graphic myAcc of stack "revTools" to 14
+            set the height of graphic myAcc of stack "revTools" to 14
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.defaultButton" then
+            set the width of graphic myAcc of stack "revTools" to 30
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.radio" then
+            set the width of graphic myAcc of stack "revTools" to 16
+            set the height of graphic myAcc of stack "revTools" to 16
+            set the style of graphic myAcc of stack "revTools" to "oval"
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.tabPanel" then
+            set the width of graphic myAcc of stack "revTools" to 7
+            set the height of graphic myAcc of stack "revTools" to 6
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -6
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +4
+         end if
+         if myAcc contains "classic.TableField" then
+            set the width of graphic myAcc of stack "revTools" to 9
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -3
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -3
+         end if
+         if myAcc contains "listField" then
+            set the width of graphic myAcc of stack "revTools" to 13
+            set the height of graphic myAcc of stack "revTools" to 3
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the layer of graphic myAcc of stack "revTools" to top
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -4
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -6
+         end if
+         if myAcc contains "datagrid" then
+            set the width of graphic myAcc of stack "revTools" to 22
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" +2
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -2
+         end if
+         if myAcc contains "optionmenu" then
+            set the width of graphic myAcc of stack "revTools" to 14
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" +1
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +8
+         end if
+         if myAcc contains "pulldown" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 13
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -1
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +6
+         end if
+         if myAcc contains "combobox" then
+            set the width of graphic myAcc of stack "revTools" to 17
+            set the height of graphic myAcc of stack "revTools" to 19
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +7
+         end if
+         if myAcc contains "popup" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -1
+         end if
+         if myAcc contains "progressbar" then
+            set the width of graphic myAcc of stack "revTools" to 18
+            set the height of graphic myAcc of stack "revTools" to 8
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -7
+         end if
+         if myAcc contains "littlearrows" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         -----------------------------------------
+         -- end conditional adjustment
+         -----------------------------------------
+      end repeat
+   end if
+end hPositionAccentsInTools
+
+

@@ -193,8 +193,7 @@ before preopenControl
          _DrawAlternatingRows
       end if
    catch e
-      -- this outputs errors. I want this off (tperry)
-      --put e
+      put e
    end try
    
    pass preopenControl
@@ -1373,7 +1372,7 @@ command SelectAll
    end try
    set the dgProps["scroll selections into view"] of me to theOrigValue
    
-   if theError is not empty then throw theError -- (tperry - generates output?)
+   if theError is not empty then throw theError
    
    if theSelectionWasChanged then
       _SelectionChanged thePreviouslyHilitedIndexes

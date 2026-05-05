@@ -9,9 +9,11 @@ on preOpenStack
    if the systemappearance is "dark" then set the foregroundColor of this card to white
    if the systemappearance is "light" then set the foregroundColor of this card to black
    --
-   if the platform contains "mac" then set the textfont of this stack to "Lucida Grande"
-   if the platform contains "win" then set the textfont of this stack to "Arial"
-   if the platform contains "lin" then set the textfont of this stack to "Liberation Sans"
+   set the textfont of stack "revSplash" to "(Default)"
+   set the textfont of field "moreinfo" of stack "revSplash" to "(Default)"
+   set the textfont of field "Status" of stack "revSplash" to "(Default)"
+      set the textfont of field "Info" of stack "revSplash" to "(Text)"
+   
    --
    set the textAlign of field "status" to "left"
    set the top of field "status" to 270

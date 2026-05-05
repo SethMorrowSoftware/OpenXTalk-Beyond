@@ -1,0 +1,2 @@
+Version 1.12, build 202506060909
+Fixed annoying bug with the revPreferences causing a recursion error.

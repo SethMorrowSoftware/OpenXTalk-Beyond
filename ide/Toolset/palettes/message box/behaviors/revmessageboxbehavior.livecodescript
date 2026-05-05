@@ -127,6 +127,7 @@ on openStack
    
    unlock messages
    unlock screen
+   pass openstack
 end openStack
 
 on ideMsgChanged pTarget, pHandler, pLine, pMsg

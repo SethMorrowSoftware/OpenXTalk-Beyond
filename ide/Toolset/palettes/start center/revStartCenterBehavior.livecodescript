@@ -44,6 +44,8 @@ on openStack
    else
       set the iconPresetName of widget "startupCheckbox" to "lc-checkbox-unchecked"
    end if
+   
+   pass openstack
 end openStack
 
 command initialiseInterface

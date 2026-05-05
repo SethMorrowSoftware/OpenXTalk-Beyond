@@ -714,7 +714,8 @@ function revFolderNameMakeLegal pName
 end revFolderNameMakeLegal
 
 // List of all desktop target platforms + architecture
-constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,Linux,Linux x64,Linux armv6-hf"
+-- added MacOSX x64-ARM64, tperry 25-09-2025
+constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64,Linux,Linux x64,Linux armv6-hf"
 function revSBDesktopTargets
    return kDesktopTargets
 end revSBDesktopTargets
@@ -738,7 +739,7 @@ end revSBTargetToPlatform
 
 -- item 1 of the architectures should be the default architecture
 constant kWindowsArchitectures = "x86-32,x86-64"
-constant kMacOSXArchitectures = "x86-32,x86-64"
+constant kMacOSXArchitectures = "x86-32,x86-64,x64-ARM64"
 constant kLinuxArchitectures =  "x86-32,x86-64,armv6-hf"
 constant kAndroidArchitectures =  "armv7,arm64,x86,x86_64"
 constant kiOSArchitectures =  "armv7,arm64"
@@ -1022,6 +1023,8 @@ function revEngineCheck pEngine
          case "MacOSX x86-32"
          case "MacOSX x86-64"
             return there is a directory (tPath & "/Mac OS X/x86-32/Standalone.app")
+         case "MacOSX x64-ARM64"
+            return there is a directory (tPath & "/Mac OS X/x64-ARM64/Standalone-blank.app")
          case "Windows"
             if there is a file (tPath & "/Windows/x86-32/Standalone") then
                return true
@@ -3063,6 +3066,10 @@ function revSBEnginePath pPlatform
             //  allow to create broken applications, so that the executable file in it bears the edition.
             put the upper of char 1 of tEdition into char 1 of tEdition
             return tRuntimePath & "/Mac OS X/x86-32/Standalone.app/Contents/MacOS/Standalone-" & tEdition
+            break
+         case "MacOSX x64-ARM64"
+            put the upper of char 1 of tEdition into char 1 of tEdition
+            return tRuntimePath & "/Mac OS X/x64-ARM64/Standalone-blank.app/Contents/MacOS/Standalone-" & tEdition
             break
          case "Windows"
             return tRuntimePath & "/Windows/x86-32/Standalone"

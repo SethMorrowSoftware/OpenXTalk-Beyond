@@ -1,0 +1,19 @@
+Version 1.10, build 202501050752
+When making a new stack, the user can be prompted for a new stack name. (this is an option in the preferences > "Files & Memory")
+Added TerryL's suggestion (applying name when saving), if user hasn't chosen one.
+Added initial support for external script editing, need to finish this for Windows
+Added a check for the Linux updater to make sure curl is available.
+Have modified the revAnswer stack so that it includes icons that should be in the answer dialog, in standalones. (Thanks Neville)
+Added Axwald's revised revMessagewatcher stack.
+Added the Card Navigator (view menu)
+Added a few fixes to the App Browser (resize state) (Thanks Axwald)
+Removed additional LC-branding in the script editor dialogs.
+If you toggle toolbar icons (view menu > toolbar icons) - it no longer briefly glitches.
+Added "Raise Window" options to the compatability section in preferences.
+Added the "intersect" function and keyword back into the dictionary.
+Restored the "Replicate" menuitem back into the edit menu (last seen in LCC7).
+Modified the updater to deal with "%20" filenames.
+Fixed the "validating preferences" loop at IDE boot.
+Added the option to have eight columns on the tools palette.
+Restored the visual indication when you drag-and-drop a new object from the tools palette into a new stack (grey stack hilight).
+This is the last version (v1.10) where the engine is largely untouched. (I plan to modify the engine a bit in v1.11 onwards [linux & windows]).

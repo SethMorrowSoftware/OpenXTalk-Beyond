@@ -6,10 +6,10 @@ on preOpenCard
    local tEnabled
    put false into tEnabled
    repeat for each item tItem in "Windows,Windows x86-64"
-   		put tStandaloneSettingsA[tItem] = true or tEnabled into tEnabled
-   		set the hilite of btn tItem of group "platforms" to tStandaloneSettingsA[tItem] = true
+      put tStandaloneSettingsA[tItem] = true or tEnabled into tEnabled
+      set the hilite of btn tItem of group "platforms" to tStandaloneSettingsA[tItem] = true
    end repeat
-
+   
    set the enabled of group "Windows" to tEnabled
    put tStandaloneSettingsA["Windows,iconFile"] into fld "iconFile"
    put tStandaloneSettingsA["Windows,documenticonFile"] into fld "documenticonFile"
@@ -49,6 +49,8 @@ on preOpenCard
    
    # OK-2009-09-25: Attempting to make the fonts consistent for the label fields
    initializeFonts
+   
+   fixUItheme
    
    pass preOpenCard
 end preOpenCard
@@ -98,3 +100,6 @@ function uacManifestOptionToInfo pManifestOption
    return tMessage
 end uacManifestOptionToInfo
 
+on fixUItheme
+   -- appearance correction due to engine shortcomings
+end fixUItheme

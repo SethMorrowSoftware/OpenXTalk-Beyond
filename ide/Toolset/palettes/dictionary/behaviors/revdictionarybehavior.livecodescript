@@ -1,14 +1,14 @@
 ﻿script "revDictionaryBehavior" with behavior "revPaletteBehavior"
 -- The dictionary starts to hide elements at lower than 992 pixels
--- *TODO* Tweak the CSS to rearrange things appropriately 
+-- *TODO* Tweak the CSS to rearrange things appropriately
 constant kDictionaryMinWidth = 992
 
--- Some browsers have a built-in scrollbar. Add a fudge factor to 
+-- Some browsers have a built-in scrollbar. Add a fudge factor to
 -- take this into account
 constant kScrollbarFudge = 18
 
 -- The background colour for the dictionary stack
-constant kBackColor = "white"
+constant kBackColor = "Gray75"
 
 local sTab, sEntry
 on setAsBehavior pTarget
@@ -18,7 +18,7 @@ end setAsBehavior
 
 on openStack
    local tMinWidth
-   put kDictionaryMinWidth + kScrollbarFudge into tMinWidth 
+   put kDictionaryMinWidth + kScrollbarFudge into tMinWidth
    lock screen
    --Force the browser to actually resize
    set the rect of widget "Dictionary" of me to 0,0,0,0
@@ -26,14 +26,14 @@ on openStack
    set the width of me to tMinWidth
    set the minWidth of me to tMinWidth
    set the title of me to "Dictionary"
-   set the backColor of me to kBackColor
+   -- set the backColor of me to kBackColor
    if sTab is empty then
       put "api" into sTab
    end if
    revIDEGenerateDictionaryHTML sTab, sEntry["library"], sEntry["entry"], sEntry["type"]
    put empty into sEntry
    showTab sTab
-   set the cantModify of me to true	
+   set the cantModify of me to true
    unlock screen
 end openStack
 
@@ -86,7 +86,7 @@ end linkClicked
 on showUpgradeOptions pEdition, pDisplayName
    put urlEncode(pDisplayName) into pDisplayName
    replace "+" with "%20" in pDisplayName
-   
+
    launch url revEnvironmentEditionProperty("edition_external_url", pEdition) & \
          "?utm_source=ide&utm_medium=docs&utm_campaign="&pDisplayName
 end showUpgradeOptions

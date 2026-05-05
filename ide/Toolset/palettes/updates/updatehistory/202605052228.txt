@@ -1,0 +1,22 @@
+Version 1.15, build 202605052228
+Added TerryL's changes to revMenubar
+Have added callback fixes to the ask stack
+Added the colour svg patch
+Restored the messagewatcher stack back to how it was (because it got broken)
+Got rid of junk tabs on extensions manager palette.
+Added menuItem and shortcut for (lock/unlock) all objects & remove effects (removes drop shadows, inner shadow, outer glow, inner glow, colour overlay) (shift cmd U)
+Widget icons in the tools palette adjust automatically between light/dark mode
+Report builder - (report) stack uses colour inheritance properly
+TerryL sample stacks -- tweaked for light/dark mode
+Vector shape icons show up clearer in dark mode on the tools palette
+Many little alert/dialog cleanups
+Reverted datagrids back to default
+Linux, browser widget new uses updated and secure WebKitGTK instance (No more old insecure CEF)
+Linux, Video system reworked to use GStreamer -- see compatibility section of preferences
+Customisable script editor colours
+Native MacOS ARM builds now use proper StandaloneSettings (inclusions etc)
+Intel MacOS versions can now build ARM standalones
+Recent stacks can be shown as a thumbnail gallery
+Stacks can be saved with a custom icon (MacOS only), intended for use with QuickLook (cmd + space)
+Removed CEF redundant engines from Linux standalones
+Added "Video Player" example stack to "Help" > "Demos"

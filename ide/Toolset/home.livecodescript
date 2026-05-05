@@ -118,6 +118,7 @@ on openStack
    revInternal__openStack
    
    revInternal__Log "Leave", "Open Stack"
+   pass openstack
 end openStack
 
 local sSplashStartTime
@@ -313,6 +314,11 @@ on revInternal__openStack
    -- tperry 11-02-2026 -- if script editor font size is unset, set it to 16px
    if revIDEGetPreference("cScriptEditor,editor,fontsize") is empty then
       revIDESetPreference "cScriptEditor,editor,fontsize", 16
+   end if
+   
+   --tperry 28-5-2026 -- if recent files as gallery is unset...
+   if the cRecentstacksAsGallery of stack "revPreferences" is empty then
+      set the cRecentstacksAsGallery of stack "revPreferences" to false
    end if
    
    -- ensure we show menubar (tperry 13-09-2025)
@@ -705,82 +711,85 @@ end revInternal__SetupCustomizationPath
       return tStackFiles
    end revInternal__StackFiles
    
-   private command revInternal__SetupPreferences
-      revInternal__Log "Enter", "Preferences Setup"
+private command revInternal__SetupPreferences
+   revInternal__Log "Enter", "Preferences Setup"
+   
+   local tOldPreferencesStackFile, tOldNewPreferencesStackFile
+   put sOldPreferencesPath & "/revpreferences.rev" into tOldPreferencesStackFile
+   put sPreferencesPath & "/reventerprise.rev" into tOldNewPreferencesStackFile
+   
+   local tPreferencesStackFile
+   put sPreferencesPath & "/" & toLower(kProductName) & ".rev" into tPreferencesStackFile
+   
+   local tPreferencesStackFile7
+   put sPreferencesPath & "/" & toLower(kProductName) & "7.rev" into tPreferencesStackFile7
+   
+   local tIndex, tStackFiles
+   -- First check to see if we have a preferences stack file in the new location that
+   -- will not load.
+   if there is a file tPreferencesStackFile7 and there is no stack tPreferencesStackFile7 then
+      revInternal__Log "Message", "Existing Preferences 7 Stack Corrupted"
       
-      local tOldPreferencesStackFile, tOldNewPreferencesStackFile
-      put sOldPreferencesPath & "/revpreferences.rev" into tOldPreferencesStackFile
-      put sPreferencesPath & "/reventerprise.rev" into tOldNewPreferencesStackFile
+      put 1 into tIndex
+      repeat while there is a file (tPreferencesStackFile7 & ".corrupt." & tIndex)
+         add 1 to tIndex
+      end repeat
       
-      local tPreferencesStackFile
-      put sPreferencesPath & "/" & toLower(kProductName) & ".rev" into tPreferencesStackFile
+      revInternal__Log "Message", "Moving Broken Stack to '" & tPreferencesStackFile7 & "'"
       
-      local tPreferencesStackFile7
-      put sPreferencesPath & "/" & toLower(kProductName) & "7.rev" into tPreferencesStackFile7
+      rename file tPreferencesStackFile7 to (tPreferencesStackFile7 & ".corrupt." & tIndex)
+   end if
+   
+   -- Next check to see that if there is a preferences file in the old location, if there
+   -- there is no preferences stackfile in the new location.
+   if there is no file tPreferencesStackFile7 and there is a file tPreferencesStackFile then
+      revInternal__Log "Message", "Found 2.7 preferences file, copying to new location."
+      put url ("binfile:" & tPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
+   end if
+   
+   if there is no file tPreferencesStackFile7 and there is a file tOldNewPreferencesStackFile then
+      revInternal__Log "Message", "Found preferences in new location with old name, copying to new location."
+      -- MM-2012-05-03: Fixed typo - changed tOldPreferencesStackFile to tOldNewPreferencesStackFile
+      put url ("binfile:" & tOldNewPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
+   end if
+   
+   -- Next check to see if there is a preferences file in the new location under the
+   -- name 'reventerprise'.
+   if there is no file tPreferencesStackFile7 and there is a file tOldNewPreferencesStackFile then
+      revInternal__Log "Message", "Found preferences in new location with old name, copying to new location."
+      -- MM-2012-05-03: Fixed typo - changed tOldPreferencesStackFile to tOldNewPreferencesStackFile
+      put url ("binfile:" & tOldNewPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
+   end if
+   
+   if there is no file tPreferencesStackFile7 then
+      revInternal__Log "Message", "No Existing Preferences Stack Found"
+      revInternal__Log "Message", "Copying template preferences to '" & tPreferencesStackFile7 & "'"
       
-      local tIndex, tStackFiles
-      -- First check to see if we have a preferences stack file in the new location that
-      -- will not load.
-      if there is a file tPreferencesStackFile7 and there is no stack tPreferencesStackFile7 then
-         revInternal__Log "Message", "Existing Preferences 7 Stack Corrupted"
-         
-         put 1 into tIndex
-         repeat while there is a file (tPreferencesStackFile7 & ".corrupt." & tIndex)
-            add 1 to tIndex
-         end repeat
-         
-         revInternal__Log "Message", "Moving Broken Stack to '" & tPreferencesStackFile7 & "'"
-         
-         rename file tPreferencesStackFile7 to (tPreferencesStackFile7 & ".corrupt." & tIndex)
+      lock messages
+      if there is not a stack "revpreferences" then
+         create invisible stack "revpreferences"
+         hide stack "revpreferences"
       end if
+      set the filename of stack "revpreferences" to tPreferencesStackFile7
+      revInternal__ResetPreferences
+      save stack "revpreferences"
+      close stack "revpreferences"
+      unlock messages
       
-      -- Next check to see that if there is a preferences file in the old location, if there
-      -- there is no preferences stackfile in the new location.
-      if there is no file tPreferencesStackFile7 and there is a file tPreferencesStackFile then
-         revInternal__Log "Message", "Found 2.7 preferences file, copying to new location."
-         put url ("binfile:" & tPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
-      end if
-      
-      if there is no file tPreferencesStackFile7 and there is a file tOldNewPreferencesStackFile then
-         revInternal__Log "Message", "Found preferences in new location with old name, copying to new location."
-         -- MM-2012-05-03: Fixed typo - changed tOldPreferencesStackFile to tOldNewPreferencesStackFile
-         put url ("binfile:" & tOldNewPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
-      end if
-      
-      -- Next check to see if there is a preferences file in the new location under the
-      -- name 'reventerprise'.
-      if there is no file tPreferencesStackFile7 and there is a file tOldNewPreferencesStackFile then
-         revInternal__Log "Message", "Found preferences in new location with old name, copying to new location."
-         -- MM-2012-05-03: Fixed typo - changed tOldPreferencesStackFile to tOldNewPreferencesStackFile
-         put url ("binfile:" & tOldNewPreferencesStackFile) into url ("binfile:" & tPreferencesStackFile7)
-      end if
-      
-      if there is no file tPreferencesStackFile7 then
-         revInternal__Log "Message", "No Existing Preferences Stack Found"
-         revInternal__Log "Message", "Copying template preferences to '" & tPreferencesStackFile7 & "'"
-         
-         lock messages
-         if there is not a stack "revpreferences" then
-            create invisible stack "revpreferences"
-         end if
-         set the filename of stack "revpreferences" to tPreferencesStackFile7
-         revInternal__ResetPreferences
-         unlock messages
-         
-      end if
-      
-      -- ensure the script of stack preferences is empty
-      -- as setprops could be dangerous
-      set the script of stack tPreferencesStackFile7 to empty
-      
-      put the stackFiles of stack "Home" into tStackFiles
-      put return & "revPreferences", tPreferencesStackFile7 after tStackFiles
-      set the stackFiles of stack "Home" to tStackFiles
-      
-      revInternal__Log "Message", "Mapping Stack 'revpreferences.rev' to stackfile '" & tPreferencesStackFile7 & "'"
-      
-      revInternal__Log "Leave", "Preferences Setup"
-   end revInternal__SetupPreferences
+   end if
+   
+   -- ensure the script of stack preferences is empty
+   -- as setprops could be dangerous
+   set the script of stack tPreferencesStackFile7 to empty
+   
+   put the stackFiles of stack "Home" into tStackFiles
+   put return & "revPreferences", tPreferencesStackFile7 after tStackFiles
+   set the stackFiles of stack "Home" to tStackFiles
+   
+   revInternal__Log "Message", "Mapping Stack 'revpreferences.rev' to stackfile '" & tPreferencesStackFile7 & "'"
+   
+   revInternal__Log "Leave", "Preferences Setup"
+end revInternal__SetupPreferences
    
    private command revInternal__SetupFolders
       revInternal__Log "Enter", "Folders Setup"
