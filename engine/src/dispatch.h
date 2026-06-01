@@ -84,6 +84,7 @@ public:
 	void appendstack(MCStack *sptr);
 	void removestack(MCStack *sptr);
 	void destroystack(MCStack *sptr, Boolean needremove);
+	void clearstacks(void);
 	Boolean openstartup(MCStringRef name, MCStringRef& r_outpath, IO_handle &r_stream);
 	Boolean openenv(MCStringRef name, MCStringRef env, MCStringRef& r_outpath, IO_handle& r_stream, uint4 offset);
 

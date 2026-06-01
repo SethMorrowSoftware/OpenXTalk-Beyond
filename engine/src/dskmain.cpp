@@ -353,7 +353,9 @@ bool X_main_loop_iteration()
 
 	////
 
-	if (MCiconicstacks == 0 && !MCscreen->hasmessages() && MCstacks->isempty() && MCnsockets == 0)
+	// Respring support — don't quit when stacks are empty during respring
+	extern Boolean MCRespringInProgress;
+	if (MCiconicstacks == 0 && !MCscreen->hasmessages() && MCstacks->isempty() && MCnsockets == 0 && !MCRespringInProgress)
 	{
 		// MW-2005-11-01: We want to keep the result here so we call with send=True
 		//   (the result is used by the development environment bootstrap code)

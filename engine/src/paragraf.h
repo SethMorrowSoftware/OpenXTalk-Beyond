@@ -994,6 +994,7 @@ public:
 
     void SetForeColorOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, const MCInterfaceNamedColor &p_color);
     void SetTextStyleOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, const MCInterfaceTextStyle &p_text);
+    void SetForeColorAndTextStyleOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, const MCInterfaceNamedColor &p_color, const MCInterfaceTextStyle &p_style);
     void SetTextFontOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, MCStringRef p_fontname);
     void SetTextSizeOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, uinteger_t *p_size);
 

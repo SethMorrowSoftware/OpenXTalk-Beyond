@@ -645,6 +645,7 @@ void ManageCleanup( WCHAR** ppszTokenIds, CSpDynamicString*  ppcDesciptionString
 //    If p_gender is kNarratorGenderMale then only male voices are returned, if p_gender is kNarratorGenderFemale
 //    then only female voices are returned, otherwise all voices are returned. Can return false either if unable
 //    to get a token enumerator for the voices or if out of memory when listing voices.
+//    Enumerates both SAPI5 Desktop voices and OneCore voices.
 bool WindowsSAPI5Narrator::ListVoices(NarratorGender p_gender, NarratorListVoicesCallback p_callback, void* p_context)
 {
 	bool t_success = true;
@@ -653,18 +654,6 @@ bool WindowsSAPI5Narrator::ListVoices(NarratorGender p_gender, NarratorListVoice
 	if(!bInited)	
 		return false;
 
-	ISpObjectToken *pToken = NULL;		// Token interface pointer
-	CComPtr<IEnumSpObjectTokens> cpEnum;// Pointer to token enumerator
-
-	ULONG ulIndex = 0;
-
-	CSpDynamicString*  ppcDesciptionString;
-	ppcDesciptionString = NULL;
-
-	WCHAR**  ppszTokenIds;
-	ppszTokenIds = NULL;
-
-	ULONG ulNumTokens;
 	WCHAR *szRequiredAttributes = NULL;
 
    // Set the required attributes field for the enum if we have special needs
@@ -682,69 +671,89 @@ bool WindowsSAPI5Narrator::ListVoices(NarratorGender p_gender, NarratorListVoice
 		szRequiredAttributes = L"Gender=Neutral";
 	}
 
-    // Get a token enumerator for tts voices available
-    t_success = _EnumTokens(SPCAT_VOICES, szRequiredAttributes, NULL, &cpEnum);
+	// Enumerate voices from OneCore only (modern voices with full country codes)
+	// OneCore voices are the ones that work properly with full descriptions
+	const WCHAR* voice_category = L"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech_OneCore\\Voices";
 
-	if (t_success)
 	{
-		t_success = SUCCEEDED(cpEnum->GetCount( &ulNumTokens ));
+		ISpObjectToken *pToken = NULL;		// Token interface pointer
+		CComPtr<IEnumSpObjectTokens> cpEnum;// Pointer to token enumerator
 
-		if ( t_success && 0 != ulNumTokens )
-        {
-			ppcDesciptionString = new (nothrow) CSpDynamicString [ulNumTokens];
-            if ( NULL == ppcDesciptionString )
-            {
-				/* TODO - CLEANUP */
-                return false;
-            }
+		ULONG ulIndex = 0;
 
-			ppszTokenIds = new (nothrow) WCHAR* [ulNumTokens];
-            if ( NULL == ppszTokenIds )
-            {
-				/* TODO - CLEANUP */
-                return false;
-            }
-            ZeroMemory( ppszTokenIds, ulNumTokens*sizeof( WCHAR* ) );                    
-                
-			// Get the next token in the enumeration
-            // State is maintained in the enumerator
-			while (t_success && cpEnum->Next(1, &pToken, NULL) == S_OK)
-            {
-                // Get a string which describes the token, in our case, the voice name
-                t_success = SUCCEEDED(_GetDescription( pToken, &ppcDesciptionString[ulIndex] ));
-                
-                // Get the token id, for a low overhead way to retrieve the token later
-                // without holding on to the object itself
-				if (t_success)
-	                t_success = SUCCEEDED(pToken->GetId( &ppszTokenIds[ulIndex] ));
-                
-                ulIndex++;
-                
-                // Release the token itself
-                pToken->Release();
-                pToken = NULL;
-			}
-		}
-		// if we've failed to properly initialize, then we should completely shut-down
-        if ( !t_success )
-        {
-            if ( pToken )
-            {
-                pToken->Release();
-            }
+		CSpDynamicString*  ppcDesciptionString;
+		ppcDesciptionString = NULL;
 
-            ppszTokenIds = NULL;
-            ppcDesciptionString = NULL;
-            ulNumTokens = 0;
-        }
+		WCHAR**  ppszTokenIds;
+		ppszTokenIds = NULL;
 
-		for ( ulIndex = 0; ulIndex < ulNumTokens; ulIndex++ )
+		ULONG ulNumTokens = 0;
+
+		// Get a token enumerator for tts voices available
+		bool t_enum_success = _EnumTokens(voice_category, szRequiredAttributes, NULL, &cpEnum);
+
+		if (t_enum_success)
 		{
-			const char* string = W2A(ppcDesciptionString[ulIndex]);
-			p_callback(p_context, p_gender, (const char *)string);
-		}
+			t_enum_success = SUCCEEDED(cpEnum->GetCount( &ulNumTokens ));
 
-		ManageCleanup( ppszTokenIds, ppcDesciptionString, ulNumTokens );
+			if ( t_enum_success && 0 != ulNumTokens )
+			{
+				ppcDesciptionString = new (nothrow) CSpDynamicString [ulNumTokens];
+				if ( NULL == ppcDesciptionString )
+				{
+					return false;  // Allocation failed
+				}
+
+				ppszTokenIds = new (nothrow) WCHAR* [ulNumTokens];
+				if ( NULL == ppszTokenIds )
+				{
+					delete [] ppcDesciptionString;
+					return false;  // Allocation failed
+				}
+				ZeroMemory( ppszTokenIds, ulNumTokens*sizeof( WCHAR* ) );                    
+					
+				// Get the next token in the enumeration
+				// State is maintained in the enumerator
+				while (t_enum_success && cpEnum->Next(1, &pToken, NULL) == S_OK)
+				{
+					// Get a string which describes the token, in our case, the voice name
+					t_enum_success = SUCCEEDED(_GetDescription( pToken, &ppcDesciptionString[ulIndex] ));
+					
+					// Get the token id, for a low overhead way to retrieve the token later
+					// without holding on to the object itself
+					if (t_enum_success)
+						t_enum_success = SUCCEEDED(pToken->GetId( &ppszTokenIds[ulIndex] ));
+					
+					ulIndex++;
+					
+					// Release the token itself
+					pToken->Release();
+					pToken = NULL;
+				}
+			}
+			// if we've failed to properly initialize, then we should completely shut-down
+			if ( !t_enum_success )
+			{
+				if ( pToken )
+				{
+					pToken->Release();
+				}
+
+				ppszTokenIds = NULL;
+				ppcDesciptionString = NULL;
+				ulNumTokens = 0;
+			}
+
+			// Invoke callback for each voice
+			// OneCore voices already have proper names with country codes, no stripping needed
+			for ( ulIndex = 0; ulIndex < ulNumTokens; ulIndex++ )
+			{
+				const char* string = W2A(ppcDesciptionString[ulIndex]);
+				p_callback(p_context, p_gender, (const char *)string);
+			}
+
+			ManageCleanup( ppszTokenIds, ppcDesciptionString, ulNumTokens );
+		}
 	}
 
 	return t_success;
@@ -759,6 +768,7 @@ bool WindowsSAPI5Narrator::ListVoices(NarratorGender p_gender, NarratorListVoice
 //   If a token is found that matches p_voice then the voice is set to that token. If p_voice
 //   doesn't match any of the voices available then returns false, and if setting the voice to
 //   the matching token fails then also returns false.
+//   Searches OneCore voice location only (modern voices with full country codes).
 bool WindowsSAPI5Narrator::SetVoice(const char* p_voice)
 {
 	USES_CONVERSION;
@@ -772,10 +782,11 @@ bool WindowsSAPI5Narrator::SetVoice(const char* p_voice)
 	CComPtr<IEnumSpObjectTokens> cpEnum;// Pointer to token enumerator	
 	ULONG ulIndex = 0, ulCurTokenIndex = 0, ulNumTokens = 0;
 	
-    // Find out which token corresponds to our voice which is currently in use
-    ISpObjectToken *pToken = NULL;		// Token interface pointer
+	// Find out which token corresponds to our voice which is currently in use
+	ISpObjectToken *pToken = NULL;		// Token interface pointer
 
-	t_success = _EnumTokens(SPCAT_VOICES, NULL, NULL, &cpEnum);
+	// Search OneCore voices only
+	t_success = _EnumTokens(L"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech_OneCore\\Voices", NULL, NULL, &cpEnum);
 
 	if (t_success)
 		t_success = SUCCEEDED(cpEnum->GetCount( &ulNumTokens ));
@@ -783,14 +794,14 @@ bool WindowsSAPI5Narrator::SetVoice(const char* p_voice)
 		t_success = ulNumTokens > 0;
 
 	while (t_success && cpEnum->Next(1, &pToken, NULL) == S_OK)
-    {
+	{
 		CSpDynamicString  ppcDesciptionString;  
 		// Get a string which describes the token, in our case, the voice name
-        t_success = _GetDescription( pToken, &ppcDesciptionString);
-        
-        // Release the token itself
-        pToken->Release();
-        pToken = NULL;
+		t_success = _GetDescription( pToken, &ppcDesciptionString);
+		
+		// Release the token itself
+		pToken->Release();
+		pToken = NULL;
 
 		if (t_success)
 		{

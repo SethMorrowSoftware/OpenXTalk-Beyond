@@ -662,6 +662,7 @@ public:
     virtual void hidecursoruntilmousemoves(void);
 	
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
+	virtual void updatesystemappearance(void);
     
     //
 

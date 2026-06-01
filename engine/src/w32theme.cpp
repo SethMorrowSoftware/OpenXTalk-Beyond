@@ -737,10 +737,19 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
 		switch (ctype)
 		{
             case WCOLOR_TEXT:
-                if (menucolors[0] != nil)
-                    r_colorbuf = MCValueRetain(menucolors[0]);
-                else
-                    /* UNCHECKED */ MCStringCreateWithCString("0,0,0", r_colorbuf);
+                {
+                    //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
+                    MCSystemAppearance t_appearance;
+                    MCscreen->getsystemappearance(t_appearance);
+                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    
+                    if (t_is_dark)
+                        /* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
+                    else if (menucolors[0] != nil)
+                        r_colorbuf = MCValueRetain(menucolors[0]);
+                    else
+                        /* UNCHECKED */ MCStringCreateWithCString("0,0,0", r_colorbuf);
+                }
                 break;
             case WCOLOR_HILIGHT:
                 if (menucolors[1] != nil)
@@ -749,10 +758,19 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
                     /* UNCHECKED */ MCStringCreateWithCString("255,0,0", r_colorbuf);
                 break;
             case WCOLOR_BACK:
-                if (menucolors[2] != nil)
-                    r_colorbuf = MCValueRetain(menucolors[2]);
-                else
-                    /* UNCHECKED */ MCStringCreateWithCString("255,255,0", r_colorbuf);
+                {
+                    //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
+                    MCSystemAppearance t_appearance;
+                    MCscreen->getsystemappearance(t_appearance);
+                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    
+                    if (t_is_dark)
+                        /* UNCHECKED */ MCStringCreateWithCString("32,32,32", r_colorbuf);
+                    else if (menucolors[2] != nil)
+                        r_colorbuf = MCValueRetain(menucolors[2]);
+                    else
+                        /* UNCHECKED */ MCStringCreateWithCString("240,240,240", r_colorbuf);
+                }
                 break;
             case WCOLOR_BORDER:
                 if (menucolors[3] != nil)
@@ -760,6 +778,60 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
                 else
                     /* UNCHECKED */ MCStringCreateWithCString("155,155,155", r_colorbuf);
                 break;
+		}
+	}
+	else if (winfo.type == WTHEME_TYPE_OPTIONBUTTON || winfo.type == WTHEME_TYPE_OPTIONBUTTONTEXT)
+	{
+		//-- tperry 11th November 2025: Handle option menu colors for dark mode
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		
+		switch (ctype)
+		{
+			case WCOLOR_TEXT:
+				if (t_is_dark)
+					/* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
+				else
+					/* UNCHECKED */ MCStringCreateWithCString("0,0,0", r_colorbuf);
+				break;
+			case WCOLOR_BACK:
+				if (t_is_dark)
+					/* UNCHECKED */ MCStringCreateWithCString("32,32,32", r_colorbuf);
+				else
+					/* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
+				break;
+			default:
+				r_colorbuf = MCValueRetain(kMCEmptyString);
+				break;
+		}
+	}
+	else if (winfo.type == WTHEME_TYPE_PUSHBUTTON || 
+	         winfo.type == WTHEME_TYPE_CHECKBOX || 
+	         winfo.type == WTHEME_TYPE_RADIOBUTTON)
+	{
+		//-- tperry 11th November 2025: Handle button/checkbox/radio colors for dark mode
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		
+		switch (ctype)
+		{
+			case WCOLOR_TEXT:
+				if (t_is_dark)
+					/* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
+				else
+					/* UNCHECKED */ MCStringCreateWithCString("0,0,0", r_colorbuf);
+				break;
+			case WCOLOR_BACK:
+				if (t_is_dark)
+					/* UNCHECKED */ MCStringCreateWithCString("32,32,32", r_colorbuf);
+				else
+					/* UNCHECKED */ MCStringCreateWithCString("240,240,240", r_colorbuf);
+				break;
+			default:
+				r_colorbuf = MCValueRetain(kMCEmptyString);
+				break;
 		}
 	}
     else
@@ -776,6 +848,28 @@ uint2 MCNativeTheme::getthemefamilyid()
 
 Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
 {
+	//-- tperry 18th November 2025: Custom draw widgets in dark mode
+	if (winfo.type == WTHEME_TYPE_PUSHBUTTON || 
+	    winfo.type == WTHEME_TYPE_OPTIONBUTTON ||
+	    winfo.type == WTHEME_TYPE_COMBO)
+	{
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		if (t_appearance == kMCSystemAppearanceDark)
+		{
+			// Draw widget manually in dark mode with our dark colors
+			// Fill background with dark gray
+			dc->setforeground(dc->getbg()); // Use our dark background color (32,32,32)
+			dc->fillrect(drect);
+			
+			// Draw a simple border
+			dc->setforeground(dc->getgray()); // Use gray for border
+			dc->drawrect(drect);
+			
+			return True; // Skip Windows native theme drawing
+		}
+	}
+	
 	HANDLE htheme = GetTheme(winfo.type);
 	if (!htheme)
 		return False;
@@ -1617,141 +1711,187 @@ bool MCNativeTheme::settooltiptextcolor(MCContext *p_context)
 
 bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool p_gutter)
 {
-	if (getmenutheme() == NULL)
-		return false;
-
-	MCThemeDrawInfo t_info;
-	t_info . theme = getmenutheme();
-	t_info . state = 1;
-	t_info . clip = dirty;
-	t_info . clip_interior = false;
-
-	t_info . part = MENU_POPUPBORDERS;
-	t_info . bounds = rect;
-	dc -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
-	t_info . part = MENU_POPUPBACKGROUND;
-	MCU_set_rect(t_info . bounds, rect . x + 3, rect . y + 3, rect . width - 6, rect . height - 6);
-	dc -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
-	if (p_gutter)
+	//-- tperry 8th November 2025: Draw dropdown menu with dark/light mode colors
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	
+	MCColor t_bg_color;
+	MCColor t_border_color;
+	
+	if (t_is_dark)
 	{
-		t_info . part = MENU_POPUPGUTTER;
-		MCU_set_rect(t_info . bounds, rect . x + 1 + 2, rect . y + 1 + 2, 22 + 4 + 2, rect . height - 2 - 4);
-		dc -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
+		// Dark mode: RGB(32,32,32) background
+		t_bg_color.red = t_bg_color.green = t_bg_color.blue = 0x2020;
+		// Slightly lighter border
+		t_border_color.red = t_border_color.green = t_border_color.blue = 0x4040;
 	}
+	else
+	{
+		// Light mode: RGB(240,240,240) background
+		t_bg_color.red = t_bg_color.green = t_bg_color.blue = 0xF0F0;
+		// Slightly darker border
+		t_border_color.red = t_border_color.green = t_border_color.blue = 0xC0C0;
+	}
+	
+	// Draw border
+	dc->setforeground(t_border_color);
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	dc->drawrect(rect);
+	
+	// Draw background
+	MCRectangle t_inner_rect;
+	MCU_set_rect(t_inner_rect, rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+	dc->setforeground(t_bg_color);
+	dc->fillrect(t_inner_rect);
 	
 	return true;
 }
 
 bool MCNativeTheme::drawmenubarbackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool is_active)
 {
-	if (getmenutheme() == NULL)
-		return false;
-
-	MCThemeDrawInfo t_info;
-	t_info . theme = getmenutheme();
-	t_info . part = MENU_BARBACKGROUND;
-	t_info . state = (is_active ? MB_ACTIVE : MB_INACTIVE);
-	t_info . bounds = rect;
-	t_info . clip = dirty;
-	t_info . clip_interior = false;
-	dc -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
+	//-- tperry 8th November 2025: Draw menubar with dark/light mode colors
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	
+	// Set the background color based on dark/light mode
+	MCColor t_bg_color;
+	if (t_is_dark)
+	{
+		// Dark mode: RGB(32,32,32)
+		t_bg_color.red = t_bg_color.green = t_bg_color.blue = 0x2020;
+	}
+	else
+	{
+		// Light mode: RGB(240,240,240)
+		t_bg_color.red = t_bg_color.green = t_bg_color.blue = 0xF0F0;
+	}
+	
+	// Fill the menubar background with the appropriate color
+	dc->setforeground(t_bg_color);
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	dc->fillrect(rect);
+	
 	return true;
 }
 
 bool MCNativeTheme::drawmenuheaderbackground(MCContext *p_context, const MCRectangle& p_dirty, MCButton *p_button)
 {
-	if (getmenutheme() == NULL)
-		return false;
-
-	MCThemeDrawInfo t_info;
-	t_info . theme = getmenutheme();
-	t_info . part = MENU_BARITEM;
-
-	if (p_button -> getstate(CS_ARMED))
-		t_info . state = MBI_PUSHED;
-	else if (p_button -> gethovering())
-		t_info . state = MBI_HOT;
-	else
-		t_info . state = MBI_NORMAL;
-
-	if (p_button -> getflag(F_DISABLED))
-		t_info . state += 3;
-
-	t_info . bounds = p_button -> getrect();
-	t_info . clip = p_dirty;
-	t_info . clip_interior = false;
-	p_context -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
+	//-- tperry 8th November 2025: Draw menubar items with system accent color for hover/pressed
+	
+	// Only draw background for hover or pressed states
+	if (p_button -> getstate(CS_ARMED) || p_button -> gethovering())
+	{
+		// Use the system accent color (hilite color)
+		p_context->setforeground(MChilitecolor);
+		p_context->setfillstyle(FillSolid, nil, 0, 0);
+		p_context->fillrect(p_button -> getrect());
+	}
+	
 	return true;
 }
 
 bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectangle& p_dirty, MCButton *p_button)
 {
-	if (getmenutheme() == NULL)
-		return false;
-
-	MCThemeDrawInfo t_info;
-	t_info . theme = getmenutheme();
-
+	//-- tperry 21st January 2026: Draw menu items for pulldown menus (File, Edit, Tools) and cascading submenus
+	//   This handles the background, checkmarks, and submenu arrows
+	
 	if (p_button -> getmenucontrol() == MENUCONTROL_ITEM)
 	{
-		t_info . part = MENU_POPUPITEM;
-
+		MCRectangle t_rect = p_button -> getrect();
+		
+		// Draw background for hovered/armed state
 		if (p_button -> getstate(CS_ARMED))
-			t_info . state = MBI_HOT;
-		else
-			t_info . state = MBI_NORMAL;
-
-		if (p_button -> getflag(F_DISABLED))
-			t_info . state += 2;
+		{
+			// Use system accent color for hover
+			p_context->setforeground(MChilitecolor);
+			p_context->setfillstyle(FillSolid, nil, 0, 0);
+			p_context->fillrect(t_rect);
+		}
+		
+		// Draw checkmark if menu item is hilited (checked)
+		if (p_button -> getstate(CS_HILITED))
+		{
+			MCSystemAppearance t_appearance;
+			MCscreen->getsystemappearance(t_appearance);
+			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			
+			// Set checkmark color based on dark mode
+			if (t_is_dark)
+				p_context->setforeground(p_context->getwhite());
+			else
+				p_context->setforeground(p_context->getblack());
+			
+			// Draw checkmark polygon (✓)
+			MCPoint p[6];
+			int2 check_x = t_rect.x + 4;
+			int2 check_y = t_rect.y + (t_rect.height >> 1) - 3;
+			p[0].x = p[5].x = check_x;
+			p[1].x = p[4].x = check_x + 2;
+			p[2].x = p[3].x = check_x + 7;
+			p[0].y = check_y + 3;
+			p[1].y = check_y + 5;
+			p[2].y = check_y;
+			p[3].y = check_y + 3;
+			p[4].y = check_y + 8;
+			p[5].y = check_y + 6;
+			
+			p_context->setfillstyle(FillSolid, nil, 0, 0);
+			p_context->fillpolygon(p, 6);
+		}
+		
+		// Draw cascade arrow if menu item has submenu
+		if (p_button -> getmenumode() == WM_CASCADE)
+		{
+			MCSystemAppearance t_appearance;
+			MCscreen->getsystemappearance(t_appearance);
+			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			
+			// Set arrow color based on dark mode
+			if (t_is_dark)
+				p_context->setforeground(p_context->getwhite());
+			else
+				p_context->setforeground(p_context->getblack());
+			
+			// Draw cascade arrow (>)
+			MCPoint arrow[3];
+			arrow[0].x = t_rect.x + t_rect.width - 9;
+			arrow[1].x = arrow[2].x = arrow[0].x - 4;
+			arrow[0].y = t_rect.y + (t_rect.height >> 1);
+			arrow[1].y = arrow[0].y + 4;
+			arrow[2].y = arrow[0].y - 4;
+			
+			p_context->fillpolygon(arrow, 3);
+		}
+		
+		return true; // We handled the drawing
 	}
 	else
 	{
-		t_info . part = MENU_POPUPSEPARATOR;
-		t_info . state = 1;
-	}
-
-	MCRectangle t_rect;
-	t_rect = p_button -> getrect();
-
-	t_info . bounds = t_rect;
-	t_info . clip = p_dirty;
-	t_info . clip_interior = false;
-
-	p_context -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
-	if ((p_button -> getstyle() == F_CHECK || p_button -> getstyle() == F_RADIO) && p_button -> getstate(CS_HILITED))
-	{
-		MCU_set_rect(t_info . bounds, t_rect . x, t_rect . y, 22, t_rect . height);
-
-		t_info . part = MENU_POPUPCHECKBACKGROUND;
-		t_info . state = p_button -> getflag(F_DISABLED) ? MCB_DISABLED : MCB_NORMAL;
-		p_context -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-
-		t_info . part = MENU_POPUPCHECK;
-		if (p_button -> getstyle() == F_CHECK)
-			t_info . state = MC_CHECKMARKNORMAL;
+		// Draw separator line
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		
+		MCColor t_sep_color;
+		if (t_is_dark)
+		{
+			t_sep_color.red = t_sep_color.green = t_sep_color.blue = 0x4040;
+		}
 		else
-			t_info . state = MC_BULLETNORMAL;
-
-		if (p_button -> getflag(F_DISABLED))
-			t_info . state += 1;
-
-		p_context -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
+		{
+			t_sep_color.red = t_sep_color.green = t_sep_color.blue = 0xC0C0;
+		}
+		
+		MCRectangle t_rect = p_button -> getrect();
+		p_context->setforeground(t_sep_color);
+		p_context->setfillstyle(FillSolid, nil, 0, 0);
+		MCRectangle t_line;
+		MCU_set_rect(t_line, t_rect.x + 2, t_rect.y + t_rect.height / 2, t_rect.width - 4, 1);
+		p_context->fillrect(t_line);
+		return true;
 	}
-
-	if (p_button -> getstyle() == F_MENU && p_button -> getmenumode() == WM_CASCADE)
-	{
-		t_info . part = MENU_POPUPSUBMENU;
-		t_info . state = p_button -> getflag(F_DISABLED) ? MSM_DISABLED : MSM_NORMAL;
-		MCU_set_rect(t_info . bounds, t_rect . x + t_rect . width - 17, t_rect . y, 17, t_rect . height);
-		p_context -> drawtheme(THEME_DRAW_TYPE_MENU, &t_info);
-	}
-
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

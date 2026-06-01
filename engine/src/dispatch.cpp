@@ -411,6 +411,35 @@ void MCDispatch::destroystack(MCStack *sptr, Boolean needremove)
 	MClockmessages = oldstate;
 }
 
+void MCDispatch::clearstacks(void)
+{
+	// Delete all stacks from the dispatcher's internal linked list.
+	// This mirrors the logic in ~MCDispatch but leaves the dispatcher alive.
+	Boolean t_old_lock = MClockmessages;
+	MClockmessages = True;
+
+	while (stacks != NULL)
+	{
+		MCStack *sptr = stacks->prev()->remove(stacks);
+		delete sptr;
+	}
+
+	// Also clear the image cache list
+	while (imagecache != NULL)
+	{
+		MCImage *iptr = imagecache->remove(imagecache);
+		delete iptr;
+	}
+
+	// Reset startdir/enginedir as startup() will re-set them
+	MCMemoryDeleteArray(startdir);
+	startdir = nil;
+	MCMemoryDeleteArray(enginedir);
+	enginedir = nil;
+
+	MClockmessages = t_old_lock;
+}
+
 static bool attempt_to_loadfile(IO_handle& r_stream, MCStringRef& r_path, const char *p_path_format, ...)
 {
 	MCAutoStringRef t_trial_path;

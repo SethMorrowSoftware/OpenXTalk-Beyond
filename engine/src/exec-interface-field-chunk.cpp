@@ -3127,6 +3127,71 @@ void MCParagraph::SetTextStyleOfCharChunk(MCExecContext &ctxt, findex_t si, find
     SetCharPropOfCharChunkOfParagraph<PodFieldPropType<MCInterfaceTextStyle> >(ctxt, this, si, ei, &MCBlock::SetTextStyle, p_text);
 }
 
+// Combined IDE setter: sets both foreground colour and text style in a single
+// defrag + indextoblock + block-traversal pass, avoiding the overhead of two
+// separate calls with their duplicate block-list walks.
+void MCParagraph::SetForeColorAndTextStyleOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, const MCInterfaceNamedColor &p_color, const MCInterfaceTextStyle &p_style)
+{
+    MCField *t_field;
+    t_field = getparent();
+
+    uindex_t t_para_len;
+    t_para_len = gettextlength();
+    if (si > 0 && (uindex_t)si > t_para_len)
+        si = ei = (findex_t)t_para_len;
+    else if (ei > 0 && (uindex_t)ei > t_para_len)
+        ei = (findex_t)t_para_len;
+
+    bool t_blocks_changed;
+    t_blocks_changed = false;
+
+    defrag();
+    MCBlock *bptr = indextoblock(si, False);
+    findex_t t_block_index, t_block_length;
+    do
+    {
+        bptr->GetRange(t_block_index, t_block_length);
+        if (t_block_index < si)
+        {
+            MCBlock *tbptr = new (nothrow) MCBlock(*bptr);
+            bptr->append(tbptr);
+            bptr->SetRange(t_block_index, si - t_block_index);
+            tbptr->SetRange(si, t_block_length - (si - t_block_index));
+            bptr = bptr->next();
+            bptr->GetRange(t_block_index, t_block_length);
+            t_blocks_changed = true;
+        }
+        else
+            bptr->close();
+        if (t_block_index + t_block_length > ei)
+        {
+            MCBlock *tbptr = new (nothrow) MCBlock(*bptr);
+            if (getopened())
+                tbptr->open(t_field->getfontref());
+            bptr->append(tbptr);
+            bptr->SetRange(t_block_index, ei - t_block_index);
+            tbptr->SetRange(ei, t_block_length - ei + t_block_index);
+            t_blocks_changed = true;
+        }
+
+        bptr->SetForeColor(ctxt, p_color);
+        bptr->SetTextStyle(ctxt, p_style);
+
+        if (getopened())
+            bptr->open(t_field->getfontref());
+
+        bptr = bptr->next();
+    }
+    while (t_block_index + t_block_length < ei);
+
+    if (t_blocks_changed)
+        setDirty();
+
+    // TextStyle changes always require layout; colour changes may have introduced
+    // block splits, so trigger unconditionally.
+    layoutchanged();
+}
+
 void MCParagraph::SetTextFontOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, MCStringRef p_fontname)
 {
     SetCharPropOfCharChunkOfParagraph<PodFieldPropType<MCStringRef> >(ctxt, this, si, ei, &MCBlock::SetTextFont, p_fontname);

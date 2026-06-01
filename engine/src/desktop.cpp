@@ -169,6 +169,10 @@ void MCPlatformHandleSystemAppearanceChanged(void)
 	if (MCscreen == nil)
 		return;
 	
+	// Update system colors and redraw all stacks
+	MCscreen -> updatesystemappearance();
+	
+	// Send message to scripts
 	MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 }
 

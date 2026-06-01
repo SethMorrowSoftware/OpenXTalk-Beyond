@@ -142,6 +142,7 @@ template<typename T> inline void MCSwap(T& a, T& b)
 
 static MCTextLayoutLinkedFont *s_linked_fonts = nil;
 static MCTextLayoutFont *s_fonts = nil;
+static HDC s_layout_dc = nil;
 
 static void MCTextLayoutFontDestroy(MCTextLayoutFont *self)
 {
@@ -418,6 +419,14 @@ bool MCTextLayoutInitialize(void)
 
 void MCTextLayoutFinalize(void)
 {
+	// Release the pooled DC before freeing font handles so nothing is
+	// still selected into the DC when the underlying HFONT is deleted.
+	if (s_layout_dc != nil)
+	{
+		DeleteDC(s_layout_dc);
+		s_layout_dc = nil;
+	}
+
 	while(s_linked_fonts != nil)
 		MCTextLayoutLinkedFontDestroy(MCListPopFront(s_linked_fonts));
 
@@ -879,6 +888,21 @@ static int CALLBACK MCTextLayoutStyleItemCallback(HDC p_dc, HANDLETABLE *p_handl
 
 static bool MCTextLayoutStyleItem(MCTextLayoutState& self, SCRIPT_ANALYSIS p_analysis, const unichar_t *p_chars, uint32_t p_char_count, MCTextLayoutFont *p_primary_font)
 {
+	// Fast path: ASCII-only runs never require font fallback; skip the
+	// metafile analysis entirely and use the primary font directly.
+	bool t_all_ascii;
+	t_all_ascii = true;
+	for (uint32_t i = 0; i < p_char_count; i++)
+	{
+		if (p_chars[i] > 127)
+		{
+			t_all_ascii = false;
+			break;
+		}
+	}
+	if (t_all_ascii)
+		return MCTextLayoutLinkItem(self, p_analysis, p_chars, p_char_count, p_primary_font);
+
 	bool t_success;
 	t_success = true;
 
@@ -962,9 +986,12 @@ bool MCTextLayout(const unichar_t *p_chars, uint32_t p_char_count, MCFontStruct 
 
 	if (t_success)
 	{
-		self . dc = CreateCompatibleDC(nil);
-		if (self . dc == nil)
+		if (s_layout_dc == nil)
+			s_layout_dc = CreateCompatibleDC(nil);
+		if (s_layout_dc == nil)
 			t_success = false;
+		else
+			self . dc = s_layout_dc;
 	}
 
 	// Fetch a layout font for the provided HFONT.
@@ -1101,8 +1128,7 @@ bool MCTextLayout(const unichar_t *p_chars, uint32_t p_char_count, MCFontStruct 
 	
 	MCMemoryDeleteArray(t_items);
 
-	if (self . dc != nil)
-		DeleteDC(self . dc);
+	// self.dc is the pooled s_layout_dc; do not delete it here.
 
 	return t_success;
 }

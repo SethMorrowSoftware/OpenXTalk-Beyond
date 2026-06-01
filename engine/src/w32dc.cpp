@@ -459,3 +459,33 @@ MCRectangle MCScreenDC::screentologicalrect(const MCRectangle &p_rect)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+//-- tperry 11th October 2025
+// Windows implementation of getsystemappearance - detect dark mode from registry
+void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+{
+	// Check Windows registry for dark mode setting
+	// Try both AppsUseLightTheme and SystemUsesLightTheme
+	bool t_is_dark = false;
+	HKEY hKey;
+	
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, 
+		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+		0, KEY_READ, &hKey) == ERROR_SUCCESS)
+	{
+		DWORD value = 1; // Default to light mode
+		DWORD size = sizeof(DWORD);
+		
+		// Check AppsUseLightTheme (0 = dark, 1 = light)
+		if (RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &size) == ERROR_SUCCESS)
+		{
+			t_is_dark = (value == 0);
+		}
+		
+		RegCloseKey(hKey);
+	}
+	
+	r_appearance = t_is_dark ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
+}
+
+///////////////////////////////////////////////////////////////////////////////

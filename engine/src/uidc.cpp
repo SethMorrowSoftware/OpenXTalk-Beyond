@@ -2046,4 +2046,10 @@ void MCUIDC::getsystemappearance(MCSystemAppearance &r_appearance)
 	r_appearance = kMCSystemAppearanceLight;
 }
 
+void MCUIDC::updatesystemappearance(void)
+{
+	// Default implementation does nothing
+	// Subclasses should override to update colors and redraw
+}
+
 ////////////////////////////////////////////////////////////////////////////////

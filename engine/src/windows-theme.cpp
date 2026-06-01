@@ -131,6 +131,14 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
     
     int t_color;
     
+    //-- tperry 8th November 2025: Check if we're in dark mode
+    bool t_is_dark = false;
+#ifndef _SERVER
+    MCSystemAppearance t_appearance;
+    MCscreen->getsystemappearance(t_appearance);
+    t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+#endif
+    
     switch (p_prop)
     {
         case kMCPlatformThemePropertyTextColor:
@@ -152,15 +160,35 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                     case kMCPlatformControlTypeMenuItem:
                     case kMCPlatformControlTypeOptionMenu:
                     case kMCPlatformControlTypePulldownMenu:
+                    case kMCPlatformControlTypePopupMenu:
                     case kMCPlatformControlTypeComboBox:
+                        //-- tperry 8th November 2025: White text for menus in dark mode
+                        if (t_is_dark)
+                        {
+                            r_color.red = r_color.green = r_color.blue = 0xFFFF;
+                            return true;
+                        }
                         t_color = COLOR_MENUTEXT;
                         break;
                         
                     case kMCPlatformControlTypeButton:
+                        //-- tperry 11th November 2025: White text for buttons in dark mode
+                        if (t_is_dark)
+                        {
+                            r_color.red = r_color.green = r_color.blue = 0xFFFF;
+                            return true;
+                        }
                         t_color = COLOR_BTNTEXT;
                         break;
                         
                     default:
+                        //-- tperry 8th November 2025: Return white text in dark mode
+                        if (t_is_dark)
+                        {
+                            // Dark mode: white text
+                            r_color.red = r_color.green = r_color.blue = 0xFFFF;
+                            return true;
+                        }
                         t_color = COLOR_WINDOWTEXT;
                         break;
                 }
@@ -197,13 +225,40 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                     case kMCPlatformControlTypeList:
                     case kMCPlatformControlTypeComboBox:
                     case kMCPlatformControlTypeOptionMenu:
-                        // Doesn't seem to have a colour index - use white
-                        r_color.red = r_color.green = r_color.blue = 65535;
-                        return true;
+                    case kMCPlatformControlTypePulldownMenu:
+                    case kMCPlatformControlTypePopupMenu:
+                        //-- tperry 8th November 2025: Respect dark mode for opaque fields and menus
+                        if (t_is_dark)
+                        {
+                            // Dark mode: dark background for opaque fields
+                            r_color.red = r_color.green = r_color.blue = 0x2020;
+                            return true;
+                        }
+                        else
+                        {
+                            // Light mode: white background
+                            r_color.red = r_color.green = r_color.blue = 65535;
+                            return true;
+                        }
                         
                     case kMCPlatformControlTypeMenuItem:
                         t_color = COLOR_MENU;
                         break;
+                        
+                    case kMCPlatformControlTypeButton:
+                        //-- tperry 11th November 2025: Button background for dark mode
+                        if (t_is_dark)
+                        {
+                            // Dark mode: RGB(32,32,32)
+                            r_color.red = r_color.green = r_color.blue = 0x2020;
+                            return true;
+                        }
+                        else
+                        {
+                            // Light mode: RGB(240,240,240)
+                            r_color.red = r_color.green = r_color.blue = 0xF0F0;
+                            return true;
+                        }
                         
                     case kMCPlatformControlTypeWindow:
                         // Use the control colour instead of the window colour
@@ -211,8 +266,19 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                         //break;
                         
                     default:
-                        // Message boxes are this colour instead of the window colour
-                        t_color = COLOR_3DFACE;
+                        //-- tperry 8th November 2025: Return dark/light mode colors
+                        if (t_is_dark)
+                        {
+                            // Dark mode: RGB(32,32,32)
+                            r_color.red = r_color.green = r_color.blue = 0x2020;
+                            return true;
+                        }
+                        else
+                        {
+                            // Light mode: RGB(240,240,240)
+                            r_color.red = r_color.green = r_color.blue = 0xF0F0;
+                            return true;
+                        }
                         break;
                 }
             }

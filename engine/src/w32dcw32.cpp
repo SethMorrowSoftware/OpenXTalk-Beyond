@@ -46,6 +46,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "socket.h"
 
 #include "resolution.h"
+#include "platform-internal.h"
 
 #define VK_LAST 0xDE   //last is 222
 #define LEAVE_CHECK_INTERVAL 500
@@ -659,6 +660,55 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 	{
 		if (hwnd != ((MCScreenDC *)MCscreen) -> getinvisiblewindow())
 			break;
+
+		//-- tperry 11th October 2025
+		// Check if this is a theme/personalization change (dark mode toggle)
+		if (msg == WM_SETTINGCHANGE && lParam != NULL)
+		{
+			if (wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0)
+			{
+				// Dark mode changed - update system colors for unset objects
+				extern void MCWin32UpdateSystemColors(void);
+				MCWin32UpdateSystemColors();
+				
+				// Update all stack window title bars
+				extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
+				MCSystemAppearance t_appearance;
+				MCscreen->getsystemappearance(t_appearance);
+				bool t_dark_mode = (t_appearance == kMCSystemAppearanceDark);
+				
+				MCStacknode *t_node = MCstacks->topnode();
+				if (t_node != NULL)
+				{
+					MCStacknode *t_start = t_node;
+					do
+					{
+						MCStack *t_stack = t_node->getstack();
+						if (t_stack != NULL && t_stack->getwindow() != NULL)
+						{
+							HWND t_hwnd = (HWND)t_stack->getwindow()->handle.window;
+							if (t_hwnd != NULL)
+							{
+								MCWin32SetWindowDarkMode(t_hwnd, t_dark_mode);
+								// Force title bar redraw
+								SetWindowPos(t_hwnd, NULL, 0, 0, 0, 0,
+									SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+								// Force window content redraw to show new colors
+								InvalidateRect(t_hwnd, NULL, TRUE);
+								// Mark stack as needing redraw
+								t_stack->dirtyall();
+							}
+						}
+						t_node = t_node->next();
+					}
+					while (t_node != t_start);
+				}
+				
+				// Notify the engine that system appearance has changed
+				// This will trigger systemAppearanceChanged message
+				MCPlatformCallbackSendSystemAppearanceChanged();
+			}
+		}
 
 		((MCScreenDC *)MCscreen) -> processdesktopchanged(true);
 	}

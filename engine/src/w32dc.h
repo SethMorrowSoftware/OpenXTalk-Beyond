@@ -244,6 +244,9 @@ public:
 	virtual void showtaskbar();
 	virtual void hidetaskbar();
 	virtual void setinputfocus(Window window);
+	
+	// --tperry 11th October 2025: Dark mode detection
+	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 
 	virtual void setgraphicsexposures(Boolean on, MCStack *sptr);
 	virtual void copyarea(Drawable source, Drawable dest, int2 depth,

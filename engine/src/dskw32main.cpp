@@ -43,13 +43,35 @@ MCStringRef MCcmdline;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Respring support — function pointers set by respring.cpp in development builds
+Boolean (*MCRespringIsPendingPtr)(void) = nil;
+Boolean (*MCRespringDoRespringPtr)(void) = nil;
+Boolean MCRespringInProgress = False;
+
 void X_main_loop(void)
 {
-	while (!MCquit)
+	for (;;)
 	{
-		X_main_loop_iteration();
-		if (MCpendingstacklimit != MCstacklimit)
-			break;
+		while (!MCquit || MCRespringInProgress)
+		{
+			// Check for respring before each iteration (development builds only)
+			if (MCRespringIsPendingPtr != nil && MCRespringIsPendingPtr())
+			{
+				MCRespringInProgress = True;
+				MCRespringDoRespringPtr();
+				MCRespringInProgress = False;
+				// Force MCquit off after respring completes
+				MCquit = False;
+				MCexitall = False;
+				continue;
+			}
+			if (MCquit)
+				break;
+			X_main_loop_iteration();
+			if (MCpendingstacklimit != MCstacklimit)
+				break;
+		}
+		break;
 	}
 }
 

@@ -841,10 +841,18 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 			p[4].y = p[1].y + 3;
 			p[5].y = p[0].y + 3;
 
+			//-- tperry 21st January 2026: Make checkmark dark mode aware
 			if (white && state & CS_ARMED)
 				dc->setforeground(dc->getwhite());
 			else
-				dc->setforeground(dc->getblack());
+			{
+				MCSystemAppearance t_appearance;
+				MCscreen->getsystemappearance(t_appearance);
+				if (t_appearance == kMCSystemAppearanceDark)
+					dc->setforeground(dc->getwhite());
+				else
+					dc->setforeground(dc->getblack());
+			}
 			dc->setfillstyle(FillSolid, nil, 0, 0);
 			dc->fillpolygon(p, 6);
 		}
@@ -1237,6 +1245,15 @@ void MCButton::drawcascade(MCDC *dc, MCRectangle &srect)
 		arrow[0].y = srect.y + (srect.height >> 1);
 		arrow[1].y = arrow[0].y + 4;
 		arrow[2].y = arrow[0].y - 4;
+		
+		//-- tperry 21st January 2026: Make cascade arrow dark mode aware
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		if (t_appearance == kMCSystemAppearanceDark)
+			dc->setforeground(dc->getwhite());
+		else
+			dc->setforeground(dc->getblack());
+		
 		dc->fillpolygon(arrow, 3);
 		break;
 	}

@@ -985,7 +985,10 @@ function firstRun
       return false
    else
       put empty into url ("file:" & tFirstRunPath)
-      return true
+      return false
+	  -- make the firstrun file anyway (tperry)
+	  open file tFirstRunPath
+      close file tFirstRunPath
    end if
 end firstRun
 

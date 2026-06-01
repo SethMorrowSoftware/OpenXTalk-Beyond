@@ -203,28 +203,11 @@ Boolean MCScreenDC::open()
 	
 	MCaccentcolor = MChilitecolor;
 	
-	background_pixel.red = background_pixel.green = background_pixel.blue = 0xC0C0;
-    MCStringRef t_key2;
-
-	if (MCmajorosversion > MCOSVersionMake(4,0,0))
-		t_key2 = MCSTR("HKEY_CURRENT_USER\\Control Panel\\Colors\\MenuBar");
-	else
-		t_key2 = MCSTR("HKEY_CURRENT_USER\\Control Panel\\Colors\\Menu");
-
-	MCAutoValueRef t_value2;
-    MCAutoStringRef t_type2, t_error2;
-    /* UNCHECKED */ MCS_query_registry(t_key2, &t_value2, &t_type2, &t_error2);
-
-	if (*t_value != nil && !MCValueIsEmpty(*t_value2))
-	{
-		MCAutoStringRef t_string;
-		/* UNCHECKED */ ctxt . ConvertToString(*t_value2, &t_string);
-		MCAutoStringRef t_string_mutable;
-		MCStringMutableCopy(*t_string, &t_string_mutable);
-		/* UNCHECKED */ MCStringFindAndReplaceChar(*t_string_mutable, ' ', ',', kMCCompareExact);
-		/* UNCHECKED */ parsecolor(*t_string_mutable, background_pixel);
-	}
-
+	//-- tperry 8th November 2025: Set colors based on dark/light mode at startup
+	// Use system colors instead of registry values
+	extern void MCWin32UpdateSystemColors(void);
+	MCWin32UpdateSystemColors();
+	
 	SetBkMode(f_dst_dc, OPAQUE);
 	SetBkColor(f_dst_dc, MCColorGetPixel(black_pixel));
 	SetTextColor(f_dst_dc, MCColorGetPixel(white_pixel));
@@ -828,9 +811,21 @@ static HDC snapdesthdc;
 static MCRectangle snaprect;
 static int32_t snapoffsetx, snapoffsety;
 
+//-- tperry 11th October 2025
+// Dark mode support for Windows 10 build 17763+
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1
+#define DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 19
+#endif
+
 typedef HRESULT (CALLBACK *DwmIsCompositionEnabledPtr)(BOOL *p_enabled);
+typedef HRESULT (WINAPI *DwmSetWindowAttributePtr)(HWND hwnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
 static HMODULE s_dwmapi_library = NULL;
 static DwmIsCompositionEnabledPtr s_dwm_is_composition_enabled = NULL;
+static DwmSetWindowAttributePtr s_dwm_set_window_attribute = NULL;
 
 static bool WindowsIsCompositionEnabled(void)
 {
@@ -845,6 +840,10 @@ static bool WindowsIsCompositionEnabled(void)
 
 		s_dwm_is_composition_enabled = (DwmIsCompositionEnabledPtr)GetProcAddress(s_dwmapi_library, "DwmIsCompositionEnabled");
 
+		//-- tperry 11th October 2025
+		// Load DwmSetWindowAttribute for dark mode support
+		s_dwm_set_window_attribute = (DwmSetWindowAttributePtr)GetProcAddress(s_dwmapi_library, "DwmSetWindowAttribute");
+
 		if (s_dwm_is_composition_enabled == NULL)
 		{
 			FreeLibrary(s_dwmapi_library);
@@ -858,6 +857,88 @@ static bool WindowsIsCompositionEnabled(void)
 		return false;
 
 	return t_enabled != FALSE;
+}
+
+//-- tperry 11th October 2025
+// Check if Windows is in dark mode by reading the registry
+bool MCWin32IsSystemInDarkMode(void)
+{
+	HKEY hKey;
+	DWORD value = 1; // Default to light mode
+	DWORD size = sizeof(DWORD);
+	
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, 
+		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+		0, KEY_READ, &hKey) == ERROR_SUCCESS)
+	{
+		RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &size);
+		RegCloseKey(hKey);
+	}
+	
+	return (value == 0); // 0 means dark mode
+}
+
+//-- tperry 4th November 2025
+// Update system colors based on current dark/light mode
+// This affects unset colors (objects without explicit backgroundColor/foregroundColor)
+void MCWin32UpdateSystemColors(void)
+{
+	// Use the same function that 'the systemAppearance' uses
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	
+	MCScreenDC *t_screen = (MCScreenDC *)MCscreen;
+	
+	if (t_is_dark)
+	{
+		// Dark mode: background = RGB(32,32,32), foreground = white
+		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0x2020;
+		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
+		MCselectioncolor = MCpencolor = t_screen->white_pixel;
+		
+		//-- tperry 11th November 2025: Set gray_pixel for disabled items (RGB 137,137,137)
+		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8989;
+	}
+	else
+	{
+		// Light mode: background = RGB(240,240,240), foreground = black
+		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0xF0F0;
+		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
+		MCselectioncolor = MCpencolor = t_screen->black_pixel;
+		
+		//-- tperry 11th November 2025: Set gray_pixel for light mode (used by opaque buttons)
+		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8080;
+	}
+	
+}
+
+//-- tperry 4th November 2025
+// Set dark mode attribute on window title bar
+void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode)
+{
+	// Ensure DWM library is loaded
+	if (s_dwmapi_library == NULL)
+	{
+		s_dwmapi_library = LoadLibraryA("dwmapi.dll");
+		if (s_dwmapi_library != NULL)
+		{
+			s_dwm_set_window_attribute = (DwmSetWindowAttributePtr)GetProcAddress(s_dwmapi_library, "DwmSetWindowAttribute");
+		}
+	}
+	
+	if (s_dwm_set_window_attribute == NULL)
+		return;
+	
+	// Try the newer attribute first (Windows 10 20H1+)
+	BOOL value = dark_mode ? TRUE : FALSE;
+	HRESULT hr = s_dwm_set_window_attribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+	
+	// Fall back to older attribute for Windows 10 1809-1909
+	if (FAILED(hr))
+	{
+		s_dwm_set_window_attribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, &value, sizeof(value));
+	}
 }
 
 // MW-2014-02-20: [[ Bug 11811 ]] Updated to scale snapshot to requested size.
@@ -1586,6 +1667,68 @@ LRESULT CALLBACK MCBackdropWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 	}
 
 	return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//-- tperry 11th October 2025
+// Windows desktop implementation of platform system properties
+void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
+{
+	switch(p_property)
+	{
+		case kMCPlatformSystemPropertySystemAppearance:
+		{
+			// Check Windows registry for dark mode setting
+			bool t_is_dark = false;
+			HKEY hKey;
+			
+			if (RegOpenKeyExW(HKEY_CURRENT_USER, 
+				L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+				0, KEY_READ, &hKey) == ERROR_SUCCESS)
+			{
+				DWORD value = 1; // Default to light mode
+				DWORD size = sizeof(DWORD);
+				
+				// Check AppsUseLightTheme (0 = dark, 1 = light)
+				if (RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &size) == ERROR_SUCCESS)
+				{
+					t_is_dark = (value == 0);
+				}
+				
+				RegCloseKey(hKey);
+			}
+			
+			*(int32_t *)r_value = t_is_dark ? (int32_t)kMCPlatformSystemAppearanceDark : (int32_t)kMCPlatformSystemAppearanceLight;
+		}
+		break;
+		
+		case kMCPlatformSystemPropertyDoubleClickInterval:
+			// Windows-specific: Get double-click time from system
+			*(uint16_t *)r_value = (uint16_t)GetDoubleClickTime();
+			break;
+			
+		case kMCPlatformSystemPropertyCaretBlinkInterval:
+			// Windows-specific: Get caret blink time from system
+			{
+				UINT t_blink = GetCaretBlinkTime();
+				if (t_blink == 0 || t_blink == INFINITE)
+					t_blink = 530; // Default value
+				*(double *)r_value = (double)t_blink;
+			}
+			break;
+		
+		default:
+			// For other properties, set a safe default
+			if (p_type == kMCPlatformPropertyTypeInt32)
+				*(int32_t *)r_value = 0;
+			break;
+	}
+}
+
+void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value)
+{
+	// Windows doesn't support setting system properties
 }
 
 ////////////////////////////////////////////////////////////////////////////////

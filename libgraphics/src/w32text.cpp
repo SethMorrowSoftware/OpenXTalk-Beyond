@@ -30,6 +30,26 @@ static bool s_initialized = false;
 static HDC s_measure_dc = NULL;
 static HDC s_draw_dc = NULL;
 
+// Fix C: glyph-advance measurement cache ----------------------------------
+// Direct-mapped cache of GetTextExtentPoint32W results for the common case
+// of repeated measurements of the same short ASCII text with the same font
+// (e.g. keywords colourised on every line of a large script).  Only used
+// when the device transform is the identity (normal screen rendering).
+struct MCGlyphWidthCacheEntry
+{
+    HFONT    font;    // font handle used for measurement
+    uint32_t length;  // byte-length of text (p_length in bytes)
+    uint32_t hash;    // FNV-1a hash of text bytes
+    MCGFloat width;   // cached GetTextExtentPoint32W result
+};
+
+static const int kWidthCacheSize = 256;  // must be a power of 2
+static MCGlyphWidthCacheEntry s_width_cache[kWidthCacheSize];  // zero-initialised
+
+// Currently selected font in s_measure_dc; NULL means unknown / not selected.
+static HFONT s_measure_dc_font = NULL;
+// -------------------------------------------------------------------------
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline uint32_t packed_scale_bounded(uint32_t x, uint8_t a)
@@ -596,12 +616,46 @@ void MCGContextDrawPlatformText(MCGContextRef self, const unichar_t *p_text, uin
 
 // MM-2014-04-16: [[ Bug 11964 ]] Updated prototype to take transform parameter.
 MCGFloat __MCGContextMeasurePlatformTextScreen(MCGContextRef self, const unichar_t *p_text, uindex_t p_length, const MCGFont &p_font, const MCGAffineTransform &p_transform)
-{	
+{
+	if (p_length == 0)
+		return 0.0;
+
+	// Fix C: consult the width cache for the common case of an identity
+	// device transform (normal screen rendering at 1× scale).
+	bool t_identity;
+	t_identity = (p_transform.a == 1.0f && p_transform.b == 0.0f &&
+	              p_transform.c == 0.0f && p_transform.d == 1.0f);
+
+	uint32_t t_hash = 0;
+	int t_slot = 0;
+	if (t_identity)
+	{
+		// FNV-1a hash of the raw UTF-16 bytes.
+		t_hash = 2166136261u;
+		const uint8_t *t_bytes = reinterpret_cast<const uint8_t *>(p_text);
+		for (uindex_t i = 0; i < p_length; i++)
+		{
+			t_hash ^= t_bytes[i];
+			t_hash *= 16777619u;
+		}
+		t_slot = (int)(t_hash & (kWidthCacheSize - 1));
+		const MCGlyphWidthCacheEntry &t_entry = s_width_cache[t_slot];
+		if (t_entry.font == p_font.fid &&
+		    t_entry.length == p_length &&
+		    t_entry.hash == t_hash)
+			return t_entry.width;
+	}
+
 	bool t_success;
 	t_success = true;
 
-	if (t_success)
-		t_success = SelectObject(s_measure_dc, p_font . fid) != NULL;
+	// Fix C: skip SelectObject when the desired font is already current.
+	if (s_measure_dc_font != p_font.fid)
+	{
+		t_success = SelectObject(s_measure_dc, p_font.fid) != NULL;
+		if (t_success)
+			s_measure_dc_font = p_font.fid;
+	}
 
 	// MM-2014-04-16: [[ Bug 11964 ]] Take into account any transform passed. Windows doesn't scale text
 	//  linearly, so if the text we are measuring is to be drawn scaled, or measurement needs to be adjusted.
@@ -621,9 +675,20 @@ MCGFloat __MCGContextMeasurePlatformTextScreen(MCGContextRef self, const unichar
 	SIZE t_size;
 	if (t_success)
 		t_success = GetTextExtentPoint32W(s_measure_dc, (LPCWSTR)p_text, p_length >> 1, &t_size);
-	
+
 	if (t_success)
-		return t_size . cx;
+	{
+		// Fix C: store result in cache for future identical queries.
+		if (t_identity)
+		{
+			MCGlyphWidthCacheEntry &t_entry = s_width_cache[t_slot];
+			t_entry.font   = p_font.fid;
+			t_entry.length = p_length;
+			t_entry.hash   = t_hash;
+			t_entry.width  = (MCGFloat)t_size.cx;
+		}
+		return t_size.cx;
+	}
 	else
 		return 0.0;
 }
@@ -735,7 +800,11 @@ bool MCGContextMeasurePlatformTextImageBounds(MCGContextRef self, const unichar_
     t_success = true;
 
     if (t_success)
+    {
         t_success = SelectObject(s_measure_dc, p_font . fid) != NULL;
+        if (t_success)
+            s_measure_dc_font = p_font . fid;
+    }
 
     if (t_success)
     {

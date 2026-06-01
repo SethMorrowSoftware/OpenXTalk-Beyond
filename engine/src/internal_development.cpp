@@ -79,6 +79,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "internal.h"
 #include "ide.h"
 #include "bsdiff.h"
+#include "respring.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -838,6 +839,7 @@ MCInternalVerbInfo MCinternalverbs[] =
 	{ "syntax", "recognize", class_factory<MCIdeSyntaxRecognize> },
 	{ "filter", "controls", class_factory<MCIdeFilterControls> },
     { "list", "browsers", class_factory<MCInternalListBrowsers> },
+	{ "respring", nil, class_factory<MCInternalRespring> },
 
 	{ nil, nil, nil }
 };

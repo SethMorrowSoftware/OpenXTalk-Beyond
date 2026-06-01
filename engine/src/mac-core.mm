@@ -578,6 +578,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef _WINDOWS
 void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	switch(p_property)
@@ -662,6 +663,7 @@ void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
             break;
     }
 }
+#endif // !_WINDOWS
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -852,6 +852,8 @@
 			'src/ide.cpp',
 			'src/internal_development.cpp',
 			'src/mode_development.cpp',
+			'src/respring.h',
+			'src/respring.cpp',
 		],
 
 		# Sources for minizip
