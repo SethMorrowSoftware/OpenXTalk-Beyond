@@ -20,7 +20,8 @@ ${USES_PERMISSION}${USES_FEATURE}
       android:configChanges="${CONFIG_CHANGES}"
       android:windowSoftInputMode="stateHidden"
       android:launchMode="singleTask"
-      android:hardwareAccelerated="${HARDWARE_ACCELERATED}">
+      android:hardwareAccelerated="${HARDWARE_ACCELERATED}"
+      android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />

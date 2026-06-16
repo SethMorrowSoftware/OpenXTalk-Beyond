@@ -1111,6 +1111,10 @@ bool MCEventQueuePostKeyPress(MCStack *p_stack, uint32_t p_modifiers, uint32_t p
 MC_DLLEXPORT_DEF
 bool MCEventQueuePostImeCompose(MCStack *p_stack, bool p_enabled, uint32_t p_offset, const uint16_t *p_chars, uint32_t p_char_count)
 {
+	// Fix for menu crash: Check for null stack pointer
+	if (p_stack == nullptr)
+		return false;
+	
 	uint16_t *t_new_chars;
 	if (!MCMemoryNewArray(p_char_count, t_new_chars))
 		return false;
