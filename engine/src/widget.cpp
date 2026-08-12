@@ -1126,8 +1126,9 @@ void MCWidget::GetState(MCExecContext& ctxt, MCArrayRef& r_state)
     }
     else
     {
-        if (!MCWidgetOnSave(m_widget,
-                            &t_value))
+        if (!MCWidgetOnSave(m_widget, &t_value) || 
+            // A widget might not have an OnSave handler (e.g. colorswatch widget)
+            (*t_value == nil))
         {
             r_state = MCValueRetain(kMCEmptyArray);
             return;
