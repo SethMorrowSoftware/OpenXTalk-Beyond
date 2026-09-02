@@ -2439,6 +2439,9 @@ on backspaceKey
    local tFrom, tTo
    put word 2 of it into tFrom
    put word 4 of it into tTo
+
+   ## caret position at char 1 -> exit
+   if tTo is 0 then exit backspaceKey
    
    local tAt, tLength
    if tFrom > tTo then
@@ -2461,7 +2464,7 @@ on backspaceKey
          local tWordFound
          put false into tWordFound
          repeat with x = tTo down to 1
-            if not matchText(char x of tScript, "\s") then
+            if not matchText(char x of tScript, "\S") then -- upper case "S" instead of lower case
                put true into tWordFound
             else
                if tWordFound then
