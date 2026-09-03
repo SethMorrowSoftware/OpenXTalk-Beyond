@@ -1942,6 +1942,10 @@ function autoCompleteInSlashCommentOrOutOfHandler @pScript, pLineNumber
    put slash & "*" into tSlashStart
    put "*" & slash into tSlashEnd
 
+   ## remove quoted slash-asterisks 
+   replace quote & tSlashStart & quote with quote & quote in pScript
+   replace quote & tSlashEnd & quote with quote & quote in pScript
+
    put word 2 of the selectedChunk into tSelChar
    if tSelChar is empty then
       return empty
