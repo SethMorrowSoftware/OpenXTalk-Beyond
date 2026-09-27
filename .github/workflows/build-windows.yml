@@ -18,7 +18,7 @@
 # (in any case); other tags, such as v9.7.1-OXT, give a normal release.
 #
 # The toolchain matches BUILDING.md: Visual Studio 2022 with the MSVC v141
-# toolset added at run time, Windows SDK 10.0.22621.0, Python 2.7 in
+# toolset added at run time, Windows SDK 10.0.17763.0, Python 2.7 in
 # C:\Python27, Strawberry Perl (preinstalled on the image) and Cygwin in
 # C:\cygwin64 (kept off PATH). The scripts it calls are in tools/ci.
 #
@@ -56,11 +56,11 @@ jobs:
       # Read by make.cmd
       BUILDTYPE: Release
       BUILD_PLATFORM: win-x86_64
-      # The only earlier known-good build (Tom Perry's) used the Windows 8.1
-      # SDK headers; this code has not been compiled against 10.0.22621 before.
-      # If SDK header errors appear, see "Compile errors in Windows SDK
-      # headers" in BUILDING.md section 8.
-      WINSDK_VERSION: 10.0.22621.0
+      # Keep the v141 compiler on an SDK from the same supported toolchain era.
+      # SDK 10.0.22621 fails while parsing winnt.h in kernel-installer; the
+      # generated GYP projects originally targeted 10.0.14393.0.
+      WINSDK_VERSION: 10.0.17763.0
+      WINSDK_COMPONENT: Microsoft.VisualStudio.Component.Windows10SDK.17763
       # Read by util/invoke-unix.bat, which runs the Cygwin bash, flex and bison
       CYGPATH: C:\cygwin64
       # Read by prebuilt/fetch-libraries.sh: only the Release libraries are
@@ -105,7 +105,7 @@ jobs:
       - name: Install MSVC v141 toolset into Visual Studio 2022
         id: vs
         timeout-minutes: 45
-        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
+        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -WindowsSdkComponent $env:WINSDK_COMPONENT -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
 
       - name: Install Python 2.7
         id: python
