@@ -1,5 +1,10 @@
 # Compiling LiveCode for Android
 
+> **Note:** This page comes from upstream LiveCode and is not maintained
+> for OpenXTalk Lite, which currently builds for Windows x86_64 only. The
+> instructions below have not been checked against this repository. To
+> build OpenXTalk Lite, see [BUILDING.md](../../BUILDING.md).
+
 ![LiveCode Community Logo](http://livecode.com/wp-content/uploads/2015/02/livecode-logo.png)
 
 Copyright © 2015-2017 LiveCode Ltd., Edinburgh, UK

@@ -71,7 +71,7 @@ MCRunUsage (int p_exit_status)
 "\n"
 "Any ARGS are available in \"the command arguments\".\n"
 "\n"
-"Report bugs to <http://quality.livecode.com/>\n"
+"Report bugs to <https://github.com/SethMorrowSoftware/winoxt/issues>\n"
 	         );
 	exit (p_exit_status);
 }

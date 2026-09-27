@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest a new feature or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please check the
+        [known limitations and plans](https://github.com/SethMorrowSoftware/winoxt#known-limitations-and-plans)
+        in the README and the existing issues first; if your idea is already
+        there, add to that discussion instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe what you are trying to do and what gets in the way today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: >
+        Describe the feature. If it adds or changes script syntax, show an
+        example of how it would be used.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: Other ways to solve the problem that you have considered or use now.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Engine or scripting language
+        - IDE
+        - Externals, widgets or libraries
+        - Building, packaging or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to work on it?
+      options:
+        - "No"
+        - Yes, I would like to try
+        - Maybe, with some help
+    validations:
+      required: false

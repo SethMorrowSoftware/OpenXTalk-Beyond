@@ -1,0 +1,101 @@
+name: Bug report
+description: Something in OpenXTalk Lite does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        - **Security problems:** do not report them here. See [SECURITY.md](https://github.com/SethMorrowSoftware/winoxt/security/policy).
+        - **Problems building from source:** use the "Build problem" form instead.
+        - **Questions about scripting:** the [OpenXTalk forums](https://openxtalk.org/forum/) are a better place.
+
+        Please check that the problem has not been reported already.
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenXTalk Lite version
+      description: >
+        Shown in Help > About LiveCode, in the name of the zip you downloaded,
+        or in the `version` file of a source checkout (for example 9.7.1-OXT).
+        If you built it yourself, add the commit (`git rev-parse --short HEAD`).
+      placeholder: 9.7.1-OXT
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where did you get it?
+      options:
+        - Release zip from the GitHub Releases page
+        - Development build (GitHub Actions artifact)
+        - I built it myself
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Run `winver` to see it.
+      placeholder: Windows 11 24H2 (OS build 26100.1234)
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What do you do to make the problem happen? Start from launching the IDE.
+      placeholder: |
+        1. Create a new stack.
+        2. Add a button with this script: ...
+        3. Click the button.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: >
+        Copy and paste any error message exactly. A screenshot helps with
+        display problems (for example dark mode).
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample script or stack
+      description: >
+        The smallest script that shows the problem, in a code block. You can
+        also attach a stack: zip it and drag the zip into this box.
+
+  - type: dropdown
+    id: upstream
+    attributes:
+      label: Does the same thing happen in LiveCode Community 9.6.3?
+      description: This helps tell new problems from ones inherited from LiveCode.
+      options:
+        - I don't know
+        - "Yes"
+        - "No"
+    validations:
+      required: false
+
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else?
+      description: Other software involved (database servers, fonts, screen scaling, antivirus), or anything else that might matter.

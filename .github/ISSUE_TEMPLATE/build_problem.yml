@@ -1,0 +1,93 @@
+name: Build problem
+description: Building OpenXTalk Lite from source fails.
+labels: ["build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you file this, please read the troubleshooting section of
+        [BUILDING.md](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#8-troubleshooting).
+        Many build failures come from a missing Visual Studio component,
+        Python 3 being used instead of Python 2.7, or the wrong `bash`
+        (Git's or WSL's instead of Cygwin's).
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does the build run?
+      options:
+        - On my own computer
+        - GitHub Actions in my fork
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`, and the branch if it is not `main`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: step
+    attributes:
+      label: Which step fails?
+      options:
+        - Installing the tools
+        - Cloning the repository
+        - Configuring (config.py or configure.bat)
+        - Fetching the prebuilt libraries
+        - Building (make.cmd or msbuild)
+        - Running the built IDE
+        - Packaging (tools/ci/package-windows.ps1)
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tool versions
+      description: |
+        Please give:
+        - Windows version (`winver`);
+        - Visual Studio edition and version, and whether the v141 components are installed
+          (`powershell -ExecutionPolicy Bypass -File tools\ci\install-vs-components.ps1 -VerifyOnly`);
+        - Windows SDK version, if you set `WINSDK_VERSION`;
+        - `C:\Python27\python.exe --version`;
+        - `perl -e "print $^V, ' ', $^O"`;
+        - `git --version`;
+        - `C:\cygwin64\bin\bison.exe --version` and `C:\cygwin64\bin\flex.exe --version` (first lines);
+        - any of `BUILDTYPE`, `VSINSTALLDIR`, `WINSDK_VERSION`, `MSBUILD_EXTRA_ARGS`, `CYGPATH` or `PREBUILT_*` that you set.
+    validations:
+      required: true
+
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands you ran
+      description: The commands, in order, and the folder you ran them in.
+      render: bat
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Error output
+      description: >
+        For build failures, search `build-win-x86_64\msbuild.log` for the first
+        line containing `error` and paste about 30 lines before and after it.
+        For other steps, paste the console output.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else?
+      description: >
+        What you have already tried. You can attach the whole `msbuild.log`
+        here (zip it first).

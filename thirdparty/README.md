@@ -1,39 +1,71 @@
-# LiveCode Thirdparty Libraries
+# Third-party libraries
 
-The procedure for updating `thirdparty` on `develop-9.0` and `develop` branches is
-slightly different due to `thirdparty` prebuilts on develop. 
+This folder holds the sources of the third-party libraries that the
+engine and externals use: cairo, CEF (headers and C++ wrapper), curl
+(headers), expat, libffi, FreeType, giflib, HarfBuzz, iODBC, libjpeg,
+MySQL Connector/C, OpenSSL (glue code), PCRE, libpng, libpq, Skia,
+SQLite, libxml2, libxslt, zlib and libzip. Most library folders have an
+`ORIGIN` file (the upstream version) and, where upstream provided one,
+its licence under `docs/`. The exceptions are `libffi` (version in
+`libffi/git_master/source.txt`), `libskia` (revision in
+`libskia/git-revision.txt`), and `libgif`, `libharfbuzz`, `libopenssl`
+and `libxslt`, which have no `ORIGIN` file.
+[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) lists the licences.
 
-## Update procedure for develop-9.0
+It was the separate `livecode/livecode-thirdparty` repository, included
+as a submodule. It was imported unchanged from upstream commit
+`e5e050573c226f60acfbb9107c2b4aea853b0cbe` (commit `4c9715a77` in this
+repository). Since then, Tom Perry's changes (commit `38d5712b2`)
+updated SQLite in `libsqlite/` from 3.34.0 to 3.51.1 and added
+`libexpat/lib/asciitab_old.h`, a copy of `asciitab.h` from his working
+files.
 
-1. Push up a PR to this repo
-2. If there is a related patch to another repos then push up a PR for those
-3. Create a test branch on `livecode` with updated submodule ptrs. Ensure the
-branch is pushed upstream rather than to your clone.
-4. If it was a CEF update then push up a branch to `livecode-private` again with 
-updated submodule and kick off prebuilts on vulcan.
-5. Create a PR with the title beginning with `[[ NO MERGE ]]` and review it ok
-to confirm it passes on travis and vulcan
-6. Close PR from 5 and link to it in the other related PRs
-7. Once all related PRs are reviewed merge `thirdparty`, update submodules in
-`livecode` and merge any related PRs
+## How the Windows build uses it
 
-## Update procedure for develop
+Most of these libraries are **not** compiled during a normal Windows
+build. The engine links static libraries from the "Thirdparty" prebuilt
+archive instead (`prebuilt/unpacked/Thirdparty/...`). That archive was
+built by LiveCode Ltd from this folder at commit `e5e0505` and is mirrored
+in the
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1).
+The headers, on the other hand, are always taken from this folder.
 
-The same procedure applies to merge-ups from `develop-9.0` because the 
-`thirdparty` prebuilts must be rebuilt for the current head of the `develop`
-branch.
+So a change to a library's source here does **not** reach the Windows
+programs until the Thirdparty archive is rebuilt and published. The
+exceptions, compiled from this folder by the normal build, are:
 
-1. Push up a PR to this repo
-2. If there is a related patch to another repos then push up a PR for those
-3. Review and merge the PR for `thirdparty` but *do not* update submodule ptrs
-in `livecode` yet.
-4. Create a test branch on `livecode` with updated submodule ptrs. Ensure the
-branch is pushed upstream rather than to your clone.
-5. Push up a branch to `livecode-private` again with updated submodule and kick
-off prebuilts on vulcan.
-6. Once prebuilts are built for the `develop` head of `thirdparty` create a PR
-using the `livecode` branch with the title beginning with `[[ NO MERGE ]]` and
-review it ok to confirm it passes on travis and vulcan
-7. Close PR from 6 and link to it in the other related PRs
-8. Once all related PRs are reviewed, update submodules in `livecode` and merge
-any related PRs
+- `libsqlite/` (the `dbsqlite.dll` database driver), because the archive
+  still contains SQLite 3.34.0;
+- the CEF C++ wrapper in `libcef/`;
+- `libopenssl/`, which builds `revsecurity.dll` from the prebuilt
+  OpenSSL.
+
+FreeType, HarfBuzz, expat and iODBC are not used on Windows.
+
+## Updating a library
+
+1. Replace the sources, keeping the folder layout and the `.gyp` file
+   working, and update the library's `ORIGIN` file and licence files.
+2. Update [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) and, if it
+   fixes security problems, [SECURITY.md](../SECURITY.md).
+3. If the library comes from the Thirdparty archive on Windows (see
+   above), the change also needs a new archive:
+   - build the static libraries with the `thirdparty-prebuilts` MSBuild
+     target (`cmd /c ..\make.cmd thirdparty-prebuilts` in
+     `build-win-x86_64`, after configuring as in
+     [BUILDING.md](../BUILDING.md)), for both Release and Debug;
+   - package them as `Thirdparty-<id>-x86_64-win32-v141_static_{release,debug}-PIC.tar.bz2`,
+     each holding one folder `x86_64-win32-v141_static_{release,debug}/lib/`,
+     like the existing archives;
+   - publish them as assets of a **new** release tag (never replace the
+     assets of an existing one), and update `prebuilt/versions/thirdparty`,
+     `prebuilt/SHA256SUMS` and the default `PREBUILT_URL` in
+     `prebuilt/fetch-libraries.sh`.
+
+   This process has not been tried in this repository yet. Upstream's
+   scripts for it are `prebuilt/scripts/build-thirdparty.bat` and
+   `prebuilt/build-libs.bat`, which still expect Visual Studio 2017.
+
+The upstream update procedure that used to be described here (submodule
+pointers, the `livecode-private` repository and LiveCode's build
+servers) no longer applies. It is in the Git history of this file.
