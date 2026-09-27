@@ -167,6 +167,9 @@ and run `win-x86_64-bin\LiveCode-Community.exe` from the repository.
 | `builder/`, `Installer/` | Upstream installer and packaging scripts; not used for Windows builds yet. |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites. |
 
+For a compatibility-first proposal to make the engine easier to test and
+change, see the [engine stabilization and modernization plan](docs/development/engine-modernization-plan.md).
+
 ## Known limitations and plans
 
 Known limitations, in rough order of importance:
