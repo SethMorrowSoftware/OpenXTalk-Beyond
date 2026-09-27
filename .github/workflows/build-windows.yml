@@ -112,8 +112,12 @@ jobs:
         run: |
           $python = 'C:\Python27\python.exe'
           for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
-            choco install python2 -y --no-progress
-            Write-Host "choco exited with code $LASTEXITCODE (attempt $attempt)"
+            # Pin the final Python 2 release: an unversioned Chocolatey request
+            # can resolve differently as the hosted runner image changes.
+            choco install python2 --version=2.7.18 -y --no-progress --limit-output
+            $code = $LASTEXITCODE
+            Write-Host "choco exited with code $code (attempt $attempt)"
+            if ($code -ne 0 -and $attempt -lt 2) { Start-Sleep -Seconds 10 }
           }
           if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
           $version = & $python -c "import sys; sys.stdout.write('%d.%d.%d' % sys.version_info[:3])"

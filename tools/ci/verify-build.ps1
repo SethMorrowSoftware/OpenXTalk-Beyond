@@ -6,6 +6,8 @@
     Fails (exit code 1) unless:
       - the expected engine, external, database driver, toolchain and CEF
         files exist and are not empty;
+      - every required .exe and .dll is a valid x86-64 PE image (rather than
+        a stale 32-bit binary or a placeholder file);
       - modules\lci and packaged_extensions are not empty;
       - dbsqlite.dll contains the SQLITE_SOURCE_ID string from
         thirdparty/libsqlite/include/sqlite3.h, which shows that it was linked
@@ -117,6 +119,28 @@ function Find-TextInBinary([string]$Path, [string]$Text) {
     return $null
 }
 
+# Read the COFF Machine field from a PE image. Returning $null means that the
+# file is truncated, has no DOS/PE signature, or has an invalid PE offset.
+function Get-PeMachine([string]$Path) {
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+    try {
+        if ($stream.Length -lt 64) { return $null }
+        $reader = New-Object System.IO.BinaryReader($stream)
+        try {
+            if ($reader.ReadUInt16() -ne 0x5a4d) { return $null } # MZ
+            $stream.Position = 0x3c
+            $peOffset = $reader.ReadUInt32()
+            if ($peOffset -gt ($stream.Length - 6)) { return $null }
+            $stream.Position = $peOffset
+            if ($reader.ReadUInt32() -ne 0x00004550) { return $null } # PE\0\0
+            return $reader.ReadUInt16()
+        }
+        finally { $reader.Dispose() }
+    }
+    finally { $stream.Dispose() }
+}
+
 # --- Expected values from the source tree ---
 if (-not $Version) {
     $versionFile = Join-Path $RepoRoot 'version'
@@ -151,6 +175,13 @@ foreach ($rel in $RequiredFiles) {
     }
     elseif ((Get-Item -LiteralPath $p).Length -eq 0) {
         Add-Failure "Empty file: $rel"
+    }
+    elseif ([System.IO.Path]::GetExtension($rel) -in @('.exe', '.dll')) {
+        $machine = Get-PeMachine $p
+        if ($machine -ne 0x8664) {
+            $description = if ($null -eq $machine) { 'not a valid PE image' } else { 'PE machine 0x{0:x4}' -f $machine }
+            Add-Failure "$rel is $description; expected x86-64 (0x8664)"
+        }
     }
 }
 foreach ($rel in $OptionalFiles) {

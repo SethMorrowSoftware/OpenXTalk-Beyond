@@ -34,8 +34,10 @@ you download anything.
 - **No release yet.** No release has been published. The first releases
   will be a zip file with an IDE you can run without installing; the
   Windows installer is not built yet.
-- **CI has not completed a run yet.** The GitHub Actions build was added
-  recently. The badge above shows its current state.
+- **CI artifacts are mechanically verified, not runtime-tested.** The workflow
+  checks that required programs and libraries exist, are genuine x86-64 PE
+  images, and contain the expected project and SQLite versions. A successful
+  artifact should still be started and exercised on Windows before release.
 - **Still branded LiveCode.** The programs are still called
   `LiveCode-Community.exe` and so on, and the IDE still shows LiveCode
   names and logos. Rebranding is planned.
