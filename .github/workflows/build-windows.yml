@@ -1,0 +1,311 @@
+# Builds OpenXTalk Lite for Windows x86-64 (Release) on a GitHub-hosted
+# windows-2022 runner, checks the result and packages it:
+#
+#   OpenXTalkLite-<ver>-win-x86_64-ide.zip       runnable IDE (repository layout)
+#   OpenXTalkLite-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
+#                                                plus the licence files
+#   OpenXTalkLite-<ver>-win-x86_64-symbols.zip   the *.pdb files
+#   SHA256SUMS
+#
+# <ver> is BUILD_SHORT_VERSION from the "version" file. A run that builds,
+# verifies and packages successfully uploads these as the workflow artifact
+# "OpenXTalkLite-win-x86_64". Every run, including a failed one, uploads the
+# build logs as "build-logs".
+#
+# Pushing a tag that starts with "v" also publishes the files as a GitHub
+# Release for that tag, with generated release notes. The release is marked
+# as a pre-release when the tag contains -alpha, -beta, -rc, -dp or -pre
+# (in any case); other tags, such as v9.7.1-OXT, give a normal release.
+#
+# The toolchain matches BUILDING.md: Visual Studio 2022 with the MSVC v141
+# toolset added at run time, Windows SDK 10.0.22621.0, Python 2.7 in
+# C:\Python27, Strawberry Perl (preinstalled on the image) and Cygwin in
+# C:\cygwin64 (kept off PATH). The scripts it calls are in tools/ci.
+#
+# windows-2022 is pinned on purpose: windows-latest and windows-2025 now
+# provide Visual Studio 2026 with only the 10.0.26100 SDK.
+
+name: Build (Windows)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Newer pushes to a branch or pull request replace older runs; tag builds
+  # always run to completion.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build win-x86_64
+    runs-on: windows-2022
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # Read by make.cmd
+      BUILDTYPE: Release
+      BUILD_PLATFORM: win-x86_64
+      # The only earlier known-good build (Tom Perry's) used the Windows 8.1
+      # SDK headers; this code has not been compiled against 10.0.22621 before.
+      # If SDK header errors appear, see "Compile errors in Windows SDK
+      # headers" in BUILDING.md section 8.
+      WINSDK_VERSION: 10.0.22621.0
+      # Read by util/invoke-unix.bat, which runs the Cygwin bash, flex and bison
+      CYGPATH: C:\cygwin64
+      # Read by prebuilt/fetch-libraries.sh: only the Release libraries are
+      # needed, and every tarball must match prebuilt/SHA256SUMS
+      PREBUILT_WIN32_SUBPLATFORMS: v141_static_release
+      PREBUILT_STRICT: '1'
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Show runner environment
+        continue-on-error: true
+        run: |
+          Write-Host "OS: $([Environment]::OSVersion.VersionString)"
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          Get-PSDrive -PSProvider FileSystem | Where-Object { $null -ne $_.Used } |
+            Format-Table Name, Root,
+              @{ n = 'Used (GB)'; e = { [math]::Round($_.Used / 1GB, 1) } },
+              @{ n = 'Free (GB)'; e = { [math]::Round($_.Free / 1GB, 1) } } -AutoSize |
+            Out-String | Write-Host
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          & $vswhere -all -products * -format text -nologo |
+            Select-String '^(displayName|installationPath|installationVersion):' |
+            ForEach-Object { Write-Host $_.Line }
+          Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "Windows SDK: $($_.Name)" }
+          foreach ($tool in 'git', 'perl', 'python', 'bash', 'cygpath', 'choco') {
+            foreach ($c in @(Get-Command $tool -All -CommandType Application -ErrorAction SilentlyContinue)) {
+              Write-Host ('{0,-8} {1}' -f $tool, $c.Source)
+            }
+          }
+          git --version
+          perl -v | Select-Object -Skip 1 -First 1
+          python --version
+
+      - name: Install MSVC v141 toolset into Visual Studio 2022
+        id: vs
+        timeout-minutes: 45
+        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
+
+      - name: Install Python 2.7
+        timeout-minutes: 15
+        run: |
+          $python = 'C:\Python27\python.exe'
+          for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
+            choco install python2 -y --no-progress
+            Write-Host "choco exited with code $LASTEXITCODE (attempt $attempt)"
+          }
+          if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
+          $version = & $python -c "import sys; sys.stdout.write('%d.%d.%d' % sys.version_info[:3])"
+          if ($LASTEXITCODE -ne 0 -or -not "$version".StartsWith('2.7')) {
+            throw "$python reports version '$version', expected 2.7"
+          }
+          Write-Host "Python $version at $python"
+
+      - name: Install Cygwin
+        timeout-minutes: 20
+        uses: cygwin/cygwin-install-action@v6
+        with:
+          platform: x86_64
+          install-dir: C:\cygwin64
+          # util/invoke-unix.bat finds it through CYGPATH; on PATH its tools
+          # would shadow Git's and Strawberry Perl's
+          add-to-path: 'false'
+          packages: flex bison m4 gawk sed grep curl tar bzip2
+
+      # Restore and save are separate steps so that the downloaded archives
+      # are cached as soon as they have been fetched and verified, even when
+      # a later step (usually the build) fails. The plain actions/cache would
+      # only save them at the end of a successful job.
+      - name: Restore cached prebuilt libraries
+        id: prebuilt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: prebuilt/fetched
+          key: prebuilt-win32-x86_64-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/*', 'prebuilt/SHA256SUMS') }}
+
+      # A login shell puts Cygwin's /usr/bin first on PATH and starts in the
+      # home folder, hence the cd. "set -e" comes after the profile scripts.
+      - name: Fetch prebuilt libraries
+        timeout-minutes: 30
+        shell: C:\cygwin64\bin\bash.exe --login -o igncr '{0}'
+        run: |
+          set -eo pipefail
+          cd "$(cygpath -u "$GITHUB_WORKSPACE")/prebuilt"
+          ./fetch-libraries.sh win32 x86_64
+          ls -l fetched
+          ls unpacked
+
+      - name: Save prebuilt libraries to the cache
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: prebuilt/fetched
+          key: ${{ steps.prebuilt-cache.outputs.cache-primary-key }}
+
+      - name: Configure (config.py and gyp)
+        timeout-minutes: 20
+        run: ./tools/ci/build-windows.ps1 -Stage configure
+
+      - name: Build (make.cmd)
+        timeout-minutes: 240
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: ./tools/ci/build-windows.ps1 -Stage build
+
+      - name: Verify build output
+        id: verify
+        run: ./tools/ci/verify-build.ps1
+
+      - name: Package
+        id: package
+        run: ./tools/ci/package-windows.ps1
+
+      - name: Upload packages
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: OpenXTalkLite-win-x86_64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+          # The files are zips already
+          compression-level: 0
+
+      - name: Collect logs
+        if: always()
+        continue-on-error: true
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'build-logs'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $logs = @(
+            'build-win-x86_64\msbuild.log',
+            'C:\ProgramData\chocolatey\logs\chocolatey.log',
+            'C:\cygwin64\var\log\setup.log.full'
+          )
+          foreach ($log in $logs) {
+            if (Test-Path -LiteralPath $log) { Copy-Item -LiteralPath $log -Destination $dest -Force }
+          }
+          Get-ChildItem -LiteralPath $dest -Recurse -File | ForEach-Object {
+            Write-Host ('{0,12:N0}  {1}' -f $_.Length, $_.FullName.Substring($dest.Length + 1))
+          }
+          Get-PSDrive -PSProvider FileSystem | Where-Object { $null -ne $_.Used } | ForEach-Object {
+            Write-Host ('Drive {0}: {1:N1} GB free' -f $_.Name, ($_.Free / 1GB))
+          }
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs
+          path: ${{ runner.temp }}/build-logs
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Write job summary
+        if: always()
+        env:
+          MSVC_V141: ${{ steps.vs.outputs.msvc-v141-version }}
+          VS_PATH: ${{ steps.vs.outputs.install-path }}
+          VERSION: ${{ steps.verify.outputs.version }}
+          SQLITE_VERSION: ${{ steps.verify.outputs.sqlite-version }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          $lines = @(
+            '### Toolchain',
+            '',
+            "- Commit: ``$env:GITHUB_SHA``",
+            "- Visual Studio: ``$env:VS_PATH``, MSVC v141 ``$env:MSVC_V141``, Windows SDK ``$env:WINSDK_VERSION``",
+            "- OpenXTalk Lite version: ``$env:VERSION``, SQLite ``$env:SQLITE_VERSION``",
+            '',
+            '### Artifacts',
+            ''
+          )
+          if ($env:ARTIFACT_URL) {
+            $lines += "- [OpenXTalkLite-win-x86_64]($env:ARTIFACT_URL): the IDE, binaries and symbols zips and SHA256SUMS"
+          }
+          else {
+            $lines += '- OpenXTalkLite-win-x86_64: not uploaded (an earlier step failed)'
+          }
+          $lines += '- build-logs: msbuild.log and installer logs'
+          $lines += ''
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OpenXTalkLite-win-x86_64
+          path: dist
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          ls -l dist
+          (cd dist && sha256sum -c SHA256SUMS)
+
+          if [ "v${VERSION}" != "${TAG}" ]; then
+            echo "::warning::Tag ${TAG} does not match the version file (BUILD_SHORT_VERSION ${VERSION}); the files are named after ${VERSION}."
+          fi
+
+          prerelease=()
+          case "${TAG,,}" in
+            *-alpha*|*-beta*|*-rc*|*-dp*|*-pre*) prerelease=(--prerelease) ;;
+          esac
+
+          cat > notes.md <<EOF
+          Windows x86-64 build of OpenXTalk Lite ${VERSION}, made by the "Build (Windows)" workflow from commit ${GITHUB_SHA}.
+
+          - \`OpenXTalkLite-${VERSION}-win-x86_64-ide.zip\`: the IDE, ready to run. Extract it and run \`win-x86_64-bin\\LiveCode-Community.exe\`; see README-FIRST.txt inside.
+          - \`OpenXTalkLite-${VERSION}-win-x86_64-binaries.zip\`: the engine, externals and tools (\`win-x86_64-bin\`) without debug symbols, plus the licence files.
+          - \`OpenXTalkLite-${VERSION}-win-x86_64-symbols.zip\`: debug symbols (\`*.pdb\`).
+          - \`SHA256SUMS\`: SHA-256 checksums of the zips.
+
+          The program files and the IDE still use the LiveCode name; renaming has not been done yet. The executables are not code-signed.
+          EOF
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} exists; replacing its files"
+            gh release upload "${TAG}" dist/* --clobber
+          else
+            gh release create "${TAG}" dist/* \
+              --verify-tag \
+              --title "OpenXTalk Lite ${TAG#v}" \
+              --notes-file notes.md \
+              --generate-notes \
+              "${prerelease[@]}"
+          fi
