@@ -1,5 +1,11 @@
 # Release Branching Policy
 
+> **Note:** This page describes upstream LiveCode's branch and release
+> process and is not maintained for OpenXTalk Lite (Windows x86_64 only).
+> This project uses `main` plus feature branches; see
+> [CONTRIBUTING.md](../../CONTRIBUTING.md) and
+> [BUILDING.md](../../BUILDING.md#10-making-a-release).
+
 The term *develop* applies to any develop branch - be it *develop-6.7*, *develop-7.0*, *develop* or any other development branch that might appear in the future.
 
 ## DP state

@@ -50,7 +50,7 @@ usage(int status)
 "  -h, --help                 Print this message.\n"
 "  --                         Treat all remaining arguments as filenames.\n"
 "\n"
-"Report bugs to <http://quality.livecode.com/>\n"
+"Report bugs to <https://github.com/SethMorrowSoftware/winoxt/issues>\n"
             );
     exit (status);
 }

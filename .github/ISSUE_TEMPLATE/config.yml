@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: OpenXTalk forums
+    url: https://openxtalk.org/forum/
+    about: Questions and general discussion about xTalk programming and the OpenXTalk projects.
+  - name: Security problems
+    url: https://github.com/SethMorrowSoftware/winoxt/security/policy
+    about: Please report security problems privately, as described in the security policy, not in a public issue.

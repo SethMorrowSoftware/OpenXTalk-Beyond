@@ -1,98 +1,172 @@
-# Contributing to LiveCode
+# Contributing to OpenXTalk Lite for Windows
 
-![LiveCode Community Logo](http://livecode.com/wp-content/uploads/2015/02/livecode-logo.png)
+Thank you for helping. Bug reports, fixes, documentation, testing on
+different Windows setups and work on the plans listed in the
+[README](README.md#known-limitations-and-plans) are all welcome.
 
-Copyright © 2003-2016 LiveCode Ltd., Edinburgh, UK
+This project is small and run by volunteers. Please be patient with
+reviews, and be kind to each other.
 
-See also the [documentation contributions guide](docs/contributing_to_docs.md).
+## Licence of contributions
 
-## Contributors' forums
+There is **no contributor licence agreement** (CLA). LiveCode Ltd needed
+one because it also sold LiveCode under a commercial licence; this
+project does not.
 
-General discussion about contributing to the LiveCode Community open-source projects takes place on the [LiveCode Open Source forums](http://forums.livecode.com/viewforum.php?f=65), and in particular the [Engine Contributors forum](http://forums.livecode.com/viewforum.php?f=66).
+By opening a pull request you agree that your contribution is licensed
+under the GNU General Public License version 3 ([LICENSE](LICENSE)) with
+the same additional permission to combine the code with OpenSSL and
+Microsoft ATL that LiveCode Ltd granted
+([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). Only contribute work you
+have the right to contribute.
 
-## Contributor's License Agreement (CLA)
+### Sign your commits (recommended)
 
-If you wish to contribute to development of LiveCode, you must sign the [Contributor's Agreement](http://livecode.com/account/developer/contribute).  This agreement is required because the LiveCode project is dual-licensed both under the GPLv3 and a commercial (closed-source) license; you need to give LiveCode Ltd. permission to use your submissions in this way.
+We recommend adding a `Signed-off-by` line to each commit to certify the
+[Developer Certificate of Origin](https://developercertificate.org/)
+(DCO): that you wrote the change, or otherwise have the right to submit
+it under the project's licence. Git adds the line for you:
 
-**Note:** LiveCode cannot accept any pull-requests from individuals who have not signed this agreement.
+```bat
+git commit -s
+```
 
-## Using GitHub
+The line uses the name and e-mail address in your Git configuration:
 
-The LiveCode workflow is a typical git workflow, where contributors fork the [livecode/livecode](https://github.com/livecode/livecode) repository, make their changes on a branch, and then submit a pull request.
+```bat
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
 
-### Setting up git with your user information
+## Before you start
 
-Please ensure that your full name and e-mail address are in the git configuration.  Ideally, the e-mail address you use with git should be the same as the e-mail address you used to sign the CLA (i.e. the one used for your LiveCode customer account).
+- For anything bigger than a small fix, open an
+  [issue](https://github.com/SethMorrowSoftware/winoxt/issues) first to
+  talk about the idea. It saves work on both sides.
+- Read [BUILDING.md](BUILDING.md) and get a local build working. Changes
+  to the engine, externals or build files need to be built and tried
+  before review.
+- Only Windows x86_64 is built by this project. Code for other
+  platforms is still in the tree; try not to break it, but CI does not
+  build it.
 
-You can set up the name and e-mail address from the command line:
+## Branches and pull requests
 
-    git config --global user.name "<your name>"
-    git config --global user.email "<your email address>"
+- `main` is the only long-lived branch. Releases are tags on `main`
+  (see [BUILDING.md](BUILDING.md#10-making-a-release)).
+- Work on a feature branch in your fork (or, for maintainers, in this
+  repository) with a short descriptive name, for example
+  `fix-dark-mode-menus` or `docs-building`.
+- Open a pull request against `main` and fill in the template.
+- The "Build (Windows)" check must pass before a pull request is merged.
+  If it fails, the `build-logs` artifact of the run has `msbuild.log`.
+- Keep each pull request to one change, or a few closely related ones.
+  Update it by pushing more commits; a maintainer may squash them when
+  merging.
 
-**Note**: Pull requests which add commits containing incorrect author name and e-mail addresses will be rejected.
+The upstream LiveCode branch model (`develop`, `develop-X.Y`,
+`release-X.Y`, described in `docs/development/release_branching_policy.md`)
+does not apply here.
 
-### Branches in GitHub
+## Commit messages
 
-You should base your changes on an appropriate branch:
+```text
+Short summary of the change (about 72 characters at most)
 
-* The `develop` branch is where work on the next major, experimental release of LiveCode takes place.  It usually has all of the most exciting new features, but also a lot of bugs to go with them.  If you are adding a new feature to LiveCode, submit your changes to this branch.
+A longer explanation of what the change does and why, wrapped at about
+72 characters. Mention anything a reviewer would not guess from the
+diff: alternatives you tried, things you could not test, follow-up
+work.
 
-* The `develop-X.Y` branches work towards the next X.Y.Z release.  They are usually much more stable than the `develop` branch.  If you are fixing a bug in LiveCode, submit your changes to the "oldest" `develop-X.Y` branch that exhibits the bug.
+Fixes #123
 
-* The `release-X.Y` branches are used as part of the release process.  Unless you are helping to make a release, you should not normally work with these branches.
+Signed-off-by: Your Name <you@example.com>
+```
 
-### Creating a pull request
-
-When you submit a pull request, please make sure to follow the following steps:
-
-1. Ensure that all the commits have good log messages, in the following format:
-
-  ```
-  Summary line of less than 80 characters
-
-  Explanation of what the commit fixes and why it's the right
-  fix, possibly using multiple paragraphs.  For example, you
-  might want to describe other options and why the one you
-  chose is better.
-  ```
-
-  It's very important that readers can get a good idea of what the commit is about just by reading the summary line.  To help with this, we use some special "tags" at the start of a commit message summary line:
-
-  * If the commit fixes a bug, please add `[[Bug <bug number>]]` at the start.
-
-  * If the commit relates to a particular new feature — and there are several commits and pull requests involved in the feature — please add `[<feature-name>]` at the start.
-
-  * If the commit fixes a [Coverity Scan defect](https://scan.coverity.com/projects/4036), please add `[CID <defect number>]` at the start.
-
-2. Make sure that the pull request only relates to *one* change (one bug fix, one new feature, etc.) or to a group of very closely-related fixes.  Please make sure that the pull request has a good description too (often you can base the title and body of the pull request on the commit messages).
-
-  Please highlight any areas of your changes that you thought were particularly difficult to figure out.  This will help make sure that your code gets thoroughly reviewed.
-
-### Pull request process
-
-After you submit a pull request, a member of the LiveCode team will review your changes.  They will probably find some improvements that need to be made.  Please note that if a reviewer asks you to change your code, it doesn't necessarily mean that there was anything wrong with the changes you've made.  It often means that they have spotted a way to fix other things at the same time, or to make your change fit in better with other things that are being worked on elsewhere.
-
-Once a reviewer is happy with the changes, they will mark the pull request as reviewed.  The LiveCode continuous integration system will then take your code, and automatically build & test it on all of the platforms supported by LiveCode.
-
-If the tests don't pass, then you will need to make some more changes to fix the problems that were found.  These will then be reviewed, etc.
-
-Once your changes have been reviewed and tested, they will be merged in time for the next release.
-
-## Bugs
-
-Finding and fixing bugs in LiveCode is a particularly valuable contribution.
-
-If you've found a bug, please add a ticket to the [LiveCode issue tracking system](http://quality.livecode.com/).  This will give you a bug number which can be used whenever discussing the issue, and included in git commit log messages and in GitHub pull request descriptions.  This will help other contributors keep track of who's working on what.
-
-When you submit a pull request that fixes a bug, the status of the bug should be set to "AWAITING_MERGE" -- please also add a comment to the bug with a link to the pull request's page.
-
-When the pull request is merged, the status should be set to "AWAITING_BUILD".
+- Write the summary in the imperative ("Fix crash when ...", not "Fixed"
+  or "Fixes").
+- Refer to GitHub issues as `#N`. Writing `Fixes #N` in the commit message
+  or pull request description closes the issue when the change is merged.
+- Old commits use tags such as `[[ Bug 12345 ]]`, which refer to LiveCode
+  Ltd's bug tracker (quality.livecode.com). Do not use them for new work.
 
 ## Coding style
 
-See the separate documentation for:
+Follow the style of the file you are editing (including tabs or spaces
+and line endings). For new code, the upstream guides still apply:
 
-- [C++ coding style](docs/development/C++-style.md) and
-  [use of C++ language features](docs/development/C++-features.md)
+- C++: [C++ coding style](docs/development/C++-style.md) and
+  [use of C++ language features](docs/development/C++-features.md). The
+  engine is built with the Visual Studio 2017 (v141) compiler, so do not
+  use language features it does not support.
+- LiveCode Builder:
+  [LiveCode Builder Style Guide](docs/guides/LiveCode%20Builder%20Style%20Guide.md).
+- Documentation: [docs/contributing_to_docs.md](docs/contributing_to_docs.md)
+  describes the dictionary and guide formats. Its parts about LiveCode's
+  CLA, build servers and bug tracker do not apply here.
+- Batch and command files (`*.bat`, `*.cmd`) are checked out with
+  Windows (CRLF) line endings; keep them that way. Shell scripts
+  (`*.sh`, `*.inc`) must use Unix (LF) line endings.
 
-- [LiveCode Builder coding style](docs/guides/LiveCode%20Builder%20Style%20Guide.md)
+Please do not reformat code you are not otherwise changing; it makes
+the real change hard to review.
+
+## What not to commit
+
+Build output and downloaded files: `build-win-x86_64/`,
+`win-x86_64-bin/`, `prebuilt/fetched/`, `prebuilt/unpacked/`, `dist/`,
+and the files the IDE generates in `ide/` (such as the dictionary data
+and `environment_log.txt`). Most are already ignored by Git. Never
+commit hand-edited files from `build-win-x86_64`; change the `*.gyp` or
+`*.gypi` files and run `config.py` again.
+
+`debug_syms_inputs.txt` in the repository root is different: configuring
+rewrites it, but it is tracked by Git (it came with Tom Perry's
+changes). If it shows up as modified, restore it with
+`git checkout -- debug_syms_inputs.txt` rather than committing the
+change with unrelated work.
+
+## Third-party code
+
+`thirdparty/` holds the sources of the third-party libraries. On
+Windows, most of them are **not** compiled from `thirdparty/` by the
+normal build: the engine links the static libraries in the "Thirdparty"
+prebuilt archive, so changing a source file there usually has no effect
+on the Windows programs until the prebuilt archive is rebuilt. SQLite is
+the exception (it is compiled from `thirdparty/libsqlite`). See
+[thirdparty/README.md](thirdparty/README.md) and the "Prebuilt libraries"
+section of [BUILDING.md](BUILDING.md#6-prebuilt-libraries).
+
+When you add or update third-party code, update
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and keep the library's
+licence file in the tree.
+
+## Testing
+
+Say in your pull request how you tested the change. At least:
+
+- build Release x64 with `make.cmd` (BUILDING.md, section 5);
+- run the IDE from your clone (`win-x86_64-bin\LiveCode-Community.exe`)
+  and try the part you changed;
+- run `tools\ci\verify-build.ps1` if you changed the build.
+
+The C++ unit tests (`cmd /c ..\make.cmd check`) and the upstream LiveCode
+script test suites in `tests/` have not been set up for this fork yet;
+help with that is welcome.
+
+## Release notes
+
+Releases use GitHub's generated release notes, which list the merged
+pull requests. Give your pull request a title that makes sense in that
+list, and describe any change users will notice in its description. The
+fragments in `docs/notes/` are upstream LiveCode release notes; do not
+add new ones there.
+
+## Reporting bugs
+
+Use the [issue forms](https://github.com/SethMorrowSoftware/winoxt/issues/new/choose)
+for bugs, build problems and feature requests. Report security problems
+privately as described in [SECURITY.md](SECURITY.md). For general
+questions about xTalk programming, the
+[OpenXTalk forums](https://openxtalk.org/forum/) are a good place to
+ask.
