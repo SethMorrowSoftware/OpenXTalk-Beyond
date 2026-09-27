@@ -72,7 +72,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           persist-credentials: false
@@ -128,7 +128,7 @@ jobs:
 
       - name: Install Cygwin
         timeout-minutes: 20
-        uses: cygwin/cygwin-install-action@v6
+        uses: cygwin/cygwin-install-action@v4
         with:
           platform: x86_64
           install-dir: C:\cygwin64
@@ -143,7 +143,7 @@ jobs:
       # only save them at the end of a successful job.
       - name: Restore cached prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v4
         with:
           path: prebuilt/fetched
           key: prebuilt-win32-x86_64-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/*', 'prebuilt/SHA256SUMS') }}
@@ -163,7 +163,7 @@ jobs:
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v4
         with:
           path: prebuilt/fetched
           key: ${{ steps.prebuilt-cache.outputs.cache-primary-key }}
@@ -188,7 +188,7 @@ jobs:
 
       - name: Upload packages
         id: upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: OpenXTalkLite-win-x86_64
           path: dist/*
@@ -220,7 +220,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: ${{ runner.temp }}/build-logs
@@ -266,7 +266,7 @@ jobs:
       contents: write
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: OpenXTalkLite-win-x86_64
           path: dist
