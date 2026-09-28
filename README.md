@@ -34,10 +34,15 @@ you download anything.
 - **No release yet.** No release has been published. The first releases
   will be a zip file with an IDE you can run without installing; the
   Windows installer is not built yet.
-- **CI artifacts are mechanically verified, not runtime-tested.** The workflow
-  checks that required programs and libraries exist, are genuine x86-64 PE
-  images, and contain the expected project and SQLite versions. A successful
-  artifact should still be started and exercised on Windows before release.
+- **Tested automatically, but only lightly.** Every CI build checks that
+  the programs and libraries exist, are genuine x86-64 PE images and
+  contain the expected project and SQLite versions, and then runs a
+  headless smoke test of the engine in the packaged IDE zip: the script
+  engine, Unicode (ICU), encryption (OpenSSL), SQLite 3.51.1 through
+  revDB, revXML and revZip (see [BUILDING.md](BUILDING.md#smoke-test)).
+  The IDE's windows are not tested automatically. A CI-built IDE zip was
+  started by hand on Windows 11 and opened normally, in dark mode, and
+  built its dictionary, but it has not had wider use yet.
 - **Still branded LiveCode.** The programs are still called
   `LiveCode-Community.exe` and so on, and the IDE still shows LiveCode
   names and logos. Rebranding is planned.
@@ -97,9 +102,11 @@ Do not rename, move or split up the folders inside
 `ide`. The program finds the IDE by looking for a folder called
 `win-x86_64-bin` in its own path and loading the `ide` folder next to it.
 
-Preferences are kept in the same place as LiveCode's
-(`%APPDATA%\RunRev`), so an installed copy of LiveCode Community on the
-same computer shares them.
+Preferences are kept in the same place and file as LiveCode's
+(`%APPDATA%\RunRev\Preferences\livecode7.rev`), and the IDE rewrites that
+file when it starts. An installed copy of LiveCode Community or of an
+earlier OpenXTalk Lite release on the same computer therefore shares
+these settings with it.
 
 ## What is different from LiveCode Community
 

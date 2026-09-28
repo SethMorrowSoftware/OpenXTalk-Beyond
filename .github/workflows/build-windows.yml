@@ -8,7 +8,8 @@
 #   SHA256SUMS
 #
 # <ver> is BUILD_SHORT_VERSION from the "version" file. A run that builds,
-# verifies and packages successfully uploads these as the workflow artifact
+# verifies, packages and passes the headless smoke test of the packaged
+# engine (tools/ci/smoke-test.ps1) uploads these as the workflow artifact
 # "OpenXTalkLite-win-x86_64". Every run, including a failed one, uploads the
 # build logs as "build-logs".
 #
@@ -192,6 +193,16 @@ jobs:
         id: package
         run: ./tools/ci/package-windows.ps1
 
+      # Extract the IDE zip and run its engine without a user interface: the
+      # script engine, ICU, OpenSSL, SQLite (revDB), revXML and revZip.
+      - name: Smoke test (packaged engine, headless)
+        id: smoke
+        timeout-minutes: 10
+        run: |
+          $package = @(Get-ChildItem -Path dist -Filter '*-win-x86_64-ide.zip')
+          if ($package.Count -ne 1) { throw "Expected one IDE zip in dist, found $($package.Count)" }
+          ./tools/ci/smoke-test.ps1 -Package $package[0].FullName -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test.log"
+
       - name: Upload packages
         id: upload
         uses: actions/upload-artifact@v4
@@ -237,6 +248,7 @@ jobs:
           COMPILE_OUTCOME: ${{ steps.compile.outcome }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
         run: |
           $outcomes = [ordered]@{
             'Visual Studio setup' = $env:VS_OUTCOME
@@ -247,6 +259,7 @@ jobs:
             'Compile' = $env:COMPILE_OUTCOME
             'Verify' = $env:VERIFY_OUTCOME
             'Package' = $env:PACKAGE_OUTCOME
+            'Smoke test' = $env:SMOKE_OUTCOME
           }
           Write-Host 'Step outcomes:'
           $summary = @('### Failure diagnostics', '', '| Step | Outcome |', '| --- | --- |')
@@ -309,7 +322,7 @@ jobs:
           else {
             $lines += '- OpenXTalkLite-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs: msbuild.log and installer logs'
+          $lines += '- build-logs: msbuild.log, the smoke test output and installer logs'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
 

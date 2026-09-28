@@ -463,6 +463,27 @@ findstr /M /C:"2025-11-28 17:28:25" win-x86_64-bin\dbsqlite.dll
 
 Each command prints the file name if the text is found.
 
+### Smoke test
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools\ci\smoke-test.ps1
+```
+
+[`tools/ci/smoke-test.ps1`](tools/ci/smoke-test.ps1) starts
+`win-x86_64-bin\LiveCode-Community.exe` without a user interface (`-ui`)
+and runs [`tools/ci/smoke-test.livecodescript`](tools/ci/smoke-test.livecodescript).
+It checks the script engine, Unicode handling (ICU), encryption (OpenSSL,
+through `revsecurity.dll`), SQLite through revDB (the version must match
+`thirdparty/libsqlite/include/sqlite3.h`; FTS5 and JSON must work and
+R*Tree must be compiled in), revXML and revZip. It prints one line per
+check and exits with the number of failed checks.
+
+To test a package instead of the build folder, add
+`-Package dist\OpenXTalkLite-<ver>-win-x86_64-ide.zip`: the zip is
+extracted to a temporary folder and its engine is tested. The smoke test
+does not open the IDE's windows; to check those, start
+`LiveCode-Community.exe` normally.
+
 ### Package
 
 ```bat
@@ -587,20 +608,22 @@ Python 2.7 and Cygwin, fetches only the release prebuilt archives
 (`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`, with
 `PREBUILT_STRICT=1`, and cached between runs), configures and builds
 Release x64 with `tools/ci/build-windows.ps1` and Windows SDK
-10.0.17763.0, checks the result with `tools/ci/verify-build.ps1` and
-packages it with `tools/ci/package-windows.ps1`. It uploads two
-artifacts:
+10.0.17763.0, checks the result with `tools/ci/verify-build.ps1`,
+packages it with `tools/ci/package-windows.ps1` and runs the
+[smoke test](#smoke-test) on the engine inside the packaged IDE zip. It
+uploads two artifacts:
 
-- `OpenXTalkLite-win-x86_64`: when the build succeeds, the contents of `dist\`, kept for 30 days;
-- `build-logs`: `msbuild.log` and the installer logs, kept for 14 days
-  and uploaded even when the build fails.
+- `OpenXTalkLite-win-x86_64`: when the build, the checks and the smoke
+  test succeed, the contents of `dist\`, kept for 30 days;
+- `build-logs`: `msbuild.log`, the smoke test output and the installer
+  logs, kept for 14 days and uploaded even when the build fails.
 
 Downloading artifacts requires a GitHub account. Public downloads are
 Releases.
 
-At the time of writing the workflow has not completed a run yet; see the
+The badge at the top of the [README](README.md) and the
 [Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
-for its current state.
+show the state of the latest runs.
 
 ## 10. Making a release
 
