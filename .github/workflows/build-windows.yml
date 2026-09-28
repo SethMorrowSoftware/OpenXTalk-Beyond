@@ -18,7 +18,7 @@
 # (in any case); other tags, such as v9.7.1-OXT, give a normal release.
 #
 # The toolchain matches BUILDING.md: Visual Studio 2022 with the MSVC v141
-# toolset added at run time, Windows SDK 10.0.22621.0, Python 2.7 in
+# toolset added at run time, Windows SDK 10.0.17763.0, Python 2.7 in
 # C:\Python27, Strawberry Perl (preinstalled on the image) and Cygwin in
 # C:\cygwin64 (kept off PATH). The scripts it calls are in tools/ci.
 #
@@ -56,11 +56,11 @@ jobs:
       # Read by make.cmd
       BUILDTYPE: Release
       BUILD_PLATFORM: win-x86_64
-      # The only earlier known-good build (Tom Perry's) used the Windows 8.1
-      # SDK headers; this code has not been compiled against 10.0.22621 before.
-      # If SDK header errors appear, see "Compile errors in Windows SDK
-      # headers" in BUILDING.md section 8.
-      WINSDK_VERSION: 10.0.22621.0
+      # Keep the v141 compiler on an SDK from the same supported toolchain era.
+      # SDK 10.0.22621 fails while parsing winnt.h in kernel-installer; the
+      # generated GYP projects originally targeted 10.0.14393.0.
+      WINSDK_VERSION: 10.0.17763.0
+      WINSDK_COMPONENT: Microsoft.VisualStudio.Component.Windows10SDK.17763
       # Read by util/invoke-unix.bat, which runs the Cygwin bash, flex and bison
       CYGPATH: C:\cygwin64
       # Read by prebuilt/fetch-libraries.sh: only the Release libraries are
@@ -72,7 +72,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           persist-credentials: false
@@ -105,15 +105,21 @@ jobs:
       - name: Install MSVC v141 toolset into Visual Studio 2022
         id: vs
         timeout-minutes: 45
-        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
+        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -WindowsSdkComponent $env:WINSDK_COMPONENT -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
 
       - name: Install Python 2.7
+        id: python
         timeout-minutes: 15
         run: |
           $python = 'C:\Python27\python.exe'
           for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
+            # python2 has no releases after 2.7.18. Do not request a specific
+            # Chocolatey package revision: older mirrors can expose the final
+            # Python release under a different package revision.
             choco install python2 -y --no-progress
-            Write-Host "choco exited with code $LASTEXITCODE (attempt $attempt)"
+            $code = $LASTEXITCODE
+            Write-Host "choco exited with code $code (attempt $attempt)"
+            if ($code -ne 0 -and $attempt -lt 2) { Start-Sleep -Seconds 10 }
           }
           if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
           $version = & $python -c "import sys; sys.stdout.write('%d.%d.%d' % sys.version_info[:3])"
@@ -123,6 +129,7 @@ jobs:
           Write-Host "Python $version at $python"
 
       - name: Install Cygwin
+        id: cygwin
         timeout-minutes: 20
         uses: cygwin/cygwin-install-action@v6
         with:
@@ -139,7 +146,7 @@ jobs:
       # only save them at the end of a successful job.
       - name: Restore cached prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v4
         with:
           path: prebuilt/fetched
           key: prebuilt-win32-x86_64-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/*', 'prebuilt/SHA256SUMS') }}
@@ -147,6 +154,7 @@ jobs:
       # A login shell puts Cygwin's /usr/bin first on PATH and starts in the
       # home folder, hence the cd. "set -e" comes after the profile scripts.
       - name: Fetch prebuilt libraries
+        id: prebuilt
         timeout-minutes: 30
         shell: C:\cygwin64\bin\bash.exe --login -o igncr '{0}'
         run: |
@@ -159,16 +167,18 @@ jobs:
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v4
         with:
           path: prebuilt/fetched
           key: ${{ steps.prebuilt-cache.outputs.cache-primary-key }}
 
       - name: Configure (config.py and gyp)
+        id: configure
         timeout-minutes: 20
         run: ./tools/ci/build-windows.ps1 -Stage configure
 
       - name: Build (make.cmd)
+        id: compile
         timeout-minutes: 240
         env:
           VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
@@ -184,7 +194,7 @@ jobs:
 
       - name: Upload packages
         id: upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: OpenXTalkLite-win-x86_64
           path: dist/*
@@ -194,6 +204,7 @@ jobs:
           compression-level: 0
 
       - name: Collect logs
+        id: collect_logs
         if: always()
         continue-on-error: true
         run: |
@@ -214,9 +225,59 @@ jobs:
             Write-Host ('Drive {0}: {1:N1} GB free' -f $_.Name, ($_.Free / 1GB))
           }
 
+      - name: Report failure diagnostics
+        if: failure()
+        continue-on-error: true
+        env:
+          VS_OUTCOME: ${{ steps.vs.outcome }}
+          PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          CYGWIN_OUTCOME: ${{ steps.cygwin.outcome }}
+          PREBUILT_OUTCOME: ${{ steps.prebuilt.outcome }}
+          CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
+          COMPILE_OUTCOME: ${{ steps.compile.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+        run: |
+          $outcomes = [ordered]@{
+            'Visual Studio setup' = $env:VS_OUTCOME
+            'Python setup' = $env:PYTHON_OUTCOME
+            'Cygwin setup' = $env:CYGWIN_OUTCOME
+            'Prebuilt libraries' = $env:PREBUILT_OUTCOME
+            'Configure' = $env:CONFIGURE_OUTCOME
+            'Compile' = $env:COMPILE_OUTCOME
+            'Verify' = $env:VERIFY_OUTCOME
+            'Package' = $env:PACKAGE_OUTCOME
+          }
+          Write-Host 'Step outcomes:'
+          $summary = @('### Failure diagnostics', '', '| Step | Outcome |', '| --- | --- |')
+          foreach ($item in $outcomes.GetEnumerator()) {
+            Write-Host ('  {0,-22} {1}' -f $item.Key, $item.Value)
+            $summary += "| $($item.Key) | $($item.Value) |"
+          }
+
+          $msbuildLog = 'build-win-x86_64\msbuild.log'
+          if (Test-Path -LiteralPath $msbuildLog) {
+            # Put a bounded error extract in both the live log and job summary.
+            # The complete file remains available in the build-logs artifact.
+            $errors = @(Select-String -LiteralPath $msbuildLog -Pattern '(^|[ :(])error (C|LNK|MSB)[0-9]+|fatal error' |
+              Select-Object -First 50 | ForEach-Object { $_.Line.Trim() })
+            if ($errors.Count -eq 0) {
+              $errors = @(Get-Content -LiteralPath $msbuildLog -Tail 80)
+            }
+            Write-Host 'Relevant msbuild.log lines:'
+            $errors | ForEach-Object { Write-Host $_ }
+            $summary += @('', '#### Relevant `msbuild.log` lines', '', '```text')
+            $summary += $errors
+            $summary += '```'
+          }
+          else {
+            $summary += @('', '`msbuild.log` was not created; the failure occurred before compilation.')
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($summary -join "`n") -Encoding utf8
+
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: ${{ runner.temp }}/build-logs
@@ -262,7 +323,7 @@ jobs:
       contents: write
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: OpenXTalkLite-win-x86_64
           path: dist

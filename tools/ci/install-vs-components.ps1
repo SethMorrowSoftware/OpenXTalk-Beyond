@@ -22,7 +22,7 @@
         install-path         Visual Studio folder, with a trailing backslash
                              (the form make.cmd expects in VSINSTALLDIR)
         msvc-v141-version    for example 14.16.27023
-        windows-sdk-version  for example 10.0.22621.0
+        windows-sdk-version  for example 10.0.17763.0
 
 .PARAMETER InstallPath
     Visual Studio installation to modify. Default: the newest Visual Studio
@@ -59,8 +59,8 @@ param(
         'Microsoft.VisualStudio.Component.VC.v141.ATL',
         'Microsoft.VisualStudio.Component.VC.v141.MFC'
     ),
-    [string]$WindowsSdkVersion = '10.0.22621.0',
-    [string]$WindowsSdkComponent = 'Microsoft.VisualStudio.Component.Windows11SDK.22621',
+    [string]$WindowsSdkVersion = '10.0.17763.0',
+    [string]$WindowsSdkComponent = 'Microsoft.VisualStudio.Component.Windows10SDK.17763',
     [string]$VersionRange = '[17.0,18.0)',
     [ValidateRange(1, 5)]
     [int]$MaxAttempts = 2,

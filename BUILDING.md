@@ -84,11 +84,13 @@ it as an optional component. You need these components:
 | `Microsoft.VisualStudio.Component.VC.v141.x86.x64` | MSVC v141 (VS 2017) x64/x86 build tools, version 14.16 |
 | `Microsoft.VisualStudio.Component.VC.v141.ATL` | ATL for v141 (the engine and revBrowser use ATL) |
 | `Microsoft.VisualStudio.Component.VC.v141.MFC` | MFC for v141 (revBrowser's resource file includes `afxres.h`) |
-| `Microsoft.VisualStudio.Component.Windows11SDK.22621` | Windows SDK 10.0.22621.0 |
+| `Microsoft.VisualStudio.Component.Windows10SDK.17763` | Windows SDK 10.0.17763.0 |
 
 Another Windows 10 or 11 SDK can be used instead; see `WINSDK_VERSION`
 in [section 5](#5-build). (As noted above, no complete build with a
-Windows 10/11 SDK has been confirmed yet.)
+Windows 10/11 SDK has been confirmed yet.) SDK 10.0.17763.0 is selected
+because it supports the VS 2017-era v141 compiler and is much closer to
+the generated projects' original 10.0.14393.0 target than current SDKs.
 
 **New install of the Build Tools.** Download
 [`vs_BuildTools.exe`](https://aka.ms/vs/17/release/vs_BuildTools.exe)
@@ -101,7 +103,7 @@ vs_BuildTools.exe --passive --wait --norestart ^
   --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 ^
   --add Microsoft.VisualStudio.Component.VC.v141.ATL ^
   --add Microsoft.VisualStudio.Component.VC.v141.MFC ^
-  --add Microsoft.VisualStudio.Component.Windows11SDK.22621
+  --add Microsoft.VisualStudio.Component.Windows10SDK.17763
 ```
 
 **Existing Visual Studio 2022.** Add the components to it. Change
@@ -115,7 +117,7 @@ vs_BuildTools.exe --passive --wait --norestart ^
   --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 ^
   --add Microsoft.VisualStudio.Component.VC.v141.ATL ^
   --add Microsoft.VisualStudio.Component.VC.v141.MFC ^
-  --add Microsoft.VisualStudio.Component.Windows11SDK.22621 ^
+  --add Microsoft.VisualStudio.Component.Windows10SDK.17763 ^
   --passive --norestart
 ```
 
@@ -123,7 +125,7 @@ You can also tick the same items in the Visual Studio Installer under
 *Modify > Individual components*: "MSVC v143 - VS 2022 C++ x64/x86 build
 tools (Latest)", "MSVC v141 - VS 2017 C++ x64/x86 build tools (v14.16)",
 "C++ ATL for v141 build tools (x86 & x64)", "C++ MFC for v141 build
-tools (x86 & x64)" and "Windows 11 SDK (10.0.22621.0)". The CI build uses
+tools (x86 & x64)" and "Windows 10 SDK (10.0.17763.0)". The CI build uses
 [`tools/ci/install-vs-components.ps1`](tools/ci/install-vs-components.ps1),
 which you can also run from an elevated PowerShell prompt; add
 `-VerifyOnly` to check an installation without changing it.
@@ -299,14 +301,14 @@ for `error`.
 | `BUILDTYPE` | `Release` | `Release` or `Debug`. |
 | `BUILD_PLATFORM` | `win-x86_64` | Only `win-x86_64` works; no 32-bit prebuilt libraries are available (LiveCode's server no longer serves them, and the `prebuilts-v1` mirror has only x86_64). |
 | `VSINSTALLDIR` | found with `vswhere` | Visual Studio folder to use. Without it, `make.cmd` picks the newest installation that has the v141 toolset component, then a Visual Studio 2017 installation with the C++ build tools, then the newest installation of any version with the C++ build tools. |
-| `WINSDK_VERSION` | the SDK that `vcvarsall.bat` selected | Windows SDK version passed to MSBuild as `/p:WindowsTargetPlatformVersion`, for example `10.0.22621.0`. |
+| `WINSDK_VERSION` | the SDK that `vcvarsall.bat` selected | Windows SDK version passed to MSBuild as `/p:WindowsTargetPlatformVersion`, for example `10.0.17763.0`. |
 | `MSBUILD_EXTRA_ARGS` | empty | Extra arguments added to the end of the MSBuild command line, for example `/v:minimal`. |
 
 For example, a Debug build against a particular SDK:
 
 ```bat
 set BUILDTYPE=Debug
-set WINSDK_VERSION=10.0.22621.0
+set WINSDK_VERSION=10.0.17763.0
 cmd /c ..\make.cmd
 ```
 
@@ -510,12 +512,14 @@ at `except OSError, e:`. That is Python 3 running Python 2 code. Run
 **MSB8036: "The Windows SDK version 8.1 was not found"** (or another
 version). The projects do not name an SDK, so `make.cmd` passes one.
 Set `WINSDK_VERSION` to an installed SDK and build again, for example
-`set WINSDK_VERSION=10.0.22621.0`. The installed versions are the folder
+`set WINSDK_VERSION=10.0.17763.0`. The installed versions are the folder
 names in `C:\Program Files (x86)\Windows Kits\10\Include`.
 
 **Compile errors in Windows SDK headers.** The only earlier build of
 this code known to work (Tom Perry's) compiled against the Windows 8.1
-SDK, so a newer SDK may expose problems that have not been seen before.
+SDK. SDK 10.0.22621.0 fails with C2059/C2238 in `winnt.h` while compiling
+`kernel-installer` with v141, which is why CI selects 10.0.17763.0. A
+newer SDK may expose other problems that have not been seen before.
 As a fallback, install the Windows 8.1 SDK (the Visual Studio 2022
 installer does not offer it; Microsoft's
 [Windows SDK archive](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads-archive)
@@ -583,7 +587,7 @@ Python 2.7 and Cygwin, fetches only the release prebuilt archives
 (`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`, with
 `PREBUILT_STRICT=1`, and cached between runs), configures and builds
 Release x64 with `tools/ci/build-windows.ps1` and Windows SDK
-10.0.22621.0, checks the result with `tools/ci/verify-build.ps1` and
+10.0.17763.0, checks the result with `tools/ci/verify-build.ps1` and
 packages it with `tools/ci/package-windows.ps1`. It uploads two
 artifacts:
 
