@@ -419,7 +419,9 @@ Nothing of the members is kept in this repository.
   (OpenSSL's licence text) keep their commit.
 * `fetch` puts every pinned file into the cache
   (`<cache>/<repository>/<commit>/<path>`; `--cache`, else
-  `OXT_XTALK_CACHE`, else `prebuilt/fetched-assets/xtalk`) and verifies
+  `OXT_XTALK_CACHE`, else the `xtalk` folder of the asset cache
+  (`OXT_ASSETS_CACHE`, default `prebuilt/fetched-assets/xtalk`), the
+  same folder `package.py` uses) and verifies
   size and SHA-256; a file that does not match is deleted. Downloads go
   through `fetch_assets.fetch` (HTTPS only, retries with backoff).
   `--platforms` limits the native libraries to some platform ids.

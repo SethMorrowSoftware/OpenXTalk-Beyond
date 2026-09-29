@@ -61,8 +61,9 @@ Subcommands
   list   print the members, their extensions and probes.
 
 The cache folder is --cache, else the environment variable OXT_XTALK_CACHE,
-else <repo>/prebuilt/fetched-assets/xtalk (ignored by git); a file lives at
-<cache>/<Repo>/<commit>/<path>. Downloads use tools/oxt/fetch_assets.py
+else the xtalk folder of the external-assets cache (OXT_ASSETS_CACHE, else
+<repo>/prebuilt/fetched-assets, ignored by git), the same folder that
+package.py uses; a file lives at <cache>/<Repo>/<commit>/<path>. Downloads use tools/oxt/fetch_assets.py
 (HTTPS only, retries with backoff, verified before they are moved into
 place).
 
@@ -108,7 +109,6 @@ import fetch_assets  # noqa: E402
 
 DEFAULT_MANIFEST = os.path.join(HERE, 'xtalk-extensions.json')
 CACHE_ENV = 'OXT_XTALK_CACHE'
-DEFAULT_CACHE_REL = os.path.join('prebuilt', 'fetched-assets', 'xtalk')
 RAW_URL = 'https://raw.githubusercontent.com/%s/%s/%s'
 API_COMMIT_URL = 'https://api.github.com/repos/%s/commits/%s'
 STAMP_NAME = 'XTALK-EXTENSIONS.txt'
@@ -841,19 +841,19 @@ def cmd_pin(args, log=print):
 # fetch
 
 def cache_dir(repo_root=None, override=None, assets_cache=None):
-    """--cache, else OXT_XTALK_CACHE, else <assets cache>/xtalk when an
-    external-assets cache folder is given, else
-    <repo>/prebuilt/fetched-assets/xtalk."""
+    """--cache, else OXT_XTALK_CACHE, else the xtalk folder of the
+    external-assets cache (assets_cache, else fetch_assets' own default:
+    OXT_ASSETS_CACHE, else <repo>/prebuilt/fetched-assets). The CLI and
+    package.py must agree, or 'fetch' online and then 'package.py
+    --offline' look in different folders when OXT_ASSETS_CACHE is set."""
     if override:
         return os.path.abspath(override)
     env = os.environ.get(CACHE_ENV)
     if env:
         return os.path.abspath(env)
-    if assets_cache:
-        return os.path.join(os.path.abspath(assets_cache), 'xtalk')
-    if repo_root is None:
-        repo_root = os.path.dirname(os.path.dirname(HERE))
-    return os.path.join(os.path.abspath(repo_root), DEFAULT_CACHE_REL)
+    if not assets_cache:
+        assets_cache = fetch_assets.cache_dir(repo_root)
+    return os.path.join(os.path.abspath(assets_cache), 'xtalk')
 
 
 def cache_file(cache, member, f):
@@ -1370,8 +1370,10 @@ def main(argv=None):
     p.set_defaults(func=cmd_pin)
 
     p = sub.add_parser('fetch', help='download and verify the pinned files')
-    p.add_argument('--cache', metavar='DIR', help='cache folder (default: $%s, else <repo>/%s)'
-                                                  % (CACHE_ENV, DEFAULT_CACHE_REL.replace(os.sep, '/')))
+    p.add_argument('--cache', metavar='DIR', help='cache folder (default: $%s, else <asset cache>/xtalk, the '
+                                                  'asset cache being $%s, else <repo>/%s)'
+                                                  % (CACHE_ENV, fetch_assets.CACHE_ENV,
+                                                     fetch_assets.DEFAULT_CACHE_REL.replace(os.sep, '/')))
     p.add_argument('--offline', action='store_true', help='use the cache only')
     p.add_argument('--platforms', action='append', metavar='LIST',
                    help='only the native libraries of these platform ids (comma-separated; default: all)')
