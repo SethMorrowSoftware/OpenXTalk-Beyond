@@ -43,10 +43,10 @@ MCStringRef MCcmdline;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Respring support — function pointers set by respring.cpp in development builds
-Boolean (*MCRespringIsPendingPtr)(void) = nil;
-Boolean (*MCRespringDoRespringPtr)(void) = nil;
-Boolean MCRespringInProgress = False;
+// Respring support — defined in dskmain.cpp, set by respring.cpp in development builds
+extern Boolean (*MCRespringIsPendingPtr)(void);
+extern Boolean (*MCRespringDoRespringPtr)(void);
+extern Boolean MCRespringInProgress;
 
 void X_main_loop(void)
 {

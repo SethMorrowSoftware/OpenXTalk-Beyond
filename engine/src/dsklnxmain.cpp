@@ -38,10 +38,28 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 extern "C" void initialise_required_weak_link_glib();
 
+extern Boolean (*MCRespringIsPendingPtr)(void);
+extern Boolean (*MCRespringDoRespringPtr)(void);
+extern Boolean MCRespringInProgress;
+
 void X_main_loop(void)
 {
-	while(!MCquit)
+	while (!MCquit || MCRespringInProgress)
+	{
+		// Same respring hook as dskw32main.cpp (development builds only)
+		if (MCRespringIsPendingPtr != nil && MCRespringIsPendingPtr())
+		{
+			MCRespringInProgress = True;
+			MCRespringDoRespringPtr();
+			MCRespringInProgress = False;
+			MCquit = False;
+			MCexitall = False;
+			continue;
+		}
+		if (MCquit)
+			break;
 		X_main_loop_iteration();
+	}
 }
 
 int platform_main(int argc, char *argv[], char *envp[])
