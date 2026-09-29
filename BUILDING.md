@@ -832,8 +832,16 @@ folder, next to the library. The engine loads extension libraries with
 `LOAD_WITH_ALTERED_SEARCH_PATH`, so Windows looks for their DLLs there
 first, and the standalone builder copies them into a standalone's
 `Externals` folder with the library. The build also checks that the
-copies export every function the library imports from them (an older
-redistributable than the one the library was built with fails).
+copies export every function the library imports from them. That
+catches a redistributable that lacks a function, not every older one.
+It warns when a copy's file version is older than the MSVC linker that
+built the library, because Microsoft supports only a runtime at least as
+new as the newest toolset used. That is the case now: `enetxt.dll` and
+`box2dxt.dll` are linked with MSVC 14.51, while Visual Studio 2022 (the
+CI image) ships runtime 14.44. Microsoft does not support that
+combination, although both libraries load and pass the smoke test with
+it. `XTALK-EXTENSIONS.txt` records each copy with its SHA-256 and file
+version, and the redistributable folder it came from.
 `package-windows.ps1` takes the folder from `-VcRedist`, else from
 `VCToolsRedistDir` (set in a Visual Studio developer prompt), else from
 the newest Visual Studio with the C++ tools that `vswhere` finds; for

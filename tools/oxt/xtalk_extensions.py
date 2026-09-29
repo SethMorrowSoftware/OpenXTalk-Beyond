@@ -85,9 +85,13 @@ DLL that a library in code/x86_64-win32 or code/x86-win32 imports and that
 is neither a Windows system DLL (SYSTEM_DLLS) nor already in that folder
 into the folder (app-local deployment; the engine loads extension libraries
 with LOAD_WITH_ALTERED_SEARCH_PATH, so Windows looks for their DLLs next to
-them first), and checks that the copies export every function the library
-imports from them. Without --vc-redist it warns and lists the libraries
-that cannot load on a PC without the redistributable.
+them first). It checks that the copies export every function the library
+imports from them, which catches a redistributable that lacks a function
+but not every older one, and warns when a copy's file version is older
+than the MSVC linker that built the library (Microsoft supports only a
+runtime at least as new as the newest toolset used). Without --vc-redist
+it warns and lists the libraries that cannot load on a PC without the
+redistributable.
 
 Only the Python 3 standard library is used.
 """
@@ -493,12 +497,35 @@ def write_manifest(path, data):
 # PE images (Windows DLLs): machine, imported DLLs and functions, exports
 
 class PeInfo(object):
-    __slots__ = ('machine', 'imports', 'exports')
+    __slots__ = ('machine', 'imports', 'exports', 'linker', 'file_version')
 
     def __init__(self):
         self.machine = None
         self.imports = collections.OrderedDict()   # DLL name -> [function names; '#<n>' for ordinals]
         self.exports = set()
+        self.linker = None          # (major, minor) of the optional header
+        self.file_version = None    # (a, b, c, d) of VS_FIXEDFILEINFO, or None
+
+
+def pe_file_version(data):
+    """FileVersion (four numbers) from the VS_FIXEDFILEINFO of a PE image's
+    VS_VERSION_INFO resource, or None. The fixed info follows the
+    UTF-16 key "VS_VERSION_INFO" (padded to 32 bits) and starts with the
+    signature 0xFEEF04BD; looking for the key first keeps a stray
+    signature elsewhere in the image from being taken. WHY: the name of a
+    redistributable folder (VC\\Redist\\MSVC\\14.44.35112) is the toolset's
+    redist version, not the DLLs' (14.44.35211.0 there), and whoever checks
+    which Microsoft runtime build shipped needs the DLLs' own."""
+    i = data.find('VS_VERSION_INFO\0'.encode('utf-16-le'))
+    j = data.find(struct.pack('<I', 0xFEEF04BD), i, i + 64) if i >= 0 else -1
+    if j < 0 or j + 16 > len(data):
+        return None
+    ms, ls = struct.unpack_from('<II', data, j + 8)   # dwFileVersionMS, dwFileVersionLS
+    return (ms >> 16, ms & 0xffff, ls >> 16, ls & 0xffff)
+
+
+def version_text(version):
+    return '.'.join(str(n) for n in version) if version else 'unknown'
 
 
 def pe_info(data, what='image'):
@@ -525,6 +552,10 @@ def pe_info(data, what='image'):
         optsize = u16(pe + 20)
         opt = pe + 24
         magic = u16(opt)
+        # MajorLinkerVersion, MinorLinkerVersion: MSVC's link.exe writes
+        # its toolset version (14.51 for Visual Studio 2026's first
+        # toolset), GNU ld its own (2.41 for CoinXT's MinGW build)
+        info.linker = (data[opt + 2], data[opt + 3])
         if magic == 0x10b:
             wide, image_base, dirs = False, u32(opt + 28), opt + 96
         elif magic == 0x20b:
@@ -602,6 +633,7 @@ def pe_info(data, what='image'):
                     n = off(names_rva)
                     for i in range(count):
                         info.exports.add(cstr(u32(n + 4 * i)))
+        info.file_version = pe_file_version(data)
         return info
     except (ValueError, struct.error, IndexError, UnicodeDecodeError) as e:
         raise XtalkError('%s is not a valid PE image: %s' % (what, e))
@@ -1058,12 +1090,19 @@ def find_vc_redist(folder):
     return result
 
 
+# What complete_windows_runtime did in one code folder: the runtime DLLs it
+# copied (file names), [(library, [DLLs it needs])] when there is no
+# redistributable, and [(library, 'major.minor' of its MSVC linker,
+# [(copied DLL, its file version)])] for libraries built by a newer
+# toolset than the copies they import
+RuntimeResult = collections.namedtuple('RuntimeResult', 'copied missing stale')
+
+
 def complete_windows_runtime(folder, platform, redist, where, log):
     """Copy into folder, from redist, every DLL that a DLL in folder
     imports and that is neither a Windows system DLL nor in the folder,
     until nothing is missing (a copied runtime DLL can import another).
-    Returns (copied file names, [(library, [missing DLLs])]); the second is
-    non-empty only without redist."""
+    Returns a RuntimeResult; missing is non-empty only without redist."""
     arch, machine = WINDOWS_PLATFORMS[platform]
     copied = []
     while True:
@@ -1084,7 +1123,7 @@ def complete_windows_runtime(folder, platform, redist, where, log):
         if not unresolved:
             break
         if redist is None:
-            return copied, list(unresolved.items())
+            return RuntimeResult(copied, list(unresolved.items()), [])
         source_dir = redist[arch]
         available = {n.lower(): n for n in os.listdir(source_dir)}
         for lib, dlls in unresolved.items():
@@ -1098,8 +1137,10 @@ def complete_windows_runtime(folder, platform, redist, where, log):
                 shutil.copyfile(os.path.join(source_dir, name), os.path.join(folder, name))
                 copied.append(name)
                 log('  %s: added %s from %s (imported by %s)' % (where, name, source_dir, lib))
-    # The copies must be new enough: every function a DLL of the folder
-    # imports from a copied DLL must be exported by it.
+    # Every function a DLL of the folder imports from a copied DLL must be
+    # exported by it. This catches a redistributable that lacks a function
+    # the library needs, not every older one: a runtime with the same
+    # exports passes whatever its version.
     lowered = {c.lower() for c in copied}
     for name, info in infos.items():
         for dll, functions in info.imports.items():
@@ -1108,10 +1149,32 @@ def complete_windows_runtime(folder, platform, redist, where, log):
             target = next(n for n in infos if n.lower() == dll.lower())
             missing = [fn for fn in functions if not fn.startswith('#') and fn not in infos[target].exports]
             if missing:
-                raise XtalkError('%s/%s imports %s from %s, which the copy from %s does not export; the Visual C++ '
-                                 'redistributable is older than the one it was built with'
+                raise XtalkError('%s/%s imports %s from %s, which the copy from %s does not export (the '
+                                 'redistributable lacks functions the library needs)'
                                  % (where, name, ', '.join(missing[:8]), dll, redist[arch]))
-    return copied, []
+    # Microsoft supports mixing binaries of different toolsets only when
+    # the runtime is at least as new as the newest toolset used
+    # (learn.microsoft.com/cpp/porting/binary-compat-2015-2017), and MSVC's
+    # link.exe writes its toolset version as the linker version. The
+    # copies are app-local, so they are loaded even on a PC with a newer
+    # runtime installed. A warning, not an error: the windows-2022 CI image
+    # has only Visual Studio 2022's 14.44 runtime, older than the 14.51
+    # toolset that built enetxt.dll and box2dxt.dll.
+    stale = []
+    for name, info in infos.items():
+        if name.lower() in lowered or not info.linker or info.linker[0] != 14:
+            continue
+        older = []
+        for dll in info.imports:
+            if dll.lower() not in lowered:
+                continue
+            target = next(n for n in infos if n.lower() == dll.lower())
+            fv = infos[target].file_version
+            if fv and tuple(fv[:2]) < tuple(info.linker):
+                older.append((target, version_text(fv)))
+        if older:
+            stale.append((name, '%d.%d' % info.linker, older))
+    return RuntimeResult(copied, [], stale)
 
 
 def extract_leading_comment(data, what):
@@ -1198,7 +1261,7 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
 
     lci_before = _lci_snapshot(lci_dir)
     scratch = tempfile.mkdtemp(prefix='oxt-xtalk-lci-')
-    built, runtime_copies, missing_runtime = [], [], []
+    built, runtime_copies, missing_runtime, stale_runtime = [], [], [], []
     try:
         for m, e in dependency_order(data):
             log('')
@@ -1224,11 +1287,16 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
                         continue
                     _check_recorded_imports(m, folder, platform)
                     where = '%s/code/%s' % (e['folder'], platform)
-                    copied, missing = complete_windows_runtime(folder, platform, redist, where, log)
-                    for name in copied:
-                        runtime_copies.append((where + '/' + name, _sha256_file(os.path.join(folder, name))))
-                    for lib, dlls in missing:
+                    result = complete_windows_runtime(folder, platform, redist, where, log)
+                    for name in result.copied:
+                        path = os.path.join(folder, name)
+                        with open(path, 'rb') as fh:
+                            version = version_text(pe_file_version(fh.read()))
+                        runtime_copies.append((where + '/' + name, _sha256_file(path), version))
+                    for lib, dlls in result.missing:
                         missing_runtime.append((where + '/' + lib, dlls))
+                    for lib, linker, older in result.stale:
+                        stale_runtime.append((where + '/' + lib, linker, older))
             else:
                 shipped, headed, wrapped = wrap_lcs(main_data, e['stack'], '%s %s' % (m['name'], e['main']))
                 if lcs_header(shipped) is None:
@@ -1267,14 +1335,29 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
         for lib, dlls in missing_runtime:
             log('WARNING:   %s needs %s' % (lib, ', '.join(dlls)))
         log('WARNING: ' + '=' * 70)
-    _write_stamp(stamp, built, redist, runtime_copies, missing_runtime, platforms)
+    if stale_runtime:
+        log('')
+        log('WARNING: ' + '=' * 70)
+        log('WARNING: the bundled Visual C++ runtime is older than the build tools of these')
+        log('WARNING: libraries (Microsoft supports only a redistributable at least as new as the')
+        log('WARNING: newest toolset used; pass a newer --vc-redist to fix it):')
+        for lib, linker, older in stale_runtime:
+            log('WARNING:   %s (MSVC %s): %s' % (lib, linker, ', '.join('%s %s' % o for o in older)))
+        log('WARNING: ' + '=' * 70)
+    _write_stamp(stamp, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms)
     return collections.OrderedDict([
         ('out', out), ('stamp', STAMP_NAME), ('extensions', built), ('platforms', platforms),
         ('vc_redist', redist['folder'] if redist else None),
         ('vc_redist_version', redist['version'] if redist else None),
-        ('vc_runtime_files', [collections.OrderedDict([('path', p), ('sha256', h)]) for p, h in runtime_copies]),
+        ('vc_runtime_files', [collections.OrderedDict([('path', p), ('sha256', h), ('file_version', v)])
+                              for p, h, v in runtime_copies]),
         ('missing_runtime', [collections.OrderedDict([('library', lib), ('needs', dlls)])
                              for lib, dlls in missing_runtime]),
+        ('vc_runtime_older_than_build_tools', [
+            collections.OrderedDict([('library', lib), ('linker', linker),
+                                     ('runtime', [collections.OrderedDict([('dll', d), ('file_version', v)])
+                                                  for d, v in older])])
+            for lib, linker, older in stale_runtime]),
     ])
 
 
@@ -1360,7 +1443,7 @@ def _add_licences(member, folder, local):
             shutil.copyfile(path, target)
 
 
-def _write_stamp(path, built, redist, runtime_copies, missing_runtime, platforms):
+def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms):
     lines = [
         '# xTalk Suite extensions bundled with OXT-Beyond',
         '#',
@@ -1382,9 +1465,15 @@ def _write_stamp(path, built, redist, runtime_copies, missing_runtime, platforms
     lines.append('#')
     if runtime_copies:
         lines.append('# Microsoft Visual C++ runtime, copied unchanged from Visual Studio\'s')
-        lines.append('# redistributable folder (version %s) next to the libraries that import it:' % redist['version'])
-        for p, h in runtime_copies:
-            lines.append('#   %s  %s' % (p, h))
+        lines.append('# redistributable folder VC\\Redist\\MSVC\\%s next to the libraries that import it'
+                     % redist['version'])
+        lines.append('# (path, SHA-256, file version of the DLL):')
+        for p, h, v in runtime_copies:
+            lines.append('#   %s  %s  (file version %s)' % (p, h, v))
+        for lib, linker, older in stale_runtime:
+            lines.append('# WARNING: %s was built with MSVC %s, the runtime copied for it is older (%s);'
+                         % (lib, linker, ', '.join('%s %s' % o for o in older)))
+            lines.append('#   Microsoft supports only a runtime at least as new as the newest toolset used.')
     elif missing_runtime:
         lines.append('# WARNING: the Microsoft Visual C++ runtime is not bundled. These libraries')
         lines.append('# cannot load on a PC without the Visual C++ Redistributable:')

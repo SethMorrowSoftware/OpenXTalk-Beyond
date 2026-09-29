@@ -447,8 +447,12 @@ Nothing of the members is kept in this repository.
   DLL a library in `code/x86_64-win32` or `code/x86-win32` imports that
   is neither a Windows system DLL nor in the folder is copied from the
   redistributable into the folder, and the copies must export what the
-  library imports from them. Without it the build warns and lists the
-  libraries concerned. The build fails if `modules/lci` changed while it
+  library imports from them (which catches a redistributable that lacks a
+  function, not every older one). The build warns when a copy's file
+  version (from its `VS_VERSION_INFO`) is older than the MSVC linker
+  version of the library that imports it, and `XTALK-EXTENSIONS.txt`
+  records each copy's SHA-256 and file version. Without `--vc-redist`
+  the build warns and lists the libraries concerned. The build fails if `modules/lci` changed while it
   ran, if a library's imports differ from the manifest's, or if
   `lc-compile` fails. Folders listed in an earlier
   `XTALK-EXTENSIONS.txt` of `--out` and the folders of the current

@@ -478,10 +478,20 @@ $stageBytes = [int64]$summary.bytes
 $xtalkCount = @($summary.xtalk_extensions).Count
 $vcRuntimeVersion = if ($summary.vc_redist_version) { [string]$summary.vc_redist_version } else { '' }
 $missingRuntime = @($summary.xtalk_missing_runtime | Where-Object { $_ })
+$staleRuntime = @($summary.vc_runtime_older_than_build_tools | Where-Object { $_ })
+$runtimeFileVersions = @($summary.vc_runtime_files | Where-Object { $_ } | ForEach-Object { [string]$_.file_version } | Sort-Object -Unique)
 if ($NoXtalkExtensions) { $xtalkText = 'left out' }
 elseif ($missingRuntime.Count -gt 0) { $xtalkText = "$xtalkCount, WITHOUT the Visual C++ runtime that $($missingRuntime.Count) of their libraries need" }
-elseif ($vcRuntimeVersion) { $xtalkText = "$xtalkCount, with the Visual C++ runtime $vcRuntimeVersion" }
+elseif ($vcRuntimeVersion) { $xtalkText = "$xtalkCount, with the Visual C++ runtime $($runtimeFileVersions -join ', ') (redistributable folder $vcRuntimeVersion)" }
 else { $xtalkText = "$xtalkCount" }
+# Libraries built by a newer MSVC toolset than the runtime bundled for
+# them: Microsoft does not support that combination, though it loads
+foreach ($s in $staleRuntime) {
+    $older = @($s.runtime | ForEach-Object { "$($_.dll) $($_.file_version)" }) -join ', '
+    $message = "Extensions/$($s.library) was built with MSVC $($s.linker), but the Visual C++ runtime bundled for it is older ($older); Microsoft supports only a runtime at least as new as the newest toolset used."
+    Write-Warning $message
+    if ($env:GITHUB_ACTIONS) { Write-Host "::warning title=Package::$message" }
+}
 Write-Host ''
 Write-Host ("Staged folder {0}: {1:N0} files, {2:N1} MB" -f $StageDir, [int]$summary.files, ($stageBytes / 1MB))
 Write-Host "xTalk Suite extensions: $xtalkText"

@@ -708,10 +708,16 @@ def summarise_xtalk(xtalk, log):
     for e in xtalk['extensions']:
         log('  %-36s %s %-8s %s@%s' % (e['folder'], e['kind'], e['version'], e['repository'], e['commit'][:12]))
     if xtalk['vc_runtime_files']:
-        log('  Visual C++ runtime %s bundled: %d DLLs' % (xtalk['vc_redist_version'], len(xtalk['vc_runtime_files'])))
+        versions = sorted({f['file_version'] for f in xtalk['vc_runtime_files']})
+        log('  Visual C++ runtime bundled: %d DLLs, file version %s, from the redistributable folder %s'
+            % (len(xtalk['vc_runtime_files']), ', '.join(versions), xtalk['vc_redist_version']))
     for m in xtalk['missing_runtime']:
         log('WARNING: Extensions/%s needs %s, which is not bundled (no --vc-redist): it cannot load on a '
             'PC without the Visual C++ Redistributable' % (m['library'], ', '.join(m['needs'])))
+    for s in xtalk['vc_runtime_older_than_build_tools']:
+        log('WARNING: Extensions/%s was built with MSVC %s, but the Visual C++ runtime bundled for it is older '
+            '(%s); Microsoft supports only a runtime at least as new as the newest toolset used'
+            % (s['library'], s['linker'], ', '.join('%s %s' % (r['dll'], r['file_version']) for r in s['runtime'])))
 
 
 def main(argv=None):
@@ -830,6 +836,7 @@ def main(argv=None):
                 ('vc_redist_version', xtalk['vc_redist_version'] if xtalk else None),
                 ('vc_runtime_files', xtalk['vc_runtime_files'] if xtalk else []),
                 ('xtalk_missing_runtime', xtalk['missing_runtime'] if xtalk else []),
+                ('vc_runtime_older_than_build_tools', xtalk['vc_runtime_older_than_build_tools'] if xtalk else []),
             ])
             with open(args.summary_json, 'w', encoding='utf-8', newline='\n') as f:
                 json.dump(summary, f, indent=2)

@@ -314,8 +314,9 @@ Notes:
   `vcruntime140_1.dll` for enetxt, `vcruntime140.dll` for Box2Dxt. They
   are copied unchanged from the Visual Studio redistributable folder
   (`VC\Redist\MSVC\<version>\<arch>\Microsoft.VC14x.CRT`) of the machine
-  that made the package. `XTALK-EXTENSIONS.txt` gives their version and
-  SHA-256. See [Microsoft components](#microsoft-components).
+  that made the package. `XTALK-EXTENSIONS.txt` gives each DLL's file
+  version and SHA-256, and the redistributable folder they came from.
+  See [Microsoft components](#microsoft-components).
 - **Standalones.** When a standalone includes one of these extensions,
   the standalone builder copies its native libraries (for enetxt and
   Box2Dxt also the Visual C++ runtime DLLs) into the standalone, but not
@@ -518,4 +519,8 @@ has been in the LiveCode Community tree since upstream. Its licence,
   that OXT-Beyond adds for TorrentXT and DataChannelXT, and the
   statement in DataChannelXT's licence files that OpenSSL is not bundled,
   should be fixed in the member repositories. The Box2Dxt module reports
-  version 0.2.0 while its CHANGELOG already has a 0.3.0 section.
+  version 0.2.0 while its CHANGELOG already has a 0.3.0 section. The
+  bundled Visual C++ runtime (14.44, from Visual Studio 2022) is older
+  than the toolset (14.51) that built `enetxt.dll` and `box2dxt.dll`,
+  which Microsoft does not support; a `/MT` build upstream, or a
+  redistributable folder of 14.51 or newer, would remove the mismatch.
