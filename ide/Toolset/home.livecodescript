@@ -234,12 +234,16 @@ on revInternal__openStack
       quit
    end if
    
-   if $REV_TOOLS_PATH is empty and (revInternal__CheckFileAssociations() is true) then
-      if the platform contains "win" then
-         if revIDEGetPreference("cDontShowFileAssociationsDialog") is not true then
-            modal stack "revFileAssociations"
-         end if
-      end if
+   -- OXT-Beyond: on Windows, file associations are left to the installer,
+   -- which registers .oxtstack and .oxtscript under its own ProgIDs
+   -- (OXTBeyond.Stack, OXTBeyond.Script) and removes them on uninstall.
+   -- OpenXTalk Lite's "File Associations" dialog (revFileAssociations) would
+   -- also claim .rev, .livecode and .livecodescript in HKCU under the ProgIDs
+   -- that LiveCode and OpenXTalk Lite use, so it is no longer shown on
+   -- Windows. On Linux revInternal__CheckFileAssociations still schedules
+   -- the Linux association dialog; on Windows and macOS it has no effect.
+   if $REV_TOOLS_PATH is empty and the platform is not "win32" then
+      get revInternal__CheckFileAssociations()
    end if
    
    # AL-2015-07-10: Temporarily disable welcome screen
@@ -264,7 +268,9 @@ on revInternal__openStack
    end if
    if the cReplaceSECol of stack "revPreferences" is empty then set the cReplaceSECol of stack "revPreferences" to false
    if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
-   if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to true
+   -- OXT-Beyond: the automatic update check (oxtBeyondUpdater library) is off
+   -- unless the user turns it on in Preferences > Automatic Updates.
+   if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
    -- added as of 13-4-24 (tperry)
    if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
    if the cDisableBrowserWidget of stack "revPreferences" is empty then
@@ -443,7 +449,13 @@ on revInternal__setSplashStatus pMessage
    local sOverrideRuntimePath, sTestEnvironment
    
    -- Parameterize this so it makes it easier to change.
-   constant kProductName = "OpenXTalk"
+   -- OXT-Beyond: the product name is used for the preferences stack file
+   -- (oxt-beyond7.rev), the tools log and crash dump names. kUserFolderName is
+   -- the name of the per-user folders (preferences, cache, logs, documentation
+   -- cache), so that OXT-Beyond never shares them with LiveCode ("RunRev")
+   -- or OpenXTalk Lite ("xtalk") installs.
+   constant kProductName = "OXT-Beyond"
+   constant kUserFolderName = "OXT-Beyond"
    
    --------------------------------------------------------------------------------
    -- Internal Setup Functions
@@ -489,7 +501,11 @@ on revInternal__setSplashStatus pMessage
    set the itemDelimiter to "/"
    -- (tperry 20-11-23) change this to the name of whatever fork you want to use.
    -- I'm simply using xtalk here to make it as generic as possible
-   put "xtalk" into tForkName
+   -- OXT-Beyond: use our own folder name, not "xtalk" (OpenXTalk Lite's), so
+   -- that preferences and caches are separate. On Linux the folder is the
+   -- lower-case dot folder ~/.oxt-beyond. Existing RunRev, xtalk and OpenXTalk
+   -- Lite folders are left alone: nothing is copied from or written to them.
+   put kUserFolderName into tForkName
    --
    switch revEnvironmentPlatform()
       case "Linux"
@@ -503,10 +519,10 @@ on revInternal__setSplashStatus pMessage
          if there is no folder sOldPreferencesPath then
             put the folder & slash & ".runrev/revolution/media/preferences" into sOldPreferencesPath
          end if
-         put the folder & slash & "." & tForkName & "/preferences" into sPreferencesPath
-         put the folder & slash & "." & tForkName & "/cache" into sCachePath
-         put the folder & slash & "." & tForkName & "/crashlogs" into sCrashLogPath
-         put the folder & slash & "." & tForkName & "/documentationcache" into sUserDocsPath
+         put the folder & slash & "." & toLower(tForkName) & "/preferences" into sPreferencesPath
+         put the folder & slash & "." & toLower(tForkName) & "/cache" into sCachePath
+         put the folder & slash & "." & toLower(tForkName) & "/crashlogs" into sCrashLogPath
+         put the folder & slash & "." & toLower(tForkName) & "/documentationcache" into sUserDocsPath
          set the folder to tOldFolder
          -- MW-2013-06-13: Adjust the engine path for Linux
          put item 1 to -2 of tEnginePath into tEnginePath
@@ -591,19 +607,21 @@ command revInternal__SetupCustomizationPath
    if tUserCustomizationPath is not empty then
       put tUserCustomizationPath into sCustomizationPath
    else
+      -- OXT-Beyond: default to our own folder in Documents instead of OpenXTalk
+      -- Lite's "xTalk extensions", so user extensions and plugins are not shared.
       switch revEnvironmentPlatform()
          case "Linux"
             local tOldFolder
             put the folder into tOldFolder
             set the folder to "~"
-            put the folder & slash & "xTalk_extensions" into sCustomizationPath
+            put the folder & slash & "OXT-Beyond_extensions" into sCustomizationPath
             set the folder to tOldFolder
             break
          case "Windows"
-            put specialFolderPath(0x0005) & "/xTalk extensions" into sCustomizationPath
+            put specialFolderPath(0x0005) & "/OXT-Beyond extensions" into sCustomizationPath
             break
          case "MacOS X"
-            put specialFolderPath("docs") & "/xTalk extensions" into sCustomizationPath
+            put specialFolderPath("docs") & "/OXT-Beyond extensions" into sCustomizationPath
             break
       end switch
       set the cCustomizationPath of stack "revPreferences" to sCustomizationPath -- make sure it actually gets set! (tperry 20-1-25)
@@ -685,7 +703,13 @@ end revInternal__SetupCustomizationPath
             end if
             
             if tStackName is "revpreferences" then next repeat
-            
+
+            -- OXT-Beyond: do not register OpenXTalk Lite's updater stack
+            -- (palettes/updates/updates.livecode, stack "updater"), which
+            -- downloads and installs files from openxtalk.net. Update checks
+            -- go through the oxtBeyondUpdater library instead.
+            if tFile is "updates.livecode" then next repeat
+
             // AL-2015-02-18: [[ Named Stack Versions ]] Choose a versioned stack file name over an unversioned one, and a later version over an earlier one. 
             local tExistingVersion
             put tStackFilesA[tStackName]["version"] into tExistingVersion
@@ -1220,16 +1244,17 @@ command revInternal__InstallFileAssociations
       if pType is "Start" then
          local tLogPath
          put 0 into sLogIndent
+         -- OXT-Beyond: logs go in our own folder, not LiveCode's "RunRev" one.
          switch revEnvironmentPlatform()
             case "Linux"
-               put "~/.runrev/logs/" & toLower(kProductName) & "_tools_log.txt" into tLogPath
+               put "~/." & toLower(kUserFolderName) & "/logs/" & toLower(kProductName) & "_tools_log.txt" into tLogPath
                break
             case "MacOS X"
-               put specialFolderPath("cusr") & "/Library/Logs/RunRev/" & kProductName & "ToolsLog.txt"  into tLogPath
+               put specialFolderPath("cusr") & "/Library/Logs/" & kUserFolderName & "/" & kProductName & "ToolsLog.txt"  into tLogPath
                break
             case "Windows"
                -- Make sure we put logs in the 'Local' AppData section.
-               put specialFolderPath(0x001c) & "/RunRev/Logs/" & kProductName & "ToolsLog.txt" into tLogPath
+               put specialFolderPath(0x001c) & "/" & kUserFolderName & "/Logs/" & kProductName & "ToolsLog.txt" into tLogPath
                break
          end switch
          set the itemDelimiter to "/"
@@ -1364,7 +1389,9 @@ command revInternal__InstallFileAssociations
       put return & "revProfilesLibrary" after tLoadList 
       put return & "revTableLibrary" after tLoadList 
       put return & "revhtml5urllibrary" after tLoadList
-      
+      -- OXT-Beyond: update checks against this project's GitHub Releases
+      put return & "oxtBeyondUpdater" after tLoadList
+
       if revEnvironmentEditionProperty("autocomplete_pro") then
          put return & "autocomplete-pro" after tLoadList
       end if
@@ -1924,21 +1951,9 @@ end revInternal__InitialisePlugIns
    command revInternal__CleanDocsCache
       revInternal__Log "Enter", "Cleaning Docs Cache"
       # Clean up old non-versioned docs
-      local tOldDocsFolder
-      switch revEnvironmentPlatform()
-         case "Linux"
-            put "~/.runrev/docs" into tOldDocsFolder
-            break
-         case "MacOS X"
-            put specialFolderPath("cusr") & "/Library/Application Support/RunRev/Docs" into tOldDocsFolder
-            break
-         case "Windows"
-            put specialFolderPath(0x001c) & "/RunRev/Docs" into tOldDocsFolder
-            break
-      end switch
-      if there is a folder tOldDocsFolder then
-         revDeleteFolder tOldDocsFolder
-      end if
+      -- OXT-Beyond: LiveCode deleted its old documentation cache in the
+      -- "RunRev" folder here. That folder belongs to LiveCode installs, and
+      -- OXT-Beyond never wrote to it, so leave it alone.
       revInternal__Log "Leave", "Cleaning Docs Cache"
       return true
    end revInternal__CleanDocsCache

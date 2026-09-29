@@ -570,8 +570,10 @@ on quitMC
       replace "." with "" in tMacOSvers
       if tMacOSvers < 1080 then
          -- force quit (tperry)
+         -- OXT-Beyond: kill this process by its id; matching the name
+         -- "OpenXTalk Lite" would also kill other OpenXTalk Lite copies
          set the hideconsolewindows to true
-         put shell("pkill -9 -f " & QUOTE & "OpenXTalk Lite" & QUOTE)
+         put shell("kill -9" && the processID)
       end if
    end if
    

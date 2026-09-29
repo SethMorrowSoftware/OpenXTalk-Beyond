@@ -3721,7 +3721,12 @@ on revIDEEditScriptOfObject pObject
       else
          put line 1 of tFilename into tFilename
       end if
-      put specialFolderpath("home") & slash & "Documents" & slash & "IDEScriptEdits" into tFolderpath
+      -- OXT-Beyond: keep the copies in OXT-Beyond's own cache folder
+      -- (%LOCALAPPDATA%\OXT-Beyond\Cache on Windows) instead of
+      -- Documents/IDEScriptEdits, which OpenXTalk Lite also uses; the files are
+      -- named after the object, so two IDEs could overwrite each other's copies.
+      -- The external editors plugin reads the folder from cFolderpath (below).
+      put revEnvironmentUserCachePath() & slash & "IDEScriptEdits" into tFolderpath
       create folder tFolderpath
       put tFolderpath & slash & tFilename into tAbsFilename 
       put the script of pObject into tRetrieveScript
@@ -10162,31 +10167,11 @@ command revIDERestoreDevelopmentTools
 end revIDERestoreDevelopmentTools
 
 command revIDECheckForUpdates
-   if line 3 of revLicenseInfo is not "evaluation" then
-      local tCommand
-      set the itemdelimiter to "/"
-      switch the platform
-         case "MacOS"
-            put item 1 to -5 of the filename of stack "home" & "/Contents/MacOS/autoupdater" into tCommand
-            put quote & tCommand & quote && "install -foregroundupdate" into tCommand
-            break
-         case "Win32"
-            put item 1 to -3 of the filename of stack "home" & "/.setup.exe" into tCommand
-            put quote & tCommand & quote && "install -foregroundupdate" into tCommand
-            break
-         case "Linux"
-            -- MDW-2015-12-19 [[fix_installer]] LC8-style setup filename
-            if the processor is "x86_64" then
-               	put item 1 to -4 of the filename of me & "/setup.x86_64" into tCommand
-            else
-               	put item 1 to -4 of the filename of me & "/setup.x86" into tCommand
-            end if
-            put tCommand && "install -foregroundupdate" into tCommand
-            break
-      end switch
-      set the itemDel to comma
-      open process tCommand for neither
-   end if   
+   -- OXT-Beyond: LiveCode ran its own installer here (.setup.exe install
+   -- -foregroundupdate), which OXT-Beyond does not ship. Check this project's
+   -- GitHub Releases instead; the oxtBeyondUpdater library only reports new
+   -- releases and links to them, it does not download or install anything.
+   dispatch "oxtBeyondCheckForUpdates" to stack "oxtBeyondUpdater" with true
 end revIDECheckForUpdates
 
 # OK-2009-10-07 : Noticed that View -> Go Prev wasn't working, decided to rewrite code

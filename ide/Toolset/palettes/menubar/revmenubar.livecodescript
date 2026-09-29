@@ -264,7 +264,8 @@ on setMenuProperties
    local tTitle, tScreenRect
    set the height of me to "47"
    set the resizable of me to false
-   put "OpenXTalk" into tTitle
+   -- OXT-Beyond: product name (tIDEGetBuildVersion below adds the version)
+   put "OXT-Beyond" into tTitle
    set the title of me to tTitle
    put revIDEStackScreenRect(the short name of this stack, true) into tScreenRect
    if the platform is not "MacOS" then
@@ -2981,10 +2982,30 @@ on revMenubarHelpMenuPick pWhich
 end revMenubarHelpMenuPick
 
 on tCheckForUpdPre
-   if there is a stack "Updater" then close stack "Updater"
-   send "tCheckForUpdatesVis" to card "Automatic Updates" of stack "revPreferencesGUI"
-   if there is a stack "Updater" then show stack "Updater"
+   -- OXT-Beyond: check this project's GitHub Releases (oxtBeyondUpdater
+   -- library) instead of opening OpenXTalk Lite's updater stack.
+   revMenubarCallUpdater "oxtBeyondCheckForUpdates", true
 end tCheckForUpdPre
+
+-- OXT-Beyond: the automatic update check, sent by tIDEGetBuildVersion once the
+-- IDE has loaded. The library does nothing unless the preference is on.
+on revMenubarAutoCheckForUpdates
+   revMenubarCallUpdater "oxtBeyondAutoCheckForUpdates"
+end revMenubarAutoCheckForUpdates
+
+private command revMenubarCallUpdater pHandler, pParam
+   try
+      if pParam is empty then
+         dispatch pHandler to stack "oxtBeyondUpdater"
+      else
+         dispatch pHandler to stack "oxtBeyondUpdater" with pParam
+      end if
+   catch tError
+      if pParam is true then
+         answer warning "The update check is not available (" & tError & ")."
+      end if
+   end try
+end revMenubarCallUpdater
 
 ################################################################################
 --tp 24-2, additions & fixes
@@ -3343,7 +3364,10 @@ on tIDEGetBuildVersion  --tp 23-11, dynamically change title & build version
    put item 1 to -3 of the filename of stack "home" & "/.version" into tFilePath
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tVersionNumber
    put line 1 of tVersionNumber into tVersionNumber
-   if not isNumber(last char of tVersionNumber) then delete last char of tVersionNumber  --strip any last cr
+   -- OXT-Beyond: trim a trailing CR or spaces without cutting a pre-release
+   -- suffix such as "-beta" (the old test removed any non-digit last char)
+   replace numToCodepoint(13) with empty in tVersionNumber
+   put word 1 of tVersionNumber into tVersionNumber
    put item 1 to -3 of the filename of stack "home" & "/about.dat" into tFilePath
    put textDecode(url ("binfile:" & tFilePath), "utf-8") into tForkName
    put line 1 of tForkName into tForkName
@@ -3355,20 +3379,24 @@ on tIDEGetBuildVersion  --tp 23-11, dynamically change title & build version
       else delete char 1 of tVersionNumber
    end repeat
    put tForkName & " " & tVersionNumber into tTitle
-   set the title of me to tTitle  --OpenXTalk Lite x.xx
+   set the title of me to tTitle  --OXT-Beyond x.y.z (product name from line 1 of about.dat)
    -----automatic updates, build number, write build number to file in case user resets preferences
    put tTitle into fld "tPrefFootnote" of cd "Automatic Updates" of stack "revPreferencesGUI"  --display title in prefs
    put item 1 to -3 of the filename of stack "home" & "/.buildnumber" into tBuildNumberfile  --update build number from this file
-   open file tBuildNumberfile
-   read from file tBuildNumberfile until EOF
-   put it into tBuildNumber
-   close file tBuildNumberfile
+   -- OXT-Beyond: read the file without opening it for writing ("open file"
+   -- without a mode opens it for update), so .buildnumber can stay read-only
+   -- in an install for all users. Only the first line, without a CR.
+   put textDecode(url ("binfile:" & tBuildNumberfile), "utf-8") into tBuildNumber
+   replace numToCodepoint(13) with empty in tBuildNumber
+   put word 1 of line 1 of tBuildNumber into tBuildNumber
    -----sanity check in case of permissions
    if tBuildNumber is "" then put "202311240000" into tBuildNumber  --if couldn't read file, assume lowest build number
    set the cBuildNumber of stack "revPreferences" to tBuildNumber  --store build number in prefs
    put tBuildNumber into line 2 of fld "tPrefFootnote" of cd "Automatic Updates" of stack "revPreferencesGUI"  --display build number in prefs
-   if not (the pendingmessages contains "tAutoUpdatesHook") then  --check for updates
-      send "tAutoUpdatesHook" to cd "Automatic Updates" of stack "revPreferencesGUI" in 10 seconds  --time to load everything else
+   -- OXT-Beyond: the automatic update check now goes to the oxtBeyondUpdater
+   -- library (off unless enabled in Preferences > Automatic Updates).
+   if not (the pendingmessages contains "revMenubarAutoCheckForUpdates") then  --check for updates
+      send "revMenubarAutoCheckForUpdates" to me in 10 seconds  --time to load everything else
    end if
 end tIDEGetBuildVersion
 
@@ -3500,7 +3528,9 @@ on fIDEWindows pWhat
          end if
          do tDoThis
       end repeat
-      if there is a stack "updater" then close stack "updater"  --hide updater, show topstack
+      -- OXT-Beyond: OpenXTalk Lite's updater stack is no longer used; only close
+      -- it if something opened it, without loading it by name.
+      if "updater" is among the lines of the openStacks then close stack "updater"  --hide updater, show topstack
       put the short name of the topStack into tTopStack
       if there is a stack tTopStack then show stack tTopStack
    end if
