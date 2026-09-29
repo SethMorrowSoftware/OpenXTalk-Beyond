@@ -438,7 +438,13 @@ Nothing of the members is kept in this repository.
   `--platforms` limits the native libraries to some platform ids.
 * `build` fetches, then writes one folder per extension into `--out` and
   `XTALK-EXTENSIONS.txt` (the extensions with their commits, and the
-  Visual C++ runtime DLLs bundled or missing):
+  Visual C++ runtime DLLs bundled or missing). An extension that gets
+  runtime DLLs also gets `licenses/Microsoft-Visual-C++-Runtime.txt`
+  (CRLF): the DLLs with their file versions, Microsoft's copyright, the
+  licence they are under (the Distributable Code terms of Visual Studio
+  2022 for a 14.3x/14.4x runtime, `VC_RUNTIME_LICENCES`) with links, a
+  summary of what those terms ask of anyone who redistributes the DLLs,
+  and the alternative of requiring the Visual C++ Redistributable:
 
   | kind | folder | contents |
   |---|---|---|

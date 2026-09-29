@@ -832,7 +832,13 @@ redistributable folder (`VC\Redist\MSVC\<version>`, the one with
 folder, next to the library. The engine loads extension libraries with
 `LOAD_WITH_ALTERED_SEARCH_PATH`, so Windows looks for their DLLs there
 first, and the standalone builder copies them into a standalone's
-`Externals` folder with the library. The build also checks that the
+`Externals` folder with the library. They are Microsoft's Distributable
+Code, so the build also writes `licenses\Microsoft-Visual-C++-Runtime.txt`
+into those extensions: the DLLs, the Microsoft licence terms they are
+under (with links) and what those terms ask of anyone who distributes
+them further, for example in a standalone (see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#microsoft-components)).
+The build also checks that the
 copies export every function the library imports from them. That
 catches a redistributable that lacks a function, not every older one.
 It warns when a copy's file version is older than the MSVC linker that

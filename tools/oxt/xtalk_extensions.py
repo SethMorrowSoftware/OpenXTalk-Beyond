@@ -35,7 +35,9 @@ the extensions made from them:
        put the library into the message path; its manifest.xml is written
        from the JSON.
 
-Every extension folder also gets the member's licence files in licenses/.
+Every extension folder also gets the member's licence files in licenses/,
+and one that ships Visual C++ runtime DLLs also a notice of Microsoft's
+terms for them (licenses/Microsoft-Visual-C++-Runtime.txt).
 
 Subcommands
 
@@ -118,6 +120,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
 import urllib.error
 import urllib.parse
@@ -139,6 +142,7 @@ API_COMPARE_URL = 'https://api.github.com/repos/%s/compare/%s...HEAD?per_page=1'
 ON_DEFAULT_BRANCH = ('ahead', 'identical')
 STAMP_NAME = 'XTALK-EXTENSIONS.txt'
 LICENCE_DIR = 'licenses'
+VC_RUNTIME_NOTICE = 'Microsoft-Visual-C++-Runtime.txt'
 
 ROLES = ('source', 'library', 'code-manifest', 'licence')
 KINDS = ('lcb', 'lcs')
@@ -1388,6 +1392,14 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
                                                     'extensionInitialize/extensionFinalize appended'
                                                     if wrapped else 'load handlers already present'))
             _add_licences(m, tmp, local)
+            # The runtime DLLs are Microsoft's Distributable Code, under
+            # neither the member's licence nor the GPL: their terms go with
+            # them, in licenses/ (not in code/, whose every file the IDE
+            # maps and the standalone builder copies)
+            ext_copies = [(c[0][len(e['folder']) + 1:], c[2]) for c in runtime_copies
+                          if c[0].startswith(e['folder'] + '/')]
+            if ext_copies:
+                _write_vc_runtime_notice(tmp, ext_copies, redist['version'], log)
             final = os.path.join(out, e['folder'])
             os.rename(tmp, final)
             files = []
@@ -1536,6 +1548,78 @@ def _add_licences(member, folder, local):
             shutil.copyfile(path, target)
 
 
+# Microsoft's terms for the runtime DLLs, for the notice written next to
+# them: (lowest, highest major.minor of their file version, the Visual
+# Studio release whose licence covers them, its licence terms, its REDIST
+# list). The runtime of Visual Studio 2022 is 14.30 to 14.4x. A runtime
+# outside every range gets a notice without a release and a warning:
+# review the terms and add its release here before pinning it.
+VC_RUNTIME_LICENCES = [
+    ((14, 30), (14, 49), 'Visual Studio 2022', 'https://visualstudio.microsoft.com/license-terms/',
+     'https://learn.microsoft.com/visualstudio/releases/2022/redistribution'),
+]
+VC_REDIST_DOWNLOAD = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist'
+
+
+def _write_vc_runtime_notice(folder, copies, redist_version, log):
+    """Write licenses/Microsoft-Visual-C++-Runtime.txt (CRLF, UTF-8) into
+    an extension folder for its copied runtime DLLs, copies being [(path
+    in the extension, file version)]. A paraphrase of Microsoft's terms
+    with links to them, not the terms themselves."""
+    target = os.path.join(folder, LICENCE_DIR, VC_RUNTIME_NOTICE)
+    if os.path.exists(target):
+        raise XtalkError('%s: a licence file of the member is named %s, which the Visual C++ runtime notice needs'
+                         % (os.path.basename(folder), VC_RUNTIME_NOTICE))
+    versions = [tuple(int(n) for n in v.split('.')) if re.match(r'^[0-9.]+$', v) else None for _, v in copies]
+    licence = next((l for l in VC_RUNTIME_LICENCES if all(v and l[0] <= v[:2] <= l[1] for v in versions)), None)
+    if licence:
+        product, terms, redist_list = licence[2], licence[3], licence[4]
+        source = '%s\'s VC\\Redist folder (VC\\Redist\\MSVC\\%s)' % (product, redist_version)
+        under = ('the Distributable Code section of the Microsoft Software License Terms for %s (%s) and its '
+                 'REDIST list (%s).' % (product, terms, redist_list))
+    else:
+        log('  WARNING: %s: the runtime\'s file version (%s) is not one VC_RUNTIME_LICENCES knows; the notice '
+            'names no Visual Studio release. Review Microsoft\'s terms for it and add it there'
+            % (VC_RUNTIME_NOTICE, ', '.join(sorted({v for _, v in copies}))))
+        source = 'a Visual Studio VC\\Redist folder (VC\\Redist\\MSVC\\%s)' % redist_version
+        under = ('the Distributable Code section of the Microsoft Software License Terms for the Visual Studio '
+                 'release they come from (https://visualstudio.microsoft.com/license-terms/) and its REDIST list.')
+
+    def para(text, indent=''):
+        return textwrap.wrap(text, 72, initial_indent=indent, subsequent_indent=' ' * len(indent),
+                             break_long_words=False, break_on_hyphens=False)
+
+    width = max(len(path) for path, _ in copies)
+    lines = ['Microsoft Visual C++ runtime', '============================', '']
+    lines += para('The Windows libraries of this extension are built with the dynamic Visual C++ runtime, so '
+                  'OXT-Beyond ships these Microsoft files next to them:') + ['']
+    lines += ['  %s  (file version %s)' % (path.ljust(width), v) for path, v in copies] + ['']
+    lines += para('Copyright (c) Microsoft Corporation. Microsoft Visual C++ runtime, copied unmodified from '
+                  '%s.' % source) + ['']
+    lines += para('These files are Microsoft Distributable Code. They are covered neither by this extension\'s '
+                  'licence (the other files in this folder) nor by OXT-Beyond\'s licence (the GNU General Public '
+                  'License version 3). They are distributed under %s This file summarises some of those terms; '
+                  'it does not reproduce them. Read them.' % under) + ['']
+    lines += para('Anyone who distributes these files further, including in a standalone application (the '
+                  'standalone builder copies them into its Externals folder together with this extension\'s '
+                  'library), must comply with those terms. Among other conditions, they require you to:') + ['']
+    for item in ('distribute the files only unmodified, and only as part of a program that adds significant '
+                 'primary functionality to them;',
+                 'require distributors and end users to agree to terms that protect the files at least as much '
+                 'as Microsoft\'s terms do;',
+                 'not use Microsoft\'s trademarks in a way that suggests your program comes from or is endorsed '
+                 'by Microsoft;',
+                 'not make the files subject to a licence that requires their source code to be disclosed or '
+                 'distributed, or that lets others modify them.'):
+        lines += para(item, '  - ')
+    lines += ['']
+    lines += para('If you do not want to redistribute them, delete them from your standalone\'s Externals '
+                  'folder and have the PCs that run it install the Microsoft Visual C++ Redistributable instead: '
+                  '%s' % VC_REDIST_DOWNLOAD)
+    with open(target, 'wb') as f:
+        f.write(('\r\n'.join(lines) + '\r\n').encode('utf-8'))
+
+
 def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms,
                  pinned_version=None):
     lines = [
@@ -1572,6 +1656,8 @@ def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_run
             lines.append('# The files marked NOT PINNED differ from the pins:')
         for p, h, v, ok in runtime_copies:
             lines.append('#   %s  %s  (file version %s)%s' % (p, h, v, '' if ok else '  NOT PINNED'))
+        lines.append('# They are Microsoft Distributable Code, not under the extensions\' licences or the')
+        lines.append('# GPL: see %s/%s in each of these extensions.' % (LICENCE_DIR, VC_RUNTIME_NOTICE))
         for lib, linker, older in stale_runtime:
             lines.append('# WARNING: %s was built with MSVC %s, the runtime copied for it is older (%s);'
                          % (lib, linker, ', '.join('%s %s' % o for o in older)))
