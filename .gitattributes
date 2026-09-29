@@ -44,4 +44,18 @@ prebuilt/SHA256SUMS text eol=lf
 *.rev binary
 *.livecode binary
 
+# File types of the OpenXTalk Lite / OXT-Beyond IDE (ide/). Stacks and
+# assets must be stored byte for byte; scripts and snippets are text.
+*.oxtstack binary
+*.oxtscript text
+*.snippet text
+*.ico binary
+*.gif binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.sqlite binary
+*.mp4 binary
+*.zip binary
+
 
