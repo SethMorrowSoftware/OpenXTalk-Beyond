@@ -149,8 +149,13 @@ jobs:
       - name: Configure
         run: make config-linux-"$ARCH"
 
+      # The final copy into linux-<arch>-bin runs as a second make: its input
+      # out/Release/Externals is only created as a side effect of the CEF
+      # copies, so in one parallel make it could be reached before it existed.
       - name: Build
-        run: make -C build-linux-"$ARCH"/livecode default BUILDTYPE=Release -j"$(nproc)"
+        run: |
+          make -C build-linux-"$ARCH"/livecode LiveCode-all debug-symbols BUILDTYPE=Release -j"$(nproc)"
+          make -C build-linux-"$ARCH"/livecode default BUILDTYPE=Release -j"$(nproc)"
 
       - name: Verify build output
         run: |
