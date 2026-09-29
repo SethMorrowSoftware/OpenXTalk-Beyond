@@ -1,9 +1,10 @@
 script "oxt_smoke_test"
--- Headless smoke test for a Windows build of OpenXTalk Lite.
+-- Headless smoke test for a Windows build of OXT-Beyond.
 --
 -- Run it with the development engine, without the IDE:
 --
 --    win-x86_64-bin\LiveCode-Community.exe -ui tools\ci\smoke-test.livecodescript
+--    OXT-Beyond.exe -ui tools\ci\smoke-test.livecodescript    (installed)
 --
 -- tools/ci/smoke-test.ps1 does this and sets the expected values below from
 -- the source tree. The script prints one PASS or FAIL line per check to
@@ -13,6 +14,10 @@ script "oxt_smoke_test"
 --    OXT_EXPECT_VERSION  expected "the version" (BUILD_SHORT_VERSION)
 --    OXT_EXPECT_SQLITE   expected sqlite_version() (SQLITE_VERSION in
 --                        thirdparty/libsqlite/include/sqlite3.h)
+--    OXT_EXTERNALS_DIR   folder with revdb.dll, revxml.dll and revzip.dll
+--    OXT_DRIVERS_DIR     folder with dbsqlite.dll
+-- Both folders default to the engine's folder, as in win-x86_64-bin. In an
+-- installed layout they are Externals and Externals/Database Drivers.
 
 local sFails, sPasses
 
@@ -33,8 +38,15 @@ on startup
    put specialFolderPath("temporary") into tTemp
    put $OXT_EXPECT_VERSION into tExpectVersion
    put $OXT_EXPECT_SQLITE into tExpectSqlite
+   put $OXT_EXTERNALS_DIR into tExternals
+   if tExternals is empty then put tEngine into tExternals
+   replace "\" with "/" in tExternals
+   put $OXT_DRIVERS_DIR into tDrivers
+   if tDrivers is empty then put tEngine into tDrivers
+   replace "\" with "/" in tDrivers
    write "INFO version=" & the version & " build=" & the buildNumber & " environment=" & the environment & " platform=" & the platform & " processor=" & the processor & return to stdout
    write "INFO engine=" & tEngine & return to stdout
+   write "INFO externals=" & tExternals & " drivers=" & tDrivers & return to stdout
 
    try
       if tExpectVersion is empty then
@@ -95,7 +107,7 @@ on startup
       check "shell", word 1 of tShell is "oxt", word 1 of tShell
 
       -- Externals: revDB, revXML and revZip
-      set the externals of the templateStack to tEngine & "/revdb.dll" & return & tEngine & "/revxml.dll" & return & tEngine & "/revzip.dll"
+      set the externals of the templateStack to tExternals & "/revdb.dll" & return & tExternals & "/revxml.dll" & return & tExternals & "/revzip.dll"
       create stack "oxt_smoke_test_externals"
       start using stack "oxt_smoke_test_externals"
       put the number of lines of the externalCommands of stack "oxt_smoke_test_externals" into tCommandCount
@@ -107,7 +119,7 @@ on startup
 
    -- SQLite, through revDB and dbsqlite.dll
    try
-      revSetDatabaseDriverPath tEngine
+      revSetDatabaseDriverPath tDrivers
       put tTemp & "/oxt_smoke_test.sqlite" into tDatabase
       if there is a file tDatabase then delete file tDatabase
       put revOpenDatabase("sqlite", tDatabase) into tConnection

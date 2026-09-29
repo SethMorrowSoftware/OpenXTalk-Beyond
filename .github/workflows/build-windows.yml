@@ -1,22 +1,40 @@
-# Builds OpenXTalk Lite for Windows x86-64 (Release) on a GitHub-hosted
+# Builds OXT-Beyond for Windows x86-64 (Release) on a GitHub-hosted
 # windows-2022 runner, checks the result and packages it:
 #
-#   OpenXTalkLite-<ver>-win-x86_64-ide.zip       runnable IDE (repository layout)
-#   OpenXTalkLite-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
-#                                                plus the licence files
-#   OpenXTalkLite-<ver>-win-x86_64-symbols.zip   the *.pdb files
+#   OXT-Beyond-<ver>-win-x86_64-setup.exe     installer (Inno Setup)
+#   OXT-Beyond-<ver>-win-x86_64-portable.zip  the installed program folder,
+#                                             under one top folder
+#                                             OXT-Beyond-<ver>
+#   OXT-Beyond-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
+#                                             plus the licence files
+#   OXT-Beyond-<ver>-win-x86_64-symbols.zip   the *.pdb files
 #   SHA256SUMS
 #
-# <ver> is BUILD_SHORT_VERSION from the "version" file. A run that builds,
-# verifies, packages and passes the headless smoke test of the packaged
-# engine (tools/ci/smoke-test.ps1) uploads these as the workflow artifact
-# "OpenXTalkLite-win-x86_64". Every run, including a failed one, uploads the
-# build logs as "build-logs".
+# <ver> is the product version in ide/.version. The build number written into
+# the packaged .buildnumber (OXT_BUILD_NUMBER) is the UTC time at which the
+# build job started, as YYYYMMDDHHMM.
+#
+# After the build and its verification, the job
+#   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
+#      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py;
+#      the external assets listed in tools/oxt/external-assets.json are
+#      cached in prebuilt/fetched-assets; see the Package step for leaving
+#      them out),
+#   2. runs the headless smoke test on the portable zip (smoke-test.ps1),
+#   3. compiles every IDE script in dist/stage and compares the errors with
+#      tools/ci/ide-compile-baseline.txt (ide-compile-check.ps1),
+#   4. builds the installer (build-installer.ps1), and
+#   5. installs it per user, smoke-tests the installed program and
+#      uninstalls it (test-installer.ps1).
+# A run that passes all of these uploads the files in dist (not dist/stage)
+# as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
+# failed one, uploads the logs as "build-logs".
 #
 # Pushing a tag that starts with "v" also publishes the files as a GitHub
-# Release for that tag, with generated release notes. The release is marked
-# as a pre-release when the tag contains -alpha, -beta, -rc, -dp or -pre
-# (in any case); other tags, such as v9.7.1-OXT, give a normal release.
+# Release "OXT-Beyond <ver>". The tag must be "v" followed by the version in
+# ide/.version (for example v0.0.1); otherwise the run fails. The release is
+# marked as a pre-release when the tag contains -alpha, -beta, -rc, -dp or
+# -pre (in any case).
 #
 # The toolchain matches BUILDING.md: Visual Studio 2022 with the MSVC v141
 # toolset added at run time, Windows SDK 10.0.17763.0, Python 2.7 in
@@ -35,6 +53,14 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      no_external_assets:
+        description: >-
+          Package without the external assets of tools/oxt/external-assets.json
+          (no runtimes for other platforms), for testing while an asset is not
+          published yet
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -69,7 +95,7 @@ jobs:
       PREBUILT_WIN32_SUBPLATFORMS: v141_static_release
       PREBUILT_STRICT: '1'
     outputs:
-      version: ${{ steps.package.outputs.version }}
+      version: ${{ steps.product.outputs.version }}
 
     steps:
       - name: Check out
@@ -77,6 +103,29 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      # Fails a tag build straight away when the tag does not match
+      # ide/.version, instead of after the build; the release job checks
+      # again before publishing.
+      - name: Read the product version
+        id: product
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content -LiteralPath ide/.version -Raw).Trim()
+          if ($version -notmatch '^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "ide/.version contains '$version'; expected a version such as 0.0.1 or 0.1.0-beta.1"
+          }
+          if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -like 'v*' -and $env:REF_NAME -cne "v$version") {
+            throw "Tag $env:REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
+          }
+          # One build number for every file of this run: the UTC time now,
+          # at the start of the job
+          $buildNumber = [DateTime]::UtcNow.ToString('yyyyMMddHHmm')
+          Write-Host "OXT-Beyond $version, build number $buildNumber"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version`nbuild-number=$buildNumber" -Encoding utf8
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "OXT_BUILD_NUMBER=$buildNumber" -Encoding utf8
 
       - name: Show runner environment
         continue-on-error: true
@@ -189,29 +238,113 @@ jobs:
         id: verify
         run: ./tools/ci/verify-build.ps1
 
+      # As with the prebuilt libraries, restore and save are separate steps
+      # so that verified downloads are cached even when a later step fails.
+      # tools/oxt/package.py verifies every cached archive against the
+      # SHA-256 in the manifest before using it.
+      - name: Restore cached external assets
+        id: assets-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: prebuilt/fetched-assets
+          key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
+
+      # Writes dist/stage/OXT-Beyond-<ver> (the installed layout), the
+      # portable, binaries and symbols zips and SHA256SUMS.
+      #
+      # The external assets are left out (package-windows.ps1
+      # -NoExternalAssets) when a manual run sets the input
+      # no_external_assets, or when the repository variable
+      # OXT_NO_EXTERNAL_ASSETS is 1, for example while a new asset is not
+      # published yet. Tag builds, which publish a release, always include
+      # them.
       - name: Package
         id: package
-        run: ./tools/ci/package-windows.ps1
-
-      # Extract the IDE zip and run its engine without a user interface: the
-      # script engine, ICU, OpenSSL, SQLite (revDB), revXML and revZip.
-      - name: Smoke test (packaged engine, headless)
-        id: smoke
-        timeout-minutes: 10
+        timeout-minutes: 45
+        env:
+          OXT_ASSETS_CACHE: ${{ github.workspace }}\prebuilt\fetched-assets
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
         run: |
-          $package = @(Get-ChildItem -Path dist -Filter '*-win-x86_64-ide.zip')
-          if ($package.Count -ne 1) { throw "Expected one IDE zip in dist, found $($package.Count)" }
-          ./tools/ci/smoke-test.ps1 -Package $package[0].FullName -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test.log"
+          $log = Join-Path $env:RUNNER_TEMP 'build-logs\package.log'
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null
+          $packageArgs = @{}
+          if ($env:NO_EXTERNAL_ASSETS -eq 'true') {
+            Write-Host '::warning title=Package::External assets left out (no_external_assets input or OXT_NO_EXTERNAL_ASSETS variable): the packages have no standalone runtimes for other platforms.'
+            $packageArgs['NoExternalAssets'] = $true
+          }
+          $global:LASTEXITCODE = 0
+          ./tools/ci/package-windows.ps1 @packageArgs *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
+
+      - name: Save external assets to the cache
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/**') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: prebuilt/fetched-assets
+          key: ${{ steps.assets-cache.outputs.cache-primary-key }}
+
+      # Extract the portable zip and run its engine (OXT-Beyond.exe) without
+      # a user interface: the script engine, ICU, OpenSSL, SQLite (revDB and
+      # the driver in Externals\Database Drivers), revXML and revZip.
+      - name: Smoke test (portable zip, headless)
+        id: smoke
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $package = "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip"
+          if (-not (Test-Path -LiteralPath $package -PathType Leaf)) { throw "$package was not written" }
+          ./tools/ci/smoke-test.ps1 -Package $package -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test-portable.log"
+
+      # Compile every IDE script of the staged installed layout with its
+      # engine; fails on compile errors that are not in the baseline.
+      - name: IDE compile check
+        id: compile_check
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: ./tools/ci/ide-compile-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-compile-check.log"
+
+      - name: Build installer
+        id: installer
+        timeout-minutes: 60
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'build-logs\build-installer.log'
+          $global:LASTEXITCODE = 0
+          ./tools/ci/build-installer.ps1 -Stage "dist/stage/OXT-Beyond-$env:VERSION" -OutDir dist *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "build-installer.ps1 failed with exit code $LASTEXITCODE" }
+
+      # Install per user into a temporary folder, check the files, run the
+      # smoke test on the installed OXT-Beyond.exe and uninstall again.
+      - name: Test installer
+        id: test_installer
+        timeout-minutes: 30
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $setup = "dist/OXT-Beyond-$env:VERSION-win-x86_64-setup.exe"
+          if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) { throw "$setup was not written" }
+          $log = Join-Path $env:RUNNER_TEMP 'build-logs\test-installer.log'
+          $global:LASTEXITCODE = 0
+          ./tools/ci/test-installer.ps1 -Setup $setup *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "test-installer.ps1 failed with exit code $LASTEXITCODE" }
 
       - name: Upload packages
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: OpenXTalkLite-win-x86_64
-          path: dist/*
+          name: OXT-Beyond-win-x86_64
+          # Everything in dist except the staged layout
+          path: |
+            dist/*
+            !dist/stage
+            !dist/stage/**
           if-no-files-found: error
           retention-days: 30
-          # The files are zips already
+          # The files are compressed already
           compression-level: 0
 
       - name: Collect logs
@@ -249,6 +382,9 @@ jobs:
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PACKAGE_OUTCOME: ${{ steps.package.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
+          INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
+          TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
         run: |
           $outcomes = [ordered]@{
             'Visual Studio setup' = $env:VS_OUTCOME
@@ -260,6 +396,9 @@ jobs:
             'Verify' = $env:VERIFY_OUTCOME
             'Package' = $env:PACKAGE_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
+            'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
+            'Build installer' = $env:INSTALLER_OUTCOME
+            'Test installer' = $env:TEST_INSTALLER_OUTCOME
           }
           Write-Host 'Step outcomes:'
           $summary = @('### Failure diagnostics', '', '| Step | Outcome |', '| --- | --- |')
@@ -302,7 +441,9 @@ jobs:
         env:
           MSVC_V141: ${{ steps.vs.outputs.msvc-v141-version }}
           VS_PATH: ${{ steps.vs.outputs.install-path }}
-          VERSION: ${{ steps.verify.outputs.version }}
+          VERSION: ${{ steps.product.outputs.version }}
+          BUILD_NUMBER: ${{ steps.product.outputs.build-number }}
+          ENGINE_VERSION: ${{ steps.verify.outputs.version }}
           SQLITE_VERSION: ${{ steps.verify.outputs.sqlite-version }}
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
@@ -311,18 +452,18 @@ jobs:
             '',
             "- Commit: ``$env:GITHUB_SHA``",
             "- Visual Studio: ``$env:VS_PATH``, MSVC v141 ``$env:MSVC_V141``, Windows SDK ``$env:WINSDK_VERSION``",
-            "- OpenXTalk Lite version: ``$env:VERSION``, SQLite ``$env:SQLITE_VERSION``",
+            "- OXT-Beyond ``$env:VERSION``, build number ``$env:BUILD_NUMBER``; engine ``$env:ENGINE_VERSION``, SQLite ``$env:SQLITE_VERSION``",
             '',
             '### Artifacts',
             ''
           )
           if ($env:ARTIFACT_URL) {
-            $lines += "- [OpenXTalkLite-win-x86_64]($env:ARTIFACT_URL): the IDE, binaries and symbols zips and SHA256SUMS"
+            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips and SHA256SUMS"
           }
           else {
-            $lines += '- OpenXTalkLite-win-x86_64: not uploaded (an earlier step failed)'
+            $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs: msbuild.log, the smoke test output and installer logs'
+          $lines += '- build-logs: msbuild.log and the packaging, smoke test, IDE compile check and installer logs'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
 
@@ -338,7 +479,7 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: OpenXTalkLite-win-x86_64
+          name: OXT-Beyond-win-x86_64
           path: dist
 
       - name: Create or update the release
@@ -352,9 +493,19 @@ jobs:
           ls -l dist
           (cd dist && sha256sum -c SHA256SUMS)
 
-          if [ "v${VERSION}" != "${TAG}" ]; then
-            echo "::warning::Tag ${TAG} does not match the version file (BUILD_SHORT_VERSION ${VERSION}); the files are named after ${VERSION}."
+          # VERSION is ide/.version of the tagged commit
+          if [ -z "${VERSION}" ] || [ "v${VERSION}" != "${TAG}" ]; then
+            echo "::error::Tag ${TAG} does not match ide/.version (${VERSION}); the tag for this version is v${VERSION}. Nothing was published."
+            exit 1
           fi
+
+          prefix="OXT-Beyond-${VERSION}-win-x86_64"
+          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" SHA256SUMS; do
+            if [ ! -f "dist/${f}" ]; then
+              echo "::error::dist/${f} is missing from the build artifact"
+              exit 1
+            fi
+          done
 
           prerelease=()
           case "${TAG,,}" in
@@ -362,14 +513,17 @@ jobs:
           esac
 
           cat > notes.md <<EOF
-          Windows x86-64 build of OpenXTalk Lite ${VERSION}, made by the "Build (Windows)" workflow from commit ${GITHUB_SHA}.
+          OXT-Beyond ${VERSION} for Windows x86-64, made by the "Build (Windows)" workflow from commit ${GITHUB_SHA}.
 
-          - \`OpenXTalkLite-${VERSION}-win-x86_64-ide.zip\`: the IDE, ready to run. Extract it and run \`win-x86_64-bin\\LiveCode-Community.exe\`; see README-FIRST.txt inside.
-          - \`OpenXTalkLite-${VERSION}-win-x86_64-binaries.zip\`: the engine, externals and tools (\`win-x86_64-bin\`) without debug symbols, plus the licence files.
-          - \`OpenXTalkLite-${VERSION}-win-x86_64-symbols.zip\`: debug symbols (\`*.pdb\`).
-          - \`SHA256SUMS\`: SHA-256 checksums of the zips.
+          - \`${prefix}-setup.exe\`: the installer. It installs for all users or only for you, and adds a Start menu shortcut and the .oxtstack and .oxtscript file types.
+          - \`${prefix}-portable.zip\`: the same program folder without an installer. Extract it and run \`OXT-Beyond.exe\`.
+          - \`${prefix}-binaries.zip\`: the engine, externals and tools as built (\`win-x86_64-bin\`), without debug symbols, plus the licence files.
+          - \`${prefix}-symbols.zip\`: debug symbols (\`*.pdb\`) for the binaries.
+          - \`SHA256SUMS\`: SHA-256 checksums of these files.
 
-          The program files and the IDE still use the LiveCode name; renaming has not been done yet. The executables are not code-signed.
+          The Windows x86-64 engine, externals and tools are built from this repository. The standalone runtimes for other platforms (Windows x86-32, Linux and Android) and the time zone library code for platforms other than Windows x86-64 are not built here: they are taken unchanged from OpenXTalk Lite 1.15, and are stock LiveCode 9.6.3 builds and files as Tom Perry shipped them, among them his 9.7.1-OXT Linux engine (see THIRD-PARTY-NOTICES.md).
+
+          OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3. The executables are not code-signed, so Windows SmartScreen may warn when they are run for the first time.
           EOF
 
           if gh release view "${TAG}" >/dev/null 2>&1; then
@@ -378,7 +532,7 @@ jobs:
           else
             gh release create "${TAG}" dist/* \
               --verify-tag \
-              --title "OpenXTalk Lite ${TAG#v}" \
+              --title "OXT-Beyond ${VERSION}" \
               --notes-file notes.md \
               --generate-notes \
               "${prerelease[@]}"
