@@ -388,7 +388,8 @@ cache).
 ## xTalk Suite extensions (`xtalk_extensions.py`)
 
 ```
-python tools/oxt/xtalk_extensions.py [--manifest FILE] pin   [--member NAME] [--ref REF] [--cache DIR | --no-cache]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] pin   [--member NAME] [--ref REF [--allow-off-branch]]
+                                     [--cache DIR | --no-cache]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] fetch [--cache DIR] [--offline] [--platforms LIST] [--member NAME]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] build --bin DIR --out DIR [--vc-redist DIR]
                                      [--cache DIR] [--offline] [--platforms LIST] [--summary-json FILE]
@@ -407,7 +408,14 @@ Nothing of the members is kept in this repository.
 
 * `pin` resolves the commit of each member (or `--member`; `--ref` a
   branch, tag or commit, default the head of the default branch) with
-  `git ls-remote` or the GitHub API, downloads every listed file from
+  `git ls-remote` or the GitHub API. A `--ref` commit must be on the
+  member's default branch (one call of the GitHub compare API,
+  `compare/<commit>...HEAD`, status `ahead` or `identical`): a SHA-1
+  always, because `raw.githubusercontent.com` serves every commit of the
+  repository's fork network, including forks and unmerged pull requests;
+  a branch or tag named with `--ref` unless `--allow-off-branch`, because
+  its commit disappears when the branch is deleted. It downloads every
+  listed file from
   `https://raw.githubusercontent.com/<repository>/<commit>/<path>` and
   rewrites the manifest (commit, version from `version_from`, `sha256`,
   `size`, `imports`) without changing its order or layout. It checks the

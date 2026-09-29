@@ -39,12 +39,14 @@ Every extension folder also gets the member's licence files in licenses/.
 
 Subcommands
 
-  pin    [--member NAME] [--ref REF]
+  pin    [--member NAME] [--ref REF [--allow-off-branch]]
          resolve the member's commit (default: HEAD of its default branch,
-         through git ls-remote or the GitHub API), download every listed
-         file at that commit and rewrite the manifest with the commit, the
-         version (version_from) and each file's sha256, size and, for
-         Windows libraries, the DLLs it imports. Files with their own
+         through git ls-remote or the GitHub API; it must be on the default
+         branch, which --allow-off-branch waives for a branch or tag named
+         by --ref, never for a SHA-1), download every listed file at that
+         commit and rewrite the manifest with the commit, the version
+         (version_from) and each file's sha256, size and, for Windows
+         libraries, the DLLs it imports. Files with their own
          "repository" and "commit" (the OpenSSL licence text) keep their
          commit and are only re-hashed. This is how maintainers take a newer
          version of a member.
@@ -111,6 +113,10 @@ DEFAULT_MANIFEST = os.path.join(HERE, 'xtalk-extensions.json')
 CACHE_ENV = 'OXT_XTALK_CACHE'
 RAW_URL = 'https://raw.githubusercontent.com/%s/%s/%s'
 API_COMMIT_URL = 'https://api.github.com/repos/%s/commits/%s'
+API_COMPARE_URL = 'https://api.github.com/repos/%s/compare/%s...HEAD?per_page=1'
+# The compare statuses of <commit>...HEAD that mean the default branch is at
+# the commit or after it, so the commit is one of its ancestors
+ON_DEFAULT_BRANCH = ('ahead', 'identical')
 STAMP_NAME = 'XTALK-EXTENSIONS.txt'
 LICENCE_DIR = 'licenses'
 
@@ -178,6 +184,13 @@ end extensionFinalize
 
 class XtalkError(Exception):
     pass
+
+
+class HttpError(XtalkError):
+    """An HTTP error status that is not worth retrying (a 404, say)."""
+    def __init__(self, code, message):
+        XtalkError.__init__(self, message)
+        self.code = code
 
 
 # ---------------------------------------------------------------------------
@@ -614,7 +627,7 @@ def _http_get(url, log, accept='application/octet-stream'):
             if e.code in (408, 425, 429) or e.code >= 500:
                 problem = 'HTTP %d %s' % (e.code, e.reason)
             else:
-                raise XtalkError('HTTP %d %s for %s' % (e.code, e.reason, url))
+                raise HttpError(e.code, 'HTTP %d %s for %s' % (e.code, e.reason, url))
         except fetch_assets.AssetError as e:
             raise XtalkError(str(e))
         except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
@@ -629,9 +642,12 @@ def _http_get(url, log, accept='application/octet-stream'):
 
 def resolve_commit(repository, ref, log):
     """Full commit SHA-1 of ref (a branch, a tag, HEAD for the default
-    branch, or a full SHA-1) in github.com/<repository>."""
+    branch, or a full SHA-1) in github.com/<repository>. A SHA-1, and any
+    answer of the GitHub API, must be on the default branch (see
+    on_default_branch); a branch or tag that git ls-remote resolves is a
+    ref of the repository itself."""
     if _is_sha1(ref):
-        return ref
+        return on_default_branch(repository, ref, log)
     git = shutil.which('git')
     if git:
         url = 'https://github.com/%s.git' % repository
@@ -661,7 +677,56 @@ def resolve_commit(repository, ref, log):
     sha = body.decode('ascii', 'replace').strip()
     if not _is_sha1(sha):
         raise XtalkError('the GitHub API gave no commit for %s %s' % (repository, ref))
-    return sha
+    # The API also resolves a short SHA-1, to any commit of the fork network
+    return on_default_branch(repository, sha, log)
+
+
+_compare_status = {}
+
+
+def default_branch_status(repository, commit, log):
+    """How commit relates to the head of the default branch of
+    github.com/<repository>, from one call of the GitHub compare API:
+    'identical' or 'ahead' (ON_DEFAULT_BRANCH) when the default branch is
+    at it or after it, 'behind' or 'diverged' when it is not on the
+    default branch, or a note when the API answers 404 (no history in
+    common, or no such commit). The answer is kept for the rest of the
+    run, so that pin asks once per commit."""
+    key = (repository.lower(), commit)
+    if key not in _compare_status:
+        try:
+            body = _http_get(API_COMPARE_URL % (repository, commit), log, accept='application/vnd.github+json')
+        except HttpError as e:
+            if e.code not in (404, 422):
+                raise
+            status = 'HTTP %d, no history in common or no such commit' % e.code
+        else:
+            try:
+                status = json.loads(body.decode('utf-8')).get('status')
+            except (ValueError, AttributeError):
+                status = None
+        _compare_status[key] = status
+    return _compare_status[key]
+
+
+def on_default_branch(repository, commit, log):
+    """commit, if the default branch of github.com/<repository> is at it or
+    after it; else raise. raw.githubusercontent.com/<repository>/<commit>/
+    and the commits API serve every commit of the repository's fork
+    network, so a commit pushed to anybody's fork, or the head of an
+    unmerged pull request, downloads under the member's name: pinned, it
+    would ship as the member's code (the SHA-256s only prove that it is
+    what was pinned), and in a manifest diff its SHA-1 looks like any
+    other. A name that git ls-remote resolved is a ref of the repository
+    itself and needs no check here (cmd_pin still wants it on the default
+    branch, so that it stays reachable)."""
+    status = default_branch_status(repository, commit, log)
+    if status not in ON_DEFAULT_BRANCH:
+        raise XtalkError('%s is not on the default branch of github.com/%s (compare: %s); it may be a '
+                         'commit of a fork or an unmerged pull request. Pin a branch or tag of the '
+                         'repository by name (--ref NAME, with --allow-off-branch if it is not on the '
+                         'default branch)' % (commit, repository, status))
+    return commit
 
 
 # ---------------------------------------------------------------------------
@@ -822,6 +887,20 @@ def cmd_pin(args, log=print):
         ref = args.ref or 'HEAD'
         commit = resolve_commit(m['repository'], ref, log)
         log('%s: %s %s is %s' % (m['name'], m['repository'], ref, commit))
+        # The pinned files are fetched live from raw.githubusercontent.com,
+        # so the commit must stay reachable for as long as a release that
+        # pins it may be rebuilt. The members publish by fast-forwarding
+        # their default branch, never force-pushed, so its commits stay; a
+        # commit reachable only from another branch, or from a tag, which
+        # can be moved, disappears when that goes. (A SHA-1, and a ref the
+        # GitHub API resolved, were checked by resolve_commit already.)
+        if ref != 'HEAD' and not args.allow_off_branch:
+            status = default_branch_status(m['repository'], commit, log)
+            if status not in ON_DEFAULT_BRANCH:
+                raise XtalkError('%s: %s (%s) is not on the default branch of github.com/%s (compare: %s); '
+                                 'it can disappear when its branch is deleted or its tag is moved. Pin a '
+                                 'commit of the default branch, or pass --allow-off-branch to pin it anyway'
+                                 % (m['name'], commit, ref, m['repository'], status))
         changes = pin_member(data, m, commit, cache, log)
         log('  version %s; %d file(s) changed' % (m['version'], len(changes)))
         total += len(changes)
@@ -1363,7 +1442,11 @@ def main(argv=None):
     p = sub.add_parser('pin', help='pin members to a commit and re-hash their files')
     p.add_argument('--member', action='append', help='only this member (repeatable; default: all)')
     p.add_argument('--ref', help='branch, tag or commit to pin (default: HEAD of the default branch); '
-                                 'needs exactly one --member')
+                                 'needs exactly one --member. A commit given by its SHA-1 must be on the '
+                                 'default branch; so must a branch or tag, unless --allow-off-branch')
+    p.add_argument('--allow-off-branch', action='store_true',
+                   help='pin a --ref branch or tag whose commit is not on the default branch (it '
+                        'disappears when that branch is deleted)')
     p.add_argument('--cache', metavar='DIR', help='also store the downloads in this cache '
                                                   '(default: as for fetch)')
     p.add_argument('--no-cache', action='store_true', help='do not store the downloads')

@@ -887,14 +887,22 @@ the folders it made before.
 ```bat
 python tools\oxt\xtalk_extensions.py pin
 python tools\oxt\xtalk_extensions.py pin --member CoinXT
-python tools\oxt\xtalk_extensions.py pin --member Box2Dxt --ref <branch, tag or commit>
+python tools\oxt\xtalk_extensions.py pin --member Box2Dxt --ref <branch, tag or commit of the default branch>
 ```
 
 `pin` resolves the commit (the head of the default branch unless
-`--ref` is given; with `git ls-remote`, else the GitHub API), downloads
-every listed file at that commit, and rewrites the manifest with the
-commit, the version, each file's SHA-256 and size and the Windows
-libraries' imports, keeping its order and layout. It stops if a
+`--ref` is given; with `git ls-remote`, else the GitHub API). A commit
+given with `--ref` must be on the member's default branch, which `pin`
+checks with one call of the GitHub compare API. For a SHA-1 this is not
+negotiable: `raw.githubusercontent.com` serves the commits of every fork
+and unmerged pull request under the member's name, and a SHA-1 alone
+does not show whose commit it is. A branch or tag named with `--ref`
+whose commit is not on the default branch is refused as well, because
+the packages fetch the pinned files live and such a commit disappears
+when its branch is deleted; `--allow-off-branch` pins it anyway. Then
+`pin` downloads every listed file at that commit, and rewrites the
+manifest with the commit, the version, each file's SHA-256 and size and
+the Windows libraries' imports, keeping its order and layout. It stops if a
 library's hash differs from the member's `MANIFEST.sha256`, if that file
 lists a library the manifest does not take (a new platform, for
 example: add it to `files`), or if an LCB source declares another module
