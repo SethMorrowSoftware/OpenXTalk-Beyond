@@ -1226,8 +1226,8 @@ It follows this guide:
    `tools/ci/verify-build.ps1`.
 4. It packages with `tools/ci/package-windows.ps1`: the installed layout
    in `dist\stage\OXT-Beyond-<ver>` and the portable, binaries and
-   symbols zips. The external assets are cached in
-   `prebuilt\fetched-assets` between runs, keyed on the manifest. They
+   symbols zips. The external assets' archives are cached from
+   `prebuilt\fetched-assets\*.zip` between runs, keyed on the manifest. They
    are left out (`-NoExternalAssets`, with a warning in the run) when
    the workflow is started by hand with the input `no_external_assets`,
    or when the repository variable `OXT_NO_EXTERNAL_ASSETS` is `1`, for

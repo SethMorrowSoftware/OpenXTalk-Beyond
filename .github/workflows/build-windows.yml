@@ -22,9 +22,10 @@
 # After the build and its verification, the job
 #   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
 #      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py;
-#      the external assets listed in tools/oxt/external-assets.json are
-#      cached in prebuilt/fetched-assets, the files of the xTalk Suite
-#      extensions pinned in tools/oxt/xtalk-extensions.json in
+#      the archives of the external assets listed in
+#      tools/oxt/external-assets.json are cached from
+#      prebuilt/fetched-assets/*.zip, the files of the xTalk Suite
+#      extensions pinned in tools/oxt/xtalk-extensions.json from
 #      prebuilt/fetched-assets/xtalk; see the Package step for leaving
 #      them out), and checks that every Windows DLL of the bundled
 #      extensions finds its imports (check-extension-imports.ps1),
@@ -259,14 +260,19 @@ jobs:
       # SHA-256 in the manifest before using it. The xTalk extensions'
       # files (prebuilt/fetched-assets/xtalk) have a cache of their own,
       # keyed on their manifest, so a new pin does not download the
-      # runtimes archive again; the external-assets cache leaves them out.
+      # runtimes archive again. The external-assets cache holds only the
+      # archives (prebuilt/fetched-assets/*.zip; "zip" is the only asset
+      # kind): actions/cache globs without implicit descendants and tar
+      # archives a listed folder whole, so an exclusion such as
+      # '!prebuilt/fetched-assets/xtalk' under a listed
+      # 'prebuilt/fetched-assets' would not keep the xTalk files out. The
+      # path must be the same in the save step (it is part of the cache
+      # version).
       - name: Restore cached external assets
         id: assets-cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            prebuilt/fetched-assets
-            !prebuilt/fetched-assets/xtalk
+          path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
 
       - name: Restore cached xTalk extension files
@@ -322,9 +328,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: |
-            prebuilt/fetched-assets
-            !prebuilt/fetched-assets/xtalk
+          path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
 
       - name: Save xTalk extension files to the cache
