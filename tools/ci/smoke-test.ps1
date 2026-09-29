@@ -24,6 +24,22 @@
     The script is told where the externals and drivers are through
     OXT_EXTERNALS_DIR and OXT_DRIVERS_DIR, so the same checks run in both.
 
+    When an installed layout has the xTalk Suite extensions that
+    tools/oxt/xtalk-extensions.json lists (Extensions\<folder>), the script
+    also loads each of them the way the IDE does and calls it: every LCB
+    library's code\x86_64-win32 files are mapped in revLibraryMapping, its
+    module.lcm is loaded and its probe (from the manifest) is evaluated;
+    every script library is started with "start using" after the ones it
+    requires, its probe evaluated, and its extensionInitialize and
+    extensionFinalize handlers checked. The list, in load order, is passed
+    in a temporary file named by OXT_XTALK_PROBES. The DLL imports of each
+    library are read with check-extension-imports.ps1: a library whose
+    Visual C++ runtime (or other non-system DLL) is not next to it would
+    load on this machine, which has the runtime, but not on a PC without
+    it, so that is reported as a failed check. An extension the manifest
+    lists but the layout lacks is a failure too; a layout without any of
+    them (packaged with --no-xtalk-extensions) skips these checks.
+
     With -Package, a zip is extracted to a temporary folder first and its
     engine is tested, so the check covers the files users download. The zip
     must have one top folder; its layout is detected: the portable zip made
@@ -159,6 +175,75 @@ Write-Host "Database drivers: $driversDir"
 Write-Host "Smoke test      : $script"
 Write-Host "Expected version: $expectVersion"
 Write-Host "Expected SQLite : $expectSqlite"
+
+# --- xTalk Suite extensions ---
+# One tab-separated line per extension of tools/oxt/xtalk-extensions.json,
+# in load order (the LCB libraries, then each script library after the ones
+# it requires):
+#   lcb <folder> <module id> <probe> <expected (regex)> <missing DLLs or empty>
+#   lcs <folder> <stack>     <probe> <expected (regex)> <requires>
+#   missing <folder>         (listed in the manifest, not in the layout)
+$xtalkProbeFile = $null
+$xtalkCount = 0
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$xtalkManifest = Join-Path $RepoRoot 'tools\oxt\xtalk-extensions.json'
+$extensionsDir = if ($Layout -eq 'installed') { Join-Path $InstallDir 'Extensions' } else { $null }
+if ($extensionsDir -and (Test-Path -LiteralPath $extensionsDir -PathType Container) -and (Test-Path -LiteralPath $xtalkManifest -PathType Leaf)) {
+    $manifest = [System.IO.File]::ReadAllText($xtalkManifest, $utf8NoBom) | ConvertFrom-Json
+    $entries = @()
+    foreach ($member in @($manifest.members)) {
+        foreach ($ext in @($member.extensions)) {
+            $requires = @()
+            if ($ext.PSObject.Properties['requires']) { $requires = @($ext.requires) }
+            $name = if ($ext.kind -eq 'lcs') { [string]$ext.stack } else { [string]$ext.id }
+            $entries += New-Object PSObject -Property @{
+                Kind = [string]$ext.kind; Folder = [string]$ext.folder; Id = [string]$ext.id; Name = $name
+                Probe = [string]$ext.probe; Expect = [string]$ext.expect; Requires = $requires
+                Present = (Test-Path -LiteralPath (Join-Path $extensionsDir $ext.folder) -PathType Container) }
+        }
+    }
+    $present = @($entries | Where-Object { $_.Present })
+    if ($present.Count -eq 0) {
+        Write-Host 'xTalk extensions: none in this layout (packaged with --no-xtalk-extensions); not tested'
+    }
+    else {
+        # Which libraries would not load on a PC without the Visual C++
+        # runtime (or another DLL that is not a Windows system DLL)
+        $imports = @(& (Join-Path $PSScriptRoot 'check-extension-imports.ps1') -Root $InstallDir -PassThru)
+        $ordered = New-Object System.Collections.Generic.List[object]
+        foreach ($e in $entries) { if ($e.Kind -eq 'lcb') { $ordered.Add($e) } }
+        $pending = @($entries | Where-Object { $_.Kind -ne 'lcb' })
+        while ($pending.Count -gt 0) {
+            $placedIds = @($ordered | ForEach-Object { $_.Id.ToLowerInvariant() })
+            $ready = @($pending | Where-Object { @($_.Requires | Where-Object { $placedIds -notcontains $_.ToLowerInvariant() }).Count -eq 0 })
+            if ($ready.Count -eq 0) { throw 'tools/oxt/xtalk-extensions.json: circular or unknown requires' }
+            foreach ($e in $ready) { $ordered.Add($e) }
+            $pending = @($pending | Where-Object { $ready -notcontains $_ })
+        }
+        $lines = @()
+        foreach ($e in $ordered) {
+            if (-not $e.Present) {
+                $lines += "missing`t$($e.Folder)"
+                continue
+            }
+            if ($e.Kind -eq 'lcb') {
+                $problems = @()
+                foreach ($r in @($imports | Where-Object { $_.Extension -eq $e.Folder })) {
+                    if ($r.Problem) { $problems += "$($r.Folder)/$(Split-Path -Leaf $r.Path): $($r.Problem)" }
+                    elseif ($r.Missing.Count -gt 0) { $problems += "$($r.Folder)/$(Split-Path -Leaf $r.Path) needs $($r.Missing -join ', ')" }
+                }
+                $lines += "lcb`t$($e.Folder)`t$($e.Id)`t$($e.Probe)`t$($e.Expect)`t$($problems -join '; ')"
+            }
+            else {
+                $lines += "lcs`t$($e.Folder)`t$($e.Name)`t$($e.Probe)`t$($e.Expect)`t$(@($e.Requires) -join ',')"
+            }
+        }
+        $xtalkCount = $present.Count
+        $xtalkProbeFile = [System.IO.Path]::GetTempFileName()
+        [System.IO.File]::WriteAllText($xtalkProbeFile, (($lines -join "`n") + "`n"), $utf8NoBom)
+        Write-Host "xTalk extensions: $xtalkCount of $($entries.Count) in $extensionsDir"
+    }
+}
 Write-Host ''
 
 # --- Run the engine without a user interface ---
@@ -168,6 +253,14 @@ $env:OXT_EXPECT_VERSION = $expectVersion
 $env:OXT_EXPECT_SQLITE = $expectSqlite
 $env:OXT_EXTERNALS_DIR = $externalsDir
 $env:OXT_DRIVERS_DIR = $driversDir
+if ($xtalkProbeFile) {
+    $env:OXT_XTALK_PROBES = $xtalkProbeFile
+    $env:OXT_EXTENSIONS_DIR = $extensionsDir
+}
+else {
+    $env:OXT_XTALK_PROBES = $null
+    $env:OXT_EXTENSIONS_DIR = $null
+}
 $outFile = [System.IO.Path]::GetTempFileName()
 $errFile = [System.IO.Path]::GetTempFileName()
 $failed = $null
@@ -213,13 +306,15 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue
+    if ($xtalkProbeFile) { Remove-Item -LiteralPath $xtalkProbeFile -Force -ErrorAction SilentlyContinue }
     if ($extractDir) { Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue }
     if ($env:GITHUB_OUTPUT -and $null -ne $failed) {
         Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "passed=$passed`nfailed=$failed" -Encoding utf8
     }
     if ($env:GITHUB_STEP_SUMMARY) {
         $result = if ($null -eq $failed) { 'did not complete' } elseif ($failed -eq 0) { "all $passed checks passed" } else { "$failed of $($passed + $failed) checks failed" }
-        Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "### Smoke test ($Layout layout)`n`nHeadless run of ``tools/ci/smoke-test.livecodescript`` with ``$Exe`` from ``$source``: $result.`n" -Encoding utf8
+        $xtalkNote = if ($xtalkCount -gt 0) { " It loaded and called the $xtalkCount bundled xTalk Suite extensions." } else { '' }
+        Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "### Smoke test ($Layout layout)`n`nHeadless run of ``tools/ci/smoke-test.livecodescript`` with ``$Exe`` from ``$source``: $result.$xtalkNote`n" -Encoding utf8
     }
 }
 
