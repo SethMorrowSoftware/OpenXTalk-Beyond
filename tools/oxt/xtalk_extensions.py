@@ -933,13 +933,18 @@ def _lci_snapshot(folder):
 
 
 def _rmtree(path):
-    def onerror(func, p, exc_info):
+    # Read-only files (a copy of a read-only checkout, say) are made
+    # writable and removed again; onerror is deprecated from Python 3.12
+    def retry(func, p, error):
         try:
             os.chmod(p, stat.S_IWRITE)
             func(p)
         except OSError:
-            raise exc_info[1]
-    shutil.rmtree(path, onerror=onerror)
+            raise error
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=retry)
+    else:
+        shutil.rmtree(path, onerror=lambda func, p, exc_info: retry(func, p, exc_info[1]))
 
 
 def find_vc_redist(folder):
