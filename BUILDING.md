@@ -242,7 +242,9 @@ the standard library. Install a current Python 3 from
 `py` launcher is enough). It does not replace Python 2.7, which
 `config.py` still needs: `tools\ci\package-windows.ps1` looks for
 `py -3`, then `python3`, then a `python` that is Python 3.6 or later, or
-uses the interpreter you give it with `-Python`.
+uses the interpreter you give it with `-Python`. Packaging downloads the
+[xTalk Suite extensions](#xtalk-suite-extensions) from `github.com` and
+`raw.githubusercontent.com` unless they are in its cache.
 
 ### 2.7 Inno Setup 6 (for the installer)
 
@@ -532,8 +534,10 @@ development engine without a user interface (`-ui`) and runs
 It checks the script engine, Unicode handling (ICU), encryption (OpenSSL,
 through `revsecurity.dll`), SQLite through revDB (the version must match
 `thirdparty/libsqlite/include/sqlite3.h`; FTS5 and JSON must work and
-R*Tree must be compiled in), revXML and revZip. It prints one line per
-check and exits with the number of failed checks.
+R*Tree must be compiled in), revXML and revZip. In an installed layout
+with the [xTalk Suite extensions](#xtalk-suite-extensions) it also loads
+each of them as the IDE does and calls it (see there). It prints one
+line per check and exits with the number of failed checks.
 
 Without options it tests `win-x86_64-bin\LiveCode-Community.exe`. It can
 also test the other layouts:
@@ -567,10 +571,13 @@ writes to `dist\` (`<ver>` is the content of `ide/.version`, for example
 | `OXT-Beyond-<ver>-win-x86_64-portable.zip` | The staged program folder, under one top folder `OXT-Beyond-<ver>\`. |
 | `OXT-Beyond-<ver>-win-x86_64-binaries.zip` | `win-x86_64-bin` without `.pdb` files, plus `LICENSE`, `LICENSE-EXCEPTION.md` and `THIRD-PARTY-NOTICES.md`. Extracting it into the root of a source checkout gives the same layout as a build. |
 | `OXT-Beyond-<ver>-win-x86_64-symbols.zip` | The `.pdb` debug symbols, under `win-x86_64-bin\`. |
-| `SHA256SUMS` | Checksums of the three zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
+| `OXT-Beyond-<ver>-xtalk-sources.zip` | Only with `-XtalkSourcesZip` (CI sets it for tag builds): every file the [xTalk Suite extensions](#xtalk-suite-extensions) pin, as packaging took them, with the manifest. |
+| `SHA256SUMS` | Checksums of the zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
 
 Options: `-BuildNumber <n>`, `-AssetsCache <folder>`,
-`-NoExternalAssets`, `-OutDir <folder>` (default `dist`),
+`-NoExternalAssets`, `-NoXtalkExtensions`, `-XtalkCache <folder>`,
+`-XtalkSourcesZip`, `-VcRedist <folder>` (see
+[xTalk Suite extensions](#xtalk-suite-extensions)), `-OutDir <folder>` (default `dist`),
 `-StageParent <folder>` (default `<OutDir>\stage`), `-BinDir <folder>`,
 `-Python <path>` and `-CompressionLevel Optimal|Fastest|NoCompression`.
 Existing files of the same names are replaced; other files in `dist`
@@ -600,7 +607,10 @@ are left alone.
   that Git cannot store;
 - **the licence files** `LICENSE`, `LICENSE-EXCEPTION.md` and
   `THIRD-PARTY-NOTICES.md`, at the root;
-- **the external assets**, see [below](#external-assets).
+- **the external assets**, see [below](#external-assets);
+- **the xTalk Suite extensions** in `Extensions\`, fetched from their
+  repositories at pinned commits and built with this build's
+  `lc-compile`, see [below](#xtalk-suite-extensions).
 
 Some build outputs are deliberately not installed: the `.pdb` files,
 LiveCode's own installer engine (`installer.exe`), the server engine and
@@ -620,9 +630,10 @@ python tools\oxt\package.py --repo . --bin win-x86_64-bin --out dist\stage
 ```
 
 It takes `--build-number N`, `--assets-cache DIR`,
-`--no-external-assets`, `--offline` (use cached assets only),
-`--eol lf|crlf|keep`, `--summary-json FILE` and the comparison options
-below.
+`--no-external-assets`, `--no-xtalk-extensions`, `--vc-redist DIR`,
+`--xtalk-cache DIR`, `--offline` (use cached assets and extension files
+only), `--eol lf|crlf|keep`, `--summary-json FILE` and the comparison
+options below.
 
 **Comparing with OpenXTalk Lite 1.15.** The staged layout is meant to
 contain every file of OpenXTalk Lite 1.15 that is not part of the IDE,
@@ -651,7 +662,8 @@ errors. The intended differences are:
   Guidelines PDF, `animationEngine6.zip`) or "junk"
   (`OpenXTalk Lite.lnk`, `test.db`, an empty
   `Toolset\palettes\dictionary\api.sqlite`) are not staged;
-- the licence files and `PROVENANCE-oxt-runtimes-1.15.md` are added.
+- the licence files, `PROVENANCE-oxt-runtimes-1.15.md` and the xTalk
+  Suite extensions (with `Extensions\XTALK-EXTENSIONS.txt`) are added.
 
 Build outputs are staged as this repository builds them, so some of
 them differ from Tom Perry's binaries in 1.15 even where the paths
@@ -745,13 +757,252 @@ packages made earlier must stay reproducible. To change
 an asset, publish it under a new tag and add or update the manifest
 entry.
 
-**Adding an asset**, for example an extension taken from an xTalk Suite
-repository at a pinned version: add an entry with the URL of that
-version's release archive, its size and SHA-256, `strip` and `dest` (for
-example `Extensions/<extension id>`), and its description, licence and
-source; add the component to
+**Adding an asset**: add an entry with the URL of the release archive,
+its size and SHA-256, `strip` and `dest`, and its description, licence
+and source; add the component to
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); and check the staged
-result.
+result. Extensions from the xTalk Suite are not assets; they have their
+own manifest, described next.
+
+### xTalk Suite extensions
+
+OXT-Beyond ships the extensions of the
+[xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) built
+in (the [README](README.md#xtalk-suite-extensions) lists them): six LiveCode
+Builder libraries with native code and nine LiveCode Script libraries.
+They are neither kept in this repository nor copied into it.
+[`tools/oxt/xtalk-extensions.json`](tools/oxt/xtalk-extensions.json)
+pins each member repository (`SethMorrowSoftware/<repository>`) at a
+commit and lists the exact files taken from it, each with the SHA-256
+and size of its Git blob, and
+[`tools/oxt/xtalk_extensions.py`](tools/oxt/xtalk_extensions.py) fetches
+and builds them. `package.py` runs it with the build it packages, so a
+package always has the pinned versions, compiled by its own
+`lc-compile`.
+
+| Field | Meaning |
+| --- | --- |
+| `name`, `repository`, `commit` | The member, its `owner/repository` on GitHub and the full commit SHA-1. |
+| `version`, `version_from` | The member's version, and where `pin` reads it: a file and a regular expression (the `.lcb` metadata, or a version constant of a script library). |
+| `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, all five platform ids; `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`, the trezor-crypto notices in CoinXT's `address.c` and `hasher.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
+| `extensions` | What is made from the files: `kind` (`lcb` or `lcs`), `id`, `folder` in `Extensions\`, the `main` file, `probe` and `expect` (an expression and a regular expression its value must match, for the smoke test) and, for script libraries, `stack`, `title`, `author` and `requires`. |
+| `vc_runtime` (top level) | The Visual C++ runtime DLLs bundled with the libraries that need them (see below): `redist`, the redistributable folder they were pinned from, `file_version`, the DLLs' file version, and `files`, the `sha256` and `size` of each DLL per Windows platform id. |
+
+Line endings matter: the SHA-256 values are those of the files as Git
+stores them (LF), which is what `raw.githubusercontent.com` serves. A
+clone with `core.autocrlf=true` has other bytes in its working copy.
+
+**What is built.** For each LCB library, `Extensions\<id>\` with the
+`.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
+`code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64
+and x86 and macOS (the IDE maps the one for its platform into
+`revLibraryMapping`, and the standalone builder copies the one for the
+target into a standalone), and `licenses\`. `lc-compile` runs in that
+folder with relative paths, because `module.lcm` embeds the source path
+as given; writes the module interface into a temporary folder
+(`--interface`), never into `modules\lci` (which the build checks is
+unchanged); and runs without `-Werror`, because Box2Dxt's module id
+`org.openxtalk.box2dxt` has a digit in a namespace component, which is a
+warning. For each script library, `Extensions\<stack>\` with
+`<stack>.livecodescript`, `manifest.xml` and `licenses\`. The script is
+the pinned file with a `script "<stack>"` first line where it has none
+(OnionXT's two files and the Box2Dxt Kit, whose line numbers are then
+one more than in their repositories) and an `extensionInitialize` /
+`extensionFinalize` pair appended at the end: the IDE loads a script
+library by sending it `extensionInitialize`, and without that handler it
+would sit in memory without being in the message path. The stack name,
+the file name and the folder are the same and contain no dots, because
+the IDE loads a script library under the part of its file name before
+the first dot. The stack names are the ones the members document, not
+reverse-DNS ids such as `org.openxtalk.library.coinxt`: a script
+library's extension id is its stack name, a standalone loads it under
+that name, and the members' code and documentation use
+`start using stack "coinxt"` and so on. The cost is that a user's own
+copy of one of these files, opened by its path while the built-in copy
+is loaded, clashes with it: the engine keeps one stack per name and
+sends `reloadStack`, and the IDE's handler then asks what to do. For an
+`.lce` installed during the session, the built-in stack stays in memory
+after it is unloaded, so the user's copy takes over only after a
+restart. The README tells users this. `manifest.xml` is written from
+the JSON; `requires` makes the IDE load a script library after the
+libraries it needs.
+`Extensions\XTALK-EXTENSIONS.txt` lists every extension with its
+repository and commit. The same pins (including `vc_runtime`) and
+`lc-compile` give the same files.
+
+**The Visual C++ runtime.** `enetxt.dll` imports `MSVCP140.dll`,
+`VCRUNTIME140.dll` and (x86-64) `VCRUNTIME140_1.dll`, and
+`box2dxt.dll` imports `VCRUNTIME140.dll`: these two members build with
+the dynamic runtime. OXT-Beyond's engine links the runtime statically
+and does not install it, and a PC without the Visual C++ Redistributable
+does not have these DLLs. So the build copies every DLL that a library
+in `code\x86_64-win32` or `code\x86-win32` imports and that is neither a
+Windows system DLL nor already in that folder from Visual Studio's
+redistributable folder (`VC\Redist\MSVC\<version>`, the one with
+`x64\Microsoft.VC14x.CRT` and `x86\Microsoft.VC14x.CRT`) into the
+folder, next to the library. The engine loads extension libraries with
+`LOAD_WITH_ALTERED_SEARCH_PATH`, so Windows looks for their DLLs there
+first, and the standalone builder copies them into a standalone's
+`Externals` folder with the library. They are Microsoft's Distributable
+Code, so the build also writes `licenses\Microsoft-Visual-C++-Runtime.txt`
+into those extensions: the DLLs, the Microsoft licence terms they are
+under (with links) and what those terms ask of anyone who distributes
+them further, for example in a standalone (see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#microsoft-components)).
+The build also checks that the
+copies export every function the library imports from them. That
+catches a redistributable that lacks a function, not every older one.
+It warns when a copy's file version is older than the MSVC linker that
+built the library, because Microsoft supports only a runtime at least as
+new as the newest toolset used. That is the case now: `enetxt.dll` and
+`box2dxt.dll` are linked with MSVC 14.51, while Visual Studio 2022 (the
+CI image) ships runtime 14.44. Microsoft does not support that
+combination, although both libraries load and pass the smoke test with
+it. `XTALK-EXTENSIONS.txt` records each copy with its SHA-256 and file
+version, and the redistributable folder it came from.
+
+The runtime DLLs are pinned like everything else: `vc_runtime` in
+`xtalk-extensions.json` lists the SHA-256 and size of each DLL per
+platform (now Visual Studio 2022 17.14's redistributable folder
+`14.44.35112`, file version 14.44.35211.0, which the windows-2022 CI
+image has), and packaging verifies every copy against it. A copy from
+another redistributable stops the build with both hashes and the pinned
+file version; otherwise the same commit would package different DLLs on
+another machine, or after the CI image moves to a newer Visual Studio.
+`--allow-unpinned-vc-runtime` (`-AllowUnpinnedVcRuntime` for
+`package-windows.ps1`) only warns instead, and the stamp then says the
+runtime is not the pinned one; it is for trying out another
+redistributable, never for a release (CI does not set it). To move to
+another redistributable, pin it and commit the result:
+
+```bat
+python tools\oxt\xtalk_extensions.py pin-vc-runtime --vc-redist "%VCToolsRedistDir%."
+```
+
+It hashes, for every Windows platform id of the manifest, the DLLs the
+libraries' recorded `imports` need from that folder (and what those DLLs
+import in turn), and rewrites `redist`, `file_version` and `files`,
+keeping the block's comment, which you update if it names the old
+folder. So a new runner image with a newer Visual Studio takes one
+command and a commit.
+
+`package-windows.ps1` takes the folder from `-VcRedist` as given.
+Otherwise it collects `VCToolsRedistDir` (set in a Visual Studio
+developer prompt) and the redistributable folders of every Visual Studio
+with the C++ tools that `vswhere` finds (newest first, each one's
+default folder first) and takes the first that has the pinned DLLs, so
+that a machine with several Visual Studio installs packages the pinned
+runtime rather than the newest; if none has them, the first folder, and
+packaging then stops with the mismatch. For `package.py` and
+`xtalk_extensions.py` the folder is `--vc-redist`. Without it, packaging
+warns and lists the libraries that cannot load on a PC without the
+redistributable, and the checks below fail.
+
+**Checks.** [`tools/ci/check-extension-imports.ps1`](tools/ci/check-extension-imports.ps1)
+`-Root <installed layout>` reads the import tables of every DLL in
+`Extensions\*\code\*-win32` and fails if one imports a DLL that is
+neither a Windows system DLL (KERNEL32, USER32, ADVAPI32, WS2_32, WINMM,
+CRYPT32, bcrypt, IPHLPAPI, MSWSOCK, msvcrt, api-ms-win-crt-*) nor next to
+it; loading the libraries on a computer that has Visual Studio proves
+nothing. The [smoke test](#smoke-test) maps each LCB library's
+`code\x86_64-win32` files in `revLibraryMapping` as the IDE does, loads
+its `module.lcm`, checks the result and evaluates its probe
+(`sxVersion()`, `btLastError()`, `enLibraryVersion()`,
+`dcLibraryVersion()`, `b2Version()` = 4, `cxKeccak256Len()` = 32); starts
+each script library with `start using` after the ones it requires,
+evaluates its probe (`cxHexEncode(numToByte(0))` = `00`, `b2kVersion()`
+= 4, `oxVersion()`, `nxVersion()`, `nxrVersion()` and so on) and checks
+that `extensionInitialize` and `extensionFinalize` put it into the back
+scripts and take it out; and fails for a library whose imports the check
+above would reject. The [IDE compile check](#ide-compile-check)
+compiles the script libraries with the rest of `Extensions`.
+
+**Cache and offline use.** The files are downloaded from
+`https://raw.githubusercontent.com/<repository>/<commit>/<path>` into
+the folder given with `--xtalk-cache`, else `OXT_XTALK_CACHE`, else the
+`xtalk` folder of the asset cache (`prebuilt\fetched-assets\xtalk` by
+default), as `<repository>\<commit>\<path>`. A cached file is used when
+its size and SHA-256 match the manifest and deleted when they do not;
+downloads go through `fetch_assets.py` (HTTPS only, transient errors
+retried, verified before they are moved into place). The native
+libraries are also checked against the member's `MANIFEST.sha256`.
+`--offline` never downloads; with a filled cache, packaging works without
+internet access. CI caches the folder, keyed on the manifest.
+
+**Keeping the pinned files with a release.** The pins are commits of the
+members' branches, fetched live, so rebuilding an old release depends on
+the member repositories keeping those commits (a rewritten history, or a
+renamed or private repository, would break it). Tag builds therefore
+also publish `OXT-Beyond-<ver>-xtalk-sources.zip` with the release,
+listed in its `SHA256SUMS`: every pinned file, in the cache layout
+`<repository>\<commit>\<path>`, with a copy of `xtalk-extensions.json`.
+`xtalk_extensions.py export` writes it (sorted entries and fixed dates,
+so the same pins give the same zip), and `package-windows.ps1
+-XtalkSourcesZip` runs that. To rebuild an old tag, extract that
+release's zip into an empty folder and use the folder as the cache:
+`-XtalkCache <folder>` for `package-windows.ps1`, `--xtalk-cache <folder>
+--offline` for `package.py`, `--cache <folder> --offline` for
+`xtalk_extensions.py`. The files are still checked against the manifest.
+As with external assets, never delete or replace this file of a
+published release.
+
+```bat
+python tools\oxt\xtalk_extensions.py list
+python tools\oxt\xtalk_extensions.py fetch
+python tools\oxt\xtalk_extensions.py build --bin win-x86_64-bin --out %TEMP%\xtalk --vc-redist "%VCToolsRedistDir%."
+python tools\oxt\xtalk_extensions.py export --out %TEMP%\xtalk-sources.zip
+```
+
+`VCToolsRedistDir` ends in a backslash, and cmd would pass `\"` on as a
+literal quote (the rest of the line then ends up in the same argument).
+The trailing `.` prevents that, and the path still resolves to the same
+folder.
+
+`fetch` also takes `--cache DIR`, `--offline`, `--member NAME` and
+`--platforms x86_64-win32,x86-win32`; `build` takes `--cache`,
+`--offline`, `--platforms` and `--summary-json FILE`, and replaces only
+the folders it made before; `export` takes `--cache` and `--offline`.
+
+**Taking newer versions.** The pins change only when a maintainer runs
+`pin` and commits the result:
+
+```bat
+python tools\oxt\xtalk_extensions.py pin
+python tools\oxt\xtalk_extensions.py pin --member CoinXT
+python tools\oxt\xtalk_extensions.py pin --member Box2Dxt --ref <branch, tag or commit of the default branch>
+```
+
+`pin` resolves the commit (the head of the default branch unless
+`--ref` is given; with `git ls-remote`, else the GitHub API). A commit
+given with `--ref` must be on the member's default branch, which `pin`
+checks with one call of the GitHub compare API. For a SHA-1 this is not
+negotiable: `raw.githubusercontent.com` serves the commits of every fork
+and unmerged pull request under the member's name, and a SHA-1 alone
+does not show whose commit it is. A branch or tag named with `--ref`
+whose commit is not on the default branch is refused as well, because
+the packages fetch the pinned files live and such a commit disappears
+when its branch is deleted; `--allow-off-branch` pins it anyway. Then
+`pin` downloads every listed file at that commit, and rewrites the
+manifest with the commit, the version, each file's SHA-256 and size and
+the Windows libraries' imports, keeping its order and layout. It stops if a
+library's hash differs from the member's `MANIFEST.sha256`, if that file
+lists a library the manifest does not take (a new platform, for
+example: add it to `files`), or if an LCB source declares another module
+id or a script library another stack name than its extension entry.
+Then review the diff (a changed `imports` list means a library needs
+another DLL; if it is a Visual C++ runtime DLL, also run
+`pin-vc-runtime`, or packaging stops at the unpinned copy), package and
+run the smoke test, update
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#xtalk-suite-extensions)
+if the components or licences changed, and commit. A new file or
+extension is added to the manifest by hand, then `pin` fills in its
+hashes.
+
+**Leaving them out.** `-NoXtalkExtensions` (or the environment variable
+`NO_XTALK_EXTENSIONS=1`) for `package-windows.ps1`,
+`--no-xtalk-extensions` for `package.py`, and in CI the workflow input
+`no_xtalk_extensions` or the repository variable
+`OXT_NO_XTALK_EXTENSIONS=1` (tag builds always include them).
 
 ### IDE compile check
 
@@ -765,8 +1016,11 @@ with the engine of that layout, without a user interface. It compiles
 every script-only stack (`*.livecodescript`, `*.oxtscript`) under
 `Toolset`, `Plugins` and `Extensions`, and every object script (stacks,
 cards, groups and controls) of the binary stacks (`*.livecode`, `*.rev`,
-`*.oxtstack`) under `Toolset` and `Plugins`. Stacks are loaded with
-messages locked; they are never opened or saved. Each error is one line:
+`*.oxtstack`) under `Toolset` and `Plugins`; the script-only stacks
+include the script libraries of the
+[xTalk Suite extensions](#xtalk-suite-extensions). Stacks are loaded
+with messages locked; they are never opened or saved. Each error is one
+line:
 
 ```text
 <file> | <object> | line <n> | <message>
@@ -880,7 +1134,7 @@ computer or virtual machine is a good place for it. Options:
 | Engine | `win-x86_64-bin\LiveCode-Community.exe` | `OXT-Beyond.exe` at the root |
 | IDE | `ide\` and `ide-support\`, where they are in the repository | `Toolset\`, `Plugins\`, `Resources\`, `Documentation\` |
 | Externals and database drivers | `win-x86_64-bin\` | `Externals\`, `Externals\Database Drivers\`, `Externals\CEF\` |
-| Extensions | only the build's (`win-x86_64-bin\packaged_extensions`) | `Extensions\`: the build's and those in `ide/Extensions` (OXT Lite functions, DevGuides alignment guides, Calendar, Pie Chart, macOS Native Tools) |
+| Extensions | only the build's (`win-x86_64-bin\packaged_extensions`) | `Extensions\`: the build's, those in `ide/Extensions` (OXT Lite functions, DevGuides alignment guides, Calendar, Pie Chart, macOS Native Tools) and the [xTalk Suite extensions](#xtalk-suite-extensions) |
 | Standalone runtimes | the build's Windows x86-64 engine | `Runtime\Windows\x86-64\` from the build, and the other platforms from the runtimes asset |
 | Version and build number | `ide\.version`, `ide\.buildnumber` (`0`) | `.version`, `.buildnumber` (the real build number) at the root |
 | `revEnvironmentIsInstalled()` | false | true |
@@ -1036,14 +1290,25 @@ It follows this guide:
    `tools/ci/verify-build.ps1`.
 4. It packages with `tools/ci/package-windows.ps1`: the installed layout
    in `dist\stage\OXT-Beyond-<ver>` and the portable, binaries and
-   symbols zips. The external assets are cached in
-   `prebuilt\fetched-assets` between runs, keyed on the manifest. They
+   symbols zips. The external assets' archives are cached from
+   `prebuilt\fetched-assets\*.zip` between runs, keyed on the manifest. They
    are left out (`-NoExternalAssets`, with a warning in the run) when
    the workflow is started by hand with the input `no_external_assets`,
    or when the repository variable `OXT_NO_EXTERNAL_ASSETS` is `1`, for
    example while a new asset is not published yet. Tag builds always
-   include them.
-5. It runs the [smoke test](#smoke-test) on the portable zip, the
+   include them. The files of the
+   [xTalk Suite extensions](#xtalk-suite-extensions) are cached in
+   `prebuilt\fetched-assets\xtalk`, keyed on their manifest; they are
+   left out with the input `no_xtalk_extensions` or the variable
+   `OXT_NO_XTALK_EXTENSIONS`, except in tag builds, which also write
+   `OXT-Beyond-<ver>-xtalk-sources.zip` (see
+   [xTalk Suite extensions](#xtalk-suite-extensions)). `package-windows.ps1`
+   finds the runner's Visual C++ redistributable folder with `vswhere`
+   and bundles the runtime DLLs that enetxt and Box2Dxt need;
+   `tools/ci/check-extension-imports.ps1` then checks that every Windows
+   DLL under `Extensions` finds its imports.
+5. It runs the [smoke test](#smoke-test) on the portable zip (including
+   the xTalk Suite extensions), the
    [IDE compile check](#ide-compile-check) on the staged layout, builds
    the [installer](#installer) and [tests it](#test-the-installer):
    install for the current user, smoke test of the installed program,
@@ -1077,7 +1342,10 @@ against it.
 
 1. Make sure the external assets in `tools/oxt/external-assets.json`
    are published (see [External assets](#external-assets)); packaging
-   fails without them.
+   fails without them. Decide whether the xTalk Suite extensions should
+   move to newer commits of their repositories; if so, pin them (see
+   [xTalk Suite extensions](#xtalk-suite-extensions)) and merge that
+   first.
 2. Set `ide/.version` to the new version, for example `0.0.2`, or
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
@@ -1095,7 +1363,8 @@ against it.
 5. The workflow builds the tag. The release job then checks the files
    against `SHA256SUMS`, checks that the tag is `v` followed by
    `ide/.version` of the tagged commit (it publishes nothing otherwise)
-   and publishes the installer, the three zips and `SHA256SUMS` as a
+   and publishes the installer, the three zips, the xTalk sources zip
+   and `SHA256SUMS` as a
    GitHub Release named "OXT-Beyond <version>", with a short description
    of the files followed by GitHub's generated release notes. Tags that
    contain `-alpha`, `-beta`, `-rc`, `-dp` or `-pre` become

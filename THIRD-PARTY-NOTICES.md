@@ -25,6 +25,7 @@ Contents:
 - [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty)
 - [Third-party code inside LiveCode's own sources](#third-party-code-inside-livecodes-own-sources)
 - [The IDE](#the-ide)
+- [xTalk Suite extensions](#xtalk-suite-extensions)
 - [Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)
 - [Files OpenXTalk Lite shipped that OXT-Beyond does not](#files-openxtalk-lite-shipped-that-oxt-beyond-does-not)
 - [The installer](#the-installer)
@@ -130,6 +131,9 @@ The `<license>community</license>` element in their `manifest.xml`
 files is not a licence statement: `lc-compile` writes it into every
 manifest it generates
 ([`toolchain/lc-compile/src/generate.g`](toolchain/lc-compile/src/generate.g)).
+The same goes for the xTalk Suite extensions, which are also installed
+in `Extensions/` and are listed in their own
+[section](#xtalk-suite-extensions).
 
 | Extension | Author | Terms |
 | --- | --- | --- |
@@ -243,6 +247,94 @@ The unmodified source image is kept in
 of the IDE, on the same basis as the rest of OpenXTalk Lite's changes
 (above).
 
+## xTalk Suite extensions
+
+The packages include fifteen extensions of the xTalk Suite by Seth
+Morrow Software, in `Extensions/`: six LiveCode Builder libraries with
+native code and nine LiveCode Script libraries. They are not kept in
+this repository.
+[`tools/oxt/xtalk_extensions.py`](tools/oxt/xtalk_extensions.py) takes
+them from their own repositories on GitHub
+(`SethMorrowSoftware/<repository>`) at the commits pinned in
+[`tools/oxt/xtalk-extensions.json`](tools/oxt/xtalk-extensions.json),
+checks every file against the SHA-256 recorded there, compiles the LCB
+sources with OXT-Beyond's `lc-compile`, gives the script libraries a
+`script "<name>"` first line where they have none and an
+`extensionInitialize` / `extensionFinalize` pair at the end, and ships
+everything else unchanged. `Extensions/XTALK-EXTENSIONS.txt` lists each
+extension with its repository and commit. The native libraries
+(`code/<platform>/` in each LCB extension, for Windows x86-64 and x86,
+Linux x86-64 and x86, and macOS) are the prebuilt binaries committed to
+the member repositories, which build them from the sources there; this
+repository does not rebuild them. The source of each member's own code,
+including its native shim, is in its repository at the pinned commit.
+
+Every extension folder has a `licenses/` folder with its member's
+licence files, which hold the full licence texts of the components
+below.
+
+| Extensions (folder in `Extensions/`) | Repository | Licence | Compiled into the native libraries | Licence texts in `licenses/` |
+| --- | --- | --- | --- | --- |
+| `org.openxtalk.library.sodium` | `SodiumXT` | MIT, © 2026 Seth Morrow | libsodium (1.0.22 in the Windows libraries, 1.0.20 in the others): ISC, © Frank Denis. SHA-3 from RHash (© 2013 Aleksey Kravchenko), taken through trezor-crypto: a permission notice in the style of the MIT licence. trezor-crypto's helpers: MIT, © Tomas Dzetkulic and Pavol Rusnak. | `LICENSE` (with libsodium's ISC text), `trezor-crypto-LICENSE`, `RHash-SHA3-NOTICE.txt` (the notice from the header of the member's `src/vendor/sha3.c`, the only place it has it) |
+| `org.openxtalk.library.torrent`, `torrentHelpers` | `TorrentXT` | MIT, © 2026 Seth Morrow | libtorrent-rasterbar 2.1.1: BSD 3-clause, © Arvid Norberg. The code it includes has its own terms, noted in the member's `THIRD-PARTY-LICENSES.md`: puff (© Mark Adler; zlib-style terms in its header) and the ed25519 implementation (© Orson Peters): zlib licence. SHA-1 (Steve Reid) and SHA-256 (from LibTomCrypt): public domain. `route.h`, compiled only into the macOS library: Apple Public Source License 2.0, over code © The Regents of the University of California under the BSD licence with the advertising clause (which the University withdrew in 1999). Boost: Boost Software License 1.0. OpenSSL 3 (3.6.4 in the Windows libraries, 3.5.4 in the macOS and Linux x86-64 ones), statically linked: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) instead. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `OpenSSL-LICENSE.txt` |
+| `org.openxtalk.library.enet`, `enetHelpers` | `enetxt` | MIT, © 2026 Seth Morrow | ENet 1.3.18: MIT, © Lee Salzman. The Windows libraries use the Visual C++ runtime (see below). | `LICENSE`, `THIRD-PARTY-LICENSES.md`; `Microsoft-Visual-C++-Runtime.txt` in `org.openxtalk.library.enet` (Microsoft's terms for the runtime DLLs, see below) |
+| `org.openxtalk.library.datachannel`, `dataChannelHelpers` | `dataChannelXT` | MIT, © 2026 Seth Morrow Software | libdatachannel 0.24.5 and libjuice: Mozilla Public License 2.0, © Paul-Louis Ageneau. usrsctp: BSD 3-clause. plog: MIT. OpenSSL 3 (3.6.4 in the Windows libraries, 3.5.4 in the macOS one), statically linked: Apache License 2.0; the Linux libraries use the system's OpenSSL. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `OpenSSL-LICENSE.txt` |
+| `org.openxtalk.box2dxt`, `box2dxt-kit` | `Box2Dxt` | MIT, © 2026 Seth Morrow and Box2Dxt contributors | Box2D 3.1.0: MIT, © 2019 Erin Catto. The Windows libraries use the Visual C++ runtime (see below). | `LICENSE` (with Box2D's notice); `Microsoft-Visual-C++-Runtime.txt` in `org.openxtalk.box2dxt` (Microsoft's terms for the runtime DLLs, see below) |
+| `org.openxtalk.library.coin`, `coinxt` | `CoinXT` | MIT, © 2026 Seth Morrow | trezor-crypto: MIT, © Tomas Dzetkulic and Pavol Rusnak (`address.c` also © Daira Hopwood, `hasher.c` © Saleem Rashid). libsecp256k1: MIT, © Pieter Wuille. SHA-2 (`sha2.c`): BSD 3-clause, © Aaron D. Gifford and Pavol Rusnak, whose notice must be reproduced with the binaries. SHA-3/Keccak from RHash: MIT. RIPEMD-160: public domain. BLAKE-256 and BLAKE2b: CC0 1.0. Groestl: MIT, © Projet RNRT SAPHIR. The member's `THIRD-PARTY-LICENSES.md` maps every vendored file to its licence and copyright holder. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `trezor-crypto-LICENSE` (trezor-crypto's MIT text, from the member's `native/vendor/LICENSE`, which its own licence files only point to), `trezor-crypto-address-NOTICE.txt` and `trezor-crypto-hasher-NOTICE.txt` (the notices from the headers of `native/vendor/address.c` and `hasher.c`) |
+| `onionxt`, `onion-httpd` | `OnionXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
+| `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
+
+Notes:
+
+- **OpenSSL 3.** `torrentxt` and `datachannelxt` link OpenSSL 3
+  statically: OpenSSL is Copyright © 1998-2026 The OpenSSL Project
+  Authors and © 1995-1998 Eric A. Young and Tim J. Hudson, and is
+  licensed under the Apache License 2.0, which asks for a copy of the
+  licence to go with the binaries. The members' own licence files do not
+  include it (DataChannelXT's `LICENSE` and `THIRD-PARTY-LICENSES.md` even
+  say that OpenSSL is not bundled, which is true only of its Linux
+  libraries), so OXT-Beyond adds OpenSSL's `LICENSE.txt`, taken from the
+  `openssl-3.6.4` tag of [openssl/openssl](https://github.com/openssl/openssl)
+  and pinned by SHA-256 like the other files, as `OpenSSL-LICENSE.txt`
+  to both extensions' `licenses/` folders. OpenSSL 3 has no `NOTICE`
+  file. These copies are separate from the OpenSSL 1.1.1g inside
+  `revsecurity.dll` ([Prebuilt libraries](#prebuilt-libraries)).
+- **MPL 2.0 source.** The source of libdatachannel and libjuice is at
+  [paullouisageneau/libdatachannel](https://github.com/paullouisageneau/libdatachannel)
+  and [paullouisageneau/libjuice](https://github.com/paullouisageneau/libjuice);
+  dataChannelXT's `CMakeLists.txt` at the pinned commit gives the exact
+  versions it builds.
+- **The Microsoft Visual C++ runtime.** `enetxt.dll` and `box2dxt.dll`
+  are built with the dynamic Visual C++ runtime; the other libraries
+  link it statically or, like CoinXT's MinGW build, use Windows' own
+  `msvcrt.dll`. So that they also load on a PC without the Visual C++
+  Redistributable, the packages include the DLLs they import next to
+  them, in the `code/x86_64-win32/` and `code/x86-win32/` folders of the
+  two extensions: `msvcp140.dll`, `vcruntime140.dll` and (x86-64 only)
+  `vcruntime140_1.dll` for enetxt, `vcruntime140.dll` for Box2Dxt. They
+  are copied unchanged from the Visual Studio redistributable folder
+  (`VC\Redist\MSVC\<version>\<arch>\Microsoft.VC14x.CRT`) of the machine
+  that made the package, and are pinned by SHA-256 in
+  `tools/oxt/xtalk-extensions.json` (`vc_runtime`; now Visual Studio 2022
+  17.14's, file version 14.44.35211.0), which packaging verifies.
+  `XTALK-EXTENSIONS.txt` gives each DLL's file version and SHA-256, and
+  the redistributable folder they came from. They are Microsoft
+  Distributable Code, not under the members' licences or the GPL: each
+  of the two extensions has `licenses/Microsoft-Visual-C++-Runtime.txt`,
+  which lists the DLLs, names Microsoft's terms and summarises what they
+  require of anyone who distributes the DLLs further. See
+  [Microsoft components](#microsoft-components).
+- **Standalones.** When a standalone includes one of these extensions,
+  the standalone builder copies its native libraries (for enetxt and
+  Box2Dxt also the Visual C++ runtime DLLs) into the standalone, but not
+  its `licenses/` folder. Include those licence files with your
+  application. The copied runtime DLLs are Microsoft Distributable Code:
+  redistributing them with a standalone is subject to Microsoft's terms
+  (see `Microsoft-Visual-C++-Runtime.txt` in the extension's `licenses/`
+  folder). You may instead delete them from the standalone's `Externals`
+  folder and require the Microsoft Visual C++ Redistributable on the
+  PCs that run it.
+
 ## Standalone runtimes for other platforms
 
 OXT-Beyond builds only the Windows x86-64 engine. So that its IDE can
@@ -334,10 +426,28 @@ is part of OXT-Beyond.
 ## Microsoft components
 
 The engine and revBrowser use Microsoft's Active Template Library (ATL),
-and the binaries statically link the Microsoft Visual C++ runtime.
-These are Microsoft components distributed under the Visual Studio
-licence terms for redistributable code, not open source. The ATL
-combination is the reason for the licence exception in
+and the binaries built from this repository statically link the
+Microsoft Visual C++ runtime. Two of the bundled xTalk Suite extensions,
+enetxt and Box2Dxt, need the runtime as DLLs instead, so the packages
+also contain Microsoft's redistributable `msvcp140.dll`,
+`vcruntime140.dll` and `vcruntime140_1.dll` as separate files, in those
+extensions' `code/x86_64-win32/` and `code/x86-win32/` folders,
+unchanged from Visual Studio's redistributable folder and pinned by
+SHA-256 in `tools/oxt/xtalk-extensions.json`, which packaging verifies
+(see [xTalk Suite extensions](#xtalk-suite-extensions)). They are
+Microsoft Distributable Code, not open source and not covered by
+OXT-Beyond's GPLv3: they are distributed under the Distributable Code
+section of the
+[Microsoft Software License Terms for Visual Studio 2022](https://visualstudio.microsoft.com/license-terms/)
+and its [REDIST list](https://learn.microsoft.com/visualstudio/releases/2022/redistribution).
+Those terms' distribution requirements (among them: only unmodified,
+only as part of a program that adds significant functionality, under
+terms that protect them at least as much as Microsoft's) pass to anyone
+who redistributes the DLLs, for example in a standalone.
+`Extensions/org.openxtalk.library.enet/licenses/Microsoft-Visual-C++-Runtime.txt`
+and `Extensions/org.openxtalk.box2dxt/licenses/Microsoft-Visual-C++-Runtime.txt`
+list the DLLs and say this next to them. The ATL combination is the
+reason for the licence exception in
 [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).
 
 ## GENTLE
@@ -423,3 +533,30 @@ has been in the LiveCode Community tree since upstream. Its licence,
   source in `toolchain/gentle/`.
 - Chromium 74 bundles many components with their own notices. This file
   does not reproduce them.
+- **The xTalk Suite extensions.** The Visual C++ runtime DLLs shipped
+  with enetxt and Box2Dxt are there because those two members build with
+  the dynamic runtime (`/MD`). A notice next to them
+  (`licenses/Microsoft-Visual-C++-Runtime.txt`) now passes Microsoft's
+  terms for Distributable Code on to whoever redistributes them; whether
+  this fully satisfies those terms (which ask distributors to bind their
+  end users to protective terms, while the installer shows only the
+  GPLv3), and how they fit with distributing the DLLs inside a GPLv3
+  program, has not been reviewed. The preferred resolution is a `/MT`
+  build upstream, as SodiumXT, TorrentXT and DataChannelXT already use,
+  which would remove the DLLs and the notice. The OpenSSL licence text
+  that OXT-Beyond adds for TorrentXT and DataChannelXT, and the
+  statement in DataChannelXT's licence files that OpenSSL is not bundled,
+  should be fixed in the member repositories. The Box2Dxt module reports
+  version 0.2.0 while its CHANGELOG already has a 0.3.0 section. The
+  bundled Visual C++ runtime (14.44, from Visual Studio 2022) is older
+  than the toolset (14.51) that built `enetxt.dll` and `box2dxt.dll`,
+  which Microsoft does not support; a `/MT` build upstream, or a
+  redistributable folder of 14.51 or newer, would remove the mismatch.
+  The macOS `torrentxt.dylib` compiles libtorrent's
+  `include/libtorrent/aux_/route.h`: libtorrent's `enum_net.cpp` uses it
+  instead of `<net/route.h>` whenever `TARGET_OS_IPHONE` is defined, and
+  the macOS SDK always defines it. The header is under the Apple Public
+  Source License 2.0, which the FSF lists as incompatible with the GPL.
+  It holds only structure and macro definitions. How this fits with
+  distributing the library inside a GPLv3 program has not been
+  reviewed.

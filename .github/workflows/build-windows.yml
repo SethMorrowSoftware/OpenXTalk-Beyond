@@ -8,6 +8,11 @@
 #   OXT-Beyond-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
 #                                             plus the licence files
 #   OXT-Beyond-<ver>-win-x86_64-symbols.zip   the *.pdb files
+#   OXT-Beyond-<ver>-xtalk-sources.zip        (tag builds) every file the
+#                                             xTalk Suite extensions pin,
+#                                             so that the release can be
+#                                             rebuilt without the member
+#                                             repositories
 #   SHA256SUMS
 #
 # <ver> is the product version in ide/.version. The build number written into
@@ -17,10 +22,15 @@
 # After the build and its verification, the job
 #   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
 #      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py;
-#      the external assets listed in tools/oxt/external-assets.json are
-#      cached in prebuilt/fetched-assets; see the Package step for leaving
-#      them out),
+#      the archives of the external assets listed in
+#      tools/oxt/external-assets.json are cached from
+#      prebuilt/fetched-assets/*.zip, the files of the xTalk Suite
+#      extensions pinned in tools/oxt/xtalk-extensions.json from
+#      prebuilt/fetched-assets/xtalk; see the Package step for leaving
+#      them out), and checks that every Windows DLL of the bundled
+#      extensions finds its imports (check-extension-imports.ps1),
 #   2. runs the headless smoke test on the portable zip (smoke-test.ps1),
+#      which also loads every bundled xTalk extension and calls it,
 #   3. compiles every IDE script in dist/stage and compares the errors with
 #      tools/ci/ide-compile-baseline.txt (ide-compile-check.ps1),
 #   4. builds the installer (build-installer.ps1), and
@@ -59,6 +69,12 @@ on:
           Package without the external assets of tools/oxt/external-assets.json
           (no runtimes for other platforms), for testing while an asset is not
           published yet
+        type: boolean
+        default: false
+      no_xtalk_extensions:
+        description: >-
+          Package without the xTalk Suite extensions of
+          tools/oxt/xtalk-extensions.json
         type: boolean
         default: false
 
@@ -241,13 +257,30 @@ jobs:
       # As with the prebuilt libraries, restore and save are separate steps
       # so that verified downloads are cached even when a later step fails.
       # tools/oxt/package.py verifies every cached archive against the
-      # SHA-256 in the manifest before using it.
+      # SHA-256 in the manifest before using it. The xTalk extensions'
+      # files (prebuilt/fetched-assets/xtalk) have a cache of their own,
+      # keyed on their manifest, so a new pin does not download the
+      # runtimes archive again. The external-assets cache holds only the
+      # archives (prebuilt/fetched-assets/*.zip; "zip" is the only asset
+      # kind): actions/cache globs without implicit descendants and tar
+      # archives a listed folder whole, so an exclusion such as
+      # '!prebuilt/fetched-assets/xtalk' under a listed
+      # 'prebuilt/fetched-assets' would not keep the xTalk files out. The
+      # path must be the same in the save step (it is part of the cache
+      # version).
       - name: Restore cached external assets
         id: assets-cache
         uses: actions/cache/restore@v4
         with:
-          path: prebuilt/fetched-assets
+          path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
+
+      - name: Restore cached xTalk extension files
+        id: xtalk-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
 
       # Writes dist/stage/OXT-Beyond-<ver> (the installed layout), the
       # portable, binaries and symbols zips and SHA256SUMS.
@@ -256,14 +289,24 @@ jobs:
       # -NoExternalAssets) when a manual run sets the input
       # no_external_assets, or when the repository variable
       # OXT_NO_EXTERNAL_ASSETS is 1, for example while a new asset is not
-      # published yet. Tag builds, which publish a release, always include
-      # them.
+      # published yet. Likewise the xTalk Suite extensions with the input
+      # no_xtalk_extensions or the variable OXT_NO_XTALK_EXTENSIONS
+      # (package-windows.ps1 reads NO_XTALK_EXTENSIONS). Tag builds, which
+      # publish a release, always include both, and also write
+      # OXT-Beyond-<ver>-xtalk-sources.zip (-XtalkSourcesZip): the pinned
+      # xTalk files, which the packages otherwise take live from the member
+      # repositories, kept with the release. package-windows.ps1 finds
+      # the Visual C++ redistributable folder of the runner's Visual Studio
+      # with vswhere and bundles the runtime DLLs that enetxt and box2dxt
+      # import.
       - name: Package
         id: package
         timeout-minutes: 45
         env:
           OXT_ASSETS_CACHE: ${{ github.workspace }}\prebuilt\fetched-assets
           NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          XTALK_SOURCES_ZIP: ${{ github.ref_type == 'tag' }}
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'build-logs\package.log'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null
@@ -272,21 +315,44 @@ jobs:
             Write-Host '::warning title=Package::External assets left out (no_external_assets input or OXT_NO_EXTERNAL_ASSETS variable): the packages have no standalone runtimes for other platforms.'
             $packageArgs['NoExternalAssets'] = $true
           }
+          if ($env:NO_XTALK_EXTENSIONS -eq 'true') {
+            Write-Host '::warning title=Package::xTalk Suite extensions left out (no_xtalk_extensions input or OXT_NO_XTALK_EXTENSIONS variable).'
+          }
+          if ($env:XTALK_SOURCES_ZIP -eq 'true') { $packageArgs['XtalkSourcesZip'] = $true }
           $global:LASTEXITCODE = 0
           ./tools/ci/package-windows.ps1 @packageArgs *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
 
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/**') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: prebuilt/fetched-assets
+          path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
+
+      - name: Save xTalk extension files to the cache
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
+
+      # Every DLL in Extensions/**/code/*-win32 must import only Windows
+      # system DLLs and DLLs in its own folder; otherwise it cannot load on
+      # a PC without the missing DLL (for example the Visual C++
+      # redistributable, which CI runners always have).
+      - name: Check extension DLL imports
+        id: check_imports
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: ./tools/ci/check-extension-imports.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION"
 
       # Extract the portable zip and run its engine (OXT-Beyond.exe) without
       # a user interface: the script engine, ICU, OpenSSL, SQLite (revDB and
-      # the driver in Externals\Database Drivers), revXML and revZip.
+      # the driver in Externals\Database Drivers), revXML and revZip, and
+      # every bundled xTalk Suite extension (loaded and called).
       - name: Smoke test (portable zip, headless)
         id: smoke
         timeout-minutes: 15
@@ -381,6 +447,7 @@ jobs:
           COMPILE_OUTCOME: ${{ steps.compile.outcome }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+          CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
@@ -395,6 +462,7 @@ jobs:
             'Compile' = $env:COMPILE_OUTCOME
             'Verify' = $env:VERIFY_OUTCOME
             'Package' = $env:PACKAGE_OUTCOME
+            'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
@@ -458,7 +526,7 @@ jobs:
             ''
           )
           if ($env:ARTIFACT_URL) {
-            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips and SHA256SUMS"
+            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips (on tags also the xTalk sources zip) and SHA256SUMS"
           }
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
@@ -500,7 +568,7 @@ jobs:
           fi
 
           prefix="OXT-Beyond-${VERSION}-win-x86_64"
-          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" SHA256SUMS; do
+          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" "OXT-Beyond-${VERSION}-xtalk-sources.zip" SHA256SUMS; do
             if [ ! -f "dist/${f}" ]; then
               echo "::error::dist/${f} is missing from the build artifact"
               exit 1
@@ -519,7 +587,10 @@ jobs:
           - \`${prefix}-portable.zip\`: the same program folder without an installer. Extract it and run \`OXT-Beyond.exe\`.
           - \`${prefix}-binaries.zip\`: the engine, externals and tools as built (\`win-x86_64-bin\`), without debug symbols, plus the licence files.
           - \`${prefix}-symbols.zip\`: debug symbols (\`*.pdb\`) for the binaries.
+          - \`OXT-Beyond-${VERSION}-xtalk-sources.zip\`: every file of the bundled xTalk Suite extensions as this release took it from their repositories, with the manifest that pins them, so that the release can be rebuilt without those repositories (see BUILDING.md, "xTalk Suite extensions").
           - \`SHA256SUMS\`: SHA-256 checksums of these files.
+
+          The program includes the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT and NostrXT) in its \`Extensions\` folder, taken from their own repositories at the commits listed in \`Extensions/XTALK-EXTENSIONS.txt\`, with the Microsoft Visual C++ runtime DLLs that enetxt and Box2Dxt need.
 
           The Windows x86-64 engine, externals and tools are built from this repository. The standalone runtimes for other platforms (Windows x86-32, Linux and Android) and the time zone library code for platforms other than Windows x86-64 are not built here: they are taken unchanged from OpenXTalk Lite 1.15, and are stock LiveCode 9.6.3 builds and files as Tom Perry shipped them, among them his 9.7.1-OXT Linux engine (see THIRD-PARTY-NOTICES.md).
 

@@ -253,6 +253,64 @@ OXT-Beyond 0.0.1 adds:
 - a Windows installer and a portable zip in the installed layout, with
   the standalone runtimes for other platforms.
 
+### xTalk Suite extensions
+
+OXT-Beyond ships the extensions of the
+[xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) built
+in, in the program's `Extensions` folder. They are taken from their own
+repositories at pinned commits when OXT-Beyond is packaged (see
+[BUILDING.md](BUILDING.md#xtalk-suite-extensions)):
+
+| Extension | What it is | Repository |
+| --- | --- | --- |
+| `org.openxtalk.library.sodium` | SodiumXT: modern cryptography through libsodium (authenticated encryption, Argon2id, X25519, ed25519, BLAKE2b, random bytes) | [SodiumXT](https://github.com/SethMorrowSoftware/SodiumXT) |
+| `org.openxtalk.library.torrent`, `torrentHelpers` | TorrentXT: BitTorrent and the DHT through libtorrent, and its script helpers | [TorrentXT](https://github.com/SethMorrowSoftware/TorrentXT) |
+| `org.openxtalk.library.enet`, `enetHelpers` | enetxt: reliable UDP networking through ENet, and its script helpers | [enetxt](https://github.com/SethMorrowSoftware/enetxt) |
+| `org.openxtalk.library.datachannel`, `dataChannelHelpers` | DataChannelXT: WebRTC data channels through libdatachannel, and its script helpers | [dataChannelXT](https://github.com/SethMorrowSoftware/dataChannelXT) |
+| `org.openxtalk.box2dxt`, `box2dxt-kit` | Box2Dxt: 2D physics through Box2D, and the Box2Dxt Kit | [Box2Dxt](https://github.com/SethMorrowSoftware/Box2Dxt) |
+| `org.openxtalk.library.coin`, `coinxt` | CoinXT: Bitcoin and Ethereum cryptography (hashes, keys, addresses, HD wallets, transactions) | [CoinXT](https://github.com/SethMorrowSoftware/CoinXT) |
+| `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
+| `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
+
+- The IDE loads them when it starts, like its other built-in
+  extensions; the *Extension Manager* lists them and can unload them or
+  stop them loading. The script libraries are put into the message path
+  when they load, so `start using stack "coinxt"` and the like, which
+  the members' documentation mentions, are not needed in the IDE. They
+  do no harm, because a stack name finds the built-in copy.
+- The script libraries keep the stack names the members document
+  (`coinxt`, `nostrxt`, `nostr-relay`, `onionxt`, `onion-httpd`,
+  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`),
+  and only one stack of a given name can be in memory. While the
+  built-in library is loaded, opening your own copy of the same file by
+  its path, or loading it with
+  `start using stack "<folder>/datachannel-helpers.livecodescript"`,
+  makes the IDE ask what to do with the stack "already open". *Cancel*
+  keeps the built-in copy in use; *Save* also writes the built-in copy
+  back into the `Extensions` folder. In the IDE, load these libraries by
+  name. To use your own copy instead, first unload the built-in one in
+  the *Extension Manager* (and turn off "Load on startup" if it should
+  stay unloaded).
+- If you install your own copy of one of them (an `.lce` through the
+  *Extension Manager*), the IDE loads your copy instead of the built-in
+  one. For the LCB libraries this happens at once. For a script library
+  it happens after you restart the IDE: until then the IDE asks about
+  the stack "already open" (choose *Cancel*), and the built-in copy
+  stays in use.
+- For standalones, the standalone builder, when it searches for the
+  inclusions a stack needs, adds an LCB library whose handlers your
+  scripts use, together with its native library for the target platform.
+  The extensions have native libraries for Windows x86-64 and x86, Linux
+  x86-64 and x86, and macOS, but none for Android. The standalone builder
+  never adds the script libraries by itself: tick them in *Standalone
+  Settings*, with the LCB libraries they need (for example `coinxt` with
+  `org.openxtalk.library.coin`).
+- Their documentation is in their repositories (`docs/`); the Dictionary
+  does not have it.
+- Their licences (MIT, and those of the libraries built into them) are
+  in each extension's `licenses` folder and in
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#xtalk-suite-extensions).
+
 ### The engine
 
 The engine is the LiveCode Community **9.7 development tree** (the
@@ -318,7 +376,7 @@ To make the installed layout, the zips and the installer, see
 | `thirdparty/` | Third-party library sources, vendored from `livecode/livecode-thirdparty`. |
 | `prebuilt/` | Scripts that fetch the prebuilt third-party libraries (from the `prebuilts-v1` release), their versions and checksums. |
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
-| `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`) and fetch the external assets listed in `external-assets.json`. See [tools/oxt/README.md](tools/oxt/README.md). |
+| `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
 | `tools/ci/` | PowerShell scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE and build and test the installer. |
 | `.github/workflows/` | The GitHub Actions workflow (`build-windows.yml`). |
@@ -364,9 +422,15 @@ Known limitations, in rough order of importance:
    or use the portable zip, if you need them. Plan: keep that state in
    the user's own folders.
 
-Also planned: extensions from the xTalk Suite repositories, taken from
-their own repositories at pinned versions in the same way as the
-runtimes (see [External assets](BUILDING.md#external-assets)).
+Done since 0.0.1: the extensions of the xTalk Suite are built in, taken
+from their own repositories at pinned commits (see
+[xTalk Suite extensions](#xtalk-suite-extensions) and
+[BUILDING.md](BUILDING.md#xtalk-suite-extensions)). Their limitations:
+the native libraries are the members' prebuilt binaries, which
+OXT-Beyond checks but does not build; the Dictionary does not have
+their documentation; the standalone builder does not add the script
+libraries by itself; and enetxt and Box2Dxt need the Visual C++ runtime,
+whose DLLs OXT-Beyond ships next to them.
 
 Issues and pull requests for any of these are welcome.
 

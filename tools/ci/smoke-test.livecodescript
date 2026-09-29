@@ -16,6 +16,9 @@ script "oxt_smoke_test"
 --                        thirdparty/libsqlite/include/sqlite3.h)
 --    OXT_EXTERNALS_DIR   folder with revdb.dll, revxml.dll and revzip.dll
 --    OXT_DRIVERS_DIR     folder with dbsqlite.dll
+--    OXT_XTALK_PROBES    file listing the bundled xTalk Suite extensions to
+--                        load and call, in load order (see smoke-test.ps1)
+--    OXT_EXTENSIONS_DIR  the layout's Extensions folder
 -- Both folders default to the engine's folder, as in win-x86_64-bin. In an
 -- installed layout they are Externals and Externals/Database Drivers.
 
@@ -180,6 +183,124 @@ on startup
       check "no script error (revZip checks)", false, tError
    end try
 
+   -- The xTalk Suite extensions bundled in Extensions (only when the
+   -- layout has them)
+   if $OXT_XTALK_PROBES is not empty then
+      try
+         checkXtalkExtensions $OXT_XTALK_PROBES, $OXT_EXTENSIONS_DIR
+      catch tError
+         check "no script error (xTalk extension checks)", false, oneLine(tError)
+      end try
+   end if
+
    write "SUMMARY passed=" & sPasses & " failed=" & sFails & return to stdout
    quit sFails
 end startup
+
+private function oneLine pText
+   replace return with " " in pText
+   replace numToCodepoint(13) with " " in pText
+   return pText
+end oneLine
+
+-- Loads and calls every extension in the list pProbeFile (tab-separated
+-- lines written by smoke-test.ps1 from tools/oxt/xtalk-extensions.json):
+--    lcb <folder> <module id> <probe> <expected (regex)> <missing DLLs>
+--    lcs <folder> <stack> <probe> <expected (regex)> <requires>
+--    missing <folder>
+private command checkXtalkExtensions pProbeFile, pExtensionsDir
+   local tList, tFields
+   replace "\" with "/" in pProbeFile
+   replace "\" with "/" in pExtensionsDir
+   put textDecode(URL ("binfile:" & pProbeFile), "UTF-8") into tList
+   replace numToCodepoint(13) with empty in tList
+   write "INFO xtalk extensions=" & pExtensionsDir & return to stdout
+   repeat for each line tLine in tList
+      if tLine is empty then next repeat
+      put tLine into tFields
+      split tFields by tab
+      switch tFields[1]
+         case "lcb"
+            checkXtalkLcb pExtensionsDir & "/" & tFields[2], tFields[2], tFields[3], tFields[4], tFields[5], tFields[6]
+            break
+         case "lcs"
+            checkXtalkLcs pExtensionsDir & "/" & tFields[2], tFields[2], tFields[3], tFields[4], tFields[5]
+            break
+         default
+            check "xtalk " & tFields[2] & " present", false, "listed in tools/oxt/xtalk-extensions.json but not in " & pExtensionsDir
+      end switch
+   end repeat
+end checkXtalkExtensions
+
+-- An LCB library, loaded as the IDE loads it (revideextensionlibrary
+-- __LoadExtension): first every file of code/<processor>-win32 is mapped
+-- in revLibraryMapping under its name without the extension
+-- (__MapCodeLibraryForIDE), because the engine resolves a foreign handler's
+-- "c:<token>>" library through that mapping; then module.lcm is loaded.
+private command checkXtalkLcb pDir, pFolder, pId, pProbe, pExpect, pMissingRuntime
+   local tCode, tLibrary, tMapped, tResult
+   try
+      put pDir & "/code/" & the processor & "-win32" into tCode
+      put 0 into tMapped
+      if there is a folder tCode then
+         repeat for each line tFile in files(tCode)
+            if tFile begins with "." then next repeat
+            set the itemDelimiter to "."
+            put item 1 to -2 of tFile into tLibrary
+            set the itemDelimiter to comma
+            if tLibrary is empty then next repeat
+            set the revLibraryMapping[tLibrary] to tCode & "/" & tLibrary
+            add 1 to tMapped
+         end repeat
+      end if
+      load extension from file (pDir & "/module.lcm") with resource path pDir
+      put the result into tResult
+      check "xtalk " & pFolder & " loads", tResult is empty and pId is among the lines of the loadedExtensions, \
+            "result '" & tResult & "', " & tMapped & " code libraries mapped"
+      if tResult is empty then
+         checkXtalkProbe pFolder, pProbe, pExpect
+      end if
+   catch tError
+      check "xtalk " & pFolder & " loads", false, oneLine(tError)
+   end try
+   -- This machine has the Visual C++ runtime, so the library loaded
+   -- whatever is next to it; on a PC without the runtime it would not.
+   if pMissingRuntime is empty then
+      check "xtalk " & pFolder & " DLL imports", true, "every import is a Windows system DLL or next to the library"
+   else
+      check "xtalk " & pFolder & " DLL imports", false, pMissingRuntime & " (not bundled; cannot load on a PC without it)"
+   end if
+end checkXtalkLcb
+
+-- A script library: started with "start using", as the members' docs tell
+-- users, then its probe; then the extensionInitialize and extensionFinalize
+-- handlers that the IDE sends must put it into the back scripts and take
+-- it out again.
+private command checkXtalkLcs pDir, pFolder, pStack, pProbe, pExpect
+   local tName, tInBack, tOutOfBack
+   try
+      put the short name of stack (pDir & "/" & pStack & ".livecodescript") into tName
+      start using stack tName
+      check "xtalk " & pFolder & " start using", tName is pStack and tName is among the lines of the stacksInUse, \
+            "stack " & quote & tName & quote
+      checkXtalkProbe pFolder, pProbe, pExpect
+      send "extensionInitialize" to stack tName
+      put the long id of stack tName is among the lines of the backScripts into tInBack
+      send "extensionFinalize" to stack tName
+      put the long id of stack tName is not among the lines of the backScripts into tOutOfBack
+      check "xtalk " & pFolder & " extensionInitialize/extensionFinalize", tInBack and tOutOfBack, \
+            "in the back scripts after extensionInitialize: " & tInBack & ", out after extensionFinalize: " & tOutOfBack
+   catch tError
+      check "xtalk " & pFolder & " start using", false, oneLine(tError)
+   end try
+end checkXtalkLcs
+
+private command checkXtalkProbe pFolder, pProbe, pExpect
+   local tValue
+   try
+      put value(pProbe) into tValue
+      check "xtalk " & pFolder & " " & pProbe, matchText(tValue, pExpect), tValue
+   catch tError
+      check "xtalk " & pFolder & " " & pProbe, false, "script error: " & oneLine(tError)
+   end try
+end checkXtalkProbe

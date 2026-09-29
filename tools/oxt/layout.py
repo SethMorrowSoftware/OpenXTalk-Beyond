@@ -68,6 +68,12 @@ from this repository. This tool gives every installed path one class:
   excluded  (e) shipped by OXT Lite but not redistributed by this project
                 because of their licences (see NOT_REDISTRIBUTABLE): never
                 imported, and removed from the repository by import.
+  xtalk     (f) the xTalk Suite extensions OXT-Beyond ships built in
+                (Extensions/<folder> for every folder in
+                xtalk-extensions.json, and Extensions/XTALK-EXTENSIONS.txt):
+                built by tools/oxt/xtalk_extensions.py from their own
+                repositories at pinned commits. Never imported; package.py
+                adds them.
   unknown       no rule matches: the rules need updating.
 
 All rules are in RULES below; everything else derives from them.
@@ -103,6 +109,7 @@ Only the Python 3 standard library is used.
 
 import argparse
 import collections
+import json
 import os
 import re
 import shutil
@@ -117,9 +124,10 @@ BUILD = 'build'        # (b)
 EXTERNAL = 'external'  # (c)
 JUNK = 'junk'          # (d)
 EXCLUDED = 'excluded'  # (e)
+XTALK = 'xtalk'        # (f)
 UNKNOWN = 'unknown'
 
-CLASS_ORDER = (IDE, BUILD, EXTERNAL, JUNK, EXCLUDED, UNKNOWN)
+CLASS_ORDER = (IDE, BUILD, EXTERNAL, XTALK, JUNK, EXCLUDED, UNKNOWN)
 
 # ---------------------------------------------------------------------------
 # Inputs for the rules
@@ -186,6 +194,32 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.widget.tile',
     'com.livecode.widget.treeview',
 )
+
+# The xTalk Suite extensions (class xtalk): their folders are the ones
+# tools/oxt/xtalk-extensions.json lists, read here so that the manifest
+# stays the only list. They must be classified before the Extensions/**
+# rule below, which would otherwise make them IDE content that "import"
+# copies into ide/Extensions/.
+XTALK_MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'xtalk-extensions.json')
+XTALK_STAMP = 'XTALK-EXTENSIONS.txt'
+
+
+def _xtalk_extensions(path=XTALK_MANIFEST):
+    """[(folder, member, repository, commit)] from the manifest; empty
+    when there is no manifest."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return []
+    out = []
+    for m in data.get('members', []):
+        for e in m.get('extensions', []):
+            out.append((e['folder'], m['name'], m['repository'], m.get('commit', '')))
+    return out
+
+
+XTALK_EXTENSIONS = _xtalk_extensions()
 
 # Root files of the install that are IDE content, kept at the root of ide/.
 ROOT_IDE_FILES = (
@@ -328,6 +362,12 @@ def _rules():
     for ext in REPO_BUILT_EXTENSIONS:
         add(Rule('Extensions/%s/**' % ext, BUILD, None,
                  'package.txt Extensions: packaged_extensions built from extensions/'))
+    add(Rule('Extensions/' + XTALK_STAMP, XTALK, None,
+             'list of the bundled xTalk Suite extensions (tools/oxt/xtalk_extensions.py)'))
+    for folder, member, repository, commit in XTALK_EXTENSIONS:
+        add(Rule('Extensions/%s/**' % folder, XTALK, None,
+                 'xTalk Suite extension from %s at %s, built by tools/oxt/xtalk_extensions.py'
+                 % (repository, commit[:12] or '(not pinned)')))
     add(Rule('Extensions/**', IDE, 'ide/Extensions/',
              'extension shipped with the IDE but not built from extensions/'))
 

@@ -931,7 +931,12 @@ on __extensionsLoad
       -- then further resolve by alphabetical order of full filename
       sort tCopyFolders
       sort tCopyFolders ascending numeric by isUserExtension(tDataA[tTypeID][each])
-      repeat for each key tFolder in tDataA[tTypeID]
+      -- OXT-Beyond: walk the sorted list, not the keys of the array (whose
+      -- order is arbitrary), so that copy 1, the only one __extensionLoad
+      -- loads, is the user-installed copy when there is one. OXT-Beyond ships
+      -- extensions built in (the xTalk Suite ones) that users may also have
+      -- installed themselves; before this, which copy loaded was random.
+      repeat for each line tFolder in tCopyFolders
          put tDataA[tTypeID][tFolder] into tExtensionDataA["copies"][tExtensionCopyCount]
          put tFolder into tExtensionDataA["copies"][tExtensionCopyCount]["install_path"]
          add 1 to tExtensionCopyCount
