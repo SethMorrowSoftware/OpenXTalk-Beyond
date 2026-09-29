@@ -19,7 +19,8 @@
 
   python tools/oxt/package.py --repo <repo> --bin <repo>/win-x86_64-bin
       --out <stage-parent> [--build-number N] [--assets-cache DIR]
-      [--no-external-assets] [--eol lf|crlf|keep] [--summary-json FILE]
+      [--no-external-assets] [--no-xtalk-extensions] [--vc-redist DIR]
+      [--xtalk-cache DIR] [--eol lf|crlf|keep] [--summary-json FILE]
       [--compare <reference install or TSV> [--report FILE]]
 
 writes <stage-parent>/OXT-Beyond-<version>/, where <version> is the content
@@ -45,6 +46,18 @@ together from:
                the repository root (CRLF line endings).
   assets       the archives in tools/oxt/external-assets.json (see
                fetch_assets.py), unless --no-external-assets.
+  xtalk        the xTalk Suite extensions of tools/oxt/xtalk-extensions.json
+               under Extensions/, byte for byte as
+               tools/oxt/xtalk_extensions.py fetches and builds them (with
+               this build's lc-compile) in a temporary folder, plus
+               Extensions/XTALK-EXTENSIONS.txt; unless
+               --no-xtalk-extensions. --vc-redist is Visual Studio's
+               redistributable folder (VCToolsRedistDir): the Visual C++
+               runtime DLLs that enetxt and box2dxt import are then copied
+               next to them; without it packaging warns, and those two
+               libraries cannot load on a PC without the Visual C++
+               Redistributable. The cache is --xtalk-cache, else
+               OXT_XTALK_CACHE, else <asset cache>/xtalk.
 
 The build number is --build-number, else the environment variable
 OXT_BUILD_NUMBER, else the current UTC time as YYYYMMDDHHMM. ide/.buildnumber
@@ -77,6 +90,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 import zipfile
 
@@ -84,6 +98,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import layout  # noqa: E402
 import fetch_assets  # noqa: E402
+import xtalk_extensions  # noqa: E402
 
 PRODUCT = 'OXT-Beyond'
 EXE_NAME = PRODUCT + '.exe'
@@ -183,8 +198,8 @@ class Item(object):
 
     def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note=''):
         self.target = target      # installed path, "/" separators
-        self.origin = origin      # ide, build, generated, licence, asset
-        self.source = source      # file on disk (ide, build, licence)
+        self.origin = origin      # ide, build, generated, licence, asset, xtalk
+        self.source = source      # file on disk (ide, build, licence, xtalk)
         self.data = data          # bytes (generated)
         self.member = member      # zip member name (asset)
         self.asset = asset        # asset dict (asset)
@@ -314,9 +329,10 @@ def unused_build_outputs(bin_dir, used):
     return out
 
 
-def plan(repo, bin_dir, build_number, assets):
+def plan(repo, bin_dir, build_number, assets, xtalk=None):
     """Return (items, folders, problems); folders are installed paths of
-    folders to create even if empty."""
+    folders to create even if empty. xtalk is what xtalk_extensions.build
+    returned, or None."""
     items, problems = [], []
     folders = list(EMPTY_DIRS)
     add = items.append
@@ -351,6 +367,16 @@ def plan(repo, bin_dir, build_number, assets):
             add(Item(target, 'asset', source=archive, member=member, asset=asset,
                      note='asset %s: %s' % (asset['id'], member)))
         folders.extend(dirs)
+
+    # xTalk Suite extensions, as xtalk_extensions.build wrote them
+    if xtalk:
+        add(Item('Extensions/' + xtalk['stamp'], 'xtalk',
+                 source=layout.native(xtalk['out'], xtalk['stamp']),
+                 note='list of the xTalk Suite extensions'))
+        for ext in xtalk['extensions']:
+            for rel in ext['files']:
+                add(Item('Extensions/' + rel, 'xtalk', source=layout.native(xtalk['out'], rel),
+                         note='%s at %s' % (ext['repository'], ext['commit'][:12])))
 
     # Conflicts (case-insensitive, as on Windows)
     seen = {}
@@ -412,6 +438,8 @@ def write_stage(stage, items, folders, eol, log):
                     shutil.copyfile(it.source, dst)
             elif it.origin == 'build':
                 shutil.copy2(it.source, dst)
+            elif it.origin == 'xtalk':
+                shutil.copyfile(it.source, dst)
             elif it.origin in ('generated', 'licence'):
                 with open(dst, 'wb') as f:
                     f.write(it.data)
@@ -464,7 +492,7 @@ def reference_engine(paths):
     return exes[0] if len(exes) == 1 else None
 
 
-def compare(stage, items, ref, no_assets, report=None):
+def compare(stage, items, ref, no_assets, report=None, no_xtalk=False):
     """Print the comparison; return the number of unexplained differences."""
     root, ref_paths, ref_empty, listed_classes = load_reference(ref)
     by_target = {it.target: it for it in items}
@@ -496,6 +524,9 @@ def compare(stage, items, ref, no_assets, report=None):
             elif cls == layout.EXTERNAL and no_assets:
                 rows.append(('intended missing', p, '', cls, '--no-external-assets'))
                 counts[(cls, 'intended missing')] += 1
+            elif cls == layout.XTALK and no_xtalk:
+                rows.append(('intended missing', p, '', cls, '--no-xtalk-extensions'))
+                counts[(cls, 'intended missing')] += 1
             elif cls == layout.IDE:
                 rows.append(('IDE change: removed', p, '', cls, 'not in the repository\'s IDE'))
                 counts[(cls, 'not in the IDE any more')] += 1
@@ -524,7 +555,7 @@ def compare(stage, items, ref, no_assets, report=None):
                     status = 'ERROR content'
                     detail = 'external asset file differs from the reference'
                     problems += 1
-            elif cls == layout.BUILD:
+            elif cls in (layout.BUILD, layout.XTALK):
                 status = 'present (identical)' if _same_bytes(ref_file, staged) else 'present (rebuilt)'
         rows.append((status, p, it.target, cls, detail))
         counts[(cls, status)] += 1
@@ -545,6 +576,8 @@ def compare(stage, items, ref, no_assets, report=None):
             status, why = 'intended addition', 'notice file of an external asset (%s)' % it.note
         elif it.origin == 'ide':
             status, why = 'IDE change: added', it.note
+        elif it.origin == 'xtalk':
+            status, why = 'intended addition', 'xTalk Suite extension (%s)' % it.note
         else:
             status, why = 'ERROR extra', '%s: %s' % (it.origin, it.note)
             problems += 1
@@ -647,7 +680,7 @@ def summarise(items, stage, bin_dir, used, log):
         size_group[g] += size
     log('')
     log('Staged %d files, %s bytes, in %s' % (len(items), '{:,}'.format(sum(size_origin.values())), stage))
-    for o in ('ide', 'build', 'generated', 'licence', 'asset'):
+    for o in ('ide', 'build', 'generated', 'licence', 'asset', 'xtalk'):
         if by_origin[o]:
             log('  %-10s %6d files %15s bytes' % (o, by_origin[o], '{:,}'.format(size_origin[o])))
     empty = layout.empty_dirs(stage)
@@ -669,6 +702,18 @@ def summarise(items, stage, bin_dir, used, log):
     return by_origin, size_origin
 
 
+def summarise_xtalk(xtalk, log):
+    log('')
+    log('xTalk Suite extensions (Extensions/):')
+    for e in xtalk['extensions']:
+        log('  %-36s %s %-8s %s@%s' % (e['folder'], e['kind'], e['version'], e['repository'], e['commit'][:12]))
+    if xtalk['vc_runtime_files']:
+        log('  Visual C++ runtime %s bundled: %d DLLs' % (xtalk['vc_redist_version'], len(xtalk['vc_runtime_files'])))
+    for m in xtalk['missing_runtime']:
+        log('WARNING: Extensions/%s needs %s, which is not bundled (no --vc-redist): it cannot load on a '
+            'PC without the Visual C++ Redistributable' % (m['library'], ', '.join(m['needs'])))
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description='Stage the installed layout of OXT-Beyond for Windows x86-64.')
     p.add_argument('--repo', default=os.path.dirname(os.path.dirname(HERE)),
@@ -680,7 +725,17 @@ def main(argv=None):
                    help='asset cache (default: $%s, else <repo>/prebuilt/fetched-assets)' % fetch_assets.CACHE_ENV)
     p.add_argument('--manifest', default=fetch_assets.DEFAULT_MANIFEST, help='asset manifest (default: %(default)s)')
     p.add_argument('--no-external-assets', action='store_true', help='leave the external assets out')
-    p.add_argument('--offline', action='store_true', help='use cached assets only, never download')
+    p.add_argument('--no-xtalk-extensions', action='store_true',
+                   help='leave the xTalk Suite extensions (tools/oxt/xtalk-extensions.json) out')
+    p.add_argument('--xtalk-manifest', default=xtalk_extensions.DEFAULT_MANIFEST,
+                   help='xTalk extensions manifest (default: %(default)s)')
+    p.add_argument('--xtalk-cache', metavar='DIR',
+                   help='xTalk extensions cache (default: $%s, else <asset cache>/xtalk)'
+                        % xtalk_extensions.CACHE_ENV)
+    p.add_argument('--vc-redist', metavar='DIR',
+                   help='Visual Studio\'s VC\\Redist\\MSVC\\<version> folder (VCToolsRedistDir): bundle '
+                        'the Visual C++ runtime DLLs that xTalk extension libraries import')
+    p.add_argument('--offline', action='store_true', help='use cached assets and extensions only, never download')
     p.add_argument('--eol', choices=('lf', 'crlf', 'keep'), default='lf',
                    help='line endings of IDE text files (default: lf, as git stores them)')
     p.add_argument('--summary-json', metavar='FILE', help='write a JSON summary here')
@@ -689,6 +744,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     log = print
+    xtalk_tmp = None
     try:
         repo = os.path.abspath(args.repo)
         if not os.path.isdir(os.path.join(repo, 'ide')):
@@ -721,7 +777,26 @@ def main(argv=None):
             for a in fetch_assets.load_manifest(args.manifest):
                 assets.append((a, fetch_assets.fetch(a, cache, args.offline, log)))
 
-        items, folders, problems = plan(repo, bin_dir, build_number, assets)
+        xtalk = None
+        if args.no_xtalk_extensions:
+            log('xTalk extensions: left out (--no-xtalk-extensions)')
+        else:
+            # Built into a temporary folder with this build's lc-compile,
+            # then staged byte for byte like build outputs
+            xcache = xtalk_extensions.cache_dir(repo, args.xtalk_cache,
+                                                fetch_assets.cache_dir(repo, args.assets_cache))
+            log('xTalk cache  : %s' % xcache)
+            if args.vc_redist:
+                log('VC++ redist  : %s' % args.vc_redist)
+            else:
+                log('WARNING: no --vc-redist: the Visual C++ runtime that enetxt and box2dxt need is not bundled')
+            xtalk_data = xtalk_extensions.load_manifest(args.xtalk_manifest)
+            xtalk_tmp = tempfile.mkdtemp(prefix='oxt-xtalk-')
+            xtalk = xtalk_extensions.build(xtalk_data, bin_dir, xtalk_tmp, xcache, None, args.vc_redist,
+                                           args.offline, log)
+            log('')
+
+        items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk)
         if problems:
             for msg in problems:
                 sys.stderr.write('error: %s\n' % msg)
@@ -748,17 +823,31 @@ def main(argv=None):
                 ('empty_dirs', layout.empty_dirs(stage)),
                 ('external_assets', [collections.OrderedDict([('id', a['id']), ('sha256', a['sha256']),
                                                                ('url', a['url'])]) for a, _ in assets]),
+                ('xtalk_extensions', [collections.OrderedDict(
+                    (k, e[k]) for k in ('folder', 'kind', 'id', 'member', 'version', 'repository', 'commit'))
+                    for e in (xtalk['extensions'] if xtalk else [])]),
+                ('vc_redist', xtalk['vc_redist'] if xtalk else None),
+                ('vc_redist_version', xtalk['vc_redist_version'] if xtalk else None),
+                ('vc_runtime_files', xtalk['vc_runtime_files'] if xtalk else []),
+                ('xtalk_missing_runtime', xtalk['missing_runtime'] if xtalk else []),
             ])
             with open(args.summary_json, 'w', encoding='utf-8', newline='\n') as f:
                 json.dump(summary, f, indent=2)
                 f.write('\n')
 
+        if xtalk:
+            summarise_xtalk(xtalk, log)
+
         if args.compare:
-            if compare(stage, items, args.compare, args.no_external_assets, args.report):
+            if compare(stage, items, args.compare, args.no_external_assets, args.report,
+                       args.no_xtalk_extensions):
                 return 1
-    except (PackageError, fetch_assets.AssetError) as e:
+    except (PackageError, fetch_assets.AssetError, xtalk_extensions.XtalkError) as e:
         sys.stderr.write('error: %s\n' % e)
         return 2
+    finally:
+        if xtalk_tmp:
+            shutil.rmtree(xtalk_tmp, ignore_errors=True)
     return 0
 
 

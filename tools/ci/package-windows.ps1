@@ -7,8 +7,18 @@
        to <StageParent>\OXT-Beyond-<ver>\ (default <OutDir>\stage\...): the
        IDE from ide\ and ide-support\, the build outputs at their installed
        paths (the development engine as OXT-Beyond.exe), the external assets
-       of tools/oxt/external-assets.json and the licence files. <ver> is the
+       of tools/oxt/external-assets.json, the xTalk Suite extensions of
+       tools/oxt/xtalk-extensions.json (fetched from their repositories at
+       the pinned commits and built with this build's lc-compile by
+       tools/oxt/xtalk_extensions.py) and the licence files. <ver> is the
        product version in ide\.version.
+
+       enetxt.dll and box2dxt.dll import the Visual C++ runtime, which the
+       OXT-Beyond engine does not ship. The runtime DLLs are copied next to
+       them from Visual Studio's redistributable folder (-VcRedist, else
+       VCToolsRedistDir, else found with vswhere); when no such folder is
+       found, packaging warns and those two libraries cannot load on a PC
+       without the Visual C++ Redistributable.
 
     2. Writes to OutDir (default <RepoRoot>\dist):
 
@@ -64,6 +74,18 @@
 .PARAMETER NoExternalAssets
     Leave the external assets (other-platform runtimes) out of the package.
 
+.PARAMETER NoXtalkExtensions
+    Leave the xTalk Suite extensions out of the package. The environment
+    variable NO_XTALK_EXTENSIONS set to 1 or true does the same. Their
+    download cache is <AssetsCache>\xtalk (or OXT_XTALK_CACHE).
+
+.PARAMETER VcRedist
+    Visual Studio's redistributable folder, ...\VC\Redist\MSVC\<version>
+    (the one with x64\Microsoft.VC14x.CRT and x86\Microsoft.VC14x.CRT).
+    Default: the environment variable VCToolsRedistDir (set in a Visual
+    Studio developer prompt), else the default redistributable of the newest
+    Visual Studio with the C++ tools that vswhere finds.
+
 .PARAMETER Python
     Python 3 interpreter. Default: the first of "py -3", python3 and python
     that is Python 3.6 or later.
@@ -80,6 +102,8 @@ param(
     [string]$BuildNumber,
     [string]$AssetsCache,
     [switch]$NoExternalAssets,
+    [switch]$NoXtalkExtensions,
+    [string]$VcRedist,
     [string]$Python,
     [ValidateSet('Optimal', 'Fastest', 'NoCompression')]
     [string]$CompressionLevel = 'Optimal'
@@ -174,12 +198,73 @@ function Find-Python {
 }
 $py = Find-Python
 
+# --- Visual C++ redistributable (for the xTalk extensions) ---
+# A folder qualifies when it has x64\ and x86\Microsoft.VC14x.CRT
+function Test-VcRedist([string]$Dir) {
+    if (-not $Dir -or -not (Test-Path -LiteralPath $Dir -PathType Container)) { return $false }
+    foreach ($arch in @('x64', 'x86')) {
+        $crt = @(Get-ChildItem -LiteralPath (Join-Path $Dir $arch) -Directory -Filter 'Microsoft.VC14*.CRT' -ErrorAction SilentlyContinue)
+        if ($crt.Count -eq 0) { return $false }
+    }
+    return $true
+}
+
+function Find-VcRedist {
+    if ($VcRedist) {
+        if (-not (Test-VcRedist $VcRedist)) { throw "-VcRedist $VcRedist has no x64\Microsoft.VC14x.CRT and x86\Microsoft.VC14x.CRT folders." }
+        return (Resolve-Path -LiteralPath $VcRedist).ProviderPath.TrimEnd('\')
+    }
+    if (Test-VcRedist $env:VCToolsRedistDir) { return $env:VCToolsRedistDir.TrimEnd('\') }
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) { return $null }
+    $saved = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        # Newest first; -products * includes the Build Tools
+        $installs = @(& $vswhere -all -sort -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null)
+    }
+    finally { $ErrorActionPreference = $saved }
+    foreach ($vs in $installs) {
+        $vs = "$vs".Trim()
+        if (-not $vs) { continue }
+        $root = Join-Path $vs 'VC\Redist\MSVC'
+        $candidates = @()
+        # The redistributable that matches the default toolset, then any
+        # other version folder, newest first
+        $versionFile = Join-Path $vs 'VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt'
+        if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+            $candidates += Join-Path $root ([System.IO.File]::ReadAllText($versionFile).Trim())
+        }
+        if (Test-Path -LiteralPath $root -PathType Container) {
+            $candidates += @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending | ForEach-Object { $_.FullName })
+        }
+        foreach ($c in $candidates) {
+            if (Test-VcRedist $c) { return $c.TrimEnd('\') }
+        }
+    }
+    return $null
+}
+
+if ($env:NO_XTALK_EXTENSIONS -match '^(1|true|yes)$') { $NoXtalkExtensions = $true }
+$vcRedistDir = $null
+if (-not $NoXtalkExtensions) {
+    $vcRedistDir = Find-VcRedist
+    if (-not $vcRedistDir) {
+        $message = 'No Visual C++ redistributable folder found (-VcRedist, VCToolsRedistDir or vswhere): enetxt and box2dxt are packaged WITHOUT the Visual C++ runtime DLLs they import and cannot load on a PC without the Visual C++ Redistributable.'
+        Write-Warning $message
+        if ($env:GITHUB_ACTIONS) { Write-Host "::warning title=Package::$message" }
+    }
+}
+
 Write-Host "Repository : $RepoRoot"
 Write-Host "Build      : $BinDir"
 Write-Host "Stage in   : $StageParent"
 Write-Host "Output     : $OutDir"
 Write-Host "Build no.  : $BuildNumber"
 Write-Host "Python     : $((@($py.Exe) + @($py.Pre)) -join ' ') ($($py.Version))"
+if ($NoXtalkExtensions) { Write-Host 'xTalk ext. : left out' }
+else { Write-Host "VC++ redist: $(if ($vcRedistDir) { $vcRedistDir } else { '(none found)' })" }
 Write-Host ''
 
 # --- 1. Stage the installed layout ---
@@ -194,6 +279,8 @@ try {
         '--summary-json', $summaryFile)
     if ($AssetsCache) { $pyArgs += @('--assets-cache', $AssetsCache.TrimEnd('\')) }
     if ($NoExternalAssets) { $pyArgs += '--no-external-assets' }
+    if ($NoXtalkExtensions) { $pyArgs += '--no-xtalk-extensions' }
+    elseif ($vcRedistDir) { $pyArgs += @('--vc-redist', $vcRedistDir) }
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     # Unbuffered, so that progress lines appear as they are written; UTF-8,
     # so that printing a path never fails on a legacy code page
@@ -342,8 +429,16 @@ foreach ($p in @($binPath, $portablePath, $symPath)) {
 [System.IO.File]::WriteAllText($sumsPath, (($sumLines -join "`n") + "`n"), $utf8)
 
 $stageBytes = [int64]$summary.bytes
+$xtalkCount = @($summary.xtalk_extensions).Count
+$vcRuntimeVersion = if ($summary.vc_redist_version) { [string]$summary.vc_redist_version } else { '' }
+$missingRuntime = @($summary.xtalk_missing_runtime | Where-Object { $_ })
+if ($NoXtalkExtensions) { $xtalkText = 'left out' }
+elseif ($missingRuntime.Count -gt 0) { $xtalkText = "$xtalkCount, WITHOUT the Visual C++ runtime that $($missingRuntime.Count) of their libraries need" }
+elseif ($vcRuntimeVersion) { $xtalkText = "$xtalkCount, with the Visual C++ runtime $vcRuntimeVersion" }
+else { $xtalkText = "$xtalkCount" }
 Write-Host ''
 Write-Host ("Staged folder {0}: {1:N0} files, {2:N1} MB" -f $StageDir, [int]$summary.files, ($stageBytes / 1MB))
+Write-Host "xTalk Suite extensions: $xtalkText"
 Write-Host "Packages in ${OutDir}:"
 foreach ($r in $results) {
     Write-Host ('  {0,-52} {1,10:N1} MB  {2,6} entries' -f $r.Name, ($r.Bytes / 1MB), $r.Entries)
@@ -361,13 +456,16 @@ if ($env:GITHUB_OUTPUT) {
         "package-root=$PackageRoot",
         "stage-dir=$StageDir",
         "dist-dir=$OutDir",
-        "portable-zip=$portablePath"
+        "portable-zip=$portablePath",
+        "xtalk-extensions=$xtalkCount",
+        "vc-runtime-version=$vcRuntimeVersion"
     )
     [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, (($outputs -join "`n") + "`n"), $utf8)
 }
 if ($env:GITHUB_STEP_SUMMARY) {
     $md = @('### Packages', '',
         ("{0} {1}, build {2} (engine {3}); staged folder: {4:N0} files, {5:N1} MB" -f $Product, $Version, $summary.build_number, $EngineVersion, [int]$summary.files, ($stageBytes / 1MB)),
+        '', "xTalk Suite extensions: $xtalkText.",
         '', '| File | Size | Entries | SHA-256 |', '| --- | --- | --- | --- |')
     foreach ($r in $results) {
         $md += ('| {0} | {1:N1} MB | {2} | `{3}` |' -f $r.Name, ($r.Bytes / 1MB), $r.Entries, $r.Sha256)

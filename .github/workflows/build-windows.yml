@@ -18,7 +18,9 @@
 #   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
 #      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py;
 #      the external assets listed in tools/oxt/external-assets.json are
-#      cached in prebuilt/fetched-assets; see the Package step for leaving
+#      cached in prebuilt/fetched-assets, the files of the xTalk Suite
+#      extensions pinned in tools/oxt/xtalk-extensions.json in
+#      prebuilt/fetched-assets/xtalk; see the Package step for leaving
 #      them out),
 #   2. runs the headless smoke test on the portable zip (smoke-test.ps1),
 #   3. compiles every IDE script in dist/stage and compares the errors with
@@ -59,6 +61,12 @@ on:
           Package without the external assets of tools/oxt/external-assets.json
           (no runtimes for other platforms), for testing while an asset is not
           published yet
+        type: boolean
+        default: false
+      no_xtalk_extensions:
+        description: >-
+          Package without the xTalk Suite extensions of
+          tools/oxt/xtalk-extensions.json
         type: boolean
         default: false
 
@@ -241,13 +249,25 @@ jobs:
       # As with the prebuilt libraries, restore and save are separate steps
       # so that verified downloads are cached even when a later step fails.
       # tools/oxt/package.py verifies every cached archive against the
-      # SHA-256 in the manifest before using it.
+      # SHA-256 in the manifest before using it. The xTalk extensions'
+      # files (prebuilt/fetched-assets/xtalk) have a cache of their own,
+      # keyed on their manifest, so a new pin does not download the
+      # runtimes archive again; the external-assets cache leaves them out.
       - name: Restore cached external assets
         id: assets-cache
         uses: actions/cache/restore@v4
         with:
-          path: prebuilt/fetched-assets
+          path: |
+            prebuilt/fetched-assets
+            !prebuilt/fetched-assets/xtalk
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
+
+      - name: Restore cached xTalk extension files
+        id: xtalk-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
 
       # Writes dist/stage/OXT-Beyond-<ver> (the installed layout), the
       # portable, binaries and symbols zips and SHA256SUMS.
@@ -256,14 +276,20 @@ jobs:
       # -NoExternalAssets) when a manual run sets the input
       # no_external_assets, or when the repository variable
       # OXT_NO_EXTERNAL_ASSETS is 1, for example while a new asset is not
-      # published yet. Tag builds, which publish a release, always include
-      # them.
+      # published yet. Likewise the xTalk Suite extensions with the input
+      # no_xtalk_extensions or the variable OXT_NO_XTALK_EXTENSIONS
+      # (package-windows.ps1 reads NO_XTALK_EXTENSIONS). Tag builds, which
+      # publish a release, always include both. package-windows.ps1 finds
+      # the Visual C++ redistributable folder of the runner's Visual Studio
+      # with vswhere and bundles the runtime DLLs that enetxt and box2dxt
+      # import.
       - name: Package
         id: package
         timeout-minutes: 45
         env:
           OXT_ASSETS_CACHE: ${{ github.workspace }}\prebuilt\fetched-assets
           NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'build-logs\package.log'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null
@@ -277,12 +303,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
 
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/**') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: prebuilt/fetched-assets
+          path: |
+            prebuilt/fetched-assets
+            !prebuilt/fetched-assets/xtalk
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
+
+      - name: Save xTalk extension files to the cache
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
 
       # Extract the portable zip and run its engine (OXT-Beyond.exe) without
       # a user interface: the script engine, ICU, OpenSSL, SQLite (revDB and
