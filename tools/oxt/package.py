@@ -20,7 +20,8 @@
   python tools/oxt/package.py --repo <repo> --bin <repo>/win-x86_64-bin
       --out <stage-parent> [--build-number N] [--assets-cache DIR]
       [--no-external-assets] [--no-xtalk-extensions] [--vc-redist DIR]
-      [--xtalk-cache DIR] [--eol lf|crlf|keep] [--summary-json FILE]
+      [--allow-unpinned-vc-runtime] [--xtalk-cache DIR] [--eol lf|crlf|keep]
+      [--summary-json FILE]
       [--compare <reference install or TSV> [--report FILE]]
 
 writes <stage-parent>/OXT-Beyond-<version>/, where <version> is the content
@@ -54,7 +55,9 @@ together from:
                --no-xtalk-extensions. --vc-redist is Visual Studio's
                redistributable folder (VCToolsRedistDir): the Visual C++
                runtime DLLs that enetxt and box2dxt import are then copied
-               next to them; without it packaging warns, and those two
+               next to them, and each must be the one the manifest's
+               "vc_runtime" pins (--allow-unpinned-vc-runtime only warns);
+               without --vc-redist packaging warns, and those two
                libraries cannot load on a PC without the Visual C++
                Redistributable. The cache is --xtalk-cache, else
                OXT_XTALK_CACHE, else <asset cache>/xtalk.
@@ -709,8 +712,13 @@ def summarise_xtalk(xtalk, log):
         log('  %-36s %s %-8s %s@%s' % (e['folder'], e['kind'], e['version'], e['repository'], e['commit'][:12]))
     if xtalk['vc_runtime_files']:
         versions = sorted({f['file_version'] for f in xtalk['vc_runtime_files']})
-        log('  Visual C++ runtime bundled: %d DLLs, file version %s, from the redistributable folder %s'
-            % (len(xtalk['vc_runtime_files']), ', '.join(versions), xtalk['vc_redist_version']))
+        log('  Visual C++ runtime bundled: %d DLLs, file version %s, from the redistributable folder %s (%s)'
+            % (len(xtalk['vc_runtime_files']), ', '.join(versions), xtalk['vc_redist_version'],
+               'pinned' if xtalk['vc_runtime_pinned'] else 'NOT the pinned runtime'))
+    for f in xtalk['vc_runtime_files']:
+        if not f['pinned']:
+            log('WARNING: Extensions/%s is NOT the pinned Visual C++ runtime (file version %s); packaged with '
+                '--allow-unpinned-vc-runtime' % (f['path'], xtalk['vc_runtime_pinned_file_version']))
     for m in xtalk['missing_runtime']:
         log('WARNING: Extensions/%s needs %s, which is not bundled (no --vc-redist): it cannot load on a '
             'PC without the Visual C++ Redistributable' % (m['library'], ', '.join(m['needs'])))
@@ -741,6 +749,9 @@ def main(argv=None):
     p.add_argument('--vc-redist', metavar='DIR',
                    help='Visual Studio\'s VC\\Redist\\MSVC\\<version> folder (VCToolsRedistDir): bundle '
                         'the Visual C++ runtime DLLs that xTalk extension libraries import')
+    p.add_argument('--allow-unpinned-vc-runtime', action='store_true',
+                   help='only warn when a Visual C++ runtime DLL is not the one the xTalk manifest pins '
+                        '(never for a release)')
     p.add_argument('--offline', action='store_true', help='use cached assets and extensions only, never download')
     p.add_argument('--eol', choices=('lf', 'crlf', 'keep'), default='lf',
                    help='line endings of IDE text files (default: lf, as git stores them)')
@@ -799,7 +810,7 @@ def main(argv=None):
             xtalk_data = xtalk_extensions.load_manifest(args.xtalk_manifest)
             xtalk_tmp = tempfile.mkdtemp(prefix='oxt-xtalk-')
             xtalk = xtalk_extensions.build(xtalk_data, bin_dir, xtalk_tmp, xcache, None, args.vc_redist,
-                                           args.offline, log)
+                                           args.offline, log, args.allow_unpinned_vc_runtime)
             log('')
 
         items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk)
@@ -834,6 +845,8 @@ def main(argv=None):
                     for e in (xtalk['extensions'] if xtalk else [])]),
                 ('vc_redist', xtalk['vc_redist'] if xtalk else None),
                 ('vc_redist_version', xtalk['vc_redist_version'] if xtalk else None),
+                ('vc_runtime_pinned', xtalk['vc_runtime_pinned'] if xtalk else None),
+                ('vc_runtime_pinned_file_version', xtalk['vc_runtime_pinned_file_version'] if xtalk else None),
                 ('vc_runtime_files', xtalk['vc_runtime_files'] if xtalk else []),
                 ('xtalk_missing_runtime', xtalk['missing_runtime'] if xtalk else []),
                 ('vc_runtime_older_than_build_tools', xtalk['vc_runtime_older_than_build_tools'] if xtalk else []),

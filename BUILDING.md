@@ -786,6 +786,7 @@ package always has the pinned versions, compiled by its own
 | `version`, `version_from` | The member's version, and where `pin` reads it: a file and a regular expression (the `.lcb` metadata, or a version constant of a script library). |
 | `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, all five platform ids; `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
 | `extensions` | What is made from the files: `kind` (`lcb` or `lcs`), `id`, `folder` in `Extensions\`, the `main` file, `probe` and `expect` (an expression and a regular expression its value must match, for the smoke test) and, for script libraries, `stack`, `title`, `author` and `requires`. |
+| `vc_runtime` (top level) | The Visual C++ runtime DLLs bundled with the libraries that need them (see below): `redist`, the redistributable folder they were pinned from, `file_version`, the DLLs' file version, and `files`, the `sha256` and `size` of each DLL per Windows platform id. |
 
 Line endings matter: the SHA-256 values are those of the files as Git
 stores them (LF), which is what `raw.githubusercontent.com` serves. A
@@ -815,8 +816,8 @@ the IDE loads a script library under the part of its file name before
 the first dot. `manifest.xml` is written from the JSON; `requires` makes
 the IDE load a script library after the libraries it needs.
 `Extensions\XTALK-EXTENSIONS.txt` lists every extension with its
-repository and commit. The same pins and `lc-compile` give the same
-files.
+repository and commit. The same pins (including `vc_runtime`) and
+`lc-compile` give the same files.
 
 **The Visual C++ runtime.** `enetxt.dll` imports `MSVCP140.dll`,
 `VCRUNTIME140.dll` and (x86-64) `VCRUNTIME140_1.dll`, and
@@ -842,12 +843,43 @@ CI image) ships runtime 14.44. Microsoft does not support that
 combination, although both libraries load and pass the smoke test with
 it. `XTALK-EXTENSIONS.txt` records each copy with its SHA-256 and file
 version, and the redistributable folder it came from.
-`package-windows.ps1` takes the folder from `-VcRedist`, else from
-`VCToolsRedistDir` (set in a Visual Studio developer prompt), else from
-the newest Visual Studio with the C++ tools that `vswhere` finds; for
-`package.py` and `xtalk_extensions.py` it is `--vc-redist`. Without it,
-packaging warns and lists the libraries that cannot load on a PC without
-the redistributable, and the checks below fail.
+
+The runtime DLLs are pinned like everything else: `vc_runtime` in
+`xtalk-extensions.json` lists the SHA-256 and size of each DLL per
+platform (now Visual Studio 2022 17.14's redistributable folder
+`14.44.35112`, file version 14.44.35211.0, which the windows-2022 CI
+image has), and packaging verifies every copy against it. A copy from
+another redistributable stops the build with both hashes and the pinned
+file version; otherwise the same commit would package different DLLs on
+another machine, or after the CI image moves to a newer Visual Studio.
+`--allow-unpinned-vc-runtime` (`-AllowUnpinnedVcRuntime` for
+`package-windows.ps1`) only warns instead, and the stamp then says the
+runtime is not the pinned one; it is for trying out another
+redistributable, never for a release (CI does not set it). To move to
+another redistributable, pin it and commit the result:
+
+```bat
+python tools\oxt\xtalk_extensions.py pin-vc-runtime --vc-redist "%VCToolsRedistDir%."
+```
+
+It hashes, for every Windows platform id of the manifest, the DLLs the
+libraries' recorded `imports` need from that folder (and what those DLLs
+import in turn), and rewrites `redist`, `file_version` and `files`,
+keeping the block's comment, which you update if it names the old
+folder. So a new runner image with a newer Visual Studio takes one
+command and a commit.
+
+`package-windows.ps1` takes the folder from `-VcRedist` as given.
+Otherwise it collects `VCToolsRedistDir` (set in a Visual Studio
+developer prompt) and the redistributable folders of every Visual Studio
+with the C++ tools that `vswhere` finds (newest first, each one's
+default folder first) and takes the first that has the pinned DLLs, so
+that a machine with several Visual Studio installs packages the pinned
+runtime rather than the newest; if none has them, the first folder, and
+packaging then stops with the mismatch. For `package.py` and
+`xtalk_extensions.py` the folder is `--vc-redist`. Without it, packaging
+warns and lists the libraries that cannot load on a PC without the
+redistributable, and the checks below fail.
 
 **Checks.** [`tools/ci/check-extension-imports.ps1`](tools/ci/check-extension-imports.ps1)
 `-Root <installed layout>` reads the import tables of every DLL in
@@ -936,7 +968,9 @@ lists a library the manifest does not take (a new platform, for
 example: add it to `files`), or if an LCB source declares another module
 id or a script library another stack name than its extension entry.
 Then review the diff (a changed `imports` list means a library needs
-another DLL), package and run the smoke test, update
+another DLL; if it is a Visual C++ runtime DLL, also run
+`pin-vc-runtime`, or packaging stops at the unpinned copy), package and
+run the smoke test, update
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#xtalk-suite-extensions)
 if the components or licences changed, and commit. A new file or
 extension is added to the manifest by hand, then `pin` fills in its

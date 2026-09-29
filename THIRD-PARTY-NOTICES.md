@@ -314,8 +314,11 @@ Notes:
   `vcruntime140_1.dll` for enetxt, `vcruntime140.dll` for Box2Dxt. They
   are copied unchanged from the Visual Studio redistributable folder
   (`VC\Redist\MSVC\<version>\<arch>\Microsoft.VC14x.CRT`) of the machine
-  that made the package. `XTALK-EXTENSIONS.txt` gives each DLL's file
-  version and SHA-256, and the redistributable folder they came from.
+  that made the package, and are pinned by SHA-256 in
+  `tools/oxt/xtalk-extensions.json` (`vc_runtime`; now Visual Studio 2022
+  17.14's, file version 14.44.35211.0), which packaging verifies.
+  `XTALK-EXTENSIONS.txt` gives each DLL's file version and SHA-256, and
+  the redistributable folder they came from.
   See [Microsoft components](#microsoft-components).
 - **Standalones.** When a standalone includes one of these extensions,
   the standalone builder copies its native libraries (for enetxt and
@@ -420,8 +423,9 @@ enetxt and Box2Dxt, need the runtime as DLLs instead, so the packages
 also contain Microsoft's redistributable `msvcp140.dll`,
 `vcruntime140.dll` and `vcruntime140_1.dll` as separate files, in those
 extensions' `code/x86_64-win32/` and `code/x86-win32/` folders,
-unchanged from Visual Studio's redistributable folder (see
-[xTalk Suite extensions](#xtalk-suite-extensions)). These are Microsoft
+unchanged from Visual Studio's redistributable folder and pinned by
+SHA-256 in `tools/oxt/xtalk-extensions.json`, which packaging verifies
+(see [xTalk Suite extensions](#xtalk-suite-extensions)). These are Microsoft
 components distributed under the Visual Studio licence terms for
 redistributable code ("Distributable Code"), not open source. The ATL
 combination is the reason for the licence exception in

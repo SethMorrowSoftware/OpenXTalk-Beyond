@@ -18,6 +18,33 @@
     "x86-linux",
     "universal-mac"
   ],
+  "vc_runtime": {
+    "comment": [
+      "The Microsoft Visual C++ runtime DLLs that build copies next to the",
+      "Windows libraries importing them (enetxt, Box2Dxt), pinned by SHA-256 and",
+      "size so that a package does not depend on which Visual Studio the",
+      "machine that makes it has: build and package.py stop at any other copy",
+      "(--allow-unpinned-vc-runtime only warns; never for a release). \"redist\"",
+      "names the redistributable folder they were pinned from (VC\\Redist\\MSVC\\",
+      "<version>; 14.44.35112 is Visual Studio 2022 17.14's, the one on the",
+      "windows-2022 CI image) and \"file_version\" their file version.",
+      "\"xtalk_extensions.py pin-vc-runtime --vc-redist DIR\" rewrites \"redist\",",
+      "\"file_version\" and \"files\"."
+    ],
+    "redist": "14.44.35112",
+    "file_version": "14.44.35211.0",
+    "files": {
+      "x86_64-win32": {
+        "msvcp140.dll": {"sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9", "size": 557728},
+        "vcruntime140.dll": {"sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066", "size": 124544},
+        "vcruntime140_1.dll": {"sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f", "size": 49792}
+      },
+      "x86-win32": {
+        "msvcp140.dll": {"sha256": "97e71a3c697fb1ab3af777db39009e4602525e8c3aff0837ecc7031cba188165", "size": 447616},
+        "vcruntime140.dll": {"sha256": "a9d7732a3c3de09f0601a7fa2555093dcb49f08e2fc62a86091461f0f38393ed", "size": 91216}
+      }
+    }
+  },
   "members": [
     {
       "name": "SodiumXT",

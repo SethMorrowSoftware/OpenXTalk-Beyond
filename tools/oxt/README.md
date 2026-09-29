@@ -392,7 +392,9 @@ python tools/oxt/xtalk_extensions.py [--manifest FILE] pin   [--member NAME] [--
                                      [--cache DIR | --no-cache]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] fetch [--cache DIR] [--offline] [--platforms LIST] [--member NAME]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] build --bin DIR --out DIR [--vc-redist DIR]
-                                     [--cache DIR] [--offline] [--platforms LIST] [--summary-json FILE]
+                                     [--allow-unpinned-vc-runtime] [--cache DIR] [--offline]
+                                     [--platforms LIST] [--summary-json FILE]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] pin-vc-runtime --vc-redist DIR
 python tools/oxt/xtalk_extensions.py [--manifest FILE] export --out FILE.zip [--cache DIR] [--offline]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] list
 ```
@@ -446,9 +448,13 @@ Nothing of the members is kept in this repository.
   With `--vc-redist` (Visual Studio's `VC\Redist\MSVC\<version>`), every
   DLL a library in `code/x86_64-win32` or `code/x86-win32` imports that
   is neither a Windows system DLL nor in the folder is copied from the
-  redistributable into the folder, and the copies must export what the
-  library imports from them (which catches a redistributable that lacks a
-  function, not every older one). The build warns when a copy's file
+  redistributable into the folder. Each copy must match the SHA-256 and
+  size that the manifest's `vc_runtime` pins for its platform (otherwise
+  the build stops, naming the file, where it came from, both hashes and
+  the pinned file version; `--allow-unpinned-vc-runtime` only warns, and
+  the stamp and the summary's `vc_runtime_pinned` say so), and the copies
+  must export what the library imports from them (which catches a
+  redistributable that lacks a function, not every older one). The build warns when a copy's file
   version (from its `VS_VERSION_INFO`) is older than the MSVC linker
   version of the library that imports it, and `XTALK-EXTENSIONS.txt`
   records each copy's SHA-256 and file version. Without `--vc-redist`
@@ -457,7 +463,15 @@ Nothing of the members is kept in this repository.
   `lc-compile` fails. Folders listed in an earlier
   `XTALK-EXTENSIONS.txt` of `--out` and the folders of the current
   manifest are replaced; nothing else in `--out` is touched. The output is
-  the same for the same pins and `lc-compile`.
+  the same for the same pins (including `vc_runtime`) and `lc-compile`.
+* `pin-vc-runtime --vc-redist DIR` rewrites `vc_runtime` from a
+  redistributable folder: for every Windows platform id of the manifest,
+  the SHA-256 and size of each DLL that the libraries' recorded `imports`
+  need from it (and that those DLLs import in turn), the folder's name
+  (`redist`) and the DLLs' file version (`file_version`; the DLLs must
+  agree on it). The block's `comment` is kept. `package-windows.ps1`
+  prefers, among `VCToolsRedistDir` and the Visual Studio installs that
+  `vswhere` finds, the folder that has the pinned DLLs.
 * `export` fetches, then writes every pinned file (all members and
   platforms) into a zip in the cache layout `<repository>/<commit>/<path>`,
   with a copy of the manifest (LF line endings) and a `README.txt`.

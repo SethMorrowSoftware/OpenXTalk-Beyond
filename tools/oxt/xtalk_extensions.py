@@ -55,11 +55,16 @@ Subcommands
          SHA-256 (a mismatch is fatal and the file is deleted), then check
          the native libraries against the member's src/code/MANIFEST.sha256.
   build  --bin DIR --out DIR [--platforms LIST] [--vc-redist DIR]
-         [--cache DIR] [--offline]
+         [--allow-unpinned-vc-runtime] [--cache DIR] [--offline]
          fetch, then compile and assemble <out>/<folder>/ for every
          extension and write <out>/XTALK-EXTENSIONS.txt. Folders this tool
          made before (listed in the old XTALK-EXTENSIONS.txt) are replaced;
          nothing else in <out> is touched.
+  pin-vc-runtime --vc-redist DIR
+         pin the Visual C++ runtime DLLs that the Windows libraries need
+         (from their recorded "imports", and what those DLLs import in
+         turn) to their SHA-256 and size in that redistributable folder:
+         rewrites the manifest's "vc_runtime" block.
   export --out FILE.zip [--cache DIR] [--offline]
          fetch, then write every pinned file (all members and platforms)
          into a reproducible zip in the cache layout <Repo>/<commit>/<path>,
@@ -85,7 +90,11 @@ DLL that a library in code/x86_64-win32 or code/x86-win32 imports and that
 is neither a Windows system DLL (SYSTEM_DLLS) nor already in that folder
 into the folder (app-local deployment; the engine loads extension libraries
 with LOAD_WITH_ALTERED_SEARCH_PATH, so Windows looks for their DLLs next to
-them first). It checks that the copies export every function the library
+them first). Every copy must be the one "vc_runtime" in the manifest pins
+(SHA-256 and size per platform and DLL), so that the package does not
+depend on which Visual Studio the build machine has; with
+--allow-unpinned-vc-runtime (never for a release) another copy only
+warns. It checks that the copies export every function the library
 imports from them, which catches a redistributable that lacks a function
 but not every older one, and warns when a copy's file version is older
 than the MSVC linker that built the library (Microsoft supports only a
@@ -308,12 +317,42 @@ def validate(data, where='manifest', pinned=True):
             ids[e['id'].lower()] = e
         _need(lcb_count <= 1, w, 'more than one lcb extension (the native libraries go into the one)')
         _need(lcb_count == 1 or not libraries, w, 'native libraries but no lcb extension to put them in')
+    if 'vc_runtime' in data:
+        _validate_vc_runtime(data['vc_runtime'], where, platforms)
     # requires: known ids, no cycles
     for m in members:
         for e in m['extensions']:
             for r in e.get('requires', []):
                 _need(r.lower() in ids, where, 'extension %s requires unknown extension %s' % (e['id'], r))
     dependency_order(data)
+
+
+def _validate_vc_runtime(vc, where, platforms):
+    """The "vc_runtime" block: file_version, redist, and files as
+    {Windows platform id: {lower-case DLL name: {sha256, size}}}."""
+    w = '%s: vc_runtime' % where
+    _need(isinstance(vc, dict), w, 'must be an object')
+    files = vc.get('files')
+    _need(isinstance(files, dict), w, '"files" must be an object: platform id -> DLL name -> {sha256, size}')
+    fv = vc.get('file_version')
+    _need(isinstance(fv, str) and (re.match(r'^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$', fv) is not None
+                                   or (fv == '' and not any(files.values()))),
+          w, 'file_version must be the DLLs\' file version, four numbers (run "xtalk_extensions.py pin-vc-runtime")')
+    _need(isinstance(vc.get('redist', ''), str), w, 'redist must be a string')
+    for platform, dlls in files.items():
+        _need(platform in platforms and platform in WINDOWS_PLATFORMS, w,
+              'platform id %s is not a Windows platform id of "platforms"' % platform)
+        _need(isinstance(dlls, dict), w, 'files of %s must be an object: DLL name -> {sha256, size}' % platform)
+        for name, pin in dlls.items():
+            wd = '%s: %s/%s' % (w, platform, name)
+            _need(isinstance(name, str) and re.match(r'^[a-z0-9_.-]+\.dll$', name) is not None, wd,
+                  'the DLL name must be a lower-case file name ending in .dll')
+            _need(not is_system_dll(name), wd, 'a Windows system DLL is never copied')
+            _need(isinstance(pin, dict) and isinstance(pin.get('sha256'), str)
+                  and re.match(r'^[0-9a-f]{64}$', pin['sha256']) is not None, wd,
+                  'sha256 must be 64 lowercase hex digits')
+            _need(isinstance(pin.get('size'), int) and not isinstance(pin['size'], bool) and pin['size'] > 0, wd,
+                  'size must be a positive integer')
 
 
 def _validate_file(f, m, w, platforms, pinned):
@@ -468,6 +507,8 @@ def dump_manifest(data):
 
 def _dump(value, level, key):
     pad = '  ' * level
+    if isinstance(value, dict) and isinstance(key, str) and key.lower().endswith('.dll'):
+        return json.dumps(value, ensure_ascii=False)   # a pinned runtime DLL: {sha256, size}
     if isinstance(value, dict):
         if not value:
             return '{}'
@@ -1092,19 +1133,36 @@ def find_vc_redist(folder):
 
 # What complete_windows_runtime did in one code folder: the runtime DLLs it
 # copied (file names), [(library, [DLLs it needs])] when there is no
-# redistributable, and [(library, 'major.minor' of its MSVC linker,
-# [(copied DLL, its file version)])] for libraries built by a newer
-# toolset than the copies they import
-RuntimeResult = collections.namedtuple('RuntimeResult', 'copied missing stale')
+# redistributable, [(library, 'major.minor' of its MSVC linker, [(copied
+# DLL, its file version)])] for libraries built by a newer toolset than the
+# copies they import, and the copies that are not the pinned ones (only
+# with allow_unpinned)
+RuntimeResult = collections.namedtuple('RuntimeResult', 'copied missing stale unpinned')
 
 
-def complete_windows_runtime(folder, platform, redist, where, log):
+def runtime_pin_problem(path, name, pins):
+    """None if the copy at path is the one pins ({lower-case name:
+    {sha256, size}}, or None) lists, else what is wrong with it."""
+    digest, size = fetch_assets.file_digest(path)
+    pin = (pins or {}).get(name.lower())
+    if pin is None:
+        return 'it is not pinned (SHA-256 %s, %d bytes; "vc_runtime" lists no %s for this platform)' % (
+            digest, size, name.lower())
+    if digest != pin['sha256'] or size != pin['size']:
+        return 'SHA-256 %s, %d bytes; the pin is SHA-256 %s, %d bytes' % (digest, size, pin['sha256'], pin['size'])
+    return None
+
+
+def complete_windows_runtime(folder, platform, redist, where, log, pins=None, pinned_version=None,
+                             allow_unpinned=False):
     """Copy into folder, from redist, every DLL that a DLL in folder
     imports and that is neither a Windows system DLL nor in the folder,
     until nothing is missing (a copied runtime DLL can import another).
-    Returns a RuntimeResult; missing is non-empty only without redist."""
+    Every copy must match pins (the manifest's vc_runtime files of this
+    platform); with allow_unpinned another copy only warns. Returns a
+    RuntimeResult; missing is non-empty only without redist."""
     arch, machine = WINDOWS_PLATFORMS[platform]
-    copied = []
+    copied, unpinned = [], []
     while True:
         present = {n.lower(): n for n in os.listdir(folder)}
         unresolved = collections.OrderedDict()
@@ -1123,7 +1181,7 @@ def complete_windows_runtime(folder, platform, redist, where, log):
         if not unresolved:
             break
         if redist is None:
-            return RuntimeResult(copied, list(unresolved.items()), [])
+            return RuntimeResult(copied, list(unresolved.items()), [], [])
         source_dir = redist[arch]
         available = {n.lower(): n for n in os.listdir(source_dir)}
         for lib, dlls in unresolved.items():
@@ -1134,9 +1192,23 @@ def complete_windows_runtime(folder, platform, redist, where, log):
                     raise XtalkError('%s/%s imports %s, which is neither a Windows system DLL nor in %s'
                                      % (where, lib, dll, source_dir))
                 name = available[dll.lower()]
-                shutil.copyfile(os.path.join(source_dir, name), os.path.join(folder, name))
+                target = os.path.join(folder, name)
+                shutil.copyfile(os.path.join(source_dir, name), target)
                 copied.append(name)
                 log('  %s: added %s from %s (imported by %s)' % (where, name, source_dir, lib))
+                # Pinned, so that the same pins give the same package
+                # whichever Visual Studio (and redistributable) the machine
+                # has; the redistributable folder is otherwise the only
+                # input that is not pinned
+                problem = runtime_pin_problem(target, name, pins)
+                if problem:
+                    message = ('%s/%s, copied from %s: %s. Use the pinned Visual C++ redistributable (file '
+                               'version %s) or re-pin with "xtalk_extensions.py pin-vc-runtime --vc-redist DIR"'
+                               % (where, name, source_dir, problem, pinned_version or '(none pinned)'))
+                    if not allow_unpinned:
+                        raise XtalkError(message)
+                    log('  WARNING: %s; kept (--allow-unpinned-vc-runtime)' % message)
+                    unpinned.append(name)
     # Every function a DLL of the folder imports from a copied DLL must be
     # exported by it. This catches a redistributable that lacks a function
     # the library needs, not every older one: a runtime with the same
@@ -1174,7 +1246,7 @@ def complete_windows_runtime(folder, platform, redist, where, log):
                 older.append((target, version_text(fv)))
         if older:
             stale.append((name, '%d.%d' % info.linker, older))
-    return RuntimeResult(copied, [], stale)
+    return RuntimeResult(copied, [], stale, unpinned)
 
 
 def extract_leading_comment(data, what):
@@ -1229,9 +1301,12 @@ def wrap_lcs(data, stack, what):
     return out, header is None, not has_init
 
 
-def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=False, log=print):
+def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=False, log=print,
+          allow_unpinned_vc_runtime=False):
     """Fetch, compile and assemble every extension into out. Returns a
-    summary dict (see the end of this function)."""
+    summary dict (see the end of this function). A Visual C++ runtime
+    DLL that is not the one the manifest's "vc_runtime" pins is an error,
+    unless allow_unpinned_vc_runtime."""
     platforms = platforms or list(data['platforms'])
     bin_dir = os.path.abspath(bin_dir)
     lc_compile = lc_compile_path(bin_dir)
@@ -1239,6 +1314,7 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
     if not os.path.isdir(lci_dir) or not any(n.endswith('.lci') for n in os.listdir(lci_dir)):
         raise XtalkError('%s has no module interfaces (*.lci)' % lci_dir)
     redist = find_vc_redist(vc_redist) if vc_redist else None
+    vc_pins = data.get('vc_runtime') or {}
     out = os.path.abspath(out)
     local = fetch(data, cache, offline, platforms, None, log)
     os.makedirs(out, exist_ok=True)
@@ -1287,12 +1363,15 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
                         continue
                     _check_recorded_imports(m, folder, platform)
                     where = '%s/code/%s' % (e['folder'], platform)
-                    result = complete_windows_runtime(folder, platform, redist, where, log)
+                    result = complete_windows_runtime(folder, platform, redist, where, log,
+                                                      (vc_pins.get('files') or {}).get(platform),
+                                                      vc_pins.get('file_version'), allow_unpinned_vc_runtime)
                     for name in result.copied:
                         path = os.path.join(folder, name)
                         with open(path, 'rb') as fh:
                             version = version_text(pe_file_version(fh.read()))
-                        runtime_copies.append((where + '/' + name, _sha256_file(path), version))
+                        runtime_copies.append((where + '/' + name, _sha256_file(path), version,
+                                               name not in result.unpinned))
                     for lib, dlls in result.missing:
                         missing_runtime.append((where + '/' + lib, dlls))
                     for lib, linker, older in result.stale:
@@ -1335,6 +1414,15 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
         for lib, dlls in missing_runtime:
             log('WARNING:   %s needs %s' % (lib, ', '.join(dlls)))
         log('WARNING: ' + '=' * 70)
+    unpinned = [c[0] for c in runtime_copies if not c[3]]
+    if unpinned:
+        log('')
+        log('WARNING: ' + '=' * 70)
+        log('WARNING: --allow-unpinned-vc-runtime: these Visual C++ runtime DLLs are NOT the')
+        log('WARNING: pinned ones (file version %s, "vc_runtime" in the manifest):' % vc_pins.get('file_version'))
+        for path in unpinned:
+            log('WARNING:   %s' % path)
+        log('WARNING: ' + '=' * 70)
     if stale_runtime:
         log('')
         log('WARNING: ' + '=' * 70)
@@ -1344,13 +1432,18 @@ def build(data, bin_dir, out, cache, platforms=None, vc_redist=None, offline=Fal
         for lib, linker, older in stale_runtime:
             log('WARNING:   %s (MSVC %s): %s' % (lib, linker, ', '.join('%s %s' % o for o in older)))
         log('WARNING: ' + '=' * 70)
-    _write_stamp(stamp, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms)
+    _write_stamp(stamp, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms,
+                 vc_pins.get('file_version'))
     return collections.OrderedDict([
         ('out', out), ('stamp', STAMP_NAME), ('extensions', built), ('platforms', platforms),
         ('vc_redist', redist['folder'] if redist else None),
         ('vc_redist_version', redist['version'] if redist else None),
-        ('vc_runtime_files', [collections.OrderedDict([('path', p), ('sha256', h), ('file_version', v)])
-                              for p, h, v in runtime_copies]),
+        # True unless a copy is not the pinned one (--allow-unpinned-vc-runtime)
+        ('vc_runtime_pinned', not unpinned),
+        ('vc_runtime_pinned_file_version', vc_pins.get('file_version')),
+        ('vc_runtime_files', [collections.OrderedDict([('path', p), ('sha256', h), ('file_version', v),
+                                                       ('pinned', ok)])
+                              for p, h, v, ok in runtime_copies]),
         ('missing_runtime', [collections.OrderedDict([('library', lib), ('needs', dlls)])
                              for lib, dlls in missing_runtime]),
         ('vc_runtime_older_than_build_tools', [
@@ -1443,7 +1536,8 @@ def _add_licences(member, folder, local):
             shutil.copyfile(path, target)
 
 
-def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms):
+def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_runtime, platforms,
+                 pinned_version=None):
     lines = [
         '# xTalk Suite extensions bundled with OXT-Beyond',
         '#',
@@ -1467,9 +1561,17 @@ def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_run
         lines.append('# Microsoft Visual C++ runtime, copied unchanged from Visual Studio\'s')
         lines.append('# redistributable folder VC\\Redist\\MSVC\\%s next to the libraries that import it'
                      % redist['version'])
-        lines.append('# (path, SHA-256, file version of the DLL):')
-        for p, h, v in runtime_copies:
-            lines.append('#   %s  %s  (file version %s)' % (p, h, v))
+        if all(ok for _, _, _, ok in runtime_copies):
+            lines.append('# These are the PINNED runtime, file version %s (tools/oxt/xtalk-extensions.json,'
+                         % pinned_version)
+            lines.append('# "vc_runtime"), listed with their SHA-256 and file version:')
+        else:
+            lines.append('# WARNING: NOT the pinned runtime (file version %s, "vc_runtime" in'
+                         % (pinned_version or '(none pinned)'))
+            lines.append('# tools/oxt/xtalk-extensions.json): packaged with --allow-unpinned-vc-runtime.')
+            lines.append('# The files marked NOT PINNED differ from the pins:')
+        for p, h, v, ok in runtime_copies:
+            lines.append('#   %s  %s  (file version %s)%s' % (p, h, v, '' if ok else '  NOT PINNED'))
         for lib, linker, older in stale_runtime:
             lines.append('# WARNING: %s was built with MSVC %s, the runtime copied for it is older (%s);'
                          % (lib, linker, ', '.join('%s %s' % o for o in older)))
@@ -1493,13 +1595,107 @@ def cmd_build(args, log=print):
     if not args.vc_redist:
         log('WARNING: no --vc-redist; libraries that need the Visual C++ runtime get no copy of it')
     t0 = time.time()
-    result = build(data, args.bin, args.out, cache, platforms, args.vc_redist, args.offline, log)
+    result = build(data, args.bin, args.out, cache, platforms, args.vc_redist, args.offline, log,
+                   args.allow_unpinned_vc_runtime)
     log('')
     log('built %d extensions into %s in %.0f s' % (len(result['extensions']), result['out'], time.time() - t0))
     if args.summary_json:
         with open(args.summary_json, 'w', encoding='utf-8', newline='\n') as f:
             json.dump(result, f, indent=2)
             f.write('\n')
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# pin-vc-runtime
+
+VC_RUNTIME_COMMENT = [
+    'The Microsoft Visual C++ runtime DLLs that build copies next to the',
+    'Windows libraries importing them (enetxt, Box2Dxt), pinned by SHA-256 and',
+    'size so that a package does not depend on which Visual Studio the',
+    'machine that makes it has: build and package.py stop at any other copy',
+    '(--allow-unpinned-vc-runtime only warns; never for a release). "redist"',
+    'names the redistributable folder they were pinned from (VC\\Redist\\MSVC\\',
+    '<version>; 14.44.35112 is Visual Studio 2022 17.14\'s, the one on the',
+    'windows-2022 CI image) and "file_version" their file version.',
+    '"xtalk_extensions.py pin-vc-runtime --vc-redist DIR" rewrites "redist",',
+    '"file_version" and "files".',
+]
+
+
+def runtime_pins(data, redist, log):
+    """({platform: {lower-case DLL name: {sha256, size}}}, file version):
+    for each Windows platform of the manifest, every DLL of the
+    redistributable that a member's library there imports (its recorded
+    "imports", less Windows system DLLs and the member's own files), and
+    what those DLLs import in turn, as build copies them."""
+    files = collections.OrderedDict()
+    versions = set()
+    for platform in [p for p in data['platforms'] if p in WINDOWS_PLATFORMS]:
+        arch, machine = WINDOWS_PLATFORMS[platform]
+        source_dir = redist[arch]
+        available = {n.lower(): n for n in os.listdir(source_dir)}
+        pins = {}
+        for m in data['members']:
+            libraries = [f for f in member_files(m, 'library') if library_platform(f) == platform]
+            own = {posix_basename(f['path']).lower() for f in libraries}
+            queue = [(posix_basename(f['path']), d) for f in libraries for d in f['imports']]
+            while queue:
+                importer, dll = queue.pop(0)
+                key = dll.lower()
+                if is_system_dll(dll) or key in own or key in pins:
+                    continue
+                if key not in available:
+                    raise XtalkError('%s %s/%s imports %s, which is neither a Windows system DLL nor in %s'
+                                     % (m['name'], platform, importer, dll, source_dir))
+                path = os.path.join(source_dir, available[key])
+                with open(path, 'rb') as fh:
+                    body = fh.read()
+                info = pe_info(body, path)
+                if info.machine != machine:
+                    raise XtalkError('%s: PE machine 0x%04x, expected 0x%04x' % (path, info.machine, machine))
+                version = version_text(info.file_version)
+                versions.add(version)
+                pins[key] = collections.OrderedDict([('sha256', hashlib.sha256(body).hexdigest()),
+                                                     ('size', len(body))])
+                log('  %-32s %s %9d  file version %s  (imported by %s)'
+                    % (platform + '/' + key, pins[key]['sha256'], len(body), version, importer))
+                queue.extend((available[key], d) for d in info.imports)
+        if pins:
+            files[platform] = collections.OrderedDict(sorted(pins.items()))
+    if len(versions) > 1:
+        raise XtalkError('the DLLs taken from %s have different file versions (%s); pin one redistributable '
+                         'folder whose DLLs all have the same version' % (redist['folder'], ', '.join(sorted(versions))))
+    return files, (versions.pop() if versions else '')
+
+
+def cmd_pin_vc_runtime(args, log=print):
+    data = load_manifest(args.manifest)
+    redist = find_vc_redist(args.vc_redist)
+    log('Visual C++ redistributable: %s' % redist['folder'])
+    files, version = runtime_pins(data, redist, log)
+    old = data.get('vc_runtime') or {}
+    block = collections.OrderedDict([
+        ('comment', old.get('comment', VC_RUNTIME_COMMENT)),
+        ('redist', redist['version']),
+        ('file_version', version),
+        ('files', files)])
+    # The block goes after "platforms" the first time; later it stays where it is
+    if 'vc_runtime' in data:
+        data['vc_runtime'] = block
+    else:
+        items = list(data.items())
+        at = [k for k, _ in items].index('platforms') + 1
+        data = collections.OrderedDict(items[:at] + [('vc_runtime', block)] + items[at:])
+    validate(data, args.manifest, pinned=True)
+    with open(args.manifest, encoding='utf-8') as f:
+        before = f.read()
+    if before == dump_manifest(data):
+        log('%s is unchanged' % args.manifest)
+    else:
+        write_manifest(args.manifest, data)
+        log('rewrote "vc_runtime" in %s (file version %s, from %s); review and commit it, and update its comment '
+            'if it names another redistributable' % (args.manifest, version, redist['version']))
     return 0
 
 
@@ -1659,8 +1855,17 @@ def main(argv=None):
     p.add_argument('--vc-redist', metavar='DIR',
                    help='Visual Studio\'s VC\\Redist\\MSVC\\<version> folder (VCToolsRedistDir): '
                         'bundle the Visual C++ runtime DLLs the Windows libraries import')
+    p.add_argument('--allow-unpinned-vc-runtime', action='store_true',
+                   help='only warn when a Visual C++ runtime DLL is not the one "vc_runtime" pins (never for '
+                        'a release)')
     p.add_argument('--summary-json', metavar='FILE', help='write what was built as JSON')
     p.set_defaults(func=cmd_build)
+
+    p = sub.add_parser('pin-vc-runtime', help='pin the Visual C++ runtime DLLs to those of a redistributable '
+                                              'folder')
+    p.add_argument('--vc-redist', metavar='DIR', required=True,
+                   help='Visual Studio\'s VC\\Redist\\MSVC\\<version> folder (VCToolsRedistDir)')
+    p.set_defaults(func=cmd_pin_vc_runtime)
 
     p = sub.add_parser('export', help='write every pinned file into a zip in the cache layout, to keep with '
                                       'a release')
