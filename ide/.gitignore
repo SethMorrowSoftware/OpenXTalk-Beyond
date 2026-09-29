@@ -76,3 +76,16 @@ Ext/
 # Edition file #
 ################
 edition.txt
+
+# Shipped OpenXTalk Lite files #
+################################
+# Files of the installed IDE that tools/oxt/layout.py imports but that the
+# rules above (or *.xz in the top-level .gitignore) would ignore. They are
+# shipped content, so they are tracked; see tools/oxt/README.md.
+!Documentation/html_viewer/resources/data/api/api.sqlite
+!Documentation/html_viewer/resources/data/api_builder/*.js
+!Documentation/html_viewer/resources/data/api_script/*.js
+!Documentation/html_viewer/resources/data/guide/*.js
+!Documentation/linked_files/*.zip
+!Resources/MacOs/*.zip
+!Toolset/resources/supporting_files/themes/*.tar.xz
