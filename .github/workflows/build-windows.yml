@@ -21,8 +21,10 @@
 #      cached in prebuilt/fetched-assets, the files of the xTalk Suite
 #      extensions pinned in tools/oxt/xtalk-extensions.json in
 #      prebuilt/fetched-assets/xtalk; see the Package step for leaving
-#      them out),
+#      them out), and checks that every Windows DLL of the bundled
+#      extensions finds its imports (check-extension-imports.ps1),
 #   2. runs the headless smoke test on the portable zip (smoke-test.ps1),
+#      which also loads every bundled xTalk extension and calls it,
 #   3. compiles every IDE script in dist/stage and compares the errors with
 #      tools/ci/ide-compile-baseline.txt (ide-compile-check.ps1),
 #   4. builds the installer (build-installer.ps1), and
@@ -298,6 +300,9 @@ jobs:
             Write-Host '::warning title=Package::External assets left out (no_external_assets input or OXT_NO_EXTERNAL_ASSETS variable): the packages have no standalone runtimes for other platforms.'
             $packageArgs['NoExternalAssets'] = $true
           }
+          if ($env:NO_XTALK_EXTENSIONS -eq 'true') {
+            Write-Host '::warning title=Package::xTalk Suite extensions left out (no_xtalk_extensions input or OXT_NO_XTALK_EXTENSIONS variable).'
+          }
           $global:LASTEXITCODE = 0
           ./tools/ci/package-windows.ps1 @packageArgs *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
@@ -320,9 +325,20 @@ jobs:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
 
+      # Every DLL in Extensions/**/code/*-win32 must import only Windows
+      # system DLLs and DLLs in its own folder; otherwise it cannot load on
+      # a PC without the missing DLL (for example the Visual C++
+      # redistributable, which CI runners always have).
+      - name: Check extension DLL imports
+        id: check_imports
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: ./tools/ci/check-extension-imports.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION"
+
       # Extract the portable zip and run its engine (OXT-Beyond.exe) without
       # a user interface: the script engine, ICU, OpenSSL, SQLite (revDB and
-      # the driver in Externals\Database Drivers), revXML and revZip.
+      # the driver in Externals\Database Drivers), revXML and revZip, and
+      # every bundled xTalk Suite extension (loaded and called).
       - name: Smoke test (portable zip, headless)
         id: smoke
         timeout-minutes: 15
@@ -417,6 +433,7 @@ jobs:
           COMPILE_OUTCOME: ${{ steps.compile.outcome }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+          CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
@@ -431,6 +448,7 @@ jobs:
             'Compile' = $env:COMPILE_OUTCOME
             'Verify' = $env:VERIFY_OUTCOME
             'Package' = $env:PACKAGE_OUTCOME
+            'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
