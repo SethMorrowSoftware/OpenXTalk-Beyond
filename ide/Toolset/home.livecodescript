@@ -370,7 +370,10 @@ on tdelayClosingSplash
    -- now ensure tools are correct
    if there is a stack "revTools" then 
       hide stack "revTools"
-      put revIDEPaletteToStackName("revTools") into tStackName
+      -- OXT-Beyond: revIDEPaletteToStackName takes the palette name ("tools"),
+      -- not the stack name; "revTools" threw "No available palette with name
+      -- revTools" at the end of every start-up.
+      put revIDEPaletteToStackName("tools") into tStackName
       if there is a stack tStackName then
          palette stack tStackName
       end if
