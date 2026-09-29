@@ -204,6 +204,16 @@ def _is_sha1(value):
     return isinstance(value, str) and re.match(r'^[0-9a-f]{40}$', value) is not None
 
 
+def _is_repository(value):
+    """owner/name as GitHub allows it. cache_file uses the name as a
+    folder, so '.' and '..' (which GitHub refuses anyway) must not pass,
+    or the cache path leaves the cache (fetch and 'pin --cache' write
+    there). A leading dot is legitimate (owner/.github)."""
+    return (isinstance(value, str)
+            and re.match(r'^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$', value) is not None
+            and value.split('/')[1] not in ('.', '..'))
+
+
 def _safe_name(value):
     """A single path component that Windows can store and that does not
     start with a dot (the IDE skips such folders)."""
@@ -229,8 +239,7 @@ def validate(data, where='manifest', pinned=True):
         _need(isinstance(name, str) and re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', name), where, 'bad member name %r' % (name,))
         _need(name.lower() not in names, where, 'duplicate member %s' % name)
         names.add(name.lower())
-        _need(isinstance(m.get('repository'), str) and
-              re.match(r'^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$', m['repository']), w, 'bad repository')
+        _need(_is_repository(m.get('repository')), w, 'bad repository')
         _need(_is_sha1(m.get('commit')) or (not pinned and m.get('commit') == ''), w,
               'commit must be a full 40-digit SHA-1 (run "xtalk_extensions.py pin")')
         _need(isinstance(m.get('version'), str) and (m['version'] or not pinned), w, 'version missing')
@@ -293,8 +302,7 @@ def _validate_file(f, m, w, platforms, pinned):
     wf = '%s: file %s' % (w, path)
     _need(f.get('role') in ROLES, wf, 'role must be one of %s' % ', '.join(ROLES))
     if 'repository' in f or 'commit' in f:
-        _need(isinstance(f.get('repository'), str) and
-              re.match(r'^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$', f['repository']), wf, 'bad repository')
+        _need(_is_repository(f.get('repository')), wf, 'bad repository')
         _need(_is_sha1(f.get('commit')), wf, 'a file with its own repository needs a full commit SHA-1')
         _need(f['role'] == 'licence', wf, 'only licence files may come from another repository')
     if pinned:
