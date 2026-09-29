@@ -133,7 +133,7 @@ To check a download, compare its SHA-256 with the line for it in
 `SHA256SUMS`, for example:
 
 ```bat
-certutil -hashfile OXT-Beyond-0.0.1-win-x86_64-setup.exe SHA256
+certutil -hashfile OXT-Beyond-<version>-win-x86_64-setup.exe SHA256
 ```
 
 ### With the installer
