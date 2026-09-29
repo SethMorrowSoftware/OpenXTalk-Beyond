@@ -173,10 +173,15 @@ jobs:
             make V=1 BUILDTYPE=Release "$target" > "$RUNNER_TEMP/diag.log" 2>&1
           echo "exit: $?"
           tail -100 "$RUNNER_TEMP/diag.log"
-          echo "== Rerun with a 1 GB stack limit"
-          (ulimit -s 1048576 && make BUILDTYPE=Release "$target") > "$RUNNER_TEMP/diag2.log" 2>&1
-          echo "exit: $?"
-          tail -20 "$RUNNER_TEMP/diag2.log"
+          # Symbolised backtrace: rerun the lc-compile command make printed
+          echo "== Rerun under gdb"
+          apt-get install -y --no-install-recommends gdb > /dev/null 2>&1
+          args=$(grep -o '"[^"]*/lc-compile" --bootstrap.*' "$RUNNER_TEMP/diag.log" | sed -n 1p)
+          if [ -n "$args" ]; then
+            eval "set -- $args"
+            (cd ../../engine && gdb -batch -ex run -ex 'bt 25' -ex 'bt -12' \
+               -ex 'info registers pc sp' --args "$@") 2>&1 | tail -80
+          fi
 
       - name: Verify build output
         run: |
