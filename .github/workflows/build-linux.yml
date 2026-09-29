@@ -153,9 +153,23 @@ jobs:
       # out/Release/Externals is only created as a side effect of the CEF
       # copies, so in one parallel make it could be reached before it existed.
       - name: Build
+        id: build
         run: |
           make -C build-linux-"$ARCH"/livecode LiveCode-all debug-symbols BUILDTYPE=Release -j"$(nproc)"
           make -C build-linux-"$ARCH"/livecode default BUILDTYPE=Release -j"$(nproc)"
+
+      # If a tool built during the build crashes (as lc-compile once did on
+      # arm64), rerun the LCB module step under catchsegv for a backtrace
+      - name: Diagnose a crash during the build
+        if: failure() && steps.build.outcome == 'failure'
+        continue-on-error: true
+        working-directory: build-linux-${{ matrix.arch }}/livecode
+        run: |
+          target=out/Release/obj/gen/engine_lcb_modules.cpp
+          cmd=$(make -n V=1 BUILDTYPE=Release "$target" 2>/dev/null | grep 'lc-compile' | tail -1)
+          echo "Command: $cmd"
+          [ -n "$cmd" ] || exit 0
+          catchsegv bash -c "$cmd" 2>&1 | tail -80
 
       - name: Verify build output
         run: |
