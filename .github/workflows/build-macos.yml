@@ -62,6 +62,8 @@ jobs:
       BUILDTYPE: Release
       XCODE_VERSION: '16.4'
       PYTHON2_VERSION: 2.7.18
+      # Report every compile error in one run instead of stopping at the first
+      XCODEBUILD_FLAGS: -IDEBuildingContinueBuildingAfterErrors=YES
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -171,7 +173,7 @@ jobs:
           set -o pipefail
           xcodebuild -project build-mac/livecode/livecode.xcodeproj \
             -configuration Release -target default \
-            -jobs "$(sysctl -n hw.ncpu)" 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" \
+            -jobs "$(sysctl -n hw.ncpu)" $XCODEBUILD_FLAGS 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" \
             | grep -E '(error|warning: unable|\*\* BUILD|Check dependencies|^Build target)' || true
           grep -q '\*\* BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/xcodebuild.log"
 
