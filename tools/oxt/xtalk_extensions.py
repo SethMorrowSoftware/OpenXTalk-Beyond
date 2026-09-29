@@ -1643,7 +1643,7 @@ def _write_stamp(path, built, redist, runtime_copies, missing_runtime, stale_run
     lines.append('#')
     if runtime_copies:
         lines.append('# Microsoft Visual C++ runtime, copied unchanged from Visual Studio\'s')
-        lines.append('# redistributable folder VC\\Redist\\MSVC\\%s next to the libraries that import it'
+        lines.append('# redistributable folder VC\\Redist\\MSVC\\%s next to the libraries that import it.'
                      % redist['version'])
         if all(ok for _, _, _, ok in runtime_copies):
             lines.append('# These are the PINNED runtime, file version %s (tools/oxt/xtalk-extensions.json,'
