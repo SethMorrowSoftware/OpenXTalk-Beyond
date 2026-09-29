@@ -42,6 +42,9 @@ builder/package_compiler.livecodescript, says where each part comes from:
   Externals/**, Toolchain/**,
   Runtime/**                         engine builds
   Extensions/com.livecode.*          extensions built from extensions/
+                                     (the timezone library's zoneinfo data
+                                     and native code come from the macOS
+                                     and other platform builds)
   Ext/**                             the mergExt collection (downloaded)
 
 OpenXTalk Lite ships its own versions of Toolset, Plugins, Resources and
@@ -55,9 +58,11 @@ from this repository. This tool gives every installed path one class:
   build     (b) produced by building or packaging this repository: never
                 imported.
   external  (c) binaries for other platforms or third-party collections that
-                this repository does not build (mergExt, other-platform
-                runtimes and timezone code). Not kept in git; they are to be
-                provided separately (for example as a release asset).
+                this repository's Windows build does not produce (mergExt,
+                other-platform runtimes, timezone code and zoneinfo data).
+                Not kept in git; package.py adds them from the release
+                assets in external-assets.json (mergExt is not
+                redistributed).
   junk      (d) files that are not part of the product (shortcuts left by an
                 install script, zero-byte test databases).
   excluded  (e) shipped by OXT Lite but not redistributed by this project
@@ -191,6 +196,8 @@ ROOT_IDE_FILES = (
     ('License Agreement.txt', 'package.txt Misc: textfile ide:License Agreement.txt'),
     ('Open Source Licenses.txt', 'package.txt Misc: textfile ide:Open Source Licenses.txt'),
     ('OpenXTalk-lite_1024.ico', 'OXT application icon'),
+    ('OXT-Beyond.ico', 'OXT-Beyond application icon (adapted from '
+     'OpenXTalk-lite_1024.ico); not in OXT Lite installs'),
     ('Release Notes.pdf', 'OXT Lite 1.07 and earlier ship their own release '
      'notes (Terry Little); upstream generates the file from '
      'repo:LiveCodeNotes-<version>.pdf'),
@@ -314,6 +321,10 @@ def _rules():
              'package.txt TimeZone: win-x86_64 packaged_extensions'))
     add(Rule('Extensions/com.livecode.library.timezone/code/**', EXTERNAL, None,
              'package.txt TimeZone: native code built for other platforms'))
+    add(Rule('Extensions/com.livecode.library.timezone/resources/**', EXTERNAL, None,
+             'package.txt TimeZone: zoneinfo compiled by zic from '
+             'extensions/libraries/timezone/tz; only macOS and Linux builds '
+             'make it (tz.gyp target tzdata), not the Windows build'))
     for ext in REPO_BUILT_EXTENSIONS:
         add(Rule('Extensions/%s/**' % ext, BUILD, None,
                  'package.txt Extensions: packaged_extensions built from extensions/'))

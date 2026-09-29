@@ -130,6 +130,8 @@ prebuilt/build
 prebuilt/packaged
 prebuilt/fetched
 prebuilt/unpacked
+# External assets downloaded by tools/oxt/package.py (tools/oxt/external-assets.json)
+prebuilt/fetched-assets/
 
 # Stamp files and generated C files
 ###################################
