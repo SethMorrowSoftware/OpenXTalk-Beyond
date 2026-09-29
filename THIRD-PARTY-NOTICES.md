@@ -276,7 +276,7 @@ below.
 | Extensions (folder in `Extensions/`) | Repository | Licence | Compiled into the native libraries | Licence texts in `licenses/` |
 | --- | --- | --- | --- | --- |
 | `org.openxtalk.library.sodium` | `SodiumXT` | MIT, © 2026 Seth Morrow | libsodium (1.0.22 in the Windows libraries, 1.0.20 in the others): ISC, © Frank Denis. SHA-3 from RHash (© 2013 Aleksey Kravchenko), taken through trezor-crypto: a permission notice in the style of the MIT licence. trezor-crypto's helpers: MIT, © Tomas Dzetkulic and Pavol Rusnak. | `LICENSE` (with libsodium's ISC text), `trezor-crypto-LICENSE`, `RHash-SHA3-NOTICE.txt` (the notice from the header of the member's `src/vendor/sha3.c`, the only place it has it) |
-| `org.openxtalk.library.torrent`, `torrentHelpers` | `TorrentXT` | MIT, © 2026 Seth Morrow | libtorrent-rasterbar 2.1.1: BSD 3-clause, © Arvid Norberg; its licence also covers the code libtorrent includes (puff, an ed25519 implementation, SHA-1 and SHA-256, `route.h`). Boost: Boost Software License 1.0. OpenSSL 3 (3.6.4 in the Windows libraries, 3.5.4 in the macOS and Linux x86-64 ones), statically linked: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) instead. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `OpenSSL-LICENSE.txt` |
+| `org.openxtalk.library.torrent`, `torrentHelpers` | `TorrentXT` | MIT, © 2026 Seth Morrow | libtorrent-rasterbar 2.1.1: BSD 3-clause, © Arvid Norberg. The code it includes has its own terms, noted in the member's `THIRD-PARTY-LICENSES.md`: puff (© Mark Adler; zlib-style terms in its header) and the ed25519 implementation (© Orson Peters): zlib licence. SHA-1 (Steve Reid) and SHA-256 (from LibTomCrypt): public domain. `route.h`, compiled only into the macOS library: Apple Public Source License 2.0, over code © The Regents of the University of California under the BSD licence with the advertising clause (which the University withdrew in 1999). Boost: Boost Software License 1.0. OpenSSL 3 (3.6.4 in the Windows libraries, 3.5.4 in the macOS and Linux x86-64 ones), statically linked: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) instead. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `OpenSSL-LICENSE.txt` |
 | `org.openxtalk.library.enet`, `enetHelpers` | `enetxt` | MIT, © 2026 Seth Morrow | ENet 1.3.18: MIT, © Lee Salzman. The Windows libraries use the Visual C++ runtime (see below). | `LICENSE`, `THIRD-PARTY-LICENSES.md`; `Microsoft-Visual-C++-Runtime.txt` in `org.openxtalk.library.enet` (Microsoft's terms for the runtime DLLs, see below) |
 | `org.openxtalk.library.datachannel`, `dataChannelHelpers` | `dataChannelXT` | MIT, © 2026 Seth Morrow Software | libdatachannel 0.24.5 and libjuice: Mozilla Public License 2.0, © Paul-Louis Ageneau. usrsctp: BSD 3-clause. plog: MIT. OpenSSL 3 (3.6.4 in the Windows libraries, 3.5.4 in the macOS one), statically linked: Apache License 2.0; the Linux libraries use the system's OpenSSL. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `OpenSSL-LICENSE.txt` |
 | `org.openxtalk.box2dxt`, `box2dxt-kit` | `Box2Dxt` | MIT, © 2026 Seth Morrow and Box2Dxt contributors | Box2D 3.1.0: MIT, © 2019 Erin Catto. The Windows libraries use the Visual C++ runtime (see below). | `LICENSE` (with Box2D's notice); `Microsoft-Visual-C++-Runtime.txt` in `org.openxtalk.box2dxt` (Microsoft's terms for the runtime DLLs, see below) |
@@ -552,3 +552,11 @@ has been in the LiveCode Community tree since upstream. Its licence,
   than the toolset (14.51) that built `enetxt.dll` and `box2dxt.dll`,
   which Microsoft does not support; a `/MT` build upstream, or a
   redistributable folder of 14.51 or newer, would remove the mismatch.
+  The macOS `torrentxt.dylib` compiles libtorrent's
+  `include/libtorrent/aux_/route.h`: libtorrent's `enum_net.cpp` uses it
+  instead of `<net/route.h>` whenever `TARGET_OS_IPHONE` is defined, and
+  the macOS SDK always defines it. The header is under the Apple Public
+  Source License 2.0, which the FSF lists as incompatible with the GPL.
+  It holds only structure and macro definitions. How this fits with
+  distributing the library inside a GPLv3 program has not been
+  reviewed.
