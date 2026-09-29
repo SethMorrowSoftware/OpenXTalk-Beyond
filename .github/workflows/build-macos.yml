@@ -161,7 +161,7 @@ jobs:
           echo "PREBUILT_SKIP_VERIFY=1" >> "$GITHUB_ENV"
           cd prebuilt
           PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh mac
-          lipo -info lib/mac/*.a | head -40
+          lipo -info lib/mac/*.a
 
       - name: Configure
         run: ./config.sh --platform mac
@@ -178,7 +178,7 @@ jobs:
       - name: Verify build output
         run: |
           R=_build/mac/Release
-          ls -la "$R" | head -80
+          ls -la "$R" 
           missing=0
           for f in LiveCode-Community.app Standalone-Community.app server-community \
                    revsecurity.dylib revpdfprinter.bundle revxml.bundle revzip.bundle revdb.bundle \
@@ -192,7 +192,7 @@ jobs:
           for b in "$dev" "$sa" "$R/server-community" "$R/revsecurity.dylib" "$R/lc-compile"; do
             echo "== $b: $(lipo -archs "$b")"
             test "$(lipo -archs "$b")" = "$ARCH"
-            otool -l "$b" | grep -A4 'LC_BUILD_VERSION\|LC_VERSION_MIN_MACOSX' | grep -E 'minos|sdk|version' | head -2
+            otool -l "$b" | grep -A4 'LC_BUILD_VERSION\|LC_VERSION_MIN_MACOSX' | grep -E 'minos|sdk|version' | sed -n 1,2p
             # Nothing may come from Homebrew or other non-system locations
             if otool -L "$b" | tail -n +2 | grep -vE '^\s+(/usr/lib/|/System/|@rpath/|@executable_path/|@loader_path/)'; then
               echo "::error::$b links a library outside the system"; exit 1
