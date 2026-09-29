@@ -72,6 +72,35 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// The macOS version as a string such as "14.6.1". Gestalt is deprecated
+// (Tom Perry replaced it with sw_vers); kern.osproductversion (macOS 10.13.4
+// and later) avoids starting a process, and sw_vers remains the fallback.
+static bool MCMacGetProductVersion(char *r_buffer, size_t p_size)
+{
+    size_t t_size = p_size;
+    if (sysctlbyname("kern.osproductversion", r_buffer, &t_size, NULL, 0) == 0 &&
+        t_size > 1)
+    {
+        r_buffer[p_size - 1] = '\0';
+        return true;
+    }
+
+    bool t_success = false;
+    FILE *t_pipe = popen("sw_vers -productVersion", "r");
+    if (t_pipe != NULL)
+    {
+        if (fgets(r_buffer, (int)p_size, t_pipe) != NULL)
+        {
+            r_buffer[strcspn(r_buffer, "\n")] = 0;
+            t_success = r_buffer[0] != '\0';
+        }
+        pclose(t_pipe);
+    }
+    return t_success;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 #define keyReplyErr 'errn'
 #define keyMCScript 'mcsc'  //reply from apple event
 
@@ -2813,20 +2842,14 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
         
         MCinfinity = HUGE_VAL;
         
-        // Fix for systemversion bug: Use sw_vers command instead of deprecated Gestalt
-        FILE *t_pipe = popen("sw_vers -productVersion", "r");
-        if (t_pipe != NULL)
+        // Fix for systemversion bug: Gestalt is deprecated
+        char t_version_str[256];
+        if (MCMacGetProductVersion(t_version_str, sizeof(t_version_str)))
         {
-            char t_version_str[256];
-            if (fgets(t_version_str, sizeof(t_version_str), t_pipe) != NULL)
-            {
-                // Remove newline and parse version string like "11.7.10"
-                t_version_str[strcspn(t_version_str, "\n")] = 0;
-                int t_major = 0, t_minor = 0, t_bugfix = 0;
-                sscanf(t_version_str, "%d.%d.%d", &t_major, &t_minor, &t_bugfix);
-                MCmajorosversion = MCOSVersionMake(t_major, t_minor, t_bugfix);
-            }
-            pclose(t_pipe);
+            // Parse a version string like "11.7.10"
+            int t_major = 0, t_minor = 0, t_bugfix = 0;
+            sscanf(t_version_str, "%d.%d.%d", &t_major, &t_minor, &t_bugfix);
+            MCmajorosversion = MCOSVersionMake(t_major, t_minor, t_bugfix);
         }
 		
         MCaqua = True; // Move to MCScreenDC
@@ -2986,22 +3009,12 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
     
 	virtual bool GetVersion(MCStringRef& r_version)
     {
-        // Fix for systemversion bug: Use sw_vers command instead of deprecated Gestalt
-        FILE *t_pipe = popen("sw_vers -productVersion", "r");
-        if (t_pipe != NULL)
-        {
-            char t_version_str[256];
-            if (fgets(t_version_str, sizeof(t_version_str), t_pipe) != NULL)
-            {
-                // Remove newline and return the version string directly (e.g., "11.7.10")
-                t_version_str[strcspn(t_version_str, "\n")] = 0;
-                pclose(t_pipe);
-                return MCStringCreateWithCString(t_version_str, r_version);
-            }
-            pclose(t_pipe);
-        }
+        // Fix for systemversion bug: Gestalt is deprecated
+        char t_version_str[256];
+        if (MCMacGetProductVersion(t_version_str, sizeof(t_version_str)))
+            return MCStringCreateWithCString(t_version_str, r_version);
         
-        // Should not reach here, but return empty string if sw_vers fails
+        // Should not reach here, but return empty string if both methods fail
         return MCStringCreateWithCString("", r_version);
     }
 	virtual bool GetMachine(MCStringRef& r_string)

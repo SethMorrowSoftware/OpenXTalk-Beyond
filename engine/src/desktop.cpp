@@ -49,10 +49,36 @@
 
 #if defined(FEATURE_PLATFORM_APPLICATION)
 
+// Respring support: defined in dskmain.cpp and set by respring.cpp in
+// development builds. The Windows and Linux main loops check it the same way.
+extern Boolean (*MCRespringIsPendingPtr)(void);
+extern Boolean (*MCRespringDoRespringPtr)(void);
+extern Boolean MCRespringInProgress;
+
+// Runs a pending respring; returns true if one ran
+static bool MCPlatformRunPendingRespring(void)
+{
+	if (MCRespringIsPendingPtr == nil || !MCRespringIsPendingPtr())
+		return false;
+
+	MCRespringInProgress = True;
+	MCRespringDoRespringPtr();
+	MCRespringInProgress = False;
+	MCquit = False;
+	MCexitall = False;
+	return true;
+}
+
 void X_main_loop(void)
 {
-	while(!MCquit)
+	while (!MCquit || MCRespringInProgress)
+	{
+		if (MCPlatformRunPendingRespring())
+			continue;
+		if (MCquit)
+			break;
 		X_main_loop_iteration();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -136,7 +162,8 @@ void MCPlatformHandleApplicationResume(void)
 
 void MCPlatformHandleApplicationRun(bool& r_continue)
 {
-	X_main_loop_iteration();
+	if (!MCPlatformRunPendingRespring())
+		X_main_loop_iteration();
     r_continue = !MCquit;
 }
 
