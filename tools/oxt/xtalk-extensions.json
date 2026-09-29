@@ -191,7 +191,7 @@
         "path": "src/coinxt.lcb",
         "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
       },
-      "licence": "MIT (Seth Morrow); the libraries statically link trezor-crypto and libsecp256k1 (MIT), SHA-2 by Aaron D. Gifford (BSD-3-Clause) and other vendored code listed in THIRD-PARTY-LICENSES.md",
+      "licence": "MIT (Seth Morrow); the libraries statically link trezor-crypto (MIT, Tomas Dzetkulic and Pavol Rusnak) and libsecp256k1 (MIT), SHA-2 by Aaron D. Gifford (BSD-3-Clause) and other vendored code listed in THIRD-PARTY-LICENSES.md",
       "files": [
         {"path": "src/coinxt.lcb", "role": "source", "sha256": "2f57371c12b87e1d3e714068989fc25600d210860829f8468d36c27535913878", "size": 74312},
         {"path": "src/coinxt.livecodescript", "role": "source", "sha256": "2d758b370154e6e3c1c0bfa37bc85766ebbf211d65f843f660b86349f6264f86", "size": 157204},
@@ -202,7 +202,10 @@
         {"path": "src/code/x86-linux/coinxt.so", "role": "library", "sha256": "37873c9cf406f6662fdce979c8d80f8ad1c82dbb6c45491e1030541c49e50e99", "size": 398744},
         {"path": "src/code/universal-mac/coinxt.dylib", "role": "library", "sha256": "dc501e456d87ee430270103143a89ccae4179bbc56796390db881d85b64145f1", "size": 859184},
         {"path": "LICENSE", "role": "licence", "sha256": "6124d2badb597d24ed1a0f545446e1d81b3117ee13123cee03fe25dc28213512", "size": 1306},
-        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "e535ff44198d19a51ff3e58166c8c7699be2ef375ebc5591ae3f5d638394511a", "size": 12779}
+        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "e535ff44198d19a51ff3e58166c8c7699be2ef375ebc5591ae3f5d638394511a", "size": 12779},
+        {"path": "native/vendor/LICENSE", "role": "licence", "name": "trezor-crypto-LICENSE", "comment": "trezor-crypto's MIT text; the member's LICENSE and THIRD-PARTY-LICENSES.md only point to this file", "sha256": "b53d2eb93806f3d618370726f27eafeb6c279c7a90351297f79e073e49e569be", "size": 1114},
+        {"path": "native/vendor/address.c", "role": "licence", "name": "trezor-crypto-address-NOTICE.txt", "extract": "leading-comment", "comment": "the MIT notice of Daira Hopwood and Pavol Rusnak is only in this file's header", "sha256": "d237a835647ef553f39fc34beac9f2e1aa0be463d62e197e99c74287d458a7e2", "size": 3431},
+        {"path": "native/vendor/hasher.c", "role": "licence", "name": "trezor-crypto-hasher-NOTICE.txt", "extract": "leading-comment", "comment": "the MIT notice of Saleem Rashid is only in this file's header", "sha256": "c6eab350c653e8769a33ba0cf0655b4cb1655021a69dccbac7f04065d51e434b", "size": 4963}
       ],
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.coin", "folder": "org.openxtalk.library.coin", "main": "src/coinxt.lcb", "probe": "cxKeccak256Len()", "expect": "^32$"},
