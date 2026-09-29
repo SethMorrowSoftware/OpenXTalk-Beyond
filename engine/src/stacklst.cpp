@@ -244,6 +244,26 @@ void MCStacklist::setcmap()
 	while (tptr != stacks);
 }
 
+// OXT-Beyond: redraw every stack in the list, e.g. after the system
+// appearance (dark or light mode) changes and the default colours with it.
+// Declared since the initial import but never defined; the macOS appearance
+// change handler (MCScreenDC::updatesystemappearance) calls it. The Windows
+// handler marks each stack with dirtyall() the same way.
+void MCStacklist::redrawall(Boolean force)
+{
+	if (stacks == NULL)
+		return;
+	MCStacknode *tptr = stacks;
+	do
+	{
+		MCStack *t_stack = tptr->getstack();
+		if (t_stack != NULL)
+			t_stack->dirtyall();
+		tptr = tptr->next();
+	}
+	while (tptr != stacks);
+}
+
 void MCStacklist::closeall()
 {
 	while (stacks != NULL)
