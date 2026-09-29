@@ -60,14 +60,20 @@ Subcommands
          extension and write <out>/XTALK-EXTENSIONS.txt. Folders this tool
          made before (listed in the old XTALK-EXTENSIONS.txt) are replaced;
          nothing else in <out> is touched.
+  export --out FILE.zip [--cache DIR] [--offline]
+         fetch, then write every pinned file (all members and platforms)
+         into a reproducible zip in the cache layout <Repo>/<commit>/<path>,
+         with a copy of the manifest. Tag builds attach it to the release,
+         so that the release can be rebuilt ("build --cache <unzipped>
+         --offline") even if a member repository loses the pinned commit.
   list   print the members, their extensions and probes.
 
 The cache folder is --cache, else the environment variable OXT_XTALK_CACHE,
 else the xtalk folder of the external-assets cache (OXT_ASSETS_CACHE, else
 <repo>/prebuilt/fetched-assets, ignored by git), the same folder that
-package.py uses; a file lives at <cache>/<Repo>/<commit>/<path>. Downloads use tools/oxt/fetch_assets.py
-(HTTPS only, retries with backoff, verified before they are moved into
-place).
+package.py uses; a file lives at <cache>/<Repo>/<commit>/<path>. Downloads
+use tools/oxt/fetch_assets.py (HTTPS only, retries with backoff, verified
+before they are moved into place).
 
 The Visual C++ runtime. enetxt.dll and box2dxt.dll are built with the
 dynamic CRT and import MSVCP140 / VCRUNTIME140 / VCRUNTIME140_1, which
@@ -104,6 +110,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -1408,6 +1415,96 @@ def cmd_build(args, log=print):
 
 
 # ---------------------------------------------------------------------------
+# export
+
+# Every entry of the export zip gets this date (the earliest a zip can
+# hold), so the zip depends only on the pinned files, not on when they
+# were downloaded
+EXPORT_DATE = (1980, 1, 1, 0, 0, 0)
+EXPORT_README = '''xTalk Suite extension sources of an OXT-Beyond release
+=====================================================
+
+Every file that tools/oxt/xtalk-extensions.json (the copy in this zip)
+pins, exactly as tools/oxt/xtalk_extensions.py downloaded and verified it
+from https://raw.githubusercontent.com/<repository>/<commit>/<path>, in the
+layout of its download cache: <repository name>/<commit>/<path>.
+
+The packages fetch these files from the member repositories when they are
+made. This copy keeps a release reproducible if a member repository later
+loses a pinned commit (a rewritten history, a renamed or private
+repository). To rebuild the release, check out its tag, extract this zip
+into an empty folder and package with that folder as the cache, offline:
+
+  package-windows.ps1 -XtalkCache <folder> ...     (tools/ci)
+  python tools/oxt/package.py --xtalk-cache <folder> --offline ...
+  python tools/oxt/xtalk_extensions.py build --cache <folder> --offline ...
+
+Every file is still checked against the size and SHA-256 in the manifest.
+The licence of each file is that of its repository (see its licenses/
+folder in the program's Extensions folder and THIRD-PARTY-NOTICES.md).
+'''
+
+
+def export_entries(data, cache):
+    """[(name in the zip, local file)] for every pinned file, sorted and
+    without duplicates (two members may pin the same file, OpenSSL's
+    licence text)."""
+    entries = {}
+    for m in data['members']:
+        for f in m['files']:
+            path = cache_file(cache, m, f)
+            name = os.path.relpath(path, cache).replace(os.sep, '/')
+            entries.setdefault(name, path)
+    return sorted(entries.items())
+
+
+def _zip_info(name):
+    zi = zipfile.ZipInfo(name, date_time=EXPORT_DATE)
+    zi.compress_type = zipfile.ZIP_DEFLATED
+    zi.create_system = 3
+    zi.external_attr = (0o100644 & 0xFFFF) << 16
+    return zi
+
+
+def export(data, manifest_bytes, cache, out, offline=False, log=print):
+    """Fetch every pinned file and write out (a zip). Returns (files,
+    bytes of the files, sha256 of the zip)."""
+    fetch(data, cache, offline, None, None, log)
+    entries = export_entries(data, cache)
+    out = os.path.abspath(out)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    tmp = out + '.part'
+    total = 0
+    with zipfile.ZipFile(tmp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        # The manifest with LF line endings, as git stores it, so that a
+        # CRLF checkout exports the same zip
+        z.writestr(_zip_info('xtalk-extensions.json'), manifest_bytes.replace(b'\r\n', b'\n'))
+        z.writestr(_zip_info('README.txt'), EXPORT_README.encode('utf-8'))
+        for name, path in entries:
+            with open(path, 'rb') as src, z.open(_zip_info(name), 'w') as dst:
+                while True:
+                    b = src.read(1 << 20)
+                    if not b:
+                        break
+                    dst.write(b)
+                    total += len(b)
+    os.replace(tmp, out)
+    return len(entries), total, _sha256_file(out)
+
+
+def cmd_export(args, log=print):
+    data = load_manifest(args.manifest)
+    with open(args.manifest, 'rb') as f:
+        manifest_bytes = f.read()
+    cache = cache_dir(args.repo, args.cache)
+    log('xTalk extensions cache: %s' % cache)
+    count, size, digest = export(data, manifest_bytes, cache, args.out, args.offline, log)
+    log('wrote %s: %d pinned files (%s bytes), SHA-256 %s'
+        % (os.path.abspath(args.out), count, '{:,}'.format(size), digest))
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # list
 
 def cmd_list(args, log=print):
@@ -1475,6 +1572,13 @@ def main(argv=None):
                         'bundle the Visual C++ runtime DLLs the Windows libraries import')
     p.add_argument('--summary-json', metavar='FILE', help='write what was built as JSON')
     p.set_defaults(func=cmd_build)
+
+    p = sub.add_parser('export', help='write every pinned file into a zip in the cache layout, to keep with '
+                                      'a release')
+    p.add_argument('--out', required=True, metavar='FILE.zip', help='zip to write')
+    p.add_argument('--cache', metavar='DIR', help='cache folder (as for fetch)')
+    p.add_argument('--offline', action='store_true', help='use the cache only')
+    p.set_defaults(func=cmd_export)
 
     p = sub.add_parser('list', help='list the members, extensions and probes')
     p.set_defaults(func=cmd_list)

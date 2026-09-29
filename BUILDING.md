@@ -571,10 +571,12 @@ writes to `dist\` (`<ver>` is the content of `ide/.version`, for example
 | `OXT-Beyond-<ver>-win-x86_64-portable.zip` | The staged program folder, under one top folder `OXT-Beyond-<ver>\`. |
 | `OXT-Beyond-<ver>-win-x86_64-binaries.zip` | `win-x86_64-bin` without `.pdb` files, plus `LICENSE`, `LICENSE-EXCEPTION.md` and `THIRD-PARTY-NOTICES.md`. Extracting it into the root of a source checkout gives the same layout as a build. |
 | `OXT-Beyond-<ver>-win-x86_64-symbols.zip` | The `.pdb` debug symbols, under `win-x86_64-bin\`. |
-| `SHA256SUMS` | Checksums of the three zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
+| `OXT-Beyond-<ver>-xtalk-sources.zip` | Only with `-XtalkSourcesZip` (CI sets it for tag builds): every file the [xTalk Suite extensions](#xtalk-suite-extensions) pin, as packaging took them, with the manifest. |
+| `SHA256SUMS` | Checksums of the zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
 
 Options: `-BuildNumber <n>`, `-AssetsCache <folder>`,
-`-NoExternalAssets`, `-NoXtalkExtensions`, `-VcRedist <folder>` (see
+`-NoExternalAssets`, `-NoXtalkExtensions`, `-XtalkCache <folder>`,
+`-XtalkSourcesZip`, `-VcRedist <folder>` (see
 [xTalk Suite extensions](#xtalk-suite-extensions)), `-OutDir <folder>` (default `dist`),
 `-StageParent <folder>` (default `<OutDir>\stage`), `-BinDir <folder>`,
 `-Python <path>` and `-CompressionLevel Optimal|Fastest|NoCompression`.
@@ -870,16 +872,34 @@ libraries are also checked against the member's `MANIFEST.sha256`.
 `--offline` never downloads; with a filled cache, packaging works without
 internet access. CI caches the folder, keyed on the manifest.
 
+**Keeping the pinned files with a release.** The pins are commits of the
+members' branches, fetched live, so rebuilding an old release depends on
+the member repositories keeping those commits (a rewritten history, or a
+renamed or private repository, would break it). Tag builds therefore
+also publish `OXT-Beyond-<ver>-xtalk-sources.zip` with the release,
+listed in its `SHA256SUMS`: every pinned file, in the cache layout
+`<repository>\<commit>\<path>`, with a copy of `xtalk-extensions.json`.
+`xtalk_extensions.py export` writes it (sorted entries and fixed dates,
+so the same pins give the same zip), and `package-windows.ps1
+-XtalkSourcesZip` runs that. To rebuild an old tag, extract that
+release's zip into an empty folder and use the folder as the cache:
+`-XtalkCache <folder>` for `package-windows.ps1`, `--xtalk-cache <folder>
+--offline` for `package.py`, `--cache <folder> --offline` for
+`xtalk_extensions.py`. The files are still checked against the manifest.
+As with external assets, never delete or replace this file of a
+published release.
+
 ```bat
 python tools\oxt\xtalk_extensions.py list
 python tools\oxt\xtalk_extensions.py fetch
 python tools\oxt\xtalk_extensions.py build --bin win-x86_64-bin --out %TEMP%\xtalk --vc-redist "%VCToolsRedistDir%"
+python tools\oxt\xtalk_extensions.py export --out %TEMP%\xtalk-sources.zip
 ```
 
 `fetch` also takes `--cache DIR`, `--offline`, `--member NAME` and
 `--platforms x86_64-win32,x86-win32`; `build` takes `--cache`,
 `--offline`, `--platforms` and `--summary-json FILE`, and replaces only
-the folders it made before.
+the folders it made before; `export` takes `--cache` and `--offline`.
 
 **Taking newer versions.** The pins change only when a maintainer runs
 `pin` and commits the result:
@@ -1216,7 +1236,9 @@ It follows this guide:
    [xTalk Suite extensions](#xtalk-suite-extensions) are cached in
    `prebuilt\fetched-assets\xtalk`, keyed on their manifest; they are
    left out with the input `no_xtalk_extensions` or the variable
-   `OXT_NO_XTALK_EXTENSIONS`, except in tag builds. `package-windows.ps1`
+   `OXT_NO_XTALK_EXTENSIONS`, except in tag builds, which also write
+   `OXT-Beyond-<ver>-xtalk-sources.zip` (see
+   [xTalk Suite extensions](#xtalk-suite-extensions)). `package-windows.ps1`
    finds the runner's Visual C++ redistributable folder with `vswhere`
    and bundles the runtime DLLs that enetxt and Box2Dxt need;
    `tools/ci/check-extension-imports.ps1` then checks that every Windows
@@ -1277,7 +1299,8 @@ against it.
 5. The workflow builds the tag. The release job then checks the files
    against `SHA256SUMS`, checks that the tag is `v` followed by
    `ide/.version` of the tagged commit (it publishes nothing otherwise)
-   and publishes the installer, the three zips and `SHA256SUMS` as a
+   and publishes the installer, the three zips, the xTalk sources zip
+   and `SHA256SUMS` as a
    GitHub Release named "OXT-Beyond <version>", with a short description
    of the files followed by GitHub's generated release notes. Tags that
    contain `-alpha`, `-beta`, `-rc`, `-dp` or `-pre` become

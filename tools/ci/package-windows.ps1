@@ -33,8 +33,17 @@
       OXT-Beyond-<ver>-win-x86_64-symbols.zip
           The *.pdb files, under win-x86_64-bin\ with their relative paths.
 
+      OXT-Beyond-<ver>-xtalk-sources.zip (only with -XtalkSourcesZip)
+          Every file of the xTalk Suite extensions that
+          tools/oxt/xtalk-extensions.json pins, in the layout of their
+          download cache, with a copy of the manifest
+          (tools/oxt/xtalk_extensions.py export). Tag builds attach it to
+          the release, so that the release can be rebuilt with
+          -XtalkCache <extracted folder> even if a member repository loses
+          a pinned commit.
+
       SHA256SUMS
-          "<sha256>  <file name>" for the three zips (LF line endings).
+          "<sha256>  <file name>" for the zips (LF line endings).
           tools/ci/build-installer.ps1 rewrites it when it adds the installer.
 
     The zips are written straight from the staged folder and the build
@@ -76,8 +85,17 @@
 
 .PARAMETER NoXtalkExtensions
     Leave the xTalk Suite extensions out of the package. The environment
-    variable NO_XTALK_EXTENSIONS set to 1 or true does the same. Their
-    download cache is <AssetsCache>\xtalk (or OXT_XTALK_CACHE).
+    variable NO_XTALK_EXTENSIONS set to 1 or true does the same.
+
+.PARAMETER XtalkCache
+    Download cache of the xTalk Suite extensions' files. Default: the
+    environment variable OXT_XTALK_CACHE, else <AssetsCache>\xtalk. A
+    folder extracted from a release's OXT-Beyond-<ver>-xtalk-sources.zip
+    holds every file that release pinned, so nothing is downloaded.
+
+.PARAMETER XtalkSourcesZip
+    Also write OXT-Beyond-<ver>-xtalk-sources.zip (see above) to OutDir
+    and list it in SHA256SUMS. CI sets it for tag builds.
 
 .PARAMETER VcRedist
     Visual Studio's redistributable folder, ...\VC\Redist\MSVC\<version>
@@ -103,6 +121,8 @@ param(
     [string]$AssetsCache,
     [switch]$NoExternalAssets,
     [switch]$NoXtalkExtensions,
+    [string]$XtalkCache,
+    [switch]$XtalkSourcesZip,
     [string]$VcRedist,
     [string]$Python,
     [ValidateSet('Optimal', 'Fastest', 'NoCompression')]
@@ -198,6 +218,21 @@ function Find-Python {
 }
 $py = Find-Python
 
+# Run a Python script (the arguments after the interpreter) and return its
+# exit code. Unbuffered, so that progress lines appear as they are written;
+# UTF-8, so that printing a path never fails on a legacy code page.
+function Invoke-Python([string[]]$Arguments) {
+    $savedUnbuffered = $env:PYTHONUNBUFFERED
+    $savedEncoding = $env:PYTHONIOENCODING
+    $env:PYTHONUNBUFFERED = '1'
+    $env:PYTHONIOENCODING = 'utf-8'
+    try { return Invoke-Native $py.Exe (@($py.Pre) + @($Arguments)) }
+    finally {
+        $env:PYTHONUNBUFFERED = $savedUnbuffered
+        $env:PYTHONIOENCODING = $savedEncoding
+    }
+}
+
 # --- Visual C++ redistributable (for the xTalk extensions) ---
 # A folder qualifies when it has x64\ and x86\Microsoft.VC14x.CRT
 function Test-VcRedist([string]$Dir) {
@@ -247,6 +282,9 @@ function Find-VcRedist {
 }
 
 if ($env:NO_XTALK_EXTENSIONS -match '^(1|true|yes)$') { $NoXtalkExtensions = $true }
+if ($XtalkSourcesZip -and $NoXtalkExtensions) {
+    throw '-XtalkSourcesZip needs the xTalk Suite extensions; it cannot be combined with -NoXtalkExtensions or NO_XTALK_EXTENSIONS.'
+}
 $vcRedistDir = $null
 if (-not $NoXtalkExtensions) {
     $vcRedistDir = Find-VcRedist
@@ -270,7 +308,7 @@ Write-Host ''
 # --- 1. Stage the installed layout ---
 $summaryFile = [System.IO.Path]::GetTempFileName()
 try {
-    $pyArgs = @($py.Pre) + @(
+    $pyArgs = @(
         (Join-Path $RepoRoot 'tools\oxt\package.py'),
         '--repo', $RepoRoot,
         '--bin', $BinDir,
@@ -280,19 +318,12 @@ try {
     if ($AssetsCache) { $pyArgs += @('--assets-cache', $AssetsCache.TrimEnd('\')) }
     if ($NoExternalAssets) { $pyArgs += '--no-external-assets' }
     if ($NoXtalkExtensions) { $pyArgs += '--no-xtalk-extensions' }
-    elseif ($vcRedistDir) { $pyArgs += @('--vc-redist', $vcRedistDir) }
-    $timer = [System.Diagnostics.Stopwatch]::StartNew()
-    # Unbuffered, so that progress lines appear as they are written; UTF-8,
-    # so that printing a path never fails on a legacy code page
-    $savedUnbuffered = $env:PYTHONUNBUFFERED
-    $savedEncoding = $env:PYTHONIOENCODING
-    $env:PYTHONUNBUFFERED = '1'
-    $env:PYTHONIOENCODING = 'utf-8'
-    try { $code = Invoke-Native $py.Exe $pyArgs }
-    finally {
-        $env:PYTHONUNBUFFERED = $savedUnbuffered
-        $env:PYTHONIOENCODING = $savedEncoding
+    else {
+        if ($XtalkCache) { $pyArgs += @('--xtalk-cache', $XtalkCache.TrimEnd('\')) }
+        if ($vcRedistDir) { $pyArgs += @('--vc-redist', $vcRedistDir) }
     }
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    $code = Invoke-Python $pyArgs
     if ($code -ne 0) { throw "tools/oxt/package.py failed with exit code $code" }
     Write-Host ("Staged in {0:N0} s" -f $timer.Elapsed.TotalSeconds)
     $summary = [System.IO.File]::ReadAllText($summaryFile, $utf8) | ConvertFrom-Json
@@ -412,12 +443,27 @@ Write-Zip $binPath $binZipEntries @()
 
 Write-Host "Writing $SymZipName ..."
 Write-Zip $symPath $binPdb @()
+
+# The pinned xTalk files, exactly as package.py fetched and verified them
+# (from the same cache; --offline, so nothing is downloaded again)
+$zipPaths = @($binPath, $portablePath, $symPath)
+if ($XtalkSourcesZip) {
+    $sourcesPath = Join-Path $OutDir "$PackageRoot-xtalk-sources.zip"
+    Write-Host "Writing $(Split-Path -Leaf $sourcesPath) ..."
+    $exportArgs = @((Join-Path $RepoRoot 'tools\oxt\xtalk_extensions.py'), '--repo', $RepoRoot,
+        'export', '--offline', '--out', $sourcesPath)
+    if ($XtalkCache) { $exportArgs += @('--cache', $XtalkCache.TrimEnd('\')) }
+    elseif (-not $env:OXT_XTALK_CACHE -and $AssetsCache) { $exportArgs += @('--cache', (Join-Path $AssetsCache.TrimEnd('\') 'xtalk')) }
+    $code = Invoke-Python $exportArgs
+    if ($code -ne 0) { throw "tools/oxt/xtalk_extensions.py export failed with exit code $code" }
+    $zipPaths += $sourcesPath
+}
 Write-Host ("Zips written in {0:N0} s" -f $timer.Elapsed.TotalSeconds)
 
 # --- 4. Checksums ---
 $results = @()
 $sumLines = @()
-foreach ($p in @($binPath, $portablePath, $symPath)) {
+foreach ($p in $zipPaths) {
     $item = Get-Item -LiteralPath $p
     $hash = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
     $sumLines += "$hash  $($item.Name)"

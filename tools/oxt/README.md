@@ -393,6 +393,7 @@ python tools/oxt/xtalk_extensions.py [--manifest FILE] pin   [--member NAME] [--
 python tools/oxt/xtalk_extensions.py [--manifest FILE] fetch [--cache DIR] [--offline] [--platforms LIST] [--member NAME]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] build --bin DIR --out DIR [--vc-redist DIR]
                                      [--cache DIR] [--offline] [--platforms LIST] [--summary-json FILE]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] export --out FILE.zip [--cache DIR] [--offline]
 python tools/oxt/xtalk_extensions.py [--manifest FILE] list
 ```
 
@@ -453,6 +454,15 @@ Nothing of the members is kept in this repository.
   `XTALK-EXTENSIONS.txt` of `--out` and the folders of the current
   manifest are replaced; nothing else in `--out` is touched. The output is
   the same for the same pins and `lc-compile`.
+* `export` fetches, then writes every pinned file (all members and
+  platforms) into a zip in the cache layout `<repository>/<commit>/<path>`,
+  with a copy of the manifest (LF line endings) and a `README.txt`.
+  Entries are sorted and dated 1980-01-01, so the same pins give the same
+  zip. Tag builds publish it with the release
+  (`OXT-Beyond-<ver>-xtalk-sources.zip`, `package-windows.ps1
+  -XtalkSourcesZip`), so that a release can be rebuilt with the extracted
+  folder as the cache (`--cache DIR --offline`) if a member repository
+  loses a pinned commit.
 * `list` prints the members, their extensions and probes, and the
   libraries that need DLLs other than Windows system DLLs.
 

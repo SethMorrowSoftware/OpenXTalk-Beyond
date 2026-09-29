@@ -8,6 +8,11 @@
 #   OXT-Beyond-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
 #                                             plus the licence files
 #   OXT-Beyond-<ver>-win-x86_64-symbols.zip   the *.pdb files
+#   OXT-Beyond-<ver>-xtalk-sources.zip        (tag builds) every file the
+#                                             xTalk Suite extensions pin,
+#                                             so that the release can be
+#                                             rebuilt without the member
+#                                             repositories
 #   SHA256SUMS
 #
 # <ver> is the product version in ide/.version. The build number written into
@@ -281,7 +286,10 @@ jobs:
       # published yet. Likewise the xTalk Suite extensions with the input
       # no_xtalk_extensions or the variable OXT_NO_XTALK_EXTENSIONS
       # (package-windows.ps1 reads NO_XTALK_EXTENSIONS). Tag builds, which
-      # publish a release, always include both. package-windows.ps1 finds
+      # publish a release, always include both, and also write
+      # OXT-Beyond-<ver>-xtalk-sources.zip (-XtalkSourcesZip): the pinned
+      # xTalk files, which the packages otherwise take live from the member
+      # repositories, kept with the release. package-windows.ps1 finds
       # the Visual C++ redistributable folder of the runner's Visual Studio
       # with vswhere and bundles the runtime DLLs that enetxt and box2dxt
       # import.
@@ -292,6 +300,7 @@ jobs:
           OXT_ASSETS_CACHE: ${{ github.workspace }}\prebuilt\fetched-assets
           NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
           NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          XTALK_SOURCES_ZIP: ${{ github.ref_type == 'tag' }}
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'build-logs\package.log'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null
@@ -303,6 +312,7 @@ jobs:
           if ($env:NO_XTALK_EXTENSIONS -eq 'true') {
             Write-Host '::warning title=Package::xTalk Suite extensions left out (no_xtalk_extensions input or OXT_NO_XTALK_EXTENSIONS variable).'
           }
+          if ($env:XTALK_SOURCES_ZIP -eq 'true') { $packageArgs['XtalkSourcesZip'] = $true }
           $global:LASTEXITCODE = 0
           ./tools/ci/package-windows.ps1 @packageArgs *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
@@ -512,7 +522,7 @@ jobs:
             ''
           )
           if ($env:ARTIFACT_URL) {
-            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips and SHA256SUMS"
+            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips (on tags also the xTalk sources zip) and SHA256SUMS"
           }
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
@@ -554,7 +564,7 @@ jobs:
           fi
 
           prefix="OXT-Beyond-${VERSION}-win-x86_64"
-          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" SHA256SUMS; do
+          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" "OXT-Beyond-${VERSION}-xtalk-sources.zip" SHA256SUMS; do
             if [ ! -f "dist/${f}" ]; then
               echo "::error::dist/${f} is missing from the build artifact"
               exit 1
@@ -573,6 +583,7 @@ jobs:
           - \`${prefix}-portable.zip\`: the same program folder without an installer. Extract it and run \`OXT-Beyond.exe\`.
           - \`${prefix}-binaries.zip\`: the engine, externals and tools as built (\`win-x86_64-bin\`), without debug symbols, plus the licence files.
           - \`${prefix}-symbols.zip\`: debug symbols (\`*.pdb\`) for the binaries.
+          - \`OXT-Beyond-${VERSION}-xtalk-sources.zip\`: every file of the bundled xTalk Suite extensions as this release took it from their repositories, with the manifest that pins them, so that the release can be rebuilt without those repositories (see BUILDING.md, "xTalk Suite extensions").
           - \`SHA256SUMS\`: SHA-256 checksums of these files.
 
           The program includes the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT and NostrXT) in its \`Extensions\` folder, taken from their own repositories at the commits listed in \`Extensions/XTALK-EXTENSIONS.txt\`, with the Microsoft Visual C++ runtime DLLs that enetxt and Box2Dxt need.
