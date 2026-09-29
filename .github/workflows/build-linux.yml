@@ -3,8 +3,10 @@
 # so they are built identically.
 #
 # The container is Ubuntu 20.04, so the binaries need glibc 2.31 or newer
-# (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit).
-# It is also the newest Ubuntu that still ships Python 2.7, which gyp and
+# (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit)
+# and no newer libstdc++ than its GCC 10 one; the Verify step fails when an
+# ELF file of the output needs more (tools/ci/check_elf_floor.py). It is
+# also the newest Ubuntu that still ships Python 2.7, which gyp and
 # config.py need.
 #
 # Prebuilt libraries: LiveCode's download server no longer serves them, so
@@ -72,7 +74,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential gcc g++ make perl bison flex gawk pkg-config \
-            python2 python-is-python2 openjdk-11-jdk-headless \
+            python2 python-is-python2 python3 openjdk-11-jdk-headless \
             git curl ca-certificates bzip2 xz-utils zip unzip file binutils \
             libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
             libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
@@ -241,10 +243,17 @@ jobs:
           file "$B/LiveCode-Community" "$B/standalone-community"
           # Save as Standalone only accepts non-PIE engines (deploy_linux.cpp)
           readelf -h "$B/standalone-community" | grep 'EXEC (Executable file)'
-          echo "Highest glibc versions required:"
-          objdump -T "$B/LiveCode-Community" "$B/standalone-community" "$B/server-community" \
-            | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
-          objdump -T "$B/LiveCode-Community" | grep -o 'GLIBCXX_[0-9.]*' | sort -Vu | tail -1 || true
+          # The oldest Linux the header promises is this container's
+          # Ubuntu 20.04: glibc 2.31 and the libstdc++ of GCC 10
+          # (GLIBCXX_3.4.28, CXXABI_1.3.12). Every ELF file of the folder
+          # (executables and shared objects in every subfolder, CEF
+          # included; not the .dbg debug files) must load there, and be for
+          # this architecture. What is linked in this container cannot need
+          # more than it has, so this catches prebuilt files such as CEF
+          # and a change of build image. The report lists the highest
+          # version each file needs.
+          python3 tools/ci/check_elf_floor.py "$B" --machine "$ARCH" --exclude '*.dbg' \
+            --max GLIBC=2.31 --max GLIBCXX=3.4.28 --max CXXABI=1.3.12
 
       - name: Smoke test (server engine)
         run: |

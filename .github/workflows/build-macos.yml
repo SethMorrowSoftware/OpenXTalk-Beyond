@@ -5,7 +5,9 @@
 #
 # Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
 # (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
-# AppKit behaviour whatever SDK built them.
+# AppKit behaviour whatever SDK built them. The Verify step fails when a
+# Mach-O file of the output records anything else
+# (tools/ci/check_macho_floor.py).
 #
 # Toolchain: Xcode 16.4 and its macOS SDK, Python 2.7 (built with pyenv and
 # cached; gyp and config.py need it) and the runner's JDK (headers only).
@@ -231,7 +233,6 @@ jobs:
           for b in "$dev" "$sa" "$R/server-community" "$R/revsecurity.dylib" "$R/lc-compile"; do
             echo "== $b: $(lipo -archs "$b")"
             test "$(lipo -archs "$b")" = "$ARCH"
-            otool -l "$b" | grep -A4 'LC_BUILD_VERSION\|LC_VERSION_MIN_MACOSX' | grep -E 'minos|sdk|version' | sed -n 1,2p
             # Nothing may come from Homebrew or other non-system locations.
             # (otool -L lists a dylib's own install name first: skip it.)
             own_id=$(otool -D "$b" | sed -n 2p)
@@ -240,6 +241,24 @@ jobs:
               echo "::error::$b links a library outside the system"; exit 1
             fi
           done
+          # Every Mach-O file that ships (what the bin tarball holds: not
+          # the static libraries, dSYM bundles and header maps), every
+          # slice of it, must record the deployment target of
+          # config/mac.gypi as its minimum macOS (11.0 arm64, 10.13 x86_64:
+          # the loader refuses a newer minos, so one such file would raise
+          # the minimum of the product) and SDK 11.0 (-platform_version
+          # there; it selects AppKit's behaviour), and hold this
+          # architecture. The one exception is reviphoneproxy, the iOS
+          # simulator helper: revmobile.gyp builds it x86_64 only, so on
+          # the arm64 runner it has no arm64 slice and gets the arm64
+          # build's deployment target; the universal app is to take the
+          # x86_64 build's copy.
+          proxy='x86_64 only by design (revmobile.gyp), with the deployment target of this build'
+          python3 tools/ci/check_macho_floor.py "$R" --arch "$ARCH" \
+            --minos arm64=11.0 --minos x86_64=10.13 --sdk 11.0 \
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' \
+            --allow "reviphoneproxy=$proxy" \
+            --allow "reviphone.bundle/Contents/MacOS/reviphoneproxy=$proxy"
 
       - name: Smoke test (server engine)
         run: |
