@@ -388,7 +388,7 @@ during the normal build. They come as prebuilt archives:
 | Archive | Contents |
 | --- | --- |
 | `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser |
-| `OpenSSL-1.1.1g-...-PIC` | OpenSSL 1.1.1g |
+| `OpenSSL-<version>-...-PIC` | OpenSSL: `prebuilt/versions/openssl` (1.1.1w) on Linux and macOS; `prebuilt/versions/openssl_win32` (1.1.1g, the published Windows prebuilts) on Windows |
 | `Curl-7.51.0-...-PIC` | libcurl 7.51.0 (server engine) |
 | `ICU-58.2-...-1-PIC` | ICU 58.2 |
 | `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MySQL Connector/C, libpq, SQLite) |

@@ -92,8 +92,29 @@
 	'cflags':
 	[
 		'-fPIC',
-		'-fstrict-aliasing',
+		# OXT-Beyond: this code was developed mostly with MSVC, which never
+		# optimises on type-based aliasing, and it still has type-punned
+		# pointer casts (one crashed lc-compile on Linux arm64). Give GCC
+		# the same memory semantics so the engine behaves as on Windows.
+		'-fno-strict-aliasing',
 		'-fvisibility=hidden',
+	],
+
+	'conditions':
+	[
+		[
+			# Plain char is unsigned on Linux arm64 but signed on x86 and on
+			# Apple arm64, which this code was written and tested on. Make it
+			# signed so the engine and tools behave the same on every
+			# platform.
+			'OS == "linux" and target_arch == "arm64"',
+			{
+				'cflags':
+				[
+					'-fsigned-char',
+				],
+			},
+		],
 	],
 	
 	'cflags_c':

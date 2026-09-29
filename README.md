@@ -52,7 +52,8 @@ this before you download it.
   are no macOS or iOS runtimes. The automatic tests do not build
   standalones.
 - **Old third-party libraries.** The build uses the libraries LiveCode
-  Community last shipped: OpenSSL 1.1.1g, curl 7.51.0, ICU 58.2 and CEF
+  Community last shipped: OpenSSL 1.1.1 (1.1.1g on Windows, 1.1.1w on
+  Linux and macOS), curl 7.51.0, ICU 58.2 and CEF
   74 (Chromium 74). They are end of life and have known
   vulnerabilities. Upgrading them is planned. See [SECURITY.md](SECURITY.md).
 - **Not code-signed.** Windows SmartScreen may warn about the installer
@@ -331,7 +332,7 @@ change, see the [engine stabilization and modernization plan](docs/development/e
 
 Known limitations, in rough order of importance:
 
-1. Old third-party libraries with known vulnerabilities (OpenSSL 1.1.1g,
+1. Old third-party libraries with known vulnerabilities (OpenSSL 1.1.1,
    curl 7.51.0, CEF/Chromium 74, ICU 58.2 and several older libraries in
    `thirdparty/`). Plan: rebuild the prebuilt libraries from newer
    sources.

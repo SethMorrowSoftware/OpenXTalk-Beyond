@@ -47,11 +47,11 @@ produced. The archives contain no licence files of their own.
 | ANGLE | as bundled with Chromium 74 | `Externals/CEF/libEGL.dll`, `libGLESv2.dll` | BSD 3-clause | [upstream](https://github.com/google/angle/blob/main/LICENSE) |
 | SwiftShader | as bundled with Chromium 74 | `Externals/CEF/swiftshader/` | Apache License 2.0 | [upstream](https://github.com/google/swiftshader/blob/master/LICENSE.txt) |
 | Direct3D shader compiler (`d3dcompiler_47.dll`) | as shipped in the CEF binary distribution | `Externals/CEF/` | Microsoft redistributable file, not open source; Microsoft's terms apply | not in this repository |
-| OpenSSL | 1.1.1g | statically linked into `revsecurity.dll` (which the engines and database drivers use for SSL and encryption) and into the server engine | OpenSSL License and original SSLeay License | [upstream](https://github.com/openssl/openssl/blob/OpenSSL_1_1_1g/LICENSE); an older copy is in [`ide/Open Source Licenses.txt`](ide/Open%20Source%20Licenses.txt) |
+| OpenSSL | 1.1.1g on Windows (the published prebuilts); 1.1.1w on Linux and macOS (built from source in CI) | statically linked into `revsecurity` (which the engines and database drivers use for SSL and encryption) and into the server engine | OpenSSL License and original SSLeay License | [upstream](https://github.com/openssl/openssl/blob/OpenSSL_1_1_1w/LICENSE); an older copy is in [`ide/Open Source Licenses.txt`](ide/Open%20Source%20Licenses.txt) |
 | libcurl | 7.51.0 | statically linked into the server engine (`server-community.exe`, in the binaries zip only) | curl licence (MIT/X style) | [upstream](https://github.com/curl/curl/blob/curl-7_51_0/COPYING); also in `ide/Open Source Licenses.txt` |
 | ICU | 58.2 | statically linked into the engines and tools (through libfoundation) | Unicode licence ("ICU 58 and later"), plus the older ICU licence and third-party data notices in the same file | [upstream](https://github.com/unicode-org/icu/blob/release-58-2/icu4c/LICENSE) |
 
-OpenSSL 1.1.1g, curl 7.51.0, ICU 58.2 and CEF/Chromium 74 are old and
+OpenSSL 1.1.1, curl 7.51.0, ICU 58.2 and CEF/Chromium 74 are old and
 no longer supported upstream. See [SECURITY.md](SECURITY.md).
 
 ## Libraries built from `thirdparty/`

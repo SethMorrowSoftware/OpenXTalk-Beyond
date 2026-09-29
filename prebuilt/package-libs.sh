@@ -133,7 +133,7 @@ function doPackage {
 				Thirdparty_FILES+="${LIBPATH}/${LIB}_*.a "
 			fi
 		done
-	else
+	elif [ -f "${LIBPATH}/libz.lib" ] ; then
 		for LIB in ${!Thirdparty_LIBS_I} ; do
 			Thirdparty_FILES+="${LIBPATH}/${LIB}.lib "
 			if [ "${LIB}" == "libskia" ]; then
@@ -177,8 +177,9 @@ fi
 # Package up the various libraries and headers
 doPackage "${PLATFORM}" "${ARCH}" "${SUBPLATFORM}"
 
-# We only need shared headers to be packaged once, so only do this on linux-x86_64
-if [ "${PLATFORM}" = "linux" -a "${ARCH}" = "x86_64" ] ; then
+# Shared headers: publish them from linux-x86_64 only, but package them on
+# every Linux architecture so that native builds can use them locally
+if [ "${PLATFORM}" = "linux" ] ; then
 	# Package up the includes
 	OPENSSL_HDR_NAME="OpenSSL-${OpenSSL_VERSION}-All-Universal-Headers"
 	if [ ! -z "${OpenSSL_BUILDREVISION}" ] ; then
