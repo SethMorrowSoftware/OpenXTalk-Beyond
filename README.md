@@ -275,10 +275,27 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   extensions; the *Extension Manager* lists them and can unload them or
   stop them loading. The script libraries are put into the message path
   when they load, so `start using stack "coinxt"` and the like, which
-  the members' documentation mentions, are not needed in the IDE (they
-  do no harm).
+  the members' documentation mentions, are not needed in the IDE. They
+  do no harm, because a stack name finds the built-in copy.
+- The script libraries keep the stack names the members document
+  (`coinxt`, `nostrxt`, `nostr-relay`, `onionxt`, `onion-httpd`,
+  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`),
+  and only one stack of a given name can be in memory. While the
+  built-in library is loaded, opening your own copy of the same file by
+  its path, or loading it with
+  `start using stack "<folder>/datachannel-helpers.livecodescript"`,
+  makes the IDE ask what to do with the stack "already open". *Cancel*
+  keeps the built-in copy in use; *Save* also writes the built-in copy
+  back into the `Extensions` folder. In the IDE, load these libraries by
+  name. To use your own copy instead, first unload the built-in one in
+  the *Extension Manager* (and turn off "Load on startup" if it should
+  stay unloaded).
 - If you install your own copy of one of them (an `.lce` through the
-  *Extension Manager*), your copy is loaded instead of the built-in one.
+  *Extension Manager*), the IDE loads your copy instead of the built-in
+  one. For the LCB libraries this happens at once. For a script library
+  it happens after you restart the IDE: until then the IDE asks about
+  the stack "already open" (choose *Cancel*), and the built-in copy
+  stays in use.
 - For standalones, the standalone builder, when it searches for the
   inclusions a stack needs, adds an LCB library whose handlers your
   scripts use, together with its native library for the target platform.

@@ -813,8 +813,19 @@ library by sending it `extensionInitialize`, and without that handler it
 would sit in memory without being in the message path. The stack name,
 the file name and the folder are the same and contain no dots, because
 the IDE loads a script library under the part of its file name before
-the first dot. `manifest.xml` is written from the JSON; `requires` makes
-the IDE load a script library after the libraries it needs.
+the first dot. The stack names are the ones the members document, not
+reverse-DNS ids such as `org.openxtalk.library.coinxt`: a script
+library's extension id is its stack name, a standalone loads it under
+that name, and the members' code and documentation use
+`start using stack "coinxt"` and so on. The cost is that a user's own
+copy of one of these files, opened by its path while the built-in copy
+is loaded, clashes with it: the engine keeps one stack per name and
+sends `reloadStack`, and the IDE's handler then asks what to do. For an
+`.lce` installed during the session, the built-in stack stays in memory
+after it is unloaded, so the user's copy takes over only after a
+restart. The README tells users this. `manifest.xml` is written from
+the JSON; `requires` makes the IDE load a script library after the
+libraries it needs.
 `Extensions\XTALK-EXTENSIONS.txt` lists every extension with its
 repository and commit. The same pins (including `vc_runtime`) and
 `lc-compile` give the same files.
