@@ -8,6 +8,7 @@ Linux.
 | `layout.py` | maps an installed OpenXTalk Lite (or stock LiveCode 9.x) Windows program folder to this repository's layout and back: imports an OXT Lite IDE into `ide/` and `ide-support/` and checks an import |
 | `package.py` | stages the installed layout of OXT-Beyond from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
+| `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
 
 ## layout.py
@@ -54,6 +55,7 @@ bytes unchanged and git normalises text files when they are added.
 | `external` (c) | files for other platforms and third-party collections that this repository's Windows build does not produce | no; `package.py` adds them from the release assets in `external-assets.json`, except `Ext/` |
 | `junk` (d) | not part of the product | no |
 | `excluded` (e) | shipped by OXT Lite but not redistributed by this project because of its licence (`NOT_REDISTRIBUTABLE` in `layout.py`) | no; `import` removes them |
+| `xtalk` (f) | the xTalk Suite extensions: `Extensions/<folder>/**` for every folder in `xtalk-extensions.json`, and `Extensions/XTALK-EXTENSIONS.txt` | no; `package.py` builds them with `xtalk_extensions.py` from their repositories at pinned commits; `import` never copies them into `ide/Extensions` |
 | `unknown` | no rule matches: add a rule | - |
 
 Excluded for licence reasons (not in the repository, its history or its
@@ -83,6 +85,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `Documentation/**` | ide | `ide/Documentation/**` | Documentation (see below) |
 | `Runtime/Windows/{x86-64,x86-32}/Support/Sample Icons/*` | ide | `ide/Resources/Sample Icons/*` | Runtime.Windows: `file ide:Resources/Sample Icons/*` |
 | `.version`, `.buildnumber`, `about.dat`, `about.txt`, `License Agreement.txt`, `Open Source Licenses.txt`, `OpenXTalk-lite_1024.ico`, `OXT-Beyond.ico`, `Release Notes.pdf` | ide | `ide/<name>` | Misc (`about.txt`, licences); the rest are OpenXTalk Lite or OXT-Beyond additions |
+| `Extensions/<folder>/**` for a folder in `xtalk-extensions.json`, `Extensions/XTALK-EXTENSIONS.txt` | xtalk | | not in package.txt: the bundled xTalk Suite extensions (before the next rule) |
 | `Extensions/<id>/**` for an id not built here | ide | `ide/Extensions/<id>/**` | new folder, see below |
 | `Extensions/<one of the 42 com.livecode.* ids>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |
 | `Extensions/com.livecode.library.timezone/code/x86_64-win32/**` | build | | TimeZone (win-x86_64) |
@@ -213,6 +216,7 @@ differences.
 ```
 python tools/oxt/package.py --repo <repo> --bin <repo>/win-x86_64-bin --out <stage-parent>
     [--build-number N] [--assets-cache DIR] [--no-external-assets] [--offline]
+    [--no-xtalk-extensions] [--vc-redist DIR] [--xtalk-cache DIR] [--xtalk-manifest FILE]
     [--eol lf|crlf|keep] [--summary-json FILE]
     [--compare <installed folder or classify TSV> [--report FILE]]
 ```
@@ -267,6 +271,17 @@ The folder is put together from:
   `THIRD-PARTY-NOTICES.md` from the repository root, with CRLF line endings.
 * **External assets** from `external-assets.json` (`--no-external-assets`
   leaves them out).
+* **xTalk Suite extensions** from `xtalk-extensions.json`: `package.py`
+  runs `xtalk_extensions.build` with the `--bin` build's `lc-compile` and
+  `modules/lci` into a temporary folder and stages every file under
+  `Extensions/` byte for byte (origin `xtalk`), plus
+  `Extensions/XTALK-EXTENSIONS.txt`. `--vc-redist` is passed through (the
+  Visual C++ runtime DLLs for enetxt and Box2Dxt); without it packaging
+  warns. The cache is `--xtalk-cache`, else `OXT_XTALK_CACHE`, else the
+  `xtalk` folder of the asset cache; `--offline` applies to it too.
+  `--no-xtalk-extensions` leaves them out. The summary (and
+  `--summary-json`: `xtalk_extensions`, `vc_redist_version`,
+  `vc_runtime_files`, `xtalk_missing_runtime`) lists them.
 
 Build outputs that are not installed (every run lists them): `*.pdb` (they go
 into the symbols zip), `installer.exe` (OXT-Beyond uses Inno Setup),
@@ -301,6 +316,7 @@ Intended differences from OXT Lite 1.15:
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
 | `PROVENANCE-oxt-runtimes-1.15.md` | added: provenance of the runtimes asset |
+| `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
 Result with the CI build of this repository
 (`OpenXTalkLite-9.7.1-OXT-win-x86_64-binaries.zip`), the runtimes asset and
@@ -319,8 +335,8 @@ differences.
 `external-assets.json` lists archives that packaging adds to the installed
 layout: files this repository does not build, kept out of git and published
 as GitHub Release assets. Now these are the other-platform runtimes from OXT
-Lite 1.15; later they can be, for example, xTalk Suite extensions from their
-own repositories at pinned versions.
+Lite 1.15. (The xTalk Suite extensions are not assets: see
+[below](#xtalk-suite-extensions-xtalk_extensionspy).)
 
 ```json
 {
@@ -368,6 +384,69 @@ python tools/oxt/fetch_assets.py [--manifest FILE] [--assets-cache DIR] [--id ID
 
 fetches and verifies the assets without packaging (for example to fill a CI
 cache).
+
+## xTalk Suite extensions (`xtalk_extensions.py`)
+
+```
+python tools/oxt/xtalk_extensions.py [--manifest FILE] pin   [--member NAME] [--ref REF] [--cache DIR | --no-cache]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] fetch [--cache DIR] [--offline] [--platforms LIST] [--member NAME]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] build --bin DIR --out DIR [--vc-redist DIR]
+                                     [--cache DIR] [--offline] [--platforms LIST] [--summary-json FILE]
+python tools/oxt/xtalk_extensions.py [--manifest FILE] list
+```
+
+`xtalk-extensions.json` pins the eight xTalk Suite member repositories
+(`SethMorrowSoftware/<repository>`) at commits and lists, per member, the
+files taken (with the SHA-256 and size of each Git blob, and the DLLs each
+Windows library imports) and the extensions made from them (kind `lcb` or
+`lcs`, id, folder, main file, the smoke test's probe and expected value,
+and for script libraries the stack name, title, author and `requires`).
+BUILDING.md describes the fields
+([xTalk Suite extensions](../../BUILDING.md#xtalk-suite-extensions)).
+Nothing of the members is kept in this repository.
+
+* `pin` resolves the commit of each member (or `--member`; `--ref` a
+  branch, tag or commit, default the head of the default branch) with
+  `git ls-remote` or the GitHub API, downloads every listed file from
+  `https://raw.githubusercontent.com/<repository>/<commit>/<path>` and
+  rewrites the manifest (commit, version from `version_from`, `sha256`,
+  `size`, `imports`) without changing its order or layout. It checks the
+  libraries against the member's `src/code/MANIFEST.sha256` (and that
+  file lists no library the manifest does not take), that each LCB source
+  still declares the extension's module id and that each script library's
+  `script` line, if any, names its stack. It also stores the downloads in
+  the cache. Files with a `repository` and `commit` of their own
+  (OpenSSL's licence text) keep their commit.
+* `fetch` puts every pinned file into the cache
+  (`<cache>/<repository>/<commit>/<path>`; `--cache`, else
+  `OXT_XTALK_CACHE`, else `prebuilt/fetched-assets/xtalk`) and verifies
+  size and SHA-256; a file that does not match is deleted. Downloads go
+  through `fetch_assets.fetch` (HTTPS only, retries with backoff).
+  `--platforms` limits the native libraries to some platform ids.
+* `build` fetches, then writes one folder per extension into `--out` and
+  `XTALK-EXTENSIONS.txt` (the extensions with their commits, and the
+  Visual C++ runtime DLLs bundled or missing):
+
+  | kind | folder | contents |
+  |---|---|---|
+  | `lcb` | the module id | `<name>.lcb`, `module.lcm` and `manifest.xml` from `lc-compile --modulepath <bin>/modules/lci --interface <temp>/<id>.lci --manifest manifest.xml --output module.lcm <name>.lcb` (run in the folder, no `-Werror`), `code/<platform-id>/<library>` for every platform id, `licenses/` |
+  | `lcs` | the stack name | `<stack>.livecodescript` (the pinned file with `script "<stack>"` added as line 1 if it has no such line, and an `extensionInitialize` / `extensionFinalize` pair appended), `manifest.xml` written from the JSON, `licenses/` |
+
+  With `--vc-redist` (Visual Studio's `VC\Redist\MSVC\<version>`), every
+  DLL a library in `code/x86_64-win32` or `code/x86-win32` imports that
+  is neither a Windows system DLL nor in the folder is copied from the
+  redistributable into the folder, and the copies must export what the
+  library imports from them. Without it the build warns and lists the
+  libraries concerned. The build fails if `modules/lci` changed while it
+  ran, if a library's imports differ from the manifest's, or if
+  `lc-compile` fails. Folders listed in an earlier
+  `XTALK-EXTENSIONS.txt` of `--out` and the folders of the current
+  manifest are replaced; nothing else in `--out` is touched. The output is
+  the same for the same pins and `lc-compile`.
+* `list` prints the members, their extensions and probes, and the
+  libraries that need DLLs other than Windows system DLLs.
+
+Exit status 0 on success, 1 on any error.
 
 ## The runtimes asset
 

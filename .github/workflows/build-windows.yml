@@ -575,6 +575,8 @@ jobs:
           - \`${prefix}-symbols.zip\`: debug symbols (\`*.pdb\`) for the binaries.
           - \`SHA256SUMS\`: SHA-256 checksums of these files.
 
+          The program includes the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT and NostrXT) in its \`Extensions\` folder, taken from their own repositories at the commits listed in \`Extensions/XTALK-EXTENSIONS.txt\`, with the Microsoft Visual C++ runtime DLLs that enetxt and Box2Dxt need.
+
           The Windows x86-64 engine, externals and tools are built from this repository. The standalone runtimes for other platforms (Windows x86-32, Linux and Android) and the time zone library code for platforms other than Windows x86-64 are not built here: they are taken unchanged from OpenXTalk Lite 1.15, and are stock LiveCode 9.6.3 builds and files as Tom Perry shipped them, among them his 9.7.1-OXT Linux engine (see THIRD-PARTY-NOTICES.md).
 
           OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3. The executables are not code-signed, so Windows SmartScreen may warn when they are run for the first time.
