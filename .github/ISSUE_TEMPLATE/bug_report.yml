@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in OpenXTalk Lite does not work as it should.
+description: Something in OXT-Beyond does not work as it should.
 labels: ["bug"]
 body:
   - type: markdown
@@ -16,12 +16,14 @@ body:
   - type: input
     id: version
     attributes:
-      label: OpenXTalk Lite version
+      label: OXT-Beyond version
       description: >
-        Shown in Help > About LiveCode, in the name of the zip you downloaded,
-        or in the `version` file of a source checkout (for example 9.7.1-OXT).
-        If you built it yourself, add the commit (`git rev-parse --short HEAD`).
-      placeholder: 9.7.1-OXT
+        Shown in the title of the menubar window (for example "OXT-Beyond
+        0.0.1"), in the name of the file you downloaded, or in `ide/.version`
+        of a source checkout. Add the build number from Preferences >
+        Automatic Updates if you can. If you built it yourself, add the
+        commit (`git rev-parse --short HEAD`).
+      placeholder: 0.0.1, build 202610011200
     validations:
       required: true
 
@@ -30,7 +32,7 @@ body:
     attributes:
       label: Where did you get it?
       options:
-        - Release zip from the GitHub Releases page
+        - Installer or portable zip from the GitHub Releases page
         - Development build (GitHub Actions artifact)
         - I built it myself
     validations:
@@ -85,8 +87,8 @@ body:
   - type: dropdown
     id: upstream
     attributes:
-      label: Does the same thing happen in LiveCode Community 9.6.3?
-      description: This helps tell new problems from ones inherited from LiveCode.
+      label: Does the same thing happen in OpenXTalk Lite 1.15 or LiveCode Community 9.6.3?
+      description: This helps tell new problems from ones inherited from OpenXTalk Lite or LiveCode.
       options:
         - I don't know
         - "Yes"

@@ -1,5 +1,5 @@
 name: Build problem
-description: Building OpenXTalk Lite from source fails.
+description: Building OXT-Beyond from source fails.
 labels: ["build"]
 body:
   - type: markdown
@@ -8,8 +8,9 @@ body:
         Before you file this, please read the troubleshooting section of
         [BUILDING.md](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#8-troubleshooting).
         Many build failures come from a missing Visual Studio component,
-        Python 3 being used instead of Python 2.7, or the wrong `bash`
-        (Git's or WSL's instead of Cygwin's).
+        Python 3 being used instead of Python 2.7 for the build (packaging
+        needs Python 3), or the wrong `bash` (Git's or WSL's instead of
+        Cygwin's).
 
   - type: dropdown
     id: where
@@ -40,7 +41,12 @@ body:
         - Fetching the prebuilt libraries
         - Building (make.cmd or msbuild)
         - Running the built IDE
+        - Fetching the external assets (oxt-runtimes, tools/oxt/fetch_assets.py)
         - Packaging (tools/ci/package-windows.ps1)
+        - Smoke test (tools/ci/smoke-test.ps1)
+        - IDE compile check (tools/ci/ide-compile-check.ps1)
+        - Building the installer (tools/ci/build-installer.ps1)
+        - Testing the installer (tools/ci/test-installer.ps1)
         - Something else
     validations:
       required: true
@@ -56,10 +62,12 @@ body:
           (`powershell -ExecutionPolicy Bypass -File tools\ci\install-vs-components.ps1 -VerifyOnly`);
         - Windows SDK version, if you set `WINSDK_VERSION`;
         - `C:\Python27\python.exe --version`;
+        - for packaging, `py -3 --version` (or `python3 --version`);
+        - for the installer, the Inno Setup version (the first line of `ISCC.exe` output, or *Help > About* in the Inno Setup IDE);
         - `perl -e "print $^V, ' ', $^O"`;
         - `git --version`;
         - `C:\cygwin64\bin\bison.exe --version` and `C:\cygwin64\bin\flex.exe --version` (first lines);
-        - any of `BUILDTYPE`, `VSINSTALLDIR`, `WINSDK_VERSION`, `MSBUILD_EXTRA_ARGS`, `CYGPATH` or `PREBUILT_*` that you set.
+        - any of `BUILDTYPE`, `VSINSTALLDIR`, `WINSDK_VERSION`, `MSBUILD_EXTRA_ARGS`, `CYGPATH`, `PREBUILT_*`, `OXT_ASSETS_CACHE` or `OXT_BUILD_NUMBER` that you set.
     validations:
       required: true
 
