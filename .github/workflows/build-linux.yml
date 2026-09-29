@@ -1,0 +1,202 @@
+# Builds the OXT-Beyond engine for Linux x86_64 and arm64 on GitHub-hosted
+# runners. Both architectures use the same container image and the same steps,
+# so they are built identically.
+#
+# The container is Ubuntu 20.04, so the binaries need glibc 2.31 or newer
+# (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit).
+# It is also the newest Ubuntu that still ships Python 2.7, which gyp and
+# config.py need.
+#
+# Prebuilt libraries: LiveCode's download server no longer serves them, so
+# this workflow builds them from pinned upstream sources (prebuilt/versions/*)
+# with the scripts in prebuilt/, and keeps the resulting tarballs in the
+# GitHub Actions cache:
+#   OpenSSL, Curl, ICU  prebuilt/scripts/build-{openssl,curl,icu}.sh
+#   CEF (x86_64 only)   Spotify's CEF build, repackaged by build-cef.sh
+#   Thirdparty          the vendored thirdparty/ sources, built by gyp
+# A cache miss (a change to those scripts, to the versions, to thirdparty/ or
+# to the build settings, or an evicted cache) rebuilds them in the same job.
+#
+# Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
+# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+
+name: Build (Linux)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-linux-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build linux-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ubuntu:20.04
+    timeout-minutes: 330
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ARCH: ${{ matrix.arch }}
+      MODE: release
+      BUILDTYPE: Release
+    steps:
+      - name: Install build tools and headers
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential gcc g++ make perl bison flex gawk pkg-config \
+            python2 python-is-python2 openjdk-11-jdk-headless \
+            git curl ca-certificates bzip2 xz-utils zip unzip file binutils \
+            libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
+            libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
+            libexpat1-dev libgtk2.0-dev libpopt-dev liblcms2-dev
+          gcc --version | head -1
+          python --version
+          ldd --version | head -1
+          echo "Processors: $(nproc)"
+
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The key covers everything the prebuilt tarballs are made from: library
+      # versions, the prebuilt scripts, the vendored thirdparty/ tree and the
+      # gyp settings the Thirdparty libraries are compiled with.
+      - name: Compute the prebuilt libraries cache key
+        id: prebuilt-key
+        run: |
+          scripts=$(cat prebuilt/versions/* prebuilt/scripts/*.sh prebuilt/scripts/*.inc \
+                        prebuilt/build-libraries.sh prebuilt/package-libs.sh \
+                        prebuilt/thirdparty.gyp config/*.gypi | sha256sum | cut -c1-16)
+          thirdparty=$(git rev-parse HEAD:thirdparty | cut -c1-12)
+          echo "key=prebuilt-linux-${ARCH}-focal-${scripts}-${thirdparty}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore prebuilt libraries
+        id: prebuilt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      - name: Build OpenSSL, Curl, ICU and CEF from source
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        working-directory: prebuilt
+        run: |
+          export PREBUILT_MAKE_JOBS="$(nproc)"
+          PREBUILT_BUILD_LIBS="openssl curl icu cef" ./build-libraries.sh linux "$ARCH"
+          ./package-libs.sh linux "$ARCH"
+          ls -la packaged
+
+      # thirdparty-prebuilts is a gyp target in the engine's own build tree.
+      # Its OpenSSL headers dependency runs fetch-libraries.sh, which must not
+      # look for the Thirdparty tarball that is still being built.
+      - name: Build the Thirdparty libraries from thirdparty/
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        working-directory: prebuilt
+        env:
+          PREBUILT_LINUX_LIBS: OpenSSL Curl ICU CEF
+          PREBUILT_SKIP_VERIFY: '1'
+        run: |
+          export PREBUILT_LOCAL_DIR="$PWD/packaged"
+          export PREBUILT_MAKE_JOBS="$(nproc)"
+          PREBUILT_BUILD_LIBS=thirdparty ./build-libraries.sh linux "$ARCH"
+          ./package-libs.sh linux "$ARCH"
+          ls -la packaged
+          (cd packaged && sha256sum *.tar.bz2)
+
+      - name: Save prebuilt libraries to the cache
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      # The tarballs were built above (or restored from the cache), so they
+      # have no entries in prebuilt/SHA256SUMS, which lists published files.
+      - name: Fetch prebuilt libraries
+        run: |
+          echo "PREBUILT_LOCAL_DIR=$PWD/prebuilt/packaged" >> "$GITHUB_ENV"
+          echo "PREBUILT_SKIP_VERIFY=1" >> "$GITHUB_ENV"
+          cd prebuilt
+          PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh linux "$ARCH"
+
+      - name: Configure
+        run: make config-linux-"$ARCH"
+
+      - name: Build
+        run: make -C build-linux-"$ARCH"/livecode default BUILDTYPE=Release -j"$(nproc)"
+
+      - name: Verify build output
+        run: |
+          B="linux-$ARCH-bin"
+          ls -la "$B"
+          missing=0
+          for f in LiveCode-Community standalone-community installer server-community \
+                   revsecurity.so revpdfprinter.so revxml.so revzip.so revdb.so \
+                   dbsqlite.so dbmysql.so dbodbc.so dbpostgresql.so \
+                   lc-compile lc-run; do
+            if [ ! -e "$B/$f" ]; then echo "::error::missing $B/$f"; missing=1; fi
+          done
+          if [ "$ARCH" = x86_64 ] && [ ! -e "$B/revbrowser.so" ]; then
+            echo "::error::missing $B/revbrowser.so"; missing=1
+          fi
+          test -d "$B/packaged_extensions" || { echo "::error::missing $B/packaged_extensions"; missing=1; }
+          test -d "$B/modules/lci" || { echo "::error::missing $B/modules/lci"; missing=1; }
+          [ "$missing" = 0 ]
+          file "$B/LiveCode-Community" "$B/standalone-community"
+          # Save as Standalone only accepts non-PIE engines (deploy_linux.cpp)
+          readelf -h "$B/standalone-community" | grep -q 'EXEC (Executable file)'
+          echo "Highest glibc versions required:"
+          objdump -T "$B/LiveCode-Community" "$B/standalone-community" "$B/server-community" \
+            | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
+          objdump -T "$B/LiveCode-Community" | grep -o 'GLIBCXX_[0-9.]*' | sort -Vu | tail -1 || true
+
+      - name: Smoke test (server engine)
+        run: |
+          printf '<?lc\nput the version && the buildNumber & return\nput the platform && the processor & return\nput sha1Digest("abc") is not empty & return\n?>\n' > "$RUNNER_TEMP/smoke.lc"
+          ./linux-"$ARCH"-bin/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
+          grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
+
+      - name: Package the bin folder
+        run: tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" "linux-$ARCH-bin"
+
+      - name: Upload the bin folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: OXT-Beyond-linux-${{ matrix.arch }}-bin
+          path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-linux-${{ matrix.arch }}
+          path: |
+            prebuilt/build/**/config.log
+            prebuilt/build/**/*.log
+          if-no-files-found: ignore
