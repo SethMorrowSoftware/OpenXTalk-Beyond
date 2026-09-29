@@ -35,6 +35,14 @@ end openCard
 
 
 on tMsgSelect
+   -- OXT-Beyond: this runs 5 ticks after openCard, and the stack may be
+   -- closed by then: at every start-up ensureMBcorrect (in the Message Box
+   -- stack script) opens the stack and closes it again straight away. The
+   -- select then failed with "Chunk: can't select object that isn't open",
+   -- which the development layout shows in the Script Editor's debugger.
+   -- Only select the text while the stack is open on this card.
+   if the mode of stack "Message Box" is 0 then exit tMsgSelect
+   if the short name of this card of stack "Message Box" is not "Single Line" then exit tMsgSelect
    select text of fld "message" of cd "Single Line" of stack "Message Box"
 end tMsgSelect
 
