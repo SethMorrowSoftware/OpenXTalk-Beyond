@@ -938,9 +938,14 @@ published release.
 ```bat
 python tools\oxt\xtalk_extensions.py list
 python tools\oxt\xtalk_extensions.py fetch
-python tools\oxt\xtalk_extensions.py build --bin win-x86_64-bin --out %TEMP%\xtalk --vc-redist "%VCToolsRedistDir%"
+python tools\oxt\xtalk_extensions.py build --bin win-x86_64-bin --out %TEMP%\xtalk --vc-redist "%VCToolsRedistDir%."
 python tools\oxt\xtalk_extensions.py export --out %TEMP%\xtalk-sources.zip
 ```
+
+`VCToolsRedistDir` ends in a backslash, and cmd would pass `\"` on as a
+literal quote (the rest of the line then ends up in the same argument).
+The trailing `.` prevents that, and the path still resolves to the same
+folder.
 
 `fetch` also takes `--cache DIR`, `--offline`, `--member NAME` and
 `--platforms x86_64-win32,x86-win32`; `build` takes `--cache`,
