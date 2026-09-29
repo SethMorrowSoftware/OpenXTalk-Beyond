@@ -120,7 +120,7 @@ authors, and have publicly known vulnerabilities:
 
 | Component | Version in this build | Status |
 | --- | --- | --- |
-| OpenSSL | 1.1.1g (2020) | The 1.1.1 series reached end of life in September 2023 ([announcement](https://openssl-library.org/post/2023-09-11-eol-111/)). Many vulnerabilities have been fixed in later releases. |
+| OpenSSL | 1.1.1g (2020) on Windows; 1.1.1w (2023, the last 1.1.1 release) on Linux and macOS | The 1.1.1 series reached end of life in September 2023 ([announcement](https://openssl-library.org/post/2023-09-11-eol-111/)). 1.1.1w has the fixes up to then; the Windows prebuilts are still 1.1.1g until they are rebuilt. Later vulnerabilities are fixed only in OpenSSL 3. |
 | curl (libcurl) | 7.51.0 (2016) | Many vulnerabilities have been fixed since; see curl's [vulnerability table](https://curl.se/docs/vulnerabilities.html). Used by the server engine. |
 | CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser. Do not use them to display content you do not trust. |
 | ICU | 58.2 (2016) | Old; later releases include security fixes. |
