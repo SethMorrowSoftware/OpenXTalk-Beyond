@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop at the first failing configure, build or copy
+set -e
+
 source "${BASEDIR}/scripts/platform.inc"
 source "${BASEDIR}/scripts/lib_versions.inc"
 
@@ -60,7 +63,8 @@ fi
 make -C .. config-$MAKE_TARGET
 
 if [ "$PLATFORM" == "mac" ] || [ "$PLATFORM" == "ios" ] ; then
-	${XCODEBUILD} -project "../build-$TARGET_NAME/livecode/livecode.xcodeproj" -configuration "Release" -target "thirdparty-prebuilts"
+	# XCODEBUILD_FLAGS: extra xcodebuild options, e.g. to keep building after errors
+	${XCODEBUILD} -project "../build-$TARGET_NAME/livecode/livecode.xcodeproj" -configuration "Release" -target "thirdparty-prebuilts" ${XCODEBUILD_FLAGS}
 elif [ "$PLATFORM" == "linux" ] ; then
 	export BUILDTYPE=Release
 	make -C "../build-${PLATFORM}-${ARCH}/livecode" thirdparty-prebuilts

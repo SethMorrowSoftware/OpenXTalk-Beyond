@@ -128,6 +128,15 @@ bool MCJSValueToBrowserValue(JSContextRef p_context, JSValueRef p_value, MCBrows
 			
 		case kJSTypeObject:
 			return MCJSObjectToBrowserValue(p_context, (JSObjectRef)p_value, r_value);
+			
+		case kJSTypeSymbol:
+			// Symbols are not supported, treat as undefined
+			break;
+
+		default:
+			// Types added by newer SDKs (e.g. kJSTypeBigInt in macOS 15) are
+			// not supported either
+			break;
 	}
 	
 	return false;

@@ -936,20 +936,30 @@ void MCStack::stopedit()
 
 void MCStack::updatemenubar()
 {
+	// tperry 19-09-2025 [menubar fix on MacOS]
+	// Guard against recursive menu updates that can occur on macOS 14 Sonoma, and above
+	// when NSWindow becomeKeyWindow triggers focus events during menu reconstruction
+	static bool s_updating_menubar = false;
+	if (s_updating_menubar)
+		return;
+	
 	if (opened && state & CS_KFOCUSED && !MClockmenus)
 	{
-        if (!hasmenubar() || (state & CS_EDIT_MENUS
-            && mode < WM_PULLDOWN && mode != WM_PALETTE)
-            || (gettool(this) != T_BROWSE && MCdefaultmenubar))
-        {
+		s_updating_menubar = true;
+		
+		if (!hasmenubar() || (state & CS_EDIT_MENUS
+			&& mode < WM_PULLDOWN && mode != WM_PALETTE)
+			|| (gettool(this) != T_BROWSE && MCdefaultmenubar))
+		{
 			MCmenubar = nil;
-        }
-        
+		}
+		
 		else
-        {
+		{
 			MCmenubar = MCObjectCast<MCGroup>(getobjname(CT_GROUP, (getmenubar())));
-        }
+		}
 		MCscreen->updatemenubar(False);
+		s_updating_menubar = false;
 	}
 }
 

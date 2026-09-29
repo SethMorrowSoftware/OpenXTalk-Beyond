@@ -808,6 +808,14 @@ const char *MCF_getweightstring(uint2 style)
 
 Boolean MCF_setweightstring(uint2 &style, MCStringRef data)
 {
+	// Handle "semibold" as an alias for "demibold" (MCFW_SEMIBOLD)
+	if (MCStringIsEqualToCString(data, "semibold", kMCCompareCaseless))
+	{
+		style &= ~FA_WEIGHT;
+		style |= MCFW_SEMIBOLD;
+		return True;
+	}
+	
 	uint2 w;
 	for (w = MCFW_UNDEFINED ; w <= MCFW_ULTRABOLD ; w++)
 		if (MCStringIsEqualToCString(data, weightstrings[w], kMCCompareCaseless))

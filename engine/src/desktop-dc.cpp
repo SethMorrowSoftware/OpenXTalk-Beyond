@@ -96,24 +96,27 @@ bool MCScreenDC::hasfeature(MCPlatformFeature p_feature)
 
 // --tperry 11th October 2025
 // Update system colors based on dark/light mode
-void UpdateSystemColorsForAppearance()
+// (OXT-Beyond: a static helper taking the screen, like the Windows engine's
+// MCWin32UpdateSystemColors(); as a free function it could not reach the
+// screen's colours and did not compile)
+static void UpdateSystemColorsForAppearance(MCScreenDC *p_screen)
 {
 	MCSystemAppearance t_appearance;
-	MCPlatformGetSystemProperty(kMCPlatformSystemPropertySystemAppearance, kMCPlatformPropertyTypeInt32, &t_appearance);
+	p_screen->getsystemappearance(t_appearance);
 	
-	if (t_appearance == kMCPlatformSystemAppearanceDark)
+	if (t_appearance == kMCSystemAppearanceDark)
 	{
 		// Dark mode: background = RGB(32,32,32), foreground = white
-		background_pixel.red = background_pixel.green = background_pixel.blue = 0x2020; // 32/255 * 65535 ≈ 0x2020
-		MCzerocolor = MCbrushcolor = background_pixel;
-		MCselectioncolor = MCpencolor = white_pixel;
+		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0x2020; // 32/255 * 65535 ≈ 0x2020
+		MCzerocolor = MCbrushcolor = p_screen->background_pixel;
+		MCselectioncolor = MCpencolor = p_screen->white_pixel;
 	}
 	else
 	{
 		// Light mode: background = white, foreground = black
-		background_pixel.red = background_pixel.green = background_pixel.blue = 0xffff;
-		MCzerocolor = MCbrushcolor = white_pixel;
-		MCselectioncolor = MCpencolor = black_pixel;
+		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0xffff;
+		MCzerocolor = MCbrushcolor = p_screen->white_pixel;
+		MCselectioncolor = MCpencolor = p_screen->black_pixel;
 	}
 }
 
@@ -125,7 +128,7 @@ Boolean MCScreenDC::open()
 	gray_pixel.red = gray_pixel.green = gray_pixel.blue = 0x8888;
 	
 	// Set initial colors based on system appearance
-	UpdateSystemColorsForAppearance();
+	UpdateSystemColorsForAppearance(this);
 
 	MCPlatformGetSystemProperty(kMCPlatformSystemPropertyHiliteColor, kMCPlatformPropertyTypeColor, &MChilitecolor);
 	MCPlatformGetSystemProperty(kMCPlatformSystemPropertyAccentColor, kMCPlatformPropertyTypeColor, &MCaccentcolor);
@@ -975,7 +978,7 @@ void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 void MCScreenDC::updatesystemappearance(void)
 {
 	// Update system colors based on new appearance
-	UpdateSystemColorsForAppearance();
+	UpdateSystemColorsForAppearance(this);
 	
 	// Redraw all stacks to reflect new colors
 	MCstacks -> redrawall(False);

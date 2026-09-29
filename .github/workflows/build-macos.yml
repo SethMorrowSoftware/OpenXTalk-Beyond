@@ -1,0 +1,233 @@
+# Builds the OXT-Beyond engine for macOS on GitHub-hosted runners: Apple
+# Silicon (arm64) on macos-15 and Intel (x86_64) on macos-15-intel. Each
+# architecture is built natively on its own runner with the same steps; a
+# later packaging job joins the two into one universal app with lipo.
+#
+# Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
+# (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
+# AppKit behaviour whatever SDK built them.
+#
+# Toolchain: Xcode 16.4 and its macOS SDK, Python 2.7 (built with pyenv and
+# cached; gyp and config.py need it) and the runner's JDK (headers only).
+#
+# Prebuilt libraries: LiveCode's download server no longer serves them, so
+# OpenSSL, ICU and the Thirdparty set (from the vendored thirdparty/) are
+# built from source on a cache miss and kept in the Actions cache, as in
+# build-linux.yml. Each runner builds only its own architecture's slice.
+#
+# Output: the artifact OXT-Beyond-mac-<arch>-bin holds the build products
+# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+
+name: Build (macOS)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build mac-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 350
+    env:
+      ARCH: ${{ matrix.arch }}
+      TARGET_ARCH: ${{ matrix.arch }}
+      XCODE_TARGET_SDK: macosx
+      XCODE_HOST_SDK: macosx
+      PREBUILT_MAC_ARCHS: ${{ matrix.arch }}
+      MODE: release
+      BUILDTYPE: Release
+      XCODE_VERSION: '16.4'
+      PYTHON2_VERSION: 2.7.18
+      # Report every compile error in one run instead of stopping at the first
+      XCODEBUILD_FLAGS: -IDEBuildingContinueBuildingAfterErrors=YES
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app"
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          echo "Machine: $(uname -m), processors: $(sysctl -n hw.ncpu)"
+
+      - name: Choose the JDK
+        run: |
+          for v in JAVA_HOME_17_arm64 JAVA_HOME_17_X64 JAVA_HOME_11_arm64 JAVA_HOME_11_X64 JAVA_HOME_21_arm64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/include" ]; then
+              echo "JAVA_SDK=${!v}" >> "$GITHUB_ENV"
+              echo "Using $v=${!v}"
+              exit 0
+            fi
+          done
+          echo "::error::no JDK found on the runner"; exit 1
+
+      - name: Restore Python 2.7
+        id: python2-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pyenv/versions/${{ env.PYTHON2_VERSION }}
+          key: python-${{ env.PYTHON2_VERSION }}-${{ matrix.runner }}-${{ matrix.arch }}-v1
+
+      - name: Build Python 2.7
+        if: steps.python2-cache.outputs.cache-hit != 'true'
+        run: |
+          command -v pyenv >/dev/null || brew install pyenv
+          pyenv install -s "$PYTHON2_VERSION"
+
+      - name: Put Python 2.7 first on PATH
+        run: |
+          py="$HOME/.pyenv/versions/$PYTHON2_VERSION/bin"
+          test -x "$py/python2.7"
+          mkdir -p "$RUNNER_TEMP/py2bin"
+          ln -sf "$py/python2.7" "$RUNNER_TEMP/py2bin/python"
+          ln -sf "$py/python2.7" "$RUNNER_TEMP/py2bin/python2"
+          echo "$RUNNER_TEMP/py2bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/py2bin/python" --version
+
+      - name: Compute the prebuilt libraries cache key
+        id: prebuilt-key
+        run: |
+          scripts=$(cat prebuilt/versions/* prebuilt/scripts/*.sh prebuilt/scripts/*.inc \
+                        prebuilt/build-libraries.sh prebuilt/package-libs.sh \
+                        prebuilt/thirdparty.gyp config/*.gypi | shasum -a 256 | cut -c1-16)
+          thirdparty=$(git rev-parse HEAD:thirdparty | cut -c1-12)
+          echo "key=prebuilt-mac-${ARCH}-xcode${XCODE_VERSION}-${scripts}-${thirdparty}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore prebuilt libraries
+        id: prebuilt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      - name: Build OpenSSL and ICU from source
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        working-directory: prebuilt
+        run: |
+          export PREBUILT_MAKE_JOBS="$(sysctl -n hw.ncpu)"
+          PREBUILT_BUILD_LIBS="openssl icu" ./build-libraries.sh mac universal
+          ./package-libs.sh mac universal
+          ls -la packaged
+
+      # thirdparty-prebuilts is a target in the engine's own Xcode project.
+      # Its OpenSSL headers dependency runs fetch-libraries.sh, which must not
+      # look for the Thirdparty tarball that is still being built.
+      - name: Build the Thirdparty libraries from thirdparty/
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        working-directory: prebuilt
+        env:
+          PREBUILT_MAC_LIBS: OpenSSL ICU
+          PREBUILT_SKIP_VERIFY: '1'
+        run: |
+          export PREBUILT_LOCAL_DIR="$PWD/packaged"
+          PREBUILT_BUILD_LIBS=thirdparty ./build-libraries.sh mac universal
+          ./package-libs.sh mac universal
+          ls -la packaged
+          (cd packaged && shasum -a 256 *.tar.bz2)
+
+      - name: Save prebuilt libraries to the cache
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      - name: Fetch prebuilt libraries
+        run: |
+          echo "PREBUILT_LOCAL_DIR=$PWD/prebuilt/packaged" >> "$GITHUB_ENV"
+          echo "PREBUILT_SKIP_VERIFY=1" >> "$GITHUB_ENV"
+          cd prebuilt
+          PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh mac
+          lipo -info lib/mac/*.a
+
+      - name: Configure
+        run: ./config.sh --platform mac
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project build-mac/livecode/livecode.xcodeproj \
+            -configuration Release -target default \
+            -jobs "$(sysctl -n hw.ncpu)" $XCODEBUILD_FLAGS 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" \
+            | grep -E '(error|warning: unable|\*\* BUILD|Check dependencies|^Build target)' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/xcodebuild.log"
+
+      - name: Verify build output
+        run: |
+          R=_build/mac/Release
+          ls -la "$R" 
+          missing=0
+          for f in LiveCode-Community.app Standalone-Community.app server-community \
+                   revsecurity.dylib revpdfprinter.bundle revxml.bundle revzip.bundle revdb.bundle \
+                   dbsqlite.bundle dbmysql.bundle dbodbc.bundle dbpostgresql.bundle \
+                   lc-compile lc-run packaged_extensions modules; do
+            if [ ! -e "$R/$f" ]; then echo "::error::missing $R/$f"; missing=1; fi
+          done
+          [ "$missing" = 0 ]
+          dev="$R/LiveCode-Community.app/Contents/MacOS/LiveCode-Community"
+          sa="$R/Standalone-Community.app/Contents/MacOS/Standalone-Community"
+          for b in "$dev" "$sa" "$R/server-community" "$R/revsecurity.dylib" "$R/lc-compile"; do
+            echo "== $b: $(lipo -archs "$b")"
+            test "$(lipo -archs "$b")" = "$ARCH"
+            otool -l "$b" | grep -A4 'LC_BUILD_VERSION\|LC_VERSION_MIN_MACOSX' | grep -E 'minos|sdk|version' | sed -n 1,2p
+            # Nothing may come from Homebrew or other non-system locations.
+            # (otool -L lists a dylib's own install name first: skip it.)
+            own_id=$(otool -D "$b" | sed -n 2p)
+            if otool -L "$b" | tail -n +2 | grep -vF "${own_id:-no-install-name} " \
+                 | grep -vE '^\s+(/usr/lib/|/System/|@rpath/|@executable_path/|@loader_path/)'; then
+              echo "::error::$b links a library outside the system"; exit 1
+            fi
+          done
+
+      - name: Smoke test (server engine)
+        run: |
+          printf '<?lc\nput the version && the buildNumber & return\nput the platform && the processor & return\nput sha1Digest("abc") is not empty & return\n?>\n' > "$RUNNER_TEMP/smoke.lc"
+          ./_build/mac/Release/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
+          grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
+
+      - name: Package the build products
+        run: |
+          tar -C _build/mac -cJf "OXT-Beyond-mac-$ARCH-bin.tar.xz" \
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' Release
+
+      - name: Upload the build products
+        uses: actions/upload-artifact@v4
+        with:
+          name: OXT-Beyond-mac-${{ matrix.arch }}-bin
+          path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-mac-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/xcodebuild.log
+            prebuilt/build/**/config.log
+          if-no-files-found: ignore

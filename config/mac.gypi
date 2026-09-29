@@ -3,8 +3,23 @@
 	{
 		'target_sdk%': 'macosx10.8',
 		'host_sdk%': 'macosx',
-		
+
 		'output_dir': '../mac-bin',
+
+		# Oldest macOS each architecture supports: 10.13 is the oldest that
+		# current Xcode deploys to, and Apple Silicon starts at macOS 11
+		'conditions':
+		[
+			[
+				'target_arch == "arm64"',
+				{
+					'mac_deployment_target': '11.0',
+				},
+				{
+					'mac_deployment_target': '10.13',
+				},
+			],
+		],
 	},
 
 	'xcode_config_file': '../version',
@@ -24,8 +39,11 @@
 		'SHARED_PRECOMPS_DIR': '$(OBJROOT)/Precompiled/$(CURRENT_ARCH)',
 		'GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS': 'NO',
 		'ALWAYS_SEARCH_USER_PATHS': 'NO',
-		'MACOSX_DEPLOYMENT_TARGET': '10.9',
+		'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
 		'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
+		# OXT-Beyond: no type-based alias optimisation, as with MSVC on
+		# Windows and -fno-strict-aliasing on Linux (config/linux-settings.gypi)
+		'GCC_STRICT_ALIASING': 'NO',
 		'COPY_PHASE_STRIP': 'NO',
 		'STRIP_INSTALLED_PRODUCT': 'NO',
 		'CLANG_LINK_OBJC_RUNTIME': 'NO',
@@ -80,8 +98,8 @@
 						[
 							'-Wl,-platform_version',
 							'-Wl,macos',
-							'-Wl,10.9',
-							'-Wl,10.9',
+							'-Wl,<(mac_deployment_target)',
+							'-Wl,11.0',
 						],
 					},
 				},
@@ -213,7 +231,7 @@
 		{
 			'xcode_settings':
 			{
-				'ARCHS': 'x86_64',
+				'ARCHS': '<(target_arch)',
 				'ONLY_ACTIVE_ARCH': 'YES',
 				'GCC_OPTIMIZATION_LEVEL': '0',
 			},
@@ -223,7 +241,7 @@
 		{
 			'xcode_settings':
 			{
-				'ARCHS': 'x86_64',
+				'ARCHS': '<(target_arch)',
 				'GCC_OPTIMIZATION_LEVEL': '3',
 				'GCC_ENABLE_FIX_AND_CONTINUE': 'NO',
 			},
@@ -233,7 +251,7 @@
 		{
 			'xcode_settings':
 			{
-				'ARCHS': 'x86_64',
+				'ARCHS': '<(target_arch)',
 				'GCC_OPTIMIZATION_LEVEL': '0',
 				'GCC_ENABLE_FIX_AND_CONTINUE': 'NO',
 			},
