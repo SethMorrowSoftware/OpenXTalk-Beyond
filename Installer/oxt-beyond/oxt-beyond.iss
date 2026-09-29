@@ -100,6 +100,10 @@
 AppId={{6CB5C1F5-4B20-43EF-B5F6-1C0C2C07B803}
 AppName={#AppName}
 AppVersion={#AppVersion}
+; "OXT-Beyond 0.0.1" in the wizard and in Settings > Apps, instead of Inno
+; Setup's default "OXT-Beyond version 0.0.1".
+AppVerName={#AppName} {#AppVersion}
+UninstallDisplayName={#AppName} {#AppVersion}
 AppPublisher=OXT-Beyond contributors
 AppPublisherURL={#RepoUrl}
 AppSupportURL={#RepoUrl}/issues
