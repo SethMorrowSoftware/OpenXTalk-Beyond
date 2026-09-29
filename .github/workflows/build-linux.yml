@@ -72,9 +72,11 @@ jobs:
             libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
             libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
             libexpat1-dev libgtk2.0-dev libpopt-dev liblcms2-dev
-          gcc --version | head -1
+          # (sed rather than head: GitHub's bash uses pipefail, and head
+          # closing the pipe early would fail the step with SIGPIPE)
+          gcc --version | sed -n 1p
           python --version
-          ldd --version | head -1
+          ldd --version | sed -n 1p
           echo "Processors: $(nproc)"
 
       - name: Check out
@@ -169,7 +171,7 @@ jobs:
           [ "$missing" = 0 ]
           file "$B/LiveCode-Community" "$B/standalone-community"
           # Save as Standalone only accepts non-PIE engines (deploy_linux.cpp)
-          readelf -h "$B/standalone-community" | grep -q 'EXEC (Executable file)'
+          readelf -h "$B/standalone-community" | grep 'EXEC (Executable file)'
           echo "Highest glibc versions required:"
           objdump -T "$B/LiveCode-Community" "$B/standalone-community" "$B/server-community" \
             | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
