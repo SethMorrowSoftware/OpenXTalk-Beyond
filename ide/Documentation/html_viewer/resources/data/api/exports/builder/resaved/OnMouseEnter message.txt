@@ -1,0 +1,19 @@
+OnMouseEnter
+(message)
+Sent when the mouse pointer enters the widget's rect.
+
+Syntax:
+OnMouseEnter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer enters the widget's rect.
+
+Values:
+
+OS:

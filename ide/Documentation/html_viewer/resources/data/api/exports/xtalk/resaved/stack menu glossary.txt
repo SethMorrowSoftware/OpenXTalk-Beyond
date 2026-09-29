@@ -1,0 +1,18 @@
+stack menu
+(glossary)
+
+Syntax:
+Synonyms:
+stack menu, panel menu, menu panel
+
+Params:
+
+Examples:
+Description:
+A menu built from button|buttons placed in a stack.
+
+Stack menus can be displayed in the menu bar, or as popup menu|popup or pulldown menu|menus or combo box|combo boxes.
+
+Values:
+
+OS:

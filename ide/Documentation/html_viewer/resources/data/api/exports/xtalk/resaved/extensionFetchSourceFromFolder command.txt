@@ -1,0 +1,23 @@
+extensionFetchSourceFromFolder
+(command)
+Fetch basic information about extension source from a folder
+
+Syntax:
+extensionFetchSourceFromFolder {pFolder},{rSource},{rSupportFiles},{rType}
+----
+
+Synonyms:
+
+Params:
+pFolder ( ): The folder to search
+rSource ( ): The main source file found
+rSupportFiles ( ): A list of supporting source files found
+rType ( ): The type of extension. - "lcb": A Builder extension - "lcs": A Script extension
+
+Examples:
+Description:
+Fetch basic information about extension source from a folder
+
+Values:
+
+OS:

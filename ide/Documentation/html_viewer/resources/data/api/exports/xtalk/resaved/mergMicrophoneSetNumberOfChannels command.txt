@@ -1,0 +1,21 @@
+mergMicrophoneSetNumberOfChannels
+(command)
+Set the number of channels to record (either mono - 1 channel, or stereo - 2 channels)
+
+Syntax:
+mergMicrophoneSetNumberOfChannels {channelCount}
+----
+
+Synonyms:
+
+Params:
+channelCount ( ):  - Mono  - Stereo
+
+Examples:
+Description:
+ Setting the number of channels only has effect the next time recording is started.
+
+Values:
+
+OS:
+ios,mac

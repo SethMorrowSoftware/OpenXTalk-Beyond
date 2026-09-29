@@ -1,0 +1,27 @@
+ArcsinOperator
+(operator)
+Arcsin operator.
+
+Syntax:
+asin({Operand})
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put the asin(-1) into tVar -- tVar contains -pi/2
+----
+variable tVar as Number
+put the arcsine of 1 into tVar -- tVar contains pi/2
+----
+
+Description:
+The inverse of the sin operator.
+
+Values:
+
+OS:

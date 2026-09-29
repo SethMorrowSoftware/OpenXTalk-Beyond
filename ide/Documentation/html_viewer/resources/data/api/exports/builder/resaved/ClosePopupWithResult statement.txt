@@ -1,0 +1,47 @@
+ClosePopupWithResult
+(statement)
+Closes the current widget popup.
+
+Syntax:
+close popup [ returning {Result} ]
+----
+
+Synonyms:
+
+Params:
+Result ( ): An expression that evaluates to any type. The result of popping up this widget.
+
+Examples:
+variable mSelected
+
+public handler OnClick()
+	variable tOption
+	put getOptionAtPosition(the click position) into tOption
+	if tOption is not empty then
+		put tOption into mSelected
+
+		// If this widget is being used as a popup then we close the popup and return a value to the caller
+		if currently popped up then
+			if mSelected is "Cancel" then
+				// Dismiss the popup without returning a value - the result will be nothing
+				close popup
+			else
+				// Dismiss the popup - the result will be the value of mSelected
+				close popup returning mSelected
+			end if
+		end if
+	end if
+end handler
+
+private handler getOptionAtPosition(in pPosition as Point) returns String
+	// Return the name of the option at the given point
+	...
+end handler
+----
+
+Description:
+Use to close the current popup, and optionally set a return value for the PopupWidget statement that launched it.
+
+Values:
+
+OS:

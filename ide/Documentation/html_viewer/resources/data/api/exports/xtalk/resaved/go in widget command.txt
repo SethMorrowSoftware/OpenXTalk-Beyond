@@ -1,0 +1,28 @@
+go in widget
+(command)
+Navigates forward or backward in a widget.
+
+Syntax:
+go { forward | forth | back[ward] } in {widget}
+----
+
+Synonyms:
+
+Params:
+widget ( ): A widget reference.
+
+Examples:
+// Navigate to previous page in browser widget.
+go back in widget "myBrowser"
+----
+// Return after previous call to "go back"
+go forward in widget "myBrowser"
+----
+
+Description:
+Use the go in widget command to navigate within a widget. OpenXTalk sends a "OnGoBack" or "OnGoForward" message to the widget, which can then handle those messages to provide back / forward navigation.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

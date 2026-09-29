@@ -1,0 +1,33 @@
+RectanglePropertyTop
+(operator)
+The top edge of a rectangle value.
+
+Syntax:
+the top of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+variable tRect
+put rectangle [50,100,150,200] into tRect
+
+// Store the top edge of the rectangle in a variable
+variable tTop
+put the top of tRect into tTop
+
+// Move the rectangle vertically to a new position.
+set the top of tRect to 120
+----
+
+Description:
+The location along the y-axis of the top edge of the rectangle.
+
+*Note:* Setting the top of a rectangle will reposition it without altering the width or height.
+
+Values:
+
+OS:

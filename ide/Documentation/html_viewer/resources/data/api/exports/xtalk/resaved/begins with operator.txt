@@ -1,0 +1,29 @@
+begins with
+(operator)
+The begins with operator takes two strings and returns true if the second string matches the start of the first string.
+
+Syntax:
+{string} begins with {prefix}
+----
+
+Synonyms:
+
+Params:
+string (string ): 
+prefix ( ): 
+
+Examples:
+"foobar" begins with "foo" -- evaluates to true
+----
+"foobar" begins with "food" -- evaluates to false
+----
+
+Description:
+For the expression to evaluate to true the whole of prefix must be present at the beginning of string. For example, if prefix has three characters these must match the first three characters of string (in order).
+
+This operator takes into consideration the current value of the caseSensitive property.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

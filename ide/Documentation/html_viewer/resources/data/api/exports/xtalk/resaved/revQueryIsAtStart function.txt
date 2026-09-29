@@ -1,0 +1,31 @@
+revQueryIsAtStart
+(function)
+Returns whether the beginning of a record set has been reached or not.
+
+Syntax:
+revQueryIsAtStart({recordSetID})
+----
+
+Synonyms:
+revdb_isbof
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+repeat until revQueryIsAtStart(tCursor)
+  ...
+  revMoveToPreviousRecord tCursor
+end repeat
+----
+
+Description:
+Use the revQueryIsAtStart function to stop when you reach the start of a record set.
+
+If the operation is not successful, the revQueryIsAtStart function returns an error message that begins with the string "revdberr".
+
+Values:
+The revQueryIsAtStart function returns true if the revMoveToPreviousRecord command has been called with the cursor pointing to the first record. 
+
+OS:
+mac,windows,linux,ios,android

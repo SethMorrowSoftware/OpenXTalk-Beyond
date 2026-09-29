@@ -1,0 +1,24 @@
+hiliteChanged
+(message)
+Sent when a navigation item is selected
+
+Syntax:
+hiliteChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on hiliteChanged
+	go card the hilitedItemName of me
+end hiliteChanged
+----
+
+Description:
+The hiliteChanged message is sent when the highlighted navigation item changes, either by clicking on the navigation bar or by setting the hilitedItem or hilitedItemName properties.
+
+Values:
+
+OS:

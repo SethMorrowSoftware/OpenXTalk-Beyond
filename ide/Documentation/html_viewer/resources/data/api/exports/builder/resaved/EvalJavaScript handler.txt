@@ -1,0 +1,26 @@
+EvalJavaScript
+(handler)
+Evaluate JavaScript code within the browser
+
+Syntax:
+EvalJavaScript({pScript})
+----
+
+Synonyms:
+
+Params:
+pScript ( ): The script to evaluate
+
+Examples:
+public handler GetInputText() returns String
+	return EvalJavaScript("document.getElementById('myText').value")
+end handler
+----
+
+Description:
+Use EvalJavaScript to get the result of running a block of JavaScript code 
+
+Values:
+A value of any type 
+
+OS:

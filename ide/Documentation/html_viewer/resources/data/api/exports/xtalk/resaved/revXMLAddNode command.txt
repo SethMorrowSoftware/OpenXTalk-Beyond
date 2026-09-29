@@ -1,0 +1,33 @@
+revXMLAddNode
+(command)
+Adds a child node to the specified parent node in an XML tree.
+
+Syntax:
+revXMLAddNode {treeID}, {parentNode}, {nodeName}, {nodeContents}, [{location}]
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the  or   function when you created the XML tree.
+parentNode ( ): The node whose child the node being created will be.
+nodeName ( ): The name of the new node.
+nodeContents ( ): The text to place in the new node.
+location ( ): An optional argument. If it is not present or if it is equal to "after", the node will be added as the last child of parentNode. If location is "before" then the node will be added as the first child of parentNode.
+
+Examples:
+revXMLAddNode 9,"/","Balls",""
+----
+revXMLAddNode myTree,theNode,the short name of me,field "Contents"
+----
+
+Description:
+Use the revXMLAddNode command to add a node to an XML tree.
+
+*Important:*  The revXMLAddNode command is part of the   XML library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+If the revXMLAddNode command encounters an error, the result is set to an error message beginning with "xmlerr". 
+
+OS:
+mac,windows,linux,ios,android

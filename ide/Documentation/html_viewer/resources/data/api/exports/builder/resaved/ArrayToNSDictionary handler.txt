@@ -1,0 +1,21 @@
+ArrayToNSDictionary
+(handler)
+Convert an Array into an Objective-C dictionary
+
+Syntax:
+ArrayToNSDictionary({pArray})
+----
+
+Synonyms:
+
+Params:
+pNumber ( ): The Array to convert
+
+Examples:
+Description:
+Convert an Array into an Objective-C dictionary
+
+Values:
+A Objective-C object of type NSDictionary  Description Use ArrayToNSDictionary to convert a variable of type Array to an Objective-C dictionary object (NSDictionary). 
+
+OS:

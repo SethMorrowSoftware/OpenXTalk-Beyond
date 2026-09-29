@@ -1,0 +1,22 @@
+revXMLRPC_GetParamNode
+(function)
+
+Syntax:
+revXMLRPC_GetParamNode(XMLRPCdocumentID,paramNumber)
+
+Summary:
+Returns the node of a single parameter from an XML-RPC document structure, so you can parse the data using the XML library commands and functions.
+
+Examples
+local tParamNode
+put revXMLRPC_GetParamNode(tResponse,1) into tParamNode
+Relatedfunction: revXMLRPC_Execute
+
+Description:
+Use the revXMLRPC_GetParamNode function to recall the node of a single parameter.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

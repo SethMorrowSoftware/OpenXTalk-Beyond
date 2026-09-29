@@ -1,0 +1,24 @@
+RangeByteOf
+(operator)
+Designates the bytes of data between indices Start and Finish in Target.
+
+Syntax:
+byte {Start} to {Finish} of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Start ( ): An expression which evaluates to a valid integer index of .
+•	Finish ( ): An expression which evaluates to a valid integer index of .
+•	Target ( ): An expression which evaluates to binary data.
+	
+Examples:
+Description:
+Either locates the bytes between the given indices for use as the target container of another operation, or evaluates the bytes at the given indices as the source of another operation.
+
+*Note:* It is an error if either Start or Finish are out of range.
+
+Values:
+
+OS:

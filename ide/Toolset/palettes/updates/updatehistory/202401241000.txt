@@ -1,0 +1,2 @@
+Version 0.99, build 202401241000
+Fixes grid preference, found another bug in the App browser that can lead to a script breakpoint.

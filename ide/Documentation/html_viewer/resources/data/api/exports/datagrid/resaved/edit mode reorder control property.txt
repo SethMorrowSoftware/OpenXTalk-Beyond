@@ -1,0 +1,20 @@
+edit mode reorder control
+(property)
+Set the reorder control to display when the data grid is in edit mode.
+
+Syntax:
+set the dgProp["edit mode reorder control"] of group "Data Grid" to
+the long id of {control}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use edit mode reorder control to specify the reorder control to display when the data grid is in edit mode. This defaults to a grey reorder icon. Set to empty to prevent the reorder control from being displayed, turning dynamic reordering off for the data grid.
+
+Values:
+
+OS:

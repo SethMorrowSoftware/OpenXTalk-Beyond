@@ -1,0 +1,25 @@
+extensionPackageBuilderExtension
+(command)
+Package a Builder extension
+
+Syntax:
+extensionPackageBuilderExtension {pSourceFolder},{pTargetFolder},{pRemoveSource},{pLCCompile},{pLCIPath},{pExtraLCIPaths}
+----
+
+Synonyms:
+
+Params:
+pSourceFolder ( ): The folder containing the extension
+pTargetFolder ( ): The folder to output the extension package
+pRemoveSource ( ): Whether to remove the source files or not
+pLCCompile ( ): The path to the lc-compile program. If empty, this will be computed.
+pLCIPath ( ): The location of the standard library module interface files. If empty, this will be computed.
+pExtraLCIPaths ( ): A list of paths to look for extra module interface files.
+
+Examples:
+Description:
+Package a Builder extension
+
+Values:
+
+OS:

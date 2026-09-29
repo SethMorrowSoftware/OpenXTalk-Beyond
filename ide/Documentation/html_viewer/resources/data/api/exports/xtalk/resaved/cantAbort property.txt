@@ -1,0 +1,30 @@
+cantAbort
+(property)
+Specifies whether the user can halt a handler with a  key combination. 
+
+Syntax:
+set the cantAbort of {stack} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the cantAbort of stack "Critical Functions" to true
+----
+
+Description:
+Use the cantAbort property to prevent users from interrupting any of the handler|handlers in a stack.
+
+If a stack's cantAbort property is set to false, the user can halt a running handler in the stack by pressing Control-period or Control-break (on Windows or Unix) or Command-period (on Mac OS).
+
+If the cantAbort is true, the user cannot interrupt a handler.
+
+*Warning:*  Before setting a stack's cantAbort property to true,  make sure all handler|handlers that may be affected have been  thoroughly tested. If cantAbort is set to true, you cannot interrupt  a runaway handler with the standard key combination.
+
+Values:
+The cantAbort of a stack is true or false. By default, the cantAbort property of newly created stacks is set to false. 
+
+OS:
+mac,windows,linux,ios,android

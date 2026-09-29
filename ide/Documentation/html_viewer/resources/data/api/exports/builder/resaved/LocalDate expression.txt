@@ -1,0 +1,26 @@
+LocalDate
+(expression)
+The local Gregorian date
+
+Syntax:
+the local date
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tDateTime as List
+put the local date into tDateTime
+
+variable tDayOfMonth as Number
+put tDateTime[3] into tDayOfMonth
+----
+
+Description:
+Returns the local date as a list of seven numeric components.  The elements of the list are:  * The year * The month (1-12) * The day of the month (1-31, depending on the month) * The hour (0-23) * The minute (0-59) * The second (0-59) * The offset from UTC in seconds
+
+Values:
+
+OS:

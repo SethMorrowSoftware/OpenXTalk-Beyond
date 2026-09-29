@@ -1,0 +1,33 @@
+RectanglePropertyRight
+(operator)
+The right edge of a rectangle value.
+
+Syntax:
+the right of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+variable tRect
+put rectangle [50,100,150,200] into tRect
+
+// Store the right edge of the rectangle in a variable
+variable tRight
+put the right of tRect into tRight
+
+// Move the rectangle horizontally to a new position.
+set the right of tRect to (tRight + 10)
+----
+
+Description:
+The location along the x-axis of the right edge of the rectangle.
+
+*Note:* Setting the right of a rectangle will reposition it without altering the width or height.
+
+Values:
+
+OS:

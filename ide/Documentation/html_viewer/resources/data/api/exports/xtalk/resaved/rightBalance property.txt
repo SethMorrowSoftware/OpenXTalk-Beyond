@@ -1,0 +1,28 @@
+rightBalance
+(property)
+Specifies the volume of the right stereo channel output of a player control.
+
+Syntax:
+set the rightBalance of {player} to {percentage}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the rightBalance of player "myVideoPlayer" to 100 -- maximum loudness
+----
+
+Description:
+Use the rightBalance property to set the volume of audio played through the right speaker.
+
+Setting the rightBalance to zero turns off audio to the right speaker.
+
+**Important:** This property only has an effect on media files that contain stereo audio tracks.  Mono audio tracks cannot currently be balanced.
+
+Values:
+The rightBalance is a number between zero and 100. By default, the rightBalance property is 100. 
+
+OS:
+mac

@@ -1,0 +1,20 @@
+RowSwipeShowControlForIndexAndSide
+(command)
+Display the data grid swipe control on the given side of the row with the given index.
+
+Syntax:
+dispatch "RowSwipeShowControlForIndexAndSide" to group "DataGrid" with
+{row index}, {"left" | "right"}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Display the data grid swipe control on the given side of the row with the given index. enable swipe must be true for swipe controls to be displayed.
+
+Values:
+
+OS:

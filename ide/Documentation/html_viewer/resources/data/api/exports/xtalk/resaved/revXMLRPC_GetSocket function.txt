@@ -1,0 +1,27 @@
+revXMLRPC_GetSocket
+(function)
+
+Syntax:
+revXMLRPC_GetSocket(XMLRPCdocumentID)
+
+Summary:
+This function returns the socket of an XML-RPC document.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+put revXMLRPC_GetSocket(theRequest) into theSocket
+
+The revXMLRPC_GetSocket function returns the socket connection that is established with the host. By default, XML-RPC uses the
+to execute an XML-RPC request, but this has the overhead of opening and closing a new socket every time. You can avoid this by re-using an already opened socket.
+
+Description:
+Use the revXMLRPC_GetSocket function to retrieve the network socket used in the execution of an XML-RPC request.
+
+If the revXMLRPC_GetSocket function encounters an error, it returns an error message starting with "xmlrpcerr" ..

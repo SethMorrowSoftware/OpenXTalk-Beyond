@@ -1,0 +1,37 @@
+RepeatForEach
+(control structure)
+Executes a list of statements until the Iterator is exhausted.
+
+Syntax:
+repeat for each {Iterator} in {Container}
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+Iterator ( ): Any iterator expression.
+Container ( ): The container over which to iterate.
+StatementList ( ): A set of statements.
+
+Examples:
+	variable tElement
+	variable tNumbers as list
+	put the empty list into tNumbers
+
+	repeat for each element tElement in ["a", 1, 2, 3, "b", "c", 4]
+		if tElement is a number then
+			push tElement onto tNumbers
+		end if
+	end repeat
+
+	// tNumbers contains [1, 2, 3, 4]
+----
+
+Description:
+Use the repeat for each control structure to iterate though the chars of a string, bytes of data, elements of a list or array, or keys of an array. *Note:* The variable which contains the iterand must be declared prior to being used in the repeat loop.
+
+Values:
+
+OS:

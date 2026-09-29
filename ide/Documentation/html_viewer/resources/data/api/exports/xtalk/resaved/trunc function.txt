@@ -1,0 +1,31 @@
+trunc
+(function)
+return|Returns the integer part of a number.
+
+Syntax:
+the trunc of {number}
+----
+trunc({number})
+----
+
+Synonyms:
+
+Params:
+number ( ): Any number, or expression that evaluates to a number.
+
+Examples:
+trunc(33.567) -- returns 33
+----
+trunc(-6.3) -- returns -6
+----
+
+Description:
+Use the trunc function to round a number down.
+
+The trunc function is different from round in that truncation completely ignores the fractional part of the number. For example, round(4.9) return(glossary)|returns 5, but trunc(4.9) return(glossary)|returns 4. This means that the trunc function does not always return(constant) the integer closest to the number.
+
+Values:
+The trunc function return|returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

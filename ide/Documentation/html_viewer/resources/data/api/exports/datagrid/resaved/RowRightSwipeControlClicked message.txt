@@ -1,0 +1,38 @@
+RowRightSwipeControlClicked
+(message)
+Sent when the right hand side data grid swipe control is clicked.
+
+Syntax:
+on RowRightSwipeControlClicked pTarget
+----
+
+Synonyms:
+
+Params:
+pTarget ( ): The target of the click. Use this to determine where in the action control the user clicked.
+
+Examples:
+on RowRightSwipeControlClicked
+   dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+end RowRightSwipeControlClicked
+
+on RowRightSwipeControlClicked pTarget
+   switch the name of the target
+      case "show"
+         dispatch "DeleteIndex" to group "DataGrid" with the dgIndex of me
+         break
+      case "archive"
+         dispatch "RowSwipeHideControl" to group "DataGrid"
+         break
+   end switch
+end RowRightSwipeControlClicked
+----
+
+Description:
+RowRightSwipeControlClicked is sent to your data grid's custom row template when the user clicks on the right hand side swipe control. Handle RowRightSwipeControlClicked if you want to perform a custom action on click.
+
+The default action is to delete the current row.
+
+Values:
+
+OS:

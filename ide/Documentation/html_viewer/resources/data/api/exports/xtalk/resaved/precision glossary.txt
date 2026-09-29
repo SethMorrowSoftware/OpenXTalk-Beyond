@@ -1,0 +1,16 @@
+precision
+(glossary)
+
+Syntax:
+Synonyms:
+precision
+
+Params:
+
+Examples:
+Description:
+The number of decimal places to which a number can be computed.
+
+Values:
+
+OS:

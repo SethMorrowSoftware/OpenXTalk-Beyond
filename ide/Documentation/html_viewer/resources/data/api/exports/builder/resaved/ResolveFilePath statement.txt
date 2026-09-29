@@ -1,0 +1,34 @@
+ResolveFilePath
+(statement)
+Resolves a file path relative to a script object.
+
+Syntax:
+resolve file {FilePath} [ relative to {Object} ]
+----
+
+Synonyms:
+
+Params:
+FilePath ( ): A string relative or full file path.
+Object ( ): The string describing the script object.
+
+Examples:
+variable tObject as ScriptObject
+resolve script object "this stack"
+put the result into tObject
+variable tIconPath as String
+if tObject exists then
+    resolve file "images/icon.png" relative to tObject
+    put the result into tIconPath
+end if
+----
+
+Description:
+Use the ResolveFilePath|resolve file path statement to resolve a relative file path in LCB using the same file path resolution semantics used by LCS. If no object is specified the file path will be resolved relative to either `the defaultStack` or if in a widget handler the stack the current widget is on.
+
+*Note:* An error is thrown if this syntax is used in a context where access to script objects is not allowed.
+
+Values:
+The resolved file path string. 
+
+OS:

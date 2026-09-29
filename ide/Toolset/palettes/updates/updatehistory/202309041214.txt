@@ -1,0 +1,2 @@
+Version 0.92, build 202309041214
+Changes the LC icon to an OXT Lite (purple) icon.

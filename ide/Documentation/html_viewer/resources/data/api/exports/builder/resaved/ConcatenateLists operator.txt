@@ -1,0 +1,25 @@
+ConcatenateLists
+(operator)
+Concatenate two lists. LeftList:The List to go at the start of the resulting list. RightList:The List to go at the end of the resulting list.
+
+Syntax:
+{Left} & {Right}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar
+put ["a", "b"] & ["c", "d"] into tVar
+-- tVar contains ["a", "b", "c", "d"]
+----
+
+Description:
+Returns a newly-created list consisting of the elements of LeftList followed by the elements of RightList.
+
+Values:
+A newly created List built from LeftList and RightList. 
+
+OS:

@@ -1,0 +1,30 @@
+outputTextEncoding
+(property)
+The outputTextEncoding property determines what text conversion to perform when writing text strings to stdout.
+
+Syntax:
+set the outputTextEncoding to {textEncoding}
+----
+
+Synonyms:
+
+Params:
+textEncoding (enum ): The type of text encoding to use.
+
+Examples:
+set the outputTextEncoding to "utf8"
+----
+put the outputTextEncoding into tCurrentTextEncoding
+----
+
+Description:
+Use the outputTextEncoding property to determines what text conversion to perform when writing text strings to stdout.
+
+outputTextEncoding is only available when running in CGI mode (Server).
+
+*Note:* The naming of the encodings here corresponds directly to the  IANA assigned charset names which is why they are perhaps slightly  different from text encoding naming elsewhere in the engine. 
+
+Values:
+
+OS:
+mac,windows,linux

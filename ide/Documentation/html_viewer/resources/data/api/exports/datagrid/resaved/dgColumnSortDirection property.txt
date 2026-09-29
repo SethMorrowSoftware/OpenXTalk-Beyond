@@ -1,0 +1,19 @@
+dgColumnSortDirection
+(property)
+Get/set the direction of the sort for the column.
+
+Syntax:
+put the dgColumnSortDirection["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the direction of the sort for the column. Valid values are 'ascending' or 'descending'.
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+iconPath
+(property)
+The path data displayed by the SVG path widget.
+
+Syntax:
+set the iconPath of {widget} to {pSVGPath}
+get the iconPath of {widget}
+----
+
+Synonyms:
+
+Params:
+pSVGPath ( ): A string containing valid SVG path syntax.
+
+Examples:
+-- Create a filled triangle
+set the iconPath of widget "SVG Icon" to "M150 0 L75 200 L225 200 Z"
+----
+
+Description:
+The SVG path string to be displayed by the SVG path widget.
+
+See https://www.w3.org/TR/SVG/paths.html#PathData for the SVG path data specification.
+
+Values:
+
+OS:

@@ -1,0 +1,2 @@
+Version 1.07, build 202408171718
+(Multiple files to download). This gives you a scrollable "Release Notes" stack - so you can see new and previous changes to the IDE.

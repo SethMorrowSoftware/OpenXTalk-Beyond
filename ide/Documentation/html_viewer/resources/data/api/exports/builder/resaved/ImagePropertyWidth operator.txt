@@ -1,0 +1,29 @@
+ImagePropertyWidth
+(operator)
+The width of an image.
+
+Syntax:
+the width of {mImage}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+
+Examples:
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// Get the image width
+variable tWidth as Integer
+put the width of tImage into tWidth
+----
+
+Description:
+The width of the image in pixels.
+
+Values:
+
+OS:

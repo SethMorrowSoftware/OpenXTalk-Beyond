@@ -1,0 +1,22 @@
+DefaultOutputStream
+(expression)
+Default output stream.
+
+Syntax:
+the output stream
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The default output stream for output from the program.
+
+In command-line programs, this is usually used to output the results of running the program.  In CGI programs running on servers, this is usually used to output the data to be sent to the client.
+
+Values:
+The default output stream. 
+
+OS:

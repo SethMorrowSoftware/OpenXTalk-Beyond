@@ -1,0 +1,20 @@
+revEnvironmentToolsetPath
+(function)
+Get the path of the IDE Toolset folder which contains IDE Stacks and Libraries
+
+Syntax:
+revEnvironmentToolsetPath()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the revEnvironmentToolsetPath function to get the path of the IDE Toolset folder which contains IDE Stacks and Libraries that make up IDE Windows, Menus, and Palettes.
+
+Values:
+the path of the IDE Toolset folder 
+
+OS:

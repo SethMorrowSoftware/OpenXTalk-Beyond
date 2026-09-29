@@ -1,4 +1,4 @@
-﻿script "revInspectorBehavior"
+﻿script "revInspectorBehavior" with behavior "revPaletteBehavior"
 constant kMaxLabelSize = 200
 
 # The inspector data
@@ -38,9 +38,26 @@ before openStack
       end if
    end repeat
    set the stackfiles of me to tStackFiles
+   -- HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
+   -- tperry 17-1-2026 (not very elegant, but it works to combat the bug)
+   if the name of this stack contains "revPropertyPopup" then
+      if there is a stack "revPropertyInspector 1" then
+         send gluetoLeft to me in 10 milliseconds
+         -- we have to send this with a delay for it to work
+      end if
+   end if
    revIDEPopDefaultFolder
    put true into sStackIsInFront
+   
+   if the platform is "linux" then send tFixUpInspector to me in 1 millisecond
+   send hFixPropertyPopup to me in 1 millisecond
+   
+   updateInspector
 end openStack
+
+on gluetoLeft
+   set the right of this stack to the left of stack "revPropertyInspector 1"
+end gluetoLeft
 
 on resizeInspector
    lock screen
@@ -51,6 +68,18 @@ end resizeInspector
 constant kInspectorMinHeight = 200
 constant kInspectorMinWidth = 220
 on inspectorOpenEditor pEditor
+   
+  tCheckBuntuEditing -- #workaround bug with inspector under Ubuntu (tperry 02-09-2023)
+   
+/*
+   # check for wd probs in icewm (tperry 27-6-24)
+   if the platform contains "linux" then
+      if $DESKTOP_SESSION_WM contains "icewm" then
+         set the style of this stack to modeless
+      end if
+   end if
+  
+*/ 
    # Check if the stack is already open
    if there is a stack pEditor then exit inspectorOpenEditor
    
@@ -83,6 +112,7 @@ end inspectorOpenEditor
 
 # Layout inspector
 on inspectorLayout pForceHeight
+   
    //put "layout inspector" & return after msg
    lock screen
    
@@ -338,6 +368,8 @@ on inspectorLayoutGroups pGroupList, pForceHeight
    # adapt right size of controls to vScrollbar on and off
    if tvScrollChanged then resizeInspector
    
+   -- reset the effects palette between uses (tperry 10-1-2025)
+   send hFixPropertyPopup to this stack in 1 millisecond
    unlock screen
 end inspectorLayoutGroups
 
@@ -435,6 +467,7 @@ private on inspectorGenerate
    else
       inspectorGenerateGroups tPropertyData["grouplist"]
    end if
+
 end inspectorGenerate
 
 on tabKey
@@ -609,8 +642,10 @@ on inspectorChanged
    
    # Layout
    inspectorLayout true
-   
+ 
+
    unlock screen
+   send hFixPropertyWithClose to this stack in 1 millisecond
 end inspectorChanged
 
 # Sent when the user changes the section
@@ -625,6 +660,8 @@ on inspectorSectionChanged pSection
    inspectorSectionSet pSection
    
    inspectorChanged
+   
+   send hFixPropertyWithClose to this stack in 1 millisecond
 end inspectorSectionChanged
 
 on updateFocusedEditor
@@ -692,6 +729,7 @@ on inspectorClear
    end repeat
    
    rowLabelWidthSet 0
+   --set the tHasBeenCorrected of this stack to false
    unlock messages
    unlock screen
 end inspectorClear
@@ -752,3 +790,90 @@ on ideStyleTextRequest pWhich, pValue, pSelectedChunk, pSelectedObject
       end if
    end if
 end ideStyleTextRequest
+
+
+on faultlog
+   if there is a cd fld "result" of wd "debug" then put the ticks into cd fld "result" of wd "debug"
+end faultlog
+
+
+on tCheckBuntuEditing
+   -- tperry 16-1-23 (found a better way to do this)
+   -- so this is ignored
+   exit tCheckBuntuEditing
+   /*
+   if the platform contains "linux" then
+      if $desktop_session contains "ubuntu" then
+         -- we are going to ignore what's set in the preferences
+         -- we need to hide the message box and the Inspector palette
+         put  the openstacks into tStackList
+         if tStackList contains "revNewScriptEditor 1"then
+            if tStackList contains "Message Box" then hide message box
+            if there is a stack "revPropertyInspector 1" then
+               if the visible of stack "revPropertyInspector 1" is true then
+                  close stack "revPropertyInspector 1"
+               end if
+            end if
+         end if
+      end if
+   end if
+   */
+end tCheckBuntuEditing
+
+on tFixUpInspector
+   -- ignore this
+end tFixUpInspector
+
+on hFixPropertyPopup
+   -- this resets the property popup stack between uses
+   local tFXCount
+   local fxNames
+   set the itemdelimiter to ","
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay,fillGradient,strokeGradient" into fxNames
+   put 0 into tFXCount
+   repeat the number of items in fxNames
+      add 1 to tFXCount
+      put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
+      set the destroystack of stack tTryDestroyAndCloseStack to true
+   end repeat
+end hFixPropertyPopup
+
+
+on hFixPropertyWithClose
+   lock screen
+   lock messages
+   -- this resets the property popup stack between uses & CLOSES
+   -- experimental. Will refine
+   local tFXCount
+   local fxNames
+   set the itemdelimiter to ","
+   put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay,fillGradient,strokeGradient" into fxNames
+   put 0 into tFXCount
+   repeat the number of items in fxNames
+      add 1 to tFXCount
+      put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
+      set the destroystack of stack tTryDestroyAndCloseStack to true
+      try
+         close stack tTryDestroyAndCloseStack
+      catch e
+      end try
+   end repeat
+   unlock messages
+   
+   unlock screen
+end hFixPropertyWithClose
+
+on updateInspector
+   
+   -- should this be coloured?
+   -- we attempt to set the card backgroundcolor (requested by Richmond 10-3-2025)
+   if the cInspectorBackgroundColor of stack "revPreferences" is not "" then
+      try
+         put the cInspectorBackgroundColor of stack "revPreferences" into tColValue
+         set the backgroundcolor of this stack to tColValue
+      catch e
+      end try
+   else
+      set the backgroundcolor of this stack to ""
+   end if
+end updateInspector

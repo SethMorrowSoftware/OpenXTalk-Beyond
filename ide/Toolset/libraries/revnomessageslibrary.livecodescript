@@ -564,15 +564,29 @@ on closeStackRequest
 end closeStackRequest
 
 on quitMC
-  if revOKTarget() then pass quitMC
-  try
-    if "quitMC" is among the lines of the cREVGeneral["handlerlist"] of stack "revFrontScriptLibrary" then send "quitMC" to stack "revFrontScriptLibrary"
-    if "quitMC" is among the lines of the cREVGeneral["handlerlist"] of stack "revBackScriptLibrary" then send "quitMC" to stack "revBackScriptLibrary"
-  catch tError
-    if gREVDevelopment then
-      writeError (tError)
-    end if
-  end try
+   -- #bug on exit with older macOS?
+   if the platform contains "mac" then
+      put the systemversion into tMacOSvers
+      replace "." with "" in tMacOSvers
+      if tMacOSvers < 1080 then
+         -- force quit (tperry)
+         -- OXT-Beyond: kill this process by its id; matching the name
+         -- "OpenXTalk Lite" would also kill other OpenXTalk Lite copies
+         set the hideconsolewindows to true
+         put shell("kill -9" && the processID)
+      end if
+   end if
+   
+   if revOKTarget() then pass quitMC
+   
+   try
+      if "quitMC" is among the lines of the cREVGeneral["handlerlist"] of stack "revFrontScriptLibrary" then send "quitMC" to stack "revFrontScriptLibrary"
+      if "quitMC" is among the lines of the cREVGeneral["handlerlist"] of stack "revBackScriptLibrary" then send "quitMC" to stack "revBackScriptLibrary"
+   catch tError
+      if gREVDevelopment then
+         writeError (tError)
+      end if
+   end try
 end quitMC
 
 on playStopped

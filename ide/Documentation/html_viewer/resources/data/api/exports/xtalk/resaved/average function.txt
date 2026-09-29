@@ -1,0 +1,36 @@
+average
+(function)
+return|Returns the arithmetic mean of a list of numbers.
+
+Syntax:
+average({numbersList})
+----
+
+Synonyms:
+avg, arithmeticmean, mean
+
+Params:
+numbersList ( ): A comma-separated list of numbers, or an expression that evaluates to such a list, or an array containing only numbers.
+
+Examples:
+average(4,36,45,50,75) -- returns 42
+----
+put average(importedList) into field "Arithmetic Mean"
+----
+put average(replaceText(field "Values",return,comma)) into avgValue
+----
+
+Description:
+Use the average function to find the value(function) that best represents a group of value(glossary)|values.
+
+The average of a list of numbers is the sum of the items in the list or elements in the array, divided by the number of items or elements.
+
+The average function can also be written like this:      sum(numbersList)/the number of items in numbersList   If the numbersList is empty, the average function returns zero.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The average function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

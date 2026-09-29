@@ -1,0 +1,30 @@
+mobileGetKeyboardDisplay
+(function)
+Get the mode in which the keyboard is displayed
+
+Syntax:
+mobileSetKeyboardDisplay()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on keyboardActivated
+   if mobileGetKeyboardDisplay() is "over" then
+      layoutUI
+   end if
+end keyboardActivated
+----
+
+Description:
+Use the mobileSetKeyboardDisplay command to configure the move of keyboard display.
+
+Values:
+The mode of keyboard display to use. One of:  
+"over": Display the keyboard over the current stack rect
+"pan": Pan the stack up so that the rect of the foucused object will be visible above the keyboard
+
+OS:
+ios,android

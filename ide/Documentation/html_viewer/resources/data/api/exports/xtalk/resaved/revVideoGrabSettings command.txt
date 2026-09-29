@@ -1,0 +1,28 @@
+revVideoGrabSettings
+(command)
+Puts the current video capture settings, stored as binary file|binary data, into a variable.
+
+Syntax:
+revVideoGrabSettings {dataVariable}
+----
+
+Synonyms:
+
+Params:
+dataVariable ( ): The name of an existing variable.
+
+Examples:
+local tSettings
+revVideoGrabSettings "tSettings"
+set the savedVideoSettings of this card to tSettings
+put tSettings into URL "binfile:/Data/Video Settings.dat"
+----
+
+Description:
+The revVideoGrabSettings command is deprecated, and does not return a meaningful value.
+
+*Important:*  The revVideoGrabSettings command is part of the   Video library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the  "Video Grabber"   library checkbox is checked.
+
+Values:
+
+OS:

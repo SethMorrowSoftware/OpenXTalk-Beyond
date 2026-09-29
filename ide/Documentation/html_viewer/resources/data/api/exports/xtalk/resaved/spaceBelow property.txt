@@ -1,0 +1,25 @@
+spaceBelow
+(property)
+Determines the space below a paragraph in a field.
+
+Syntax:
+set the spaceBelow of {line} of {field} to {pixels}
+----
+
+Synonyms:
+
+Params:
+pixels (integer ): The number of pixels of space below the paragraph.
+
+Examples:
+set the spaceBelow of line 1 of field 1 to 20
+----
+
+Description:
+Use the spaceBelow property to specify the amount of space below a paragraph of text in a field.
+
+Values:
+The spaceBelow of a line of text in a field returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

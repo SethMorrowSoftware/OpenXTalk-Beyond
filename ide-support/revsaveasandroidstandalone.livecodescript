@@ -57,26 +57,27 @@ private function pathIsRelative pPath
    return true
 end pathIsRelative
 
-// IM-2013-05-21: [[ BZ 10904 ]] This function replicates the functionality of the apkbuilder script which has now been removed from the Android SDK platform tools
+// Modern APK assembly: copy asset archive as base, then add classes.dex and native libs via zip
 private command buildAPK pUnalignedApkFile, pUnsignedParam, pAssetArchive, pClassesFile, pLibsBuildFolder
-   local tResult, tSep
-   if the platform is "Win32" then 
-      put ";" into tSep
-   else
-      put ":" into tSep
+   -- Copy asset archive as base APK
+   put url ("binfile:" & pAssetArchive) into url ("binfile:" & pUnalignedApkFile)
+   
+   -- Add classes.dex at root
+   local tOldFolder
+   put the folder into tOldFolder
+   set the folder to item 1 to -2 of pClassesFile
+   executeShellCommand "zip", "-j", pUnalignedApkFile, item -1 of pClassesFile
+   set the folder to tOldFolder
+   
+   -- Add native libs if present
+   if there is a folder pLibsBuildFolder then
+      local tParentFolder
+      set the itemDelimiter to slash
+      put item 1 to -2 of pLibsBuildFolder into tParentFolder
+      executeShellCommand "sh", "-c", "cd " & quote & tParentFolder & quote & " && zip -r " & quote & pUnalignedApkFile & quote & " lib/"
    end if
    
-   // We need the 'common' classes to fix the following exception
-   /*
-   Exception in thread "main" java.lang.NoClassDefFoundError: com/android/prefs/AndroidLocation
-	at com.android.sdklib.internal.build.DebugKeyProvider.getDefaultKeyStoreOsPath(DebugKeyProvider.java:122)
-	at com.android.sdklib.build.ApkBuilder.getDebugKeystore(ApkBuilder.java:944)
-	at com.android.sdklib.build.ApkBuilderMain.main(ApkBuilderMain.java:129)
-    Caused by: java.lang.ClassNotFoundException: com.android.prefs.AndroidLocation
-   */
-   executeShellCommand pathToJava(), "-Xmx128M", "-classpath", pathToSDKClasses() & tSep & pathToCommonClasses(), "com.android.sdklib.build.ApkBuilderMain", pUnalignedApkFile, pUnsignedParam, "-v", "-z", pAssetArchive, "-f", pClassesFile, "-nf", pLibsBuildFolder
-   put the result into tResult
-   return tResult
+   return empty
 end buildAPK
 
 private function updateMinimumAPI pVersionSet, pLimit
@@ -458,10 +459,10 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       
       local tService, tReceiver
       -- MW-2017-06-13: add generic service
-      put "<service android:enabled=" & quote & "true" & quote && "android:name=" & quote & ".mblandroidservice" & quote & "/>" & return after tService
+      put "<service android:enabled=" & quote & "true" & quote && "android:name=" & quote & ".mblandroidservice" & quote && "android:exported=" & quote & "false" & quote & "/>" & return after tService
       
       -- IM-2012-02-28: need barebones receiver for local notifications
-      put "<receiver android:name="&quote&"AppReceiver"&quote&">" into tReceiver
+      put "<receiver android:name="&quote&"AppReceiver"&quote&" android:exported="&quote&"false"&quote&">" into tReceiver
       --      if tBilling then
       --         -- create service & receiver sections for billing support
       --         put "<service android:name="&quote&"AppService"&quote&" />" into tService
@@ -657,7 +658,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
          throw "could not create billing support class"
       end if
       put tClassFile & return after tBuiltClassFiles
-      executeShellCommand pathToJavaC(), "-target 1.5 -source 1.5 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
+      executeShellCommand pathToJavaC(), "-target 8 -source 8 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
       if the result is not empty then
          throw "could not compile service support class"
       end if
@@ -672,7 +673,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
          throw "could not create activity class"
       end if
       put tClassFile & return after tBuiltClassFiles
-      executeShellCommand pathToJavaC(), "-target 1.5 -source 1.5 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
+      executeShellCommand pathToJavaC(), "-target 8 -source 8 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
       if the result is not empty then
          throw "could not compile application class"
       end if
@@ -690,7 +691,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       end if
       put tClassFile & return after tBuiltClassFiles
       
-      executeShellCommand pathToJavaC(), "-target 1.5 -source 1.5 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
+      executeShellCommand pathToJavaC(), "-target 8 -source 8 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tClassFile
       if the result is not empty then
          throw "could not compile billing support class"
       end if
@@ -732,7 +733,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
          end if
          put tPushReceiverClassFile & return after tBuiltClassFiles
          
-         executeShellCommand pathToJavac(), "-target 1.5 -source 1.5 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tPushReceiverClassFile
+         executeShellCommand pathToJavac(), "-target 8 -source 8 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tPushReceiverClassFile
          if the result is not empty then
             throw "could not compile push notification support class"
          end if
@@ -753,7 +754,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       end if
       put tProviderClassFile & return after tBuiltClassFiles
       
-      executeShellCommand pathToJavac(), "-target 1.5 -source 1.5 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tProviderClassFile
+      executeShellCommand pathToJavac(), "-target 8 -source 8 -Xlint:none -d", tClassesBuildFolder, "-cp", tClassPath, tProviderClassFile
       if the result is not empty then
          throw "could not compile app content provider" & return & the result
       end if
@@ -846,10 +847,38 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       
       local tClassesFile
       put tBuildFolder & slash & "classes.dex" into tClassesFile
-      executeShellCommand pathToDex(), "--dex", "--output=" & quote & tClassesFile & quote, tClassesBuildFolder, tLiveCodeClassesFile, tLibsBuildFolder
-      if the result is not empty then
-         throw "could not encode class bundle"
+      local tDexOutFolder
+      put tBuildFolder & slash & "dexout" into tDexOutFolder
+      create folder tDexOutFolder
+      
+      local tDexParams
+      appendToList "--output", tDexParams
+      appendToList tDexOutFolder, tDexParams
+      appendToList "--lib", tDexParams
+      appendToList pathToRootClasses(), tDexParams
+      -- d8 does not accept directories; enumerate .class files
+      local tClassFiles
+      put shell("find " & quote & tClassesBuildFolder & quote & " -name '*.class'") into tClassFiles
+      repeat for each line tFile in tClassFiles
+         if tFile is not empty then
+            appendToList tFile, tDexParams
+         end if
+      end repeat
+      appendToList tLiveCodeClassesFile, tDexParams
+      repeat for each line tFile in files(tLibsBuildFolder)
+         if tFile ends with ".jar" then
+            appendToList (tLibsBuildFolder & slash & tFile), tDexParams
+         end if
+      end repeat
+      executeShellCommandWithParams pathToDex(), tDexParams
+      
+      if there is not a file (tDexOutFolder & slash & "classes.dex") then
+         throw "could not encode class bundle:" && the result
       end if
+      
+      put url ("binfile:" & tDexOutFolder & slash & "classes.dex") into url ("binfile:" & tClassesFile)
+      delete file (tDexOutFolder & slash & "classes.dex")
+      if there is a folder tDexOutFolder then delete folder tDexOutFolder
       
       ------- Compile the Standalone
       revStandaloneProgress "Building executable..."
@@ -1032,14 +1061,9 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       -- Build the APK
       // IM-2013-05-21: [[ BZ 10904 ]] call our own internal function instead of (removed) apkbuilder script
       buildAPK tUnalignedApkFile, tUnsignedParam, tAssetArchive, tClassesFile, tLibsBuildFolder
-      if the result contains "Debug Certificate Expired" then
-         throw "debug certificate has expired, please refresh"
+      if the result is not empty then
+         throw "apk preparation failed"
       end if
-      repeat for each key tArch in tArchLibsBuildFolders
-         if not (the result contains "=> lib/" & tArch & "/librevandroid.so") then
-            throw "apk preparation failed"
-         end if
-      end repeat
 
       ------- Signing the Package
       if pTarget contains "build" and tKey is not empty then
@@ -1074,14 +1098,22 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
          end if
          put it into tPrivateKeyPassword
          
-         // IM-2014-09-04: [[ Bug 13343 ]] Specify SHA1 when signing APK as specified in android signing docs.
-         executeShellCommand pathToJarSigner(), "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore", tKey, "-storepass", tKeystorePassword, "-keypass", tPrivateKeyPassword, tUnalignedApkFile, tKeystoreAlias
-         if the result begins with "jarsigner error" then
-            throw "signing failed -" && word 4 to -1 of the result
-         else if the result begins with "jarsigner: Certificate chain not found" then
-            throw "signing failed -" && word 2 to -1 of the result
-         else if (the result begins with "jarsigner: key associated with") and (line 1 of the result ends with "not a private key") then
-            throw "signing failed - key password was incorrect or" && word 2 to -1 of the result
+         // Use apksigner if available, otherwise fall back to jarsigner
+         if there is a file pathToApkSigner() then
+            executeShellCommand pathToApkSigner(), "sign", "--ks", tKey, "--ks-pass", "pass:" & tKeystorePassword, "--key-pass", "pass:" & tPrivateKeyPassword, "--ks-key-alias", tKeystoreAlias, tUnalignedApkFile
+            if the result is not empty then
+               throw "signing failed -" && the result
+            end if
+         else
+            // IM-2014-09-04: [[ Bug 13343 ]] Specify SHA1 when signing APK as specified in android signing docs.
+            executeShellCommand pathToJarSigner(), "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore", tKey, "-storepass", tKeystorePassword, "-keypass", tPrivateKeyPassword, tUnalignedApkFile, tKeystoreAlias
+            if the result begins with "jarsigner error" then
+               throw "signing failed -" && word 4 to -1 of the result
+            else if the result begins with "jarsigner: Certificate chain not found" then
+               throw "signing failed -" && word 2 to -1 of the result
+            else if (the result begins with "jarsigner: key associated with") and (line 1 of the result ends with "not a private key") then
+               throw "signing failed - key password was incorrect or" && word 2 to -1 of the result
+            end if
          end if
       end if
       
@@ -1704,6 +1736,11 @@ private function pathToJarSigner pRoot
    dispatch function "pathToJarSigner" to stack kDeployLibrary with pRoot
    return the result
 end pathToJarSigner
+
+private function pathToApkSigner pRoot
+   dispatch function "pathToApkSigner" to stack kDeployLibrary with pRoot
+   return the result
+end pathToApkSigner
 
 private function pathToJar pRoot
    dispatch function "pathToJar" to stack kDeployLibrary with pRoot

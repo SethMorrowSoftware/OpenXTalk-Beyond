@@ -1,0 +1,16 @@
+operation
+(glossary)
+
+Syntax:
+Synonyms:
+operation
+
+Params:
+
+Examples:
+Description:
+An action performed on one or more value|values.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+dayNumberColor
+(property)
+Determines the color of the numbers on the clock during the day
+
+Syntax:
+get the dayNumberColor of {widget}
+----
+set the dayNumberColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the dayNumberColor property to get or set the text color of the numbers on the face of the clock during the day. To determine if the clock is displaying its daytime or night-time colors use the read-only property isDay.
+
+Values:
+
+OS:

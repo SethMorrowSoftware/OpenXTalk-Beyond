@@ -1,0 +1,20 @@
+Get
+(statement)
+Evaluate an expression and put it into the result.
+
+Syntax:
+get {expression}
+----
+
+Synonyms:
+
+Params:
+•	expression ( ): Any expression.
+	
+Examples:
+Description:
+The get statement evaluates the Value expression and returns it as the result of the statement. The value is subsequently available by using TheResult|the result expression.
+
+Values:
+
+OS:

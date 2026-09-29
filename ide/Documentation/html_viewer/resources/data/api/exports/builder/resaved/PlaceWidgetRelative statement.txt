@@ -1,0 +1,30 @@
+PlaceWidgetRelative
+(statement)
+Add a child widget to the parent on a layer relative to that of a previously placed child.
+
+Syntax:
+place {mWidget} ( below | above ) {mOtherWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object.
+mOtherWidget ( ): The child to place  relative to.
+
+Examples:
+variable tNavbar as Widget
+put a new widget "com.livecode.widget.navbar" into tNavbar
+place tNavbar
+
+variable tTreeView as Widget
+put a new widget "com.livecode.widget.treeView" into tTreeView
+place tTreeView below tNavbar
+----
+
+Description:
+Adds a the specified child object to the widget in which the place statement is used. mWidget is placed either below or above the layer on which mOtherWidget is placed, depending on which variant is used.
+
+Values:
+
+OS:

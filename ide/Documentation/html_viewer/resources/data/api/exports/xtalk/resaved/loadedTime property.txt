@@ -1,0 +1,24 @@
+loadedTime
+(property)
+Specifies the time of a sound/movie, up to which the sound/movie can be played. 
+
+Syntax:
+get the loadedTime of player "myPlayer"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put trunc(the loadedTime of me / the duration of me * 100) into tPercentLoaded
+----
+
+Description:
+Use the loadedTime property to find out up to which time a movie or sound can be played.
+
+Values:
+The loadedTime of a player is an integer. 
+
+OS:
+mac,windows

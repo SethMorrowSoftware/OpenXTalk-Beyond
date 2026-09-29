@@ -1,0 +1,30 @@
+TheClickButton
+(expression)
+Determines the mouse button which started the mouse click.
+
+Syntax:
+the ( current ) click button
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+    variable tButton as integer
+    put the click button into tButton
+
+    if tButton is 1 then
+        // do primary button action
+    else
+        // do secondary button action
+    end if
+----
+
+Description:
+Determines the mouse button which started the mouse click.
+
+Values:
+The index of the mouse button which started the mouse click. 
+
+OS:

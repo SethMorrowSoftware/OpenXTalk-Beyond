@@ -1,0 +1,35 @@
+revXMLText
+(function)
+return|Returns the contents of an XML tree as XML text.
+
+Syntax:
+revXMLText({treeID} [, {startNode}] [, {formatted}])
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The the number returned by the revXMLCreateTree or revXMLCreateTreeFromFile function when you created the XML tree.
+startNode ( ): The path to the node where you want to start. If you don't specify a startNode, the revXMLText function starts at the root node and returns the entire XML tree.
+formatted ( ): Whether or not to produce xml with indenting and line breaks, i.e. "pretty-printed". If you don't specify a formatted value, the default is not to format the text, this will result in the xml being output as a single block with no line breaks.
+
+Examples:
+revXMLText(12)
+----
+revXMLText(the xmlID of this card,"/Plants/Trees")
+----
+put revXMLText(tTreeId, ,true) into URL "file:New Customers.xml"
+----
+
+Description:
+Use the revXMLText function to turn an XML tree back into an  XML document.
+
+If the revXMLText function encounters an error, it return|returns an error message starting with "xmlerr".
+
+*Important:*  The revXMLText function is part of the   XML library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+The revXMLText function returns XML text. 
+
+OS:
+mac,windows,linux,ios,android

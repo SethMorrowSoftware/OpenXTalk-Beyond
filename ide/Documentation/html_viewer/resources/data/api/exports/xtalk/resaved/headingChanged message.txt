@@ -1,0 +1,31 @@
+headingChanged
+(message)
+Sent to the current card of the defaultStack when the heading of the device changes.
+
+Syntax:
+headingChanged {pHeading}
+----
+
+Synonyms:
+
+Params:
+pHeading ( ): The heading of the device, in degrees relative to true north if available, otherwise relative to magnetic north
+
+Examples:
+on headingChanged theHeading
+   updateMapPosition theHeading
+   -- update the marker on the map showing the current heading
+end headingChanged
+----
+
+Description:
+Handle the headingChanged message if you want to perform tasks when the heading of the device changes.
+
+The headingChanged message is sent to the current card of the defaultStack when the heading of the device changes.
+
+If heading tracking cannot be started (typically due to a lack of calibration) then a trackingError message is sent instead.
+
+Values:
+
+OS:
+ios,android

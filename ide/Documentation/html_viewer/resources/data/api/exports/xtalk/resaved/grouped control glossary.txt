@@ -1,0 +1,16 @@
+grouped control
+(glossary)
+
+Syntax:
+Synonyms:
+grouped control, grouped button, group's button, grouped field, grouped object
+
+Params:
+
+Examples:
+Description:
+A control, such as a button or field, that is part of a group.
+
+Values:
+
+OS:

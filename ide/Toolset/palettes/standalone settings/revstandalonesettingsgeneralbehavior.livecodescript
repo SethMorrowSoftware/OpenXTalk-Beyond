@@ -63,12 +63,21 @@ on preOpenCard
          end if
       end if
    end if   
-   if tShowTip is empty then put true into tShowTip
+   if tShowTip is empty then put false into tShowTip  -- was true (tperry)
    
-   set the visible of group "generalCommercialTip" to tShowTip
+   set the visible of group "generalCommercialTip" to false
    tipPreferenceSet tShowTip
    tipDisplayUpdate  
    
+   if cd fld "Default Build Folder" is empty then
+      -- fill in desktop folder (tperry 3-10-2024)
+      -- this has been annoying me for years!
+      put specialFolderPath("Desktop") into cd fld "Default Build Folder"
+      put cd fld "Default Build Folder" into myDefaFold
+      set the cRevStandaloneSettings["defaultBuildFolder"] of the topstack to myDefaFold 
+   end if
+   
+   fixUItheme
    pass preOpenCard
 end preOpenCard
 
@@ -87,3 +96,7 @@ on tipPreferenceSet pValue
    set the cIDE_SAGeneralTipShow of stack "revPreferences" to pValue
    set the cIDE_SAGeneralTipLastShown of stack "revPreferences" to the seconds
 end tipPreferenceSet
+
+on fixUItheme
+   -- appearance correction due to engine shortcomings
+end fixUItheme

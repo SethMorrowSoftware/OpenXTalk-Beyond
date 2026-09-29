@@ -1,0 +1,16 @@
+LiveCode
+(glossary)
+
+Syntax:
+Synonyms:
+openxtalk, script
+
+Params:
+
+Examples:
+Description:
+LiveCode is development xTalk environment from LiveCode Ltd. on which OpenXTalk is based. On Sept. 1st 2021 LiveCode Ltd. suddenly cut all support for the Open-Source Community Edition. OpenXTalk IDE is the unofficial/unsupported continuation of that work.
+
+Values:
+
+OS:

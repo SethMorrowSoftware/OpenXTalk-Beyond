@@ -1,0 +1,28 @@
+orientation
+(property)
+Reports whether  a scrollbar is vertical or horizontal--that is, whether its height or width property is greater.
+
+Syntax:
+get the orientation of {scrollbar}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the orientation of scrollbar 2 is vertical then beep
+----
+
+Description:
+Use the orientation property to find out whether a scrollbar is horizontal or vertical.
+
+If the scrollbar's height is greater than or equal to its width, the scrollbar is vertical. If the width is greater than the height, the scrollbar is horizontal.
+
+To change a scrollbar's orientation, change its width and height properties. 
+
+Values:
+The orientation of a scrollbar is "vertical" or "horizontal". This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux

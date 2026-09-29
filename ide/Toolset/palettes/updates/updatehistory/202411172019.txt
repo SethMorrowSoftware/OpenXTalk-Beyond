@@ -1,0 +1,3 @@
+Version 1.09, build 202411172019
+Turned off the option to display the revMenubar with the "Standard Window" type selected. (buttons previously stopped working when dragged via the titlebar). Reported by Richmond.
+Fixed a bug reported by micmac, with the default tool icon. This explains the 'validating preferences' IDE halt on boot.

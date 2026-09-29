@@ -1,0 +1,30 @@
+colorNames
+(function)
+return|Returns a list of the color names you can use in OpenXTalk.
+
+Syntax:
+the colorNames
+----
+colorNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the colorNames
+----
+if field "Color" is not among the lines of the colorNames then beep
+----
+
+Description:
+Use the colorNames property to check whether a particular color name can be used to specify properties such as foregroundColor and backgroundColor.
+
+You can use the color names with the foregroundColor, backgroundColor, focusColor, topColor, bottomColor, hiliteColor, borderColor, shadowColor, selectionHandleColor, accentColor, backdrop, brushColor, and penColor properties.
+
+Values:
+The colorNames function return|returns a list of color names, one per line. 
+
+OS:
+mac,windows,linux,ios,android

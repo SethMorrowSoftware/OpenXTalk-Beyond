@@ -1,0 +1,20 @@
+GetDirectoryEntries
+(operator)
+List the contents of a directory.
+
+Syntax:
+the entries of directory {Directory}
+----
+
+Synonyms:
+
+Params:
+Directory ( ): An expression that evaluates to a filesystem path.
+
+Examples:
+Description:
+Returns a List containing the directory entries of a directory.  The directory must exist.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+ideObjectTypesFromObjectList
+(function)
+A list of the IDE object types corresponding to the list of objects given
+
+Syntax:
+ideObjectTypesFromObjectList({pObjectIDs})
+----
+
+Synonyms:
+
+Params:
+pObjectIDs ( ): A list, one per line, of object IDs
+
+Examples:
+Description:
+A list of the IDE object types corresponding to the list of objects given
+
+Values:
+A list, one per line, of the IDE object types associated with the objects in pObjectIDs 
+
+OS:

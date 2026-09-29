@@ -1,0 +1,23 @@
+undefine
+(command)
+Has no effect and is included for compatibility with import|imported Oracle Media Objects and SuperCard projects.
+
+Syntax:
+undefine {propertyName} of {object}
+----
+
+Synonyms:
+
+Params:
+propertyName ( ): 
+object ( ): 
+
+Examples:
+Description:
+In SuperCard and Oracle Media Objects, the undefine command is used to release a previously-declared custom property.
+
+In OpenXTalk, you can use a custom property without creating it first.
+
+Values:
+
+OS:

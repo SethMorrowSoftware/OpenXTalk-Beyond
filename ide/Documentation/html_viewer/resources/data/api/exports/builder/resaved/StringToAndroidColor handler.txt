@@ -1,0 +1,21 @@
+StringToAndroidColor
+(handler)
+Convert a color string to an integer for Android
+
+Syntax:
+StringToAndroidColor({pString})
+----
+
+Synonyms:
+
+Params:
+pString ( ): The color string
+
+Examples:
+Description:
+Use the StringToAndroidColor handler to convert a string representing a color to an integer that can be used with Android color APIs. 
+
+Values:
+
+OS:
+android

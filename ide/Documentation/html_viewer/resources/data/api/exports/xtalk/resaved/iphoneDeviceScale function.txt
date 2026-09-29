@@ -1,0 +1,24 @@
+iphoneDeviceScale
+(function)
+Returns the scale of the device's screen(relative to a non-Retina display) 
+
+Syntax:
+iphoneDeviceScale()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put iphoneDeviceScale() into theScaleFactor
+----
+
+Description:
+Use the iphoneDeviceScale function to find the scale of the device's screen (relative to a non-Retinal display)  The  iphoneDeviceScale function returns the scale of the device's screen (relative to a non-Retinal display), this is 2 on a retina display and 1 otherwise.
+
+Values:
+The iphoneDeviceScale function returns    - 2 on a retina display    - 1 otherwise  
+
+OS:
+ios

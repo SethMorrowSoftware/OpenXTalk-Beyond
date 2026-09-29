@@ -1,0 +1,16 @@
+negative
+(glossary)
+
+Syntax:
+Synonyms:
+negative
+
+Params:
+
+Examples:
+Description:
+Less than zero. Negative numbers are written with a leading minus sign.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+handle
+(glossary)
+
+Syntax:
+Synonyms:
+handle, handled, handling
+
+Params:
+
+Examples:
+Description:
+To intercept a message or function call. An object(glossary) handles a message or function call if the object|object's script contains a handler for it.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+SortByColumn
+(command)
+Pass in a column to sort by.
+
+Syntax:
+dispatch "SortByColumn" to group "DataGrid" with pColumn
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Pass in a column to sort by. The current sort properties of the column will be used to perform the sort.
+
+Values:
+
+OS:

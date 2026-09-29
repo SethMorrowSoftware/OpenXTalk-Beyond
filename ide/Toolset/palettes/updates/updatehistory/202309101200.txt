@@ -1,0 +1,2 @@
+Version 0.92, build 202309101200
+replacement tool icons, for Linux: tested in 'Lite' 9.6.3 and 9.6.1 based builds

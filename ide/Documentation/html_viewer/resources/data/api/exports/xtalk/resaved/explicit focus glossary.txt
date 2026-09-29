@@ -1,0 +1,18 @@
+explicit focus
+(glossary)
+
+Syntax:
+Synonyms:
+click-to-type focus, click focus, active focus, explicit focus, active-focus, explicit-focus
+
+Params:
+
+Examples:
+Description:
+A mode in which you have to click a window to make it the  active window.
+
+Also called "active focus" or "click-to-type focus".
+
+Values:
+
+OS:

@@ -1,0 +1,20 @@
+iconFamilies
+(handler)
+Returns the available icons families.
+
+Syntax:
+iconFamilies()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The iconFamilies handler returns the names of the families in the icon library.
+
+Values:
+The icon family names for which SVG paths are available, one per line. 
+
+OS:

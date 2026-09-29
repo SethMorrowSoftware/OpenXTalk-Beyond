@@ -1,0 +1,26 @@
+revXMLRPC_DeleteDocument
+(command)
+
+Syntax:
+revXMLRPC_DeleteDocument XMLRPCdocumentID
+
+Summary:
+Deletes an XML-RPC document structure, freeing up the memory of its associated resources.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+revXMLRPC_DeleteDocument theRequest
+
+If the revXMLRPC_DeleteDocument command encounters an error, the result is set to an error message beginning with "xmlerr" or "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_DeleteDocument command to free up memory when you're finished using an XML-RPC document.
+
+Important: The revXMLRPC_DeleteDocument command is part of the XML-RPC library. To ensure that the command works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure the "XML-RPC" library checkbox is checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

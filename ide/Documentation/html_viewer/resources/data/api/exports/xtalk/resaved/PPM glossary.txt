@@ -1,0 +1,16 @@
+PPM
+(glossary)
+
+Syntax:
+Synonyms:
+ppm, .ppm
+
+Params:
+
+Examples:
+Description:
+Portable Pix Map. A color picture format created for the "pbmplus" image conversion program and usually used on Unix|Unix systems.
+
+Values:
+
+OS:

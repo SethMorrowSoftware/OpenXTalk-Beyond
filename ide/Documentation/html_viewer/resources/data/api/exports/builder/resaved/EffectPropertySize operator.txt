@@ -1,0 +1,33 @@
+EffectPropertySize
+(operator)
+The size of an effect.
+
+Syntax:
+the size of {mEffect}
+----
+
+Synonyms:
+
+Params:
+mEffect ( ): An expression which evaluates to an effect.
+
+Examples:
+// Create an effect with size 5
+variable tProps as Array
+put the empty array into tProps
+
+put 5 into tProps["size"]
+
+variable tEffect as Effect
+put outer shadow effect with properties tProps into tEffect
+
+// Set the effect size
+set the size of tEffect to 15
+----
+
+Description:
+The size of mEffect as a number. Size applies to inner shadow, outer shadow, inner glow, and outer glow effect types
+
+Values:
+
+OS:

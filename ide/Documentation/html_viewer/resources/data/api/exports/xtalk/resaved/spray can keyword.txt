@@ -1,0 +1,27 @@
+spray can
+(keyword)
+Designates the paint tool used to add airbrushed color to an image.
+
+Syntax:
+spray can
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+choose spray can tool
+----
+
+Description:
+Use the spray can keyword to paint airbrush strokes with the brushColor.
+
+When using the Spray Can tool, the cursor is the shape specified by the spray property (over stack windows) or an arrow (anywhere else). This tool is used to brush the brushColor (or brushPattern) onto an image in the pattern of the spray.
+
+If you try to paint with the Spray Can tool on a card that has no images, an image object the size of the card is created to hold the painting. If the current card already has one or more images, painting outside the image has no effect.
+
+Values:
+
+OS:
+mac,windows,linux

@@ -1,0 +1,36 @@
+pixelScale
+(property)
+Determines the scaling factor between logical and device pixels.
+
+Syntax:
+set the pixelScale to {scale}
+----
+
+Synonyms:
+
+Params:
+scale ( ): Any positive real number.
+
+Examples:
+on preOpenStack
+   set the pixelScale to 1.5
+end preOpenStack
+----
+set the pixelScale to the systemPixelScale -- Reset the pixelScale to the device pixel scale
+----
+
+Description:
+Use the pixelScale property to set the scale at which your stack is rendered on mobile devices.
+
+Modern mobile devices have screens of varying densities. For example, the iPad and iPad retina both have a logical screen size of 1024x768 pixels. However, the iPad retina has 2048x1536 device pixels. The intention of higher density is not to provide the developer with more screen real estate to work with, but rather to make text and other assets appear crisper.
+
+OpenXTalk reports the screenRect of both iPad and iPad retina in logical pixels (1024x768). When your app runs on the iPad Retina, OpenXTalk renders text, graphics and image assets according to the pixelScale.
+
+The pixelScale property enables you to change the standard behavior and use the additional pixels provided by higher density devices.
+
+*Note:*  The pixelScale is initialised to the systemPixelScale  property on startup but can be modified at any point.
+
+Values:
+
+OS:
+ios,android

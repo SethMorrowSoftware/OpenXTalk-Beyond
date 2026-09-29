@@ -1,0 +1,16 @@
+keycode
+(glossary)
+
+Syntax:
+Synonyms:
+keycode, key code, raw keycode, raw key code
+
+Params:
+
+Examples:
+Description:
+The internal numeric identifier for a key on the keyboard. Each physical key on the keyboard can be identified by its keycode.
+
+Values:
+
+OS:

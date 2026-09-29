@@ -1,0 +1,22 @@
+MinOperator
+(operator)
+Min operator.
+
+Syntax:
+the minimum of {Left} and {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Min operator.
+
+Values:
+The value of Left, if it is less than the value of Right, and the value of Right otherwise. 
+
+OS:

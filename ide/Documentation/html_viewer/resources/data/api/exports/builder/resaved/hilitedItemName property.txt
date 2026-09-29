@@ -1,0 +1,22 @@
+hilitedItemName
+(property)
+The name of the highlighted navigation item
+
+Syntax:
+get the hilitedItemName of {widget}
+----
+set the hilitedItemName of {widget} to {pName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The hilitedItemName is the name of the currently-highlighted navigation item.  If nothing is highlighted, the value is an empty string.
+
+Values:
+The name of the navigation item that is highlighted. 
+
+OS:

@@ -1,0 +1,23 @@
+iconListForFamily
+(handler)
+Return the available icons in the specified icon family.
+
+Syntax:
+iconListForFamily({pFamily})
+----
+
+Synonyms:
+
+Params:
+pFamily ( ): The name of the icon family
+
+Examples:
+Description:
+Return an LCB list of the icon names of the specified family in the  iconsvg library.
+
+For each icon name, the SVG path string can be obtained with iconSVGPathFromName or its corresponding codepoint with iconCodepointFromName.
+
+Values:
+The icon names for which SVG paths are available. 
+
+OS:

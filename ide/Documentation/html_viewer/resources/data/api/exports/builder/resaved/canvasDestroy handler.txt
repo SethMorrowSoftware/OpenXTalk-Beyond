@@ -1,0 +1,19 @@
+canvasDestroy
+(handler)
+Destroys the canvas
+
+Syntax:
+canvasDestroy()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Destroys the canvas by simply assigning nothing to the canvas variable.
+
+Values:
+
+OS:

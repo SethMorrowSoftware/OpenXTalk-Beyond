@@ -1,0 +1,21 @@
+actionNames
+(property)
+The names of the action items
+
+Syntax:
+set the actionNames of {widget} to {pNameList}
+get the actionNames of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the action items
+
+Values:
+A list of names of the action items 
+
+OS:

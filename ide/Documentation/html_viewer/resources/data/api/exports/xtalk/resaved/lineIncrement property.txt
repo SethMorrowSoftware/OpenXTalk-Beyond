@@ -1,0 +1,29 @@
+lineIncrement
+(property)
+Specifies how far a scrollbar scrolls when one of its arrows is clicked. 
+
+Syntax:
+set the lineIncrement of {scrollbar} to {distance}
+----
+
+Synonyms:
+lineinc
+
+Params:
+
+Examples:
+set the lineIncrement of scrollbar "Whole Page" to 100
+----
+
+Description:
+Use the lineIncrement property to change the amount that is scrolled when the scrollbar arrows are clicked.
+
+When the user clicks the arrows at the ends of a scrollbar, the scrollbar moves one line up or down (or to the left or right, for a horizontal scrollbar). Use the lineIncrement property to specify how far the scrollbar thumb moves.
+
+The startValue and endValue properties set the scale used for the lineIncrement, so for example, if the lineIncrement is set to one-hundredth of the difference between the startValue and endValue, clicking an arrow moves the scrollbar one-hundredth of its length.
+
+Values:
+The lineIncrement of a scrollbar(keyword) is a number between the scrollbar(object)|scrollbar's startValue and endValue. By default, the lineIncrement property of newly created scrollbar(object)|scrollbars is set to 512. 
+
+OS:
+mac,windows,linux,ios,android

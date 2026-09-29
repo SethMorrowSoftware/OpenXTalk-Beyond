@@ -1,0 +1,27 @@
+printPaperRectangle
+(property)
+Reports the size of the page that will be printed.
+
+Syntax:
+get the printPaperRectangle
+----
+
+Synonyms:
+printpaperrect
+
+Params:
+
+Examples:
+put the printPaperRectangle into tRectangle
+----
+
+Description:
+Use the printPaperRectangle property to find out the rectangle being printed to in device-co-ordinates, taking the printPaperOrientation into account.
+
+The printPaperRectangle property is read-only and cannot be set. Changing the printMargins will not affect the printPaperRectangle.
+
+Values:
+The printPaperRectangle property contains four comma-separated integers and is in points. The default value reflects the default values of the printPaperSize and printPaperOrientation. The four numbers represent the left, top, right and bottom of the rectangle being printed to. The rectangle is relative to the top-left of the page, and the left and top will currently always be 0. 
+
+OS:
+mac,windows,linux,ios

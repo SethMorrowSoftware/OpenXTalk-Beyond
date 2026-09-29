@@ -1,0 +1,22 @@
+BeginsWithBytes
+(operator)
+Determines whether Target begins with Needle.
+
+Syntax:
+{Target} begins with {Needle}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to binary data.
+Target ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+*Note:* Since the empty data is an initial subsequence of every sequence of bytes, every sequence of bytes begins with the empty data.
+
+Values:
+True if the bytes of Needle occur as an initial subsequence of the bytes of Target, and false otherwise. 
+
+OS:

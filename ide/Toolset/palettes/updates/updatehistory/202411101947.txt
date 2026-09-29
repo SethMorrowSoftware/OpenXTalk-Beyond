@@ -1,0 +1,2 @@
+Version 1.08, build 202411101947
+Changed the IDE's menus to use if statements rather than switch case statements. Experimental, but seems to dodge a memory leak in the engine (Windows largely unaffected). I also updated the links for LCC 9.6.3 in the release notes (these now point to archive.org since Livecode removed their old downloads).

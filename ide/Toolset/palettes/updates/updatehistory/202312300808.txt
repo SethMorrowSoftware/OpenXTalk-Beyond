@@ -1,0 +1,2 @@
+Version 0.97, build 202312300808
+Revmenubar changes. Added various changes to the IDE menus and shortcuts for changing font size. Also fixed the representation of a window UI in the inspector window.

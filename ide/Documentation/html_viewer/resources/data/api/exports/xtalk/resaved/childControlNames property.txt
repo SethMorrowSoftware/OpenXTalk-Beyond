@@ -1,0 +1,25 @@
+childControlNames
+(property)
+Reports the names of all the children of a group.
+
+Syntax:
+get the childControlNames of {group}
+----
+
+Synonyms:
+
+Params:
+group ( ): A reference to a group
+
+Examples:
+put the childControlNames of group "list"
+----
+
+Description:
+Use the childControlNames property to get a list of the names of all the direct children of a group  Each line of the childControlNames is the short name of a control which is a direct child of the group, the property does not recurse into subgroups. 
+
+Values:
+The childControlNames of a group reports a list of the short name properties of the direct children of a group. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

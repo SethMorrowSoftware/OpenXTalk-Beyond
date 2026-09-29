@@ -1,0 +1,35 @@
+CountCharsOf
+(operator)
+Counts the number of chars in Target.
+
+Syntax:
+the number of chars in {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression which evaluates to a string.
+
+Examples:
+variable tVar as Number
+variable tSource as String
+put "hello" into tString
+put the number of chars in tString into tVar
+
+variable tString as String
+put the empty string into tString	
+repeat tVar times
+	put "a" after tString
+end repeat
+
+// tString contains "aaaaa"
+----
+
+Description:
+*Note:* The number of chars returns the number of codeunits of the target string. It does not perform any grapheme boundary analysis.
+
+Values:
+The number of chars in Target. 
+
+OS:

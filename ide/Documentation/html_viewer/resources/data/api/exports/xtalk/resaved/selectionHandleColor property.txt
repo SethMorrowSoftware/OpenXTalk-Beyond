@@ -1,0 +1,32 @@
+selectionHandleColor
+(property)
+The selectionHandlerColor property specifies the color of the handle boxes used to resize a selected object(glossary).
+
+Syntax:
+set the selectionHandleColor to {colorName | RGBColor}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the selectionHandleColor to "red"
+----
+set the selectionHandleColor to "255,0,0"
+----
+set the selectionHandleColor to the hiliteColor
+----
+
+Description:
+Use the selectionHandleColor property to change the appearance of selected object|objects.
+
+Values:
+The selectionHandleColor is a color reference. The colorName is any standard color name.
+
+The RGBColor consists of three comma-separated integer|integers between zero and 255, specifying the level of each of red, green, and blue; or an HTML-style color consisting of a hash mark (#) followed by three hexadecimal numbers, one for each of red, green, and blue.
+
+By default, the selectionHandleColor is "0,0,0" (black). 
+
+OS:
+mac,windows,linux,ios,android

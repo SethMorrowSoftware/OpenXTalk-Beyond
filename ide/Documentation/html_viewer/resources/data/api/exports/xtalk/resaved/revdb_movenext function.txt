@@ -1,0 +1,27 @@
+revdb_movenext
+(function)
+
+Syntax:
+revdb_movenext(recordSetID)
+
+Summary:
+Executes the revMoveToNextRecord command.
+
+The number returned by the revQueryDatabase or revQueryDatabaseBLOB function when the record set (database cursor) was created.
+
+Examples:
+revdb_movenext(line x of field "Current Recordsets")
+The revdb_movenext function returns true if it successfully moved to the next record, false if it could not move to the next record because it's already at the end.
+
+Description:
+Use the revdb_movenext function to move around within the selected set of records.
+
+Evaluating the revdb_movenext function has the same effect as executing the revMoveToNextRecord command. The only difference is that one is a function call and the other is a command.
+
+Important: The revdb_movenext function is part of the Database library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure both the "Database" library checkbox and those of the database drivers you are using are checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

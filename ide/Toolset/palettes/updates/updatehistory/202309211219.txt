@@ -1,0 +1,2 @@
+Version 0.92, build 202309211219
+changes the Application Browser stack's icons. (Thanks Richmond)

@@ -1,0 +1,28 @@
+BinaryArctanOperator
+(operator)
+Binary arctan operator.
+
+Syntax:
+atan2({yCoord},{xCoord})
+----
+
+Synonyms:
+
+Params:
+yCoord ( ): An expression that evaluates to a number.
+xCoord ( ): An expression that evaluates to a number.
+
+Examples:
+    variable tVar as Number
+    put atan2(-1,-1) into tVar --tVar contains ?ан3?Д/4.
+----
+    variable tVar as Number
+    put the binary arctangent of -1 and -1 into tVar --tVar contains ?ан3?Д/4.
+----
+
+Description:
+The binary arctan operator returns the angle in radians between the x-axis and the line from the origin to the point (xCoord, yCoord). The angle returned has absolute value less than pi: ?ан?Д  arctan2(y, x) ?в§ ?Д.
+
+Values:
+
+OS:

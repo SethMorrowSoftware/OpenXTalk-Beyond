@@ -1,0 +1,32 @@
+mobileStoreCanMakePurchase
+(function)
+Determines if in-app purchasing is available.
+
+Syntax:
+mobileStoreCanMakePurchase()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+answer mobileStoreCanMakePurchase()
+----
+if mobileStoreCanMakePurchases() is true then
+   mobileStoreRequestProductDetails "com.runrev.sampleapp.consumable"
+else 
+   answer "In-app purchasing is not supported"
+end if
+----
+
+Description:
+Use the mobileStoreCanMakePurchase function to determine if in-app purchasing is available.
+
+The command mobileStoreCanMakePurchase is used to determine if in-app purchasing is available.
+
+Values:
+Returns true if in-app purchases can be made, and false if not. 
+
+OS:
+ios,android

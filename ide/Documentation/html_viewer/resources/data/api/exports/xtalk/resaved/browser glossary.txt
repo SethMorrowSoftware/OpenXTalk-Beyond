@@ -1,0 +1,16 @@
+browser
+(glossary)
+
+Syntax:
+Synonyms:
+web browser, browser
+
+Params:
+
+Examples:
+Description:
+An application used to get, display, and use web pages and other Internet resources.
+
+Values:
+
+OS:

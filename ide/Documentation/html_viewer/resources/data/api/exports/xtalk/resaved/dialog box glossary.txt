@@ -1,0 +1,16 @@
+dialog box
+(glossary)
+
+Syntax:
+Synonyms:
+dialog, dialog box, dialog boxes
+
+Params:
+
+Examples:
+Description:
+A window that communicates information or requests information.
+
+Values:
+
+OS:

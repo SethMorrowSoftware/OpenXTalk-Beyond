@@ -1,0 +1,40 @@
+div
+(operator)
+Divides one number by another and return|returns the integer part of the result.
+
+Syntax:
+{number} div {divisor}
+----
+
+Synonyms:
+
+Params:
+number ( ): A number, or an expression that evaluates to a number, or an array containing only numbers.
+divisor ( ): Any non-zero number. If the number is an array, the divisor is either a non-zero number or an array containing only non-zero numbers.
+
+Examples:
+4 div 2 -- evaluates to 2
+----
+11 div 4 -- evaluates to 2 (since 11/4 = 2.75)
+----
+arrayOfNumbers div 10
+----
+
+Description:
+Use the div operator to do integer division.
+
+If the number to be divided is an array, each of the array element(glossary)|elements must be a number. If an array is divided by a number, each element(keyword) is divided by the number. If an array is divided by an array, both array|arrays must have the same number of element(glossary)|elements and the same dimension, and each element(keyword) in one array is divided by the corresponding element(keyword) of the other array.
+
+If an element of an array is empty, the div operator treats its contents as zero.
+
+The expression dividend div divisor is equivalent to trunc(dividend/divisor).
+
+If dividend can be divided evenly into divisor, the expression dividend div divisor is equal to dividend/divisor.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+*Note:* While using non-integer number and divisor usually produces  sensible results, mathematically, integer division is generally  defined as a function over the integers, and the results using  non-integers may not consistently be what you expect. 
+
+OS:
+mac,windows,linux,ios,android

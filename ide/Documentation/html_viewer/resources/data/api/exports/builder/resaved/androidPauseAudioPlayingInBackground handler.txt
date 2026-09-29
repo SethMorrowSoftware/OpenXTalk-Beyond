@@ -1,0 +1,20 @@
+androidPauseAudioPlayingInBackground
+(handler)
+Pause the currently playing background audio
+
+Syntax:
+androidPauseAudioPlayingInBackground()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the androidPauseAudioPlayingInBackground handler to pause the audio playback in the background started by the last call to  androidStartAudioPlayingInBackground. It can be resumed by calling androidResumeAudioPlayingInBackground.
+
+Values:
+
+OS:
+android

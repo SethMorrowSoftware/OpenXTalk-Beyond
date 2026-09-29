@@ -1,0 +1,28 @@
+disabledIcon
+(property)
+Specifies an image to display in a button when the button is disabled. 
+
+Syntax:
+set the disabledIcon of {button} to {{imageID} | {imageName}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the disabledIcon of button "Boss Key" to "Innocent Spreadsheet"
+----
+
+Description:
+Use the disabledIcon property to change a button|button's appearance when it is disabled.
+
+When the button's enabled property is set to false, the disabledIcon is displayed within the button|button's rectangle.
+
+If a button's showIcon property is false, the setting of its disabledIcon property has no effect.
+
+Values:
+The disabledIcon property is the ID or name of an image to use for an icon. OpenXTalk looks for the specified image first in the current stack, then in other open stacks. By default, the disabledIcon property of newly created button|buttons is set to zero.  
+
+OS:
+mac,windows,linux,ios,android

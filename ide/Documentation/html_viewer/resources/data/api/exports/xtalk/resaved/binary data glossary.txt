@@ -1,0 +1,16 @@
+binary data
+(glossary)
+
+Syntax:
+Synonyms:
+binary data, binary (non-text) data
+
+Params:
+
+Examples:
+Description:
+Data consisting of a string of bit|bits. Non-text data.
+
+Values:
+
+OS:

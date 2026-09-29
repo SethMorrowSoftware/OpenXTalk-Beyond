@@ -1,0 +1,36 @@
+revVideoGrabDialog
+(command)
+Displays a dialog box for configuring VFW|Video for Windows video capture.
+
+Syntax:
+revVideoGrabDialog [{settingsType}]
+----
+
+Synonyms:
+
+Params:
+settingsType (enum ): 
+
+Examples:
+revVideoGrabDialog
+----
+revVideoGrabDialog "format"
+----
+revVideoGrabDialog the label of button "Dialog Type"
+----
+
+Description:
+Use the revVideoGrabDialog command to specify settings for use with the video grabber.
+
+You must use the revInitializeVideoGrabber command to open the  video grabber before you can use the revVideoGrabDialog command.
+
+Use the settingsType parameter to specify which dialog box you want to show.
+
+*Note:* Some video camera drivers don't support some settingsType  values.
+
+*Important:*  The revVideoGrabDialog command is part of the   Video library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the  "Video Grabber"   library checkbox is checked.
+
+Values:
+
+OS:
+windows

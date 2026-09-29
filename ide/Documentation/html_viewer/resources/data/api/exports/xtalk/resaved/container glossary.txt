@@ -1,0 +1,18 @@
+container
+(glossary)
+
+Syntax:
+Synonyms:
+container
+
+Params:
+
+Examples:
+Description:
+Something that holds data that can be retrieved.
+
+In OpenXTalk, containers include  variable|variables, URL|URLs, field|fields, button|buttons, and image|images.
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+returnInField
+(message)
+Sent to a field when the selection is in the field and the user presses the Return key.
+
+Syntax:
+returnInField
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on returnInField -- automatically re-sort a field when a line is added
+  sort lines of the target
+end returnInField
+----
+
+Description:
+Handle the returnInField message when you want to perform an action (such as adding a column of figures) when the user presses Return in a field.
+
+The Return key (confusingly labeled "Enter" on some keyboards) is usually located above the right-hand Shift key. It is the key you press to go to a new line.
+
+If the returnInField handler does not pass the message or send it to a further object(glossary) in the message path, the keypress has no effect. pass|Passing the message allows the keypress to have its normal effect.
+
+The returnInField message is sent to button|buttons whose menuMode is "comboBox", since the type-in box in a combo box behaves like a field.
+
+If there is no selection or insertion point in any field and the user presses Return, the returnKey message is sent instead of returnInField. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

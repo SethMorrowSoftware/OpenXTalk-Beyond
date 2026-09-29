@@ -1,0 +1,16 @@
+UDP
+(glossary)
+
+Syntax:
+Synonyms:
+user datagram protocol, udp
+
+Params:
+
+Examples:
+Description:
+User Datagram Protocol. A method of sending a self-contained clump of data (a datagram) to another system.
+
+Values:
+
+OS:

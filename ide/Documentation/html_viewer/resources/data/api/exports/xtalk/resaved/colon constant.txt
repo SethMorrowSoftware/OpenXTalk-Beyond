@@ -1,0 +1,23 @@
+colon
+(constant)
+Equivalent to the : character (ASCII 58).
+
+Syntax:
+colon
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+replace slash with colon in tPath
+----
+
+Description:
+Use the colon constant (glossary) as an easier-to-read replacement for ":"
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

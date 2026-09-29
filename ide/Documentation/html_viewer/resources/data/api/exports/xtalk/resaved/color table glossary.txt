@@ -1,0 +1,16 @@
+color table
+(glossary)
+
+Syntax:
+Synonyms:
+color table
+
+Params:
+
+Examples:
+Description:
+The set of all available colors that can be displayed on the screen. 
+
+Values:
+
+OS:

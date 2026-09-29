@@ -1,0 +1,29 @@
+doMenu
+(command)
+Simulates a choice from a menu.
+
+Syntax:
+doMenu {menuItem} [of menu {menuName}]
+----
+
+Synonyms:
+
+Params:
+menuItem ( ): The name of a menu item.
+menuName ( ): The name of the menu in which the menuItem appears.
+
+Examples:
+doMenu "New Card" of menu "Object"
+----
+doMenu (line 10 of tList)
+----
+
+Description:
+Use the doMenu command to choose a menu item.
+
+The doMenu command is not implemented for all menu item|menu items. This command is included for compatibility with imported HyperCard stacks.
+
+Values:
+
+OS:
+mac,windows,linux

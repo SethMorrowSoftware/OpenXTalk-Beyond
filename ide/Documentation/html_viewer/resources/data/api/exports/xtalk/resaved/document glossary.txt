@@ -1,0 +1,16 @@
+document
+(glossary)
+
+Syntax:
+Synonyms:
+document
+
+Params:
+
+Examples:
+Description:
+A file created by an application.
+
+Values:
+
+OS:

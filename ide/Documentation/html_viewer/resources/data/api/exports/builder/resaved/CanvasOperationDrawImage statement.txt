@@ -1,0 +1,38 @@
+CanvasOperationDrawImage
+(statement)
+Draw an image on a canvas.
+
+Syntax:
+draw [ from {mSrcRect} of ] {mImage} into {mDestRect} of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mImage ( ): An expression which evaluates to an image.
+mSrcRect ( ): An expression which evaluates to a rectangle.
+mDestRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// Draw the image on the canvas
+draw tImage into rectangle [0,0,the width of tImage,the height of tImage] of this canvas
+----
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// Draw a section of the image
+draw from rectangle[0,0,16,16] of tImage into rectangle [0,0,16,16] of this canvas
+----
+
+Description:
+Renders from mSrcRect (or the bounds, if not specified) of mImage into mDestRect of mCanvas. The canvas image resize quality determines how the image is scaled if necessary.
+
+Values:
+
+OS:

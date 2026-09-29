@@ -1,0 +1,29 @@
+PathOperationTransform
+(statement)
+Apply a transform to a path.
+
+Syntax:
+transform {mPath} by {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a rectangle path
+variable tPath as Path
+put rectangle path of rectangle [10,10,210,60] into tPath
+
+// Scale the path with a transform
+transform tPath by transform with scale [2,2]
+----
+
+Description:
+Transforms the points of mPath with mTransform.
+
+Values:
+
+OS:

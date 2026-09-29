@@ -1,0 +1,15 @@
+mergAnswerColor
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+mergAnswerColor is an iOS External that presents a modal color picker and contains Color Picker for iOS by ThinkFlood Inc. 
+
+Values:
+
+OS:

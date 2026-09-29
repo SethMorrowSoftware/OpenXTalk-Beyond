@@ -1,0 +1,29 @@
+selectedButton
+(function)
+return|Returns the name of the currently highlight|highlighted button in a family.
+
+Syntax:
+the selectedButton of [{card | background}] family {familyNumber}
+----
+
+Synonyms:
+
+Params:
+familyNumber (integer ): A positive integer.
+
+Examples:
+the selectedButton of family 3
+----
+put the selectedButton of family myFamily into thisButton
+----
+
+Description:
+Use the selectedButton function to find out the current setting of a radio button|radio-button cluster controlled by the family property.
+
+This function exists for compatibility with imported HyperCard stacks. You can use the radioBehavior property to cause a group consisting of button(object)|buttons to behave as a radio button|radio cluster, and use the hilitedButton property to find out which button(keyword) in the group is highlight|highlighted.
+
+Values:
+The selectedButton function return|returns a string of the form '*domain* button *buttonNumber*', where *domain* is either card or background. 
+
+OS:
+mac,windows,linux,ios,android

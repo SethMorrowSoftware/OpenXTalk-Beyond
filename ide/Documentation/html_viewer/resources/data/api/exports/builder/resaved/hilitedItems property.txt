@@ -1,0 +1,26 @@
+hilitedItems
+(property)
+The currently highlighted segment indices
+
+Syntax:
+get the hilitedItems of {widget}
+----
+set the hilitedItems of {widget} to {indexList}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The segment numbers of the highlighted segments of the control.  Each item in the hilitedItems is a positive integer.
+
+If the multipleHilites is `false` when setting the hilitedItems, then the first index in the hilitedItems determines which segment is highlighted, and the remainder of the hilitedItems are ignored.
+
+The hiliteChanged message is sent when setting the hilitedItems, unless it doesn't change which segments are highlighted.
+
+Values:
+A comma-delimited list of segment indices. 
+
+OS:

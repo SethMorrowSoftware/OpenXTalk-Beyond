@@ -1,0 +1,33 @@
+lineDelimiter
+(property)
+Specifies the character|character(s) used to separate lines in chunk expression|chunk expressions.
+
+Syntax:
+set the lineDelimiter to {character(s)}
+----
+
+Synonyms:
+linedel
+
+Params:
+
+Examples:
+set the lineDelimiter to numToChar(13)
+----
+set the lineDelimiter to myRecordDelimiter
+----
+set the itemDelimiter to ";;"
+----
+
+Description:
+Use the lineDelimiter property to divide text into chunk|chunks based on a delimit|delimiting character.
+
+From version 7.0, lineDelimiter can be a string of one or several character|characters. chunk expression|Chunk expressions use the lineDelimiter to determine where one line ends and the next begins.
+
+Since the lineDelimiter is a local property, its value is reset to return when the current handler finishes execute|executing. It retains its value only for the current handler, and setting it in one handler does not affect its value in other handler|handlers it call|calls. 
+
+Values:
+From version 7.0, lineDelimiter can be a string of one or several character|characters. By default, the lineDelimiter property is set to return. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,28 @@
+mobileSoundOnChannel
+(function)
+Returns the sound that is currently playing (if any) on the given channel. 
+
+Syntax:
+mobileSoundOnChannel({channel})
+----
+
+Synonyms:
+iphonesoundonchannel
+
+Params:
+channel ( ): The name of the channel.
+
+Examples:
+get mobileSoundOnChannel(theChannel)
+----
+put mobileSoundOnChannel("current") into tCurrentSound
+----
+
+Description:
+Use the mobileSoundOnChannel function to find what sound (if any) is playing on the current channel.
+
+Values:
+The mobileSoundOnChannel function returns the name of the sound file that is currently playing on the given channel. If no sound is playing or the channel doesn't exit then empty is returned. 
+
+OS:
+ios,android

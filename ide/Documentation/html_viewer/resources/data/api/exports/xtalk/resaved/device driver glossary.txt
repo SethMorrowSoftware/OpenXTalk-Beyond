@@ -1,0 +1,16 @@
+device driver
+(glossary)
+
+Syntax:
+Synonyms:
+device driver, driver
+
+Params:
+
+Examples:
+Description:
+Software that acts as a translator between the computer system and a peripheral device. The driver converts software requests into hardware actions and hardware actions into software results.
+
+Values:
+
+OS:

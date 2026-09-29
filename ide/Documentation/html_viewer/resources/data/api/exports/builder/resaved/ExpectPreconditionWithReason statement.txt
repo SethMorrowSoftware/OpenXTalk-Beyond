@@ -1,0 +1,37 @@
+ExpectPreconditionWithReason
+(statement)
+Check a precondition, with a reason
+
+Syntax:
+expect [that] {Condition} because {Reason}
+----
+
+Synonyms:
+
+Params:
+Condition ( ): Expression that must be true for code to work
+Reason ( ): Description of the precondition
+
+Examples:
+-- Draw a random variate from the Bernoulli distribution with
+-- parameter pParam.  A Bernoulli variate may be 0 or 1; the
+-- parameter pParam is the probability that the result is 1.
+handler BernoulliVariate(in pParam as Number) returns Number
+	expect (pParam }= 0 and pParam {= 1) \
+		 because "Bernoulli parameter must be a probability in [0,1]"
+	if (any number {= pParam) then
+		return 1
+	else
+		return 0
+	end if
+end handler
+----
+
+Description:
+Use this statement at the start of a handler to check that necessary preconditions for the handler are satisfied.  For example, the handler may require that its parameters have a particular structure or fall within a particular range, or may need the system to be in a specific state.
+
+If the Condition is false, an error will be thrown including the Reason for the check.
+
+Values:
+
+OS:

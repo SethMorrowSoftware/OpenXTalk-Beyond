@@ -1,0 +1,24 @@
+CanvasPropertyBlendMode
+(operator)
+The current blend mode of a canvas.
+
+Syntax:
+the blend mode of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Use color dodge mode to draw on canvas
+set the blend mode of this canvas to "color dodge"
+----
+
+Description:
+The blend mode used for drawing operations on mCanvas as a string. Can be any one of: - clear - copy - source over - source in - source out - destination over - destination in - destination out - destination atop - xor - plus darker - plus lighter - multiply - screen - overlay - darken - lighten - color edge - color burn - soft light - hard light - difference - exclusion - hue - saturation - color - luminosity
+
+Values:
+
+OS:

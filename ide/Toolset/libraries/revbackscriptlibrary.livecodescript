@@ -198,6 +198,8 @@ function revCheckEdit pTarget
       return false
    end if
    
+   if the cantmodify of stack revTargetstack(pTarget) is true then return false -- cant edit if stack is locked (tperry 30-11-24)
+   
    if (pTarget is not empty and the effective cantSelect of pTarget) or \
          (pTarget is empty and the effective cantSelect of the target) then
       return false

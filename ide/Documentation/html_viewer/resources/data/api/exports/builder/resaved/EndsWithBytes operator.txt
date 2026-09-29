@@ -1,0 +1,22 @@
+EndsWithBytes
+(operator)
+Determines whether Target ends with Needle.
+
+Syntax:
+{Target} ends with {Needle}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to binary data.
+Target ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+*Note:* Since the empty data is a final subsequence of every sequence of bytes, every sequence of bytes ends with the empty data.
+
+Values:
+True if the bytes of Needle occur as a final subsequence of the bytes of Target, and false otherwise. 
+
+OS:

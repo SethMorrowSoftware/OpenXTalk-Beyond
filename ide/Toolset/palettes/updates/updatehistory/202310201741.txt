@@ -1,0 +1,3 @@
+Version 0.93, build 202310201741
+Manual instructions for applying the MacOS Sonoma hex patches
+(This was to hopefully get MacOS Sonoma to render menus in standalones & the IDE)

@@ -1,0 +1,28 @@
+PointerFromJObject
+(handler)
+Convert a JObject into a Pointer
+
+Syntax:
+PointerFromJObject({pObj})
+----
+
+Synonyms:
+
+Params:
+pObj ( ): The JObject to convert
+
+Examples:
+handler SetNativeLayerToView(in pView as JObject)
+	variable tViewPtr as Pointer
+	put PointerFromJObject(pView) into tViewPtr
+	set my native layer to tViewPtr
+end handler
+----
+
+Description:
+Use PointerFromJObject to convert a variable of type JObject to one of type Pointer, i.e. to extract the underlying jobject pointer from a JObject 
+
+Values:
+The jobject Pointer wrapped by the JObject type 
+
+OS:

@@ -1,0 +1,21 @@
+ListFromNSArray
+(handler)
+Convert a Objective-C array into a List
+
+Syntax:
+ListFromNSArray({pObjcArray})
+----
+
+Synonyms:
+
+Params:
+pObjcNumber ( ): The NSArray to convert
+
+Examples:
+Description:
+Convert a Objective-C array into a List
+
+Values:
+A Number value  Description Use ListFromNSArray to convert an Objective-C array object (NSArray) to a variable of type List. 
+
+OS:

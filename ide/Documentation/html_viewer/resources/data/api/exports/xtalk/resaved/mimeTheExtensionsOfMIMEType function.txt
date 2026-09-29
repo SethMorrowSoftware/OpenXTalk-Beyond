@@ -1,0 +1,26 @@
+mimeTheExtensionsOfMIMEType
+(function)
+List extensions that match a MIME type or MIME type wildcard pattern
+
+Syntax:
+mimeTheExtensionsOfMIMEType({pMimeType})
+----
+
+Synonyms:
+
+Params:
+pMIMEType ( ): A MIME type or wildcard pattern for matching a MIME type
+
+Examples:
+put line 1 of mimeTheExtensionsOfMIMEType("application/epub+zip") into tExtension
+----
+put mimeTheExtensionsOfMIMEType("image/*") into tImageExtensions
+----
+
+Description:
+List the extensions associated with a given MIME type or with a MIME type matching a wildcard pattern.
+
+Values:
+A list of extensions or empty if none were found. 
+
+OS:

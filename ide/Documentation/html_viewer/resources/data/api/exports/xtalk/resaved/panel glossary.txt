@@ -1,0 +1,16 @@
+panel
+(glossary)
+
+Syntax:
+Synonyms:
+panel, scrolling panel, window panel
+
+Params:
+
+Examples:
+Description:
+A section of a window. A panel in a window may be scrolling or not, and is usually separated by a line or divider from other panels in the same window. 
+
+Values:
+
+OS:

@@ -1,0 +1,4 @@
+Version 0.92, build 202309230751
+Fixes the "automatically build her" (button not long enough) on Linux, in standalone builder dialog (general tab)
+Replaces the "depreciated" notice under 32-bit mac build (we'll decide when it's depreciated)
+Replaces the word 'Livecode' with 'OXT' in 'Mac' tab, under "Enter the information and have [replaced] write the PLIST file for you

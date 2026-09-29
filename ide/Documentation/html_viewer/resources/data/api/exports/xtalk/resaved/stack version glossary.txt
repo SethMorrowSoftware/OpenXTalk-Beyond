@@ -1,0 +1,18 @@
+stack version
+(glossary)
+
+Syntax:
+Synonyms:
+stack format, stack file format, stack file version
+
+Params:
+
+Examples:
+Description:
+When saving a binary stack using the save command, it is possible to save with a specific version of OpenXTalk's stack file format. This is useful when saving a binary stack so that it can be saved in an older version|version of OpenXTalk, but it should be used with caution.
+
+**Warning:** Using a non-default stack version could result in data being lost when stacks are saved. In particular, any features that are not present in the target version may be lost. For example, using a stack version of "2.4" will cause any blendLevel or ink properties to be lost.
+
+Values:
+
+OS:

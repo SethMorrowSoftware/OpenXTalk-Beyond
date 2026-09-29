@@ -1,0 +1,30 @@
+groupNames
+(property)
+Reports the group|groups on a card.
+
+Syntax:
+get the groupNames of {card}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the groupNames of card 1 into groupsToDelete
+----
+if x is among the lines of the groupNames of card y then next repeat
+----
+
+Description:
+Use the groupNames property to find out which group|groups are placed on a card.
+
+If a group on the card contains group|groups, only the top-level group|groups are reported.
+
+To find out which groups are in a stack, use the backgroundNames property. 
+
+Values:
+The groupNames of a card reports a list of group names, one per line. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

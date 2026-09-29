@@ -1,0 +1,16 @@
+built-in command
+(glossary)
+
+Syntax:
+Synonyms:
+built-in command
+
+Params:
+
+Examples:
+Description:
+A command that is part of the OpenXTalk language.
+
+Values:
+
+OS:

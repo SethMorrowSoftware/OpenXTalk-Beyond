@@ -1,0 +1,35 @@
+processor
+(function)
+return|Returns a string describing the system's architecture.
+
+Syntax:
+the processor
+----
+processor()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the processor
+----
+if the processor is "arm" then ...
+----
+
+Description:
+Use the processor function to determine the system architecture. The system architecture may either be emulated or the architecture of the host CPU. For example, when running the application in an android emulator the processor will return the emulated architecture rather than the architecture of the host CPU.
+
+*Note:* Some operating systems have emulators built in. For example, Windows  has WOW64 which allows x86 executables to run under x86_64 versions of  Windows.
+
+Values:
+ 
+js: HTML 5
+x86: x86 32 bit architecure
+x86_64: x86 64 bit architecure
+arm: arm 32 bit architecture
+arm64: arm 64 bit architecture
+
+OS:
+mac,windows,linux,ios,android,html5

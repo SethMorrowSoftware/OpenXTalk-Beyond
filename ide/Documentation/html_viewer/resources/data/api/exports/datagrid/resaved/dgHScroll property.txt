@@ -1,0 +1,19 @@
+dgHScroll
+(property)
+Get/set the horizontal scroll of the data grid.
+
+Syntax:
+set the dgHScroll to of group "DataGrid" to pInteger
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the horizontal scroll of the data grid. This only applies to tables as forms do not scroll horizontally.
+
+Values:
+
+OS:

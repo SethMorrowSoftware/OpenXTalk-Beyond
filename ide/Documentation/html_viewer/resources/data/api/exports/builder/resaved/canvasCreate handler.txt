@@ -1,0 +1,21 @@
+canvasCreate
+(handler)
+Creates a canvas of the given size for the other handlers to use.
+
+Syntax:
+canvasCreate({pWidth},{pHeight})
+----
+
+Synonyms:
+
+Params:
+pWidth ( ): The width of the created canvas.
+pHeight ( ): The height of the created canvas.
+
+Examples:
+Description:
+Creates a canvas of the given size for the other handlers to use.
+
+Values:
+
+OS:

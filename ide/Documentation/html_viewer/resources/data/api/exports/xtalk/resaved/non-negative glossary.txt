@@ -1,0 +1,16 @@
+non-negative
+(glossary)
+
+Syntax:
+Synonyms:
+non-negative, nonnegative
+
+Params:
+
+Examples:
+Description:
+Greater than or equal to zero.
+
+Values:
+
+OS:

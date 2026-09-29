@@ -1,0 +1,28 @@
+previous
+(keyword)
+Indicates the card that comes before the current card.
+
+Syntax:
+previous
+----
+
+Synonyms:
+prev
+
+Params:
+
+Examples:
+go previous card
+----
+get the short name of previous card
+----
+
+Description:
+Use the previous keyword to move backward in the stack or to object reference|reference the card before the current card.
+
+If you are already on the first card, the previous card is the last card in the stack.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

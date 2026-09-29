@@ -1,0 +1,40 @@
+SpliceIntoElementOfList
+(statement)
+Removes the element of Target at Index and inserts each of the elements of Source into                     Target at Index.
+
+Syntax:
+splice {Source} into element {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a list.
+Index ( ): An expression which evaluates to a valid integer index of .
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tVar as List
+put the empty list into tVar
+
+variable tCount as Number
+put 1 into tCount
+repeat 3 times
+	push tCount onto tVar
+end repeat
+
+variable tVar2 as List
+push "this is unwanted" onto tVar2
+push 4 onto tVar2
+
+splice tVar into element 1 of tVar2 -- tVar2 contains the list [1,2,3,4]
+----
+
+Description:
+Use the splice syntax to insert the elements of one list into another list.
+
+*Note:* ```put tList into element 1 of tList2``` results in the removal of element 1 of tList2 and the insertion of tList **as an element**, i.e. tList2 becomes the list [tList,element 2 of tList2, element 3 of tList2 ...]  *Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

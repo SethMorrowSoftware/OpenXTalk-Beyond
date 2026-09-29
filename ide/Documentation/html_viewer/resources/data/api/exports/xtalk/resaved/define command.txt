@@ -1,0 +1,23 @@
+define
+(command)
+Has no effect and is included for compatibility with imported SuperCard projects.
+
+Syntax:
+define {property} of {object}
+----
+
+Synonyms:
+
+Params:
+property ( ): 
+object ( ): 
+
+Examples:
+Description:
+In SuperCard and Oracle Media Objects, the define command is used to create a custom property|user property.
+
+You can use a custom property simply by setting its value with the set command, without creating it first, so this command is not needed.
+
+Values:
+
+OS:

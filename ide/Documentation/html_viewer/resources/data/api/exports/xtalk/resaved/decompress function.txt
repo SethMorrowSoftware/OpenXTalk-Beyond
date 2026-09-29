@@ -1,0 +1,37 @@
+decompress
+(function)
+return|Returns the plain text of a gzip-encoded string.
+
+Syntax:
+decompress({gzippedString})
+----
+the decompress of {gzippedString}
+----
+
+Synonyms:
+
+Params:
+gzippedString (string ): A string of compressed binary data.
+
+Examples:
+decompress(tReceivedString)
+----
+put decompress(it) into URL "file:data.txt"
+----
+go stack decompress(URL "binfile:newstuff.gz")
+----
+
+Description:
+Use the decompress function(control structure) to regain the original data that was compress|compressed.
+
+The decompress function(control structure) is the inverse of the compress function(control structure).
+
+The uncompressed result is typically about half again the size of the compressed data, although different results may be obtained depending on the amount of data.
+
+For technical information about the format used by the compress and decompress function(glossary)|functions, see [RFC 1952](https://tools.ietf.org/html/rfc1952). The decompress function(control structure) uses the zlib compression library.
+
+Values:
+The decompress function return|returns a string. 
+
+OS:
+mac,windows,linux,ios,android

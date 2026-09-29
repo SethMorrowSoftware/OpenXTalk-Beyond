@@ -1,0 +1,16 @@
+Speech library
+(library)
+
+Syntax:
+Synonyms:
+speech library, speech libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports text to speech.
+
+Values:
+
+OS:

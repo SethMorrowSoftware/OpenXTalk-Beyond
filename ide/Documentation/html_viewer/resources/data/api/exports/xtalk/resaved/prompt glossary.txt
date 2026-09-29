@@ -1,0 +1,16 @@
+prompt
+(glossary)
+
+Syntax:
+Synonyms:
+prompt, prompted, prompting
+
+Params:
+
+Examples:
+Description:
+Text that requests information from the user.
+
+Values:
+
+OS:

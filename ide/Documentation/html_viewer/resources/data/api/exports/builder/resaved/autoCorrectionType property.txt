@@ -1,0 +1,25 @@
+autoCorrectionType
+(property)
+The auto-correction behavior of the field widget.
+
+Syntax:
+set the autoCorrectionType of {widget} to {pType}
+get the autoCorrectionType of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the autoCorrectionType of widget "Android Field" to "no"
+----
+
+Description:
+Use the autoCorrectionType property to determine whether auto-correct behavior should be enabled.
+
+Values:
+- "default": use the appropriate auto-correct behavior for the current script system - "no": disable auto-correct behavior - "yes": enable auto-correct behavior 
+
+OS:
+android

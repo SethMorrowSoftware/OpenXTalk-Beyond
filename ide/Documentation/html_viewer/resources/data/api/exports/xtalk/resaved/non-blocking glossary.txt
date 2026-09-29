@@ -1,0 +1,16 @@
+non-blocking
+(glossary)
+
+Syntax:
+Synonyms:
+non-blocking, non-block, non-blocking read, non-blocking write, non-blocked
+
+Params:
+
+Examples:
+Description:
+An operation that allows the current handler to continue while the operation is going on.
+
+Values:
+
+OS:

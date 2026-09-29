@@ -1,0 +1,21 @@
+mergMicrophoneGetAudioQuality
+(function)
+Get the audio quality level to use when encoding
+
+Syntax:
+mergMicrophoneGetAudioQuality()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the audio quality level to use when encoding
+
+Values:
+audio-quality-enum 
+
+OS:
+ios,mac

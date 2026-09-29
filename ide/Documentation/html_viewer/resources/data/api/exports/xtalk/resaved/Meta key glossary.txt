@@ -1,0 +1,18 @@
+Meta key
+(glossary)
+
+Syntax:
+Synonyms:
+meta key, meta-key
+
+Params:
+
+Examples:
+Description:
+Modifier key on Unix|Unix systems, usually located to the right of the Control key.
+
+(The Mac OS and OS X equivalent is the Option key. The Windows equivalent is the Alt key.)
+
+Values:
+
+OS:

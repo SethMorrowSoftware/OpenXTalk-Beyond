@@ -1,0 +1,30 @@
+revBrowserPrint
+(command)
+Prints the current page of the specified browser.
+
+Syntax:
+revBrowserPrint {instanceId}
+----
+XBrowser_Print [{instanceId}]
+----
+
+Synonyms:
+xbrowser_print
+
+Params:
+instanceId ( ): The integer identifier of a browser object
+
+Examples:
+revBrowserPrint tBrowserId
+----
+
+Description:
+The revBrowserPrint command prints the current page of the browser specified by the instanceId. On issuing this command, the standard operating system print dialog will appear, allowing the user to choose printer options and confirm that the page should be printed.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserPrint command puts empty into the result  The revBrowserPrint command does not require the printing library to be included. 
+
+OS:
+mac,windows

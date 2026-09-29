@@ -1,0 +1,34 @@
+topLevel
+(command)
+Opens a stack in an editable window.
+
+Syntax:
+topLevel {stack}
+----
+
+Synonyms:
+
+Params:
+stack ( ): Any stack reference.
+
+Examples:
+toplevel stack "project1"
+----
+toplevel this stack
+----
+topLevel the mousestack
+----
+
+Description:
+Use the topLevel command to display a stack in an  editable window.
+
+An editable window can be resized (if its resizable property is true), and its control|controls can be selected, moved, and changed. To edit a stack of a different style (a palette, modeless, or  modal dialog box|modal dialog), use the topLevel command to  display it in an editable window.
+
+The topLevel command closes the stack and reopens it as an editable window, so closeStack and openStack, closeCard and openCard, and (if applicable) closeBackground and openBackground message|messages are sent to the current card as a result of execute|executing this command. Use the lock messages command before executing topLevel if you want to prevent these message|messages from being sent.
+
+If the stack is already in an editable window, the topLevel command does not close and reopen it.
+
+Values:
+
+OS:
+mac,windows,linux

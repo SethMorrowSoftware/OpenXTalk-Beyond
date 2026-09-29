@@ -1,0 +1,5 @@
+Version 0.92, build 202309181151
+Default prefs, except for the following mods:
+Hides the start center at boot
+Hides the backdrop
+Sets the tools palette to 2 column, and hides the widgets section.

@@ -1,0 +1,24 @@
+DiffPatch
+(function)
+Patch a string with a previously computed diff.
+
+Syntax:
+DiffPatch({pSource},{pDiff})
+----
+
+Synonyms:
+
+Params:
+pSource ( ): The original string
+pDiff ( ): The diff representing changes to apply to pSource
+
+Examples:
+----
+
+Description:
+Apply the diff to the source string, returning an updated string with the diff changes applied.
+
+Values:
+An updated version of pSource with the changes from pDiff applied. 
+
+OS:

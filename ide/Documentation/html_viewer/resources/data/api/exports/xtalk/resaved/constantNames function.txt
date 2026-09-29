@@ -1,0 +1,30 @@
+constantNames
+(function)
+return|Returns a list of all built-in constant|constants in OpenXTalk. 
+
+Syntax:
+the constantNames
+----
+constantNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the constantNames
+----
+if it is among the lines of the constantNames then askForAnotherName
+----
+
+Description:
+Use the constantNames function to check whether a particular constant(command) already exists in OpenXTalk, to avoid using a reserved word for your own constant(glossary)|constants and variable|variables.
+
+The constantNames function return|returns all the constant(glossary)|constants that are predefined in OpenXTalk, including synonyms.
+
+Values:
+The constantNames function return|returns a list of constant names, one per line. 
+
+OS:
+mac,windows,linux,ios,android

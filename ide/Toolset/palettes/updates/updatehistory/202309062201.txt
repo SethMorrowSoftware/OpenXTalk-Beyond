@@ -1,0 +1,3 @@
+Version 0.92, build 202309062201
+Gets rid of the livecode branding and Livecode notes on the start center
+on first run, when this would normally be shown, it used to have a load of information relating to Livecode. This has now been hidden / removed.

@@ -1,0 +1,19 @@
+navBarRight
+(property)
+The horizontal extent of the rendered navigation items
+
+Syntax:
+get the navBarRight of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The horizontal extent of the rendered navigation items
+
+Values:
+
+OS:

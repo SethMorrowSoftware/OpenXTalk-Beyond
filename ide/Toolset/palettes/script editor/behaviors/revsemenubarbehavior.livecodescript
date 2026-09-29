@@ -118,10 +118,10 @@ private command buildEditMenu pContext
    
    if pContext["textSelected"] then
       put "Cut/X" & return & \
-             "Copy/C" & return after tEdit
+            "Copy/C" & return after tEdit
    else
       put "(Cut/X" & return & \
-             "(Copy/C" & return after tEdit
+            "(Copy/C" & return after tEdit
    end if
    
    put "Paste/V" & return & \
@@ -138,7 +138,7 @@ private command buildEditMenu pContext
    
    if revEnvironmentEditionProperty("autocomplete_pro") then
       put "Autocomplete Snippets..." & return after tEdit
-   end if
+   end if   
    
    put "Options" & return after tEdit
    put toggleMenuItem(tab & "Variable Checking", sePrefGet("explicitVariables")) & return after tEdit
@@ -147,13 +147,16 @@ private command buildEditMenu pContext
    put toggleMenuItem(tab & "Bracket Highlighting", sePrefGet("editor,brackethighlighting")) & return after tEdit
    put toggleMenuItem(tab & "Control Structure Completion", sePrefGet("editor,autocomplete")) & return after tEdit
    
+   /*
    if revEnvironmentEditionProperty("autocomplete") then
       put toggleMenuItem(tab & "Autocomplete", sePrefGet("editor,providercompletion")) & return after tEdit
    end if
+   */
+   put toggleMenuItem(tab & "Autocomplete", sePrefGet("editor,providercompletion")) & return after tEdit
    put toggleMenuItem(tab & "Autoformat", sePrefGet("editor,autoformat")) & return after tEdit
    
    put "-" & return & \
-          "Preferences" after tEdit
+         "Preferences" after tEdit
    
    set the text of button "Edit" of me to modifyMenu("Edit", tEdit)
 end buildEditMenu
@@ -266,14 +269,32 @@ private command buildWindowMenu pContext
    else
       # Put a checkmark against the 'topmost' stack
       put "!c" into char 1 to 2 of line 1 of tMenu
-      put return & "-" & return & "Send Window to Back/`" after tMenu
+      --put return & "-" & return & "Send Window to Back/`" after tMenu
+      
+      local tWindow
+      local tWdListToShow
+      -- added a few checks to return the visibility of the following 3 stacks in the window menu (tperry 26-4-24)
+      put tMenu into tWdListToShow
+      if revIDEPaletteIsVisible("Message Box") is true then put tWdListToShow & return & "!nMessage Box/|stack " & QUOTE & "Message Box" & QUOTE into tWdListToShow
+      if revIDEPaletteIsVisible("Project Browser") is true then put tWdListToShow & return & "!nProject Browser/|stack " & QUOTE & "revIDEProjectBrowser" & QUOTE into tWdListToShow
+      if revIDEPaletteIsVisible("Tools") is true then put tWdListToShow & return & "!nTools/|stack " & QUOTE & "revTools" & QUOTE into tWdListToShow
+      filter lines of tWdListToShow without empty
+      if tWdListToShow is empty then
+         put "(No Windows Open" into tWindow
+      else
+         put tWdListToShow & return & "-" & return & "Send Window to Back/`" into tWindow
+         put tWindow & return & "Raise Next Window in List/Opt TAB" into tWindow
+      end if
+      --
    end if
    
-   set the text of button "Window" of me to modifyMenu("Window", tMenu)
+   set the text of button "Window" of me to modifyMenu("Window", tWindow)
 end buildWindowMenu
 
 private command buildHelpMenu pContext
    local tText
+   -- tperry 5-1-24 (modify the old help menu to just what works)
+   /*
    put "Documentation Pane" & return & \
           "-" & return & \
           "Dictionary"  & return & \
@@ -282,7 +303,8 @@ private command buildHelpMenu pContext
           "Start Center" & return & \
           "User Guide" & return & \
           "About LiveCode" into tText
-   
+   */
+   put "User Guide" & return into tText
    set the text of button "Help" of me to modifyMenu("Help", tText)
 end buildHelpMenu
 
@@ -554,6 +576,11 @@ private command handleWindowMenuPick pItemName
    
    if pItemName is "Send Window to back" then
       actionSendWindowToBack
+      exit handleWindowMenuPick
+   end if
+   
+   if pItemName contains "Raise Next" then
+      go stack the topstack
       exit handleWindowMenuPick
    end if
    

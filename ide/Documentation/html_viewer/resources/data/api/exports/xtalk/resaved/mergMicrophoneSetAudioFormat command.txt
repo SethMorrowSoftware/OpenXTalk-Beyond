@@ -1,0 +1,21 @@
+mergMicrophoneSetAudioFormat
+(command)
+Set the audio format to output
+
+Syntax:
+mergMicrophoneSetAudioFormat {formatName}
+----
+
+Synonyms:
+
+Params:
+formatName ( ):  - Linear PCM  - Apple Lossless  - MP4-AAC  - iLBC
+
+Examples:
+Description:
+ Setting the audio format only has effect the next time recording is started.
+
+Values:
+
+OS:
+ios,mac

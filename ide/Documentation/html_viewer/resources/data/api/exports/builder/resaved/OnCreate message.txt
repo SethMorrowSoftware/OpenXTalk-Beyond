@@ -1,0 +1,28 @@
+OnCreate
+(message)
+Sent when the widget is created.
+
+Syntax:
+OnCreate
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+private variable mPrimaryColor as Color
+private variable mSecondaryColor as Color
+
+public handler OnCreate()
+	put color [ 0.5, 0.5, 1.0 ] into mPrimaryColor
+	put color [ 0.0, 0.0, 1.0 ] into mSecondaryColor
+end handler
+----
+
+Description:
+Handle the OnCreate message to have the widget perform an action when it is created, for example setting default values of instance variables. *Note:* Access to most script object operations is not allowed whilst an OnCreate handler is running.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+concatenate
+(glossary)
+
+Syntax:
+Synonyms:
+concatenation, concatenating, concatenated, concatenate
+
+Params:
+
+Examples:
+Description:
+To attach two pieces of data together.
+
+Values:
+
+OS:

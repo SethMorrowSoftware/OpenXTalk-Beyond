@@ -1,0 +1,18 @@
+Menu Builder
+(glossary)
+
+Syntax:
+Synonyms:
+menu builder, menu manager
+
+Params:
+
+Examples:
+Description:
+Part of the OpenXTalk development environment, the window where you create a cross-platform menu bar.
+
+To display the Menu Builder, choose Tools ? Menu Builder from the menubar. 
+
+Values:
+
+OS:

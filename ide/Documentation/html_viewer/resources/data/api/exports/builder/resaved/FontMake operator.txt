@@ -1,0 +1,26 @@
+FontMake
+(operator)
+Creates a new instance of the named font.
+
+Syntax:
+font {mName}
+----
+
+Synonyms:
+
+Params:
+mName ( ): An expression which evaluates to a string.
+
+Examples:
+// Create Arial font
+variable tFont as Font
+put font "Arial" into tFont
+----
+
+Description:
+Creates a new instance of the named font.
+
+Values:
+A new instance of the named font with the default size of 12pts. 
+
+OS:

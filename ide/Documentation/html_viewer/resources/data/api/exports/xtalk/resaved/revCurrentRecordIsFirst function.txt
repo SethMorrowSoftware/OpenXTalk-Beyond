@@ -1,0 +1,31 @@
+revCurrentRecordIsFirst
+(function)
+return|Returns whether the current record is the first record in a record set (glossary).
+
+Syntax:
+revCurrentRecordIsFirst({recordSetID})
+----
+
+Synonyms:
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revCurrentRecordIsFirst(line 2 of field ID 2345)
+----
+set the hilite of button "First" to revCurrentRecordIsFirst(it)
+----
+
+Description:
+Use the revCurrentRecordIsFirst function to stop when you reach the first record.
+
+If the operation is not successful, the revCurrentRecordIsFirst function returns an error message that begins with the string "revdberr".
+
+*Important:*  The revCurrentRecordIsFirst function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revCurrentRecordIsFirst function returns true if there are no previous record|records, false otherwise. 
+
+OS:
+mac,windows,linux,ios,android

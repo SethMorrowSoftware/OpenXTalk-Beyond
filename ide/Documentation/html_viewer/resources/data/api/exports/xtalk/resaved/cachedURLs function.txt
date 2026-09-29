@@ -1,0 +1,33 @@
+cachedURLs
+(function)
+return|Returns a list of the URL|URLs that have been download|downloaded and copied to the cache using the load command. 
+
+Syntax:
+the cachedURLs
+----
+cachedURLs()
+----
+
+Synonyms:
+cachedurl
+
+Params:
+
+Examples:
+the cachedURLs
+----
+if myURL is not among the lines of the cachedURLs then load myURL
+----
+
+Description:
+Use the cachedURLs function to determine which files have been download|downloaded and are currently in the cache. A cache|cached URL(keyword) can be accessed more quickly than one that is not cache|cached.
+
+The cachedURLs function includes all URL(glossary)|URLs that you have successfully load|loaded with the load command. If an unsuccessful attempt has been made to load a URL(keyword), it does not appear in the cachedURLs. Only URL(glossary)|URLs whose URLStatus is "cached" appear in the cachedURLs.
+
+Cached files consume memory. To release this memory after you are finished with a URL, use the unload command to remove it from the cache. You can use this handler to unload all URL(glossary)|URLs:      on unloadAll         repeat for each line tThisURL in the cachedURLs             unload URL tThisURL         end repeat     end unloadAll   *Important:* The cachedURLs function is part of the   Internet library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Internet"   script library is selected.
+
+Values:
+The cachedURLs function return|returns a list of currently load|loaded URL|URLs, one per line. 
+
+OS:
+mac,windows,linux,html5

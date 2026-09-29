@@ -1,0 +1,19 @@
+text color
+(property)
+The text color to apply to the data area of a table or form.
+
+Syntax:
+put the dgProp["text color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The text color to apply to the data area of a table or form. Prefix property name with "effective" to get the color being used when this property is set to empty
+
+Values:
+
+OS:

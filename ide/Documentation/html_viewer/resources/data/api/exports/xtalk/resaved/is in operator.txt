@@ -1,0 +1,29 @@
+is in
+(operator)
+Compares two string|strings and evaluate|evaluates to true if the second contains the first, false if not.
+
+Syntax:
+{subString} is in {string}
+----
+
+Synonyms:
+
+Params:
+substring (string ): The substring and string are both strings, or expressions that evaluate to strings.
+string (string ): 
+
+Examples:
+"A" is in "ABC" -- evaluates to true
+----
+"123" is in "13" -- evaluates to false
+----
+
+Description:
+Use the is in operator to find out whether a string contains a substring.
+
+The expression      firstString is in secondString  is equivalent to      secondString contains firstString   The is in operator is the logical inverse of the is not in operator. When one is true, the other is false.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

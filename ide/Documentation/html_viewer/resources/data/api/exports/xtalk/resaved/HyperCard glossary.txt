@@ -1,0 +1,16 @@
+HyperCard
+(glossary)
+
+Syntax:
+Synonyms:
+hypertalk, hc, hypercard, xtalk
+
+Params:
+
+Examples:
+Description:
+The defunct authoring environment from Apple Computer (1987 - 2004) that was the main progenitor of all xTalk scripting environments. Its scripting language was called HyperTalk, and third party clones of that scripting language, such as SuperTalk, MediaTalk, MetaTalk, etc., collectively became known to the public as xTalk. 
+
+Values:
+
+OS:

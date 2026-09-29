@@ -1,0 +1,21 @@
+GetPixelDataOfCanvas
+(operator)
+Get the current contents of a canvas as raw pixel data
+
+Syntax:
+the pixel data of {Canvas}
+----
+
+Synonyms:
+
+Params:
+Canvas ( ): The canvas to be examined.
+
+Examples:
+Description:
+Capture the current contents of the Canvas as raw pixel data in RGBA format with 8 bits per colour component, i.e. 32 bits or 4 bytes per pixel.
+
+Values:
+The raw pixel values as binary data. 
+
+OS:

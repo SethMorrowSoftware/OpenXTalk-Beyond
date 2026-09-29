@@ -1,0 +1,19 @@
+column divider color
+(property)
+The color of the column dividers in a table.
+
+Syntax:
+put the dgProp["column divider color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color of the column dividers in a table.
+
+Values:
+
+OS:

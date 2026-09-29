@@ -1,0 +1,28 @@
+start
+(command)
+resume|Resumes playing a paused movie or sound.
+
+Syntax:
+start {player}
+----
+
+Synonyms:
+
+Params:
+•	player ( ): A player reference.
+	
+Examples:
+start player "video"
+----
+start player 1
+----
+
+Description:
+Use the start command to start playing the movie or sound in a player.
+
+The playing starts at the player's currentTime property.
+
+Values:
+
+OS:
+mac,windows,linux

@@ -1,0 +1,16 @@
+statement
+(glossary)
+
+Syntax:
+Synonyms:
+statement list, statement
+
+Params:
+
+Examples:
+Description:
+A single programming instruction. A single line of OpenXTalk code that starts with a command.
+
+Values:
+
+OS:

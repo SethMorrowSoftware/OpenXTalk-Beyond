@@ -1,0 +1,18 @@
+parent folder
+(glossary)
+
+Syntax:
+Synonyms:
+parent folder, enclosing folder, parent directory, parent directories, enclosing directory, enclosing directories
+
+Params:
+
+Examples:
+Description:
+The folder that contains another folder.
+
+If a folder called "A" is located inside a folder called "B", "B" is the parent folder of "A".
+
+Values:
+
+OS:

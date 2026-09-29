@@ -1,0 +1,43 @@
+capStyle
+(property)
+Specifies how the ends of line|lines and dashes are drawn.
+
+Syntax:
+set the capStyle [of graphic] to {style}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the capStyle of graphic "dashedRectangle1" to "round"
+----
+# create a graphic object and set several of its properties
+create graphic "newline"
+set the style of graphic "newline" to "line"
+set the points of graphic "newline" to 50,50 & return & 200,200
+set the lineSize of graphic "newline" to 6
+set the capStyle of graphic "newline" to "butt"
+----
+
+Description:
+Set the capStyle property to specify how the ends of line|lines and dashes are drawn.
+
+Setting the capStyle property changes the appearance of line and dashes|dash ends for graphic objects. If the graphic|graphic's lineSize property is 1, the setting of the capStyle has no effect.
+
+*Note:* This only affects polygon, freehand curve and line  graphic|graphics which have their antialiased set to true.
+
+*Note:* Setting the roundEnds of a graphic to true sets the  capStyle of the graphic to "round". Setting the roundEnds of a graphic to false sets the capStyle of the graphic to "butt".
+
+Values:
+The capStyle of a graphic is one of the following: - "round" - Lines are ended by a half-circle centred at the end-point of the line. This is the default.
+
+ "butt" - No cap is added.
+
+ "square" - The edge is extended beyond the end-point by half the line width.
+
+
+
+OS:
+mac,windows,linux,ios,android

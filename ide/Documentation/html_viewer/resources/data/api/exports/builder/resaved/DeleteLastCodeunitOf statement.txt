@@ -1,0 +1,27 @@
+DeleteLastCodeunitOf
+(statement)
+Deletes the last codeunit in Target.
+
+Syntax:
+delete the last codeunit of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A string container.
+
+Examples:
+variable tVar as String
+put "deadliness" into tVar
+delete the last codeunit of tVar -- tVar contains "deadlines"
+----
+
+Description:
+Replaces the last codeunit in Target with the empty string.
+
+*Note:* It is an error if Target is the empty string.
+
+Values:
+
+OS:

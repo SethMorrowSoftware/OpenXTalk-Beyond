@@ -1,0 +1,16 @@
+user interface error
+(glossary)
+
+Syntax:
+Synonyms:
+user interface error, openxtalk user interface error
+
+Params:
+
+Examples:
+Description:
+An internal error caused by a anomaly|bug in OpenXTalk, not a anomaly|bug in your script|scripts.
+
+Values:
+
+OS:

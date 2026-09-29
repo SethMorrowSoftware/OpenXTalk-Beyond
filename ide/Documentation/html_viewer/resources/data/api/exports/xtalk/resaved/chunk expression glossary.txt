@@ -1,0 +1,16 @@
+chunk expression
+(glossary)
+
+Syntax:
+Synonyms:
+chunk expression
+
+Params:
+
+Examples:
+Description:
+A specific description of part of a container. A portion of text.
+
+Values:
+
+OS:

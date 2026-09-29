@@ -1,0 +1,19 @@
+EditModeActionControlHidden
+(message)
+Sent when the datagrid's edit mode action control is hidden.
+
+Syntax:
+on EditModeActionControlHidden
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+EditModeActionControlHidden is sent to your data grid's custom row template when an action control is visible and the user clicks on the data grid, resulting in the action control being hidden. Handle EditModeActionControlHidden to perform a custom action on hide.
+
+Values:
+
+OS:

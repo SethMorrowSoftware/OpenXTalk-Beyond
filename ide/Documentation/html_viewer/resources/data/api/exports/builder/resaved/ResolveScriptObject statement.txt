@@ -1,0 +1,34 @@
+ResolveScriptObject
+(statement)
+Resolves a string to a script object.
+
+Syntax:
+resolve script object {Object}
+----
+
+Synonyms:
+
+Params:
+Object ( ): The string describing the script object.
+
+Examples:
+variable tObject as ScriptObject
+resolve script object "button 1 of card 1 of this stack"
+put the result into tObject
+if tObject exists then
+	get property "name" of tObject
+	log the result
+else
+	log "No such button"
+end if
+----
+
+Description:
+Use the ResolveScriptObject|resolve script object statement to obtain a ScriptObject in LiveCode Builder, in order to interact with it.
+
+*Note:* An error is thrown if this syntax is used in a context where access to script objects is not allowed.
+
+Values:
+The resolved script object. 
+
+OS:

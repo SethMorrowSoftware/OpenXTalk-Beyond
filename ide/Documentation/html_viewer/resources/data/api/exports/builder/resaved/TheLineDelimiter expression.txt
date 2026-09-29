@@ -1,0 +1,26 @@
+TheLineDelimiter
+(expression)
+Fetches the `lineDelimiter` property from script context
+
+Syntax:
+the line delimiter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+  -- Split a string into a list using the line delimiter
+   variable tItems
+   put "alice\nbob\neve" into tItems
+   split tItems by the line delimiter
+   -- tItems is now a list: ["alice", "bob", "eve"]
+----
+
+Description:
+Fetches the calling (script) handler's `lineDelimiter` property, or linefeed (U+000A) if no script context is available.
+
+Values:
+
+OS:

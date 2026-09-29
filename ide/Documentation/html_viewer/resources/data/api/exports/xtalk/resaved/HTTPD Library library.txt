@@ -1,0 +1,15 @@
+HTTPD Library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle HTTP requests in your application
+
+Values:
+
+OS:

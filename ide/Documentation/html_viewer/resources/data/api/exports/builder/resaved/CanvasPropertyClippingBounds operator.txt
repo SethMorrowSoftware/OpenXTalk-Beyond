@@ -1,0 +1,29 @@
+CanvasPropertyClippingBounds
+(operator)
+The current clipping bounds of the canvas.
+
+Syntax:
+the clipping bounds of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Set the canvas clip
+clip to rectangle [50,50,100,100] on this canvas
+
+// Fill rectangle path on canvas, covering only the current clip region.
+variable tBounds as Rectangle
+put the clipping bounds of this canvas into tBounds
+fill rectangle path of tBounds on this canvas
+----
+
+Description:
+The clipping bounds of the canvas. Drawing operations on mCanvas will be confined to the clip region.
+
+Values:
+
+OS:

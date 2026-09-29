@@ -1,0 +1,33 @@
+truewordOffset
+(function)
+Returns the number of truewords between the beginning of a value and an occurrence of a specified string.
+
+Syntax:
+truewordOffset({stringToFind}, {stringToSearch} [, {truewordsToSkip}])
+----
+
+Synonyms:
+
+Params:
+stringToFind (string ): 
+stringToSearch (string ): 
+truewordsToSkip ( ): The truewordsToSkip is a non-negative integer. If you don't specify how many truewordsToSkip, the truewordOffset function does not skip any truewords. 
+
+Examples:
+truewordOffset("Chile",tListOfCountries) -- returns 48
+----
+truewordOffset("d'être","Ce n'est pas tant d'être riche qui fait le bonheur, c'est de le devenir.") -- returns 5
+----
+
+Description:
+Use the truewordOffset function to find which sentence a string occurs in.
+
+The value returned by the truewordOffset function is the number of the trueword where the stringToFind first appears in stringToSearch. If the stringToFind is not in stringToSearch, the truewordOffset function returns zero. If the stringToFind contains more than one trueword, the truewordOffset function always returns zero, even if the stringToFind appears in the stringToSearch.
+
+If you specify how many truewordsToSkip, the truewordOffset function skips the specified number of sentences in the stringToSearch. The value returned is relative to this starting point instead of the beginning of the stringToSearch.
+
+Values:
+The truewordOffset function returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

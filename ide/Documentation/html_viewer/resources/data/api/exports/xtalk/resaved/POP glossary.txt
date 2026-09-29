@@ -1,0 +1,16 @@
+POP
+(glossary)
+
+Syntax:
+Synonyms:
+pop
+
+Params:
+
+Examples:
+Description:
+Post Office Protocol. A protocol used to retrieve email from a mail server. 
+
+Values:
+
+OS:

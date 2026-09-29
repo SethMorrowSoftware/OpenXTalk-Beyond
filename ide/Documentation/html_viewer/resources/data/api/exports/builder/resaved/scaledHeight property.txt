@@ -1,0 +1,19 @@
+scaledHeight
+(property)
+The height of the bounding rect of the SVG path, in fractional pixels.
+
+Syntax:
+get the scaledHeight of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the maintainAspectRatio of the SVG path is `true`, then the scaledHeight of the object will return the height of the bounding rect of the SVG path. Otherwise, it will return the height of the widget.
+
+Values:
+
+OS:

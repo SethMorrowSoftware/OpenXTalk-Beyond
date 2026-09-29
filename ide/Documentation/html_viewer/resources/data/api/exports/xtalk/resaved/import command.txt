@@ -1,0 +1,34 @@
+import
+(command)
+Creates an image, EPS, audio clip, or video clip and copies the contents of a file into the object(glossary).
+
+Syntax:
+import {type} from file {filePath} [with mask {maskFilePath}]
+----
+
+Synonyms:
+
+Params:
+•	type ( ): One of paint, EPS, audioClip, or videoClip.
+•	filePath ( ): The filePath specifies the name and location of the file you want to import from. If you specify a name but not a location, the engine assumes the file is in the defaultFolder.
+•	maskFilePath ( ): The maskFilePath specifies the name and location of a one-bit mask file for an image. You can use a mask file only if the file being imported is in the PBM format.
+	
+Examples:
+import paint from file "flowers.jpeg"
+----
+import audioClip from file "/sounds/temp/bugsounds.wav"
+----
+import paint from file it with mask "/etc/res/oval.pbm"
+----
+
+Description:
+Use the import command to place a sound, movie, or image in a stack, instead of creating a referenced control that uses an external file.
+
+The imported object is placed in the current stack. To change the current stack before importing, set the defaultStack property to the stack you want to import into, then import the file. Importing a paint file creates an image object on the current card. The import command can import GIF, JPEG, PNG, BMP, XWD, XBM, XPM, or PBM, PGM, or PPM files. On Mac OS|Mac OS systems, PICT files can also be import|imported (but they cannot be displayed on Unix or Windows|Windows systems). Importing an EPS file creates an EPS object on the current card. Importing an audioClip or videoClip file creates an audio clip or video clip in the current stack. Audio files can be in WAV, AIFF, or AU format. Video files can be in QuickTime, AVI, or MPEG format.
+
+*Note:* The import command places the data in the stack file  itself. This assures that the information stays with the stack if  it's moved, but it also increases the stack|stack's size and the  amount of memory used by the stack. If you prefer to keep the data  outside the stack file, you can display a picture file without  importing it by creating an image and setting its  filename property, or by choosing File → New Referenced Control →  Image File… from the menubar. To allow playing a sound or movie  without importing it, create a player and set its filename prop, or  choose File → New Referenced Control → Video File… .
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

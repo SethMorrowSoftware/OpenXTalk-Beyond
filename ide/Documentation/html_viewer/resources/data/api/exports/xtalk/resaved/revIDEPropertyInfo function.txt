@@ -1,0 +1,23 @@
+revIDEPropertyInfo
+(function)
+Information pertaining to the property pPropName.
+
+Syntax:
+revIDEPropertyInfo({pPropName})
+----
+
+Synonyms:
+
+Params:
+pPropName ( ): One of the IDE canonical object property names.
+
+Examples:
+Description:
+This function returns the information pertaining to the object property pPropName, parsed from the file Toolset/resources/supporting_files/property_definitions.
+
+Information about synonyms is not returned by this function. For a list of the canonical property names which are valid inputs to this function, see the idePropertyNames function.
+
+Values:
+An array of information pertaining to the given property. 
+
+OS:

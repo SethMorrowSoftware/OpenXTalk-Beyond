@@ -1,0 +1,27 @@
+mobileRemoveContact
+(command)
+Allows the user to remove a contact from the contacts list.
+
+Syntax:
+mobileRemoveContact {contactId}
+----
+
+Synonyms:
+
+Params:
+contactId ( ): 
+
+Examples:
+mobileRemoveContact 21
+----
+
+Description:
+Allows the user to remove a contact from the contact list, based on a contact ID.
+
+Use the mobileRemoveContact command to remove a contact the contact list. 
+
+Values:
+The ID of the contact that was removed from the list of contacts. If no contact could be found, then empty is returned. 
+
+OS:
+ios,android

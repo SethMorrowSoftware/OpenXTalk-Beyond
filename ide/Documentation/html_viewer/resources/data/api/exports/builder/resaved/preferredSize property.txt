@@ -1,0 +1,20 @@
+preferredSize
+(property)
+The preferred size of the widget.
+
+Syntax:
+get the preferredSize of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The preferredSize property is used when the icon widget is popped up using the 'popup widget' syntax
+
+Values:
+A two-item list with the width and height needed to display the widget with the current display preferences. 
+
+OS:

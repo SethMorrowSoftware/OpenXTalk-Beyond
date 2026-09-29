@@ -1,0 +1,19 @@
+EditKeyOfIndex
+(command)
+Same as EditKey but uses an index rather than a line number to located the line to edit.
+
+Syntax:
+dispatch "EditKeyOfIndex" to group "DataGrid" with pKey, pIndex
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Same as EditKey but uses an index rather than a line number to located the line to edit.
+
+Values:
+
+OS:

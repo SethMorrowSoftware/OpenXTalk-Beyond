@@ -1,0 +1,38 @@
+do as alternateLanguage
+(command)
+Evaluate a script written in another programming language
+
+Syntax:
+do {script} as {alternateLanguage}
+----
+
+Synonyms:
+
+Params:
+script (string ): A script written in a non-XTalk programming language.
+alternateLanguage (string ): The name of one of the .
+
+Examples:
+do field "Statements" as "AppleScript"
+----
+do "document.location" as "JavaScript"
+----
+
+Description:
+Use the do as alternateLanguage variant of the do command to evaluate a script written in a non-XTalk programming language. You can get a list of available languages by calling the alternateLanguages function.
+
+The behavior of the do as alternateLanguage command is platform-dependent:  - On MacOS and OS X systems, the alternateLanguage is a script   language (such as AppleScript) supported by the Open Scripting   Architecture.  The value returned by executing the script   is placed into the result.
+
+- On Windows systems, the alternateLanguage is an "active   scripting" language (such as VBScript) supported by the Windows   Scripting Host.  The result is set to the value of any global   variable called `result` in the script, or empty if no such   variable was defined.  For example, the following code will show a   dialog box containing "2":        do "result = 1 + 1" as "vbscript"       answer the result    Any script which contains a reference to `WScript` will   fail to run, because `WScript` objects do not exist in the XTalk   environment.  Put return values in a global `result` variable   instead of using `WScript.Echo`.
+
+- In HTML5 applications, "JavaScript" is the only supported   alternateLanguage.  The result is set to the value returned   by executing the script, as long as the value is a scalar   (a string, number, boolean or undefined).  Returning JavaScript   arrays or objects is not supported.
+
+On other platforms, the alternateLanguage is not supported, and the do as alternateLanguage command will set the result to "alternate language not found".
+
+*Important:* Any file path used in the script must be in the  native format of the current system. In particular this means that  paths must be converted to Windows native format before use on  Windows machines. In most cases this can be done by replacing slash  with backslash in the path.
+
+Values:
+How the result is set depends on the platform and the selected alternateLanguage. 
+
+OS:
+mac,windows,html5

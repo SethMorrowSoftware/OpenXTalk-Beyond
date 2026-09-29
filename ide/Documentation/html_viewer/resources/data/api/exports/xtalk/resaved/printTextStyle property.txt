@@ -1,0 +1,21 @@
+printTextStyle
+(property)
+Has no effect and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the printTextStyle to {plain | {stylesList}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the printTextStyle property specifies the styles of printed text. In OpenXTalk, only card(object)|cards can be printed, and the style of text on the card(keyword) is determined by the textStyle property of object|objects that display text.
+
+By default, the value of printTextStyle is plain. A handler can set the property, but the new setting has no effect.
+
+Values:
+
+OS:

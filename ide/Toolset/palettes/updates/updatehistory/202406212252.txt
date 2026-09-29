@@ -1,0 +1,2 @@
+Version 1.06, build 202406212252
+Adds an option in the View > Appearance. (Prevents an individual stack's colours being overridden).

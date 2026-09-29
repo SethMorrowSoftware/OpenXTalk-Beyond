@@ -1,0 +1,20 @@
+androidStopAudioPlayingInBackground
+(handler)
+Stop playing audio in the background.
+
+Syntax:
+androidStopAudioPlayingInBackground()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the androidStopAudioPlayingInBackground handler to stop playing the audio playback in the background started by the last call to  androidStartAudioPlayingInBackground.
+
+Values:
+
+OS:
+android

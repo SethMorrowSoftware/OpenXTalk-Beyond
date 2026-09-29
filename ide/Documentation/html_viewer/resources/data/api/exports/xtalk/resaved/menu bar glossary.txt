@@ -1,0 +1,16 @@
+menu bar
+(glossary)
+
+Syntax:
+Synonyms:
+menu bar, menubar
+
+Params:
+
+Examples:
+Description:
+The set of menu|menus displayed at the top of the screen (on Mac OS and OS X|OS X systems) or the top of the window, containing all available menu item|menu items.
+
+Values:
+
+OS:

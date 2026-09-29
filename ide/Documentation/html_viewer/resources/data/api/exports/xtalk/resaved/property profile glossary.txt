@@ -1,0 +1,16 @@
+property profile
+(glossary)
+
+Syntax:
+Synonyms:
+profile, property profile
+
+Params:
+
+Examples:
+Description:
+A set of property settings for an object(glossary). You create and change an object|object's profiles using the Property Profiles pane in the object|object's property inspector.
+
+Values:
+
+OS:

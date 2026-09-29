@@ -1,0 +1,34 @@
+browserDocumentCompleteFrame
+(message)
+Sent when a browser object finishes loading a url in a frame
+
+Syntax:
+browserDocumentCompleteFrame {pInstanceId}, {pUrl}
+----
+XBrowser_DocumentCompleteFrame {pUrl}, {pInstanceId}
+----
+
+Synonyms:
+xbrowser_documentcompleteframe
+
+Params:
+pInstanceId ( ): The integer identifier of the browser object
+pUrl ( ): The url that finished loading in a frame
+
+Examples:
+on browserDocumentCompleteFrame
+  set the enabled of button "Go" to true
+end browserDocumentCompleteFrame
+----
+
+Description:
+The browserDocumentCompleteFrame message is sent to the current card of a stack containing a browser object when the browser object has finished loading a url and all its dependent resources in a frame.
+
+If the target is the main frame of the browser then the browserDocumentComplete message is sent instead.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+
+OS:
+mac,windows

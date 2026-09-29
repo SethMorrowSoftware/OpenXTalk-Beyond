@@ -1,0 +1,30 @@
+GradientPropertyWrap
+(operator)
+The wrap of a gradient paint.
+
+Syntax:
+the wrap of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Toggle the wrapping of a gradient
+variable tWrap
+put the wrap of tGradient into tWrap
+set the wrap of tGradient to not tWrap
+----
+
+Description:
+The wrap of mGradient as a boolean. If wrap is true then the gradient ramp will be repeated continually outside the defined extent of the gradient.
+
+Values:
+
+OS:

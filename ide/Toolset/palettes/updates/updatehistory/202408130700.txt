@@ -1,0 +1,2 @@
+Version 1.07, build 202408130700
+Updates this updates stack. (There's another update after this, sorry!).

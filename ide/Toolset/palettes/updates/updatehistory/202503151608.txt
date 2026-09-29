@@ -1,0 +1,2 @@
+Version 1.10, build 202503151608
+Should fix erratic cut,copy and paste -- thanks Richmond.

@@ -1,0 +1,19 @@
+dgHeaderTemplate
+(property)
+Get the control that is used to visually represent the header for a column.
+
+Syntax:
+put the dgHeaderTemplate["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the control that is used to visually represent the header for a column. This control will be a control in the 'row template' group name "COLUMN [Header]". If no matching control exists then the deafult header control is used.
+
+Values:
+
+OS:

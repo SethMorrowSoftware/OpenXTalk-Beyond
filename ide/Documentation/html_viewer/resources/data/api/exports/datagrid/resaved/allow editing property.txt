@@ -1,0 +1,19 @@
+allow editing
+(property)
+Set to true to allow users to edit the cells of a table or the fields in a form.
+
+Syntax:
+set the dgProp["allow editing"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true to allow users to edit the cells of a table or the fields in a form. Note that when customizing templates for form rows or table columns you would check this property to determine if fields should allow editing. The default Row Behavior script contains an Example of  how to do this.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+dgColumnIsResizable
+(property)
+Get/set whether or not a column is resizable.
+
+Syntax:
+put the dgColumnIsResizable["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set whether or not a column is resizable.
+
+Values:
+
+OS:

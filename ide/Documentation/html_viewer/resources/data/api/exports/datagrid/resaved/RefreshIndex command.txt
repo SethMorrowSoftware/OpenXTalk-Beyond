@@ -1,0 +1,19 @@
+RefreshIndex
+(command)
+Redraws row associated with pIndexes using latest data.
+
+Syntax:
+dispatch "RefreshIndex" to group "DataGrid" with pIndexes
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Redraws row associated with pIndexes using latest data. Use this command in conjunction with  SetDataOfIndex. pIndexes can be a comma delimited list of indexes.
+
+Values:
+
+OS:

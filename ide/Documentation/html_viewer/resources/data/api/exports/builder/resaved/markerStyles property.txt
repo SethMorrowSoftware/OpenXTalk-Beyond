@@ -1,0 +1,23 @@
+markerStyles
+(property)
+The marker styles for drawing vertices on the graph
+
+Syntax:
+set the markerStyles of {widget} to { {string} | empty }
+get the markerStyles of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The markerStyles are the marker styles of each line in the graph widget.
+
+If set to empty then no markers will be shown and showLines will be set to true. Available marker styles may be one of:  - "filled circle" - "filled square" - "filled diamond" - "circle" - "square" - "diamond" - any icon name from the svg icon library  By default the markerStyles will repeat in the following order:  - "filled circle" - "filled square" - "filled diamond" - "circle" - "square" - "diamond"
+
+Values:
+A line-delimited list of the marker styles for each line on the graph 
+
+OS:

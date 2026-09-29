@@ -1,0 +1,2 @@
+Version 0.92, build 202309041741
+This changes the colour behind the icons when hovering over them with the mouse to purple.

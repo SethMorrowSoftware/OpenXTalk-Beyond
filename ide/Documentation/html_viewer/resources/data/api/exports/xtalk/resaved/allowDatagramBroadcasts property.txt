@@ -1,0 +1,23 @@
+allowDatagramBroadcasts
+(property)
+Set the per-socket flag for whether sending to a broadcast address is allowed 
+
+Syntax:
+set the allowDatagramBroadcasts to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the allowDatagramBroadcasts to true
+----
+
+Description:
+The global property allowDatagramBroadcasts needs to be set to true before sending to a broadcast address (enables the per-socket flag for whether they are allowed).
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

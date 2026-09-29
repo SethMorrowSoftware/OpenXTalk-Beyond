@@ -1,0 +1,27 @@
+maximize
+(keyword)
+Used with the decorations property to indicate whether the maximize or zoom box appears in a window's title bar.
+
+Syntax:
+maximize
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the decorations of this stack to maximize
+----
+
+Description:
+Use the maximize keyword to turn a systemWindow|window's maximize  or zoom box on or off.
+
+Setting a stack's decorations property to maximize automatically includes 'title' in the value of the decorations, turning on the  systemWindow|window's title bar. The name on the title bar can be set  using the systemWindow|window's label property.
+
+*Cross-platform note:*  On Windows|Windows systems, the menu  decorations|decoration must be set along with maximize : you cannot   use maximize without including menu.
+
+Values:
+
+OS:
+mac,windows,linux

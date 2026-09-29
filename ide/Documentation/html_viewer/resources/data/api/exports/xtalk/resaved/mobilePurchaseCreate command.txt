@@ -1,0 +1,30 @@
+mobilePurchaseCreate
+(command)
+Create a new purchase.
+
+Syntax:
+mobilePurchaseCreate {productID}
+----
+
+Synonyms:
+
+Params:
+productID ( ): The identifier of the requested item.
+
+Examples:
+mobilePurchaseCreate theProductId
+put the result into thePurchaseId
+----
+
+Description:
+Use mobilePurchaseCreate to create a new purchases.
+
+The command mobilePurchaseCreate is used to create a purchaseId for a particular productId.
+
+The productId is the identifier of the in-app purchase you created in iTunesConnect/Market Place and wish to purchase.
+
+Values:
+The purchaseId is returned in the result. This is used to identify the new purchase request. 
+
+OS:
+ios,android

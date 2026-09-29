@@ -1,0 +1,19 @@
+dgColumn
+(property)
+Get the name of the column the instance of the template is Associations with.
+
+Syntax:
+get the dgColumn of me
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+When working with a data grid table you can use the dgColumn of me in a custom template behavior to get the name of the column the instance of the template is associated with. To use this property in  other scripts you use the target or the mousecontrol as the target as well.
+
+Values:
+
+OS:

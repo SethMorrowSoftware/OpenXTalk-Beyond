@@ -1,0 +1,30 @@
+TheResult
+(expression)
+The result of the previous statement.
+
+Syntax:
+the result
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+	resolve script object "this stack"
+	get property "name" of the result
+	log the result
+----
+	get 20
+	subtract 1 from the result
+	divide the result by 2
+	round the result
+	-- the result is 10
+----
+
+Description:
+Use TheResult|the result to obtain the return value of the previous (executed) non-control structure statement. *Note:* Result expressions are not assignable. 
+
+Values:
+
+OS:

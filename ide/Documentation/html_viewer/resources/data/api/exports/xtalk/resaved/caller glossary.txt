@@ -1,0 +1,18 @@
+caller
+(glossary)
+
+Syntax:
+Synonyms:
+calling handler, caller
+
+Params:
+
+Examples:
+Description:
+The handler that invoked whichever handler is currently running.
+
+For example, if Handler A uses a custom command which is defined by Handler B, then Handler A is the caller of Handler B.
+
+Values:
+
+OS:

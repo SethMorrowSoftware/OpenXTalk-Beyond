@@ -1,0 +1,16 @@
+attribute
+(glossary)
+
+Syntax:
+Synonyms:
+attribute
+
+Params:
+
+Examples:
+Description:
+Text that modifies and is included inside a tag. An attribute consists of a name and value, joined with an equals sign. tag|Tags can have any number of attributes.
+
+Values:
+
+OS:

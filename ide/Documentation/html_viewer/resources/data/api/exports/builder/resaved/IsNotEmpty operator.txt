@@ -1,0 +1,21 @@
+IsNotEmpty
+(operator)
+Determines whether Target is empty or not.
+
+Syntax:
+{Target} is not empty
+----
+
+Synonyms:
+
+Params:
+Target ( ): Any expression
+
+Examples:
+Description:
+Determines whether Target is empty or not.
+
+Values:
+Returns false if the given expression Target evaluates to the empty value of that type, and true otherwise. 
+
+OS:

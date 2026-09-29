@@ -1,0 +1,30 @@
+closeStackRequest
+(message)
+Sent to the current card when the user tries to close a stack.
+
+Syntax:
+closeStackRequest
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on closeStackRequest 
+ answer "Are you sure?" with "No" or "Yes"
+ if it is "Yes" then pass closeStackRequest 
+end closeStackRequest
+----
+
+Description:
+Handle the closeStackRequest message if you want to prevent a stack from being closed.
+
+If the closeStackRequest handler does not pass the message or send it to a further object(glossary) in the message path, the stack does not close. pass|Passing the message allows the stack to close.
+
+The closeStackRequest message is only sent if the request to close a stack is initiated by the user (eg by clicking file -> close in the OpenXTalk menu). If the request is initiated from a script (eg "close this stack" ) then the closeStackRequest message is not sent.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

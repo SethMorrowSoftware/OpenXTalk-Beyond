@@ -1,0 +1,20 @@
+MyNativeLayer
+(expression)
+Get the current widget's native layer pointer
+
+Syntax:
+my native layer
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the current widget's native layer pointer
+
+Values:
+A platform-specific native layer pointer 
+
+OS:

@@ -1,0 +1,38 @@
+printRanges
+(property)
+Reports the pages that should be printed in the next print job.
+
+Syntax:
+set the printRanges to {rangesList}
+----
+get the printRanges
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the printRanges to the text of field "Ranges" of group "Printer Settings"
+----
+set the printRanges to "1-5,10,12-20"
+----
+
+Description:
+Use the printRanges property to specify ranges of pages to be printed.
+
+If the printRanges is set to a list of ranges, OpenXTalk will automatically skip pages not in the range. Otherwise it is up to the application to print the appropriate pages.
+
+If an application wishes to handle the skipping of pages, it can do so by setting the printRanges property to "all" before starting the printing loop.
+
+*Note:* OpenXTalk automatically handles coalescing overlapping ranges,  e.g. 1-10,5-25,23 will result in the range being 1-25.
+
+To have an effect, this property must be set before calling  open printing. 
+
+Values:
+The printRanges property is one of the following values.
+
+  - "selection": print the current selection (Windows only).   - "current": print the current page (Windows only).   - "all": print all pages   - a comma-separated list of ranges or individual page numbers 
+
+OS:
+mac,windows,linux,ios

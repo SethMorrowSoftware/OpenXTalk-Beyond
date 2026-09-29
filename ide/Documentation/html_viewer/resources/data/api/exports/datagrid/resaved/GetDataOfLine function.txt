@@ -1,0 +1,19 @@
+GetDataOfLine
+(function)
+Retrieves the internal array associated with line pLine in the data grid.
+
+Syntax:
+put GetDataOfLine(pLine, pKey)
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Retrieves the internal array associated with line pLine in the data grid. See notes for GetDataOfIndex.
+
+Values:
+
+OS:

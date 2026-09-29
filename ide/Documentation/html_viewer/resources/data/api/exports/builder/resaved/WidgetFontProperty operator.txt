@@ -1,0 +1,21 @@
+WidgetFontProperty
+(operator)
+The font of a widget
+
+Syntax:
+the font of {Widget}
+----
+
+Synonyms:
+
+Params:
+Widget ( ): The widget to examine
+
+Examples:
+Description:
+Return a font which reflects the current (effective) settings of Widget's LiveCode `textFont`, `textSize` and `textStyle` properties.
+
+Values:
+A font handle for the widget's effective font 
+
+OS:

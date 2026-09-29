@@ -1,0 +1,28 @@
+protectedDataWillBecomeUnavailable
+(message)
+Sent when the device is locked and protected data files will become unavailable. 
+
+Syntax:
+protectedDataWillBecomeUnavailable
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on protectedDataWillBecomeUnavailable
+   -- Disconnect from databases
+   -- Close file handles
+end protectedDataWillBecomeUnavailable
+----
+
+Description:
+Handle the protectedDataWillBecomeUnavailable message if you have open file handles related to files that have been protected using the iphoneFileDataProtection function. These handles should be closed. Connections to sqlite databases should also be closed where the database file has been set to protected.
+
+The protectedDataWillBecomeUnavailable message is sent to the current card of the default stack when the device is locked.
+
+Values:
+
+OS:
+ios

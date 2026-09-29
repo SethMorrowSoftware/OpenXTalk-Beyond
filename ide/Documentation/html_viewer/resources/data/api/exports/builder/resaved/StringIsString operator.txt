@@ -1,0 +1,22 @@
+StringIsString
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a string.
+Right ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+The ```is``` operator is case sensitive.
+
+Values:
+Returns true if Left is identical to Right. 
+
+OS:

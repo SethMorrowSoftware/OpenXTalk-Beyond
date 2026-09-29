@@ -1,0 +1,16 @@
+cross-platform
+(glossary)
+
+Syntax:
+Synonyms:
+crossplatform, cross-platform
+
+Params:
+
+Examples:
+Description:
+Able to be used on more than one type of operating system and computer. 
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+ScriptObject
+(type)
+An opaque type corresponding to a LiveCode script object.
+
+Syntax:
+ScriptObject
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the ResolveScriptObject|resolve script object, or MyScriptObject|my script object to obtain an object of type ScriptObject
+
+Values:
+
+OS:

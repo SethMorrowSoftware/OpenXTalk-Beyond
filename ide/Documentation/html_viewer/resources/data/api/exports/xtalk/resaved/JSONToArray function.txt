@@ -1,0 +1,31 @@
+JSONToArray
+(function)
+Parse JSON to an array
+
+Syntax:
+JSONToArray({pJSON})
+----
+
+Synonyms:
+
+Params:
+pJSON ( ): A UTF8 encoded JSON string
+
+Examples:
+local tProfile
+put url "https://graph.facebook.com/me" into tProfile
+if the result begins with "error" then
+   -- handle error
+else
+   put JSONToArray(tProfile) into tProfile
+   -- do something interesting with the profile
+end if
+----
+
+Description:
+JSON arrays are translated to numerically indexed arrays with keys 1...N and JSON objects are translated to an array key - value pairs. 
+
+Values:
+An array 
+
+OS:

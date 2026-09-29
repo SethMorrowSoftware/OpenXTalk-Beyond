@@ -1,0 +1,16 @@
+relative coordinates
+(glossary)
+
+Syntax:
+Synonyms:
+window coordinates, relative coordinates, local coordinates, relative (window) coordinates
+
+Params:
+
+Examples:
+Description:
+Measurement of a position by its distance from the top and left edges of a window.
+
+Values:
+
+OS:

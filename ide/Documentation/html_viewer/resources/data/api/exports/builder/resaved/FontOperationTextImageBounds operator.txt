@@ -1,0 +1,33 @@
+FontOperationTextImageBounds
+(operator)
+Measure text precisely when drawn with a font.
+
+Syntax:
+the image bounds of text {mText} with {mFont}
+----
+
+Synonyms:
+
+Params:
+mText ( ): An expression which evaluates to a string.
+mFont ( ): An expression which evaluates to a font.
+
+Examples:
+// Set up tFont as size 18 Arial
+variable tFont as Font
+put font "Arial" at size 18 into tFont
+
+// Measure text with tFont
+variable tBounds as Rectangle
+put the image bounds of text "Sample text" with tFont into tBounds
+----
+
+Description:
+The exact bounds of the text, which will fully enclose each character.
+
+*Note:* This can be more time-consuming to compute than the layout bounds.
+
+Values:
+The bounding box of mText when drawn at point 0,0 with font mFont. Returns the bounds as a rectangle. 
+
+OS:

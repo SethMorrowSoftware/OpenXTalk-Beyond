@@ -1,0 +1,26 @@
+PathMakeWithEllipse
+(operator)
+Creates a new path. mCenter:An expression which evaluates to a point.
+
+Syntax:
+ellipse path centered at {mPoint} with radii {mRadii}
+----
+
+Synonyms:
+
+Params:
+mRadii ( ): An expression which evaluates to a list of numbers.
+
+Examples:
+// Create an ellipse path
+variable tPath as Path
+put ellipse path centered at point [100,100] with radii [100,75] into tPath
+----
+
+Description:
+Creates a new path. mCenter:An expression which evaluates to a point.
+
+Values:
+A new ellipse path. 
+
+OS:

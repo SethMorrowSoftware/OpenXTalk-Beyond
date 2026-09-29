@@ -1,0 +1,31 @@
+put markup
+(command)
+Write the given (unicode) string to stdout, processing it for suitable output in an SGML markup context.
+
+Syntax:
+put [ unicode ] markup {string}
+----
+
+Synonyms:
+
+Params:
+string (string ): A string containing the HTML markup to output. If 'unicode' is not specified, then string is considered to be in the native text encoding for the platform. If unicode is specified, then string is considered to be in UTF-16.
+
+Examples:
+put markup "<p>foobar</p>"
+----
+put unicode markup uniEncode(tMyUTF8Markup, "UTF8")
+# uniEncode() converts tMyUTF8Markup to UTF-16
+----
+
+Description:
+Use the put markup command to write a string to stdout that contains HTML markup.
+
+Upon output the text is converted to match the setting of the current outputTextEncoding property, with any unrepresentable characters being output using a decimal character entity reference &#ddddd;.
+
+Additionally, the internal line ending character 'LF' is transformed on output to match the setting of the outputLineEndings property.
+
+Values:
+
+OS:
+mac,windows,linux

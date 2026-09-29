@@ -1,0 +1,18 @@
+error message
+(glossary)
+
+Syntax:
+Synonyms:
+error message
+
+Params:
+
+Examples:
+Description:
+Information about an error that occurred.
+
+An error message may be displayed by a program or handler. Or, if the program or handler that had the error was called by another program or handler, the error message may be returned to the caller instead.
+
+Values:
+
+OS:

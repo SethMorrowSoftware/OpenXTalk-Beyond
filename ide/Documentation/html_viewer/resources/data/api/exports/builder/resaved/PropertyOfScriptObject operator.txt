@@ -1,0 +1,34 @@
+PropertyOfScriptObject
+(operator)
+The property of a script object.
+
+Syntax:
+property {Property} of {Object}
+----
+
+Synonyms:
+
+Params:
+Property ( ): The name of the property to manipulate
+Object ( ): An expression that evaluates to a .
+
+Examples:
+public handler OnMouseUp() returns nothing
+	set property "name" of my script object to "Clicked Widget"
+end handler
+----
+resolve script object "this stack"
+set property "invisible" of the result to true
+    get property "script" of my script object
+----
+
+Description:
+Use to manipulate properties of a script object.
+
+*Note:* An error is thrown if the script object does not exist.
+
+*Note:* An error is thrown if this syntax is used in a context where access to script objects is not allowed.
+
+Values:
+
+OS:

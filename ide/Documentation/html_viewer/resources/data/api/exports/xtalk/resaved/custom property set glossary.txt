@@ -1,0 +1,18 @@
+custom property set
+(glossary)
+
+Syntax:
+Synonyms:
+custom property set, property set
+
+Params:
+
+Examples:
+Description:
+A set of custom property|custom properties you define and name.
+
+Each custom property set is independent of the others, and the same property can have different value|values in different sets.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+key binding
+(glossary)
+
+Syntax:
+Synonyms:
+key binding, keybinding, key mapping, keymapping, keyboard mapping
+
+Params:
+
+Examples:
+Description:
+The mapping between keys (or key combination|key combinations) and the action that pressing the key performs.
+
+Values:
+
+OS:

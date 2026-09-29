@@ -1,0 +1,27 @@
+SinOperator
+(operator)
+Sin operator.
+
+Syntax:
+sin({Operand})
+----
+
+Synonyms:
+
+Params:
+•	Operand ( ): An expression that evaluates to a number.
+	
+Examples:
+variable tVar as Number
+put sin(pi / 2) into tVar -- tVar contains 1
+----
+variable tVar as Number
+put the sine of pi into tVar -- tVar contains 0
+----
+
+Description:
+Sin operator.
+
+Values:
+
+OS:

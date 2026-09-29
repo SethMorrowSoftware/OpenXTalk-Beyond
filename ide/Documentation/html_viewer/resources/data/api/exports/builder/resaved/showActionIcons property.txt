@@ -1,0 +1,20 @@
+showActionIcons
+(property)
+Whether to show the action icons or not
+
+Syntax:
+set the showActionIcons of {widget} to { true | false }
+get the showActionIcons of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Whether to show the action icons or not
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+DataToNSData
+(handler)
+Convert a Data into an Objective-C data
+
+Syntax:
+DataToNSData({pData})
+----
+
+Synonyms:
+
+Params:
+pData ( ): The Data to convert
+
+Examples:
+Description:
+Convert a Data into an Objective-C data
+
+Values:
+A Objective-C object of type NSData  Description Use DataToNSData to convert a variable of type Data to an Objective-C data object (NSData). 
+
+OS:

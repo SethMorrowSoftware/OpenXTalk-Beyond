@@ -1,0 +1,26 @@
+selected
+(property)
+Specifies whether an object(glossary) is selected.
+
+Syntax:
+set the selected of {object} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the selected of button "Group" then select button "Ahhh"
+----
+
+Description:
+Use the selected property to select an object(glossary) or find out whether the user has selected it with the Pointer tool.
+
+You can select an object by setting its selected property to true, and deselect it by setting its selected to false.
+
+Values:
+The selected of an object(glossary) is true or false. 
+
+OS:
+mac,windows,linux,ios,android

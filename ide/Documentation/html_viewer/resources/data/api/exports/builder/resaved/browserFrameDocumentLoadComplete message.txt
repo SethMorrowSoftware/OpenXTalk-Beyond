@@ -1,0 +1,20 @@
+browserFrameDocumentLoadComplete
+(message)
+Sent when a document has completed loading in a frame of the browser.
+
+Syntax:
+browserFrameDocumentLoadComplete {pUrl}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the loaded document.
+
+Examples:
+Description:
+The browserFrameDocumentLoadComplete message is sent to the widget's  script object when a new document has completed loading in a frame of  the browser. The pUrl parameter contains the URL of the loaded  document.
+
+Values:
+
+OS:

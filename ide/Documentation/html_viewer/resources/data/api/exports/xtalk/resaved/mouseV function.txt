@@ -1,0 +1,36 @@
+mouseV
+(function)
+The mouseV property return|returns the vertical position of the pointer. 
+
+Syntax:
+the mouseV
+----
+mouseV()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the mouseV
+----
+put the mouseV into savedLocation
+----
+
+Description:
+Use the mouseV function to find out where the mouse pointer is.
+
+The returned value is the vertical distance in pixels from the top edge of the current stack to the location of the mouse pointer. (Use the defaultStack property to identify the current stack.)  If the mouseV is positive, the pointer is below the top of the stack window. If the number is negative, the pointer is above the stack window.
+
+This function is equal to item 2 of the mouseLoc function.
+
+*Note:* When in a mouseDown handler, you can use the clickV function  to get the position of the mouse as it was when the mouseDown action  occurred.
+
+*Tip:*  The mouseMove message sends the mouse's vertical position as  a parameter. This means that in a mouseMove handler, normally  it's not necessary to use the mouseV function.
+
+Values:
+The mouseV function return|returns an integer. 
+
+OS:
+mac,windows,linux,ios,android

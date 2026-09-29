@@ -1,0 +1,19 @@
+ideSetWindowBoundingRect
+(command)
+Update the window bounding rect for the current IDE palette layout
+
+Syntax:
+ideSetWindowBoundingRect
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Update the window bounding rect for the current IDE palette layout
+
+Values:
+
+OS:

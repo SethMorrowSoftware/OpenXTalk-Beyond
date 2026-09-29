@@ -1,0 +1,31 @@
+hilitedLine
+(property)
+Specifies the numbers of the selected lines in a list field.
+
+Syntax:
+set the hilitedLine of {field} to {listOfLines}
+----
+
+Synonyms:
+hilitedlines
+
+Params:
+
+Examples:
+set the hilitedLine of field "Options List" to 1
+----
+repeat with x = 1 to the number of items in the hilitedLines of me
+----
+
+Description:
+Use the hilitedLine property to check which lines in a  list field are selected, or to select a line.
+
+Each item of the hilitedLine property is a line number. For example, if the first and fourth lines of the field are selected, the hilitedLine is 1,4. You can retrieve the text of the selected lines either by using the line numbers in a chunk expression or by using the selectedText function.
+
+If the field's listBehavior property is false, this property has no effect.
+
+Values:
+The hilitedLine of a field is a list of one or more integer|integers, separated by commas. 
+
+OS:
+mac,windows,linux,ios,android

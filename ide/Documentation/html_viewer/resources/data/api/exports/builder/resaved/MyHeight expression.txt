@@ -1,0 +1,20 @@
+MyHeight
+(expression)
+Returns the height of the widget.
+
+Syntax:
+my height
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the height of the widget.
+
+Values:
+The height of the widget. 
+
+OS:

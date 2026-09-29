@@ -1,0 +1,20 @@
+revIDEClassicControls
+(function)
+Returns information about the classic control tools.
+
+Syntax:
+revIDEClassicControls()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns information about the classic control tools.
+
+Values:
+an array, keyed by the classic control tool types that appear in the Tools palette, of properties associated with each of those classic control tools. 
+
+OS:

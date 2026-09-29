@@ -1,0 +1,3 @@
+Version 1.01, build 202402051748
+Fixed an error on the App Browser, which can cause you to be editing the wrong object!
+Continued work on a stack version of the oxt_dictionary. This is based on someone else's work. Although I appreciate it, it's not really what I want to end up with...

@@ -1,0 +1,33 @@
+mobileStoreDisablePurchaseUpdates
+(command)
+Disables the receipt of purchaseStateUpdate messages.
+
+Syntax:
+mobileStoreDisablePurchaseUpdates
+----
+
+Synonyms:
+mobiledisablepurchaseupdates
+
+Params:
+
+Examples:
+on purchaseStateUpdate pPurchaseID, pProductID, pState
+   switch pState
+   ...
+   end switch  
+   mobileStoreDisablePurchaseUpdates            
+end purchaseStateUpdate
+----
+
+Description:
+Use the mobileStoreDisablePurchaseUpdates command to disable the receipt of purchaseStateUpdate messages.
+
+The command mobileStoreDisablePurchaseUpdates is used to disable the receipt of purchaseStateUpdate messages from the store. This command is typically used in purchaseStateUpdate message, after processing each message that is sent by the store.
+
+*Note:*  This command is used when interacting with the Apple AppStore,  however, we suggest using it for every store. Failure to use this  command results in continuing to receive purchaseStateUpdate  messages from the AppStore.
+
+Values:
+
+OS:
+ios,android

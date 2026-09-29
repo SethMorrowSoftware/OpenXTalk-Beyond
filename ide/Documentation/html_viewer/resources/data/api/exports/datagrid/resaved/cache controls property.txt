@@ -1,0 +1,19 @@
+cache controls
+(property)
+Caches all controls for rendering.
+
+Syntax:
+put the dgProp["cache controls"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+By default the data grid only draws the controls that are visible on the screen. In circumstances where you don't have large amounts of records but the records you have take a long time to draw you may cache all of the controls when the data grid is drawn. This takes a little longer to display at the beginning but will offer smooth scrolling when the user interacts with the data grid.
+
+Values:
+
+OS:

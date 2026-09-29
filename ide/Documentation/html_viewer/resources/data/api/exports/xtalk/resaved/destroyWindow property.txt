@@ -1,0 +1,30 @@
+destroyWindow
+(property)
+Specifies whether the memory used by a stack window is purged when the stack is closed.
+
+Syntax:
+set the destroyWindow of {stack} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the destroyWindow of stack "Test Harness" to true
+----
+
+Description:
+Use the destroyWindow property when installing new externals, or to save memory.
+
+If a stack's destroyWindow property is set to true, closing the stack removes the data structure maintaining that window.
+
+External commands and external functions are removed from memory only when the stack controlling them is removed from memory. When you install a new external, or replace it with a new version while debugging, OpenXTalk cannot use it until you either quit OpenXTalk and then reopen the stack, or close the stack (after setting its destroyWindow to true) and then reopen it.
+
+*Note:* Despite its alarming name, the destroyWindow property does  not destroy or damage a stack. It simply frees the memory used for  its window.
+
+Values:
+The destroyWindow of a stack is true or false. By default, the destroyWindow property of newly created stacks is set to false. 
+
+OS:
+mac,windows,linux

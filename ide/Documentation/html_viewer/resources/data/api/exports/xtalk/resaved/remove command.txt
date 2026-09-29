@@ -1,0 +1,35 @@
+remove
+(command)
+Deletes a group from a specified card.
+
+Syntax:
+remove {group} from {card}
+----
+
+Synonyms:
+
+Params:
+•	group ( ): The group is a reference to any group that is on the specified card.
+•	card ( ): The card is any card reference.
+	
+Examples:
+remove group 1 from this card
+----
+remove group "controls" from recent card
+----
+remove group thisGroup from card "Overview"
+----
+
+Description:
+Use the remove command to remove a group from a card without removing it from the stack.
+
+The remove command removes a group from a card, without deleting it.
+
+Only top-level groups may be removed from cards; an attempt to remove a nested group from a card throws an error.
+
+Removing a group from a card automatically sets the sharedBehavior property of the group to true.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

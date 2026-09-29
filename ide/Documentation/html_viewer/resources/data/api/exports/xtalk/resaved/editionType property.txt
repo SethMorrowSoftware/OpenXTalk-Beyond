@@ -1,0 +1,32 @@
+editionType
+(property)
+Returns the edition type of the running engine.
+
+Syntax:
+get the editionType
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the editionType is "community" then
+   displayMessage "Built with OpenXTalk Community"
+end if
+----
+
+Description:
+Use the editionType global property to determine what edition of the engine is currently running.
+
+The global property the editionType can be used to determine what edition of the engine is currently running.
+
+The editionType returns "community" if the currently running engine is the OpenXTalk Community IDE or a standalone built with OpenXTalk Community.
+
+The editionType returns "commercial" if the currently running engine is the OpenXTalk Commercial IDE or a standalone built with OpenXTalk Commercial. 
+
+Values:
+The editionType property returns community or commercial. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

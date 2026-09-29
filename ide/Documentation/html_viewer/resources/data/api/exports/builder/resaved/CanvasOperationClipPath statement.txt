@@ -1,0 +1,28 @@
+CanvasOperationClipPath
+(statement)
+Clip to a path on a canvas.
+
+Syntax:
+clip to {mPath} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Set the canvas clip
+clip to circle path centered at point [100,100] with radius 50 on this canvas
+
+// Fill rectangle path on canvas. only the region of the rectangle that falls within the canvas clip will be rendered.
+fill rectangle path of rectangle [25, 25, 75, 75] on this canvas
+----
+
+Description:
+Modifies the clip of mCanvas by intersecting with mRect. Drawing operations on mCanvas will be confined to the clip region.
+
+Values:
+
+OS:

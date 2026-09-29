@@ -1,0 +1,30 @@
+revZipEnumerateItems
+(function)
+Lists the items in a zip archive.
+
+Syntax:
+revZipEnumerateItems({archivePath})
+----
+
+Synonyms:
+
+Params:
+archivePath ( ): The absolute path to the archive to list items in
+
+Examples:
+put revZipEnumerateItems(tArchive) into tItems
+----
+if "myZippedItem" is among the lines \
+      of revZipEnumerateItems(tArchive) then
+  beep
+end if
+----
+
+Description:
+Use the revZipEnumerateItems function to obtain a list of the items currently in an open zip archive. The archive must first have been opened with the revZipOpenArchive command.
+
+Values:
+This function returns a list of item names, one per line, in the archive. If the archive is empty, or an error has occurred then revZipEnumerateItems will return empty. 
+
+OS:
+mac,windows,linux,ios,android

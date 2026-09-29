@@ -1,0 +1,24 @@
+CosOperator
+(operator)
+Cos operator.
+
+Syntax:
+cos({Operand})
+----
+
+Synonyms:
+
+Params:
+•	Operand ( ): An expression that evaluates to a number.
+	
+Examples:
+variable tVar as Number
+put cos(pi) into tVar -- tVar contains -1
+----
+
+Description:
+Cos operator.
+
+Values:
+
+OS:

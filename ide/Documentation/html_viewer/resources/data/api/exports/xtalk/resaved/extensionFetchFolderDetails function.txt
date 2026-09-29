@@ -1,0 +1,22 @@
+extensionFetchFolderDetails
+(function)
+Fetch all the information about an extension in the given folder
+
+Syntax:
+extensionFetchFolderDetails({pFolder},{pParseManifest})
+----
+
+Synonyms:
+
+Params:
+pFolder ( ): The folder to search for an extension
+pParseManifest ( ): Whether to parse any existing manifest file for information about the extension.
+
+Examples:
+Description:
+Fetch all the information about an extension in the given folder
+
+Values:
+An array of details about any extension found, and its assets, or empty if none was found. 
+
+OS:

@@ -1,0 +1,22 @@
+UnitTestSkipDescription
+(statement)
+Record a skipped test with a description
+
+Syntax:
+skip test {Description}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+skip test "open web socket"
+----
+
+Description:
+Record that a test was skipped.  The Description string is a short message that summarises the test that was skipped.
+
+Values:
+
+OS:

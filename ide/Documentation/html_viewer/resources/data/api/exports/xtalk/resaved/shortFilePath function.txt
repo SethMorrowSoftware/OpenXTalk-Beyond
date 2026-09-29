@@ -1,0 +1,33 @@
+shortFilePath
+(function)
+return|Returns the 8.3-format equivalent of a Windows long  file path. 
+
+Syntax:
+the shortFilePath of {filePath}
+----
+shortFilePath({filePath})
+----
+
+Synonyms:
+
+Params:
+filePath ( ): The location and name of the file or folder whose short equivalent you want. If you specify a name but not a location, the engine assumes the file or folder is in the defaultFolder.
+
+Examples:
+the shortFilePath of myPath
+----
+if it is the shortFilePath of it then put it into myFilePath
+----
+
+Description:
+Use the shortFilePath function to obtain the equivalent of a file path in short format for use in situations that require it.
+
+The shortFilePath function transforms the filePath without looking for the file, so it return|returns a value even if the filePath does not exist.
+
+On Mac OS, OS X, or Unix systems, the shortFilePath simply returns the filePath without changing it.
+
+Values:
+The shortFilePath function return|returns a file path. 
+
+OS:
+mac,windows,linux

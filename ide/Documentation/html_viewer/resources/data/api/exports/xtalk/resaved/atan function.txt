@@ -1,0 +1,34 @@
+atan
+(function)
+return|Returns the arc tangent of a number in radian|radians.
+
+Syntax:
+the atan of {number}
+----
+atan({number})
+----
+
+Synonyms:
+
+Params:
+number ( ): A positive or negative number, or an expression that evaluates to a number. 
+
+Examples:
+atan(0)
+atan(tan(-1))
+----
+the atan of vectorMagnitude
+----
+
+Description:
+Use the atan function to find the arc tangent of a number.
+
+The arc tangent of number is an angle whose tangent is equal to number. In other words, atan is an inverse of the tan function.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The atan function return|returns a number between -pi/2 and pi/2. The result of the atan function is return|returned in radian|radians. To get this result in degree|degrees, use the following custom function:      function atanInDegrees pMagnitude         return atan(pMagnitude) * 180 / pi     end atanInDegrees 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,27 @@
+BooleanFormattedAsString
+(operator)
+Formats a boolean value as a string
+
+Syntax:
+{Operand} formatted as string
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a boolean value.
+
+Examples:
+variable tString as String
+variable tBool as Boolean
+put (false is not not true) is false into tBool
+put tBool formatted as string into tString -- tString contains "true"
+----
+
+Description:
+Use BooleanFormattedAsString when you want to manipulate a boolean value as text.
+
+Values:
+"true" or "false" 
+
+OS:

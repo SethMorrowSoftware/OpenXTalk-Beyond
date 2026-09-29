@@ -1,0 +1,16 @@
+frame
+(glossary)
+
+Syntax:
+Synonyms:
+frame
+
+Params:
+
+Examples:
+Description:
+One of the images in the sequence of images that makes up an animation or video.
+
+Values:
+
+OS:

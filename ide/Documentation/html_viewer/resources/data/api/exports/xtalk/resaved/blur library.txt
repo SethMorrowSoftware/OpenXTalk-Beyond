@@ -1,0 +1,15 @@
+blur
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+ blur is a simple external for blurring the imageData and alphaData of an image.
+
+Values:
+
+OS:

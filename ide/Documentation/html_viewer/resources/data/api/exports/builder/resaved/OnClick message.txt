@@ -1,0 +1,19 @@
+OnClick
+(message)
+Sent when the widget is clicked.
+
+Syntax:
+OnClick
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget is clicked.
+
+Values:
+
+OS:

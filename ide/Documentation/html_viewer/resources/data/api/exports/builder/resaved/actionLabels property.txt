@@ -1,0 +1,21 @@
+actionLabels
+(property)
+The labels of the action items
+
+Syntax:
+set the actionLabels of {widget} to {pLabelList}
+get the actionLabels of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The labels of the action items
+
+Values:
+A list of labels of the action items 
+
+OS:

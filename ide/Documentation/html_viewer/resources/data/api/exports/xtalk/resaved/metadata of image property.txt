@@ -1,0 +1,30 @@
+metadata of image
+(property)
+The metadata property of an image is a read only array of metadata from the image file.
+
+Syntax:
+put the metadata of {imageObject} into {metadataArray}
+----
+
+Synonyms:
+
+Params:
+metadataArray (array ): An array of image metadata. Currently the only key supported is "density" with a value in pixels per inch (ppi) for JPEG and PNG files.
+
+Examples:
+put the metadata of image 1 into metadataArray
+set the width of image 1 \
+      to the width of image 1 div (metadataArray["density"] / 72)
+set the height of image 1 \
+      to the height of image 1 div (metadataArray["density"] / 72)
+----
+
+Description:
+Use the metadata property to access the metadata of the image as an array. Other types of image and JPEG and PNG images without metadata will return empty.
+
+The metadata array is the same form used for the image export commands. The image metadata property is read only.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

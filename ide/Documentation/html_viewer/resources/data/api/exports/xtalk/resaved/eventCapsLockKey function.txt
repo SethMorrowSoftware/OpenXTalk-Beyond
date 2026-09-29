@@ -1,0 +1,32 @@
+eventCapsLockKey
+(function)
+return|Returns the state of the Caps Lock key.
+
+Syntax:
+the eventCapsLockKey
+----
+eventCapsLockKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the eventCapsLockKey
+----
+if the eventCapsLockKey is down then exit repeat
+----
+
+Description:
+Use the eventCapsLockKey function to check whether the Caps Lock was enabled at the time the current event was dispatched.
+
+If you want to check the state of the Caps Lock key at the current time, rather than when the event was dispatched, use the capsLockKey function.
+
+ **Warning**: the value of this function is undefined after performing  a wait operation; it may no longer be the same as the value when the  event was dispatched.
+
+Values:
+The eventCapsLockKey function return|returns down if Caps Lock was enabled at the time the current event was dispatched. 
+
+OS:
+mac,windows,linux

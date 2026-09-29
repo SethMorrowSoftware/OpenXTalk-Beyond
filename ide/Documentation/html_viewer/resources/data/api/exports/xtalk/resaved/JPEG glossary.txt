@@ -1,0 +1,16 @@
+JPEG
+(glossary)
+
+Syntax:
+Synonyms:
+jpeg, jpg, .jpeg, .jpg
+
+Params:
+
+Examples:
+Description:
+Joint Photographic Experts Group. A bitmap|bitmapped color picture format. 
+
+Values:
+
+OS:

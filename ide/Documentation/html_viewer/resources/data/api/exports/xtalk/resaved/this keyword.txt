@@ -1,0 +1,31 @@
+this
+(keyword)
+Indicates the current stack, or the current card of the  current stack. 
+
+Syntax:
+this
+----
+
+Synonyms:
+current
+
+Params:
+
+Examples:
+local tCurrentName
+put the name of this card into tCurrentName
+----
+sort cards by the mark of this card
+----
+send preOpenStack to this stack
+----
+
+Description:
+Use the this keyword to indicate the current card or  current stack in an expression.
+
+When used in a sort command, the this keyword indicates each card(keyword) to be sorted. You can use the this keyword to sort card(object)|cards by a card(keyword) property.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -467,7 +467,7 @@ command revSBRemoveUnneededSlicesFromMacCode pTargetFile, pSettings
       if tRemove is not empty then
          replace " " with "\ " in pTargetFile
          local tShell
-         put "lipo " & pTargetFile & " -remove " & tRemove & " -output " & pTargetFile into tShell
+        put "lipo " & pTargetFile & " -remove " & tRemove & " -output " & pTargetFile into tShell
          get shell(tShell)
       end if
    end if
@@ -714,7 +714,8 @@ function revFolderNameMakeLegal pName
 end revFolderNameMakeLegal
 
 // List of all desktop target platforms + architecture
-constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-64,Linux,Linux x64,Linux armv6-hf"
+-- added MacOSX x64-ARM64, tperry 25-09-2025
+constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64,Linux,Linux x64,Linux armv6-hf"
 function revSBDesktopTargets
    return kDesktopTargets
 end revSBDesktopTargets
@@ -738,7 +739,7 @@ end revSBTargetToPlatform
 
 -- item 1 of the architectures should be the default architecture
 constant kWindowsArchitectures = "x86-32,x86-64"
-constant kMacOSXArchitectures = "x86-32,x86-64"
+constant kMacOSXArchitectures = "x86-32,x86-64,x64-ARM64"
 constant kLinuxArchitectures =  "x86-32,x86-64,armv6-hf"
 constant kAndroidArchitectures =  "armv7,arm64,x86,x86_64"
 constant kiOSArchitectures =  "armv7,arm64"
@@ -1021,7 +1022,9 @@ function revEngineCheck pEngine
          case "MacOSX PowerPC-32"
          case "MacOSX x86-32"
          case "MacOSX x86-64"
-            return there is a directory (tPath & "/Mac OS X/x86-64/Standalone.app")
+            return there is a directory (tPath & "/Mac OS X/x86-32/Standalone.app")
+         case "MacOSX x64-ARM64"
+            return there is a directory (tPath & "/Mac OS X/x64-ARM64/Standalone-blank.app")
          case "Windows"
             if there is a file (tPath & "/Windows/x86-32/Standalone") then
                return true
@@ -1180,8 +1183,12 @@ private function __ScriptLibraries
    // SN-2015-10-19: [[ Bug 16238 ]] Add DataGrid library amongst the libraries
    local tLibs
    put kScriptLibraries into tLibs
+   if the cDisableDataGrid of stack "revPreferences" is true then -- don't load datagrid libs if it's disabled (tperry 13-4-24)
+      replace "Datagrid"  with "" in tLibs
+   end if
+   replace ",," with "," in tLibs -- sanity check
+   --
    replace comma with return in tLibs
-   
    -- user script libraries
    local tEnvironmentScripts
    put revAbsoluteFolderListing(revEnvironmentResourcesPath("Script Libraries")) into tEnvironmentScripts
@@ -1196,7 +1203,6 @@ private function __ScriptLibraries
          put return & the short name of stack tLine after tLibs
       end if
    end repeat
-   
    return tLibs
 end __ScriptLibraries
 
@@ -2287,7 +2293,11 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
       -- Special-case data grid at the moment, as it is not initialised 
       -- using extensionInitialize
       if tLibrary is "DataGrid" then
-         put true into tIncludeDataGrid
+         if the cDisableDataGrid of stack "revPreferences" is true then -- don't load datagrid libs if it's disabled (tperry 13-4-24)
+            put false into tIncludeDataGrid
+         else
+            put true into tIncludeDataGrid
+         end if
          next repeat
       end if
       # AL-2015-03-05: [[ Bug 14813 ]] Transform script library display name to stack name at deploy time
@@ -2330,9 +2340,13 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
       prependToStringList tInitScript, tStartupScript
    end if
    
-   -- If the datagrid is used, then include the library as an aux stack
-   if tIncludeDataGrid or "data grid templates" is in the subStacks of stack pStack and there is a stack "revDataGridLibrary" then
-      revSBAddDataGridToAuxiliaryStackFiles tAuxiliaryStackFiles
+   if the cDisableDataGrid of stack "revPreferences" is true then
+      -- data grids are disabled (tperry 13-4-24)
+   else
+      -- If the datagrid is used, then include the library as an aux stack
+      if tIncludeDataGrid or "data grid templates" is in the subStacks of stack pStack and there is a stack "revDataGridLibrary" then
+         revSBAddDataGridToAuxiliaryStackFiles tAuxiliaryStackFiles
+      end if
    end if
    
    put tAuxiliaryStackFiles into xDeployParams["auxiliary_stackfiles"]
@@ -2343,6 +2357,7 @@ command revSBUpdateDeployParams pStack, pTarget, pStandaloneSettings, @xDeployPa
 end revSBUpdateDeployParams
 
 command revSBAddDataGridToAuxiliaryStackFiles @xAuxiliaryStackFiles
+   if the cDisableDataGrid of stack "revPreferences" is true then exit revSBAddDataGridToAuxiliaryStackFiles
    local tStackFiles
    put the stackFiles of stack "revDataGridLibrary" into tStackFiles
    split tStackFiles by return and comma
@@ -3050,7 +3065,11 @@ function revSBEnginePath pPlatform
             // SN-2015-07-09: [[ StandaloneDeployment ]] Gypified Standalone-<edition>.app building does not
             //  allow to create broken applications, so that the executable file in it bears the edition.
             put the upper of char 1 of tEdition into char 1 of tEdition
-            return tRuntimePath & "/Mac OS X/x86-64/Standalone.app/Contents/MacOS/Standalone-" & tEdition
+            return tRuntimePath & "/Mac OS X/x86-32/Standalone.app/Contents/MacOS/Standalone-" & tEdition
+            break
+         case "MacOSX x64-ARM64"
+            put the upper of char 1 of tEdition into char 1 of tEdition
+            return tRuntimePath & "/Mac OS X/x64-ARM64/Standalone-blank.app/Contents/MacOS/Standalone-" & tEdition
             break
          case "Windows"
             return tRuntimePath & "/Windows/x86-32/Standalone"

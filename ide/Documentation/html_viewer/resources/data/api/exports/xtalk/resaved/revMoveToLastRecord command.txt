@@ -1,0 +1,29 @@
+revMoveToLastRecord
+(command)
+Moves to the last record of a record set (glossary). 
+
+Syntax:
+revMoveToLastRecord {recordSetID}
+----
+
+Synonyms:
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revMoveToLastRecord mySearch
+----
+
+Description:
+Use the revMoveToLastRecord command to move around within the selected set of record|records.
+
+*Note:* Not all database|databases support the revMoveToLastRecord  command. Currently, the revMoveToLastRecord command is not  supported by Oracle databases and certain ODBC data sources.
+
+*Important:*  The revMoveToLastRecord command is part of the   Database library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+If the command could not move to the last record because there are no records in the record set, the result function returns an error message that begins with the string "revdberr". 
+
+OS:
+mac,windows,linux,ios,android

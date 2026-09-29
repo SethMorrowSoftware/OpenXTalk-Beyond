@@ -1,0 +1,33 @@
+CanvasOperationStroke
+(statement)
+Stroke a path on a canvas.
+
+Syntax:
+stroke [ {mPath} on ] {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Draw a circle path on the canvas
+stroke circle path centered at point [100,100] with radius 50 on this canvas
+----
+// Add a path to the canvas
+move to point [50,50] on this canvas
+line to point [50,100] on this canvas
+line to point [100,100] on this canvas
+
+// Stroke the current canvas path
+stroke this canvas
+----
+
+Description:
+Strokes mPath with the current canvas paint and stroke settings. If mPath is not specified then the current canvas path will be stroked, then emptied from the canvas.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+Video library
+(library)
+
+Syntax:
+Synonyms:
+video library, video libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports video capture from a camera or other video input device.
+
+Values:
+
+OS:

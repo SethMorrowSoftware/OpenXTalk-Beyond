@@ -1,0 +1,32 @@
+toolTipDelay
+(property)
+Specifies how long the user must point to an object(glossary) with the mouse pointer before its tool tip appears.
+
+Syntax:
+set the toolTipDelay to {milliseconds}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the toolTipDelay to 200 -- faster-than-default tooltip
+----
+set the toolTipDelay to 0 -- no tooltip
+----
+
+Description:
+Use the toolTipDelay property to control the responsiveness of  tool tip|tool tips.
+
+A tool tip is a small box containing a line or two of text, which pops up on the screen when the mouse pointer hovers over a control. Use the toolTip property to set the contents of the tool tip.
+
+The mouse must be still for the toolTipDelay time or the tool tip will not appear. If the mouse remains within a control, but is constantly moving, the toolTipDelay time does not start until the mouse stops moving.
+
+If the toolTipDelay is zero, the tool tip is disabled and does not appear. 
+
+Values:
+The toolTipDelay is a non-negative integer. By default, the toolTipDelay is 500 (half a second). 
+
+OS:
+mac,windows,linux

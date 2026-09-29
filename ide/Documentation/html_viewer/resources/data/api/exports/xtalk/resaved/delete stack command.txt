@@ -1,0 +1,31 @@
+delete stack
+(command)
+Removes a substack from a stack file, or removes a main stack from memory. 
+
+Syntax:
+delete {stack}
+----
+
+Synonyms:
+clear stack
+
+Params:
+stack ( ): Any valid stack reference.
+
+Examples:
+delete stack "Expressions"
+----
+
+Description:
+Use the delete stack command to delete a substack, or to purge a main stack from memory.
+
+The delete stack command has different effects, depending on whether the stack is a main stack or a substack.
+
+If the stack is a main stack, the delete stack command removes the stack from memory. (Any unsaved changes are lost.) However, it does not remove it from the user's system. To delete a main stack, use the delete file command instead.
+
+*Warning:*  If the stack is a substack, the delete stack  command deletes the stack from memory, which causes it to be  deleted permanently the next time its stack file is saved.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

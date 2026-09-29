@@ -1,0 +1,16 @@
+Printing library
+(library)
+
+Syntax:
+Synonyms:
+printing library, printing libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports text printing. The revPrintField, revPrintText, and revShowPrintDialog command|commands are part of the Printing library.
+
+Values:
+
+OS:

@@ -1,0 +1,20 @@
+getCurrentIconFamily
+(handler)
+Return the current icon family.
+
+Syntax:
+getCurrentIconFamily()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the iconsvg library's current icon family.  Handlers that do not specify an icon family will use the current icon family.  "fontawesome" is the current family when the library is first initialized.
+
+Values:
+The current icon family. 
+
+OS:

@@ -1,0 +1,22 @@
+mimeTheMIMEVersion
+(function)
+The MIME version this implemented in the library
+
+Syntax:
+mimeTheMIMEVersion()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put "MIME-Version:" && mimeTheMIMEVersion() & crlf after tHeaders
+----
+
+Description:
+Use the mimeTheMIMEVersion function create a `MIME-Version` header. 
+
+Values:
+
+OS:

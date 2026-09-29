@@ -1,0 +1,22 @@
+DataIsGreaterThanData
+(operator)
+Determines whether Left is greater than Right under a byte by byte comparison
+
+Syntax:
+{Left} > {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to binary data.
+Right ( ): An expression which evaluates to binary data.
+
+Examples:
+Description:
+Left is greater than Right if they are not equal, and the first byte in Left that is not equal to the corresponding byte in Right is of greater value.
+
+Values:
+True if Left is greater than Right, and false otherwise. 
+
+OS:

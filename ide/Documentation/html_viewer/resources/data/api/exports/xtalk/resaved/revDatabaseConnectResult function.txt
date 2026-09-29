@@ -1,0 +1,32 @@
+revDatabaseConnectResult
+(function)
+return|Returns the most recent error message for a database.
+
+Syntax:
+revDatabaseConnectResult({databaseID})
+----
+
+Synonyms:
+revdb_connectionerr
+
+Params:
+databaseID ( ): The number returned by the revOpenDatabase function when the database was opened.
+
+Examples:
+revDatabaseConnectResult(line x of revOpenDatabases())
+----
+if revDatabaseConnectResult(myReservations) is empty then exit repeat
+----
+
+Description:
+Use the revDatabaseConnectResult function to check for successful completion of commands.
+
+If there were no errors on the specified database connection, the revDatabaseConnectResult function return|returns empty. Otherwise the revDatabaseConnectResult function returns the database specific error message for the most recent database operation that failed.
+
+*Important:*  The revDatabaseConnectResult function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revDatabaseConnectResult function return|returns a string. 
+
+OS:
+mac,windows,linux,ios,android

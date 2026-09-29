@@ -1,0 +1,19 @@
+alternate row color
+(property)
+The color of every other row's background.
+
+Syntax:
+put the dgProp["alternate row color"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color of every other row's background. Default value is empty in which case a default hilite color is used. Only applicable when 'alternate row colors' is true. Prefix property name with "effective" to get the color being used.
+
+Values:
+
+OS:

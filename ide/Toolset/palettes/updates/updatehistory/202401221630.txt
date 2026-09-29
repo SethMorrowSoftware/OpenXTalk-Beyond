@@ -1,0 +1,2 @@
+Version 0.99, build 202401221630
+(Updated the browse and pointer icon. Eliminated some old icons in revicons.rev stack, corrected a typo in the revplugineditor, changes to the about stack, and fixed "too much recursion" error in the App Browser.

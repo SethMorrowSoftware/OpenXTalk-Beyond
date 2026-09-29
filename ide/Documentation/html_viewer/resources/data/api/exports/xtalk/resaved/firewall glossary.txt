@@ -1,0 +1,18 @@
+firewall
+(glossary)
+
+Syntax:
+Synonyms:
+firewall, firewalled, firewalling
+
+Params:
+
+Examples:
+Description:
+A system with special security features, which intercepts all traffic between a local network (such as a corporate network) and the rest of the Internet.
+
+Firewalls are used to prevent crackers from gaining access to computers on the local network.
+
+Values:
+
+OS:

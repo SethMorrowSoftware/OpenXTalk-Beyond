@@ -1,0 +1,21 @@
+selectedIcon
+(property)
+The selected icon name
+
+Syntax:
+set the selectedIcon of {widget} to pIcon
+get the selectedIcon of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The selected icon name
+
+Values:
+An icon name, from the IconSVG library 
+
+OS:

@@ -1,0 +1,2 @@
+Version 0.99, build 202401170840
+Tools palette is aware of light/dark mode now and switches icons based on the system appearance. This samples the effective colour and also has the side effect that it will trigger the permission on MacOS to ask for screen recording permissions. This is needed by the IDE, and is only asked for once.

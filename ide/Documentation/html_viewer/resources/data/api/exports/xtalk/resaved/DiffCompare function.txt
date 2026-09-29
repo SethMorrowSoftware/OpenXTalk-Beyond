@@ -1,0 +1,25 @@
+DiffCompare
+(function)
+Produce a diff representing the changes between two text strings
+
+Syntax:
+DiffCompare({pFrom},{pTo},{pContext})
+----
+
+Synonyms:
+
+Params:
+pFrom ( ): The original source string. The produced diff will describe how to transform this string.
+pTo ( ): The updated source string. This will be compared to pFrom to produce the output diff.
+pContext ( ): The number of unchanged lines to include before / after each change in the diff.
+
+Examples:
+----
+
+Description:
+Compare two strings, producing a string representing the changes between them in unified-diff format.
+
+Values:
+A string representing the changes between pFrom and pTo in unified diff format. 
+
+OS:

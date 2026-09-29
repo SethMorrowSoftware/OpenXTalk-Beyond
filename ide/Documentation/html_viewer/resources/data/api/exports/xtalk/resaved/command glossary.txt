@@ -1,0 +1,18 @@
+command
+(glossary)
+
+Syntax:
+Synonyms:
+command
+
+Params:
+
+Examples:
+Description:
+A directive that causes OpenXTalk to perform an action (such as open a window, put text in a field, or beep).
+
+OpenXTalk has many built-in command|built-in commands, which are described in the OpenXTalk Dictionary. You can also create your own custom command|custom commands.
+
+Values:
+
+OS:

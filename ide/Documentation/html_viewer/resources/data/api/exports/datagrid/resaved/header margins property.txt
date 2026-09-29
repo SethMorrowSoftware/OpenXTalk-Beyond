@@ -1,0 +1,19 @@
+header margins
+(property)
+Specifies the margins to be applied to the fields that display the header text.
+
+Syntax:
+put the dgProp["header margins"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Specifies the margins to be applied to the fields that display the header text.
+
+Values:
+
+OS:

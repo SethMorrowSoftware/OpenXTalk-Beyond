@@ -1,0 +1,21 @@
+extensionExtractDocs
+(command)
+Extract docs from extension files
+
+Syntax:
+extensionExtractDocs {pDocsParser},{pOutputDir}
+----
+
+Synonyms:
+
+Params:
+pDocsParser ( ): The path to the docs parser script. If empty, this command will do nothing
+pOutputDir ( ): The folder to output the extracted docs file
+
+Examples:
+Description:
+Use extensionExtractDocs to run the docs parser script on all the files which are parameters subsequent to pOutputDir
+
+Values:
+
+OS:

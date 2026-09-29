@@ -1,0 +1,29 @@
+threeDBox
+(keyword)
+Used with the textStyle property to specify that a chunk of text in a field has a three-dimensional box drawn around it.
+
+Syntax:
+threeDBox
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textStyle of line 1 to 3 of field "Table" to threeDBox
+----
+
+Description:
+Use the threeDBox keyword to emphasize text by drawing a box around it.
+
+The top and left edges of the box are drawn in the object's bottomColor and bottomPattern. The bottom and right edges of the box are drawn in the object|object's topColor and topPattern.
+
+If the text crosses more than one screen line, a box is drawn around each line of the text. If the text has mixed styles, a separate box is drawn around each style run. For example, if three words are boxed and the last is also boldfaced, a box is drawn around the first two words, and another box is drawn around the boldfaced word.
+
+An object or chunk of a field may have the style box or threeDBox, but not both at once.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

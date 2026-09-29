@@ -1,0 +1,19 @@
+dgColumnSortType
+(property)
+Get/set the sort type of the column.
+
+Syntax:
+put the dgColumnSortType["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the sort type of the column to 'text', 'numeric', 'datetime' or 'system datetime'.
+
+Values:
+
+OS:

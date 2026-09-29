@@ -1,0 +1,30 @@
+revBrowserStop
+(command)
+Stops the specified browser.
+
+Syntax:
+revBrowserStop {instanceId}
+----
+XBrowser_Stop [ {instanceId}]
+----
+
+Synonyms:
+xbrowser_stop
+
+Params:
+instanceId ( ): The integer identifier of a browser object
+
+Examples:
+revBrowserStop tBrowserId
+----
+
+Description:
+The revBrowserStop command stops any page loading operation in progress in the browser specified by the instanceId. If no page is currently loading in the specified browser, then the revBrowserStop command has no effect.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserStop command puts empty into the result. 
+
+OS:
+mac,windows

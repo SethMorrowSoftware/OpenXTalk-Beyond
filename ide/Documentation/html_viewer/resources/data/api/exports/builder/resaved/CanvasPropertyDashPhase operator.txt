@@ -1,0 +1,26 @@
+CanvasPropertyDashPhase
+(operator)
+The current dash phase of a canvas.
+
+Syntax:
+the dash phase of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw a rectangle with short, widely spaced dashes, offset to begin from the middle of the dash pattern
+set the dashes of this canvas to [10, 40]
+set the dash phase of this canvas to 25
+stroke rectangle path of rectangle [50, 50, 200, 200] on this canvas
+----
+
+Description:
+The offset into the dashes at which to begin applying the dash pattern.
+
+Values:
+
+OS:

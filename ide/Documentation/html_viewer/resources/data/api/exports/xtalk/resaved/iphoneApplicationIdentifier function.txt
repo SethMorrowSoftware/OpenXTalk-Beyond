@@ -1,0 +1,28 @@
+iphoneApplicationIdentifier
+(function)
+Returns the bundle identifier for the current application.
+
+Syntax:
+iphoneApplicationIdentifier()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put iphoneApplicationIdentifier() into tAppID
+----
+put specialFolderPath("library") & "/" & iphoneApplicationIdentifier() into tAppLibraryFolder
+----
+
+Description:
+Use the iphoneApplicationIdentifier function to find the bundle identifier for the current application.
+
+The iphoneApplicationIdentifier function is useful (among other things) for creating a private folder in specialFolderPath("library") following Apple guidelines.
+
+Values:
+The iphoneApplicationIdentifier function returns the identifier specified in the iOS standalone settings. 
+
+OS:
+ios

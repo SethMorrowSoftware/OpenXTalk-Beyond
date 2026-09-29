@@ -1,0 +1,16 @@
+quoted
+(glossary)
+
+Syntax:
+Synonyms:
+quoted
+
+Params:
+
+Examples:
+Description:
+Surrounded with double quote|double quotes (").
+
+Values:
+
+OS:

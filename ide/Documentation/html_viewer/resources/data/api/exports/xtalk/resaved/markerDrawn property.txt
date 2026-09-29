@@ -1,0 +1,32 @@
+markerDrawn
+(property)
+Specifies whether markers are drawn at each vertex of a curve or irregular polygon graphic.
+
+Syntax:
+set the markerDrawn of {graphic} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the markerDrawn of me to true
+----
+
+Description:
+Use the markerDrawn property to draw a small shape at each vertex of a graphic.
+
+Irregular polygon graphics can be drawn with a marker at each vertex, whose shape is defined by the markerPoints property. The markerDrawn property specifies whether these markers are visible or not.
+
+The borderPattern and borderColor properties determine the appearance of the markers' interior. The hilitePattern and hiliteColor determine the appearance of the borders.
+
+If the style property of the graphic is not polygon or curve, the setting of its hilitePattern property has no effect.
+
+If the markerPoints property is empty, the setting of the markerDrawn property has no effect.
+
+Values:
+The markerDrawn of a graphic(keyword) is true or false. By default, the markerDrawn property of newly created graphic(object)|graphics is set to false. 
+
+OS:
+mac,windows,linux,ios,android

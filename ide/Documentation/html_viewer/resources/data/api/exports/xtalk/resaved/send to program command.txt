@@ -1,0 +1,37 @@
+send to program
+(command)
+Sends an Apple event to a program.
+
+Syntax:
+send {message} to {program | application} {programAddress} [with {classID}] [{with | without} reply]
+----
+
+Synonyms:
+
+Params:
+message ( ): The message you want the other application to execute (the data attached to the Apple event you are sending). Its exact format and meaning depends on the other application.
+programAddress ( ): The AppleTalk address of the other program. The AppleTalk address consists of three parts, separated by colons: the zone the other computer is in, the name of the computer, and the name of the target program. If the other computer is in the same zone as yours, you can omit the zone. If the other program is running on the same computer, you can omit both the zone and the computer name.
+classID (string ): A string consisting of the 4-character Apple event class and the 4-character event ID. If you don't specify a classID, OpenXTalk uses "" : theclass and the event.
+
+Examples:
+send "message" to program "Corporate Zone:Other Mac:OpenXTalk"
+----
+send field "output" to application "FileMaker" without reply
+----
+send "message" to program "Chrome" with "GURLGURL"
+----
+
+Description:
+Use the send to program command to cause another application to take some action via the Apple event or another Apple event you specify.
+
+Theandforms are synonyms.
+
+If you specify theform, the handler pauses until the application sends back a response. If you specify theform, the handler continues immediately without waiting. If you don't specify either form, theform is used.
+
+*Tip:* To display the process browser dialog box and allow the user  to choose a running program, use the following statement :  For more information about Apple events, see Apple Computer's technical documentation, Inside Macintosh: Interapplication Communication, located at [Apple's developer site] (https://developer.apple.com/library/archive/documentation/mac/IAC/IAC-2.html). 
+
+Values:
+If the program supports the Apple event, it performs the command. If the program sends back a response, it is placed in the result function. 
+
+OS:
+mac

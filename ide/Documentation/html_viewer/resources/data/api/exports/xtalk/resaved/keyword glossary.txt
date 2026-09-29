@@ -1,0 +1,16 @@
+keyword
+(glossary)
+
+Syntax:
+Synonyms:
+keyword
+
+Params:
+
+Examples:
+Description:
+A word that is part of the OpenXTalk language, but is not a built-in command, function, property, or message name, a  control structure, operator, or object(glossary) type.
+
+Values:
+
+OS:

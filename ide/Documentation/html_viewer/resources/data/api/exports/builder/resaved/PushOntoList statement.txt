@@ -1,0 +1,32 @@
+PushOntoList
+(statement)
+Pushes Value onto Target.
+
+Syntax:
+push {Value} onto ( front of | back of ) {Target}
+----
+
+Synonyms:
+
+Params:
+Value ( ): Any expression.
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tVar as List
+put the empty list into tVar
+push "something" onto tVar
+push "something else" onto front of tVar
+
+variable tResult as String
+if tVar[1] is "something else" then
+	put "success" into tResult
+end if
+----
+
+Description:
+When Value is pushed onto Target, Value (by default) becomes the tail of the list, with an index one greater than the previous tail. Use the 'front of' variant to push onto the front of a list instead.
+
+Values:
+
+OS:

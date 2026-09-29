@@ -1,0 +1,31 @@
+GradientPropertyFrom
+(operator)
+The from point of a gradient paint.
+
+Syntax:
+the from of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+variable tRect
+put rectangle [ 20, 10, 120, 60 ] into tRect
+
+// Set the start point of the gradient to the center of tRect
+set the from of tGradient to point [(the left of tRect + the right of tRect) / 2, (the top of tRect + the bottom of tRect) / 2]
+----
+
+Description:
+The from point of mGradient as a point. Defines the starting point from which to begin drawing the gradient.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+timeout
+(glossary)
+
+Syntax:
+Synonyms:
+timeout, time out, timed out, times out, timing out
+
+Params:
+
+Examples:
+Description:
+A period of time to wait for an event (such as a connection or the launch of a process) before giving up.
+
+Values:
+
+OS:

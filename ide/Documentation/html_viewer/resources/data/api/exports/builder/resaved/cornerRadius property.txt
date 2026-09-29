@@ -1,0 +1,21 @@
+cornerRadius
+(property)
+The corner radius of the widget
+
+Syntax:
+get the cornerRadius of {widget}
+----
+set the cornerRadius of {widget} to {value}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The cornerRadius is the radius (in pixels) of the corner curve of the widget. The default value is usually suitable for horizantal orientations, however with a vertical orientation, depending on the size of the labels, you may wish to adjust.
+
+Values:
+
+OS:

@@ -1,0 +1,31 @@
+TheMouseLocation
+(expression)
+Determines the location of the mouse pointer relative to the widget.
+
+Syntax:
+the ( current ) mouse position
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tPosition as Point
+put the mouse position into tPosition
+
+variable tRect as Rectangle
+put my bounds into tRect
+
+if tPosition is within tRect then
+	// mouse position is within the widget bounds
+end if
+----
+
+Description:
+Use the 'current' form to obtain the asynchronous mouse position.
+
+Values:
+The location of the mouse pointer. 
+
+OS:

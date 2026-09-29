@@ -1,0 +1,27 @@
+escapeKey
+(message)
+Sent when the user presses the Escape key.
+
+Syntax:
+escapeKey
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on escapeKey -- return to the last card visited
+  go recent card
+end escapeKey
+----
+
+Description:
+Handle the escapeKey message if you want to perform some action when the user presses Escape key|Escape.
+
+The message is sent to the active (focused) control, or to the current card if no control is focused.
+
+Values:
+
+OS:
+mac,windows,linux

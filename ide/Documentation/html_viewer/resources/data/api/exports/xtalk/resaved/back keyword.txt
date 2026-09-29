@@ -1,0 +1,29 @@
+back
+(keyword)
+Designates a location in the message path after an object|object's stack, or the most recent cards|recently visited card.
+
+Syntax:
+back
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+insert the script of card button 9 into back
+----
+go back
+----
+
+Description:
+Use the back keyword to return(constant) to the most  recent cards|recently visited card, or to designate a backScript.
+
+When used with the go command, the back keyword designates the card the user visited most recently. The statement go back return(glossary)|returns to that card.
+
+When used with the insert script or remove script command, the back keyword designates a backScript which is to be placed in the message path after the stack.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

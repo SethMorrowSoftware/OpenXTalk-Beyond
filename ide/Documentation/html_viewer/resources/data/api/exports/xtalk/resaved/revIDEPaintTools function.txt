@@ -1,0 +1,20 @@
+revIDEPaintTools
+(function)
+Returns information about the paint tools.
+
+Syntax:
+revIDEPaintTools()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns information about the paint tools.
+
+Values:
+an array, keyed by the paint tool types that appear in the Tools palette, of properties associated with each of those paint tools. 
+
+OS:

@@ -1,0 +1,29 @@
+items
+(keyword)
+Used with the sort command, number function, and is among and is not among properties to designate the comma-delimit|delimited portions (or portions delimit|delimited by the character in the itemDelimiter property) of a string.
+
+Syntax:
+items
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if it is not among the items of field "Possible Answers" then beep
+----
+sort items of myVariable
+----
+
+Description:
+Use the items keyword  to sort or select individual items.
+
+By default, an item is delimited by commas (,). However, you can set the itemDelimiter property to any character in order to directly address chunk|chunks delimit|delimited by that character. For example, you can set the itemDelimiter to tab in order to handle a database file whose fields are tab-delimit|delimited.
+
+An item is a string of characters delimited by commas (or the itemDelimiter character). A single item can contain multiple characters, multiple words, and multiple lines.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

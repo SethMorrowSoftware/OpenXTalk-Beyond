@@ -1,0 +1,16 @@
+append
+(glossary)
+
+Syntax:
+Synonyms:
+appending, appended, append
+
+Params:
+
+Examples:
+Description:
+To add data to the end of a container or file, without removing its current contents.
+
+Values:
+
+OS:

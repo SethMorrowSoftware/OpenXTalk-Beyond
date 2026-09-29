@@ -1,0 +1,26 @@
+selectedRange
+(property)
+The range of text of the widget that is selected.
+
+Syntax:
+set the selectedRange of {widget} to {pRange}
+get the selectedRange of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- Select the first 20 chars of the field widget
+set the selectedRange of widget "Android Text" to "1,20"
+----
+
+Description:
+Use the selectedRange property to determine the start index and the length of the text that is to appear as selected.
+
+Values:
+A comma-delimiter pair of the (1-based) start index and length. 
+
+OS:
+android

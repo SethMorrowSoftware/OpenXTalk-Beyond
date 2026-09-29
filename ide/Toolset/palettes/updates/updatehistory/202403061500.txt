@@ -1,0 +1,2 @@
+Version 1.02, build 202403061500
+Fixes to the revidelibrary - Fixed 'save as' > openxtalk not being the default option.

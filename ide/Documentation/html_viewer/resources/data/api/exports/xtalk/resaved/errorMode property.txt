@@ -1,0 +1,28 @@
+errorMode
+(property)
+Sets the engine action when an error is encountered.
+
+Syntax:
+set the errorMode to {mode}
+----
+
+Synonyms:
+
+Params:
+mode (enum ): Specifies the action to take when an error occurs. The mode types are:
+
+Examples:
+set the errorMode to "debugger"
+----
+set the errorMode to "inline"
+----
+
+Description:
+Determines the action the engine takes when an error occurs and a custom scriptExecutionError handler has not been provided.
+
+The errorMode property allows you to specify where to log or how to handle error messages that are not handled by a custom scriptExecutionError handler
+
+Values:
+
+OS:
+mac,windows,linux

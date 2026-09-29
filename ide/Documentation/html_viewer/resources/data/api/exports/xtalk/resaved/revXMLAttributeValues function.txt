@@ -1,0 +1,36 @@
+revXMLAttributeValues
+(function)
+return|Returns a list of the value|values of a specified attribute for the specified nodes in an XML tree.
+
+Syntax:
+revXMLAttributeValues({treeID}, {startNode}, {childName}, {attributeName}, {delimiter}, {depth})
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the  or  function when you created the .
+startNode ( ): The path to the node where you want to start.
+childName (string ): A string specifying which child nodes to scan. If it is empty, all child nodes are scanned. Otherwise, only child nodes whose name matches the childName are scanned.
+attributeName ( ): The name of the attribute to scan for.
+delimiter (string ): A string that separates each value from the rest.
+depth ( ): The depth specifies how many generations of the XML tree to scan. If you specify zero, only the startNode is scanned; if you specify 1, the startNode and its child nodes are scanned, but not their child nodes; and so on. To scan all generations, specify -1 as the depth.
+
+Examples:
+revXMLAttributeValues(2,"/",,"Age",return,-1)
+----
+get revXMLAttributeValues(thisTree,thisNode,field "Type",comma,2)
+----
+
+Description:
+Use the revXMLAttributeValues function to list all the values an attribute has in an XML tree or a section of an XML tree, or to get the range of possible values.
+
+If the revXMLAttributeValues function encounters an error, it return|returns an error message starting with "xmlerr".
+
+*Important:*  The revXMLAttributeValues function is part of the   XML library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+The revXMLAttributeValues function returns a string. 
+
+OS:
+mac,windows,linux,ios,android

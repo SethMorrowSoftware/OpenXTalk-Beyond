@@ -1,0 +1,36 @@
+RepeatForever
+(control structure)
+Executes a list of statements continually.
+
+Syntax:
+repeat forever
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+StatementList ( ): A set of statements.
+
+Examples:
+	variable tCount as number
+	variable tList as list
+	put [ 1, 2, 3, 4, 5, 6, 7, 8, "A", 9, 10 ] into tList
+	put 0 into tCount
+	repeat forever
+		if tList[tCount] is not a number then
+			exit repeat
+		end if
+		add 1 to tCount
+	end repeat
+
+	// tCount is 8
+----
+
+Description:
+Use the repeat forever structure to execute a set of statements until either an error is thrown, or exit repeat is executed.
+
+Values:
+
+OS:

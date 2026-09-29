@@ -1,0 +1,37 @@
+httpdStart
+(command)
+Start a HTTP server
+
+Syntax:
+httpdStart {pCallback},{pPort},{pServerName}
+----
+
+Synonyms:
+
+Params:
+pCallback ( ): A handler name to be sent to the caller when a new HTTP request is handled by the server.
+pPort ( ): The port to accept HTTP requests on. If empty then port 8080 will be used and if the accept command fails with 8080 an available ephemeral port will be used. If pPort is 0 an available ephemeral port will be used.
+pServerName ( ): Optional server name defaults to `LiveCode`
+
+Examples:
+on mouseUp
+   httpdStart "NewRequest", 12345, "My Server"
+   launch url ("http://localhost:" & it)
+end mouseUp
+
+on NewRequest pSocketID, pRequest
+   httpdResponse pSocketID, 200
+end NewRequest
+----
+
+Description:
+Start a HTTP server. Once started any HTTP requests to the server will result in a callback to the caller with the message specified with pCallback.
+
+If the callback will have two parameters. The socket ID of the request. And an array describing the request. The array has the following keys:  - "method": The HTTP request method - "resource": The request resource path e.g /images/foo.gif - "parameters": For GET requests with parameters or application/x-www-form-urlencoded encoded this key will be an array of parameters - "headers": An array of request headers - "content": The request body (empty for application/x-www-form-urlencoded)
+
+Values:
+An error string if an error occurred The port the server was started on. Use this if pPort was empty or 0 to determine which port was used.
+
+
+
+OS:

@@ -1,0 +1,30 @@
+&&
+(operator)
+concatenate|Concatenates two string|strings and inserts a  space between them.
+
+Syntax:
+{string1} && {string2}
+----
+
+Synonyms:
+
+Params:
+string1 (string ): A  of  ( with  ), or  that evaluate  to . 
+string2 (string ): A  of  ( with  ), or  that evaluate  to . 
+
+Examples:
+put "my" && "house" -- evaluates to "my house"
+----
+put field "First" && field "Last" into field "Name"
+----
+ask "Enter a name for this card."
+set the name of this card to it && "Card"
+----
+
+Description:
+Use the && operator to combine two string(glossary)|strings with a space between them, for example, to combine two words or phrases. That is,  string1 && string2 results in a string(keyword) consisting of string1, a space, and string2.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

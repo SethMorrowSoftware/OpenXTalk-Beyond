@@ -1,0 +1,38 @@
+value
+(function)
+return|Returns the value of an expression.
+
+Syntax:
+the value of {expression}
+----
+value({expression} [, {object}])
+----
+
+Synonyms:
+
+Params:
+•	expression ( ): Any expression.
+•	object ( ): Any object reference.
+	
+Examples:
+the value of 22 + 3 -- returns 25
+----
+value(myVariable) -- returns value of the contents of myVariable
+----
+the value of the selectedLine -- returns the actual text of the line
+----
+value("the name of me", card 1) -- returns name of card 1
+----
+
+Description:
+Use the value function to evaluate an expression, or to force OpenXTalk to evaluate an expression within a statement.
+
+    ask "What do you want to compute?"     answer it && "equals" && the value of it   If you specify an object(glossary), references to me in the expression are treated as references to the object(glossary). However, other object reference|object references are treated as though the handler were in the current object|object's script. For example, "button 3" refers to button 3 on the current card, not the card where the object(glossary) is located.
+
+If the expression is a single string, then even if it is enclosed in quotes, OpenXTalk attempts to evaluate its contents instead of treating it as a literal string|string literal. This means that you must be careful about literal string|string literals that contain operator|operators such as "and".
+
+Values:
+The value function return|returns a logical, numeric, or string value, depending on the type of expression. The value function can be used as an instant calculator. Any arithmetic expression can be used as the expression, and the value function return|returns the result of the evaluate|evaluation:. 
+
+OS:
+mac,windows,linux,ios,android

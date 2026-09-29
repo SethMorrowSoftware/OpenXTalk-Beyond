@@ -1,0 +1,26 @@
+foldState
+(property)
+The fold state of the array being displayed by the widget
+
+Syntax:
+get the foldState of {widget}
+----
+set the foldState of {widget} to {pFoldState}
+----
+
+Synonyms:
+
+Params:
+•	pFoldState ( ): The fold state data.  See description for details.
+	
+Examples:
+Description:
+The foldState is the fold state currently being displayed by the tree view widget.
+
+The fold state array only contains elements of the data array where the value is a subarray.  The value for each `folded` key must be a boolean. Only the unfolded keys need to be specified.
+
+``` 	[key1] 		["folded"] 		["array"] 			[subkey1] 				["folded"] 	[key2] 		["folded"] ```  Setting the foldState to empty will fold all keys.
+
+Values:
+
+OS:

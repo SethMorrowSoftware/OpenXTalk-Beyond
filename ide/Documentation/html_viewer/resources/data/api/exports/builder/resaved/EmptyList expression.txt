@@ -1,0 +1,25 @@
+EmptyList
+(expression)
+Designates the list of length zero.
+
+Syntax:
+the empty list
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as List
+variable tCount as Number
+put the empty list into tVar
+put the number of elements in tVar into tCount -- tCount is 0
+----
+
+Description:
+Use ```the empty list``` to initialise a list variable.
+
+Values:
+
+OS:

@@ -1,0 +1,39 @@
+GetRightSwipeControl
+(message)
+Handle this message to specify a custom data grid right hand side swipe control.
+
+Syntax:
+on GetRightSwipeControl
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on GetRightSwipeControl
+   return group "my custom right swipe control"
+end GetRightSwipeControl
+
+on GetRightSwipeControl
+   -- Hide for the data grid row number 5
+   if the dgIndex of me is 5 then
+      return empty
+   end if
+   pass GetRightSwipeControl
+end GetRightSwipeControl
+
+on GetRightSwipeControl
+   -- Turn left drags and swipes off
+   return empty
+end GetRightSwipeControl
+----
+
+Description:
+GetRightSwipeControl is sent to your data grid's custom row template. Handle GetRightSwipeControl if you want to specify a custom right hand side swipe control. Return the id of the control you want to display. Returning empty will result in no control being displayed.
+
+Handing this message will override the right swipe control property.
+
+Values:
+
+OS:

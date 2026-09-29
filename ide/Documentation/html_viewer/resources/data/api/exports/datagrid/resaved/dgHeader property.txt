@@ -1,0 +1,19 @@
+dgHeader
+(property)
+Returns the long id of the group that contains the controls for the table header.
+
+Syntax:
+put the dgHeader of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the long id of the group that contains the controls for the table header. Use this property in a mouseDown/mouseUp handler to determine if the user clicked on a the table header. If the dgHeader of the target is not empty then ... (user clicked in table header).
+
+Values:
+
+OS:

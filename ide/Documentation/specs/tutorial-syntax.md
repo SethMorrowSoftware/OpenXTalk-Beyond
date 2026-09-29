@@ -1,4 +1,4 @@
-# LiveCode IDE Tutorial Syntax
+# IDE Tutorial Syntax
 A tutorial consists of a declaration of the name, a prologue, some
 steps, an epilogue and optional skip points.
 
@@ -10,7 +10,7 @@ steps, an epilogue and optional skip points.
 		Epilogue
 
 The prologue and epilogue consist only of text between their declaration
-and end. 
+and end.
 
 	Prologue
 	  : "prologue" SEPARATOR
@@ -22,7 +22,7 @@ and end.
 		  TEXT SEPARATOR
 		"end" "prologue"
 
-A step consists of some text describing the step, optionally some other 
+A step consists of some text describing the step, optionally some other
 components associated with the step, and actions associated with the step.
 
 	Step
@@ -42,21 +42,21 @@ Components can be included for the following purposes:
 - "script": Displays a field with colorised script in the tutorial stack.
 Also causes a "Copy Script to Editor" button to be added to the tutorial
 stack.
-- "image": Displays an image in the tutorial stack. The image must be 
+- "image": Displays an image in the tutorial stack. The image must be
 located in an _resources folder next to the tutorial's lessons folder.
 - "url": Displays a browser set to the specified url.
 - "value": Causes occurrences of the string "<value>" within the tutorial
 instruction text to be replaced with the specified value.
-- "file": Specifies the desired file target of a step's 'Import as' 
-action. Must be located in the resources folder next to the tutorial's 
-lessons folder. Also causes occurrences of the string "<file>" within 
+- "file": Specifies the desired file target of a step's 'Import as'
+action. Must be located in the resources folder next to the tutorial's
+lessons folder. Also causes occurrences of the string "<file>" within
 the tutorial instruction text to be replaced with the specified value.
 
 The possible actions are as follows:
 
 	Command
-	  : "highlight" ( <Target: Object> | <Target: Tool> | <Target: Property> 
-	  				| <Target : IDEPalette> | <Target: IDEComponent> | “guide” <Guide:STRING> 
+	  : "highlight" ( <Target: Object> | <Target: Tool> | <Target: Property>
+	  				| <Target : IDEPalette> | <Target: IDEComponent> | “guide” <Guide:STRING>
 	  				| "line" <Line: STRING> of "script" "editor" "for" <Target: Object>)
 	  | "capture" <Target: CaptureTarget>
 	  | "wait" "until" <Condition: WaitCondition>
@@ -99,7 +99,7 @@ remains in the center of the screen.
 	| "preferences"
 	| "standalone" "settings"
 	| "start" "center"
-	
+
 	Tool
 	  : [<Item: MenuItem>] "menu" <Menu: STRING>
 	  | "toolbar" <Tool: STRING>
@@ -112,21 +112,21 @@ remains in the center of the screen.
 	: “property” <Property: STRING> “of” “section” <Section: STRING>
 
 	IDEPalette
-	: <Target: Palette> 
+	: <Target: Palette>
 	| <Target: ObjPalette> "for" <Associated: Object>
 
 	IDEComponent
-	: <Component: STRING> of <Target: IDEPalette> 
+	: <Component: STRING> of <Target: IDEPalette>
 
-The capture action enables the tutorial to refer to an object or set of 
-objects later on in the tutorial. It can be used to tag the next object 
+The capture action enables the tutorial to refer to an object or set of
+objects later on in the tutorial. It can be used to tag the next object
 of a given type created, or a set of previously tagged objects.
 
 	CaptureTarget
 	: "the" "next" "new" <Type: ObjectType> [ “of” <Target: Object> ] "as" <Name: STRING>
 	| “set” <Target: ObjList> “as” <Name: STRING>
 
-The wait action causes the tutorial to wait until a given condition is 
+The wait action causes the tutorial to wait until a given condition is
 satisfied before continuing.
 
 	Condition
@@ -146,7 +146,7 @@ is used, the tutorial runner will find the lesson with name Source in the
 same lessons folder as the current tutorial, and run it to completion. The
 resulting stack will then be available to use in the current tutorial.
 
-If the "stack" Source is used, a stack will be loaded from the internal 
+If the "stack" Source is used, a stack will be loaded from the internal
 resources folder of the tutorial (_resources/). Any `cTutorialTag` custom
-property of objects on the stack will be converted to tags for objects 
+property of objects on the stack will be converted to tags for objects
 which can subsequently be used in the current tutorial.

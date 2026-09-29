@@ -1,0 +1,34 @@
+hostNameToAddress
+(function)
+Returns the IP address|IP addresses corresponding to a domain name.
+
+Syntax:
+the hostNameToAddress of {domainName}
+----
+hostNameToAddress({domainName}, [{callback}])
+----
+
+Synonyms:
+
+Params:
+domainName ( ): A standard fully-qualified .
+callback ( ): The name of a message to send when the lookup completes.
+
+Examples:
+hostNameToAddress("mail.example.org")
+----
+put hostNameToAddress("www." & thisDomain) into line 3 of theHosts
+----
+hostNameToAddress("www.domain.com", myCallback)
+----
+
+Description:
+Use the hostNameToAddress function to find the numeric  IP address of the computer or computers at a given domain name.
+
+If the callback parameter is specified then the call will return immediately and upon completion of the lookup, the callback will be invoked with the resolved address as a parameter.
+
+Values:
+The hostNameToAddress function returns the IP address|IP addresses corresponding to the domain name, one per line. The hostNameToAddress function does a DNS lookup on the domain name in order to find the IP address. This means that the computer must be connected to the Internet in order to use this function. If a connection to the Internet is not available, the hostNameToAddress function returns an error message in the result function. 
+
+OS:
+mac,windows,linux,ios,android

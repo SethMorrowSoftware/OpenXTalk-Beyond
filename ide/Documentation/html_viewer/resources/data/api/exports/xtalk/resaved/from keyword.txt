@@ -1,0 +1,31 @@
+from
+(keyword)
+Used with several command|commands, usually to designate an origin point. 
+
+Syntax:
+from
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+convert field "Date" from long date to short date
+----
+move the mouseControl from 22,100 to 44,200
+----
+remove the selectedObject from this card
+----
+subtract 33 from thisValue
+----
+
+Description:
+Use the from keyword to complete a command that requires it.
+
+The from keyword is used with the convert, drag, import, import snapshot, move, print|print card, read from file,  read from process, read from socket, remove, remove script,  request, and subtract command|commands.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

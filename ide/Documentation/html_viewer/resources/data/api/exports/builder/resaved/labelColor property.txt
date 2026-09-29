@@ -1,0 +1,25 @@
+labelColor
+(property)
+The color of the text of the button label
+
+Syntax:
+set the labelColor of {widget} to {pLabel}
+get the labelColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the labelColor of widget "Android Button" to "255,0,0,128"
+----
+
+Description:
+Use the labeColor property to change the color of the label text of  the button.
+
+Values:
+A comma delimited string representing a color in RGB / RGBA format 
+
+OS:
+android

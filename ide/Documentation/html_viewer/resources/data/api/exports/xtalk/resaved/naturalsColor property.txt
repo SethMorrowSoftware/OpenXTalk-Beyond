@@ -1,0 +1,22 @@
+naturalsColor
+(property)
+The fill color for naturals (white) keys
+
+Syntax:
+get the naturalsColor of {widget}
+----
+set the naturalsColor of {widget} to {color}
+----
+
+Synonyms:
+whitekeyscolors
+
+Params:
+
+Examples:
+Description:
+The naturalsColor property controls the default color used to fill the piano's naturals (white) keys. This property is the same as whiteKeysColors  ------------------------------------------------------------------------------------------------------------------------------------
+
+Values:
+
+OS:

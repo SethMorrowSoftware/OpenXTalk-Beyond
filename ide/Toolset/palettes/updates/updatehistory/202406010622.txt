@@ -1,0 +1,5 @@
+Version 1.05, build 202406010622
+Fixed the initial paint colours being set to a random value.
+Modified the updater slightly (actually, did that on 5th may 2024)
+When you right-click an object, in the contextual menu - turned off the 'Show Documentation' for compatibility
+Fixes to Quick Dictionary, search query - Thanks for TerryL for finding & fixing

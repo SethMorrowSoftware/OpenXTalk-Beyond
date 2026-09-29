@@ -1,0 +1,29 @@
+PathPropertyBoundingBox
+(operator)
+The bounding box of a path.
+
+Syntax:
+the bounding box of {mPath}
+----
+
+Synonyms:
+
+Params:
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a circle path
+variable tPath as Path
+put circle path centered at point [100,100] with radius 50 into tPath
+
+// Get the bounds of the path
+variable tBounds as Rectangle
+put the bounding box of tPath into tBounds
+----
+
+Description:
+The smallest rectangle that competely encloses mPath.
+
+Values:
+
+OS:

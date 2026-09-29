@@ -1,0 +1,24 @@
+screenPixelScale
+(property)
+Returns the pixel scale of the main screen.
+
+Syntax:
+get the screenPixelScale
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the screenPixelScale
+----
+
+Description:
+Returns the pixel scale of the main screen.
+
+Values:
+The screenPixelScale property returns a non-zero real number. 
+
+OS:
+mac,windows,linux,ios,android

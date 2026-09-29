@@ -1,0 +1,30 @@
+xExtent
+(property)
+Specifies the width of an EPS|EPS object's PostScript bounding box.
+
+Syntax:
+set the xExtent of {EPSObject} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the xExtent of EPS "Logo" to 108 -- 1.5 inches
+----
+
+Description:
+Use the xExtent property to control the appearance of an EPS|EPS object.
+
+An EPS object's xExtent is the width in points of the postScript. This controls the size of the postScript when it's printed.
+
+The xExtent of an EPS|EPS object is equal to the third item in the object|object's boundingBox property.
+
+This property is supported only on Unix systems with Display PostScript installed. 
+
+Values:
+The xExtent of an EPS object(glossary) is a positive integer. 
+
+OS:
+linux

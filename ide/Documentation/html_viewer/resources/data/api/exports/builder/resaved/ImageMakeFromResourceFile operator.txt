@@ -1,0 +1,26 @@
+ImageMakeFromResourceFile
+(operator)
+Creates a new image.
+
+Syntax:
+image from resource file {mResource}
+----
+
+Synonyms:
+
+Params:
+mResource ( ): An expression which evaluates to a string.
+
+Examples:
+// Load image from a bundled resource file
+variable tImage
+put image from resource file "images/logo.png" into tImage
+----
+
+Description:
+Creates a new image.
+
+Values:
+A new image decoded from the named module resource file. 
+
+OS:

@@ -1,0 +1,46 @@
+fontLanguage
+(function)
+Returns the language associated with a Unicode font.
+
+Syntax:
+the fontLanguage of {fontName}
+----
+fontLanguage({fontName})
+----
+
+Synonyms:
+
+Params:
+fontName ( ): The name of any font that is installed on the current system.
+
+Examples:
+the fontLanguage of "Osaka"
+----
+
+Description:
+Use the fontLanguage function to list only the fonts intended for a particular language.
+
+For a list of all fonts installed on the current system, use the fontNames function.
+
+*Cross-platform note:*  On Unix|Unix systems, the fontLanguage  always returns "English".
+
+Values:
+ 
+Greek: 
+Turkish: 
+Thai: 
+Russian: 
+Korean: 
+Ukrainian: 
+Roman: 
+Polish: 
+SimpleChinese: 
+Arabic: 
+Hebrew: 
+Bulgarian: 
+Japanese: 
+Chinese: 
+ANSI: for English-language fonts
+
+OS:
+mac,windows,linux

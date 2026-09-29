@@ -1,0 +1,30 @@
+returnKeyType
+(property)
+Configures the type of return key that is to be displayed on the keyboard.
+
+Syntax:
+set the returnKeyType of {field} to {type}
+----
+get the returnKeyType of {field}
+----
+
+Synonyms:
+
+Params:
+type (enum ): The type of return key to use. One of:
+
+Examples:
+set the returnKeyType of field "cost" to "go"
+----
+set the returnKeyType of field "name" to empty
+----
+
+Description:
+Use the returnKeyType command to configure the type of return key that is to be displayed for a field. If set to empty which is the default the type set by the  mobileSetKeyboardReturnKey command is used to configure the type of return key that is to be displayed.
+
+The return key type setting takes affect the next time the keyboard is shown. It does not affect the current keyboard, if it is being displayed. 
+
+Values:
+
+OS:
+ios,android

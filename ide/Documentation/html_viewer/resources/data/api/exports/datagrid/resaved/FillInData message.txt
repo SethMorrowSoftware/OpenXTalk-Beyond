@@ -1,0 +1,32 @@
+FillInData
+(message)
+The EditValue message is sent to a table column control when EditCell or EditCellOfIndex is called.
+
+Syntax:
+on FillInData pData
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+# Datagrid row behavior
+on FillInData pDataA
+  ## Assign FirstName value to the "FirstName" field of this row template
+  set the text of field "FirstName" of me to pDataA["FirstName"]
+end FillInData
+----
+# Data Grid table
+on FillInData pData
+  ## Assign Column value to field 1 of this column template
+  set the text of field 1 of me to pData
+end FillInData
+----
+
+Description:
+The FillInData message is where you move data for a row or column into the controls for that row or column. Normally you will just assign data to controls in the template. You most likely will not resize any of the controls at this point. If your data grid is of type "form" then pData will be an array holding the row values. If your data grid is of type "table" then pData is the value for the column that is being populated.
+
+Values:
+
+OS:

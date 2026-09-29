@@ -1,0 +1,2 @@
+Version 1.10, build 202501211304
+This implements a script safety net when opening stacks. Can be toggled off in Preferences > "Files and Memory"

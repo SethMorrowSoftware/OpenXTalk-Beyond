@@ -25,6 +25,7 @@ on openStack
    unlock screen
    
    set the visible of me to true
+   pass openstack
 end openStack
 
 on closeStack
@@ -126,8 +127,17 @@ local sPropertyChangedMsg
 
 on idePropertyChanged
    cancel sPropertyChangedMsg
-   send "__IdePropertyChanged" to me in 200 milliseconds
+   if not (the pendingmessages contains "IdePropertyChanged") then send "__IdePropertyChanged" to me in 200 milliseconds -- tperry, 28-11-23 (stops it being sent recursively)
    put the result into sPropertyChangedMsg
+   
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
 end idePropertyChanged
 
 on __IdePropertyChanged
@@ -161,6 +171,7 @@ on inspectorTreeMenuDisplay
    set the menumode of button "inspectMenu" of me to "popup"
    set the visible of button "inspectMenu" of me to false
    set the script of button "inspectMenu" of me to "on menuPick pItem;send" && quote & "menuPick pItem" & quote && "to this stack; end menuPick"
+   
    unlock messages
    
    local tInspect
@@ -295,7 +306,7 @@ on inspectorAddActions
       addFrameItem "inspectorEditScript","header", "action", "Edit script", "lc-edit-script", "lc-edit-script","inspectorEditScript", the long id of me
    end if
    addFrameItem "inspectorLock","header", "toggle", "Lock inspector", "unlock", "lock","inspectorLock", the long id of me
-   addFrameItem "idePropertyInspector_labels", "header", "preference", "Property Labels", "enum","false:Description of option,true:Name of LiveCode property", "inspectorPropLabelsPrefChanged", the long id of me
+   addFrameItem "idePropertyInspector_labels", "header", "preference", "Property Labels", "enum","false:Description of option,true:Name of OXT property", "inspectorPropLabelsPrefChanged", the long id of me
 end inspectorAddActions
 
 on inspectorPropLabelsPrefChanged pPref, pValue

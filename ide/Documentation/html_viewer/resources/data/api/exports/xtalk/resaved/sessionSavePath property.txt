@@ -1,0 +1,36 @@
+sessionSavePath
+(property)
+Specifies where on the filesystem session data is stored.
+
+Syntax:
+set the sessionSavePath to {folderPath}
+----
+
+Synonyms:
+
+Params:
+folderPath ( ): the path to a folder
+
+Examples:
+set the sessionSavePath to myFolder
+----
+set the sessionSavePath to "/home/joe"
+----
+set the sessionSavePath to empty
+----
+
+Description:
+Use the sessionSavePath property to set the path to the location on the server filesystem where session data is stored.
+
+Use the sessionSavePath property to set the path to the location on the server filesystem where session data is stored. If the sessionSavePath property is not set then the standard temporary folder is used.
+
+To set the sessionSavePath back to the default set the sessionSavePath to empty.
+
+*Note:* You do not need to alter any of the session properties in order  to start and use sessions. They provide a way for advanced users to  configure the way session work.
+
+*Note:* The sessionSavePath property is only available when running in  CGI mode (Server).
+
+Values:
+
+OS:
+mac,windows,linux

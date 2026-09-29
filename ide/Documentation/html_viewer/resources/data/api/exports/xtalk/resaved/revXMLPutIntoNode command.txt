@@ -1,0 +1,32 @@
+revXMLPutIntoNode
+(command)
+Sets the contents of a node in an XML tree.
+
+Syntax:
+revXMLPutIntoNode {treeID}, {nodePath}, {newContents} [, {replaceTextOnly}]
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the  or  function when you created the .
+nodePath ( ): The path to the node whose contents you want to set.
+newContents ( ): The text that the node will contain.
+replaceTextOnly ( ): The replaceTextOnly specifies whether to keep child nodes or not. If replaceTextOnly is true then all text in the specified node is replaced with newContents, but all child nodes are preserved. Otherwise all child nodes are removed. The replaceTextOnly parameter is optional, and if not given, defaults to false.
+
+Examples:
+revXMLPutIntoNode 12,"/Article/Author","Jane Li"
+----
+revXMLPutIntoNode myCurrentNode,dataPaths["current"],field "Data", true
+----
+
+Description:
+Use the revXMLPutIntoNode command to put data into a node, between the node|node's start and end tag|tags.
+
+*Tip:*  To put Unicode text into a node, first use the uniDecode  function to encode the text as UTF-8:      revXMLPutIntoNode the docId of field "xmltree",selectedNode,     uniDecode(the unicodeText of field "Contents" ,"UTF8")   *Important:*  The revXMLPutIntoNode command is part of the   XML library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+If the revXMLPutIntoNode command encounters an error, the result is set to an error message beginning with "xmlerr". 
+
+OS:
+mac,windows,linux,ios,android

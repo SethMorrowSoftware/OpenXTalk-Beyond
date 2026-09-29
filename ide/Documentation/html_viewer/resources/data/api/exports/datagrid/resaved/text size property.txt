@@ -1,0 +1,19 @@
+text size
+(property)
+The text size to apply to the data area of a table or form.
+
+Syntax:
+put the dgProp["text size"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The text size to apply to the data area of a table or form. Prefix property name with "effective" to get the size being used when this property is set to empty.
+
+Values:
+
+OS:

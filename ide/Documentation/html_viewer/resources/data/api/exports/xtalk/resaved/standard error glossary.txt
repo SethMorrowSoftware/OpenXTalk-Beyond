@@ -1,0 +1,16 @@
+standard error
+(glossary)
+
+Syntax:
+Synonyms:
+stderr, standard error
+
+Params:
+
+Examples:
+Description:
+The place where a program sends any error messages it generates.    Usually, the standard error is the command line|command-line window by default. On Unix|Unix systems, the standard error can be redirected to a file, a printer, or another destination.
+
+Values:
+
+OS:

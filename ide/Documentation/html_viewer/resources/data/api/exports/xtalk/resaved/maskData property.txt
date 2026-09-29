@@ -1,0 +1,30 @@
+maskData
+(property)
+Specifies which pixels of an image are displayed.
+
+Syntax:
+set the maskData of {image} to {binaryData}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the maskData of image "Download" into dataToAnalyze
+----
+
+Description:
+Use the maskData property to change the appearance of an image without changing its image data, or to examine the mask of the image.
+
+Each pixel is represented by 8 bits (1 byte) of mask data, with pixels numbered from the top left corner of the image, left to right, then top to bottom.
+
+Since each pixel is represented by 8 bits (1 byte or 1 character), you can obtain the numeric value for a given pixel using the charToNum function. For example, the numeric value of the maskData for the tenth pixel is given by the expression charToNum(char 10 of the mask of image).
+
+A value of zero means the pixel is fully transparent; any other value means the pixel is fully opaque. Unlike the alphaData property, the maskData stores only complete transparency or complete opacity, and does not support partial transparency.
+
+Values:
+The maskData of an image consists of a sequence of binary values. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,29 @@
+PathOperationScale
+(statement)
+Apply a scale to a path.
+
+Syntax:
+scale {mPath} by {mScale}
+----
+
+Synonyms:
+
+Params:
+mScale ( ): An expression which evaluates to a list of numbers.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Create a rectangle path
+variable tPath as Path
+put rectangle path of rectangle [10,10,210,60] into tPath
+
+// Scale the path
+scale tPath by [2,2]
+----
+
+Description:
+Scales mPath by mScale.
+
+Values:
+
+OS:

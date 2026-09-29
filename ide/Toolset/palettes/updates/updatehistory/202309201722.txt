@@ -1,0 +1,2 @@
+Version 0.92, build 202309201722
+Modified preferences stack, debranding.

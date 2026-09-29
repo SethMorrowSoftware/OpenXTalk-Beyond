@@ -1,0 +1,32 @@
+xScale
+(property)
+Specifies the ratio of the width of an EPS|EPS object's PostScript bounding box to the object|object's screen width.
+
+Syntax:
+set the xScale of {EPSObject} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the xScale of EPS 2 to 1.0 -- no scaling
+----
+
+Description:
+Use the xScale property to control an EPS|EPS object's screen appearance.
+
+The number 1 indicates no scaling--that is, the EPS|EPS object's width is the same as the width specified by the PostScript code it contains. Numbers greater than one indicate that the object|object's width is less than the PostScript width; the screen object(glossary) is scaled down. Numbers less than one indicate that the object|object's width is greater than the PostScript width, and the screen object(glossary) is scaled up from the PostScript.
+
+In geometric terms, xScale = xExtent/width.
+
+If the object's scaleIndependently property is false, the xScale property is equal to the scale of the object(glossary).
+
+This property is supported only on Unix systems with Display PostScript installed. 
+
+Values:
+The xScale of an EPS|EPS object is a positive number. 
+
+OS:
+linux

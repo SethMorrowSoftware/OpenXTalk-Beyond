@@ -1,0 +1,16 @@
+DLL
+(glossary)
+
+Syntax:
+Synonyms:
+dll
+
+Params:
+
+Examples:
+Description:
+Dynamic Link Library. A set of custom functions that have been written in a programming language and compiled for use on Windows|Windows systems. 
+
+Values:
+
+OS:

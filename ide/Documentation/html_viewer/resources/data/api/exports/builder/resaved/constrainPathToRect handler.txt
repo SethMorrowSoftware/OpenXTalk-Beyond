@@ -1,0 +1,40 @@
+constrainPathToRect
+(handler)
+Scales and translates a path to fit within a rectangle
+
+Syntax:
+constrainPathToRect({pTargetRect},{xPath})
+----
+
+Synonyms:
+
+Params:
+pTargetRect ( ): The rectangle to fit the path within
+xPath ( ): The path to transform
+
+Examples:
+use com.livecode.library.iconsvg
+
+public handler OnPaint() returns nothing
+	-- get the 'shopping cart' icon from the icon library
+	variable tPathString as String
+ 	put iconSVGPathFromName("shopping cart") into tPathString
+
+	-- create the path
+	variable tPath as Path
+	put path tPathString into tPath
+
+	-- scale the path to fit within the bounds of the widget
+	constrainPathToRect(my bounds, tPath)
+
+	-- fill the path
+	fill tPath on this canvas
+end handler
+----
+
+Description:
+Scales and transforms xPath so that it fits within pTargetRect whilst maintaining its aspect ratio.
+
+Values:
+
+OS:

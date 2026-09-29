@@ -1,0 +1,36 @@
+selectedStopChanged
+(message)
+Sent when a new gradient stop is selected
+
+Syntax:
+on selectedStopChanged {pIndex}
+----
+
+Synonyms:
+
+Params:
+pIndex ( ): The new selected stop index, or 0 if no stop is selected.
+
+Examples:
+    on selectedStopChanged pIndex
+        if pIndex is 0 then
+            exit selectedStopChanged
+        end if
+
+        answer color
+        if the result is not "cancel" then
+            local tStops
+            put the gradientStops of the target into tStops
+            put it into item 2 to 4 of line pIndex of tStops
+            set the gradientStops of the target to tStops
+        end if
+
+    end selectedStopChanged
+----
+
+Description:
+Handle the selectedStopChanged message to perform an operation when  the selectedStop property of a gradient ramp editor widget changes.
+
+Values:
+
+OS:

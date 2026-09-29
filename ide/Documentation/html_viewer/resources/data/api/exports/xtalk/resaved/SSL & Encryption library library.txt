@@ -1,0 +1,15 @@
+SSL & Encryption library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports the  commands and functions associated with encryption and secure sockets.
+
+Values:
+
+OS:

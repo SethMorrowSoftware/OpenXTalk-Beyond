@@ -1,0 +1,30 @@
+GradientOperationAddStop
+(statement)
+Add a new stop to the ramp of a gradient paint.
+
+Syntax:
+add {mStop} to {mGradient}
+----
+
+Synonyms:
+
+Params:
+mStop ( ): An expression which evaluates to a gradient stop
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint with empty ramp
+variable tGradient
+put linear gradient with ramp [] into tGradient
+
+// Add stops to the gradient
+add gradient stop at 0 with color [0,0,0] to tGradient
+add gradient stop at 1 with color [1,1,1] to tGradient
+----
+
+Description:
+Appends the stop to the ramp of mGradient. The offset of the new gradient should not be before the offset of the last stop.
+
+Values:
+
+OS:

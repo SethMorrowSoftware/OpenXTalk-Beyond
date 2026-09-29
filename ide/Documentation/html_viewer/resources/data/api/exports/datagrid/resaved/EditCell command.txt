@@ -1,0 +1,20 @@
+EditCell
+(command)
+Sends the EditValue message to the column control for column pColumnName of line pLineNo.
+
+Syntax:
+dispatch "EditCell" to group "DataGrid" with pColumnName,
+pLineNo
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sends the EditValue message to the column control for column pColumnName of line pLineNo. The default behaviors for columns handle the EditValue message and open the cell for editing by calling EditFieldText. Can only be used with tables.
+
+Values:
+
+OS:

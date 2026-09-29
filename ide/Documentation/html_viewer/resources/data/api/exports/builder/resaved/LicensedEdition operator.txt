@@ -1,0 +1,23 @@
+LicensedEdition
+(operator)
+Returns true if licensed
+
+Syntax:
+licensed for edition {Edition}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tLicensed as Boolean
+put licensed for edition "business" into tLicensed
+----
+
+Description:
+Returns true if the license is for the named editon or greater.
+
+Values:
+
+OS:

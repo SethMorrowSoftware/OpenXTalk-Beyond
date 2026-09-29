@@ -1,0 +1,16 @@
+host byte order
+(glossary)
+
+Syntax:
+Synonyms:
+host byte order
+
+Params:
+
+Examples:
+Description:
+The order in which the local system (the "host") stores byte|bytes when using multi- byte data types. This depends on the operating system and microprocessor your computer has.
+
+Values:
+
+OS:

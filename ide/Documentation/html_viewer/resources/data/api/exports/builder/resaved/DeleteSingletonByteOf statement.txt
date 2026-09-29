@@ -1,0 +1,23 @@
+DeleteSingletonByteOf
+(statement)
+Deletes the byte of data at index Index in Target.
+
+Syntax:
+delete byte {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+Index ( ): An expression which evaluates to a valid integer index of .
+Target ( ): A container of binary data.
+
+Examples:
+Description:
+Replaces the byte at the given index with the empty data.
+
+*Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

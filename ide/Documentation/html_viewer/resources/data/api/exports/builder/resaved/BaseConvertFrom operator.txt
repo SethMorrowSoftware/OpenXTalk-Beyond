@@ -1,0 +1,24 @@
+BaseConvertFrom
+(operator)
+Converts the base of Operand
+
+Syntax:
+{Operand} converted from base {Source}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a string.
+Source ( ): An expression that evaluates to an integer.
+
+Examples:
+Description:
+Interprets a string in the desired base and converts it to decimal.
+
+*Note:* The source base must be an integer between 2 and 32.
+
+Values:
+Operand converted to base 10. 
+
+OS:

@@ -1,0 +1,19 @@
+OnDragStart
+(message)
+Sent when the widget begins to be dragged
+
+Syntax:
+OnDragStart
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget begins to be dragged
+
+Values:
+
+OS:

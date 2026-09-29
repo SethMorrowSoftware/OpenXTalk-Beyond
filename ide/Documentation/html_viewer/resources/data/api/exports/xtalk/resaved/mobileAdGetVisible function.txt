@@ -1,0 +1,30 @@
+mobileAdGetVisible
+(function)
+Return true if an ad is visible.
+
+Syntax:
+mobileAdGetVisible({ad})
+----
+
+Synonyms:
+
+Params:
+ad ( ): The name of the ad.
+
+Examples:
+get mobileAdGetVisible("bannerAd")
+----
+put "bannerAd" into tAdName
+if mobileAdGetVisible(tAdName) is true then
+   ...
+end if
+----
+
+Description:
+Use the mobileAdGetVisible function to check if an ad created with mobileAdCreate is visible.
+
+Values:
+Returns true if the ad is visible, otherwise it returns false. 
+
+OS:
+ios,android

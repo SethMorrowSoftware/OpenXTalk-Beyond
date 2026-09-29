@@ -1,0 +1,30 @@
+keyboardType
+(property)
+Configures the type of keyboard that is to be displayed.
+
+Syntax:
+set the keyboardType of {field} to {type}
+----
+get the keyboardType of {field}
+----
+
+Synonyms:
+
+Params:
+type (enum ): The type of keyboard to use. One of:
+
+Examples:
+set the keyboardType of field "cost" to "alphabet"
+----
+set the keyboardType of field "name" to empty
+----
+
+Description:
+Use the keyboardType command to configure the type of keyboard that is to be displayed for a field. If set to empty which is the default the type set by the  mobileSetKeyboardType command is used to configure the type of keyboard that is to be displayed.
+
+The keyboard type setting takes affect the next time the keyboard is shown. It does not affect the current keyboard, if it is being displayed. 
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,21 @@
+pathDelimiter
+(property)
+Manipulates the separator between the elements of the array viewer
+
+Syntax:
+get the pathDelimiter of {widget}
+----
+set the pathDelimiter of {widget} to {pType}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the pathDelimiter property as the separator between the elements describing a path in the tree view widget.
+
+Values:
+
+OS:

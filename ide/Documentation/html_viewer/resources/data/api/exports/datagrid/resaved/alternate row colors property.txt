@@ -1,0 +1,19 @@
+alternate row colors
+(property)
+Set to true to alternate the background colors of every other row.
+
+Syntax:
+put the dgProp["alternate row colors"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true to alternate the background colors of every other row.
+
+Values:
+
+OS:

@@ -1,0 +1,37 @@
+()
+(operator)
+group|Groups operand|operands together.
+
+Syntax:
+({expression})
+----
+
+Synonyms:
+
+Params:
+expression ( ): Any OpenXTalk expression.
+
+Examples:
+local quantity, priceEach, shippingCost
+get (quantity * priceEach) + shippingCost
+----
+("a" is within field 1) or ("b" is within field 2)
+----
+23 * ((4 / 17) + 60) + (- 7)
+----
+
+Description:
+Use parentheses ( ) to group operand|operands together in order to control the order operation|operations are performed in, or to make the control structure|structure of a complex expression clearer.
+
+When OpenXTalk evaluates an expression, operations enclosed within parentheses are performed first. If parentheses are nested, the expression within the innermost set of parentheses is evaluated first.
+
+For example, the sin function is evaluate|evaluated before the / operator, so `the sin of 1/4` means "take the sine of one, then divide by four". To obtain the sine of 1/4, use parentheses to force the division to be done first, as in this expression: `the sin of (1/4)`.
+
+Even when they are not needed to change operator precedence, parentheses are useful in making complex expression|expressions more readable. For example,       (quantity * priceEach) + (shippingCost * weight)   evaluates to the same number as       quantity * priceEach + shippingCost * weight  But the first example is easier to understand, because the parentheses  break down the expression logically for the reader.
+
+Parentheses in expression|expressions must be used in pairs, each ( with a matching ). Use of matched|unmatched parentheses will cause a compile error.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

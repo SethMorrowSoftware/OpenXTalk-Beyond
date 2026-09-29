@@ -1,0 +1,21 @@
+mergMicrophoneIsAvailable
+(function)
+This handler returns true if there is a microphone available to use
+
+Syntax:
+mergMicrophoneIsAvailable()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This handler returns true if there is a microphone available to use
+
+Values:
+boolean 
+
+OS:
+ios,mac

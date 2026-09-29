@@ -1,0 +1,29 @@
+normal
+(keyword)
+Used with the visual effect command to designate a straight cut between two card|cards with no visual effect. Also used with the find command to search at the beginnings of one or more words.
+
+Syntax:
+normal
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+find normal "run" -- finds "run" and "running", but not "grunt"
+----
+visual effect normal to black -- cut to black
+----
+
+Description:
+Use the normal keyword to improve the clarity of your code, or to provide a cut to one of the supported visual effect colors.
+
+Since normal is the default mode for the find command, you never need to actually use the normal keyword; if you leave it out, the search is performed in normal mode anyway.
+
+When used with the find command, the normal keyword finds card|cards that contain each of the specified word beginnings, though not necessarily next to each other.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

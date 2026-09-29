@@ -1,0 +1,29 @@
+ThrowError
+(statement)
+Causes an error to be raised.
+
+Syntax:
+throw {errorString}
+----
+
+Synonyms:
+
+Params:
+errorString (string ): The error to throw.
+
+Examples:
+	variable tVar as optional number
+	put "Z" parsed as string into tVar
+	if tVar is not defined then
+		throw tVar && "is not a number
+	end if
+----
+
+Description:
+The throw statement causes an error to be raised. This causes execution to terminate, and the error is passed back to environment.
+
+The Error expression must be an expression that evaluates to a string. Note:There is currently no try / catch mechanism in LiveCode Builder, so throwing an error will cause the error to be raised in LiveCode Script in the appropriate context.
+
+Values:
+
+OS:

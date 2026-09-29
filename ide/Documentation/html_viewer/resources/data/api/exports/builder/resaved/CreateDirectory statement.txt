@@ -1,0 +1,20 @@
+CreateDirectory
+(statement)
+Create a named directory.
+
+Syntax:
+create directory {Directory}
+----
+
+Synonyms:
+
+Params:
+Directory ( ): An expression that evaluates to a filesystem path.
+
+Examples:
+Description:
+Creates a new, empty directory.  The directory must not already exist.
+
+Values:
+
+OS:

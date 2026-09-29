@@ -1,0 +1,16 @@
+chunk
+(glossary)
+
+Syntax:
+Synonyms:
+chunk, chunking
+
+Params:
+
+Examples:
+Description:
+A part of the text in a container.
+
+Values:
+
+OS:

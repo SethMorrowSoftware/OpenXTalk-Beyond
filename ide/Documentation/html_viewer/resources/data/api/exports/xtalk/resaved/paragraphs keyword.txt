@@ -1,0 +1,29 @@
+paragraphs
+(keyword)
+Used with the number function to count the number of paragraph chunks in a container.
+
+Syntax:
+paragraphs
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the number of paragraphs in field 1
+----
+get the number of paragraphs in tChapter1
+----
+
+Description:
+Use the paragraphs keyword to count the number of paragraph chunks in a container.
+
+A paragraph is a chunk delimited by either a return character or the Unicode paragraph separator (0x2029).
+
+*Note:*  The paragraph chunk is identical to the line chunk, except  that it is also delimited by the paragraph separator character. This  reflects the paragraph breaking exhibited by OpenXTalk fields.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

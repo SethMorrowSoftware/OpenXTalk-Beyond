@@ -1,0 +1,19 @@
+dgColumnLabel
+(property)
+Get/set the label used for the column.
+
+Syntax:
+put the dgColumnLabel["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the label used for the column. If the label is empty then the column name is used.
+
+Values:
+
+OS:

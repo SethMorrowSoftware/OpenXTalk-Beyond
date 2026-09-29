@@ -1,0 +1,36 @@
+revPrintField
+(command)
+Prints the contents of a field.
+
+Syntax:
+revPrintField {fieldDescriptor}
+----
+
+Synonyms:
+
+Params:
+fieldDescriptor ( ): Any expression that evaluates to a field reference.
+
+Examples:
+revPrintField the name of field "Comments"
+----
+revPrintField the long ID of the mouseControl
+----
+revPrintField ("field" && 5) -- prints field 5
+----
+
+Description:
+Use the revPrintField command to print the formatted contents of a field from within a handler.
+
+*Important:*  The revPrintField command does not accept direct  object reference|field references. For example, the following  statement causes an error message:      revPrintField field "My Field" -- CAN'T USE THIS FORM   Instead, use a form that evaluates to a field reference, like this:      revPrintField the name of field "My Field" -- use this form instead     revPrintField ("field" && quote & "My Field" & quote) -- or this   The revPrintField command is equivalent to select|selecting the field and choosing File ? Print Field? from the menubar.
+
+If the field contains any expressions of the form <%expression%>, the expression is evaluate|evaluated and replaced with the value before the field is printed. For example, if the field contains the text Today's date is <%the long date%> the printed text reads Today's date is Friday, February 15, 2002 (This assumes, of course, that the revPrintField command is execute|executed on that date). You can also use the special value <%pageNumber%> in the field: this value is replaced with the page number.
+
+To show the standard print dialog box, use the revShowPrintDialog command before the revPrintField command.
+
+*Important:*  The revPrintField command is part of the   Printing library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Printing"   library checkbox is checked.
+
+Values:
+
+OS:
+mac,windows,linux

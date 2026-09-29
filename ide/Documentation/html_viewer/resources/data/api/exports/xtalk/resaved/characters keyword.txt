@@ -1,0 +1,32 @@
+characters
+(keyword)
+Used with the sort command, number function, and is among and is not among operator|operators to designate each character as a separate portion of a string. Also used with the find command to search for a string of characters.
+
+Syntax:
+characters
+----
+
+Synonyms:
+chars
+
+Params:
+
+Examples:
+get the number of chars of field "Entry"
+----
+if "A" is among the characters of the bloodTypes of me then beep
+----
+find characters "run" -- finds "run", "grunt", or "running"
+----
+
+Description:
+Use the characters keyword to sort or select individual characters.
+
+A character is a single letter, digit, punctuation mark, or control character. Spaces, tabs, and returns are all characters.
+
+When used with the find command, the characters keyword finds card|cards that contain the specified string of characters, wherever that string appears in a word.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

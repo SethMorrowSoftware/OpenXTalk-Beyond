@@ -1,0 +1,16 @@
+com.livecode.library.json
+(library)
+This library provides support for generating and parsing JavaScript Object Notation (JSON) data.  See also http://json.org and https://tools.ietf.org/html/rfc7159.
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This library provides support for generating and parsing JavaScript Object Notation (JSON) data.  See also http://json.org and https://tools.ietf.org/html/rfc7159.
+
+Values:
+
+OS:

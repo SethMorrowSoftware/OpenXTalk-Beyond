@@ -1,0 +1,16 @@
+absolute coordinates
+(glossary)
+
+Syntax:
+Synonyms:
+global coordinates, screen coordinates, absolute coordinates, absolute (screen) coordinates
+
+Params:
+
+Examples:
+Description:
+Measurement of a position by its distance from the top and left edges of the screen.
+
+Values:
+
+OS:

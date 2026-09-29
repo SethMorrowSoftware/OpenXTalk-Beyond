@@ -1,0 +1,26 @@
+macStatusMenuNames
+(handler)
+Get the names of any menus that have been created
+
+Syntax:
+macStatusMenuNames()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if "mymenu" is among the lines of macStatusMenuNames() then
+	macStatusMenuDelete "mymenu"
+end if
+----
+
+Description:
+Use macStatusMenuNames to ensure that a menu has been created before calling a handler that may throw an error if called with a menu that does not exist.
+
+Values:
+A return delimited list of menu names. 
+
+OS:
+mac

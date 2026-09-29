@@ -1,0 +1,30 @@
+dragDestination
+(function)
+return|Returns the long ID of the object(glossary) that dragged data was dropped on.
+
+Syntax:
+the dragDestination
+----
+dragDestination()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the dragDestination
+----
+put the rect of the dragDestination into whereWeDragged
+----
+
+Description:
+Use the dragDestination function to determine which object(glossary) received a drag and drop.
+
+The dragDestination function only return|returns a value while a dragDrop handler is being execute|executed: that is, you can use it in a dragDrop handler, or in a handler that's called by a dragDrop handler. If called from another handler, the dragDestination function return|returns empty.
+
+Values:
+The dragDestination function return|returns the long ID property of the object(glossary). 
+
+OS:
+mac,windows,linux

@@ -1,0 +1,26 @@
+PathMakeWithRectangle
+(operator)
+Creates a new path.
+
+Syntax:
+rectangle path of {mRect}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+// Create a rectangle path
+variable tPath as Path
+put rectangle path of rectangle [10,10,210,60] into tPath
+----
+
+Description:
+Creates a new path.
+
+Values:
+A new rectangle path. 
+
+OS:

@@ -1,0 +1,20 @@
+showSelectedElement
+(property)
+Controls whether a title bar is drawn displaying the currently selected icon
+
+Syntax:
+set the showSelectedElement of {widget} to {true | false}
+get the showSelectedElement of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Controls whether a title bar is drawn displaying the currently selected icon
+
+Values:
+
+OS:

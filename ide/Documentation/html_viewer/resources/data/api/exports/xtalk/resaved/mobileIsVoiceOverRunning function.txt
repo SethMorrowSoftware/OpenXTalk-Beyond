@@ -1,0 +1,26 @@
+mobileIsVoiceOverRunning
+(function)
+Returns true if Voice Over is turned on (iOS only)
+
+Syntax:
+mobileIsVoiceOverRunning
+----
+
+Synonyms:
+iphoneisvoiceoverrunning
+
+Params:
+
+Examples:
+if mobileIsVoiceOverRunning() then
+   answer "Voice Over is turned on"
+end if
+----
+
+Description:
+Use the mobileIsVoiceOverRunning function if you need to know if Voice Over is turned on or not. 
+
+Values:
+
+OS:
+ios

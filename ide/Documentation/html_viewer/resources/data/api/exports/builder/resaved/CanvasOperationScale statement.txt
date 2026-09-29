@@ -1,0 +1,25 @@
+CanvasOperationScale
+(statement)
+Apply a scale to a canvas.
+
+Syntax:
+scale {mCanvas} by {mScale}
+----
+
+Synonyms:
+
+Params:
+mScale ( ): An expression which evaluates to a list of numbers.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Scale the canvas
+scale this canvas by [2,2]
+----
+
+Description:
+Scales the transform of mCanvas by mScale.
+
+Values:
+
+OS:

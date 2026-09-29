@@ -1,0 +1,23 @@
+eight
+(constant)
+Equivalent to the number 8.
+
+Syntax:
+eight
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the bottomMargin of the target to eight
+----
+
+Description:
+Use the eight constant when it is easier to read than the numeral 8. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

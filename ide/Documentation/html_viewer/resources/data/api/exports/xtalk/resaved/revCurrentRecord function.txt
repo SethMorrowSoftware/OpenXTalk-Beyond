@@ -1,0 +1,36 @@
+revCurrentRecord
+(function)
+return|Returns the number of the current record in a  record set.
+
+Syntax:
+revCurrentRecord({recordSetID})
+----
+
+Synonyms:
+revdb_currentrecord
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revCurrentRecord(bookSearchResults)
+----
+put revCurrentRecord(it) into myRecordNumber
+----
+
+Description:
+Use the revCurrentRecord function to find out which record is currently being used.
+
+If the operation is not successful, the revCurrentRecord function returns an error message that begins with the string "revdberr".
+
+If the revCurrentRecord function returns a value of 0, this means that the cursor is at the start of the record set, pointing to the first record. Fetching data (with revDatabaseColumnNamed or revDatabaseColumnNumbered) will retrieve the first record.
+
+If the revCurrentRecord function returns a value of equal to the number of records -1, this means that the cursor is on the last record. Fetching data will retrieve the last record.
+
+*Important:*  The revCurrentRecord command is part of the   Database library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revCurrentRecord function returns a number between 0 and the number of records in the record set - 1. The number represents the zero-based index of the current record. (i.e. 0 is the first record, 1 is the second etc). 
+
+OS:
+mac,windows,linux,ios,android

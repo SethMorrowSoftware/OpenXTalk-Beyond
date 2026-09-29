@@ -1,0 +1,19 @@
+sort by column
+(property)
+The column that the table data is currently being sorted by.
+
+Syntax:
+put the dgProp["sort by column"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The column that the table data is currently being sorted by. You can set this property to sort by a new column.
+
+Values:
+
+OS:

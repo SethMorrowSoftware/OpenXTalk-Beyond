@@ -1,0 +1,24 @@
+revIDEGetPreference(pPreferenceStackProperty)
+(function)
+Determines whether an object is considered part of the IDE
+
+Syntax:
+revIDEObjectIsOnIDEStack({pPreferenceStackProperty})
+----
+
+Synonyms:
+
+Params:
+pPreferenceStackProperty ( ): The name of a property in the IDE preferences stack.
+
+Examples:
+put revIDEGetPreference("cToolbarText") into tShowText
+----
+
+Description:
+Use the revIDEGetPreference function to retrieve an IDE property from the IDE preferences stack.
+
+Values:
+var 
+
+OS:

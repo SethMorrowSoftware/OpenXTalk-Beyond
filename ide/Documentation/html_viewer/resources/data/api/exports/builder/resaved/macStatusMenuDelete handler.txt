@@ -1,0 +1,24 @@
+macStatusMenuDelete
+(handler)
+Delete a status menu
+
+Syntax:
+macStatusMenuDelete({pName})
+----
+
+Synonyms:
+
+Params:
+pName ( ): The name of a previously created status menu
+
+Examples:
+macStatusMenuDelete "mymenu"
+----
+
+Description:
+Deleting the status menu removes it from the staus menubar
+
+Values:
+
+OS:
+mac

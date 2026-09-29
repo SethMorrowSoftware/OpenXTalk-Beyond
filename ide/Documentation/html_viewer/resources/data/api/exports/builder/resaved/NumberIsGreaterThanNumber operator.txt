@@ -1,0 +1,22 @@
+NumberIsGreaterThanNumber
+(operator)
+Greater than relation.
+
+Syntax:
+{Left} > {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Greater than relation.
+
+Values:
+True if Left is greater than Right, and false otherwise. 
+
+OS:

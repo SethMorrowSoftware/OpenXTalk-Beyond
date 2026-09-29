@@ -1,0 +1,34 @@
+PathMakeWithArc
+(operator)
+Creates a new path.
+
+Syntax:
+arc path centered at {mCenter} with [ radius {mRadius} | radii {mRadii} ] from {mStartAngle} to {mEndAngle}
+----
+
+Synonyms:
+
+Params:
+mCenter ( ): An expression which evaluates to a point.
+mRadius ( ): An expression which evaluates to a number.
+mRadii ( ): An expression which evaluates to a list of numbers.
+mStartAngle ( ): An expression which evaluates to a number.
+mEndAngle ( ): An expression which evaluates to a number.
+
+Examples:
+// Create an elliptical arc path
+variable tPath as Path
+put arc path centered at point [100,100] with radii [100,75] from 0 to 270 into tPath
+----
+// Create a circular arc path
+variable tPath as Path
+put arc path centered at point [100,100] with radius 100 from 0 to 270 into tPath
+----
+
+Description:
+Creates a new path.
+
+Values:
+A new arc path. 
+
+OS:

@@ -1,0 +1,19 @@
+OnLayerChanged
+(message)
+Sent when the widget layer is changed.
+
+Syntax:
+OnLayerChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the widget layer is changed.
+
+Values:
+
+OS:

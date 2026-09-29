@@ -1,0 +1,16 @@
+title bar
+(glossary)
+
+Syntax:
+Synonyms:
+titlebar, title bar
+
+Params:
+
+Examples:
+Description:
+The top border area of a window, which contains the window's name.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+unary
+(glossary)
+
+Syntax:
+Synonyms:
+unary
+
+Params:
+
+Examples:
+Description:
+An operator that takes one operand.
+
+Values:
+
+OS:

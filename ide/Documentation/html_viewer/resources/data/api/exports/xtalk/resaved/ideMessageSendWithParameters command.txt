@@ -1,0 +1,22 @@
+ideMessageSendWithParameters
+(command)
+Sends the given message to all subscribed objects.
+
+Syntax:
+ideMessageSendWithParameters {pMessage},{pTriggeringObjects},{pParamsArray}
+----
+
+Synonyms:
+
+Params:
+pMessage ( ): The message to send
+pTriggeringObjects ( ): A list, one per line, of the long ids of the objects triggering the message. This is used for example with the  message to convey which objects had properties changed.
+pParamsArray ( ): A numerically keyed aray (starting at 1) of the parameters to pass along with the message.
+
+Examples:
+Description:
+Sends pMessage to all objects which have subscribed to it using revIDESubscribe.
+
+Values:
+
+OS:

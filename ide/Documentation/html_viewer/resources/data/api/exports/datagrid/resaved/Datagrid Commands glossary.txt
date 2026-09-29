@@ -1,0 +1,19 @@
+Datagrid Commands
+(glossary)
+Datagrid commands are issued via 'dispatch' or 'send'.
+
+Syntax:
+Datagrid Commands
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+To issue a command to the datagrid you can use 'dispatch' or 'send'. 'Dispatch' is preferred as it has the nice 'with' syntax for sending parameters. Using dispatch:  	put "value" into theArray["property"] 	dispatch "AddData" to group "DataGrid" with theArray  Using send:  	put "value" into theArray["property"] 	send "AddData theArray" to group "DataGrid"
+
+Values:
+
+OS:

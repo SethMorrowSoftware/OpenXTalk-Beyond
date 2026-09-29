@@ -1,0 +1,20 @@
+highlight
+(property)
+`true` if the SVG path is highlighted; `false` otherwise
+
+Syntax:
+set the highlight of {widget} to {true|false}
+get the highlight of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the `highlight` property to test or control whether the SVG path is displayed as highlighted or not.
+
+Values:
+
+OS:

@@ -1,0 +1,33 @@
+pasteKey
+(message)
+Sent when the user presses the key combination equivalent to the "Paste" menu item.
+
+Syntax:
+pasteKey
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on pasteKey -- replace returns with spaces before pasting
+   if the clipboardData["text"] is not empty then 
+      set the clipboardData["text"] to \
+            replaceText(the clipboardData["text"],return,space)
+   end if
+   paste
+end pasteKey
+----
+
+Description:
+Handle the pasteKey message if you want to change the normal pasting process, or prevent use of the Paste keyboard equivalent without changing the menu.
+
+The OpenXTalk development environment traps the pasteKey message, unless "Suspend OpenXTalk UI" is turned on in the Development menu. This means that the pasteKey message is not received by a stack if it's running in the development environment.
+
+The pasteKey message is sent when the user presses Command-V (on Mac OS|Mac OS systems), Control-V (on Windows|Windows systems), Shift-Insert (on Unix|Unix systems), or the keyboard Paste key.
+
+Values:
+
+OS:
+mac,windows,linux

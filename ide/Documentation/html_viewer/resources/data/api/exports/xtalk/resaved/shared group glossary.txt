@@ -1,0 +1,16 @@
+shared group
+(glossary)
+
+Syntax:
+Synonyms:
+shared group
+
+Params:
+
+Examples:
+Description:
+A group that appears on more than one card in a stack. Changes to a shared group made on one card are reflected on each card that shares the group.
+
+Values:
+
+OS:

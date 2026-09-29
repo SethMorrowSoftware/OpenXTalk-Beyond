@@ -1,0 +1,18 @@
+default button
+(glossary)
+
+Syntax:
+Synonyms:
+default button
+
+Params:
+
+Examples:
+Description:
+The button in a dialog box that is automatically clicked if the user presses the Return or Enter key.
+
+The default button is typically indicated by a different color or a thicker outline.
+
+Values:
+
+OS:

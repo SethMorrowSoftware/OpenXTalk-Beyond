@@ -1,0 +1,20 @@
+extensionFetchMetadata
+(function)
+Fetch metadata from an extension manifest
+
+Syntax:
+extensionFetchMetadata({pManifestPath})
+----
+
+Synonyms:
+
+Params:
+pManifestPath ( ): The path to the manifest XML file
+
+Examples:
+Description:
+Fetch metadata from an extension manifest
+
+Values:
+
+OS:

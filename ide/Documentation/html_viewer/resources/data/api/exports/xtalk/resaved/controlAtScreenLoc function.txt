@@ -1,0 +1,27 @@
+controlAtScreenLoc
+(function)
+Returns the control at the specified location.
+
+Syntax:
+controlAtScreenLoc({coordinates})
+----
+
+Synonyms:
+
+Params:
+coordinates (point ): A location, relative to the screen
+
+Examples:
+put controlAtScreenLoc((100,100))
+----
+get the name of (controlAtScreenLoc(the screenMouseLoc))
+----
+
+Description:
+The controlAtScreenLoc function returns the control at the given location. The function returns the number of the control, below are examples of getting the name or long id of the control      get the name of (controlAtScreenLoc(coordinates))      get the long ID of (controlAtScreenLoc(coordinates))
+
+Values:
+The control at the given location, in the form: control control_number. 
+
+OS:
+mac,windows

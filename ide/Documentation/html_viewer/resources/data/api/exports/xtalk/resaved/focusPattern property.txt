@@ -1,0 +1,48 @@
+focusPattern
+(property)
+Specifies the pattern used for an object|object's outline when it has the insertion point or is explicit focus|active focused.
+
+Syntax:
+set the focusPattern of {object} to {{patternNumber} | {imageID} | empty}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the focusPattern of this stack to 2215
+----
+
+Description:
+Use the focusPattern property to specify the pattern used for the outline around an active control|active (focused) control.
+
+Pattern images can be color or black-and-white.
+
+*Cross-platform note:*  To be used as a pattern on   Mac OS|Mac OS systems, an image must be 128x128 pixels or less,   and both its height and width must be a power of 2. To be used on  Windows and Unix|Unix systems, height and width must be   divisible by 8. To be used as a fully cross-platform pattern, both an  image's dimensions should be one of 8, 16, 32, 64, or 128.
+
+The focusPattern of control|controls is drawn starting at the control|control's upper right corner: if the control is moved, the pattern does not shift.
+
+Setting the focusPattern of an object(glossary) to empty allows the focusPattern of the object|object's owner to show through. Use the effective keyword to find out what color is used for the object(glossary), even if its own focusPattern is empty.
+
+The setting of the focusPattern property has different effects, depending on the object type:  * The focusPattern of a stack, card, or group determines the   focusPattern of each object(glossary) in the stack, card, or   group that does not have its own focusPattern.
+
+ * The focusPattern of a button(keyword) is used to outline the   button(keyword) when it is focus|focused. If the   button(object)|button's style is menu, or if the button's   traversalOn property is false, the focusPattern has no effect.
+
+ * The focusPattern of a field or scrollbar is used to outline the   object(glossary) when it is focus|focused. If the object's   traversalOn property is false, the focusPattern has no effect.
+
+ * The focusPattern of a graphic, image, player, audioClip,   videoClip, or EPS|EPS object has no effect.
+
+ If an object's focusPattern is set, the pattern is shown instead of the color specified by the focusColor.
+
+The focusPattern property has no effect if the lookAndFeel property is set to Macintosh.
+
+Values:
+The focusPattern of an object(glossary) is a pattern specifier. A patternNumber is a built-in pattern number between 1 and 164. These patterns are provided for compatibility with patterns available in MetaCard and correspond to xTalk's built in image id 137 to 300. As with MetaCard pattern numbers 105 to 114 and 146 and above are  unavailable.
+
+An imageID is the ID of an image to use for a pattern. OpenXTalk looks for the specified image first in the current stack, then in other open stacks.
+
+By default, the focusPattern for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

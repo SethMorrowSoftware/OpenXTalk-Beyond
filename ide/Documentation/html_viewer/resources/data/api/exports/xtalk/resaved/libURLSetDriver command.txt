@@ -1,0 +1,24 @@
+libURLSetDriver
+(command)
+Sets the driver to be used by the libURL library for network transfers.
+
+Syntax:
+libURLSetDriver {driver}
+----
+
+Synonyms:
+
+Params:
+driver ( ): The long id of the stack that provides the external driver that the  should use for network transfers. Set this to empty to use the internal driver.
+
+Examples:
+Description:
+This command causes the libUrl library to call an external library for all network transfer functions. It requires an external libUrl library to be present in the system. More documentation will be available soon.
+
+*Important:* The libURLSetDriver command is part of the   Internet library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Internet"   script library is selected.
+
+Values:
+The libURLSetDriver command puts empty into the result if successful. Otherwise an error string is put into the result 
+
+OS:
+mac,windows,linux,ios,android,html5

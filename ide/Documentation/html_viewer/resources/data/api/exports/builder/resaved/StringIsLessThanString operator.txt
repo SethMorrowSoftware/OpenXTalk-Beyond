@@ -1,0 +1,22 @@
+StringIsLessThanString
+(operator)
+Determines whether Left is less than Right under a char by char comparison
+
+Syntax:
+{Left} < {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a string.
+Right ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+Left is greater than Right if and only if Left and Right are not equal, and the unicode codepoint of the first char in Left that is not equal to the corresponding char in Right is of greater value.
+
+Values:
+Returns true if Left is less than Right 
+
+OS:

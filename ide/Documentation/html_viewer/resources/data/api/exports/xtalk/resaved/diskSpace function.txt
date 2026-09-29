@@ -1,0 +1,32 @@
+diskSpace
+(function)
+return|Returns the amount of free space on the disk that holds the defaultFolder. 
+
+Syntax:
+the diskSpace
+----
+diskSpace()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the diskSpace
+----
+put the diskSpace div (1024^2) into megabytesAvailable
+----
+if the diskSpace < spaceNeeded then exit mouseUp
+----
+
+Description:
+Use the diskSpace function to determine whether there is enough free space to complete an action (such as download|downloading data).
+
+The value returned by the diskSpace function is in byte|bytes. To convert to kilobytes (K), divide the return value by 1024. To convert to megabytes (M), divide by 1024^2. To convert to gigabytes (G), divide by 1024^3:      function humanReadableDiskSpace theUnits         set the caseSensitive to false         switch char 1 of theUnits             case "k"     	        return the diskSpace div 1024     	        break             case "m"                 return the diskSpace div (1024^2)                 break             case "g"                 return the diskSpace div (1024^3)                 break             default                 return the diskSpace                 break         end switch     end humanReadableDiskSpace
+
+Values:
+The diskSpace function return|returns an integer. 
+
+OS:
+mac,windows,linux

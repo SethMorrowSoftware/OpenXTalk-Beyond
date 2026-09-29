@@ -1,0 +1,2 @@
+Version 0.94, build 202311261522
+This adds the option under compatibility > Nudge, to allow for strange positioning behaviour of the revMenubar stack

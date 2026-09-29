@@ -1,0 +1,15 @@
+mergMarkdown
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+mergMarkdown is a simple external for translating a markdown file to XHTML using the [sundown](https://github.com/vmg/sundown) library. It has one function:  `mergMarkdownToXHTML`. There are a number of non-standard markdown features  implemented in sundown and these can be controlled with optional parameters  to the function.
+
+Values:
+
+OS:

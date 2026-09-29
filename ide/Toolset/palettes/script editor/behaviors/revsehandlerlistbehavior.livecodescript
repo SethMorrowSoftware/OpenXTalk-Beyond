@@ -227,7 +227,7 @@ command update
    # OK-2008-08-18: Bug 6936 - The handler list object should take its text size from the main script editor preference.
    set the textSize of field "Handlers" of me to sePrefGet("editor,fontsize")
    set the textFont of field "Handlers" of me to sePrefGet("editor,font")
-   
+   --set the foregroundColor of fld "Handlers" of me to 119,119,119 -- (tperry 10-10-23)
    set the htmlText of field "Handlers" of me to tText
    set the cHandlers of field "Handlers" of me to tHandlers
    

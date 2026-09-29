@@ -1,0 +1,18 @@
+library
+(library)
+
+Syntax:
+Synonyms:
+libraries, library
+
+Params:
+
+Examples:
+Description:
+A repository of code that is available to be used by other routines. OpenXTalk includes several OpenXTalk custom library|custom libraries  you can include in your applications.
+
+You can make the script of any stack into a library with the  start using command, or make any object|object's script into a library using the insert script command.
+
+Values:
+
+OS:

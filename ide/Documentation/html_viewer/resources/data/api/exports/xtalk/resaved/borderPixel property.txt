@@ -1,0 +1,29 @@
+borderPixel
+(property)
+Specifies which entry in the color table is used for the color of an object|object's border.
+
+Syntax:
+set the borderPixel of {object} to {colorNumber}
+----
+
+Synonyms:
+fourthpixel
+
+Params:
+
+Examples:
+set the borderPixel of group 1 to 200
+----
+
+Description:
+Use the borderPixel property to change the border color of an object(glossary) when the bit depth of the screen is 8 bit|bits (256 colors) or less.
+
+The borderPixel property specifies which entry in the color table is used for an object|object's border color. It is similar to the borderColor property, but is specified as an entry in the current color table, rather than as a color reference.
+
+The color table can be set by changing the colorMap property.
+
+Values:
+The borderPixel of an object(glossary) is an integer between zero and (the screenColors - 1). It designates an entry in the current color table. By default, the borderPixel for all object|objects is empty. 
+
+OS:
+mac,windows,linux,ios,android

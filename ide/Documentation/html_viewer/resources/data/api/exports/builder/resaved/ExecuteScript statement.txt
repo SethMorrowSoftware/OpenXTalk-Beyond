@@ -1,0 +1,46 @@
+ExecuteScript
+(statement)
+Executes some LiveCode script.
+
+Syntax:
+execute script {Script} [ in {Object} ] [ with {Arguments} ]
+----
+
+Synonyms:
+
+Params:
+Script ( ): The script to execute.
+Object ( ): The object to execute the script in.
+Arguments ( ): A list of arguments for the script.
+
+Examples:
+public handler SnapshotMe() returns nothing
+	variable tVar as String
+	get property "number" of my script object
+	put the result formatted as string into tVar
+
+	// Create a snapshot from the rect of the widget
+	execute script "import snapshot from rect (the rect of widget " & tVar & ") of widget " & tVar
+end handler
+----
+   public handler SnapshotMeAtSize(in pWidth as Integer, in pHeight as Integer) returns nothing
+		variable tVar as String
+		get property "number" of my script object
+		put the result formatted as string into tVar
+
+		// Create a snapshot from the rect of the widget
+		execute script "import snapshot from me at size at size param(1),param(2)" \
+            with [ pWidth, pHeight ]
+	end handler
+----
+
+Description:
+Executes the given fragment of LiveCode script in the context of the target script object. If no object is specified then execution occurs in the context of `this card of the defaultStack` in a library handler or the current widget instance script object if in a widget handler.
+
+The list of arguments is accessible from the script fragment using the `paramCount()` and `param()` functions.
+
+*Note:* An error is thrown if this syntax is used in a context where access to script objects is not allowed.
+
+Values:
+
+OS:

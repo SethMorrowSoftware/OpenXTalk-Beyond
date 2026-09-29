@@ -1,0 +1,31 @@
+MCISendString
+(function)
+Sends a command to the Media Control Interface system, and return|returns the result of the command.
+
+Syntax:
+MCISendString({MCICommand})
+----
+
+Synonyms:
+
+Params:
+MCICommand (string ): A string containing an MCI command.
+
+Examples:
+MCISendString("capability overlay can freeze")
+----
+MCISendString(field "Media Commands")
+----
+
+Description:
+Use the MCISendString function on Windows|Windows systems to control multimedia devices.
+
+The Media Control Interface is a Microsoft standard that enables Windows systems to communicate with digitizers, laser-disc players, TV cards, and other multimedia devices.
+
+For information about the MCI commands that can be used with a device, contact the manufacturer of the device.
+
+Values:
+The MCISendString function return|returns the value the device sends back. If the device sends back an error message, the result is set to that message. If the command was successful, the result is set to empty. 
+
+OS:
+windows

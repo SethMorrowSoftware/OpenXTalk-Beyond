@@ -1,0 +1,29 @@
+RangeCodeunitOf
+(operator)
+Designates the codeunits between indices Start and Finish in Target.
+
+Syntax:
+codeunit {Start} to {Finish} of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Start ( ): An expression which evaluates to a valid integer index of .
+•	Finish ( ): An expression which evaluates to a valid integer index of .
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+put tCodeunits into codeunit 5 to 10 of tString // Locates codeunits 5 to 10 of tString and replace them with tCodeunits
+----
+get codeunit 5 to 10 of tString // Evaluates codeunits 5 to 10
+----
+
+Description:
+Either locates the codeunits between the given indices for use as the target container of another operation, or evaluates the codeunits at the given indices as the source of another operation.
+
+*Note:* It is an error if either Start or Finish are out of range.
+
+Values:
+
+OS:

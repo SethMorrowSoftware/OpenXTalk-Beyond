@@ -1,0 +1,18 @@
+binary
+(glossary)
+
+Syntax:
+Synonyms:
+binary, binary number
+
+Params:
+
+Examples:
+Description:
+The base-two number system, or a number represented in base two. Binary numbers are combinations of two digits: one and zero.
+
+Also, an operator that takes two operand|operands.
+
+Values:
+
+OS:

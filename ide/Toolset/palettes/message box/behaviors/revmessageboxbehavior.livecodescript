@@ -1,6 +1,10 @@
-﻿script "revMessageBoxBehavior"
+﻿script "revMessageBoxBehavior" with behavior "revPaletteBehavior"
 ##GH created 12/11/2014
 ##GH last updated 31/12/2014
+global IDEBootTimeInSeconds
+local tHideAsBooting
+local tTempLeft
+local tTempTop
 
 local lSelectedCard, lCardHistoryPref
 constant kHistoryMax = 200
@@ -18,7 +22,26 @@ on setBehaviors
    dispatch "setAsBehavior" to revIDEFrameBehavior() with the long id of this me
 end setBehaviors
 
-on openStack   
+on delayMBblendLevel
+   set the blendlevel of stack "message box" to 99 -- a trick to make it invisible (without using visible or hide)
+end delayMBblendLevel
+
+on preopenstack
+   -- additional checks to see if IDE is still booting when the message box is called (tperry 21-4-24)
+   put false into tHideAsBooting
+   if the cREVLaunching of stack "Home" is true then
+      set the blendlevel of stack "message box" to 99
+      put true into tHideAsBooting
+   end if
+   if the cREVLaunching of stack "Home" is false then
+      set the blendlevel of stack "message box" to 0
+      put false into tHideAsBooting
+   end if
+   pass preopenstack
+end preopenstack
+
+on openStack 
+   --
    lock screen
    lock messages
    --set the zoomBox of this stack to false
@@ -94,12 +117,17 @@ on openStack
    
    lock messages
    set the minHeight of me to tMinHeight
+   
+   
    moveMsgBoxStack
    
    __UpdateMessageColors
    __UpdateMessageFont
+   if the cREVLaunching of stack "Home" is false then set the blendlevel of stack "message box" to 0 -- a trick to make it invisible (without using visible or hide)
+   
    unlock messages
    unlock screen
+   pass openstack
 end openStack
 
 on ideMsgChanged pTarget, pHandler, pLine, pMsg
@@ -838,3 +866,9 @@ on rawKeyDown pKey
       pass rawKeyDown
    end if
 end rawKeyDown
+
+on suspendstack
+   -- this is to fix a bug reported by overclockedmind 24-4-24 (tperry)
+   send hSwitchedAway to stack "revMenubar" in 10 ticks
+   pass suspendstack
+end suspendstack

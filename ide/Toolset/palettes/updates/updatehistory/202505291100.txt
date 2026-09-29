@@ -1,0 +1,4 @@
+Version 1.11, build 202505291100
+Set the destroyStack to default to true (if not ever set manually)
+Ensure "show menubar" is fired during startup
+OpenXTalk Dictionary (tperry, went back and added the 'parameters')

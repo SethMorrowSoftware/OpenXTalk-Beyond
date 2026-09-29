@@ -1,0 +1,27 @@
+revXMLRPC_GetProtocol
+(function)
+
+Syntax:
+revXMLRPC_GetProtocol(XMLRPCdocumentID)
+
+Summary:
+This function returns the protocol of an XML-RPC document.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+Examples:
+local tProtocol
+put revXMLRPC_GetProtocol(tRequest) into tProtocol
+
+The revXMLRPC_GetProtocol function returns the type of connection that is established with the host. By default, XML-RPC uses connections, but for added security you can use connections, if the host supports it.
+
+Description:
+Use the revXMLRPC_GetProtocol function to retrieve the network protocol used in the execution of an XML-RPC request.
+
+If the revXMLRPC_GetProtocol function encounters an error, it returns an error message starting with "xmlrpcerr" .
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

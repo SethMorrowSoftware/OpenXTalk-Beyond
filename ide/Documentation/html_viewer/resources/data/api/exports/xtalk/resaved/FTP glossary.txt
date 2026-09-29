@@ -1,0 +1,16 @@
+FTP
+(glossary)
+
+Syntax:
+Synonyms:
+file transfer protocol, ftp
+
+Params:
+
+Examples:
+Description:
+File Transfer Protocol. The protocol used for transferring files via the Internet to and from a file server.
+
+Values:
+
+OS:

@@ -1,0 +1,46 @@
+RepeatTimes
+(control structure)
+Executes a list of statements a given number of times.
+
+Syntax:
+repeat {Count} times
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+Count (integer ): An expression which evaluates to an integer.
+StatementList ( ): A set of statements.
+
+Examples:
+public handler TwoToThePower(in pOperand as integer) as number
+
+	if pOperand is 0 then
+		return 1
+	end if	
+
+	variable tCount as number
+	put the abs of pOperand into tCount
+
+	variable tResult as number
+	put 1 into tResult
+	repeat tCount times
+		multiply tResult by 2
+	end repeat
+
+	if pOperand { 0 then 
+		return 1 / tResult
+	end if
+
+	return tResult
+end handler
+----
+
+Description:
+Use the repeat Count times structure to execute a set of statements a given number of times, when the statements executed do not rely on knowing which iteration the repeat loop is on.
+
+Values:
+
+OS:

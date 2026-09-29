@@ -1,0 +1,23 @@
+iconCodepointFromName
+(handler)
+Returns the codepoint corresponding to the given icon in the current font.
+
+Syntax:
+iconCodepointFromName({pName})
+----
+
+Synonyms:
+
+Params:
+pName ( ): The name of the icon
+
+Examples:
+Description:
+Returns the codepoint corresponding to the icon with name pName in the  current font.  Use the iconNames handler to obtain the names of the  icons for which this library is able to access SVG paths.
+
+Note:  The icon name is accepted in the form "name" or "family/name".   If no family is specified, then the current family is searched first.   If not found, other families are searched for the provided name.
+
+Values:
+The codepoint of the icon with name pName 
+
+OS:

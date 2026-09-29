@@ -1,0 +1,18 @@
+SQL
+(glossary)
+
+Syntax:
+Synonyms:
+sql, structured query language
+
+Params:
+
+Examples:
+Description:
+Structured Query Language. A standard language for specifying, retrieving, and updating data in a database. You use the  Database library to communicate with database|databases using SQL.
+
+*Important:* This documentation pronounces SQL as "sequel". Your   pronunciation may vary.
+
+Values:
+
+OS:

@@ -1,0 +1,18 @@
+property inspector
+(glossary)
+
+Syntax:
+Synonyms:
+property inspector, properties palette, properties window
+
+Params:
+
+Examples:
+Description:
+Part of the OpenXTalk development environment, a palette window that displays the property|properties of an object(glossary).
+
+To display an object|object's property inspector, select the object(glossary) and choose Object ? Object Inspector from the menubar. 
+
+Values:
+
+OS:

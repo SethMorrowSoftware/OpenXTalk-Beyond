@@ -1,0 +1,32 @@
+mouseStack
+(function)
+return|Returns the name of the window the mouse pointer is over.
+
+Syntax:
+the mouseStack
+----
+mouseStack()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the mouseStack
+----
+if the mouseStack is "Message box" then hide message
+----
+
+Description:
+Use the mouseStack function to determine which window the mouse is over, or, in conjunction with the mouseControl, mouseLine, or mouseChunk, to determine which field the mouse is over.
+
+If the mouse is not over any OpenXTalk window, the mouseStack return|returns empty.
+
+If the mouse is over a stack's title bar or border, the  mouseStack return|returns empty.
+
+Values:
+The mouseStack function return|returns the short name property of the window the mouse is over. 
+
+OS:
+mac,windows,linux,ios,android

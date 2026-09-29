@@ -1,0 +1,32 @@
+ListIndexBefore
+(operator)
+Find the first or last occurrence of Needle within the head of Haystack Target:An expression which evaluates to a list.
+
+Syntax:
+the ( first | last ) index of {Needle} before {Before} in {Haystack}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to any value.
+Before ( ): An expression which evaluates to a valid index in Target.
+
+Examples:
+variable tVar as List
+variable tOffset as Number
+put ["a", "b", "c", "d", "b"]
+put the index of "b" before 2 in tVar into tOffset
+--tOffset contains 0
+
+put the first index of "b" before 5 in tVar into tOffset
+--tOffset contains 2
+----
+
+Description:
+Use `the index of?Ķ before` to find where particular elements occur within a list.  Haystack is scanned for an element that is equal to Needle, stopping before the position Before, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.  If neither "first" nor "last" is specified, the last matching element is found.
+
+Values:
+Returns the index in Haystack. 
+
+OS:

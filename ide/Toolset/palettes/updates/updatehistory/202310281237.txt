@@ -1,0 +1,5 @@
+Version 0.93, build 202310281237
+Files for dark mode on Macs (round 3)
+This is a continuation of removing custom colour properties where they should not be set
+This also corrects specific theming for Mac Dark Mode.
+(Dark mode for Windows will be my next job)

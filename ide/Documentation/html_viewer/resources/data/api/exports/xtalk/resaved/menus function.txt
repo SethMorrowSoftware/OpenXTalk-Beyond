@@ -1,0 +1,23 @@
+menus
+(function)
+Does not return a meaningful value and is included in OpenXTalk for compatibility with imported HyperCard stacks.
+
+Syntax:
+the menus
+----
+menus()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the menus function return|returns a list of menus in the menubar.
+
+In OpenXTalk, the menus function always return|returns empty.
+
+Values:
+
+OS:

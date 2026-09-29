@@ -1,0 +1,2 @@
+Version 1.08, build 202411071421
+I've added TerryL's suggestion of keeping 10 recent fonts in the font menu. I've also added the ability to refresh the fonts in that menu without restarting the entire IDE.

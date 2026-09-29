@@ -1,0 +1,18 @@
+channel
+(glossary)
+
+Syntax:
+Synonyms:
+channel, color channel
+
+Params:
+
+Examples:
+Description:
+One of the sets of value|values that makes up an image. A channel includes one value for each pixel in the image.
+
+For example, a standard color image has three channels--red, green, and blue--and each pixel has a number for the intensity of red (and one for the intensity of green and of blue--three in all). The set of red intensities for all the pixel|pixels makes up the image|image's red channel. 
+
+Values:
+
+OS:

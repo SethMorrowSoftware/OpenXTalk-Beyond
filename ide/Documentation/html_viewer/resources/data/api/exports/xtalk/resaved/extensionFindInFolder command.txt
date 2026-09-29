@@ -1,0 +1,23 @@
+extensionFindInFolder
+(command)
+Find any extensions in the given folder
+
+Syntax:
+extensionFindInFolder {pFolder},{pIsUserFolder},{pRecursive},{xDataA}
+----
+
+Synonyms:
+
+Params:
+pFolder ( ): The folder to search
+pIsUserFolder ( ): Whether this is a user folder or not
+pRecursive ( ): Whether to search subfolders
+xDataA ( ): An array. Details of any extensions found will be placed in the array under xDataA[][]
+
+Examples:
+Description:
+Find any extensions in the given folder
+
+Values:
+
+OS:

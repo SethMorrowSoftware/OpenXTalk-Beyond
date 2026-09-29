@@ -1,0 +1,36 @@
+PointerToJObject
+(handler)
+Convert a Pointer into a JObject
+
+Syntax:
+PointerToJObject({pPointer})
+----
+
+Synonyms:
+
+Params:
+pPointer ( ): The Pointer to convert
+
+Examples:
+foreign handler _JNI_SetTextViewText(in pView as JObject, in pValue as JString) returns nothing binds to "java:android.widget.TextView}setText(Ljava/lang/CharSequence;)V"
+
+-- set the text of a view
+unsafe handler ViewSetText(in pString as String)
+	variable tViewPtr as Pointer
+	put my native layer into tPointer
+
+	variable tView as JObject
+	put PointerToJObject into tView
+	_JNI_SetTextViewText(tView, StringToJString(pString))
+end handler
+----
+
+Description:
+Use PointerToJObject to convert a variable of type Pointer to one of  type JObject.
+
+ *Important:* Your application will likely crash if the underlying type  of the Pointer is not actually jobject.
+
+Values:
+A JObject wrapping the jobject Pointer 
+
+OS:

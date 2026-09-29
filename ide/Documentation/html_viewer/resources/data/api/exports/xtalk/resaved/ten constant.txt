@@ -1,0 +1,23 @@
+ten
+(constant)
+Equivalent to the number 10.
+
+Syntax:
+ten
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if ten is in field "Score" then beep
+----
+
+Description:
+Use the ten constant when it is easier to read than the number 10. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

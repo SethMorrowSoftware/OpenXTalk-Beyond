@@ -1,0 +1,19 @@
+row template
+(property)
+This is the group that represents a record in your data grid.
+
+Syntax:
+put the dgProp["row template"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This is the group that represents a record in your data grid. If the style of the data grid is form then this group will be copied into the data grid. If the data grid style is table then the data grid looks in this group for controls named after the columns in your table. If the data grid finds a control in this group that matches a column name then the control will be used to visually represent the column. Otherwise a field is used. By default the IDE creates this group on a card in a stack whose name starts with "Data Grid Template". Clicking the "Row Template" button in the Property Inspector reveal the card containing this group.
+
+Values:
+
+OS:

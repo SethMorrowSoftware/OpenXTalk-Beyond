@@ -1,0 +1,30 @@
+revBrowserMakeTextSmaller
+(command)
+Makes the text smaller in the specified browser.
+
+Syntax:
+revBrowserMakeTextSmaller {instanceId}
+----
+XBrowser_MakeTextSmaller [{instanceId}]
+----
+
+Synonyms:
+xbrowser_maketextsmaller
+
+Params:
+instanceId ( ): The integer identifier of a browser object
+
+Examples:
+revBrowserMakeTextSmaller tBrowserId
+----
+
+Description:
+The revBrowserMakeTextSmaller command reduces the size of the text in the browser specified by the instanceId.
+
+*Cross-platform note:*  On a Windows system, executing the  revBrowserMakeTextSmaller command is equivalent to decreasing the  text size via the View -> Text Size menu in Internet Explorer. On  an OS X system it is equivalent to decreasing the text size by  clicking on View -> Make Text Smaller  *Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserMakeTextSmaller command puts empty into the result. 
+
+OS:
+mac,windows

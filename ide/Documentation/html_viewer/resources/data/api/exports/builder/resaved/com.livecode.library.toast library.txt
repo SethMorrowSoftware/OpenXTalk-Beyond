@@ -1,0 +1,17 @@
+com.livecode.library.toast
+(library)
+A library for displaying toasts on mobile
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+A toast is a non-modal temporary notification displayed to the user.
+
+Values:
+
+OS:
+android

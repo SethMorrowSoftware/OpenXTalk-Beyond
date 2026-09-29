@@ -1,0 +1,19 @@
+revXMLRPC_SetProtocol
+(command)
+
+Syntax:
+revXMLRPC_SetProtocol XMLRPCdocumentID, connProtocol
+
+Summary:
+Sets the protocol of an structure.
+
+If the revXMLRPC_SetProtocol command encounters an error, the result is set to an error message beginning with "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_SetProtocol command to set the protocol that is used for the connection during the execution of an XML-RPC request.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

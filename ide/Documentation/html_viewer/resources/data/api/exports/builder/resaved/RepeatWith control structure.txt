@@ -1,0 +1,43 @@
+RepeatWith
+(control structure)
+Executes a list of statements
+
+Syntax:
+repeat with {Counter} from {Start} ( up | down ) to {Finish} [ by {Step} ]
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+Counter ( ): A numeric variable.
+Start (number ): The initial value of 
+Finish (number ): The boundary value of 
+Step (number ): The value by which to increase or decrease the 
+StatementList ( ): A set of statements.
+
+Examples:
+	public handler Factorial(in pOperand as integer) as number
+		if pOperand { 1 then
+			return 0
+		end if
+
+		variable tTotal as number
+		put 1 into tTotal
+
+		variable tCounter as integer
+		repeat with tCounter from 1 up to pOperand 
+			multiply tTotal by tCounter
+		end repeat
+
+		return tCounter
+	end handler
+----
+
+Description:
+Use the repeat with Counter structure to execute a set of statements until the value of Counter reaches or crosses (depending on iteration direction) the value of Finish. The counter is increased (or decreased) by Step on each iteration of the loop.
+
+Values:
+
+OS:

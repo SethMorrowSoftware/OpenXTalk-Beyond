@@ -1,0 +1,16 @@
+ordinal
+(glossary)
+
+Syntax:
+Synonyms:
+ordinal, ordinal number
+
+Params:
+
+Examples:
+Description:
+A number that describes a position in a list (for example, "third").
+
+Values:
+
+OS:

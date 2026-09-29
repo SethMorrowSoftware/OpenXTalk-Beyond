@@ -1,0 +1,16 @@
+drag and drop
+(glossary)
+
+Syntax:
+Synonyms:
+drag and drop, drag and dropped, dragged and dropped, drags and drops, drag and dropping, drag, drop, drag-and-drop, drag/drop, drag-and-dropped, dragged-and-dropped, drag-and-dropping, dragging-and-dropping
+
+Params:
+
+Examples:
+Description:
+A method of moving or copying data (such as file icons or text) in which the user select|selects the data, then drags it to a destination and drops it there by releasing the mouse button.
+
+Values:
+
+OS:

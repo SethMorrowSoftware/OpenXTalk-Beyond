@@ -1,0 +1,29 @@
+FirstCodeunitOf
+(operator)
+Designates the first codeunit in Target.
+
+Syntax:
+the first codeunit of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+variable tVar as String
+put "codeunit" into tVar
+
+variable tFirst as String
+put the last codeunit of tVar into tFirst -- tFirst contains "c"
+----
+
+Description:
+Either locates the first codeunit for use as the target container of another operation, or evaluates the first codeunit as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+codepoints
+(keyword)
+Used with the number function(glossary) to designate codepoints as a separate portion of a string.
+
+Syntax:
+codepoints
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the number of codepoints of tString
+----
+
+Description:
+Use the codepoints keyword to count the number of codepoints making up a string.
+
+A codepoint refers to the integer identifiers associated with Unicode characters. A single character is composed of one or more codepoints.
+
+Use the expression   	the number of codepoints of tString  to find out how many codepoints make up a Unicode string.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

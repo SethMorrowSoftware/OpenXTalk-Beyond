@@ -1,0 +1,16 @@
+environment variable
+(glossary)
+
+Syntax:
+Synonyms:
+shell variable, environment variable
+
+Params:
+
+Examples:
+Description:
+Information the operating system provides about the system or the user. Environment variables are used only on OS X and Unix|Unix systems.
+
+Values:
+
+OS:

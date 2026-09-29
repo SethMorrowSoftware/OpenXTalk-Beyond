@@ -1,0 +1,16 @@
+Common library
+(library)
+
+Syntax:
+Synonyms:
+common libraries, common library
+
+Params:
+
+Examples:
+Description:
+One of the OpenXTalk custom library|OpenXTalk custom libraries, which  implements function|functions and command|commands that are shared  between other OpenXTalk custom library|custom libraries  or used for miscellaneous purposes.
+
+Values:
+
+OS:

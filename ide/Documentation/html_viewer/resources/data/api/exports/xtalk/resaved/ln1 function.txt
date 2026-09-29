@@ -1,0 +1,35 @@
+ln1
+(function)
+return|Returns the natural logarithm of a number plus one.
+
+Syntax:
+the ln1 of {number}
+----
+ln1({number})
+----
+
+Synonyms:
+
+Params:
+number ( ): A number greater than -1, or an expression that evaluates to such a number. 
+
+Examples:
+ln1(0) -- returns zero
+----
+put ln1(myValue) into logValue
+----
+
+Description:
+Use the ln1 function to obtain a base e logarithm, ln(number + 1).
+
+The natural logarithm of a number is the power to which e must be raised to obtain the number.
+
+The transcendental number e appears in many mathematical formulas.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The ln1 function return|returns a number. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,25 @@
+CanvasPropertyCapStyle
+(operator)
+The current cap style of a canvas.
+
+Syntax:
+the cap style of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw a line with rounded ends.
+set the cap style of this canvas to "round"
+stroke line path from point [50,100] to point [100,50] on this canvas
+----
+
+Description:
+Determines how to draw the end points of a path when stroking. Can be one of "butt", "square", or "round".
+
+Values:
+
+OS:

@@ -1,0 +1,25 @@
+idePropertyNames
+(function)
+A list of the object property names considered canonical by the IDE
+
+Syntax:
+idePropertyNames({pObjectType})
+----
+
+Synonyms:
+
+Params:
+pObjectType ( ): One of the IDE's object type IDs
+
+Examples:
+Description:
+This function returns a list of the object property names considered canonical by the IDE, as parsed from the file Toolset/resources/supporting_files/property_definitions.txt.
+
+If the pObjectType parameter is used, this returns a list of the properties specific to that object type, as parsed from the files in Toolset/resources/supporting_files/.
+
+For a list of the object type IDs which are valid inputs to this function, see the ideObjectTypes function.
+
+Values:
+A list of the object property names, one per line. 
+
+OS:

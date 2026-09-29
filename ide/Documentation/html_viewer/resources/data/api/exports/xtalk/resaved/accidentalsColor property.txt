@@ -1,0 +1,22 @@
+accidentalsColor
+(property)
+The fill color for accidentals (black) keys
+
+Syntax:
+get the accidentalsColor of {widget}
+----
+set the accidentalsColor of {widget} to {color}
+----
+
+Synonyms:
+blackkeyscolors
+
+Params:
+
+Examples:
+Description:
+The accidentalsColor property controls the default color used to fill the piano's accidentals (black) keys. This property is the same as blackKeysColors
+
+Values:
+
+OS:

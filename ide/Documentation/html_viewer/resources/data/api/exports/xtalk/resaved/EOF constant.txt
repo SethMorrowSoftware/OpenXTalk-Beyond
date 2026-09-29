@@ -1,0 +1,28 @@
+EOF
+(constant)
+Equivalent to the EOT character (ASCII 4, Control-D).
+
+Syntax:
+EOF
+----
+
+Synonyms:
+end, endoffile
+
+Params:
+
+Examples:
+read from file monsterFile until EOF
+----
+
+Description:
+Use the EOF constant to read an entire file, or to read all data from a process.
+
+The EOF constant signifies the end of a file.
+
+When used with the read from process or read from file command, the EOF constant causes OpenXTalk to keep reading data until no more data remains to be read.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

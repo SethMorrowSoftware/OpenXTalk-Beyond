@@ -1,0 +1,38 @@
+CanvasOperationBeginLayer
+(statement)
+Begin a new drawing layer on a canvas.
+
+Syntax:
+begin layer [ with {mEffect} ] on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mEffect ( ): An expression which evaluates to an effect.
+
+Examples:
+// Draw two overlapping rectangles grouped with half transparency
+set the opacity of this canvas to 0.5
+begin layer on this canvas
+fill rectangle path of rectangle path [50,50,100,100] on this canvas
+fill rectangle path of rectangle path [75,75,125,125] on this canvas
+end layer on this canvas
+----
+// Create an effect for the new layer
+variable tEffect as Effect
+put outer shadow effect into tEffect
+
+// Draw rectangle with an effect applied
+begin layer with tEffect on this canvas
+fill rectangle path of rectangle [50,50,100,100] on this canvas
+end layer on this canvas
+----
+
+Description:
+Begins a new layer on mCanvas to group drawing operations for which the opacity, blend mode, and optional effect are to be applied to as a whole rather than individually.
+
+Values:
+
+OS:

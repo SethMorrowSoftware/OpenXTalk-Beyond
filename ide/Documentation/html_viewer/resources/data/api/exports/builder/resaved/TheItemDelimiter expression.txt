@@ -1,0 +1,26 @@
+TheItemDelimiter
+(expression)
+Fetches the `itemDelimiter` property from script context
+
+Syntax:
+the item delimiter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+  -- Split a string into a list using the item delimiter
+   variable tItems
+   put "alice,bob,eve" into tItems
+   split tItems by the item delimiter
+   -- tItems is now a list: ["alice", "bob", "eve"]
+----
+
+Description:
+Fetches the calling (script) handler's `itemDelimiter` property, or the comma char if no script context is available.
+
+Values:
+
+OS:

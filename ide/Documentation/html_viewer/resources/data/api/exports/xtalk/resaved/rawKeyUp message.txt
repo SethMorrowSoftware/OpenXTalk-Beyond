@@ -1,0 +1,29 @@
+rawKeyUp
+(message)
+Sent when the user releases any key that was pressed (other than a modifier key).
+
+Syntax:
+rawKeyUp {pKeyCode}
+----
+
+Synonyms:
+
+Params:
+pKeyCode ( ): The raw keycode of the released key.
+
+Examples:
+on rawKeyUp theCode -- boldface all asterisks
+  get the HTMLText of me
+  replace "*" with "<b>*</b>" in it
+  set the HTMLText of me to it
+end rawKeyUp
+----
+
+Description:
+Handle the rawKeyUp message if you want to intercept raw event|events from the keyboard or if you want to handle keys that aren't mapped to any character.
+
+Values:
+If the rawKeyUp message is sent as the result of a keypress, the message is sent to the active control(glossary), or to the current card if no control is focus|focused. If the message is sent as the result of typing something in a field, the rawKeyDown message is sent before the text is changed, and the rawKeyUp message is sent after the change has been made. 
+
+OS:
+mac,windows,linux,ios,android

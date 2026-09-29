@@ -1,0 +1,16 @@
+type signature
+(glossary)
+
+Syntax:
+Synonyms:
+type signature, file type
+
+Params:
+
+Examples:
+Description:
+On Mac OS and OS X|OS X systems, a four- character signature attached to each file. The type signature identifies the format of the file. 
+
+Values:
+
+OS:

@@ -1,0 +1,28 @@
+AndroidBrowser
+(object)
+A native Android control that displays a browser.
+
+Syntax:
+AndroidBrowser
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+mobileControlCreate "browser"
+----
+mobileControlCreate "browser", "web view"
+put the result into sBrowserID
+mobileControlSet sBrowserID, "visible", "true"
+mobileControlSet sBrowserID, "url", "http://www.OpenXTalk.org"
+----
+
+Description:
+An Android browser control is created using a control type of "browser".
+
+Values:
+
+OS:
+android

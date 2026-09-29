@@ -1,0 +1,35 @@
+Log
+(statement)
+Logs a value.
+
+Syntax:
+log {Value} [ with {Arguments} ]
+----
+
+Synonyms:
+
+Params:
+•	Value ( ): The value to log.
+•	Arguments ( ): A list of arguments.
+	
+Examples:
+variable tList as List
+get property "name" of my script object
+push the result onto tList
+
+get property "id" of my script object
+push the result onto tList
+
+log "Widget %@ has id %@" with tList
+----
+variable tList as List
+put [1,2,3,4] into tList
+log tList
+----
+
+Description:
+The log command triggers a logChanged message with the  accumulated log messages since the logChanged message  was last handled. This can be handled in LiveCode Script, for example:      on logChanged pLog         write pLog to stdout     end logChanged  If using the 'with arguments' form, the Value must be a String. Each occurrence of %@ in the String is replaced by a string representation of subsequent values in the Arguments List.
+
+Values:
+
+OS:

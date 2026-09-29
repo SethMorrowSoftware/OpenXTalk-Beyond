@@ -1,0 +1,16 @@
+REALbasic
+(glossary)
+
+Syntax:
+Synonyms:
+realbasic
+
+Params:
+
+Examples:
+Description:
+An authoring environment from REAL Software, Inc. Its language is also called REALbasic. 
+
+Values:
+
+OS:

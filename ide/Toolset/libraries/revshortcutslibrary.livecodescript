@@ -190,10 +190,31 @@ on commandKeyDown pWhich
                exit commandKeyDown
             end if
             
+            -- tperry 13-1-24
+            -- this was blocking the file save as shortcut, and was what I was looking for - for ages
+            /*
             if pWhich is "S" then
                edit script of tTopStack
             else
                edit script of this card of tTopStack
+            end if
+            */
+            
+            if pWhich is "S" then
+               if the shiftkey is down then
+                  -- ctrl shift S pressed.  Should be save as shortcut
+                  -- tperry, fixed 13-1-24
+                  revIDEActionSaveStackAs the long id of the topStack 
+               end if
+            end if
+            
+            -- this sorts the shortcut for center text align
+            -- tperry, fixed 13-1-24
+            if pWhich is "C" then
+               if the shiftkey is down then
+                  revIDEActionAlign Center
+               end if
+               break
             end if
             
             # OK-2008-07-07: Bug 6710 - The exit to top is preventing the script editor from finishing its initialization,
@@ -267,7 +288,7 @@ on tabKey
    
    if the commandKey is down and the controlKey is down then
       --toggle palettes
-      send "mouseUp" to btn "toggle palettes" of stack "revMenuBar"
+      if there is a btn "toggle palettes" of stack "revMenuBar" then send "mouseUp" to btn "toggle palettes" of stack "revMenuBar" -- check exists first
    end if
    pass tabKey
 end tabKey

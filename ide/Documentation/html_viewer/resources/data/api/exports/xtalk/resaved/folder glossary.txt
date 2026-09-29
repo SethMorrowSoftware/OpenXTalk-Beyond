@@ -1,0 +1,18 @@
+folder
+(glossary)
+
+Syntax:
+Synonyms:
+folder, directory, directories
+
+Params:
+
+Examples:
+Description:
+A collection of file|files and other folder|folders.
+
+The synonym "directory" is more common among Unix users. The term "folder" is more often used by Mac OS, OS X, and Windows users.
+
+Values:
+
+OS:

@@ -1,0 +1,32 @@
+hilitedNotes
+(property)
+The hilighted piano keys as list of notes
+
+Syntax:
+get the hilitedNotes of {widget}
+----
+set the hilitedNotes of {widget} to {pHilightNotes}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+  -- clear all
+  set the hilitedNotes of widget "Piano Widget" to empty
+  -- hilte ALL C# keys, MIDI note 60, D#4 (same as Eb4), Gb 5th octave:
+  set the hilitedNotes of widget "Piano Widget" to "C#,60,D#4,F#Gb5"
+  put the hilitedNotes of widget "Piano Widget"
+end mouseUp
+----
+
+Description:
+The hilitedNotes property can be used to set the piano keys to hilite using a comma seperated list of keys, by MIDI note number or note name. If a note name is used without an octave number then that note is hilited on all 10.5 octaves. Set to empty or pass an empty string to clear all key hilites. The property returns the list as two lines, Line one lists MIDI note numbers and the second line list same keys as note names.
+
+lockToTonicWithScale
+
+Values:
+
+OS:

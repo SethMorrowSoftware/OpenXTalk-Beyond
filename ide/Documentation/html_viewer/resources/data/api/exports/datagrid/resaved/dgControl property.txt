@@ -1,0 +1,19 @@
+dgControl
+(property)
+Returns the long id of the data grid.
+
+Syntax:
+get the dgControl of the target
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the long id of the data grid. Useful in row/column template behaviors when you need to get properties of the data grid.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+header text size
+(property)
+The text size to apply to the header area of a table.
+
+Syntax:
+put the dgProp["header text size"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The text size to apply to the header area of a table. Prefix property name with "effective" to get the size being used when this property is set to empty
+
+Values:
+
+OS:

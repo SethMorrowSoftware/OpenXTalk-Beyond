@@ -1,0 +1,33 @@
+mouseDoubleDown
+(message)
+Sent when the user double-click|double-clicks.
+
+Syntax:
+mouseDoubleDown {pButtonNumber}
+----
+
+Synonyms:
+
+Params:
+pButtonNumber (enum ): Specifies which mouse button was pressed:
+
+Examples:
+on mouseDoubleDown myButton -- open a file in an another application
+  if myButton is not 1 then pass mouseDoubleDown
+  launch the label of the target with (field "Editor App")
+end mouseDoubleDown
+----
+
+Description:
+Handle the mouseDoubleDown message to perform an action when the user double-click|double-clicks.
+
+The mouseDoubleDown message is sent to the control that was double-click|double-clicked, or to the card if no control was under the mouse pointer.
+
+The mouseDoubleDown message is sent only when the Browse tool is being used. If an unlock|unlocked field is clicked with  mouse button 1 or 2, no mouseDoubleDown message is sent.
+
+*Note:*  If the user clicks a transparent pixel in an image,  the mouseDoubleDown message is sent to the object(glossary)  behind the image, not to the image.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

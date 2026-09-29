@@ -1,0 +1,19 @@
+text style
+(property)
+The text style to apply to the data area of a table or form.
+
+Syntax:
+put the dgProp["text style"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The text style to apply to the data area of a table or form. Prefix property name with "effective" to get the style being used when this property is set to empty.
+
+Values:
+
+OS:

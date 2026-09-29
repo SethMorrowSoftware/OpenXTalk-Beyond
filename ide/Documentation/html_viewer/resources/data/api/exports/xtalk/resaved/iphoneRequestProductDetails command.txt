@@ -1,0 +1,26 @@
+iphoneRequestProductDetails
+(command)
+Sends a request to the iOS App Store for localized product details.
+
+Syntax:
+iphoneRequestProductDetails {product}
+----
+
+Synonyms:
+
+Params:
+product ( ): The identifier of the product for which you wish to retrieve the details. 
+
+Examples:
+iphoneRequestProductDetails tMyProductID
+----
+
+Description:
+Use the iphoneRequestProductDetails command to request localized product details from the App Store.
+
+The iphoneRequestProductDetails command sends a request for localized product details to the App Store.
+
+Values:
+
+OS:
+ios

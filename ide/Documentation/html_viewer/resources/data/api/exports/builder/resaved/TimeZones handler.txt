@@ -1,0 +1,33 @@
+TimeZones
+(handler)
+List the time zones used by the Time zone library
+
+Syntax:
+TimeZones()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- List all time zones and their times
+local tList, tTime, tData
+put the seconds into tTime
+repeat for each line tLine in TimeZones()
+   put tLine & tab & FromUniversalTime(tTime, tLine) into tData
+   if tList is empty then
+      put tData into tList
+   else
+      put tData & return after tList
+   end if
+end repeat
+----
+
+Description:
+Use the TimeZones function to find a list of valid timezones used by ToUniversalTime and FromUniversalTime,
+
+Values:
+A list of time zones, one per line. 
+
+OS:

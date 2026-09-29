@@ -1,0 +1,16 @@
+declare
+(glossary)
+
+Syntax:
+Synonyms:
+declaration, declaring, declared, declare
+
+Params:
+
+Examples:
+Description:
+To create a new variable or constant, or to make an existing variable available to the current handler.
+
+Values:
+
+OS:

@@ -1,0 +1,20 @@
+revIDEGraphics
+(function)
+Returns information about the predefined graphic objects.
+
+Syntax:
+revIDEGraphics()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns information about the predefined graphic objects.
+
+Values:
+an array, keyed by the predefined graphic object types that appear in the Tools palette, of properties associated with each of those graphic objects. 
+
+OS:

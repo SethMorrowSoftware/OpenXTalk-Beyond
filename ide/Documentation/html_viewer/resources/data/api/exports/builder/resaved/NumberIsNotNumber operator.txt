@@ -1,0 +1,22 @@
+NumberIsNotNumber
+(operator)
+Determines if Left is not Right.
+
+Syntax:
+{Left} is not {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Returns the opposite of the NumberIsNumber operator.
+
+Values:
+True if Left is not equal to Right, and false otherwise. 
+
+OS:

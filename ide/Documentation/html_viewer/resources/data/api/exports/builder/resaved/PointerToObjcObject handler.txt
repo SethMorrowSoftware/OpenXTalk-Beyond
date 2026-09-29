@@ -1,0 +1,21 @@
+PointerToObjcObject
+(handler)
+Convert a Pointer into an ObjcObject
+
+Syntax:
+PointerToObjcObject({pPointer})
+----
+
+Synonyms:
+
+Params:
+pPointer ( ): The Pointer to convert
+
+Examples:
+Description:
+Use PointerToObjcObject to convert a variable of type Pointer to one of type ObjcObject.
+
+Values:
+An ObjcObject wrapping the Pointer 
+
+OS:

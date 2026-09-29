@@ -1,0 +1,28 @@
+revZipReplaceItemWithData
+(command)
+Replaces the contents of an item in a zip archive with the contents of a variable. 
+
+Syntax:
+revZipReplaceItemWithData {archivePath}, {itemName}, {variableName}
+----
+
+Synonyms:
+
+Params:
+archivePath ( ): The absolute path to the zip archive to process.
+itemName ( ): The name of the item in the zip archive to  replace.
+variableName ( ): The name of the variable in your program containing the data to replace with. If the revZipReplaceItemWithData command encounters an error then the result will be set to an error code beginning with "ziperr", otherwise the result will be empty.
+
+Examples:
+revZipReplaceItemWithData tArchive, "myZippedItem", "tData"
+----
+revZipReplaceItemWithData the cArchive of me, "Test.txt", "tNewTest"
+----
+
+Description:
+Use the revZipReplaceItemWithData command to put the contents of a variable in your program into one of the items of an open zip archive. The archive must have first been opened with the revZipOpenArchive command.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,19 @@
+dgDataControlOfLine
+(property)
+Returns the long id of the data control associated with a line number.
+
+Syntax:
+get the dgDataControlOfLine[pLine] of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Same as dgDataControlOfIndex but takes a line number as the parameter.
+
+Values:
+
+OS:

@@ -1,0 +1,31 @@
+functionKey
+(message)
+Sent when the user presses a function key.
+
+Syntax:
+functionKey {pKeyNumber}
+----
+
+Synonyms:
+
+Params:
+pKeyNumber ( ): The number of the function key.
+
+Examples:
+on functionKey theKey
+  if theKey is 8 then showPaintTools -- a custom handler
+  else pass functionKey
+end functionKey
+----
+
+Description:
+Handle the functionKey message to let the user perform some action with a function key.
+
+The message is sent to the active (focused) control, or to the current card if no control is focused.
+
+Keyboards typically have twelve function keys, so you can use numbers from 1 to 12 to implement custom actions.
+
+Values:
+
+OS:
+mac,windows,linux

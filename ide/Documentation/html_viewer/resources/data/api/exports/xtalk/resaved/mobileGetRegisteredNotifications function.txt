@@ -1,0 +1,42 @@
+mobileGetRegisteredNotifications
+(function)
+Returns a comma delimited list of Local Notifications that are scheduled with the iOS or Android operating system.
+
+Syntax:
+mobileGetRegisteredNotifications()
+----
+
+Synonyms:
+iphonegetregisterednotifications
+
+Params:
+
+Examples:
+get mobileGetRegisteredNotifications()
+----
+local tScheduledNotifications
+mobileGetRegisteredNotifications
+put the result into tScheduledNotifications
+if tScheduledNotifications is empty then
+   answer "There are no pending notifications" with "Okay"
+else
+   replace comma with return in tScheduledNotifications
+   mobilePick tScheduledNotifications, 1, "cancelDone"
+   if the result is not 0 then
+      mobileCancelLocalNotification line the result \
+            of tScheduledNotifications
+      if the result is false then
+         answer "No such notification." with "Okay"
+      end if
+   end if
+end if
+----
+
+Description:
+Use the mobileGetRegisteredNotifications function to return a comma delimited list of scheduled Local Notifications.
+
+Values:
+The mobileGetRegisteredNotifications function returns a comma delimited list of positive integers, each indicating the ID of a particular Notification that is scheduled with the iOS or Android operating system. 
+
+OS:
+ios,android

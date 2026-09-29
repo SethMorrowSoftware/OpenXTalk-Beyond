@@ -1,0 +1,28 @@
+bottomMargin
+(property)
+Specifies how close text within an object(glossary) can come to the object|object's lower edge, and how close object|objects in a group(command) can come to the group(glossary)|group's lower edge.
+
+Syntax:
+set the bottomMargin of {{button} | {field} | {group}} to {pixels}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the bottomMargin of field "List" to 0
+----
+
+Description:
+Use the bottomMargin property to change the amount of blank space between an object|object's bottom edge and its contents.
+
+The bottomMargin property of a field or button specifies how many blank pixels are left between the object|object's bottom edge and the lower edge of its text. The bottomMargin of a group(command) specifies how far the group(glossary)|group's bottom edge extends below its lowest object(glossary).
+
+An object's bottomMargin property is equal to item 4 of its margins property.
+
+Values:
+The bottomMargin is a non-negative integer. By default, the bottomMargin of a newly created field(keyword) is 8. If the field(object)|field's wideMargins property is true, the field(object)|field's bottomMargin is set to 14. The default bottomMargin setting for other controls is 4. 
+
+OS:
+mac,windows,linux,ios,android

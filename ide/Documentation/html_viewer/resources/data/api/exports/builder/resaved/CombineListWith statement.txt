@@ -1,0 +1,32 @@
+CombineListWith
+(statement)
+Combines the list of strings in Target, using Delimiter                 as the delimiter. 
+
+Syntax:
+combine {Target} with {Delimiter}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list container.
+Delimiter ( ): An expression that evaluates to a string.
+
+Examples:
+variable tWords as List
+put ["A","List","of","words"] into tWords
+
+variable tString as String
+combine tWords with " " into tString
+-- tString contains "A List of words"
+----
+
+Description:
+Use the combine command to convert a list into a string representation of the list.
+
+*Note:* The list *must* consist entirely of string elements, otherwise the combine command will throw an error.
+
+Values:
+The combined string. 
+
+OS:

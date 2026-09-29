@@ -1,0 +1,16 @@
+xTalk
+(glossary)
+
+Syntax:
+Synonyms:
+xtalk, xtalk language
+
+Params:
+
+Examples:
+Description:
+The family of scripting languages have in common HypeTalk as their main progentor,  includes OpenXION|xion, HyperCard|HyperTalk, SuperCard|SuperTalk, MetaCard|MetaTalk,  OpenXTalk|xTalk and others.
+
+Values:
+
+OS:

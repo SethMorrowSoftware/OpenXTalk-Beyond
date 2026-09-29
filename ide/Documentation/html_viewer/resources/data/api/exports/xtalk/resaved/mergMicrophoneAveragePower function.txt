@@ -1,0 +1,22 @@
+mergMicrophoneAveragePower
+(function)
+Return the average power reading in decibels
+
+Syntax:
+mergMicrophoneAveragePower([{pChannel}])
+----
+
+Synonyms:
+
+Params:
+pChannel ( ): (optional with 0 default)  The channel who's power you need to return. In most cases the default channel of 0 will be what you want (iPhones only record in mono unless they have a mic accessory.
+
+Examples:
+Description:
+Return the average power reading in decibels
+
+Values:
+The average power reading in decibels. Usually between -160 (min) and 0 (max) but may be positive in some circumstances. 
+
+OS:
+ios,mac

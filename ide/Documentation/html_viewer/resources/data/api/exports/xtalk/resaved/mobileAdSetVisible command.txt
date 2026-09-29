@@ -1,0 +1,30 @@
+mobileAdSetVisible
+(command)
+Specifies whether an ad can be seen or is hidden.
+
+Syntax:
+mobileAdSetVisible {ad}, {visible}
+----
+
+Synonyms:
+
+Params:
+ad ( ): The name of the ad.
+visible (boolean ): True to set the ad to visible, false to make the ad invisible.
+
+Examples:
+-- Show banner advert
+mobileAdSetVisible "bannerAd", true
+----
+if mobileAdGetVisible("bannerAd") is true then
+  mobileAdSetVisible "bannerAd", false
+end if
+----
+
+Description:
+Use the mobileAdSetVisible command to set the visibility of an ad created using the mobileAdCreate command.
+
+Values:
+
+OS:
+ios,android

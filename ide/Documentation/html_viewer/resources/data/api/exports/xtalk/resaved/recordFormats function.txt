@@ -1,0 +1,21 @@
+recordFormats
+(function)
+Returns a list of available record formats
+
+Syntax:
+the recordFormats
+----
+recordFormats()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the recordFormats function to obtain a list of the supported  recordFormat values for storing audio data after using the  record sound command. 
+
+Values:
+
+OS:

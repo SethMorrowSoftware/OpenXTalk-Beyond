@@ -1,0 +1,28 @@
+UnplaceWidget
+(statement)
+Remove a child widget from the parent.
+
+Syntax:
+unplace {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object.
+
+Examples:
+-- Remove any child widgets that are clicked on
+public handler OnMouseUp() returns nothing
+    if the target is not nothing then
+        unplace the target
+    end if
+end handler
+----
+
+Description:
+Unplaces the child widget from the widget in which the unplace statement is used. The widget is no longer drawn.
+
+Values:
+
+OS:

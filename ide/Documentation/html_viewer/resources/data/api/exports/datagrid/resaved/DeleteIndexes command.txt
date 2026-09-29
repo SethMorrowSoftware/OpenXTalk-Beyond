@@ -1,0 +1,19 @@
+DeleteIndexes
+(command)
+Deletes the specified indexes from the data grid.
+
+Syntax:
+dispatch "DeleteIndexes" to group "DataGrid" with pIndexes
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Deletes the specified indexes from the data grid. pIndexes is a comma delimited list of integers.
+
+Values:
+
+OS:

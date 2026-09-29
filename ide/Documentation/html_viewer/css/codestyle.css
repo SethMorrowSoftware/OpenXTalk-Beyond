@@ -1,4 +1,4 @@
-/* LiveCode dictionary code theme */
+/* dictionary code theme */
 .hljs-comment {
   color: #15901F;
   font-weight: bold;
@@ -46,7 +46,7 @@
 }
 
 .hljs-variable {
-  color: #000000;	
+  color: #000000;
 }
 
 .hljs {

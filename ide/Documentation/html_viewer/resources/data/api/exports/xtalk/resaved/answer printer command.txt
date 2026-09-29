@@ -1,0 +1,34 @@
+answer printer
+(command)
+Displays the appropriate printer selection dialog for the platform.
+
+Syntax:
+answer printer [as sheet]
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+answer printer
+----
+if the commandKey is down then
+  answer printer
+end if
+----
+
+Description:
+Use the answer printer command to select a printer and set standard printing options for later printing.
+
+The answer printer command displays a dialog box where the user can set certain print-related properties.
+
+If the systemPrintSelector property is false or the system does not support native print dialogs a stack named "Printer Dialog" will be used. If the systemPrintSelector property is true then a dialog will be displayed by the operating system, in this case the exact options are determined by the printer driver and the operating system.
+
+If the user does not cancel the dialog, upon return the printer setting properties will be updated to reflect their choices.
+
+Values:
+*Note:* If the user clicks the cancel button of the answer printer  dialog, then "cancel" is put into the result. 
+
+OS:
+mac,windows,linux

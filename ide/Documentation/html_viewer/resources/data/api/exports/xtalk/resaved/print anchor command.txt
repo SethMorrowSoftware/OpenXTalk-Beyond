@@ -1,0 +1,31 @@
+print anchor
+(command)
+Defines a target for an internal hyperlink within a PDF document.
+
+Syntax:
+print anchor {anchorName} at {anchorPoint}
+----
+
+Synonyms:
+
+Params:
+anchorName ( ): A label used to identify the anchor
+anchorPoint ( ): An x,y coordinate pair
+
+Examples:
+print anchor "section 1.1" at 50,50
+----
+print anchor tAnchor at x,y
+----
+
+Description:
+Use the print anchor command to define a target for an internal  hyperlink within a pdf created using open printing to pdf.
+
+The print anchor command defines a target for an internal hyperlink in a PDF file created using the open printing to pdf command.
+
+The name parameter is a label used to identify the anchor in related  print link commands, and anchorPoint is the location on the current  page to which any such link should jump.
+
+Values:
+
+OS:
+mac,windows,linux,ios

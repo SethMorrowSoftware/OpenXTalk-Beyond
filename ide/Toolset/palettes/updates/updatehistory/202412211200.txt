@@ -1,0 +1,2 @@
+Version 1.09, build 202412211200
+Neville has spotted the revanswerdialog is broken, so have regressed this back to the one in v1.05 of OXT Lite temporarily.

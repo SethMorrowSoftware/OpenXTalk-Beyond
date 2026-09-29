@@ -1,0 +1,31 @@
+globalNames
+(function)
+return|Returns a list of declare|declared global|global variables.
+
+Syntax:
+the globalNames
+----
+globalNames()
+----
+
+Synonyms:
+globals
+
+Params:
+
+Examples:
+the globalNames
+----
+if "myGlob" is not among the items of the globalNames then global myGlob
+----
+
+Description:
+Use the globalNames function to determine which global|global variables are available, or to make sure a global|global variable name has not already been used before declare|declaring it.
+
+Global variables are created with the global command. They can be deleted with the delete variable command. All global|global variables that have been declare|declared since the application was started up are included in the globalNames function, except any that have been explictly deleted.
+
+Values:
+The globalNames function return|returns a list of all global|global variables, separated by commas. 
+
+OS:
+mac,windows,linux,ios,android

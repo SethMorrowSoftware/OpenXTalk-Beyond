@@ -1,0 +1,2 @@
+Version 1.08, build 202410081914
+Adds Paul's "Make A Widget, Part 2, 3 and 4" to the Lessons stack. Also adds Tom's "Android Standalone building, setup instructions".

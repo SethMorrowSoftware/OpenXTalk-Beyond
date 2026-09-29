@@ -1,0 +1,29 @@
+iphoneSetFileDataProtection
+(command)
+Sets the data protection level of the given file.
+
+Syntax:
+iphoneSetFileDataProtection {filename}, {dataProtection}
+----
+
+Synonyms:
+
+Params:
+filename ( ): The full path to the file to be protected.
+dataProtection (enum ): The level of protection to apply to the file
+
+Examples:
+iphoneSetFileDataProtection myFile, "none"
+----
+iphoneSetFileDataProtection specialFolderPath("documents") & "/appointments.txt", "complete"
+----
+
+Description:
+Use the iphoneSetFileDataProtection command to set the data protection  level of a file.
+
+The  iphoneSetFileDataProtection command sets the level of data protection applied to a file. The files protection level can be checked  using the iphoneFileDataProtection function.
+
+Values:
+
+OS:
+ios

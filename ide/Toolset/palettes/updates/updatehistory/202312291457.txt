@@ -1,0 +1,2 @@
+Version 0.97, build 202312291457
+Fixes to the report builder (scaling) and the shortcuts library. Also tweaked the allguides stack.

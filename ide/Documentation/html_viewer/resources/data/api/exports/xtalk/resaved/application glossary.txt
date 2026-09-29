@@ -1,0 +1,16 @@
+application
+(glossary)
+
+Syntax:
+Synonyms:
+application
+
+Params:
+
+Examples:
+Description:
+The program that's currently running: either the OpenXTalk  development environment, or a standalone application created with  OpenXTalk.
+
+Values:
+
+OS:

@@ -1,0 +1,29 @@
+CanvasOperationFillTextAligned
+(statement)
+Render filled text on a canvas.
+
+Syntax:
+fill text {mText} at {mAlignment} of {mRect} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mText ( ): An expression which evaluates to a string.
+mRect ( ): An expression which evaluates to a rectangle.
+
+Examples:
+// Set the canvas font
+set the font of this canvas to font "Helvetica"
+
+// Draw the text in the top-left corner of the target rectangle
+fill text "Widget Label" at top left of rectangle [50, 100, 250, 200] on this canvas
+----
+
+Description:
+Renders mText aligned to the specified sides of mRect on mCanvas using the current font setting.
+
+Values:
+
+OS:

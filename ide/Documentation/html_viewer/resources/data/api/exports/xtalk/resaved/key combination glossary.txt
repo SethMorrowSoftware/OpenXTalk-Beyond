@@ -1,0 +1,16 @@
+key combination
+(glossary)
+
+Syntax:
+Synonyms:
+key combination
+
+Params:
+
+Examples:
+Description:
+A keypress using a modifier key along with another key.
+
+Values:
+
+OS:

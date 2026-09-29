@@ -1,0 +1,29 @@
+androidRecorderStopRecording
+(handler)
+Stop recording
+
+Syntax:
+androidRecorderStopRecording()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+    try
+        androidRecorderStopRecording
+    catch tError
+        answer tError
+    end try
+end mouseUp
+----
+
+Description:
+Use the androidRecorderStopRecording handler to stop the current  recording. If no recording is currently happening, this handler will throw an error.
+
+Values:
+
+OS:
+android

@@ -1,0 +1,20 @@
+SortDataByKey
+(command)
+SortDataByKey is the underlying command that all column sorts call.
+
+Syntax:
+dispatch "SortDataByKey" to group "DataGrid" with pArrayKey,
+pSortType, pDirection, pCaseSensitive
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+SortDataByKey is the underlying command that all column sorts call. It can be used to sort data grid forms. pArrayKey is one the keys you created when you assigned set dgData property. If you used the dgText property then the key will be "Label 1" or "Label 2", etc. pSortType, pDirection and pCaseSensitive all reflect the equivalent parameters for the built-in 'sort container' command in Revolution. pSortType is "text", "numeric', "dateTime" or "international". pDirection is "ascending" or "descending". pCaseSensitive is true/false.
+
+Values:
+
+OS:

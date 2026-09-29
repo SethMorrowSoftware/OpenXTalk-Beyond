@@ -1,0 +1,27 @@
+MessageWasNotHandled
+(expression)
+Determines whether a message was handled
+
+Syntax:
+the message was not handled
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler OnMouseUp() returns nothing
+	send "buttonClicked" to my script object
+	if the message was not handled then
+		log "The message was not handled"
+	end if
+end handler
+----
+
+Description:
+Determines if a dispatched message was handled by any script objects in the message path.
+
+Values:
+
+OS:

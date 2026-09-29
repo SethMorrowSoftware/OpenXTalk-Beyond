@@ -1,0 +1,26 @@
+as
+(keyword)
+
+Syntax:
+as
+
+Used with the do command to specify a scripting language; used with the export command to specify the file format to export to; used with the go command to specify the mode of a stack; used with the save command to specify the file name and location.
+
+Platforms:
+desktop, server, mobile
+
+Examples:
+do field 1 as "Javascript"
+export image "image" to file myFile as PNG
+go stack "Controls" as palette
+save this stack as "../Backups/Current.rev"
+
+Related: file
+
+Description:
+Use the as keyword to modify the do, export, go, or save commands.
+
+Use the alternateLanguages function to find out which languages can be used with the do as alternateLanguage command on Mac OS and OS X systems.
+
+OS:
+mac, windows, linux, ios, android, html5

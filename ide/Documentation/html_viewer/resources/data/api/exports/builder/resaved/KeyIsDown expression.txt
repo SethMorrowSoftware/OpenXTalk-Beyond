@@ -1,0 +1,22 @@
+KeyIsDown
+(expression)
+Returns true if the key is down
+
+Syntax:
+the ( shift |             command |             control |             alt |             option |             caps lock ) key is ( currently ) down
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use 'the ... key is down' to determine if the key was down at the start of the current event. Use 'the ... key is currently down' to determine if the key is down at the time it is being checked.
+
+As in script, command and control keys return the state of the same key on non-macOS systems while on macOS they are separate keys. Additionally alt and option are different names for the same key.
+
+Values:
+The state of the key 
+
+OS:

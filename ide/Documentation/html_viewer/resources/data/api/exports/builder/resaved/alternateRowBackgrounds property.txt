@@ -1,0 +1,21 @@
+alternateRowBackgrounds
+(property)
+Whether the alternate rows of the widget have different backgrounds or not.
+
+Syntax:
+get the alternateRowBackgrounds of {widget}
+----
+set the alternateRowBackgrounds of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the alternateRowBackgrounds property if you want to more clearly distinguish the rows displayed by the widget.
+
+Values:
+
+OS:

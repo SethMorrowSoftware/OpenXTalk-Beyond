@@ -1,0 +1,28 @@
+dropboxAddFolderMember
+(command)
+Allows an owner or editor (if the ACL update policy allows) of a shared folder to add another member.
+
+Syntax:
+dropboxAddFolderMember {pAccessToken}, {pSharedFolderId}, {pMembers}, {pQuiet}, {pCustomMessage}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pSharedFolderId ( ): The ID for the shared folder.
+pMembers ( ): The intended list of members to add. Added members will receive invites to join the shared folder. ```` [ { "email" : email address of member (optional if dropbox_id is set) "drobox_id" : a unique dropbox user id "access_level" (enum): - "owner" : The collaborator is the owner of the shared folder. Owners can view and edit the shared folder as well as set the folder's policies using update_folder_policy. - "editor: The collaborator can both view and edit the shared folder. - "viewer": The collaborator can only view the shared folder. - "viewer_no_comment": The collaborator can only view the shared folder and does not have any access to comments. } ] ````
+pQuiet ( ): Whether added members should be notified via email and device notifications of their invite. The default for this field is False.
+pCustomMessage ( ): Optional message to display to added members in their invitation.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+For the new member to get access to all the functionality for this folder, you will need to call dropboxMountFolder on their behalf. Apps must have full Dropbox access to use this endpoint.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

@@ -1,0 +1,6 @@
+Version 0.92, build 202309241420
+Tweaks to the inspector palette.
+Renamed 'Name of Livecode property' to 'Name of OXT property' under cog/gearwheel icon > Property Labels
+Renamed dialog title when adding stack files via inspector, from 'Please select a Livecode stack' to 'Please select an OpenXTalk stack'
+Made some inroads in supporting oxtstack files as default. (if you don't specify an extension, the oxtstack file extension is now used). - I need to work out how to make oxtstack the default save choice. (it may be harder to do on MacOS).
+Bug fix: I noticed that if you rename a stack, with the same name of one that's already open, this would previously cause an indeterminate loop and a hang. I have fixed this bug. You now get an alert if you try to use a stack name that is already open.

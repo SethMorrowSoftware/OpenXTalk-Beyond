@@ -1,0 +1,20 @@
+MyBounds
+(expression)
+Returns the bounds of the widget.
+
+Syntax:
+my bounds
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the bounds of the widget.
+
+Values:
+The bounds of the widget. 
+
+OS:

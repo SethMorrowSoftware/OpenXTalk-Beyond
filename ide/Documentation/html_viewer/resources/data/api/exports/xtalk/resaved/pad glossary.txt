@@ -1,0 +1,18 @@
+pad
+(glossary)
+
+Syntax:
+Synonyms:
+padded, padding, pad
+
+Params:
+
+Examples:
+Description:
+To add data to a value in order to come up to an even amount.
+
+For example, if a variable is supposed to hold 10 character|characters, but the actual data is only six character|characters, you can pad the variable by adding four spaces to the end to make it the right size.
+
+Values:
+
+OS:

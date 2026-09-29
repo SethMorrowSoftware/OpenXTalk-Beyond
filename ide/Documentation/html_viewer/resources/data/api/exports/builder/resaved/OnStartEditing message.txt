@@ -1,0 +1,19 @@
+OnStartEditing
+(message)
+Sent when the pointer tool is selected.
+
+Syntax:
+OnStartEditing
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the OnStartEditing message to perform an action when the edit tool is selected.
+
+Values:
+
+OS:

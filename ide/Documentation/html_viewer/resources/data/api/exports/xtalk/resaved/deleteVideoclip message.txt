@@ -1,0 +1,24 @@
+deleteVideoclip
+(message)
+Sent to a videoclip(object) just before it is removed from the stack. 
+
+Syntax:
+deleteVideoclip
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Handle the deleteVideoclip message if you want to perform cleanup before a videoclip(object) is removed from the stack.
+
+The actual deletion is not triggered by the deleteVideoclip message, so trap|trapping the message and not allowing it to pass does not prevent the videoclip(object) from being removed.
+
+However, the undo command will restore a videoclip(object) after it is deleted by the user.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

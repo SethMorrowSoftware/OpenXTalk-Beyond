@@ -1,0 +1,23 @@
+UnitTestSkipDescriptionAndReason
+(statement)
+Record a skipped test with a test description and reason for skipping
+
+Syntax:
+skip test {Description} because {Reason}
+----
+
+Synonyms:
+
+Params:
+Reason ( ): A brief explanation of why the test was skipped
+
+Examples:
+skip test "open web socket" because "not implemented"
+----
+
+Description:
+Record that a test was skipped.  The Description is a message that summarises the test that was skipped, and the Reason explains why the test couldn't be done.  For example, the feature being tested isn't supported by the platform that the test is running on.
+
+Values:
+
+OS:

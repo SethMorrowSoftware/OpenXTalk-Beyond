@@ -1,0 +1,29 @@
+EffectPropertyType
+(operator)
+The type of an effect.
+
+Syntax:
+the type of {mEffect}
+----
+
+Synonyms:
+
+Params:
+mEffect ( ): An expression which evaluates to an effect.
+
+Examples:
+// Create an outer shadow effect
+variable tEffect as Effect
+put outer shadow effect into tEffect
+
+// Get the type of the effect, in this case it will be "outer shadow"
+variable tType as String
+put the type of tEffect into tType
+----
+
+Description:
+The type of mEffect as a string. Can be one of "color overlay", "inner shadow", "outer shadow", "inner glow", "outer glow".
+
+Values:
+
+OS:

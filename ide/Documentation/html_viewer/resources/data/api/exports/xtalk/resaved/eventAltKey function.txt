@@ -1,0 +1,35 @@
+eventAltKey
+(function)
+return|Returns the state of the Alt key.
+
+Syntax:
+the eventAltKey
+----
+eventAltKey()
+----
+
+Synonyms:
+eventoptionkey
+
+Params:
+
+Examples:
+put the eventAltKey into keyState
+----
+if the eventAltKey is down then exit rawKeyDown
+----
+
+Description:
+Use the eventAltKey function(control structure) to check whether the Alt key, Meta key, or Option key was pressed at the time the current event was dispatched. You can use eventAltKey to add alternative capabilities to user actions such as clicking.
+
+If you want to check the state of the Alt key at the current time, rather than when the event was dispatched, use the altKey function.
+
+The eventAltKey and eventOptionKey function(glossary)|functions return the same value. Which one to use is a matter of preference. The terminology varies depending on platform. Users of different operating systems may know this key as the Option key (Mac OS systems), Meta key (Unix systems), or Alt key (Windows systems).
+
+ **Warning**: the value of this function is undefined after performing  a wait operation; it may no longer be the same as the value when the  event was dispatched.
+
+Values:
+The eventAltKey function return|returns down if the key was down at the time the current event was generated or up otherwise. 
+
+OS:
+mac,windows,linux

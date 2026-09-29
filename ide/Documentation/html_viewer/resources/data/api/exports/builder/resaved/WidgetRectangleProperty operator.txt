@@ -1,0 +1,33 @@
+WidgetRectangleProperty
+(operator)
+Manipulates the rectangle property of a child widget
+
+Syntax:
+the rectangle of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+end handler
+
+public handler OnGeometryChanged() returns nothing
+    -- ensure child widget rect is that of the parent
+    set the rectangle of mChild to my bounds
+end handler
+----
+
+Description:
+Use the rectangle property to set the rectangle of a child widget.
+
+Values:
+
+OS:

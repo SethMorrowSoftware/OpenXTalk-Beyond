@@ -1,0 +1,21 @@
+hilitedCoordinatesColor
+(property)
+The color for drawing the highlighted point
+
+Syntax:
+set the hilitedCoordinatesColor of {widget} to {color}
+get the hilitedCoordinatesColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the widget currently has some hilitedCoordinates|highlighted coordinates set, the hilitedCoordinatesColor determines the color used to draw the highlighting dot and lines.
+
+Values:
+Any string which is a valid color, including RGBA values. 
+
+OS:

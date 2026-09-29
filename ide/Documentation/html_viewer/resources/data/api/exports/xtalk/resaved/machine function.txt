@@ -1,0 +1,43 @@
+machine
+(function)
+return|Returns the type of hardware the application is running on.
+
+Syntax:
+the machine
+----
+machine()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the machine
+----
+if the machine contains "Powerbook" then checkBattery
+----
+
+Description:
+Use the machine function to detect what type of system your application is running on.
+
+On Mac OS systems, the machine function uses the Gestalt() system call to determine the machine type.
+
+On Unix systems, the machine function uses the uname() system function.
+
+On Android devices, the machine function returns the manufacturer's name for the device. For example, if running on a Google Nexus One, the string is "Nexus One".
+
+Values:
+The machine function return|returns a string.
+
+
+iPad: the device is the iPad
+x86_64: windows 64 bit based system
+iPod Touch: the device is one of the iPod Touch models
+iPhone Simulator: the device is a simulated iPhone
+x86: windows 32 bit based system
+iPhone: the device is one of the iPhone models
+iPad Simulator: the device is a simulator iPad
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,33 @@
+mergJSONDecode
+(function)
+The function decodes JSON to an array.
+
+Syntax:
+mergJSONDecode({pJSON}, {pVariableName})
+----
+
+Synonyms:
+
+Params:
+pJSON (string ): The UTF8 encoded JSON to decode.
+pVariableName (string ): The name of the variable to decode the JSON into.
+
+Examples:
+function JSONToArray pJSON
+    local tArray,tKeys
+    repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+        put JSONToArray(tArray[tKey]) into tArray[tKey]
+    end repeat
+    return tArray
+end JSONToArray
+
+----
+
+Description:
+The function decodes JSON to an array.
+
+Values:
+A list of array keys that must be further decoded. As the externals interface can not deal with multi-dimensional arrays a recursive function must be used to decode deeply nested JSON. 
+
+OS:
+ios,android,linux,mac,windows

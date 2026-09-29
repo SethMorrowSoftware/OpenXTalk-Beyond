@@ -1,0 +1,33 @@
+ticks
+(function)
+return|Returns the number of ticks since the start of the eon.
+
+Syntax:
+the ticks
+----
+ticks()
+----
+
+Synonyms:
+tick
+
+Params:
+
+Examples:
+the ticks
+----
+put the ticks - startTicks into elapsedTicks
+----
+
+Description:
+Use the ticks function to time event|events that must be checked more often than once per second.
+
+Unlike HyperTalk's "ticks" function, the ticks function return|returns the total number of ticks since midnight GMT, January 1, 1970, rather than the total number of ticks since the last system startup.
+
+A tick is one-sixtieth of a second. If you don't need to time events with this much precision, use the seconds function. If you need to time event|events with greater precision, use the milliseconds function. 
+
+Values:
+The ticks function return|returns a positive integer. 
+
+OS:
+mac,windows,linux,ios,android

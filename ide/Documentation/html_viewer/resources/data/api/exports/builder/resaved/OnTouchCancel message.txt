@@ -1,0 +1,19 @@
+OnTouchCancel
+(message)
+Sent to the target for touch events when a touch event is cancelled.
+
+Syntax:
+OnTouchCancel
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent to the target for touch events when a touch event is cancelled.
+
+Values:
+
+OS:

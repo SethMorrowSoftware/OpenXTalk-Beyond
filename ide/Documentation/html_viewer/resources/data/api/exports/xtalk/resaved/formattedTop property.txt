@@ -1,0 +1,32 @@
+formattedTop
+(property)
+Reports the distance between the top edge of the stack window and the topmost object(glossary) in a card or group.
+
+Syntax:
+get the formattedTop of {{card} | {group}}
+----
+get the formattedTop of {chunk} of {field}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the formattedTop of card "Preferences"
+----
+set the scroll of field 1 to the formattedTop of line 30 of field 1
+----
+
+Description:
+Use the formattedTop property to find the boundary of a group or chunk, or to determine how far to scroll vertically to bring a chunk of text into the viewable area of a field.
+
+If you specify a card or group, the formattedTop reports the distance in pixels between the top edge of the stack window and the top edge of the uppermost object(glossary) in the card or group. (object|Objects whose visible property is false are ignored.)  If the uppermost object is above the top of the stack window, the formattedTop is a negative number.
+
+The formattedTop of a chunk in a field is the distance from the top of the stack to the top of an imaginary box containing the text in the chunk.
+
+Values:
+The formattedTop of a group or card is an integer. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

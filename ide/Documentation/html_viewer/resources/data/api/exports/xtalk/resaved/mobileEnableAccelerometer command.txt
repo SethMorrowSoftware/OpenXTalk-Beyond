@@ -1,0 +1,29 @@
+mobileEnableAccelerometer
+(command)
+Enables the accelerometer so that accelerationChanged events are delivered. 
+
+Syntax:
+mobileEnableAccelerometer [{interval}]
+----
+
+Synonyms:
+iphoneenableaccelerometer
+
+Params:
+interval ( ): Specified in seconds and is the approximate time between delivery of messages. 
+
+Examples:
+mobileEnableAccelerometer 100
+----
+
+Description:
+The mobileEnableAccelerometer command enables the accelerometer on the device.
+
+The mobileEnableAccelerometer command will cause accelerationChanged events to be delivered to the current card of the defaultStack at the specified interval.
+
+*Note:* The interval is constrained by hardware-specific minimums and  maximums (which are left unspecified by Apple).
+
+Values:
+
+OS:
+ios,android

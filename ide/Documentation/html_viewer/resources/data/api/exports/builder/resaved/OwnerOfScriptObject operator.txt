@@ -1,0 +1,34 @@
+OwnerOfScriptObject
+(operator)
+Get the parent object of a script object.
+
+Syntax:
+the owner of {Object}
+----
+
+Synonyms:
+
+Params:
+Object ( ): An expression that evaluates to a .
+
+Examples:
+public handler MyName() returns String
+	get property "short name" of my script object
+	return the result
+end handler
+
+public handler OnMouseUp() returns nothing
+	// Send a message to the widget's parent so it can handle the click
+	send "widgetClicked" to the owner of my script object with [ MyName() ]
+end handler
+----
+
+Description:
+Use to get the script object that contains a script object.
+
+*Note:* An error is thrown if the script object does not exist.
+
+Values:
+The ScriptObject that is the owner of Object. 
+
+OS:

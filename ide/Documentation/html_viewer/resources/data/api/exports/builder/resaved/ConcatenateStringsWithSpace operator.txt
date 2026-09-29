@@ -1,0 +1,26 @@
+ConcatenateStringsWithSpace
+(operator)
+Concatenates Left and Right with a space between.
+
+Syntax:
+{Left} && {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a string.
+Right ( ): An expression which evaluates to a string.
+
+Examples:
+variable tVar as String
+put "This" && "is" && "a" && "sentence." into tVar -- tVar contains "This is a sentence."
+----
+
+Description:
+The result consists of the chars of Left followed by a space, and then the chars of Right.
+
+Values:
+The result of concatenating Left and Right with a space between. 
+
+OS:

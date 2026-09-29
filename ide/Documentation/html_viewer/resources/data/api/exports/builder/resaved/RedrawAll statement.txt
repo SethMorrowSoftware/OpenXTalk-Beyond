@@ -1,0 +1,33 @@
+RedrawAll
+(statement)
+Redraws the widget.
+
+Syntax:
+redraw all
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+private variable mColor as Color
+
+public handler OnClick()
+	put color [ any number, any number, any number ] into mColor
+	redraw all
+end handler
+
+public handler OnPaint()
+	...
+	set the paint of this canvas to solid paint with color mColor
+	...
+end handler
+----
+
+Description:
+Use redraw all to redraw the widget, for example after setting a property which should trigger a change in appearance.
+
+Values:
+
+OS:

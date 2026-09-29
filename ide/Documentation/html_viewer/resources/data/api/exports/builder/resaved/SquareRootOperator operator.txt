@@ -1,0 +1,27 @@
+SquareRootOperator
+(operator)
+Square root operator.
+
+Syntax:
+sqrt({Operand})
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put sqrt(9) into tVar -- tVar contains 3
+----
+variable tVar as Number
+put the square root of 4 into tVar -- tVar contains 2
+----
+
+Description:
+The square root of a number is the number which must be squared to obtain number : sqrt(number)^2 is equal to number.
+
+Values:
+
+OS:

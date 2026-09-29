@@ -1,0 +1,37 @@
+wordOffset
+(function)
+return|Returns the number of words between the beginning of a value and an occurrence of a specified string.
+
+Syntax:
+wordOffset({wordToFind}, {stringToSearch} [, {wordsToSkip}])
+----
+
+Synonyms:
+
+Params:
+•	wordToFind ( ): A single word or an expression that evaluates to a word.
+•	stringToSearch (string ): 
+•	wordsToSkip ( ): A non-negative integer. If you don't specify how many wordsToSkip, the wordOffset function does not skip any words.
+	
+Examples:
+wordOffset("hello","Well, hello there") -- returns 2
+----
+wordOffset("ball","baseball game") -- returns 1
+----
+wordOffset("red","A red ball on a red table",2) -- returns 4
+----
+
+Description:
+Use the wordOffset function to find which word a string occurs in.
+
+The value returned by the wordOffset function is the number of the word where wordToFind first appears in stringToSearch. If the wordToFind is not in stringToSearch, the wordOffset function return|returns zero. If the wordToFind contains more than one word, the wordOffset function always return|returns zero, even if the wordToFind appears in the stringToSearch.
+
+If you specify how many wordsToSkip, the wordOffset function skips the specified number of words in the stringToSearch. The value return|returned is relative to this starting point instead of the beginning of the stringToSearch.
+
+For example, if the stringToSearch is "This is a test" and the wordToFind is "test", wordOffset(wordToFind,stringToSearch) returns 4. However, wordOffset(wordToFind, stringToSearch,3) return|returns 1, even though it is finding the same occurrence, because the first three words are skipped.
+
+Values:
+The wordOffset function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

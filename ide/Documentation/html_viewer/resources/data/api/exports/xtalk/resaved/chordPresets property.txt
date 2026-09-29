@@ -1,0 +1,26 @@
+chordPresets
+(property)
+Line delimited list of preset names of premade chordFormula
+
+Syntax:
+get the chordPresets of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+  put the chordPresets of widget "Piano Widget"
+end mouseUp
+----
+
+Description:
+Use the chordPresets property to retreive a line delimited list of valid names to use in conjunction with the chordPreset property.
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+Values:
+
+OS:

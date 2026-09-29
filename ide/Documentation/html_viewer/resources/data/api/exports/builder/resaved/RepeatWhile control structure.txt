@@ -1,0 +1,23 @@
+RepeatWhile
+(control structure)
+Executes a list of statements while a condition continues to be true.
+
+Syntax:
+repeat while {Condition}
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+Condition (bool ): An expression which evaluates to a boolean.
+StatementList ( ): A set of statements.
+
+Examples:
+Description:
+Use the repeat while Condition structure to execute a set of statements repeatedly, while the Condition continues to evaluate to true.
+
+Values:
+
+OS:

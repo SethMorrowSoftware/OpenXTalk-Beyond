@@ -1,0 +1,24 @@
+TransformMakeIdentity
+(expression)
+The identity transform.
+
+Syntax:
+the identity transform
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tTransform
+put the identity transform into tTransform
+----
+
+Description:
+The identity transform represents a coordinate transformation where the set of coordinates remain the same after it is applied. This can be useful when specifying that coordinates should not be altered, or as a starting point when combining transforms to produce a more complex one.
+
+Values:
+A new identity transform. 
+
+OS:

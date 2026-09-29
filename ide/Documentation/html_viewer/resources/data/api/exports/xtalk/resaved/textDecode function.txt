@@ -1,0 +1,35 @@
+textDecode
+(function)
+Converts from binary data to text.
+
+Syntax:
+textDecode({binaryData}, {encoding})
+----
+
+Synonyms:
+
+Params:
+binaryData ( ): Binary data to be
+encoding (enum ): the encoding of the original data - "ASCII" - "UTF-16" - "UTF-16BE" - "UTF-16LE" - "UTF-32" - "UTF-32BE" - "UTF-32LE" - "UTF-8" - "CP1252"
+
+Examples:
+textDecode("A","UTF8")
+----
+put url ("file:input.txt") into tTextToDecode
+put textDecode(tTextToDecode,"ASCII") into field "input"
+----
+
+Description:
+Converts from binary data to text.
+
+The textDecode function takes binary data, in the specified encoding, and returns the given string as text.
+
+It is highly recommended that any time you interface with things outside OpenXTalk (files, network sockets, processes, etc) that you explicitly textEncode any text you send outside OpenXTalk and textDecode all text received into OpenXTalk. If this doesnt happen, a platform-dependent encoding will be used (which normally does not support Unicode text).
+
+It is not, in general, possible to reliably auto-detect text encodings so please check the documentation for the programme you are communicating with to find out what it expects. If in doubt, try UTF-8.
+
+Values:
+Returns the binaryData as text. 
+
+OS:
+mac,windows,linux,ios,android

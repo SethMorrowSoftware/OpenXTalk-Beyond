@@ -1,0 +1,22 @@
+ideUserMainStacks
+(function)
+A list of the current user mainstacks
+
+Syntax:
+ideUserMainStacks()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the ideUserMainStacks function to retrieve a list of the names of the mainstacks in memory, excluding those which are part of the IDE.
+
+See the revIDEStackNameIsIDEStack function for details of when a stack is considered part of the IDE.
+
+Values:
+A list of the names of the user mainstacks currently in memory, one per line 
+
+OS:

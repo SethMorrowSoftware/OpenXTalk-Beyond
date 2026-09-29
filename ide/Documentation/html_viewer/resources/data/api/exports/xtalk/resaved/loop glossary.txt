@@ -1,0 +1,16 @@
+loop
+(glossary)
+
+Syntax:
+Synonyms:
+repeat loop, looping, loop, looped
+
+Params:
+
+Examples:
+Description:
+A control structure that repeats a set of statement|statements.
+
+Values:
+
+OS:

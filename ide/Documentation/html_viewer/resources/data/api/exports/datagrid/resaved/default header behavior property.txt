@@ -1,0 +1,19 @@
+default header behavior
+(property)
+Used to set the default header behavior.
+
+Syntax:
+put the dgProp["default header behavior"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The table style has an internal behavior that is used for column headers. If you would like to override the default behavior for column headers you can set this property to point to a button with your own behavior script. To see the script that the data grid uses by default you can edit the script of button "Default Header" of group "Behaviors" of stack "revDataGridLibrary"
+
+Values:
+
+OS:

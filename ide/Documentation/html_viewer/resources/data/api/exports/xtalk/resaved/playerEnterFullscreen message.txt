@@ -1,0 +1,27 @@
+playerEnterFullscreen
+(message)
+Sent when the player has entered full screen mode.
+
+Syntax:
+playerEnterFullscreen
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on playerEnterFullscreen
+    answer "The player has entered full screen mode" with "Okay"
+end playerEnterFullscreen
+----
+
+Description:
+Handle the playerEnterFullscreen message when the player has entered full screen play mode.
+
+You can use mobileControlGet to test if fullscreen mode has been entered. 
+
+Values:
+
+OS:
+ios

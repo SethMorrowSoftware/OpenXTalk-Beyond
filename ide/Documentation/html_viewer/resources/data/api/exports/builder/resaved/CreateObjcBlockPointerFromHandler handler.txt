@@ -1,0 +1,53 @@
+CreateObjcBlockPointerFromHandler
+(handler)
+Create an Objective-C block pointer that wraps an LCB handler.
+
+Syntax:
+CreateObjcBlockPointerFromHandler({pHandler},{rBlockPtr})
+----
+
+Synonyms:
+
+Params:
+pHandler ( ): The handler the block pointer should wrap.
+rBlockPtr ( ): The variable into which the block pointer should be returned.
+
+Examples:
+private variable sRequestPermissionsCompletionHandler as optional ObjcBlockPointer
+private variable sTarget as ScriptObject
+
+public handler AudioLibraryInitialize() returns Boolean
+	if not CreateObjcBlockPointerFromHandler(RequestPermissionsCompletionHandler, sRequestPermissionsCompletionHandler) then
+		put nothing into sRequestPermissionsCompletionHandler
+		return false
+	end if
+	put the caller into sTarget
+	return true
+end handler
+
+private foreign handler ObjC_AVCaptureDeviceRequestAccessForMediaType(in pMediaType as ObjcId, in pCompletionHandler as ObjcBlockPointer) \
+	returns nothing \
+	binds to "objc:AVCaptureDevice.+requestAccessForMediaType:completionHandler:"
+
+public handler AudioLibraryRequestPermissions()
+	unsafe
+		ObjC_AVCaptureDeviceRequestAccessForMediaType(StringToNSString("soun"), sRequestPermissionsCompletionHandler)
+	end unsafe
+end handler
+
+public handler RequestPermissionsCompletionHandler(in pBlock as ObjcBlockPointer, in pGranted as CBool)
+	post "AudioLibraryRequestPermissionsCallback" to sTarget with [pGranted]
+end handler
+----
+
+Description:
+Use the CreateObjcBlockPointerFromHandler handler to create a pointer to an Objective-C block that wraps an LCB handler. The block pointer can be used in calls to Objective-C foreign functions that expect a block as a parameter.
+
+The wrapped handler will be called whenever the block is invoked, with the first parameter of its signature being the block pointer. The remaining parameters should match those of the Objective-C block.
+
+The lifetime of a created `ObjcBlockPointer` is not automatically managed. When such a value has no more references to it and it is no longer going to be used, DeleteObjcBlockPointer should be used to free the resources used by it.
+
+Values:
+True if the block pointer was successfully created, false otherwise. 
+
+OS:

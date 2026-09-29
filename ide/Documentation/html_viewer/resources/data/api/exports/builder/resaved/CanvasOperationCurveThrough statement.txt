@@ -1,0 +1,35 @@
+CanvasOperationCurveThrough
+(statement)
+Add a curve to a canvas.
+
+Syntax:
+curve through {mThroughA} [ then {mThroughB} ] to {mPoint} on {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+mThroughA ( ): An expression which evaluates to a point.
+mThroughA ( ): An expression which evaluates to a point.
+
+Examples:
+// Begin a new subpath on the canvas
+move to point [25, 50] on this canvas
+
+// Continue path with a curve through 25,100 to 50,100
+curve through point [25,100] to point [50,100] on this canvas
+
+// Continue path with a curve through 50,75 then 50,50 to 50,100
+curve through point [50,75] then point [50,50] to point [25,50] on this canvas
+
+// stroke the canvas path
+stroke this canvas
+----
+
+Description:
+Adds a curve through 1 or 2 points to mPoint on the current path of mCanvas
+
+Values:
+
+OS:

@@ -1,0 +1,7 @@
+on mouseup
+   put "JPEG Images|jpg|JPEG" & return & "PNG Images|png" & return & "GIF Images|gif" into tChosenFileFormats
+   answer file "please select an image" with type tChosenFileFormats
+   if it is empty or it is cancel then exit mouseup
+   put it into tlongImagefilename
+   set the filename of me to tlongImagefilename
+end mouseup

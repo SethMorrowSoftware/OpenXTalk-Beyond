@@ -1,0 +1,28 @@
+mobileSetKeyboardDisplay
+(command)
+Configures the mode in which the keyboard is displayed
+
+Syntax:
+mobileSetKeyboardDisplay {mode}
+----
+
+Synonyms:
+
+Params:
+mode (enum ): The mode of keyboard display to use. One of:
+
+Examples:
+mobileSetKeyboardDisplay "pan"
+----
+mobileSetKeyboardDisplay "over"
+----
+
+Description:
+Use the mobileSetKeyboardDisplay command to configure the move of keyboard display.
+
+The mobileSetKeyboardDisplay setting takes affect the next time the keyboard is shown. It does not affect the current keyboard, if it is being displayed. 
+
+Values:
+
+OS:
+ios,android

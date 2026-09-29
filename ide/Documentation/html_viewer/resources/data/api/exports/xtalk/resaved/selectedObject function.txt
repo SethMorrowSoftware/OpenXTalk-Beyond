@@ -1,0 +1,31 @@
+selectedObject
+(function)
+return|Returns the name of the selected object(glossary) or object|objects. 
+
+Syntax:
+the selectedObject
+----
+selectedObject()
+----
+
+Synonyms:
+selectedobjects, selobj, selobjs, selectedgraphic
+
+Params:
+
+Examples:
+the selectedObject
+----
+set the lockText of the selectedObject to true
+----
+repeat with x = 1 to the number of lines of the selectedObjects
+----
+
+Description:
+Use the selectedObject function to perform an action on all the selected object|objects.
+
+Values:
+The selectedObject function return|returns a list with the long ID property of each selected object. 
+
+OS:
+mac,windows,linux,ios,android

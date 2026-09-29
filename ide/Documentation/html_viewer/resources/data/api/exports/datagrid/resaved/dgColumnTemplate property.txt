@@ -1,0 +1,19 @@
+dgColumnTemplate
+(property)
+Get the control that is used to visually represent the column in the table.
+
+Syntax:
+put the dgColumnTemplate["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the control that is used to visually represent the column in the table. This control will be a control in the 'row template' group with the same name as the column. If no matching control exists then a field is used.
+
+Values:
+
+OS:

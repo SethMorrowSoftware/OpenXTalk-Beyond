@@ -1,0 +1,19 @@
+dgColumnIsEditable
+(property)
+Toggle whether or not a column is editable by the user.
+
+Syntax:
+put the dgColumnIsEditable["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Toggle whether or not a column is editable by the user. Set to true/false.
+
+Values:
+
+OS:

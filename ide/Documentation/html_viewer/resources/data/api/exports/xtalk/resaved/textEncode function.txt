@@ -1,0 +1,35 @@
+textEncode
+(function)
+Converts from text to binary data.
+
+Syntax:
+textEncode({stringToEncode}, {encoding})
+----
+
+Synonyms:
+
+Params:
+stringToEncode (string ): Any string, or expression that evaluates to a string.
+encoding (enum ): the encoding to be used - "ASCII" - "UTF-16" - "UTF-16BE" - "UTF-16LE" - "UTF-32" - "UTF-32BE" - "UTF-32LE" - "UTF-8" - "CP1252"
+
+Examples:
+textEncode("A","UTF16")
+----
+put textEncode(field "output","UTF-8") into tOutput
+put tOutput into url ("file:output.txt")
+----
+
+Description:
+Converts from text to binary data.
+
+The textEncode function takes text, and returns it as binary data, encoded with the specified encoding.
+
+It is highly recommended that any time you interface with things outside OpenXTalk (files, network sockets, processes, etc) that you explicitly textEncode any text you send outside OpenXTalk and textDecode all text received into OpenXTalk. If this doesnt happen, a platform-dependent encoding will be used (which normally does not support Unicode text).
+
+It is not, in general, possible to reliably auto-detect text encodings so please check the documentation for the programme you are communicating with to find out what it expects. If in doubt, try UTF-8.
+
+Values:
+Returns the stringToEncode as binary data. 
+
+OS:
+mac,windows,linux,ios,android

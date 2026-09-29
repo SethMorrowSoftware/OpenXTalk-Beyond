@@ -1,0 +1,19 @@
+OnMouseScroll
+(message)
+Sent when the mouse wheel is scrolled within the widget's rect.
+
+Syntax:
+OnMouseScroll
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse wheel is scrolled within the widget's rect.
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+dropboxUpdateFolderMember
+(command)
+Allows an owner or editor of a shared folder to update another member's permissions.
+
+Syntax:
+dropboxUpdateFolderMember {pAccessToken}, {pSharedFolderId}, {pMember}, {pAccessLevel}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pSharedFolderID ( ): The ID for the shared folder.
+pMember ( ): An array with either an email key or a dropbox_id key to identify the member to remove
+pAccessLevel ( ): The new access level for member. Defines the access levels for collaborators. The value will be one of the following datatypes. New values may be introduced as our API evolves. - "editor": The collaborator can both view and edit the shared folder. - "viewer": The collaborator can only view the shared folder. - "viewer_no_comment": The collaborator can only view the shared folder and does not have any access to comments.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string that contains information about a member's access level to content after an operation.
+
+If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

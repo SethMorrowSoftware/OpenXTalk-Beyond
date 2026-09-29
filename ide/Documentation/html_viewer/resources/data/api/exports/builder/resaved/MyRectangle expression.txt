@@ -1,0 +1,20 @@
+MyRectangle
+(expression)
+Returns the rectangle of the widget in the parent
+
+Syntax:
+my rectangle
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the rectangle of the widget in the parent
+
+Values:
+The rectangle of the widget in the parent 
+
+OS:

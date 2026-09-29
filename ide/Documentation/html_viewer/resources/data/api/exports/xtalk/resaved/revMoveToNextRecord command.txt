@@ -1,0 +1,31 @@
+revMoveToNextRecord
+(command)
+Moves to the next record in a record set (glossary). 
+
+Syntax:
+revMoveToNextRecord {recordSetID}
+----
+
+Synonyms:
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revMoveToNextRecord myCurrentItems
+----
+revMoveToNextRecord (line x of field "Current Recordsets")
+----
+
+Description:
+Use the revMoveToNextRecord command to move around within the selected set of record|records.
+
+*Note:* Not all database|databases support the revMoveToNextRecord  command. All the major database types that OpenXTalk can connect to  do support this, however certain ODBC data sources may not, if in  doubt, refer to the documentation for your ODBC data source driver.
+
+*Important:*  The revMoveToNextRecord command is part of the   Database library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+If the command could not move to the next record because it's already at the end or there are no records in the record set, the result function returns false. 
+
+OS:
+mac,windows,linux,ios,android

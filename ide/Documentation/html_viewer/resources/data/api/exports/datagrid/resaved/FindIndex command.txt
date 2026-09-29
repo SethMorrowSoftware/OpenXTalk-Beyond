@@ -1,0 +1,21 @@
+FindIndex
+(command)
+Same as EditKey but uses an index rather than a line number to located the line to edit.
+
+Syntax:
+dispatch "FindIndex" to group "DataGrid" with pKey,
+pSearchString
+----
+
+Synonyms:
+findline
+
+Params:
+
+Examples:
+Description:
+Search for data in pKey that matches pSearchString. pKey is one of the custom defined keys you defined for your data. pSearchingString is the value to look for in that key. You can pass multiple pKey=pSearchString combinations to match multiple criteria. -- Find the index where "message" is "hi" dispatch "FindIndex" to group "DataGrid" with "message", "hi" put the result into theIndex Note that pKey can also be an array if you want to use array-valued array indexing to locate pSearchingString. FindLine returns the found line number vs the found index number.
+
+Values:
+
+OS:

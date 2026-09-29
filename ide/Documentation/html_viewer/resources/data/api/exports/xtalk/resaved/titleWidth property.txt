@@ -1,0 +1,29 @@
+titleWidth
+(property)
+Specifies the amount of a button(object)|button's width used to display the button(object)|button's name or label property to the left of the button(keyword).
+
+Syntax:
+set the titleWidth of {button} to {pixels}
+----
+
+Synonyms:
+labelwidth
+
+Params:
+
+Examples:
+set the titleWidth of button "Options" to 90
+----
+set the titleWidth of button "Standard" to 0
+----
+
+Description:
+Use the titleWidth property to create popup menu|popup menus with a title.
+
+The titleWidth is taken from the total width of the button. This means that setting a titleWidth makes the button narrower, and you may have to increase the width property to accommodate both title and button.
+
+Values:
+The titleWidth of a button(keyword) is a non-negative integer. By default, the titleWidth property of newly created button(object)|buttons is set to zero. 
+
+OS:
+mac,windows,linux

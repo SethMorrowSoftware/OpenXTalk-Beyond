@@ -1,0 +1,28 @@
+AddNumberTo
+(statement)
+Adds Value to Target.
+
+Syntax:
+add {Value} to {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a numeric container.
+Value ( ): An expression that evaluates to a number.
+
+Examples:
+    variable tVar as Number
+    put 2 into tVar
+    add 10 to tVar -- tVar contains 12
+----
+
+Description:
+Adds the number Value to Target.
+
+*Note:* It is a syntax error if Target does not evaluate to a variable.
+
+Values:
+
+OS:

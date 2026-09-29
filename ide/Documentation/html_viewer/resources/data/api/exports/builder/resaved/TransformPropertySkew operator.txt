@@ -1,0 +1,31 @@
+TransformPropertySkew
+(operator)
+The skew component of a transform.
+
+Syntax:
+the skew of {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+variable tTransform
+put transform with matrix [0, 2, -2, 0, 50, 100] into tTransform
+
+// Store the old skew component
+variable tSkew
+put the skew of tTransform into tSkew
+
+// Remove the skew
+set the skew of tTransform to [0,0]
+----
+
+Description:
+The skew of mTransform as a list of 2 numbers (the x and y skew values).
+
+Values:
+
+OS:

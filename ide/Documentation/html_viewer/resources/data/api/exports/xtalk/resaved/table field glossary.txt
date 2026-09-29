@@ -1,0 +1,16 @@
+table field
+(glossary)
+
+Syntax:
+Synonyms:
+table field
+
+Params:
+
+Examples:
+Description:
+A spreadsheet-style grid of entries arranged in rows and columns.
+
+Values:
+
+OS:

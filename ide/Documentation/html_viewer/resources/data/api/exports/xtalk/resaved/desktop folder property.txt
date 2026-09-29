@@ -1,0 +1,29 @@
+desktop folder
+(property)
+Returns the path to the current user's desktop folder.
+
+Syntax:
+the desktop folder
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the desktop folder
+----
+put the desktop folder & "/log.txt" into tLogFile
+----
+
+Description:
+Returns the full path to the current user's desktop folder.
+
+The documents folder property returns the path to the user's desktop folder.
+
+This property is read only and is equivalent to the specialFolderPath("desktop") function.
+
+Values:
+
+OS:
+mac,windows,linux

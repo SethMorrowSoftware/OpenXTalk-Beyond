@@ -160,21 +160,41 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
    -- MM-2014-03-21: [[ PPC Support Dropped ]] Assume all mac builds to now be Intel.
    if tSettings["MacOSX"] then
       delete variable tSettings["MacOSX"]
-      put true into tSettings["MacOSX x86-64"]
+      put true into tSettings["MacOSX x86-32"]
       put true into tEdited
+      
    end if
    if tSettings["MacOSX PowerPC-32"] then
       delete variable tSettings["MacOSX PowerPC-32"]
-      put true into tSettings["MacOSX x86-64"]
-      put true into tEdited
-   end if
-   if tSettings["MacOSX x86-32"] then
-      delete variable tSettings["MacOSX x86-32"]
-      put true into tSettings["MacOSX x86-64"]
+      put true into tSettings["MacOSX x86-32"]
       put true into tEdited
    end if
    
+   
+   if tSettings["MacOSX x64-ARM64"] then
+      if the platform contains "Mac" then
+         put the systemversion into mysys
+         replace "." with return in mysys
+         put word 1 of line 1 of mysys into mysys
+         if mysys <14 then
+            -- on mac, but systemversion is too low
+            Answer "Building for MacOS Intel 64-bit and ARM64 (universal) is only possible on MacOS Sonoma and above." with "Cancel"
+            exit revSaveAsStandalone
+         else
+            -- on mac, and systemversion is okay
+            -- we let this fall through and continue
+           
+         end if
+      else
+         -- not on mac
+         Answer "Building for MacOS Intel 64-bit and ARM64 (universal) is only possible on MacOS Sonoma and above." with "Cancel"
+         exit revSaveAsStandalone
+      end if
+      -- end arm mac if statement
+   end if
+   
    -- Make sure there is actually something to build..
+   
    if revSBNoPlatforms(tSettings) then
       local tMessage
       put "You have not selected any platforms to build for. Please do so using Standalone Settings." into tMessage
@@ -221,9 +241,11 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
    end if
    
    local tError
+   local tBuildInitInSeconds -- variable for holding a build timer
    # Do the check and continue building as normal.
    if revSaveCheck(pStack) then
       local tStandalonePaths
+      put the milliseconds into tBuildInitInSeconds
       revDoSaveAsStandalone pStack, pFolder, ,tStandalonePaths
       put the result into tError
    else
@@ -235,7 +257,19 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
       set the cWarnings of stack "revBuildResults" to revStandaloneGetWarnings()
    else
       if not revSBSuppressDialogs() and pSuppressSuccessMsg is not true and tError is empty then
-         answer information "Standalone application saved successfully."
+         put false into tTimeInMS
+         put the milliseconds - tBuildInitInSeconds into tMillisecondsTaken
+         put tMillisecondsTaken div 1000 into tSecondsTaken
+         if tSecondsTaken <1 then put true into tTimeInMS
+         convert tSecondsTaken to dateItems
+         if tTimeInMS is true then
+            -- took less than a second, so we measure in milliseconds
+            put tMillisecondsTaken & " milliseconds." into tDuration
+         else
+            put item 5 of tSecondsTaken & " mins, " & item 6 of tSecondsTaken & " seconds." into tDuration
+         end if
+         answer information "Standalone application saved successfully." & return &¬
+         "Time taken: " & tDuration
       end if
       
       if pPreview is not "false" and sStubPath is not empty then
@@ -272,10 +306,14 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    
    local tError, tStandaloneFolder
    
+   -- shut that noise
+   
+   /*
    -- Don't build for any platform we are not licensed for
    local tRemoved
    put revSBRemoveUnlicensedTargetsFromSettings(sStandaloneSettingsA) into tRemoved
    replace return with comma in tRemoved
+   
    
    if revSBNoPlatforms(sStandaloneSettingsA) then
       local tMessage
@@ -289,6 +327,7 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    if tRemoved is not empty then
       revStandaloneAddWarning "Not licensed to build for the following selected platforms:" && tRemoved
    end if
+   */
    
    revStandaloneProgress "Preparing to build standalone..."
    
@@ -355,6 +394,7 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
             revSBEnsureFolder tTargetFolder
          end if
          
+         -- we have our target platforms (specified in revSBLibrary) -- look for "constant kDesktopTargets" 
          switch tPlatform
             case "iOS"
                if not (the platform begins with "MacOS") then
@@ -435,13 +475,20 @@ private function revStandalonePlatformDetails pTarget
    local tArchFolder
    switch tPlatform
       case "MacOSX"
-         -- MM-2014-03-21: [[ PPC Support Dropped ]] We now only support intel Mac builds. Assume all mac builds to be intel.
-         -- MW-2013-06-13: [[ CloneAndRun ]] If not installated type, then take from the binaries folder.
-         put "Mac OS X/x86-64" into tArchFolder
+         -- tperry 25-09-2025: Support ARM64 Mac builds
+         if pTarget contains "x64-ARM64" then
+            put "Mac OS X/x64-ARM64" into tArchFolder
+            put "arm64" into tDetailsA["architecture"]
+         else if pTarget contains "x86-64" then
+            put "Mac OS X/x86-64" into tArchFolder
+            put "x86-64" into tDetailsA["architecture"]
+         else
+            put "Mac OS X/x86-32" into tArchFolder
+            put "x86-32" into tDetailsA["architecture"]
+         end if
          put ".bundle" into tDetailsA["loadable_extension"]
          put ".dylib" into tDetailsA["shared_extension"]
          put "MacOSX" into  tDetailsA["platform"]
-         put "x86-64" into tDetailsA["architecture"]
          break
       case "Windows"
          if pTarget is "Windows" then
@@ -462,7 +509,7 @@ private function revStandalonePlatformDetails pTarget
             -- MW-2013-11-06: [[ LinuxX64 ]] Compute the correct path for 64-bit linux.
             put "Linux/x86-64" into tArchFolder
             put "x86-64" into tDetailsA["architecture"]
-         else -- if pPlatform is "Linux armv6-hf" then
+         else if pPlatform is "Linux armv6-hf" then
             -- FG-2014-08-19: [[ RPi ]] Compute the correct path for 64-bit Linux
             put "Linux/armv6-hf" into tArchFolder
             put "armv6-hf" into tDetailsA["architecture"]
@@ -528,7 +575,7 @@ private on revStandalonePreBuild pStack, pFolder, pPlatform, pArchs, @rStackName
    put item -1 of tStackName into tExtension
    set the itemdelimiter to comma
    if tExtension is not among the items of revIDELiveCodeFileExtensions() then
-      put ".livecode" after tStackName
+      put ".oxtstack" after tStackName -- (tperry - nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
    end if
    
    local tStackFileList
@@ -665,17 +712,29 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
    
    -- Architectures
    local tArchitectures
-   put "x86-64" into tArchitectures
+   if sStandaloneSettingsA["MacOSX x86-32"] then put "i386," after tArchitectures
+   if sStandaloneSettingsA["MacOSX x86-64"] then put "x86-64," after tArchitectures
+   if sStandaloneSettingsA["MacOSX x64-ARM64"] then put "arm64," after tArchitectures -- ARM64 deploy expects 'arm64' not 'x64-ARM64'
+   
+   delete char -1 of tArchitectures
+   /*
+   if tArchitectures contains "x64-ARM64" then
+      Answer "Stop here for the moment - I'm not ready for this right now!: " & tDirectory with "Cancelled"
+      exit revSaveAsMacStandalone
+   end if
+   */
    
    -- keep a copy of the standalone settings to restore after each build
    local tStandaloneSettingsA
    put sStandaloneSettingsA into tStandaloneSettingsA
    repeat for each key tTarget in sPlatformDirectoriesA["MacOSX"]
       put sPlatformDirectoriesA["MacOSX"][tTarget] into tTargetDir
-      put tTargetDir & normalizeForDisk(sStandaloneSettingsA["name"]) & ".app/Contents/MacOS/" into tDirectory
+      put tTargetDir & sStandaloneSettingsA["name"] & ".app/Contents/MacOS/" into tDirectory
       
       -- Ensure standalone settings script local is reset when building for subsequent targets
       put tStandaloneSettingsA into sStandaloneSettingsA
+      
+      
       
       revStandalonePreBuild pStack, pFolder, "macosx", tArchitectures, tStackName, tStackFileList
       if the result is not empty then 
@@ -685,6 +744,21 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
       -- copy files to each directory
       -- put the path to the engine into tEngineSourceFile
       put revSBEnginePath(tTarget) into tEngineSourceFile
+      
+      if sStandaloneSettingsA["MacOSX x86-64"] then
+         put tEngineSourceFile into tx64
+         replace "/x86-32/Standalone.app" with "/x86-64/Standalone.app" in tx64
+         put tx64 into tEngineSourceFile
+      end if
+      
+      if sStandaloneSettingsA["MacOSX x64-ARM64"] then
+         put tEngineSourceFile into tARM64
+         replace "/x86-32/Standalone.app" with "/x64-ARM64/Standalone-blank.app" in tARM64
+         put tARM64 into tEngineSourceFile
+      end if
+      
+      --answer tEngineSourceFile -- debug output the standalone path!
+      
       
       -- Allows the test system to build a standalone against any version   
       if revOverrideRuntimePath() is not empty then
@@ -697,7 +771,7 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
                & return & tEngineSourceFile
       end if
       
-      put tDirectory & normalizeForDisk(sStandaloneSettingsA["name"]) into tStandalonePath
+      put tDirectory & sStandaloneSettingsA["name"] into tStandalonePath
       
       put tStandalonePath into xStandalonePaths[tTarget]
       
@@ -823,6 +897,9 @@ command revSaveAsWindowsStandalone pStack, pRestoreFileName, pFolder, @xStandalo
       if word 2 of tTarget is among the items of "x64,x86-64,x86_64" then
          put "x86_64" into tArch
          put "x86-64" into tRuntimeDir
+      else if word 2 of tTarget is among the items of "x64-ARM64" then
+         put "x64-ARM64" into tArch
+         put "x64-ARM64" into tRuntimeDir
       else if word 2 of tTarget is not empty then
          put word 2 of tTarget into tArch
          put word 2 of tTarget into tRuntimeDir
@@ -843,7 +920,7 @@ command revSaveAsWindowsStandalone pStack, pRestoreFileName, pFolder, @xStandalo
       if revOverrideRuntimePath() is not empty then
          put revOverrideRuntimePath() into tEngineSourceFile
       end if
-
+      
       -- Ensure executable is at the expected location
       if there is not a file tEngineSourceFile then
          throw "Standalone: Ensure that you have not renamed the main LiveCode executable file: " \
@@ -1018,6 +1095,17 @@ command revSaveAsLinuxStandalone pStack, pRestoreFileName, pFolder, @xStandalone
       revStandaloneCopyInclusions pStack, tStackFileList, tStackSourceFile, \ 
             tTarget, tDirectory, tStackPath, tStandalonePath, tEngineSourceFile
       
+      
+      -- Copy bundled system libraries for portable Linux standalones
+      local tRuntimeLibFolder
+      local tOldDelimiter
+      put the itemDelimiter into tOldDelimiter
+      set the itemDelimiter to slash
+      put item 1 to -2 of tEngineSourceFile & "/lib" into tRuntimeLibFolder
+      set the itemDelimiter to tOldDelimiter
+      if there is a folder tRuntimeLibFolder then
+         revSBCopyFolderToDestination tRuntimeLibFolder, tDirectory, "revStandaloneProgressCallback", the long id of me
+      end if
       local tDeployInfo
       put revStandaloneInitialDeployParams(tTarget, tStackSourceFile, \ 
             tStandalonePath, tEngineSourceFile) into tDeployInfo
@@ -1509,7 +1597,7 @@ private command revCopyIcons pStack
    lock screen
    if keys(sIconA) is not "" then
       create invisible stack "revCopiedIcons"
-      set the destroyStack of stack "revCopiedIcons" to true
+      set the destroyStack of stack "revCopiedIcons" to false
       set the mainStack of stack "revCopiedIcons" to pStack
       -- get the icon libraries
       
@@ -1539,6 +1627,10 @@ private command revCopyIcons pStack
             end repeat
          end repeat
       end repeat
+      -- doesn't seem to work, so try alternative method -- tperry 22-12-24
+      copy card 1 of stack "revGeneralIcons" to stack "revCopiedIcons"
+      set the name of last card of stack "revCopiedIcons" to "theAlertIcons"
+      close stack "revCopiedIcons"
       close stack "revCopiedIcons"
    end if
    unlock screen
@@ -1754,7 +1846,7 @@ private command revSetMacOS pWhatFile, pPlatformCode, pEnginePath
       
       -- MM-2014-03-21: [[ PPC Support Dropped ]] We no longer include universal builds so set icon prefix to intel standalone.
       local tIconPrefix
-      put  revEnvironmentRuntimePath() & "/Mac OS X/x86-64/Standalone.app/Contents/Resources/Standalone" into tIconPrefix
+      put  revEnvironmentRuntimePath() & "/Mac OS X/x86-32/Standalone.app/Contents/Resources/Standalone" into tIconPrefix
       
       if sStandaloneSettingsA["OSX,iconFile"] is not empty then
          revSBCopyFile sStandaloneSettingsA["OSX,iconFile"], item 1 to -3 of pWhatFile & "/Resources/Standalone.icns", "revStandaloneProgressCallback", the long id of me
@@ -1783,17 +1875,8 @@ end revSetMacOS
 --    plists as Mavericks doesn't like it!
 private function escapeForXml pString
    replace "&" with "&amp;" in pString
-   return normalizeText(pString, "NFD")
+   return pString
 end escapeForXml
-
-private function normalizeForDisk pString
-   if the platform is "MacOS" then
-      // Composed unicode chars can cause problems with codesign so we normalize them to NFD form
-      return normalizeText(pString, "NFD")
-   else
-      return pString
-   end if
-end normalizeForDisk
 
 #####################################################################
 # revSetStackProps is a combination of revRemoveProps and revSetProfiles
@@ -2033,8 +2116,8 @@ private function revSaveToFolder pFolder, pStack, pGeneric
    # already contain ".rev". In this case, the stack ends up being called something.rev.rev,
    # and the standalone builder breaks further along because it makes assumptions about 
    # the stack's filename. I'm not 100% sure that this fix is correct...
-   if not (tFileName ends with ".livecodescript" or tFileName ends with ".livecode" or tFileName ends with ".rev") then 
-      put ".livecode" after tFileName
+   if not (tFileName ends with ".oxtstack" or tFileName ends with ".livecodescript" or tFileName ends with ".livecode" or tFileName ends with ".rev") then 
+      put ".oxtstack" after tFileName -- tperry
    end if
    lock screen
    // SN-2015-07-01: [[ Bug 15259 ]] We don't want the saving to be trapped by
@@ -2176,7 +2259,7 @@ private command revCopyDatabaseDrivers pPlatform, pStackFilePath, pStandalonePat
          if there is not a folder (item 1 to -2 of tStandaloneFolder&"/Frameworks") then create folder (item 1 to -2 of tStandaloneFolder&"/Frameworks")
          revSBCopyFolderToDestination (item 1 to -2 of tStandaloneFolder&"/MacOS/Externals/database_drivers/VXCMD_macho.bundle/Contents/Frameworks/VSDK.framework"),(item 1 to -2 of tStandaloneFolder&"/Frameworks"), "revStandaloneProgressCallback", the long id of me
          if the result is not empty then
-            revStandaloneAddWarning ("Mac x86-64, failed to copy Valentina framework")
+            revStandaloneAddWarning ("Mac x86-32, failed to copy Valentina framework")
          end if
       end if 
    end repeat

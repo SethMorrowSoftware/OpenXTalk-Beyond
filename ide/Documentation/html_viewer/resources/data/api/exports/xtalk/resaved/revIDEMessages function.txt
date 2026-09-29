@@ -1,0 +1,20 @@
+revIDEMessages
+(function)
+Use to get a list of all the messages that the IDE allows subscriptions for
+
+Syntax:
+revIDEMessages()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use to get a list of all the messages that the IDE allows subscriptions for
+
+Values:
+Return delimited list of message names. 
+
+OS:

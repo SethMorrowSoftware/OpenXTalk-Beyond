@@ -1,0 +1,30 @@
+mobileLocationAuthorizationStatus
+(function)
+Returns the current location authorization status of the calling aplication. 
+
+Syntax:
+mobileLocationAuthorizationStatus()
+----
+
+Synonyms:
+iphonelocationauthorizationstatus()
+
+Params:
+
+Examples:
+put mobileLocationAuthorizationStatus() into tStatus
+if tStatus is "denied" then
+   answer "The app cannot access your location"
+end if
+----
+
+Description:
+Use the mobileLocationAuthorizationStatus function to find the current location authorization status of the calling application.
+
+This function is available in iOS 8 and above.
+
+Values:
+The mobileLocationAuthorizationStatus function returns one of the following strings:  -  "notDetermined" - User has not yet made a choice with regards to this     application.   -  "restricted" - The application is not authorized to use location     services.   -  "denied" - User has explicitly denied authorization for this     application, or location services are disabled in settings  -  "authorizedAlways" - User has granted authorization to use their     location at any time, including monitoring for regions, visits, or     significant location changes.  -  "authorizedWhenInUse" - User has granted authorization to use their     location only when the app is visible to them. Authorization to use     launch APIs has not been granted  
+
+OS:
+ios

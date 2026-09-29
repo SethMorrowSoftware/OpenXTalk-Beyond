@@ -1,0 +1,28 @@
+capsLockKey
+(function)
+return|Returns the state of the Caps Lock key.
+
+Syntax:
+the capsLockKey
+----
+capsLockKey()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the capsLockKey
+----
+if the capsLockKey is down then exit repeat
+----
+
+Description:
+Use the capsLockKey function to check whether the Caps Lock key is locked down.
+
+Values:
+The capsLockKey function return|returns down if the key is locked down and up if it's not. 
+
+OS:
+mac,windows,linux

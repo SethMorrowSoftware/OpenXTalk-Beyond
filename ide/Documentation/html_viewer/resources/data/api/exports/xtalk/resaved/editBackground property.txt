@@ -1,0 +1,33 @@
+editBackground
+(property)
+Specifies that any objects created should be added to the background. 
+
+Syntax:
+set the editBackground of {stack} to {true | false}
+----
+
+Synonyms:
+editbkgnd, editbg
+
+Params:
+
+Examples:
+set the editBackground of this stack to true
+----
+
+Description:
+Use the editBackground property to edit the first group on the current card, or to find out whether the stack is in  group-editing mode.
+
+If the editBackground property is set to true, any newly created object|objects become part of the group being edited. If the editBackground is false, newly created control|controls are created as card control|card controls and only appear on the current card.
+
+If the current card has more than one group, the group whose number is lowest is edited when you set the editBackground of the stack to true.
+
+You can use the start editing command to edit a specific group. Setting the editBackground property to false is equivalent to the stop editing command.
+
+By default, the editBackground is set to false.  This property is not preserved when the stack is saved, the property will always be false upon opening a stack.
+
+Values:
+The editBackground of a stack is true or false. By default, the editBackground property of newly created stacks is set to false. 
+
+OS:
+mac,windows,linux,ios,android

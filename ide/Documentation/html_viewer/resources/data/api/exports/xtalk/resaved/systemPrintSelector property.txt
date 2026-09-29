@@ -1,0 +1,28 @@
+systemPrintSelector
+(property)
+Reports whether to use the engine's stacks or system dialogs for printer settings.
+
+Syntax:
+set the systemPrintSelector to {true | false}
+----
+get the systemPrintSelector
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the platform is "linux" then
+  set the systemPrintSelector to false
+end if
+----
+
+Description:
+Use the systemPrintSelector property to specify whether xTalk's print dialogs or the system default dialogs should be used by the answer printer and answer page setup commands.
+
+Values:
+The systemPrintSelector is either "true" or "false". The default is "false" on platforms that don't support native print dialogs, but "true" otherwise. If the systemPrintSelector is set to false, then the answer printer command will use a stack called "Print Dialog" and the answer page setup command will use a stack called "Page Setup Dialog". 
+
+OS:
+mac,windows,linux

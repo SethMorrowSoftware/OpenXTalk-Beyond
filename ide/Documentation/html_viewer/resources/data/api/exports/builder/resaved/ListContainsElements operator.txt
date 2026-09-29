@@ -1,0 +1,34 @@
+ListContainsElements
+(operator)
+Determines if Target contains Needle as a subsequence.
+
+Syntax:
+{Target} contains {Needle}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): Any expression which evaluates to a list.
+Target ( ): An expression which evaluates to a list.
+
+Examples:
+variable tList as List
+put [ "a", "b", "c", "d" ] into tList
+
+variable tContains as Boolean
+
+// put tList contains tList[1] into tContains -- error: tList[1] is not a list 
+
+put tList contains element 1 to 2 of tList into tContains -- tContains is true
+----
+
+Description:
+Target contains Needle if and only if the elements of Needle occur as a subsequence of the elements of Target.
+
+*Note:* Since "" is a subsequence of elements of every list, every list contains the empty list.
+
+Values:
+Returns true if Target contains Needle. 
+
+OS:

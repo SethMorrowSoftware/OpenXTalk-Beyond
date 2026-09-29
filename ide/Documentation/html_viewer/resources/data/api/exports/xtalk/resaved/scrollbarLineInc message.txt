@@ -1,0 +1,30 @@
+scrollbarLineInc
+(message)
+Sent to a scrollbar when the user clicks the increase arrow, scrolling forward one line.
+
+Syntax:
+scrollbarLineInc {pNewPosition}
+----
+
+Synonyms:
+
+Params:
+pNewPosition ( ): The new position of the scrollbar thumb.
+
+Examples:
+on scrollbarLineInc theCard -- use a scrollbar to navigate through cards
+  go card theCard -- corresponding to the new postion
+end scrollbarLineInc
+----
+
+Description:
+Handle the scrollbarLineInc message if you want to respond to the use of the bottom or right scrollbar arrow.
+
+Dragging the scrollbar thumb does not send a scrollbarLineInc message.
+
+If the scrollbarLineInc message is not handle|handled, a scrollbarDrag message is sent in addition.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

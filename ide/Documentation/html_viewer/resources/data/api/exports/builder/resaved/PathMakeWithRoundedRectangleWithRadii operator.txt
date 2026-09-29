@@ -1,0 +1,24 @@
+PathMakeWithRoundedRectangleWithRadii
+(operator)
+Create a new rectangle path with elliptical corner rounding
+
+Syntax:
+rounded rectangle path of {Rectangle} with radii {Radii}
+----
+
+Synonyms:
+
+Params:
+Rectangle ( ): A rectangle to create the path from
+Radii ( ): A list of the horizontal radius and vertical radius for rounding
+
+Examples:
+Description:
+Create a new rounded rectangle path based on Rectangle.
+
+The Radii is a list of two numbers.  The first specifies the horizontal rounding radius and the second specifies the vertical rounding radius.
+
+Values:
+A newly-created canvas path 
+
+OS:

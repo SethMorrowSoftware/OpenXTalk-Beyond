@@ -1,0 +1,16 @@
+web server
+(glossary)
+
+Syntax:
+Synonyms:
+webserver, web server
+
+Params:
+
+Examples:
+Description:
+A system that sends web pages to other systems in response to their requests. 
+
+Values:
+
+OS:

@@ -1,0 +1,31 @@
+ImageDensityProperty
+(operator)
+The density of an image.
+
+Syntax:
+the density of {mImage}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+
+Examples:
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// scale down image based on standard DPI of 72.
+variable tScale as Number
+put (72 / the density of tImage) into tScale
+scale this canvas by [tScale, tScale]
+draw tImage into rectangle [0,0,the width of tImage,the height of tImage] of this canvas
+----
+
+Description:
+The image density in DPI (dots per inch)
+
+Values:
+
+OS:

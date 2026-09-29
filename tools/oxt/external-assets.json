@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "id": "oxt-runtimes-1.15",
+      "url": "https://github.com/SethMorrowSoftware/winoxt/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
+      "sha256": "6811d5cc028ea15f7e784ff58c03e4bc8994507f7f56e62fa148a27673cf995a",
+      "size": 199237317,
+      "kind": "zip",
+      "strip": 1,
+      "dest": "",
+      "rename": {
+        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-1.15.md"
+      },
+      "description": "Standalone runtimes that the Windows x86-64 build does not produce, taken unchanged from OpenXTalk Lite 1.15: Windows x86-32, Linux and Android engines and externals, the timezone library's code for other platforms and its zoneinfo data. See PROVENANCE.md in the archive.",
+      "licence": "GPL-3.0 (LiveCode Community and OpenXTalk Lite engine builds); IANA tz data: public domain; the shared libraries under Runtime/Linux/*/lib keep their own licences (see PROVENANCE.md)",
+      "source": "OpenXTalk Lite 1.15 for Windows (openxtalk-lite-1.15-win-noinstaller.7z), built by Tom Perry; made with tools/oxt/make_runtimes_asset.py"
+    }
+  ]
+}

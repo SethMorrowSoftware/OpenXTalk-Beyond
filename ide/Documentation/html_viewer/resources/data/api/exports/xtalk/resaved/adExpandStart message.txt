@@ -1,0 +1,28 @@
+adExpandStart
+(message)
+Sent whan an ad is about to expand.
+
+Syntax:
+adExpandStart {pAdName}
+----
+
+Synonyms:
+
+Params:
+pAdName ( ): The name of ad that has been expanded (as specified in )
+
+Examples:
+on adExpandStart pAdName
+   hide group "content"
+end adExpandStart
+----
+
+Description:
+Handle the adExpandStart message if you want to perform an action when an ad is about to expand.
+
+The adExpandStart message is sent to the current card when an ad is about to expand.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,4 @@
+Version 0.93, build 202310261948
+Files for dark mode on Macs (and maybe Windows)
+This is ignored on Linux, but might come in useful on the Windows build. More work required for Windows though.
+I've tested this and it works on MacOS, but is easily broken by messing about with codesigning

@@ -1,0 +1,21 @@
+showPict
+(property)
+This property is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the showPict of {card} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the showPict property determines whether the card image is visible.
+
+In OpenXTalk, setting this property does not cause a script error, but doing so has no effect.
+
+Values:
+
+OS:

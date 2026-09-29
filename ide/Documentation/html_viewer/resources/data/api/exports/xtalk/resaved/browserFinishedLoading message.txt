@@ -1,0 +1,31 @@
+browserFinishedLoading
+(message)
+Sent when the given url has finished loading.
+
+Syntax:
+browserFinishedLoading {pUrl}
+----
+
+Synonyms:
+
+Params:
+pUrl ( ): The URL that has loaded.
+
+Examples:
+on browserFinishedLoading pURL
+  put "Finished loading:" && pURL into field "Status"
+  put pURL into field "URL"
+end browserFinishedLoading
+----
+
+Description:
+Handle the browserFinishedLoading message to perform an action when a URL has finished loading in a native mobile browser control created using mobileControlCreate.
+
+The browserFinishedLoading message is sent to the object containing the script that created the mobile browser control using mobileControlCreate when the URL has finished loading.
+
+*Note:* The browserFinishedLoading message is sent in response to the  webViewDidFinishLoad delegate method.
+
+Values:
+
+OS:
+ios,android

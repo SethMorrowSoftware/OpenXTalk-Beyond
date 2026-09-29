@@ -1,0 +1,3 @@
+Version 0.92, build 202309071210
+Modifies the toolbar across the top with the buttons
+Copy all the images from "replacement-toolbar-images", and replace originals

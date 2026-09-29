@@ -1,0 +1,33 @@
+binfile
+(keyword)
+Used as a URL type with the get and put command|commands to designate a local file.
+
+Syntax:
+binfile
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+answer myConversionFunction(URL "binfile:input")
+----
+put imageData into URL "binfile:/Main/project/test.gif"
+----
+
+Description:
+Use the binfile keyword to work with binary file|binary files.
+
+The binfile URL scheme|scheme indicates a binary file which is located on the user's system. The file is specified by either a absolute file path|full path starting with "/", or a  relative file path|relative path starting from the defaultFolder.
+
+A URL container can be used anywhere another container type is used.
+
+When you put data into a binfile URL or get data from it, OpenXTalk does not translate end-of-line marker|end-of-line markers (ASCII 10 and ASCII 13) between the current platform|platform's standard and xTalk's internal standard of a linefeed. This ensures that  binary file|binary data, which may contain such characters, is not accidentally corrupted.
+
+If you are working with text data (such as text in fields), use the file URL scheme instead.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,3 @@
+Version 0.92, build 202309221151
+Just testing a concept on Linux, with the Ask and Answer dialogs. It will choose an opposite text colour for the answer and ask text fields on the dialogs, inverse to whatever the background colour of the alert window happens to be. (This ensures the text will never be the same colour as the background, and should fit in with the system).
+(only experimental)

@@ -1,0 +1,19 @@
+dim on focusOut
+(property)
+Dims the highlighted lines when the data grid does not have focus.
+
+Syntax:
+put the dgProp["dim on focusOut"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If true then the highlighted lines will be dimmed to 'dimmed hilite color' when the data grid does not have focus. Default is true.
+
+Values:
+
+OS:

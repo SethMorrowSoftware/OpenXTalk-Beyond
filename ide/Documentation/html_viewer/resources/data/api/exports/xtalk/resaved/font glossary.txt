@@ -1,0 +1,16 @@
+font
+(glossary)
+
+Syntax:
+Synonyms:
+font face, font
+
+Params:
+
+Examples:
+Description:
+A typeface available on the computer. A design for all the character|characters in the system's character set.
+
+Values:
+
+OS:

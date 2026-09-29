@@ -1,0 +1,20 @@
+filterString
+(property)
+Filters the list of icons to display according to a string
+
+Syntax:
+set the filterString of {widget} to pString
+get the filterString of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Filters the list of icons to display according to a string
+
+Values:
+
+OS:

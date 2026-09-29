@@ -1,0 +1,19 @@
+OnDragDrop
+(message)
+Sent when a dragged object is released within the widget rect.
+
+Syntax:
+OnDragDrop
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when a dragged object is released within the widget rect.
+
+Values:
+
+OS:

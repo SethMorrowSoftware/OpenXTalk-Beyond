@@ -1,0 +1,28 @@
+SingletonCodeunitOf
+(operator)
+Designates the codeunit at index Index in Target.
+
+Syntax:
+codeunit {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Index ( ): An expression which evaluates to a valid integer index of .
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+put the empty string into codeunit 5 of tString // Locates codeunit 5 and removes it from tString
+----
+get codeunit 5 of tString // Evaluates codeunit 5
+----
+
+Description:
+Either locates the codeunit at the given index for use as the target container of another operation, or evaluates the codeunit at the given index as the source of another operation.
+
+*Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

@@ -1,0 +1,25 @@
+PlaceWidgetAt
+(statement)
+Add a child widget to the parent on the top or bottom layer
+
+Syntax:
+place {mWidget} at ( bottom | top )
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object.
+
+Examples:
+variable tNavbar as Widget
+put a new widget "com.livecode.widget.navbar" into tNavbar
+place tNavbar at top
+----
+
+Description:
+Adds a the specified child object to the widget in which the place statement is used. Using the "top" (resp. "bottom") variant will cause mWidget to be placed on the layer above (resp. below) all previously placed widgets.
+
+Values:
+
+OS:

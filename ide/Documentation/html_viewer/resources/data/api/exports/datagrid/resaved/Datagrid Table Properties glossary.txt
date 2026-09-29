@@ -1,0 +1,19 @@
+Datagrid Table Properties
+(glossary)
+Table properties of the datagrid are applicable when the 'style' property is set to 'table'.
+
+Syntax:
+Datagrid Table Properties
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+All data grid table properties are stored in the dgProps custom property set. To access a property you can use dgProps or dgProp:  	put the dgProp[ "PROPERTY_NAME" ] of group "Data Grid"
+
+Values:
+
+OS:

@@ -1,0 +1,29 @@
+close driver
+(command)
+Closes a device driver that was opened with the open driver command. 
+
+Syntax:
+close driver {deviceName}
+----
+
+Synonyms:
+
+Params:
+deviceName ( ): The name of a device driver that's installed on the system and that you have previously opened with the open driver command.
+
+Examples:
+close driver (line 2 of the driverNames)
+----
+close driver "USBCam1"
+----
+
+Description:
+Use the close driver command after you're finished communicating with a peripheral device.
+
+Any device drivers you have opened are closed automatically when you quit the application.
+
+Values:
+If you try to close a driver that is not already open, the result function is set to. 
+
+OS:
+mac,windows,linux

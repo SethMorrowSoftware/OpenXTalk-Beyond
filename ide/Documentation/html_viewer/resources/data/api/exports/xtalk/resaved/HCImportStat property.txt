@@ -1,0 +1,30 @@
+HCImportStat
+(property)
+Reports information about stacks that are being import|imported from HyperCard. 
+
+Syntax:
+get the HCImportStat
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the HCImportStat into field "Progress"
+----
+
+Description:
+Use the HCImportStat property to check the status of a HyperCard stack that's being import|imported.
+
+To import a HyperCard stack, use the go command to open the stack. OpenXTalk automatically converts it to a OpenXTalk stack.
+
+If no stack has been imported during the current session, the HCImportStat property reports empty.
+
+You can set this property back to empty after a stack has been successfully imported.
+
+Values:
+The HCImportStat property reports an expression of the form "Loading stack stackName" while a HyperCard stack is being import|imported.  
+
+OS:
+mac,ios,android

@@ -1,0 +1,33 @@
+textHeightSum
+(function)
+return|Returns the total height of the text in a field or button.
+
+Syntax:
+the textHeightSum of {object}
+----
+textHeightSum({object})
+----
+
+Synonyms:
+
+Params:
+object ( ): A field, button, card, or group.
+
+Examples:
+the textHeightSum of field "Comments"
+----
+if the textHeightSum of group 1 > the height of this card then expandCd
+----
+
+Description:
+Use the textHeightSum function to determine how much vertical space a field(object)|field's or button(object)|button's text requires.
+
+This function exists for compatibility with imported SuperCard projects. You can use the formattedHeight property to find the height of the text in a field(keyword) or button(keyword).
+
+If the object(glossary) is a button(keyword) or field(keyword), the textHeightSum return|returns the number of vertical pixels needed to display all the text at the field(object)|field's current width. If the object(glossary) is a card or group, the textHeightSum return|returns the number of vertical pixels needed to display all the object|objects in the card or group.
+
+Values:
+The textHeightSum return|returns a positive integer. 
+
+OS:
+ios,android

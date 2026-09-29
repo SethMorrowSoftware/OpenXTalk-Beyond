@@ -1,0 +1,15 @@
+OAuth2 Library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Present an authorization dialog for any web service that supports  OAuth2 Authorization Code Flow 
+
+Values:
+
+OS:

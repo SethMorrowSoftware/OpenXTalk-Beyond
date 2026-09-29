@@ -1,0 +1,16 @@
+ResEdit
+(glossary)
+
+Syntax:
+Synonyms:
+resedit
+
+Params:
+
+Examples:
+Description:
+resource|Resource editor for Mac OS|Mac OS systems, published by Apple Computer. 
+
+Values:
+
+OS:

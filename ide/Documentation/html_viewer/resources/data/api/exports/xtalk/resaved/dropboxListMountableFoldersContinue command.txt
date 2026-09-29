@@ -1,0 +1,27 @@
+dropboxListMountableFoldersContinue
+(command)
+Once a cursor has been retrieved from dropboxListMountableFolders, use this to paginate through all shared folder members.
+
+Syntax:
+dropboxListMountableFoldersContinue {pAccessToken}, {pCursor}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pCursor ( ): The cursor returned by your last call to dropboxListMountableFolders or dropboxListMountableFoldersContinue.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+Apps must have full Dropbox access to use this endpoint.
+
+If a cursor is present then use the value with dropboxListFolderMembersContinue to obtain more results.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { "entries": [ { "access_type": { ".tag": "owner" }, "is_team_folder": false, "policy": { "acl_update_policy": { ".tag": "owner" }, "shared_link_policy": { ".tag": "anyone" }, "member_policy": { ".tag": "anyone" }, "resolved_member_policy": { ".tag": "team" } }, "name": "dir", "shared_folder_id": "84528192421", "time_invited": "2016-01-20T00:00:00Z", "preview_url": "https://www.dropbox.com/scl/fo/fir9vjelf", "path_lower": "/dir", "permissions": [] } ], "cursor": "ZtkX9_EHj3x7PMkVuFIhwKYXEpwpLwyxp9vMKomUhllil9q7eWiAu" } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

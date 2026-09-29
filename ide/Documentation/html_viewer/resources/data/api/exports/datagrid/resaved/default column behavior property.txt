@@ -1,0 +1,19 @@
+default column behavior
+(property)
+Used to set the default column behavior.
+
+Syntax:
+put the dgProp["default column behavior"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The table style has an internal behavior that is used for columns which have no custom control defined for them. This behavior sets the text of a field as well as the alignment, etc. You can set this property to a button containing the default behavior you would like. This can be useful if you need to display html, unicode or rtf text among other things. The default value is empty. To see the script that the data grid uses by default for columns you can edit the script of button "Default Column" of group "Behaviors" of stack "revDataGridLibrary"
+
+Values:
+
+OS:

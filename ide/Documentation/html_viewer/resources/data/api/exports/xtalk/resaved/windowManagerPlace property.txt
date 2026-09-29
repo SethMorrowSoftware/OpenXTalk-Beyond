@@ -1,0 +1,31 @@
+windowManagerPlace
+(property)
+Specifies whether a Unix window manager can automatically place a stack window|stack's window when the stack is opened.
+
+Syntax:
+set the windowManagerPlace to {true | false}
+----
+
+Synonyms:
+wmplace
+
+Params:
+
+Examples:
+set the windowManagerPlace to false
+----
+
+Description:
+Use the windowManagerPlace property to determine how the  stack window is placed on Unix|Unix systems.
+
+If the windowManagerPlace property is true, the window manager uses the "mwm" resource|resources "clientAutoPlace" and "interactivePlacement" to set the location of the window when the stack is first opened.
+
+If the windowManagerPlace is false, the stack|stack's rectangle property is used to set its location.
+
+The setting of this property has no effect on Mac OS or Windows systems.
+
+Values:
+The windowManagerPlace of a stack is true or false. 
+
+OS:
+linux

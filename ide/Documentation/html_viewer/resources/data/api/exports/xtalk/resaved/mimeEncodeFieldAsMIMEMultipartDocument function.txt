@@ -1,0 +1,25 @@
+mimeEncodeFieldAsMIMEMultipartDocument
+(function)
+Generate multipart content from a field control
+
+Syntax:
+mimeEncodeFieldAsMIMEMultipartDocument({pField})
+----
+
+Synonyms:
+
+Params:
+pField ( ): The long id of the field to encode
+
+Examples:
+put mimeEncodeFieldAsMIMEMultipartDocument(the long id of field "email") into tBody
+SendEmail tBody
+----
+
+Description:
+Parses the content of a field to create multipart content
+
+Values:
+An error message if an error was encountered Set to the multipart content generated from the field content 
+
+OS:

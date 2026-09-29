@@ -1,0 +1,18 @@
+XML-RPC library
+(library)
+
+Syntax:
+Synonyms:
+xml-rpc library, xml-rpc libraries
+
+Params:
+
+Examples:
+Description:
+The OpenXTalk custom library|OpenXTalk custom library that supports creating and executing remote procedure calls according to the XML-RPC protocol and interpreting the results.
+
+*Important:*  To ensure that the command|commands and  function|functions of the XML-RPC library work in a  standalone application, you must include this  OpenXTalk custom library|custom library when you create your  standalone application|standalone. In the Inclusions pane of the  Standalone Application Settings window, make sure the "XML-RPC"  library checkbox is checked.
+
+Values:
+
+OS:

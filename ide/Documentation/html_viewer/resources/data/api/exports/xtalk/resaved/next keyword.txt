@@ -1,0 +1,25 @@
+next
+(keyword)
+Designates the card following the current card.
+
+Syntax:
+next
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+go next marked card
+----
+
+Description:
+Use the next keyword to move forward in the stack or to object reference|reference the card after the current card.
+
+If you are already on the last card, the next card is the first card in the stack.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,34 @@
+AndroidUnregisterLifecycleListener
+(handler)
+Unregister an object that is listening on application lifecycle events.
+
+Syntax:
+AndroidUnregisterLifecycleListener({pListener})
+----
+
+Synonyms:
+
+Params:
+pListener ( ): The listener object to be unregistered
+
+Examples:
+private variable mLifecycleListener as optional JObject
+
+public handler OnOpen() returns nothing
+    put AndroidRegisterLifecycleListener(OnMyWidgetPaused, OnMyWidgetResumed) into mLifecycleListener
+end handler
+
+public handler OnClose() returns nothing
+    AndroidUnregisterLifecycleListener(mLifecycleListener)
+    put nothing into mLifecycleListener
+end handler
+----
+
+Description:
+Use the AndroidUnregisterLifecycleListener handler to unregister an object created with AndroidRegisterLifecycleListener that is listening to application lifecycle events. This will have the effect that any handlers that the listener object is wrapping will no longer be called.
+
+Values:
+True if the listener object was previously registered and has been successfully unregistered. 
+
+OS:
+android

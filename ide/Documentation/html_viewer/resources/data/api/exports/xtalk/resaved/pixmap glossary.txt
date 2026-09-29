@@ -1,0 +1,18 @@
+pixmap
+(glossary)
+
+Syntax:
+Synonyms:
+pixmapped, pixmap, pix-mapped, pix-map
+
+Params:
+
+Examples:
+Description:
+A picture consisting of rows and columns of pixel|pixels, with a color assigned to each pixel.
+
+Also, a data structure in memory that holds such a picture.
+
+Values:
+
+OS:

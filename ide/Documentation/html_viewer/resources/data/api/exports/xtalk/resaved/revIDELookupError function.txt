@@ -1,0 +1,24 @@
+revIDELookupError
+(function)
+Returns the error description associated with the given error code.
+
+Syntax:
+revIDELookupError({pType},{pError})
+----
+
+Synonyms:
+
+Params:
+pType ( ): either "compilation", "execution" or "warning"
+pCode ( ): the id of the error as returned by the engine.
+
+Examples:
+Description:
+Returns the error description associated with the given error code.
+
+Values:
+The description of the specified error.
+
+*Note:* if pType is "warning", this function will currently return empty. 
+
+OS:

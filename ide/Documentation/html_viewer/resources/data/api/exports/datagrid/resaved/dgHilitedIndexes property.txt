@@ -1,0 +1,20 @@
+dgHilitedIndexes
+(property)
+Returns a comma delimited list of the indexes that are currently selected.
+
+Syntax:
+set the dgHilitedIndexes of group "DataGrid" to pIndex
+----
+
+Synonyms:
+dghilitedindex
+
+Params:
+
+Examples:
+Description:
+Returns a comma delimited list of the indexes that are currently selected.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+dgFocus
+(property)
+Set to true to focus on a data grid.
+
+Syntax:
+set the dgFocus of group "DataGrid" to true
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true to focus on a data grid.
+
+Values:
+
+OS:

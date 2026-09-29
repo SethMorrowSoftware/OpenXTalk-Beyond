@@ -1,0 +1,18 @@
+Unix
+(glossary)
+
+Syntax:
+Synonyms:
+unices, unixes, linux, linuxes, unix, unix system
+
+Params:
+
+Examples:
+Description:
+An operating system originally created at AT&T. Unix runs on a variety of hardware and exists in many versions and varieties.
+
+(For purposes of the OpenXTalk documentation, Linux is considered a variety of Unix. Your geekage may vary.) 
+
+Values:
+
+OS:

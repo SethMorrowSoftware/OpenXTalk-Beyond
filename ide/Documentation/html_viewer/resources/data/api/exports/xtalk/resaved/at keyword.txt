@@ -1,0 +1,27 @@
+at
+(keyword)
+
+Syntax:
+at
+
+Summary:
+Used with the click, play, and prepare commands to specify a point on the screen. Also used with the read from file, read from process, and write to file commands to specify where to begin reading or writing.
+
+Examples:
+click at 140,200
+play videoClip "Movie" at the clickLoc
+read from file myFile at numOfChars until end
+
+Related:
+write to file, prepare, read from process, play, click, read from file
+
+Description
+Use the at keyword to specify where to click or where to start reading or writing.
+
+A point consists of two numbers: a vertical and horizontal distance from the top left of the current stack, separated by a comma.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

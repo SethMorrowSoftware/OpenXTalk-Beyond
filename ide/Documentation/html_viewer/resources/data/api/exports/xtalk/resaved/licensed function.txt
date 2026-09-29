@@ -1,0 +1,32 @@
+licensed
+(function)
+return|Returns true if the development environment is running.
+
+Syntax:
+the licensed
+----
+licensed()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the licensed
+----
+if not licensed() then hide button "Edit Script"
+----
+
+Description:
+Use the licensed function to determine whether the user is using a standalone application or the development environment.
+
+If the licensed function is false, the current application is a standalone, which has certain limitations on scripting. These limitations are described by the scriptLimits function.
+
+*Note:* If the user has the Evaluation Edition, the licensed  function returns true.
+
+Values:
+The licensed function return|returns true or false. 
+
+OS:
+mac,windows,linux

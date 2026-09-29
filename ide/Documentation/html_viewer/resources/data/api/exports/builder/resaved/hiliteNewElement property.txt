@@ -1,0 +1,21 @@
+hiliteNewElement
+(property)
+Automatically select new elements when created interactively.
+
+Syntax:
+get the hiliteNewElement of {widget}
+----
+set the hiliteNewElement of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the readOnly property is false and the hiliteNewElement property is true, then when new array elements are added, they will be automatically selected.
+
+Values:
+
+OS:

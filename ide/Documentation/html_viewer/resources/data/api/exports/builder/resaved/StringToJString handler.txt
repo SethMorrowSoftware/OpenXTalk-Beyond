@@ -1,0 +1,33 @@
+StringToJString
+(handler)
+Convert a String into a java string
+
+Syntax:
+StringToJString({pString})
+----
+
+Synonyms:
+
+Params:
+pString ( ): The String to convert
+
+Examples:
+foreign handler CreateJavaCurrencyWithCode(in pString as JString) returns JObject binds to "java:java.util.Currency}getInstance(Ljava/lang/String;)Ljava/util/Currency;!static"
+
+-- Create a new Currency object
+variable tCurrency as JObject
+unsafe
+	variable tCode as JString
+	put StringToJString("AMD") into tCode
+
+	put CreateJavaCurrencyWithCode(tCode) into tCurrency
+end unsafe
+----
+
+Description:
+Use StringToJString to convert a variable of type String to an instance of the class java.lang.String.
+
+Values:
+A JObject of type java.lang.String 
+
+OS:

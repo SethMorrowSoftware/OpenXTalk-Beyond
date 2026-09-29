@@ -1,0 +1,22 @@
+UnitDiagnostic
+(statement)
+Log unit test diagnostic message.
+
+Syntax:
+test diagnostic {Message}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+test diagnostic "File access tests"
+----
+
+Description:
+Log a message as a test diagnostic.  The Message may have multiple lines. You may wish to log diagnostic messages to help make the test log easier to read by adding info about what's being tested, or add information when a test fails to help understand why the failure occurred.
+
+Values:
+
+OS:

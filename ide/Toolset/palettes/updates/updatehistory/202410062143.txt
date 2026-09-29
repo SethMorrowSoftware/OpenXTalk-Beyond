@@ -1,0 +1,2 @@
+Version 1.08, build 202410062143
+Modifies the "Mobile Support" to always show the "Choose JDK" button, simplified automatic update checking. Also modifies the updater to relaunch the IDE after quitting.

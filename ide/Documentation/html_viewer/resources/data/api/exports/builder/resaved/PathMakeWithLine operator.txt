@@ -1,0 +1,27 @@
+PathMakeWithLine
+(operator)
+Creates a new path.
+
+Syntax:
+line path from {mFrom} to {mTo}
+----
+
+Synonyms:
+
+Params:
+mFrom ( ): An expression which evaluates to a point.
+mTo ( ): An expression which evaluates to a point.
+
+Examples:
+// Create a line path
+variable tPath as Path
+put line path from point [50,100] to point [100,50] into tPath
+----
+
+Description:
+Creates a new path.
+
+Values:
+A new line path. 
+
+OS:

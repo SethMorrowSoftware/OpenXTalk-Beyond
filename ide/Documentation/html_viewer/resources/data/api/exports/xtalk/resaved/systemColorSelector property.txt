@@ -1,0 +1,19 @@
+systemColorSelector
+(property)
+The systemColorSelector property is not implemented and is  reserved word|reserved.
+
+Syntax:
+systemColorSelector
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+reserved word|Reserved for internal use.
+
+Values:
+
+OS:

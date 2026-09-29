@@ -1,0 +1,16 @@
+soundbank
+(glossary)
+
+Syntax:
+Synonyms:
+soundfont, downloadable soundbank, sf2, dls
+
+Params:
+
+Examples:
+Description:
+A file containing sound samples arranged in groups and mapped to MIDI messages for playback as musical instrument sampler player sound patches. Soundbank files in Soundfont (.SF2) or Downloadable Sound (DLS) formats can be used with OpenXTalk general music libraries for playSentence xTalk musical notation playback.
+
+Values:
+
+OS:

@@ -1,0 +1,24 @@
+Caller
+(expression)
+The caller's script object
+
+Syntax:
+the caller
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler NotifyMe() returns nothing
+	post "notify" to the caller
+end handler
+----
+
+Description:
+Returns the script object which called the handler at the beginning of the current chain of LiveCode Builder handler execution.
+
+Values:
+
+OS:

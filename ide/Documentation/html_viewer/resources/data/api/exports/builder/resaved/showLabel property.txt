@@ -1,0 +1,21 @@
+showLabel
+(property)
+Whether or not to display a title
+
+Syntax:
+get the showLabel of {widget}
+----
+set the showLabel of {widget} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Controls whether the header bar displays the label(property) as a title (`true`) or whether no title is shown (`false`).
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+ListToNSArray
+(handler)
+Convert a List into an Objective-C array
+
+Syntax:
+ListToNSArray({pList})
+----
+
+Synonyms:
+
+Params:
+pNumber ( ): The List to convert
+
+Examples:
+Description:
+Convert a List into an Objective-C array
+
+Values:
+A Objective-C object of type NSArray  Description Use ListToNSArray to convert a variable of type List to an Objective-C array object (NSArray). 
+
+OS:

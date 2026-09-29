@@ -1,0 +1,38 @@
+queryRegistry
+(function)
+The queryRegistry function return|returns the value of an entry in the registry|Windows system registry.
+
+Syntax:
+the queryRegistry of {keyPath}
+----
+queryRegistry({keyPath} [, {typeVariable}])
+----
+
+Synonyms:
+
+Params:
+keyPath ( ): The keyPath parameter is the path to a registry entry.
+typeVariable ( ): Any legal variable name.
+
+Examples:
+queryRegistry("HKEY_CLASSES_ROOT\.rev\")
+----
+queryRegistry(winFilePath,myType)
+----
+
+Description:
+Use the queryRegistry function to get system settings on a Windows|Windows system.
+
+The first part of the keyPath should be one of the predefined handle value|values. If the keyPath ends in "\", the value return|returned is the default value for the key.
+
+If you specify a typeVariable, the type of the data in the registry entry is placed in that variable.
+
+*Tip:*  To convert binary file|binary data you get from the  registry to a string, use the binaryDecode function.
+
+On Mac OS, OS X, and Unix systems, the queryRegistry function return|returns "not supported".
+
+Values:
+The queryRegistry function return|returns a string. 
+
+OS:
+windows

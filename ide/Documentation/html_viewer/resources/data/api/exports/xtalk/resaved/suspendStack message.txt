@@ -1,0 +1,29 @@
+suspendStack
+(message)
+Sent to the current card when something makes its stack no longer the active window.
+
+Syntax:
+suspendStack
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on suspendStack -- hide a palette that only applies to this window
+  hide stack "Accessories"
+end suspendStack
+----
+
+Description:
+Handle the suspendStack message if you want to perform some action when a stack window is made inactive.
+
+The suspendStack message is sent whenever a stack window is no longer the active window: when the stack window is closed, when another stack is brought to the front, when other OpenXTalk windows are brought to the front, and when switching to another program.
+
+The actual window deactivation process is not triggered by the suspendStack message, so trap|trapping the message and not allowing it to pass does not prevent the stack window from becoming inactive. 
+
+Values:
+
+OS:
+mac,windows,linux

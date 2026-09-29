@@ -1,0 +1,35 @@
+recordCompressionTypes
+(function)
+return|Returns a list of audio codec|codecs supported by the currently installed version of QuickTime.
+
+Syntax:
+the recordCompressionTypes
+----
+recordCompressionTypes()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the recordCompressionTypes
+----
+if storedType is not among the lines of the recordCompressionTypes \
+   then answer record
+----
+
+Description:
+Use the recordCompressionTypes function to find out which formats you can use to record sound with the record sound command.
+
+You specify a codec by setting the recordCompression property to one of the four- character identifiers returned by the recordCompressionTypes. The record sound command then uses that codec to compress recorded sounds. Each codec supports a different type of compress|compression.
+
+The recordCompressionTypes function requires QuickTime to be installed. If QuickTime is not installed, the recordFormats function returns empty.
+
+*Tip:*  It can take OpenXTalk a second or two to load the code needed to  use QuickTime, depending on the machine speed. Since this code is  only loaded into memory once per session, you can speed up the first  occurrence of a QuickTime-related action by calling the QTVersion  function during otherwise dead time--for example, during startup of  your application--to preload the code.
+
+Values:
+The recordCompressionTypes function return|returns a list of available audio codec|codecs, one per line. Each line consists of two items : - the codec's name - the codec's four-character identifier  
+
+OS:
+mac

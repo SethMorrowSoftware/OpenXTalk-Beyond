@@ -1,0 +1,18 @@
+Apple menu
+(glossary)
+
+Syntax:
+Synonyms:
+apple menu
+
+Params:
+
+Examples:
+Description:
+The leftmost menu in the menu bar on Mac OS and OS X|OS X systems.
+
+On Mac OS|Mac OS systems, the Apple menu contains the current application's About menu item.
+
+Values:
+
+OS:

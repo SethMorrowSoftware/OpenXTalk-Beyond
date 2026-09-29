@@ -1,0 +1,16 @@
+database driver
+(glossary)
+
+Syntax:
+Synonyms:
+database driver
+
+Params:
+
+Examples:
+Description:
+Software that acts as a translator between an application and a SQL database. 
+
+Values:
+
+OS:

@@ -1,0 +1,30 @@
+iosBrowser
+(object)
+A native iOS control that displays a browser.
+
+Syntax:
+iosBrowser
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+mobileControlCreate "browser"
+----
+mobileControlCreate "browser", "web view"
+put the result into sBrowserID
+mobileControlSet sBrowserID, "visible", "true"
+mobileControlSet sBrowserID, "url", "http://www.OpenXTalk.org"
+----
+
+Description:
+An iosBrowser control is created using a control type of "browser".
+
+*Note:* The iOS browser control is based on WKWebView.  For full details of what the WKWebView control is capable of,  and background about it see the iOS reference document.
+
+Values:
+
+OS:
+ios

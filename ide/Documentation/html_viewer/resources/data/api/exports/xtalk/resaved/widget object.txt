@@ -1,0 +1,29 @@
+widget
+(object)
+A custom control written in OpenXTalk Builder
+
+Syntax:
+widget
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the visible of widget 1 to false
+----
+on newWidget
+    if the kind of the target is "com.xtalkwidget.colorswatch" then
+        set the swatchColor of the target to "0,0,0,255"
+    end if 
+end newWidget
+----
+
+Description:
+Use the widget object type to create a widget control.  widget|Widgets are created from  OpenXTalk Builder extension|OpenXTalk Builder extensions that have  previously been loaded into memory using the load extension command. For more details on how to create widgets, please consult the *Extending OpenXTalk* guide.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

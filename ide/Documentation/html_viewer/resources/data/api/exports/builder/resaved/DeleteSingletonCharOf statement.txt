@@ -1,0 +1,28 @@
+DeleteSingletonCharOf
+(statement)
+Deletes the char at index Index in Target.
+
+Syntax:
+delete char {Index} of {Target}
+----
+
+Synonyms:
+
+Params:
+Index ( ): An expression which evaluates to a valid integer index of .
+Target ( ): A string container.
+
+Examples:
+variable tVar as String
+put "thorough" into tVar
+delete char 3 of tVar -- tVar contains "through"
+----
+
+Description:
+Replaces the char at the given index with the empty string.
+
+*Note:* It is an error if Index is out of range.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+selectedNavColor
+(property)
+The color to use for the selected nav item
+
+Syntax:
+set the selectedNavColor of {widget} to {pColor}
+get the selectedNavColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The color to use for the selected nav item
+
+Values:
+The color of the selected nav item, in RGB form 
+
+OS:

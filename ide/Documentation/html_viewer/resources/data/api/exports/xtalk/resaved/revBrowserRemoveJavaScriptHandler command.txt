@@ -1,0 +1,29 @@
+revBrowserRemoveJavaScriptHandler
+(command)
+Removes the named handler from the 'OpenXTalk' object within the current JavaScript context of the browser.
+
+Syntax:
+revBrowserRemoveJavaScriptHandler {instanceID}, {handlerName}
+----
+
+Synonyms:
+
+Params:
+instanceID ( ): the ID of the browser instance returned by the revOpenBrowser function.
+handlerName ( ): the name of a OpenXTalk handler previously added with revBrowserAddJavaScriptHandler. 
+
+Examples:
+revBrowserRemoveJavaScriptHandler tBrowserID, "myOpenXTalkHandler"
+----
+
+Description:
+The revBrowserRemoveJavaScriptHandler removes the named handler from the 'OpenXTalk' object within the current JavaScript context of the browser.
+
+Calling the revBrowserRemoveJavaScriptHandler function will remove the corresponding function from the global JavaScript 'OpenXTalk' object. JavaScript within the browser will no longer be able to call the named handler.
+
+The handler must have previously been registered with the revBrowserAddJavaScriptHandler command.
+
+Values:
+
+OS:
+mac,windows

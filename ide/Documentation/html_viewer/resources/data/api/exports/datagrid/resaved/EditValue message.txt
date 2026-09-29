@@ -1,0 +1,19 @@
+EditValue
+(message)
+The EditValue message is sent to a table column control when EditCell or EditCellOfIndex is called.
+
+Syntax:
+on EditValue pKey
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The EditValue message is sent to a table column control when EditCell or EditCellOfIndex is called. In this scenario there is no pKey parameter since the key is the column associated with the column control  the message was sent to. Tip: use the dgColumn property of a column template to get the name of a column in the column control. The EditValue message is sent to a row when EditKey or EditKeyOfIndex is called. In this case the first parameter is the name of the key in dgData that should be edited. Normally you will call EditFieldText from within the EditValue message in order to open a field editor for changing the contents.
+
+Values:
+
+OS:

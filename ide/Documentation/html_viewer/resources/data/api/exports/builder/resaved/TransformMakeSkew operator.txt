@@ -1,0 +1,25 @@
+TransformMakeSkew
+(operator)
+Creates a new skewing transform value. mScale:An expression which evaluates to a list of 2 numbers, the x-axis skew and y-axis skew.
+
+Syntax:
+transform with skew {mSkew}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Create skew transform
+variable tTransform
+put transform with skew [1,0] into tTransform
+----
+
+Description:
+Creates a new skewing transform value. mScale:An expression which evaluates to a list of 2 numbers, the x-axis skew and y-axis skew.
+
+Values:
+A new skew transform. 
+
+OS:

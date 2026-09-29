@@ -1,0 +1,19 @@
+SelectAll
+(command)
+Selects all lines in the data grid.
+
+Syntax:
+dispatch "SelectAll" to group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Selects all lines in the data grid.
+
+Values:
+
+OS:

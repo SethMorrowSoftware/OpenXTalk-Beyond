@@ -1,0 +1,28 @@
+FontPropertyBold
+(operator)
+The bold setting of a font.
+
+Syntax:
+the bold of {mFont}
+----
+
+Synonyms:
+
+Params:
+mFont ( ): An expression which evaluates to a font.
+
+Examples:
+// Create a font
+variable tFont as Font
+put font "Arial" at size 20 into tFont
+
+// Set the font to bold
+set the bold of tFont to true
+----
+
+Description:
+The bold flag of mFont as a boolean. If true, then mFont is bold.
+
+Values:
+
+OS:

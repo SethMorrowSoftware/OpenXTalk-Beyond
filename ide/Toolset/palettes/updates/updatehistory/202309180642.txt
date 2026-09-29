@@ -1,0 +1,2 @@
+Version 0.92, build 202309180642
+Try to prevent the "User Registration" from popping up upon a clean first-run of either Livecode, OXT, or the OXT Hack - doing it via install script.

@@ -1,0 +1,18 @@
+nest
+(glossary)
+
+Syntax:
+Synonyms:
+nesting, nested, nest
+
+Params:
+
+Examples:
+Description:
+To enclose a part within another part of the same kind.
+
+For example, you can nest parentheses in an expression :       7 - (3 + (14/3))   This expression|expression's parentheses are nested two deep.
+
+Values:
+
+OS:

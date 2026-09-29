@@ -1,0 +1,32 @@
+clickV
+(function)
+return|Returns the vertical position of the most recent mouse click.
+
+Syntax:
+the clickV
+----
+clickV()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the clickV
+----
+if the clickV > the bottom of stack "window" then beep
+----
+
+Description:
+Use the clickV function to find out where the user last clicked.
+
+The returned value is the vertical distance in pixels from the top edge of the clicked stack to the location of the click. (Use the clickStack function to identify which stack was clicked.)  The click location is the position of the mouse pointer when the user pressed the mouse button, not when the user released the button. In particular, inside a mouseDown handler, the clickV returns the position of the mouse as it was when the mouseDown action occurred.
+
+This function is equal to item 2 of the clickLoc function.
+
+Values:
+The clickV function return|returns a positive integer. 
+
+OS:
+mac,windows,linux,ios,android

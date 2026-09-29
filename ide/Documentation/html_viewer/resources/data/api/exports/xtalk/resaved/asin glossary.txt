@@ -1,0 +1,35 @@
+asin
+(function)
+return|Returns the arc sine of a number in radian|radians.
+
+Syntax:
+the asin of {number}
+----
+asin({number})
+----
+
+Synonyms:
+
+Params:
+•	number ( ): A number between -1 and 1, or an expression that evaluates to such a number. 
+	
+Examples:
+the asin of .225
+----
+sin(asin(.5))
+----
+asin(pi/4 - sin(myAngle))
+----
+
+Description:
+Use the asin function to find the arc sine of a number.
+
+The arc sine of number is an angle whose sine is equal to number. In other words, asin is an inverse of the sin function.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The asin function return|returns a number between -pi/2 and pi/2. The result of the asin function is return|returned in radian|radians. To get this result in degree|degrees, use the following custom function:      function asinInDegrees pMagnitude         return asin(pMagnitude) * 180 / pi     end asinInDegrees 
+
+OS:
+mac,windows,linux,ios,android

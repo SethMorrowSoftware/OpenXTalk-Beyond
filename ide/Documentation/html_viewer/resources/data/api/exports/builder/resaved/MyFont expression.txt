@@ -1,0 +1,20 @@
+MyFont
+(expression)
+Returns the font of the widget.
+
+Syntax:
+my font
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use to return a font which reflects the current (effective) settings of the widget's textFont, textSize and textStyle properties.
+
+Values:
+The font of the widget 
+
+OS:

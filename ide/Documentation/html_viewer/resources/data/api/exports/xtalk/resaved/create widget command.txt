@@ -1,0 +1,40 @@
+create widget
+(command)
+Create a widget control of the specified kind.
+
+Syntax:
+create [invisible] widget [{controlName}] as {widgetKind} [in {{group}|{card}}]
+----
+
+Synonyms:
+
+Params:
+controlName ( ): The name to call the newly created . If you don't specify a name, the  is created with a default name.
+widgetKind ( ): The name of the module that defines the widget to be created.
+group ( ): A reference or an expression that evaluates to a reference to a group on the current card. If you specify a group, the new  is a member of the , and exists on each  that has the . If you don't specify a , the  is created on the current  and appears only on that .
+card ( ): A reference or an expression that evaluates to a reference to a card. If you specify a card, the new  is a member of the . If you specify neither a  nor a , the  is created on the current  and appears only on that .
+
+Examples:
+create widget "My Navbar" as "com.xtalk.widget.navbar"
+----
+create group "Swatches"
+repeat with x = 1 to 20
+    create invisible widget ("Color Swatch" \
+          && x) as "com.xtalkwidget.colorswatch" in group "Swatches"
+end repeat
+----
+
+Description:
+Use the create widget command to make a new widget control or grouped widget control of kind widgetKind.
+
+If you use the invisible form, the widget is created with its visible property set to false, so it cannot be seen. Use this form to create a hidden widget, change its appearance or position, then make it visible.
+
+When the new widget is created, the pointer tool is automatically chosen.
+
+*Note:* The LCB extension|extension of the specified kind must have  been loaded using the load extension command. To see a list of the  currently loaded Builder extension|extensions, use the  loadedExtensions function.
+
+Values:
+The create widget command places the ID property of the newly created widget in the it variable. 
+
+OS:
+mac,windows,linux,ios,android

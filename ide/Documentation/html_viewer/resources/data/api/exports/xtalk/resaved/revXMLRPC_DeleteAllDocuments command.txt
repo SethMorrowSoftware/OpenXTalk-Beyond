@@ -1,0 +1,25 @@
+revXMLRPC_DeleteAllDocuments
+(command)
+
+Syntax:
+revXMLRPC_DeleteAllDocuments
+
+Summary:
+Removes all XML-RPC document structures in memory.
+
+Examples:
+revXMLRPC_DeleteAllDocuments
+if revXMLRPC_Documents() is not empty then revXMLRPC_DeleteAllDocuments
+
+If the revXMLRPC_DeleteAllDocuments command encounters an error, the result is set to an error message beginning with "xmlerr" or "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_DeleteAllDocuments command to free up memory after you finish using the XML-RPC library.
+
+Important: The revXMLRPC_DeleteAllDocuments command is part of the XML-RPC library. To ensure that the command works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure the "XML-RPC" library checkbox is checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

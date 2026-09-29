@@ -1,0 +1,22 @@
+DefaultErrorStream
+(expression)
+Default error stream.
+
+Syntax:
+the error stream
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The default error stream for diagnostic information.
+
+In command-line programs, this is usually used to display error messages.  In server programs, data output through this stream may be stored in the system log, depending on the server configuration.
+
+Values:
+The default error stream. 
+
+OS:

@@ -1,0 +1,21 @@
+SetTo
+(statement)
+Put a value into a container.
+
+Syntax:
+set {targetContainer} to {sourceValue}
+----
+
+Synonyms:
+
+Params:
+targetContainer (any ): A valid target for 
+sourceValue (any ): The value to put into the 
+
+Examples:
+Description:
+Assigns the result of evaluating sourceValue to targetContainer. *Note:* It is a checked runtime error for the source value's type to not be compatible with the target expression's type.
+
+Values:
+
+OS:

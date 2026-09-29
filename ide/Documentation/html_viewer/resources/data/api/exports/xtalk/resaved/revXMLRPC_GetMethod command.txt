@@ -1,0 +1,26 @@
+revXMLRPC_GetMethod
+(command)
+
+Syntax:
+revXMLRPC_GetMethod(XMLRPCdocumentID)
+
+Summary:
+Returns the name of the method in an XML-RPC document structure.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request.
+
+Examples:
+put revXMLRPC_GetMethod(theRequest) into theMethodName
+
+If the revXMLRPC_GetMethod encounters an error, the is set to an error message beginning with "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_GetMethod function to retrieve the method name to be called upon execution of an existing XML-RPC document.
+
+Where the path of the XML-RPC document tells the server which resource will handle the request, the method name tells that resource which method is being called specifically within that resource.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

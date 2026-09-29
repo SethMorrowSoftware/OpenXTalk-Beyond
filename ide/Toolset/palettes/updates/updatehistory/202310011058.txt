@@ -1,0 +1,4 @@
+Version 0.92, build 202310011058
+Changes the name in the menuBar to whatever is specified in the about.dat file
+Also contains mac-specific positioning fixes (sets the top of the wd to 22px)
+Gets rid of the open/close buttons on linux and windows, as this is just wasted space. It's now consistent across all platforms.

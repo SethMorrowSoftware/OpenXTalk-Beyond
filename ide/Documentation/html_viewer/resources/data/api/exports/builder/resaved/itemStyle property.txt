@@ -1,0 +1,22 @@
+itemStyle
+(property)
+The style with which navigation items are displayed
+
+Syntax:
+get the itemStyle of {widget}
+----
+set the itemStyle of {widget} to {style}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The itemStyle property determines whether navigation items are displayed with icons, with labels, or with icons positioned below labels.
+
+Values:
+The display style - "icons": display icons only - "text": display names only - "both": display icons and names 
+
+OS:

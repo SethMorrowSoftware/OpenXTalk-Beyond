@@ -1,0 +1,2 @@
+Version 1.07, build 202408020944
+Tweaked the loading of alignment guides in home stack, small visual change to dictionary and tools popup menu fix for certain more obscure linux distros.

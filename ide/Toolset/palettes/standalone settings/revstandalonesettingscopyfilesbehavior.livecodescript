@@ -27,6 +27,7 @@ on preOpenCard
    put tDestination into field "Destination"
    set the enabled of button "Copy Referenced Files" to not getSetting("ios")
    
+   fixUItheme
    checkForWarning
    
    pass preOpenCard
@@ -61,3 +62,7 @@ command checkForWarning
    end repeat
    set the visible of field "Warning" to tMustWarn
 end checkForWarning
+
+on fixUItheme
+   -- appearance correction due to engine shortcomings
+end fixUItheme

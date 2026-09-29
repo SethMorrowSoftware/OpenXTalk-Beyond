@@ -1,0 +1,18 @@
+recursion
+(glossary)
+
+Syntax:
+Synonyms:
+recursion, recurse, recursed, recursing, recursive
+
+Params:
+
+Examples:
+Description:
+The process by which a handler calls itself.
+
+(Recursion is a useful programming technique, but may also occur accidentally, resulting in a error|script error.)
+
+Values:
+
+OS:

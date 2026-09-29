@@ -1,0 +1,16 @@
+message path
+(glossary)
+
+Syntax:
+Synonyms:
+message path
+
+Params:
+
+Examples:
+Description:
+The order in which object|objects are given the opportunity to respond to a message.
+
+Values:
+
+OS:

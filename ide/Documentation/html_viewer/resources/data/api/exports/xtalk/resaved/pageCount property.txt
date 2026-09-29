@@ -1,0 +1,28 @@
+pageCount
+(property)
+Reports how many pages are in the PostScript code of an EPS|EPS object. 
+
+Syntax:
+get the pageCount of {EPSObject}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+add the pageCount of EPS "Watermark" to totalPages
+----
+answer the pageCount of EPS 1 && "pages to print."
+----
+
+Description:
+Use the pageCount property to find out how many pages are in an EPS|EPS object.
+
+This property is supported only on Unix systems with Display PostScript installed. 
+
+Values:
+The pageCount of an EPS|EPS object is a positive integer. This property is read-only and cannot be set. 
+
+OS:
+linux,ios,android

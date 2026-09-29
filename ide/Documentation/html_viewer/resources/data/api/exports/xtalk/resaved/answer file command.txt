@@ -1,0 +1,51 @@
+answer file
+(command)
+Displays a file dialog box|standard file dialog for the user to select a file.
+
+Syntax:
+answer file[s] {prompt} [with {defaultPath}] [titled {windowTitle}] [as sheet]
+----
+
+Synonyms:
+
+Params:
+prompt (string ): If you specify empty, no prompt appears.
+defaultPath ( ): The name and location of the folder whose contents are listed when the dialog box appears. If no  is specified, the dialog box lists the contents of the last folder you used with a file dialog box.
+windowTitle ( ): If specified, appears in the title bar of the dialog box. If no  is given, the title bar is blank. This parameter has no effect on macOS 10.11 (El Capitan) and above, so make sure that any important information is placed in the  parameter.
+
+Examples:
+answer file "Select a file to delete:"
+if the result is not "Cancel" then
+   put it into tChosenFile
+   -- Use the file path as required
+end if
+----
+answer files "Select the files you wish to process:"
+if the result is not "Cancel" then
+   put it into tChosenFiles
+   repeat for each line tFile in tChosenFiles
+
+   end repeat
+end if
+----
+answer file "Input:" with "/Macintosh HD/"
+----
+
+Description:
+Use the answer file command to open a file chooser dialog.
+
+The dialog box displayed is the same one most programs use for the "Open" command in the File menu.
+
+*Important:*  The answer file command does not open the file. It only  displays the dialog box and retrieves the path to the file the user  specifies.
+
+If the as sheet form is used, the dialog box appears as a sheet on OS X systems. On other systems, the as sheet form has no effect and the dialog box appears normally. Attempting to open a sheet from within another sheet displays the second stack as a modal dialog box instead. To give a dialog box a prompt when using the as sheet form a non-empty title must be provided.  This will cause the prompt to appear in the same place it would if as sheet was not being used.
+
+If the systemFileSelector property is set to false, the app engine's  built-in dialog box is used instead of the operating system's standard file dialog.
+
+*Note:*  If you wish to filter the list of the files presented to  the user, use the answer file with type command.
+
+Values:
+If the user cancels the dialog, the it variable is set to empty, and the result function returns "Cancel". The answer file command places the absolute file path(s) of the selected file(s) as a return delimited list in the it variable. 
+
+OS:
+mac,windows,linux

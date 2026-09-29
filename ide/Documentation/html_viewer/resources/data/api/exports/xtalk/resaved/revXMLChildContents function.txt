@@ -1,0 +1,40 @@
+revXMLChildContents
+(function)
+return|Returns a list of the tag|tags and text contents of the specified nodes.
+
+Syntax:
+revXMLChildContents({treeID}, {startNode}, {tagDelim}, {nodeDelim}, {includePathDetails}, {depth})
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the  or  function when you created the .
+startNode ( ): The path to the node where you want to start.
+tagDelim (string ): A string that separates each tag name in a child node from the rest.
+nodeDelim (string ): A string that separates each child node from the rest.
+includePathDetails ( ): The includePathDetails can take the following values:   - "false" : just the name of each node is returned (default) - "true" : includes which child number each node is in brackets after its name - "full" : the full path of each node is returned including child numbers in brackets  where required - "relative" : a path relative to startNode is included with child numbers in brackets  where required
+depth ( ): The depth specifies how many generations of the XML tree to show. If you specify zero, only the startNode is shown; if you specify 1, the startNode and its child nodes are shown, but not their child nodes; and so on. To show all generations, specify -1 as the depth.
+
+Examples:
+revXMLChildContents(2, "/Animal", "/" ,space, false, -1)
+----
+put revXMLChildContents(myTree, thisNode, tab, return, true, 3) after it
+----
+put revXMLChildContents(tTreeId, "root", tab, return, "full", -1) into tChildPaths
+----
+
+Description:
+Use the revXMLChildContents function to get information about a section of an XML tree.
+
+If the revXMLChildContents function encounters an error, it return|returns an error message starting with "xmlerr".
+
+The revXMLChildContents function returns the text content of a node. This is defined as the first piece of text not contained within a child node. For example:  <root><child>Text<subchild>Child Text</subchild>Text 2</child></root>  In the preceeding XML document, revXMLChildContents will return the string "Text" when called with "root" as the startNode and 1 as the depth.
+
+*Important:*  The revXMLChildContents function is part of the   XML library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+The revXMLChildContents function returns a string. 
+
+OS:
+mac,windows,linux,ios,android

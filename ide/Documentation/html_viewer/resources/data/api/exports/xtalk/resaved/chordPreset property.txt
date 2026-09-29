@@ -1,0 +1,25 @@
+chordPreset
+(property)
+A name from a list of names of premade chordFormula
+
+Syntax:
+set the chordPreset of {widget} to {pChordPresetName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on mouseUp
+   -- the chordFormula will be set to "3,7":
+  set the chordPreset of widget "Piano Widget" to "Minor Triad"
+end mouseUp
+----
+
+Description:
+The chordPreset is a convience property that can be set to a chord name from a list of premade named chordFormula. Use the chordPresets property to retreive a line delimited list of valid chord names. chordPreset is a "write-only" property, after a chordPreset name is passed and the chordFormula is updated, this property is reset and returns "...".
+
+Values:
+
+OS:

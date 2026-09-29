@@ -1,0 +1,19 @@
+OnDragMove
+(message)
+Sent when a dragged object is moved within the widget rect.
+
+Syntax:
+OnDragMove
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when a dragged object is moved within the widget rect.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+dgRectOfLine
+(property)
+Get/set the rect of the control associated with the given line
+
+Syntax:
+get the dgRectOfLine[pLine] of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the rect of the control connected with pLine. Rect is relative to this group but takes into account the current vScroll. This may not prove very useful if you don't have control caching on.
+
+Values:
+
+OS:

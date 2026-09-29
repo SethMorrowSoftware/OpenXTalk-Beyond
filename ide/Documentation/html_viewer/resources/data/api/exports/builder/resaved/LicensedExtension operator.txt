@@ -1,0 +1,24 @@
+LicensedExtension
+(operator)
+Returns true if licensed
+
+Syntax:
+licensed for [ feature {Feature} of ] extension {Extension}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tLicensed as Boolean
+put licensed for extension "com.foo.bar" into tLicensed
+put licensed for feature "baz" of extension "com.foo.bar" into tLicensed
+----
+
+Description:
+Returns true if the license includes the named extension or extension and feature.
+
+Values:
+
+OS:

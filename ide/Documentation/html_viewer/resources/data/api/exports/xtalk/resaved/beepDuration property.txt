@@ -1,0 +1,30 @@
+beepDuration
+(property)
+Sets the length of the sound played by the beep command.
+
+Syntax:
+set the beepDuration to {milliseconds}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the beepDuration to 2000 -- two seconds
+----
+set the beepDuration to myBeep * 1000
+----
+
+Description:
+Use the beepDuration property to vary the length of the beep, in order to increase or decrease its urgency.
+
+Set the beepDuration to -1 to use the default system setting.
+
+The beepDuration has no effect on Windows|Windows systems, and on some Unix|Unix systems which don't allow changing the beep length.
+
+Values:
+The beepDuration is an integer between -1 and 65535. By default, the beepDuration is 500 (half a second). 
+
+OS:
+linux

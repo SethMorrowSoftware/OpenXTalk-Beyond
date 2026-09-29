@@ -1,0 +1,16 @@
+event
+(glossary)
+
+Syntax:
+Synonyms:
+event
+
+Params:
+
+Examples:
+Description:
+An occurrence that causes a program to do something. An event can be a user action (like a mouse click) or a program action (like the completion of a download).
+
+Values:
+
+OS:

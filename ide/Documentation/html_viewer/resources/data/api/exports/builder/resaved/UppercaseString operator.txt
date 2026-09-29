@@ -1,0 +1,21 @@
+UppercaseString
+(operator)
+Uppercases Source.
+
+Syntax:
+the upper of {Source}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a string.
+
+Examples:
+Description:
+Lowercase letters, including special characters with diacritical marks, are converted to the uppercase equivalents. All other characters, including uppercase letters, numbers, punctuation, and special characters with no upper or lower case, are left unchanged.
+
+Values:
+Source with each of its chars uppercased. 
+
+OS:

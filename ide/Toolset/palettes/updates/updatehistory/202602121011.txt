@@ -1,0 +1,2 @@
+Version 1.14, build: 202602121011
+Tweaks to preferences, changes to updater stack, default script editor size increased

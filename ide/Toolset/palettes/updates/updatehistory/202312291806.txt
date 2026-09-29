@@ -1,0 +1,2 @@
+Version 0.97, build 202312291806
+Upadted the splash screen and fixed a bug in the updates stack (recursion & timeout)

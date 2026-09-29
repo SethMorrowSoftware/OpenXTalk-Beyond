@@ -1,0 +1,27 @@
+using
+(keyword)
+Used with the combine and split command|commands to specify the delimiter|delimiters for transforming a variable between an array and a string.
+
+Syntax:
+using
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+combine myArray using return
+----
+combine thisArray using comma and tab
+----
+
+Description:
+Use the using keyword to designate a delimiter for the string version of an array.
+
+The by and with keyword|keywords are synonyms for the using keyword when used with the combine or split command.
+
+Values:
+
+OS:
+ios,android

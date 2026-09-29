@@ -1,0 +1,38 @@
+mouseDoubleUp
+(message)
+Sent when the mouse button is released at the end of a double-click.
+
+Syntax:
+mouseDoubleUp {pButtonNumber}
+----
+
+Synonyms:
+
+Params:
+pButtonNumber (enum ): Specifies which mouse button was pressed:
+
+Examples:
+on mouseDoubleUp theMouseButton 
+  if theMouseButton is 3 then
+    answer file "Please choose a file to open."
+  else 
+    pass mouseDoubleUp
+  end if
+end mouseDoubleUp
+----
+
+Description:
+Handle the mouseDoubleUp message to perform an action when the user double-click|double-clicks.
+
+The mouseDoubleUp message is sent to the control that was double-click|double-clicked, or to the card if no control was under the mouse pointer.
+
+If a tool other than the Browse tool is being used, no mouseDoubleUp message is sent. If an unlock|unlocked field is clicked with mouse button 1 or 2, no mouseDoubleUp message is sent.
+
+The doubleClickInterval and doubleClickDelta properties determine what OpenXTalk accepts as a double-click|double click.
+
+*Note:*  If the user clicks a transparent pixel in an image,  the mouseDoubleUp message is sent to the object(glossary) behind  the image, not to the image.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

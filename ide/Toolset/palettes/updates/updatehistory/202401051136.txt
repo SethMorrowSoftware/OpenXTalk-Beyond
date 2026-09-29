@@ -1,0 +1,2 @@
+Version 0.98, build 202401051136
+Revised the allguides stack, gathering up the referenced stacks that are mentioned in the guide (continued) - to ensure they aren't lost.

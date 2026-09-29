@@ -1,0 +1,2 @@
+Version 1.10, build 202503081847
+Modifies the updater for MacOS users.

@@ -1,0 +1,30 @@
+signal
+(message)
+Sent to the current card when another process sends a kill signal to the application.
+
+Syntax:
+signal {pSigNumber}
+----
+
+Synonyms:
+
+Params:
+pSigNumber ( ): The number of the Unix kill signal (1 for SIGUSR1, 2 for SIGUSR2) that was sent to the application.
+
+Examples:
+on signal -- let the user know:
+  answer warning "Ack! I've been killed by another application!"
+end signal
+----
+
+Description:
+Handle the signal message to perform cleanup before an external process causes the application to exit.
+
+The user can execute the Unix "kill" command to send a kill signal to the application. Other processes can use a Unix system call to send a kill signal.
+
+Only signal 1 (SIGUSR1) and signal 2 (SIGUSR2) are supported. Other signals sent to the application do not cause the signal message to be sent.
+
+Values:
+
+OS:
+mac,linux

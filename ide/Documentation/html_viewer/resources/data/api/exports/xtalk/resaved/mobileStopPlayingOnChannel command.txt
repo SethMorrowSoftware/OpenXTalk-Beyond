@@ -1,0 +1,29 @@
+mobileStopPlayingOnChannel
+(command)
+Stops the currently playing sound and clears any scheduled sound on the given channel
+
+Syntax:
+mobileStopPlayingOnChannel {channel}
+----
+
+Synonyms:
+iphonestopplayingonchannel
+
+Params:
+channel ( ): The name of the channel.
+
+Examples:
+mobileStopPlayingOnChannel theChannel
+----
+mobileStopPlayingOnChannel "queued"
+----
+
+Description:
+Use the mobileStopPlayingOnChannel command to stop playing a sound on a channel.
+
+The mobileStopPlayingOnChannel command stops the currently playing sound, and clears any scheduled sound, on the given channel.
+
+Values:
+
+OS:
+ios,android

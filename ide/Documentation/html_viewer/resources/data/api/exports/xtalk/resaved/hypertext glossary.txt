@@ -1,0 +1,16 @@
+hypertext
+(glossary)
+
+Syntax:
+Synonyms:
+hypermedia, hypertext
+
+Params:
+
+Examples:
+Description:
+Text containing links that can be clicked in order to display further information. 
+
+Values:
+
+OS:

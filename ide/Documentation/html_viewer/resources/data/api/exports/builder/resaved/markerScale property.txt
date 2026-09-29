@@ -1,0 +1,21 @@
+markerScale
+(property)
+A scale factor to apply to markers
+
+Syntax:
+set the markerScale of {widget} to {real}
+get the markerScale of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The default scale factor is 1 which corresponds to an 8x8 point marker.
+
+Values:
+A scale factor to apply to markers 
+
+OS:

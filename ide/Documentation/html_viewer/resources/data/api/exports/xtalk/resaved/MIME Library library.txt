@@ -1,0 +1,15 @@
+MIME Library
+(library)
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This script library implements portions of Multipurpose Internet Mail Extensions (MIME) as described in RFCs 2045 - 2049. Use this library to implement common data formats such as email message bodies and form encoding in HTTP.
+
+Values:
+
+OS:

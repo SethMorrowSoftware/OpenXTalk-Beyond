@@ -54,8 +54,18 @@ on setUpExtensionList
    set the viewProp["hilite color"] of tGroupLongID to ideColorGet("pb_line_selected")
    set the viewProp["background color"] of tGroupLongID to empty
    
-   set the viewProp["row color"] of tGroupLongID to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of tGroupLongID to revIDEColor("dataView_rowAlternateColor")        
+   --set the viewProp["row color"] of tGroupLongID to revIDEColor("dataView_rowColor")
+   --set the viewProp["alternate row color"] of tGroupLongID to revIDEColor("dataView_rowAlternateColor")  
+   
+   -- other place to set conditional datagrid colours, based on system appearance
+   -- tperry 8/5/2026
+   if the systemAppearance is "dark" then
+      set the viewProp["row color"] of tGroupLongID to 126,126,126
+      set the viewProp["alternate row color"] of tGroupLongID to 97,97,97
+   else
+      set the viewProp["row color"] of tGroupLongID to  216,216,216
+      set the viewProp["alternate row color"] of tGroupLongID to 255,255,255
+   end if     
    
    set the viewProp["fixed row height"] of tGroupLongID to "true"
    set the viewProp["row height"] of tGroupLongID to kLineHeight

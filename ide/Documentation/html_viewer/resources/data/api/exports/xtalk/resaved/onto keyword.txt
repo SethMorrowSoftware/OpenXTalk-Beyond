@@ -1,0 +1,23 @@
+onto
+(keyword)
+Used with the place command to designate the card where a group is to be placed.
+
+Syntax:
+onto
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+place background 1 onto this card
+----
+
+Description:
+Use the onto keyword to designate a group to be placed on a card. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

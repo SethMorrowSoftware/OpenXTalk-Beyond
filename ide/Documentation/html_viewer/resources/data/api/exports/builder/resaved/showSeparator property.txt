@@ -1,0 +1,21 @@
+showSeparator
+(property)
+Whether the separator bar between keys and values is showing or not
+
+Syntax:
+get the showSeparator of {widget}
+----
+set the showSeparator of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the showSeparator property to display the keys and values of the arrayData   of the tree view widget in columns separated by a movable divide.
+
+Values:
+
+OS:

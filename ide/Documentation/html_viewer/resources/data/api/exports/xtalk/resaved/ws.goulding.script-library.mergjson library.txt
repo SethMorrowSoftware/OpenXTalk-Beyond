@@ -1,0 +1,16 @@
+ws.goulding.script-library.mergjson
+(library)
+The mergJSON external itself can not parse JSON to and from multi-dimensional arrays. This is achieved through `JSONToArray` and `ArrayToJSON` script functions provided in this library. The implementations in this library are intented to be generally useful in addition to providing a basis for implementations focussed on edge cases such as `ArrayToJSON` that forces a known element to be an object.
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The mergJSON external itself can not parse JSON to and from multi-dimensional arrays. This is achieved through `JSONToArray` and `ArrayToJSON` script functions provided in this library. The implementations in this library are intented to be generally useful in addition to providing a basis for implementations focussed on edge cases such as `ArrayToJSON` that forces a known element to be an object.
+
+Values:
+
+OS:

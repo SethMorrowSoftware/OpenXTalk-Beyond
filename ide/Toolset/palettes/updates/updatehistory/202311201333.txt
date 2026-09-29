@@ -1,0 +1,2 @@
+Version 0.94, build 202311201333
+A few extra checks for Windows file associations

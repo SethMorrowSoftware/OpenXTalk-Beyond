@@ -1,0 +1,2 @@
+Version 0.93, build 202310071709
+changes the Application Browser to ensure a target object always exists before trying to reference it

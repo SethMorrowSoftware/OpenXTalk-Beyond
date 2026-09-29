@@ -1,0 +1,37 @@
+underlineLinks
+(property)
+Specifies whether grouped text is underlined.
+
+Syntax:
+set the underlineLinks to {true | false}
+----
+set the underlineLinks of {stack} to {true | false | empty}
+----
+
+Synonyms:
+showgroups
+
+Params:
+
+Examples:
+set the underlineLinks to (not the underlineLinks)
+----
+set the underlineLinks of this stack to false
+----
+set the underlineLinks of stack myStack to empty
+----
+
+Description:
+Use the underlineLinks property to see which text is grouped.
+
+When the underlineLinks property is false, grouped text looks like any other text. When the underlineLinks is true, grouped text is underlined.
+
+If the underlineLinks of a stack is empty, grouped text in that stack is underlined or not, depending on the value of the global underlineLinks property. If the underlineLinks of a stack is true, grouped text in the stack is underlined regardless of the global setting. If the underlineLinks of a stack is false, grouped text in the stack is not underlined regardless of the global setting.
+
+Text with its textStyle set to "link" is treated specially by the clickText, clickChunk, mouseText, and mouseChunk function|functions: a style run of grouped text is treated as a single word. This makes grouped text handy to use for hypertext or "clickable text" features.
+
+Values:
+The underlineLinks is true or false. The underlineLinks of a stack is true, false, or empty. By default, the underlineLinks property is set to true. The underlineLinks property of a newly created stack is set to empty by default. 
+
+OS:
+mac,windows,linux,ios,android

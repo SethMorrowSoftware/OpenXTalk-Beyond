@@ -1,0 +1,15 @@
+Version 0.91, build 202107300904
+To start building your own version of OXT Lite, you'll need the original files from Livecode Community.
+You can get these from:
+https://archive.org/search?query=creator%3A"LiveCode%2C+Inc."
+download the appropriate one you need, for example:
+MacOS X64:
+https://archive.org/download/live-code-community-installer-mac/LiveCodeCommunity-9_6_3-Mac.dmg
+Linux X64:
+https://archive.org/download/live-code-community-linux-x64/LiveCodeCommunityInstaller-9_6_3-Linux.x64
+Linux X32:
+https://archive.org/download/live-code-community-linux-x32/LiveCodeCommunityInstaller-9_6_3-Linux.x86
+Windows X64:
+https://archive.org/download/live-code-community-installer-windows-x86-x64/Windows%2064-Bit/LiveCodeCommunityInstaller-9_6_3-Windows-x86_64.exe
+Windows X32:
+https://archive.org/download/live-code-community-installer-windows-x86-x64/Windows%2032-Bit/LiveCodeCommunityInstaller-9_6_3-Windows-x86.exe

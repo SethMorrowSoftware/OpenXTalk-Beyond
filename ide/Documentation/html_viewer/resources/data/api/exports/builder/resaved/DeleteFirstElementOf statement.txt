@@ -1,0 +1,22 @@
+DeleteFirstElementOf
+(statement)
+Deletes the first element of Target.
+
+Syntax:
+delete the first element of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A list container.
+
+Examples:
+Description:
+Removes the first element of Target.
+
+*Note:* It is an error if Target is the empty list.
+
+Values:
+
+OS:

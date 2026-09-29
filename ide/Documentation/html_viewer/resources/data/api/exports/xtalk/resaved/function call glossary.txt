@@ -1,0 +1,18 @@
+function call
+(glossary)
+
+Syntax:
+Synonyms:
+function call
+
+Params:
+
+Examples:
+Description:
+A statement containing a function name (and any needed parameter|parameters).
+
+Also, the act of getting the value of a function; the use of a function. 
+
+Values:
+
+OS:

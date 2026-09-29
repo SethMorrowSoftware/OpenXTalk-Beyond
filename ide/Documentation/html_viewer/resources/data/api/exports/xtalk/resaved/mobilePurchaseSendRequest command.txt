@@ -1,0 +1,26 @@
+mobilePurchaseSendRequest
+(command)
+Notify the AppStore/Market Place that a purchase request has been initiated. 
+
+Syntax:
+mobilePurchaseSendRequest {purchaseID}
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): The identifier of the purchase request.
+
+Examples:
+mobilePurchaseSendRequest thePurchaseId
+----
+
+Description:
+Use mobilePurchaseSendRequest to confirm to the AppStore/Market Place that a purchase request has been initiated.
+
+The command mobilePurchaseSendRequest is used to confirm to the AppStore/Market Place that an item has been requested for purchase. This should only be called once a purchase request is in the 'initialzed' state. 
+
+Values:
+
+OS:
+ios,android

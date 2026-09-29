@@ -1,0 +1,22 @@
+FirstByteOf
+(operator)
+Designates the first byte of data in Target.
+
+Syntax:
+the first byte of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to binary data.
+	
+Examples:
+Description:
+Either locates the first byte for use as the target container of another operation, or evaluates the first byte as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

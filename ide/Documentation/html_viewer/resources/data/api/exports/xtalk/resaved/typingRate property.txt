@@ -1,0 +1,24 @@
+typingRate
+(property)
+Specifies a delay between characters entered by the type command.
+
+Syntax:
+set the typingRate to {milliseconds}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the typingRate to 1000 -- 1 character per second
+----
+
+Description:
+Use the typingRate property to make the type command operate faster or more slowly.
+
+Values:
+The typingRate is an integer between zero and 65535. By default, the typingRate is 100 (one-tenth of a second). 
+
+OS:
+mac,windows,linux,ios,android

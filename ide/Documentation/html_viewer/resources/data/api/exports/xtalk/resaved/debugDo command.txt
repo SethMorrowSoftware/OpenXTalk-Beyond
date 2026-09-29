@@ -1,0 +1,32 @@
+debugDo
+(command)
+execute|Executes a list of statement|statements with additional debug|debugging information when in the debugger.
+
+Syntax:
+debugDo {statementList}
+----
+
+Synonyms:
+
+Params:
+statementList ( ): A statement, a container with one or more statements, or a string that evaluates to a statement.
+
+Examples:
+debugDo "beep"
+----
+debugDo commandsList
+----
+
+Description:
+The debugDo command is used by xTalk's message box and debugger.
+
+Normally, you should use the do command; consider using debugDo only if you are writing a debugger or similar utility, or if you need to debug the statement|statement list sent by a do command.
+
+When the debugger is active, you can use debugDo  to access local variable|local variables using the message box. If you enter a debugDo statement into the message box, and the statement refers to a local variable, the variable|variable's value is the current value in the handler that the debugger is execute|executing. This capability is useful if you want to track the current value of a variable in a handler you're debug|debugging.
+
+*Important:*  The details of this command may change in future  releases.
+
+Values:
+
+OS:
+mac,windows,linux

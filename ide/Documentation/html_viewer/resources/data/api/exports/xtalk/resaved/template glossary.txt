@@ -1,0 +1,16 @@
+template
+(glossary)
+
+Syntax:
+Synonyms:
+template
+
+Params:
+
+Examples:
+Description:
+An object(glossary) that serves as a model for newly created object|objects of the same type.
+
+Values:
+
+OS:

@@ -1,0 +1,2 @@
+Version 1.09, build 202411280730
+This update adds two extra options in the compatability section of the preferences. (Palette Window Fix, Raise Window Fix). This is to help with window grouping and Palette focus issues in the IDE.

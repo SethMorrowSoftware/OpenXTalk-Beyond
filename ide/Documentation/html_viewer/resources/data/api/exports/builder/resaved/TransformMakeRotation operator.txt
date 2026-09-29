@@ -1,0 +1,26 @@
+TransformMakeRotation
+(operator)
+Creates a new rotation transform value.
+
+Syntax:
+transform with rotation by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mRotation ( ): An expression which evaluates to a number, the number of degrees of the rotation.
+
+Examples:
+// Create 30 degree rotation transform
+variable tTransform
+put transform with rotation by 30 into tTransform
+----
+
+Description:
+Creates a new rotation transform value.
+
+Values:
+A new rotation transform. 
+
+OS:

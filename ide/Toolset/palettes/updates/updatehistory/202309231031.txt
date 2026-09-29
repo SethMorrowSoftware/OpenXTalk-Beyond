@@ -1,0 +1,2 @@
+Version 0.92, build 202309231031
+This is a modified "Object Library". I've widened it slightly, and set the "don't wrap" property to true, so the lists are more legible

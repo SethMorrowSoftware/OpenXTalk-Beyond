@@ -1,0 +1,25 @@
+listStyle
+(property)
+Specifies what type of list style is used for the line of text.
+
+Syntax:
+set the listStyle of {line} of {field} to {style}
+----
+
+Synonyms:
+
+Params:
+style (enum ): The style of bullet to use for the line of text in the list.
+
+Examples:
+set the listStyle of line 1 of field 1 to "disc"
+----
+
+Description:
+Use the listStyle property to control the style of the bullet used for the line of text in a field.
+
+Values:
+The listStyle of a line of a field returns the style type set for the line of text. 
+
+OS:
+mac,windows,linux,ios,android

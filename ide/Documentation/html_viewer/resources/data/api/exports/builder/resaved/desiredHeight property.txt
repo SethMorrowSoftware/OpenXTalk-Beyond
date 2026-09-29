@@ -1,0 +1,25 @@
+desiredHeight
+(property)
+The optimal height for the widget
+
+Syntax:
+get the desiredHeight of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+create widget as "com.livecode.widget.navbar"
+set the height of it to the desiredHeight of it
+----
+
+Description:
+**Note:** This feature is currently **experimental** and may change or be removed in future versions.
+
+Returns the preferred height for widget, calculated from its current state.
+
+Values:
+
+OS:

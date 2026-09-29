@@ -1,0 +1,20 @@
+setCurrentIconFamily
+(handler)
+Set the current icon family.
+
+Syntax:
+setCurrentIconFamily({pFamily})
+----
+
+Synonyms:
+
+Params:
+pFamily ( ): The icon family.
+
+Examples:
+Description:
+Sets the iconsvg library's current icon family.  Handlers that do not specify an icon family will use the current icon family.
+
+Values:
+
+OS:

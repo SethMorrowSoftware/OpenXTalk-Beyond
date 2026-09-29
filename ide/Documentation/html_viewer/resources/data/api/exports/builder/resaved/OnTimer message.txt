@@ -1,0 +1,26 @@
+OnTimer
+(message)
+Sent when a timer message has been scheduled.
+
+Syntax:
+OnTimer
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Create a timer loop
+public handler OnTimer()
+	...
+	schedule timer in 1 seconds
+end handler
+----
+
+Description:
+Handle the OnTimer message to perform an action at a scheduled time. *Note:* OnTimer messages are only sent whilst in browse tool mode. If a timer is delivered whilst in pointer tool mode it will be deferred until browser tool mode is re-entered.
+
+Values:
+
+OS:

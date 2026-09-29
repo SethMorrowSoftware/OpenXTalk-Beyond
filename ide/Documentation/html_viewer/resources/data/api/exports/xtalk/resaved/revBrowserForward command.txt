@@ -1,0 +1,30 @@
+revBrowserForward
+(command)
+Go forward in the specified browser.
+
+Syntax:
+revBrowserForward {instanceId}
+----
+XBrowser_Forward [ {instanceId}]
+----
+
+Synonyms:
+xbrowser_forward
+
+Params:
+instanceId ( ): The integer identifier of a browser object
+
+Examples:
+revBrowserForward tBrowserId
+----
+
+Description:
+The revBrowserForward command navigates one page forward in the browser specified by instanceId.
+
+*Note:* For general information on using the browser library, see the  notes in the revBrowserOpen function reference.
+
+Values:
+The revBrowserForward command places empty into the result. 
+
+OS:
+mac,windows

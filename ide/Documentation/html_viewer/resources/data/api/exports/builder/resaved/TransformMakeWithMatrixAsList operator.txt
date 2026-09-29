@@ -1,0 +1,25 @@
+TransformMakeWithMatrixAsList
+(operator)
+Creates a new transform. mTranslation:An expression which evaluates to a list of 6 numbers, the a, b, c, d, tx and ty values of the transform matrix.
+
+Syntax:
+transform with matrix {mMatrix}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Create combined rotate, scale, and translate transform
+variable tTransform
+put transform with matrix [0, 2, -2, 0, 50, 100] into tTransform
+----
+
+Description:
+Creates a new transform. mTranslation:An expression which evaluates to a list of 6 numbers, the a, b, c, d, tx and ty values of the transform matrix.
+
+Values:
+A new translation transform. 
+
+OS:

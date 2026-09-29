@@ -1,0 +1,41 @@
+GradientPropertyTransform
+(operator)
+The transform of a gradient paint.
+
+Syntax:
+the transform of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put radial gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+variable tRect
+put rectangle [ 20, 10, 120, 60 ] into tRect
+
+// Use the transform property to make the radial gradient spread out from the center of tRect
+variable tTransform
+put the identity transform into tTransform
+
+// Offset transform to the center of tRect
+translate tTransform by [(the left of tRect + the right of tRect) / 2, (the top of tRect + the bottom of tRect) / 2]
+
+// Scale out to the right & bottom of tRect
+scale tTransform by [the width of tRect / 2, the height of tRect / 2]
+
+// Set the gradient transform
+set the transform of tGradient to tTransform
+----
+
+Description:
+The transform of mGradient as a transform. This can be used to scale, position, and skew the gradient instead of setting the from, to, and via points.
+
+Values:
+
+OS:

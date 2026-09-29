@@ -1,0 +1,23 @@
+three
+(constant)
+Equivalent to the number 3.
+
+Syntax:
+three
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+repeat three times -- same as "repeat 3 times"
+----
+
+Description:
+Use the three constant when it is easier to read than the numeral 3. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

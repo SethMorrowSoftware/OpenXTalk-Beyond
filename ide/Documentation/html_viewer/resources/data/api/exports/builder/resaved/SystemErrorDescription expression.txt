@@ -1,0 +1,21 @@
+SystemErrorDescription
+(expression)
+The system error description.
+
+Syntax:
+the system error message
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Evaluates to a string describing the current platform-dependent system error code.
+
+ **Note:** The system error code may be modified or cleared by any  syntax that interacts with the operating system (e.g. by performing  input or output).  You should check the system error code as soon as  possible after any platform operation that might fail.
+
+Values:
+
+OS:

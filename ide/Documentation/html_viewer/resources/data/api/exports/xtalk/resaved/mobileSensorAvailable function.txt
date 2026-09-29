@@ -1,0 +1,29 @@
+mobileSensorAvailable
+(function)
+Returns the availability of the given sensor.
+
+Syntax:
+mobileSensorAvailable({sensor})
+----
+
+Synonyms:
+
+Params:
+sensor (enum ): The name of the sensor
+
+Examples:
+get mobileSensorAvailable("location")
+----
+put mobileSensorAvailable("heading") into tHeadingSensorAvailable
+----
+
+Description:
+Use the mobileSensorAvailable function to find out if a sensor is available.
+
+The mobileSensorAvailable function returns the availability of the named sensor.
+
+Values:
+Returns true is the sensor is available, false otherwise. 
+
+OS:
+ios,android

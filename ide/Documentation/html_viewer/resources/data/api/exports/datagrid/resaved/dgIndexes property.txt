@@ -1,0 +1,19 @@
+dgIndexes
+(property)
+Returns the internal list of indexes in the order in which they appear in the data grid.
+
+Syntax:
+get the dgIndexes of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the internal list of indexes in the order in which they appear in the data grid. Indexes are the numeric indices used when setting the dgData property.
+
+Values:
+
+OS:

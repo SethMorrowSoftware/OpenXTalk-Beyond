@@ -1,0 +1,21 @@
+revIDEGroupObjects
+(command)
+Group a list of objects in their layer order
+
+Syntax:
+revIDEGroupObjects {objectList}
+----
+
+Synonyms:
+
+Params:
+objectList (string ): A return delimited list of long object IDs
+
+Examples:
+Description:
+Group a list of objects in the order they are layered in
+
+Values:
+An error string The new group long ID or empty in the case the group could not be created 
+
+OS:

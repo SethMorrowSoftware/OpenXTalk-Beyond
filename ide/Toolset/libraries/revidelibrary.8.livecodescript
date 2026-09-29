@@ -381,6 +381,7 @@ private function __propertyInfoFilename
 end __propertyInfoFilename
 
 private function __classicToolsOrderFilename
+   -- this is the file the IDE reads to determine the list of 'classic tools'
    return "classicToolsOrder.tsv"
 end __classicToolsOrderFilename 
 
@@ -389,10 +390,17 @@ private on __orderClassicTools
    put revIDESpecialFolderPath("Object Property Definitions") & slash & __classicToolsOrderFilename() into tToolsOrderFile
    
    local tOrder
-   repeat for each line tTool in url ("file:" & tToolsOrderFile)
+   -- modular 'classic tools' loading (tperry 13-4-2024)
+   -- also see function "revIDEAvailableControls"
+   put url ("file:" & tToolsOrderFile) into tToolsToLoad -- we store this in a variable, makes the next part easier
+   -- we can now filter out what 'classic tools' are turned off
+   if (the cDisablePlayerTool of stack "revPreferences" is true) then filter lines of tToolsToLoad without "*classic.Player"  -- player is turned off
+   
+   repeat for each line tTool in tToolsToLoad
       add 1 to tOrder
       put tOrder into sClassicObjectProperties[tTool]["order"]
    end repeat
+   
 end __orderClassicTools
 
 # Reads in the basic property data for classic controls
@@ -420,6 +428,12 @@ private on __objectPropertiesRead
       # Get the name of the object
       set the itemdel to "."
       if the last item of tObjectType is "tsv" then delete the last item of tObjectType
+      -- tperry (put this in on Linux to disable the player until it's fixed) 21-11-2023 (part 2 of 2)
+      if the platform contains "linux" then
+        if (the cDisablePlayerTool of stack "revPreferences" is true) then
+          if tObjectType contains "classic.Player" then next repeat
+        end if
+      end if
       if tObjectType is empty then next repeat
       
       __setPropertyDataOfObjectFromFile tObjectType, tObjectDefinitionsPath & slash & tFile, tPropertiesInfo
@@ -620,6 +634,10 @@ function idePropertyNames pObjectType
    sort tProps
    return tProps
 end idePropertyNames
+
+on ideResumeStack
+   pass ideResumeStack -- this is to prevent recursive error (tperry 30-11-24)
+end ideResumeStack
 
 /**
 A list of the object types, in 'type ID' form
@@ -1536,7 +1554,7 @@ function revIDEMessages
          "ideAnswerDialogClosed,ideControlDeleted,ideCardDeleted,ideEditScript,ideExtensionLog,ideExtensionsChanged,ideExtensionStatusChanged,ideFindMoreWidgets," \
          & "ideInspectedObjectsChanged,ideLibraryStack,ideNewCard,ideNewStack,ideNewControl,revIDENameChanged,ideObjectSelectionStarted,ideOpenStack," \
          & "idePluginsChanged,idePreferenceChanged,idePropertyChanged,ideReleaseStack,ideResumeStack,ideSelectedObjectChanged,ideStackDeleted,ideToolChanged," \
-         & "ideTutorialProgressChanged,ideWindowsChanged,ideMouseMove,ideDesktopChanged" \
+         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged" \
          )
 end revIDEMessages
 
@@ -1830,6 +1848,11 @@ function revIDEPaintToolControllers
    put "com.livecode.tool.PolygonSides" into tName
    put "Set number of paint polygon sides" into tTooltip
    updateOptionArray tName, "paint polygon sides tool", tTooltip, tCount, tDataA
+   
+   add 1 to tCount
+   put "com.livecode.tool.RoundRadius" into tName
+   put "Set corner radius for RoundRect tool" into tTooltip
+   updateOptionArray tName, "paint polygon radius tool", tTooltip, tCount, tDataA
    
    return tDataA
 end revIDEPaintToolControllers
@@ -2487,19 +2510,51 @@ function revIDEPlatformVersion
 end revIDEPlatformVersion
 
 function revIDEColor pTag
+   
+   --# Added by skids 7 Dec 2025.
+   put the SystemAppearance into tAppearance
+   --
+   
    if pTag is "edition_color" then
       return revEnvironmentEditionProperty("color")
    end if
    
+   -- Change by Skids, 7 Dec 2025, added colour switching to text based on systemappearance 
+   -- which is stored in var tAppearance. First 3 case clauses have been modified with the
+   -- original code commented out.
+   
    switch pTag
+      --case "text_1"
+      --return "0,0,0"
+      --break
+      --case "text_2"
+      --return "125,125,125"
+      --break
+      --case "text_3"
+      -- return "255,255,255"
+      --break
+      
+      -- Colour switching added by Skids 7 Dec 2025 first 3 clause
       case "text_1"
-         return "0,0,0"
+         if tAppearance is dark then
+            return "255,255,255"
+         else
+            return "0,0,0"
+         end if
          break
       case "text_2"
-         return "125,125,125"
+         if tAppearance is dark then
+            return "201,201,201"
+         else
+            return "125,125,125"
+         end if
          break
       case "text_3"
-         return "255,255,255"
+         if tAppearance is dark then
+            return "255,255,255"  --white
+         else
+            return "0,0,0"
+         end if
          break
       case "dataView_rowColor"
          return "255,255,255"
@@ -2514,7 +2569,7 @@ function revIDEColor pTag
          return "34,154,206"
          break
       case "dataView_TextHiliteColor"
-         return "255,255,255"
+         return the accentColor
          break
       case "dataView_scriptBackgroundColor"
          return "34,154,206"
@@ -3272,7 +3327,7 @@ on revIDECreateObject pObjectTypeID, pTarget, pLoc
    end if
    
    if not exists(pTarget) then return __revIDEError("Cannot create object. Target does not exist: " && pTarget)
-   if not pObjectTypeID begins with "com.livecode" then return __revIDEError("No such object type ID: " && pTarget)
+   -- if not pObjectTypeID begins with "com.livecode" then return __revIDEError("No such object type ID: " && pTarget) -- commented out to allow 3rd party widgets (tperry 20-1-2024)
    
    if sClassicObjectProperties is empty then __objectPropertiesRead
    # Set the default stack to the target we're creating the object on
@@ -3520,6 +3575,35 @@ on revIDEActionUngroup
    revIDEUngroup the selobj
 end revIDEActionUngroup
 
+on revIDEActionUnlock
+   -- tperry 07-05-2026 (fed up with having to unlock and remove drop shadows manually!)
+   local allMyObjects
+   local myObjectNow
+   local tCount
+   local myEffects
+   local myEffectProc
+   local myCmd
+   -- what a pain it is having to declare all that junk!
+   put the selectedObjects into allMyObjects
+   put 1 into tCount
+   repeat the number of lines in allMyObjects
+      put line tCount of allMyObjects into myObjectNow
+      set the lockLoc of myObjectNow to false
+      -- fx
+      put "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay" into myEffects
+      repeat the number of items in myEffects
+         try
+            put item 1 of myEffects into myEffectProc
+            delete item 1 of myEffects
+            put "set the " & myEffectProc & " of " & myObjectNow & " to empty" into myCmd
+            do myCmd
+         catch e
+         end try
+      end repeat
+      add 1 to tCount
+   end repeat
+end revIDEActionUnlock
+
 on revIDEUngroup pGroup
    if word 1 of pGroup is not "group" then
       exit revIDEUngroup
@@ -3527,6 +3611,7 @@ on revIDEUngroup pGroup
    revIDESelectObjects pGroup
    ungroup
 end revIDEUngroup
+
 
 /*
 Sets the tool.
@@ -3573,9 +3658,18 @@ end revIDESetPropertyOfObject
 command revIDEInspectObjects pObjects
    lock screen
    
-   revIDEOpenPalette "inspector"
+     revIDEOpenPalette "inspector"
+     ideMessageSend "ideInspectObjects", pObjects
 
-   ideMessageSend "ideInspectObjects", pObjects
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
+   
    unlock screen
 end revIDEInspectObjects
 
@@ -3616,75 +3710,117 @@ on revIDEEditScriptOfObject pObject
       exit revIDEEditScriptOfObject
    end if
    
-   # Send the ideEditScript message
-   send "ideMessageSend ideEditScript","pObject" to stack "revIDELibrary" in 0 milliseconds
-
-   # First obtain a correct object reference. The reason for this is edit group mode
-   local tObject
-   put revRuggedId(pObject) into tObject
-   
-   # Update the currently editing objects
-   revIDEStartEditingScript pObject
-
-   # OK-2008-08-19 : Bug 6957
-   # Dispatch the "revEditScript" message to any plugins that require it.
-   global gREVMessageDispatch
-   repeat for each line tPlugin in gREVMessageDispatch["revEditScript"]
-      try
-         send "revEditScript tObject" to this card of stack tPlugin
-      end try
-   end repeat
-
-   # Search for existing editor first.
-   local tExistingEditor
-   put revScriptEditor(tObject) into tExistingEditor
-   if tExistingEditor is not empty then
-      send "revSESetCurrentObject tObject" to stack tExistingEditor
-      toplevel stack tExistingEditor
-      exit revIDEEditScriptOfObject
-   end if
-
-   # MW-2012-02-21: If we are editing the "Template Stack" behavior then we create a new
-   #   window in 'special' mode.
-   if revRuggedId(the long id of stack revIDEScriptEditorBehavior("stack")) is tObject then
-      revEditScriptInNewWindow pObject, true
-      exit revIDEEditScriptOfObject
-   end if
-
-   # If the preference is to use tabs, then we find the topmost script editor
-   # and add the specified object as a tab to it.
-   local tUseTabs
-
-   local tUseTabsString
-   put "useTabs" into tUseTabsString
-
-   send "revSEGetPreference tUseTabsString" to revScriptEditorMain()
-   put the result into tUseTabs
-
-   if tUseTabs then
-      local tEditor
-      put revTopMostScriptEditor() into tEditor
-
-      # Do not allow a script editor to edit its own objects, force a new window
-      # this makes debugging the script editor easier.
-      local tStack
-      put revTargetStack(tObject) into tStack
-      if tEditor is empty then
-         revEditScriptInNewWindow pObject
-      else if tStack is the short name of tEditor then
-         revEditScriptInNewWindow pObject
+   if the cExternalScriptEditor of stack "revPreferences" is true then
+      -- prepare our script editor for external script editing
+      put pObject into tFilename
+      replace " " with "_" in tFilename
+      replace QUOTE with "" in tFilename
+      replace slash with return in tFilename
+      if line 1 of tFilename is "stack_" then
+         put last line of tFilename into tFilename
       else
-         # OK-2008-07-24 : Use call instead of send here to prevent problems with the defaultStack changing.
-         # Specifically this fixes an issue when debugging, if the user steps into a handler located in a script that
-         # is not being edited, the script gets added to the editor, which causes the the defaultStack to change
-         # and potentially breaks the debug being run in the debugger.
-         call "revSEAddTargetObject tObject" to tEditor
-         call "revSESetCurrentObject tObject" to tEditor
-         revGoScriptEditor tEditor
+         put line 1 of tFilename into tFilename
       end if
+      -- OXT-Beyond: keep the copies in OXT-Beyond's own cache folder
+      -- (%LOCALAPPDATA%\OXT-Beyond\Cache on Windows) instead of
+      -- Documents/IDEScriptEdits, which OpenXTalk Lite also uses; the files are
+      -- named after the object, so two IDEs could overwrite each other's copies.
+      -- The external editors plugin reads the folder from cFolderpath (below).
+      put revEnvironmentUserCachePath() & slash & "IDEScriptEdits" into tFolderpath
+      create folder tFolderpath
+      put tFolderpath & slash & tFilename into tAbsFilename 
+      put the script of pObject into tRetrieveScript
+      delete file tAbsFilename
+      open file tAbsFilename
+      write tRetrieveScript to file tAbsFilename
+      close file tAbsFilename
+      -- we add this to the list of things being tracked for edits
+      put "community.openxtalk.plugin.oxtlite" into tOXTLibStack
+      if there is a stack (tOXTLibStack) then
+         if not (there is a fld "pendingEdits" of card 1 of stack tOXTLibStack) then
+            create fld "pendingEdits" in card 1 of stack tOXTLibStack
+         end if
+         set the cFolderpath of fld "pendingEdits" of cd 1 of stack tOXTLibStack to tFolderpath
+         if not (fld "pendingEdits" of cd 1 of stack tOXTLibStack contains pObject) then
+            put pObject into line (the number of lines in fld "pendingEdits" of cd 1 of stack tOXTLibStack) +1 of fld  "pendingEdits" of cd 1 of stack tOXTLibStack
+         end if
+         set the cEditingNow of fld "pendingEdits" of cd 1 of stack tOXTLibStack to tFilename
+         set the cEditTarget of fld "pendingEdits" of cd 1 of stack tOXTLibStack to pObject
+         send ideCheckExternalEditors to stack tOXTLibStack in 1 millisecond
+      end if
+      
    else
-      # If the preference is not to use tabs, then we create a new script editor for the object.
-      revEditScriptInNewWindow tObject
+      -- we edit with the built in script editor
+      # Send the ideEditScript message
+      send "ideMessageSend ideEditScript","pObject" to stack "revIDELibrary" in 0 milliseconds
+      
+      # First obtain a correct object reference. The reason for this is edit group mode
+      local tObject
+      put revRuggedId(pObject) into tObject
+      
+      # Update the currently editing objects
+      revIDEStartEditingScript pObject
+      
+      # OK-2008-08-19 : Bug 6957
+      # Dispatch the "revEditScript" message to any plugins that require it.
+      global gREVMessageDispatch
+      repeat for each line tPlugin in gREVMessageDispatch["revEditScript"]
+         try
+            send "revEditScript tObject" to this card of stack tPlugin
+         end try
+      end repeat
+      
+      # Search for existing editor first.
+      local tExistingEditor
+      put revScriptEditor(tObject) into tExistingEditor
+      if tExistingEditor is not empty then
+         send "revSESetCurrentObject tObject" to stack tExistingEditor
+         toplevel stack tExistingEditor
+         exit revIDEEditScriptOfObject
+      end if
+      
+      # MW-2012-02-21: If we are editing the "Template Stack" behavior then we create a new
+      #   window in 'special' mode.
+      if revRuggedId(the long id of stack revIDEScriptEditorBehavior("stack")) is tObject then
+         revEditScriptInNewWindow pObject, true
+         exit revIDEEditScriptOfObject
+      end if
+      
+      # If the preference is to use tabs, then we find the topmost script editor
+      # and add the specified object as a tab to it.
+      local tUseTabs
+      
+      local tUseTabsString
+      put "useTabs" into tUseTabsString
+      
+      send "revSEGetPreference tUseTabsString" to revScriptEditorMain()
+      put the result into tUseTabs
+      
+      if tUseTabs then
+         local tEditor
+         put revTopMostScriptEditor() into tEditor
+         
+         # Do not allow a script editor to edit its own objects, force a new window
+         # this makes debugging the script editor easier.
+         local tStack
+         put revTargetStack(tObject) into tStack
+         if tEditor is empty then
+            revEditScriptInNewWindow pObject
+         else if tStack is the short name of tEditor then
+            revEditScriptInNewWindow pObject
+         else
+            # OK-2008-07-24 : Use call instead of send here to prevent problems with the defaultStack changing.
+            # Specifically this fixes an issue when debugging, if the user steps into a handler located in a script that
+            # is not being edited, the script gets added to the editor, which causes the the defaultStack to change
+            # and potentially breaks the debug being run in the debugger.
+            call "revSEAddTargetObject tObject" to tEditor
+            call "revSESetCurrentObject tObject" to tEditor
+            revGoScriptEditor tEditor
+         end if
+      else
+         # If the preference is not to use tabs, then we create a new script editor for the object.
+         revEditScriptInNewWindow tObject
+      end if
    end if
 end revIDEEditScriptOfObject
 
@@ -3756,6 +3892,16 @@ command revIDESelectObjects pObjects
    set the lockMessages to tOldLockMessages
    
    send "ideMessageSend" && "ideSelectedObjectChanged" to me in 0 milliseconds
+   
+   -- tperry 28-11-23 (added this behaviour for my Properties Inspector)
+     if there is a window "Properties Inspector" then
+       if there is a fld "tObj" of cd 1 of wd "Properties Inspector" then
+         if exists (pObjects) then
+           if not (the pendingmessages contains "tGetSelectedObj") then send tGetSelectedObj to stack "Properties Inspector"
+           end if
+       end if
+     end if 
+     
 end revIDESelectObjects
 
 command revIDERefreshProjectBrowser
@@ -4397,7 +4543,8 @@ function revIDEPaletteToStackName pPalette
       case "plugin preferences"
          return "revPlugInEditor"
       case "about"
-         return "revAbout"
+         if there is a stack "revMenubar" then send tOpenAbout to stack "revMenubar" in 1 tick -- don't make a palette, just open
+         break
       case "dictionary"
       case "guide"
          return "revDictionary"
@@ -5116,6 +5263,12 @@ private on __setPropertyOfObject pObject, pProperty, pValue
 end __setPropertyOfObject
 
 function ideCheckStackName pName
+   -- tperry, stop the error if I try to pick a name of a stack already in use
+   put the openStacks into tOpenStacksList
+   if tOpenStacksList contains pName then
+      answer error revIDELocalise("This stack name is already in use. Please choose a different name.")
+      return false
+   end if
    if char 1 to 3 of pName is "rev" then
       answer warning revIDELocalise("Using rev in the first three characters of a stack name is reserved for use by the LiveCode development environment and advanced users creating Plug-ins. If you use these characters, your stack may not behave as expected.") with revIDELocalise("OK") and revIDELocalise("Cancel")
       if it is revIDELocalise("Cancel") then
@@ -6661,7 +6814,7 @@ Tags: ide
 */
 on revIDENewMainstack pWidth, pHeight
    # Set the width and height of the template stack
-
+   
    # Generate a unique name for the stack
    local tNumber
    put 1 into tNumber
@@ -6669,10 +6822,11 @@ on revIDENewMainstack pWidth, pHeight
       if there is a stack ("Untitled" && tNumber) then  add 1 to tNumber
       else exit repeat
    end repeat
-
+   
    # Setup the template stack
    set the name of the templateStack to "Untitled" && tNumber
    set the visible of the templateStack to false
+   set the textSize of the templateStack to "16"  --tl 26-5, new stack textSize 16
    if pWidth > 100 then
       set the width of the templateStack to pWidth
    else
@@ -6687,7 +6841,7 @@ on revIDENewMainstack pWidth, pHeight
       set the destroyStack of the templateStack to true
       set the destroyWindow of the templateStack to true
    end if
-
+   
    local tToolsRight
    put the right of stack revIDEPaletteToStackName("tools") into tToolsRight
    
@@ -6696,20 +6850,20 @@ on revIDENewMainstack pWidth, pHeight
    if tToolsRight < (item 3 of tScreenRect / 2) then put tToolsRight + 20 into tLeft
    else put item 1 of tScreenRect + 20 into tLeft
    set the topLeft of the templateStack to tLeft,(the bottom of stack revIDEPaletteToStackName("menubar") + 40)
-
+   
    # Create the new stack
    lock messages
    create stack
    show stack it
    unlock messages
-
+   
    # Final items
    reset the templateStack
    
    # Send the 'ideNewStack' message
    ideMessageSend "ideNewStack", it
    
-    # Update the active stacks
+   # Update the active stacks
    ideMessageSend "ideActiveStacksChanged"
    
    # Return the created stack long id
@@ -6772,7 +6926,7 @@ on revIDEActionNewMainstack pStackType
       delete item 1 of pStackType
       delete the last char of pStackType
       set the itemdel to "x"
-
+      
       # Check that the width and height are valid numbers
       if item 1 of pStackType is a number and item 2 of pStackType is a number then
          revIDENewMainstack item 1 of pStackType, item 2 of pStackType
@@ -6781,8 +6935,10 @@ on revIDEActionNewMainstack pStackType
       end if
    end if
    
-   # Return the created stack long id
-   return the result
+   # name the new stack & Return the created stack long id (tperry 23-12-24)
+   put the result into tNewLongID
+  if the cAskForNewStackRename of stack "revPreferences" is true then send tNameNewStack(tNewLongID) to me in 10 ticks
+   return tNewLongID
 end revIDEActionNewMainstack
 
 on revIDEActionNewCard
@@ -6927,8 +7083,28 @@ on revIDEActionOpenStack
       if there is not a file tStackFilePath then exit revIDEActionOpenStack
       
       # Open the stack
-      revIDEOpenStack tStackFilePath
+      -- tperry 21-1-25 -- caution prompt when opening stacks
+      if the cDontUseCaution of stack "revPreferences" is true then
+         -- we aren't using caution prompt
+         revIDEOpenStack tStackFilePath
+      else
+         -- we use caution prompt (default)
+         local tOldDelim
+         local tCautionStack
+         put the itemdelimiter into tOldDelim
+         set the itemdelimiter to slash
+         put item 1 to -3 of the filename of stack "revMenubar" & "/cautionUponOpening.oxtstack" into tCautionStack
+         open stack tCautionStack
+         if there is a fld "infotext" of cd 1 of stack tCautionStack then
+            set the cfilename of stack tCautionStack to tStackFilePath
+            put the last item of tStackFilePath into line 4 of fld "infotext" of cd 1 of stack tCautionStack
+         end if
+         set the itemdelimiter to tOldDelim
+      end if
    end repeat
+   
+   -- we should create a thumbnail for it
+   send generateThumbOfStack to stack "revIDElibrary"
 end revIDEActionOpenStack
 
 /*
@@ -6984,12 +7160,19 @@ on revIDERemoveFromMemory pStackID
    
    local tStacks 
    put tMainStack & cr & tSubstacks into tStacks
-   answer warning "Really remove the stack file" && pStackID && "from memory?" & cr & "Any changes made since saving will be lost from the following stacks:" & cr & cr & tStacks with "Cancel" or "OK" as sheet
-   if it is "Cancel" then 
-      exit revIDERemoveFromMemory
-   end if
    
-   __ideRemoveFromMemory the long id of stack tMainstack
+   -- add option to close and remove from memory without asking (tperry 5-9-24)
+   if the cCloseNoWarn of stack "revPreferences" is true then
+      __ideRemoveFromMemory the long id of stack tMainstack
+   else
+      answer warning "Really remove the stack file" && pStackID && "from memory?" & cr & "Any changes made since saving will be lost from the following stacks:" & cr & cr & tStacks with "Cancel" or "OK" as sheet
+      if it is "Cancel" then 
+         exit revIDERemoveFromMemory
+      end if
+      if it is "Ok" then
+         __ideRemoveFromMemory the long id of stack tMainstack
+      end if
+   end if
    
    # Send the 'ideDestroyStack' message
    ideMessageSend "ideDestroyStack", pStackID
@@ -7100,7 +7283,8 @@ function revIDEAcceptedTypes pType
       case "media"
          return revIDEAcceptedTypes("audio") & comma & revIDEAcceptedTypes("video")
       case "stack"
-         return "livecode,rev,lc,livecodescript,mc"
+      -- this bit makes OpenXTalk Lite aware of oxtfiles in the file > open dialog (added by tperry 24-09-2023)
+         return "livecode,rev,lc,livecodescript,mc,oxtstack,oxtscript,stk" -- (nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
       case "text"
          return "txt"
       case "graph"
@@ -7264,7 +7448,7 @@ Launches the standard ask dialog and returns the users selection.
 
 pType (String): The type of file the be selected. If pType is not empty and not among the options below, it is assumed to be a custom filter in the form required by the ask command.
 - image: Launches an ask dialog filtering for the following image file types: JPEG, GIF, PNG.
-- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode.
+- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode, oxtstack.
 - audio: Launches an ask dialog filtering for the following audio file types: mp3, aiif, wav.
 - video: Launches an ask dialog filtering for the following audio file types: mov, mp4.
  pBasePath (Optional String): The default path that the ask dialog should point to when opened. If pBasePath is not specified, the "defaultFolder" is used.
@@ -7299,7 +7483,7 @@ Launches the standard ask dialog and returns the users selection.
 
 pType (String): The type of file the be selected. If pType is not empty and not among the options below, it is assumed to be a custom filter in the form required by the ask command.
 - image: Launches an ask dialog filtering for the following image file types: JPEG, GIF, PNG.
-- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode.
+- stack: Launches an ask dialog filtering for the following stack file  types: lc, livecodescript, livecode, oxtstack.
 - audio: Launches an ask dialog filtering for the following audio file types: mp3, aiif, wav.
 - video: Launches an ask dialog filtering for the following audio file types: mov, mp4.
  pBasePath (Optional String): The default path that the ask dialog should point to when opened. If pBasePath is not specified, the "defaultFolder" is used.
@@ -7360,7 +7544,7 @@ private function __answerGetTypeString pType
    local tTagString
    switch pType
       case "stack"
-         put revIDELocalise("LiveCode Stacks") into tTagString
+         put revIDELocalise("OpenXTalk and Livecode Stacks") into tTagString -- (tperry 24-09-2023) -- changed to show we can open both formats in stack open dialog.
          break
       case "image"
          put revIDELocalise("Images") into tTagString
@@ -7392,7 +7576,7 @@ end __answerGetTypeString
 private function __answerGetDefaultInstructions pType
    switch pType
       case "stack"
-         return revIDELocalise("Please select a LiveCode stack") 
+         return revIDELocalise("Please select an OpenXTalk stack") 
       case "image"
          return revIDELocalise("Please select an image") 
       case "video"
@@ -7490,7 +7674,6 @@ function revIDEStackFileVersion pStackFile
    close file pStackFile
    if it begins with "REVO" then
       delete byte 1 to 4 of it
-      
       if it mod 100 is 0 then
          return it div 1000 & "." & it mod 1000 div 100
       else
@@ -7586,6 +7769,7 @@ on revIDESaveStack pStackID
    
    local tStackName
    put the short name of pStackID into tStackName
+   put the effective filename of stack tStackName into tStackFullPath
    
    # Old style message handling. Queue of stacks to save are being notified to save
    global gREVMessageDispatch
@@ -7596,6 +7780,17 @@ on revIDESaveStack pStackID
    # Check if the stack has a filename. IF not, redirect to save as
    if the effective filename of stack tStackName is empty then
       revIDEActionSaveStackAs the long ID of stack tStackName
+      -- terryL's script for renaming the stack on save
+      put the itemDelimiter into tOldDelim
+      set the itemDelimiter to slash
+      get item -1 of the effective filename of stack tStackName  --short name.extention
+      if it <> empty then  --user entered a name
+         set the itemDel to "."
+         if the title of stack tStackName is "" then set the title of stack tStackName to item 1 of it
+         set the name of stack tStackName to item 1 of it  --short name
+      end if
+      set the itemDelimiter to tOldDelim
+      -- end terryL's script (28-12-24)
       exit revIDESaveStack
    end if
    
@@ -7766,6 +7961,20 @@ on revIDESaveStack pStackID
       if the mouseClick then exit repeat
    end repeat
    
+   --
+   -- do we save custom icon?
+   if the cMacCustomStackIcon of stack "revPreferences" is true then
+      set cursor to watch
+      if tStackFullPath contains "toolset" or tStackFullPath contains ".app" then
+         -- we don't save a custom icon, because this is an IDE stack!
+      else
+         put revIDELocalise("Saving custom icon...") into line -1 of field 1 of stack "revSaving"
+         set the pStackCustIcon of stack "revSaving" to tStackFullPath
+         send saveCustomIcon to card 1 of stack "revSaving"
+      end if
+   end if
+   
+   --
    close stack "revSaving"
    set the defaultStack to tStackName
    
@@ -7825,18 +8034,18 @@ end revIDESaveStackAs
 
 on revIDEActionSaveStackAs pStackID, pSubstackOnly
    if not exists(pStackID) then __revIDEError("Target stack does not exist")
-
+   
    local tMakeMainStack, tMainStackName, tStackName, tShortName
    put the short name of pStackID into tShortName
-
+   
    global gREVMessageDispatch
    repeat for each line tStack in gREVMessageDispatch["revSaveStackRequest"]
       send "revSaveStackRequest" to this cd of stack tStack
    end repeat
-
+   
    local tDefaultStackBackup
    put the defaultStack into tDefaultStackBackup
-
+   
    # Saving if a substack
    put true into tMakeMainStack
    put the mainStack of stack tShortName into tMainStackName
@@ -7846,9 +8055,9 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
          put tMainStackName into tShortName
       end if
    end if
-
+   
    put revFixPath(tShortName) into tStackName
-
+   
    // MM-2012-03-09: Added new 5.5 stack file format to drop down.
    local tStackFileType
    local tStackFileIsScriptOnly = true
@@ -7861,27 +8070,31 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    # Prepare substitutions for localisation
    local tSubstitutions
    put tShortName into tSubstitutions[1]
-
+   
    local tStackFilter, tStack24Filter, tStack27Filter, tStack55Filter, tStack70Filter, tStack80Filter
-   put (revIDELocalise("LiveCode Stack") & "|livecode,rev|RSTK") into tStackFilter
+   put (revIDELocalise("OpenXTalk Stack") & "|oxtstack,livecode,rev|STAK|RSTK") into tStackFilter
    put (revIDELocalise("Legacy LiveCode Stack (2.4)") & "|livecode,rev|RSTK") into tStack24Filter
    put (revIDELocalise("Legacy LiveCode Stack (2.7)") & "|livecode,rev|RSTK") into tStack27Filter
    put (revIDELocalise("Legacy LiveCode Stack (5.5)") & "|livecode,rev|RSTK") into tStack55Filter
    put (revIDELocalise("Legacy LiveCode Stack (7.0)") & "|livecode,rev|RSTK") into tStack70Filter
    put (revIDELocalise("Legacy LiveCode Stack (8.0)") & "|livecode,rev|RSTK") into tStack80Filter
    
+   replace "livecode" with "oxtstack" in tStackName -- (tperry) this part gives us the 'oxtstack' extension as default!
    local tVersion
    switch 
+      default
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
       case the scriptOnly of stack tShortName
          put "script" after tStackName
          ask file revIDELocalise("Save script only stack %1 as:", tSubstitutions) with tStackName with type (revIDELocalise("LiveCode Script Only Stack") & "|livecodescript|RSTK")
          break
-	  case tStackFileType is 8.0
-	     ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack80Filter or type tStackFilter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-		 break
-	  case tStackFileType is 7.0
-	     ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack70Filter or type tStackFilter or type tStack80Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-		 break
+      case tStackFileType is 8.0
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack80Filter or type tStackFilter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
+      case tStackFileType is 7.0
+         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
+         break
       case tStackFileType is 5.5
          ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack55Filter or type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack27Filter or type tStack24Filter
          break
@@ -7891,13 +8104,13 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       case tStackFileType is 2.4
          ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack24Filter or type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter
          break
-      default
-         ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStackFilter or type tStack80Filter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
-         break
    end switch
    put the result into tVersion
    
    switch tVersion
+      case revIDELocalise("OpenXTalk Stack")
+         put 8.0 into tVersion
+         break
       case revIDELocalise("Legacy LiveCode Stack (8.0)")
          put 8.0 into tVersion
          break
@@ -7926,8 +8139,8 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
    
    # MacOS Auotmatically appends the filetype to the filename
    local tFilePath
-   if the platform is not "MacOS" and not (it ends with ".rev" or it ends with ".livecode" or it ends with ".livecodescript") then
-      put ".livecode" after it
+   if the platform is not "MacOS" and not (it ends with ".rev" or it ends with ".oxtstack" or it ends with ".livecodescript") then
+      put ".oxtstack" after it
       if the scriptOnly of stack tShortName then
          put "script" after it
       end if
@@ -7954,7 +8167,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       answer revIDELocalise("Saving in script only format will result in loss of data as only" & \
             " the script will be saved. Are you sure you wish to continue?") with revIDELocalise("No") and revIDELocalise("Yes")
       if it is not revIDELocalise("Yes") then
-        revIDESetEdited tShortName
+         revIDESetEdited tShortName
          return "Cancelled"
       end if
    end if
@@ -7966,7 +8179,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
          return "Cancelled"
       end if
    end if
-
+   
    # When making a substack a mainstack, it must clone default colors set on mainstack to substack
    # so that inherited values are preserved.
    local tStackColors, tHomeColors
@@ -7984,22 +8197,22 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       revRemoveRevOnlineKey "fingerprint",tMainStackName
       revIDESaveStack tMainStackName
    end if
-
-
+   
+   
    set the cursor to watch
    lock messages
-
+   
    # RevOnline fingerprint enables the revOnline uploader automatically overwrite the stack if already uploaded.
    # Because you're saving as a new stack, this fingerprint should be removed.
    revRemoveRevOnlineKey "fingerprint",tShortName
-
+   
    -- Synthesize a "saveStackRequest" message
    if ideDispatchSaveStackRequest(tShortName) is not "handled" then
       revIDESaveStackAs the long id of stack tShortName, tFilePath, tVersion
    end if
-
+   
    unlock messages
-
+   
    return empty
 end revIDEActionSaveStackAs
 
@@ -8370,7 +8583,13 @@ on revIDEActionDuplicate
 end revIDEActionDuplicate
 
 on revIDEDuplicateCard
+   local tStoreDefaultStack  --tl 26-5, restore clone card
+   lock screen; lock messages
+   put the defaultStack into tStoreDefaultStack
+   set the defaultStack to the topStack
    clone this card
+   set the defaultStack to tStoreDefaultStack
+   unlock screen; unlock messages
 end revIDEDuplicateCard
 
 on revIDESelectAll
@@ -8538,17 +8757,17 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             set the textStyle[pWhich] of tTarget to true
          end if
          break
-
+         
       case "subscript"
       case "superscript"
          local tTextShiftAmount
-
+         
          if pWhich is "superscript" then put -4 into tTextShiftAmount
          else put 4 into tTextShiftAmount
          if the textShift of tTarget is a number AND the textShift of tTarget is not 0 then 
             put 0 into tTextShiftAmount
          end if
-
+         
          set the textShift of tTarget to tTextShiftAmount
          break
       case "font"
@@ -8560,6 +8779,12 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             set the textSize of tTarget to empty
          else if pValue is a number then
             set textSize of tTarget to pValue
+         else if pValue contains "smaller" then -- added smaller and bigger options to text size menu (tperry 30-12-23)
+            put tMakeObjTextSmaller(tTarget) into pValue
+            set the textSize of tTarget to pValue
+         else if pValue contains "bigger" then -- added smaller and bigger options to text size menu (tperry 30-12-23)
+            put tMakeObjTextBigger(tTarget) into pValue
+            set the textSize of tTarget to pValue
          else if pValue is "Other..." then
             ask "Choose the text size"
             if it is empty then
@@ -8569,10 +8794,20 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
             end if
          end if
          break
+         --case "color"
+         --if pValue is "Use Owner's Color" then set the textColor of tTarget to empty
+         --else if pValue is "Pen Color" then set textColor of tTarget to the penColor
+         --else set textColor of tTarget to pValue
+         --break
       case "color"
-         if pValue is "Use Owner's Color" then set the textColor of tTarget to empty
-         else if pValue is "Pen Color" then set textColor of tTarget to the penColor
-         else set textColor of tTarget to pValue
+         if pValue is "Use Owner's Color" then
+            set the textColor of tTarget to empty  --remove text color
+            set the backColor of tTarget to empty  --remove hilite
+         else if pValue is "Pen Color" then set the textColor of tTarget to the penColor
+         else if pValue is "Yellow Hilite" then
+            set the backColor of tTarget  to "255,255,170"  --lite yellow hilite
+            set the textColor of tTarget to "0,0,0"  -- explicitly set to black
+         else set the textColor of tTarget to pValue
          break
       case "align"
          // If there is a selection we want to sent the alignment of the paragraph(s) in question
@@ -8643,7 +8878,47 @@ on revIDEStyleTextSuperscript
 end revIDEStyleTextSuperscript
 
 on revIDESetTextFont pFont
-      ideActionStyleText "font", pFont
+   -- adding part 2 of TerryL's "Frequent Fonts" script here 7-11-24 (tperry)
+   local tSkipAddFont
+   local tFreqFonts
+   local pPick
+   local tWdCount
+   local tWord
+   put false into tSkipAddFont
+   put the cFreqFonts of stack "revMenubar" into tFreqFonts
+   filter lines of tFreqFonts without empty -- we ignore empty lines in frequent fonts
+   put pFont into pPick
+   if char 1 of pPick is "(" then put true into tSkipAddFont -- we don't want to add things with the "(" character
+   if pPick contains "use Owner's font" then put true into tSkipAddFont -- we don't want duplicates of "use owner's font"
+   if pPick contains "rebuild font menu" then 
+      put true into tSkipAddFont -- we skip & exit if this is chosen
+      exit revIDESetTextFont
+   end if
+   if pPick contains "Clear recent fonts list" then 
+      put true into tSkipAddFont -- we skip & exit if this is chosen
+      exit revIDESetTextFont
+   end if
+   --
+   if tSkipAddFont is false then
+      replace "|" with space in pPick  --reconstruct font full name if submenu
+      get lineOffset(cr& pPick &cr, cr& tFreqFonts &cr)  --line # where string = line
+      if it <> "0" then delete line it of tFreqFonts  --already in list
+      -- we sort out capitalisation
+      put 0 into tWdCount
+      repeat the number of words in pPick
+         add 1 to tWdCount
+         put word tWdCount of pPick into tWord
+         put toUpper(char 1 of tWord) into tCapChar
+         put tCapChar into char 1 of word tWdCount of pPick
+      end repeat
+      -- end sort capitalisation
+      put pPick &cr before tFreqFonts  --add pPick to top of list, no sort
+      if number(lines in tFreqFonts) > "10" then put line 1 to 10 of tFreqFonts into tFreqFonts  --max 10 fonts, discard last oldest font
+      set the cFreqFonts of stack "revMenubar" to tFreqFonts  --update list (custom property)
+      set the cRecentFontsList of stack "revPreferences" to tFreqFonts -- save it to prefs
+      send setupTextMenu to stack "revMenubar" in 1 millisecond -- need to trigger font menu rebuild
+   end if
+   ideActionStyleText "font", pFont
 end revIDESetTextFont
 
 on revIDESetTextSize pSize
@@ -8695,6 +8970,16 @@ on revIDEToggle pProperty
          
          local tLine
          if not gREVSuppressMessages then
+            -- ask for confirmation?
+            if the cPromptToggleMsgSuppress of stack "revPreferences" is true then
+               Answer "<b>Are you sure you want to suppress messages?</b> <br><br>" & return &¬
+               "Suppressing IDE Messages is likely to prevent parts of the IDE working properly. It's best to leave this alone if you are unsure.<br> <br>" &¬
+               "You can turn off this warning in the 'General' section of the preferences." with "Suppress" or "Cancel"
+               if it is "Cancel" then
+                  exit revIDEToggle
+               end if
+            end if
+            --- end confirmation
             put true into gREVSuppressMessages
             # Send the suppress messages toggle message before actually suppressing messages
             ideMessageSend "ideToggleChanged:" & tToggleMessage
@@ -8794,6 +9079,30 @@ on revIDEToggle pProperty
             unlock messages
          end if
          break
+      case "Layout Guides" -- tperry, nicked this from RC4 version. Thanks to Paul for this!
+         if the cLayoutGuides of stack "revPreferences" is true then
+            -- the guides are on so turn them off
+            lock screen
+            send "extensionFinalize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
+            revInternal__UnloadLibrary "community.ferruslogic.plugin.devguides"
+            -- lock messages
+            close stack "community.ferruslogic.plugin.devguides"
+            revIDESetPreference "cLayoutGuides", false
+            -- unlock messages
+            unlock screen
+         else -- the guides are off so turn them on
+            lock screen
+            send "extensionInitialize" to stack "community.ferruslogic.plugin.devguides" in 50 millisecs
+            revInternal__LoadLibrary "community.ferruslogic.plugin.devguides"
+            -- lock messages
+            open stack "community.ferruslogic.plugin.devguides"
+            revIDESetPreference "cLayoutGuides", true
+            -- unlock messages
+            unlock screen
+         end if
+         # No need to send toggle message as idePreferenceChanged will be sent
+         exit revIDEToggle
+         break
       case "Backdrop"
          if the backDrop is "none" then
             set the backDrop to revIDEGetPreference("cBackDropColor")
@@ -8829,6 +9138,12 @@ on revIDEToggleToolbar pWhich
       put revIDEGetPreference("cToolbarIcons") is true into tCurrentPref
       revIDESetPreference "cToolbarIcons", not tCurrentPref
    end if
+   
+   -- respect the new OXT Lite icon spacing (tperry 30-11-23)
+   -- move location of dictionary button (tperry)
+   set the topleft of cd btn "Dictionary" of card 1 of wd "revMenuBar" to the left of cd btn "errors" of cd 1 of wd "revMenuBar" + 80, the top of cd btn "errors" of cd 1 of wd "revMenuBar"
+   send tMenuBar_AdjustWDSize to stack "revMenuBar"
+   set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group to the right-hand edge of wd (tperry)   
 end revIDEToggleToolbar
 
 on revIDEToggleShowIDEStacksInLists
@@ -8850,7 +9165,7 @@ on revIDEToggleShowIDEStacksInLists
    if tFrontStack is not empty then
       set the wholeMatches to true
       local tBringToFront
-      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("revApplicationOverview", tOpenStacks) then
+      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("App Browser", tOpenStacks) then
          put true into tBringToFront
       end if
    end if
@@ -8875,12 +9190,28 @@ end revIDEToggleShowIDEStacksInLists
 on revIDETogglePalette pPaletteName
    local tStackName
    put revIDEPaletteToStackName(pPaletteName) into tStackName
-
+   --
+   lock screen
+   lock messages
+   put false into tChangeWDMode
    if the mode of stack tStackName is 0 or the visible of stack tStackName is false then
-      revIDEOpenPalette pPaletteName
+      -- it's not visible, so show it
+      if the platform contains "linux" then -- check to see if we are linux
+         put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+         set the itemdelimiter to ","
+         if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then put true into tChangeWDMode
+      end if -- not linux
+      revIDEOpenPalette pPaletteName -- open the wd as palette
+      if tChangeWDMode is true then -- we should change the mode
+         -- change the wd mode
+         set the style of stack tStackName to modeless -- mode of this stack
+      end if
    else
+      -- it was visible, so close it
       close stack tStackName
    end if
+   unlock messages
+   unlock screen
 end revIDETogglePalette
 
 on revIDETogglePaintAndDrawTools
@@ -8931,11 +9262,35 @@ on revIDELaunchResource pName
          launch document (revEnvironmentToolsPath() & slash & "Release Notes.pdf")
          break
       case "User Guide"
-         launch document revEnvironmentDocumentationPath() & "/pdf/LiveCode User Guide.pdf"
+         set the itemdelimiter to "/"
+         put item 1 to -3 of the filename of stack "home" into tPDFPath
+         launch document (tPDFPath & "/Documentation/PDF/" & "User Guide.pdf") -- changed for specific MacOS support 24-12-23 (tperry)
+         break
+      case "Data Grid Guide"
+         set the itemdelimiter to "/"
+         put item 1 to -3 of the filename of stack "home" into tPDFPath
+         launch document (tPDFPath & "/Documentation/PDF/" & "Data Grid Guide.pdf") -- changed for specific MacOS support 19-1-24 (tperry)
+         -- launch document (specialFolderPath("engine") & "/Documentation/PDF/" & "Data Grid Guide.pdf")
+         break
+      case "Tutorials"
+         answer file "Please select a tutorial stack..." with (specialFolderPath("engine") & "/Resources/Examples/")
+         if it = empty then exit to top
+         open stack it
+         break
+      case "Forums"
+         launch url "https://www.openxtalk.org/forum"
          break
       case "Sample Stacks"
-         set the _ideoverride of stack "revonline" to true
-         go stack "revOnline"
+         launch url "https://livecodeshare.runrev.com/"
+         break
+      case "Lessons"
+         launch url "https://lessons.livecode.com/m/4071"
+         break
+      case "Donate"
+         answer "OpenXTalk.org is a volunteer non-profit project." &cr& \
+               "Donations are not yet being accepted." with "Cancel" or "OK" titled "Thank You"
+         if it = "Cancel" then exit to top
+         --launch url "https://www.xxx.com"  --goFundMe?
          break
       case "Sample Scripts"
          launch url "http://lessons.runrev.com/m/2592"
@@ -8943,13 +9298,13 @@ on revIDELaunchResource pName
       case "Beginners Guide"
          launch url "https://livecode.com/resources/guides/beginners-guide/"
          break
-      case "Tutorials"
+         --case "Tutorials"
          launch url "http://livecode.com/links/livecode/tutorials"
          break
       case "All Guides"
          launch url "http://livecode.com/links/livecode/guides"
          break
-      case "Forums"
+         --case "Forums"
          launch url "http://livecode.com/links/livecode/forum"
          break
       case "Technical Questions"
@@ -9286,6 +9641,7 @@ end revIDEActionEditScriptOfStack
 Returns an array with keys the object types and values the corresponding 'kinds'
 */
 function revIDEAvailableControls
+   -- tperry 13-4-24 (this needs to be modular)
    local tObjectsA, tType, tTitle
    repeat for each key tTypeID in sClassicObjectProperties
       put sClassicObjectProperties[tTypeID]["type"] into tType
@@ -9811,31 +10167,11 @@ command revIDERestoreDevelopmentTools
 end revIDERestoreDevelopmentTools
 
 command revIDECheckForUpdates
-   if line 3 of revLicenseInfo is not "evaluation" then
-      local tCommand
-      set the itemdelimiter to "/"
-      switch the platform
-         case "MacOS"
-            put item 1 to -5 of the filename of stack "home" & "/Contents/MacOS/autoupdater" into tCommand
-            put quote & tCommand & quote && "install -foregroundupdate" into tCommand
-            break
-         case "Win32"
-            put item 1 to -3 of the filename of stack "home" & "/.setup.exe" into tCommand
-            put quote & tCommand & quote && "install -foregroundupdate" into tCommand
-            break
-         case "Linux"
-            -- MDW-2015-12-19 [[fix_installer]] LC8-style setup filename
-            if the processor is "x86_64" then
-               	put item 1 to -4 of the filename of me & "/setup.x86_64" into tCommand
-            else
-               	put item 1 to -4 of the filename of me & "/setup.x86" into tCommand
-            end if
-            put tCommand && "install -foregroundupdate" into tCommand
-            break
-      end switch
-      set the itemDel to comma
-      open process tCommand for neither
-   end if   
+   -- OXT-Beyond: LiveCode ran its own installer here (.setup.exe install
+   -- -foregroundupdate), which OXT-Beyond does not ship. Check this project's
+   -- GitHub Releases instead; the oxtBeyondUpdater library only reports new
+   -- releases and links to them, it does not download or install anything.
+   dispatch "oxtBeyondCheckForUpdates" to stack "oxtBeyondUpdater" with true
 end revIDECheckForUpdates
 
 # OK-2009-10-07 : Noticed that View -> Go Prev wasn't working, decided to rewrite code
@@ -9903,6 +10239,13 @@ on revIDEUpdateWindowList
    
    if tStacks is not sWindowList then
       put tStacks into sWindowList
+      if there is a stack "revmenubar" then 
+         local tTrimStackNames 
+         put tStacks into tTrimStackNames
+         replace ("stack " & quote) with "" in tTrimStackNames
+         replace quote with "" in tTrimStackNames
+         set the cWindowList of stack "revmenubar" to tTrimStackNames -- keep track of wds with custom prop (tperry 15-11-24)
+      end if
    end if
 end revIDEUpdateWindowList
 
@@ -10307,6 +10650,7 @@ on revIDEStopTutorial
 end revIDEStopTutorial
 
 function revIDETutorialInProgress
+   exit revIDETutorialInProgress -- not using
    return sTutorialInfo
 end revIDETutorialInProgress
 
@@ -10702,7 +11046,14 @@ end revIDETutorialSkipToNextSkipPoint
 #
 ##################################################
 
+-- I made this conditional 24-7-24 because there's no point loading all
+-- this if you aren't generating the dictionary using the old method.
+-- commenting ends at line 11481 something (tperry)
+
 private function escape pString, pConvertLineEndings
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit escape -- we exit this handler if not using it (tperry 24-7-24)
+   --
    replace "\" with "\\" in pString
    replace quote with ("\" & quote) in pString
    
@@ -10719,6 +11070,9 @@ private function escape pString, pConvertLineEndings
 end escape
 
 private function __getLCBSourceFile pFolder
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit __getLCBSourceFile -- we exit this handler if not using it (tperry 24-7-24)
+   --
    revIDEPushDefaultFolder pFolder
    # Isolate the source file
    local tSource
@@ -10729,6 +11083,9 @@ private function __getLCBSourceFile pFolder
 end __getLCBSourceFile
 
 private function revIDEGetBaseDocsData pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetBaseDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    local tAPIPath, tLibs
@@ -10749,6 +11106,9 @@ private function revIDEGetBaseDocsData pWhich
 end revIDEGetBaseDocsData 
 
 private function revIDEGetExtensionDocsData pAPI
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetExtensionDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tExtensionDocsDataA
    put revIDEExtensionDocsData(pAPI) into tExtensionDocsDataA
    
@@ -10819,14 +11179,14 @@ private function revIDEGetExtensionDocsData pAPI
             end try
             if tStack is not empty and tPassword is empty then
                dispatch function "revDocsGenerateDocsFileFromText" \
-                  to stack "revDocsParser" with \
-                  the script of tStack, tStack
+                     to stack "revDocsParser" with \
+                     the script of tStack, tStack
                put the result into tDoc
             end if
          end if
          if tDoc is not empty then
             # Output the lcdoc file
-		    revIDESetUTF8FileContents tAPIDoc, tDoc
+            revIDESetUTF8FileContents tAPIDoc, tDoc
          end if
       end if
       
@@ -10870,6 +11230,9 @@ private function revIDEGetExtensionDocsData pAPI
 end revIDEGetExtensionDocsData
 
 private function revIDEGetDocsAPIData pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsAPIData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData, tExtensions
    put revIDEGetBaseDocsData(pWhich) into tData
    put revIDEGetExtensionDocsData(pWhich) into tExtensions
@@ -10880,6 +11243,9 @@ private function revIDEGetDocsAPIData pWhich
 end revIDEGetDocsAPIData 
 
 private function revIDEGetDocsGuideData
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsGuideData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    local tGuidePath
@@ -10943,6 +11309,9 @@ private function revIDEGetDocsGuideData
 end revIDEGetDocsGuideData
 
 on revIDERegenerateBuiltGuides
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltGuides -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData
    
    # Get the location of the distributed guide
@@ -10962,6 +11331,9 @@ end revIDERegenerateBuiltGuides
 
 constant kAPIs = "LiveCode Script,livecode_script|LiveCode Builder,livecode_builder|LiveCode IDE,livecode_ide"
 on revIDERegenerateBuiltAPIs
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tData, tAPIData
    set the lineDelimiter to "|"
    repeat for each line tAPI in kAPIs
@@ -10992,11 +11364,17 @@ on revIDERegenerateBuiltAPIs
 end revIDERegenerateBuiltAPIs
 
 on revIDERegenerateBuiltDictionaryData
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltDictionaryData -- we exit this handler if not using it (tperry 24-7-24)
+   --
    revIDERegenerateBuiltAPIs
    revIDERegenerateBuiltGuides
 end revIDERegenerateBuiltDictionaryData
 
 on revIDEGenerateDistributedDocs
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedDocs -- we exit this handler if not using it (tperry 24-7-24)
+   --
    start using stack (revEnvironmentRepositoryPath() & slash & "ide-support" & slash & "revdocsparser.livecodescript")
    revIDEGenerateDistributedGuide
    revIDEGenerateDistributedAPI
@@ -11004,12 +11382,16 @@ on revIDEGenerateDistributedDocs
 end revIDEGenerateDistributedDocs
 
 private on revIDEGenerateDistributedGuide
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedGuide -- we exit this handler if not using it (tperry 24-7-24)
+   --
    # Set the default folder to where the guide markdown files are stored in the IDE
    local tGuideFoldersWithLocationA
    put revIDESpecialFolderPath("ide guides") into tGuideFoldersWithLocationA[1]["folder"]
    put "ide" into tGuideFoldersWithLocationA[1]["location"]
    
    if not revEnvironmentIsInstalled() then
+      
       put revIDESpecialFolderPath("repo guides") into tGuideFoldersWithLocationA[2]["folder"]
       put "repo" into tGuideFoldersWithLocationA[2]["location"]
    end if
@@ -11017,7 +11399,7 @@ private on revIDEGenerateDistributedGuide
    local tGuideJSONFile
    put revIDESpecialFolderPath("guide") & slash & "distributed_guide.js" \
          into tGuideJSONFile
-
+   
    # Check if the distributed guide is out of date
    local tKey, tInputFiles, tNeedUpdate, tError
    repeat for each key tKey in tGuideFoldersWithLocationA
@@ -11025,7 +11407,7 @@ private on revIDEGenerateDistributedGuide
    end repeat
    put revIDEIsFilesetStale(tInputFiles, tGuideJSONFile, true, tError) \
          into tNeedUpdate
-
+   
    # If we don't need to regenerate, exit
    if tNeedUpdate is not true then
       exit revIDEGenerateDistributedGuide
@@ -11048,6 +11430,9 @@ private on revIDEGenerateDistributedGuide
 end revIDEGenerateDistributedGuide
 
 private command revIDEGenerateDistributedAPI
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedAPI -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tRepoPath
    put revEnvironmentRepositoryPath() into tRepoPath
    
@@ -11067,7 +11452,7 @@ private command revIDEGenerateDistributedAPI
    put revIDEIsFilesetStale(tInputs, tOutput, true, tError) into tNeedUpdate
    
    # Regenerate dictionary if necessary
-   if tNeedUpdate then
+   if tNeedUpdate then      
       local tScriptA
       put "LiveCode Script" into tScriptA["display name"]
       put revDocsModifyForUrl(tScriptA["display name"]) into tScriptA["name"]
@@ -11154,7 +11539,7 @@ private command revIDEGenerateDistributedAPI
    if tNeedUpdate then
       local tLibA
       put revDocsParseDocFileToLibraryArray(tFolder & slash & "datagrid.lcdoc", "DataGrid", "LiveCode") into tLibA
-
+      
       # Update the database
       ideDocsUpdateDatabase "livecode_script", tLibA, true
       put revDocsFormatLibraryDocArrayAsJSON(tLibA) into tJSON
@@ -11188,7 +11573,7 @@ private command revIDEGenerateDistributedAPI
          end try
          if tStack is not empty and tPassword is empty then
             put revDocsGenerateDocsFileFromText(the script of tStack, \ 
-               tStack) into tDoc
+                  tStack) into tDoc
          end if
          if tDoc is not empty then
             put tDoc into tIDEA[tIDECount]
@@ -11247,28 +11632,40 @@ private command revIDEGenerateDistributedAPI
 end revIDEGenerateDistributedAPI
 
 on revIDEEnsureDictionaryUrl pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEEnsureDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tInput, tOutput
    put revIDEGetDictionaryHTMLTemplate(pWhich) into tInput
    put revIDEGetDictionaryUrl(pWhich) into tOutput
-
+   
    local tNeedUpdate, tError
    put revIDEIsFilesetStale(revIDEGetDictionaryHTMLTemplate(pWhich), \
          revIDEGetDictionaryUrl(pWhich), false, tError) into tNeedUpdate
-
+   
    if tNeedUpdate is true then
       revIDEGenerateDictionaryHTML pWhich
    end if
 end revIDEEnsureDictionaryUrl
 
 function revIDEGetDictionaryUrl pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   --
    return revEnvironmentUserDocsPath() & slash & pWhich & ".html"
 end revIDEGetDictionaryUrl
 
 function revIDEGetDictionaryHTMLTemplate pWhich
+   -- do not generate if this is turned off
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryHTMLTemplate -- we exit this handler if not using it (tperry 24-7-24)
+   --
    return revIDESpecialFolderPath("documentation") & slash & "html_viewer" & slash & pWhich & ".html.template"
 end revIDEGetDictionaryHTMLTemplate
 
 on revIDEGenerateDictionaryHTML pWhich, pInitialLibrary, pInitialEntryName, pInitialEntryType
+   -- do not generate if this is turned off
+  if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDictionaryHTML -- we exit this handler if not using it (tperry 24-7-24)
+   --
    local tGeneratedHTMLFile
    put revIDEGetDictionaryUrl(pWhich) into tGeneratedHTMLFile
    
@@ -11295,6 +11692,7 @@ on revIDEGenerateDictionaryHTML pWhich, pInitialLibrary, pInitialEntryName, pIni
    revIDESetUTF8FileContents tGeneratedHTMLFile, tTemplate
 end revIDEGenerateDictionaryHTML
 
+*/
 ##################################################
 #
 #          COLORS
@@ -12317,3 +12715,143 @@ command ideSetWindowBoundingRect
       set the windowBoundingRect to tWindowRect
    end if
 end ideSetWindowBoundingRect
+
+function tMakeObjTextSmaller tThisObject
+   -- makes text of selected object smaller (text menu > size > smaller)
+   put the textSize of tThisObject into tCurSize
+   if not (isNumber(tCurSize)) then put "14" into tCurSize
+   subtract 2 from tCurSize
+   if tCurSize <1 then put 1 into tCurSize
+   return tCurSize
+end tMakeObjTextSmaller
+
+function tMakeObjTextBigger tThisObject
+   -- makes text of selected object bigger (text menu > size > bigger)
+   put the textSize of tThisObject into tCurSize
+   if not (isNumber(tCurSize)) then put "14" into tCurSize
+   add 2 to tCurSize
+   return tCurSize
+end tMakeObjTextBigger
+
+function tNameNewStack tStackID
+   local tExistsAlready
+   local tResponse
+   local tRandomName
+   put false into tExistsAlready
+   -- clean up stack name
+   if word 1 of tStackID is "stack" then delete word 1 of tStackID
+   replace "'" with "" in tStackID
+   replace QUOTE with "" in tStackID
+   put tRandName() into tRandomName
+   put ("Stack_" & tRandomName) into tRandomName
+   if the last char of tRandomName is "_" then delete last char of tRandomName
+   ask "<b>Please rename this stack</b><BR><br>Old name: " & tStackID & "<br><br>" & "New name: " with tRandomName
+   put it into tResponse
+   if there is a stack (tResponse) then put true into tExistsAlready
+   if tResponse is empty or tResponse is cancel or tResponse is tStackID or (tExistsAlready is true) then
+      -- not acceptable. We ask again
+      Answer "You need to pick a unique stack name."
+      send tNameNewStack(tStackID) to me in 10 ticks
+   else
+      set the title of stack (tStackID) to it
+      set the name of stack (tStackID) to it
+   end if 
+end tNameNewStack
+
+function tRandName
+   local tRandNames
+   local tOldDelim
+   local tRandTotals
+   local tSecs
+   local tDateForm
+   put the itemdelimiter into tOldDelim
+   set the itemdelimiter to ","
+   put "" into tDateForm
+   if the cRenameWithDateStamp of stack "revPreferences" is true then
+      put the seconds into tSecs
+      convert tSecs to dateItems
+      put item 3 of tSecs into tDateForm -- Day
+      put "_" & item 2 of tSecs after tDateForm -- Month
+      put "_" & item 1 of tSecs & "_" after tDateForm -- Year
+   end if
+   --
+   put "" into tRandNames
+   if the cRenameWithRandChars of stack "revPreferences" is true then
+      put "BSDs,Bern,Bret,Clay,Cote,Dare,East,Edna,Eris,Etna,Evan,Giza,Grus,Head,Irma,Jess,Juno,Kern,Lily,Lulu,Moss,Oahu,Roeg,STOL,Suva,Togo,Wasp,Watt,Webb,Yule,aced,ares,auto,beak,boat,bode,bold,bosh,bugs,burs,cape,cord,dabs,dams,dots,ease,else,ergs,excl,feud,flag,frat,from,geez,glow,gnus,gunk,hats,haws,hurl,iffy,imps,jeer,join,junk,just,lash,lees,lent,lint,lorn,loth,mean,mite,moth,nite,nose,pace,pant,pays,pine,pray,rate,root,rosy,scar,shim,side,sots,spit,spot,sulk,swan,teak,tell,thud,urea,wary,wive,yack" into tRandNames
+      put the number of items in tRandNames into tRandTotals
+      -- reusing var names here
+      put random(tRandTotals) into tRandTotals
+      put item tRandTotals of tRandNames into tRandNames
+      put the number of chars in tRandNames into tRandTotals
+      put random(tRandTotals) into tRandTotals
+      put random(9) into char tRandTotals of tRandNames
+   end if
+   put tDateForm & tRandNames into tRandNames
+   set the itemdelimiter to tOldDelim
+   if the last char of tRandNames is "_" then delete last char of tRandNames
+   return tRandNames
+end tRandName
+
+
+function fixthemebtn tid tStackName
+   -- support theming of btns (to make up for shortcoming of engine)
+   -- tperry 13-09-2025
+   put "50,50,50" into tDarkGrey-- very dark grey
+   put "225,225,255" into tLightGrey-- very light grey
+   put "48,113,250" into tDefaultBtnColour -- MacOS blue default colour
+   put "86,84,93" into tMacBtnCol -- MacOS dark background for button
+   
+   if the cUseThemeDark of stack "revPreferences" is true then
+      -- dark mode
+      if there is a btn tid of stack tStackName then
+         set the foregroundColor of btn id tID of stack tStackName to black -- black text
+         if the platform contains "mac" then
+            if the height of btn id tID of stack tStackName <50 then 
+               set the backgroundColor of btn id tID of stack tStackName to tMacBtnCol
+               set the style of btn id tID of stack tStackName to "roundRect"
+               set the borderWidth of btn id tID of stack tStackName to 0
+               set the foregroundColor of btn id tID of stack tStackName to white
+               if the default of btn id tID of stack tStackName is true then set the backgroundColor of btn id tID of stack tStackName to tDefaultBtnColour
+            end if
+         else
+            -- not mac, but dark mode on another platform
+            if the height of btn id tID of stack tStackName <50 then 
+               set the backgroundColor of btn id tID of stack tStackName to ""
+               set the style of btn id tID of stack tStackName to "roundRect"
+               set the borderWidth of btn id tID of stack tStackName to 0
+               set the foregroundColor of btn id tID of stack tStackName to ""
+            end if
+         end if
+      else
+         -- light mode
+         
+         set the foregroundColor of btn id tID of stack tStackName to ""
+         set the backgroundColor of btn id tID of stack tStackName to ""
+         if the height of btn id tID of stack tStackName <40 then set the borderWidth of btn id tID of stack tStackName to 2
+         if the height of btn id tID of stack tStackName <40 then set the style of btn id tID of stack tStackName to "standard"
+         
+      end if
+   end if
+end fixthemebtn
+
+on generateThumbOfStack
+   try
+      put specialFolderPath("Documents") & slash & "OXTRecentStacks" into myThumbFolder
+      create folder myThumbFolder
+      put the long name of the topStack into myStackFilename
+      replace QUOTE with "" in myStackFilename
+      set the itemdelimiter to "."
+      put the last item of myStackFilename into myStackExtension
+      replace "livecode" with "png" in myStackExtension
+      replace "oxtstack" with "png" in myStackExtension
+      replace "rev" with "png" in myStackExtension
+      --
+      put myStackExtension into the last item of myStackFilename
+      set the itemdelimiter to slash
+      put the last item of myStackFilename into myStackShortFilename
+      set the itemdelimiter to ","
+      --
+      export snapshot from card 1 of the topstack to file myThumbFolder & slash & myStackShortFilename as png
+   catch e
+   end try
+end generateThumbOfStack

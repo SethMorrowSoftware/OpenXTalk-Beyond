@@ -1,0 +1,36 @@
+ChildrenOfScriptObject
+(operator)
+Get the child objects of a script object.
+
+Syntax:
+the children of {Object}
+----
+
+Synonyms:
+
+Params:
+Object ( ): An expression that evaluates to a 
+
+Examples:
+public handler GetSiblings(in pObject as ScriptObject) returns List
+	// Return the sibling objects of an object
+	return the children of the owner of pObject
+end handler
+----
+// Unset the highlight of all the controls in a group
+resolve script object "group \qcheckboxes\q of this card"
+variable tObject
+repeat for each element tObject in the children of the result
+	set property "hilite" of tObject to false
+end repeat
+----
+
+Description:
+Use to get the script objects contained within a script object.
+
+*Note:* An error is thrown if the script object does not exist.
+
+Values:
+A list of ScriptObjects that are contained within Object. 
+
+OS:

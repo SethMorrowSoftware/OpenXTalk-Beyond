@@ -1,0 +1,33 @@
+milliseconds
+(function)
+return|Returns the number of milliseconds since the start of the eon. 
+
+Syntax:
+the milliseconds
+----
+milliseconds()
+----
+
+Synonyms:
+millisecond, millisec, millisecs
+
+Params:
+
+Examples:
+the milliseconds
+----
+if the milliseconds - startMilliseconds < 10 then answer "Success!"
+----
+
+Description:
+Use the milliseconds function to time event|events that must be checked more often than once per second.
+
+The milliseconds function return|returns the total number of milliseconds since midnight GMT, January 1, 1970.
+
+A millisecond is one-thousandth of a second. If you don't need to time events with this much precision, use the seconds function or the ticks function.
+
+Values:
+The milliseconds function return|returns a positive integer. 
+
+OS:
+mac,windows,linux,ios,android

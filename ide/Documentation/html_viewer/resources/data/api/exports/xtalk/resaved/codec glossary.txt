@@ -1,0 +1,16 @@
+codec
+(glossary)
+
+Syntax:
+Synonyms:
+codec
+
+Params:
+
+Examples:
+Description:
+COmpressor/DECompressor. A codec is a method for storing digital audio or video data.
+
+Values:
+
+OS:

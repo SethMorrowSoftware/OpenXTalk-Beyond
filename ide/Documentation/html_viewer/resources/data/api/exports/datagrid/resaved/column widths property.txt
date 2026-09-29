@@ -1,0 +1,19 @@
+column widths
+(property)
+Allows you to set all column widths at once. Comma delimited list of integers.
+
+Syntax:
+put the dgProp["column widths"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Allows you to set all column widths at once. Comma delimited list of integers.
+
+Values:
+
+OS:

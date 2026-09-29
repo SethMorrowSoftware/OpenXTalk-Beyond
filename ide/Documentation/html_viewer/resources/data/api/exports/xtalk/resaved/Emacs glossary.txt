@@ -1,0 +1,16 @@
+Emacs
+(glossary)
+
+Syntax:
+Synonyms:
+emacs
+
+Params:
+
+Examples:
+Description:
+Popular text editor found mostly on Unix|Unix systems.
+
+Values:
+
+OS:

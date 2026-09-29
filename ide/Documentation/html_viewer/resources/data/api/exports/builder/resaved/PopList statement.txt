@@ -1,0 +1,34 @@
+PopList
+(statement)
+Pops the last element from Source into Target Target:An expression which evaluates to a container.
+
+Syntax:
+pop ( front of | back of ) {Source}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a list.
+
+Examples:
+variable tVar as List
+put the empty list into tVar
+push "something" onto tVar
+push "something else" onto tVar
+
+variable tPopped as String
+pop tVar into tPopped -- tPopped contains "something else"
+----
+variable tList as List
+put [1,2,3] into tList
+variable tNum as Number
+pop front of tList into tNum -- tNum is 1, tList is [2,3]
+----
+
+Description:
+When Source is popped into Target, the last element of the list Source is removed and put into the container Target. Use the 'front of' variant to pop from the front of a list instead.
+
+Values:
+
+OS:

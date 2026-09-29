@@ -1,0 +1,22 @@
+editScripts
+(property)
+Has no effect and is included for compatibility with imported SuperCard projects.
+
+Syntax:
+set the editScripts to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The editScripts property is present in OpenXTalk for compatibility with scripts imported from SuperCard and should not be used in new stacks.
+
+It has no effect on the OpenXTalk environment, and although it may be set or evaluated without causing an error, its value will always be true.
+
+Values:
+
+OS:
+ios,android

@@ -1,0 +1,2 @@
+Version 0.92, build 202309011658
+Use all the bits in this update to begin converting Livecode Community over to OpenXTalk Lite. These are the initial changes made by TerryL, which further work was based on.

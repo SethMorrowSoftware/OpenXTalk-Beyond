@@ -1,0 +1,36 @@
+flip
+(command)
+Invert an image horizontally or vertically.
+
+Syntax:
+flip [{imageRef}] {horizontal | vertical}
+----
+
+Synonyms:
+
+Params:
+imageRef ( ): Any image reference.
+
+Examples:
+flip vertical
+----
+flip image 1 vertical
+----
+flip image "Logo" horizontal
+----
+
+Description:
+Use the flip command to turn an image over.
+
+The vertical form flips the image vertically, swapping its top and bottom.  The horizontal form flips the image side to side, swapping its right and left.
+
+If you don't specify an image, the portion currently selected with the Select paint tool is flipped.
+
+The flipping operation is its own inverse: flipping an image twice in the same direction restores it to its original appearance.
+
+*Important:* Flipping a referenced control|referenced image changes  its orientation only temporarily. The next time the   referenced control|referenced image is displayed, its original   orientation returns. 
+
+Values:
+
+OS:
+mac,windows,linux

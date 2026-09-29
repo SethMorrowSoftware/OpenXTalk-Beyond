@@ -1,0 +1,57 @@
+libURLMultipartFormAddPart
+(function)
+This function lets you add parts to a multipart form one at a time. It also lets you optionally specify the mime type and transfer encoding for each part. This can be useful where the mime type or transfer encoding has to be specified.
+
+Syntax:
+libURLMultipartFormAddPart({formData},{partName}, {value} [,{MIMEtype}, {encoding}])
+----
+
+Synonyms:
+
+Params:
+formData (string ): A variable, which will be filled with the form data.
+partName (string ): The name of the new part to add to the .
+value (string ): The value to be associated with the  of the .
+MIMEtype (enum ): The MIME type to use for the .
+encoding (enum ): The encoding type to use for the .
+
+Examples:
+command UploadFileToServer pName, pMessage, pFilename
+  local tOrigHeaders, tForm, tError, tFile, tType, tEnc, tURL
+  put the httpHeaders into tOrigHeaders
+  put empty into tForm
+  put libURLMultipartFormData (tForm, "name", pName, "message", pMessage) into tError
+
+  if tError is empty then
+    set the httpHeaders to line 1 of tForm
+    delete line 1 of tForm
+    put "<file>" & pFilename into tFile
+    put "image/gif" into tType
+    put "binary" into tEnc
+    put libURLMultipartFormAddPart(tForm,"file", tFile, tType, tEnc) into tError
+  end if
+
+  if tError is empty then
+    post tForm to url tURL
+    put the result into tError
+  end if
+
+  set the httpHeaders to tOrigHeaders
+
+  if tError is not empty then
+    return tError for error
+  else
+    return empty for value
+  end if
+end UploadFileToServer
+----
+
+Description:
+This function is mainly used if you have called the libURLMultipartFormData with no arguments except the form data. This will return an "empty" form which can be added to using this function.
+
+*Important:* The libURLMultipartFormAddPart function is part of the  Internet library. To ensure that the function works in a  standalone application, you must include this  OpenXTalk custom library|custom library when you create your  standalone application|standalone. In the Inclusions pane of the  Standalone Application Settings window, make sure the "Internet"  script library is selected.
+
+Values:
+
+OS:
+mac,windows,linux,html5

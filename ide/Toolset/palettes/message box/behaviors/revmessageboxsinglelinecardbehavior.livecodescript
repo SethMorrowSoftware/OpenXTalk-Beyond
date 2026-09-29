@@ -25,9 +25,18 @@ on openCard
    select the text of field "message"
    set the tooltip of field "message" to "Type a command or expression and press Return"
    unlock screen
+   
+   -- make sure "message" field is selected (tperry 27-4-24)
+   send tMsgSelect to this card in 5 ticks
+   
    # AL-2015-04-17: [[ Bug 15227 ]] Pass openCard so it is handled by the palette behavior
    pass openCard
 end openCard
+
+
+on tMsgSelect
+   select text of fld "message" of cd "Single Line" of stack "Message Box"
+end tMsgSelect
 
 on closeCard
    hideFrameItem "outputSource"

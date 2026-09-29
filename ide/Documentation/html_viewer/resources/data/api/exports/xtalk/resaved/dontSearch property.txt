@@ -1,0 +1,24 @@
+dontSearch
+(property)
+Specifies whether the find command skips a field, group, or card. 
+
+Syntax:
+set the dontSearch of {field} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dontSearch of field "Label" to true
+----
+
+Description:
+Use the dontSearch property to skip certain field|fields (such as label field|fields that contain static text), or to skip all the field|fields in a specified group or card, when searching with the find command.
+
+Values:
+The dontSearch of a field(keyword), group(command), or card(keyword) is true or false. By default, the dontSearch property of newly created field(object)|fields, group(glossary)|groups, and card(object)|cards is set to false. 
+
+OS:
+mac,windows,linux,ios,android

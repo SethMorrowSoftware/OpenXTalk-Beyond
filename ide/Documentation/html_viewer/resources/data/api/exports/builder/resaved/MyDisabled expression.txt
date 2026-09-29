@@ -1,0 +1,20 @@
+MyDisabled
+(expression)
+Returns the disabled state of the widget.
+
+Syntax:
+my disabled
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the disabled state of the widget.
+
+Values:
+The disabled state of the widget. 
+
+OS:

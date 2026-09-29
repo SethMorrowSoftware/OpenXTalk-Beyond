@@ -1,0 +1,26 @@
+mobileVibrate
+(command)
+Causes the iOS or Android device to vibrate.
+
+Syntax:
+mobileVibrate [{numberOfTimes}]
+----
+
+Synonyms:
+
+Params:
+numberOfTimes (integer ): An integer (or an expression that evaluates to an integer) and specifies how many times to vibrate. If the  is not specified, the device is vibrated once.
+
+Examples:
+mobileVibrate
+----
+mobileVibrate 7
+----
+
+Description:
+Use the mobileVibrate command to cause the iOS or Android device to vibrate. 
+
+Values:
+
+OS:
+ios,android

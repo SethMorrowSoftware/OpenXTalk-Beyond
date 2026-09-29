@@ -1,0 +1,29 @@
+FirstCharOf
+(operator)
+Designates the first char in Target.
+
+Syntax:
+the first char of {Target}
+----
+
+Synonyms:
+
+Params:
+•	Target ( ): An expression which evaluates to a string.
+	
+Examples:
+variable tVar as String
+put "char" into tVar
+
+variable tFirst as String
+put the first char of tVar into tFirst -- tFirst contains "c"
+----
+
+Description:
+Either locates the first char for use as the target container of another operation, or evaluates the first char as the source of another operation.
+
+*Note:* It is an error if Target is empty.
+
+Values:
+
+OS:

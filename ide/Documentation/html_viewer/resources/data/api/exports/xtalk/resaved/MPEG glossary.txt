@@ -1,0 +1,16 @@
+MPEG
+(glossary)
+
+Syntax:
+Synonyms:
+mpeg, mpg
+
+Params:
+
+Examples:
+Description:
+Moving Pictures Experts Group. A video file format.
+
+Values:
+
+OS:

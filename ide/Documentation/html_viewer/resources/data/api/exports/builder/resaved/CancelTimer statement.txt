@@ -1,0 +1,25 @@
+CancelTimer
+(statement)
+Cancels a timer.
+
+Syntax:
+cancel timer
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+// Cancel the timer when the widget is no longer on the current card.
+public handler OnClose()
+	cancel timer
+end handler
+----
+
+Description:
+Use to cancel a timer scheduled by the ScheduleTimerIn|schedule statement.
+
+Values:
+
+OS:

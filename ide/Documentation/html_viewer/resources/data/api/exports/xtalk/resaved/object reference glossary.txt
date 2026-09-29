@@ -1,0 +1,16 @@
+object reference
+(glossary)
+
+Syntax:
+Synonyms:
+descriptor, object descriptor, reference, object reference, stack reference, card reference, field reference, button reference, image reference, player reference, group reference, background reference, control reference
+
+Params:
+
+Examples:
+Description:
+Any valid way of describing an object(glossary) that OpenXTalk can understand. object|Objects can be referred to by name, number, or ID. 
+
+Values:
+
+OS:

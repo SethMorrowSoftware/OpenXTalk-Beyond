@@ -1,0 +1,28 @@
+dropboxGetMetadata
+(command)
+Returns the metadata for a file or folder.
+
+Syntax:
+dropboxGetMetadata {pAccessToken}, {pPath}, {pIncludeMediaInfo}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pPath ( ): Path to a file or folder in the user's Dropbox to be queried
+pIncludeMediaInfo ( ): If true, FileMetadata.media_info is set for photo and video. The default for this field is False.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+*Note:* Metadata for the root folder is unsupported.
+
+If the path is a folder, then a folderMetadata json is returned. If the path is a file then a fileMetadata json is returned. If the path is a file or folder that has been deleted, then a deletedMetadata json is returned.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { ".tag": string, "name": string, "id": string, "client_modified": string, "server_modified": string, "rev": string, "size": integer, "path_lower": string, "path_display": string, "sharing_info": { "read_only": boolean, "parent_shared_folder_id": string, "modified_by": string }, "property_groups": [ { "template_id": string, "fields": [ { "name": string, "value": string } ] } ], "has_explicit_shared_members": boolean } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

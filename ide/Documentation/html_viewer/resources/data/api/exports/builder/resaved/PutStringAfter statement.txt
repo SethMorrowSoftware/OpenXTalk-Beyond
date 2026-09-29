@@ -1,0 +1,27 @@
+PutStringAfter
+(statement)
+Appends Source to Target.
+
+Syntax:
+put {Source} after {Target}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to a string.
+Target ( ): An expression which evaluates to a string container.
+
+Examples:
+variable tVar as String
+put "" into tVar
+put "rent" after tVar -- tVar contains "rent"
+put "placeme" after char 2 of tVar -- tVar contains "replacement"
+----
+
+Description:
+Use to insert a string without replacement. Can be used either with a chunk expression to insert at a specified location, or without to append to the target string.
+
+Values:
+
+OS:

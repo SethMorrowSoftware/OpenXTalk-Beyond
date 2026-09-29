@@ -1,0 +1,16 @@
+character set
+(glossary)
+
+Syntax:
+Synonyms:
+character set, character-set, charset
+
+Params:
+
+Examples:
+Description:
+The set of all character|characters that can be used on a particular operating system, along with the mapping between characters and ASCII|ASCII values.
+
+Values:
+
+OS:

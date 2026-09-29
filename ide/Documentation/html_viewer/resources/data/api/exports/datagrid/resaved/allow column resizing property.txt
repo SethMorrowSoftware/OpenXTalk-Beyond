@@ -1,0 +1,19 @@
+allow column resizing
+(property)
+If true then the user can resize columns in the table header.
+
+Syntax:
+put the dgProp["allow column resizing"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If true then the user can resize columns in the table header. Note that you can also turn off resizing for individual columns which would override this setting.
+
+Values:
+
+OS:

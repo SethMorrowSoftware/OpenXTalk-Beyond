@@ -1,0 +1,35 @@
+PatternPropertyTransform
+(operator)
+The transform of a pattern value.
+
+Syntax:
+the transform of {mPattern}
+----
+
+Synonyms:
+
+Params:
+mPattern ( ): An expression which evaluates to a pattern.
+
+Examples:
+// Create a new pattern paint from a scaled-down image file
+variable tPattern
+put pattern with image from file "images/pattern.png" scaled by [0.5] into tPattern
+
+// Get the current transform
+variable tTransform
+put the transform of tPattern into tTransform
+
+// Modify the transform by rotation
+rotate tTransform by tDegrees
+
+// Set the pattern to the modified transform
+set the transform of tPattern to tTransform
+----
+
+Description:
+The transform of mPattern.
+
+Values:
+
+OS:

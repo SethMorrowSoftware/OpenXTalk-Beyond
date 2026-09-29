@@ -1,0 +1,16 @@
+recent cards
+(glossary)
+
+Syntax:
+Synonyms:
+recent cards list, recent-cards list, recent list, recent card, recently visited card, recently-visited card
+
+Params:
+
+Examples:
+Description:
+card|Cards the user has visited between starting up the application and going to the current card.
+
+Values:
+
+OS:

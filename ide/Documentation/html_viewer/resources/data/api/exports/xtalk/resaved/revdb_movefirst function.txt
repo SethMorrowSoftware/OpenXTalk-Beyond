@@ -1,0 +1,28 @@
+revdb_movefirst
+(function)
+
+Syntax:
+revdb_movefirst(recordSetID)
+
+Summary:
+Executes the revMoveToFirstRecord command.
+
+The number returned by the revQueryDatabase or revQueryDatabaseBLOB function when the record set was created.
+
+Examples:
+revdb_movefirst(savedResults)
+
+The revdb_movefirst function returns true if it successfully moved to the first record, false if it could not move to the first record because there are no records in the record set.
+
+Description:
+Use the revdb_movefirst function to move around within the selected set of records.
+
+Evaluating the revdb_movefirst function has the same effect as executing the revMoveToFirstRecord command. The only difference is that one is a function call and the other is a command.
+
+Important: The revdb_movefirst function is part of the Database library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure both the "Database" library checkbox and those of the database drivers you are using are checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

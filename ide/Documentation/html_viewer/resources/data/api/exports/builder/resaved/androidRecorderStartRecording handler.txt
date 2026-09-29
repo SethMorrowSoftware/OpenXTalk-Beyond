@@ -1,0 +1,27 @@
+androidRecorderStartRecording
+(handler)
+Start recording an audio file, using the given filename
+
+Syntax:
+androidRecorderStartRecording({pFileName})
+----
+
+Synonyms:
+
+Params:
+pFileName ( ): The absolute filename of the output file
+
+Examples:
+   local tFilePath
+   put specialFolderPath("external documents") & slash & "recording.mp4" \
+      into tFilePath   
+   androidRecorderStartRecording tFilePath
+----
+
+Description:
+Use the androidRecorderStartRecording handler to start recording audio on Android using the input source, compression type and output format  selected using the androidRecorderSetRecordInput,  androidRecorderSetRecordCompressionType, and androidRecorderSetRecordFormat handlers. The default input source, compression and output format are  built-in microphone, AMR-NB and 3gpp respectively.
+
+Values:
+
+OS:
+android

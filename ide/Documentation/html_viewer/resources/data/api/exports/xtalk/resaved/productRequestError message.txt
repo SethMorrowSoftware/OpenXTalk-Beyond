@@ -1,0 +1,29 @@
+productRequestError
+(message)
+Sent by the store when the request for specific product details is unsuccessful. 
+
+Syntax:
+productRequestError {pProductID}, {pError}
+----
+
+Synonyms:
+
+Params:
+pProductID ( ): The identidier of the product for which the request for details was made. 
+pError (string ): A string that describes the error.
+
+Examples:
+on productRequestError pProduct, pError
+   put "Error:" && pError && "when requesting details for " && pProduct
+end productRequestError
+----
+
+Description:
+Use the productRequestError message to handle unsuccessful request for details of a specific product.
+
+The message productRequestError is sent in response to the mobileStoreRequestProductDetails command, when the request is not successful. 
+
+Values:
+
+OS:
+ios,android

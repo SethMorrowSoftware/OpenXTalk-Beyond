@@ -1,0 +1,27 @@
+dgDataOfLine
+(property)
+
+Syntax:
+get the dgDataOfLine[pLine] of group "DataGrid" summary: Get or
+set the data associated with a particular line.
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dgDataOfLine [ pLine ] of group "DataGrid" to pDataA
+----
+put the dgDataOfLine[1] of group "DataGrid" into theMessageA
+put theMessageA["message"] -- puts "hi"
+----
+
+Description:
+Get or set the data associated with a particular line. The value is the array assigned to that line.
+
+*Note:* Setting the data of a line will cause the data grid to refresh the line if it is visible on screen.
+
+Values:
+
+OS:

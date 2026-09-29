@@ -1,0 +1,16 @@
+list field
+(glossary)
+
+Syntax:
+Synonyms:
+list field, clickable list
+
+Params:
+
+Examples:
+Description:
+A clickable list, where clicking anywhere in a line selects the entire line. 
+
+Values:
+
+OS:

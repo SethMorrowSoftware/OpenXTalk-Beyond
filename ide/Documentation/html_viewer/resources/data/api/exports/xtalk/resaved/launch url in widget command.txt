@@ -1,0 +1,27 @@
+launch url in widget
+(command)
+Launches a url in a widget.
+
+Syntax:
+launch url {url} in {widget}
+----
+
+Synonyms:
+
+Params:
+url (string ): The URL to launch. The supported url types will vary depending on the capabilities of the widget.
+widget ( ): A widget reference.
+
+Examples:
+launch url "http://www.OpenXTalk.org" in widget "myWebBrowser"
+----
+
+Description:
+Use the launch url command to open a url within a widget. When launch url in widget is called, OpenXTalk sends a "OnLaunchURL" message to that widget with url as the parameter. The widget can then display the url in an appropriate manner.
+
+*Note:* The url must be a standards-compliant URL.  In particular,  `file:` urls must be of the form `file://absolute path`, and the  path should be URLEncode|URL-encoded.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

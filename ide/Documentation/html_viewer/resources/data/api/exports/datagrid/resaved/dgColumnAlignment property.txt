@@ -1,0 +1,19 @@
+dgColumnAlignment
+(property)
+Get/set the alignment for a column.
+
+Syntax:
+put the dgColumnAlignment["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the alignment for a column. Valid values are 'left', 'right' or 'center'.
+
+Values:
+
+OS:

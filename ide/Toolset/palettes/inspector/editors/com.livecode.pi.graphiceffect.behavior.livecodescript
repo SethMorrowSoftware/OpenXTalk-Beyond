@@ -185,3 +185,11 @@ on toggleStore
    editorUpdate
    updateProperty
 end toggleStore
+
+
+before closestack
+   try
+      set the destroystack of this stack to true
+   catch e
+   end try
+end closestack

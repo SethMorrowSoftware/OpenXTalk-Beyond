@@ -1,0 +1,27 @@
+listRegistry
+(function)
+Lists the sub-keys of the specified key in the registry|Windows system registry. 
+
+Syntax:
+listRegistry({parentKey})
+----
+
+Synonyms:
+
+Params:
+parentKey ( ): A key in the Windows registry
+
+Examples:
+listRegistry("HKEY_CLASSES_ROOT")
+----
+
+Description:
+Use the listRegistry function to lists the sub-keys of a key in the registry|Windows system registry.
+
+The listRegistry function returns a return-delimited list of sub-keys, i.e. those keys which are direct children of the given parentKey. The specified key should be in the same format as the other registry functions. 
+
+Values:
+A return-delimited list of sub-keys. 
+
+OS:
+windows

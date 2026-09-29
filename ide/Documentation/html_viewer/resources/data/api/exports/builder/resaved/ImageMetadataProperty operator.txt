@@ -1,0 +1,37 @@
+ImageMetadataProperty
+(operator)
+the metadata associated with an image.
+
+Syntax:
+the metadata of {mImage}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+
+Examples:
+// Load an image from a file
+variable tImage as Image
+put image from file "images/logo.png" into tImage
+
+// get the image metadata
+variable tMetadata as Array
+put the metadata of tImage into tMetadata
+
+// get image density in DPI from the image metadata
+variable tDPI as Number
+if "density" is among the keys of tMetadata then
+	put tMetadata["density"] into tDPI
+else
+	put 72 into tDPI
+end if
+----
+
+Description:
+An array containing metadata associated with an image.
+
+Values:
+
+OS:

@@ -1,0 +1,36 @@
+mobileBusyIndicatorStart
+(command)
+Displays an animated activity indicator on the screen
+
+Syntax:
+mobileBusyIndicatorStart [{type}], {message}, [{opacity}]
+----
+
+Synonyms:
+
+Params:
+type (enum ): Specifies the type of animation that is to be displayed. The default is "square". Supported options:
+message ( ): Specifies the message that is to appear on the busy indicator dialog.
+opacity ( ): Specifies the opacity of the busy indicator, which can lie in the range 1 - 100. The default value is 42. This option is only available for iOS.
+
+Examples:
+mobileBusyIndicatorStart
+----
+mobileBusyIndicatorStart "square", "This is a message"
+----
+mobileBusyIndicatorStart "square", "My message", 50
+----
+
+Description:
+Use the mobileBusyIndicatorStart command to show a native busy indicator on iOS and Android.
+
+Use the mobileBusyIndicatorStart command to display a native busy indicator on the top of the OpenXTalk stack that is running.
+
+You can turn the busy indicator off by calling mobileBusyIndicatorStop.
+
+While this busy indicator is displayed, user input is blocked. This is different to the behavior from the indicator displayed  by iphoneActivityIndicatorStart.
+
+Values:
+
+OS:
+ios,android

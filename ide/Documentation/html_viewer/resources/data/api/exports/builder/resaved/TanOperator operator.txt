@@ -1,0 +1,27 @@
+TanOperator
+(operator)
+Tan operator.
+
+Syntax:
+tan({Operand})
+----
+
+Synonyms:
+
+Params:
+•	Operand ( ): An expression that evaluates to a number.
+	
+Examples:
+variable tVar as Number
+put the tan(pi) into tVar -- tVar contains 0
+----
+variable tVar as Number
+put the tangent of pi /4 into tVar -- tVar contains approximately 1
+----
+
+Description:
+Tan operator.
+
+Values:
+
+OS:

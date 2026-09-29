@@ -1,0 +1,21 @@
+mergMicrophoneSetAudioQuality
+(command)
+Set the audio quality level to use when encoding
+
+Syntax:
+mergMicrophoneSetAudioQuality {audioQuality}
+----
+
+Synonyms:
+
+Params:
+audioQuality ( ):  - Min  - Low  - Medium  - High  - Max
+
+Examples:
+Description:
+ Setting the audio quality only has effect the next time recording is started.
+
+Values:
+
+OS:
+ios,mac

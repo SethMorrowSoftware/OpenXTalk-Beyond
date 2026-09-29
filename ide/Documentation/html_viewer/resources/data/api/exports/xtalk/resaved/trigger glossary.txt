@@ -1,0 +1,18 @@
+trigger
+(glossary)
+
+Syntax:
+Synonyms:
+triggered, triggering, trigger
+
+Params:
+
+Examples:
+Description:
+To cause an action to happen. In particular, to cause an on or setProp handler to execute.
+
+Also, the set instruction sent to an object(glossary) that triggers a setProp handler.
+
+Values:
+
+OS:

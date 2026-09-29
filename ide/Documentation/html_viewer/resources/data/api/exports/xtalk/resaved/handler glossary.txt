@@ -1,0 +1,16 @@
+handler
+(glossary)
+
+Syntax:
+Synonyms:
+handler
+
+Params:
+
+Examples:
+Description:
+A group of OpenXTalk statement|statements that begin with an on, function, setProp, or getProp statement and end with an end statement. The basic unit of the OpenXTalk|OpenXTalk language.
+
+Values:
+
+OS:

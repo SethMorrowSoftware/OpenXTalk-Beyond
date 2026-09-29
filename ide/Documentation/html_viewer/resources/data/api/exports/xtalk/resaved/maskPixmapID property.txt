@@ -1,0 +1,28 @@
+maskPixmapID
+(property)
+Specifies the window ID of the X11 pixmap used to mask an image.
+
+Syntax:
+set the maskPixmapID of {image} to {empty | {windowID}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the maskPixmapID of image ID 4500 to empty
+----
+
+Description:
+Use the maskPixmapID property to pass to an external that needs to manipulate the image mask.
+
+The maskPixmapID is provided by the operating system and indicates the pixmap used to mask an image. The mask is a 1-bit image map. Pixels in the image that correspond to a value of zero in the mask are transparent to mouse clicks, and pixels(property) corresponding to a value of 1 can receive mouse clicks. If the maskPixmapID is empty, all the pixels(property) in the image can receive mouse clicks (as though the mask consisted of all 1s).
+
+This property is not supported on Mac OS and Windows systems.
+
+Values:
+The maskPixmapID of a stack is an integer. By default, the maskPixmapID of newly created image|images is empty. 
+
+OS:
+linux

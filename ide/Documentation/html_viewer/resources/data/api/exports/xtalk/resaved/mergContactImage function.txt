@@ -1,0 +1,23 @@
+mergContactImage
+(function)
+Get the image for a contact in the address book
+
+Syntax:
+mergContactImage({pContactID}, [{pImageType}])
+----
+
+Synonyms:
+
+Params:
+pContactID ( ): The contact ID as returned by mobileContactGet
+pImageType ( ): (optional with "thumbnail" default)  The image type. The image returned is not a guaranteed size or quality, however, the thumbnail is cropped square. One of:   - thumbnail  - original
+
+Examples:
+Description:
+Get the image for a contact in the address book
+
+Values:
+The image data  
+
+OS:
+ios

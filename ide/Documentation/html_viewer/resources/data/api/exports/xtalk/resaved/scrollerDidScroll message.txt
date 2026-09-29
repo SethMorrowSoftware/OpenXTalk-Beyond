@@ -1,0 +1,32 @@
+scrollerDidScroll
+(message)
+Sent when the properties of a scroller have changed.
+
+Syntax:
+scrollerDidScroll {pHScroll}, {pVScroll}
+----
+
+Synonyms:
+
+Params:
+pHScroll ( ): The horizontal scroll of an iOS scroller control.
+pVScroll ( ): The vertical scroll of an iOS scroller control.
+
+Examples:
+on scrollerDidScroll pHScroll, pVScroll
+   put "Scrolled to" && pHScroll \
+         & comma & pVScroll into field "scroller status"
+end scrollerDidScroll
+----
+
+Description:
+The scrollerDidScroll message is sent when the scroll properties of a scroller control created using the mobileControlCreate command change.
+
+Handle the scrollerDidScroll message if you want to move OpenXTalk controls, make changes to the interface or set the appropriate scroll properties of groups and fields to get a native scrolling effect.
+
+The scrollerDidScroll message is sent to the object containing the script that created the scroller control.
+
+Values:
+
+OS:
+ios,android

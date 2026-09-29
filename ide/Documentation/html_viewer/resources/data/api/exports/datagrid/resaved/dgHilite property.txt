@@ -1,0 +1,19 @@
+dgHilite
+(property)
+This is a custom property are defined in the behavior script for your template
+
+Syntax:
+setProp dgHilite {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This property is set by the data grid to set the highlighted state of the row or column control. If the value is "true" then the control should be highlighted. If "false" then it should not be.
+
+Values:
+
+OS:

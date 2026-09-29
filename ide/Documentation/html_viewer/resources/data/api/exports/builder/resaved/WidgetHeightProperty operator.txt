@@ -1,0 +1,33 @@
+WidgetHeightProperty
+(operator)
+Manipulates the height property of a child widget
+
+Syntax:
+the height of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+end handler
+
+public handler OnGeometryChanged() returns nothing
+    -- ensure child widget remains same height as parent
+    set the height of mChild to my height
+end handler
+----
+
+Description:
+Use the height property to set the height of a child widget.
+
+Values:
+
+OS:

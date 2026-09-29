@@ -1,0 +1,32 @@
+passReturnKey
+(property)
+Whether the return key adds a new line to the field
+
+Syntax:
+set the passReturnKey of {widget} to {true|false}
+get the passReturnKey of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+command createField
+   create widget as "com.livecode.widget.native.android.field"
+   set the passReturnKey of it to false
+end createField
+
+-- In the widget script
+on returnKey
+   answer "You entered" && the text of the target
+end returnKey
+----
+
+Description:
+Use the passReturnKey property to control whether the native keyboard return key adds a new line to the field or not.
+
+Values:
+
+OS:
+android

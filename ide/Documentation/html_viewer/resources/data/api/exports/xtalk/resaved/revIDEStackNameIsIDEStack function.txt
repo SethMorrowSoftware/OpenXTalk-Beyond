@@ -1,0 +1,23 @@
+revIDEStackNameIsIDEStack
+(function)
+Determines whether a stack is considered part of the IDE
+
+Syntax:
+revIDEStackNameIsIDEStack({pStackName})
+----
+
+Synonyms:
+
+Params:
+pStackName ( ): The short name of the stack
+
+Examples:
+Description:
+Use the revIDEStackNameIsIDEStack function to determine whether a stack is considered part of the IDE, according to the name of the stack.
+
+A stack is considered part of the IDE if any of the following are satisfied: * Its name begins with "rev" * It was loaded by the initialisation library * Its name begins with "com.livecode." * Its name is "message box, answer dialog, ask dialog, or home" * Its _ideoverride property is true
+
+Values:
+ 
+
+OS:

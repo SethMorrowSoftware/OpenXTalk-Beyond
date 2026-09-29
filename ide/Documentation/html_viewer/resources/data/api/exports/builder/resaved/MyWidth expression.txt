@@ -1,0 +1,20 @@
+MyWidth
+(expression)
+Returns the width of the widget.
+
+Syntax:
+my width
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the width of the widget.
+
+Values:
+The width of the widget. 
+
+OS:

@@ -1,0 +1,2 @@
+Version 1.09, build 202411301453
+More fixes for revMenubar (menu drawing on linux), and also if you toggle toolbar / icons on the menubar, it no longer visually glitches.

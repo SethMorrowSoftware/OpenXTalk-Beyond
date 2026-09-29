@@ -1,0 +1,22 @@
+revIDEUnsubscribe
+(command)
+Unsubscribes the calling object from the given message
+
+Syntax:
+revIDEUnsubscribe {pMessage},{pObject},{pObjectList}
+----
+
+Synonyms:
+
+Params:
+pMessage ( ): The message to unsubscribe from.
+pObject ( ): The long ID of the object you wish to unsubscribe from the message. This is an optional parameter, if not specified, the calling object will be used.
+pObjectList ( ): A list of objects, one per line.
+
+Examples:
+Description:
+Unsubscribes the calling object from the given message
+
+Values:
+
+OS:

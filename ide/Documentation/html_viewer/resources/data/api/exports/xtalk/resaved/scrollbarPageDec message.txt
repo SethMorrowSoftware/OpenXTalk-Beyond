@@ -1,0 +1,30 @@
+scrollbarPageDec
+(message)
+Sent to a scrollbar when the user clicks above or left of the scrollbar thumb, scrolling backward one screenful.
+
+Syntax:
+scrollbarPageDec {pNewPosition}
+----
+
+Synonyms:
+
+Params:
+pNewPosition ( ): The new position of the scrollbar thumb.
+
+Examples:
+on scrollbarPageDec
+  go previous card
+end scrollbarPageDec
+----
+
+Description:
+Handle the scrollbarPageDec message if you want to respond to the user clicking in the gray region above or to the left of the  scrollbar thumb.
+
+Dragging the scrollbar thumb does not send a scrollbarPageDec message.
+
+If the scrollbarPageDec message is not handle|handled, a scrollbarDrag message is sent in addition.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

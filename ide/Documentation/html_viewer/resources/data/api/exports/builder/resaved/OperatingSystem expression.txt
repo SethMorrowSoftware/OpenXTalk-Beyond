@@ -1,0 +1,24 @@
+OperatingSystem
+(expression)
+The operating system
+
+Syntax:
+the operating system
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the operating system is "linux" then
+	- Platform specific-code
+end if
+----
+
+Description:
+Returns a string describing the operating system that LiveCode is running on.  The possible values are:  * "windows" - 32-bit and 64-bit Windows * "mac" - Desktop OS X * "ios" - iOS (iPhone and iPad) * "android" - Android Linux devices * "linux" - All other Linux platforms
+
+Values:
+
+OS:

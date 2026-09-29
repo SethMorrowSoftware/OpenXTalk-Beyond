@@ -1,0 +1,27 @@
+ScheduleTimerIn
+(statement)
+Schedules a timer.
+
+Syntax:
+schedule timer in {Time} seconds
+----
+
+Synonyms:
+
+Params:
+Time ( ): An expression which evaluates to a number.
+
+Examples:
+// Create a timer loop
+public handler OnTimer()
+	...
+	schedule timer in 1 seconds
+end handler
+----
+
+Description:
+Scheduling a timer causes an OnTimer message to be sent to the widget in Time seconds.
+
+Values:
+
+OS:

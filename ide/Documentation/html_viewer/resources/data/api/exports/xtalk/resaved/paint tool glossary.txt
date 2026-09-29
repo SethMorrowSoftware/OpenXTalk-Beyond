@@ -1,0 +1,16 @@
+paint tool
+(glossary)
+
+Syntax:
+Synonyms:
+paint tool
+
+Params:
+
+Examples:
+Description:
+One of the tool|tools in the Paint Palette, used to draw bitmapped pictures in image object|objects.
+
+Values:
+
+OS:

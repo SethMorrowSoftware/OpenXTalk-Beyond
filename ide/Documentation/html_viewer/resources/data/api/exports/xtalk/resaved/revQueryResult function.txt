@@ -1,0 +1,31 @@
+revQueryResult
+(function)
+return|Returns the most recent error message associated with a  record set (glossary).
+
+Syntax:
+revQueryResult({recordSetID})
+----
+
+Synonyms:
+revdb_cursorerr
+
+Params:
+recordSetID ( ): The number returned by the revQueryDatabase function when the record set was created.
+
+Examples:
+revQueryResult(field "Current Set")
+if revQueryResult(thisCursor) is not empty then beep 2
+----
+
+Description:
+Use the revQueryResult function to check for successful completion of SQL commands.
+
+If there were no errors associated with the specified record set, the revQueryResult function returns empty. If there was an error, then a database-specific string will be returned describing the error.
+
+*Important:*  The revQueryResult function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure both the   "Database" library checkbox and those of the database drivers you are   using are checked.
+
+Values:
+The revQueryResult function returns a string. 
+
+OS:
+mac,windows,linux,ios,android

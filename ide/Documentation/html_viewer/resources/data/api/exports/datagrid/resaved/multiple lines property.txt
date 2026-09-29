@@ -1,0 +1,19 @@
+multiple lines
+(property)
+Set to true to allow the user to select multiple lines in the data grid.
+
+Syntax:
+put the dgProp["multiple lines"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true to allow the user to select multiple lines in the data grid.
+
+Values:
+
+OS:

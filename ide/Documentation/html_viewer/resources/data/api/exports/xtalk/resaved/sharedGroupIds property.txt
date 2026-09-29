@@ -1,0 +1,33 @@
+sharedGroupIds
+(property)
+Reports the ids of all the shared groups of the card or stack
+
+Syntax:
+get the sharedGroupIds of {{card} | {stack}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the sharedGroupIds of stack myStack
+----
+put the sharedGroupIds of this stack into tGroupIds
+----
+get the sharedGroupIds of this card
+put it into tGroupIds
+----
+repeat for each line tGroupId in the sharedGroupIds of this card
+   remove group id tGroupId from this card
+end repeat
+----
+
+Description:
+Use the sharedGroupIds property to get a list of all the ids of the shared groups on the card or stack.
+
+Values:
+The sharedGroupIds of a stack returns a list of ids, one per line, of all groups owned by the stack which have sharedBehavior set to true regardless of which cards they may be placed on. The sharedGroupIds of a card returns a list of ids, one per line, of all groups which are placed onto the card which have sharedBehavior set to true. 
+
+OS:
+mac,windows,linux,ios,android

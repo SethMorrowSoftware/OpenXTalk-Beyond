@@ -1,0 +1,25 @@
+paintPlaceholderImage
+(handler)
+Paint a placeholder image using an SVG icon and name
+
+Syntax:
+paintPlaceholderImage({pCanvas},{pBounds},{pSVGIcon},{pLabel},{pFont},{pColor})
+----
+
+Synonyms:
+
+Params:
+pCanvas ( ): The canvas on which to draw the placeholder
+pBounds ( ): The rectangle in which to draw the placeholder on the canvas
+pSVGIcon ( ): The placeholder icon to use
+pLabel ( ): The label to use
+pFont ( ): A font to draw the label with. If none specified, Arial 14pt is used.
+pColor ( ): A color to draw the label with. If none specified, #404040 is used
+
+Examples:
+Description:
+Use the paintPlaceHolder image handler to draw a placeholder on the given canvas when, for example, the widget shouldn't be displayed as active in browse mode, or is not available on the current platform. 
+
+Values:
+
+OS:

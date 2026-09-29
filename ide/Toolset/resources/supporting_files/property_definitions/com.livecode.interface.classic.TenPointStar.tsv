@@ -1,0 +1,55 @@
+Property : optional getter : optional setter	Label	Section	Editor	User Visible	Read Only	Group	Default	Options	Subsection	min	max	step
+type	graphic											
+title	Ten Point Star Graphic											
+												
+-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----
+name							TenPointStar					
+label
+tooltip												
+style							polygon	rectangle,roundrect,line,oval,regular,line,curve,polygon				
+opaque							false					
+visible							true					
+disabled							false					
+showName							false					
+antialiased							true					
+lineSize							1					
+dashes												
+startArrow							false					
+endArrow							false					
+points		Basic					158,79\n195,23\n192,90\n253,68\n213,121\n275,141\n213,159\n252,213\n192,190\n193,256\n157,201\n121,256\n123,190\n63,213\n102,159\n41,141\n102,121\n63,68\n123,90\n122,23\n158,79							
+markerDrawn							false					
+markerLineSize							1					
+markerFilled							false					
+markerPoints												
+layerMode												
+behavior												
+foregroundColor						Border fill						
+foregroundPattern						Border fill						
+backgroundColor												
+backgroundPattern												
+fillGradient												
+strokeGradient												
+hiliteColor						Marker border fill						
+hilitePattern						Marker border fill						
+borderColor						Marker fill						
+borderPattern						Marker fill						
+topColor												
+topPattern												
+bottomColor												
+bottomPattern												
+customProperties												
+blendLevel							0	0,100				
+ink												
+textFont												
+textSize												
+textStyle												
+textAlign												
+margins							8					
+lockLoc							false					
+width							100					
+height							100					
+dropShadow												
+innerShadow												
+outerGlow												
+innerGlow												
+colorOverlay												

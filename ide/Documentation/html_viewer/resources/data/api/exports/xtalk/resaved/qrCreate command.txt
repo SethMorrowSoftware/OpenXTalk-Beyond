@@ -1,0 +1,58 @@
+qrCreate
+(command)
+Create a QR code
+
+Syntax:
+qrCreate {pImg},{pData},{pECC},{pSize},{pMask},{pMinVersion},{pMaxVersion}
+----
+
+Synonyms:
+
+Params:
+pImg ( ): The name of an image object on the card, a filename or the special code "!" which will return the image data in the result.
+pData ( ): The data to be encoded.
+pECC ( ): The error correction level - "L" : 7% error correction - "M" : 15% error correction - "Q" : 25% error correction - "H" : 30% error correction
+pSize ( ): Module size you can make the code larger/smaller.  You can also just rescale the image after the code has been created.
+pMask ( ): An integer value between 0 and 7. When encoding a QR code, there are eight mask patterns that you can use to change the outputted matrix. Each mask pattern changes the bits according to their coordinates in the QR matrix. The purpose of a mask pattern is to make the QR code easier for a QR scanner to read.
+pMinVersion ( ): An integer value between 1 and 40. It must be lower or equal to pMaxVersion. If pMinVersion is not specified then the default value of 1 is used.
+pMaxVersion ( ): An integer value between 1 and 40. It must be higher or equal to pMinVersion. If pMaxVersion is not specified then the default value of 40 is used.
+
+Examples:
+qrCreate "MyImage", "QR data", "M", 3
+----
+--creating QR Code with ECC level M, Size 3, Mask 7 and version 14
+qrCreate "MyImage", "QR data", "M", 3, 7, 14, 14
+----
+-- example how to use qrCreate with the server build
+qrCreate "!", tData, tECC, tSize
+put the result into tData
+if tData begins with "Error" then
+   put tData
+else
+   # line 1 of the result contains some info
+   # the remaining lines contain the png image data
+   put line 1 of tData into tInfo
+   delete line 1 of tData
+
+   put "<b>Qr code info</b><br/>" & LF
+   put "Version: " & item 1 of tInfo & "<br/>" & LF
+   put "ECC: " & item 2 of tInfo & "<br/>" & LF
+   put "Mode: " & item 3 of tInfo & "<br/>" & LF
+   put "Mask: " & item 4 of tInfo & "<br/>" & LF
+
+   # show the image
+   put base64Encode(tData) into tData
+   replace LF with empty in tData
+   put "<img src='data:image/png;base64," & tData & "'/><br/>" & LF
+end if
+----
+
+Description:
+Set the text of an image to a QR code or get the PMG data of the QR code image.
+
+Values:
+If successful, the first line of the result will be the following values: - QR version - ECC - Mode - Mask - Image size with quiet zone (based on module size 1)  If there was an error the result will contain "Error:" and then an error description.
+
+If the special character '!' is used for pImg, then the result also contains the raw output of a png image.  You can use this data, for example, with server build to generate QR codes on web pages. 
+
+OS:

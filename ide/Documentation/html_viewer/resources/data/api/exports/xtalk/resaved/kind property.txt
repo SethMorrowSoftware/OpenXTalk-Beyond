@@ -1,0 +1,26 @@
+kind
+(property)
+The unique identifier of a widget type.
+
+Syntax:
+get the kind of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the kind of widget 1 is "com.xtalkwidget.colorswatch" then
+    set the swatchColor of widget 1 to "200,100,5,50"
+end if
+----
+
+Description:
+Use the kind property to identify the type of an arbitrary widget object. 
+
+Values:
+The kind of a widget is a string. 
+
+OS:
+mac,windows,linux,ios,android

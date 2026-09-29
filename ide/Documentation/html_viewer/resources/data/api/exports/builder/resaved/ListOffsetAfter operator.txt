@@ -1,0 +1,32 @@
+ListOffsetAfter
+(operator)
+Find the first or last occurrence of Needle within the tail of Haystack Target:An expression which evaluates to a list.
+
+Syntax:
+the ( first | last ) offset of {Needle} after {After} in {Haystack}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to any list.
+After ( ): An expression which evaluates to a valid index in Target.
+
+Examples:
+variable tVar as List
+variable tOffset as Number
+put ["a", "b", "c", "d", "b", "c"]
+put the offset of ["b","c"] after 1 in tVar into tOffset
+--tOffset contains 2
+
+put the last offset of ["b","c"] after 1 in tVar into tOffset
+--tOffset contains 5
+----
+
+Description:
+Use `the offset of?Ķ after` to find where a particular sub-list occurs within a list.  Starting from but not including the position After, Haystack is scanned for an sequence of elements that are equal to the elements of Needle, and the position of the start of the sequence found is returned.  If neither the "first offset" nor "last offset" are specified, the position of the first matching sub-list found is returned.  If no sub-list of Haystack starting after the position After is equal to Needle, the return value is 0.
+
+Values:
+Returns the index in Haystack relative to After. 
+
+OS:

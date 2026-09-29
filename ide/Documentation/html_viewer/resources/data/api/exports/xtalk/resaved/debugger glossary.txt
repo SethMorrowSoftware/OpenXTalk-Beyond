@@ -1,0 +1,18 @@
+debugger
+(glossary)
+
+Syntax:
+Synonyms:
+debugger, script debugger, debug mode, debugging mode, script debug mode, script debugging mode
+
+Params:
+
+Examples:
+Description:
+A feature of OpenXTalk that helps you check script|scripts for error|errors.
+
+To use the debugger, you click "Debug" in the error window.
+
+Values:
+
+OS:

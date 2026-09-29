@@ -1,0 +1,19 @@
+dgNumberOfLines
+(property)
+Returns the number of lines displayed in the data grid.
+
+Syntax:
+get the dgNumberOfLines of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the number of lines displayed in the data grid.
+
+Values:
+
+OS:

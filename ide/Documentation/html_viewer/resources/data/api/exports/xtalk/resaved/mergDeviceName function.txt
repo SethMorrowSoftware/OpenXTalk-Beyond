@@ -1,0 +1,21 @@
+mergDeviceName
+(function)
+Get the name of the device as would appear in iTunes
+
+Syntax:
+mergDeviceName()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the name of the device as would appear in iTunes
+
+Values:
+The name of the device  
+
+OS:
+ios

@@ -1,0 +1,23 @@
+revIDEGetAllPlugins
+(function)
+Use to lsit pf patchs of IDE Plugins
+
+Syntax:
+revIDEGetAllPlugins()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put revIDEGetAllPlugins() -- a list of the full paths of all IDE plugins
+----
+
+Description:
+Use to lsit pf patchs of IDE Plugins
+
+Values:
+list of the full paths of all IDE plugins. 
+
+OS:

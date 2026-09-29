@@ -1,0 +1,28 @@
+hostName
+(function)
+return|Returns the domain name of the local system.
+
+Syntax:
+the hostName
+----
+hostName()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if the hostName is "localhost.example.org" then return empty
+----
+
+Description:
+Use the hostName function to find the domain name of the computer that OpenXTalk is running on.
+
+The hostName function does a reverse DNS lookup on the hostAddress in order to find the domain name. This means that the computer must be connected to the Internet in order to use this function. If a connection to the Internet is not available, the hostName function return|returns an error message.
+
+Values:
+The hostName function return|returns the domain name of the computer.  
+
+OS:
+mac,windows,linux,ios,android

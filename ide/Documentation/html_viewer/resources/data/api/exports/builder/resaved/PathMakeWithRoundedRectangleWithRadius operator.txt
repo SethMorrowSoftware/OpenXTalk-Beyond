@@ -1,0 +1,31 @@
+PathMakeWithRoundedRectangleWithRadius
+(operator)
+Creates a new path. mRadii:An expression which evaluates to a list of numbers.
+
+Syntax:
+rounded rectangle path of {mRect} with radius {mRadius}
+----
+
+Synonyms:
+
+Params:
+mRect ( ): An expression which evaluates to a rectangle.
+mRadius ( ): An expression which evaluates to a number.
+
+Examples:
+// Create a rounded rectangle path
+variable tPath as Path
+put rounded rectangle path of rectangle [10,10,210,60] with radius 15 into tPath
+----
+// Create a rounded rectangle path with different horizontal & vertical radii
+variable tPath as Path
+put rounded rectangle path of rectangle [10,10,210,60] with radii [10,5] into tPath
+----
+
+Description:
+Creates a new path. mRadii:An expression which evaluates to a list of numbers.
+
+Values:
+A new rounded rectangle path. 
+
+OS:

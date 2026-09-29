@@ -1,0 +1,16 @@
+background
+(glossary)
+
+Syntax:
+Synonyms:
+background
+
+Params:
+
+Examples:
+Description:
+A set of card|cards in a stack, all of which contain the same group. 
+
+Values:
+
+OS:

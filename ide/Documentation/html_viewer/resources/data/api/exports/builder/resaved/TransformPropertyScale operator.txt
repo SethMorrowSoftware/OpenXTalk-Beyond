@@ -1,0 +1,31 @@
+TransformPropertyScale
+(operator)
+The scale component of a transform.
+
+Syntax:
+the scale of {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+variable tTransform
+put transform with matrix [0, 2, -2, 0, 50, 100] into tTransform
+
+// Store the old scale component
+variable tScale
+put the scale of tTransform into tScale
+
+// Modify the scale by adding 1 to the x scale value
+set the scale of tTransform to [element 1 of tScale + 1, element 2 of tScale]
+----
+
+Description:
+The scale of mTransform as a list of 2 numbers (the x and y scales)
+
+Values:
+
+OS:

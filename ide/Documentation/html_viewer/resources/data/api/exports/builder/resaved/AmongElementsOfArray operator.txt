@@ -1,0 +1,29 @@
+AmongElementsOfArray
+(operator)
+Determines if an array contains a given element
+
+Syntax:
+{Needle} ( is not | is ) among the elements of {Target}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): Any expression.
+Target ( ): An expression which evaluates to an array.
+
+Examples:
+variable tArray as Array
+put "value" into tArray["key"]
+
+variable tIsAmong as Boolean
+put "value" is among the elements of tArray into tIsAmong -- tIsAmong is true
+----
+
+Description:
+Elements are compared using the default comparison for that type. Thus for a string, ```tString```,  ```tString is among the elements of tArray```  is a case sensitive search.
+
+Values:
+Returns true if Needle can be found among the elements of Target. 
+
+OS:

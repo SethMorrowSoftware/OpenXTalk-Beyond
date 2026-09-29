@@ -1,0 +1,19 @@
+OnMouseMove
+(message)
+Sent when the mouse pointer moves within the widget's rect.
+
+Syntax:
+OnMouseMove
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer moves within the widget's rect.
+
+Values:
+
+OS:

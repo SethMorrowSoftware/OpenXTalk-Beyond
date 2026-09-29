@@ -1,0 +1,23 @@
+JsonImport
+(handler)
+Parse JSON text into a LiveCode value.
+
+Syntax:
+JsonImport({pJson})
+----
+
+Synonyms:
+
+Params:
+pJson ( ): String containing JSON text
+
+Examples:
+Description:
+JsonImport is used to convert data encoded in JSON format into a LiveCode value.  It parses pJson and returns the first top-level value found.  If any syntax errors are found in pJson, an error is thrown.
+
+The return value may be any of the following types, depending on the content of the file:  * Array (for a JSON object) * List  (for a JSON array) * String (for a JSON string) * Number (for any JSON number) * Boolean (for JSON `true` or `false`) * nothing (for JSON `null`)
+
+Values:
+The top level value.  The type depends on the JSON content. 
+
+OS:

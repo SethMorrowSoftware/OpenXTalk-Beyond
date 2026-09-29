@@ -1,0 +1,25 @@
+CanvasPropertyJoinStyle
+(operator)
+The current join style of a canvas.
+
+Syntax:
+the join style of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw a square with beveled corners.
+set the join style of this canvas to "bevel"
+stroke rectangle path of rectangle [25, 25, 75, 75] on this canvas
+----
+
+Description:
+Determines how to draw the join between the lines of a path when stroking. Can be one of "bevel", "round", or "miter".
+
+Values:
+
+OS:

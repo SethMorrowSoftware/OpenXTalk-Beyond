@@ -1,0 +1,25 @@
+Version 1.14, build 202601171326 [mod 6 > final 1.14]
+Native dark mode support under Windows
+Fixed Report Builder preview (Thanks TerryL)
+Inspector window-juggling (fixed for XCFE) (focus stealing issue) Linux
+Fixed SystemVersion for windows to return Windows 11 when applicable
+GTK3 build and legacy GTK2 build (Linux)
+RevSpeech dll issue (recompiled to handle Win Speech APIs)
+MacOS ARM build now compiles xTalk-Builder syntax & LCE files properly
+MacOS - screen redraw responsiveness. Fixed in engine (on par with Linux & Windows now)
+Linux - fix 'double menu' redraw loop in engine
+Linux - systemAppearance fixed (now returns light/dark correctly)
+Linux - accentColor fixed (wasn't implemented)
+Linux - hiliteColor fixed to return correct value
+Linux - use-after-free security bug in moz-gtk2 code (fixed)
+Linux - Changing system theme in the GTK3 version while the IDE is open should no longer cause a crash
+Gradient popup stack should now be usable
+Effects popup stack should now not pop-under inspector (Thanks Richmond)
+NSCombobox and NSRadioButton - both 'classic' controls now render correctly (Thanks Paul)
+Field scrollbar track and grabhandle - now give correct appearance.
+Fixed "User Guide" (typo) when choosing from help menu (PDF now opens) - Thanks TerryL
+Found stray put command in revIDELibrary (left over debug - oops!)
+Added TerryL's examples (help menu > Demos)
+Added "Online Dictionary" (help menu > Dictionary Online)
+Quick Dictionary -- found blocking code, removed and fixed. DB connection now opens (Thanks TerryL for letting me know about that bug)
+Button hilite (MacOS) for "standard" nsButtons -- hilite now works (Thanks Paul)

@@ -1,0 +1,29 @@
+scrollerBeginDecelerate
+(message)
+Sent when scrolling is about to start decelerating.
+
+Syntax:
+scrollerBeginDecelerate
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on scrollerBeginDecelerate
+   put "Decelerating" into field "scroller status"
+end scrollerBeginDecelerate
+----
+
+Description:
+The scrollerBeginDecelerate message is sent when a UIScrollView scroller control is about to start decelerating.
+
+Handle the scrollerBeginDecelerate message if you want to move OpenXTalk controls, make changes to the interface or set the appropriate scroll properties of groups and fields to get a native scrolling effect.
+
+The scrollerBeginDecelerate message is sent to the object containing the script that created the UIScrollView scroller control.
+
+Values:
+
+OS:
+ios

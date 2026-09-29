@@ -1,0 +1,22 @@
+canvasFillCircle
+(handler)
+Draws a filled circle.
+
+Syntax:
+canvasFillCircle({pX},{pY},{pRadius})
+----
+
+Synonyms:
+
+Params:
+pX ( ): The x-coordinate of the centre of the circle.
+pY ( ): The y-coordinate of the centre of the circle.
+pRadius ( ): The radius of the circle.
+
+Examples:
+Description:
+Fills a circle of the given radius at the given position in the canvas.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+XML tree
+(glossary)
+
+Syntax:
+Synonyms:
+xml tree, tree
+
+Params:
+
+Examples:
+Description:
+An XML document held in memory. An XML tree is a data structure containing all the content in an XML document, arranged to make it easy to traverse owner|parent, sibling, and child relationships between node|nodes.
+
+Values:
+
+OS:

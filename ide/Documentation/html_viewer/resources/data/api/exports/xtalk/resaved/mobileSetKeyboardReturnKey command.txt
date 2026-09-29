@@ -1,0 +1,31 @@
+mobileSetKeyboardReturnKey
+(command)
+Configures the type of return key displayed on the keyboard.
+
+Syntax:
+mobileSetKeyboardReturnKey {returnKey}
+----
+
+Synonyms:
+iphonesetkeyboardreturnkey
+
+Params:
+returnKey (enum ): Specifies what the return key function is.
+
+Examples:
+mobileSetKeyboardReturnKey "alphabet"
+----
+mobileSetKeyboardReturnKey "numeric"
+----
+
+Description:
+Use the mobileSetKeyboardReturnKey command to configure the type of return key displayed on the keyboard.
+
+The mobileSetKeyboardReturnKey command configures the type of return key displayed on the keyboard  The return key type setting takes effect the next time the keyboard is shown - it does not affect the currently displaying keyboard, if any. If you wish to configure the keyboard options based on the field that is being focused, simply use the commands in an openField handler of the given field. The keyboard is only shown after this handler returns, so it is the ideal time to configure it.
+
+**Note:** If a field has a non-empty returnKeyType that value will override  the the value set by mobileSetKeyboardReturnKey.
+
+Values:
+
+OS:
+ios,android

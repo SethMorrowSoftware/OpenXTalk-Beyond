@@ -1,0 +1,21 @@
+ArrayFromNSDictionary
+(handler)
+Convert a Objective-C dictionary into a Array
+
+Syntax:
+ArrayFromNSDictionary({pObjcArray})
+----
+
+Synonyms:
+
+Params:
+pObjcNumber ( ): The NSDictionary to convert
+
+Examples:
+Description:
+Convert a Objective-C dictionary into a Array
+
+Values:
+An Array value  Description Use ArrayFromNSDictionary to convert an Objective-C dictionary object (NSDictionary) to a variable of type Array. 
+
+OS:

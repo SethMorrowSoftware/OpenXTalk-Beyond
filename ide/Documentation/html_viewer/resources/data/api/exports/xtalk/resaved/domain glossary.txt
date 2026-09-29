@@ -1,0 +1,16 @@
+domain
+(glossary)
+
+Syntax:
+Synonyms:
+domain
+
+Params:
+
+Examples:
+Description:
+The ownership status of an object. A card object(glossary) is in the card domain; an object(glossary) that is part of a shared group is in the background domain.
+
+Values:
+
+OS:

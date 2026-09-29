@@ -1,0 +1,16 @@
+Unicode
+(glossary)
+
+Syntax:
+Synonyms:
+unicode
+
+Params:
+
+Examples:
+Description:
+A standard for representing character|characters as 2-byte numbers,  also called UTF-16. Unicode contains enough character|characters  and symbols to write most human languages.
+
+Values:
+
+OS:

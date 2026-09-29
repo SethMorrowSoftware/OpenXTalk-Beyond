@@ -1,0 +1,19 @@
+dgIndexOfLine
+(property)
+Returns the index associated with the given line.
+
+Syntax:
+put the dgIndexOfLine[pLine] of group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Returns the index associated with the given line.
+
+Values:
+
+OS:

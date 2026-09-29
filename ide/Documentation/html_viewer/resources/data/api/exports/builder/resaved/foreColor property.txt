@@ -1,0 +1,21 @@
+foreColor
+(property)
+The color of the navigation items that are not highlighted
+
+Syntax:
+get the foreColor of {widget}
+----
+set the foreColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The foreColor is used to draw the icons and/or labels of the navigation items that are not hilitedItemName|currently highlighted.
+
+Values:
+
+OS:

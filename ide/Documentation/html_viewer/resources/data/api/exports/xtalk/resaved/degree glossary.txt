@@ -1,0 +1,16 @@
+degree
+(glossary)
+
+Syntax:
+Synonyms:
+degree
+
+Params:
+
+Examples:
+Description:
+Measurement unit for angles, also shown by the symbol °. There are 360 degrees in a circle.
+
+Values:
+
+OS:

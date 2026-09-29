@@ -1,0 +1,28 @@
+adLoadFailed
+(message)
+Sent when there is an error loading an ad.
+
+Syntax:
+adLoadFailed {adName}
+----
+
+Synonyms:
+
+Params:
+adName ( ): The name of ad that failed to load
+
+Examples:
+on adLoadFailed pAdName
+   handleAdLoadFailed
+end adLoadFailed
+----
+
+Description:
+Handle the adLoadFailed message if you want to handle errors when loading ads.
+
+The adLoadFailed messge is sent to the object that created the ad when there is an error loading the ad.
+
+Values:
+
+OS:
+ios,android

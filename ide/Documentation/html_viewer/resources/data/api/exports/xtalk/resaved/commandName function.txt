@@ -1,0 +1,28 @@
+commandName
+(function)
+Returns the command name used to start the execution of the application
+
+Syntax:
+the commandName
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the commandName
+----
+set the itemdelimiter to slash
+put the last item of the commandName into field "log"
+----
+
+Description:
+Returns the full command name that has been used to start the executable.
+
+The commandName is only available for standalone applications and server scripts. It returns empty for mobile platforms and in the IDE.
+
+Values:
+
+OS:
+mac,windows,linux

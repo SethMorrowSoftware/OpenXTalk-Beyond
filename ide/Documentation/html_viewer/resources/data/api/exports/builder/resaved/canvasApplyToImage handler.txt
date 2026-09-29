@@ -1,0 +1,20 @@
+canvasApplyToImage
+(handler)
+Copies the current contents of the canvas to the specified image object.
+
+Syntax:
+canvasApplyToImage({pObjectId})
+----
+
+Synonyms:
+
+Params:
+pObjectId ( ): A string which is an object chunk referring to an image.
+
+Examples:
+Description:
+This handler copies the current contents of the canvas to the specified image object.
+
+Values:
+
+OS:

@@ -23,8 +23,11 @@ so that you can send the details there.
 
 Please include:
 
-- the OpenXTalk Lite version (Help > About LiveCode, or the `version` file in a
-  source checkout) and your Windows version;
+- the OXT-Beyond version and build number (the version is in the title
+  of the menubar window, for example "OXT-Beyond 0.0.1", and in
+  `ide/.version` of a source checkout; the build number is under
+  *Preferences > Automatic Updates*) and your Windows version;
+- whether you use the installed or the portable copy;
 - what an attacker can do, and what they need first (for example, "a
   user opens a crafted stack file");
 - steps or a small stack or script that shows the problem.
@@ -34,10 +37,80 @@ guaranteed response time, but reports will be read and answered as soon
 as possible. Please give us a reasonable amount of time to fix a problem
 before you publish details.
 
+Problems in OpenXTalk Lite itself, in LiveCode or in the OpenXTalk
+forums' own software are outside this project; report those to their
+maintainers.
+
 ## Supported versions
 
-Only the latest release, and the `main` branch, get fixes. No release
-has been published yet.
+Only the latest release, and the `main` branch, get fixes. OXT-Beyond
+0.0.1 is the first release.
+
+## Downloads and signatures
+
+The OXT-Beyond binaries (the installer, `OXT-Beyond.exe` and the other
+programs and libraries) are **not code-signed**, so Windows SmartScreen
+may warn about them. Download them only from this repository's
+[Releases page](https://github.com/SethMorrowSoftware/winoxt/releases)
+and check them against the `SHA256SUMS` file of the same release, for
+example:
+
+```bat
+certutil -hashfile OXT-Beyond-0.0.1-win-x86_64-setup.exe SHA256
+```
+
+Development builds (workflow artifacts on the Actions tab) are made by
+the same workflow but are not reviewed as releases.
+
+The packages also contain prebuilt files that are not built from this
+repository: the standalone runtimes for 32-bit Windows, Linux and
+Android, taken unchanged from OpenXTalk Lite 1.15. The packager
+downloads them from this repository's `runtimes-1.15` release and
+refuses them unless their SHA-256 matches the one recorded in
+[`tools/oxt/external-assets.json`](tools/oxt/external-assets.json).
+They are old builds (stock LiveCode 9.6.3 files and files as Tom Perry
+shipped them, among them his 9.7.1-OXT Linux engine), and the
+Linux runtimes include shared libraries of other projects at the
+versions Tom shipped; they have not been rebuilt or updated. See
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#standalone-runtimes-for-other-platforms).
+
+## Updates
+
+OXT-Beyond's update check (*Help > Check for Updates*, and the
+automatic check if you turn it on in *Preferences > Automatic Updates*;
+it is off by default):
+
+- asks GitHub's API (`api.github.com`) over HTTPS for this repository's
+  latest release, and for the list of its releases when the latest one
+  is not an OXT-Beyond version (for example `prebuilts-v1`) or when you
+  run a pre-release, and reads the version number (the release's `v`
+  tag), name and notes from the answer; pre-releases are offered only
+  to people who already run a pre-release;
+- identifies itself to GitHub as OXT-Beyond with its version number
+  (the User-Agent header), and sends nothing else about you or your
+  computer beyond what any web request carries (such as your IP
+  address);
+- if the release is newer than yours, shows its notes and a button that
+  opens the release page on github.com in your browser, and does nothing
+  else;
+- never downloads, installs or runs anything, never writes into the
+  program folder and never asks for administrator rights;
+- never contacts OpenXTalk Lite's update servers (tsites.co.uk,
+  openxtalk.net).
+
+You update by downloading the new installer or zip from the Releases
+page yourself and checking it as described above.
+
+OpenXTalk Lite's own updater worked differently: it downloaded IDE
+files from Tom Perry's servers and copied them into the program folder
+with a script run with administrator rights. OXT-Beyond does not use
+it. Its stack (`Toolset/palettes/updates/updates.livecode`) is still in
+the program folder, unchanged, because binary stacks were not re-saved
+for this release, but the IDE no longer opens it.
+
+Some *Help* menu items open web pages in your browser, for example the
+OpenXTalk forums (openxtalk.org) and *Dictionary Online* (openxtalk.net).
+They are ordinary links; nothing is downloaded into OXT-Beyond.
 
 ## Known issues in bundled components
 
@@ -64,6 +137,5 @@ the browser components and any network or file-parsing features as
 unsafe for untrusted input. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 lists every bundled component.
 
-The binaries are not code-signed. Download them only from this
-repository's Releases page and check them against the published
-`SHA256SUMS` file.
+Stacks are programs: opening a stack can run its scripts. Only open
+stacks from sources you trust.

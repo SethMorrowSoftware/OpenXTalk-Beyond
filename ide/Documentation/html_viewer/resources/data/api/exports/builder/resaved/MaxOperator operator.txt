@@ -1,0 +1,22 @@
+MaxOperator
+(operator)
+Max operator.
+
+Syntax:
+the maximum of {Left} and {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Max operator.
+
+Values:
+The value of Left, if it is greater than the value of Right, and the value of Right otherwise. 
+
+OS:

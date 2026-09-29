@@ -1,0 +1,25 @@
+CanvasPropertyStippled
+(operator)
+The current stippled setting of a canvas.
+
+Syntax:
+the stippled of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw with stippled red paint on canvas
+set the paint of this canvas to solid paint with color [1,0,0]
+set the stippled of this canvas to true
+----
+
+Description:
+A boolean value that determines whether or not stippling will be used when drawing with a solid color paint on mCanvas.
+
+Values:
+
+OS:

@@ -1,0 +1,31 @@
+start using
+(command)
+Places a stack into the message path.
+
+Syntax:
+start using {stack}
+----
+
+Synonyms:
+library
+
+Params:
+stack ( ): Any stack reference.
+
+Examples:
+start using stack "mylibrary"
+----
+
+Description:
+Use the start using command to use a stack|stack's script as a library for frequently-used handler|handlers.
+
+The start using command places a stack|stack's script into the message path after the current stack and before any object|objects in the backScripts.
+
+When you start using a stack, the libraryStack message is sent to the stack.
+
+When a standalone application is running, it can insert up to fifty stacks into the stacksInUse. This limit is set by line 3 of the scriptLimits function. When using the development environment, you can insert any number of stacks into the message path.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

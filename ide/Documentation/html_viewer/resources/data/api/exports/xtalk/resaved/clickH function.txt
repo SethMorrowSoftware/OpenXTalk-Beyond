@@ -1,0 +1,32 @@
+clickH
+(function)
+return|Returns the horizontal position of the most recent mouse click.
+
+Syntax:
+the clickH
+----
+clickH()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the clickH
+----
+put the clickH div 2 into whichHalf
+----
+
+Description:
+Use the clickH function to find out where the user last clicked.
+
+The returned value is the horizontal distance in pixels from the left edge of the clicked stack to the location of the click. (Use the clickStack function to identify which stack was clicked.)  The click location is the position of the mouse pointer when the user pressed the mouse button, not when the user released the button. In particular, inside a mouseDown handler, the clickH returns the position of the mouse as it was when the mouseDown action ocurred.
+
+This function is equal to item 1 of the clickLoc function.
+
+Values:
+The clickH function return|returns a non-negative integer. 
+
+OS:
+mac,windows,linux,ios,android

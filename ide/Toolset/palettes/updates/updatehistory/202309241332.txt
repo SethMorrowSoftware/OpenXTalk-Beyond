@@ -1,0 +1,2 @@
+Version 0.92, build 202309241332
+Answer and Ask dialogs - noticed the case statements for Linux were missing, so have fixed these.

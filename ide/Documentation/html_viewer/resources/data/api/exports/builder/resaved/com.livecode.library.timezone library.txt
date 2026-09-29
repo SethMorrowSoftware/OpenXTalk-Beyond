@@ -1,0 +1,16 @@
+com.livecode.library.timezone
+(library)
+This library provides access to the tz timezone database
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This library provides access to the tz timezone database
+
+Values:
+
+OS:

@@ -1,0 +1,39 @@
+GetEditModeReorderControl
+(message)
+Handle this message to specify a custom data grid action select control.
+
+Syntax:
+on GetEditModeReorderControl
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on GetEditModeReorderControl
+   return group "my custom reorder control"
+end GetEditModeReorderControl
+
+on GetEditModeReorderControl
+   -- Hide for the data grid row number 5
+   if the dgIndex of me is 5 then
+      return empty
+   end if
+   pass GetEditModeReorderControl
+end GetEditModeReorderControl
+
+on GetEditModeReorderControl
+   -- Turn reordering off
+   return empty
+end GetEditModeReorderControl
+----
+
+Description:
+GetEditModeReorderControl is sent to your data grid's custom row template. Handle GetEditModeReorderControl if you want to specify a custom reorder control. Return the id of the control you want to display. Returning empty will result in no control being displayed.
+
+Handing this message will override the edit mode reorder control property.
+
+Values:
+
+OS:

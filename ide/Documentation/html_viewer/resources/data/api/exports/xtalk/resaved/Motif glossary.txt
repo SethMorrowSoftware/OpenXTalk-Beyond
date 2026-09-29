@@ -1,0 +1,16 @@
+Motif
+(glossary)
+
+Syntax:
+Synonyms:
+motif
+
+Params:
+
+Examples:
+Description:
+A graphical user interface for Unix|Unix systems.
+
+Values:
+
+OS:

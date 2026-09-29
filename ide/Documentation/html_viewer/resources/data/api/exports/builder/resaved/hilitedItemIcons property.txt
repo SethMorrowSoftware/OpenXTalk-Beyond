@@ -1,0 +1,28 @@
+hilitedItemIcons
+(property)
+The highlighted-state icons for the navigation icons
+
+Syntax:
+get the hilitedItemIcons of {widget}
+----
+set the hilitedItemIcons of {widget} to {icons}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The names of the icons displayed by the navigation items when highlighted.
+
+Each icon name must be one of the graphics supplied by the "IconSVG" library.  You can get a list of available predefined path names by running `put iconNames()` in the Message Box.  See the  com.livecode.library.iconsvg|Icon SVG Library documentation for handlers to manage user icon families.
+
+Setting the hilitedItemIcons can add items to the navigation bar. If the new value of the hilitedItemIcons has more items than the navigation bar, as many new navigation items as necessary are created and added to the end of the navigation bar, using a default itemNames|name, itemLabels|label and itemIcons|normal icon.
+
+If the new value of the hilitedItemIcons has fewer items than the navigation bar, the remaining navigation items have their highlighted-state icons reset to the default icon.
+
+Values:
+A comma-delimited list of icon names. 
+
+OS:

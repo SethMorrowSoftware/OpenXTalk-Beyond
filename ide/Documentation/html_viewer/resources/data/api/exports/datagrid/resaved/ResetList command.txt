@@ -1,0 +1,19 @@
+ResetList
+(command)
+Redraws the data grid data after having copied in fresh copies of any templates.
+
+Syntax:
+dispatch "ResetList" to group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Redraws the data grid data after having copied in fresh copies of any templates.
+
+Values:
+
+OS:

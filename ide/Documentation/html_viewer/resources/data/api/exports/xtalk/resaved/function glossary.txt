@@ -1,0 +1,16 @@
+function
+(glossary)
+
+Syntax:
+Synonyms:
+function
+
+Params:
+
+Examples:
+Description:
+A piece of code that computes a value and return|returns the value to the handler that called it.
+
+Values:
+
+OS:

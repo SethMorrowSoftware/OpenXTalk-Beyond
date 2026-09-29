@@ -1,0 +1,20 @@
+DeleteDirectory
+(statement)
+Delete a directory.
+
+Syntax:
+delete directory {Directory}
+----
+
+Synonyms:
+
+Params:
+Directory ( ): An expression that evaluates to a filesystem path.
+
+Examples:
+Description:
+Deletes a directory.  The directory must be empty.
+
+Values:
+
+OS:

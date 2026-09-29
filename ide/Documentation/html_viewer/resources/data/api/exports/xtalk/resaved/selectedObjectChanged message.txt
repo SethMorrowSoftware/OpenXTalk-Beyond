@@ -1,0 +1,31 @@
+selectedObjectChanged
+(message)
+Sent to an object(glossary) when it is selected.
+
+Syntax:
+selectedObjectChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on selectedObjectChanged -- update a property-display stack 
+  repeat for each line thisObjectID in the selectedObjects
+    send "addToPalette" && thisObjectID to stack "Object Palette"
+  end repeat
+end selectedObjectChanged
+----
+
+Description:
+Handle the selectedObjectChanged message if you want to perform some action when an object(glossary) is selected.
+
+When an object is selected, the selectedObjectChanged message is sent to the newly selected object(glossary).
+
+When an object is deselected and no other object is selected--for example, when the user clicks the card or chooses the Browse tool--the selectedObjectChanged message is sent to the object(glossary) being deselected.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

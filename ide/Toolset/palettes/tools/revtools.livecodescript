@@ -1,16 +1,19 @@
-﻿script "revTools"
+﻿script "revTools" with behavior "revPaletteBehavior"
+﻿script "revTools" with behavior "revPaletteBehavior"
 constant BLOCK_SIZE = 20
 
-constant kToolsColumnCountDefault = 3
+constant kToolsColumnCountDefault = 2
 on preOpenStack
+   if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99 -- tperry 1/5/24
+   
    dispatch "setAsBehavior" to revIDEFrameBehavior() with the long id of me
    
    set the title of me to "Tools"
    
    # Preferences
    if revIDEGetPreference("revTools_columns") is not a number then revIDESetPreference "revTools_columns", kToolsColumnCountDefault
-   addFrameItem "revTools_columns", "header", "preference", "View Columns", "enum","2,3,4", "framePreferenceSelected", the long id of me
-   addFrameItem "add_widget","header", "action", "Find More Widgets", "plus", "plus","findMoreWidgets", the long id of me
+   --addFrameItem "revTools_columns", "header", "preference", "View Columns", "enum","2,3,4", "framePreferenceSelected", the long id of me
+   --addFrameItem "add_widget","header", "action", "Find More Widgets", "plus", "plus","findMoreWidgets", the long id of me
    
    # Look at the preference setting and validate the entries against the tool data
    local tAllViewList, tObjectData
@@ -42,7 +45,7 @@ on preOpenStack
    if tObjectViewsToShow is not tObjectViewsPreferenceSetting then 
       revIDESetPreference "revTools_show", tObjectViewsToShow
    end if
-   addFrameItem "revTools_show", "header", "preference", "Show Sections", "set","widget:Widgets Controls,classic:Classic Controls,graphic:Graphic Objects,graphictools:Graphic Tools,paint:Paint Tools", "framePreferenceSelected", the long id of me
+   --addFrameItem "revTools_show", "header", "preference", "Show Sections", "set","widget:Widgets Controls,classic:Classic Controls,graphic:Graphic Objects,graphictools:Graphic Tools,paint:Paint Tools", "framePreferenceSelected", the long id of me
    
    ### Properties
    set the resizable of me to false
@@ -58,7 +61,40 @@ on openStack
    registerForMessages
    set the visible of me to true
    unlock screen
+   
+   -- is this the last thing that gets called?
+   -- change the cursor state to show that we have finished loading the IDE
+   set the defaultCursor to 0 -- sets to normal arrow
+   
+  tToolsFixup
+  send tfixwindowsToolsDrag to me in 1 second
+  pass openstack
 end openStack
+
+on tToolsFixup
+   if the platform contains "linux" then
+      -- check to see if we need to adjust for problem distros?
+      put "icewm,xubuntu,ubuntu,xfce" into tFixDistros -- these are the distros (sessions) to adjust
+      set the itemdelimiter to ","
+      if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then
+         -- do I need to do anything for problematic distros?
+         set the decorations of this stack to none
+         if there is a stack "revMenubar" then set the top of this stack to the bottom of stack "revMenubar"
+         set the left of this stack to "0"
+      end if -- end linux session check
+   end if
+end tToolsFixup
+
+on tfixwindowsToolsDrag
+   if the platform contains "win" then set the systemwindow of this stack to true
+end tfixwindowsToolsDrag
+
+on ensureToolsIsDraggable
+   -- make sure the tools are draggable (tperry 14-1-24)
+   set the decorations of this wd to "title,menu,close"
+   --set the style of stack "revTools" to "toplevel"
+   set the cantmodify of stack "revTools" to true
+end ensureToolsIsDraggable
 
 on registerForMessages
    ### Messages
@@ -66,15 +102,15 @@ on registerForMessages
    revIDESubscribe "idePreferenceChanged:revTools_show"
    revIDESubscribe "idePreferenceOfSetChanged"
    revIDESubscribe "ideToolChanged"
-   revIDESubscribe "ideExtensionsChanged"
+   -- revIDESubscribe "ideExtensionsChanged"
 end registerForMessages
 
 on findMoreWidgets
-    lock screen
-    revIDEFindMoreWidgets
-    unlock screen
- end findMoreWidgets
- 
+   lock screen
+   revIDEFindMoreWidgets
+   unlock screen
+end findMoreWidgets
+
 on ideExtensionsChanged
    lock screen
    generatePalette
@@ -108,13 +144,15 @@ on idePreferenceOfSetChanged pSet, pPreference
    end switch
 end idePreferenceOfSetChanged
 
-constant kPolygonMenu = "Rectangle Tool\nRounded Rectangle Tool\nOval Tool\nRegular Polygon Tool\nPolygon Tool"
+constant kPolygonMenu = "Line Tool\nRectangle Tool\nRounded Rectangle Tool\nOval Tool\nRegular Polygon Tool\nPolygon Tool"
 on ideToolChanged
    local tTool
    put the tool into tTool
    set the itemdelimiter to "\n"
    if tTool is among the items of kPolygonMenu then
       put "paint polygon shape tool" into tTool
+      put hCreateSuitableImage (tTool) into tImgCmd
+      send tDoImgCmd to me in 1 ticks
    end if
    
    local tControlID
@@ -179,6 +217,34 @@ on generatePalette
    # Get the appropriate platform theme folder
    local tThemePath
    put revIDEThemePath() into tThemePath
+   -- tperry 19-1-24 (add in support for variable dark themes)
+   put "" into tThemeClarify
+   if the platform contains "mac" then 
+      if the systemAppearance is "dark" then put "dark" into tThemeClarify
+   end if
+   --
+   if the platform contains "linux" then
+      -- we assess linux dark mode a bit differently
+      put the effective Backgroundcolor of this stack into tColourDecision
+      put the itemDelimiter into tOldDelim
+      set the itemDelimiter to ","
+      put item 1 of tColourDecision + item 2 of tColourDecision + item 3 of tColourDecision into tMaxColValues
+      -- put tMaxColValues -- debug
+      if tMaxColValues <234 then
+         -- dark in dark mode
+         put "dark" into tThemeClarify
+      else
+         -- linux in light mode
+         put "" into tThemeClarify
+      end if
+   end  if
+   --
+   if tThemeClarify is "dark" then
+      set the cUsingTheme of stack "revTools" to "dark"
+   else
+      set the cUsingTheme of stack "revTools" to "light"
+   end if
+   if tThemeClarify is not empty then put tThemePath & slash & tThemeClarify into tThemePath
    
    # Get the data used for generating the palette
    local tViews, sViewsData
@@ -231,16 +297,23 @@ on generatePalette
    set the linesize of the templategraphic to 0
    set the width of the templategraphic to BLOCK_SIZE
    set the height of the templategraphic to BLOCK_SIZE
-   set the backgroundcolor of the templategraphic to revIDEColor("edition_color")
+   -- changes the hilited colour behind the paint and draw tools (tperry)
+   set the backgroundcolor of the templategraphic to (the cToolSelectorColor of stack "revPreferences") -- was: revIDEColor("edition_color")
    
    # Create hilite and hover graphic for tools
    create graphic "tool_hover" in group "contents"
-   set the backgroundcolor of the templategraphic to "175,175,175"
+   -- this changes the colour behind the "pointer" and "browse" tool when chosen (tperry)
+   set the backgroundcolor of the templategraphic to (the cToolSelectorColor of stack "revPreferences") -- was "175,175,175" which was grey
    create graphic "tool_hilite" in group "contents"
    
    set the visible of the templategraphic to true
    set the height of the templategraphic to 1
-   set the backgroundcolor of the templategraphic to "200,200,200"
+   -- this is the dividing line between sections in the tools palette (tperry)
+   if the cUsingTheme of stack "revTools" is "dark" then
+      set the backgroundcolor of the templategraphic to "60,60,60" -- dark grey
+   else
+      set the backgroundcolor of the templategraphic to "175,175,175" -- was "200,200,200" which was light grey
+   end if
    
    set the itemdel to "."
    create group "images" in group "contents"
@@ -256,6 +329,12 @@ on generatePalette
       else
          # Get a list of the ordered keys
          sort lines tOrder numeric ascending by sViewsData[tView][each]["order"]
+         if tOrder contains "datagrid" then -- made loading of this conditional (tperry 13-4-24)
+            if the cDisableDataGrid of stack "revPreferences" is true then
+               replace "com.livecode.interface.classic.DataGrid" with "" in tOrder
+               filter lines of tOrder without empty
+            end if
+         end if
       end if
       
       # Create the group to hold the controls
@@ -300,7 +379,8 @@ on generatePalette
          else if there is a file (tThemePath & slash & tControlTypeID & ".icon.png") then 
             put tThemePath & slash & tControlTypeID & ".icon.png" into tFilename
          else
-            put revIDEDefaultExtensionIcon("widget") into tFilename
+            -- put revIDEDefaultExtensionIcon("widget") into tFilename -- previously, replaced with a 'widget' graphic if it can't find the tool (19-1-24)
+            put tThemePath & slash & tControlTypeID & ".icon.png" into tFilename
          end if
          set the name of the templateimage to tControlTypeID & ".icon.png"
          set the visible of the templateimage to false
@@ -349,14 +429,41 @@ on generatePalette
             --set the blendlevel of the templatebutton to 50
          end if
          
+         put "" into myAccBtnNames
          if sViewsData[tView][tControlTypeID]["svgicon"] is empty then
             create button tControlTypeID in group tView of group "contents"
+            if the platform contains "mac" then
+               -- we now need to support accent colours behind buttons! -- macOS only
+               put the short name of button tControlTypeID of group tView of group "contents" into myAccName
+               if there is a graphic myAccName then
+                  -- accent colour already exists
+               else
+                  if myAccName contains "classic" then
+                     if myAccName contains "Graphic" or myAccName contains "rectangleButton" or myAccName contains "scrollbar" or myAccName contains "classic.button" or myAccName contains "slider" or myAccName contains "classic.label" or myAccName contains "classic.arrow" or myAccName contains "star" or myAccName contains "image" or myAccName contains "player" or myAccName contains "textArea" or myAccName contains "bubble" or myAccName contains "classic.field" then
+                        -- skip
+                     else
+                        create graphic myAccName
+                        set the height of graphic myAccName to 10
+                        set the width of graphic myAccName to 10
+                        set the backgroundColor of graphic myAccName to the accentColor
+                        put return & myAccName & return after myAccBtnNames
+                     end if
+                  end if
+               end if
+            end if
+            -- end support for accent colour creation
             set the cType of button tControlTypeID to tView
          else
             create widget tControlTypeID as "com.livecode.widget.svgpath" in group tView of group "contents"
             set the width of widget tControlTypeID to BLOCK_SIZE * 2
             set the height of widget tControlTypeID to BLOCK_SIZE
-            set the foregroundColor of widget tControlTypeID to 100,100,100
+            -- widget icons should be easier to see in dark mode
+            if the systemAppearance is "dark" then
+               set the foregroundColor of widget tControlTypeID to 210,210,210
+            else
+               set the foregroundColor of widget tControlTypeID to 100,100,100
+            end if
+            
             set the iconpath of widget tControlTypeID to sViewsData[tView][tControlTypeID]["svgicon"]
             set the cType of widget tControlTypeID to tView
             set the cStyle of widget tControlTypeID to sViewsData[tView][tControlTypeID]["properties"]["style"]["default"]
@@ -372,6 +479,9 @@ on generatePalette
    reset the templatebutton
    reset the templategraphic
    reset the templateimage
+   
+   -- ensure we have paint colours correctly set (tperry 5/5/24)
+   initPaintCol
    
    unlock messages
    unlock screen
@@ -462,17 +572,190 @@ on layoutPalette
             add BLOCK_SIZE + (tPalettePadding) to tTop
          end if
       end repeat
-      put the bottom of tObjectID + tPaletteMargin into tTop
+      
+      -- sections padding should now be conditional (tperry 15-1-25)
+      if the cToolsSectionNames of stack "revPreferences" is true then
+         put 10 into tExtraVertSpacing
+      else 
+         put 0 into tExtraVertSpacing
+      end if
+      put the bottom of tObjectID +tExtraVertSpacing + tPaletteMargin into tTop
    end repeat
    
-   reset the templatebutton
+   -- make section names conditional (tperry 15-1-25)
+   if the cToolsSectionNames of stack "revPreferences" is true then
+      
+      -- added +10 on the line above to give a bit more space between sections (tperry 25-4-24)
+      -- tweaking vertical spacing of things a bit here... and other bits (I will refine this)
+      if there is a group "graphic" of stack "revTools" then 
+         set the top of group "graphic" of stack "revTools" to the top of group "graphic" of stack "revTools" +20
+      end if
+      if there is a group "graphictoolscontrols" of stack "revTools" then 
+         set the top of group "graphictoolscontrols" of stack "revTools" to the top of group "graphictoolscontrols" of stack "revTools" +20
+      end if
+      if there is a group "graphictools" of stack "revTools" then 
+         set the top of group "graphictools" of stack "revTools" to the top of group "graphictools" of stack "revTools" +30
+      end if
+      if there is a graphic "graphictools" of stack "revTools" then
+         set the top of graphic "graphictools" of stack "revTools" to the top of graphic "graphictools" of stack "revTools" +10
+      end if
+      if there is a group "paintcontrols" of stack "revTools" then 
+         set the top of group "paintcontrols" of stack "revTools" to the top of group "paintcontrols" of stack "revTools" +20
+      end if
+      if there is a group "paint" of stack "revTools" then 
+         set the top of group "paint" of stack "revTools" to the top of group "paint" of stack "revTools" +30
+      end if
+      if there is a graphic "paint" of stack "revTools" then
+         set the top of graphic "paint" of stack "revTools" to the top of graphic "paint" of stack "revTools" +10
+      end if
+      -- fix for vector tools align section (tperry 29-12-24)
+      local tVectorSectionHeightAdj
+      put 0 into tVectorSectionHeightAdj
+      if the revTools_columns of stack "revPreferences" >3 then
+         if there is a group "graphictools" then
+            if there is a group "graphictoolscontrols" then 
+               set the left of group "graphictoolscontrols" to the right of group "graphictools" -6
+               set the top of group "graphictoolscontrols" to the top of group "graphictools"
+               put the height of group "graphictoolscontrols" into tVectorSectionHeightAdj
+            end if
+         end if
+      end if
+      -- create various fields if they don't exist
+      put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
+      replace "," with return in tToolSectionHeaders
+      filter lines of tToolSectionHeaders without empty
+      put 0 into tToolSectionCount
+      repeat the number of lines in tToolSectionHeaders
+         add 1 to tToolSectionCount
+         put line tToolSectionCount of tToolSectionHeaders into tFldName
+         if not (there is a field tFldName) then create field tFldName
+         hide fld tFldName
+         set the dontwrap of fld tFldName to true
+         set the locktext of fld tFldName to true
+         set the Opaque of fld tFldName to false
+         set the threeD of fld tFldName to false
+         set the showBorder of fld tFldName to false
+         set the height of fld tFldName to 23
+         set the left of fld tFldName to 0
+         set the textSize of fld tFldName to 11
+         set the foregroundColor of fld tFldName to "127,127,127"
+         set the traversalOn of fld tFldName to false
+         set the showFocusBorder of fld tFldName to false
+         -- conditional positioning
+         if there is a graphic "graphic" then
+            if tFldName is "divHeaderVectorShapes" then
+               set the top of fld tFldName to the bottom of graphic "graphic"
+               show fld tFldName
+               put "Vector Shapes" into fld tFldName
+            end if
+         end if
+         if there is a graphic "graphictools" then
+            if tFldName is "divHeaderVectorTools" then
+               set the top of fld tFldName to the bottom of graphic "graphictools"
+               show fld tFldName
+               put "Vector Tools" into fld tFldName
+            end if
+         end if
+         if there is a graphic "paint" then
+            if tFldName is "divHeaderPaintTools" then
+               set the top of fld tFldName to the bottom of graphic "paint"
+               show fld tFldName
+               put "Paint Tools" into fld tFldName
+            end if
+         end if
+      end repeat
+   else
+      -- section names are hidden (tperry 15-1-25)
+      put "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools" into tToolSectionHeaders
+      replace "," with return in tToolSectionHeaders
+      filter lines of tToolSectionHeaders without empty
+      put 0 into tToolSectionCount
+      repeat the number of lines in tToolSectionHeaders
+         add 1 to tToolSectionCount
+         put line tToolSectionCount of tToolSectionHeaders into tFldName
+         if not (there is a field tFldName) then create field tFldName
+         hide fld tFldName
+      end repeat
+   end if -- end conditional section headings (tperry 15-1-25)
    
-   set the rect of me to tStackLeft, the top of me, tStackLeft+tStackWidth, tTop + the top of me
+   -- revTools_show
+   put revIDEGetPreference("revTools_show") into tToolsOnShow
+   if not (the last char of tToolsOnShow is ",") then put tToolsOnShow & "," into tToolsOnShow
+   --tToolsOnShow
+   
+   
+   reset the templatebutton
+   set the rect of me to tStackLeft, the top of me, tStackLeft+tStackWidth, tTop + the top of me +10 -- added +10 tperry
    
    ideToolChanged
    --layoutFrame
-   unlock messages
-   unlock screen
+   
+   -- can I delete the widget without causing problems? (yes!)
+   if there is a widget "header_background" of cd 1 of this stack then delete widget "header_background" of cd 1 of this stack
+   
+   -- better make sure we have a way to choose tool options
+   ---------------------------------- revised popup menu button
+   put "toolsOVERRIDEmenu" into tOverideBtnMenu
+   if not(there is a btn tOverideBtnMenu of cd 1 of stack "revTools") then create btn tOverideBtnMenu in cd 1 of stack "revTools"
+   set the icon of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to 205209 -- arrow > icon
+   set the opaque of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the showname of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the showborder of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to false
+   set the borderWidth of btn "toolsOVERRIDEmenu" of cd 1 of stack "revTools" to 0
+   set the label of btn tOverideBtnMenu of cd 1 of stack "revTools" to "*"
+   set the width of btn tOverideBtnMenu of cd 1 of stack "revTools" to "24"
+   set the height of btn tOverideBtnMenu of cd 1 of stack "revTools" to "24"
+   set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
+   put the long name of stack "revTools" into tLongToolsName
+   if word 1 of tLongToolsName is "stack" then delete word 1 of tLongToolsName
+   if char 1 of tLongToolsName is QUOTE then delete char 1 of tLongToolsName
+   if last char of tLongToolsName is QUOTE then delete last char of tLongToolsName
+   set the itemdelimiter to slash
+   delete last item of tLongToolsName
+   put tLongToolsName into tLongPopupName
+   put tLongToolsName & SLASH & "toolsPopupOptions.oxtstack" into tLongPopupName
+   set the cSpawnPopup of stack "revTools" to tLongPopupName
+   put "on mousedown" & return &¬
+   "   put the cSpawnPopup of this stack into tTargStack" & return &¬
+   "   if the isViewing of stack tTargStack is true then"  & return &¬
+   "   set the isViewing of stack tTargStack to false"  & return &¬
+   "   set the blendLevel of stack tTargStack to 100"  & return &¬
+   "   close stack tTargStack" & return &¬
+"else"  & return &¬
+"     set the isViewing of stack tTargStack to true" & return &¬
+"   set the blendLevel of stack tTargStack to 1" & return &¬
+"   open stack tTargStack" & return &¬
+"   end if" & return &¬
+"end mousedown" into tScriptToSet
+set the script of btn tOverideBtnMenu of cd 1 of stack "revTools" to tScriptToSet
+------------------------------ end revised popup menu button
+
+if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
+   set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
+end if
+
+--
+-- if we adjusted the vertical position of things earlier, pick up on those adjustments now
+if tVectorSectionHeightAdj > "0" then
+   if there is a graphic "paint" then set the top of graphic "paint" to the top of graphic "paint" - tVectorSectionHeightAdj
+   if there is a fld "divHeaderPaintTools" then set the top of fld "divHeaderPaintTools" to the top of fld "divHeaderPaintTools" - tVectorSectionHeightAdj
+   if there is a group "paint" then set the top of group "paint" to the top of group "paint" - tVectorSectionHeightAdj
+   if there is a group "paintcontrols" then set the top of group "paintcontrols" to the top of group "paintcontrols" - tVectorSectionHeightAdj
+   set the height of this wd to the height of this wd - tVectorSectionHeightAdj
+   if the revTools_columns of stack "revPreferences" is 8 then
+      if there is a group "paintcontrols" then set the top of group "paintcontrols" to the top of group "paint"
+      if there is a group "paintcontrols" then set the left of group "paintcontrols" to the right of group "paint" -6
+      if the revTools_show of stack "revPreferences" contains "paint" then
+         set the height of this wd to the height of this wd - tVectorSectionHeightAdj
+      end if
+   end if
+end if
+--
+
+if the platform contains "mac" then hPositionAccentsInTools
+
+unlock messages
+unlock screen
 end layoutPalette
 
 function objectTypes
@@ -513,6 +796,14 @@ on mouseDoubleUp
    local tObject
    revIDECreateObject the short name of the target, the long ID of the topStack, the loc of this cd of the topStack
    put the result into tObject
+   
+         
+   -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by double clicking
+   -- (if that option is turned on in the preferences)
+   if the cPrePopulateScripts of stack "revpreferences" is true then
+      -- this is turned on, so adding script to the new object that has just been created (by double click)
+      put tPopulateWithScript(tObject) into tPopulateResult -- store the result (we could do something if unsuccessful here)
+   end if
    choose pointer tool
    select tObject
    unlock screen
@@ -538,6 +829,8 @@ on mouseDown pButton
          put the cToolName of the target into tTool
          revToolsConfigurePaint
          revIDESetTool tTool
+         put hCreateSuitableImage (tTool) into tImgCmd
+         send tDoImgCmd to me in 1 ticks
          
          -- Set the tool cursor
          -- The tool does not actually work without doing this
@@ -595,20 +888,7 @@ on mouseDown pButton
    put the long ID of this stack into tToolsStackID
    
    # Generate the drag stack
-   lock screen
-   lock messages
-   
-   reset the templatestack
-   set the name of the templateStack to "revDragControl"
-   set the visible of the templateStack to false
-   set the backGroundColor of the templateStack to the hiliteColor
-   set the decorations of the templateStack to "noShadow"
-   set the blendLevel of the templateStack to 25
-   set the loc of the templatestack to -500,-500
-   
-   create invisible stack
-   reset the templatestack
-   set the defaultStack to "revDragControl"
+   if not (there is a stack "revDragControl") then hGenDragStack
    
    # Create a control and Generate a drag image
    
@@ -636,8 +916,8 @@ on mouseDown pButton
    unlock screen
    
    # AL-2015-03-26: [[ Bug 14892 ]] Simply set the visible of the revDragControl stack to true
-   set the loc of this stack to the screenmouseloc
-   show this stack
+   set the loc of stack "revDragControl" to the screenmouseloc
+   show stack "revDragControl"
    
    # Let the user drag around
    local tValidDropStacks
@@ -710,22 +990,47 @@ on mouseDown pButton
          put the result into tCreateObjectID
          set the defaultstack to tToolsStackID
          revIDESetTool "pointer"
-         select tCreateObjectID
+         select tCreateObjectID    
+         
+         -- this flat rectangle graphic doesn't seem to have an NS styles equivalent in MacOS
+         -- we use a kind of hybrid approach of HIToolbox and NSStyles on MacOS
+         if the platform contains "mac" then
+            if the style of tCreateObjectID is "Rectangle" then
+               set the threeD of tCreateObjectID to false
+               set the borderWidth of tCreateObjectID to 1
+               set the borderColor of tCreateObjectID to "137,137,137"
+            end if
+         end if
+         
+         -- tperry (8/11/23) -- this is where we populate scripts for new objects that are added to the card, by dragging
+         -- (if that option is turned on in the preferences)
+         if the cPrePopulateScripts of stack "revpreferences" is true then
+            -- this is turned on, so adding script to the new object that has just been created (by double click)
+            put tPopulateWithScript(tCreateObjectID) into tPopulateResult -- store the result (we could do something if unsuccessful here)
+         end if
+         
          exit repeat 
       end if
    end repeat
 end mouseDown
 
 on mouseEnter
+   if not (the pendingmessages contains "hConditionalDataGrid") then
+      if the cDisableDataGrid of stack "revPreferences" is true then
+         send hConditionalDataGrid to stack "revMenubar" in 1 ticks
+      end if
+   end if
+   --
    if the cType of the target is empty then exit mouseEnter
    if the cDisabled of the target is true then exit mouseEnter
    if word 1 of the target is "widget" then
       revIDESetCursor "com.livecode.cursor.grab"
-      set the foregroundColor of the target to revIDEColor("edition_color")
+      -- finally, found where the widgets get their hover colour from (tperry)
+      set the foregroundColor of the target to (the cToolSelectorColor of stack "revPreferences") -- was revIDEColor("edition_color")
    else if the cTool of the target is empty and the cStatus of the target is not "error" then 
       # We are hovering over a draggable item
       revIDESetCursor "com.livecode.cursor.grab"
-      set the coloroverlay["opacity"] of the target to "50"
+      set the coloroverlay["opacity"] of the target to "100" -- was 50 (tperry)
       set the coloroverlay["color"] of the target to "0,0,0"
    else if the cStatus of the target is "error" then
       # Not working on windows.. get the egg timer so disabling for now
@@ -741,7 +1046,12 @@ on mouseLeave
    if the cDisabled of the target is true then exit mouseLeave
    try
       if word 1 of the target is "widget" then
-         set the foregroundColor of the target to "100,100,100"
+         -- widget icons should be easier to see in dark mode
+         if the systemAppearance is "dark" then
+            set the foregroundColor of the target to 210,210,210
+         else
+            set the foregroundColor of the target to 100,100,100
+         end if
       else
          hide graphic "tool_hover" of group "contents" 
          if the cTool of the target is empty then
@@ -780,7 +1090,8 @@ private on __hiliteAdd pStackLongID
    put tCardID into sHighlightedCard
    put the backcolor of tCardID into sOldBGColor
    put the backPattern of tCardID into sOldBGPattern
-   set the backgroundcolor of tCardID to revIDEColor("edition_color")
+   -- the colour the card changes when you drag in a control from the tools palette (tperry)
+   set the backgroundcolor of tCardID to "125,125,125" -- was: revIDEColor("edition_color")
    
    unlock messages
    unlock screen
@@ -1019,24 +1330,65 @@ function toolObjectName pTool
 end toolObjectName
 
 local sToolColors, sLineSizes, sBrushes, sPolygon, sPolygonSides
+
 on revToolsOptionClicked pButton, pTarget
    local tToolName, tSection
    put the cToolName of the target into tToolName
    put segment 1 of tToolName into tSection
+   
    switch tToolName
       case "paint fill color tool"
       case "paint line color tool"
-      case "graphic fill color tool"
-      case "graphic line color tool"
-         # Popup the system color dialog
-         answer color with sToolColors[tToolName]
+         # Popup the system color dialog (this for the paint, not graphics)
+         answer color with sToolColors[tToolName] -- this pops up the system colour select dialog
+         -- richmond had talked about possibly replacing this with the old "revcolorchooser.rev"
          if the result is not "Cancel" then
             put it into sToolColors[tToolName]
-            
             # We use a color overlay with the multiply blend mode
             # to just change the white part of the icon to the target color
             set the colorOverlay["color"] of pTarget to sToolColors[tToolName]
             set the colorOverlay["blendMode"] of pTarget to "multiply"
+         end if
+         break
+      case "graphic fill color tool"
+      case "graphic line color tool"
+         # Popup the system color dialog (this for graphics, not paint)
+         answer color with sToolColors[tToolName] -- this pops up the system colour select dialog
+         -- richmond had talked about possibly replacing this with the old "revcolorchooser.rev"
+         if the result is not "Cancel" then
+            if tToolName is "graphic line color tool" then set the tNewGraphicLineCol of this card to it
+            if tToolName is "graphic fill color tool" then set the tNewGraphicFillCol of this card to it
+            put it into tNewCol
+            put it into sToolColors[tToolName]
+            # We use a color overlay with the multiply blend mode
+            # to just change the white part of the icon to the target color
+            set the colorOverlay["color"] of pTarget to sToolColors[tToolName]
+            set the colorOverlay["blendMode"] of pTarget to "multiply"
+            -- now check if there's a selection or not
+            put the selectedObject into tSelObj
+            if tSelObj is empty then
+               -- no selected object
+               revToolsConfigureTemplateGraphicProperties
+            else
+               -- we have a selection
+               if word 1 of tSelObj is "graphic" then -- make sure it's a graphic
+                  -- put tSelObj into cd fld "debug" of stack "untitled 1" -- debug
+                  if tToolName is "graphic line color tool" then
+                     -- we are setting line colour
+                     put "set the foregroundColor of " & tSelObj & " to " & tNewCol into tLineColCmd
+                     --put tLineColCmd into cd fld "debug" of stack "untitled 1" -- debug out
+                     do tLineColCmd
+                  end if
+                  if tToolName is "graphic fill color tool" then
+                     -- we are setting fill colour
+                     put "set the backgroundColor of " & tSelObj & " to " & tNewCol into tLineColCmd
+                     --put tLineColCmd into cd fld "debug" of stack "untitled 1" -- debug out
+                     do tLineColCmd
+                  end if
+                  --
+               end if
+            end if
+            --
          end if
          break
       case "paint line size tool"
@@ -1045,12 +1397,12 @@ on revToolsOptionClicked pButton, pTarget
          break
       case "paint polygon shape tool"
          revToolsPopupPolygonMenu tToolName
-         revIDESetTool sPolygon[tToolName]
-         revToolsConfigurePolygon "paint polygon sides tool"
          break
       case "paint polygon sides tool"
          revToolsPopupPolygonSidesMenu tToolName
-         revToolsConfigurePolygon tToolName
+         break
+      case "paint polygon radius tool"
+         revToolsPopupRadiusMenu tToolName
          break
       case "paint brush pattern tool"
          local tBrush, tTool
@@ -1063,12 +1415,13 @@ on revToolsOptionClicked pButton, pTarget
                put the spray into tBrush
                break
             case "brush tool"
-            default
                put the brush into tBrush
+               break
          end switch
          # revBrushpopup presents the brush image options
          set the cBrushShape of stack "revBrushpopup" to tBrush
-         modal stack "revBrushpopup"
+         set the foregroundColor of graphic "marquee" of card 1 of stack "revBrushPopup" to the cToolSelectorColor of stack "revPreferences"
+         modal stack "revBrushpopup" -- this doesn't work on linux
          put the cBrushShape of stack "revBrushpopup" into sBrushes[tTool]
          break
    end switch
@@ -1080,91 +1433,75 @@ on revToolsOptionClicked pButton, pTarget
    end if
 end revToolsOptionClicked
 
+-- tperry 23-4-24 (this is to fix a bug where brush size doesn't stick)
+on reAffirmBrushChoice
+   put the cBrushShape of stack "revBrushpopup" into tBrushSizeToSet
+   if tBrushSizeToSet is empty then put "1" into tBrushSizeToSet
+   if isNumber(tBrushSizeToSet) is false then put "1" into tBrushSizeToSet
+   --
+   -- make sure the cursor gets set properly!
+   -- (done with a mousemove handler in the "brushes card" of stack "revBrushPopup")
+   set the penWidth to tBrushSizeToSet
+   set the brush to tBrushSizeToSet
+end reAffirmBrushChoice
+
+
 local sPicksA
 on menuPick pWhich
-   
-   # Generic menuPick processing
-   put pWhich into sPicksA[the cName of the target]
-   
-   local tText
-   put the text of the target into tText
-   
-   # Fetch and clear the current selection
-   local tCurrent
-   put line lineOffset("!c",tText) of tText into tCurrent
-   replace "!c" with empty in tCurrent
-   
-   switch the short name of the target
-      case "lineSizeMenu"
-         # Process line size menu pick
-         if tCurrent is not a number then 
-            put empty into tCurrent
-         end if
-         if pWhich is "Other..." then
-            ask "Please enter a line size:" with tCurrent titled "Line Size" as sheet
-            if it is not empty then
-               put it into pWhich
-            else
-               put tCurrent into pWhich
-            end if
-         end if
-         
-         if pWhich is "None" then
-            put 0 into pWhich
-         end if
-         if pWhich is a number then
-            put pWhich into sLineSizes[the cName of the target]
-         end if
-         break
-      case "polygonSidesMenu"
-         # Process polygon sides menu pick
-         if tCurrent is not a number then 
-            put empty into tCurrent
-         end if
-         if pWhich is "Other..." then
-            ask "Please enter a number of sides:" with tCurrent titled "Polygon Sides" as sheet
-            if it is not empty then
-               put it into pWhich
-            else
-               put tCurrent into pWhich
-            end if
-         end if
-         if pWhich is a number and pWhich > 2 then
-            put pWhich into sPolygonSides[the cName of the target]
-         end if
-         break
-      case "polygonMenu"
-         put pWhich into sPolygon[the cName of the target]
-         break
-   end switch
+   -- don't need this, so deleted. (tperry 25-4-24)
 end menuPick
 
 private command setChecked pTarget, pChecked
+   
    local tText
    put the text of pTarget into tText
-   
    replace "!c" with empty in tText
    put "!c" before line lineOffset(pChecked,tText) of tText
    set the text of pTarget to tText
+   
 end setChecked
 
 constant kLineSizeMenu = "None\n1\n2\n3\n4\n6\n8\n10\n-\nOther..."
 constant kPolygonSidesMenu = "3\n4\n5\n6\n7\n8\n9\n10\n-\nOther..."
+constant kPolygonRadiusMenu = "0\n2\n4\n6\n8\n10\n12\n14\n16\n-\nOther..."
+
 on revToolsPopupLineSizeMenu pTarget
+   set the cChosenTool of this card to pTarget -- store tool in card props
+   if there is a fld "debug" of stack "untitled 1" then
+      put pTarget into cd fld "debug" of stack "Untitled 1"
+   end if
    revToolsPopupMenu "lineSizeMenu", pTarget, kLineSizeMenu, 1
 end revToolsPopupLineSizeMenu
 
 on revToolsPopupPolygonMenu pTarget
-   revToolsPopupMenu "polygonMenu", pTarget, kPolygonMenu, "Rectangle Tool"
+   if there is a fld "debug" of stack "untitled 1" then
+      put pTarget into cd fld "debug" of stack "Untitled 1"
+   end if
+   revToolsPopupMenu "polygonMenu", pTarget, kPolygonMenu, "Line Tool"
 end revToolsPopupPolygonMenu
 
 on revToolsPopupPolygonSidesMenu pTarget
+   if there is a fld "debug" of stack "untitled 1" then
+      put pTarget into cd fld "debug" of stack "Untitled 1"
+   end if
    revToolsPopupMenu "polygonSidesMenu", pTarget, kPolygonSidesMenu, 4
 end revToolsPopupPolygonSidesMenu
 
+-- restoring the ability to set a radius on the roundRect paint tool
+on revToolsPopupRadiusMenu pTarget
+   if there is a fld "debug" of stack "untitled 1" then
+      put pTarget into cd fld "debug" of stack "Untitled 1"
+   end if
+   set the cChosenTool of this card to pTarget -- store tool in card props
+   revToolsPopupMenu "polygonRadiusMenu", pTarget, kPolygonRadiusMenu, 4
+end revToolsPopupRadiusMenu
+
 # Generic popup menu creation
 on revToolsPopupMenu pButtonName, pTool, pMenuText, pDefault
+   -- tperry, rewriting all this 24-4-24
+   
    local tLongID
+   if there is a button pButtonName of me then delete button pButtonName of me -- delete the menu if it exists (tperry)
    if there is not a button pButtonName of me then
       set the style of the templatebutton to "menu"
       set the menumode of the templatebutton to "popup"
@@ -1178,25 +1515,164 @@ on revToolsPopupMenu pButtonName, pTool, pMenuText, pDefault
       reset the templatebutton
    end if
    
+   -- conditional script setting
+   set the script of button pButtonName of me to ¬
+   "on menuPick" & return &¬
+   "put the menuhistory of me into tChosenOption" & return &¬
+   "--put tChosenOption" & return &¬
+   "set the cPopupBtnName of this card to the short name of me" & return & ¬
+   "set the cPopupBtnID of this card to the ID of me" & return & ¬
+   "set the cChosenPopupLine of this card to tChosenOption" & QUOTE & return &¬
+   "set the cChosenPopupItem of this card to (line tChosenOption of the text of me)" & QUOTE & return &¬
+   "send hApplyThePopupSelection to stack " & QUOTE & "revTools" & QUOTE & return &¬
+   "end menuPick"
+   
    put the long id of button pButtonName of me into tLongID
    set the cName of tLongID to pTool
+   put the cChosenPopupItem of this card into tChosenOption
+   put the cChosenPopupLine of this card into tChosenPopupLine
+   put the text of btn pButtonName into tPopupItems
    
-   local tChecked
-   # If there exists a previous pick for the menu, set the check mark
-   # Otherwise check the default value
-   if sPicksA[pTool] is not empty then
-      put sPicksA[pTool] into tChecked
-   else
-      put pDefault into tChecked
-   end if
-   setChecked tLongID, tChecked
+   
+   -- I've left the checkmarks out on purpose, (as I don't like them). Could put them back in if people ask
+   --put "!c" & line tChosenPopupLine of tPopupItems into line tChosenPopupLine of tPopupItems
+   --set the text of btn pButtonName to tPopupItems
    
    popup tLongID
 end revToolsPopupMenu
 
+on hApplyThePopupSelection
+   -- actually apply what the user has chosen in the popup menu (tperry 25-4-24)
+   put the cPopupBtnName of this card into tPopupBtnName
+   put the cPopupBtnID of this card into tPopupBtnID
+   put the cChosenPopupLine of this card into tChosenPopupLine
+   put the cChosenPopupItem of this card into tChosenPopupItem
+   put the cChosenTool of this card into tChosenTool
+   replace "!c" with "" in tPopupBtnID
+   replace "!c" with "" in tChosenPopupLine
+   replace "!c" with "" in tChosenPopupItem
+   -- output a debug
+   -- make a new stack, called "untitled 1" and place a field called "debug" on it to see the following output
+   if there is a fld "debug" of stack "untitled 1" then
+      put "name: " & tPopupBtnName & return & tPopupBtnID & return & tChosenPopupLine & return & tChosenPopupItem & return & "Tool: " & tChosenTool into fld "debug" of stack "untitled 1"
+      if the shiftkey is down then
+         answer "name: " & tPopupBtnName & return & tPopupBtnID & return & tChosenPopupLine & return & tChosenPopupItem & return & "Tool: " & tChosenTool into fld "debug" of stack "untitled 1"
+      end if
+   end if
+   -- choose the tool in the polygon menu
+   if tChosenPopupItem is "Rectangle Tool" then
+      choose Rectangle Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenPopupItem is "Rounded Rectangle Tool" then
+      choose Rounded Rectangle Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenPopupItem is "Oval Tool" then
+      choose Oval Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenPopupItem is "Regular Polygon Tool" then
+      choose Regular Polygon Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenPopupItem is "Polygon Tool" then
+      choose Polygon Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenPopupItem is "Line Tool" then
+      choose Line Tool
+      exit hApplyThePopupSelection
+   end if
+   if tChosenTool is "paint line size tool" then
+      -- set line size for paint objects
+      put tChosenPopupItem into tLineSizeToSet
+      if tLineSizeToSet is "none" then put "0" into tLineSizeToSet
+      if tLineSizeToSet contains "other" then
+         ask "Please specify line size:" with the lineSize
+         put it into tInputCheck
+         if isNumber(tInputCheck) is false then exit hApplyThePopupSelection -- not a number!
+         if tInputCheck > 32767 then exit hApplyThePopupSelection -- larger than maximum allowed value
+         if tInputCheck < 0 then exit hApplyThePopupSelection -- smaller than minimum allowed value
+         put tInputCheck into tLineSizeToSet
+      end if
+      set the tNewPaintLineSize of this card to tLineSizeToSet
+      set the lineSize to tLineSizeToSet
+      exit hApplyThePopupSelection
+   end if
+   if tChosenTool is "graphic line size tool" then
+      -- we apply the line size to vector graphics
+      put tChosenPopupItem into tLineSizeToSet
+      if tLineSizeToSet contains "other" then
+         ask "Please specify line size:" with the lineSize
+         put it into tInputCheck
+         if isNumber(tInputCheck) is false then exit hApplyThePopupSelection -- not a number!
+         if tInputCheck > 32767 then exit hApplyThePopupSelection -- larger than maximum allowed value
+         if tInputCheck < 0 then exit hApplyThePopupSelection -- smaller than minimum allowed value
+         put tInputCheck into tLineSizeToSet
+      end if
+      -- now we check for any selected graphics to apply line size to
+      put the selectedObject into tSelObj
+      if tSelObj is empty then
+         -- no selected object
+         put false into cLineConErrors -- test for errors
+         if isNumber(tLineSizeToSet) is false then put true into cLineConErrors -- not a number!
+         if tLineSizeToSet < 0 then put true into cLineConErrors -- smaller than minimum allowed value
+         if cLineConErrors is true then put "1" into tLineSizeToSet -- set default if was invalid
+         set the tNewGraphicLineSize of card 1 of stack "revTools" to tLineSizeToSet
+      else
+         put false into cLineConErrors -- test for errors
+         if isNumber(tLineSizeToSet) is false then put true into cLineConErrors -- not a number!
+         if tLineSizeToSet < 0 then put true into cLineConErrors -- smaller than minimum allowed value
+         if cLineConErrors is true then put "1" into tLineSizeToSet -- set default if was invalid
+         put "set the linesize of " & tSelObj & " to " & tLineSizeToSet into tLineCmd
+         -- put tLineCmd into cd fld "debug" of stack "untitled 1" -- debug out
+         do tLineCmd
+      end if
+      -- see handler revToolsConfigureTemplateGraphicProperties
+   end if
+   if tPopupBtnName is "polygonSidesMenu" then
+      -- we set polygon sides here (min 3)
+      put tChosenPopupItem into tPolySidesToSet
+      if tPolySidesToSet contains "other" then
+         ask "Please specify number of polygon sides:" with the polySides
+         put it into tInputCheck
+         if isNumber(tInputCheck) is false then exit hApplyThePopupSelection -- not a number!
+         if tInputCheck > 1000 then exit hApplyThePopupSelection -- larger than maximum allowed value
+         if tInputCheck < 3 then exit hApplyThePopupSelection -- smaller than minimum allowed value
+         put tInputCheck into tPolySidesToSet
+      end if
+      -- tperry 13-8-24 - fix bug setting correct number of polygon sides
+      set the polySides to tPolySidesToSet
+      repeat 2
+         choose regular polygon tool
+         set the polySides to tPolySidesToSet
+      end repeat
+      set the tPassVar of this stack to tPolySidesToSet
+      send tDelayedPolysides to me in 3 ticks
+   end if
+   -- here we set radius of roundrect paint tool (tperry 14-8-2024)
+   if tPopupBtnName contains "RadiusMenu" then
+      -- we set roundRect radius here (for paint tool)
+      put tChosenPopupItem into tRRectRadiusToSet
+      if tRRectRadiusToSet contains "other" then
+         ask "Please specify radius in pixels (max 400):" with the roundRadius
+         put it into tInputCheck
+         if isNumber(tInputCheck) is false then exit hApplyThePopupSelection -- not a number!
+         if tInputCheck > 400 then exit hApplyThePopupSelection -- larger than maximum allowed value
+         if tInputCheck < 3 then exit hApplyThePopupSelection -- smaller than minimum allowed value
+         put tInputCheck into tRRectRadiusToSet
+      end if
+      repeat 2
+         choose rounded rectangle tool
+         set the roundRadius to tRRectRadiusToSet
+      end repeat
+   end if
+end hApplyThePopupSelection
+
 on revToolsConfigureTemplateGraphic pStyle, pName
    # Make sure the template graphic has the properties selected in the tools palette
-   reset the templategraphic
+   --reset the templategraphic
    if pStyle is not empty then
       set the style of the templategraphic to pStyle
    end if
@@ -1207,30 +1683,32 @@ on revToolsConfigureTemplateGraphic pStyle, pName
 end revToolsConfigureTemplateGraphic
 
 on revToolsConfigureTemplateGraphicProperties
-   set the foreColor of the templategraphic to \ 
-         sToolColors["graphic line color tool"]
-   if sToolColors["graphic fill color tool"] is not empty then
-      set the opaque of the templategraphic to true
-      set the backColor of the templategraphic to \ 
-            sToolColors["graphic fill color tool"]
-   end if
-   if sLineSizes["graphic line size tool"] is not empty then
-      set the lineSize of the templategraphic to \ 
-            sLineSizes["graphic line size tool"]
-   end if
+   -- set properties for unselected template graphics
+   put the tNewGraphicLineSize of card 1 of stack "revTools" into tLineSizeToSet
+   if tLineSizeToSet is "" then put "1" into tLineSizeToSet -- set default to 1 if not set
+   set the lineSize of the templategraphic to tLineSizeToSet
+   
+   put the tNewGraphicLineCol of card 1 of stack "revTools" into tLineColToSet
+   if tLineColToSet is "" then put "175,175,175" into tLineColToSet -- set default to neutral grey
+   set the foregroundColor of the templategraphic to tLineColToSet
+   
+   put the tNewGraphicFillCol of card 1 of stack "revTools" into tFillColToSet
+   if tFillColToSet is "" then put "120,120,120" into tFillColToSet -- set default to light grey
+   set the backgroundColor of the templategraphic to tFillColToSet
+   
+   -- we are assuming it should be filled
+   set the opaque of the templategraphic to true
 end revToolsConfigureTemplateGraphicProperties
 
 on revToolsConfigurePaint
    # Make sure the paint properties are those selected in the tools palette
    set the penColor to sToolColors["paint line color tool"]
    set the brushColor to sToolColors["paint fill color tool"]
-   
-   if sLineSizes["paint line size tool"] is not empty then
-      set the penWidth to sLineSizes["paint line size tool"]
-   end if
+   set the polysides to sPolygonSides["paint polygon shape tool"] -- tperry 24-4-24 (fixed)
    
    local tTool
    put the tool into tTool
+   if there is a fld "debug" of stack "untitled 1" then put tTool into fld "debug" of stack "untitled 1"
    if sBrushes[tTool] is not empty then
       switch tTool
          case "eraser tool"
@@ -1242,7 +1720,7 @@ on revToolsConfigurePaint
          case "brush tool"
             set the brush to sBrushes[tTool]
             break
-      end switch
+      end switch      
    end if
 end revToolsConfigurePaint
 
@@ -1257,3 +1735,352 @@ on moveStack
    ideSetWindowBoundingRect
    pass moveStack
 end moveStack
+
+function tPopulateWithScript tNewObject
+   set the itemdelimiter to "/"
+   put "" into tNewObjectStyle
+   put "" into tShortScriptFN
+   delete the last item of tToolsPath
+   -- conditional, depending on what is added
+   put word 1 of tNewObject into tNewObjectType
+   if tNewObjectType is "button" then -- work out what the script snippet path would be
+      put "put the style of " & tNewObject & " into tNewObjectStyle" into tStyleFind
+      do tStyleFind
+      if word 1 of the short name of tNewObject is "option" then put "optionmenu" into tNewObjectStyle
+      if word 1 of the short name of tNewObject is "pulldown" then put "pulldownmenu" into tNewObjectStyle
+      if word 1 of the short name of tNewObject is "combobox" then put "combobox" into tNewObjectStyle
+      put tNewObjectStyle & "_" & tNewObjectType into tShortScriptFN
+   end if
+   if tNewObjectType is "field" then -- work out what the script snippet path would be
+      put "put word 1 of the short name of " & tNewObject & " into tNewObjectStyle" into tStyleFind
+      do tStyleFind
+      if the vScrollbar of tNewObject is true then 
+         put "scrollingfield" into tNewObjectStyle
+         if the lockText of tNewObject is true then
+            put "scrollinglistfield" into tNewObjectStyle
+            if word 1 of the short name of tNewObject is "table" then put "table" into tNewObjectStyle
+         end if
+      end if
+      put tNewObjectStyle & "_" & tNewObjectType into tShortScriptFN
+   end if
+   if tNewObject contains "group" then
+      put word 1 of the short name of  tNewObject  into tNewObjectStyle
+      if tNewObjectStyle contains "datagrid" then put  "datagrid" & "_" & tNewObjectType into tShortScriptFN
+   end if
+   if tNewObjectType is "scrollbar" then -- scrollbars
+      put word 1 of the short name of tNewObject & "_" & tNewObjectType into tShortScriptFN
+   end if
+   if word 1 of tNewObject is "image" then put "image"  into tShortScriptFN
+   if word 1 of tNewObject is "player" then exit tPopulateWithScript -- player is broken as far as I'm concerned
+   if word 1 of tNewObject is "graphic" then 
+      put "graphic"  into tShortScriptFN
+      send mouseup to tNewObject in 5 ticks -- send the mouseup message to the new graphic, but give it a few moments for the graphic to have it's script populated.
+   end if
+   
+   put toLower(tShortScriptFN) into tShortScriptFN -- make sure it's always lowercase, as MacOS and Linux are case sensitive File systems
+   -- set the script
+   -- changed this, so instead of loading from files, it loads from stored custom properties instead (tperry 17-4-24)
+   put the tShortScriptFN of btn "prePopulateScripts" of cd "Dictionary" of stack "revPreferencesGUI" into tScriptData
+   if tScriptData is not "" then
+      set the script of  tNewObject to tScriptData
+   else
+      -- snippet does not exist
+      put "please create a snippet for: '" & tLongScriptFN & "'" -- note to user, for what snippet is missing
+   end if
+end tPopulateWithScript
+
+function hCreateSuitableImage tTool
+   -- bug found (tperry, richmond62, & micmac 22-4-24)
+   --put "the tool is: " & tTool -- debug (tperry 22-4-24)
+   put the short name of the topStack into tTheCurrentStackName
+   put the last word of the currentcard of stack tTheCurrentStackName into tCardID
+   put the number of images of card id tCardID of stack tTheCurrentStackName into tImgCount
+   put "suitable-paintimage" into tNewPaintName
+   --
+   if there is an image (tNewPaintName) of card id tCardID of stack tTheCurrentStackName then
+      set the tNewImgCmd of stack "revTools" to ""
+      return true
+      exit hCreateSuitableImage
+   else
+      -- no suitable images on the card
+      put "create image " & QUOTE & (tNewPaintName) & QUOTE & " in card id " & tCardID & " of stack " & QUOTE & tTheCurrentStackName & QUOTE into tSuitableImageSetup
+      set the tNewImgCmd of stack "revTools" to tSuitableImageSetup
+      return false
+   end if
+end hCreateSuitableImage
+
+on tDoImgCmd -- handler to actually create the paint image we are missing (tperry 22-4-24)
+   if tImgCmd is true then exit tDoImgCmd
+   if the tNewImgCmd of stack "revTools" is "" then exit tDoImgCmd
+   put the tNewImgCmd of stack "revTools" into tImgCmd
+   do tImgCmd
+   replace QUOTE with return in tImgCmd
+   delete line 1 of tImgCmd
+   put word 4 of line 2 of tImgCmd into line 2 of tImgCmd
+   -- 
+   put line 1 of tImgCmd into tImgName
+   put line 2 of tImgCmd into tImgID
+   put line 3 of tImgCmd into tImgStack
+   --
+   set the rect of image tImgName of card id tImgID of stack tImgStack to 0,0,the width of stack tImgStack, the height of stack tImgStack
+   set the layer of image tImgName of card id tImgID of stack tImgStack to bottom -- just to make sure it doesn't obscure any buttons (tperry 23-4-24)
+end tDoImgCmd
+
+
+on initPaintCol
+   -- default paint colours for when the IDE starts
+   put 150,150,150 into sToolColors["paint fill color tool"]
+   put 150,150,150 into sToolColors["paint line color tool"]
+end initPaintCol
+
+
+on tAdjWdRounding theStack
+   if theStack is empty then exit tAdjWdRounding
+   set the itemdelimiter to ","
+   put "visArea,knockoutArea" into tRectsList -- specify rectangle graphics I want to make
+   put theStack into sMatchStack -- this is the stack we are interested in
+   if there is a stack sMatchStack then 
+      put "_wdshape_" into tWdGrp
+      if not(there is a group tWdGrp of cd 1 of stack sMatchStack) then create group tWdGrp in cd 1 of stack sMatchStack
+      put 0 into tCount
+      repeat the number of items in tRectsList -- make the rectangle graphics specified above
+         add 1 to tCount
+         put item tCount of tRectsList into tGra
+         if not (there is a graphic tGra of group tWdGrp of card 1 of stack sMatchStack) then create graphic tGra in group tWdGrp of card 1 of stack sMatchStack -- ensure it exists, now set props
+         set the opaque of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to true
+         set the antialiased of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to false
+         set the lineSize of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the backgroundcolor of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to none
+         set the width of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to the width of stack sMatchStack
+         set the height of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to the height of stack sMatchStack
+         set the top of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the left of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 0
+         set the style of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to "roundRect"
+         set the roundRadius of graphic tGra of group tWdGrp of cd 1 of stack sMatchStack to 14
+      end repeat
+      -- set properties of the group
+      set the layer of group tWdGrp of cd 1 of stack sMatchStack to top
+      set the margins of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the topleft of group tWdGrp of cd 1 of stack sMatchStack to 0,0
+      --
+      set the decorations of stack sMatchStack to none -- now hide the normal window decorations
+      --set the top of stack sMatchStack to the bottom of stack "revMenubar" +4 -- keep stack anchored to bottom of revmenubar
+      -- we need to provide a way for the window to be dragged now, so prepare the drag script
+      put "local sgDragging, sgLeftOffset, sgTopOffset" & return & "on mousedown" & return & "put item 1 of the mouseLoc into sgLeftOffset" & return & ¬
+      "put item 2 of the mouseLoc into sgTopOffset" & return & "put true into sgDragging" & return &  ¬
+      "if not (the pendingmessages contains " & QUOTE & "tDragMove" & QUOTE & ") then send tDragMove to me in 1 millisecond" & return &¬
+      "end mousedown" & return & ¬ 
+      "on tDragMove" & return & "lock screen" & return & "if sgDragging is true then" & return & "set the left of this stack to item 1 of globalloc(the mouseLoc) - sgLeftOffset" & return &¬
+      "set the top of this stack to item 2 of globalloc(the mouseLoc) - sgTopOffset " & return & "end if"  & return & "unlock screen" & return & "if the mouse is up then" & return & ¬
+      "put false into sgDragging" & return & "else" & return & "send tDragMove to me in 1 millisecond" & return & "end if" & return & "end tDragMove" into tDragScript
+      -- now make the button that allows the drag
+      if not (there  is a button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack) then create button "test-drag" in group tWdGrp of cd 1 of stack sMatchStack
+      -- set props of drag button
+      set the autohilite of button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the script of button "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to tDragScript
+      set the opaque of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the style of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to "transparent"
+      set the threeD of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the showBorder of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to false
+      set the borderWidth of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to 0
+      put theStack into tLabelTitle
+      if char 1 to 3 of tLabelTitle is "rev" then delete char 1 to 3 of tLabelTitle
+      set the label of btn "test-drag"  of group tWdGrp of cd 1 of stack sMatchStack to tLabelTitle
+      set the width of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to the width of stack sMatchStack - 50
+      if there is a widget "header_background" of cd 1 of stack sMatchStack then set the height of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to the height of widget "header_background" of cd 1 of stack sMatchStack
+      set the top of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the left of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 0
+      set the script of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to tDragScript
+      set the textSize of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to 12
+      set the textAlign of btn "test-drag" of group tWdGrp of cd 1 of stack sMatchStack to left
+      -- now we set the window shape
+      put the windowshape of this stack into tWdID
+      if tWDID is "0" then
+         -- set to custom shape
+         put "_maskholder_" into tCustomWDImage
+         if not (there is an image tCustomWDImage of cd 1 of stack sMatchStack) then create image tCustomWDImage in card 1 of stack sMatchStack
+         hide image tCustomWDImage of cd 1 of stack sMatchStack
+         export snapshot from group tWdGrp of cd 1 of stack sMatchStack to image tCustomWDImage of cd 1 of this stack as png -- with mask
+         set the windowShape of stack sMatchStack to (the ID of image tCustomWDImage of cd 1 of this stack)
+         put 0 into tCount
+         repeat the number of items in tRectsList -- now we clean up our rects
+            add 1 to tCount
+            put item tCount of tRectsList into tGra
+            if there is a graphic tGra of group tWdGrp of card 1 of stack sMatchStack then hide graphic tGra of group tWdGrp of card 1 of stack sMatchStack
+         end repeat
+      else
+         -- window is already a custom shape (?)
+      end if
+   end if
+end tAdjWdRounding
+
+
+on tDelayedPolysides
+   -- we do this for MacOS, because it's being stubborn!
+   put the tPassVar of this stack into tPolySidesToSet
+   set the polysides to tPolySidesToSet
+   set the tPassVar of this stack to ""
+end tDelayedPolysides
+
+on hGenDragStack
+   --generate the drag stack
+   lock screen
+   lock messages
+   
+   reset the templatestack
+   set the name of the templateStack to "revDragControl"
+   set the visible of the templateStack to false
+   set the backGroundColor of the templateStack to the hiliteColor
+   set the decorations of the templateStack to "noShadow"
+   set the blendLevel of the templateStack to 25
+   set the loc of the templatestack to -500,-500
+   
+   create invisible stack
+   reset the templatestack
+   set the defaultStack to "revDragControl"
+   --show stack "revDragControl"
+   unlock messages
+   unlock screen
+end hGenDragStack
+
+on hPositionAccentsInTools
+   if the platform contains "mac" then
+      put 0 into mycount
+      put the number of graphics of stack "revTools" into myRpt
+      repeat myRpt
+         add 1 to mycount
+         if the short name of graphic mycount of stack "revTools" contains "com.livecode.interface.classic" then
+            put the short name of graphic mycount of stack "revTools" & return after myaccBtnNames
+         end if
+      end repeat
+      filter lines of myaccBtnNames without empty
+      put 0 into mycount
+      repeat the number of lines of myaccBtnNames
+         add 1 to mycount
+         put line mycount of myaccBtnNames into myAcc
+         set the layer of graphic myAcc of stack "revTools" to top
+         -----------------------------------------
+         -- conditional adjustment (for each one!)
+         -----------------------------------------
+         if myAcc contains "classic.checkbox" then
+            set the width of graphic myAcc of stack "revTools" to 14
+            set the height of graphic myAcc of stack "revTools" to 14
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.defaultButton" then
+            set the width of graphic myAcc of stack "revTools" to 30
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.radio" then
+            set the width of graphic myAcc of stack "revTools" to 16
+            set the height of graphic myAcc of stack "revTools" to 16
+            set the style of graphic myAcc of stack "revTools" to "oval"
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         if myAcc contains "classic.tabPanel" then
+            set the width of graphic myAcc of stack "revTools" to 7
+            set the height of graphic myAcc of stack "revTools" to 6
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -6
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +4
+         end if
+         if myAcc contains "classic.TableField" then
+            set the width of graphic myAcc of stack "revTools" to 9
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -3
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -3
+         end if
+         if myAcc contains "listField" then
+            set the width of graphic myAcc of stack "revTools" to 13
+            set the height of graphic myAcc of stack "revTools" to 3
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the layer of graphic myAcc of stack "revTools" to top
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -4
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -6
+         end if
+         if myAcc contains "datagrid" then
+            set the width of graphic myAcc of stack "revTools" to 22
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" +2
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -2
+         end if
+         if myAcc contains "optionmenu" then
+            set the width of graphic myAcc of stack "revTools" to 14
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" +1
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +8
+         end if
+         if myAcc contains "pulldown" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 13
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 4
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -1
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +6
+         end if
+         if myAcc contains "combobox" then
+            set the width of graphic myAcc of stack "revTools" to 17
+            set the height of graphic myAcc of stack "revTools" to 19
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the right of graphic myAcc of stack "revTools" to the right of graphic myAcc of stack "revTools" +7
+         end if
+         if myAcc contains "popup" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 5
+            set the style of graphic myAcc of stack "revTools" to "rectangle"
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the top of graphic myAcc of stack "revTools" to the top of graphic myAcc of stack "revTools" -1
+         end if
+         if myAcc contains "progressbar" then
+            set the width of graphic myAcc of stack "revTools" to 18
+            set the height of graphic myAcc of stack "revTools" to 8
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+            set the left of graphic myAcc of stack "revTools" to the left of graphic myAcc of stack "revTools" -7
+         end if
+         if myAcc contains "littlearrows" then
+            set the width of graphic myAcc of stack "revTools" to 12
+            set the height of graphic myAcc of stack "revTools" to 18
+            set the style of graphic myAcc of stack "revTools" to "roundrect"
+            set the roundRadius of graphic myAcc of stack "revTools" to 8
+            set the layer of graphic myAcc of stack "revTools" to bottom
+            set the loc of graphic myAcc of stack "revTools" to the loc of button myAcc of stack "revTools"
+         end if
+         -----------------------------------------
+         -- end conditional adjustment
+         -----------------------------------------
+      end repeat
+   end if
+end hPositionAccentsInTools
+
+

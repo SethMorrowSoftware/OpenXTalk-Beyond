@@ -1,0 +1,21 @@
+revIDEObjectIsOnIDEStack
+(function)
+Determines whether an object is considered part of the IDE
+
+Syntax:
+revIDEObjectIsOnIDEStack({pLongID})
+----
+
+Synonyms:
+
+Params:
+pLongID ( ): The long id of the object.
+
+Examples:
+Description:
+Use the revIDEObjectIsOnIDEStack function to determine whether an object is considered part of the IDE, that is if it is on a stack whose mainstack is part of the IDE, according to the revIDEStackIsIDEStack function.
+
+Values:
+ 
+
+OS:

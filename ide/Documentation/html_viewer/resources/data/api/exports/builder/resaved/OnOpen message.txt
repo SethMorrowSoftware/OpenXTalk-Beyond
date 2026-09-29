@@ -1,0 +1,25 @@
+OnOpen
+(message)
+Sent when the card containing the widget becomes the current card.
+
+Syntax:
+OnOpen
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler OnOpen()
+  		-- Schedule a timer to perform an action every 5 seconds
+ 		 schedule timer in 5 seconds
+end handler
+----
+
+Description:
+Handle the OnOpen message to have the widget perform an action when the card containing the widget becomes the current card, for example setting default values of instance variables.
+
+Values:
+
+OS:

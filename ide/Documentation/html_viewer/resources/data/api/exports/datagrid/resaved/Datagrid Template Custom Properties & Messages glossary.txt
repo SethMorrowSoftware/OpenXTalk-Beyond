@@ -1,0 +1,19 @@
+Datagrid Template Custom Properties & Messages
+(glossary)
+The properties and messages associated with the Data Grid template
+
+Syntax:
+Datagrid Template Custom Properties & Messages
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+When you are coding behaviors for custom templates the following properties and messages are applicable.
+
+Values:
+
+OS:

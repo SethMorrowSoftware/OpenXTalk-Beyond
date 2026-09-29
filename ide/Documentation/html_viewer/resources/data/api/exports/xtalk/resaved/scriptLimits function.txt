@@ -1,0 +1,23 @@
+scriptLimits
+(function)
+Previously returned the limits on dynamic scripting in the current environment. 
+
+Syntax:
+the scriptLimits
+----
+scriptLimits()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The scriptLimits function is deprecated and should not be used. It previously described the limits on dynamic scripting in standalone applications.  
+
+Values:
+The scriptLimits function now always returns 0,0,0,0. 
+
+OS:
+mac,windows,linux,ios,android

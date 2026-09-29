@@ -1,0 +1,21 @@
+PutBytesAfter
+(statement)
+Appends Source bytes to Target bytes.
+
+Syntax:
+put {Source} after {Target}
+----
+
+Synonyms:
+
+Params:
+Source ( ): An expression which evaluates to binary data.
+Target ( ): An expression which evaluates to a binary container.
+
+Examples:
+Description:
+Use to insert bytes into data without replacement. Can be used either with a chunk expression to insert at a specified location, or without to append to the target data.
+
+Values:
+
+OS:

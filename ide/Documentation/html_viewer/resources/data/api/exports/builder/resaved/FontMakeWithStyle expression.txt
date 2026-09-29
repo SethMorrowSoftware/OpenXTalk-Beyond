@@ -1,0 +1,26 @@
+FontMakeWithStyle
+(expression)
+Creates a new instance of the named font.
+
+Syntax:
+font {mName} with ( bold  | italic  | bold italic  ) style
+----
+
+Synonyms:
+
+Params:
+mName ( ): An expression which evaluates to a string.
+
+Examples:
+// Create italic Arial font
+variable tFont as Font
+put font "Arial" with italic style into tFont
+----
+
+Description:
+Creates a new instance of the named font.
+
+Values:
+A new instance of the named font with style bold, italic, or bold italic, and the default size of 12pts. 
+
+OS:

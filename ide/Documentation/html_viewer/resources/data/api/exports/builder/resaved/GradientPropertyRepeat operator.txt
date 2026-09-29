@@ -1,0 +1,32 @@
+GradientPropertyRepeat
+(operator)
+The repeat count of a gradient paint.
+
+Syntax:
+the repeat of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Store the old gradient repeat count
+variable tRepeat
+put the repeat of tGradient into tRepeat
+
+// Make the gradient repeat 3 times
+set the repeat of tGradient to 3
+----
+
+Description:
+The repeat count of mGradient as a number. This determines how many times the ramp is repeated over the length of the gradient.
+
+Values:
+
+OS:

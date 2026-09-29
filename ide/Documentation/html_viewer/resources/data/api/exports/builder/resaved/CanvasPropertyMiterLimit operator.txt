@@ -1,0 +1,25 @@
+CanvasPropertyMiterLimit
+(operator)
+The current miter limit of a canvas.
+
+Syntax:
+the miter limit of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw a right-angled triangle, setting the miter limit so only the right-angle corner is mitered.
+set the miter limit of this canvas to 1.5
+stroke polygon path with points [point [50,50], point [50,100], point [100,50]] on this canvas
+----
+
+Description:
+The limit of miter joins as a number. Specifies how far miter joins can extend from the meeting point of two lines before a bevel join is used instead.
+
+Values:
+
+OS:

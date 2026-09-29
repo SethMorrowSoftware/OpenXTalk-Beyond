@@ -1,0 +1,31 @@
+revIDEIsFilesetStale
+(function)
+Compute whether derived files are up-to-date
+
+Syntax:
+revIDEIsFilesetStale(pInputs, pOutputs, pRecursive, rError)
+----
+
+Synonyms:
+
+Params:
+pInputs ( ): A numerically-keyed array of filenames, or a filename
+pOutputs ( ): A numerically-keyed array of filenames, or a filename
+pRecursive ( ): True if folders should be checked recursively
+rError ( ): Set to a string describing an error, if necessary.
+
+Examples:
+Description:
+Checks whether the pOutputs are up-to-date relative to the pInputs, by checking the modification times on the files.  Returns true if any of the pInputs are newer than any of the pOutputs, or if any of the pOutputs are missing.  Returns false if all of the pOutputs are up-to-date.
+
+If an error occurs, returns empty and sets rError to a descriptive string.
+
+The pInputs and the pOutputs are file sets, and can either be a single filename as a string, or a numerically-keyed array of filenames. It is an error for either file set is an array with non-numeric keys, or for any filename to be the empty string.
+
+If either file set is empty, the return value is true.  It is an error for any of the input filenames to be missing.
+
+If pRecursive is true, any filename in the pInputs or pOutputs that is a directory is scanned recursively and its files are added to the fileset.  If pRecursive is false, it is an error for either file set to contain directories.
+
+Values:
+
+OS:

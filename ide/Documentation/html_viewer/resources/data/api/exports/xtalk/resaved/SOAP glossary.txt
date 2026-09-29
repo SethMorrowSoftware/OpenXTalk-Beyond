@@ -1,0 +1,16 @@
+SOAP
+(glossary)
+
+Syntax:
+Synonyms:
+soap, simple object access protocol
+
+Params:
+
+Examples:
+Description:
+Simple Object Access protocol|Protocol. An XML-based set of rules for applications to access and use web services.
+
+Values:
+
+OS:

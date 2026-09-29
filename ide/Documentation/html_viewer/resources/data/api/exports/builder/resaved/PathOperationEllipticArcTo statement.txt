@@ -1,0 +1,49 @@
+PathOperationEllipticArcTo
+(statement)
+Adds an arc to a path.
+
+Syntax:
+arc to {mEnd} with radii {mRadii} rotated by {mAngle} on {mPath}
+----
+
+Synonyms:
+
+Params:
+mEnd ( ): An expression which evaluates to a point.
+mRadii ( ): An expression which evaluates to a list of numbers.
+mAngle ( ): An expression which evaluates to a number.
+mPath ( ): An expression which evaluates to a path.
+
+Examples:
+// Construct a path tracing out a rectangle with rounded bottom corners.
+variable tPath
+put the empty path into tPath
+
+// Begin a new subpath
+move to point [0, 0] on tPath
+
+// Trace the left edge
+line to point [0, my height - 25] on tPath
+
+// Continue path with an arc to the bottom edge
+arc to point [my height, 25] with radii [25, 25] rotated by 0 on tPath
+
+// Trace the bottom edge
+line to point [my width - 25, my height] on tPath
+
+// Continue path with an arc to the right edge
+arc to point [my width, my height - 25] with radii [25, 25] rotated by 0 on tPath
+
+// Trace the right edge
+line to point [my width, 0] on tPath
+
+// Close the path with a line back to the starting point
+close path on tPath
+----
+
+Description:
+Adds an arc from the previous point to mEnd on mPath, following a section of an ellipse with the given radii & angle. As there can be two different ellipses that match the parameters, and two potential arcs for each ellipse, this variation of "arc to ..." will select the arc that most closely matches the direction from the last point to the current position on mPath.
+
+Values:
+
+OS:

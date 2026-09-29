@@ -1,0 +1,46 @@
+textFont
+(property)
+Specifies the font|font face of text in an object(glossary).
+
+Syntax:
+set the textFont of {object} to {fontName} [, {language}]
+----
+set the textFont of [{chunk} of] {field} to {fontName} [, {language}]
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the textFont of button "Hello" to "Courier"
+----
+set the textFont of the foundChunk to "Comic Sans"
+----
+set the textFont of field "Input" to "Arial,Japanese"
+----
+set the textFont of field "Text" to "Japanese"
+----
+set the textFont of button "Themed" to "(System UI Font - Messages)"
+----
+
+Description:
+Use the textFont property to change the appearance of text.
+
+Setting the textFont of an object(glossary) to empty allows the textFont of the object|object's owner to show through. Use the effective keyword to find out what font is used for the object(glossary), even if its own textFont is empty.
+
+If the chunk contains more than one font, the chunk|chunk's textFont property reports "mixed".
+
+On Mac OS systems, if the specified font isn't available, the system font (which is set in the Appearance control panel and specifies the font used for menus) is used. On Unix systems, if the specified font isn't available, Helvetica is used. On Windows systems, if the specified font isn't available, the current Windows font is used.
+
+To get the list of available fonts, use the fontNames function.
+
+Some special font names can be used to request the themed fonts used for drawing UI elements. These are documented in the fontNames function.
+
+Setting the textFont to `(Default)` causes the control to use the default font for that type of control rather than inheriting the font from a parent object.
+
+Values:
+The textFont of an object(glossary) or chunk is either empty or a string.  
+
+OS:
+mac,windows,linux,ios,android

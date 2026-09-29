@@ -1,0 +1,32 @@
+processID
+(function)
+return|Returns the process ID of OpenXTalk (or a  standalone application). 
+
+Syntax:
+the processID
+----
+processID()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the processID
+----
+write the processID & linefeed to process someOtherProcess
+----
+
+Description:
+Use the processID function to communicate with another application.
+
+On Unix systems, the processID uniquely identifies the process belonging to the running application. Other process|processes can use the processID to address OpenXTalk.
+
+The processID function does not return a meaningful value on  Mac OS or Windows|Windows systems.
+
+Values:
+The processID function return|returns a positive integer. 
+
+OS:
+linux,ios,android

@@ -1,0 +1,29 @@
+AmongKeysOfArray
+(operator)
+Determines if an array has a given key
+
+Syntax:
+{Needle} ( is not | is ) among the keys of {Target}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to an integer, string, or list of integers.
+Target ( ): An expression which evaluates to an array.
+
+Examples:
+variable tArray as Array
+put "value" into tArray["key"]
+
+variable tIsAmong as Boolean
+put "key" is among the keys of tArray into tIsAmong -- tIsAmong is true
+----
+
+Description:
+The keys of an array are case insensitive. Thus ``` tVar is among the keys of tArray```  is not equivalent to  ``` tVar is in (the keys of tArray) ``` as the latter IsInList operation *is* case sensitive.
+
+Values:
+Returns true if Needle can be found among the keys of Target. 
+
+OS:

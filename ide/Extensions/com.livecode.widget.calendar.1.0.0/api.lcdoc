@@ -1,0 +1,103 @@
+Library: com.livecode.widget.calendar
+
+Type: widget
+
+Summary: A calendar control. The calendar displays the dates of a month with the selected date highlighted. The user can move to the previous or next month and click on a date to select it. When a date is selected the <dateChanged> message is sent.
+
+Name: dateChanged
+
+Type: message
+
+Syntax: on dateChanged pDate
+
+Summary: Sent when a date is selected.
+
+Parameters: 
+
+pDate: The selected date in the form YYYY-MM-DD.
+
+Description: The <dateChanged> message is sent when a date in the calendar is clicked. The <pDate> parameter gives the selected date in the form YYYY-MM-DD.
+
+
+Name: dayNames
+
+Type: property
+
+Syntax: get the dayNames of <widget>
+
+Syntax: set the dayNames of <widget> to <pDayNames>
+
+Value: A comma-delimited list of day names.
+
+Summary: Sets the day names to be displayed as headers in the Calendar.
+
+
+
+
+Name: monthNames
+
+Type: property
+
+Syntax: get the monthNames of <widget>
+
+Syntax: set the monthNames of <widget> to <pMonthNames>
+
+Value: A comma-delimited list of month names.
+
+Summary: Sets the month names to be used when displaying the selected month in the Calendar header.
+
+
+
+
+Name: selectedDate
+
+Type: property
+
+Syntax: get the selectedDate of <widget>
+
+Syntax: set the selectedDate of <widget> to <pDate>
+
+Value: A string in the form "YYYY-MM-DD"
+
+Summary: Sets the selected date of the calendar. Shows the correct month and highlights the selected date.
+
+
+
+
+Name: headerColor
+
+Type: property
+
+Syntax: get the headerBackround of <widget>
+
+Syntax: set the headerBackround of <widget> to <pColor>
+
+Value: A RGB color.
+
+Summary: The background color of the Calendar header.
+
+Description: The <headerBackround> is used to set the background color of the Calendar header bar.
+
+
+
+
+Name: hiliteStyle
+
+Type: property
+
+Syntax: get the hiliteStyle of <widget>
+
+Syntax: set the hiliteStyle of <widget> to [ Text | Background ]
+
+Summary: The style with which selected dates are highlighted.
+
+Value:
+The hilite style
+- "Text": the text color of the selected date is changed.
+- "Background": the background color of the selected date is changed.
+
+Description: The <hiliteStyle> is used to set the jighlight style of the selected date.
+
+
+
+

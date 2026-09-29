@@ -1,0 +1,29 @@
+PatternOperationScale
+(statement)
+Apply a scale to a pattern.
+
+Syntax:
+scale {mPattern} by {mScale}
+----
+
+Synonyms:
+
+Params:
+mPattern ( ): An expression which evaluates to a pattern.
+mScale ( ): An expression which evaluates to a list of 1 or 2 numbers, the x-axis scale and y-axis scale, or the uniform scale when only a single value is given.
+
+Examples:
+// Create a new pattern paint from an image file
+variable tPattern
+put pattern with image from file "images/pattern.png" into tPattern
+
+// Scale the pattern to twice the current width
+scale tPattern by [2,1]
+----
+
+Description:
+Scales the transform of mPattern by mScale
+
+Values:
+
+OS:

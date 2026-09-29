@@ -93,6 +93,7 @@ end preOpenStack
 on openStack
    resizeStack
    show me
+   pass openstack
 end openStack
 
 on closeStack

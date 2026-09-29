@@ -1,0 +1,33 @@
+ArrayToJSON
+(function)
+Parse an array to JSON
+
+Syntax:
+ArrayToJSON({pArray},{pForceRootType},{pPretty})
+----
+
+Synonyms:
+
+Params:
+pArray ( ): An array
+pForceRootType ( ): Force an element value to be represented as a JSON type other than the default - "object" - force an object even if the array has numeric 1...N keys - "string" - force a string even if the element value parses as a number or boolean
+
+Examples:
+local tMessage
+ask question "What do you want to send?"
+if it is not empty then
+   put it into tMessage["text"]
+   put ArrayToJSON(tMessage) into tMessage
+
+   set the httpHeaders to "Content-type: application/json"
+   post tMessage to url kSlackWebhookURL
+end if
+----
+
+Description:
+By default the engine numerically indexed arrays with keys 1...N are translated to JSON arrays and array key - value pairs are translated to JSON objects.
+
+Values:
+A UTF8 encoded JSON string 
+
+OS:

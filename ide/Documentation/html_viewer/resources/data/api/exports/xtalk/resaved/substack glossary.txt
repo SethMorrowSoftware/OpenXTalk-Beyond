@@ -1,0 +1,16 @@
+substack
+(glossary)
+
+Syntax:
+Synonyms:
+substack
+
+Params:
+
+Examples:
+Description:
+A stack contained in a main stack. Each OpenXTalk file contains one main stack, and may optionally contain one or more substacks.
+
+Values:
+
+OS:

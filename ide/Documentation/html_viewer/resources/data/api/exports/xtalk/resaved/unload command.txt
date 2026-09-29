@@ -1,0 +1,37 @@
+unload
+(command)
+Removes a file that was placed in the local cache by the load command, or cancels a download or upload in progress.
+
+Syntax:
+unload [URL] {cachedURL}
+----
+
+Synonyms:
+
+Params:
+•	cachedURL ( ): Any URL in the cachedURLs or any URL whose transfer was started with the libURLftpUpload, libURLftpUploadFile, or libURLDownloadToFile command.
+	
+Examples:
+unload URL "http://www.example.com"
+----
+unload URL (line 1 of the cachedURLs)
+----
+unload URL "ftp://ftp.example.org/newfiles/latest.txt"
+----
+
+Description:
+Use the unload command to release memory used by a cache|cached URL(keyword) when you no longer need it.
+
+If the cachedURL is still being download|downloaded with the load command, the unload command cancels the download.
+
+The unload command can be used to cancel any non-blocking ftp|FTP  or http|HTTP file transfer in progress, but it does not cancel file  transfers that were initiated by using a URL(keyword) container in an expression or by putting something into a URL(keyword).
+
+The unload command removes the cachedURL from the URLStatus function. This includes URL(glossary)|URLs that have been upload|uploaded with the libURLftpUpload command, as well as those that have been cache|cached with the load command.
+
+*Note:* You can use a URL(keyword) with the URL(keyword) keyword  even after it has been unloaded from the cache, but cache|caching  speeds up access to the URL(keyword).
+
+Values:
+If the cachedURL is not in the cache and not currently being upload|uploaded or download|downloaded, the result function is set to "can't find url". 
+
+OS:
+mac,windows,linux,html5

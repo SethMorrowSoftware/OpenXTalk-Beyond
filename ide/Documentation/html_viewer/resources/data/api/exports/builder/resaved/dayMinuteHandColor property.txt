@@ -1,0 +1,21 @@
+dayMinuteHandColor
+(property)
+Determines the color of the minute hand on the clock during the day
+
+Syntax:
+get the dayMinuteHandColor of {widget}
+----
+set the dayMinuteHandColor of {widget} to {color}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the dayMinuteHandColor property to get or set the color of the minute hand of the clock during the day. To determine if the clock is displaying its daytime or night-time colors, use the read-only property isDay.
+
+Values:
+
+OS:

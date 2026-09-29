@@ -1,0 +1,23 @@
+RepeatUntil
+(control structure)
+Executes a list of statements until a condition becomes true.
+
+Syntax:
+repeat until {Condition}
+	{StatementList}
+end repeat
+----
+
+Synonyms:
+
+Params:
+Condition (bool ): An expression which evaluates to a boolean.
+StatementList ( ): A set of statements.
+
+Examples:
+Description:
+Use the repeat until Condition structure to execute a set of statements repeatedly, until the Condition evaluates to true.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+plugin
+(glossary)
+
+Syntax:
+Synonyms:
+plugin, plug-in, plugin stack, plug-in stack
+
+Params:
+
+Examples:
+Description:
+A custom stack which you install in the Plugins folder (inside the OpenXTalk folder), and which appears in the "Plugins" cascading menu|submenu of the Development menu.
+
+Values:
+
+OS:

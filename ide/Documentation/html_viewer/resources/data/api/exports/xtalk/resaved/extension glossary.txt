@@ -1,0 +1,18 @@
+extension
+(glossary)
+
+Syntax:
+Synonyms:
+file extension, extension
+
+Params:
+
+Examples:
+Description:
+One or more character|characters following a period at the end of a file name, that indicate what type of file it is.
+
+Windows|Windows systems determine which application owns a file based on the file|file's extension. OS X|OS X systems determine a file's type based on its extension.
+
+Values:
+
+OS:

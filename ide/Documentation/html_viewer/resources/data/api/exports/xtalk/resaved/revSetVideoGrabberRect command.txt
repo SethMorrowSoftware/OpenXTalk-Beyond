@@ -1,0 +1,35 @@
+revSetVideoGrabberRect
+(command)
+Changes the size and location of the video grabber|video grabber window. 
+
+Syntax:
+revSetVideoGrabberRect {left}, {top}, {right}, {bottom}
+----
+
+Synonyms:
+
+Params:
+left ( ): The left, right, top, and bottom are integers.
+top ( ): 
+right ( ): 
+bottom ( ): 
+
+Examples:
+revSetVideoGrabberRect 100,300,100,400
+----
+revSetVideoGrabberRect globalRect(the rect of button "Video")
+----
+
+Description:
+Use the revSetVideoGrabberRect command to move or resize the video grabber|video grabber window.
+
+You must use the revInitializeVideoGrabber command to open the video grabber before you can use the revSetVideoGrabberRect command.
+
+The rectangle specified by the left, top, right, and bottom is the rectangle of the video grabber|video grabber window: the top, left, bottom, and right edges of the video grabber, in  absolute coordinates(glossary)|absolute (screen) coordinates.
+
+*Important:*  The revSetVideoGrabberRect command is part of the   Video library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the  "Video Grabber"   library checkbox is checked.
+
+Values:
+
+OS:
+windows

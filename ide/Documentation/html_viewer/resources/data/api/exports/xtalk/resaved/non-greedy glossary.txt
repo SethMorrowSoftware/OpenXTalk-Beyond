@@ -1,0 +1,16 @@
+non-greedy
+(glossary)
+
+Syntax:
+Synonyms:
+non-greedy, non-greediness, nongreedy, nongreediness
+
+Params:
+
+Examples:
+Description:
+A form of regular expression that matches only the minimum length of text needed.
+
+Values:
+
+OS:

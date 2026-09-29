@@ -1,0 +1,31 @@
+ScriptObjectExists
+(operator)
+Tests the existence of a script object.
+
+Syntax:
+{Object} exists
+----
+
+Synonyms:
+
+Params:
+Object ( ): An expression that evaluates to a .
+
+Examples:
+variable tObject as ScriptObject
+resolve script object "card 5 of this stack"
+put the result into tObject
+if tObject exists then
+	set property "name" of tObject to "Card5"
+else
+	log "No such card"
+end if
+----
+
+Description:
+Use to test the existence or otherwise of a script object, for example after attempting to resolve the object from a string using ResolveScriptObject | resolve script object
+
+Values:
+True if the object Object exists, and false otherwise. 
+
+OS:

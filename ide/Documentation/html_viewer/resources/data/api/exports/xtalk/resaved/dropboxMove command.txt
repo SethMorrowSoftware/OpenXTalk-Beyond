@@ -1,0 +1,26 @@
+dropboxMove
+(command)
+Move a file or folder to a different location in the user's Dropbox.
+
+Syntax:
+dropboxMove {pAccessToken}, {pPathFrom}, {pPathTo}, {pAllowSharedFolder}, {pAutoRename}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pPathFrom ( ): Path in the user's Dropbox to be moved.
+pPathTo ( ): Path in the user's Dropbox that is the destination.
+pAllowSharedFolder ( ): If true, copy will copy contents in shared folder, otherwise RelocationError.cant_copy_shared_folder will be returned if pFromPath contains shared folder. The default for this field is false.
+pAutoRename ( ): If there's a conflict, have the Dropbox server try to autorename the file to avoid the conflict. The default for this field is false.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { ".tag": "file", "name": "Prime_Numbers.txt", "id": "id:a4ayc_80_OEAAAAAAAAAXw", "client_modified": "2015-05-12T15:50:38Z", "server_modified": "2015-05-12T15:50:38Z", "rev": "a1c10ce0dd78", "size": 7212, "path_lower": "/homework/math/prime_numbers.txt", "path_display": "/Homework/math/Prime_Numbers.txt", "sharing_info": { "read_only": true, "parent_shared_folder_id": "84528192421", "modified_by": "dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc" }, "property_groups": [ { "template_id": "ptid:1a5n2i6d3OYEAAAAAAAAAYa", "fields": [ { "name": "Security Policy", "value": "Confidential" } ] } ], "has_explicit_shared_members": false } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

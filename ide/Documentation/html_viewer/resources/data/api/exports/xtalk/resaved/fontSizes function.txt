@@ -1,0 +1,29 @@
+fontSizes
+(function)
+return|Returns a list of the font sizes available for a specified font. 
+
+Syntax:
+the fontSizes of {fontName}
+----
+fontSizes({fontName})
+----
+
+Synonyms:
+
+Params:
+fontName ( ): The name of a font that is installed on the system.
+
+Examples:
+the fontSizes of "Arial"
+----
+
+Description:
+Use the fontSizes function to determine which font sizes can be displayed or printed without creating "jaggies".
+
+If zero appears in the list returned by the fontSizes function, the font is scalable, meaning that it can be displayed at any size supported by the operating system.
+
+Values:
+The fontSizes function return|returns a list of numbers that represent point sizes, one per line. 
+
+OS:
+mac,windows,linux,ios,android

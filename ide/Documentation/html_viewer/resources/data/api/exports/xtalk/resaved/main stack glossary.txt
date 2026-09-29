@@ -1,0 +1,18 @@
+main stack
+(glossary)
+
+Syntax:
+Synonyms:
+main stack, mainstack
+
+Params:
+
+Examples:
+Description:
+A stack that contains another stack.
+
+Each stack file contains one main stack, and may optionally contain one or more substack|substacks.
+
+Values:
+
+OS:

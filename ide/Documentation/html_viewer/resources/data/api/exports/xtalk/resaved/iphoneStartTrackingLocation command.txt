@@ -1,0 +1,23 @@
+iphoneStartTrackingLocation
+(command)
+Starts tracking the location of the device.
+
+Syntax:
+iphoneStartTrackingLocation
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+iphoneStartTrackingLocation
+----
+
+Description:
+Use the iphoneStartTrackingLocation command to start tracking the location of the device  The iphoneStartTrackingLocation command starts tracking the location of the device using CoreLocation.
+
+Values:
+
+OS:
+ios

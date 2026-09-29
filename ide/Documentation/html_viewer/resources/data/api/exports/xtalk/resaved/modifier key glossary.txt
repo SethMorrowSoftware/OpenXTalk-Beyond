@@ -1,0 +1,18 @@
+modifier key
+(glossary)
+
+Syntax:
+Synonyms:
+modifier key
+
+Params:
+
+Examples:
+Description:
+A key that modifies the effect of pressing another key, instead of typing a character.
+
+Modifier keys include Shift, Control, Caps Lock, and the Command key (on Mac OS and OS X|OS X systems), and the Option key, Meta key, or Alt key.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+task bar
+(glossary)
+
+Syntax:
+Synonyms:
+task bar, taskbar, windows task bar
+
+Params:
+
+Examples:
+Description:
+The area of the screen on Windows|Windows systems that holds the Start button, icons for open windows and running applications, and other features. 
+
+Values:
+
+OS:

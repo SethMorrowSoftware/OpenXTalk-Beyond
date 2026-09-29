@@ -1,0 +1,25 @@
+revXMLRPC_SetHost
+(command)
+
+Syntax:
+revXMLRPC_SetHost XMLRPCdocumentID, RPChost [, RPCport]
+
+Summary:
+Sets the host and optionally the port of an XML-RPC document structure.
+
+The number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request.
+
+Examples:
+revXMLRPC_SetHost theRequest,"www.openxtalk.org"
+revXMLRPC_SetHost myRequest,"example.com",10000
+
+If the revXMLRPC_SetHost command encounters an error, the result is set to an error message beginning with "xmlrpcerr".
+
+Description:
+Use the revXMLRPC_SetHost command to set the host and optionally the port that is the target of the execution of an XML-RPC request.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

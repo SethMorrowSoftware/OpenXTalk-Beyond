@@ -1,0 +1,34 @@
+NextRepeat
+(control structure)
+Begin the next iteration of a repeat loop.
+
+Syntax:
+next repeat
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+	variable tList as list
+	variable tElement
+	put [1, 2, 3, "a", 4, "b", 5] into tList
+
+	variable tSum as number
+	put 0 into tSum
+	repeat for each element tElement in tList
+		if tElement is not a number then
+			next repeat
+		end if
+
+		add tElement to tSum
+	end repeat
+----
+
+Description:
+Use NextRepeat|next repeat to skip to the next iteration of a repeat loop. This is particularly useful when operations are only to be performed on iterands which satisfy certain criteria.
+
+Values:
+
+OS:

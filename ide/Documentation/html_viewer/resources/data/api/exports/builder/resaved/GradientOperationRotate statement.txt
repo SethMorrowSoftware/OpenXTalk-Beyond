@@ -1,0 +1,29 @@
+GradientOperationRotate
+(statement)
+Apply a rotation to a gradient paint.
+
+Syntax:
+rotate {mGradient} by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mRotation ( ): An expression which evaluates to a number.
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Rotate the gradient
+rotate tGradient by 45
+----
+
+Description:
+Rotates the transform of mGradient by mRotation degrees.
+
+Values:
+
+OS:

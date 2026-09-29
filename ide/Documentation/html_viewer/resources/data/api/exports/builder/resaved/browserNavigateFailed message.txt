@@ -1,0 +1,21 @@
+browserNavigateFailed
+(message)
+Sent when the browser has failed to navigate to a new page.
+
+Syntax:
+browserNavigateFailed {pUrl}, {pError}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the document.
+pError (string ): An error message describing the reason for the failure.
+
+Examples:
+Description:
+The browserNavigateFailed message is sent to the widget's script  object when the browser has failed to navigate to a new page. The pUrl  parameter contains the URL of the new page, and the pError parameter  gives the reason for the failure.
+
+Values:
+
+OS:

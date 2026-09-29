@@ -1,0 +1,23 @@
+home
+(keyword)
+This keyword exists only to aid compatibility with imported HyperCard stacks. 
+
+Syntax:
+home
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+go home
+----
+
+Description:
+In the development environment, the home stack is the License stack, and the statement go home does not do anything useful.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

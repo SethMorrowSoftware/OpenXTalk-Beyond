@@ -1,0 +1,24 @@
+extensionProtectStack
+(command)
+Protect a stack using the provided script
+
+Syntax:
+extensionProtectStack {pProtectifyScript},{pSourceFolder},{pSourceFileName},{pOutput},{pGitHash}
+----
+
+Synonyms:
+
+Params:
+pProtectifyScript ( ): The path to the script that protects a stack.
+pSourceFolder ( ): The folder containing the extension
+pSourceFileName ( ): The extension file name
+pOutput ( ): The target filename for the protected stack
+pGitHash ( ): The hash to use when protecting the stack
+
+Examples:
+Description:
+Protect a stack using the provided script
+
+Values:
+
+OS:

@@ -1,0 +1,30 @@
+recording
+(property)
+Reports whether a sound is currently being recorded.
+
+Syntax:
+set the recording to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the recording to false
+----
+wait until the recording is true
+----
+
+Description:
+Use the recording property to determine whether a recording is being made or to stop recording.
+
+The recording property is true if sound is currently being recorded with the record sound command, false if it is not.
+
+If a recording is currently being made, you can set the recording property to false to stop recording. This is equivalent to using the stop recording command.
+
+Values:
+The recording property is true or false. 
+
+OS:
+mac,windows

@@ -1,0 +1,19 @@
+multiSpace
+(property)
+Has no effect and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the multiSpace to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the multiSpace property determines the amount of space left between multiple paint shapes. In OpenXTalk, the paint tool|paint tools draw a single shape, so the multiSpace property has no effect. 
+
+Values:
+
+OS:

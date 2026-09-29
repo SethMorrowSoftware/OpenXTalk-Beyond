@@ -1,0 +1,16 @@
+MetaCard
+(glossary)
+
+Syntax:
+Synonyms:
+metatalk, mt, mc, metacard
+
+Params:
+
+Examples:
+Description:
+A graphical authoring environment from MetaCard Corporation. Its scripting language is called MetaTalk. 
+
+Values:
+
+OS:

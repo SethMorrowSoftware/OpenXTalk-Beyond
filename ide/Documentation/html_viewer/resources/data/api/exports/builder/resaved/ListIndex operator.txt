@@ -1,0 +1,31 @@
+ListIndex
+(operator)
+Find the first or last occurrence of Needle within Haystack Target:An expression which evaluates to a list.
+
+Syntax:
+the ( first | last ) index of {Needle} in {Haystack}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to any value.
+
+Examples:
+variable tVar as List
+variable tOffset as Number
+put ["a", "b", "c", "d", "b"]
+put the index of "b" in tVar into tOffset
+-- tOffset contains 2
+
+put the last index of "b" in tVar into tOffset
+-- tOffset contains 5
+----
+
+Description:
+Use `the index of` to find where particular elements occur within a list.  Haystack is scanned for an element that is equal to Needle, and the position of the element found is returned.  If neither the "first index" nor "last index" are specified, the index of the first element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.
+
+Values:
+Returns the index from the start of Haystack. 
+
+OS:

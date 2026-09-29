@@ -1,0 +1,24 @@
+mimeTheMIMETypeOfExtension
+(function)
+Determine the MIME type for a file extension
+
+Syntax:
+mimeTheMIMETypeOfExtension({pExtension})
+----
+
+Synonyms:
+
+Params:
+pExtension ( ): A file extension
+
+Examples:
+put "Content-Type:" && mimeTheMIMETypeOfExtension("xls") & crlf after tHeaders
+----
+
+Description:
+The mime types listed are the default mime types in an Apache web server installation for a given file extension. If the file extension is not found then `application/octet-stream` will be returned.
+
+Values:
+A mime type for the given file extension. 
+
+OS:

@@ -1,0 +1,16 @@
+URL scheme
+(glossary)
+
+Syntax:
+Synonyms:
+scheme, url scheme
+
+Params:
+
+Examples:
+Description:
+A type of URL(glossary), specified by the part of the URL(glossary) before the "://". URL(glossary) schemes supported by OpenXTalk include http(keyword), ftp(keyword), file(keyword), resfile(keyword), and binfile(keyword).
+
+Values:
+
+OS:

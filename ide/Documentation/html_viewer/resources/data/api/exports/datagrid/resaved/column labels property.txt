@@ -1,0 +1,19 @@
+column labels
+(property)
+Line delimited list of labels for columns in your table.
+
+Syntax:
+put the dgProp["column labels"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Line delimited list of labels for columns in your table.
+
+Values:
+
+OS:

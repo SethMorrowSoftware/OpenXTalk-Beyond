@@ -1,0 +1,21 @@
+PutInto
+(statement)
+Put a value into a container.
+
+Syntax:
+put {sourceValue} into {targetContainer}
+----
+
+Synonyms:
+
+Params:
+sourceValue (any ): The value to put into the 
+targetContainer (any ): A valid target for 
+
+Examples:
+Description:
+Assigns the result of evaluating sourceValue to targetContainer. *Note:* It is a checked runtime error for the source value's type to not be compatible with the target expression's type.
+
+Values:
+
+OS:

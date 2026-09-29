@@ -5,11 +5,17 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<title>LiveCode Dictionary</title>
+	<title>Dictionary</title>
 
 	<link href="[[tDocsCSSFolder]]/bootstrap.min.css" rel="stylesheet">
 	<link href="[[tDocsCSSFolder]]/lcdoc.css" rel="stylesheet">
 	<link href="[[tDocsCSSFolder]]/codestyle.css" rel="stylesheet">
+
+	<!--block the enterKey -->
+	<script type="text/javascript">
+	window.addEventListener('keydown',function(e){if(e.keyIdentifier=='U+000A'||e.keyIdentifier=='Enter'||e.keyCode==13){if(e.target.nodeName=='INPUT'&&e.target.type=='text'){e.preventDefault();return false;}}},true);
+	</script>
+
 </head>
 <body>
 
@@ -60,7 +66,8 @@
 		</ul>
 		<form class="navbar-form navbar-right col-md-4">
 			<div class="form-group" id="filter_box">
-			  <input id="ui_filer" type="text" class="form-control input-sm" spellcheck="false" placeholder="Search">
+			  <!-- input id="ui_filer" type="text" require pattern="[A-Z][a-z][0-9]" class="form-control input-sm" spellcheck="false" placeholder="Search" -->
+				<input id="ui_filer" type="text" class="form-control input-sm" spellcheck="false" placeholder="Search">
 			</div>
 			<button type="button" class="btn btn-default btn-sm"><span class="glyphicon glyphicon-search"></span></button>
 		</form>
@@ -82,7 +89,7 @@
 				</div>
 			</div>
 		</div>
- 
+
 		<div class="col-md-9">
 			<div id="header_panel_holder">
 				<div class="panel panel-default" id="lcdoc_list">
@@ -113,11 +120,11 @@
 	<script src="[[tDocsJSFolder]]/jquery.session.js"></script>
 	<script src="[[tDocsJSFolder]]/bootstrap.min.js"></script>
 	<script src="[[tDocsJSFolder]]/marked.js"></script>
-	<script src="[[tDocsJSFolder]]/highlight.pack.js"></script>	
-	<script src="[[tDocsJSFolder]]/jquery.mousewheel.min.js"></script>	
+	<script src="[[tDocsJSFolder]]/highlight.pack.js"></script>
+	<script src="[[tDocsJSFolder]]/jquery.mousewheel.min.js"></script>
 
-	<script charset="UTF-8" src="[[tDataPath]]"></script>  
-	<script src="[[tDocsJSFolder]]/dictionary_functions.js"></script>	
+	<script charset="UTF-8" src="[[tDataPath]]"></script>
+	<script src="[[tDocsJSFolder]]/dictionary_functions.js"></script>
 	<script>
 		$(document).ready(function(e)
 		{
@@ -125,7 +132,7 @@
 			setActions();
 			dataFilter();
 			displayLibraryChooser();
-			
+
 			goEntryName('[[tLibraryName]]', '[[tEntryName]]', '[[tEntryType]]');
 			document.getElementById("ui_filer").focus();
 		});

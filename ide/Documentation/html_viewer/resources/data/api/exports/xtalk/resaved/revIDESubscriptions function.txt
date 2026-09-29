@@ -1,0 +1,20 @@
+revIDESubscriptions
+(function)
+Use to find out which messages the calling object is subscribed to.
+
+Syntax:
+revIDESubscriptions()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use to find out which messages the calling object is subscribed to.
+
+Values:
+Return delimited list of messages, 1 per line. 
+
+OS:

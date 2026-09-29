@@ -1,0 +1,18 @@
+QuickTime
+(glossary)
+
+Syntax:
+Synonyms:
+qt, qti, quicktime
+
+Params:
+
+Examples:
+Description:
+System for video, sound, and picture display developed by Apple Computer.
+
+Also, a file format that can hold video or sound information (a QuickTime movie).
+
+Values:
+
+OS:

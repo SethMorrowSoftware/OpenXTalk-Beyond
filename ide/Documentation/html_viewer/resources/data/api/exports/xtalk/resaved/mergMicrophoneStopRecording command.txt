@@ -1,0 +1,21 @@
+mergMicrophoneStopRecording
+(command)
+This handler stop any current recording operation
+
+Syntax:
+mergMicrophoneStopRecording
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+ If audio recording is not currently in progress, then 'not recording' is returned in the result. If finishing record failed, then 'recording failed' is returned in the result. If recording successfully finished, the result is empty.
+
+Values:
+recording-status-enum 
+
+OS:
+ios,mac

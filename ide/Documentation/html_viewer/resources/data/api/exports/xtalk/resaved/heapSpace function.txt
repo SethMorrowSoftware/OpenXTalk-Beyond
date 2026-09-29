@@ -1,0 +1,32 @@
+heapSpace
+(function)
+return|Returns the number of free byte|bytes in the application heap on Mac OS|Mac OS systems.
+
+Syntax:
+the heapSpace
+----
+heapSpace()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the heapSpace
+----
+if the heapSpace < 1024^2 then suggestLowMemory
+----
+
+Description:
+Use the heapSpace function to determine how much free memory remains.
+
+This function exists to aid compatibility with imported HyperCard stacks. It may not return the exact amount of free memory. It also does not take available temporary memory into account.
+
+On Unix and Windows systems, this function does not return a meaningful value. 
+
+Values:
+The heapSpace function return|returns a positive integer. 
+
+OS:
+mac

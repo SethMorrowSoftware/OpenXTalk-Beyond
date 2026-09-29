@@ -1,0 +1,24 @@
+screenPixelScales
+(property)
+Returns a return-delimited list of the pixel scale of each connected display. 
+
+Syntax:
+get the screenPixelScales
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the screenPixelScales
+----
+
+Description:
+Returns a return-delimited list of the pixel scale of each connected display. 
+
+Values:
+The screenPixelScales property returns a return-delimited list of non-zero real numbers. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,29 @@
+tabAlign
+(property)
+Specifies the alignment of tab stops in a field.
+
+Syntax:
+set the tabAlign [of line lineNumber] of field to tabAlignList
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the tabAlign of field 1 to "left,left,right,center"
+----
+put "A" \
+      & tab & "B" & tab & "C" & cr & "left" & tab & "center" & tab & "right" into field 1
+set the tabStops of field 1 to "100"
+set the tabAlign of field 1 to "left,center,right"
+----
+
+Description:
+Use the tabAlign property to set the alignment of tab separated text.
+
+Values:
+The tabAlign of a field is a return delimited list of alignments, separated by commas. The alignments can be one of "left", "right" and "center" .By default, the tabAlign property of newly created fields is set to empty  
+
+OS:
+mac,windows,linux,ios,android

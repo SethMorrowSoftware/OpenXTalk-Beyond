@@ -1,0 +1,16 @@
+logical
+(glossary)
+
+Syntax:
+Synonyms:
+logical, boolean
+
+Params:
+
+Examples:
+Description:
+A type of operator whose resulting value is either "true" or "false". Also called a Boolean operator.
+
+Values:
+
+OS:

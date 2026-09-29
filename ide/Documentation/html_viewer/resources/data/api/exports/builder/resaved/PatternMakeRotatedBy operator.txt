@@ -1,0 +1,31 @@
+PatternMakeRotatedBy
+(operator)
+Creates a new rotated pattern paint.
+
+Syntax:
+pattern with {mImage} rotated by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mImage ( ): An expression which evaluates to an image.
+mRotation ( ): An expression which evaluates to a number of degrees.
+
+Examples:
+// Load the pattern image.
+variable tImage
+put image from file "images/backgroundpattern.png" into tImage
+
+// Create a new pattern paint, rotating the image through 90 degrees
+variable tPaint
+put pattern with tImage rotated by 90 into tPaint
+----
+
+Description:
+Creates a new rotated pattern paint.
+
+Values:
+A new pattern paint based on mImage with the specified rotation applied. 
+
+OS:

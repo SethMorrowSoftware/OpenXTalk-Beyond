@@ -1,0 +1,33 @@
+listIndent
+(property)
+Specifies the size of the margins used when indenting lists.
+
+Syntax:
+set the listIndent of {line} of {field} to 1
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the listIndent of line 1 to -1 of field 1 to 20
+----
+set the listIndent of line 1 of field 1 to 10
+----
+-- Set the listIndent of all the lines in a field that are lists  to 10
+repeat with x = 0 to the number of lines of field 1
+   if the listStyle of line x of field 1 is not empty then
+      set the listDepth of line x of field 1 to 10
+   end if
+end repeat
+----
+
+Description:
+Use the listIndent property to control the size of the margins used by OpenXTalk when indenting lists.
+
+Values:
+The listDepth of a line or field returns the size of the margins being used to indent the list line(s). 
+
+OS:
+mac,windows,linux,ios,android

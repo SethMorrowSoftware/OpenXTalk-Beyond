@@ -1,0 +1,31 @@
+flushEvents
+(function)
+Clears pending event|events from the event queue so they will not trigger handler|handlers.
+
+Syntax:
+flushEvents({eventType})
+----
+
+Synonyms:
+
+Params:
+eventType (enum ): 
+
+Examples:
+put flushEvents("activate") into trashVar
+----
+get flushEvents("all")
+----
+
+Description:
+Use the flushEvents function to prevent unwanted message|messages from being sent during a handler|handler's execute|execution.
+
+Typically, you use the flushEvents function in a handler to dump user actions that have occurred during the handler. For example, if a button has a mouseUp handler that takes a few seconds to run, the user might click again during that time. To prevent those extra clicks from causing the handler to run again, use the flushEvents function :      on mouseUp     -- ...lengthy handler goes here...     -- get rid of clicks since the handler started:     put flushEvents("mouseUp") into temp      end mouseUp   To clear multiple event types, call the flushEvents function once for each event type you want to clear.
+
+Although some of the eventTypes have the same names as built-in OpenXTalk message|messages, there is a distinction. For example, the mouseDown event type is the operating system's response to the user clicking the mouse button. When the operating system sends this event to the application, OpenXTalk sends a mouseDown message to the target object(glossary). The expression flushEvents(mouseDown) prevents the application from responding to any mouseDown event|events it has received from the operating system, but has not yet processed.
+
+Values:
+The flushEvents function always return|returns empty. 
+
+OS:
+mac,windows,linux

@@ -1,0 +1,19 @@
+dataChanged
+(message)
+Sent when the arrayData of the widget changes
+
+Syntax:
+dataChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The dataChanged message is sent to the widget's script object when the underlying arrayData of the tree view changes.
+
+Values:
+
+OS:

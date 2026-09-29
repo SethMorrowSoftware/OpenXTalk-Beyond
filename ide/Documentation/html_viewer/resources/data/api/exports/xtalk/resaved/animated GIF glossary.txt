@@ -1,0 +1,16 @@
+animated GIF
+(glossary)
+
+Syntax:
+Synonyms:
+gif animation, multiframe gif, animated gif
+
+Params:
+
+Examples:
+Description:
+A GIF - format image that contains multiple pictures, each of which is one frame in an animation.
+
+Values:
+
+OS:

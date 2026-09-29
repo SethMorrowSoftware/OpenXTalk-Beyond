@@ -1,0 +1,25 @@
+xsltLoadStylesheetFromFile
+(function)
+The xsltLoadStylesheetFromFile function loads an xslt stylesheet into memory from a file so that it can be applied to xml data using the xsltApplyStylesheet function. It returns an xslt stylesheet id.
+
+Syntax:
+xsltLoadStylesheetFromFile pathToFile
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put xsltLoadStylesheetFromFile(tFilePath) into tStylesheetID
+put xsltApplyStylesheet(tXMLData, tStylesheetID) into tProcessedData
+xsltFreeStylesheet tStylesheetID
+----
+
+Description:
+The xsltLoadStylesheetFromFile function loads an xslt stylesheet into memory from a file so that it can be applied to xml data using the xsltApplyStylesheet function. It returns an xslt stylesheet id.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

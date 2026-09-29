@@ -1,8 +1,10 @@
 ﻿script "revStandaloneSettingsAndroidBehavior"
 on preOpenCard
+   send hUpdateHeights to stack "revStandaloneSettings" in 10 milliseconds
+   
    initialize
-   pass preOpenCard
 end preOpenCard
+
 
 on initialize
    local tSettings
@@ -42,7 +44,6 @@ on initialize
    updateSettings
    updateAndroidSettingState
    
-   set the cSize of this card to 568,720
 end initialize
 
 on updateSettings
@@ -254,3 +255,4 @@ on closeCard
    end if
    
 end closeCard
+

@@ -1,0 +1,22 @@
+dgData
+(property)
+Get or set the data array that the data grid will display.
+
+Syntax:
+set the dgData of group "DataGrid" to {pDataArray}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get the dgData of grp "Data Grid"
+----
+
+Description:
+Get or set the data array that the data grid will display. The first dimension of the array uses numeric keys and the value of each is an array. You can store anything you would like in each numeric key's array. For data grid tables the keys should match the column names in order for the data grid to correctly map the array value to the column cell. The following array would represent two records in the data grid:  	put "Hi" into theA[1]["message"] 	put "Bye" into theA[2]["message"] 	set the dgData of group "DataGrid" to theA
+
+Values:
+
+OS:

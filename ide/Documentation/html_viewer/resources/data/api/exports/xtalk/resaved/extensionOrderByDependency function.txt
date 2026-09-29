@@ -1,0 +1,23 @@
+extensionOrderByDependency
+(function)
+Order extensions by dependency using requires info
+
+Syntax:
+extensionOrderByDependency({pExtensions},{pRequiresA},{pIncludeBuiltin})
+----
+
+Synonyms:
+
+Params:
+pExtensions ( ): A list of extensions to order, one per line
+pRequiresA ( ): An array of dependencies. For each key `tExtension`, `pRequiresA[tExtension]` should be a list of extensions on which `tExtension` depends
+pIncludeBuiltin ( ): Include built-in modules in dependency analysis. Defaults to false. For most purposes, it is not necessary to include built-in modules.
+
+Examples:
+Description:
+Order extensions by dependency using requires info
+
+Values:
+The list of extensions ordered by dependency according to the dependency information in pRequiresA 
+
+OS:

@@ -1,0 +1,23 @@
+revLicenseType
+(function)
+Deprecated and will be removed in a future release.
+
+Syntax:
+revLicenseType()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if "Enterprise" is not in revLicenseType() then useODBC
+----
+
+Description:
+The revLicenseType function always returns Enterprise and should not be used in new code. It will be removed entirely in a future release. 
+
+Values:
+
+OS:
+mac,windows,linux

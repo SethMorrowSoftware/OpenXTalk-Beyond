@@ -1,0 +1,25 @@
+parseItemsAsNumberList
+(handler)
+Parse a comma-delimited "item" string as a list of numbers
+
+Syntax:
+parseItemsAsNumberList({pStringValue},{pListLength},{pDefaultValue})
+----
+
+Synonyms:
+
+Params:
+pStringValue ( ): A string containing comma-delimited "items"
+pListLength ( ): The number of elements the parsed list should contain
+pDefaultValue ( ): Value to be used for extra elements
+
+Examples:
+Description:
+Helper function for converting a LiveCode Script "item" list into a list of numbers, obeying the LiveCode Script rules for items.
+
+If pListLength is provided, then the returned list will always contain that number of elements: extra elements will be discarded, and missing elements will be set to pDefaultValue.
+
+Values:
+The parsed items as a list of strings 
+
+OS:

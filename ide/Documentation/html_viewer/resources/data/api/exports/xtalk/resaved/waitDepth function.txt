@@ -1,0 +1,32 @@
+waitDepth
+(function)
+return|Returns the number of nested wait commands(command) currently pending. 
+
+Syntax:
+the waitDepth
+----
+waitDepth()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the waitDepth
+----
+if the waitDepth > 10 then beep
+----
+
+Description:
+Use the waitDepth function to determine how many wait command|commands are currently awaiting completion.
+
+The wait with messages form of the wait command, when used in a handler, pauses that handler while allowing OpenXTalk to execute other handler|handlers while waiting. The waitDepth function indicates how many such statement|statements are currently execute|executing--that is, how many handler|handlers are currently paused by a wait with messages statement.
+
+If there are no paused handlers, the waitDepth function returns 1.
+
+Values:
+The waitDepth function return|returns a positive integer. 
+
+OS:
+mac,windows,linux,ios,android

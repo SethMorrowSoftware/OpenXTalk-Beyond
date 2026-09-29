@@ -1,0 +1,23 @@
+ByteOffsetAfter
+(operator)
+Finds the first or last occurrence of Needle after a specified index in Target
+
+Syntax:
+the ( first | last ) offset of {Needle} after {After} in {Target}
+----
+
+Synonyms:
+
+Params:
+Needle ( ): An expression which evaluates to binary data.
+Target ( ): An expression which evaluates to binary data.
+After ( ): An expression which evaluates to a valid integer index of Target.
+
+Examples:
+Description:
+The first (respectively last) offset of Needle in Target is number of bytes between byte After of Target and the first (respectively last) occurrence of Needle after After. If neither first or last is specified, then the first offset is found. If Needle does not occur after After in Target, then the output is 0.
+
+Values:
+Returns the offset of Needle after index After in Target. 
+
+OS:

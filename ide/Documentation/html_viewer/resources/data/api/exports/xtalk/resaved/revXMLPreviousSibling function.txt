@@ -1,0 +1,36 @@
+revXMLPreviousSibling
+(function)
+return|Returns the path to a child node's previous sibling node.
+
+Syntax:
+revXMLPreviousSibling({treeID}, {siblingNode}, [incText])
+----
+
+Synonyms:
+
+Params:
+treeID ( ): The number returned by the  or  function when you created the .
+siblingNode ( ): The path to the node where you want to start.
+
+Examples:
+revXMLPreviousSibling(22,"/City/Publisher")
+----
+put revXMLPreviousSibling(myDoc,thisNode) into thisNode
+----
+
+Description:
+Use the revXMLPreviousSibling function to back up through the list of nodes on the current level.
+
+If the revXMLPreviousSibling function encounters an error, it return|returns an error message starting with "xmlerr".
+
+*Note:* If the incText form is specified and is true the function will  return text nodes in processing. Text nodes can be accessed using the  revXMLNodeContents function with the extended path format where text  only nodes are numerically indexed eg summary/command/[1] is the first  text node of the summary/command node.
+
+*Important:* The incText form is experimental.
+
+*Important:*  The revXMLPreviousSibling function is part of the   XML library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "XML"   checkbox is checked.
+
+Values:
+The revXMLPreviousSibling function returns a string consisting of the path to the previous node with the same parent as the siblingNode. If there is no previous sibling node, the revXMLPreviousSibling function returns empty. 
+
+OS:
+mac,windows,linux,ios,android

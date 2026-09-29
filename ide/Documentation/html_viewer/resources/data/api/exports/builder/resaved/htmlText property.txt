@@ -1,0 +1,31 @@
+htmlText
+(property)
+The HTML text of the content displayed by the browser.
+
+Syntax:
+set the htmlText of {widget} to {pHtmlText}
+get the htmlText of {widget}
+----
+
+Synonyms:
+
+Params:
+pHtmlText (string ): A string containing HTML data to be displayed by the browser.
+
+Examples:
+-- Render a web page in the browser by specifying custom HTML
+-- content
+local tHTML
+put "{html}{head}{title}My Page Title{/title}{/head}" & \
+	  "{body}My Page Contents{/body}{/html}" into tHTML
+set the htmlText of widget "myBrowser" to tHTML
+----
+
+Description:
+The htmlText is the HTML representation of the content displayed in  the browser.
+
+*Note:* When the htmlText has been set, the URL property will be empty. When the URL property is not empty, the htmlText will contain the source of the current URL displayed in the browser.
+
+Values:
+
+OS:

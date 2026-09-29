@@ -1,0 +1,23 @@
+firstItemLeft
+(property)
+Whether to display the first action on the left
+
+Syntax:
+get the firstItemLeft of {widget}
+----
+set the firstItemLeft of {widget} to { true | false }
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the firstItemLeft property is `true`, then the first action in the itemArray is displayed on the left hand side of the header bar.
+
+**Note:** In some theme|themes, the first action always has its label displayed when firstItemLeft is `true`.  If you don't want this to happen, you can set the action's itemLabels|label to the empty string.
+
+Values:
+
+OS:

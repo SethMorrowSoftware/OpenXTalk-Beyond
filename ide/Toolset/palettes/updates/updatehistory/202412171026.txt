@@ -1,0 +1,2 @@
+Version 1.09, build 202412171026
+This adds axwald's revised revmessagewatcher, also adds the card navigator in the view menu, a few fixes to the "App Browser", and removes more LC branding in the script editor dialogs.

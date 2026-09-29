@@ -1,0 +1,20 @@
+CodeOfChar
+(operator)
+Get the numeric value of a single char
+
+Syntax:
+the code of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A string containing one character
+
+Examples:
+Description:
+Returns the Unicode codepoint index of a single character.
+
+Values:
+
+OS:

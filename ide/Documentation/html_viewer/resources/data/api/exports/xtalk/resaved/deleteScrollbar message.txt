@@ -1,0 +1,30 @@
+deleteScrollbar
+(message)
+Sent to a scrollbar just before it is removed from the stack.
+
+Syntax:
+deleteScrollbar
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on deleteScrollbar -- prevent the deletion by immediately undoing it
+  beep
+  send "undo" to this card in 5 milliseconds
+end deleteScrollbar
+----
+
+Description:
+Handle the deleteScrollbar message if you want to perform cleanup before a scrollbar is removed from the stack.
+
+The actual deletion is not triggered by the deleteScrollbar message, so trap|trapping the message and not allowing it to pass does not prevent the scrollbar from being removed.
+
+However, the undo command will restore a scrollbar after it is deleted by the user.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

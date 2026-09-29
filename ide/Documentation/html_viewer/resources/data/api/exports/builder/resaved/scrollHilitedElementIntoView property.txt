@@ -1,0 +1,21 @@
+scrollHilitedElementIntoView
+(property)
+Automatically scroll selected row into view.
+
+Syntax:
+get the scrollHilitedElementIntoView of {widget}
+----
+set the scrollHilitedElementIntoView of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+If the scrollHilitedElementIntoView property is true, then when the  hilitedElement property changes the view will be scrolled such that the  selected row is visible.
+
+Values:
+
+OS:

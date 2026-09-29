@@ -1,0 +1,24 @@
+macStatusMenuCreate
+(handler)
+Create a status menu
+
+Syntax:
+macStatusMenuCreate({pName})
+----
+
+Synonyms:
+
+Params:
+pName ( ): The name of the status menu to create
+
+Examples:
+macStatusMenuCreate "mymenu"
+----
+
+Description:
+Use pName to refer to the status menu when setting properties and deleting the status menu.
+
+Values:
+
+OS:
+mac

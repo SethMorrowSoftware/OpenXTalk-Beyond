@@ -1,0 +1,16 @@
+host
+(glossary)
+
+Syntax:
+Synonyms:
+host
+
+Params:
+
+Examples:
+Description:
+A computer system connected to another system.
+
+Values:
+
+OS:

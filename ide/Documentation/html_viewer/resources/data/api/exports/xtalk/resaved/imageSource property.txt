@@ -1,0 +1,42 @@
+imageSource
+(property)
+Specifies an image to be displayed in place of the specified character in a field.
+
+Syntax:
+set the imageSource of {character} to {{imageID} | {imageName} | {imageURL} |empty}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the imageSource of char 1 of line 2 of field "This" to 2533
+----
+set the imageSource of char thisChar of field 1 to "Arrow"
+----
+set the imageSource of last char of me to "binfile:My Image"
+----
+
+Description:
+Use the imageSource property to display a picture or icon inside a text field(keyword).
+
+Setting the imageSource of a character hides the character.
+
+Setting the imageSource of a character to empty removes the image and allows the character to appear instead.
+
+If the image is noticeably taller than the text in the field, it may appear cut off if the field's fixedLineHeight property is set to true. To correct this problem, set the field(object)|field's fixedLineHeight to false.
+
+*Important:*  Do not use the URL keyword when specifying an  imageURL. The imageSource of a character is a file location (or  image ID or name), not the image data itself. If you use the URL  keyword, the imageSource property is set to the contents of the  URL, not the URL itself, and this is usually not what's wanted.
+
+Values:
+The imageSource of a character is either empty or an image specifier. An imageID is the ID of an image to display instead of the character. The engine looks for the specified image first in the current stack, then in other open stacks.
+
+An imageName is the short name of an image to display instead of the character.
+
+THe engine looks for the specified image (if an ID or name is given) in the following order:  * 1. The stack of the object's behavior (if applicable) * 2. The stack of the owner of the object's behavior (if applicable) *  ... * n. The stack of the object's stack's behavior (if applicable) * A. The object's stack * B. The object's stack's mainstack (if a substack) * C. The object's stack's mainstacks substacks * D. The list of open stacks, in order they were loaded  An imageURL is any valid URL that specifies an image in a format the engine can display.
+
+By default, the imageSource for all characters is empty. 
+
+OS:
+mac,windows,linux,ios,android

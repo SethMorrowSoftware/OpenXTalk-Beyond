@@ -1,0 +1,24 @@
+qrSetColors
+(command)
+Set colors other than the default black and white
+
+Syntax:
+qrSetColors {pForeground},{pBackground}
+----
+
+Synonyms:
+
+Params:
+pForeground ( ): A color name or RGB triplet
+pBackground ( ): A color name or RGB triplet
+
+Examples:
+qrSetColors "Blue", "Yellow"
+----
+
+Description:
+Optionally use colors other than black and white there must be a high enough contrast between colors for scanning the foreground color should be darker than the background color. 
+
+Values:
+
+OS:

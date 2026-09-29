@@ -1,0 +1,32 @@
+StringEndsWithString
+(operator)
+Determines whether Source ends with Suffix
+
+Syntax:
+{Source} ends with {Suffix}
+----
+
+Synonyms:
+
+Params:
+Suffix ( ): An expression which evaluates to a string.
+Source ( ): An expression which evaluates to a string.
+
+Examples:
+variable tVar as String
+variable tResult as String
+put "abcde" into tVar
+if tVar ends with "cde" then
+	put "success" into tResult
+end if	
+----
+
+Description:
+Source ends with Suffix if and only if the chars of Suffix occur as a final subsequence of the chars of Source.
+
+*Note:* Since "" is a final substring of every string, every string ends with the empty string.
+
+Values:
+Returns true if Source ends with Suffix. 
+
+OS:

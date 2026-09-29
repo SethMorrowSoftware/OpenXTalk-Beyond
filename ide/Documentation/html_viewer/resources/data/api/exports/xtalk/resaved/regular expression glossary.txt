@@ -1,0 +1,16 @@
+regular expression
+(glossary)
+
+Syntax:
+Synonyms:
+regex, regexes, regexp, regular expression
+
+Params:
+
+Examples:
+Description:
+A way of describing a pattern that matches text you are looking for.
+
+Values:
+
+OS:

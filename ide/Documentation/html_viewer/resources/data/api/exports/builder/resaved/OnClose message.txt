@@ -1,0 +1,25 @@
+OnClose
+(message)
+Sent when card containing the widget is navigated away from.
+
+Syntax:
+OnClose
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+public handler OnClose()
+  		-- Schedule a timer to perform an action every 5 seconds
+ 		 cancel timer
+end handler
+----
+
+Description:
+Handle the OnClose message to have the widget perform an action when the card containing the widget is navigated away from.
+
+Values:
+
+OS:

@@ -1,0 +1,27 @@
+mimeEncodeAsMIMEMultipartDocument
+(function)
+Build a multipart mime content type from an array of pre-encoded content
+
+Syntax:
+mimeEncodeAsMIMEMultipartDocument({pContentA},{pMultipartType},{pParamA})
+----
+
+Synonyms:
+
+Params:
+pContentA ( ): A numerically indexed array of pre-encoded parts including headers. If no headers are present a leading crlf should be present.
+pMultipartType ( ): The type of multipart content. If not provided the default type will be `mixed`.
+pParamA ( ): Array of key : value pairs of additional options to be included in the Content-Type header
+
+Examples:
+put "text/html" into tParamA["type"]
+put mimeEncodeAsMIMEMultipartDocument(tContentA, "related", tParamA) into tMailBody
+----
+
+Description:
+This command takes an array of pre-encoded content and creates a multipart content type header and boundary to build a single multipart encoded value.
+
+Values:
+The multipart encoded content 
+
+OS:

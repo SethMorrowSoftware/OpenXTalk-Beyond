@@ -1,0 +1,30 @@
+mobilePurchases
+(function)
+Returns a list of all known, active purchases.
+
+Syntax:
+mobilePurchases()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put mobilePurchases() into tPurchaseList
+----
+if mobilePurchases() is empty then
+   answer "No purchases have been made."
+end if
+----
+
+Description:
+Use the mobilePurchases function to get a list of all known, active purchases.
+
+The mobilePurchases function returns a list of the purchase ids of newly bought or restored purchases which are not yet confirmed as complete. 
+
+Values:
+Returns a list of purchase identifiers, one per line. 
+
+OS:
+ios,android

@@ -1,0 +1,38 @@
+AnnotationOfWidget
+(operator)
+Manipulates an annotation of a child widget
+
+Syntax:
+annotation {mName} of {mWidget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- variable storing the last child widget the mouse was over
+variable mLastChild as String
+
+public handler OnCreate() returns nothing
+    variable tChildWidget as Widget
+    variable tCount as Number
+    repeat with tCount from 1 up to 10
+        put a new widget "com.livecode.widget.button" into tChildWidget
+        set annotation "Name" of tChildWidget to ("Child" && tCount formatted as string)
+    end repeat
+end handler
+
+public handler OnMouseEnter() returns nothing
+    if the target is not nothing then
+        put annotation "Name" of the target into mLastChild
+    end if
+end handler
+----
+
+Description:
+An annotation is a named value assigned to a widget. They do not affect any intrinsic properties of the widget are are intended to be used to disambiguate widget objects returned from operators such as TheTarget or MyChildren.
+
+Values:
+
+OS:

@@ -1,0 +1,35 @@
+androidRequestPermission
+(command)
+Displays a dialog showing a permission request for permissionName. If a user has already granted permission for permissionName, this command does nothing.
+
+Syntax:
+androidRequestPermission {permissionName}
+----
+
+Synonyms:
+
+Params:
+permissionName (enum ): The name of the permission to request.
+
+Examples:
+local tCameraPermissionGranted
+put androidHasPermission("android.permission.CAMERA") into tCameraPermissionGranted
+if not tCameraPermissionGranted then
+   androidRequestPermission "android.permission.CAMERA"
+end if
+put androidHasPermission("android.permission.CAMERA") into tCameraPermissionGranted
+if not tCameraPermissionGranted then
+   answer "This app is not permitted to access the device camera. You can change this" && \
+         "in the Settings app."
+end if
+----
+
+Description:
+Use the androidRequestPermission command to request permission for permissionName from the user.
+
+*Note:* Permission names are case sensitive. 
+
+Values:
+
+OS:
+android

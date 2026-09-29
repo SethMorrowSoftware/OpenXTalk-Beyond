@@ -1,0 +1,20 @@
+androidResumeAudioPlayingInBackground
+(handler)
+Resume the currently paused background audio
+
+Syntax:
+androidResumeAudioPlayingInBackground()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the androidResumeAudioPlayingInBackground handler to resume the audio playback in the background paused by the last call to  androidPauseAudioPlayingInBackground.
+
+Values:
+
+OS:
+android

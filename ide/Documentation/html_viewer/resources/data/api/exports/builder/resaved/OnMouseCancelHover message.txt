@@ -1,0 +1,19 @@
+OnMouseCancelHover
+(message)
+Sent when the mouse pointer continues to hover outside of the widget's rect.
+
+Syntax:
+OnMouseCancelHover
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the mouse pointer continues to hover outside of the widget's rect.
+
+Values:
+
+OS:

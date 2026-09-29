@@ -1,0 +1,21 @@
+mergMicrophoneGetTargetBitRate
+(function)
+Get the target bit rate to use formats that have such a notion specified in combined (all changes) bits per second
+
+Syntax:
+mergMicrophoneGetTargetBitRate()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get the target bit rate to use formats that have such a notion specified in combined (all changes) bits per second
+
+Values:
+integer 
+
+OS:
+ios,mac

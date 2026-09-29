@@ -1,0 +1,38 @@
+RepeatForEachKey
+(iterator)
+Repeat over the keys of an array.
+
+Syntax:
+key {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): A string container.
+
+Examples:
+    variable tArray as Array
+    put the empty array into tArray
+    put 1 into tArray["abc"]
+    put 2 into tArray["def"]
+    put 3 into tArray["ghi"]
+
+	variable tString as String
+	put "" into tString
+
+    variable tKey as String
+    repeat for each key tKey in tArray
+        put tKey after tString
+    end repeat
+
+    variable tBool as Boolean
+    put tString contains "abc" into tBool -- tBool is true
+----
+
+Description:
+Use repeat for each key to iterate over the keys of an array in no particular order. On each iteration, the Iterand will contain the next key of the array being iterated over.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+EditModeHideActionControl
+(command)
+Hide any visible data grid action control.
+
+Syntax:
+dispatch "EditModeHideActionControl" to group "DataGrid" with {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Hide any visible data grid action control. Passing true as the first parameter will prevent the hide from being animated. This is useful if you wish to hide the row instantly, for example when deleting, but don't want to turn off animations globally.
+
+Values:
+
+OS:

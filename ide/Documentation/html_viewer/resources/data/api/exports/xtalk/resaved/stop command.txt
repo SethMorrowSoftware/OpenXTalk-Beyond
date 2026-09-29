@@ -1,0 +1,30 @@
+stop
+(command)
+Stops a currently playing sound or movie.
+
+Syntax:
+stop [playing] {{player} | {videoClip} | {audioClip}}
+----
+
+Synonyms:
+
+Params:
+•	player ( ): A reference to a  that holds a currently playing sound or movie.
+•	videoClip ( ): A reference to a  that is currently playing.
+•	audioClip ( ): A reference to an  that is currently playing.
+	
+Examples:
+stop player "video"
+----
+stop playing audioClip "track1"
+----
+
+Description:
+Use the stop command to halt a sound or movie before it finishes. For example, you can use the stop command in the script of a button, to let the user click to stop a repeating sound.
+
+The stop command stops playing a video clip or audio clip started with the play command.
+
+Values:
+
+OS:
+mac,windows,linux

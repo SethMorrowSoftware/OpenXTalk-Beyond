@@ -1,0 +1,31 @@
+GradientStopPropertyOffset
+(operator)
+The offset of a gradient stop value.
+
+Syntax:
+the offset of {mStop}
+----
+
+Synonyms:
+
+Params:
+mStop ( ): An expression which evaluates to a gradient stop.
+
+Examples:
+variable tStop
+put gradient stop at 0 with color [1,1,1] into tStop
+
+// Get the offset of a stop
+variable tOffset
+put the offset of tStop into tOffset
+
+// Move the stop to a new offset
+set the offset of tStop to 0.75
+----
+
+Description:
+The offset of mStop.
+
+Values:
+
+OS:

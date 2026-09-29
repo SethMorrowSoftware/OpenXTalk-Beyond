@@ -1,0 +1,2 @@
+Version 0.98, build 202401121713
+Testing dark mode in windows.

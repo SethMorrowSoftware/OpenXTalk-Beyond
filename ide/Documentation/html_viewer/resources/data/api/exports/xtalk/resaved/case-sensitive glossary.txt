@@ -1,0 +1,16 @@
+case-sensitive
+(glossary)
+
+Syntax:
+Synonyms:
+case-sensitivity, case sensitive, case-sensitive
+
+Params:
+
+Examples:
+Description:
+Treating an uppercase (capitalized) letter as a different character than its lowercase equivalent.
+
+Values:
+
+OS:

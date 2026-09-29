@@ -1,0 +1,27 @@
+DeleteFirstCharOf
+(statement)
+Deletes the first char in Target.
+
+Syntax:
+delete the first char of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): A string container.
+
+Examples:
+variable tVar as String
+put "seven" into tVar
+delete the first char of tVar -- tVar contains "even"
+----
+
+Description:
+Replaces the first char in Target with the empty string.
+
+*Note:* It is an error if Target is the empty string.
+
+Values:
+
+OS:

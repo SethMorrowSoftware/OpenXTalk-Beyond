@@ -1,0 +1,28 @@
+PropertyOfWidget
+(operator)
+Manipulates a property implemented by a child widget.
+
+Syntax:
+property {mName} of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mName ( ): The name of a property declared by 
+mWidget ( ): The child widget object
+
+Examples:
+variable tChild as Widget
+put a new widget "com.livecode.widget.navbar" into tChild
+place tChild
+-- Initialise selected element of nav bar to 1
+set property "selectedItem" of tChild to 1
+----
+
+Description:
+Use the PropertyOfWidget operator to get or set properties of a child widget that are not and of the built-in widget properties.
+
+Values:
+
+OS:

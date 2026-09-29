@@ -1,0 +1,23 @@
+canvasSetColor
+(handler)
+Sets the current color of the canvas to the given RGBA value.
+
+Syntax:
+canvasSetColor({pRed},{pGreen},{pBlue},{pAlpha})
+----
+
+Synonyms:
+
+Params:
+pRed ( ): The red component of the color to set.
+pGreen ( ): The green component of the color to set.
+pBlue ( ): The blue component of the color to set.
+pAlpha ( ): The alpha value of the color to set.
+
+Examples:
+Description:
+Sets the current color of the canvas to the given RGBA value. 
+
+Values:
+
+OS:

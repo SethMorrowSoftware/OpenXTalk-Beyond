@@ -1,0 +1,29 @@
+libURLSetFTPMode
+(command)
+Switches between active and passive mode for FTP transfers.
+
+Syntax:
+libURLSetFTPMode {"active" | "passive"}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+libURLSetFTPMode "passive"
+----
+libURLSetFTPMode (the hilitedButtonName of group "Mode")
+----
+
+Description:
+Use the libURLSetFTPMode command to improve performance with FTP server|servers that require active mode.
+
+For most FTP servers, passive transfer mode will work without a problem. However, a few servers require transfers to be made in active mode. If you are having trouble with ftp command|commands with a particular server, try setting the mode to "active".
+
+The FTP mode is set to passive when the application starts up. To use active mode exclusively, execute the following statement before making any ftp transfers:      libURLSetFTPMode "active"   *Important:* The libURLSetFTPMode command is part of the   Internet library. To ensure that the command works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Internet"   script library is selected.
+
+Values:
+
+OS:
+mac,windows,linux

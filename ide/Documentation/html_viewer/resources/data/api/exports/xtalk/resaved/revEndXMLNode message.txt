@@ -1,0 +1,32 @@
+revEndXMLNode
+(message)
+Sent to the current card when the revXMLCreateTreeFromFile function encounters a closing tag while parsing an XML file.
+
+Syntax:
+revEndXMLNode {pNodeName}
+----
+
+Synonyms:
+
+Params:
+pNodeName (string ): A string containing the name of the XML element currently being parsed.
+
+Examples:
+on revEndXMLNode -- notify user how many nodes have been parsed
+  global nodesProcessed
+  add 1 to nodesProcessed
+  put nodesProcessed && "nodes processed" into field "Progress"
+end revEndXMLNode
+----
+
+Description:
+Handle the revEndXMLNode message if you want to build your own subset of an XML document.
+
+The revXMLCreateTree or revXMLCreateTreeFromFile function(glossary)|functions take XML data and parse it. When you call either of these function(glossary)|functions, you can specify whether or not to send message|messages during the parsing operation.
+
+If you have specified that you want the function to send messages, the revEndXMLNode message is sent when the function(control structure) encounters a close tag. If you have specified that you don't want message|messages sent, no revEndXMLNode message|messages are sent.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

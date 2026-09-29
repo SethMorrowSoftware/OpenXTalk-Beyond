@@ -1,0 +1,25 @@
+PlusUnaryOperator
+(operator)
+Unary plus operator.
+
+Syntax:
++ {Operand}
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put +5 into tVar -- tVar contains 5
+----
+
+Description:
+The unary plus operator is a no-op on the predefined numeric types.
+
+Values:
+The result of evaluating Operand. 
+
+OS:

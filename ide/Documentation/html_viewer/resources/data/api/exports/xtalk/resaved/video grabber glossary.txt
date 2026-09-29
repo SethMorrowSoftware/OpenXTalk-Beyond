@@ -1,0 +1,16 @@
+video grabber
+(glossary)
+
+Syntax:
+Synonyms:
+video grabber, video-grabber, video capture window, video grabber window, video-grab window
+
+Params:
+
+Examples:
+Description:
+The window that video from an external source (such as a video camera) is shown in.
+
+Values:
+
+OS:

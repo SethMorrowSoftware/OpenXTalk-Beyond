@@ -1,0 +1,18 @@
+command line
+(glossary)
+
+Syntax:
+Synonyms:
+command line, command line interface, command-line, command-line interface, cli
+
+Params:
+
+Examples:
+Description:
+A type of user interface controlled by typing commands and waiting for responses.
+
+Also, the statement you type into a command-line interface to start up a program. 
+
+Values:
+
+OS:

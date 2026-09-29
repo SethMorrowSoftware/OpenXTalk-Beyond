@@ -1,0 +1,33 @@
+RepeatForEachCodeunit
+(iterator)
+Repeat over the codeunits of a string
+
+Syntax:
+codeunit {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): A string container.
+
+Examples:
+variable tString as String
+put "stressed" into tString
+
+variable tReversed as String
+variable tCodeunit as String
+put "" into tReversed
+repeat for each codeunit tCodeunit in tString
+	put tCodeunit before tReversed
+end repeat
+
+    // tReversed is "desserts"
+----
+
+Description:
+Use repeat for each to perform an operation on each codeunit of a string. On each iteration, the Iterand will contain the next codeunit of the string being iterated over.
+
+Values:
+
+OS:

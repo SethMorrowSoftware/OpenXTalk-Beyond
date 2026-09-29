@@ -1,0 +1,20 @@
+browserFrameDocumentLoadBegin
+(message)
+Sent when a document begins loading in a frame of the browser.
+
+Syntax:
+browserFrameDocumentLoadBegin {pUrl}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the loading document.
+
+Examples:
+Description:
+The browserFrameDocumentLoadBegin message is sent to the widget's  script object when a new document begins to load in a frame of the  browser. This will happen whenever the browser navigates to a new page  with multiple frames. The pUrl parameter contains the URL of the  loading document.
+
+Values:
+
+OS:

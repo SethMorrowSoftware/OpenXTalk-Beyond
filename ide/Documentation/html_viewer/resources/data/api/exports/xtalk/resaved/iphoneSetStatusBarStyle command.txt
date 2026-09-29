@@ -1,0 +1,26 @@
+iphoneSetStatusBarStyle
+(command)
+Controls the style of the iOS status bar.
+
+Syntax:
+iphoneSetStatusBarStyle {style}
+----
+
+Synonyms:
+
+Params:
+style (enum ): The style of the iOS status bar.
+
+Examples:
+iphoneSetStatusBarStyle tStyle
+----
+iphoneSetStatusBarStyle "translucent"
+----
+
+Description:
+Use iphoneSetStatusBarStyle to change the style of the iOS status bar.
+
+Values:
+
+OS:
+ios

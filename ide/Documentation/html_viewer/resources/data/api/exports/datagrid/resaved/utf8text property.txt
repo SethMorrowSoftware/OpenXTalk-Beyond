@@ -1,0 +1,19 @@
+utf8text
+(property)
+Set to a string that will be assigned to the unicodetext property of the field editor after being converted from UTF-8 to UTF16.
+
+Syntax:
+put the dgTemplateFieldEditor["utf8text"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to a string that will be assigned to the unicodetext property of the field editor after being converted from UTF-8 to UTF16.
+
+Values:
+
+OS:

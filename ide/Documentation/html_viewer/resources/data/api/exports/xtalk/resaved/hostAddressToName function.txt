@@ -1,0 +1,31 @@
+hostAddressToName
+(function)
+return|Returns the domain name corresponding to an IP address.
+
+Syntax:
+the hostAddressToName of {IPAddress}
+----
+hostAddressToName({IPAddress})
+----
+
+Synonyms:
+
+Params:
+IPAddress ( ): A numeric IP address.
+
+Examples:
+hostAddressToName("127.0.0.1")
+----
+answer "Connecting to" && hostAddressToName(newAddress) & "..."
+----
+
+Description:
+Use the hostAddressToName function to find the domain name of the computer at a IP address.
+
+The hostAddressToName function does a reverse DNS lookup on the IP address in order to find the domain name. This means that the computer must be connected to the Internet in order to use this function. If a connection to the Internet is not available, the hostAddressToName function return|returns an error message.
+
+Values:
+The hostAddressToName function return|returns the domain name corresponding to the IPAddress. 
+
+OS:
+mac,windows,linux

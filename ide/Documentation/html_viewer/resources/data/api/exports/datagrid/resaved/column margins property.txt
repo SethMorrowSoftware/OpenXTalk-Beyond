@@ -1,0 +1,19 @@
+column margins
+(property)
+Specifies the margins to be applied to each cell in a column.
+
+Syntax:
+put the dgProp["column margins"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Specifies the margins to be applied to each cell in a column.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+built-in function
+(glossary)
+
+Syntax:
+Synonyms:
+built-in function
+
+Params:
+
+Examples:
+Description:
+A function that is part of the OpenXTalk language.
+
+Values:
+
+OS:

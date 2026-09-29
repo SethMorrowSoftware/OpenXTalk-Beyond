@@ -1,0 +1,20 @@
+browserUnhandledLoadRequest
+(message)
+Sent when the browser is unable to handle a load request.
+
+Syntax:
+browserUnhandledLoadRequest {pUrl}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the request.
+
+Examples:
+Description:
+The browserUnhandledLoadRequest message is sent to the widget's script  object when the browser is unable to load a URL, typically due to an  unrecognised URL scheme. The pUrl parameter contains the URL of the  unhandled request.
+
+Values:
+
+OS:

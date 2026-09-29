@@ -1,0 +1,21 @@
+browserProgressChanged
+(message)
+Sent when the load progress of the current document changes.
+
+Syntax:
+browserProgressChanged {pUrl}, {pProgress}
+----
+
+Synonyms:
+
+Params:
+pUrl (string ): The URL of the loading document.
+pProgress (number ): The percentage of the document loaded.
+
+Examples:
+Description:
+The browserProgressChanged message is sent to the widget's script object when a the loading progress of the current document changes. The pUrl parameter contains the URL of the loading document. The pProgress parameter contains the percentage (between 0 and 100) of the document loaded.
+
+Values:
+
+OS:

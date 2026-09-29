@@ -1,0 +1,21 @@
+fgColor
+(property)
+The foreground color of the tile
+
+Syntax:
+set the fgColor of {widget} to {pColor}
+get the fgColor of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The foreground color of the tile
+
+Values:
+A color in RGB form - comma separated values from 0 - 255 
+
+OS:

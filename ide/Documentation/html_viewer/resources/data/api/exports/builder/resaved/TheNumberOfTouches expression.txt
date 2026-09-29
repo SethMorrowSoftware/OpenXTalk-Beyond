@@ -1,0 +1,25 @@
+TheNumberOfTouches
+(expression)
+The number of touches
+
+Syntax:
+the number of touches
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+   if the number of touches is 2 then
+      // pinch gesture
+   end if
+----
+
+Description:
+The number of touches
+
+Values:
+The number of currently active touches 
+
+OS:

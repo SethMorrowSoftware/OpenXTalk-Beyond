@@ -1,0 +1,28 @@
+FormatNumberAsString
+(statement)
+Formats a numeric value as a string
+
+Syntax:
+format {Operand} as string
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tNum as Number
+variable tString as String
+put 5 into tNum
+format tNum as string into tString
+-- tString contains "5"
+----
+
+Description:
+Use FormatNumberAsString when you want to manipulate a numeric value as text.
+
+Values:
+Operand formatted as a string. 
+
+OS:

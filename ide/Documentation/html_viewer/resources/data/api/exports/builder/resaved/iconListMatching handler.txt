@@ -1,0 +1,23 @@
+iconListMatching
+(handler)
+Return the available icons in the current icon family that match the search string.
+
+Syntax:
+iconListMatching({pSearch})
+----
+
+Synonyms:
+
+Params:
+pSearch ( ): The string used to search icon names.
+
+Examples:
+Description:
+Return an LCB list of the icon names in the current icon family that match  the search string.
+
+For each icon name, the SVG path string can be obtained with iconSVGPathFromName or its corresponding codepoint with iconCodepointFromName.
+
+Values:
+The icon names for which SVG paths are available matching the search string. 
+
+OS:

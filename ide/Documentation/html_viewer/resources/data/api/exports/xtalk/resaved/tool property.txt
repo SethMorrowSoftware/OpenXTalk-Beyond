@@ -1,0 +1,54 @@
+tool
+(property)
+Specifies which tool is currently chosen.
+
+Syntax:
+set the tool to {toolName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the tool to "button tool"
+----
+set the tool to pointer
+----
+
+Description:
+Use the tool property to check which tool is in use before performing an action that depends on the tool.
+
+The tool names are the same as the names used with the choose command to select a tool for use.
+
+Setting the tool is equivalent to choosing the tool with the choose command. When setting the tool property, you can omit the word "tool".
+
+Values:
+A string describing the current tool.
+
+
+pencil tool: 
+graphic tool: 
+image tool: 
+field tool: 
+browse tool: 
+regular polygon tool: 
+button tool: 
+pointer tool: 
+oval tool: 
+polygon tool: 
+curve tool: 
+dropper tool: 
+select tool: 
+player tool: 
+spray can tool: 
+rectangle tool: 
+line tool: 
+round rect tool: 
+scrollbar tool: 
+bucket tool: 
+brush tool: 
+eraser tool: 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+AppleTalk
+(glossary)
+
+Syntax:
+Synonyms:
+appletalk, appletalk network
+
+Params:
+
+Examples:
+Description:
+Network protocol for local area networks developed by Apple Computer.
+
+Values:
+
+OS:

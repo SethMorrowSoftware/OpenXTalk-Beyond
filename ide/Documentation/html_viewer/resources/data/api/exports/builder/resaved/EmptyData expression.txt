@@ -1,0 +1,25 @@
+EmptyData
+(expression)
+Designates data of length 0.
+
+Syntax:
+the empty data
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as Data
+variable tCount as Number
+put the empty data into tVar
+put the number of bytes in tVar into tCount -- tCount is 0
+----
+
+Description:
+Use ```the empty data``` to initialise a data variable.
+
+Values:
+
+OS:

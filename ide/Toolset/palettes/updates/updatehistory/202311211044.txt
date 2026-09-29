@@ -1,0 +1,2 @@
+Version 0.94, build 202311211044
+If you are using this on Linux, you will find that the "Player" tool (for adding video) can be extremely broken. This adds a way to disable it if you find you are affected by this issue

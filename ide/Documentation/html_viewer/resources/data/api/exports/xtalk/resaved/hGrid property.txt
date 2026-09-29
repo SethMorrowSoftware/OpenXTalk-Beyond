@@ -1,0 +1,32 @@
+hGrid
+(property)
+Specifies whether lines are shown below each text line in a field.
+
+Syntax:
+set the hGrid [of line {lineNumber}] of {field} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the hGrid of field 3 to true
+----
+set the hGrid of line 5 to 10 of field 1 to false
+----
+
+Description:
+Use the hGrid property to control the appearance of a field.
+
+If a field's hGrid property is true, a horizontal line is drawn across the field, every textHeight pixels. The line falls below the lowest part of each character, rather than being drawn at the text baseline, as the lines drawn by the showLines property are.
+
+The lines shown by the hGrid and vGrid are drawn in the borderColor (or borderPattern).
+
+If the field's fixedLineHeight property is set to false, the hGrid property has no effect.
+
+Values:
+The hGrid of a field(keyword) is true or false. By default, the hGrid property of newly created field(object)|fields is set to false. 
+
+OS:
+mac,windows,linux,ios,android

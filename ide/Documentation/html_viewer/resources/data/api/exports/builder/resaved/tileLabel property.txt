@@ -1,0 +1,21 @@
+tileLabel
+(property)
+The label to display
+
+Syntax:
+set the titleLabel of {widget} to {pLabel}
+get the titleLabel of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The label to display
+
+Values:
+The label string 
+
+OS:

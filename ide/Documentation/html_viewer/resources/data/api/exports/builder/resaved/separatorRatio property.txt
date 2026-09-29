@@ -1,0 +1,23 @@
+separatorRatio
+(property)
+Manipulates the size of the arrayData view columns.
+
+Syntax:
+get the separatorRatio of {widget}
+----
+set the separatorRatio of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the separatorRatio property to display the keys and values of the arrayData   of the tree view widget in columns separated by a movable divide.
+
+The separatorRatio is the size of the first column as a ratio of the total view area.
+
+Values:
+
+OS:

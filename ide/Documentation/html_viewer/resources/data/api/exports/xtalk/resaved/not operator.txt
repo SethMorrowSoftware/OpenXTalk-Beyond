@@ -1,0 +1,30 @@
+not
+(operator)
+Negates a logical value.
+
+Syntax:
+not {value}
+----
+
+Synonyms:
+
+Params:
+•	value (bool ): True or false, or an expression that evaluate to true or false.
+	
+Examples:
+not true -- evaluates to false
+----
+set the visible of me to not the visible of me
+----
+
+Description:
+Use the not operator to reverse the meaning of a logical expression.
+
+If the value is true, not value is false, and if the value is false, not value is true.
+
+You can combine the logical operators and, or, and not in an expression. 
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

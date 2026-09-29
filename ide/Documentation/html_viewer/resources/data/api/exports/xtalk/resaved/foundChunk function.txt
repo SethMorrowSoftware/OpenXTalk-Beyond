@@ -1,0 +1,34 @@
+foundChunk
+(function)
+return|Returns a chunk expression describing the location of the text that was found by the most recent find command.
+
+Syntax:
+the foundChunk
+----
+foundChunk()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+the foundChunk
+----
+if the foundChunk is not word 1 of thingToFind then find thingToFind
+----
+
+Description:
+Use the foundChunk function after a find command to determine where the text was found.
+
+The foundChunk function is cleared when the text selection moves into the foundField or when the current card is closed. At the same time, the box the find command draws around the found text disappears. If there is no box, the foundChunk function return|returns empty.
+
+The return value reports the text that was found: the startChar is the first character of the found text, and the endChar is the last character. For example, if the most recent find command was find "foo bar", either word might have been found.
+
+To get the actual text that was found, use the foundText function.
+
+Values:
+The foundChunk function return|returns a chunk expression of the form char startChar to endChar of field fieldNumber. 
+
+OS:
+mac,windows,linux,ios,android

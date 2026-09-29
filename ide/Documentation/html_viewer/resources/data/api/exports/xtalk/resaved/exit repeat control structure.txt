@@ -1,0 +1,29 @@
+exit repeat
+(control structure)
+Skips the rest of the current repeat loop and goes to the statement following the end repeat.
+
+Syntax:
+exit repeat
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+if x > 0 then exit repeat
+----
+
+Description:
+Use the exit repeat control structure to skip the rest of a repeat loop.
+
+**Form:** The exit repeat statement appears on a line by itself, anywhere inside a repeat control structure.
+
+After an exit repeat statement, none of the remaining statement|statements in the current loop is execute|executed, and any more loop|loops are skipped. The handler resume|resumes execute|executing at the first statement after the end of the repeat loop.
+
+Usually, exit repeat is used within an if control structure, so that the loop stops if a condition is true and continues if the condition is false. This example reads a file in chunks and stops  the loop when it encounters the end of file or if the file is empty:      constant kChunk = 1024     open file tFile for binary read     repeat         read from file tFile for kChunk         put the result into tResult         if tResult is empty or tResult is "eof" then             ProcessFileChunk it         end if         if tResult is not empty then             exit repeat         end if     end repeat     close file tFile
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

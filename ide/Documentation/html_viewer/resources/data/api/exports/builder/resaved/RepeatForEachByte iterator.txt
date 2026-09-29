@@ -1,0 +1,20 @@
+RepeatForEachByte
+(iterator)
+Repeat over the bytes of some data
+
+Syntax:
+byte {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): A container of binary data.
+
+Examples:
+Description:
+Use repeat for each to perform an operation on each byte of some data. On each iteration, the Iterand will contain the next char of the string being iterated over.
+
+Values:
+
+OS:

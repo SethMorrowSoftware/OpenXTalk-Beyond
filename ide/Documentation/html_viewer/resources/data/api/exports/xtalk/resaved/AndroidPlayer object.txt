@@ -1,0 +1,27 @@
+AndroidPlayer
+(object)
+A native Android control that displays a movie.
+
+Syntax:
+AndroidPlayer
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+mobileControlCreate "player"
+----
+mobileControlCreate "player", "movie"
+put the result into sPlayerID
+mobileControlSet sPlayerID, "filename", tMoviePath
+----
+
+Description:
+An Android native player control is created using a control type of "player". 
+
+Values:
+
+OS:
+android

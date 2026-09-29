@@ -1,0 +1,20 @@
+SetDataOfIndex
+(command)
+Updates the key pIndex in the internal data array.
+
+Syntax:
+dispatch "SetDataOfIndex" to group "DataGrid" with pIndex, pKey,
+pValue
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Updates the key pIndex in the internal data array. If pKey is empty then pValue should be an array. pValue will be assigned to key pIndex in the internal data array. If pKey is not empty then pValue will be assigned to key pKey of key pIndex in the internal data array. The data grid display will not be updated to reflect the new values. To update the display call RefreshIndex. Use dgDataOfIndex if you want to automatically refresh the data grid when you update the data.
+
+Values:
+
+OS:

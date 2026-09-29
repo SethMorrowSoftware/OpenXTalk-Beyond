@@ -1,0 +1,20 @@
+left swipe control
+(property)
+Set the control to display when a data grid row is dragged to the right.
+
+Syntax:
+set the dgProp["left swipe control"] of group "Data Grid" to the long
+id of {control}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use left swipe control to specify the control to display when when a data grid row is dragged to the right. This defaults to a trash icon on a red background. Set to empty to prevent drags and swipes to the right.
+
+Values:
+
+OS:

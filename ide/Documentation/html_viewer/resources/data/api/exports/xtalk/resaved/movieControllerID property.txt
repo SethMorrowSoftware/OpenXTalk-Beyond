@@ -1,0 +1,30 @@
+movieControllerID
+(property)
+Reports a pointer to a movie's controller.
+
+Syntax:
+get the movieControllerID of {player}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put the movieControllerID of player "Intro" into field "IDs"
+----
+get myLink(the movieControllerID of player 3) -- an example external
+----
+
+Description:
+Use the movieControllerID property to pass to an external that needs to manipulate the player.
+
+The controller ID is provided by the operating system.
+
+Some externals need to manipulate the QuickTime movie directly, and do so by referencing the ID. Such externals require you to pass the ID when you use the external.
+
+Values:
+The movieControllerID of a stack is an integer. The movieControllerID property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux

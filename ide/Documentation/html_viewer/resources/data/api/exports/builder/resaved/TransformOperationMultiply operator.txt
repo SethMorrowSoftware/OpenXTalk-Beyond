@@ -1,0 +1,38 @@
+TransformOperationMultiply
+(operator)
+Multiply two transforms together.
+
+Syntax:
+{Left} * {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a transform.
+Right ( ): An expression which evaluates to a transform.
+
+Examples:
+// Create a rotation transform
+variable tRotate
+put transform with rotation by 45 into tRotate
+
+// Create a scale transform
+variable tScale
+put transform with scale [2,3] into tScale
+
+// Create a translation transform
+variable tTranslate
+put transform with translation [50,100] into tTranslate
+
+// Combine transforms by multiplying them together
+variable tTransform
+put tTranslate * tRotate * tScale into tTransform
+----
+
+Description:
+Returns the transform created by concatentating Left with Right Note:The order of the arguments is important when multiplying transforms. Left * Right can result in a different transform from Right * Left (in mathematical terms, transform multiplication is non-commutative).
+
+Values:
+
+OS:

@@ -1,0 +1,24 @@
+BaseELogOperator
+(operator)
+Natural log operator.
+
+Syntax:
+ln({Operand})
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put ln(exp(3)) into tVar -- tVar contains approximately 3
+----
+
+Description:
+Natural log operator.
+
+Values:
+
+OS:

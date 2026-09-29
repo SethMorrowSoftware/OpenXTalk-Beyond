@@ -1,0 +1,29 @@
+revXMLRPC_Documents
+(function)
+
+Syntax:
+revXMLRPC_Documents()
+
+Summary:
+Returns a list of all XML-RPC documents in memory.
+
+Examples;
+revXMLRPC_Documents()
+if tMyRequest is not among the lines of revXMLRPC_Documents() then loadRequest tMyRequest
+
+The revXMLRPC_Documents function returns a list of document IDs, one per line.
+
+Description:
+Use the revXMLRPC_Documents function to find out which XML-RPC documents have been created, or when you want to perform an action on all the XML-RPC documents you're working with.
+
+Each document ID is the number returned by the revXMLRPC_CreateRequest when you created the XML-RPC request, or the successful revXMLRPC_Execute function when you executed an XML-RPC request.
+
+If the revXMLRPC_Documents function encounters an error, it returns an error message starting with "xmlrpcerr".
+
+Important: The revXMLRPC_Documents function is part of the XML-RPC library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure the "XML-RPC" library checkbox is checked.
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

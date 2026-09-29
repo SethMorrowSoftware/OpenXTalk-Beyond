@@ -1,0 +1,2 @@
+Version 0.92, build 202309231123
+changes the Application Browser to use the correct text colour

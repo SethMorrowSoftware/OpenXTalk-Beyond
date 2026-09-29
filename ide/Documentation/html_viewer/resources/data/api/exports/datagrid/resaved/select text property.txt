@@ -1,0 +1,20 @@
+select text
+(property)
+Set to true to select all text in the field editor.
+
+Syntax:
+set the dgTemplateFieldEditor["select text"] of group "Data
+Grid" to true
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Set to true to select all text in the field editor.
+
+Values:
+
+OS:

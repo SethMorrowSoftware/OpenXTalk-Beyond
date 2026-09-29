@@ -1,0 +1,30 @@
+ParseListOfStringAsListOfNumber
+(statement)
+Parses a list of strings as a list of numbers
+
+Syntax:
+parse {Operand} as list of number
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a list of strings.
+
+Examples:
+variable tListOfString as List
+variable tListOfNum as List
+split "1,2,3,4" by "," into tListOfString
+parse tListOfString as list of number into tListOfNum
+-- tListOfNum contains [ 1, 2, 3, 4 ]
+----
+
+Description:
+Use ParseListOfStringAsListOfNumber when you want to interpret pieces of text numerically. If the input list contains elements which cannot be parsed as numbers, the corresponding element will be nothing.
+
+*Note:* It is an error if any element of Operand is not a string.
+
+Values:
+Operand parsed as a list of numbers. 
+
+OS:

@@ -1,0 +1,16 @@
+SMTP
+(glossary)
+
+Syntax:
+Synonyms:
+smtp
+
+Params:
+
+Examples:
+Description:
+Simple Mail Transfer Protocol. Used to send email messages from one Internet-connected computer to another.
+
+Values:
+
+OS:

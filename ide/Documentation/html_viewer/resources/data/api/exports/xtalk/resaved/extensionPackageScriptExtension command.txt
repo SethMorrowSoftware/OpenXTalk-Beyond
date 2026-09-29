@@ -1,0 +1,22 @@
+extensionPackageScriptExtension
+(command)
+Package a Script extension
+
+Syntax:
+extensionPackageScriptExtension {pSourceFolder},{pTargetFolder},{pRemoveSource}
+----
+
+Synonyms:
+
+Params:
+pSourceFolder ( ): The folder containing the extension
+pTargetFolder ( ): The folder to output the extension package
+pRemoveSource ( ): Whether to remove the source files or not
+
+Examples:
+Description:
+Package a Script extension
+
+Values:
+
+OS:

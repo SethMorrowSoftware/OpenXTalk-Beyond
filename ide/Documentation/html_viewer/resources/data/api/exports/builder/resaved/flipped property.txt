@@ -1,0 +1,20 @@
+flipped
+(property)
+`true` if the SVG path is flipped top-to-bottom; `false` otherwise
+
+Syntax:
+set the flipped of {widget} to {true|false}
+get the flipped of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+When flipped is set to `true`, the SVG path is drawn upside down.
+
+Values:
+
+OS:

@@ -1,0 +1,16 @@
+delimiter
+(glossary)
+
+Syntax:
+Synonyms:
+delimiter
+
+Params:
+
+Examples:
+Description:
+The character that marks the start or end of a piece of data, or separates two pieces of data from each other.
+
+Values:
+
+OS:

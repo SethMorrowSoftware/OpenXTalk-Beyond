@@ -1,0 +1,29 @@
+resumeStack
+(message)
+Sent to the current card when a stack window is brought to the front. 
+
+Syntax:
+resumeStack
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on resumeStack -- show a palette that only applies to this window
+  show stack "Accessories"
+end resumeStack
+----
+
+Description:
+Handle the resumeStack message if you want to perform some action when a stack window is made active.
+
+The resumeStack message is sent whenever a stack window becomes the active window.
+
+The actual window activation process is not triggered by the resumeStack message, so trap|trapping the message and not allowing it to pass does not prevent the stack window from becoming the active window.
+
+Values:
+
+OS:
+mac,windows,linux

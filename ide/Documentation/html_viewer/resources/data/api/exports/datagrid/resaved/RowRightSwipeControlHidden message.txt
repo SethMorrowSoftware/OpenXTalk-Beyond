@@ -1,0 +1,19 @@
+RowRightSwipeControlHidden
+(message)
+Sent when the right hand side data grid swipe control is hidden.
+
+Syntax:
+on RowRightSwipeControlHidden
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+RowRightSwipeControlHidden is sent to your data grid's custom row template when an right hand side swipe control is visible and the user clicks on the data grid, resulting in the swipe control being hidden. Handle RowRightSwipeControlHidden to perform a custom action on hide.
+
+Values:
+
+OS:

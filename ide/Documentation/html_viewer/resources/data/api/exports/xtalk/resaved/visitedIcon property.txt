@@ -1,0 +1,28 @@
+visitedIcon
+(property)
+Specifies an image to display in a button(keyword) when the button(object)|button's visited property is true.
+
+Syntax:
+set the visitedIcon of {button} to {{imageID} | {imageName}}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the visitedIcon of button "To Do List" to 5499
+----
+set the visitedIcon of me to the ID of image "Done"
+----
+
+Description:
+Use the visitedIcon property to change a button|button's appearance when it has been clicked during the current session.
+
+When the button has been clicked during the current session, the visitedIcon is displayed within the button's rectangle instead of the icon (if one has been specified).
+
+Values:
+The visitedIcon property is the ID or name of an image to use for an icon. OpenXTalk looks for the specified image first in the current stack, then in other open stacks. By default, the visitedIcon property of newly created button|buttons is set to zero.  
+
+OS:
+mac,windows,linux,ios,android

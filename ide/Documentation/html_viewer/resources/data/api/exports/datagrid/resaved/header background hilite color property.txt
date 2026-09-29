@@ -1,0 +1,20 @@
+header background hilite color
+(property)
+The background color of the header that is being sorted by.
+
+Syntax:
+put the dgProp["header background hilite color"] of group "Data
+Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The background color of the header that is being sorted by. You set set to a solid color, a gradient (two colors, one per line) or an array containing the keys of the fillGradient property.
+
+Values:
+
+OS:

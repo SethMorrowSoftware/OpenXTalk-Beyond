@@ -1,0 +1,20 @@
+freeSize
+(property)
+Always reports zero and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+get the freeSize of {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the freeSize property reports the amount of wasted space in a stack. In OpenXTalk, this property always reports zero.
+
+Values:
+
+OS:
+ios,android

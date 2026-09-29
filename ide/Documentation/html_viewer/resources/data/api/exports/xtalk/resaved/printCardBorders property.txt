@@ -1,0 +1,26 @@
+printCardBorders
+(property)
+Specifies whether the printed image of a card is outlined.
+
+Syntax:
+set the printCardBorders to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the printCardBorders to false
+----
+
+Description:
+Use the printCardBorders property to place a border around each card when printed.
+
+If the card's showBorder property is false, the border is not drawn and the setting of this property has no effect.
+
+Values:
+The printCardBorders is true or false. By default, the printCardBorders property is set to false. 
+
+OS:
+mac,windows,linux,ios

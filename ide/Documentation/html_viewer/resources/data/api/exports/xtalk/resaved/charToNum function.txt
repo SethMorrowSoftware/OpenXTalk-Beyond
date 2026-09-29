@@ -1,0 +1,41 @@
+charToNum
+(function)
+return|Returns the ASCII|ASCII value of a character.
+
+Syntax:
+the charToNum of {character}
+----
+charToNum({character})
+----
+
+Synonyms:
+
+Params:
+character ( ): The character is any character or expression that evaluates to a character. If you specify a string containing more than one character, all characters but the first are ignored.
+
+Examples:
+charToNum("A")
+----
+charToNum("ABC")
+----
+if charToNum(nextChar) = 0 then next repeat
+----
+numToChar(charToNum("Z"))
+----
+
+Description:
+Use the charToNum function to rank characters in their numeric|numerical order.
+
+*Important:*  As of version 7.0 the numToChar and charToNum functions have been deprecated. They will continue to work as in previous versions but should not be used with Unicode text as unexpected results may occur. If working with Unicode text use the numToCodepoint and codepointToNum functions, for native text use numToNativeChar and nativeCharToNum functions. If working with binary data use the numToByte and byteToNum functions.
+
+The charToNum function is the inverse of the numToChar function.
+
+For special characters (those typed using the Option key or Alt key), the value returned by the charToNum function depends on the character set currently in use. On Mac OS|Mac OS systems this is normally the Mac OS|Macintosh character set; on Unix|Unix systems, this is normally ISO 8859; on Windows|Windows systems, this is usually Code Page 1252, a variant of ISO 8859.
+
+If the useUnicode property is set to true, you can specify a double-byte character. If the useUnicode is false and you specify a double-byte character, the charToNum function return|returns the numeric value of the character div 256.
+
+Values:
+The charToNum function return|returns an integer between zero and 255. If the useUnicode property is set to true, the charToNum function return|returns an integer between zero and 65535. 
+
+OS:
+mac,windows,linux,ios,android

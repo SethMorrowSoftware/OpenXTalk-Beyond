@@ -1,0 +1,29 @@
+mobileDeleteSoundChannel
+(command)
+Removes a channel from memory.
+
+Syntax:
+mobileDeleteSoundChannel {channel}
+----
+
+Synonyms:
+iphonedeletesoundchannel
+
+Params:
+channel ( ): The name of the channel.
+
+Examples:
+mobileDeleteSoundChannel theChannel
+----
+mobileDeleteSoundChannel "secondary"
+----
+
+Description:
+Use the mobileDeleteSoundChannel command to remove a channel from memory.
+
+Sound channels only consume system resources when they are playing sounds, thus you don't need to be concerned about having many around at once (assuming most are inactive).
+
+Values:
+
+OS:
+ios,android

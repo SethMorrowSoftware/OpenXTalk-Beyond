@@ -1,0 +1,28 @@
+revdb_commit
+(function)
+
+Syntax:
+revdb_commit(databaseID)
+
+Summary:
+Executes the revCommitDatabase command.
+The number returned by the revOpenDatabase function when the database was opened.
+
+Examples:
+get revdb_commit(currentDB)
+
+The revdb_commit function returns empty if the changes were successfully saved.
+
+Description:
+Use the revdb_commit function to commit changes.
+
+Evaluating the revdb_commit function has the same effect as executing the revCommitDatabase command. The only difference is that one is a function call and the other is a command.
+
+Important: The revdb_commit function is part of the Database library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure both the "Database" library checkbox and those of the database drivers you are using are checked.
+
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

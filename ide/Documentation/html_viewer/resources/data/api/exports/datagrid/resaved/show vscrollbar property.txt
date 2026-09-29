@@ -1,0 +1,19 @@
+show vscrollbar
+(property)
+Toggles the visibility of the vertical scrollbar. True, false, or auto.
+
+Syntax:
+put the dgProp["show vscrollbar"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Toggles the visibility of the vertical scrollbar. True, false, or auto.
+
+Values:
+
+OS:

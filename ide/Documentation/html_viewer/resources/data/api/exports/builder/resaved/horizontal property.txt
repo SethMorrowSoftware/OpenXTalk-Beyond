@@ -1,0 +1,21 @@
+horizontal
+(property)
+Whether the segmented widget is horizontal or not
+
+Syntax:
+get the horizontal of {widget}
+----
+set the horizontal of {widget} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Use the horizontal property to control whether the segmented widget is laid out horizontally or vertically.
+
+Values:
+
+OS:

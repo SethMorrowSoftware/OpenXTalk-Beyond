@@ -1,0 +1,30 @@
+GradientPropertyMirror
+(operator)
+The mirror of a gradient paint.
+
+Syntax:
+the mirror of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Toggle the mirroring of a gradient
+variable tMirror
+put the mirror of tGradient into tMirror
+set the mirror of tGradient to not tMirror
+----
+
+Description:
+The mirror of mGradient as a boolean. If mirror is true then the ramp will be reversed on each repeat.
+
+Values:
+
+OS:

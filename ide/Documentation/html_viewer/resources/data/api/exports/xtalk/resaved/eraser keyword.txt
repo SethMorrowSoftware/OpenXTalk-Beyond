@@ -1,0 +1,25 @@
+eraser
+(keyword)
+Designates the paint tool used to erase portions of the image.
+
+Syntax:
+eraser
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+choose eraser tool
+----
+
+Description:
+Use the eraser keyword to remove paint from an image.
+
+When using the Eraser tool, the cursor is the eraser shape (over stack windows) or an arrow (anywhere else). This tool is used to remove paint from an image, making the erased areas transparent.
+
+Values:
+
+OS:
+mac,windows,linux

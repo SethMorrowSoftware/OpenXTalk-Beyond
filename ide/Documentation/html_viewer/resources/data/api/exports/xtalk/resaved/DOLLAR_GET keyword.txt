@@ -1,0 +1,33 @@
+$_GET
+(keyword)
+$_GET is an array variable, translated from the QUERY_STRING. It assumes the query string is encoded as url-form-encoded data.
+
+Syntax:
+$_GET
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+put $_GET into tGetArray
+----
+#For example: URL "http://www.amazon.com?cat=books&ISBN=0-943396-04-2"
+put $_GET["cat"] into tCategory
+put $_GET["ISBN"] into tISBN
+----
+if $_GET["cat"] is "books" then
+  ... do something ...
+end if
+----
+
+Description:
+Use the $_GET keyword to access the array generated from the QUERY_STRING component of a URL. http://www.website.com?variable1=value1&variable2=value2  $_GET is only available when running in CGI mode (Server).
+
+*Note:* The data is converted to the native character set from the  character set defined in the outputTextEncoding.
+
+Values:
+
+OS:
+mac,windows,linux

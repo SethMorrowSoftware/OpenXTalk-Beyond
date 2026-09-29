@@ -1,0 +1,18 @@
+literal string
+(glossary)
+
+Syntax:
+Synonyms:
+literal string, string literal, literal
+
+Params:
+
+Examples:
+Description:
+A group of character|characters used exactly as they are, rather than as the name of an object(glossary), property, function, or variable.
+
+Literal strings are usually enclosed in double quote|double quotes ("). 
+
+Values:
+
+OS:

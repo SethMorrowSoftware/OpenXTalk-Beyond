@@ -1,0 +1,29 @@
+revIDEPopDefaultFolder
+(command)
+Restores the default folder to the last saved path.
+
+Syntax:
+revIDEPopDefaultFolder
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+on myHandler
+   revIDEPushDefaultFolder
+   set the defaultfolder to "/"
+   repeat for each line tLine in the files
+      # Do something to the files
+   end repeat
+   revIDEPopDefaultFolder
+end myHandler
+----
+
+Description:
+Pops the last stored defaultFolder and sets the default folder to the popped value.
+
+Values:
+
+OS:

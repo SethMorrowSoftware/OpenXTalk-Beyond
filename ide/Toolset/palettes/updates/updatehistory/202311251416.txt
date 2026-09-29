@@ -1,0 +1,4 @@
+Version 0.94, build 202311251416
+Allows automatic updates to be turned back on in the preferences
+also fixes appearance > grid size (now applied correctly)
+you also need to make an "updates" folder: path-to-program/Toolset/palettes/updates/

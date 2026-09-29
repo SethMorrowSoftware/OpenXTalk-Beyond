@@ -1,0 +1,25 @@
+ExpOperator
+(operator)
+Exponentiation operator.
+
+Syntax:
+exp({Operand})
+----
+
+Synonyms:
+
+Params:
+Operand ( ): An expression that evaluates to a number.
+
+Examples:
+variable tVar as Number
+put the exp(ln(100)) into tVar -- tVar contains approximately 100
+----
+
+Description:
+Exponentiation operator.
+
+Values:
+e to the power of Operand 
+
+OS:

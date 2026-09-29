@@ -1,0 +1,18 @@
+checksum
+(glossary)
+
+Syntax:
+Synonyms:
+checksum, checksummed, checksumming
+
+Params:
+
+Examples:
+Description:
+A value calculated from a block of data. Checksums are used to make sure a block of data has not been changed or corrupted.
+
+For example, after a file transfer, the original checksum can be compared to a new checksum computed on the transferred copy of the file. If they don't match, the file was altered during transmission and needs to be re-sent.
+
+Values:
+
+OS:

@@ -1,0 +1,30 @@
+ListIsList
+(operator)
+Determines whether Left and Right are equal or not.
+
+Syntax:
+{Left} is {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression which evaluates to a list.
+Right ( ): An expression which evaluates to a list.
+
+Examples:
+variable tList as List
+put ["a", "b", "c"] into tList
+variable tIs as Boolean
+
+put tList is ["A", "b", "c"] into tIs -- tIs is false
+put tList is element 1 to -1 of tList into tIs -- tIs is true
+----
+
+Description:
+Two lists are equal if each corresponding element is of comparable type, and if the default equality of that type holds between the elements. In particular, this means that comparison between string elements is case sensitive.
+
+Values:
+Returns true if Left is identical to Right. 
+
+OS:

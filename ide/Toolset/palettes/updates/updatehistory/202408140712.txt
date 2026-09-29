@@ -1,0 +1,2 @@
+Version 1.07, build 202408140712
+Corrected the polygon sides (paint tool) menu in the tools stack. Re-added the Radius tool and menu in the tools stack (which was deleted from LCC 8.x)

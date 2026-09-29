@@ -1,0 +1,20 @@
+locationError
+(message)
+Deprecated, use the trackingError message instead.
+
+Syntax:
+locationError
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This message has been deprecated and the message trackingError should be used in its place.
+
+Values:
+
+OS:
+ios

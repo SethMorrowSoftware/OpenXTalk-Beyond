@@ -1,0 +1,25 @@
+stop session
+(command)
+Ends the session explicitly, saving the contents of the $_SESSION variable. 
+
+Syntax:
+stop session
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+stop session
+----
+
+Description:
+Use the stop session command to end the session explicitly and save the contents of the $_SESSION variable.
+
+The location where the $_SESSION array is stored is configured using the sessionSavePath property.
+
+Values:
+
+OS:
+mac,windows,linux

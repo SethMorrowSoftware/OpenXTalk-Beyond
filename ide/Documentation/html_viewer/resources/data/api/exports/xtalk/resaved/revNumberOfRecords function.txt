@@ -1,0 +1,36 @@
+revNumberOfRecords
+(function)
+return|Returns the number of records in a record set (glossary). 
+
+Syntax:
+revNumberOfRecords({recordSetID})
+----
+
+Synonyms:
+revdb_recordcount
+
+Params:
+recordSetID ( ): The number returned by the   when the record set was created.
+
+Examples:
+revNumberOfRecords(westCoastCustomers)
+----
+get revNumberOfRecords(15) -- number of records in record set 15
+----
+repeat for revNumberOfRecords(pastDueCustomers) times
+----
+
+Description:
+Use the revNumberOfRecords function to find out how many record|records matched a SQL query|query.
+
+If the query is not successful, the revNumberOfRecords function returns an error message that begins with the string "revdberr".
+
+Some database types do not support returning the number of records in a result set. One example of this is ODBC data sources with forward-only cursors. If the database does not support this feature, the revNumberOfRecords function will return -1.
+
+*Important:*  The revGetDatabaseDriverPath function is part of the   Database library. To ensure that the function works in a   standalone application, you must include this   OpenXTalk custom library|custom library when you create your   standalone application|standalone. In the Inclusions pane of the   Standalone Application Settings window, make sure the "Database"   library checkbox is checked.
+
+Values:
+The revNumberOfRecords function returns either a non-negative integer or -1 if the number of records could not be determined. 
+
+OS:
+mac,windows,linux,ios,android

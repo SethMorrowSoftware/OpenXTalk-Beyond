@@ -3,8 +3,8 @@ local sProfiles
 
 on preOpenCard
    initialize
-   pass preOpenCard
 end preOpenCard
+
 
 on initialize
    local tSettings

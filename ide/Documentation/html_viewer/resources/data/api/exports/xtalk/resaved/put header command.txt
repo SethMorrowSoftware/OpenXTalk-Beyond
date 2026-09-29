@@ -1,0 +1,33 @@
+put header
+(command)
+Replaces or adds a CGI output header to the current list that is generated the first time any data is output to stdout.
+
+Syntax:
+put [ new ] header {header}
+----
+
+Synonyms:
+
+Params:
+header ( ): A string with the following form "header: value".
+
+Examples:
+put url ("binfile:" & tPathToMyImage) into tImageData
+put header "Content-Type: image/gif"
+put header "Content-Length: " && the length of tImageData
+put tImageData
+----
+
+Description:
+Use the put content command to replace or add a CGI output header to the current list that will be generated the first time any data is output to stdout.
+
+If new is not specified, any existing header of the same name has its value replaced by the action. If new is specified, or an existing header is not found, a new entry is made at the end of the header list.
+
+After headers have been output, the put header variant has no further effect.
+
+When headers get sent, if there is not a 'Content-Type' header in the list, the OpenXTalk Server automatically sends: Content-Type: text/html.
+
+Values:
+
+OS:
+mac,windows,linux

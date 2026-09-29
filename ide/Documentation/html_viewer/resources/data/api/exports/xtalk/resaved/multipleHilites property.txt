@@ -1,0 +1,31 @@
+multipleHilites
+(property)
+Specifies whether more than one line can be selected in a  list field. 
+
+Syntax:
+set the multipleHilites of {field} to {true | false}
+----
+
+Synonyms:
+multiplelines
+
+Params:
+
+Examples:
+set the multipleHilites of field "myField" to true
+----
+
+Description:
+Use the multipleHilites property to control the behavior of  list field|list fields.
+
+If the multipleHilites of a field(keyword) is set to true, the user can select more than one line by dragging within the field(keyword), or Shift-clicking to select all the lines between the selected line and the clicked line. If the multipleHilites is false, clicking a line deselects any other lines in the field(keyword).
+
+If the field's listBehavior property is false, the multipleHilites property has no effect.
+
+*Important:*  Setting the toggleHilites to true automatically sets  the field(object)|field's multipleHilites property to true.  (However, setting the toggleHilites to false does not set the  property back to false.) To set the toggleHilites to true and the  multipleHilites to false, be sure to set the toggleHilites first,  then set the multipleHilites to false.
+
+Values:
+The multipleHilites of a field(keyword) is true or false. By default, the multipleHilites property of newly created field(object)|fields is set to false. 
+
+OS:
+mac,windows,linux

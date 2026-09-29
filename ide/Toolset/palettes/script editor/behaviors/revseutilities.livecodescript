@@ -12,6 +12,8 @@
 on preOpenStack
    set the behavior of stack "revSETemplate" of me to the long id of stack revIDEScriptEditorBehavior("stack")
    send "setBehaviors" to stack "revSETemplate" of me
+   -- conditional datagrid stacks (tperry 4-13-24)
+   if the cDisableDataGrid of stack "revPreferences" is true then send hConditionalDataGrid to stack "revMenubar" in 1 ticks
 end preOpenStack
 
 # Because all script editors are substacks of this stack, we should delete them here
@@ -487,7 +489,8 @@ command log pMessage
 end log
 
 command logFile pMessage
-   put pMessage & return after url ("file:" & specialFolderPath("desktop") & "/Script Editor Log.txt")
+   -- adjusted as linux does not understand specialFolderPath("Desktop") -- tperry 8/12/24
+   put pMessage & return after url ("file:" & specialFolderPath("Home") & slash & "Desktop" & slash & "Script Editor Log.txt")
 end logFile
 
 command printArray pArray
@@ -563,7 +566,7 @@ command sePrefGetDefaults
    put empty into tPrefs["documentation,lastLoadedAlternativeDocs"]
    
    put "Variables" into tPrefs["debug,lastSelectedPane"]
-   put "Documentation" into tPrefs["edit,lastSelectedPane"]
+   put "Errors" into tPrefs["edit,lastSelectedPane"] -- tperry 14-09-2025, was "Documentation"
    
    # Colorization preferences
    put "default" into tPrefs["colorization,scheme"]
@@ -712,6 +715,7 @@ end seColorizationInit
 #   the sPrefs array. To apply the newly loaded scheme, call seColorizationInit
 #   after the scheme has been loaded.
 command seColorizationLoadScheme pScheme, @pPreferencesArray
+   local newSECols
    switch pScheme
       case "default"
          put "group commands bold 127,127,0" & return & \
@@ -744,9 +748,8 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword default bold 0,0,0" & return & \
                "keyword finally bold 0,0,0" & return & \
                "keyword next bold 0,0,0" & return & \
-               "keyword exit bold 0,0,0" & return into pPreferencesArray["colorization,config"]
+               "keyword exit bold 0,0,0" & return into newSECols
          break
-         
       case "revolution classic"
          put "group commands none 0,0,255" & return & \
                "group properties none 255,0,0" & return & \
@@ -776,38 +779,163 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword catch none 152,5,23" & return & \
                "keyword case none 152,5,23" & return & \
                "keyword default none 152,5,23" & return & \
-               "keyword finally none 152,5,23" into pPreferencesArray["colorization,config"]
+               "keyword finally none 152,5,23" into newSECols
          break
-         
-      case "no colorization"
-         put "group commands none 0,0,0" & return & \
-               "group properties none 0,0,0" & return & \
-               "group functions none 0,0,0" & return & \
-               "class error none 0,0,0" & return & \
-               "class singlecomment none 0,0,0" & return & \
-               "class multicomment none 0,0,0" & return & \
-               "class identifier none 0,0,0" & return & \
-               "class literal none 0,0,0" & return & \
-               "class number none 0,0,0" & return & \
-               "class keyword none 0,0,0" & return & \
-               "class operator none 0,0,0" & return & \
-               "keyword on none 0,0,0" & return & \
-               "keyword end none 0,0,0" & return & \
-               "keyword if none 0,0,0" & return & \
-               "keyword then none 0,0,0" & return & \
-               "keyword else none 0,0,0" & return & \
-               "keyword function none 0,0,0" & return & \
-               "keyword setprop none 0,0,0" & return & \
-               "keyword getprop none 0,0,0" & return & \
-               "keyword repeat none 0,0,0" & return & \
-               "keyword switch none 0,0,0" & return & \
-               "keyword try none 0,0,0" & return & \
-               "keyword catch none 0,0,0" & return & \
-               "keyword case none 0,0,0" & return & \
-               "keyword default none 0,0,0" & return & \
-               "keyword finally none 0,0,0" into pPreferencesArray["colorization,config"]
+      case "vibrant"
+         put "group commands bold 59,255,255" & return & \
+               "group properties none 46,255,12" & return & \
+               "group functions none 255,132,0" & return & \
+               "class error none 255,0,0" & return & \
+               "class singlecomment bold 255,255,0" & return & \
+               "class multicomment italic 255,255,0" & return & \
+               "class identifier none 238,238,238" & return & \
+               "class literal none 158,165,255" & return & \
+               "class number none 191,187,217" & return & \
+               "class keyword none 255,136,0" & return & \
+               "class operator none 240,0,255" & return & \
+               "class continuation none 255,83,206" & return & \
+               "keyword command bold 255,255,255" & return & \
+               "keyword private bold 255,255,255" & return & \
+               "keyword on bold 255,255,207" & return & \
+               "keyword end bold 255,246,207" & return & \
+               "keyword if bold 0,255,43" & return & \
+               "keyword then bold 0,255,0" & return & \
+               "keyword else bold 0,255,0" & return & \
+               "keyword function bold 255,255,155" & return & \
+               "keyword setprop bold 255,255,168" & return & \
+               "keyword getprop bold 255,255,188" & return & \
+               "keyword repeat bold 190,255,223" & return & \
+               "keyword switch bold 0,175,255" & return & \
+               "keyword try bold 255,0,255" & return & \
+               "keyword catch bold 255,0,255" & return & \
+               "keyword case bold 255,0,255" & return & \
+               "keyword default bold 67,255,23" & return & \
+               "keyword finally bold 54,255,3" & return & \
+               "keyword next bold 0,255,0" & return & \
+               "keyword exit bold 0,255,5" & return into newSECols
          break
+      case "oxt lite light"
+         put "group commands bold 164,0,174" & return & \
+               "group properties none 16,156,12" & return & \
+               "group functions none 16,143,220" & return & \
+               "class error none 255,0,0" & return & \
+               "class singlecomment bold 255,107,0" & return & \
+               "class multicomment italic 207,112,0" & return & \
+               "class identifier none 110,90,255" & return & \
+               "class literal none 119,58,64" & return & \
+               "class number none 48,164,170" & return & \
+               "class keyword none 0,125,28" & return & \
+               "class operator none 119,0,255" & return & \
+               "keyword on bold 255,105,0" & return & \
+               "keyword end bold 255,105,0" & return & \
+               "keyword if bold 0,80,43" & return & \
+               "keyword then bold 0,67,0" & return & \
+               "keyword else bold 0,52,0" & return & \
+               "keyword function bold 0,0,100" & return & \
+               "keyword setprop bold 0,55,87" & return & \
+               "keyword getprop bold 0,52,67" & return & \
+               "keyword repeat bold 7,119,117" & return & \
+               "keyword switch bold 83,4,65" & return & \
+               "keyword try bold 0,120,23" & return & \
+               "keyword catch bold 88,34,197" & return & \
+               "keyword case bold 3,104,52" & return & \
+               "keyword default bold 67,54,23" & return & \
+               "keyword finally bold 54,0,3" into newSECols
+         break
+      case "oxt lite dark"
+         put "group commands bold 222,0,241" & return & \
+               "group properties none 16,156,12" & return & \
+               "group functions none 16,143,220" & return & \
+               "class error none 255,0,0" & return & \
+               "class singlecomment bold 255,107,0" & return & \
+               "class multicomment italic 207,112,0" & return & \
+               "class identifier none 110,90,255" & return & \
+               "class literal none 162,187,146" & return & \
+               "class number none 48,164,170" & return & \
+               "class keyword none 0,187,161" & return & \
+               "class operator none 201,81,255" & return & \
+               "keyword on bold 255,105,0" & return & \
+               "keyword end bold 255,105,0" & return & \
+               "keyword if bold 0,255,43" & return & \
+               "keyword then bold 0,255,0" & return & \
+               "keyword else bold 0,255,0" & return & \
+               "keyword function bold 85,90,255" & return & \
+               "keyword setprop bold 0,119,156" & return & \
+               "keyword getprop bold 67,116,148" & return & \
+               "keyword repeat bold 7,119,117" & return & \
+               "keyword switch bold 200,29,206" & return & \
+               "keyword try bold 0,120,23" & return & \
+               "keyword catch bold 88,34,197" & return & \
+               "keyword case bold 3,143,101" & return & \
+               "keyword default bold 149,128,90" & return & \
+               "keyword finally bold 0,255,255" into newSECols
+         break
+      case "dark mode"
+         put "group commands bold 116,116,231" & return & \
+               "group properties none 231,116,116" & return & \
+               "group functions none 122,243,122" & return & \
+               "class error none 206,50,0" & return & \
+               "class singlecomment bold 255,128,255" & return & \
+               "class multicomment italic 255,128,255" & return & \
+               "class identifier none 238,238,238" & return & \
+               "class literal none 237,212,0" & return & \
+               "class number none 193,125,17" & return & \
+               "class keyword none 125,249,125" & return & \
+               "class operator none 136,136,136" & return & \
+               "class continuation none 114,159,207" & return & \
+               "keyword command bold 136,136,136" & return & \
+               "keyword private bold 114,159,207" & return & \
+               "keyword on bold 114,159,207" & return & \
+               "keyword end bold 114,159,207" & return & \
+               "keyword if bold 114,159,207" & return & \
+               "keyword then bold 114,159,207" & return & \
+               "keyword else bold 114,159,207" & return & \
+               "keyword function bold 193,125,17" & return & \
+               "keyword setprop bold 173,127,168" & return & \
+               "keyword getprop bold 173,127,168" & return & \
+               "keyword repeat bold 190,255,120" & return & \
+               "keyword switch bold 190,255,120" & return & \
+               "keyword try bold 190,255,120" & return & \
+               "keyword catch bold 190,255,120" & return & \
+               "keyword case bold 190,255,120" & return & \
+               "keyword default bold 190,255,120" & return & \
+               "keyword finally bold 190,255,120" & return & \
+               "keyword next bold 190,255,120" & return & \
+               "keyword exit bold 190,255,120" & return into newSECols
+         break
+      case "Custom"
+         -- alternate method for loading custom schemes
+         local sFilePath
+         if the platform contains "win" then
+            put specialFolderPath(0x001a) & "/" & xtalk & "/Preferences/" into sFilePath
+            create folder sFilePath
+         end if
+         if the platform contains "mac" then
+            put specialFolderPath("Preferences") & "/" & xtalk & "/Preferences/" into sFilePath
+            create folder sFilePath
+         end if
+         if the platform contains "lin" then
+            put specialFolderPath("Home") & slash & ".runrev/" into sFilePath
+            create folder sFilePath
+            put specialFolderPath("Home") & slash & ".runrev/xtalk/" into sFilePath
+            create folder sFilePath
+            put specialFolderPath("Home") & slash & ".runrev/xtalk/Preferences" into sFilePath
+            create folder sFilePath
+         end if
+         -- read the file
+         local myTmpVar
+         local myTmpData
+         put sFilePath & "customScriptColours.dat" into myTmpVar 
+         open file myTmpVar
+         read from file myTmpVar until EOF
+         put it into myTmpData
+         close file myTmpVar
+         if myTmpData is "" then exit seColorizationLoadScheme
+         --put "read from file:" & return & myTmpData -- debug
+         put myTmpData into pPreferencesArray["colorization,config"]
+         exit seColorizationLoadScheme
    end switch
+   put newSECols into pPreferencesArray["colorization,config"]
 end seColorizationLoadScheme
 
 # Parameters
@@ -1039,6 +1167,8 @@ command revSEFormat pScript
 end revSEFormat
 
 command revSEColorizeField pField, pStart, pEnd
+   send pFixupMacElements to stack "revseutilities" in 10 milliseconds
+   
    if pStart is empty then
       put 1 into pStart
    end if
@@ -1055,6 +1185,7 @@ command revSEColorizeField pField, pStart, pEnd
    _internal script configure keywords sColorizationKeywords
    
    _internal script colorize char pStart to pEnd of pField
+   
 end revSEColorizeField
    
    # Colorizes pScript and returns it as revHTML
@@ -1067,6 +1198,7 @@ command revSEColorize pScript, pScheme
    else
       put sePrefGet("colorization,config") into tConfig
    end if
+   
    
    local tClasses, tKeywords
    colorizationBuildSettings tConfig, tClasses, tKeywords
@@ -1145,20 +1277,57 @@ end seDefaultScript
 #   script for the specified object. Returns empty if either no default script is to be
 #   used or there is no default selection is required.
 function seDefaultScriptSelection pObjectType, pStyle
-  local tStart, tEnd
-  switch pObjectType
-  case "button"
-    if pStyle is "menu" then
-      put the number of chars of "on menuPick pItemName" + 1 + the number of chars of "switch pItemName" + 1 + (3 * the number of chars of getFirstIndentLevel()) into tStart
-      put tStart - 1 into tEnd
-    else if pStyle is among the words of "standard rectangle checkbox radiobutton" then
-      put the number of chars of "on mouseUp" + 1 + the number of chars of getFirstIndentLevel() + 1 into tStart
-      put tStart - 1 into tEnd
-    end if
-    break
-  default
-    return empty
-  end switch
-  
-  return tStart & comma & tEnd
+   local tStart, tEnd
+   switch pObjectType
+      case "button"
+         if pStyle is "menu" then
+            put the number of chars of "on menuPick pItemName" + 1 + the number of chars of "switch pItemName" + 1 + (3 * the number of chars of getFirstIndentLevel()) into tStart
+            put tStart - 1 into tEnd
+         else if pStyle is among the words of "standard rectangle checkbox radiobutton" then
+            put the number of chars of "on mouseUp" + 1 + the number of chars of getFirstIndentLevel() + 1 into tStart
+            put tStart - 1 into tEnd
+         end if
+         break
+      default
+         return empty
+   end switch
+   
+   return tStart & comma & tEnd
 end seDefaultScriptSelection
+
+on pFixupMacElements
+   set the backgroundColor of btn "Compile" of stack "revNewScriptEditor 1" to "" -- default
+   set the backgroundColor of btn "More" of stack "revNewScriptEditor 1" to "" -- default
+   set the style of btn "Compile" of stack "revNewScriptEditor 1" to "Standard"
+   set the borderWidth of btn "Compile" of stack "revNewScriptEditor 1" to "2"
+   --
+   set the style of btn "More" of stack "revNewScriptEditor 1" to "Standard"
+   set the borderWidth of btn "More" of stack "revNewScriptEditor 1" to "2"
+   
+   -- tperry 13-09-2025
+   -- we should check the appearance of a few things
+   set the hiliteColor of fld "handlers" of group "Left Bar" of stack "revNewScriptEditor 1" of stack "revNewScriptEditor" to the cToolSelectorColor of stack "revPreferences"
+   -- specifically the popup menu of the script editor, and the apply button
+   if there is a stack "revNewScriptEditor 1" then
+      if the platform contains "mac" then
+         if the systemAppearance contains "dark" then
+            -- okay, we are on a mac in dark mode
+            set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to black -- at least you can see it
+         else
+            -- we are on a mac, but in light mode -- so we return these to default
+         end if
+      else
+         -- reset colours if not on a mac
+         set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to ""
+         set the backgroundColor of btn "Compile" of stack "revNewScriptEditor 1" to "" -- default
+         set the backgroundColor of btn "More" of stack "revNewScriptEditor 1" to "" -- default
+         set the style of btn "Compile" of stack "revNewScriptEditor 1" to "Standard"
+         set the borderWidth of btn "Compile" of stack "revNewScriptEditor 1" to "2"
+         --
+         set the style of btn "More" of stack "revNewScriptEditor 1" to "Standard"
+         set the borderWidth of btn "More" of stack "revNewScriptEditor 1" to "2"
+         
+      end if
+   end if
+end pFixupMacElements
+

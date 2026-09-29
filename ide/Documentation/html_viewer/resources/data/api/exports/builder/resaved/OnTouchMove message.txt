@@ -1,0 +1,19 @@
+OnTouchMove
+(message)
+Sent to the target for touch events when a touch moves.
+
+Syntax:
+OnTouchMove
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent to the target for touch events when a touch moves.
+
+Values:
+
+OS:

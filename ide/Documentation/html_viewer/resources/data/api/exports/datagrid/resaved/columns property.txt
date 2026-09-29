@@ -1,0 +1,19 @@
+columns
+(property)
+Line delimited list of columns in your table.
+
+Syntax:
+put the dgProp["columns"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Line delimited list of columns in your table.
+
+Values:
+
+OS:

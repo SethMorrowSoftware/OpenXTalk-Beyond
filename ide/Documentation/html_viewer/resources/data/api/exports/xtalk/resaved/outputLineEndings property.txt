@@ -1,0 +1,30 @@
+outputLineEndings
+(property)
+The outputLineEndings property determines what line ending conversion to perform on text output.
+
+Syntax:
+set the outputLineEndings to {lineEnding}
+----
+
+Synonyms:
+
+Params:
+lineEnding (enum ): The type of line ending to use.
+
+Examples:
+set the outputLineEndings to "lf"
+----
+put the outputLineEndings into tLineEnding
+----
+
+Description:
+Use the outputLineEndings property to determine what line ending conversion to perform on text output.
+
+outputLineEndings is only available when running in CGI mode (Server).
+
+The quoted literals *must* be used when setting this property - the property expects a name not a sequence of bytes to use as the line-ending. The reason behind this is two-fold - (1) it is more 'correct' from the point of view it is identifying the style of line-ending rather than the sequence of bytes to use (2) 'cr' and 'lf' are defined as the same numToChar(10) constant on all platforms.
+
+Values:
+
+OS:
+mac,windows,linux

@@ -1,0 +1,25 @@
+EmptyArray
+(expression)
+Designates the array with no elements.
+
+Syntax:
+the empty array
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tVar as Array
+variable tCount as Number
+put the empty array into tVar
+put the number of elements in tVar into tCount -- tCount is 0
+----
+
+Description:
+Use ```the empty array``` to initialise an array variable.
+
+Values:
+
+OS:

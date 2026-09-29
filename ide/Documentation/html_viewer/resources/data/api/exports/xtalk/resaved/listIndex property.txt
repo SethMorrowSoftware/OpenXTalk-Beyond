@@ -1,0 +1,25 @@
+listIndex
+(property)
+Sets the index for a paragraph when an (ordered) listStyle is set .
+
+Syntax:
+set the listIndex of {line} of {field} to {index}
+----
+
+Synonyms:
+
+Params:
+index ( ): The index of a paragraph
+
+Examples:
+set the listIndex of line 1 of field 1 to 4
+----
+
+Description:
+Use the listIndex property to set the index of a paragraph when an (ordered) list style is set.
+
+Values:
+The listIndex of a line of a field returns the index of the paragraph. This translates to htmlText via the 'value' attribute on <li> tags.  
+
+OS:
+mac,windows,linux,ios,android

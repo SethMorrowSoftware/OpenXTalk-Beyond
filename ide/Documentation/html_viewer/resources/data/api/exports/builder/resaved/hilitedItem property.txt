@@ -1,0 +1,24 @@
+hilitedItem
+(property)
+The index of the highlighted navigation item
+
+Syntax:
+get the hilitedItem of {widget}
+----
+set the hilitedItem of {widget} to {itemNumber}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The hilitedItem is the item number of the currently-highlighted navigation item.  It can be used as a key into the itemArray.
+
+Setting 0 will cause nothing to be highlighted.
+
+Values:
+The item number of the navigation item that is highlighted. 
+
+OS:

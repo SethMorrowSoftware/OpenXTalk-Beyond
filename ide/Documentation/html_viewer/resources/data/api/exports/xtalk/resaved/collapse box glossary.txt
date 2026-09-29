@@ -1,0 +1,16 @@
+collapse box
+(glossary)
+
+Syntax:
+Synonyms:
+windowshade, windowshade box, collapse box, collapse boxes, collapse
+
+Params:
+
+Examples:
+Description:
+Box at the right end of a window's title bar (on Mac OS|Mac OS systems) that hides everything but the title bar when you click it. Clicking the collapse box again reveals the window contents.
+
+Values:
+
+OS:

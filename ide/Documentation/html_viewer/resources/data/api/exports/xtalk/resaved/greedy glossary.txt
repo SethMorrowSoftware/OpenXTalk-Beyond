@@ -1,0 +1,16 @@
+greedy
+(glossary)
+
+Syntax:
+Synonyms:
+greedy, greediness
+
+Params:
+
+Examples:
+Description:
+A form of regular expression that tries to include as long a string of text as possible while still matching the pattern.
+
+Values:
+
+OS:

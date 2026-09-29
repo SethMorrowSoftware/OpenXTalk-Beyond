@@ -1,0 +1,21 @@
+StringFromNSString
+(handler)
+Convert a Objective-C string into a String
+
+Syntax:
+StringFromNSString({pObjcString})
+----
+
+Synonyms:
+
+Params:
+pObjcString ( ): The NSString to convert
+
+Examples:
+Description:
+Convert a Objective-C string into a String
+
+Values:
+A String value  Description Use StringFromNSString to convert an Objective-C string object (NSString) to a variable of type String. 
+
+OS:

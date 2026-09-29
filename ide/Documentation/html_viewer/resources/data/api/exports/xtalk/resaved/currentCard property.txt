@@ -1,0 +1,37 @@
+currentCard
+(property)
+The short name of the current card of a stack
+
+Syntax:
+get the currentCard of {stack}
+set the currentCard of {stack} to {cardName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+-- The following results in the same value as
+-- "put the short name of the current card of this stack"
+put the currentCard of this stack
+----
+-- This property is useful if the stack is invisible, not
+-- in the foreground or offscreen
+set the visible of this stack to false
+put the currentCard of this stack
+----
+-- The currentCard property can be retrieved or set for a
+-- stack that is not currently an opened file
+set currentCard of stack "~/Desktop/example.OpenXTalk" \
+      to "ExampleCardName"
+----
+
+Description:
+Use the currentCard property to change the current card of a stack, or find out which card is the current card of a stack. The target stack does not need to be the frontmost stack or otherwise visible, nor does the stack file need not be open (file write access is needed in order to set the property).
+
+Values:
+The short name of a card in a stack 
+
+OS:
+mac,windows,linux,ios,android

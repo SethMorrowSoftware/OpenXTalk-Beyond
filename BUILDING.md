@@ -1,21 +1,25 @@
-# Building OpenXTalk Lite for Windows
+# Building OXT-Beyond for Windows
 
-This guide builds OpenXTalk Lite for 64-bit Windows (x86_64) from source,
-using the same tools and commands as the project's CI build. It is the
-only supported build at the moment. The upstream LiveCode instructions
-for other platforms are still in `docs/development/`, but they are not
-maintained for this project.
+This guide builds OXT-Beyond for 64-bit Windows (x86_64) from source,
+packages it and makes its installer, using the same tools and commands
+as the project's CI build. It is the only supported build at the moment.
+The upstream LiveCode instructions for other platforms are still in
+`docs/development/`, but they are not maintained for this project.
 
-The build needs a legacy toolchain: the Visual Studio 2017 C++ compiler
-(toolset v141, installed as an optional part of Visual Studio 2022),
-Python 2.7 and Cygwin. That is what the engine's build files and the
-prebuilt third-party libraries were made for. Moving to current tools
-is planned but has not been done yet.
+The engine build needs a legacy toolchain: the Visual Studio 2017 C++
+compiler (toolset v141, installed as an optional part of Visual Studio
+2022), Python 2.7 and Cygwin. That is what the engine's build files and
+the prebuilt third-party libraries were made for. Moving to current
+tools is planned but has not been done yet. Packaging needs Python 3,
+and the installer needs Inno Setup 6.
 
-What you get at the end is a `win-x86_64-bin` folder with the engines,
-externals and tools, and an IDE you can run straight from your clone.
-The files are still named after LiveCode (`LiveCode-Community.exe`);
-rebranding is planned.
+What you get from the build is a `win-x86_64-bin` folder with the
+engines, externals and tools, and an IDE you can run straight from your
+clone. The files in it are still named after LiveCode
+(`LiveCode-Community.exe`). Packaging turns them, the IDE and the
+standalone runtimes for other platforms into OXT-Beyond's installed
+layout, with the development engine renamed `OXT-Beyond.exe`, and from
+that the portable zip and the installer.
 
 Contents:
 
@@ -29,6 +33,7 @@ Contents:
 8. [Troubleshooting](#8-troubleshooting)
 9. [Continuous integration](#9-continuous-integration)
 10. [Making a release](#10-making-a-release)
+11. [Working on the IDE](#11-working-on-the-ide)
 
 ## 1. Quick reference
 
@@ -45,10 +50,20 @@ cd ..
 win-x86_64-bin\LiveCode-Community.exe
 ```
 
+and, to make the packages and the installer (section 7; this needs
+Python 3 and Inno Setup 6):
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools\ci\package-windows.ps1
+powershell -ExecutionPolicy Bypass -File tools\ci\build-installer.ps1
+```
+
 Allow several gigabytes of disk space. On an existing tree the clone
 (files and Git history) took about 0.8 GB, the downloaded prebuilt
 archives 0.3 GB, the unpacked prebuilt libraries 1.5 GB, the build
-folder 3.5 GB and `win-x86_64-bin` 0.5 GB.
+folder 3.5 GB and `win-x86_64-bin` 0.5 GB. Packaging needs about 1 GB
+more for `dist\stage`, 0.2 GB for the downloaded runtimes and about
+0.6 GB for the zips, plus the installer.
 
 A first build compiles everything, one project at a time, and takes a
 long while. Later builds only rebuild what changed.
@@ -62,6 +77,8 @@ long while. Later builds only rebuild what changed.
 | Strawberry Perl | any recent 64-bit release | default location, on `PATH` |
 | Git for Windows | any recent release | default location |
 | Cygwin | 64-bit, with flex, bison and a few other packages | `C:\cygwin64`, **not** on `PATH` |
+| Python 3 (for packaging) | 3.6 or later | any; found as `py -3`, `python3` or `python` |
+| Inno Setup (for the installer) | 6.3 or later | default location |
 
 You do not need the Microsoft Speech SDK 5.1 that the old upstream
 instructions mention, or the QuickTime SDK that `config.py` looks for.
@@ -217,6 +234,25 @@ C:\cygwin64\bin\flex.exe --version
 C:\cygwin64\bin\bison.exe --version
 ```
 
+### 2.6 Python 3 (for packaging)
+
+The packaging tools in `tools/oxt/` are Python 3 scripts that use only
+the standard library. Install a current Python 3 from
+[python.org](https://www.python.org/downloads/windows/) (the installer's
+`py` launcher is enough). It does not replace Python 2.7, which
+`config.py` still needs: `tools\ci\package-windows.ps1` looks for
+`py -3`, then `python3`, then a `python` that is Python 3.6 or later, or
+uses the interpreter you give it with `-Python`.
+
+### 2.7 Inno Setup 6 (for the installer)
+
+The installer is compiled with Inno Setup 6.3 or later. Install it from
+[jrsoftware.org](https://jrsoftware.org/isdl.php) into its default
+folder, or with Chocolatey (`choco install innosetup`).
+`tools\ci\build-installer.ps1` finds `ISCC.exe` there; if it cannot
+find it, it tries to install Inno Setup with Chocolatey itself (see
+[Installer](#installer)).
+
 ## 3. Get the source
 
 Clone with Git, into a path **without spaces**:
@@ -231,7 +267,11 @@ git clone --recurse-submodules https://github.com/SethMorrowSoftware/winoxt.git 
   tests. If you cloned without `--recurse-submodules`, run
   `git submodule update --init`.
 - `ide/` (the IDE) and `thirdparty/` (third-party library sources) are
-  ordinary folders in this repository, not submodules.
+  ordinary folders in this repository, not submodules. `ide/` holds the
+  OpenXTalk Lite 1.15 IDE with its history (see [HISTORY.md](HISTORY.md)).
+- The longest path in `ide/` is 142 characters. If you clone into a deep
+  folder and Git reports "Filename too long", enable long paths
+  (`git config --global core.longpaths true`) or use a shorter folder.
 - Paths with spaces break `util\invoke-unix.bat`, which passes the
   current folder to Cygwin unquoted.
 
@@ -440,9 +480,26 @@ The development engine sees that it is running from a folder called
 `win-x86_64-bin` and loads the IDE from the `ide` folder next to it. It
 also uses `ide-support\`, `extensions\script-libraries\`, `docs\` and the
 `*.lcb` files in `engine\src` and `libscript\src`, so run it from a
-complete checkout. The first launch takes longer because the IDE builds
-its dictionary; it writes that into `ide\Documentation\html_viewer\resources\data`,
-which is ignored by Git.
+complete checkout. This is the *development layout*; see
+[Development and installed layouts](#development-and-installed-layouts)
+for how it differs from an installed OXT-Beyond.
+
+The menubar window's title shows "OXT-Beyond" and the version in
+`ide/.version`; the build number (*Preferences > Automatic Updates*) is
+the placeholder `0` from `ide/.buildnumber`. The IDE uses the same
+preference, cache and log folders as an installed OXT-Beyond
+(`%APPDATA%\OXT-Beyond`, `%LOCALAPPDATA%\OXT-Beyond`).
+
+Running the IDE from your clone can change files in it. The dictionary
+deletes and rewrites its index files
+(`ide/Documentation/html_viewer/resources/data/api/exports/*/index.txt`,
+tracked by Git) each time it opens, and the IDE writes
+`ide/environment_log.txt` (ignored). If you switch the dictionary to
+LiveCode's HTML dictionary in the preferences, the IDE in this layout
+may also regenerate the dictionary data in
+`ide/Documentation/html_viewer/resources/data` from `docs/`, replacing
+tracked files. Check `git status` before you commit, and restore what
+you did not mean to change with `git checkout -- <path>`.
 
 ### Check the build
 
@@ -469,20 +526,27 @@ Each command prints the file name if the text is found.
 powershell -ExecutionPolicy Bypass -File tools\ci\smoke-test.ps1
 ```
 
-[`tools/ci/smoke-test.ps1`](tools/ci/smoke-test.ps1) starts
-`win-x86_64-bin\LiveCode-Community.exe` without a user interface (`-ui`)
-and runs [`tools/ci/smoke-test.livecodescript`](tools/ci/smoke-test.livecodescript).
+[`tools/ci/smoke-test.ps1`](tools/ci/smoke-test.ps1) starts the
+development engine without a user interface (`-ui`) and runs
+[`tools/ci/smoke-test.livecodescript`](tools/ci/smoke-test.livecodescript).
 It checks the script engine, Unicode handling (ICU), encryption (OpenSSL,
 through `revsecurity.dll`), SQLite through revDB (the version must match
 `thirdparty/libsqlite/include/sqlite3.h`; FTS5 and JSON must work and
 R*Tree must be compiled in), revXML and revZip. It prints one line per
 check and exits with the number of failed checks.
 
-To test a package instead of the build folder, add
-`-Package dist\OpenXTalkLite-<ver>-win-x86_64-ide.zip`: the zip is
-extracted to a temporary folder and its engine is tested. The smoke test
-does not open the IDE's windows; to check those, start
-`LiveCode-Community.exe` normally.
+Without options it tests `win-x86_64-bin\LiveCode-Community.exe`. It can
+also test the other layouts:
+
+| Option | What is tested |
+| --- | --- |
+| `-Package dist\OXT-Beyond-<ver>-win-x86_64-portable.zip` | The zip is extracted to a temporary folder and its layout detected: the portable zip is an installed layout, so `OXT-Beyond.exe` in it is tested, with the externals in `Externals` and the database drivers in `Externals\Database Drivers`. A zip with a `win-x86_64-bin` folder is tested as a development layout. |
+| `-InstallDir <folder>` | An installed OXT-Beyond, for example `-InstallDir "C:\Program Files\OXT-Beyond"`. |
+| `-Exe <file name>` | An engine with another file name. |
+| `-LogFile <file>` | Also writes the engine's output to a file. |
+
+The smoke test does not open the IDE's windows; to check those, start
+the IDE normally.
 
 ### Package
 
@@ -490,18 +554,344 @@ does not open the IDE's windows; to check those, start
 powershell -ExecutionPolicy Bypass -File tools\ci\package-windows.ps1
 ```
 
-[`tools/ci/package-windows.ps1`](tools/ci/package-windows.ps1) writes to
-`dist\` (`<ver>` is `BUILD_SHORT_VERSION` from the `version` file):
+[`tools/ci/package-windows.ps1`](tools/ci/package-windows.ps1) needs
+Python 3 (section 2.6). It runs
+[`tools/oxt/package.py`](tools/oxt/package.py), which writes the
+*installed layout*, the program folder that the portable zip contains
+and the installer installs, to `dist\stage\OXT-Beyond-<ver>\`. Then it
+writes to `dist\` (`<ver>` is the content of `ide/.version`, for example
+`0.0.1`):
 
 | File | Contents |
 | --- | --- |
-| `OpenXTalkLite-<ver>-win-x86_64-ide.zip` | A runnable IDE: one folder `OpenXTalkLite-<ver>-win-x86_64\` with `win-x86_64-bin` (without `.pdb` files), `ide`, `ide-support`, `extensions\script-libraries`, `docs`, the `*.lcb` sources the dictionary needs, the two Windows icons that "Save as Standalone" uses (`engine\rsrc\standalone.ico` and `document.ico`), the licence files and `README-FIRST.txt`. |
-| `OpenXTalkLite-<ver>-win-x86_64-binaries.zip` | `win-x86_64-bin` without `.pdb` files, plus `LICENSE`, `LICENSE-EXCEPTION.md` and `THIRD-PARTY-NOTICES.md`. |
-| `OpenXTalkLite-<ver>-win-x86_64-symbols.zip` | The `.pdb` debug symbols. |
-| `SHA256SUMS` | Checksums of the three zips. |
+| `OXT-Beyond-<ver>-win-x86_64-portable.zip` | The staged program folder, under one top folder `OXT-Beyond-<ver>\`. |
+| `OXT-Beyond-<ver>-win-x86_64-binaries.zip` | `win-x86_64-bin` without `.pdb` files, plus `LICENSE`, `LICENSE-EXCEPTION.md` and `THIRD-PARTY-NOTICES.md`. Extracting it into the root of a source checkout gives the same layout as a build. |
+| `OXT-Beyond-<ver>-win-x86_64-symbols.zip` | The `.pdb` debug symbols, under `win-x86_64-bin\`. |
+| `SHA256SUMS` | Checksums of the three zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
 
-The Windows installer (made upstream by the `builder/` scripts) is not
-built yet.
+Options: `-BuildNumber <n>`, `-AssetsCache <folder>`,
+`-NoExternalAssets`, `-OutDir <folder>` (default `dist`),
+`-StageParent <folder>` (default `<OutDir>\stage`), `-BinDir <folder>`,
+`-Python <path>` and `-CompressionLevel Optimal|Fastest|NoCompression`.
+Existing files of the same names are replaced; other files in `dist`
+are left alone.
+
+`package.py` puts the staged folder together from:
+
+- **the IDE**, assembled by `tools/oxt/layout.py` from `ide/Toolset`,
+  `ide/Plugins`, `ide/Resources`, `ide/Documentation`, `ide/Extensions`,
+  the files at the root of `ide/` (`about.dat`, `.version`, the licence
+  texts and so on) and the eleven `ide-support` libraries, with LF line
+  endings in text files whatever Git's `core.autocrlf` is;
+- **the build output**, at the paths that
+  [`Installer/package.txt`](Installer/package.txt) gives them on Windows
+  x86-64: `OXT-Beyond.exe` (the development engine
+  `LiveCode-Community.exe`, renamed), `revsecurity.dll` and
+  `revpdfprinter.dll` at the root; `Externals\` (with `Externals.txt`),
+  `Externals\Database Drivers\` (with `Database Drivers.txt`) and
+  `Externals\CEF\`; `Toolchain\` with `lc-compile`, `lc-run`,
+  `lc-compile-ffi-java` and the modules; `Runtime\Windows\x86-64\` with
+  the standalone engine, its externals, support files and manifest
+  templates; and `Extensions\` with the build's `packaged_extensions`
+  and the extensions in `ide/Extensions`;
+- **generated files**: `edition.txt` ("community"), `.buildnumber`, and
+  two empty dictionary folders
+  (`Documentation\html_viewer\resources\data\api\exports\{builder,datagrid}\plugins`)
+  that Git cannot store;
+- **the licence files** `LICENSE`, `LICENSE-EXCEPTION.md` and
+  `THIRD-PARTY-NOTICES.md`, at the root;
+- **the external assets**, see [below](#external-assets).
+
+Some build outputs are deliberately not installed: the `.pdb` files,
+LiveCode's own installer engine (`installer.exe`), the server engine and
+its externals, and the `canvas` and `ini` library extensions, which
+`Installer/package.txt` does not list.
+
+The build number written into the packaged `.buildnumber` is
+`-BuildNumber` (`--build-number` for `package.py`), else the environment
+variable `OXT_BUILD_NUMBER`, else the current UTC time as
+`YYYYMMDDHHMM`. `ide/.buildnumber` in the repository is only a
+placeholder (`0`).
+
+You can also run `package.py` directly:
+
+```bat
+python tools\oxt\package.py --repo . --bin win-x86_64-bin --out dist\stage
+```
+
+It takes `--build-number N`, `--assets-cache DIR`,
+`--no-external-assets`, `--offline` (use cached assets only),
+`--eol lf|crlf|keep`, `--summary-json FILE` and the comparison options
+below.
+
+**Comparing with OpenXTalk Lite 1.15.** The staged layout is meant to
+contain every file of OpenXTalk Lite 1.15 that is not part of the IDE,
+at the same path, apart from intended differences. To check:
+
+```bat
+python tools\oxt\package.py --repo . --bin win-x86_64-bin --out %TEMP%\oxtb-stage --compare "C:\path\to\OpenXTalk Lite" --report compare.tsv
+```
+
+`--compare` takes the extracted `openxtalk-lite-1.15-win-noinstaller.7z`
+folder, or a TSV path list written by `layout.py classify`. It fails if
+a file of 1.15 that is not part of the IDE is missing without a reason,
+if a staged file that is not part of the IDE is not in 1.15 and is not
+an intended addition, or if a file from an external asset is not
+byte-identical to 1.15's. IDE changes since 1.15 are listed but are not
+errors. The intended differences are:
+
+- `OpenXTalk-Lite.exe` is staged as `OXT-Beyond.exe`;
+- `Ext\` (the mergExt externals) is not included (see
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#files-openxtalk-lite-shipped-that-oxt-beyond-does-not));
+- ten `.lci` files in `Toolchain\modules\lci` are missing: interfaces of
+  LiveCode commercial-edition modules that this repository does not
+  have, and `com.livecode.commercial.license.lci`, which this build does
+  not write;
+- files `layout.py` classes "excluded" (Apple's Human Interface
+  Guidelines PDF, `animationEngine6.zip`) or "junk"
+  (`OpenXTalk Lite.lnk`, `test.db`, an empty
+  `Toolset\palettes\dictionary\api.sqlite`) are not staged;
+- the licence files and `PROVENANCE-oxt-runtimes-1.15.md` are added.
+
+Build outputs are staged as this repository builds them, so some of
+them differ from Tom Perry's binaries in 1.15 even where the paths
+match; the report marks them "rebuilt".
+
+### External assets
+
+External assets are files that the packages include but that this
+repository neither builds nor keeps in Git, such as the standalone
+runtimes for other platforms. They are listed in
+[`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). Each
+asset is one zip archive with a fixed URL, size and SHA-256:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | A unique name, used in messages and reports. |
+| `url` | HTTPS URL of the archive. |
+| `sha256`, `size` | SHA-256 (lowercase hex) and size in bytes of the archive. |
+| `kind` | `zip` (the only kind so far). |
+| `strip` | Number of leading path components removed from every member of the archive. |
+| `dest` | Folder, relative to the installed root, that the remaining paths go into (`""` for the root). |
+| `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
+| `description`, `licence`, `source` | Text for people and reports. |
+
+Today there is one asset, `oxt-runtimes-1.15`: the Windows x86-32, Linux
+and Android runtimes and the time zone library code for other platforms
+from OpenXTalk Lite 1.15, unchanged, with a `PROVENANCE.md` (installed as
+`PROVENANCE-oxt-runtimes-1.15.md`). It is published as the file
+`oxt-runtimes-1.15.zip` of this repository's release `runtimes-1.15`.
+Until that release exists, packaging with external assets fails; use
+`-NoExternalAssets` in the meantime (in CI, the `no_external_assets`
+input or the `OXT_NO_EXTERNAL_ASSETS` variable; see
+[Continuous integration](#9-continuous-integration)).
+
+**Download cache.** The archives are downloaded into the folder given
+with `-AssetsCache` (`--assets-cache`), else the environment variable
+`OXT_ASSETS_CACHE`, else `prebuilt\fetched-assets` in the repository
+(ignored by Git). An archive in the cache is used when its size and
+SHA-256 match the manifest; otherwise it is downloaded again over HTTPS
+(redirects followed, transient errors retried) to a temporary name and
+moved into place once it has been verified. A download whose size or
+SHA-256 does not match the manifest is an error and is not retried.
+[`tools/oxt/fetch_assets.py`](tools/oxt/fetch_assets.py) does the same
+without packaging:
+
+```bat
+python tools\oxt\fetch_assets.py --list
+python tools\oxt\fetch_assets.py
+```
+
+It also takes `--assets-cache DIR`, `--offline` and `--id ID`. To
+package on a computer without internet access, copy the archive (with
+its file name from the URL) into the cache folder; with `--offline`,
+`package.py` makes sure nothing is downloaded.
+`-NoExternalAssets` (`--no-external-assets`) leaves the assets out
+altogether; the IDE then offers no standalone targets for other
+platforms.
+
+**Making the runtimes asset.**
+[`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
+builds it from an extracted OpenXTalk Lite release, taking only files
+that `layout.py` classes "external" (not `Ext\`):
+
+```bat
+python tools\oxt\make_runtimes_asset.py "C:\path\to\OpenXTalk Lite" --out C:\tmp\oxt-asset --source-archive openxtalk-lite-1.15-win-noinstaller.7z --update-manifest
+```
+
+It writes `oxt-runtimes-<version>.zip` and a copy of its `PROVENANCE.md`
+to the `--out` folder. With `--stock-setup <file>` (the `.setup.exe` of
+LiveCode Community 9.6.3 for Windows) `PROVENANCE.md` also says which
+files are identical to LiveCode's. The zip is reproducible (sorted
+entries, file dates from the files), so the same folder and options
+give the same SHA-256. `--update-manifest` writes the size and SHA-256
+into `tools/oxt/external-assets.json`; commit that change.
+
+**Publishing an asset** is a manual step for a maintainer. Create a
+release with a tag that does not start with `v` and attach the files;
+`PROVENANCE.md` is too long for release notes, so attach it as a file:
+
+```bat
+gh release create runtimes-1.15 C:\tmp\oxt-asset\oxt-runtimes-1.15.zip C:\tmp\oxt-asset\PROVENANCE.md --prerelease --title "Standalone runtimes from OpenXTalk Lite 1.15" --notes "Prebuilt files used by tools/oxt/package.py. See PROVENANCE.md (also inside the zip)."
+```
+
+`--prerelease` keeps the release from becoming the repository's latest
+release, because GitHub never treats a pre-release as the latest
+release. OXT-Beyond's update check reads the latest release first; it
+skips releases whose tag is not a version, but people browsing the
+Releases page would see an asset release marked latest. Never replace
+the file of a published asset: the manifest pins its SHA-256, and
+packages made earlier must stay reproducible. To change
+an asset, publish it under a new tag and add or update the manifest
+entry.
+
+**Adding an asset**, for example an extension taken from an xTalk Suite
+repository at a pinned version: add an entry with the URL of that
+version's release archive, its size and SHA-256, `strip` and `dest` (for
+example `Extensions/<extension id>`), and its description, licence and
+source; add the component to
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); and check the staged
+result.
+
+### IDE compile check
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools\ci\ide-compile-check.ps1 -Root dist\stage\OXT-Beyond-<ver>
+```
+
+[`tools/ci/ide-compile-check.ps1`](tools/ci/ide-compile-check.ps1) runs
+[`tools/ci/ide-compile-check.livecodescript`](tools/ci/ide-compile-check.livecodescript)
+with the engine of that layout, without a user interface. It compiles
+every script-only stack (`*.livecodescript`, `*.oxtscript`) under
+`Toolset`, `Plugins` and `Extensions`, and every object script (stacks,
+cards, groups and controls) of the binary stacks (`*.livecode`, `*.rev`,
+`*.oxtstack`) under `Toolset` and `Plugins`. Stacks are loaded with
+messages locked; they are never opened or saved. Each error is one line:
+
+```text
+<file> | <object> | line <n> | <message>
+```
+
+Errors listed in
+[`tools/ci/ide-compile-baseline.txt`](tools/ci/ide-compile-baseline.txt)
+are known, pre-existing errors. The check fails (exit code 1) when there
+is an error that is not in the baseline, or when the engine does not
+finish; baseline entries that no longer occur are reported as warnings.
+Today the baseline has one entry: a button script in the macOS ARM
+standalone builder (`mac-arm-deploy.oxtstack`) that uses
+`_internal build MacARM`, which only Tom Perry's macOS ARM engine
+understands.
+
+Options: `-Root` (default: the single `OXT-Beyond-*` folder in
+`dist\stage`), `-Engine` (default: the layout's `OXT-Beyond.exe`, or
+`win-x86_64-bin\LiveCode-Community.exe` for a layout without an engine),
+`-LogFile`, `-TimeoutSeconds`. To rewrite the baseline from the current
+errors, add `-UpdateBaseline` (and `-BaselineSource "<description>"`);
+review the result before committing it.
+
+### Installer
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools\ci\build-installer.ps1
+```
+
+[`tools/ci/build-installer.ps1`](tools/ci/build-installer.ps1) compiles
+[`Installer/oxt-beyond/oxt-beyond.iss`](Installer/oxt-beyond/oxt-beyond.iss)
+with Inno Setup 6.3 or later over the staged layout (default
+`dist\stage\OXT-Beyond-<ver>`) into
+`dist\OXT-Beyond-<ver>-win-x86_64-setup.exe`, then rewrites
+`dist\SHA256SUMS` over all files in `dist`. It looks for `ISCC.exe` in
+`-Iscc`, the usual Inno Setup 6 folders, Inno Setup's uninstall
+registration and `PATH`; if it finds none, it runs
+`choco install innosetup -y --no-progress` (which needs Chocolatey and
+administrator rights), unless you pass `-NoInstall`. The wizard images
+are made from the icon art by
+[`Installer/oxt-beyond/make-wizard-images.ps1`](Installer/oxt-beyond/make-wizard-images.ps1)
+in a temporary folder (`-NoWizardImages` uses Inno Setup's own). Other
+options: `-Stage`, `-OutDir`, `-Version`, `-BuildNumber` and `-LogFile`.
+The `.iss` script can also be compiled on its own in the Inno Setup
+IDE; it then reads the version from `ide/.version` and expects the stage
+in `dist\stage`.
+
+What the installer does:
+
+- It has a fixed `AppId`, so a newer version replaces an installed one.
+  Before installing over an older version it deletes the `Toolset`,
+  `Extensions`, `Externals`, `Toolchain` and `Runtime` folders, so no
+  file that the new version no longer ships is left behind.
+- It installs for all users into `C:\Program Files\OXT-Beyond` (with
+  administrator rights) or, if chosen on its first page or with
+  `/CURRENTUSER`, for the current user into
+  `%LOCALAPPDATA%\Programs\OXT-Beyond`.
+- It shows `LICENSE` as the licence page, adds a Start menu shortcut
+  and, optionally, a desktop shortcut, and optionally associates
+  `.oxtstack` and `.oxtscript` files with `OXT-Beyond.exe "%1"` (program
+  IDs `OXTBeyond.Stack` and `OXTBeyond.Script`; `.livecode` is left
+  alone). The IDE no longer shows OpenXTalk Lite's own "File
+  Associations" dialog on Windows (`ide/Toolset/home.livecodescript`),
+  so it does not register `.rev`, `.livecode` or `.livecodescript`
+  either.
+- The IDE writes to some data files inside the program folder at run
+  time. In an install for all users, the Users group gets Modify
+  permission on these data files: the dictionary's
+  `Documentation\html_viewer\resources\data\api\exports` folder, and
+  `Toolset\palettes\updates\whatsnew.txt` and `updatehistory\*.txt`
+  (opened with `open file`, which opens a file for reading and
+  writing). No folder or file with stacks, scripts or programs is made
+  writable, so the few places where the IDE saves stacks inside the
+  program folder fail for standard users in an install for all users:
+  the Report Builder plugin saving itself when it closes, *Plugin
+  Settings* changes to the plugins that come with OXT-Beyond, and edits
+  to the built-in image libraries (see the README's
+  [known limitations](README.md#known-limitations-and-plans)). An
+  install for the current user, or the portable zip, does not have this
+  problem.
+- The uninstaller removes the program files, shortcuts and file
+  associations, but not the preferences, caches and logs in
+  `%APPDATA%\OXT-Beyond` and `%LOCALAPPDATA%\OXT-Beyond`.
+- Setup always writes a log to `%TEMP%`.
+
+### Test the installer
+
+```bat
+powershell -ExecutionPolicy Bypass -File tools\ci\test-installer.ps1 -Setup dist\OXT-Beyond-<ver>-win-x86_64-setup.exe
+```
+
+[`tools/ci/test-installer.ps1`](tools/ci/test-installer.ps1) installs
+the setup program silently for the current user into a new temporary
+folder (`/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=...`,
+with the desktop shortcut), checks the exit code, the key files, that
+every staged file was installed with the same size, `.version`, the
+uninstall registration, the shortcuts, the file associations and the
+Modify permissions, runs the smoke test on the installed
+`OXT-Beyond.exe`, then uninstalls silently and checks that everything
+was removed. It refuses to run if OXT-Beyond is already installed for
+your user, and it leaves the file associations out if `.oxtstack` or
+`.oxtscript` already open with another program. It changes your user
+account while it runs (registry, Start menu, desktop), so a test
+computer or virtual machine is a good place for it. Options:
+`-InstallDir`, `-Stage`, `-LogDir`, `-TimeoutSeconds` and
+`-SkipSmokeTest`.
+
+### Development and installed layouts
+
+| | Development layout (your clone) | Installed layout (`dist\stage`, portable zip, installer) |
+| --- | --- | --- |
+| Engine | `win-x86_64-bin\LiveCode-Community.exe` | `OXT-Beyond.exe` at the root |
+| IDE | `ide\` and `ide-support\`, where they are in the repository | `Toolset\`, `Plugins\`, `Resources\`, `Documentation\` |
+| Externals and database drivers | `win-x86_64-bin\` | `Externals\`, `Externals\Database Drivers\`, `Externals\CEF\` |
+| Extensions | only the build's (`win-x86_64-bin\packaged_extensions`) | `Extensions\`: the build's and those in `ide/Extensions` (OXT Lite functions, DevGuides alignment guides, Calendar, Pie Chart, macOS Native Tools) |
+| Standalone runtimes | the build's Windows x86-64 engine | `Runtime\Windows\x86-64\` from the build, and the other platforms from the runtimes asset |
+| Version and build number | `ide\.version`, `ide\.buildnumber` (`0`) | `.version`, `.buildnumber` (the real build number) at the root |
+| `revEnvironmentIsInstalled()` | false | true |
+| Used for | working on the engine and the IDE | what users run; what CI tests |
+
+Tom Perry's IDE was made for, and tested in, the installed layout, and
+the IDE has code paths for each layout, so check IDE changes in both. To
+run the installed layout without installing it, start
+`dist\stage\OXT-Beyond-<ver>\OXT-Beyond.exe`; but make your changes in
+the repository, not in `dist\stage`, which the next packaging run
+replaces.
 
 ## 8. Troubleshooting
 
@@ -578,6 +968,34 @@ build again.
 **The command prompt closes when the build finishes.** Run
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
+**Packaging fails to download `oxt-runtimes-1.15.zip`** (HTTP 404). The
+`runtimes-1.15` release has not been published (or your fork does not
+have it). Package with `-NoExternalAssets`, or copy the file into the
+cache folder, where it is used without downloading when its size and
+SHA-256 match (see [External assets](#external-assets)). In CI, start
+the workflow by hand with `no_external_assets`, or set the repository
+variable `OXT_NO_EXTERNAL_ASSETS` to `1` until the release exists.
+
+**An external asset's size or SHA-256 does not match** ("expected ..."
+in the message). The downloaded file is not the one the manifest pins,
+and packaging stops. A cached copy that does
+not match is downloaded again automatically; a fresh download that
+does not match means the published file has changed or the download was
+tampered with. Report it; do not update the manifest to match a file
+you have not checked.
+
+**`package-windows.ps1` finds no Python 3.** Install Python 3 (section
+2.6) or pass `-Python C:\path\to\python.exe`. Python 2.7 is not enough
+for packaging.
+
+**`build-installer.ps1` cannot find `ISCC.exe`.** Install Inno Setup 6.3
+or later (section 2.7) or pass `-Iscc C:\path\to\ISCC.exe`. The automatic
+Chocolatey install needs Chocolatey and an elevated prompt.
+
+**`test-installer.ps1` refuses to run.** OXT-Beyond is installed for
+your user. Uninstall it first, or run the test in another account or on
+a test computer.
+
 ### Line endings
 
 With Git for Windows' default `core.autocrlf=true`, text files are
@@ -598,28 +1016,51 @@ different setting, make a fresh clone.
 ## 9. Continuous integration
 
 The workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml)
-("Build (Windows)") builds OpenXTalk Lite on GitHub's `windows-2022`
+("Build (Windows)") builds OXT-Beyond on GitHub's `windows-2022`
 runners. It runs on every push and pull request to `main`, on tags that
 start with `v`, and when started by hand from the Actions tab.
 
-It follows this guide: it adds the v141 components to the runner's
-Visual Studio 2022 with `tools/ci/install-vs-components.ps1`, installs
-Python 2.7 and Cygwin, fetches only the release prebuilt archives
-(`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`, with
-`PREBUILT_STRICT=1`, and cached between runs), configures and builds
-Release x64 with `tools/ci/build-windows.ps1` and Windows SDK
-10.0.17763.0, checks the result with `tools/ci/verify-build.ps1`,
-packages it with `tools/ci/package-windows.ps1` and runs the
-[smoke test](#smoke-test) on the engine inside the packaged IDE zip. It
-uploads two artifacts:
+It follows this guide:
 
-- `OpenXTalkLite-win-x86_64`: when the build, the checks and the smoke
-  test succeed, the contents of `dist\`, kept for 30 days;
-- `build-logs`: `msbuild.log`, the smoke test output and the installer
-  logs, kept for 14 days and uploaded even when the build fails.
+1. It reads the product version from `ide/.version` (a tag build fails
+   straight away if the tag is not `v` followed by that version) and
+   sets `OXT_BUILD_NUMBER` to the UTC time at which the job started
+   (`YYYYMMDDHHMM`), so every file of the run has the same build number.
+2. It adds the v141 components to the runner's Visual Studio 2022 with
+   `tools/ci/install-vs-components.ps1`, installs Python 2.7 and Cygwin,
+   and fetches only the release prebuilt archives
+   (`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`, with
+   `PREBUILT_STRICT=1`, cached between runs).
+3. It configures and builds Release x64 with `tools/ci/build-windows.ps1`
+   and Windows SDK 10.0.17763.0, and checks the result with
+   `tools/ci/verify-build.ps1`.
+4. It packages with `tools/ci/package-windows.ps1`: the installed layout
+   in `dist\stage\OXT-Beyond-<ver>` and the portable, binaries and
+   symbols zips. The external assets are cached in
+   `prebuilt\fetched-assets` between runs, keyed on the manifest. They
+   are left out (`-NoExternalAssets`, with a warning in the run) when
+   the workflow is started by hand with the input `no_external_assets`,
+   or when the repository variable `OXT_NO_EXTERNAL_ASSETS` is `1`, for
+   example while a new asset is not published yet. Tag builds always
+   include them.
+5. It runs the [smoke test](#smoke-test) on the portable zip, the
+   [IDE compile check](#ide-compile-check) on the staged layout, builds
+   the [installer](#installer) and [tests it](#test-the-installer):
+   install for the current user, smoke test of the installed program,
+   uninstall.
 
-Downloading artifacts requires a GitHub account. Public downloads are
-Releases.
+It uploads two artifacts:
+
+- `OXT-Beyond-win-x86_64`: when every step succeeds, the files in
+  `dist\` (the installer, the three zips and `SHA256SUMS`; not the
+  staged folder), kept for 30 days;
+- `build-logs`: `msbuild.log` and the logs of packaging, the smoke test,
+  the IDE compile check and building and testing the installer, kept for
+  14 days and uploaded even when the build fails.
+
+When a step fails, a "Failure diagnostics" table in the job summary
+shows which step it was. Downloading artifacts requires a GitHub
+account. Public downloads are Releases.
 
 The badge at the top of the [README](README.md) and the
 [Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
@@ -627,37 +1068,96 @@ show the state of the latest runs.
 
 ## 10. Making a release
 
-Releases are built by CI from a tag.
+Releases are built by CI from a tag. The product version is the content
+of `ide/.version` (for example `0.0.1`); the tag is `v` followed by it
+(`v0.0.1`). The engine version in the `version` file (9.7.1-OXT, build
+25923) is separate: change it only when the engine changes, and then
+also check `tools/ci/verify-build.ps1` and the smoke test, which compare
+against it.
 
-1. Update the `version` file in the repository root. Increase
-   `BUILD_REVISION`, and set `BUILD_MAJOR_VERSION`,
-   `BUILD_MINOR_VERSION`, `BUILD_POINT_VERSION`, `BUILD_SHORT_VERSION`
-   (used in file names, for example `9.7.1-OXT`) and
-   `BUILD_LONG_VERSION` to match.
-2. Merge that change into `main` through a pull request and wait for the
+1. Make sure the external assets in `tools/oxt/external-assets.json`
+   are published (see [External assets](#external-assets)); packaging
+   fails without them.
+2. Set `ide/.version` to the new version, for example `0.0.2`, or
+   `0.1.0-beta.1` for a pre-release. Update the README's status and
+   limitations if they changed. Leave `ide/.buildnumber` at `0`.
+3. Merge that change into `main` through a pull request and wait for the
    build to pass.
-3. Tag the merged commit with `v` followed by `BUILD_SHORT_VERSION`, and
-   push the tag:
+4. Tag the merged commit and push the tag:
 
    ```bat
    git checkout main
    git pull
-   git tag -a v9.7.1-OXT -m "OpenXTalk Lite 9.7.1-OXT"
-   git push origin v9.7.1-OXT
+   git tag -a v0.0.2 -m "OXT-Beyond 0.0.2"
+   git push origin v0.0.2
    ```
 
-4. The workflow builds the tag and a release job publishes the files
-   from `dist\` (the three zips and `SHA256SUMS`) to a GitHub Release with
-   generated release notes. Tags containing `-alpha`, `-beta`, `-rc`,
-   `-dp` or `-pre` become pre-releases. The job warns if the tag does not
-   match `BUILD_SHORT_VERSION`. Edit the notes afterwards if needed: say
-   what changed and repeat the known limitations from the README.
+5. The workflow builds the tag. The release job then checks the files
+   against `SHA256SUMS`, checks that the tag is `v` followed by
+   `ide/.version` of the tagged commit (it publishes nothing otherwise)
+   and publishes the installer, the three zips and `SHA256SUMS` as a
+   GitHub Release named "OXT-Beyond <version>", with a short description
+   of the files followed by GitHub's generated release notes. Tags that
+   contain `-alpha`, `-beta`, `-rc`, `-dp` or `-pre` become
+   pre-releases. Edit the notes afterwards if needed: say what changed
+   and repeat the known limitations from the README.
+6. Check that GitHub shows the new release as the latest one, for
+   example with
+   `gh api repos/SethMorrowSoftware/winoxt/releases/latest --jq .tag_name`.
+   OXT-Beyond's update check reads that release (and the list of
+   releases, if it is not an OXT-Beyond version or the user runs a
+   pre-release). If another release is
+   marked latest, fix it with `gh release edit v0.0.2 --latest`.
+   Pre-releases are never "latest"; the update check offers them only to
+   people who already run a pre-release.
 
 GitHub also attaches source code archives of the tagged commit to the
 release. They include `ide/` and `thirdparty/`, which are part of this
-repository.
+repository. The runtimes asset has its own release and names its
+sources in its `PROVENANCE.md`.
 
 If only the release job fails (for example a network problem), re-run
 it from the Actions tab; it replaces the files of an existing release.
 If the build itself fails, fix the problem on `main` and tag a new
 version rather than moving an existing tag.
+
+## 11. Working on the IDE
+
+The IDE is in `ide/` (and eleven libraries in `ide-support/`). Run it
+from your clone to work on it (section 7), and read
+[CONTRIBUTING.md](CONTRIBUTING.md#changing-the-ide) before you change
+it.
+
+**Script-only stacks** (`*.livecodescript`) are text. Edit them in the
+IDE's script editor or any text editor, keep the file's style, mark
+changes to inherited scripts with `-- OXT-Beyond:` comments, and run the
+[IDE compile check](#ide-compile-check). Prefer script-only stacks for
+new code.
+
+**Binary stacks** (`*.livecode`, `*.rev`, `*.oxtstack`) are stored in Git
+byte for byte, as OpenXTalk Lite shipped them; Git cannot show what
+changed inside them. To keep their history reviewable:
+
+- open them with the IDE built from this repository, running from your
+  clone, so that the stack is loaded from `ide/` and saved back there by
+  the engine this project ships;
+- change only the stack you mean to change, and do not save the others
+  (saving rewrites the whole file, and can change its format version and
+  the paths stored in it);
+- commit each stack change on its own and describe in the commit message
+  which objects, properties or scripts changed and why;
+- run the IDE compile check, which also compiles the object scripts
+  inside binary stacks, and try the change in the installed layout
+  (`dist\stage\OXT-Beyond-<ver>\OXT-Beyond.exe`) as well.
+
+The "OpenXTalk Lite" text still inside some binary stacks is meant to be
+changed this way, a few stacks at a time.
+
+**Importing IDE files** from an installed OpenXTalk Lite (or LiveCode)
+folder is done with [`tools/oxt/layout.py`](tools/oxt/README.md):
+`classify` shows where each installed file belongs, `import` makes the
+IDE files in `ide/` and `ide-support/` mirror the installed ones, and
+`verify` checks the result. [HISTORY.md](HISTORY.md) describes how the
+OpenXTalk Lite history was imported with it, and
+[CONTRIBUTING.md](CONTRIBUTING.md#importing-from-other-projects) the
+rules for new imports.

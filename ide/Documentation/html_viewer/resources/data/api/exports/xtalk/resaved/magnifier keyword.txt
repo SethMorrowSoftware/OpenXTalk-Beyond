@@ -1,0 +1,20 @@
+magnifier
+(keyword)
+reserved word|Reserved for internal use.
+
+Syntax:
+magnifier
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The magnifier keyword is reserved word|reserved for internal use only
+
+Values:
+
+OS:
+mac,windows,linux

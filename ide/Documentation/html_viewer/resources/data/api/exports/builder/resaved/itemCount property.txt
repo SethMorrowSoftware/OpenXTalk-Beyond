@@ -1,0 +1,27 @@
+itemCount
+(property)
+The number of segments shown
+
+Syntax:
+get the itemCount of {widget}
+----
+set the itemCount of {widget} to {number}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The itemCount property can be used to obtain or to set the number of segments shown by the segmented control.
+
+When you set the itemCount to a number larger than the current number of segments in the control, new segments are added to the end of the control with unique itemNames|names and itemLabels|labels.
+
+When you set the itemCount to a number smaller than the current number of segments in the control, segments are discarded from the end of the control.  If this results in discarding a segment that's currently highlighted, the hiliteChanged message may be sent.
+
+The segmented control must always have at least one segment.
+
+Values:
+
+OS:

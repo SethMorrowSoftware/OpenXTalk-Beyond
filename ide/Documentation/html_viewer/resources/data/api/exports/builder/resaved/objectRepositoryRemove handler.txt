@@ -1,0 +1,20 @@
+objectRepositoryRemove
+(handler)
+Remove and object from the object repository
+
+Syntax:
+objectRepositoryRemove({pID})
+----
+
+Synonyms:
+
+Params:
+pID ( ): An object repository ID
+
+Examples:
+Description:
+As long ID of an object may mutate during a session the IDE needs an object reference that can handle that mutation.
+
+Values:
+
+OS:

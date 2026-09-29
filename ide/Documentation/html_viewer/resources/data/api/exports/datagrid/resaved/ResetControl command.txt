@@ -1,0 +1,19 @@
+ResetControl
+(command)
+Resets the control by clearing out any data.
+
+Syntax:
+dispatch "ResetControl" to group "DataGrid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Resets the control by clearing out any data.
+
+Values:
+
+OS:

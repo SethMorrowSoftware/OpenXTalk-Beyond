@@ -1,0 +1,16 @@
+built-in property
+(glossary)
+
+Syntax:
+Synonyms:
+built-in property, built-in properties
+
+Params:
+
+Examples:
+Description:
+A property that is part of the OpenXTalk language. Most built-in properties affect the appearance or behavior of the object(glossary). 
+
+Values:
+
+OS:

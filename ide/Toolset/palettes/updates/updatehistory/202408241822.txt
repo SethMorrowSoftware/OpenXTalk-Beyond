@@ -1,0 +1,2 @@
+Version 1.07, build 202408241822
+Added glossary links in the text-version of the dictionary.

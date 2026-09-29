@@ -1,0 +1,31 @@
+selectGroupedControls
+(property)
+Specifies whether clicking an object(glossary) in a group select|selects the object(glossary) or the entire group.
+
+Syntax:
+set the selectGroupedControls to {true | false}
+----
+set the selectGroupedControls of group {groupname} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the selectGroupedControls to (not the selectGroupedControls)
+----
+
+Description:
+Use the selectGroupedControls property to control what happens when you click a grouped control.
+
+If the selectGroupedControls property is set to false, clicking an object(glossary) in a group with the Pointer tool select(glossary)|selects the entire group. You must set the editBackground property to true to in order select(command), move, resize, and change individual object|objects in the group.
+
+If the selectGroupedControls is true, clicking an object(glossary) in a group select(glossary)|selects only that object(glossary), even if the editBackground is false.
+
+You can change the selectGroupedControls property by choosing Edit ? Select Grouped Controls from the menubar.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

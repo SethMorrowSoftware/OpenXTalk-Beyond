@@ -1,0 +1,20 @@
+headingError
+(message)
+Deprecated, use the trackingError message instead.
+
+Syntax:
+headingError
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This message is no longer in use and should be replaced with the new message, trackingError
+
+Values:
+
+OS:
+ios

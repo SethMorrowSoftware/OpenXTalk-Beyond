@@ -1,0 +1,2 @@
+Version 0.92, build 202309241013
+changes the Script Editor appearance so it visually behaves itself, no matter what system appearance theme you may currently be using. (removes colours set in the inspector) - adheres properly to Linux appearance themes now.

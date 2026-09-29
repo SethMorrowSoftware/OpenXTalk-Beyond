@@ -1,0 +1,21 @@
+arrayStyle
+(property)
+Whether the tree view should display its contents in array style or as a standard tree view.
+
+Syntax:
+get the arrayStyle of {widget}
+----
+set the arrayStyle of {widget} to {true|false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The arrayStyle property controls whether the keys of the arrayData of the widget are displayed with square brackets around them or not.
+
+Values:
+
+OS:

@@ -1,0 +1,19 @@
+formattedHeightChanged
+(message)
+Sent when the formatted height of the displayed data changes.
+
+Syntax:
+formattedHeightChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+The formattedHeightChanged message is sent to the widget's script object when the formatted height of the displayed data changes.  This is useful when using a mobileScroller to control the widget view.
+
+Values:
+
+OS:

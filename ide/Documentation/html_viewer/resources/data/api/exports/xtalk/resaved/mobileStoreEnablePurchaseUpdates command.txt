@@ -1,0 +1,39 @@
+mobileStoreEnablePurchaseUpdates
+(command)
+Enables the receipt of purchaseStateUpdate messages.
+
+Syntax:
+mobileStoreEnablePurchaseUpdates
+----
+
+Synonyms:
+mobileenablepurchaseupdates
+
+Params:
+
+Examples:
+on mouseUp
+   mobileStoreEnablePurchaseUpdates
+   mobileStoreSetProductType "com.runrev.sampleapp.nonconsumable" \
+         , "inapp"
+   mobileStoreMakePurchase "com.runrev.sampleapp.nonconsumable" \
+         , "1", "This belongs to me"
+end mouseUp
+----
+on mouseUp
+   mobileStoreEnablePurchaseUpdates
+   mobileStoreRestorePurchases
+end mouseUp
+----
+
+Description:
+Use the mobileStoreEnablePurchaseUpdates command to enable the receipt of purchaseStateUpdate messages.
+
+The command mobileStoreEnablePurchaseUpdates is used to enable the receipt of purchaseStateUpdate messages from the store.
+
+*Note:*  This command is necessary when interacting with Apple  AppStore, however, we suggest using it for every store. Failure to use  this command result in your purchase requests not being processed.
+
+Values:
+
+OS:
+ios,android

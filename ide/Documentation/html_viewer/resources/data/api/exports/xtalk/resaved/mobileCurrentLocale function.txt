@@ -1,0 +1,29 @@
+mobileCurrentLocale
+(function)
+Returns the currently configured locale.
+
+Syntax:
+mobileCurrentLocale()
+----
+
+Synonyms:
+iphonecurrentlocale
+
+Params:
+
+Examples:
+mobileCurrentLocale()
+----
+if mobileCurrentLocale() is "en_US" then 
+  updateDisplay "english"
+end if
+----
+
+Description:
+Use the mobileCurrentLocale function to discover what language the device is currently set to use. This allows you to set up your app for that language.
+
+Values:
+The mobileCurrentLocale function returns the currently configured locale tag. For example "en_US". 
+
+OS:
+ios,android

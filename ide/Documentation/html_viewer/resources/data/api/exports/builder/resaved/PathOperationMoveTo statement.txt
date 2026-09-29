@@ -1,0 +1,38 @@
+PathOperationMoveTo
+(statement)
+Move to a new point on a path.
+
+Syntax:
+move to {mPoint} on {mPath}
+----
+
+Synonyms:
+
+Params:
+mPath ( ): An expression which evaluates to a path.
+mPoint ( ): An expression which evaluates to a point.
+
+Examples:
+// Create a new empty path
+variable tPath as Path
+put the empty path into tPath
+
+// Begin a new subpath of tPath
+move to point [50, 50] on tPath
+
+// Add a line to tPath
+line to point [100, 50] on tPath
+
+// Begin a new subpath of tPath
+move to point [50, 100] on tPath
+
+// Add a line to tPath
+line to point [100, 100] on tPath
+----
+
+Description:
+Ends the current subpath and sets the starting point for new components of mPath to mPoint.
+
+Values:
+
+OS:

@@ -1,0 +1,28 @@
+mobileCanComposeTextMessage
+(function)
+Returns true if the device can compose text messages, false otherwise.
+
+Syntax:
+mobileCanComposeTextMessage()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get mobileCanComposeTextMessage()
+----
+if mobileCanComposeTextMessage() is "true" then 
+  answer "Text Messages can be sent"
+end if
+----
+
+Description:
+Use the mobileCanComposeTextMessage function to check whether the device can send text messages.
+
+Values:
+The mobileCanComposeTextMessage function returns true if the device can send text messages and false otherwise. 
+
+OS:
+ios,android

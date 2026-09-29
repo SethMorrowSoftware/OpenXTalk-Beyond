@@ -1,0 +1,23 @@
+scrollbarFactor
+(constant)
+Equal to 65535.
+
+Syntax:
+scrollbarFactor
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get scrollbarFactor
+----
+
+Description:
+This constant is obsolete and no longer used in OpenXTalk.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

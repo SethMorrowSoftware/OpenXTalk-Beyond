@@ -1,0 +1,29 @@
+SortListDescendingText
+(statement)
+Sorts Target in descending text order.
+
+Syntax:
+sort {Target} in descending text order
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list of strings.
+
+Examples:
+    variable tTestList as List
+    put the empty list into tTestList
+
+    push "abcd" onto tTestList
+    push "xyz" onto tTestList
+
+    sort tTestList in descending text order -- tTestList is ["xyz", "abcd"]
+----
+
+Description:
+Text sort is performed by comparing string elements on a codepoint by codepoint basis. *Note:* It is an error if Target contains any elements of non-string type.
+
+Values:
+
+OS:

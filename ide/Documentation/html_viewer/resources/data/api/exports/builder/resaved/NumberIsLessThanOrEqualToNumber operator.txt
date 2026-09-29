@@ -1,0 +1,22 @@
+NumberIsLessThanOrEqualToNumber
+(operator)
+Less than or equal to relation.
+
+Syntax:
+{Left} <= {Right}
+----
+
+Synonyms:
+
+Params:
+Left ( ): An expression that evaluates to a number.
+Right ( ): An expression that evaluates to a number.
+
+Examples:
+Description:
+Less than or equal to relation.
+
+Values:
+True if Left is less than or equal to Right, and false otherwise. 
+
+OS:

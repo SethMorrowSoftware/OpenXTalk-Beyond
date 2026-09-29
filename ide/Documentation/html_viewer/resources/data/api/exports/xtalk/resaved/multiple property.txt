@@ -1,0 +1,19 @@
+multiple
+(property)
+Has no effect and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the multiple to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the multiple property determines whether multiple object|objects are drawn when using the paint tool|paint tools. In OpenXTalk, the paint tool|paint tools always draw a single shape.
+
+Values:
+
+OS:

@@ -1,0 +1,21 @@
+mergMicrophoneSetTargetBitRate
+(command)
+Set the target bit rate to use formats that have such a notion specified in combined (all changes) bits per second
+
+Syntax:
+mergMicrophoneSetTargetBitRate {bitRate}
+----
+
+Synonyms:
+
+Params:
+bitRate ( ): 
+
+Examples:
+Description:
+ Setting the target bit rate only has effect the next time recording is started.
+
+Values:
+
+OS:
+ios,mac

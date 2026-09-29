@@ -1,0 +1,28 @@
+HCStack
+(property)
+Reports whether a stack was originally import|imported from HyperCard. 
+
+Syntax:
+get the HCStack of {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the HCAddressing of this stack to the HCStack of this stack
+----
+
+Description:
+Use the HCStack property to find out whether you need to adjust properties for compatibility with script|scripts import|imported from HyperCard.
+
+If the specified stack was originally a HyperCard stack that was imported into OpenXTalk, its HCStack property is true.
+
+If the specified stack was never a HyperCard stack, its HCStack property is false.
+
+Values:
+The HCStack of a stack is true or false. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux,ios,android

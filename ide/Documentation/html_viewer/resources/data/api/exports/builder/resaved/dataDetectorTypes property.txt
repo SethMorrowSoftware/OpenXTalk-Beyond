@@ -1,0 +1,27 @@
+dataDetectorTypes
+(property)
+What types of data should be clickable in the field.
+
+Syntax:
+set the dataDetectorTypes of {widget} to {pType}
+get the dataDetectorTypes of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dataDetectorTypes of widget "Android Field" to "email,link"
+----
+set the dataDetectorTypes of widget "Android Field" to empty
+----
+
+Description:
+Use the dataDetectorTypes property to determine what kind of data should be detected and automatically converted to clikckable URLs. 
+
+Values:
+- "phone number": Phone numbers should be clickable - "link": Links should be clickable - "email": Email addresses should be clickable - "address": Addresses should be clickable 
+
+OS:
+android

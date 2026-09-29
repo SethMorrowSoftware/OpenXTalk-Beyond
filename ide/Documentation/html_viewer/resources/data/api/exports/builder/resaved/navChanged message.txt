@@ -1,0 +1,19 @@
+navChanged
+(message)
+Sent when the nav items property is changed
+
+Syntax:
+navChanged
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when the nav items property is changed
+
+Values:
+
+OS:

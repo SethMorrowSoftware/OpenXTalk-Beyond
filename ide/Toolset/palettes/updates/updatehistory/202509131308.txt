@@ -1,0 +1,9 @@
+Version 1.13, build 202509131308
+Fixed some vertical resize bugs in the standalone settings.
+Fixed the button appearance in dark mode (macOS)...mostly, to compensate for shortcomings of the MacOS engine.
+Removed an errant "ticks" debug which would show up in the message box
+Fixed the OpenXTalk dictionary (revisted) to show the parameters ("Params:") section.
+When MacOS is in dark mode, dragging radio buttons and checkboxes from the tools palette results in the correct text colour of these controls.
+When MacOS is in dark mode, dragging a default button from the tools palette now has the correct text and background fill (macOS).
+Adjusted various dialogs across the IDE by implementing a common function (fixthemebtn) -- although I have more areas of the IDE to do. (That's a work in progress).
+Warning for "Supressing Messages" is restored.

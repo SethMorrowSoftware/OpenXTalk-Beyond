@@ -1,0 +1,31 @@
+RepeatForEachChar
+(iterator)
+Repeat over the chars of a string
+
+Syntax:
+char {Iterand}
+----
+
+Synonyms:
+
+Params:
+Iterand ( ): A string container.
+
+Examples:
+variable tChar as String
+variable tSpaceCount as Number
+repeat for each char tChar in \
+		"the quick brown fox jumps over the lazy dog"
+	if tChar is " " then
+		add 1 to tSpaceCount
+	end if
+end repeat
+expect that tSpaceCount is 8
+----
+
+Description:
+Use repeat for each to perform an operation on each char of a string. On each iteration, the Iterand will contain the next char of the string being iterated over.
+
+Values:
+
+OS:

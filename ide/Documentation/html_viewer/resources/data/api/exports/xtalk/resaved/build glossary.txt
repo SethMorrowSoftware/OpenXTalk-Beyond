@@ -1,0 +1,16 @@
+build
+(glossary)
+
+Syntax:
+Synonyms:
+build, building, built, builder
+
+Params:
+
+Examples:
+Description:
+To create a standalone application.
+
+Values:
+
+OS:

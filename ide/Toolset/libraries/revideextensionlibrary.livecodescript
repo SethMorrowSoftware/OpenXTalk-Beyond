@@ -819,6 +819,19 @@ private command __extensionsChanged
    end if
    send "doExtensionsChanged" to me in 10 millisecs
    put the result into sExtensionsChangedMsg
+   -- dark mode hook (Paul McClernan)
+     get the cDarkMode of stack "revPreferences"
+   if it is true then
+      try
+         setAllToDarkMode
+      end try
+      send "IDEToDarkMode" to me in 0 millisecs
+   else
+      try
+         setAllToLightMode
+      end try
+      send "IDEToLightMode" to me in 0 millisecs
+   end if
 end __extensionsChanged
 
 # Sent progress update on installation of widget
@@ -883,14 +896,18 @@ private command addToList pElement, @xArray
 end addToList
 
 on __extensionsLoad
-   local tDataA   
+   local tDataA
+   local tDisableExt -- modular 13-4-24 tperry
    # Fetch all the available data about extensions in the search paths
    local tFoldersA, tExtensionFolder
    put revIDEExtensionFolders() into tFoldersA
+   if (the cDisableBrowserWidget of stack "revPreferences" is true) then put "com.livecode.widget.browser" & return after tDisableExt
+   filter lines of tDisableExt without empty
    repeat for each key tKey in tFoldersA
       put tFoldersA[tKey] into tExtensionFolder
       repeat for each line tFolder in folders(tExtensionFolder)
          if tFolder begins with "." then next repeat
+         if tDisableExt contains tFolder then next repeat -- don't load if this should be disabled (modular)
          if tFolder is among the items of "downloading,temp,uninstalled" then next repeat
          local tExtFolder
          put tExtensionFolder & slash & tFolder into tExtFolder

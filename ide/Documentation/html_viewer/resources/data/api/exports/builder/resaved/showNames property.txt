@@ -1,0 +1,20 @@
+showNames
+(property)
+Whether to display the names of the icons or not 
+
+Syntax:
+set the showNames of {widget} to {true | false}
+get the showNames of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Whether to display the names of the icons or not 
+
+Values:
+
+OS:

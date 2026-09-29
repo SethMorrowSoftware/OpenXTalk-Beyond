@@ -1,0 +1,28 @@
+osversion
+(function)
+return|Returns the current system version.
+
+Syntax:
+the osversion{"platform"}
+----
+put osversion({"platform"})
+----
+
+Synonyms:
+systemversion
+
+
+Examples:
+put osversion()
+put osversion("platform") -- same as above, but prefixed with "Mac, Win, or Linux"
+
+
+Description:
+Use osversion if the systemversion is reporting the OS version incorrectly. This may happen for MacOS version 11 and higher.
+
+You can also include the "platform" as an option to return the platform prefixed with the version.
+
+This is part of the 'community.openxtalk.plugin.oxtlite' IDE plugin.
+
+OS:
+mac,windows,linux

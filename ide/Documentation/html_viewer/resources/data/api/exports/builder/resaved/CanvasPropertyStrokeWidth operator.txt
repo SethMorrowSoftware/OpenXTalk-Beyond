@@ -1,0 +1,24 @@
+CanvasPropertyStrokeWidth
+(operator)
+The current stroke width of a canvas.
+
+Syntax:
+the stroke width of {mCanvas}
+----
+
+Synonyms:
+
+Params:
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Draw paths with line width 20
+set the stroke width of this canvas to 20
+----
+
+Description:
+The width of lines used when stroking a path on mCanvas as a number.
+
+Values:
+
+OS:

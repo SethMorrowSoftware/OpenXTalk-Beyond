@@ -1,0 +1,31 @@
+TransformPropertyRotation
+(operator)
+The rotation component of a transform.
+
+Syntax:
+the rotation of {mTransform}
+----
+
+Synonyms:
+
+Params:
+mTransform ( ): An expression which evaluates to a transform.
+
+Examples:
+variable tTransform
+put transform with matrix [0, 2, -2, 0, 50, 100] into tTransform
+
+// Store the old rotation component
+variable tRotation
+put the rotation of tTransform into tRotation
+
+// Double the rotation
+set the rotation of tTransform to tRotation * 2
+----
+
+Description:
+The rotation of mTransform as a number of degrees.
+
+Values:
+
+OS:

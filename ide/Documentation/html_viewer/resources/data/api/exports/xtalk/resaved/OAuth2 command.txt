@@ -1,0 +1,56 @@
+OAuth2
+(command)
+Present an authorization dialog for any web service that supports OAuth2 Authorization Code Flow
+
+Syntax:
+OAuth2 {pAuthURL},{pTokenURL},{pClientID},{pClientSecret},{pScopes},{pPort},{pParams}
+----
+
+Synonyms:
+
+Params:
+pAuthURL ( ): The URL to present for the authorization page. This can be obtained from the API documentation of the service being authorized.
+pTokenURL ( ): The URL to obtain the authorization token from once an authorization code is sent to the redirect uri. This can be obtained from the API documentation of the service being authorized.
+pClientID ( ): The application client ID obtained when setting up your application with the web service.
+pClientSecret ( ): The application client secret obtained when setting up your application with the web service.
+pScopes ( ): A comma delimited list of authorization scopes. Valid scopes will be found in the API documentation of the service being authorized. If empty the scope parameter will be omitted.
+pPort ( ): The port to use for the redirect uri. It is recommended to use the range 49152-65535.
+pParams ( ): An array of additional key -> value pairs of extra parameters to be sent to the authorization url. Some services implement additional options that require extra parameters.
+
+Examples:
+constant kAuthURL = "https://slack.com/oauth/authorize"
+constant kTokenURL = "https://slack.com/api/oauth.access"
+constant kClientID = "XXXXXXXXX.XXXXXXXX"
+constant kClientSecret = "XXXXXXXXXXXXXXXXXXXXX"
+constant kScopes = "incoming-webhook"
+
+OAuth2 kAuthURL, kTokenURL, kClientID, kClientSecret, kScopes, 54303
+if the result is not empty then
+   answer error "Not authorized!" 
+else
+   local tAuth
+   put it into tAuth
+   local tMessage
+   ask question "What do you want to send?"
+   if it is empty then
+      exit mouseUp
+   end if
+
+   put it into tMessage["text"]
+   put ArrayToJSON(tMessage) into tMessage
+
+   set the httpHeaders to "Content-type: application/json" & \
+         return & "Authorization: token " & sAuth["access_token"]
+   post tMessage to url tAuth["incoming_webhook"]["url"]
+end if
+----
+
+Description:
+In order to handle the redirect the library accepts socket connections on localhost on a configurable port. The redirect uri configured when setting up your application with the web service should be `http://127.0.0.1:port` where `port` is the port that can be configured with the port parameter. It is recommended to use the range 49152-65535.
+
+ **Warning:** The client secret should be kept securely when distributing an application in  order to protect your application from malicious use. The recommended way to do this is to  include the client secret into a script in a password protected stack. If that is not possible  allow users to configure their own application with the web service and enter their own  client id and secret into a preference instead of distributing your client id and  secret.
+
+Values:
+An error string if an error occurred during authorization An array containing the parsed JSON data returned by the token url  
+
+OS:

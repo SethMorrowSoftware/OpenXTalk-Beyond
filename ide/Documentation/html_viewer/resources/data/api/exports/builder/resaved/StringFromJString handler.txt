@@ -1,0 +1,36 @@
+StringFromJString
+(handler)
+Convert a java string into a String
+
+Syntax:
+StringFromJString({pObj})
+----
+
+Synonyms:
+
+Params:
+pObj ( ): The JString to convert
+
+Examples:
+foreign handler JavaGetDefaultLocale() returns JObject binds to "java:java.util.Locale}getDefault()Ljava/util/Locale;!static"
+foreign handler JavaLocaleDisplayName(in pLocale as JObject) returns JObject binds to "java:java.util.Locale}getDisplayName()Ljava/lang/String;"
+
+public handler GetDefaultLocaleDisplayName() returns String
+	unsafe 
+		variable tLocale as JObject
+		put JavaGetDefaultLocale() into tLocale
+
+		variable tDisplay as JString
+		put JavaLocaleDisplayName(tLocale) into tDisplay
+
+		return StringFromJString(tDisplay)
+	end unsafe
+end handler
+----
+
+Description:
+Use StringFromJString to convert an instance of the class java.lang.String to a variable of type String.
+
+Values:
+
+OS:

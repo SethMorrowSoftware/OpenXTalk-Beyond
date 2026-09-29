@@ -1,0 +1,25 @@
+autoCapitalizationType
+(property)
+The auto-capitalization behavior of the field widget.
+
+Syntax:
+set the autoCapitalizationType of {widget} to {pType}
+get the autoCapitalizationType of {widget}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the autoCapitalizationType of widget "Android Field" to "sentences"
+----
+
+Description:
+Use the autoCapitalizationType property to determine when the shift-key is automatically enabled when typing.
+
+Values:
+- "none": the shift-key is never automatically enabled - "words": the shift-key is enabled at the start of words - "sentences": the shift-key is enabled at the start of sentences - "all characters": the shift-key is enabled at the start of each character 
+
+OS:
+android

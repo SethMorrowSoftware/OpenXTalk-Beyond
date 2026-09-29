@@ -1,0 +1,16 @@
+com.livecode.library.objectrepository
+(library)
+This library provides support persistent object references within a session
+
+Syntax:
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+This library provides support persistent object references within a session
+
+Values:
+
+OS:

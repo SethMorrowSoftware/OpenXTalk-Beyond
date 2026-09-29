@@ -1,0 +1,34 @@
+enabled
+(property)
+Specifies that an object(glossary) is active and responds to user action. 
+
+Syntax:
+set the enabled of {object} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the enabled of card button "Work Miracles" to true
+----
+set the enabled of menu "Window" to false
+----
+
+Description:
+Use the enabled property to find out whether a control can respond to mouse clicks or keyboard presses.
+
+The enabled property of an object(glossary) is the logical inverse of that object|object's disabled property. When the enabled is true, the disabled is false, and vice versa.
+
+An enabled control can receive the focus.
+
+Setting a group's enabled property sets the enabled of each control in the group.
+
+You can set the enabled property of a menu(keyword) by specifying the menu(glossary)|menu's name or number. An enabled menu(keyword) can be displayed, and menu item|menu items can be individually enabled or disabled using the enable and disable command|commands.
+
+Values:
+The enabled of a control is true or false. By default, the enabled property of a newly created control is true.  
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,16 @@
+relative file path
+(glossary)
+
+Syntax:
+Synonyms:
+relative file path, relative path
+
+Params:
+
+Examples:
+Description:
+The name and location of a file, starting from the defaultFolder and going up, down, or sideways in the folder hierarchy as necessary to get to the file|file's location.
+
+Values:
+
+OS:

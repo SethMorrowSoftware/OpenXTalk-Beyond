@@ -1,0 +1,30 @@
+WidgetEnabledProperty
+(operator)
+Manipulates the enabled property of a child widget
+
+Syntax:
+the enabled of {mWidget}
+----
+
+Synonyms:
+
+Params:
+mWidget ( ): The child widget object
+
+Examples:
+private variable mChild as Widget
+
+public handler OnCreate() returns nothing
+    put a new widget "com.livecode.widget.button" into mChild
+    place mChild
+    -- mChild is initially disabled
+    set the enabled of mChild to false
+end handler
+----
+
+Description:
+Use the enabled property to control the disabled/enabled state of child widgets. The child widget can change its appearance and behavior based on the result of the 'MyEnabled|my enabled' expression.
+
+Values:
+
+OS:

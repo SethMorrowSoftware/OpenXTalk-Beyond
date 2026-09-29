@@ -1,0 +1,19 @@
+dgColumnIsVisible
+(property)
+Get/set the visibility of the column.
+
+Syntax:
+put the dgColumnIsVisible["col1"] of group "Data Grid"
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Get/set the visibility of the column.
+
+Values:
+
+OS:

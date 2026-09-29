@@ -1,0 +1,19 @@
+OnDragEnter
+(message)
+Sent when an object is dragged onto the widget rect.
+
+Syntax:
+OnDragEnter
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+Sent when an object is dragged onto the widget rect.
+
+Values:
+
+OS:

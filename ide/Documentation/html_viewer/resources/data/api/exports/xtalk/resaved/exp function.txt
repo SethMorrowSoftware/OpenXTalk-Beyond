@@ -1,0 +1,33 @@
+exp
+(function)
+return|Returns the natural exponential of a number.
+
+Syntax:
+the exp of {number}
+----
+exp({number})
+----
+
+Synonyms:
+
+Params:
+•	number ( ): A real number, or an expression that evaluates to a number.
+	
+Examples:
+exp(1) -- returns e
+----
+exp(theReturnedValue)
+----
+
+Description:
+Use the exp function to obtain a power of e, e^ number.
+
+The transcendental number e appears in many mathematical formulas.
+
+If a math operation on finite inputs produces a non-finite output, an execution error is thrown. See math operation|math operations for more information.
+
+Values:
+The exp function return|returns a positive number. 
+
+OS:
+mac,windows,linux,ios,android

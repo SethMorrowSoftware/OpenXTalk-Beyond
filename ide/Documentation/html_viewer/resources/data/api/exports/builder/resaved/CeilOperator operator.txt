@@ -1,0 +1,27 @@
+CeilOperator
+(operator)
+Returns the ceiling of Target.
+
+Syntax:
+the ceiling of {Target}
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a number.
+
+Examples:
+variable tNum as Number
+variable tCeiling as Number
+put -5.5 into tNum
+put the ceiling of tNum into tCeiling -- tCeiling contains -5
+----
+
+Description:
+The ceiling of Target is the least integer greater than or equal to Target.
+
+Values:
+The ceiling of Target 
+
+OS:

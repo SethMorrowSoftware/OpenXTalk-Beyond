@@ -1,0 +1,26 @@
+EnsureLicense
+(statement)
+Throws if license is not satisfied
+
+Syntax:
+ensure license for [ feature {Feature} of ] extension {Extension} [ or edition {Edition} ]
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+ensure license for edition "indy"
+----
+ensure license for extension "com.foo.bar" or edition "indy"
+----
+ensure license for feature "baz" of extension "com.foo.bar" or edition "indy"
+----
+
+Description:
+Causes an error to be thrown if the license requirement is not satisfied. All further calls to the module will then also cause an error to be thrown.
+
+Values:
+
+OS:

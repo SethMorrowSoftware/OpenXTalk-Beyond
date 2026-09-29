@@ -1,0 +1,26 @@
+mobilePurchaseConfirmDelivery
+(command)
+Notify the AppStore/Market Place that the item has been delivered to the user. 
+
+Syntax:
+mobilePurchaseConfirmDelivery {purchaseID}
+----
+
+Synonyms:
+
+Params:
+purchaseID ( ): The identifier of the purchase request.
+
+Examples:
+mobilePurchaseConfirmDeliver thePurchaseId
+----
+
+Description:
+Use mobilePurchaseConfirmDelivery to confirm to the AppStore/Market Place that an item has been delivered.
+
+The command mobilePurchaseConfirmDelivery is used to confirm to the AppStore/Market Place that an item has been delivered to the app user. This command should only be called once a purchase request in the 'paymentReceived' or 'restore' state.
+
+Values:
+
+OS:
+ios,android

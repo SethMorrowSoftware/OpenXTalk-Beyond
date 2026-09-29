@@ -1,0 +1,26 @@
+SortListDescending
+(statement)
+Sorts Target in descending text order.
+
+Syntax:
+sort {Target} in descending order
+----
+
+Synonyms:
+
+Params:
+Target ( ): An expression that evaluates to a list of strings.
+
+Examples:
+   	variable tTestList as List
+	put ["a", "b", "c"] into tTestList
+
+    sort tTestList in descending order -- tTestList is ["c", "b", "a"]
+----
+
+Description:
+Generic sort is performed by comparing the elements of a homogeneous list according to the default comparison function associated to the type of its elements. *Note:* It is an error if Target is not homogeneous, i.e. if it contains any elements of differing type.
+
+Values:
+
+OS:

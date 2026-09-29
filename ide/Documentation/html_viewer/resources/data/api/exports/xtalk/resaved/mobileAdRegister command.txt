@@ -1,0 +1,28 @@
+mobileAdRegister
+(command)
+Registers the application Inneractive identifier with OpenXTalk.
+
+Syntax:
+mobileAdRegister {appKey}
+----
+
+Synonyms:
+
+Params:
+appKey ( ): The unique Inneractive app identifier (Labelled 'App ID' in the Inneractive dashboard)
+
+Examples:
+mobileAdRegister myApplicationKey
+----
+
+Description:
+Use the mobileAdRegister command to register the application's Inneractive identifier with OpenXTalk.
+
+The mobileAdRegister command registers the application's Inneractive identifier with OpenXTalk. All ad activity, including any revenue generated, is logged against this id.
+
+This command must be called before any other ad handlers are invoked.
+
+Values:
+
+OS:
+ios,android

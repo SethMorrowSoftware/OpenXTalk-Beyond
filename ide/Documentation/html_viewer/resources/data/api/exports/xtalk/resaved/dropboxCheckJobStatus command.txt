@@ -1,0 +1,31 @@
+dropboxCheckJobStatus
+(command)
+Returns the status of an asynchronous job.
+
+Syntax:
+dropboxCheckJobStatus {pAccessToken}, {pAsyncJobId}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pAsyncJobID ( ): Id of the asynchronous job. This is the value of a response returned from the method that launched the job.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+Apps must have full Dropbox access to use this endpoint.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { ".tag": "in_progress" } ````  The tag will be one of:  - in_progress - The asynchronous job is still in progress.
+
+ complete - The asynchronous job has finished.
+
+ failed - The asynchronous job returned an error.
+
+If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

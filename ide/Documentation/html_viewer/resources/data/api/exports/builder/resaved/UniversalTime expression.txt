@@ -1,0 +1,23 @@
+UniversalTime
+(expression)
+The seconds
+
+Syntax:
+the universal time
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+variable tTime as real
+put the universal time into tTime
+----
+
+Description:
+Returns the current universal time relative to the start of the UNIX epoch - 1st January 1970 in seconds.
+
+Values:
+
+OS:

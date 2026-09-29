@@ -1,0 +1,20 @@
+mcEncrypt
+(function)
+reserved word|Reserved for internal use.
+
+Syntax:
+mcEncrypt
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+reserved word|Reserved for internal use.
+
+Values:
+
+OS:
+mac,windows,linux

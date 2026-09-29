@@ -1,0 +1,30 @@
+dragImageOffset
+(property)
+Specifies the placement of the drag image when dragging an object.
+
+Syntax:
+set the dragImageOffset to {horizontalDistance}, {verticalDistance}
+----
+get the dragImageOffset
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the dragImageOffset to 12,10
+----
+set the dragImageOffset to \
+    (0.5 * the width of image "Drag Image"), \
+    (0.5 * the height of image "Drag Image")
+----
+
+Description:
+Use the dragImageOffset property to specify the offset from the top-left of the drag image at which the mouse pointer will be located during dragging.
+
+Values:
+The dragImageOffset is two comma-separated integers in the format horizontalDistance, verticalDistance. These may be negative. The default value is empty, which is equivalent to 0,0. If the dragImage property is not set, or set to a non-existant image, this property has no effect. 
+
+OS:
+mac,windows

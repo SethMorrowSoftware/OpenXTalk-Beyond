@@ -1,0 +1,30 @@
+toUpper
+(function)
+return|Returns a string converted to all uppercase letters.
+
+Syntax:
+the toUpper of {stringToConvert}
+----
+toUpper({stringToConvert})
+----
+
+Synonyms:
+upper
+
+Params:
+stringToConvert (string ): Any string or expression that evaluates to a string.
+
+Examples:
+toUpper("AbC; dEf") -- returns "ABC; DEF"
+----
+toUpper("eclairs are VERY tasty!") -- returns "ECLAIRS ARE VERY TASTY!"
+----
+
+Description:
+overview Use the toUpper function to change the case of a string./overview   Lowercase letters, including special characters with diacritical marks, are converted to the uppercase equivalents. All other characters, including uppercase letters, numbers, punctuation, and special characters with no upper or lower case, are left unchanged by the toUpper function.
+
+Values:
+The toUpper function return|returns a string the same length as the stringToConvert. 
+
+OS:
+mac,windows,linux,ios,android

@@ -1,0 +1,28 @@
+dropboxUpdateFolderPolicy
+(command)
+Update the sharing policies for a shared folder.
+
+Syntax:
+dropboxUpdateFolderPolicy {pAccessToken}, {pSharedFolderId}, {pMemberPolicy}, {pAclUpdatePolicy}, {pSharedLinkPolicy}, [{pCallback}]
+----
+
+Synonyms:
+
+Params:
+pAccessToken ( ): An OAuth2 Access token to access the user's account
+pSharedFolderID ( ): The ID for the shared folder.
+pMemberPolicy ( ): Who can be a member of this shared folder. Only applicable if the current user is on a team. The default for this union is anyone. - "anyone": Anyone can become a member. - "team": Only a teammate can become a member.
+pAclUpdatePolicy ( ): Who can add and remove members of this shared folder. The default for this union is owner. Policy governing who can change a shared folder's access control list (ACL). In other words, who can add, remove, or change the privileges of members. The value will be one of the following datatypes. New values may be introduced as our API evolves. - "owner": Only the owner can update the ACL. - "editors": Any editor can update the ACL. This may be further restricted to editors on the same team.
+pSharedLinkPolicy ( ): The policy to apply to shared links created for content inside this shared folder. The current user must be on a team to set this policy to SharedLinkPolicy.members. The default for this union is anyone. Policy governing who can view shared links. The value will be one of the following datatypes. New values may be introduced as our API evolves. - "anyone": Links can be shared with anyone. - "members": Links can only be shared among members of the shared folder.
+pCallback ( ): The handler to call when the request is complete. If empty the command will block until complete. Requires tsNet with Commercial License.
+
+Examples:
+Description:
+User must have AccessLevel.owner access to the shared folder to update its policies.
+
+If the callback parameter is not empty the request will be asynchronus and when complete the callback will be sent to the object that accessed the API. The callback will be sent with three parameters:  - The request ID which will be the value of the it variable after calling the command - The HTTP response code - The data returned which will be the same data as documented for the it variable in a synchronous request.
+
+Values:
+An error if the HTTP request failed For asynchronous requests it will contain a request ID. This may be used with tsNet's tsNetGetStatus function. If the request is synchronous and successful the it variable will be a UTF-8 encoded JSON string in the form:  ```` { "access_type": { ".tag": "owner" }, "is_team_folder": false, "policy": { "acl_update_policy": { ".tag": "owner" }, "shared_link_policy": { ".tag": "anyone" }, "member_policy": { ".tag": "anyone" }, "resolved_member_policy": { ".tag": "team" } }, "name": "dir", "shared_folder_id": "84528192421", "time_invited": "2016-01-20T00:00:00Z", "preview_url": "https://www.dropbox.com/scl/fo/fir9vjelf", "path_lower": "/dir", "permissions": [] } ````  If an error occurred the JSON string will be in the following form:  ```` { "error_summary": string, "error": { ".tag": string } } ```` 
+
+OS:

@@ -1,0 +1,25 @@
+CanvasOperationTranslate
+(statement)
+Apply a translation to a canvas.
+
+Syntax:
+translate {mCanvas} by {mTranslation}
+----
+
+Synonyms:
+
+Params:
+mTranslation ( ): An expression which evaluates to a list of numbers.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Translate the canvas
+translate this canvas by [50,100]
+----
+
+Description:
+Translates the transform of mCanvas by mTranslation.
+
+Values:
+
+OS:

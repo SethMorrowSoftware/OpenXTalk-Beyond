@@ -1,0 +1,23 @@
+extensionPackage
+(command)
+Package an extension
+
+Syntax:
+extensionPackage {pSourceFolder},{pTargetFolder},{pRemoveSource}
+----
+
+Synonyms:
+
+Params:
+pSourceFolder ( ): The folder containing the extension
+pTargetFolder ( ): The output location of the package
+pRemoveSource ( ): Whether to remove the source code from the package or not
+
+Examples:
+Description:
+Package an extension
+
+Values:
+Any error that occurred when packaging The location of the build package, or empty if there was an error. 
+
+OS:

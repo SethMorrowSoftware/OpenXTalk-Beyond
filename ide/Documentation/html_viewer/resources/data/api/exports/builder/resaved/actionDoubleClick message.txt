@@ -1,0 +1,20 @@
+actionDoubleClick
+(message)
+Sent when a leaf node of the tree view is double-clicked.
+
+Syntax:
+actionDoubleClick {pPath}
+----
+
+Synonyms:
+
+Params:
+pPath ( ): The path to the clicked element
+
+Examples:
+Description:
+The actionDoubleClick message is sent to the widget's script object when a row of the widget is double-clicked. The pPath parameter contains the path to the element whose row was clicked.
+
+Values:
+
+OS:

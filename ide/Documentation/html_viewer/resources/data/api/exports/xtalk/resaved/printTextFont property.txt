@@ -1,0 +1,21 @@
+printTextFont
+(property)
+Has no effect and is included for compatibility with imported HyperCard stacks.
+
+Syntax:
+set the printTextFont to {fontName}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+Description:
+In HyperCard, the printTextFont property specifies the font|font face of printed text. In OpenXTalk, only card(object)|cards can be printed, and the font of text on the card(keyword) is determined by the textFont property of the object|objects containing text.
+
+A handler can set the property, but the new setting has no effect.
+
+Values:
+
+OS:

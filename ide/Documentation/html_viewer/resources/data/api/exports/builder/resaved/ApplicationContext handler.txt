@@ -1,0 +1,28 @@
+ApplicationContext
+(handler)
+Get the application Context
+
+Syntax:
+ApplicationContext()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+__safe foreign handler _JNI_CreateButton(in pContext as JObject) returns JObject \
+	binds to "java:android.widget.Button}new(Landroid/content/Context;)?ui"
+
+handler NativeButtonView() returns JObject
+	return _JNI_CreateButton(ApplicationContext())
+end handler
+----
+
+Description:
+Use the ApplicationContext handler to fetch the current application's Context object.
+
+Values:
+
+OS:
+android

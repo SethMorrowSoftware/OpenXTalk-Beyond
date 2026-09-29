@@ -1,0 +1,23 @@
+iconArrayMatchingInAllFamilies
+(handler)
+Return the available icons in all icon families that match the search string.
+
+Syntax:
+iconArrayMatchingInAllFamilies({pSearch})
+----
+
+Synonyms:
+
+Params:
+pSearch ( ): The string used to search icon names.
+
+Examples:
+Description:
+Returns an array of families with icon names matching the search string. Each value is a list of the icon matches.
+
+For each icon name, the SVG path string can be obtained with iconSVGPathFromName or its corresponding codepoint with iconCodepointFromName.
+
+Values:
+Each key is a family that contained icon matches to the search string.  Each value is a list of the icon matches. 
+
+OS:

@@ -1,0 +1,31 @@
+GradientStopPropertyColor
+(operator)
+The color of a gradient stop value.
+
+Syntax:
+the color of {mStop}
+----
+
+Synonyms:
+
+Params:
+mStop ( ): An expression which evaluates to a gradient stop.
+
+Examples:
+variable tStop
+put gradient stop at 0 with color [1,1,1] into tStop
+
+// Get the color of a stop
+variable tColor
+put the color of tStop into tColor
+
+// Set the stop color to red
+set the color of tStop to color [1,0,0]
+----
+
+Description:
+The color of mStop.
+
+Values:
+
+OS:

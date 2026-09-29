@@ -1,0 +1,28 @@
+mobileCanTrackLocation
+(function)
+Returns true if the device can track the location using GPS, false otherwise. 
+
+Syntax:
+mobileCanTrackLocation()
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get mobileCanTrackLocation()
+----
+if mobileCanTrackLocation() is "true" then 
+  answer "The location can be tracked"
+end if
+----
+
+Description:
+Use the mobileCanTrackLocation function to check whether the device has the necessary hardware support for tracking the location using GPS.
+
+Values:
+The mobileCanTrackLocation function returns true if the device can track the location and false otherwise. 
+
+OS:
+ios,android

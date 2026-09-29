@@ -1,0 +1,25 @@
+CanvasOperationRotate
+(statement)
+Apply a rotation to a canvas.
+
+Syntax:
+rotate {mCanvas} by {mRotation}
+----
+
+Synonyms:
+
+Params:
+mRotation ( ): An expression which evaluates to a number.
+mCanvas ( ): An expression which evaluates to a canvas.
+
+Examples:
+// Rotate the canvas
+rotate this canvas by 45
+----
+
+Description:
+Rotates the transform of mCanvas by mRotation degrees.
+
+Values:
+
+OS:

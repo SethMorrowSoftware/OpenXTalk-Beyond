@@ -1,0 +1,44 @@
+mouseDown
+(message)
+Sent when the user presses the mouse button.
+
+Syntax:
+mouseDown {pButtonNumber}
+----
+
+Synonyms:
+
+Params:
+pButtonNumber (enum ): Specifies which mouse button was pressed:
+
+Examples:
+# show popup menu on Right-click/Control-click (Mac OS)
+#  assumes presence of a popup-style menu button, "Configure"
+on mouseDown theButton 
+  if theButton is 3 then 
+    popup button "Configure"
+  else 
+    pass mouseDown
+  end if
+end mouseDown
+----
+# To let the user click and drag an object
+#  put this handler in the object's script
+on mouseDown
+  grab me
+end mouseDown
+----
+
+Description:
+Handle the mouseDown message to perform an action when the user presses the mouse button, before the mouse button is released.
+
+The mouseDown message is sent to the control that was clicked, or to the card if no control was under the mouse pointer.
+
+If the Browse tool is being used, and you click an unlocked field with mouse button 1 or 2, no mouseDown message is sent. If you click with button|mouse button 3, the mouseDown message is sent even though the  field is not lock|locked.
+
+*Note:*  If the user clicks a transparent pixel in an image,  the mouseDown message is sent to the object(glossary) behind the  image, not to the image.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android,html5

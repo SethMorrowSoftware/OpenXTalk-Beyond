@@ -1,0 +1,16 @@
+VFW
+(glossary)
+
+Syntax:
+Synonyms:
+vfw, video for windows
+
+Params:
+
+Examples:
+Description:
+Video for Windows. System for video and audio developed by Microsoft and used on Windows|Windows systems.
+
+Values:
+
+OS:

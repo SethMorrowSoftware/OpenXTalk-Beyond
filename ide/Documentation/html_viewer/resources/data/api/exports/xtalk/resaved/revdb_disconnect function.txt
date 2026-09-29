@@ -1,0 +1,28 @@
+revdb_disconnect
+(function)
+
+Syntax:
+revdb_disconnect(databaseID)
+
+Summary:
+Executes the revCloseDatabase command.
+The number returned by the revOpenDatabase function when the database was opened.
+
+Examples:
+get revdb_disconnect(savedBudgetDB)
+
+The revdb_disconnect function returns empty if the closure was successful.
+
+Description:
+Use the revdb_disconnect function to cleanly log off from a database.
+
+Evaluating the revdb_disconnect function has the same effect as executing the revCloseDatabase command. The only difference is that one is a function call and the other is a command.
+
+Important: The revdb_disconnect function is part of the Database library. To ensure that the function works in a standalone application, you must include this custom library when you create your standalone. In the Inclusions pane of the Standalone Application Settings window, make sure both the "Database" library checkbox and those of the database drivers you are using are checked.
+
+
+OS:
+mac, windows, linux, ios, android
+
+Platforms:
+desktop, server, mobile

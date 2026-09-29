@@ -1,0 +1,16 @@
+reserved word
+(glossary)
+
+Syntax:
+Synonyms:
+reserved word, reserved, reserved term
+
+Params:
+
+Examples:
+Description:
+A word that has a special meaning to OpenXTalk (for example, built-in function and command names, keyword|keywords, and so forth), and should not be used as the name of a variable, custom property, custom command, or custom function.
+
+Values:
+
+OS:

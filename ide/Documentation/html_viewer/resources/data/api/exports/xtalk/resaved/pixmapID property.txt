@@ -1,0 +1,30 @@
+pixmapID
+(property)
+Specifies the ID of the data control structure|structure the operating system uses to hold the screen image of the current card.
+
+Syntax:
+get the pixmapID of {stack}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+get colorAnimate(the pixmapID of this stack) -- an XFCN
+----
+
+Description:
+Use the pixmapID property to pass to an external that needs to manipulate the window.
+
+*Important:*  The pixmapID property is not supported in version 2.7 of  OpenXTalk and always returns 0.
+
+The pixmap ID is provided by the operating system.
+
+Some externals need to manipulate the contents of the image directly, and do so by referencing the ID. Such externals require you to pass the ID when you use the external.
+
+Values:
+The pixmapID of a stack is an integer. This property is read-only and cannot be set. 
+
+OS:
+mac,windows,linux

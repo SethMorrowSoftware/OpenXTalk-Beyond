@@ -1,0 +1,25 @@
+end repeat
+(keyword)
+Ends a repeat control control structure|structure.
+
+Syntax:
+end repeat
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+end repeat
+----
+
+Description:
+Use the end repeat keyword to mark the end of a repeat  control structure.
+
+The end repeat keyword occurs on a line by itself.
+
+Values:
+
+OS:
+mac,windows,linux,ios,android

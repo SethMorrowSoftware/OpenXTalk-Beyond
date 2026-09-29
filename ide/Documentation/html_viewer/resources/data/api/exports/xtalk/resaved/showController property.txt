@@ -1,0 +1,28 @@
+showController
+(property)
+Specifies whether a player|player's controller bar is visible.
+
+Syntax:
+set the showController of {player} to {true | false}
+----
+
+Synonyms:
+
+Params:
+
+Examples:
+set the showController of player 4 to false
+----
+
+Description:
+Use the showController property to enable access to the player|player's control|controls, or hide the controller bar.
+
+A player's controller bar is used to start, pause, rewind, and fast-forward a movie or sound, and to select a portion of a movie or sound for playback.
+
+Set a player's showController property to false if you are providing these capabilities in the stack already, or if you do not want the user to be able to control playback of the movie or sound.
+
+Values:
+The showController of a player(keyword) is true or false. By default, the showController property of newly created player(object)|players is set to true. 
+
+OS:
+mac,windows,linux

@@ -1,0 +1,16 @@
+pane
+(glossary)
+
+Syntax:
+Synonyms:
+pane, window pane
+
+Params:
+
+Examples:
+Description:
+An area in a window whose content changes depending on the setting you choose. Typically, you switch between panes by choosing the pane you want from a popup menu at the top of the window.
+
+Values:
+
+OS:

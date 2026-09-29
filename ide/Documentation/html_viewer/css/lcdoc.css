@@ -25,15 +25,15 @@ html {					/* always show scroll bar on page   */
 	table-layout: fixed;
 }
 
-#lcdoc_list table td:nth-child(1) { 	
+#lcdoc_list table td:nth-child(1) {
 	width: 30%;
 }
 
-#lcdoc_list table td:nth-child(2) { 	
+#lcdoc_list table td:nth-child(2) {
 	width: 15%;
 }
 
-#lcdoc_list table td:nth-child(3) { 	
+#lcdoc_list table td:nth-child(3) {
 	width: 55%;
 }
 
@@ -117,7 +117,7 @@ div.business:before {
 
 
 #table_list tbody td, #table_list thead th {
-    
+
 }
 
 .noselect {
@@ -148,7 +148,7 @@ div.business:before {
 #table_container {
 	width: 100%;
     height: 227px;;
-    overflow-y: scroll;   
+    overflow-y: scroll;
 }
 
 #lcdoc_list {

@@ -1,0 +1,16 @@
+protocol
+(glossary)
+
+Syntax:
+Synonyms:
+protocol
+
+Params:
+
+Examples:
+Description:
+A standard format and set of rules for transferring a particular kind of data between systems.
+
+Values:
+
+OS:

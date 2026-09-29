@@ -1,0 +1,32 @@
+GradientPropertyType
+(operator)
+The type of a gradient paint.
+
+Syntax:
+the type of {mGradient}
+----
+
+Synonyms:
+
+Params:
+mGradient ( ): An expression which evaluates to a gradient.
+
+Examples:
+// Create new gradient paint
+variable tGradient
+put linear gradient with ramp [gradient stop at 0 with color [0,0,0], gradient stop at 1 with color [1,1,1]] into tGradient
+
+// Store the old gradient type
+variable tType
+put the type of tGradient into tType
+
+// Change the gradient type to radial
+set the type of tGradient to "radial"
+----
+
+Description:
+The type of mGradient as a string. This can be one of "linear", "radial", "conical", "diamond", "spiral", "xy", "sqrtxy".
+
+Values:
+
+OS:

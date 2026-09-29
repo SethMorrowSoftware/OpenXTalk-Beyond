@@ -1,0 +1,29 @@
+miterLimit
+(property)
+Specifies how far miter joins can extend from the meeting point of two edges before a bevel join is used.
+
+Syntax:
+set the miterLimit [of graphic] to {number}
+----
+
+Synonyms:
+
+Params:
+number (integer ): An integer that is a multiple of the current lineSize of the .
+
+Examples:
+set the miterLimit of graphic "polygon 1" of this card to 5
+----
+
+Description:
+Set the miterLimit property to specify how far miter joinStyle|joins can extend from the meeting point of two edges before a bevel  joinStyle|join is used.
+
+The miterLimit is used to calculate the maximum size of a miter  joinStyle|join before it is rendered as a bevel. The size of a  miter joinStyle|join is the length in pixels from the corner to the  intersection point of its outer two edges. The miterLimit is  specified as a multiple of the currentlineSize of the graphic.
+
+*Note:* This only affects polygon, freehand curve and line   graphic|graphics which have their antialiased set to true.
+
+Values:
+The miterLimit property returns an integer that is a multiple of the current lineSize of the graphic. 
+
+OS:
+mac,windows,linux,ios,android
