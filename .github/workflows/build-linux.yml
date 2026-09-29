@@ -165,11 +165,18 @@ jobs:
         continue-on-error: true
         working-directory: build-linux-${{ matrix.arch }}/livecode
         run: |
+          set +e +o pipefail
           target=out/Release/obj/gen/engine_lcb_modules.cpp
-          cmd=$(make -n V=1 BUILDTYPE=Release "$target" 2>/dev/null | grep 'lc-compile' | tail -1)
-          echo "Command: $cmd"
-          [ -n "$cmd" ] || exit 0
-          catchsegv bash -c "$cmd" 2>&1 | tail -80
+          seg=$(ls /lib/*/libSegFault.so /lib/libSegFault.so 2>/dev/null | sed -n 1p)
+          echo "== Rerun under libSegFault ($seg)"
+          LD_PRELOAD="$seg" SEGFAULT_SIGNALS="segv bus abrt ill" \
+            make V=1 BUILDTYPE=Release "$target" > "$RUNNER_TEMP/diag.log" 2>&1
+          echo "exit: $?"
+          tail -100 "$RUNNER_TEMP/diag.log"
+          echo "== Rerun with a 1 GB stack limit"
+          (ulimit -s 1048576 && make BUILDTYPE=Release "$target") > "$RUNNER_TEMP/diag2.log" 2>&1
+          echo "exit: $?"
+          tail -20 "$RUNNER_TEMP/diag2.log"
 
       - name: Verify build output
         run: |
