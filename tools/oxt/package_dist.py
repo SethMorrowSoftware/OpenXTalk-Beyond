@@ -67,9 +67,11 @@ finds the Visual C++ runtime with vswhere.
 Unix archives keep what package.py staged: modes, symbolic links and empty
 folders, owner and group 0 with no names, file dates in whole seconds
 (clamped to SOURCE_DATE_EPOCH when it is set), entries sorted. In a Linux
-package, staged files of 64 KiB or more with the same content are stored
-once and hard-linked (--no-hardlinks stores each): the runtime's copies of
-libcef.so and the rest of CEF are the same files as the IDE's. The macOS
+package, staged files of 64 KiB or more with the same content and mode are
+stored once and hard-linked (--no-hardlinks stores each): the runtime's
+copies of libcef.so and the rest of CEF are the same files as the IDE's.
+Such a tarball must be extracted onto a file system that has hard links
+(not FAT, which could not hold the package's modes anyway). The macOS
 zip stores folders, symbolic links (as links) and each file's mode, as
 ditto does, so that the app keeps its executables and bundle structure
 where the zip is extracted (ditto -x -k, Archive Utility or unzip). The
@@ -402,14 +404,19 @@ class UnixTar(object):
 
 def hardlink_plan(stage, files, min_size=HARDLINK_MIN_SIZE):
     """{relative path: relative path of the first file with the same
-    content} for staged files of at least min_size bytes."""
-    by_size = collections.defaultdict(list)
+    content and mode} for staged files of at least min_size bytes. (The
+    date of a linked copy is the first file's; package.py stages the
+    copies of one build output with the same date.)"""
+    by_key = collections.defaultdict(list)
     for rel in files:
-        size = os.path.getsize(os.path.join(stage, *rel.split('/')))
-        if size >= min_size:
-            by_size[size].append(rel)
+        st = os.lstat(os.path.join(stage, *rel.split('/')))
+        if st.st_size >= min_size:
+            # a hard link extracts with its target's mode (and date): link
+            # only copies that will have the same mode, or a 0755 library
+            # linked to a 0644 copy of the same bytes would lose its x bit
+            by_key[(st.st_size, stat.S_IMODE(st.st_mode))].append(rel)
     out = {}
-    for size, rels in by_size.items():
+    for rels in by_key.values():
         if len(rels) < 2:
             continue
         first = {}

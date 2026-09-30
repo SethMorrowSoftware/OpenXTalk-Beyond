@@ -535,8 +535,12 @@ macOS with `hdiutil` by the workflow, not here.
   and empty folders; owners 0 without names; dates in whole seconds
   (clamped to `SOURCE_DATE_EPOCH` when set); entries sorted, folders
   first. In a Linux package, staged files of 64 KiB or more with the same
-  content are stored once as hard links (`--no-hardlinks` stores each):
-  the runtime's CEF, externals and helpers are the IDE's files. Tarballs
+  content and mode are stored once as hard links (`--no-hardlinks` stores
+  each): the runtime's CEF, externals and helpers are the IDE's files. A
+  hard link extracts with its target's mode, hence the mode in the key.
+  The tarball therefore holds hard links and must be extracted onto a file
+  system that supports them (not FAT, which cannot hold the package's
+  modes either). Tarballs
   are compressed by `xz -T0` when the `xz` program exists (Python's lzma
   uses one core; `OXT_PYTHON_XZ=1` forces it), preset 6 (`--xz-preset`).
 * **The macOS zip** has folder entries, each file's Unix mode and symbolic
