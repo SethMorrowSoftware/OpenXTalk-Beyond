@@ -54,23 +54,22 @@ command initialiseInterface
 
    -- OXT-Beyond: the colours of the IDE's appearance. The stack was saved
    -- white with 247/232 grey panels, a light window in the dark IDE; the
-   -- light values are those. The recent files list takes the IDE's row
-   -- colours in dark and the Data Grid's own in light.
+   -- light values are those. The recent files list and its rows are the
+   -- panel's colour, as saved (row color 247,247,247: empty would give
+   -- the Data Grid's white rows on the grey panel). The row template
+   -- paints each row with uiColor("recentFilesBackground"), the same
+   -- colour, and setting the row color repaints the rows at once, so a
+   -- change of the appearance reaches the rows already drawn.
    set the backgroundColor of me to revIDEColor("start_center_background")
    set the backgroundColor of graphic "filesBackground" of me to revIDEColor("start_center_panel")
    set the foregroundColor of field "openLabel" of me to revIDEColor("start_center_label")
    set the foregroundColor of field "startupLabel" of me to revIDEColor("start_center_label")
    if there is a group "recentFiles" of me then
       set the backgroundColor of graphic "dgCornerPiece" of group "recentFiles" of me to revIDEColor("start_center_corner")
-      if revIDEIsDark() then
-         set the dgProps["background color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
-         set the dgProps["row color"] of group "recentFiles" of me to revIDEColor("dataView_rowColor")
-         set the dgProps["alternate row color"] of group "recentFiles" of me to revIDEColor("dataView_rowAlternateColor")
-      else
-         set the dgProps["background color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
-         set the dgProps["row color"] of group "recentFiles" of me to empty
-         set the dgProps["alternate row color"] of group "recentFiles" of me to empty
-      end if
+      set the dgProps["background color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
+      set the dgProps["row color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
+      -- Empty as saved: without alternating rows, the row color
+      set the dgProps["alternate row color"] of group "recentFiles" of me to empty
    end if
    
    ## First run
@@ -701,10 +700,14 @@ function uiColor pColor
          return "128,128,128"
          break
       case "recentFilesBackground"
-         return "247,247,247"
+         -- OXT-Beyond: the rows of the recent files list (the row
+         -- template's LayoutControl, dgHilite and mouseLeave) are the
+         -- panel's colour, and a row under the mouse a step off it, in the
+         -- IDE's appearance (247,247,247 and 222,222,222 in light)
+         return revIDEColor("start_center_panel")
          break
       case "recentFilesHover"
-         return "222,222,222"
+         return revIDEColor("start_center_hover")
          break
       case "tileBGHover"
          return "255,255,255"

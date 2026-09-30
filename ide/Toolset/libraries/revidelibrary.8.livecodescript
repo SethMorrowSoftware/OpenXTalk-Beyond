@@ -3249,6 +3249,11 @@ function revIDEColor pTag
          case "start_center_corner"
             return "54,54,58"
             break
+         case "start_center_hover"
+            -- A recent file under the mouse: a step lighter than the panel,
+            -- as the light one is a step darker
+            return "60,60,64"
+            break
          case "start_center_label"
             return "160,160,160"
             break
@@ -3354,6 +3359,10 @@ function revIDEColor pTag
          break
       case "start_center_corner"
          return "232,232,232"
+         break
+      case "start_center_hover"
+         -- A recent file under the mouse, as upstream's start center
+         return "222,222,222"
          break
       case "start_center_label"
          return "128,128,128"
