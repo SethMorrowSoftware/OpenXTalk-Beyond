@@ -1,0 +1,11 @@
+# Known failing pairs of tools/ci/ide-contrast-check.livecodescript,
+# one '<appearance> | <foreground> on <background>' per line. The check
+# reports them without failing; remove an entry once its pair passes.
+# Regenerate with OXT_CONTRAST_UPDATE=1 (or ide-contrast-check.ps1
+# -UpdateBaseline).
+light | text_2 on dataView_rowColor
+light | text_2 on dataView_rowAlternateColor
+light | text_2 on pb_line_selected
+light | dataView_disclosureIconHiliteColor on dataView_hiliteColor
+light | text_1 on dataView_TextHiliteColor
+light | text_2 on palette_background
