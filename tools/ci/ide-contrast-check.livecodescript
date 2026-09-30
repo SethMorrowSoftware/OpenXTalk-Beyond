@@ -21,6 +21,9 @@ script "oxt_ide_contrast_check"
 --                            ide-contrast-baseline.txt next to this script)
 --    OXT_CONTRAST_UPDATE     1: rewrite the baseline with the pairs that
 --                            fail now instead of comparing with it
+--    OXT_CONTRAST_LIGHT_ONLY 1: accept a layout without revIDEIsDark() (an
+--                            older one, such as main before the dark
+--                            palette) and check it in light only
 --
 -- The check loads the libraries that revIDEColor needs the way the IDE
 -- does: revcommonlibrary and revidelibrary as libraries and the script of
@@ -29,7 +32,9 @@ script "oxt_ide_contrast_check"
 -- of revIDEIsDark() (the global gREVAppearanceOverride) to "light" and to
 -- "dark" in turn; without a user interface the engine always reports a
 -- light systemAppearance, so the override is the only way to see the dark
--- tokens here. A layout without revIDEIsDark() is checked in light only.
+-- tokens here. A layout without revIDEIsDark() cannot run the dark pass:
+-- that is an error (the dark colours would silently go unchecked), unless
+-- OXT_CONTRAST_LIGHT_ONLY is 1, and then only light is checked.
 --
 -- Each line of the pairs table is
 --
@@ -64,7 +69,7 @@ local sOverlaySaved
 
 on startup
    local tRoot, tScriptFolder, tPairsFile, tBaselineFile, tUpdate, tPairs, tBaseline
-   local tResults, tModes, tSupportsDark, tIsDark, tKnown
+   local tResults, tModes, tSupportsDark, tIsDark, tKnown, tDarkError
    local tCount, tFailed, tKnownCount, tNew, tErrors, tFixed, tFailures
    set the lockMessages to true
    -- The IDE compiles its scripts without explicit variables
@@ -108,6 +113,7 @@ on startup
       put revIDEIsDark() into tIsDark
    catch tError
       put false into tSupportsDark
+      put oneLine(tError) into tDarkError
    end try
    if tSupportsDark then
       if tIsDark is not true then
@@ -115,8 +121,11 @@ on startup
          fatal "revIDEIsDark() does not follow gREVAppearanceOverride"
       end if
       put comma & "dark" after tModes
+   else if $OXT_CONTRAST_LIGHT_ONLY is "1" then
+      write "INFO revIDEIsDark() is not available: the dark appearance cannot be forced, only light is checked (OXT_CONTRAST_LIGHT_ONLY)" & return to stdout
    else
-      write "INFO revIDEIsDark() is not available: the dark appearance cannot be forced, only light is checked" & return to stdout
+      put empty into gREVAppearanceOverride
+      fatal "revIDEIsDark() is not available or failed, so the dark colours cannot be checked (" & tDarkError & "); set OXT_CONTRAST_LIGHT_ONLY=1 to check an older layout in light only"
    end if
 
    put 0 into tCount

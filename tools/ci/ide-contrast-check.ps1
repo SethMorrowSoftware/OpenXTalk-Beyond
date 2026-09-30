@@ -24,6 +24,10 @@
     With -UpdateBaseline the baseline is rewritten with the pairs that fail
     now.
 
+    The check also fails when it did not check the dark appearance (a
+    layout without revIDEIsDark()), unless the environment variable
+    OXT_CONTRAST_LIGHT_ONLY is 1 (the engine inherits it).
+
     Written to run under Windows PowerShell 5.1 and PowerShell 7.
 
 .PARAMETER Root
@@ -178,6 +182,12 @@ if ($timedOut) { $problem = "The engine did not finish within $TimeoutSeconds se
 elseif ($fatal) { $problem = "The contrast check could not run: $($fatal.Substring(6))" }
 elseif (-not $summaryLine -or ($exitCode -ne 0 -and $exitCode -ne 1)) {
     $problem = "The contrast check did not complete (exit code $exitCode$(if (-not $summaryLine) { ', no SUMMARY line' }))"
+}
+elseif ($env:OXT_CONTRAST_LIGHT_ONLY -ne '1' -and @("$($counts['modes'])" -split ',') -notcontains 'dark') {
+    # The script stops when it cannot check the dark appearance; this is a
+    # second guard, so that a green step always means the dark colours were
+    # checked (OXT_CONTRAST_LIGHT_ONLY=1 is for measuring an older layout)
+    $problem = "The contrast check did not check the dark appearance (modes=$($counts['modes']))"
 }
 $passed = (-not $problem) -and ($exitCode -eq 0)
 $result = if ($problem) { $problem }
