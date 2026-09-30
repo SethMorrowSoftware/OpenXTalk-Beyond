@@ -129,6 +129,22 @@ distributes the IDE on that basis. Whether their changes also carry
 LiveCode Ltd's permission to combine the code with OpenSSL and ATL has
 not been confirmed; see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).
 
+### Code adapted from HyperXTalk
+
+[HyperXTalk](https://github.com/emily-elizabeth/HyperXTalk), by
+Emily-Elizabeth Howard and contributors (docmeth02, Mark Wieder, Brian
+Milby, Paul McClernan, BerndN and others), is another fork of LiveCode
+Community, licensed under the GPLv3 (without LiveCode Ltd's ATL/OpenSSL
+permission; see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). Code
+adapted from it keeps its authors: each OXT-Beyond commit that takes code
+from HyperXTalk names the HyperXTalk commit and carries a
+`Co-authored-by` line for its author. Some HyperXTalk commits were written
+with an AI assistant; they say so in their own messages.
+
+| In OXT-Beyond | From HyperXTalk |
+|---|---|
+| The dark values of `revIDEColor` in `ide/Toolset/libraries/revidelibrary.8.livecodescript` (rows, text, hilite and disclosure colours) | docmeth02, commit f6dca5882 ("dark mode: make project browser honor systemAppearance") |
+
 Parts of the IDE that have their own author or terms are listed below.
 
 ### Extensions shipped with the IDE

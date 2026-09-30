@@ -36,12 +36,17 @@
 #      which also loads every bundled xTalk extension and calls it,
 #   3. compiles every IDE script in dist/stage and compares the errors with
 #      tools/ci/ide-compile-baseline.txt (ide-compile-check.ps1),
-#   4. renders disabled labels and scrollbars with the staged engine and the
+#   4. checks the contrast of the IDE's colour pairs in the light and the
+#      dark appearance against tools/ci/ide-contrast-baseline.txt
+#      (ide-contrast-check.ps1),
+#   5. renders disabled labels and scrollbars with the staged engine and the
 #      native Windows theme, in dark and in light mode, and checks the
 #      pixels (render-test.ps1),
-#   5. builds the installer (build-installer.ps1), and
-#   6. installs it per user, smoke-tests the installed program and
+#   6. builds the installer (build-installer.ps1), and
+#   7. installs it per user, smoke-tests the installed program and
 #      uninstalls it (test-installer.ps1).
+# Before the build, it lints the IDE sources with the Python 3 checks in
+# tools/ci (check_ide_*.py), which need no build.
 # A run that passes all of these uploads the files in dist (not dist/stage)
 # as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
 # failed one, uploads the logs as "build-logs-win-x86_64" and the render
@@ -215,6 +220,34 @@ jobs:
           git --version
           perl -v | Select-Object -Skip 1 -First 1
           python --version
+
+      # Checks of the IDE sources that need no build, so that they fail
+      # before the long build does. Every check runs; the step fails if any
+      # of them did. The image's Python 3 is the python on PATH (Python 2.7
+      # for the build is installed later, in C:\Python27, off PATH).
+      #   check_ide_colour_literals.py  colours set as literals outside
+      #                                 revIDEColor, a ratchet against
+      #                                 tools/ci/ide-colour-literals-baseline.txt
+      #   check_ide_stacks.py           the script patches of
+      #                                 tools/oxt/ide-stack-patches are
+      #                                 applied to the binary IDE stacks
+      #   check_ide_icons.py            the toolbar's disabled icons have
+      #                                 their dark twins, readable on the
+      #                                 dark toolbars (32,32,32 and 61,61,61)
+      - name: Lint IDE sources
+        id: ide_lint
+        run: |
+          python -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)"
+          if ($LASTEXITCODE -ne 0) { throw 'python on PATH is not Python 3.8 or later' }
+          $failed = @()
+          foreach ($check in @('check_ide_colour_literals.py', 'check_ide_stacks.py', 'check_ide_icons.py')) {
+            Write-Host "::group::$check"
+            python "tools/ci/$check"
+            $code = $LASTEXITCODE
+            Write-Host '::endgroup::'
+            if ($code -ne 0) { $failed += $check }
+          }
+          if ($failed.Count -gt 0) { throw "Failed: $($failed -join ', ')" }
 
       - name: Install MSVC v141 toolset into Visual Studio 2022
         id: vs
@@ -425,6 +458,17 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: ./tools/ci/ide-compile-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-compile-check.log"
 
+      # Evaluate the colour pairs of tools/ci/ide-contrast-pairs.txt
+      # (revIDEColor tags, light and dark appearance) in the staged layout
+      # with its engine; fails on pairs below their WCAG minimum that are
+      # not in tools/ci/ide-contrast-baseline.txt.
+      - name: IDE contrast check
+        id: contrast_check
+        timeout-minutes: 10
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: ./tools/ci/ide-contrast-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-contrast-check.log"
+
       # Run the staged engine with a user interface (the native theme and the
       # dark colours need one) on tools/ci/render-test.livecodescript, once
       # with the runner's Windows in dark mode and once in light mode
@@ -521,6 +565,7 @@ jobs:
         if: failure()
         continue-on-error: true
         env:
+          IDE_LINT_OUTCOME: ${{ steps.ide_lint.outcome }}
           VS_OUTCOME: ${{ steps.vs.outcome }}
           PYTHON_OUTCOME: ${{ steps.python.outcome }}
           CYGWIN_OUTCOME: ${{ steps.cygwin.outcome }}
@@ -532,11 +577,13 @@ jobs:
           CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
+          CONTRAST_CHECK_OUTCOME: ${{ steps.contrast_check.outcome }}
           RENDER_TEST_OUTCOME: ${{ steps.render_test.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
           TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
         run: |
           $outcomes = [ordered]@{
+            'Lint IDE sources' = $env:IDE_LINT_OUTCOME
             'Visual Studio setup' = $env:VS_OUTCOME
             'Python setup' = $env:PYTHON_OUTCOME
             'Cygwin setup' = $env:CYGWIN_OUTCOME
@@ -548,6 +595,7 @@ jobs:
             'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
+            'IDE contrast check' = $env:CONTRAST_CHECK_OUTCOME
             'Render test' = $env:RENDER_TEST_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
             'Test installer' = $env:TEST_INSTALLER_OUTCOME
@@ -617,7 +665,7 @@ jobs:
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, render test and installer logs'
+          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, IDE contrast check, render test and installer logs'
           $lines += '- render-test: the images of the render test (dark and light) and what the engine printed'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8

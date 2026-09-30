@@ -1,0 +1,59 @@
+# Colour pairs checked by tools/ci/ide-contrast-check.livecodescript.
+#
+#   <foreground tag> <background tag> <minimum ratio> [light|dark]
+#
+# Both tags are revIDEColor() tags (tags that revIDEColor does not know fall
+# through to ideColorGet). Each pair is a foreground that the IDE actually
+# draws on that background; the comment above a group names where. Minimum
+# WCAG 2 contrast ratios: 4.5 for text, 3 for icons and other parts that
+# must be seen. A pair without an appearance is checked in light and dark.
+
+# Rows of the dataView lists (Extension Manager, Project Browser, Message
+# Box, standalone inclusions): name, secondary text and disclosure arrow.
+# text_1 is also the Message Box's script line counts: their "badge" fields
+# are transparent, so the counts are drawn on the row itself (the patches
+# revmessagebox-badge-text-*.txt of tools/oxt/ide-stack-patches)
+text_1                              dataView_rowColor                    4.5
+text_1                              dataView_rowAlternateColor           4.5
+text_2                              dataView_rowColor                    4.5
+text_2                              dataView_rowAlternateColor           4.5
+dataView_disclosureIconColor        dataView_rowColor                    3
+dataView_disclosureIconColor        dataView_rowAlternateColor           3
+
+# Extension Manager: the extension's icon on its row, selected or not
+icon                                dataView_rowColor                    3
+icon                                dataView_rowAlternateColor           3
+icon                                pb_line_selected                     3
+icon                                dataView_dimmedHiliteColor           3
+
+# Extension Manager and standalone inclusions: a selected row keeps its
+# text colours on the list's hilite colour, and on the dimmed hilite colour
+# when the list is not focused
+text_1                              pb_line_selected                     4.5
+text_2                              pb_line_selected                     4.5
+text_1                              dataView_dimmedHiliteColor           4.5
+text_2                              dataView_dimmedHiliteColor           4.5
+
+# Project Browser: the script line count badge of a row (an opaque badge;
+# the Message Box draws its counts on the row, see above). The badge is red
+# for a script with errors and for a missing behaviour, on a selected row too
+text_3                              dataView_hiliteColor                 4.5
+text_3                              dataView_scriptErrorBackgroundColor  4.5
+
+# Project Browser and Message Box: a selected row (text, disclosure arrow,
+# badge), and its text when the list is not focused
+dataView_TextHiliteColor            dataView_hiliteColor                 4.5
+dataView_TextHiliteColor            dataView_dimmedHiliteColor           4.5
+dataView_disclosureIconHiliteColor  dataView_hiliteColor                 3
+dataView_hiliteBadgeTextColor       dataView_TextHiliteColor             4.5
+
+# Palettes
+text_1                              palette_background                   4.5
+text_2                              palette_background                   4.5
+text                                palette_background                   4.5
+text_muted                          palette_background                   4.5
+text_disabled                       palette_background                   3
+state_hover                         palette_background                   3
+
+# Tools palette: the widget icons
+palette_icon                        palette_background                   3
