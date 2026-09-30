@@ -66,7 +66,9 @@
 # (engines, externals, toolchain, packaged extensions) as a tar.xz, without
 # static libraries and debug symbols; OXT-Beyond-mac-<arch>-symbols holds
 # the dSYM bundles of the same folder, as a tar.xz to extract over it.
-# Both are kept for 30 days.
+# Neither holds the tools the build makes to build itself
+# (tools/ci/list_build_tools.py: GENTLE, which may not be redistributed,
+# among them). Both are kept for 30 days.
 #
 # Checks: the build products, their architecture, linkage and macOS floor,
 # the server engine running a script, and the IDE compile check of the
@@ -371,17 +373,40 @@ jobs:
       # Both hold the folder Release, so extracting the symbols over the
       # build products puts every dSYM next to its binary, where lldb and
       # atos look for it (they match it by the binary's UUID).
+      #
+      # Neither holds the tools the build makes to build itself, nor their
+      # dSYM bundles (tools/ci/list_build_tools.py, the rule of the release
+      # archives): gentle-target and reflex-target are GENTLE 97, which may
+      # not be redistributed (THIRD-PARTY-NOTICES.md "GENTLE"), and these
+      # artifacts can be downloaded. Nothing that uses them needs those
+      # tools: both builds leave out the same ones, so the merge in the
+      # package job sees neither, package.py never installs them and
+      # package_dist.py leaves them out, and the IDE compile check below
+      # runs on the build folder itself. (bsdtar reads the exclusions with
+      # -X, and "Release/x" there leaves out Release/x and what is inside
+      # it, not Release/x.dSYM.) The listing at the end is the guard: no
+      # entry named gentle-* or reflex-* may reach either tarball.
       - name: Package the build products and the debug symbols
         run: |
+          python3 tools/ci/list_build_tools.py _build/mac/Release > "$RUNNER_TEMP/build-tools.list"
+          echo "Left out (the build's own tools): $(tr '\n' ' ' < "$RUNNER_TEMP/build-tools.list")"
           tar -C _build/mac -cJf "OXT-Beyond-mac-$ARCH-bin.tar.xz" \
-            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' Release
-          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) > "$RUNNER_TEMP/dsym.list"
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' -X "$RUNNER_TEMP/build-tools.list" Release
+          # (grep -v exits 1 when it selects nothing; the check below reports that)
+          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) \
+            | grep -vxF -f "$RUNNER_TEMP/build-tools.list" > "$RUNNER_TEMP/dsym.list" || true
           if [ ! -s "$RUNNER_TEMP/dsym.list" ]; then
             echo "::error::no .dSYM bundles in _build/mac/Release"; exit 1
           fi
           echo "$(wc -l < "$RUNNER_TEMP/dsym.list" | tr -d ' ') dSYM bundles"
           (cd _build/mac && tar -cJf "$GITHUB_WORKSPACE/OXT-Beyond-mac-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dsym.list")
           ls -l OXT-Beyond-mac-"$ARCH"-*.tar.xz
+          for t in OXT-Beyond-mac-"$ARCH"-bin.tar.xz OXT-Beyond-mac-"$ARCH"-symbols.tar.xz; do
+            tar -tJf "$t" > "$RUNNER_TEMP/members.txt"
+            if grep -E '(^|/)(gentle|reflex)-' "$RUNNER_TEMP/members.txt"; then
+              echo "::error::$t holds the GENTLE files above, which may not be redistributed"; exit 1
+            fi
+          done
 
       - name: Upload the build products
         uses: actions/upload-artifact@v6

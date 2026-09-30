@@ -23,8 +23,10 @@
 # Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
 # (engines, externals, toolchain, packaged extensions) as a tar.xz, without
 # the debug symbols; OXT-Beyond-linux-<arch>-symbols holds those, the *.dbg
-# files of the same folder, as a tar.xz to extract over it. Both are kept
-# for 30 days, like the packages; logs for 14.
+# files of the same folder, as a tar.xz to extract over it. Neither holds
+# the tools the build makes to build itself (tools/ci/list_build_tools.py:
+# GENTLE, which may not be redistributed, among them). Both are kept for
+# 30 days, like the packages; logs for 14.
 #
 # Checks: the build output's files, the glibc floor of every ELF file, the
 # server engine running a script, and the IDE compile check of the
@@ -381,20 +383,41 @@ jobs:
       # linux-<arch>-bin, so extracting the symbols over the binaries puts
       # every .dbg next to its binary, where gdb finds it through the
       # binary's .gnu_debuglink. xz uses every processor (-T0).
+      #
+      # Neither holds the tools the build makes to build itself, nor their
+      # .dbg files (tools/ci/list_build_tools.py, the rule of the release
+      # archives): gentle-target and reflex-target are GENTLE 97, which may
+      # not be redistributed (THIRD-PARTY-NOTICES.md "GENTLE"), and these
+      # artifacts can be downloaded. Nothing that uses them needs those
+      # tools: the package job's package.py never installs them and
+      # package_dist.py leaves them out, and the IDE compile check below
+      # runs on the build folder itself. The listing at the end is the
+      # guard: no entry named gentle-* or reflex-* may reach either
+      # tarball.
       - name: Package the bin folder and the debug symbols
         env:
           XZ_OPT: -T0
         run: |
           B="linux-$ARCH-bin"
-          find "$B" -type f -name '*.dbg' | sort > "$RUNNER_TEMP/dbg.list"
+          python3 tools/ci/list_build_tools.py "$B" > "$RUNNER_TEMP/build-tools.list"
+          echo "Left out (the build's own tools): $(tr '\n' ' ' < "$RUNNER_TEMP/build-tools.list")"
+          # (grep -v exits 1 when it selects nothing; the check below reports that)
+          find "$B" -type f -name '*.dbg' | sort | grep -vxF -f "$RUNNER_TEMP/build-tools.list" \
+            > "$RUNNER_TEMP/dbg.list" || true
           if [ ! -s "$RUNNER_TEMP/dbg.list" ]; then
             echo "::error::no .dbg files in $B; the build's debug-symbols target makes them"; exit 1
           fi
           echo "$(wc -l < "$RUNNER_TEMP/dbg.list") debug symbol files"
-          # (--exclude before the folder: GNU tar applies it to the names after it)
-          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' "$B"
+          # (--exclude and -X before the folder: GNU tar applies them to the names after it)
+          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' -X "$RUNNER_TEMP/build-tools.list" "$B"
           tar -cJf "OXT-Beyond-linux-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dbg.list"
           ls -l OXT-Beyond-linux-"$ARCH"-*.tar.xz
+          for t in OXT-Beyond-linux-"$ARCH"-bin.tar.xz OXT-Beyond-linux-"$ARCH"-symbols.tar.xz; do
+            tar -tJf "$t" > "$RUNNER_TEMP/members.txt"
+            if grep -E '(^|/)(gentle|reflex)-' "$RUNNER_TEMP/members.txt"; then
+              echo "::error::$t holds the GENTLE files above, which may not be redistributed"; exit 1
+            fi
+          done
 
       - name: Upload the bin folder
         uses: actions/upload-artifact@v6
