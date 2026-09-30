@@ -991,14 +991,27 @@ public:
             !MCS_resolvepath(*t_tilde, &t_home))
             return false;
 
-        if (MCNameIsEqualToCaseless(p_type, MCN_desktop))
-            return MCStringFormat(r_folder, "%@/Desktop", *t_home);
+        if (MCNameIsEqualToCaseless(p_type, MCN_desktop) ||
+            MCNameIsEqualToCaseless(p_type, MCN_documents))
+        {
+            // Both folders are named in the user's language (~/Schreibtisch,
+            // ~/Dokumente, ...) and can be moved, as recorded in the XDG
+            // user-dirs.dirs file, which GLib reads for us. GLib's answer is a
+            // path, not a format string: a folder name may contain '%'. GLib
+            // has no documents folder when none is configured; then assume
+            // the English name.
+            bool t_desktop;
+            t_desktop = MCNameIsEqualToCaseless(p_type, MCN_desktop);
+
+            const gchar *t_dir;
+            t_dir = g_get_user_special_dir(t_desktop ? G_USER_DIRECTORY_DESKTOP : G_USER_DIRECTORY_DOCUMENTS);
+            if (t_dir != NULL && *t_dir != '\0')
+                return MCStringCreateWithSysString(t_dir, r_folder);
+
+            return MCStringFormat(r_folder, t_desktop ? "%@/Desktop" : "%@/Documents", *t_home);
+        }
         else if (MCNameIsEqualToCaseless(p_type, MCN_home))
             return MCStringCopy(*t_home, r_folder);
-        else if (MCNameIsEqualToCaseless(p_type, MCN_documents))
-            /* Assume the documents folder is ~/Documents (which is at least true for English localizations). */
-            // TODO: Is there an easy way to localize this?
-            return MCStringFormat(r_folder, "%@/Documents", *t_home);
         else if (MCNameIsEqualToCaseless(p_type, MCN_temporary))
             return MCStringCreateWithCString("/tmp", r_folder);
         // SN-2014-08-08: [[ Bug 13026 ]] Fix ported from 6.7
