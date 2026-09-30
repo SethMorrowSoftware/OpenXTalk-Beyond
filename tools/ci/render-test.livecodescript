@@ -941,10 +941,11 @@ private command renderNativeControls
    shootFace tStack, tObject, "s9-check-box"
    put newButton("checkOn", "checkbox", "20,56,190,82", "Checked") into tObject
    set the hilite of tObject to true
-   -- A checked checkbox or radio button with showBorder true (the button
-   -- template's default) also draws a border around its whole rect, which
-   -- would make the whole control the measured face instead of its box; the
-   -- Tools palette makes them with showBorder false
+   -- A checked (hilited) checkbox or radio button with hiliteBorder true,
+   -- the button template's default, draws a border around its whole rect
+   -- (MCButton::draw, F_HILITE_BORDER), as it does in light, which would
+   -- make the whole control the measured face instead of its box
+   set the hiliteBorder of tObject to false
    set the showBorder of tObject to false
    shootFace tStack, tObject, "s9-check-on-box"
    put newButton("checkOff", "checkbox", "20,92,190,118", "Disabled") into tObject
@@ -955,6 +956,7 @@ private command renderNativeControls
    shootFace tStack, tObject, "s9-radio-box"
    put newButton("radioOn", "radioButton", "20,164,190,190", "Selected") into tObject
    set the hilite of tObject to true
+   set the hiliteBorder of tObject to false
    set the showBorder of tObject to false
    shootFace tStack, tObject, "s9-radio-on-box"
    put newButton("radioOff", "radioButton", "20,200,190,226", "Disabled") into tObject
