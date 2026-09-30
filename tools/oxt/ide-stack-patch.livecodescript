@@ -351,7 +351,7 @@ end propertyValue
 private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
-   local tAppliedHere, tFailedHere, tSame, tScriptObjects, tLabels, tPropertyA
+   local tAppliedHere, tFailedHere, tSame, tScriptObjects, tLabels, tPropertyA, tAppliedA
    local tCompileError, tSaveError, tCurrent, tLabel
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
@@ -388,6 +388,10 @@ private command patchFile pRel, pPatches, pCheck
             set the caseSensitive to false
             write "PATCH " & tPatched & " | already applied" & return to stdout
             add 1 to sAlready
+            -- Setting one property can set another (a menu's text sets its
+            -- label and menuHistory): a property the file patches may have
+            -- its new value because of another patch of this run
+            put pPatches[i]["to"] into tPropertyA[tObject][pPatches[i]["property"]]
          else if tCurrent is pPatches[i]["from"] then
             set the caseSensitive to false
             if pCheck then
@@ -413,6 +417,7 @@ private command patchFile pRel, pPatches, pCheck
                   add 1 to tAppliedHere
                   -- One entry per object and property, for the dump check
                   put pPatches[i]["to"] into tPropertyA[tObject][pPatches[i]["property"]]
+                  put true into tAppliedA[tObject][pPatches[i]["property"]]
                end if
             end if
          else
@@ -476,13 +481,14 @@ private command patchFile pRel, pPatches, pCheck
    repeat for each line tObject in tScriptObjects
       put ideStackDumpLabel(tObject) & return after tLabels
    end repeat
-   local tPropertyLabels
+   local tPropertyLabels, tAppliedLabels
    repeat for each key tObject in tPropertyA
       put ideStackDumpLabel(tObject) into tLabel
       if tLabel is empty then throw "a patched object is not in the dump"
       put tPropertyA[tObject] into tPropertyLabels[tLabel]
+      put tAppliedA[tObject] into tAppliedLabels[tLabel]
    end repeat
-   put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels) into tChanged
+   put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels, tAppliedLabels) into tChanged
 
    save stack tMain
    -- Writing the original back sets the result, so keep the save error
@@ -563,12 +569,14 @@ end dumpValue
 -- Throws unless pBefore and pAfter (two ideStackDump results) have the
 -- same objects and differ in the scripts of exactly the objects labelled
 -- in pScriptLabels (one label per line) and, for the objects that are keys
--- of pPropertyLabels ([label][property] = new value), in exactly one
--- property line per patched property, which shows the new value. Returns
--- one line per change: "<label> | script" or "<label> | <property>".
-private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabels
+-- of pPropertyLabels ([label][property] = new value, for every property
+-- patch of the file), only in lines of patched properties, which show the
+-- new value, and in the line of every property patched in this run
+-- (pAppliedLabels[label][property] is true). Returns one line per change:
+-- "<label> | script" or "<label> | <property>".
+private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabels, pAppliedLabels
    local tBeforeA, tAfterA, tBeforeKeys, tAfterKeys, tChanged, tExpected
-   local tResult, tBeforeProps, tAfterProps, tWanted, tLine, tKey
+   local tResult, tBeforeProps, tAfterProps, tWanted, tLine, tKey, tSeen
    put dumpObjects(pBefore) into tBeforeA
    put dumpObjects(pAfter) into tAfterA
    put the keys of tBeforeA into tBeforeKeys
@@ -583,8 +591,9 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
             set the caseSensitive to false
             throw "properties of " & tLabel & " changed"
          end if
-         -- The lines that differ must be exactly one per patched property
+         -- The lines that differ must be those of patched properties
          put empty into tWanted
+         put empty into tSeen
          repeat for each key tProperty in pPropertyLabels[tLabel]
             put "prop " & propertyKey(tProperty) & ": " & dumpValue(pPropertyLabels[tLabel][tProperty]) into tWanted[propertyKey(tProperty)]
          end repeat
@@ -603,13 +612,15 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
                throw "a property of " & tLabel & " changed that no patch sets: " & tLine
             end if
             put tLabel & " | " & tKey & return after tResult
-            delete variable tWanted[tKey]
+            put true into tSeen[tKey]
          end repeat
-         if the number of elements of tWanted > 0 then
-            set the caseSensitive to false
-            throw "a patched property of " & tLabel & " is not in the dump as patched"
-         end if
-      else if pPropertyLabels[tLabel] is an array then
+         repeat for each key tProperty in pAppliedLabels[tLabel]
+            if tSeen[propertyKey(tProperty)] is not true then
+               set the caseSensitive to false
+               throw "the patched property " & tProperty & " of " & tLabel & " is not in the dump as patched"
+            end if
+         end repeat
+      else if pAppliedLabels[tLabel] is an array then
          set the caseSensitive to false
          throw "the patched properties of " & tLabel & " did not change in the dump"
       end if

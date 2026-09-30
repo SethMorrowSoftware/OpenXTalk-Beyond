@@ -70,6 +70,9 @@ text_1                              propertyInspector_multiValueBackground 4.5
 # is white in light and 30,30,30 in dark, like the rows
 text_placeholder                    dataView_rowColor                    3
 
+# Script editor: the line numbers in the gutter
+text_muted                          se_gutter                            4.5
+
 # Palette frames and the script editor's splitters: lines that only need to
 # be seen, checked in dark. Light keeps upstream's look: a 178,178,178 frame
 # (1.8:1, inside the window's own frame) and pale splitters

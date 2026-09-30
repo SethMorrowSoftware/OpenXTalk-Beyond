@@ -57,9 +57,6 @@ ide/Toolset/palettes/reverrordisplay.livecodescript | (script) | constant kerror
 ide/Toolset/palettes/reverrordisplay.livecodescript | preOpenCard | textcolor = black
 ide/Toolset/palettes/reverrordisplay.livecodescript | preOpenStack | bordercolor = 220,220,220
 ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript | (script) | constant kplaceholderdefaultbackgroundcolor = 240,240,240
-ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemHilite | textcolor = 255,255,255
-ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemUnhilite | backgroundcolor = 255,255,255
-ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemUnhilite | textcolor = 0,0,0
 ide/Toolset/palettes/script editor/behaviors/revsehandlerlistbehavior.livecodescript | (script) | constant kdefaulthandlertextcolor = #777777
 ide/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript | pFixupMacElements | foregroundcolor = black
 ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = black

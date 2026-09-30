@@ -1,0 +1,16 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec). The Preferences card "Script Editor"
+# edits the slot of the appearance the IDE is in: it reads, writes and
+# resets the preference that revSEAppearanceKey names.
+# This one: the group's applyPref, which stores a changed preference.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: group "Script Editor" of card "Script Editor"
+replace:
+|private command applyPref pPref, pValue|
+|   revIDESetPreference kPropPrefix & pPref, pValue|
+with:
+|private command applyPref pPref, pValue|
+|   -- OXT-Beyond: the slot of the IDE's appearance|
+|   revIDESetPreference kPropPrefix & revSEAppearanceKey(pPref), pValue|

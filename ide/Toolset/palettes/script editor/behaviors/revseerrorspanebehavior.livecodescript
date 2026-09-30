@@ -48,6 +48,8 @@ private command ensureListObject
       set the cantDelete of tObject to false
       set the showBorder of tObject to false
       set the cMutable of tObject to true
+      -- OXT-Beyond: the template is white; the list takes the IDE's row colour
+      set the backgroundColor of tObject to revIDEColor("dataView_rowColor")
    else
       put listObject() into tObject
    end if

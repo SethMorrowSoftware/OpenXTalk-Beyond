@@ -1,0 +1,17 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec). The Preferences card "Script Editor"
+# edits the slot of the appearance the IDE is in: it reads, writes and
+# resets the preference that revSEAppearanceKey names.
+# The custom scheme dialog (substack "CustomScriptCol") stores the scheme
+# "Custom" and its background the same way.
+# This one: the graphic "cSwatch", defaultAll.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: graphic "cSwatch" of card 1 of stack "CustomScriptCol"
+replace:
+|on defaultAll|
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"|
+with:
+|on defaultAll|
+|   revIDESetPreference "cScriptEditor," & revSEAppearanceKey("colorization,scheme"), "Custom"|

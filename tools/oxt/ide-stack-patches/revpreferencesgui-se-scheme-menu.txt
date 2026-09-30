@@ -1,0 +1,19 @@
+# Preferences, card "Script Editor": One Dark Pro in the menu of
+# colorization schemes, after Tom Perry's dark schemes (HyperXTalk
+# 0ce6bba43, Emily-Elizabeth Howard, made it a built-in scheme). It is the
+# default scheme of the dark appearance (revseutilities).
+# Setting a menu's text chooses its first item, so the chosen item saved
+# with the stack (menuHistory and label: the scheme shown when the stack
+# was saved, which the card's update replaces with the user's scheme)
+# becomes the first item too.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Colorization Scheme" of card "Script Editor"
+property: menuHistory
+from: 8
+to: 1
+property: label
+from: vibrant
+to: default
+property: text
+from: default\nrevolution classic\nvibrant\noxt lite light\noxt lite dark\ndark mode\n-\nCustom
+to: default\nrevolution classic\nvibrant\noxt lite light\noxt lite dark\ndark mode\none dark pro\n-\nCustom

@@ -213,7 +213,29 @@ private command initializeLineNumbers
    clone field "Numbers Template" of me as "Numbers"
    put kInitialLineStore into sCurrentLineStore
    unlock messages
+
+   -- The template's colours are light; give the new field the appearance's
+   applyGutterAppearance
 end initializeLineNumbers
+
+# Description
+#   OXT-Beyond: the line numbers in the colours of the IDE's appearance
+#   (revIDEColor), which the Numbers Template field (217,217,217 and
+#   128,128,128) does not have. Run whenever the field is made and when the
+#   appearance changes (seApplyAppearance), the approach of HyperXTalk
+#   9c9079c6c.
+command applyGutterAppearance
+   lock messages
+   if there is a field "Numbers" of me then
+      set the backgroundColor of field "Numbers" of me to revIDEColor("se_gutter")
+      set the foregroundColor of field "Numbers" of me to revIDEColor("text_muted")
+   end if
+   if there is a field "Overlay" of me then
+      set the backgroundColor of field "Overlay" of me to revIDEColor("se_gutter")
+      set the foregroundColor of field "Overlay" of me to revIDEColor("text_muted")
+   end if
+   unlock messages
+end applyGutterAppearance
 
 private command initializeMutables
    lock messages

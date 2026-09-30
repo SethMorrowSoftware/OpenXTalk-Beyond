@@ -2833,6 +2833,48 @@ end __revIDEAppearanceRefresh
 
 /**
 /**
+The script editor preference that holds a setting in the IDE's appearance.
+
+Parameters:
+pKey (string): A script editor preference without the "cScriptEditor,"
+prefix, for example "editor,backgroundcolor".
+
+Returns (string): In the dark appearance (<revIDEIsDark>), the preference
+that holds the dark value of a setting that has one: pKey & "dark" for the
+backgrounds, the selection, hilite and bracket colours and the
+colorization scheme, and "editor,darkFindColor" (HyperXTalk's name) for
+the find colour. Otherwise pKey.
+
+Description:
+The script editor keeps a light and a dark value for the settings whose
+colours depend on the appearance (the idea of HyperXTalk e835a23ec, by
+Emily-Elizabeth Howard). sePrefGet (revseutilities) returns the value for
+the IDE's appearance, and the Preferences card "Script Editor" edits the
+slot of the appearance the IDE is in, both through this function.
+
+References: revIDEIsDark (function)
+**/
+function revSEAppearanceKey pKey
+   -- The script editor asks for its preferences all the time, so the
+   -- appearance is only looked at for the settings that have a dark value
+   switch pKey
+      case "editor,backgroundcolor"
+      case "editor,debugBackgroundcolor"
+      case "editor,selectbackgroundcolor"
+      case "editor,hilitecolor"
+      case "editor,brackethighlightcolor"
+      case "colorization,scheme"
+      case "colorization,config"
+         if revIDEIsDark() then return pKey & "dark"
+         break
+      case "editor,findcolor"
+         if revIDEIsDark() then return "editor,darkFindColor"
+         break
+   end switch
+   return pKey
+end revSEAppearanceKey
+
+/**
 The View menu's Appearance submenu.
 
 Returns (string): The submenu's lines, each indented with a tab, with a
@@ -3188,6 +3230,11 @@ function revIDEColor pTag
             -- The script editor's pane splitters: they only need to be seen
             return "60,60,64"
             break
+         case "se_gutter"
+            -- The script editor's line numbers column, a little lighter
+            -- than its dark background (30,30,30); text_muted on it: 5.3:1
+            return "44,44,46"
+            break
       end switch
    end if
 
@@ -3275,6 +3322,10 @@ function revIDEColor pTag
          break
       case "se_splitter"
          return "224,226,235"
+         break
+      case "se_gutter"
+         -- As upstream (the Numbers Template field); text_muted: 4.5:1
+         return "217,217,217"
          break
    end switch
 
