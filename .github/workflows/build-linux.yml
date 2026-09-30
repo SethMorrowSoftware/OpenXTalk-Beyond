@@ -19,6 +19,10 @@
 #
 # Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
 # (engines, externals, toolchain, packaged extensions) as a tar.xz.
+#
+# Checks: the build output's files, the server engine running a script, and
+# the IDE compile check of the checkout's IDE with the new development
+# engine (tools/ci/run_livecode_check.py compile --repo-layout).
 
 name: Build (Linux)
 
@@ -224,6 +228,26 @@ jobs:
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
 
+      # The IDE compile check (tools/ci/ide-compile-check.livecodescript,
+      # the baseline of tools/ci/ide-compile-baseline.txt plus its Linux
+      # supplement) over the checkout's IDE, run by the development engine
+      # just built, before anything is packaged: run_livecode_check.py
+      # --repo-layout assembles Toolset, Plugins and Extensions from ide/,
+      # ide-support/ and the build's packaged extensions. After the upload,
+      # so a failure here still leaves the build to look at. -ui needs no X
+      # display. The container's python is Python 2 (gyp, config.py);
+      # Python 3 (3.8 on focal) is installed only now, so the build never
+      # sees it.
+      - name: IDE compile check (repository)
+        timeout-minutes: 20
+        run: |
+          apt-get install -y --no-install-recommends python3
+          python3 --version
+          python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
+            --log ide-compile-check.log
+
+      # Paths in the workspace: in a container job runner.temp names the
+      # host's folder, which the upload action does not see
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -232,4 +256,5 @@ jobs:
           path: |
             prebuilt/build/**/config.log
             prebuilt/build/**/*.log
+            ide-compile-check.log
           if-no-files-found: ignore
