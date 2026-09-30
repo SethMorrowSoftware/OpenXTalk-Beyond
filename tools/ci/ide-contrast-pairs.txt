@@ -49,3 +49,6 @@ text                                palette_background                   4.5
 text_muted                          palette_background                   4.5
 text_disabled                       palette_background                   3
 state_hover                         palette_background                   3
+
+# Tools palette: the widget icons
+palette_icon                        palette_background                   3

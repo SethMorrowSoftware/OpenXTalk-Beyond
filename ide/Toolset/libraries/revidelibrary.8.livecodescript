@@ -2615,6 +2615,15 @@ function revIDEColor pTag
          case "icon"
             return "200,200,200"
             break
+         case "palette_icon"
+            return "210,210,210"
+            break
+         case "palette_icon_disabled"
+            return "90,90,90"
+            break
+         case "palette_separator"
+            return "60,60,60"
+            break
          case "dataView_rowColor"
             return "36,36,38"
             break
@@ -2684,6 +2693,15 @@ function revIDEColor pTag
          break
       case "icon"
          return "82,82,82"
+         break
+      case "palette_icon"
+         return "100,100,100"
+         break
+      case "palette_icon_disabled"
+         return "200,200,200"
+         break
+      case "palette_separator"
+         return "175,175,175"
          break
       case "dataView_rowColor"
          return "255,255,255"
