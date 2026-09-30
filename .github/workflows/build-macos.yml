@@ -646,13 +646,23 @@ jobs:
           shasum -a 256 -c SHA256SUMS
 
       # hdiutil attach -readonly, as a user's double-click mounts it; the
-      # volume must hold the app and the link to drag it onto
+      # volume must hold the app and the link to drag it onto. The attach
+      # runs right after a large download, while XProtect or Spotlight may
+      # still scan the new image, and hdiutil then fails now and again
+      # ("Resource busy", "Resource temporarily unavailable"), as hdiutil
+      # create does in the package job: up to four tries, as there. (In an
+      # "if", a failed attach does not end the step under bash -e.)
       - name: Install from the disk image
         run: |
           dmg="$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.dmg"
           mnt="$RUNNER_TEMP/oxt-dmg"
           mkdir -p "$mnt" "$RUNNER_TEMP/oxt-test"
-          hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg"
+          for i in 1 2 3 4; do
+            if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg"; then break; fi
+            if [ "$i" = 4 ]; then echo "::error::hdiutil attach $dmg failed 4 times (see above)"; exit 1; fi
+            echo "hdiutil attach failed (attempt $i of 4); trying again in $((10*i)) s"
+            sleep $((10*i))
+          done
           ls -la "$mnt"
           if [ ! -d "$mnt/OXT-Beyond.app" ]; then echo "::error::the disk image has no OXT-Beyond.app"; exit 1; fi
           if [ "$(readlink "$mnt/Applications")" != /Applications ]; then
