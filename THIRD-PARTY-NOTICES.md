@@ -146,8 +146,6 @@ with an AI assistant; they say so in their own messages.
 | The dark values of `revIDEColor` in `ide/Toolset/libraries/revidelibrary.8.livecodescript` (rows, text, hilite and disclosure colours) | docmeth02, commit f6dca5882 ("dark mode: make project browser honor systemAppearance") |
 | `MCCard::createimage` and `MCStack::setcard` (`engine/src/card.cpp`, `engine/src/stack3.cpp`): painted images are kept when the card changes | Emily-Elizabeth Howard, commit 677331fd0 ("Fix painted images disappearing when navigating away from card (#427)") |
 | `MCWidget::GetState` (`engine/src/widget.cpp`): exporting a widget that has no OnSave handler | Brian Milby, commit 91e8f81fe ("Fix widget export crash (#433)") |
-| `CreateWithNativePath` in `libfoundation/src/system-library-w32.hpp`: backslash paths for `LoadLibraryExW`, so an extension DLL's own folder is searched for its dependencies | Emily-Elizabeth Howard, commit ff47c78a3 ("Update system-library-w32.hpp") |
-| The same, normalising a copy of the path | Emily-Elizabeth Howard, commit c420f93ce ("Update system-library-w32.hpp") |
 | `MCMacPlatformSyncMouseAfterModal` and the mouse resync after native dialogs (`engine/src/mac-core.mm`, `mac-dialog.mm`, `mac-printer.mm`, `mac-internal.h`) | Emily-Elizabeth Howard, commit 081dd632e ("Resync mouse window after native modal panels close (#525)") |
 | `MCMacPlatformHandleMouseCursorChange` (`engine/src/mac-core.mm`): custom cursors on resizable stacks | Emily-Elizabeth Howard, commit 468ab56c4 ("mac: fix custom cursor ignored on resizable stacks") |
 | `send_startup_message` (`engine/src/dispatch.cpp`): quitting after a startup script error in -ui mode | docmeth02, commit 9ab07dd57 ("engine: exit cleanly after startup script errors in -ui mode") |
