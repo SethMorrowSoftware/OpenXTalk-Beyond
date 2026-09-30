@@ -25,6 +25,11 @@
 # the debug symbols; OXT-Beyond-linux-<arch>-symbols holds those, the *.dbg
 # files of the same folder, as a tar.xz to extract over it.
 #
+# Checks: the build output's files, the glibc floor of every ELF file, the
+# server engine running a script, and the IDE compile check of the
+# checkout's IDE with the new development engine
+# (tools/ci/run_livecode_check.py compile --repo-layout).
+#
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
 # build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
@@ -312,6 +317,24 @@ jobs:
           # The tarball is compressed already
           compression-level: 0
 
+      # The IDE compile check (tools/ci/ide-compile-check.livecodescript,
+      # the baseline of tools/ci/ide-compile-baseline.txt plus its Linux
+      # supplement) over the checkout's IDE, run by the development engine
+      # just built, before anything is packaged: run_livecode_check.py
+      # --repo-layout assembles Toolset, Plugins and Extensions from ide/,
+      # ide-support/ and the build's packaged extensions. After the upload,
+      # so a failure here still leaves the build to look at. -ui needs no X
+      # display. python is Python 2 (gyp, config.py); python3 (3.8 on
+      # focal) comes from the first apt step, for the checks.
+      - name: IDE compile check (repository)
+        timeout-minutes: 20
+        run: |
+          python3 --version
+          python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
+            --log ide-compile-check.log
+
+      # Paths in the workspace: in a container job runner.temp names the
+      # host's folder, which the upload action does not see
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v6
@@ -320,4 +343,5 @@ jobs:
           path: |
             prebuilt/build/**/config.log
             prebuilt/build/**/*.log
+            ide-compile-check.log
           if-no-files-found: ignore

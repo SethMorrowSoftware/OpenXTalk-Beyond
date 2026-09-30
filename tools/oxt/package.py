@@ -15,66 +15,133 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Stage the installed layout of OXT-Beyond for Windows x86-64.
+"""Stage the installed layout of OXT-Beyond for one platform.
 
-  python tools/oxt/package.py --repo <repo> --bin <repo>/win-x86_64-bin
+  python tools/oxt/package.py [--platform P] --repo <repo>
+      (--bin <build output> | --bin-tar <CI build tarball>)
       --out <stage-parent> [--build-number N] [--assets-cache DIR]
-      [--no-external-assets] [--no-xtalk-extensions] [--vc-redist DIR]
-      [--allow-unpinned-vc-runtime] [--xtalk-cache DIR] [--eol lf|crlf|keep]
-      [--summary-json FILE]
+      [--no-external-assets] [--no-xtalk-extensions] [--xtalk-compiler-bin DIR]
+      [--vc-redist DIR] [--allow-unpinned-vc-runtime] [--xtalk-cache DIR]
+      [--eol lf|crlf|keep] [--allow-single-arch] [--summary-json FILE]
       [--compare <reference install or TSV> [--report FILE]]
+
+P chooses the layout (PLATFORMS below; default win-x86_64):
+
+  win-x86_64     OXT-Beyond.exe and everything else in one folder: what the
+                 portable zip holds and Inno Setup installs. --bin defaults
+                 to <repo>/win-x86_64-bin.
+  linux-x86_64   the engine as OXT-Beyond and everything else in one folder:
+                 what the portable tar.xz holds. --bin defaults to
+                 <repo>/linux-x86_64-bin.
+  linux-arm64    the same from an arm64 build, for staging only: the IDE has
+                 no Linux arm64 standalone target and that build has no CEF,
+                 so there is no browser and no Runtime folder of its own.
+  mac-universal  OXT-Beyond.app, with everything the other layouts have at
+                 their root in OXT-Beyond.app/Contents/Tools, from a build
+                 whose Mach-O files hold arm64 and x86_64 (the lipo merge of
+                 the two CI builds). --bin defaults to <repo>/_build/mac/Release.
+  mac-arm64, mac-x86_64
+                 OXT-Beyond.app from one architecture's build, to check the
+                 layout; --allow-single-arch lets mac-universal take one too.
+
+--bin-tar takes the build output as the tarball a CI build uploads
+(OXT-Beyond-linux-<arch>-bin.tar.xz, OXT-Beyond-mac-<arch>-bin.tar.xz):
+its one top-level folder is extracted into a temporary folder first,
+without the debug symbols (*.dbg, *.dSYM, *.pdb) and macOS tar's "._"
+AppleDouble files, keeping file modes and symbolic links.
+
+The Linux and macOS layouts are Unix trees, so they are staged on Linux or
+macOS (or WSL, under a Linux path such as /tmp: a Windows drive such as
+/mnt/c keeps neither modes nor letter case, and both this script and
+package_dist.py refuse it, as a probe file shows), never on Windows,
+which keeps neither modes nor symbolic links:
+
+  modes        executable build outputs (any x bit) and native libraries
+               (of the xTalk extensions, and asset members stored with an
+               x bit) get 0755, every other file 0644 and every folder 0755,
+               whatever the umask or the checkout (git marks some IDE
+               images executable).
+  links        a symbolic link inside a build output folder is staged as
+               the same (relative) link; one that leads out of its folder
+               or is absolute is an error. A build output named directly
+               (not in a folder) is copied through a link.
+  names        two paths that differ only in letter case are a conflict on
+               Windows and macOS (whose volumes are usually
+               case-insensitive), not on Linux.
+  text         generated files (Externals.txt, Database Drivers.txt),
+               Extensions/XTALK-EXTENSIONS.txt and the licence files get
+               LF line endings; CRLF on Windows.
 
 writes <stage-parent>/OXT-Beyond-<version>/, where <version> is the content
 of ide/.version. An existing folder of that name is replaced. The folder is
-what the portable zip contains and what the installer installs. It is put
-together from:
+what the platform's package holds (the portable zip and the installer on
+Windows, the tar.xz on Linux; on macOS the folder holds OXT-Beyond.app). It
+is put together from (paths relative to the tools folder, which is the
+stage folder itself except on macOS):
 
   IDE          tools/oxt/layout.py assemble: ide/Toolset, Plugins, Resources,
                Documentation, Extensions, the ide/ root files and the 11
                ide-support scripts, plus the Sample Icons in
-               Runtime/Windows/<arch>/Support. Text files get LF line endings
-               (--eol) so that the result does not depend on git's
-               core.autocrlf.
-  build        the files of --bin (win-x86_64-bin) that Installer/package.txt
-               installs on Windows x86-64, at its installed paths (see
-               plan_build); LiveCode-Community.exe becomes OXT-Beyond.exe.
-               NOT_INSTALLED lists the build outputs that are left out.
+               Runtime/Windows/<arch>/Support (and, on macOS only,
+               Resources/Mobile Examples: package.txt Mobile.MacOSX). Text
+               files get LF line endings (--eol) so that the result does
+               not depend on git's core.autocrlf.
+  build        the files of --bin that Installer/package.txt installs on the
+               platform, at its installed paths (see Platform and plan_build);
+               the development engine becomes OXT-Beyond.exe, OXT-Beyond or
+               OXT-Beyond.app. The platform's not_installed list gives the
+               build outputs that are left out, and why.
   generated    edition.txt ("community"), Externals/Externals.txt and
                Externals/Database Drivers/Database Drivers.txt (at the root
-               and under Runtime/Windows/x86-64), .buildnumber (the build
-               number) and two empty dictionary folders (EMPTY_DIRS).
+               and under every runtime folder), .buildnumber (the build
+               number), two empty dictionary folders (EMPTY_DIRS) and, on
+               macOS, the app's Info.plist: the build's, with the renamed
+               executable (CFBundleExecutable), the layout's architectures,
+               arm64 first (LSArchitecturePriority), and the lowest
+               minimum macOS of the engine's slices
+               (LSMinimumSystemVersion).
   licences     LICENSE, LICENSE-EXCEPTION.md and THIRD-PARTY-NOTICES.md from
-               the repository root (CRLF line endings).
+               the repository root (CRLF line endings on Windows).
   assets       the archives in tools/oxt/external-assets.json (see
                fetch_assets.py), unless --no-external-assets.
   xtalk        the xTalk Suite extensions of tools/oxt/xtalk-extensions.json
                under Extensions/, byte for byte as
                tools/oxt/xtalk_extensions.py fetches and builds them (with
-               this build's lc-compile) in a temporary folder, plus
-               Extensions/XTALK-EXTENSIONS.txt; unless
-               --no-xtalk-extensions. --vc-redist is Visual Studio's
-               redistributable folder (VCToolsRedistDir): the Visual C++
-               runtime DLLs that enetxt and box2dxt import are then copied
-               next to them, and each must be the one the manifest's
-               "vc_runtime" pins (--allow-unpinned-vc-runtime only warns);
-               without --vc-redist packaging warns, and those two
-               libraries cannot load on a PC without the Visual C++
-               Redistributable. The cache is --xtalk-cache, else
-               OXT_XTALK_CACHE, else <asset cache>/xtalk.
+               the lc-compile of --xtalk-compiler-bin, default --bin: the
+               compiled modules do not depend on the platform, so a macOS
+               layout can be staged on Linux with a Linux build's compiler)
+               in a temporary folder, plus Extensions/XTALK-EXTENSIONS.txt
+               (with the platform's line endings); unless
+               --no-xtalk-extensions. Every platform gets the native
+               libraries of every platform id in the manifest, so that
+               standalones for the other platforms can be built.
+               --vc-redist is Visual Studio's redistributable folder
+               (VCToolsRedistDir): the Visual C++ runtime DLLs that enetxt
+               and box2dxt import are then copied next to them, and each
+               must be the one the manifest's "vc_runtime" pins
+               (--allow-unpinned-vc-runtime only warns); without
+               --vc-redist packaging warns, and those two libraries cannot
+               load on a PC without the Visual C++ Redistributable. The
+               cache is --xtalk-cache, else OXT_XTALK_CACHE, else <asset
+               cache>/xtalk.
 
 The build number is --build-number, else the environment variable
 OXT_BUILD_NUMBER, else the current UTC time as YYYYMMDDHHMM. ide/.buildnumber
 in the repository is a placeholder.
 
---compare checks the staged tree against a reference install (for example
-OpenXTalk Lite 1.15) or a TSV from "layout.py classify" (also a part of
-one, such as only its build rows): every IDE, build and external path of
-the reference must be staged (the engine under its new name) unless an
-intended difference (INTENDED_MISSING) says why not, and every staged path
-of the classes the reference lists must be in it unless it is an intended
-addition (licence files, asset notices). With a folder, external asset
-files must be byte-identical and empty folders must match. IDE changes
-since the reference are listed but are not errors.
+A warning says when the stage path has a folder name that makes the engine
+run the IDE in repository mode (see repository_mode_trap): a package must
+be tested from a neutral path.
+
+--compare (win-x86_64 only) checks the staged tree against a reference
+install (for example OpenXTalk Lite 1.15) or a TSV from "layout.py
+classify" (also a part of one, such as only its build rows): every IDE,
+build and external path of the reference must be staged (the engine under
+its new name) unless an intended difference (INTENDED_MISSING) says why not,
+and every staged path of the classes the reference lists must be in it
+unless it is an intended addition (licence files, asset notices). With a
+folder, external asset files must be byte-identical and empty folders must
+match. IDE changes since the reference are listed but are not errors.
 
 Exit status: 0 success, 1 unexplained differences (--compare), 2 errors
 (missing build outputs, conflicts, asset download or checksum failures;
@@ -87,27 +154,30 @@ import argparse
 import calendar
 import collections
 import datetime
+import fnmatch
 import json
 import os
+import plistlib
+import posixpath
 import re
 import shutil
 import stat
+import struct
 import sys
+import tarfile
 import tempfile
 import time
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import binfmt  # noqa: E402
 import layout  # noqa: E402
 import fetch_assets  # noqa: E402
 import xtalk_extensions  # noqa: E402
 
 PRODUCT = 'OXT-Beyond'
-EXE_NAME = PRODUCT + '.exe'
 EDITION = 'community'
-DEV_ENGINE = 'LiveCode-Community.exe'
-STANDALONE_ENGINE = 'standalone-community.exe'
 BUILD_NUMBER_ENV = 'OXT_BUILD_NUMBER'
 
 LICENCE_FILES = ('LICENSE', 'LICENSE-EXCEPTION.md', 'THIRD-PARTY-NOTICES.md')
@@ -119,54 +189,356 @@ EMPTY_DIRS = (
     'Documentation/html_viewer/resources/data/api/exports/datagrid/plugins',
 )
 
-# ---------------------------------------------------------------------------
-# Build output -> installed path, from Installer/package.txt with
-# TargetPlatform Windows, TargetArchitecture x86_64, TargetEdition Community
-# and TargetFolder = SupportFolder = ToolsFolder = the install root.
-
-# component Externals.Windows (declare external lines in this order)
-EXTERNALS = (('Speech', 'revspeech.dll'), ('XML', 'revxml.dll'),
-             ('Browser', 'revbrowser.dll'), ('Revolution Zip', 'revzip.dll'))
-# component Databases.Windows
-DATABASE_EXTERNAL = ('Database', 'revdb.dll')
-DB_DRIVERS = (('MySQL', 'dbmysql.dll'), ('ODBC', 'dbodbc.dll'),
-              ('PostgreSQL', 'dbpostgresql.dll'), ('SqLite', 'dbsqlite.dll'))
-# component Externals.CEF.Windows: from the build root ...
-CEF_FROM_ROOT = ('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe')
-# ... and from win-x86_64:Externals/CEF
-CEF_FILES = ('libcef.dll', 'd3dcompiler_47.dll', 'libEGL.dll', 'libGLESv2.dll',
-             'chrome_elf.dll', 'cef.pak', 'cef_100_percent.pak',
-             'cef_200_percent.pak', 'cef_extensions.pak', 'icudtl.dat',
-             'natives_blob.bin', 'snapshot_blob.bin', 'v8_context_snapshot.bin',
-             'swiftshader/libEGL.dll', 'swiftshader/libGLESv2.dll')
-CEF_TREES = ('locales',)
-# component Toolchain.Windows
-TOOLCHAIN_FILES = ('lc-compile.exe', 'lc-run.exe', 'lc-compile-ffi-java.exe')
-TOOLCHAIN_TREES = (('modules', 'Toolchain/modules'),)
-# component Runtime.Windows
-RUNTIME_TEMPLATES = ('w32-manifest-template.xml',
-                     'w32-manifest-template-dpiaware.xml',
-                     'w32-manifest-template-trustinfo.xml')
 # components Extensions and TimeZone: the same 42 ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
 
-RUNTIME_X64 = 'Runtime/Windows/x86-64'
+# ---------------------------------------------------------------------------
+# Platforms: build output -> installed path. The tables transcribe
+# Installer/package.txt with TargetEdition Community (for Windows and Linux
+# TargetFolder = SupportFolder = ToolsFolder = the install root); a Platform
+# docstring says where they follow the IDE or the engine instead.
 
-# Build outputs that are deliberately not installed (pattern, reason).
-NOT_INSTALLED = (
-    ('*.pdb', 'debug symbols; they go into the -symbols.zip'),
-    ('installer.exe', 'LiveCode\'s installer engine; OXT-Beyond is installed by Inno Setup'),
-    ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
-    ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Windows'),
-    ('Externals/CEF/libbrowser-cefprocess.exe',
-     'package.txt takes the identical copy at the root of the build'),
-    ('Externals/CEF/revbrowser-cefprocess.exe',
-     'package.txt takes the identical copy at the root of the build'),
+# Build outputs that no platform installs (pattern, reason)
+_NOT_IN_PACKAGE_TXT = (
     ('packaged_extensions/com.livecode.library.canvas/**',
      'not in package.txt Extensions (not shipped by LiveCode 9.6.3 or OpenXTalk Lite 1.15)'),
     ('packaged_extensions/com.livecode.library.ini/**',
      'not in package.txt Extensions (not shipped by LiveCode 9.6.3 or OpenXTalk Lite 1.15)'),
 )
+# Tools that the Linux and macOS builds make to build themselves (the
+# gentle/reflex/perfect parser generators of lc-compile, its bootstrap
+# stages, the zoneinfo compiler, the external interface compiler) and
+# intermediate files
+_BUILD_TOOLS = (
+    ('gentle-target', 'build tool (lc-compile\'s grammar compiler)'),
+    ('reflex-target', 'build tool (lc-compile\'s lexer generator)'),
+    ('perfect-target', 'build tool (lc-compile\'s keyword hash generator)'),
+    ('lc-bootstrap-compile*', 'build tool (first stage of lc-compile)'),
+    ('lc-compile-stage*', 'build tool (intermediate stage of lc-compile)'),
+    ('zic', 'build tool (compiles the zoneinfo data of the timezone library)'),
+    ('lcidlc', 'build tool (external interface compiler)'),
+    ('*.a', 'static library (build intermediate)'),
+    ('**/*.a', 'static library (build intermediate)'),
+    ('*.hmap', 'Xcode header map (build intermediate)'),
+)
+
+
+class Platform(object):
+    """One installed layout: which build outputs go where, and how the
+    staged files are written. Fields:
+
+      name, family, arch   'linux-x86_64', 'linux', 'x86_64'
+      bin_default          build output folder, relative to the repository
+      dev_engine           development engine in the build output (a file,
+                           or on macOS an .app folder)
+      engine               its installed name, relative to the stage
+      engine_executable    the program to run, relative to the stage
+      engine_dir           folder of engine_executable in the stage ('' or
+                           a prefix ending in '/'): where the engine looks
+                           for revsecurity and (Linux) the CEF helper
+      tools                prefix of everything else ('' or ending in
+                           '/'): the folder that holds Toolset
+      component            package.txt's platform name (for notes)
+      externals            (name declared in Externals.txt, build output)
+      database, drivers    the same for revdb and the database drivers
+      engine_support       (build output, installed path): revpdfprinter
+                           and revsecurity next to the engine
+      mobile               build outputs installed into Externals/ at the
+                           tools root only (package.txt Mobile.<platform>)
+      toolchain            build outputs installed into Toolchain/
+      cef                  None, or dict(files, trees: under
+                           Externals/CEF of the build; helpers_in_cef: from
+                           the build root into Externals/CEF;
+                           helpers_at_engine: from the build root into the
+                           engine's folder; helpers_at_runtime: from the
+                           build root into a runtime folder's root)
+      runtimes             dicts: folder, standalone (build output,
+                           installed name; None for a folder without an
+                           engine), files (at the folder's root), support
+                           (into Support/), externals (bool: the Externals
+                           component)
+      not_installed        (pattern, reason) for build outputs left out
+      ide_include          layout.MANAGED_EXCLUDE prefixes staged too
+      elf_arch, mac_archs  what the engine binaries must be built for
+      unix                 file modes and symbolic links are staged
+      case_sensitive       paths differing only in case do not conflict
+      eol                  line ending of generated text and licence files
+    """
+
+    def __init__(self, name, family, arch, **kw):
+        self.name = name
+        self.family = family
+        self.arch = arch
+        self.bin_default = kw['bin_default']
+        self.dev_engine = kw['dev_engine']
+        self.engine = kw['engine']
+        self.engine_executable = kw.get('engine_executable', self.engine)
+        self.engine_dir = kw.get('engine_dir', '')
+        self.tools = kw.get('tools', '')
+        self.component = kw['component']
+        self.externals = kw['externals']
+        self.database = kw['database']
+        self.drivers = kw['drivers']
+        self.engine_support = kw['engine_support']
+        self.mobile = kw['mobile']
+        self.toolchain = kw['toolchain']
+        self.cef = kw.get('cef')
+        self.runtimes = kw['runtimes']
+        self.not_installed = tuple(kw['not_installed'])
+        self.ide_include = kw.get('ide_include', ())
+        self.elf_arch = kw.get('elf_arch')
+        self.mac_archs = kw.get('mac_archs')
+        self.unix = family != 'windows'
+        # macOS volumes (APFS, HFS+) are case-insensitive unless formatted
+        # otherwise, like Windows; ext4 and the other Linux file systems
+        # are not
+        self.case_sensitive = family == 'linux'
+        self.eol = b'\r\n' if family == 'windows' else b'\n'
+
+
+def _windows_x86_64():
+    """package.txt TargetPlatform Windows, TargetArchitecture x86_64."""
+    externals = (('Speech', 'revspeech.dll'), ('XML', 'revxml.dll'),
+                 ('Browser', 'revbrowser.dll'), ('Revolution Zip', 'revzip.dll'))
+    return Platform(
+        'win-x86_64', 'windows', 'x86_64',
+        bin_default='win-x86_64-bin',
+        dev_engine='LiveCode-Community.exe',
+        engine=PRODUCT + '.exe',
+        component='Windows',
+        # component Externals.Windows (declare external lines in this order)
+        externals=externals,
+        # component Databases.Windows
+        database=('Database', 'revdb.dll'),
+        drivers=(('MySQL', 'dbmysql.dll'), ('ODBC', 'dbodbc.dll'),
+                 ('PostgreSQL', 'dbpostgresql.dll'), ('SqLite', 'dbsqlite.dll')),
+        # component Engine.Windows
+        engine_support=(('revpdfprinter.dll', 'revpdfprinter.dll'),
+                        ('revsecurity.dll', 'revsecurity.dll')),
+        # component Mobile.Windows
+        mobile=('revandroid.dll',),
+        # component Toolchain.Windows
+        toolchain=('lc-compile.exe', 'lc-run.exe', 'lc-compile-ffi-java.exe'),
+        # component Externals.CEF.Windows: the helpers from the build root,
+        # the rest from win-x86_64:Externals/CEF
+        cef=dict(
+            helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe'),
+            helpers_at_engine=(), helpers_at_runtime=(),
+            files=('libcef.dll', 'd3dcompiler_47.dll', 'libEGL.dll', 'libGLESv2.dll',
+                   'chrome_elf.dll', 'cef.pak', 'cef_100_percent.pak',
+                   'cef_200_percent.pak', 'cef_extensions.pak', 'icudtl.dat',
+                   'natives_blob.bin', 'snapshot_blob.bin', 'v8_context_snapshot.bin',
+                   'swiftshader/libEGL.dll', 'swiftshader/libGLESv2.dll'),
+            trees=('locales',)),
+        # component Runtime.Windows x86-64 (Sample Icons come from the IDE part)
+        runtimes=(dict(folder='Runtime/Windows/x86-64',
+                       standalone=('standalone-community.exe', 'Standalone'),
+                       files=('w32-manifest-template.xml',
+                              'w32-manifest-template-dpiaware.xml',
+                              'w32-manifest-template-trustinfo.xml'),
+                       support=('revpdfprinter.dll', 'revsecurity.dll'),
+                       externals=True),),
+        not_installed=(
+            ('*.pdb', 'debug symbols; they go into the -symbols.zip'),
+            ('installer.exe', 'LiveCode\'s installer engine; OXT-Beyond is installed by Inno Setup'),
+            ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+            ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Windows'),
+            ('Externals/CEF/libbrowser-cefprocess.exe',
+             'package.txt takes the identical copy at the root of the build'),
+            ('Externals/CEF/revbrowser-cefprocess.exe',
+             'package.txt takes the identical copy at the root of the build'),
+        ) + _NOT_IN_PACKAGE_TXT)
+
+
+def _linux(arch):
+    """package.txt TargetPlatform Linux. The arm64 build has no CEF and the
+    IDE no Linux arm64 standalone target (revsblibrary: Linux, Linux x64,
+    Linux armv6-hf), so linux-arm64 has neither."""
+    cef = arch == 'x86_64'
+    externals = (('XML', 'revxml.so'), ('Revolution Zip', 'revzip.so'))
+    if cef:
+        externals += (('Browser', 'revbrowser.so'),)
+    not_installed = (
+        ('*.dbg', 'debug symbols (objcopy --only-keep-debug); they go into the -symbols archive'),
+        ('installer', 'LiveCode\'s installer engine; OXT-Beyond ships a portable folder'),
+        ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+        ('Externals/CEF/chrome-sandbox',
+         'CEF\'s setuid sandbox helper: CEF runs with no_sandbox (libbrowser_cef.cpp, cefbrowser.cpp), '
+         'and the helper would need root ownership and mode 4755'),
+        ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Linux'),
+    ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS
+    runtimes = ()
+    if arch == 'x86_64':
+        # component Runtime.Linux with TargetArchitecture x86_64, plus
+        # Externals (which includes Externals.CEF.Linux)
+        runtimes = (dict(folder='Runtime/Linux/x86-64',
+                         standalone=('standalone-community', 'Standalone'),
+                         files=(), support=('revpdfprinter.so', 'revsecurity.so'),
+                         externals=True),)
+    return Platform(
+        'linux-' + arch, 'linux', arch,
+        bin_default='linux-%s-bin' % arch,
+        dev_engine='LiveCode-Community',
+        # package.txt: [[ProductName]].[[TargetArchitecture]]; the Linux
+        # package has one architecture and a launcher script, so the plain
+        # name is enough (and what the .desktop file and docs say)
+        engine=PRODUCT,
+        component='Linux',
+        # component Externals.Linux (no revspeech on Linux)
+        externals=externals,
+        database=('Database', 'revdb.so'),
+        drivers=(('MySQL', 'dbmysql.so'), ('ODBC', 'dbodbc.so'),
+                 ('PostgreSQL', 'dbpostgresql.so'), ('SqLite', 'dbsqlite.so')),
+        engine_support=(('revpdfprinter.so', 'revpdfprinter.so'),
+                        ('revsecurity.so', 'revsecurity.so')),
+        mobile=('revandroid.so',),
+        toolchain=('lc-compile', 'lc-run', 'lc-compile-ffi-java'),
+        # component Externals.CEF.Linux, without chrome-sandbox; the helper
+        # executables where the code starts them (see the Platform notes)
+        cef=dict(
+            helpers_in_cef=('revbrowser-cefprocess',),
+            helpers_at_engine=('libbrowser-cefprocess',),
+            helpers_at_runtime=('revbrowser-cefprocess', 'libbrowser-cefprocess'),
+            files=('libcef.so', 'libEGL.so', 'libGLESv2.so', 'cef.pak',
+                   'cef_100_percent.pak', 'cef_200_percent.pak', 'cef_extensions.pak',
+                   'icudtl.dat', 'natives_blob.bin', 'snapshot_blob.bin',
+                   'v8_context_snapshot.bin', 'swiftshader/libEGL.so',
+                   'swiftshader/libGLESv2.so'),
+            trees=('locales',)) if cef else None,
+        runtimes=runtimes,
+        not_installed=not_installed,
+        elf_arch=arch)
+
+
+# The macOS runtime folders, as the IDE's standalone builder uses them
+# (revsblibrary revEngineCheck and revSBEnginePath, revsaveasstandalone
+# revStandalonePlatformDetails and revSaveAsMacStandalone):
+#
+#   x86-64, x64-ARM64  the engines deployed for the Intel and the Apple
+#                      Silicon target, with their Support folders (and
+#                      Externals; see below).
+#   arm64              only an Externals folder. For the Apple Silicon
+#                      target revStandalonePlatformDetails takes Support
+#                      from "Mac OS X/x64-ARM64" but passes the
+#                      architecture "arm64", and revExternalPath and
+#                      revDBDriverPath (revbackscriptlibrary) then read
+#                      Mac OS X/arm64/Externals/Externals.txt and
+#                      .../Database Drivers/Database Drivers.txt: without
+#                      this folder an Apple Silicon standalone gets no
+#                      revXML, revZip, revDB, revBrowser, revSpeech or
+#                      database driver, and the builder only warns (so a
+#                      test app without externals cannot catch it; see
+#                      the README). x64-ARM64/Externals stays too, because
+#                      revStandaloneDatabaseDriversPath warns when the
+#                      target folder's Externals is missing. The copy costs
+#                      about 4.5 MB per architecture; a symbolic link to
+#                      x64-ARM64 would save it, but every later step
+#                      (--compare, the zip and the DMG, codesign) would
+#                      have to handle a linked folder.
+#   x86-32             only looked at, but it must exist: it enables the
+#                      Intel target, and every Mac standalone gets its icons
+#                      from it (Contents/Resources/Standalone*.icns). It
+#                      has no Externals, because its target cannot build:
+#                      the engine has no i386 slice, and the IDE disables
+#                      the target on macOS 12 and later.
+MAC_RUNTIMES = collections.OrderedDict([
+    ('x86-64', dict(folder='Runtime/Mac OS X/x86-64',
+                    standalone=('Standalone-Community.app', 'Standalone.app'),
+                    files=(), support=('revpdfprinter.bundle', 'revsecurity.dylib'), externals=True)),
+    ('x64-ARM64', dict(folder='Runtime/Mac OS X/x64-ARM64',
+                       standalone=('Standalone-Community.app', 'Standalone-blank.app'),
+                       files=(), support=('revpdfprinter.bundle', 'revsecurity.dylib'), externals=True)),
+    ('arm64', dict(folder='Runtime/Mac OS X/arm64', standalone=None,
+                   files=(), support=(), externals=True)),
+    ('x86-32', dict(folder='Runtime/Mac OS X/x86-32',
+                    standalone=('Standalone-Community.app', 'Standalone.app'),
+                    files=(), support=(), externals=False)),
+])
+
+
+def _mac(arch):
+    """package.txt TargetPlatform MacOSX, with the IDE under
+    OXT-Beyond.app/Contents/Tools. arch 'universal' is the release layout;
+    'arm64' and 'x86_64' stage one architecture's build, with only its own
+    runtime folders (arm64: x64-ARM64 and its arm64 Externals; see
+    MAC_RUNTIMES) and x86-32, whose Standalone.app the IDE needs for the
+    icons; with a single-architecture layout the Intel target is offered
+    but fails without x86-64/Standalone.app."""
+    app = PRODUCT + '.app'
+    folders = {'universal': ('x86-64', 'x64-ARM64', 'arm64', 'x86-32'),
+               'arm64': ('x64-ARM64', 'arm64', 'x86-32'),
+               'x86_64': ('x86-64', 'x86-32')}[arch]
+    return Platform(
+        'mac-' + arch, 'mac', arch,
+        bin_default='_build/mac/Release',
+        dev_engine='LiveCode-Community.app',
+        engine=app,
+        engine_executable=app + '/Contents/MacOS/' + PRODUCT,
+        engine_dir=app + '/Contents/MacOS/',
+        # environment/stackbehavior.livecodescript: the tools path of an
+        # engine in X.app/Contents/MacOS is X.app/Contents/Tools
+        tools=app + '/Contents/Tools/',
+        component='MacOSX',
+        externals=(('Speech', 'revspeech.bundle'), ('XML', 'revxml.bundle'),
+                   ('Browser', 'revbrowser.bundle'), ('Revolution Zip', 'revzip.bundle')),
+        database=('Database', 'revdb.bundle'),
+        drivers=(('MySQL', 'dbmysql.bundle'), ('ODBC', 'dbodbc.bundle'),
+                 ('PostgreSQL', 'dbpostgresql.bundle'), ('SqLite', 'dbsqlite.bundle')),
+        # component Engine.MacOSX: from the build root, which has the
+        # stripped copies (the build also copies them into the app before
+        # stripping: those keep their symbols and are left out).
+        #
+        # Every Mach-O the build strips has a stale ad-hoc signature: Xcode
+        # signs first, then tools/extract-debug-symbols.sh runs
+        # "strip -x -S", which keeps the old CodeDirectory (the page hashes
+        # and codeLimit of the unstripped file). That covers these two, the
+        # externals and drivers, lc-compile/lc-run and both engines, and
+        # staging does not fix it. The assembled app must be signed again
+        # from the inside out, then checked with
+        # "codesign --verify --deep --strict":
+        #   1. every Mach-O under Contents/Tools: the Runtime/Mac OS X/*/
+        #      Standalone*.app bundles and their Support and Externals
+        #      folders, Externals, Toolchain;
+        #   2. Contents/MacOS/revsecurity.dylib and revpdfprinter.bundle;
+        #   3. the app itself, which signs Contents/MacOS/OXT-Beyond.
+        # Apple Silicon kills a process at the first page that does not
+        # match its hash (loading revsecurity for an https URL would end in
+        # "Code Signature Invalid"). GitHub's macOS runners (SIP disabled)
+        # still run such files, so only the verify step catches it.
+        engine_support=(('revsecurity.dylib', app + '/Contents/MacOS/revsecurity.dylib'),
+                        ('revpdfprinter.bundle', app + '/Contents/MacOS/revpdfprinter.bundle')),
+        # component Mobile.MacOSX (its Resources/Mobile Examples come from ide/)
+        mobile=('reviphone.bundle', 'revandroid.bundle'),
+        toolchain=('lc-compile', 'lc-run', 'lc-compile-ffi-java'),
+        cef=None,
+        runtimes=tuple(MAC_RUNTIMES[f] for f in folders),
+        not_installed=(
+            ('*.dSYM/**', 'debug symbols; they go into the -symbols zip'),
+            ('Installer.app/**', 'LiveCode\'s installer; OXT-Beyond ships the app in a disk image'),
+            ('installer-stub', 'LiveCode\'s installer'),
+            ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+            ('reviphoneproxy', 'iOS simulator helper; the copy inside reviphone.bundle is installed'),
+            ('tz.dylib', 'native code of the timezone library; its packaged_extensions copy is installed'),
+            ('inih.dylib', 'native code of com.livecode.library.ini, which package.txt does not install'),
+            ('LiveCode-Community.app/Contents/Info.plist',
+             'replaced by a generated Info.plist that names the renamed executable, the layout\'s '
+             'architectures (LSArchitecturePriority) and the engine\'s lowest macOS (LSMinimumSystemVersion)'),
+            ('LiveCode-Community.app/Contents/_CodeSignature/**',
+             'the build\'s seal of the app does not match the renamed executable and the new Info.plist; '
+             'the whole app, its nested code included (whose stripped copies carry stale signatures), '
+             'is signed again from the inside out after it is assembled'),
+            ('LiveCode-Community.app/Contents/MacOS/revsecurity.dylib',
+             'unstripped copy; package.txt Engine.MacOSX takes the build root\'s'),
+            ('LiveCode-Community.app/Contents/MacOS/revpdfprinter.bundle/**',
+             'unstripped copy; package.txt Engine.MacOSX takes the build root\'s'),
+        ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS,
+        ide_include=('ide/Resources/Mobile Examples/',),
+        mac_archs={'universal': ('arm64', 'x86_64'), 'arm64': ('arm64',), 'x86_64': ('x86_64',)}[arch])
+
+
+PLATFORMS = collections.OrderedDict((p.name, p) for p in (
+    _windows_x86_64(), _linux('x86_64'), _linux('arm64'), _mac('universal'), _mac('arm64'), _mac('x86_64')))
+DEFAULT_PLATFORM = 'win-x86_64'
 
 # Paths of a reference install (layout.py class build) that packaging does
 # not produce on purpose (pattern, reason). Used by --compare.
@@ -196,17 +568,18 @@ class PackageError(Exception):
 
 
 class Item(object):
-    """One file of the staged tree."""
-    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note')
+    """One file (or symbolic link) of the staged tree."""
+    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note', 'link')
 
-    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note=''):
+    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note='', link=None):
         self.target = target      # installed path, "/" separators
         self.origin = origin      # ide, build, generated, licence, asset, xtalk
         self.source = source      # file on disk (ide, build, licence, xtalk)
-        self.data = data          # bytes (generated)
+        self.data = data          # bytes (generated, licence, the xtalk stamp)
         self.member = member      # zip member name (asset)
         self.asset = asset        # asset dict (asset)
         self.note = note
+        self.link = link          # target of a symbolic link (build, Unix layouts)
 
 
 # ---------------------------------------------------------------------------
@@ -245,146 +618,358 @@ def default_build_number(explicit=None):
     return value
 
 
-def _crlf_lines(pairs):
-    return ''.join('%s,%s\r\n' % p for p in pairs).encode('ascii')
+def _lines(pairs, eol=b'\r\n'):
+    return b''.join(('%s,%s' % p).encode('ascii') + eol for p in pairs)
 
 
-def externals_component(folder, bin_dir, add, problems):
-    """package.txt component Externals (Windows) into <folder>/Externals."""
-    ext = folder + '/Externals' if folder else 'Externals'
-    for _, name in EXTERNALS + (DATABASE_EXTERNAL,):
-        add_build(ext + '/' + name, name, bin_dir, add, problems, 'Externals.Windows / Databases.Windows')
-    for _, name in DB_DRIVERS:
-        add_build(ext + '/Database Drivers/' + name, name, bin_dir, add, problems, 'Databases.Windows')
-    for name in CEF_FROM_ROOT:
-        add_build(ext + '/CEF/' + name, name, bin_dir, add, problems, 'Externals.CEF.Windows')
-    for name in CEF_FILES:
-        add_build(ext + '/CEF/' + name, 'Externals/CEF/' + name, bin_dir, add, problems, 'Externals.CEF.Windows')
-    for tree in CEF_TREES:
-        add_tree(ext + '/CEF/' + tree, 'Externals/CEF/' + tree, bin_dir, add, problems, 'Externals.CEF.Windows')
-    add(Item(ext + '/Externals.txt', 'generated',
-             data=_crlf_lines(EXTERNALS + (DATABASE_EXTERNAL,)),
-             note='package.txt Externals: emit externals'))
-    add(Item(ext + '/Database Drivers/Database Drivers.txt', 'generated',
-             data=_crlf_lines(DB_DRIVERS), note='package.txt Externals: emit dbdrivers'))
-
-
-def add_build(target, rel, bin_dir, add, problems, note):
-    path = layout.native(bin_dir, rel)
-    if not os.path.isfile(path):
-        problems.append('build output missing: %s (for %s)' % (rel, target))
-        return
-    add(Item(target, 'build', source=path, note='package.txt ' + note + ': ' + rel))
-
-
-def add_tree(target, rel, bin_dir, add, problems, note):
-    base = layout.native(bin_dir, rel)
-    if not os.path.isdir(base):
-        problems.append('build output folder missing: %s (for %s)' % (rel, target))
-        return
-    files = [p for p in layout.walk_files(base)
-             if not any(part.startswith('.') for part in p.split('/'))]
-    if not files:
-        problems.append('build output folder is empty: %s' % rel)
-    for p in files:
-        add(Item(target + '/' + p, 'build', source=layout.native(base, p),
-                 note='package.txt ' + note + ': ' + rel + '/'))
-
-
-def plan_build(bin_dir, add, problems):
-    # Engine.Windows
-    add_build(EXE_NAME, DEV_ENGINE, bin_dir, add, problems, 'Engine.Windows (renamed)')
-    add_build('revpdfprinter.dll', 'revpdfprinter.dll', bin_dir, add, problems, 'Engine.Windows')
-    add_build('revsecurity.dll', 'revsecurity.dll', bin_dir, add, problems, 'Engine.Windows')
-    # Toolset: emit variable TargetEdition
-    add(Item('edition.txt', 'generated', data=EDITION.encode('ascii'),
-             note='package.txt Toolset: emit variable TargetEdition'))
-    # Externals (ToolsFolder) and Mobile.Windows
-    externals_component('', bin_dir, add, problems)
-    add_build('Externals/revandroid.dll', 'revandroid.dll', bin_dir, add, problems, 'Mobile.Windows')
-    # Toolchain.Windows
-    for name in TOOLCHAIN_FILES:
-        add_build('Toolchain/' + name, name, bin_dir, add, problems, 'Toolchain.Windows')
-    for rel, target in TOOLCHAIN_TREES:
-        add_tree(target, rel, bin_dir, add, problems, 'Toolchain.Windows')
-    # Runtime.Windows x86-64 (Sample Icons come from the IDE part)
-    add_build(RUNTIME_X64 + '/Standalone', STANDALONE_ENGINE, bin_dir, add, problems,
-              'Runtime.Windows (standalone<edition>.exe as Standalone)')
-    for name in RUNTIME_TEMPLATES:
-        add_build(RUNTIME_X64 + '/' + name, name, bin_dir, add, problems, 'Runtime.Windows')
-    for name in ('revpdfprinter.dll', 'revsecurity.dll'):
-        add_build(RUNTIME_X64 + '/Support/' + name, name, bin_dir, add, problems, 'Runtime.Windows')
-    externals_component(RUNTIME_X64, bin_dir, add, problems)
-    # Extensions and TimeZone
-    for ext in PACKAGED_EXTENSIONS:
-        add_tree('Extensions/' + ext, 'packaged_extensions/' + ext, bin_dir, add, problems,
-                 'Extensions' if ext != 'com.livecode.library.timezone' else 'TimeZone')
-
-
-def unused_build_outputs(bin_dir, used):
-    """[(path, reason or None)] for build outputs that are not installed."""
+def walk_tree(base):
+    """Relative paths ("/" separators, sorted) of the files and symbolic
+    links below base; a link to a folder is one entry, not followed (a
+    macOS framework's Versions/Current must stay a link). Names starting
+    with "." are skipped, as upstream packaging skips them (and macOS tar
+    adds "._" AppleDouble files)."""
     out = []
-    for p in layout.walk_files(bin_dir):
-        if os.path.normcase(layout.native(bin_dir, p)) in used:
-            continue
-        reason = next((why for pat, why in NOT_INSTALLED if layout._glob_match(pat, p)), None)
-        out.append((p, reason))
+    for dirpath, dirnames, filenames in os.walk(base):
+        rel = os.path.relpath(dirpath, base)
+        rel = '' if rel == '.' else rel.replace(os.sep, '/') + '/'
+        links = [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith('.') and d not in links)
+        for name in filenames + links:
+            if not name.startswith('.'):
+                out.append(rel + name)
+    out.sort()
     return out
 
 
-def plan(repo, bin_dir, build_number, assets, xtalk=None):
+def link_escapes(rel, link):
+    """True when the symbolic link at rel (relative to a tree) with target
+    link is absolute or leads out of the tree: staged elsewhere it would
+    dangle or point into the build machine."""
+    if link.startswith('/') or re.match(r'^[A-Za-z]:', link):
+        return True
+    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(rel), link))
+    return resolved == '..' or resolved.startswith('../')
+
+
+def inside_tree(root, path):
+    """True when path, with every symbolic link on disk followed, is the
+    folder root (an os.path.realpath) or below it. link_escapes reads link
+    text only, and normpath folds "sub/.." to "" although sub may itself be
+    a link: sub -> .. and l -> sub/.. both pass it, yet l leads out of the
+    tree. Only the file system can see such a chain."""
+    real = os.path.normcase(os.path.realpath(path))
+    root = os.path.normcase(root)
+    return real == root or real.startswith(root.rstrip(os.sep) + os.sep)
+
+
+class Planner(object):
+    """Collects the items of one layout; problems are collected, not
+    raised, so that one run reports all of them."""
+
+    def __init__(self, platform, bin_dir):
+        self.p = platform
+        self.bin_dir = bin_dir
+        self.items = []
+        self.problems = []
+
+    def add(self, item):
+        self.items.append(item)
+
+    def file(self, target, rel, note):
+        """A build output file at an installed path (through a symbolic
+        link, if it is one: the link's target is not staged next to it)."""
+        path = layout.native(self.bin_dir, rel)
+        if not os.path.isfile(path):
+            self.problems.append('build output missing: %s (for %s)' % (rel, target))
+            return
+        self.add(Item(target, 'build', source=os.path.realpath(path) if os.path.islink(path) else path,
+                      note='package.txt ' + note + ': ' + rel))
+
+    def tree(self, target, rel, note, skip=(), rename=None):
+        """A build output folder (or a macOS bundle) at an installed path.
+        skip: glob patterns relative to the folder; rename: {relative path:
+        new relative path}. Symbolic links inside it stay links on Unix
+        layouts (and are copied through on Windows)."""
+        base = layout.native(self.bin_dir, rel)
+        if not os.path.isdir(base):
+            self.problems.append('build output folder missing: %s (for %s)' % (rel, target))
+            return
+        files = [p for p in walk_tree(base) if not any(layout._glob_match(s, p) for s in skip)]
+        if not files:
+            self.problems.append('build output folder is empty: %s' % rel)
+        for p in files:
+            path = layout.native(base, p)
+            link = None
+            if os.path.islink(path):
+                link = os.readlink(path)
+                # The text first (an absolute or "../" target), then the
+                # target resolved on disk: a chain such as a -> dir/sub/..
+                # with dir/sub -> .. passes the text check link by link but
+                # leads out of the folder (see inside_tree)
+                if link_escapes(p, link) or not inside_tree(os.path.realpath(base), path):
+                    self.problems.append('symbolic link %s/%s -> %s leads out of %s' % (rel, p, link, rel))
+                    continue
+                if not self.p.unix:
+                    if not os.path.isfile(path):
+                        self.problems.append('%s/%s is a link to a folder, which a Windows layout cannot keep'
+                                             % (rel, p))
+                        continue
+                    link = None
+            self.add(Item(target + '/' + (rename or {}).get(p, p), 'build', source=path, link=link,
+                          note='package.txt ' + note + ': ' + rel + '/'))
+
+    def output(self, target, rel, note):
+        """A build output that is a file or, on macOS, a bundle folder."""
+        if os.path.isdir(layout.native(self.bin_dir, rel)):
+            self.tree(target, rel, note)
+        else:
+            self.file(target, rel, note)
+
+    def generated(self, target, data, note):
+        self.add(Item(target, 'generated', data=data, note=note))
+
+
+def externals_component(pl, prefix, runtime):
+    """package.txt component Externals into <prefix>Externals: the
+    externals and database drivers with their lists and, where there is
+    CEF, the browser's files. prefix is the tools root or a runtime
+    folder (ending in '/'); runtime says which."""
+    p = pl.p
+    ext = prefix + 'Externals'
+    comp = p.component
+    for _, name in p.externals + (p.database,):
+        pl.output(ext + '/' + name, name, 'Externals.%s / Databases.%s' % (comp, comp))
+    for _, name in p.drivers:
+        pl.output(ext + '/Database Drivers/' + name, name, 'Databases.' + comp)
+    if p.cef:
+        note = 'Externals.CEF.' + comp
+        for name in p.cef['helpers_in_cef']:
+            pl.file(ext + '/CEF/' + name, name, note)
+        at = (prefix, p.cef['helpers_at_runtime']) if runtime else (p.engine_dir, p.cef['helpers_at_engine'])
+        for name in at[1]:
+            pl.file(at[0] + name, name, note)
+        for name in p.cef['files']:
+            pl.file(ext + '/CEF/' + name, 'Externals/CEF/' + name, note)
+        for tree in p.cef['trees']:
+            pl.tree(ext + '/CEF/' + tree, 'Externals/CEF/' + tree, note)
+    # The IDE and the standalone builder read these line by line, so on
+    # Linux and macOS a CR would become part of every file name
+    pl.generated(ext + '/Externals.txt', _lines(p.externals + (p.database,), p.eol),
+                 'package.txt Externals: emit externals')
+    pl.generated(ext + '/Database Drivers/Database Drivers.txt', _lines(p.drivers, p.eol),
+                 'package.txt Externals: emit dbdrivers')
+
+
+def plan_engine(pl):
+    """The development engine under its new name, and its support files."""
+    p = pl.p
+    note = 'Engine.' + p.component
+    if p.family != 'mac':
+        pl.file(p.engine, p.dev_engine, note + ' (renamed)')
+    else:
+        # The app bundle, with Contents/MacOS/LiveCode-Community renamed
+        # and an Info.plist that says so. The engine finds its tools from
+        # its own path, never from its name.
+        old = 'Contents/MacOS/' + p.dev_engine[:-len('.app')]
+        new = p.engine_executable[len(p.engine) + 1:]
+        replaced = [t[len(p.engine) + 1:] for _, t in p.engine_support]
+        skip = ['Contents/Info.plist', 'Contents/_CodeSignature/**'] + replaced + [r + '/**' for r in replaced]
+        pl.tree(p.engine, p.dev_engine, note + ' (renamed)', skip=skip, rename={old: new})
+        plist_path = layout.native(pl.bin_dir, p.dev_engine + '/Contents/Info.plist')
+        try:
+            with open(plist_path, 'rb') as f:
+                plist = plistlib.load(f)
+        except (OSError, ValueError, plistlib.InvalidFileException) as e:
+            pl.problems.append('cannot read %s: %s' % (plist_path, e))
+        else:
+            if plist.get('CFBundleExecutable') != p.dev_engine[:-len('.app')]:
+                pl.problems.append('%s: CFBundleExecutable is %r, not %r'
+                                   % (plist_path, plist.get('CFBundleExecutable'), p.dev_engine[:-len('.app')]))
+            plist['CFBundleExecutable'] = new.rsplit('/', 1)[-1]
+            # LiveCode's plist (engine/rsrc/LiveCode-Info.plist) still says
+            # LSArchitecturePriority x86_64, i386, from its Intel-only days.
+            # LaunchServices starts the first listed architecture the binary
+            # has, so a universal app would run under Rosetta on Apple Silicon.
+            # List the layout's own architectures (mac_archs puts arm64 first).
+            plist['LSArchitecturePriority'] = list(p.mac_archs)
+            # Xcode writes the deployment target of the build that the tree
+            # came from (arm64 11.0, x86_64 10.13). A universal app must
+            # declare its lowest slice's, or Intel Macs below 11 refuse it.
+            # binfmt's floors are the highest over the slices, so read each
+            # slice on its own.
+            exe = layout.native(pl.bin_dir, p.dev_engine + '/' + old)
+            try:
+                data = binfmt.read_file(exe)
+                floors = [binfmt.parse_macho(data[o:o + n]).floors.get('macOS')
+                          for _, o, n in binfmt.macho_slices(data)]
+            except (OSError, struct.error, binfmt.FormatError) as e:
+                floors = [None]
+                pl.problems.append('cannot read the macOS floor of %s: %s' % (exe, e))
+            else:
+                if None in floors:
+                    pl.problems.append('%s: a slice has no minimum macOS version (LC_BUILD_VERSION or '
+                                       'LC_VERSION_MIN_MACOSX)' % exe)
+            if None not in floors:
+                plist['LSMinimumSystemVersion'] = binfmt.version_text(min(floors))
+            pl.generated(p.engine + '/Contents/Info.plist', plistlib.dumps(plist, fmt=plistlib.FMT_XML),
+                         'the build\'s Info.plist with CFBundleExecutable %s, LSArchitecturePriority %s and '
+                         'LSMinimumSystemVersion %s'
+                         % (plist['CFBundleExecutable'], ', '.join(plist['LSArchitecturePriority']),
+                            plist.get('LSMinimumSystemVersion', '?')))
+    for rel, target in p.engine_support:
+        pl.output(target, rel, note)
+
+
+def plan_build(pl):
+    p = pl.p
+    tools = p.tools
+    plan_engine(pl)
+    # Toolset: emit variable TargetEdition
+    pl.generated(tools + 'edition.txt', EDITION.encode('ascii'),
+                 'package.txt Toolset: emit variable TargetEdition')
+    # Externals (ToolsFolder) and Mobile.<platform>
+    externals_component(pl, tools, False)
+    for name in p.mobile:
+        pl.output(tools + 'Externals/' + name, name, 'Mobile.' + p.component)
+    # Toolchain.<platform>
+    for name in p.toolchain:
+        pl.file(tools + 'Toolchain/' + name, name, 'Toolchain.' + p.component)
+    pl.tree(tools + 'Toolchain/modules', 'modules', 'Toolchain.' + p.component)
+    # Runtime.<platform> (Windows Sample Icons come from the IDE part)
+    for r in p.runtimes:
+        folder = tools + r['folder'] + '/'
+        if r['standalone']:     # None: a folder with only Externals (macOS arm64)
+            rel, name = r['standalone']
+            pl.output(folder + name, rel, 'Runtime.%s (%s as %s)' % (p.component, rel, name))
+        for f in r['files']:
+            pl.file(folder + f, f, 'Runtime.' + p.component)
+        for f in r['support']:
+            pl.output(folder + 'Support/' + f, f, 'Runtime.' + p.component)
+        if r['externals']:
+            externals_component(pl, folder, True)
+    # Extensions and TimeZone
+    for ext in PACKAGED_EXTENSIONS:
+        pl.tree(tools + 'Extensions/' + ext, 'packaged_extensions/' + ext,
+                'Extensions' if ext != 'com.livecode.library.timezone' else 'TimeZone')
+
+
+def check_architecture(p, bin_dir, allow_single_arch):
+    """Problems (and warnings) when the build is not for the platform: a
+    Linux engine of the other architecture, or a macOS build that lacks
+    an architecture of the layout (a mac-universal layout needs the lipo
+    merge of both builds). Windows is not checked here."""
+    problems, warnings = [], []
+    if p.elf_arch:
+        for rel in (p.dev_engine, 'standalone-community'):
+            path = layout.native(bin_dir, rel)
+            if os.path.isfile(path):
+                arch = binfmt.elf_arch(path)
+                if arch != p.elf_arch:
+                    problems.append('%s is %s, not an ELF %s executable' % (rel, arch or 'not ELF', p.elf_arch))
+    if p.mac_archs:
+        name = p.dev_engine[:-len('.app')]
+        for rel in (p.dev_engine + '/Contents/MacOS/' + name,
+                    'Standalone-Community.app/Contents/MacOS/Standalone-Community', 'revsecurity.dylib'):
+            path = layout.native(bin_dir, rel)
+            if not os.path.isfile(path):
+                continue
+            archs = binfmt.macho_archs(path) or []
+            lacking = [a for a in p.mac_archs if a not in archs]
+            if lacking:
+                msg = '%s holds %s, not %s' % (rel, ' '.join(archs) or 'no Mach-O code', ' and '.join(p.mac_archs))
+                if allow_single_arch and archs:
+                    warnings.append(msg + ' (--allow-single-arch)')
+                else:
+                    problems.append(msg + ('; a mac-universal layout needs the lipo merge of the arm64 and '
+                                           'x86_64 builds (--allow-single-arch stages it anyway)'
+                                           if p.arch == 'universal' else ''))
+    return problems, warnings
+
+
+def unused_build_outputs(p, bin_dir, used):
+    """[(path, reason or None)] for build outputs that are not installed."""
+    out = []
+    for path in layout.walk_files(bin_dir):
+        if os.path.normcase(layout.native(bin_dir, path)) in used:
+            continue
+        reason = next((why for pat, why in p.not_installed if layout._glob_match(pat, path)), None)
+        out.append((path, reason))
+    return out
+
+
+def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=None):
     """Return (items, folders, problems); folders are installed paths of
     folders to create even if empty. xtalk is what xtalk_extensions.build
-    returned, or None."""
-    items, problems = [], []
-    folders = list(EMPTY_DIRS)
-    add = items.append
+    returned, or None. notes (a list) gets messages worth showing that are
+    not problems."""
+    p = platform or PLATFORMS[DEFAULT_PLATFORM]
+    tools = p.tools
+    pl = Planner(p, bin_dir)
+    folders = [tools + d for d in EMPTY_DIRS]
 
     # IDE
-    pairs, ide_problems = layout.plan_assemble(repo)
-    problems.extend('IDE: ' + p for p in ide_problems)
+    pairs, ide_problems = layout.plan_assemble(repo, p.ide_include)
+    pl.problems.extend('IDE: ' + x for x in ide_problems)
     for target, repo_path in pairs:
         if target == '.buildnumber':
             continue
-        add(Item(target, 'ide', source=layout.native(repo, repo_path), note=repo_path))
-    add(Item('.buildnumber', 'generated', data=(build_number + '\n').encode('ascii'),
-             note='build number (ide/.buildnumber is a placeholder)'))
+        pl.add(Item(tools + target, 'ide', source=layout.native(repo, repo_path), note=repo_path))
+    pl.generated(tools + '.buildnumber', (build_number + '\n').encode('ascii'),
+                 'build number (ide/.buildnumber is a placeholder)')
 
     # Build outputs
-    plan_build(bin_dir, add, problems)
+    plan_build(pl)
 
     # Licence files
     for name in LICENCE_FILES:
         path = os.path.join(repo, name)
         if not os.path.isfile(path):
-            problems.append('licence file missing: %s' % path)
+            pl.problems.append('licence file missing: %s' % path)
             continue
         with open(path, 'rb') as f:
-            data = layout._normalise(f.read()).replace(b'\n', b'\r\n')
-        add(Item(name, 'licence', data=data, note=name + ' (CRLF line endings)'))
+            data = layout._normalise(f.read()).replace(b'\n', p.eol)
+        pl.add(Item(tools + name, 'licence', data=data,
+                    note=name + (' (CRLF line endings)' if p.eol == b'\r\n' else ' (LF line endings)')))
 
-    # External assets
+    # External assets, without what the platform's build now produces
+    # (their "exclude" for this platform)
     for asset, archive in assets:
-        files, dirs = fetch_assets.plan_members(asset, archive)
+        stats = {}
+        files, dirs = fetch_assets.plan_members(asset, archive, p.name, stats)
+        if notes is not None and stats.get('excluded'):
+            notes.append('asset %s: %d files left out on %s (its "exclude"): the build produces them'
+                         % (asset['id'], stats['excluded'], p.name))
+        for g in stats.get('unused', []):
+            if notes is not None:
+                notes.append('WARNING: asset %s: the exclude glob %s matches nothing on %s'
+                             % (asset['id'], g, p.name))
         for target, member in files:
-            add(Item(target, 'asset', source=archive, member=member, asset=asset,
-                     note='asset %s: %s' % (asset['id'], member)))
-        folders.extend(dirs)
+            pl.add(Item(tools + target, 'asset', source=archive, member=member, asset=asset,
+                        note='asset %s: %s' % (asset['id'], member)))
+        folders.extend(tools + d for d in dirs)
 
     # xTalk Suite extensions, as xtalk_extensions.build wrote them
     if xtalk:
-        add(Item('Extensions/' + xtalk['stamp'], 'xtalk',
-                 source=layout.native(xtalk['out'], xtalk['stamp']),
-                 note='list of the xTalk Suite extensions'))
+        # except the stamp: xtalk_extensions.py writes it with CRLF, and
+        # like the other text this tool generates it gets the platform's
+        # line endings (the same bytes on Windows). It is a tab-separated
+        # list that THIRD-PARTY-NOTICES.md points to: on Linux and macOS a
+        # CR would end every source URL that cut or awk reads from it.
+        with open(layout.native(xtalk['out'], xtalk['stamp']), 'rb') as f:
+            stamp = layout._normalise(f.read()).replace(b'\n', p.eol)
+        pl.add(Item(tools + 'Extensions/' + xtalk['stamp'], 'xtalk', data=stamp,
+                    note='list of the xTalk Suite extensions'))
         for ext in xtalk['extensions']:
             for rel in ext['files']:
-                add(Item('Extensions/' + rel, 'xtalk', source=layout.native(xtalk['out'], rel),
-                         note='%s at %s' % (ext['repository'], ext['commit'][:12])))
+                pl.add(Item(tools + 'Extensions/' + rel, 'xtalk', source=layout.native(xtalk['out'], rel),
+                            note='%s at %s' % (ext['repository'], ext['commit'][:12])))
 
-    # Conflicts (case-insensitive, as on Windows)
+    # Conflicts: case-insensitive, as on Windows and macOS volumes, except
+    # on Linux
     seen = {}
+    items, problems = pl.items, pl.problems
     for it in items:
-        key = it.target.lower()
+        key = it.target if p.case_sensitive else it.target.lower()
         if key in seen:
             other = seen[key]
             problems.append('%s comes from both %s (%s) and %s (%s)'
@@ -413,7 +998,39 @@ def remove_tree(path):
         shutil.rmtree(path, onerror=_on_rm_error)
 
 
-def write_stage(stage, items, folders, eol, log):
+def _unix_mode(executable):
+    return 0o755 if executable else 0o644
+
+
+def unix_tree_problem(folder, case_sensitive):
+    """None if the file system of folder can hold a Unix layout, else what
+    it lacks. A probe is written because os.name cannot tell: in WSL a
+    Windows drive (/mnt/c: drvfs without the "metadata" mount option)
+    reports every file as 0777 whatever chmod sets, and maps names that
+    differ only in letter case to one file. The stage and its archives
+    would then mark every file world-writable and executable, and a Linux
+    layout's Readme and README would overwrite each other, all without an
+    error. OSError when folder cannot be written."""
+    probe = tempfile.mkdtemp(prefix='.oxt-probe-', dir=folder)
+    try:
+        path = os.path.join(probe, 'probe')
+        with open(path, 'wb'):
+            pass
+        os.chmod(path, 0o644)
+        if stat.S_IMODE(os.stat(path).st_mode) != 0o644:
+            return 'keeps no file modes'
+        if case_sensitive and os.path.exists(os.path.join(probe, 'PROBE')):
+            return 'does not tell letter case apart'
+        return None
+    finally:
+        shutil.rmtree(probe, ignore_errors=True)
+
+
+def write_stage(stage, items, folders, eol, log, platform=None):
+    """Write the planned tree. For a Unix layout every file gets 0755 or
+    0644 and every folder 0755 (see the module notes), and build symbolic
+    links are recreated; a Windows layout is written as it always was."""
+    unix = (platform or PLATFORMS[DEFAULT_PLATFORM]).unix
     if os.path.isdir(stage) and not os.path.islink(stage):
         log('removing the previous %s' % stage)
         remove_tree(stage)
@@ -429,6 +1046,7 @@ def write_stage(stage, items, folders, eol, log):
             if parent not in made:
                 os.makedirs(parent, exist_ok=True)
                 made.add(parent)
+            executable = False
             if it.origin == 'ide':
                 if eol != 'keep' and layout.is_text(it.target):
                     with open(it.source, 'rb') as f:
@@ -440,9 +1058,20 @@ def write_stage(stage, items, folders, eol, log):
                 else:
                     shutil.copyfile(it.source, dst)
             elif it.origin == 'build':
+                if it.link is not None:
+                    os.symlink(it.link, dst)
+                    continue
                 shutil.copy2(it.source, dst)
+                executable = bool(os.stat(it.source).st_mode & 0o111)
             elif it.origin == 'xtalk':
-                shutil.copyfile(it.source, dst)
+                if it.data is not None:   # XTALK-EXTENSIONS.txt (see plan)
+                    with open(dst, 'wb') as f:
+                        f.write(it.data)
+                else:
+                    shutil.copyfile(it.source, dst)
+                # the native libraries (code/<platform id>/*); dlopen does
+                # not need the bit, but it is how libraries are installed
+                executable = '/code/' in it.target
             elif it.origin in ('generated', 'licence'):
                 with open(dst, 'wb') as f:
                     f.write(it.data)
@@ -451,18 +1080,139 @@ def write_stage(stage, items, folders, eol, log):
                 if z is None:
                     z = archives[it.source] = zipfile.ZipFile(it.source)
                 info = z.getinfo(it.member)
+                # A zip made on Unix (make_runtimes_asset.py stores the
+                # modes) says which members are executable or links
+                zmode = (info.external_attr >> 16) if info.create_system == 3 else 0
+                if unix and stat.S_ISLNK(zmode):
+                    os.symlink(z.read(info).decode('utf-8'), dst)
+                    continue
                 with z.open(info) as src, open(dst, 'wb') as out:
                     shutil.copyfileobj(src, out, 1 << 20)
                 # make_runtimes_asset.py stores UTC times
                 ts = calendar.timegm(info.date_time + (0, 0, -1))
                 os.utime(dst, (ts, ts))
+                executable = bool(zmode & 0o111)
             else:
                 raise PackageError('unknown origin %s' % it.origin)
+            if unix:
+                os.chmod(dst, _unix_mode(executable))
         for d in folders:
             os.makedirs(layout.native(stage, d), exist_ok=True)
+        if unix:
+            for dirpath, dirnames, _ in os.walk(stage):
+                os.chmod(dirpath, 0o755)
     finally:
         for z in archives.values():
             z.close()
+
+
+# ---------------------------------------------------------------------------
+# Build tarballs
+
+def _is_debug(parts):
+    """Debug symbols, which no layout installs: Linux .dbg files (objcopy
+    --only-keep-debug), macOS .dSYM bundles, Windows .pdb files."""
+    return parts[-1].endswith(('.dbg', '.pdb')) or any(p.endswith('.dSYM') for p in parts)
+
+
+def extract_bin_tar(path, dest, log):
+    """Extract a CI build tarball into dest and return its build output
+    folder (the tarball's one top-level folder). Modes, symbolic links and
+    hard links are kept; debug symbols and "._" AppleDouble files (which
+    macOS tar writes for extended attributes) are skipped. Member names are
+    checked: nothing may land outside dest, by its name or through a
+    symbolic link extracted before it. Python 3.8 has no extraction
+    filter, so the checks are made here."""
+    tops, skipped, count, links = set(), 0, 0, []
+    root = os.path.realpath(dest)
+    with tarfile.open(path, 'r|*') as tf:
+        for m in tf:
+            name = m.name
+            while name.startswith('./'):
+                name = name[2:]
+            name = name.rstrip('/')
+            if not name or name == '.':
+                continue
+            parts = name.split('/')
+            if name.startswith('/') or '\\' in name or any(p in ('', '.', '..') for p in parts):
+                raise PackageError('%s: unsafe member name %r' % (path, m.name))
+            if any(p.startswith('._') for p in parts) or parts[-1] == '.DS_Store':
+                continue
+            if _is_debug(parts):
+                skipped += 1
+                continue
+            tops.add(parts[0])
+            target = os.path.join(dest, *parts)
+            # A clean name can still lead out through a link extracted
+            # before it (see inside_tree), so the member's folder is
+            # resolved on disk, and no member replaces a link or is written
+            # through one that leads out. Build tarballs never store a path
+            # below a link.
+            if os.path.islink(target) or not inside_tree(root, os.path.dirname(target)):
+                raise PackageError('%s: %s would be written through a symbolic link' % (path, m.name))
+            if m.isdir():
+                os.makedirs(target, exist_ok=True)
+                continue
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            if m.issym():
+                if link_escapes(name, m.linkname):
+                    raise PackageError('%s: symbolic link %s -> %s leads out of the tarball'
+                                       % (path, name, m.linkname))
+                os.symlink(m.linkname, target)
+                links.append((name, m.linkname, target))
+            elif m.islnk():
+                other = m.linkname
+                while other.startswith('./'):
+                    other = other[2:]
+                src = os.path.join(dest, *other.split('/'))
+                if '..' in other.split('/') or not inside_tree(root, src) or not os.path.isfile(src):
+                    raise PackageError('%s: hard link %s -> %s: no such file extracted before it'
+                                       % (path, name, m.linkname))
+                shutil.copy2(src, target)
+            elif m.isfile():
+                with tf.extractfile(m) as f, open(target, 'wb') as out:
+                    shutil.copyfileobj(f, out, 1 << 20)
+                os.chmod(target, m.mode & 0o777)
+                os.utime(target, (m.mtime, m.mtime))
+            else:
+                raise PackageError('%s: %s is a device, FIFO or other special file' % (path, name))
+            count += 1
+    folders = [t for t in tops if os.path.isdir(os.path.join(dest, t))]
+    if len(folders) != 1 or len(tops) != 1:
+        raise PackageError('%s: expected one top-level folder, found %s' % (path, ', '.join(sorted(tops)) or 'none'))
+    # Checked once all are on disk: a later link can move an earlier one's
+    # target out (x -> y/../../w resolves inside until y -> .. arrives).
+    # Against the build output folder, not dest: that folder is what gets
+    # staged, and a link from it into dest's other entries (or dest itself)
+    # would dangle in the package or lead into the build machine
+    top = os.path.realpath(os.path.join(dest, folders[0]))
+    for name, link, target in links:
+        if not inside_tree(top, target):
+            raise PackageError('%s: symbolic link %s -> %s leads out of %s' % (path, name, link, folders[0]))
+    log('Extracted    : %d files from %s (%d debug symbol files skipped)' % (count, path, skipped))
+    return os.path.join(dest, folders[0])
+
+
+def repository_mode_trap(path, platform):
+    """The folder name in path that makes the engine run the IDE in
+    repository mode, or None. The engine's environment stack
+    (engine/src/environment/stackbehavior.livecodescript guessRepositoryPath)
+    and the IDE (home stack revEnvironmentGuessRepositoryPath) take the
+    folder above the first item of the engine's path that is
+    build-<platform>-<processor>, <platform>-<processor>-bin,
+    <platform>-bin or _build (compared without regard to case, as
+    LiveCode's "is among the items" does) as a source checkout, and load
+    the IDE from its ide/ folder instead of the package's."""
+    word = {'windows': 'win', 'linux': 'linux', 'mac': 'mac'}[platform.family]
+    procs = platform.mac_archs or (platform.arch,)
+    names = {'_build', word + '-bin'}
+    for proc in procs:
+        proc = 'x86' if proc == 'i386' else proc
+        names.update(('build-%s-%s' % (word, proc), '%s-%s-bin' % (word, proc)))
+    for part in re.split(r'[\\/]', path):
+        if part.lower() in names:
+            return part
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -495,8 +1245,11 @@ def reference_engine(paths):
     return exes[0] if len(exes) == 1 else None
 
 
-def compare(stage, items, ref, no_assets, report=None, no_xtalk=False):
-    """Print the comparison; return the number of unexplained differences."""
+def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=None):
+    """Print the comparison; return the number of unexplained differences.
+    The reference is a Windows install (layout.py's classes describe
+    one), so this is for the win-x86_64 layout."""
+    exe_name = (platform or PLATFORMS[DEFAULT_PLATFORM]).engine
     root, ref_paths, ref_empty, listed_classes = load_reference(ref)
     by_target = {it.target: it for it in items}
     by_lower = {it.target.lower(): it for it in items}
@@ -508,7 +1261,7 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False):
 
     for p in ref_paths:
         cls, _, _ = layout.classify_path(p)
-        q = EXE_NAME if p == engine else p
+        q = exe_name if p == engine else p
         it = by_target.get(q) or by_lower.get(q.lower())
         why = next((w for pat, w in INTENDED_MISSING if layout._glob_match(pat, p)), None)
         if cls in (layout.JUNK, layout.EXCLUDED):
@@ -609,7 +1362,7 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False):
     print('')
     print('Comparison with %s' % ref)
     if engine:
-        print('  engine %s is staged as %s' % (engine, EXE_NAME))
+        print('  engine %s is staged as %s' % (engine, exe_name))
     print('  %-10s %-26s %7s' % ('class', 'status', 'files'))
     for (cls, status) in sorted(counts, key=lambda k: (str(k[0]), k[1])):
         print('  %-10s %-26s %7d' % (cls, status, counts[(cls, status)]))
@@ -669,7 +1422,18 @@ def _same_bytes(a, b):
 # ---------------------------------------------------------------------------
 # Command line
 
-def summarise(items, stage, bin_dir, used, log):
+def group_of(p, target):
+    """Summary group of a staged path: layout.py's groups below the tools
+    folder; on macOS the engine's own files are one group."""
+    if p.tools and target.startswith(p.tools):
+        return layout.group_of(target[len(p.tools):])
+    if p.family == 'mac':
+        return p.engine + ' (engine)'
+    return layout.group_of(target)
+
+
+def summarise(items, stage, bin_dir, used, log, platform=None):
+    p = platform or PLATFORMS[DEFAULT_PLATFORM]
     by_origin = collections.Counter()
     size_origin = collections.Counter()
     by_group = collections.Counter()
@@ -678,7 +1442,7 @@ def summarise(items, stage, bin_dir, used, log):
         size = os.path.getsize(layout.native(stage, it.target))
         by_origin[it.origin] += 1
         size_origin[it.origin] += size
-        g = layout.group_of(it.target)
+        g = group_of(p, it.target)
         by_group[g] += 1
         size_group[g] += size
     log('')
@@ -692,13 +1456,13 @@ def summarise(items, stage, bin_dir, used, log):
     log('By folder:')
     for g in sorted(by_group):
         log('  %6d %15s  %s' % (by_group[g], '{:,}'.format(size_group[g]), g))
-    unused = unused_build_outputs(bin_dir, used)
+    unused = unused_build_outputs(p, bin_dir, used)
     if unused:
         log('')
         log('Build outputs not installed: %d' % len(unused))
         grouped = collections.OrderedDict()
-        for p, why in unused:
-            grouped.setdefault(why, []).append(p)
+        for path, why in unused:
+            grouped.setdefault(why, []).append(path)
         for why, paths in grouped.items():
             shown = ', '.join(paths[:6]) + (' ... (%d files)' % len(paths) if len(paths) > 6 else '')
             log('  %s: %s' % (why or 'WARNING: no rule in package.py; not installed', shown))
@@ -729,10 +1493,15 @@ def summarise_xtalk(xtalk, log):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description='Stage the installed layout of OXT-Beyond for Windows x86-64.')
+    p = argparse.ArgumentParser(description='Stage the installed layout of OXT-Beyond for one platform.')
+    p.add_argument('--platform', choices=list(PLATFORMS), default=DEFAULT_PLATFORM,
+                   help='layout to stage (default: %(default)s)')
     p.add_argument('--repo', default=os.path.dirname(os.path.dirname(HERE)),
                    help='repository root (default: two levels above this script)')
-    p.add_argument('--bin', dest='bin_dir', help='build output (default: <repo>/win-x86_64-bin)')
+    p.add_argument('--bin', dest='bin_dir',
+                   help='build output (default: the platform\'s, e.g. <repo>/win-x86_64-bin)')
+    p.add_argument('--bin-tar', metavar='FILE',
+                   help='build output as a CI tarball (OXT-Beyond-<platform>-bin.tar.xz), instead of --bin')
     p.add_argument('--out', required=True, help='folder to create OXT-Beyond-<version> in')
     p.add_argument('--build-number', help='default: $%s, else the UTC time as YYYYMMDDHHMM' % BUILD_NUMBER_ENV)
     p.add_argument('--assets-cache', metavar='DIR',
@@ -746,6 +1515,9 @@ def main(argv=None):
     p.add_argument('--xtalk-cache', metavar='DIR',
                    help='xTalk extensions cache (default: $%s, else <asset cache>/xtalk)'
                         % xtalk_extensions.CACHE_ENV)
+    p.add_argument('--xtalk-compiler-bin', metavar='DIR',
+                   help='build output whose lc-compile and modules/lci compile the xTalk extensions '
+                        '(default: --bin; a build this machine can run)')
     p.add_argument('--vc-redist', metavar='DIR',
                    help='Visual Studio\'s VC\\Redist\\MSVC\\<version> folder (VCToolsRedistDir): bundle '
                         'the Visual C++ runtime DLLs that xTalk extension libraries import')
@@ -755,20 +1527,66 @@ def main(argv=None):
     p.add_argument('--offline', action='store_true', help='use cached assets and extensions only, never download')
     p.add_argument('--eol', choices=('lf', 'crlf', 'keep'), default='lf',
                    help='line endings of IDE text files (default: lf, as git stores them)')
+    p.add_argument('--allow-single-arch', action='store_true',
+                   help='mac-universal: stage a build that holds only one architecture (for testing)')
     p.add_argument('--summary-json', metavar='FILE', help='write a JSON summary here')
     p.add_argument('--compare', metavar='REF', help='installed folder or classify TSV to compare with')
     p.add_argument('--report', metavar='FILE', help='with --compare: write every path\'s status as TSV')
     args = p.parse_args(argv)
+    plat = PLATFORMS[args.platform]
+    if args.compare and plat.family != 'windows':
+        p.error('--compare compares with a Windows install (layout.py classes); use it with win-x86_64')
+    if args.bin_dir and args.bin_tar:
+        p.error('pass --bin or --bin-tar, not both')
 
     log = print
     xtalk_tmp = None
+    bin_tmp = None
     try:
+        if plat.unix and os.name == 'nt':
+            raise PackageError('stage the %s layout on Linux or macOS (or in WSL, under a Linux path such as '
+                               '/tmp): Windows keeps neither the file modes nor the symbolic links of a Unix tree'
+                               % plat.name)
+        if plat.unix:
+            # Not only Windows itself: a Windows drive in WSL passes the
+            # os.name test but keeps no modes (see unix_tree_problem).
+            # Probed before the --bin-tar extraction, so a bad --out fails
+            # fast.
+            out_dir = os.path.abspath(args.out)
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+                why = unix_tree_problem(out_dir, plat.case_sensitive)
+            except OSError as e:
+                raise PackageError('cannot write in %s: %s' % (out_dir, e))
+            if why:
+                raise PackageError('the file system of %s %s (in WSL: a Windows drive such as /mnt/c); stage '
+                                   'the %s layout under a Linux path such as /tmp' % (out_dir, why, plat.name))
         repo = os.path.abspath(args.repo)
         if not os.path.isdir(os.path.join(repo, 'ide')):
             raise PackageError('%s has no ide/ folder (not the repository root?)' % repo)
-        bin_dir = os.path.abspath(args.bin_dir or os.path.join(repo, 'win-x86_64-bin'))
-        if not os.path.isfile(os.path.join(bin_dir, DEV_ENGINE)):
-            raise PackageError('no build in %s (%s is missing)' % (bin_dir, DEV_ENGINE))
+        if args.bin_tar:
+            bin_tmp = tempfile.mkdtemp(prefix='oxt-bin-')
+            bin_dir = extract_bin_tar(os.path.abspath(args.bin_tar), bin_tmp, log)
+        else:
+            bin_dir = os.path.abspath(args.bin_dir or layout.native(repo, plat.bin_default))
+        if not os.path.exists(os.path.join(bin_dir, plat.dev_engine)):
+            raise PackageError('no %s build in %s (%s is missing)' % (plat.name, bin_dir, plat.dev_engine))
+        if plat.unix:
+            # A build output is staged 0755 when any x bit is set, and on a
+            # file system that keeps no modes every file reads as 0777: the
+            # CEF .pak files, the Toolchain's .lci interfaces and the rest
+            # would all become executable. A read-only build folder cannot
+            # be probed, and need not be.
+            try:
+                why = unix_tree_problem(os.path.dirname(bin_dir), False)
+            except OSError:
+                why = None
+            if why:
+                raise PackageError('the file system of %s %s (in WSL: a Windows drive such as /mnt/c), so every '
+                                   'build output there reads as executable; %s'
+                                   % (bin_dir, why, 'set TMPDIR to a Linux path such as /tmp' if args.bin_tar else
+                                      'pass the CI tarball with --bin-tar, or extract the build under a Linux '
+                                      'path such as /tmp'))
         version = read_version(repo)
         build_number = default_build_number(args.build_number)
         out = os.path.abspath(args.out)
@@ -780,10 +1598,23 @@ def main(argv=None):
                 raise PackageError('the stage folder %s would contain %s' % (stage, inside))
 
         log('Product      : %s %s (build %s)' % (PRODUCT, version, build_number))
+        log('Platform     : %s' % plat.name)
         log('Engine       : %s' % (engine_version(repo) or '?'))
         log('Repository   : %s' % repo)
-        log('Build output : %s' % bin_dir)
+        log('Build output : %s' % (bin_dir if not args.bin_tar else '%s (from %s)' % (bin_dir, args.bin_tar)))
         log('Stage        : %s' % stage)
+        trap = repository_mode_trap(stage, plat)
+        if trap:
+            log('WARNING: the stage path has a folder named %s: an engine started from it runs the IDE of '
+                'the source checkout above it (repository mode), not the staged one' % trap)
+
+        arch_problems, arch_warnings = check_architecture(plat, bin_dir, args.allow_single_arch)
+        for w in arch_warnings:
+            log('WARNING: ' + w)
+        if arch_problems:
+            for msg in arch_problems:
+                sys.stderr.write('error: %s\n' % msg)
+            raise PackageError('the build in %s is not a %s build' % (bin_dir, plat.name))
 
         assets = []
         if args.no_external_assets:
@@ -792,6 +1623,14 @@ def main(argv=None):
             cache = fetch_assets.cache_dir(repo, args.assets_cache)
             log('Asset cache  : %s' % cache)
             for a in fetch_assets.load_manifest(args.manifest):
+                # A key that names no platform (a typo) would exclude nothing
+                for key in list(a.get('exclude', {})) + list(a.get('platforms') or []):
+                    if not any(fnmatch.fnmatchcase(n, key) for n in PLATFORMS):
+                        raise PackageError('%s: asset %s: %r matches no platform (%s)'
+                                           % (args.manifest, a['id'], key, ', '.join(PLATFORMS)))
+                if not fetch_assets.for_platform(a, plat.name):
+                    log('asset %s: not for %s (its "platforms")' % (a['id'], plat.name))
+                    continue
                 assets.append((a, fetch_assets.fetch(a, cache, args.offline, log)))
 
         xtalk = None
@@ -802,28 +1641,34 @@ def main(argv=None):
             # then staged byte for byte like build outputs
             xcache = xtalk_extensions.cache_dir(repo, args.xtalk_cache,
                                                 fetch_assets.cache_dir(repo, args.assets_cache))
+            compiler_bin = os.path.abspath(args.xtalk_compiler_bin or bin_dir)
             log('xTalk cache  : %s' % xcache)
+            if compiler_bin != bin_dir:
+                log('xTalk compiler: %s' % compiler_bin)
             if args.vc_redist:
                 log('VC++ redist  : %s' % args.vc_redist)
             else:
                 log('WARNING: no --vc-redist: the Visual C++ runtime that enetxt and box2dxt need is not bundled')
             xtalk_data = xtalk_extensions.load_manifest(args.xtalk_manifest)
             xtalk_tmp = tempfile.mkdtemp(prefix='oxt-xtalk-')
-            xtalk = xtalk_extensions.build(xtalk_data, bin_dir, xtalk_tmp, xcache, None, args.vc_redist,
+            xtalk = xtalk_extensions.build(xtalk_data, compiler_bin, xtalk_tmp, xcache, None, args.vc_redist,
                                            args.offline, log, args.allow_unpinned_vc_runtime)
             log('')
 
-        items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk)
+        notes = []
+        items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk, plat, notes)
+        for n in notes:
+            log(n)
         if problems:
             for msg in problems:
                 sys.stderr.write('error: %s\n' % msg)
             raise PackageError('%d problem(s); nothing was written' % len(problems))
 
         t0 = time.time()
-        write_stage(stage, items, folders, args.eol, log)
+        write_stage(stage, items, folders, args.eol, log, plat)
         log('written in %.0f s' % (time.time() - t0))
         used = {os.path.normcase(it.source) for it in items if it.origin == 'build'}
-        by_origin, size_origin = summarise(items, stage, bin_dir, used, log)
+        by_origin, size_origin = summarise(items, stage, bin_dir, used, log, plat)
 
         if args.summary_json:
             summary = collections.OrderedDict([
@@ -831,9 +1676,14 @@ def main(argv=None):
                 ('version', version),
                 ('build_number', build_number),
                 ('engine_version', engine_version(repo)),
+                ('platform', plat.name),
                 ('package_root', package_root),
                 ('stage_dir', stage),
-                ('exe', EXE_NAME),
+                ('exe', plat.engine),
+                ('engine_executable', plat.engine_executable),
+                ('tools_root', plat.tools.rstrip('/')),
+                ('bin_dir', bin_dir if not args.bin_tar else None),
+                ('bin_tar', os.path.abspath(args.bin_tar) if args.bin_tar else None),
                 ('files', len(items)),
                 ('bytes', sum(size_origin.values())),
                 ('by_origin', collections.OrderedDict((o, by_origin[o]) for o in sorted(by_origin))),
@@ -860,7 +1710,7 @@ def main(argv=None):
 
         if args.compare:
             if compare(stage, items, args.compare, args.no_external_assets, args.report,
-                       args.no_xtalk_extensions):
+                       args.no_xtalk_extensions, plat):
                 return 1
     except (PackageError, fetch_assets.AssetError, xtalk_extensions.XtalkError) as e:
         sys.stderr.write('error: %s\n' % e)
@@ -868,6 +1718,8 @@ def main(argv=None):
     finally:
         if xtalk_tmp:
             shutil.rmtree(xtalk_tmp, ignore_errors=True)
+        if bin_tmp:
+            shutil.rmtree(bin_tmp, ignore_errors=True)
     return 0
 
 

@@ -1,12 +1,14 @@
 # OXT layout and packaging tools
 
-These tools need only Python 3 (standard library) and run on Windows and
-Linux.
+These tools need only Python 3 (standard library, 3.8 or later: the Linux
+build container has 3.8) and run on Windows, Linux and macOS.
 
 | tool | purpose |
 |---|---|
 | `layout.py` | maps an installed OpenXTalk Lite (or stock LiveCode 9.x) Windows program folder to this repository's layout and back: imports an OXT Lite IDE into `ide/` and `ide-support/` and checks an import |
-| `package.py` | stages the installed layout of OXT-Beyond from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
+| `package.py` | stages the installed layout of OXT-Beyond for Windows, Linux or macOS from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
+| `package_dist.py` | writes the platform's distribution archives (portable zip, tar.xz or app zip; binaries; symbols) and `SHA256SUMS` from a staged layout (see [Distribution archives](#distribution-archives-package_distpy)) |
+| `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform, and by `tools/ci/check_native_deps.py` and `tools/ci/run_livecode_check.py`) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
@@ -214,15 +216,28 @@ differences.
 ## Packaging (`package.py`)
 
 ```
-python tools/oxt/package.py --repo <repo> --bin <repo>/win-x86_64-bin --out <stage-parent>
+python tools/oxt/package.py [--platform P] --repo <repo> --bin <build output> --out <stage-parent>
     [--build-number N] [--assets-cache DIR] [--no-external-assets] [--offline]
-    [--no-xtalk-extensions] [--vc-redist DIR] [--xtalk-cache DIR] [--xtalk-manifest FILE]
-    [--eol lf|crlf|keep] [--summary-json FILE]
+    [--no-xtalk-extensions] [--xtalk-compiler-bin DIR] [--vc-redist DIR]
+    [--xtalk-cache DIR] [--xtalk-manifest FILE] [--eol lf|crlf|keep]
+    [--allow-single-arch] [--summary-json FILE]
     [--compare <installed folder or classify TSV> [--report FILE]]
 ```
 
 writes the installed program folder to `<stage-parent>/OXT-Beyond-<version>/`
 (`<version>` is `ide/.version`; an existing folder of that name is replaced).
+`--platform` chooses the layout; the default, `win-x86_64`, is the Windows
+layout described first below, and the others are described in
+[Linux and macOS layouts](#linux-and-macos-layouts):
+
+| `--platform` | build output (`--bin` default) | layout |
+|---|---|---|
+| `win-x86_64` | `win-x86_64-bin` | `OXT-Beyond.exe` and everything else in one folder |
+| `linux-x86_64` | `linux-x86_64-bin` | the engine as `OXT-Beyond` and everything else in one folder |
+| `linux-arm64` | `linux-arm64-bin` | the same without CEF and without a runtime (staging only) |
+| `mac-universal` | `_build/mac/Release`, lipo-merged | `OXT-Beyond.app`, the IDE in `Contents/Tools` |
+| `mac-arm64`, `mac-x86_64` | `_build/mac/Release` of one architecture | the same from one architecture (for checking the layout) |
+
 `tools/ci/package-windows.ps1` runs it into `dist/stage` and zips the result
 as the portable package; the installer is built from the same folder. Nothing
 is written when the plan has a problem (a missing build output, two sources
@@ -275,7 +290,8 @@ The folder is put together from:
   runs `xtalk_extensions.build` with the `--bin` build's `lc-compile` and
   `modules/lci` into a temporary folder and stages every file under
   `Extensions/` byte for byte (origin `xtalk`), plus
-  `Extensions/XTALK-EXTENSIONS.txt`. `--vc-redist` is passed through (the
+  `Extensions/XTALK-EXTENSIONS.txt` (with the platform's line endings).
+  `--vc-redist` is passed through (the
   Visual C++ runtime DLLs for enetxt and Box2Dxt); without it packaging
   warns. The cache is `--xtalk-cache`, else `OXT_XTALK_CACHE`, else the
   `xtalk` folder of the asset cache; `--offline` applies to it too.
@@ -293,9 +309,163 @@ identical copies at the build root), and `packaged_extensions/` for
 package.txt; neither LiveCode 9.6.3 nor OXT Lite 1.15 ships them). Build
 outputs that no rule covers are listed with a warning.
 
+### Linux and macOS layouts
+
+The Linux and macOS tables (`Platform` in `package.py`) transcribe the same
+`Installer/package.txt` components for `TargetPlatform Linux` and `MacOSX`.
+The IDE part, the generated files, the licence files, the external assets
+and the xTalk Suite extensions are the same as on Windows (every platform
+gets the xTalk libraries of all five platform ids, so that it can build
+standalones for the others). Where `package.txt` and the IDE or the engine
+disagree, the layout follows the IDE:
+
+* **macOS: everything under `OXT-Beyond.app/Contents/Tools`.** The engine
+  (`engine/src/environment/stackbehavior.livecodescript`) takes
+  `X.app/Contents/Tools` as the tools folder of `X.app/Contents/MacOS/<exe>`,
+  and the IDE (`revEnvironmentToolsPath`, the folder above `Toolset`) looks
+  there for `Resources`, `Externals`, `Extensions`, `Runtime` and the root
+  files `.version`, `about.dat` and `.buildnumber`; `package.txt` puts some
+  of them into `Contents/Support`. Only the engine stays outside: the build's
+  `LiveCode-Community.app` becomes `OXT-Beyond.app` with
+  `Contents/MacOS/OXT-Beyond` and a generated `Info.plist`: the build's,
+  with `CFBundleExecutable` naming it, `LSArchitecturePriority` the
+  layout's architectures, arm64 first (LiveCode's says `x86_64, i386`,
+  which would start a universal app under Rosetta on Apple Silicon), and
+  `LSMinimumSystemVersion` the lowest `minos` of the engine's slices
+  (Xcode writes the deployment target of the one build the tree came
+  from: 11.0 for arm64, 10.13 for x86_64). Bundle id, document types,
+  version and icon are still LiveCode's. `revsecurity.dylib` and
+  `revpdfprinter.bundle` go into `Contents/MacOS` from the build root
+  (package.txt Engine.MacOSX: the stripped copies; the build's copies
+  inside the app keep their symbols).
+  The app's `_CodeSignature` is left out, because it seals the old
+  executable name and `Info.plist`. Also, every Mach-O the build strips
+  (`tools/extract-debug-symbols.sh` runs after Xcode's ad-hoc signing)
+  keeps a stale signature. So after assembly, sign ad hoc from the inside
+  out: every Mach-O under `Contents/Tools` (runtimes with their `Support`
+  and `Externals`, `Externals`, `Toolchain`), then
+  `Contents/MacOS/revsecurity.dylib` and `revpdfprinter.bundle`, then the
+  app. Then run `codesign --verify --deep --strict`.
+  `Resources/Mobile Examples` (package.txt Mobile.MacOSX) is staged only
+  here.
+* **macOS runtimes: the folder names the standalone builder uses**
+  (revsblibrary `revEngineCheck`/`revSBEnginePath`, revsaveasstandalone):
+  `Runtime/Mac OS X/x86-64/Standalone.app` and
+  `x64-ARM64/Standalone-blank.app` (the engines deployed for the Intel and
+  the Apple Silicon target, each with `Support/` and `Externals/`; the
+  Apple Silicon target reads its externals from `arm64/`, below), and
+  `x86-32/Standalone.app`, which is only looked at but must exist: it
+  enables the Intel target and every Mac standalone takes its icons from
+  it. Each is the build's `Standalone-Community.app` (the executable keeps
+  its name, which revSBEnginePath expects). `Runtime/Mac OS X/arm64` holds
+  only `Externals/` (with `Externals.txt` and `Database Drivers/`): for the
+  Apple Silicon target `revStandalonePlatformDetails` takes `Support` from
+  `x64-ARM64` but passes the architecture `arm64`, and `revExternalPath`
+  and `revDBDriverPath` then read `Mac OS X/arm64/Externals`. Without it
+  the standalone gets no revXML, revZip, revDB, revBrowser, revSpeech or
+  database driver, and the builder only warns. `x64-ARM64/Externals`
+  stays, because `revStandaloneDatabaseDriversPath` warns when the target
+  folder's `Externals` is missing. `x86-32` has no `Externals`: its target
+  cannot build (the engine has no i386 slice, and the IDE disables it on
+  macOS 12 and later). `mac-universal` has all four; `mac-arm64` has
+  `x64-ARM64`, `arm64` and `x86-32`; `mac-x86_64` has `x86-64` and
+  `x86-32`. A test of the Mac package must therefore build a standalone
+  for the `MacOSX x64-ARM64` target (what the standalone settings'
+  `MacOS-IntelArmUniversal` button selects) with revXML and the SQLite driver, check that
+  `Contents/MacOS/Externals/revxml.bundle` and
+  `Contents/MacOS/Externals/database_drivers/dbsqlite.bundle` are in it,
+  and fail on any builder warning (`revStandaloneGetWarnings`): an app
+  without externals builds whether or not the folder exists.
+* **Linux CEF helpers where the code starts them:** `revbrowser-cefprocess`
+  in `Externals/CEF` (cefbrowser.cpp starts it from the libcef folder) and
+  `libbrowser-cefprocess` next to the engine (libbrowser_cef.cpp, Linux:
+  the executable's folder); `package.txt`'s "horrible workaround" puts both
+  at the root. `Runtime/Linux/x86-64` also gets both at its root, where
+  `revCopyCEFResources` copies them from for a standalone. `chrome-sandbox`
+  is left out: CEF runs with `no_sandbox`, and the helper would only work
+  owned by root with mode 4755.
+* **Linux engine name:** `OXT-Beyond`, not `package.txt`'s
+  `OXT-Beyond.x86_64` (one architecture per package, started through a
+  launcher script).
+
+| build output | installed path (Linux) | installed path (macOS, below `Contents/Tools` unless noted) |
+|---|---|---|
+| development engine | `OXT-Beyond` | `OXT-Beyond.app` (not below `Tools`) |
+| `revpdfprinter`, `revsecurity` | root (`.so`) | `OXT-Beyond.app/Contents/MacOS/` (`.bundle`, `.dylib`) |
+| externals | `Externals/revxml.so`, `revzip.so`, `revbrowser.so`, `revdb.so` (no revspeech on Linux) | `Externals/revspeech.bundle`, `revxml.bundle`, `revbrowser.bundle`, `revzip.bundle`, `revdb.bundle` |
+| database drivers | `Externals/Database Drivers/db*.so` | `Externals/Database Drivers/db*.bundle` |
+| CEF (x86_64 only) | `Externals/CEF/` (libcef.so, libEGL.so, libGLESv2.so, the `.pak`, `.dat` and `.bin` files, `swiftshader/`, `locales/`, `revbrowser-cefprocess`), `libbrowser-cefprocess` at the root | none (revbrowser uses WebKit) |
+| mobile | `Externals/revandroid.so` | `Externals/reviphone.bundle`, `revandroid.bundle` |
+| toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
+| standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
+| `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+
+Not installed on Linux: `*.dbg` (the symbols archive), `installer`,
+`server-*`, `Externals/CEF/chrome-sandbox` and `devtools_resources.pak`,
+canvas and ini, and the build's own tools if present (`gentle-target`,
+`reflex-target`, `perfect-target`, `lc-bootstrap-compile*`,
+`lc-compile-stage*`, `zic`, `lcidlc`, `*.a`). On macOS: `*.dSYM`,
+`Installer.app`, `installer-stub`, `server-*`, the root copies of
+`reviphoneproxy`, `tz.dylib` and `inih.dylib`, the app's own `Info.plist`,
+`_CodeSignature` and unstripped support files, canvas and ini, and the same
+build tools.
+
+`package.py` checks that the build is for the platform: the Linux engines
+must be ELF files of the platform's architecture, and on macOS the engine,
+the standalone engine and `revsecurity.dylib` must hold every architecture
+of the layout (arm64 and x86_64 for `mac-universal`, which therefore needs
+the lipo merge of the two CI builds; `--allow-single-arch` stages a
+single-architecture build as `mac-universal` anyway, with a warning).
+`tools/oxt/binfmt.py` reads the headers, so this works on any host.
+
+xTalk Suite extensions are compiled with the `lc-compile` and
+`modules/lci` of `--xtalk-compiler-bin` (default: `--bin`). The compiled
+modules do not depend on the platform, so a macOS layout can be staged on
+Linux with a Linux build's compiler.
+
+The Linux and macOS layouts are Unix trees, staged on Linux or macOS (or
+WSL, under a Linux path such as `/tmp`: a Windows drive such as `/mnt/c`
+keeps neither modes nor letter case, and both `package.py` and
+`package_dist.py` refuse it, as a probe file in `--out` and next to the
+stage shows; a `--bin` folder there is refused too, since every build
+output would read as executable). `package.py` refuses to stage them on
+Windows, which keeps neither modes nor symbolic links:
+
+* `--bin-tar` takes the build output as the tarball a CI build uploads
+  (`OXT-Beyond-linux-<arch>-bin.tar.xz`, `OXT-Beyond-mac-<arch>-bin.tar.xz`)
+  instead of `--bin`. Its one top-level folder is extracted to a temporary
+  folder, keeping modes, symbolic and hard links, and without the debug
+  symbols (`*.dbg`, `*.dSYM`, `*.pdb`) and the `._*` AppleDouble files
+  that macOS tar adds. Member names and links are checked, as Python
+  3.8's tarfile has no extraction filter: each member's folder is resolved
+  on disk, since a chain of links whose text looks harmless (`sub -> ..`,
+  `l -> sub/..`) could otherwise carry a later member out of the folder.
+* **Modes**: executable build outputs (any `x` bit), the xTalk native
+  libraries and asset members stored with an `x` bit get 0755; every
+  other file 0644 and every folder 0755, whatever the umask or the
+  checkout (git marks some IDE images executable).
+* **Symbolic links** inside a build output folder (a macOS framework's
+  `Versions/Current`) are staged as the same relative links; one that is
+  absolute or leads out of its folder is an error. A build output named in
+  a table is copied through a link.
+* **Names**: paths that differ only in letter case conflict on Windows and
+  macOS (volumes are usually case-insensitive), not on Linux.
+* **Text**: `Externals.txt`, `Database Drivers.txt`,
+  `Extensions/XTALK-EXTENSIONS.txt` and the licence files get LF line
+  endings (the IDE and the standalone builder read the lists line by line,
+  so a CR would end up in every file name, and `cut` or `awk` would end
+  every field of the tab-separated xTalk list with one); CRLF on Windows.
+
+Every platform warns when the stage path has a folder name that switches
+the engine into repository mode (`_build`, `<platform>-<processor>-bin`,
+`<platform>-bin`, `build-<platform>-<processor>`, as
+`stackbehavior.livecodescript` and the home stack's
+`revEnvironmentGuessRepositoryPath` test them): an engine started there
+runs the IDE of the checkout above it, not the staged one.
+
 ### Checking a package against OpenXTalk Lite 1.15
 
-`--compare` checks the staged folder against a reference install or a
+`--compare` (`win-x86_64` only: the reference is a Windows install) checks the staged folder against a reference install or a
 `layout.py classify` TSV (also a part of one, such as its `build` rows).
 Every `ide`, `build` and `external` path of the reference must be staged,
 with the engine under its new name, unless `INTENDED_MISSING` gives a reason;
@@ -329,6 +499,65 @@ redistributed `external` paths are staged and byte-identical; the 7 empty
 folders match. Against the 966 class `build` rows of the 1.15 import (taken
 before the zoneinfo data became external): 956 staged, 10 intended
 differences.
+
+## Distribution archives (`package_dist.py`)
+
+```
+python tools/oxt/package_dist.py (--summary <package.py --summary-json> | --platform P --stage DIR)
+    (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
+    [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
+    [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
+```
+
+writes the archives of a staged layout and of its build output, and
+`SHA256SUMS` (`<sha256>  <file>`, LF, in the order below). `<root>` is
+`OXT-Beyond-<version>`:
+
+| platform | package | binaries | symbols |
+|---|---|---|---|
+| `win-x86_64` | `<root>-win-x86_64-portable.zip`: every staged file under `<root>/`, then the empty folders | `<root>-win-x86_64-binaries.zip`: `win-x86_64-bin/` without `*.pdb`, licence files at the top | `<root>-win-x86_64-symbols.zip`: the `*.pdb` under `win-x86_64-bin/` |
+| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg`, licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` |
+| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app`, as `ditto -c -k --keepParent` stores it | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` without `*.dSYM`, licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles |
+
+`--xtalk-sources` adds `<root>-xtalk-sources.zip` (`xtalk_extensions.py
+export`, from the cache only). The disk image of the Mac app is made on
+macOS with `hdiutil` by the workflow, not here.
+
+* **Windows**: the same names and entries (names, bytes, file dates, folder
+  entries) as `tools/ci/package-windows.ps1`, which the Windows CI keeps
+  using for now. Only the entry order (PowerShell sorts by culture rules),
+  the compressed bytes (.NET's Optimal is Windows' own zlib build; zlib
+  level 9, the default `--zip-level`, comes closest) and the date of an
+  empty folder's entry (the folder's own date; .NET stamps the time of
+  writing) differ. Checked with the 0.0.1 build output: all three zips
+  have the same 417, 7,274 and 0 entries with the same CRCs, sizes and
+  file dates, the sources zip is byte-identical, and `SHA256SUMS` lists
+  the same files in the same order.
+* **Unix archives** keep what `package.py` staged: modes, symbolic links
+  and empty folders; owners 0 without names; dates in whole seconds
+  (clamped to `SOURCE_DATE_EPOCH` when set); entries sorted, folders
+  first. In a Linux package, staged files of 64 KiB or more with the same
+  content and mode are stored once as hard links (`--no-hardlinks` stores
+  each): the runtime's CEF, externals and helpers are the IDE's files. A
+  hard link extracts with its target's mode, hence the mode in the key.
+  The tarball therefore holds hard links and must be extracted onto a file
+  system that supports them (not FAT, which cannot hold the package's
+  modes either). Tarballs
+  are compressed by `xz -T0` when the `xz` program exists (Python's lzma
+  uses one core; `OXT_PYTHON_XZ=1` forces it), preset 6 (`--xz-preset`).
+* **The macOS zip** has folder entries, each file's Unix mode and symbolic
+  links stored as links, as `ditto` writes them, so that `ditto -x -k`,
+  Archive Utility or `unzip` restore the app with its executables.
+* `--bin-tar` reads a CI tarball once, as a stream, and sends each member
+  to the binaries or the symbols archive under the platform's folder name
+  (`linux-<arch>-bin`, `Release`), without `._` AppleDouble files and with
+  modes, symbolic and hard links. The Linux and macOS archives are written
+  on Linux or macOS only (in WSL, from a stage under a Linux path: a probe
+  next to the stage refuses a Windows drive, whose files all read 0777).
+
+Under GitHub Actions it writes the step outputs `version`, `package-root`,
+`platform`, `dist-dir`, `package` and `sha256sums` and a table of the
+archives to the job summary.
 
 ## External assets
 
@@ -365,7 +594,27 @@ Lite 1.15. (The xTalk Suite extensions are not assets: see
   names Windows cannot store are rejected; two members may not map to the
   same path, and a path claimed both by an asset and by the IDE or the build
   is an error.
+* `platforms` (optional) lists the `package.py` platforms the asset is for
+  (names or fnmatch patterns such as `mac-*`); without it every platform
+  gets it.
+* `exclude` (optional) maps platform patterns to globs of installed paths
+  (after `strip`, `rename` and `dest`; `*` within one path component, `**`
+  anything, as in `layout.py`): on a matching platform those members, and
+  folder entries inside such a tree, are left out. This is how an asset
+  stops supplying files that the platform's own build now produces,
+  instead of `package.py`'s "comes from both" error; `exclude_note` says
+  why. A key that matches no platform is an error, and a glob that matches
+  nothing on the platform is reported (a stale glob excludes nothing).
 * `description`, `licence` and `source` are for people.
+
+The runtimes asset excludes, per platform, what this repository's Linux and
+macOS builds make (Windows takes all of it, so its package is unchanged):
+
+| platform | left out of `oxt-runtimes-1.15` | files | why |
+|---|---|---:|---|
+| `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | 520 | the build's `standalone-community` (with its own externals and CEF) is the runtime; the build makes the timezone library's code and the zoneinfo data (tz.gyp `tzdata`, not made on Windows; the same 474 files) |
+| `linux-arm64` | timezone `resources/**` | 474 | zoneinfo from the build (1.15's x86-64 runtime stays: it is another architecture) |
+| `mac-*` | timezone `code/universal-mac-macosx10.9/**`, timezone `resources/**` | 475 | the build's `code/universal-mac-macosx` replaces it (the IDE maps every `universal-*` folder, so both would load); zoneinfo from the build |
 
 The cache folder is `--assets-cache`, else `OXT_ASSETS_CACHE`, else
 `prebuilt/fetched-assets` (ignored by git). An archive whose file name (the

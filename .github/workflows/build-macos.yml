@@ -24,6 +24,11 @@
 # static libraries and debug symbols; OXT-Beyond-mac-<arch>-symbols holds
 # the dSYM bundles of the same folder, as a tar.xz to extract over it.
 #
+# Checks: the build products, their architecture, linkage and macOS floor,
+# the server engine running a script, and the IDE compile check of the
+# checkout's IDE with the new development engine
+# (tools/ci/run_livecode_check.py compile --repo-layout).
+#
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
 # build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
@@ -316,6 +321,22 @@ jobs:
           # The tarball is compressed already
           compression-level: 0
 
+      # The IDE compile check (tools/ci/ide-compile-check.livecodescript,
+      # the baseline of tools/ci/ide-compile-baseline.txt) over the
+      # checkout's IDE, run by the development engine just built
+      # (LiveCode-Community.app), before anything is packaged:
+      # run_livecode_check.py --repo-layout assembles Toolset, Plugins and
+      # Extensions from ide/, ide-support/ and the build's packaged
+      # extensions. After the upload, so a failure here still leaves the
+      # build to look at. python3 is the runner's (Python 2.7 is first on
+      # PATH only as python and python2).
+      - name: IDE compile check (repository)
+        timeout-minutes: 20
+        run: |
+          python3 --version
+          python3 tools/ci/run_livecode_check.py compile --repo-layout --bin _build/mac/Release \
+            --log ide-compile-check.log
+
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v6
@@ -324,4 +345,5 @@ jobs:
           path: |
             ${{ runner.temp }}/xcodebuild.log
             prebuilt/build/**/config.log
+            ide-compile-check.log
           if-no-files-found: ignore
