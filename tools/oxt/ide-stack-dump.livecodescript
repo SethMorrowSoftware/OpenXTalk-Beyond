@@ -28,7 +28,7 @@ script "oxt_ide_stack_dump"
 --
 -- Exit code: 0 on success, 2 when the dump could not be written.
 
-local sDump, sVisited
+local sDump, sVisited, sLabels
 
 on startup
    local tFile, tOut, tName
@@ -56,6 +56,7 @@ end startup
 function ideStackDump pName
    put empty into sDump
    put empty into sVisited
+   put empty into sLabels
    dumpStack the long id of stack pName, "stack" && quote & pName & quote
    repeat for each line tSub in the substacks of stack pName
       dumpStack the long id of stack tSub of stack pName, "stack" && quote & pName & quote && ">" && "substack" && quote & tSub & quote
@@ -133,9 +134,15 @@ private command addValue pPrefix, pName, pValue
    end if
 end addValue
 
+-- The label (the "== " line) that the last ideStackDump gave an object
+function ideStackDumpLabel pObject
+   return sLabels[the long id of pObject]
+end ideStackDumpLabel
+
 private command dumpObject pObject, pLabel
    local tProps, tNames, tSets, tScript
    put "== " & pLabel & return after sDump
+   put pLabel into sLabels[the long id of pObject]
    put the properties of pObject into tProps
    -- The script is listed below and an image's data as a digest; the
    -- file name of a stack is where it was loaded from, not part of it

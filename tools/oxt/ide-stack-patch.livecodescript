@@ -40,8 +40,8 @@ script "oxt_ide_stack_patch"
 -- For each stack file the tool
 --    1. loads the file (messages locked; the stack is never opened) and
 --       dumps every object with tools/oxt/ide-stack-dump.livecodescript,
---    2. sets the patched scripts (each must compile) and dumps again: only
---       the scripts of the patched objects may differ from step 1,
+--    2. sets the patched scripts (each must compile) and dumps again: the
+--       two dumps must differ in exactly the scripts of the patched objects,
 --    3. saves the stack (the engine keeps the oldest file format that holds
 --       it, 7.0 for the IDE stacks), removes it from memory, loads the saved
 --       file and dumps it: this must equal the dump of step 2 exactly, and
@@ -211,7 +211,7 @@ end objectRef
 private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
-   local tAppliedHere, tFailedHere, tSame
+   local tAppliedHere, tFailedHere, tSame, tPatchedObjects, tLabels
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
    put URL ("binfile:" & tPath) into tOriginal
@@ -255,6 +255,7 @@ private command patchFile pRel, pPatches, pCheck
             write "PATCH " & tPatched & " | applied" & return to stdout
             add 1 to sApplied
             add 1 to tAppliedHere
+            put tObject & return after tPatchedObjects
          end if
       else
          write "PATCH " & tPatched & " | FAILED the text to replace occurs " & tOldCount & " time(s) and the replacement " & tNewCount & " time(s)" & return to stdout
@@ -276,7 +277,10 @@ private command patchFile pRel, pPatches, pCheck
 
    -- Only the patched scripts may differ from the file as it was loaded
    put ideStackDump(tMain) into tExpected
-   put scriptsChangedOnly(tBefore, tExpected, tAppliedHere) into tChanged
+   repeat for each line tObject in tPatchedObjects
+      put ideStackDumpLabel(tObject) & return after tLabels
+   end repeat
+   put scriptsChangedOnly(tBefore, tExpected, tLabels) into tChanged
 
    save stack tMain
    if the result is not empty then
@@ -320,11 +324,11 @@ private command unloadStack pName
 end unloadStack
 
 -- Throws unless pBefore and pAfter (two ideStackDump results) have the
--- same objects with the same properties, and the scripts of at least one
--- and at most pPatchCount of them differ. Returns the labels of the
--- objects whose scripts differ, one per line.
-private function scriptsChangedOnly pBefore, pAfter, pPatchCount
-   local tBeforeA, tAfterA, tBeforeKeys, tAfterKeys, tChanged
+-- same objects with the same properties, and differ in the scripts of
+-- exactly the objects labelled in pLabels (one label per line). Returns the
+-- labels of the objects whose scripts differ, one per line.
+private function scriptsChangedOnly pBefore, pAfter, pLabels
+   local tBeforeA, tAfterA, tBeforeKeys, tAfterKeys, tChanged, tExpected
    put dumpObjects(pBefore) into tBeforeA
    put dumpObjects(pAfter) into tAfterA
    put the keys of tBeforeA into tBeforeKeys
@@ -342,11 +346,21 @@ private function scriptsChangedOnly pBefore, pAfter, pPatchCount
          put tKey & return after tChanged
       end if
    end repeat
-   set the caseSensitive to false
    delete the last char of tChanged
-   if the number of lines of tChanged < 1 or the number of lines of tChanged > pPatchCount then
-      throw the number of lines of tChanged & " object script(s) changed for " & pPatchCount & " patch(es)"
+   -- The same object can be named by more than one patch
+   repeat for each line tLabel in pLabels
+      if tLabel is empty then throw "a patched object is not in the dump"
+      if tLabel is not among the lines of tExpected then put tLabel & return after tExpected
+   end repeat
+   delete the last char of tExpected
+   sort lines of tChanged
+   sort lines of tExpected
+   if tChanged is not tExpected then
+      set the caseSensitive to false
+      throw "the scripts that changed are not those of the patched objects: " & \
+            the number of lines of tChanged & " changed, " & the number of lines of tExpected & " patched"
    end if
+   set the caseSensitive to false
    return tChanged
 end scriptsChangedOnly
 
