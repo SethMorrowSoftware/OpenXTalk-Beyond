@@ -957,6 +957,9 @@ static const uint16_t s_dark_tab_border = 0x6E6E;
 static const uint16_t s_dark_frame = 0x7A7A;
 static const uint16_t s_dark_frame_hover = 0x9A9A;
 static const uint16_t s_dark_frame_disabled = 0x3C3C;
+// The dark theme's field background (windows-theme.cpp), for a field whose
+// own fill is a pattern
+static const uint16_t s_dark_field_fill = 0x2020;
 // The frame of groups
 static const uint16_t s_dark_group_border = 0x6E6E;
 // Arrows: the chevron of option menus and combo boxes
@@ -1234,6 +1237,28 @@ Boolean MCNativeTheme::drawdarkwidget(MCDC *dc, const MCWidgetInfo &winfo, const
 		else
 			t_frame = s_dark_frame;
 		MCDarkRing(dc, p_rect, 1, t_frame == 0 ? MCaccentcolor : MCDarkGrey(t_frame));
+
+		// A field's native frame is its 2-pixel border, but MCField::drawrect
+		// only fills inside the border, and the ring above is 1 pixel: the
+		// second pixel would show what is behind the field, a line of the
+		// card's colour between the frame and the fill. The light uxtheme
+		// frame paints that band, so here it gets the fill the field uses
+		// (getforecolor as drawrect asks it, 'hilite' for a bordered field).
+		// Not for a combo box: its frame surrounds its button, whose outline
+		// is one pixel in, and an opaque field only (a transparent one fills
+		// nothing).
+		MCObject *t_object;
+		t_object = winfo . whichobject;
+		if (winfo . type == WTHEME_TYPE_TEXTFIELD_FRAME && t_object != nil && t_object -> getflag(F_OPAQUE))
+		{
+			MCColor t_fill;
+			MCPatternRef t_pattern;
+			t_pattern = nil;
+			int2 t_x, t_y;
+			if (!t_object -> getforecolor(DI_BACK, False, True, t_fill, t_pattern, t_x, t_y, dc -> gettype(), t_object))
+				t_fill = MCDarkGrey(s_dark_field_fill);
+			MCDarkRing(dc, MCU_reduce_rect(p_rect, 1), 1, t_fill);
+		}
 		return True;
 	}
 
