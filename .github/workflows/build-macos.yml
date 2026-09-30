@@ -23,7 +23,7 @@
 #     SHA256SUMS
 #
 #   (tools/oxt/package_dist.py --dmg) as the artifact
-#   OXT-Beyond-mac-universal, kept for 30 days;
+#   OXT-Beyond-mac-universal, kept for 30 days (logs for 14);
 #
 #   "Test mac-universal (<arch>)" (macos-15 and macos-15-intel, so that
 #   each slice runs) installs the app from the disk image into a neutral
@@ -37,7 +37,13 @@
 #   extracts the zip and verifies its signature.
 #
 # The artifact is uploaded before the test jobs run, so a release has to
-# need both the package and the test jobs.
+# need both the package and the test jobs: .github/workflows/release.yml
+# calls this workflow (workflow_call) for a tag that starts with "v" and for
+# its dry runs, and its publishing job needs the whole called workflow,
+# every job of it; this workflow no longer runs on tags of its own. The
+# input release makes a called run build as for a release (external assets
+# and xTalk Suite extensions never left out) also for a dry run on a
+# branch.
 #
 # Signing is ad hoc (no Developer ID, no notarization): Gatekeeper blocks
 # the app until the user allows it (see the README's macOS section).
@@ -60,6 +66,9 @@
 # (engines, externals, toolchain, packaged extensions) as a tar.xz, without
 # static libraries and debug symbols; OXT-Beyond-mac-<arch>-symbols holds
 # the dSYM bundles of the same folder, as a tar.xz to extract over it.
+# Neither holds the tools the build makes to build itself
+# (tools/ci/list_build_tools.py: GENTLE, which may not be redistributed,
+# among them). Both are kept for 30 days.
 #
 # Checks: the build products, their architecture, linkage and macOS floor,
 # the server engine running a script, and the IDE compile check of the
@@ -68,24 +77,47 @@
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
-# build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
-# step ran, as YYYYMMDDHHMM.
+# build-windows.yml. OXT_BUILD_NUMBER is the input build-number when
+# release.yml gives one (the same for every job and platform of a
+# release); otherwise each job takes the UTC time at which it starts, as
+# YYYYMMDDHHMM.
 
 name: Build (macOS)
 
 on:
+  # No tags here: release.yml builds them (see the header)
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      build-number:
+        description: >-
+          OXT_BUILD_NUMBER for every job of the run (digits; release.yml
+          gives all three platforms the same); empty for the UTC time at
+          which each job starts
+        type: string
+        required: false
+        default: ''
+      release:
+        description: >-
+          Build as for a release: never leave out the external assets or the
+          xTalk Suite extensions
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-macos-${{ github.ref }}
+  # A called release build (release.yml) gets a group of its own, the
+  # caller's run id: in the caller's run github.ref is the tag or the
+  # branch of a dry run, and pushes to that branch must neither cancel the
+  # release build nor wait for it (see build-windows.yml)
+  group: build-macos-${{ inputs.release && format('release-{0}', github.run_id) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
@@ -127,14 +159,17 @@ jobs:
       # The version gate of build-windows.yml: a tag build fails straight
       # away when the tag is not "v" followed by ide/.version, so that no
       # platform builds (and none publishes) files under another version.
-      # One build number for every file of this job, OXT_BUILD_NUMBER: the
-      # UTC time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes
-      # into .buildnumber). Written for the bash 3.2 of macOS too.
+      # (Called by release.yml, github.ref_type and github.ref_name are the
+      # caller's: the tag of the release.) One build number for every file
+      # of this job, OXT_BUILD_NUMBER: release.yml's input, else the UTC
+      # time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes into
+      # .buildnumber). Written for the bash 3.2 of macOS too.
       - name: Read the product version
         id: product
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
         run: |
           version=$(tr -d '\r' < ide/.version)
           # Trim white space at both ends, like the Trim() of the Windows step
@@ -150,7 +185,17 @@ jobs:
             echo "::error::Tag $REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
             exit 1
           fi
-          build_number=$(date -u +%Y%m%d%H%M)
+          if [ -n "$BUILD_NUMBER_INPUT" ]; then
+            # Digits only, as tools/oxt/package.py requires
+            digits='^[0-9]{1,20}$'
+            if ! [[ $BUILD_NUMBER_INPUT =~ $digits ]]; then
+              echo "::error::The input build-number is '$BUILD_NUMBER_INPUT'; expected digits, such as 202610011200"
+              exit 1
+            fi
+            build_number=$BUILD_NUMBER_INPUT
+          else
+            build_number=$(date -u +%Y%m%d%H%M)
+          fi
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build-number=$build_number" >> "$GITHUB_OUTPUT"
@@ -328,17 +373,40 @@ jobs:
       # Both hold the folder Release, so extracting the symbols over the
       # build products puts every dSYM next to its binary, where lldb and
       # atos look for it (they match it by the binary's UUID).
+      #
+      # Neither holds the tools the build makes to build itself, nor their
+      # dSYM bundles (tools/ci/list_build_tools.py, the rule of the release
+      # archives): gentle-target and reflex-target are GENTLE 97, which may
+      # not be redistributed (THIRD-PARTY-NOTICES.md "GENTLE"), and these
+      # artifacts can be downloaded. Nothing that uses them needs those
+      # tools: both builds leave out the same ones, so the merge in the
+      # package job sees neither, package.py never installs them and
+      # package_dist.py leaves them out, and the IDE compile check below
+      # runs on the build folder itself. (bsdtar reads the exclusions with
+      # -X, and "Release/x" there leaves out Release/x and what is inside
+      # it, not Release/x.dSYM.) The listing at the end is the guard: no
+      # entry named gentle-* or reflex-* may reach either tarball.
       - name: Package the build products and the debug symbols
         run: |
+          python3 tools/ci/list_build_tools.py _build/mac/Release > "$RUNNER_TEMP/build-tools.list"
+          echo "Left out (the build's own tools): $(tr '\n' ' ' < "$RUNNER_TEMP/build-tools.list")"
           tar -C _build/mac -cJf "OXT-Beyond-mac-$ARCH-bin.tar.xz" \
-            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' Release
-          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) > "$RUNNER_TEMP/dsym.list"
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' -X "$RUNNER_TEMP/build-tools.list" Release
+          # (grep -v exits 1 when it selects nothing; the check below reports that)
+          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) \
+            | grep -vxF -f "$RUNNER_TEMP/build-tools.list" > "$RUNNER_TEMP/dsym.list" || true
           if [ ! -s "$RUNNER_TEMP/dsym.list" ]; then
             echo "::error::no .dSYM bundles in _build/mac/Release"; exit 1
           fi
           echo "$(wc -l < "$RUNNER_TEMP/dsym.list" | tr -d ' ') dSYM bundles"
           (cd _build/mac && tar -cJf "$GITHUB_WORKSPACE/OXT-Beyond-mac-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dsym.list")
           ls -l OXT-Beyond-mac-"$ARCH"-*.tar.xz
+          for t in OXT-Beyond-mac-"$ARCH"-bin.tar.xz OXT-Beyond-mac-"$ARCH"-symbols.tar.xz; do
+            tar -tJf "$t" > "$RUNNER_TEMP/members.txt"
+            if grep -E '(^|/)(gentle|reflex)-' "$RUNNER_TEMP/members.txt"; then
+              echo "::error::$t holds the GENTLE files above, which may not be redistributed"; exit 1
+            fi
+          done
 
       - name: Upload the build products
         uses: actions/upload-artifact@v6
@@ -346,6 +414,7 @@ jobs:
           name: OXT-Beyond-mac-${{ matrix.arch }}-bin
           path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
+          retention-days: 30
           # The tarball is compressed already
           compression-level: 0
 
@@ -355,6 +424,7 @@ jobs:
           name: OXT-Beyond-mac-${{ matrix.arch }}-symbols
           path: OXT-Beyond-mac-${{ matrix.arch }}-symbols.tar.xz
           if-no-files-found: error
+          retention-days: 30
           # The tarball is compressed already
           compression-level: 0
 
@@ -384,6 +454,7 @@ jobs:
             prebuilt/build/**/config.log
             ide-compile-check.log
           if-no-files-found: ignore
+          retention-days: 14
 
   # One universal OXT-Beyond.app from the two builds, signed ad hoc, as a
   # disk image, a zip and the merged build output with its symbols. Every
@@ -405,18 +476,21 @@ jobs:
         with:
           persist-credentials: false
 
-      # The build jobs have checked the tag against ide/.version already.
-      # This job's build number (OXT_BUILD_NUMBER, the packaged
-      # .buildnumber and CFBundleVersion) is the UTC time now. MAC and LOGS
-      # are set here because a job's env cannot use the runner context.
+      # The build jobs have checked the tag against ide/.version already,
+      # and the input build-number. This job's build number
+      # (OXT_BUILD_NUMBER, the packaged .buildnumber and CFBundleVersion) is
+      # release.yml's input, else the UTC time now. MAC and LOGS are set
+      # here because a job's env cannot use the runner context.
       - name: Read the product version
         id: product
+        env:
+          BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
         run: |
           version=$(tr -d '\r' < ide/.version)
           version="${version#"${version%%[![:space:]]*}"}"
           version="${version%"${version##*[![:space:]]}"}"
           if [ -z "$version" ]; then echo "::error::ide/.version is empty"; exit 1; fi
-          build_number=$(date -u +%Y%m%d%H%M)
+          build_number=${BUILD_NUMBER_INPUT:-$(date -u +%Y%m%d%H%M)}
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           {
@@ -507,15 +581,16 @@ jobs:
 
       # The external assets and the xTalk Suite extensions can be left out
       # with the repository variables OXT_NO_EXTERNAL_ASSETS and
-      # OXT_NO_XTALK_EXTENSIONS (1), as in build-windows.yml, except in tag
-      # builds. No Visual C++ runtime is bundled here (it comes from Visual
-      # Studio on the Windows runner), so the Windows libraries of enetxt
-      # and Box2Dxt in this package need the Visual C++ Redistributable;
-      # package.py warns about it.
+      # OXT_NO_XTALK_EXTENSIONS (1), as in build-windows.yml, except in
+      # release builds (a tag, or the input release of release.yml, also in
+      # its dry runs). No Visual C++ runtime is bundled here (it comes from
+      # Visual Studio on the Windows runner), so the Windows libraries of
+      # enetxt and Box2Dxt in this package need the Visual C++
+      # Redistributable; package.py warns about it.
       - name: Stage OXT-Beyond.app
         env:
-          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && vars.OXT_NO_EXTERNAL_ASSETS == '1' }}
-          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && vars.OXT_NO_XTALK_EXTENSIONS == '1' }}
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && !inputs.release && vars.OXT_NO_EXTERNAL_ASSETS == '1' }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && !inputs.release && vars.OXT_NO_XTALK_EXTENSIONS == '1' }}
         run: |
           flags=
           if [ "$NO_EXTERNAL_ASSETS" = true ]; then

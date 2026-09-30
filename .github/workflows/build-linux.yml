@@ -23,7 +23,10 @@
 # Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
 # (engines, externals, toolchain, packaged extensions) as a tar.xz, without
 # the debug symbols; OXT-Beyond-linux-<arch>-symbols holds those, the *.dbg
-# files of the same folder, as a tar.xz to extract over it.
+# files of the same folder, as a tar.xz to extract over it. Neither holds
+# the tools the build makes to build itself (tools/ci/list_build_tools.py:
+# GENTLE, which may not be redistributed, among them). Both are kept for
+# 30 days, like the packages; logs for 14.
 #
 # Checks: the build output's files, the glibc floor of every ELF file, the
 # server engine running a script, and the IDE compile check of the
@@ -57,21 +60,31 @@
 # Installer/linux/libraries.txt, the list the launcher checks. The external
 # assets and xTalk extension files are cached as in build-windows.yml; a
 # manual run can leave them out (inputs below, or the repository variables
-# OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a tag build
+# OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a release build
 # never does. Linux arm64 is not packaged yet.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
-# build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
-# step ran, as YYYYMMDDHHMM (the package job takes its own, when it starts
-# packaging).
+# build-windows.yml. OXT_BUILD_NUMBER is the input build-number when
+# release.yml gives one (the same for every job and platform of a
+# release); otherwise it is the UTC time at which the version step ran, as
+# YYYYMMDDHHMM, and the package job takes its own, when it starts
+# packaging.
+#
+# Releases: .github/workflows/release.yml calls this workflow (workflow_call)
+# for a tag that starts with "v" and for its dry runs, and publishes the
+# artifact OXT-Beyond-linux-x86_64 with the other platforms' packages; this
+# workflow no longer runs on tags of its own. The input release makes a
+# called run build as for a release (external assets and xTalk Suite
+# extensions never left out) also for a dry run on a branch. The release
+# waits for every job here, the arm64 build included.
 
 name: Build (Linux)
 
 on:
+  # No tags here: release.yml builds them (see the header)
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -89,12 +102,33 @@ on:
           tools/oxt/xtalk-extensions.json
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      build-number:
+        description: >-
+          OXT_BUILD_NUMBER for every job of the run (digits; release.yml
+          gives all three platforms the same); empty for the UTC time at
+          which each job starts
+        type: string
+        required: false
+        default: ''
+      release:
+        description: >-
+          Build as for a release: never leave out the external assets or the
+          xTalk Suite extensions
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-linux-${{ github.ref }}
+  # A called release build (release.yml) gets a group of its own, the
+  # caller's run id: in the caller's run github.ref is the tag or the
+  # branch of a dry run, and pushes to that branch must neither cancel the
+  # release build nor wait for it (see build-windows.yml)
+  group: build-linux-${{ inputs.release && format('release-{0}', github.run_id) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
@@ -155,15 +189,18 @@ jobs:
       # The version gate of build-windows.yml: a tag build fails straight
       # away when the tag is not "v" followed by ide/.version, so that no
       # platform builds (and none publishes) files under another version.
-      # One build number for every file of this job, OXT_BUILD_NUMBER: the
-      # UTC time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes
-      # into .buildnumber). The step runs after the tool install because
-      # the checkout needs the container's git.
+      # (Called by release.yml, github.ref_type and github.ref_name are the
+      # caller's: the tag of the release.) One build number for every file
+      # of this job, OXT_BUILD_NUMBER: release.yml's input, else the UTC
+      # time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes into
+      # .buildnumber). The step runs after the tool install because the
+      # checkout needs the container's git.
       - name: Read the product version
         id: product
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
         run: |
           version=$(tr -d '\r' < ide/.version)
           # Trim white space at both ends, like the Trim() of the Windows step
@@ -179,7 +216,17 @@ jobs:
             echo "::error::Tag $REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
             exit 1
           fi
-          build_number=$(date -u +%Y%m%d%H%M)
+          if [ -n "$BUILD_NUMBER_INPUT" ]; then
+            # Digits only, as tools/oxt/package.py requires
+            digits='^[0-9]{1,20}$'
+            if ! [[ $BUILD_NUMBER_INPUT =~ $digits ]]; then
+              echo "::error::The input build-number is '$BUILD_NUMBER_INPUT'; expected digits, such as 202610011200"
+              exit 1
+            fi
+            build_number=$BUILD_NUMBER_INPUT
+          else
+            build_number=$(date -u +%Y%m%d%H%M)
+          fi
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build-number=$build_number" >> "$GITHUB_OUTPUT"
@@ -336,20 +383,41 @@ jobs:
       # linux-<arch>-bin, so extracting the symbols over the binaries puts
       # every .dbg next to its binary, where gdb finds it through the
       # binary's .gnu_debuglink. xz uses every processor (-T0).
+      #
+      # Neither holds the tools the build makes to build itself, nor their
+      # .dbg files (tools/ci/list_build_tools.py, the rule of the release
+      # archives): gentle-target and reflex-target are GENTLE 97, which may
+      # not be redistributed (THIRD-PARTY-NOTICES.md "GENTLE"), and these
+      # artifacts can be downloaded. Nothing that uses them needs those
+      # tools: the package job's package.py never installs them and
+      # package_dist.py leaves them out, and the IDE compile check below
+      # runs on the build folder itself. The listing at the end is the
+      # guard: no entry named gentle-* or reflex-* may reach either
+      # tarball.
       - name: Package the bin folder and the debug symbols
         env:
           XZ_OPT: -T0
         run: |
           B="linux-$ARCH-bin"
-          find "$B" -type f -name '*.dbg' | sort > "$RUNNER_TEMP/dbg.list"
+          python3 tools/ci/list_build_tools.py "$B" > "$RUNNER_TEMP/build-tools.list"
+          echo "Left out (the build's own tools): $(tr '\n' ' ' < "$RUNNER_TEMP/build-tools.list")"
+          # (grep -v exits 1 when it selects nothing; the check below reports that)
+          find "$B" -type f -name '*.dbg' | sort | grep -vxF -f "$RUNNER_TEMP/build-tools.list" \
+            > "$RUNNER_TEMP/dbg.list" || true
           if [ ! -s "$RUNNER_TEMP/dbg.list" ]; then
             echo "::error::no .dbg files in $B; the build's debug-symbols target makes them"; exit 1
           fi
           echo "$(wc -l < "$RUNNER_TEMP/dbg.list") debug symbol files"
-          # (--exclude before the folder: GNU tar applies it to the names after it)
-          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' "$B"
+          # (--exclude and -X before the folder: GNU tar applies them to the names after it)
+          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' -X "$RUNNER_TEMP/build-tools.list" "$B"
           tar -cJf "OXT-Beyond-linux-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dbg.list"
           ls -l OXT-Beyond-linux-"$ARCH"-*.tar.xz
+          for t in OXT-Beyond-linux-"$ARCH"-bin.tar.xz OXT-Beyond-linux-"$ARCH"-symbols.tar.xz; do
+            tar -tJf "$t" > "$RUNNER_TEMP/members.txt"
+            if grep -E '(^|/)(gentle|reflex)-' "$RUNNER_TEMP/members.txt"; then
+              echo "::error::$t holds the GENTLE files above, which may not be redistributed"; exit 1
+            fi
+          done
 
       - name: Upload the bin folder
         uses: actions/upload-artifact@v6
@@ -357,6 +425,7 @@ jobs:
           name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
+          retention-days: 30
           # The tarball is compressed already
           compression-level: 0
 
@@ -366,6 +435,7 @@ jobs:
           name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
           path: OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
           if-no-files-found: error
+          retention-days: 30
           # The tarball is compressed already
           compression-level: 0
 
@@ -403,6 +473,7 @@ jobs:
             prebuilt/build/**/*.log
             ide-compile-check.log
           if-no-files-found: ignore
+          retention-days: 14
 
   # The Linux x86_64 package, from the build's artifacts (see the header).
   # It waits for both build legs (a job cannot need one leg of a matrix)
@@ -486,14 +557,17 @@ jobs:
       # (package.py --bin-tar extracts the build tarball itself, keeping
       # modes and links) and writes the three archives and SHA256SUMS to
       # dist/ (package_dist.py; the symbols come from the symbols artifact).
-      # The build number is the time packaging starts.
+      # The build number is release.yml's input (the build job checked it),
+      # else the time packaging starts. Release builds (a tag, or the input
+      # release) never leave anything out.
       - name: Package
         id: package
         timeout-minutes: 45
         env:
           OXT_ASSETS_CACHE: ${{ github.workspace }}/prebuilt/fetched-assets
-          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
-          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
           BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-x86_64-bin.tar.xz
           SYMBOLS_TAR: ${{ runner.temp }}/ci-symbols/OXT-Beyond-linux-x86_64-symbols.tar.xz
         run: |
@@ -501,7 +575,7 @@ jobs:
           for f in "$BIN_TAR" "$SYMBOLS_TAR"; do
             if [ ! -f "$f" ]; then echo "::error::$f is not in the downloaded artifact"; ls -laR "$RUNNER_TEMP"/ci-*; exit 1; fi
           done
-          OXT_BUILD_NUMBER=$(date -u +%Y%m%d%H%M)
+          OXT_BUILD_NUMBER=${BUILD_NUMBER_INPUT:-$(date -u +%Y%m%d%H%M)}
           export OXT_BUILD_NUMBER
           args=()
           if [ "$NO_EXTERNAL_ASSETS" = true ]; then

@@ -7,10 +7,26 @@ body:
       value: |
         Before you file this, please read the troubleshooting section of
         [BUILDING.md](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#8-troubleshooting).
-        Many build failures come from a missing Visual Studio component,
-        Python 3 being used instead of Python 2.7 for the build (packaging
-        needs Python 3), or the wrong `bash` (Git's or WSL's instead of
-        Cygwin's).
+        Many Windows build failures come from a missing Visual Studio
+        component, Python 3 being used instead of Python 2.7 for the build
+        (packaging needs Python 3), or the wrong `bash` (Git's or WSL's
+        instead of Cygwin's). Linux and macOS builds follow the steps of
+        their CI workflows; see
+        [Building on Linux](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#12-building-on-linux)
+        and
+        [Building on macOS](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#13-building-on-macos).
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which platform are you building for?
+      options:
+        - Windows x64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux x86-64
+    validations:
+      required: true
 
   - type: dropdown
     id: where
@@ -37,16 +53,18 @@ body:
       options:
         - Installing the tools
         - Cloning the repository
-        - Configuring (config.py or configure.bat)
-        - Fetching the prebuilt libraries
-        - Building (make.cmd or msbuild)
+        - Configuring (config.py, configure.bat, make config-linux-* or config.sh)
+        - Building or fetching the prebuilt libraries
+        - Building (make.cmd or msbuild, make, or xcodebuild)
         - Running the built IDE
         - Fetching the external assets (oxt-runtimes, tools/oxt/fetch_assets.py)
-        - Packaging (tools/ci/package-windows.ps1)
-        - Smoke test (tools/ci/smoke-test.ps1)
-        - IDE compile check (tools/ci/ide-compile-check.ps1)
-        - Building the installer (tools/ci/build-installer.ps1)
-        - Testing the installer (tools/ci/test-installer.ps1)
+        - Packaging (tools/ci/package-windows.ps1, tools/oxt/package.py or package_dist.py)
+        - Joining or signing the macOS app (tools/ci/merge_universal.py, sign_mac_app.py)
+        - Smoke test (tools/ci/smoke-test.ps1 or run_livecode_check.py smoke)
+        - IDE compile check (tools/ci/ide-compile-check.ps1 or run_livecode_check.py compile)
+        - Testing the Linux package (check_linux_libraries.py, test_linux_package.py)
+        - Building the Windows installer (tools/ci/build-installer.ps1)
+        - Testing the Windows installer (tools/ci/test-installer.ps1)
         - Something else
     validations:
       required: true
@@ -56,7 +74,7 @@ body:
     attributes:
       label: Tool versions
       description: |
-        Please give:
+        Please give, on Windows:
         - Windows version (`winver`);
         - Visual Studio edition and version, and whether the v141 components are installed
           (`powershell -ExecutionPolicy Bypass -File tools\ci\install-vs-components.ps1 -VerifyOnly`);
@@ -68,6 +86,13 @@ body:
         - `git --version`;
         - `C:\cygwin64\bin\bison.exe --version` and `C:\cygwin64\bin\flex.exe --version` (first lines);
         - any of `BUILDTYPE`, `VSINSTALLDIR`, `WINSDK_VERSION`, `MSBUILD_EXTRA_ARGS`, `CYGPATH`, `PREBUILT_*`, `OXT_ASSETS_CACHE` or `OXT_BUILD_NUMBER` that you set.
+
+        On Linux: the distribution and version (`/etc/os-release`), `gcc --version`, `python --version`
+        (Python 2.7), `python3 --version`, `ldd --version` (first line), and the `PREBUILT_*`,
+        `MODE`, `BUILDTYPE` or `OXT_*` variables you set.
+
+        On macOS: `sw_vers`, `uname -m`, `xcodebuild -version`, `python --version` (Python 2.7),
+        `python3 --version`, and the `PREBUILT_*`, `TARGET_ARCH`, `XCODE_*` or `OXT_*` variables you set.
     validations:
       required: true
 
@@ -76,7 +101,7 @@ body:
     attributes:
       label: Commands you ran
       description: The commands, in order, and the folder you ran them in.
-      render: bat
+      render: text
     validations:
       required: true
 
@@ -85,9 +110,11 @@ body:
     attributes:
       label: Error output
       description: >
-        For build failures, search `build-win-x86_64\msbuild.log` for the first
-        line containing `error` and paste about 30 lines before and after it.
-        For other steps, paste the console output.
+        For Windows build failures, search `build-win-x86_64\msbuild.log` for
+        the first line containing `error` and paste about 30 lines before and
+        after it; for Linux (make) and macOS (xcodebuild) builds, the first
+        error in the build output and the lines around it. For other steps,
+        paste the console output.
       render: text
     validations:
       required: true
@@ -98,4 +125,4 @@ body:
       label: Anything else?
       description: >
         What you have already tried. You can attach the whole `msbuild.log`
-        here (zip it first).
+        or build log here (zip it first).

@@ -1,7 +1,8 @@
 # Contributing to OXT-Beyond
 
 Thank you for helping. Bug reports, fixes, documentation, testing on
-different Windows setups and work on the plans listed in the
+different Windows, macOS and Linux setups and work on the plans listed
+in the
 [README](README.md#known-limitations-and-plans) are all welcome.
 
 This project is small and run by volunteers. Please be patient with
@@ -47,12 +48,18 @@ git config --global user.email "you@example.com"
   talk about the idea. It saves work on both sides.
 - Read [BUILDING.md](BUILDING.md) and get a local build working. Changes
   to the engine, externals or build files need to be built and tried
-  before review. Changes to IDE scripts can be tried with a downloaded
-  `OXT-Beyond-<version>-win-x86_64-binaries.zip` extracted into your
-  clone, but the IDE compile check and packaging need Python 3.
-- Only Windows x86-64 is built by this project. Code for other
-  platforms is still in the tree, and the IDE has parts for macOS and
-  Linux; try not to break them, but CI does not build or run them.
+  before review. Changes to IDE scripts can be tried on Windows with a
+  downloaded `OXT-Beyond-<version>-win-x86_64-binaries.zip` extracted
+  into your clone, but the IDE compile check and packaging need
+  Python 3.
+- This project builds, packages and tests Windows x86-64, macOS (one
+  universal app for Apple Silicon and Intel) and Linux x86-64, and
+  builds Linux arm64 without packaging it. Code for other platforms
+  (iOS, Android and others) is still in the tree; try not to break it,
+  but CI does not build it. The Linux and macOS builds run in CI (see
+  [BUILDING.md](BUILDING.md#12-building-on-linux), sections 12 and 13),
+  so the checks of a pull request build and test a change on all three
+  platforms.
 
 ## Branches and pull requests
 
@@ -62,10 +69,16 @@ git config --global user.email "you@example.com"
   repository) with a short descriptive name, for example
   `fix-dark-mode-menus` or `docs-building`.
 - Open a pull request against `main` and fill in the template.
-- The "Build (Windows)" check must pass before a pull request is merged.
-  If it fails, the `build-logs` artifact of the run has `msbuild.log` and
-  the logs of packaging, the smoke test, the IDE compile check and the
-  installer test.
+- The checks of the three build workflows must pass before a pull
+  request is merged: "Build win-x86_64"; "Build linux-x86_64", "Build
+  linux-arm64" and "Package linux-x86_64"; "Build mac-arm64", "Build
+  mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
+  "Test mac-universal (x86_64)". If one fails, the log artifacts of its
+  run help: `build-logs-win-x86_64` (`msbuild.log` and the logs of
+  packaging, the smoke test, the IDE compile check and the installer
+  test), `build-logs-linux-<arch>` and `build-logs-mac-<arch>` (uploaded
+  when a build fails), `package-logs-linux-x86_64`,
+  `package-logs-mac-universal` and `test-logs-mac-universal-<arch>`.
 - Keep each pull request to one change, or a few closely related ones.
   Update it by pushing more commits.
 
@@ -219,8 +232,10 @@ header; see
 ## What not to commit
 
 Build output and downloaded files: `build-win-x86_64/`,
-`win-x86_64-bin/`, `prebuilt/fetched/`, `prebuilt/unpacked/`,
-`prebuilt/fetched-assets/` and `dist/`. Most are already ignored by Git.
+`win-x86_64-bin/`, `build-linux-<arch>/`, `linux-<arch>-bin/`,
+`build-mac/`, `_build/`, `prebuilt/fetched/`, `prebuilt/unpacked/`,
+`prebuilt/fetched-assets/`, `prebuilt/packaged/` and `dist/`. Most are
+already ignored by Git.
 Never commit hand-edited files from `build-win-x86_64`; change the
 `*.gyp` or `*.gypi` files and run `config.py` again.
 
@@ -268,9 +283,14 @@ you changed:
 - run `tools\ci\package-windows.ps1` and `tools\ci\ide-compile-check.ps1`
   if you changed the IDE or packaging;
 - run `tools\ci\build-installer.ps1` and `tools\ci\test-installer.ps1` if
-  you changed the installer.
+  you changed the installer;
+- on Linux or macOS, run `python3 tools/ci/run_livecode_check.py`
+  (`smoke` and `compile`), and the checks of the
+  [Linux package](BUILDING.md#linux-package) or the
+  [macOS app](BUILDING.md#macos-app), if you changed something that
+  works differently there.
 
-CI runs all of these on every pull request. The C++ unit tests
+CI runs all of these on every pull request, on each platform. The C++ unit tests
 (`cmd /c ..\make.cmd check`) and the upstream LiveCode script test suites
 in `tests/` have not been set up for this project yet; help with that is
 welcome.
@@ -278,9 +298,11 @@ welcome.
 ## Release notes
 
 Releases use GitHub's generated release notes, which list the merged
-pull requests, after a short description written by the release
-workflow. Give your pull request a title that makes sense in that list,
-and describe any change users will notice in its description. The
+pull requests, after a description written by the release workflow
+(`tools/ci/release_notes.py`: what the release is, which file to
+download on each platform, what each platform needs, and how to check
+the downloads). Give your pull request a title that makes sense in that
+list, and describe any change users will notice in its description. The
 fragments in `docs/notes/` are upstream LiveCode release notes; do not
 add new ones there. [HISTORY.md](HISTORY.md) records the history up to
 OXT-Beyond 0.0.1.

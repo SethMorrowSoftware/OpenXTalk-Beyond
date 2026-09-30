@@ -26,8 +26,12 @@ Please include:
 - the OXT-Beyond version and build number (the version is in the title
   of the menubar window, for example "OXT-Beyond 0.0.1", and in
   `ide/.version` of a source checkout; the build number is under
-  *Preferences > Automatic Updates*) and your Windows version;
-- whether you use the installed or the portable copy;
+  *Preferences > Automatic Updates*), and your operating system and
+  version (Windows; macOS, Apple Silicon or Intel; or your Linux
+  distribution);
+- which package you use (the installer or the portable zip on Windows,
+  the disk image or the app zip on macOS, the Linux tar.xz run in place
+  or installed with `install.sh`);
 - what an attacker can do, and what they need first (for example, "a
   user opens a crafted stack file");
 - steps or a small stack or script that shows the problem.
@@ -48,19 +52,26 @@ Only the latest release, and the `main` branch, get fixes. OXT-Beyond
 
 ## Downloads and signatures
 
-The OXT-Beyond binaries (the installer, `OXT-Beyond.exe` and the other
+The Windows binaries (the installer, `OXT-Beyond.exe` and the other
 programs and libraries) are **not code-signed**, so Windows SmartScreen
-may warn about them. Download them only from this repository's
+may warn about them. The macOS app is **signed ad hoc**, with a
+signature that lets macOS check that the app's files are intact but
+names no Apple Developer ID, and it is not notarized by Apple, so macOS
+blocks it until you allow it (see the README's macOS section). The Linux package is not signed. Download
+them only from this repository's
 [Releases page](https://github.com/SethMorrowSoftware/winoxt/releases)
-and check them against the `SHA256SUMS` file of the same release, for
-example:
+and check them against the `SHA256SUMS` file of the same release, which
+lists every file of the release, for example:
 
 ```bat
-certutil -hashfile OXT-Beyond-0.0.1-win-x86_64-setup.exe SHA256
+certutil -hashfile OXT-Beyond-0.1.0-win-x86_64-setup.exe SHA256
 ```
 
+On macOS, `shasum -a 256 <file>`; on Linux, in the folder with the
+download and `SHA256SUMS`, `sha256sum -c SHA256SUMS --ignore-missing`.
+
 Development builds (workflow artifacts on the Actions tab) are made by
-the same workflow but are not reviewed as releases.
+the same workflows but are not reviewed as releases.
 
 The packages also contain prebuilt files that are not built from this
 repository: the standalone runtimes for 32-bit Windows, Linux and
@@ -98,8 +109,8 @@ it is off by default):
 - never contacts OpenXTalk Lite's update servers (tsites.co.uk,
   openxtalk.net).
 
-You update by downloading the new installer or zip from the Releases
-page yourself and checking it as described above.
+You update by downloading the new installer, disk image or archive from
+the Releases page yourself and checking it as described above.
 
 OpenXTalk Lite's own updater worked differently: it downloaded IDE
 files from Tom Perry's servers and copied them into the program folder
