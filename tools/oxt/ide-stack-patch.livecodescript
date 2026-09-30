@@ -294,6 +294,9 @@ private function readPatches pDir
          checkPropertyPatch tPatch, tFileName
       else if tPatch["file"] is empty or tPatch["object"] is empty or tPatch["old"] is empty or tPatch["new"] is empty then
          throw tFileName & ": needs file:, object:, replace: and with:"
+      else if occurrences(tPatch["old"], tPatch["new"]) > 0 then
+         -- An applied patch is recognised by the text to replace being gone
+         throw tFileName & ": the replacement contains the text to replace; replace a text that the patch changes"
       end if
       -- Each text of a script patch ends with the return of its last line
       add 1 to tCount

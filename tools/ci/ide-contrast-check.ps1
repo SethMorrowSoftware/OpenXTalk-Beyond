@@ -32,6 +32,11 @@
     and other properties are stored in binary form), so this is where those
     are checked. A patch that is not applied fails the check.
 
+    Last, the engine runs tools/ci/ide-appearance-check.livecodescript on the
+    layout: the first-install appearance preferences, and revIDEIsDark and
+    revIDEApplyAppearance on this engine (with or without the engine's
+    appearance properties). A failed check fails the step.
+
     The check also fails when it did not check the dark appearance (a
     layout without revIDEIsDark()), unless the environment variable
     OXT_CONTRAST_LIGHT_ONLY is 1 (the engine inherits it).
@@ -241,6 +246,13 @@ $extraChecks = @(
         Environment = @{ OXT_PATCH_ROOT = $Root; OXT_PATCH_CHECK = '1'; OXT_PATCH_DIR = '' }
         Problems = '^(PATCH .*\| (FAILED|NOT APPLIED)|FILE .*\| FAILED|FATAL )'
         Name = 'patches'
+    }
+    [pscustomobject]@{
+        Title = 'IDE appearance'
+        Script = Join-Path $PSScriptRoot 'ide-appearance-check.livecodescript'
+        Environment = @{ OXT_CHECK_ROOT = $Root }
+        Problems = '^(CHECK .*\| FAILED|FATAL )'
+        Name = 'appearance'
     }
 )
 $extraResults = @()

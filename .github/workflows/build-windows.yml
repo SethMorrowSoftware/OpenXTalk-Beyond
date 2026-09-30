@@ -240,13 +240,16 @@ jobs:
       #                                 on its light and dark backgrounds,
       #                                 a ratchet against
       #                                 tools/ci/se-schemes-baseline.txt
+      #   check_ide_prefs.py            the first-install preferences: a
+      #                                 light IDE and light user stacks,
+      #                                 the menubar as a standard window
       - name: Lint IDE sources
         id: ide_lint
         run: |
           python -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)"
           if ($LASTEXITCODE -ne 0) { throw 'python on PATH is not Python 3.8 or later' }
           $failed = @()
-          foreach ($check in @('check_ide_colour_literals.py', 'check_ide_stacks.py', 'check_ide_icons.py', 'check_se_schemes.py')) {
+          foreach ($check in @('check_ide_colour_literals.py', 'check_ide_stacks.py', 'check_ide_icons.py', 'check_se_schemes.py', 'check_ide_prefs.py')) {
             Write-Host "::group::$check"
             python "tools/ci/$check"
             $code = $LASTEXITCODE

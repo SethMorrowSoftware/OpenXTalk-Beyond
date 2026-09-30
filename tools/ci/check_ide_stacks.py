@@ -116,6 +116,9 @@ def read_patch(path):
     # As in the patch tool, each text ends with the line end of its last line
     old = '\n'.join(sections['old']) + '\n'
     new = '\n'.join(sections['new']) + '\n'
+    if old in new:
+        # An applied patch is recognised by the replaced text being gone
+        raise ValueError('%s: the replacement contains the text to replace; replace a text that the patch changes' % path)
     return 'script', fields['file'], fields['object'], old.encode('utf-8'), new.encode('utf-8')
 
 

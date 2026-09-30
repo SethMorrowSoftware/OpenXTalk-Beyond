@@ -1,0 +1,23 @@
+# Preferences, "Reset Preferences to Defaults": revInternal__ResetPreferences
+# (home.livecodescript) now also resets the appearance of the IDE and of the
+# user's stacks to light and the menubar to a standard window. The IDE
+# applies them at once: revIDEApplyAppearance (revidelibrary) sets the
+# appearances and refreshes the palettes, and the menubar lays itself out
+# again (tMenuBar_WDdecorations, as the menubar checkbox of card
+# "Appearance" does).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Reset Preferences to Defaults" of card "General"
+replace:
+|   revUpdateAB|
+|   |
+|   if the mode of stack "revVariableWatcher" is not 0|
+with:
+|   revUpdateAB|
+|   |
+|   -- OXT-Beyond: the reset appearance (a light IDE and light user stacks)|
+|   -- and the menubar as a standard window, applied now|
+|   revIDEApplyAppearance|
+|   send "tMenuBar_WDdecorations" to stack "revMenubar"|
+|   |
+|   if the mode of stack "revVariableWatcher" is not 0|

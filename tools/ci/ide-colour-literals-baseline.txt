@@ -15,8 +15,6 @@ ide/Extensions/community.openxtalk.plugin.oxtlite/OXTLiteFunctions.livecodescrip
 ide/Toolset/home.livecodescript | (script) | constant kimportanttextcolor = #FF8B00
 ide/Toolset/home.livecodescript | revInternal__InitialiseOptions | ctoolselectorcolor = 255,140,0
 ide/Toolset/home.livecodescript | revInternal__InitialiseOptions | selectionhandlecolor = 150,80,0
-ide/Toolset/libraries/revidelibrary.8.livecodescript | fixthemebtn | foregroundcolor = black
-ide/Toolset/libraries/revidelibrary.8.livecodescript | fixthemebtn | foregroundcolor = white
 ide/Toolset/libraries/revidelibrary.8.livecodescript | ideStyleText | backcolor = 255,255,170
 ide/Toolset/libraries/revidelibrary.8.livecodescript | ideStyleText | textcolor = 0,0,0
 ide/Toolset/libraries/revprintlibrary.livecodescript | revPrintText | backcolor = white

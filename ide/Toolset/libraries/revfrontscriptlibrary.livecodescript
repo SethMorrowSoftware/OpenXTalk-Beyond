@@ -274,6 +274,14 @@ on preOpenStack
       # IM-2016-03-01: [[ Bug 16244 ]] IDE stacks should always hide invisible objects
       set the showInvisibles of stack tStack to false
       set the _ideoverride of stack tStack to true
+      -- OXT-Beyond: the IDE's appearance, before the stack draws (see
+      -- revIDEApplyAppearance); on its main stack, which substacks inherit
+      revIDESetStackAppearance ideMainStackOfObject(tTarget), revIDEAppearancePreference("ide")
+   else if revIDEEngineHasAppearance() and revIDEStackIsShipped(ideMainStackOfObject(tTarget)) then
+      -- A stack shipped with the IDE (a plugin, the dictionary) too. The
+      -- user's stacks get nothing: they follow the appAppearance, as in a
+      -- standalone.
+      revIDESetStackAppearance ideMainStackOfObject(tTarget), revIDEAppearancePreference("ide")
    end if
    
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass preOpenStack

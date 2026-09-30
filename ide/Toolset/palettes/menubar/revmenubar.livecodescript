@@ -48,7 +48,8 @@ on preOpenStack
    set the tStoredControlSubmenu of this stack to ""
    if the platform contains "linux" then set the style of stack "revMenubar" to modeless  --tp 24-11, linux no toplevel
    if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
-      if the systemappearance is "dark" then set the backgroundColor of this stack to "61,61,61"
+      -- OXT-Beyond: the IDE's appearance, which can differ from the system's
+      if revIDEIsDark() then set the backgroundColor of this stack to "61,61,61"
       else set the backgroundColor of this stack to ""
    end if
    set the cantModify of me to true
@@ -860,7 +861,7 @@ on updateButtonState
    end if
    
    --tp 24-11, check if tools btn needs updating
-   if the cMakeRevMenuBarStandard of stack "revPreferences" is true then generateToolsBtn
+   if __menubarIsStandardWindow() then generateToolsBtn
    unlock messages
    unlock screen
 end updateButtonState
@@ -1837,6 +1838,9 @@ private function revMenubarViewMenu pContext
    put toggleMenuItem("Toolbar Icons/^@I", the cToolbarIcons of stack "revPreferences") & return after tView  --tp 24-1, add shortcut
    put toggleMenuItem("Toolbar Text/^@T", the cToolbarText of stack "revPreferences") & return after tView  --tp 24-1, add shortcut
    put "-" & return after tView
+   -- OXT-Beyond: the appearance of the IDE and of the user's stacks
+   put "Appearance" & return after tView
+   put revIDEAppearanceMenu() & return after tView
    put toggleMenuItem("Palettes", gREVPalettes is empty) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Rulers", the mode of stack "revRulersH" is not 0) & return after tView
@@ -2873,6 +2877,12 @@ on revMenubarDevelopmentMenuPick pWhich
 end revMenubarDevelopmentMenuPick
 
 on revMenubarViewMenuPick pWhich
+   -- OXT-Beyond: the Appearance submenu (revIDEAppearanceMenu)
+   if pWhich begins with "Appearance|" then
+      set the itemDelimiter to "|"
+      revIDEAppearanceMenuPick item 2 to -1 of pWhich
+      exit revMenubarViewMenuPick
+   end if
    switch pWhich
       case "Show IDE Stacks In Lists"
       case "Show Invisible Objects"
@@ -2909,21 +2919,6 @@ on revMenubarViewMenuPick pWhich
          break
       case "Palettes"
          revIDETogglePaletteView
-         break
-      case "Appearance|Default"
-         tMBSetThemeDefault
-         break
-      case "Appearance|Dark mode"
-         tMBSetThemeDark
-         break
-      case "Appearance|Light mode"
-         tMBSetThemeLight
-         break
-      case "Appearance|Theme Preferences"
-         tOpenThemePrefs
-         break
-      case "Appearance|Ignore default IDE theme in this stack"
-         tIgnoreThemingInThisStack
          break
    end switch
 end revMenubarViewMenuPick
@@ -3254,13 +3249,23 @@ on tOpenDemos  --tp 26-1, open 'Demos' stack
    open stack tFilePath
 end tOpenDemos
 
+-- OXT-Beyond: whether the menubar is a standard window (a title bar, not
+-- docked to the screen's edge): the default, unless the user docked it in
+-- Preferences > Appearance ("false"). An unset preference is a standard
+-- window too, because the menubar lays itself out (tMenuBar_WDdecorations,
+-- one tick after its preOpenStack) before the IDE's start-up check gives
+-- empty preferences their defaults (home.livecodescript).
+private function __menubarIsStandardWindow
+   return the cMakeRevMenuBarStandard of stack "revPreferences" is not false
+end __menubarIsStandardWindow
+
 on tMenuBar_WDdecorations  --tp 24-1, show revmenubar as standard window
    local tOldTop, tOldLeft, tCorrectMacOS
    put the top of this stack into tOldTop
    put the left of this stack into tOldLeft
    lock screen
    lock messages
-   if the cMakeRevMenuBarStandard of stack "revPreferences" is true then  --floating stack
+   if __menubarIsStandardWindow() then  --floating stack
       set the decorations of stack "revMenubar" to "title,menu,minimize,close"
       if the platform contains "win" then
          if tOldTop < "40" then put "42" into tOldTop
@@ -3298,13 +3303,6 @@ on tMenuBar_WDdecorations  --tp 24-1, show revmenubar as standard window
    unlock screen
 end tMenuBar_WDdecorations
 
-on tOpenThemePrefs  --tp 24-1, appearance theme preferences from view menu
-   open stack "revPreferencesGUI"
-   go card "Extras" of stack "revPreferencesGUI"
-   set the hilitedLine of fld "menu" of stack "revPreferencesGUI" to "4"
-   send "tchkblendlvl" to graphic "redborder" of card "Extras" of stack "revPreferencesGUI"
-end tOpenThemePrefs
-
 on tOpenReplicate  ----tp 24-1, open replicate palette
    local tFilePath
    set the itemdelimiter to slash
@@ -3325,45 +3323,6 @@ on tSetOffsets  --tp 24-1, save offset just set
    set the cTweakMenuBarL of stack "revPreferences" to fld "tweakL" of cd "compatibility" of stack "revPreferencesGUI"
    set the cTweakMenuBarT of stack "revPreferences" to fld "tweakR" of cd "compatibility"of stack "revPreferencesGUI"
 end tSetOffsets
-
-################################################################################
---tp 24-2, set themes
-
-on tMBSetThemeDefault  --set theme to default
-   set the cUseThemeDefault of stack "revPreferences" to true
-   set the cUseThemeDark of stack "revPreferences" to false
-   set the cUseThemelight of stack "revPreferences" to false
-   if there is a stack "revPreferencesGUI" then  --change button hilites if prefs window is loaded
-      set the hilite of btn "themeDefault" of card "Extras" of stack "revPreferencesGUI" to true
-      set the hilite of btn "themeDark" of card "Extras" of stack "revPreferencesGUI" to false
-      set the hilite of btn "themeLight" of card "Extras" of stack "revPreferencesGUI" to false
-   end if
-   send "tApplyTheme_nullify" to stack "home"  --apply theme
-end tMBSetThemeDefault
-
-on tMBSetThemeDark  --set theme to dark
-   set the cUseThemeDefault of stack "revPreferences" to false
-   set the cUseThemeDark of stack "revPreferences" to true
-   set the cUseThemelight of stack "revPreferences" to false
-   if there is a stack "revPreferencesGUI" then  --change button hilites if prefs window is loaded
-      set the hilite of btn "themeDefault" of card "Extras" of stack "revPreferencesGUI" to false
-      set the hilite of btn "themeDark" of card "Extras" of stack "revPreferencesGUI" to true
-      set the hilite of btn "themeLight" of card "Extras" of stack "revPreferencesGUI" to false
-   end if
-   send "IDEToDarkMode" to stack "home"  --apply theme
-end tMBSetThemeDark
-
-on tMBSetThemeLight  --set theme to light
-   set the cUseThemeDefault of stack "revPreferences" to false
-   set the cUseThemeDark of stack "revPreferences" to false
-   set the cUseThemelight of stack "revPreferences" to true
-   if there is a stack "revPreferencesGUI" then  --change button hilites if prefs window is loaded
-      set the hilite of btn "themeDefault" of card "Extras" of stack "revPreferencesGUI" to false
-      set the hilite of btn "themeDark" of card "Extras" of stack "revPreferencesGUI" to false
-      set the hilite of btn "themeLight" of card "Extras" of stack "revPreferencesGUI" to true
-   end if
-   send "IDEToLightMode" to stack "home"  --apply theme
-end tMBSetThemeLight
 
 on tIDEGetBuildVersion  --tp 23-11, dynamically change title & build version
    local tFilePath, tVersionNumber, tForkName, tTitle, tBuildNumberfile, tBuildNumber
@@ -3545,33 +3504,6 @@ on fIDEWindows pWhat
    unlock screen
 end fIDEWindows
 -----end window focus and restore
-
-on tIgnoreThemingInThisStack  --tp 24-6, set custom prop to ignore ide theme, so stack developer can specify stack appearance
-   local tIgnoreThemeStackLong, tIgnoreThemeStackShort, tIsThisIDEStack, tProgDir
-   put the long name of the topStack into tIgnoreThemeStackLong
-   put the short name of the topStack into tIgnoreThemeStackShort
-   put false into tIsThisIDEStack
-   if tIgnoreThemeStackLong contains (slash & "rev") then put true into tIsThisIDEStack
-   if tIgnoreThemeStackShort contains (slash & "rev") then put true into tIsThisIDEStack
-   put specialFolderPath("Engine") into tProgDir
-   if tIgnoreThemeStackLong contains (tProgDir) then put true into tIsThisIDEStack
-   if tIsThisIDEStack is true then
-      answer "Sorry, the current stack '" & tIgnoreThemeStackShort & "' is part of the IDE, it's theme cannot be ignored." with "OK" titled "IDE Stack"
-      exit tIgnoreThemingInThisStack
-   else
-      answer "The IDE will no longer theme the current stack '" & tIgnoreThemeStackShort & "'." & return & ¬
-      "You will now be able to manually set the colors of this stack via inspector or script." && ¬
-      "They will not be overridden by the IDE in future." with "Proceed" or "Cancel" titled "Ignore IDE Theme"
-      if it is "Proceed" then  --ignore ide theme
-         if there is a stack (tIgnoreThemeStackLong) then
-            set the ignoreIDETheme of stack (tIgnoreThemeStackLong) to true
-            if the ignoreIDETheme of stack (tIgnoreThemeStackLong) is true then  --validate custom prop set to true
-               answer "Custom property 'ignoreIDETheme' of stack '" & tIgnoreThemeStackShort & "' has been set to 'true'." with "OK" titled "Ignore IDE Theme"
-            end if
-         end if
-      end if
-   end if
-end tIgnoreThemingInThisStack
 
 on tApplyMBCardScript
    --tp 24-11, set the script on the card because livecodescript files don't store card scripts of temp objects on save
