@@ -9,7 +9,10 @@
 # must be seen. A pair without an appearance is checked in light and dark.
 
 # Rows of the dataView lists (Extension Manager, Project Browser, Message
-# Box, standalone inclusions): name, secondary text and disclosure arrow
+# Box, standalone inclusions): name, secondary text and disclosure arrow.
+# text_1 is also the Message Box's script line counts: their "badge" fields
+# are transparent, so the counts are drawn on the row itself (the patches
+# revmessagebox-badge-text-*.txt of tools/oxt/ide-stack-patches)
 text_1                              dataView_rowColor                    4.5
 text_1                              dataView_rowAlternateColor           4.5
 text_2                              dataView_rowColor                    4.5
@@ -31,7 +34,8 @@ text_2                              pb_line_selected                     4.5
 text_1                              dataView_dimmedHiliteColor           4.5
 text_2                              dataView_dimmedHiliteColor           4.5
 
-# Project Browser: the script line count badge of a row
+# Project Browser: the script line count badge of a row (an opaque badge;
+# the Message Box draws its counts on the row, see above)
 text_3                              dataView_hiliteColor                 4.5
 text_3                              dataView_scriptErrorBackgroundColor  4.5
 
