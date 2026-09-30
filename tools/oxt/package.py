@@ -95,11 +95,13 @@ stage folder itself except on macOS):
                Externals/Database Drivers/Database Drivers.txt (at the root
                and under every runtime folder), .buildnumber (the build
                number), two empty dictionary folders (EMPTY_DIRS) and, on
-               macOS, the app's Info.plist: the build's, with the renamed
-               executable (CFBundleExecutable), the layout's architectures,
-               arm64 first (LSArchitecturePriority), and the lowest
-               minimum macOS of the engine's slices
-               (LSMinimumSystemVersion).
+               macOS, the app's Info.plist (mac_info_plist: the build's,
+               with OXT-Beyond's bundle id, name, version, copyright,
+               icon and document types, the renamed executable, the
+               layout's architectures, arm64 first, and the lowest
+               minimum macOS of the engine's slices) and its icon,
+               Contents/Resources/OXT-Beyond.icns (tools/oxt/icns.py,
+               from Installer/oxt-beyond/branding/png).
   licences     LICENSE, LICENSE-EXCEPTION.md and THIRD-PARTY-NOTICES.md from
                the repository root (CRLF line endings on Windows).
   assets       the archives in tools/oxt/external-assets.json (see
@@ -441,6 +443,140 @@ def _linux(arch):
 #                      has no Externals, because its target cannot build:
 #                      the engine has no i386 slice, and the IDE disables
 #                      the target on macOS 12 and later.
+# The app's identity (mac_info_plist). The bundle id is OXT-Beyond's own,
+# under the project's GitHub account, so that macOS keeps its preferences,
+# document bindings and permissions apart from LiveCode's
+# (com.runrev.livecode) and OpenXTalk Lite's.
+MAC_BUNDLE_ID = 'io.github.sethmorrowsoftware.oxt-beyond'
+MAC_ICON = PRODUCT + '.icns'
+# Installer/oxt-beyond/branding/png/oxt-beyond-<size>.png, made by
+# make-branding.ps1; tools/oxt/icns.py takes the sizes it needs
+MAC_ICON_PNGS = 'Installer/oxt-beyond/branding/png'
+# The document types that OXT-Beyond owns: (UTI, extension, name, the
+# types it conforms to). A script-only stack is plain text, so .oxtscript
+# conforms to public.script (source code, plain text: Quick Look and text
+# editors can show it); a binary stack is data. The names are the
+# installer's (oxt-beyond.iss). No document icon is named: macOS 11 and
+# later draw one from the app icon, and the 10.13 to 10.15 Finder shows
+# its generic document icon.
+MAC_DOCUMENT_TYPES = (
+    (MAC_BUNDLE_ID + '.stack', 'oxtstack', PRODUCT + ' Stack', ['public.data', 'public.content']),
+    (MAC_BUNDLE_ID + '.script', 'oxtscript', PRODUCT + ' Script-Only Stack', ['public.script']),
+)
+
+
+def mac_copyright(year=None):
+    """NSHumanReadableCopyright: who made what (as about.dat and the
+    installer's AppComments say it), and the licence. LiveCode Ltd's years
+    are those of the engine's own Info.plist."""
+    year = year or datetime.datetime.now(datetime.timezone.utc).year
+    return ('Copyright %s OXT-Beyond contributors. Continues OpenXTalk Lite by Terry Little, Tom Perry and '
+            'the OpenXTalk contributors, based on LiveCode Community, copyright 2000-2020 LiveCode Ltd. '
+            'Free software under the GNU General Public License version 3.'
+            % ('2026' if year <= 2026 else '2026-%d' % year))
+
+
+def mac_info_plist(plist, version, build_number, archs, executable, minimum):
+    """The app's Info.plist from the build's (engine/rsrc/LiveCode-Info.plist
+    as Xcode wrote it, with the engine's version and Xcode's DT* keys,
+    which stay). What changes:
+
+      CFBundleExecutable      the renamed executable
+      CFBundleIdentifier      MAC_BUNDLE_ID (LiveCode's is com.runrev.livecode)
+      CFBundleName,           OXT-Beyond
+      CFBundleDisplayName
+      CFBundleShortVersionString
+                              ide/.version, as the user sees it
+      CFBundleVersion         its numeric part and the build number
+                              (0.1.0.202609291200): integers only, as
+                              macOS compares them, and higher for every
+                              build, so that LaunchServices prefers the
+                              newer of two copies
+      CFBundleGetInfoString,  OXT-Beyond's version and the engine's
+      CFBundleLongVersionString
+      NSHumanReadableCopyright
+                              mac_copyright()
+      CFBundleIconFile        MAC_ICON, made from the branding PNGs
+      NSHighResolutionCapable true (as LiveCode's)
+      LSArchitecturePriority  the layout's architectures, arm64 first.
+                              LiveCode's says x86_64, i386, from its Intel
+                              days; LaunchServices starts the first listed
+                              architecture the binary has, so a universal
+                              app would run under Rosetta on Apple Silicon
+      LSMinimumSystemVersion  minimum: the lowest minimum macOS of the
+                              engine's slices (Xcode writes the deployment
+                              target of the one build the tree came from:
+                              11.0 for arm64, 10.13 for x86_64; a universal
+                              app must declare its lowest slice's, or
+                              Intel Macs below 11 refuse it)
+      CFBundleDocumentTypes   MAC_DOCUMENT_TYPES as the owner (rank Owner),
+                              then LiveCode's (.rev, .livecode,
+                              .livecodescript) with rank Alternate: the app
+                              opens them, but does not take them over from
+                              an installed LiveCode, as on Windows, where
+                              the installer associates only .oxtstack and
+                              .oxtscript
+      UTExportedTypeDeclarations
+                              the types of MAC_DOCUMENT_TYPES
+      UTImportedTypeDeclarations
+                              LiveCode's types (com.runrev.*), which the
+                              build exports although LiveCode owns them;
+                              its two declarations of
+                              com.runrev.livecode.stack (.livecode and
+                              .livecodescript) become one, since
+                              LaunchServices keeps only one per identifier
+    """
+    out = dict(plist)
+    engine_version = plist.get('CFBundleShortVersionString') or '?'
+    numeric = re.match(r'^[0-9]+(\.[0-9]+){0,2}', version)
+    info = '%s %s (build %s), engine %s' % (PRODUCT, version, build_number, engine_version)
+    out.update({
+        'CFBundleExecutable': executable,
+        'CFBundleIdentifier': MAC_BUNDLE_ID,
+        'CFBundleName': PRODUCT,
+        'CFBundleDisplayName': PRODUCT,
+        'CFBundleShortVersionString': version,
+        'CFBundleVersion': '%s.%s' % (numeric.group(0) if numeric else '0', build_number),
+        'CFBundleGetInfoString': info,
+        'CFBundleLongVersionString': info,
+        'NSHumanReadableCopyright': mac_copyright(),
+        'CFBundleIconFile': MAC_ICON,
+        'NSHighResolutionCapable': True,
+        'LSArchitecturePriority': list(archs),
+    })
+    if minimum:
+        out['LSMinimumSystemVersion'] = minimum
+    types = [collections.OrderedDict([('CFBundleTypeName', name), ('CFBundleTypeRole', 'Editor'),
+                                      ('LSHandlerRank', 'Owner'), ('LSItemContentTypes', [uti])])
+             for uti, _, name, _ in MAC_DOCUMENT_TYPES]
+    for t in plist.get('CFBundleDocumentTypes', []):
+        t = dict(t)
+        t['LSHandlerRank'] = 'Alternate'
+        types.append(t)
+    out['CFBundleDocumentTypes'] = types
+    out['UTExportedTypeDeclarations'] = [
+        collections.OrderedDict([('UTTypeIdentifier', uti), ('UTTypeDescription', name),
+                                 ('UTTypeConformsTo', conforms),
+                                 ('UTTypeTagSpecification', {'public.filename-extension': [ext]})])
+        for uti, ext, name, conforms in MAC_DOCUMENT_TYPES]
+    imported = collections.OrderedDict()
+    for d in plist.get('UTExportedTypeDeclarations', []) + plist.get('UTImportedTypeDeclarations', []):
+        uti = d.get('UTTypeIdentifier')
+        if uti not in imported:
+            imported[uti] = dict(d, UTTypeTagSpecification=dict(d.get('UTTypeTagSpecification', {})))
+            continue
+        tags = imported[uti]['UTTypeTagSpecification']
+        exts = tags.get('public.filename-extension', [])
+        exts = [exts] if isinstance(exts, str) else list(exts)
+        more = d.get('UTTypeTagSpecification', {}).get('public.filename-extension', [])
+        for e in ([more] if isinstance(more, str) else more):
+            if e not in exts:
+                exts.append(e)
+        tags['public.filename-extension'] = exts
+    out['UTImportedTypeDeclarations'] = list(imported.values())
+    return out
+
+
 MAC_RUNTIMES = collections.OrderedDict([
     ('x86-64', dict(folder='Runtime/Mac OS X/x86-64',
                     standalone=('Standalone-Community.app', 'Standalone.app'),
@@ -521,8 +657,8 @@ def _mac(arch):
             ('tz.dylib', 'native code of the timezone library; its packaged_extensions copy is installed'),
             ('inih.dylib', 'native code of com.livecode.library.ini, which package.txt does not install'),
             ('LiveCode-Community.app/Contents/Info.plist',
-             'replaced by a generated Info.plist that names the renamed executable, the layout\'s '
-             'architectures (LSArchitecturePriority) and the engine\'s lowest macOS (LSMinimumSystemVersion)'),
+             'replaced by OXT-Beyond\'s Info.plist (mac_info_plist: bundle id, version, icon, document types, '
+             'the renamed executable, the layout\'s architectures and the engine\'s lowest macOS)'),
             ('LiveCode-Community.app/Contents/_CodeSignature/**',
              'the build\'s seal of the app does not match the renamed executable and the new Info.plist; '
              'the whole app, its nested code included (whose stripped copies carry stale signatures), '
@@ -781,18 +917,9 @@ def plan_engine(pl):
             if plist.get('CFBundleExecutable') != p.dev_engine[:-len('.app')]:
                 pl.problems.append('%s: CFBundleExecutable is %r, not %r'
                                    % (plist_path, plist.get('CFBundleExecutable'), p.dev_engine[:-len('.app')]))
-            plist['CFBundleExecutable'] = new.rsplit('/', 1)[-1]
-            # LiveCode's plist (engine/rsrc/LiveCode-Info.plist) still says
-            # LSArchitecturePriority x86_64, i386, from its Intel-only days.
-            # LaunchServices starts the first listed architecture the binary
-            # has, so a universal app would run under Rosetta on Apple Silicon.
-            # List the layout's own architectures (mac_archs puts arm64 first).
-            plist['LSArchitecturePriority'] = list(p.mac_archs)
-            # Xcode writes the deployment target of the build that the tree
-            # came from (arm64 11.0, x86_64 10.13). A universal app must
-            # declare its lowest slice's, or Intel Macs below 11 refuse it.
-            # binfmt's floors are the highest over the slices, so read each
-            # slice on its own.
+            # LSMinimumSystemVersion: the lowest minimum macOS of the
+            # engine's slices (see mac_info_plist). binfmt's floors are the
+            # highest over the slices, so read each slice on its own.
             exe = layout.native(pl.bin_dir, p.dev_engine + '/' + old)
             try:
                 data = binfmt.read_file(exe)
@@ -805,13 +932,28 @@ def plan_engine(pl):
                 if None in floors:
                     pl.problems.append('%s: a slice has no minimum macOS version (LC_BUILD_VERSION or '
                                        'LC_VERSION_MIN_MACOSX)' % exe)
-            if None not in floors:
-                plist['LSMinimumSystemVersion'] = binfmt.version_text(min(floors))
+            plist = mac_info_plist(plist, read_version(pl.repo), pl.build_number, p.mac_archs,
+                                   new.rsplit('/', 1)[-1],
+                                   binfmt.version_text(min(floors)) if None not in floors else None)
             pl.generated(p.engine + '/Contents/Info.plist', plistlib.dumps(plist, fmt=plistlib.FMT_XML),
-                         'the build\'s Info.plist with CFBundleExecutable %s, LSArchitecturePriority %s and '
-                         'LSMinimumSystemVersion %s'
-                         % (plist['CFBundleExecutable'], ', '.join(plist['LSArchitecturePriority']),
-                            plist.get('LSMinimumSystemVersion', '?')))
+                         'OXT-Beyond\'s Info.plist (mac_info_plist): %s %s, CFBundleExecutable %s, '
+                         'LSArchitecturePriority %s, LSMinimumSystemVersion %s'
+                         % (plist['CFBundleIdentifier'], plist['CFBundleVersion'], plist['CFBundleExecutable'],
+                            ', '.join(plist['LSArchitecturePriority']), plist.get('LSMinimumSystemVersion', '?')))
+        # The app icon, from the branding PNGs (tools/oxt/icns.py, so that
+        # no macOS tool is needed; imported here, as only the macOS
+        # layouts use it)
+        import icns
+        pngs = layout.native(pl.repo, MAC_ICON_PNGS)
+        try:
+            names = sorted(n for n in os.listdir(pngs) if n.lower().endswith('.png'))
+            data = icns.build_from_files([os.path.join(pngs, n) for n in names])
+        except (OSError, icns.IcnsError) as e:
+            pl.problems.append('cannot make %s from %s: %s' % (MAC_ICON, pngs, e))
+        else:
+            pl.generated(p.engine + '/Contents/Resources/' + MAC_ICON, data,
+                         'the app icon (CFBundleIconFile), made from %s/*.png by tools/oxt/icns.py'
+                         % MAC_ICON_PNGS)
     for rel, target in p.engine_support:
         pl.output(target, rel, note)
 
@@ -877,9 +1019,41 @@ def check_architecture(p, bin_dir, allow_single_arch):
                     warnings.append(msg + ' (--allow-single-arch)')
                 else:
                     problems.append(msg + ('; a mac-universal layout needs the lipo merge of the arm64 and '
-                                           'x86_64 builds (--allow-single-arch stages it anyway)'
-                                           if p.arch == 'universal' else ''))
+                                           'x86_64 builds (tools/ci/merge_universal.py; --allow-single-arch '
+                                           'stages it anyway)' if p.arch == 'universal' else ''))
+        # The runtime's Info.plist is staged as the build wrote it (the
+        # standalone builder edits it line by line), so it must already
+        # declare the lowest minimum macOS of its engine: after the merge
+        # the x86_64 build's 10.13, not the arm64 build's 11.0, or every
+        # standalone would refuse Intel Macs below macOS 11
+        exe = layout.native(bin_dir, 'Standalone-Community.app/Contents/MacOS/Standalone-Community')
+        info = layout.native(bin_dir, 'Standalone-Community.app/Contents/Info.plist')
+        if os.path.isfile(exe) and os.path.isfile(info):
+            try:
+                with open(info, 'rb') as f:
+                    declared = plistlib.load(f).get('LSMinimumSystemVersion')
+                data = binfmt.read_file(exe)
+                floors = [binfmt.parse_macho(data[o:o + n]).floors.get('macOS')
+                          for _, o, n in binfmt.macho_slices(data)]
+            except (OSError, ValueError, struct.error, plistlib.InvalidFileException, binfmt.FormatError) as e:
+                problems.append('cannot read %s or its Info.plist: %s' % (exe, e))
+            else:
+                lowest = min(f for f in floors if f) if any(floors) else None
+                if declared and lowest and _mac_version(declared) != _mac_version(lowest):
+                    problems.append('Standalone-Community.app/Contents/Info.plist declares LSMinimumSystemVersion '
+                                    '%s, but its engine runs from macOS %s (after a lipo merge, take the x86_64 '
+                                    'build\'s Info.plist, as tools/ci/merge_universal.py does)'
+                                    % (declared, binfmt.version_text(lowest)))
     return problems, warnings
+
+
+def _mac_version(v):
+    """A macOS version ('10.13', '11', (11, 0)) as a tuple without trailing
+    zeros, for comparing."""
+    parts = [int(x) for x in re.findall(r'[0-9]+', str(v))] if not isinstance(v, tuple) else list(v)
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
 
 
 def unused_build_outputs(p, bin_dir, used):
@@ -901,6 +1075,7 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
     p = platform or PLATFORMS[DEFAULT_PLATFORM]
     tools = p.tools
     pl = Planner(p, bin_dir)
+    pl.repo, pl.build_number = repo, build_number    # for the macOS Info.plist
     folders = [tools + d for d in EMPTY_DIRS]
 
     # IDE
