@@ -119,7 +119,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
           persist-credentials: false
@@ -216,7 +216,7 @@ jobs:
       # only save them at the end of a successful job.
       - name: Restore cached prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/fetched
           key: prebuilt-win32-x86_64-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/*', 'prebuilt/SHA256SUMS') }}
@@ -237,7 +237,7 @@ jobs:
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/fetched
           key: ${{ steps.prebuilt-cache.outputs.cache-primary-key }}
@@ -274,14 +274,14 @@ jobs:
       # version).
       - name: Restore cached external assets
         id: assets-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
 
       - name: Restore cached xTalk extension files
         id: xtalk-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/fetched-assets/xtalk
           key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
@@ -330,7 +330,7 @@ jobs:
       - name: Save external assets to the cache
         if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
@@ -338,7 +338,7 @@ jobs:
       - name: Save xTalk extension files to the cache
         if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
         continue-on-error: true
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
@@ -431,7 +431,7 @@ jobs:
 
       - name: Upload packages
         id: upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: OXT-Beyond-win-x86_64
           # Everything in dist except the staged layout
@@ -530,7 +530,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-logs
           path: ${{ runner.temp }}/build-logs
@@ -579,7 +579,7 @@ jobs:
       contents: write
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: OXT-Beyond-win-x86_64
           path: dist

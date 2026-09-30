@@ -1,26 +1,40 @@
 script "oxt_smoke_test"
--- Headless smoke test for a Windows build of OXT-Beyond.
+-- Headless smoke test for a build of OXT-Beyond (Windows, Linux or macOS).
 --
 -- Run it with the development engine, without the IDE:
 --
 --    win-x86_64-bin\LiveCode-Community.exe -ui tools\ci\smoke-test.livecodescript
 --    OXT-Beyond.exe -ui tools\ci\smoke-test.livecodescript    (installed)
 --
--- tools/ci/smoke-test.ps1 does this and sets the expected values below from
--- the source tree. The script prints one PASS or FAIL line per check to
--- stdout and quits with the number of failed checks as the exit code.
+-- tools/ci/smoke-test.ps1 (Windows) and tools/ci/run_livecode_check.py
+-- (every platform) do this and set the expected values below from the
+-- source tree. The script prints one PASS or FAIL line per check to stdout
+-- and quits with the number of failed checks as the exit code.
 --
 -- Optional environment variables:
---    OXT_EXPECT_VERSION  expected "the version" (BUILD_SHORT_VERSION)
---    OXT_EXPECT_SQLITE   expected sqlite_version() (SQLITE_VERSION in
---                        thirdparty/libsqlite/include/sqlite3.h)
---    OXT_EXTERNALS_DIR   folder with revdb.dll, revxml.dll and revzip.dll
---    OXT_DRIVERS_DIR     folder with dbsqlite.dll
---    OXT_XTALK_PROBES    file listing the bundled xTalk Suite extensions to
---                        load and call, in load order (see smoke-test.ps1)
---    OXT_EXTENSIONS_DIR  the layout's Extensions folder
+--    OXT_EXPECT_VERSION   expected "the version" (BUILD_SHORT_VERSION)
+--    OXT_EXPECT_SQLITE    expected sqlite_version() (SQLITE_VERSION in
+--                         thirdparty/libsqlite/include/sqlite3.h)
+--    OXT_EXPECT_PROCESSOR expected "the processor" (default x86_64)
+--    OXT_EXTERNAL_SUFFIX  file name suffix of the externals: .dll (the
+--                         default), .so on Linux, .bundle on macOS
+--    OXT_EXTERNALS_DIR    folder with revdb, revxml and revzip
+--    OXT_DRIVERS_DIR      folder with dbsqlite
+--    OXT_CODE_FOLDERS     the code folders of an LCB extension whose
+--                         libraries the IDE maps on this platform, as
+--                         comma-separated patterns in the IDE's order
+--                         (revideextensionlibrary __MapCodeLibraryForIDE):
+--                         x86_64-linux*, or arm64-mac*,universal-mac* on
+--                         Apple Silicon; default <processor>-win32*
+--    OXT_XTALK_PROBES     file listing the bundled xTalk Suite extensions to
+--                         load and call, in load order (see smoke-test.ps1)
+--    OXT_EXTENSIONS_DIR   the layout's Extensions folder
 -- Both folders default to the engine's folder, as in win-x86_64-bin. In an
--- installed layout they are Externals and Externals/Database Drivers.
+-- installed layout they are Externals and Externals/Database Drivers. The
+-- defaults are the Windows x86-64 values, so smoke-test.ps1 sets none of
+-- the three platform variables.
+
+local sCodeFolders, sSystemName
 
 local sFails, sPasses
 
@@ -47,9 +61,22 @@ on startup
    put $OXT_DRIVERS_DIR into tDrivers
    if tDrivers is empty then put tEngine into tDrivers
    replace "\" with "/" in tDrivers
+   put $OXT_EXPECT_PROCESSOR into tExpectProcessor
+   if tExpectProcessor is empty then put "x86_64" into tExpectProcessor
+   put $OXT_EXTERNAL_SUFFIX into tSuffix
+   if tSuffix is empty then put ".dll" into tSuffix
+   put $OXT_CODE_FOLDERS into sCodeFolders
+   if sCodeFolders is empty then put the processor & "-win32*" into sCodeFolders
+   -- What the dependency check is called: Windows DLL imports, or the
+   -- libraries an ELF or Mach-O file needs
+   if the platform is "Win32" then
+      put "DLL imports" into sSystemName
+   else
+      put "native dependencies" into sSystemName
+   end if
    write "INFO version=" & the version & " build=" & the buildNumber & " environment=" & the environment & " platform=" & the platform & " processor=" & the processor & return to stdout
    write "INFO engine=" & tEngine & return to stdout
-   write "INFO externals=" & tExternals & " drivers=" & tDrivers & return to stdout
+   write "INFO externals=" & tExternals & " drivers=" & tDrivers & " suffix=" & tSuffix & " code folders=" & sCodeFolders & return to stdout
 
    try
       if tExpectVersion is empty then
@@ -57,7 +84,7 @@ on startup
       else
          check "version", the version is tExpectVersion, the version & " (expected " & tExpectVersion & ")"
       end if
-      check "processor", the processor is "x86_64", the processor
+      check "processor", the processor is tExpectProcessor, the processor & " (expected " & tExpectProcessor & ")"
 
       -- Script engine
       put 0 into tSum
@@ -88,7 +115,7 @@ on startup
       check "toUpper", tUpper is ("ABC" & numToCodepoint(0xC9)), codepointToNum(codepoint -1 of tUpper)
       set the caseSensitive to false
 
-      -- OpenSSL, through revsecurity.dll
+      -- OpenSSL, through revsecurity (.dll, .so, .dylib next to the engine)
       encrypt "secret message" using "aes-256-cbc" with password "pw"
       put it into tCipher
       put the result into tEncryptResult
@@ -109,8 +136,8 @@ on startup
       put shell("echo oxt") into tShell
       check "shell", word 1 of tShell is "oxt", word 1 of tShell
 
-      -- Externals: revDB, revXML and revZip
-      set the externals of the templateStack to tExternals & "/revdb.dll" & return & tExternals & "/revxml.dll" & return & tExternals & "/revzip.dll"
+      -- Externals: revDB, revXML and revZip (on macOS, bundles)
+      set the externals of the templateStack to tExternals & "/revdb" & tSuffix & return & tExternals & "/revxml" & tSuffix & return & tExternals & "/revzip" & tSuffix
       create stack "oxt_smoke_test_externals"
       start using stack "oxt_smoke_test_externals"
       put the number of lines of the externalCommands of stack "oxt_smoke_test_externals" into tCommandCount
@@ -120,7 +147,7 @@ on startup
       check "no script error (core checks)", false, tError
    end try
 
-   -- SQLite, through revDB and dbsqlite.dll
+   -- SQLite, through revDB and dbsqlite (revDB adds the platform's suffix)
    try
       revSetDatabaseDriverPath tDrivers
       put tTemp & "/oxt_smoke_test.sqlite" into tDatabase
@@ -233,16 +260,18 @@ private command checkXtalkExtensions pProbeFile, pExtensionsDir
 end checkXtalkExtensions
 
 -- An LCB library, loaded as the IDE loads it (revideextensionlibrary
--- __LoadExtension): first every file of code/<processor>-win32 is mapped
--- in revLibraryMapping under its name without the extension
+-- __LoadExtension): first every file of the code folders that match
+-- sCodeFolders (code/<processor>-win32 on Windows) is mapped in
+-- revLibraryMapping under its name without the extension
 -- (__MapCodeLibraryForIDE), because the engine resolves a foreign handler's
 -- "c:<token>>" library through that mapping; then module.lcm is loaded.
 private command checkXtalkLcb pDir, pFolder, pId, pProbe, pExpect, pMissingRuntime
-   local tCode, tLibrary, tMapped, tResult
+   local tCode, tLibrary, tMapped, tResult, tFolders
    try
-      put pDir & "/code/" & the processor & "-win32" into tCode
       put 0 into tMapped
-      if there is a folder tCode then
+      put codeFolders(pDir & "/code") into tFolders
+      repeat for each line tFolder in tFolders
+         put pDir & "/code/" & tFolder into tCode
          repeat for each line tFile in files(tCode)
             if tFile begins with "." then next repeat
             set the itemDelimiter to "."
@@ -252,7 +281,7 @@ private command checkXtalkLcb pDir, pFolder, pId, pProbe, pExpect, pMissingRunti
             set the revLibraryMapping[tLibrary] to tCode & "/" & tLibrary
             add 1 to tMapped
          end repeat
-      end if
+      end repeat
       load extension from file (pDir & "/module.lcm") with resource path pDir
       put the result into tResult
       check "xtalk " & pFolder & " loads", tResult is empty and pId is among the lines of the loadedExtensions, \
@@ -263,14 +292,39 @@ private command checkXtalkLcb pDir, pFolder, pId, pProbe, pExpect, pMissingRunti
    catch tError
       check "xtalk " & pFolder & " loads", false, oneLine(tError)
    end try
-   -- This machine has the Visual C++ runtime, so the library loaded
-   -- whatever is next to it; on a PC without the runtime it would not.
+   -- This machine has the Visual C++ runtime (or, on Linux and macOS,
+   -- whatever the build machine installed), so the library loaded
+   -- whatever is next to it; on a machine without it it would not.
    if pMissingRuntime is empty then
-      check "xtalk " & pFolder & " DLL imports", true, "every import is a Windows system DLL or next to the library"
+      if the platform is "Win32" then
+         check "xtalk " & pFolder & " DLL imports", true, "every import is a Windows system DLL or next to the library"
+      else
+         check "xtalk " & pFolder & " " & sSystemName, true, "every library it needs is a system library or next to it"
+      end if
    else
-      check "xtalk " & pFolder & " DLL imports", false, pMissingRuntime & " (not bundled; cannot load on a PC without it)"
+      check "xtalk " & pFolder & " " & sSystemName, false, pMissingRuntime & " (not bundled; cannot load on a machine without it)"
    end if
 end checkXtalkLcb
+
+-- The folders of pCode (an extension's code folder) whose libraries the
+-- IDE maps on this platform: those matching the patterns of sCodeFolders,
+-- in their order, each once
+private function codeFolders pCode
+   local tAll, tMatched, tResult
+   if there is not a folder pCode then return empty
+   put folders(pCode) into tAll
+   set the itemDelimiter to comma
+   repeat for each item tPattern in sCodeFolders
+      filter lines of tAll with tPattern into tMatched
+      repeat for each line tFolder in tMatched
+         if tFolder is not empty and tFolder is not among the lines of tResult then
+            put tFolder & return after tResult
+         end if
+      end repeat
+   end repeat
+   if tResult is not empty then delete the last char of tResult
+   return tResult
+end codeFolders
 
 -- A script library: started with "start using", as the members' docs tell
 -- users, then its probe; then the extensionInitialize and extensionFinalize

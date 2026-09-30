@@ -807,10 +807,23 @@ def _print_import_summary(actions, dry_run):
 # ---------------------------------------------------------------------------
 # assemble
 
-def plan_assemble(repo_root):
-    """Return (list of (installed path, repo path), problems)."""
+def plan_assemble(repo_root, include=()):
+    """Return (list of (installed path, repo path), problems).
+
+    include lists MANAGED_EXCLUDE prefixes to assemble all the same: a
+    Windows layout has none of them, but package.py stages the macOS
+    layout with ide/Resources/Mobile Examples/ (package.txt
+    Mobile.MacOSX)."""
     pairs, problems = [], []
-    for repo in managed_repo_files(repo_root):
+    for prefix in include:
+        if prefix not in [p for p, _ in MANAGED_EXCLUDE]:
+            raise ValueError('%s is not in MANAGED_EXCLUDE' % prefix)
+    repo_files = managed_repo_files(repo_root)
+    if include:
+        repo_files = sorted(set(repo_files) | {
+            p for p in managed_repo_files(repo_root, include_excluded=True)
+            if any(p.startswith(prefix) for prefix in include)})
+    for repo in repo_files:
         targets = install_paths_for(repo)
         if not targets:
             problems.append('%s has no installed location (shadowed by a more specific rule?)' % repo)
