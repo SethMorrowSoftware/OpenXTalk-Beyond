@@ -7,6 +7,7 @@ build container has 3.8) and run on Windows, Linux and macOS.
 |---|---|
 | `layout.py` | maps an installed OpenXTalk Lite (or stock LiveCode 9.x) Windows program folder to this repository's layout and back: imports an OXT Lite IDE into `ide/` and `ide-support/` and checks an import |
 | `package.py` | stages the installed layout of OXT-Beyond for Windows, Linux or macOS from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
+| `package_dist.py` | writes the platform's distribution archives (portable zip, tar.xz or app zip; binaries; symbols) and `SHA256SUMS` from a staged layout (see [Distribution archives](#distribution-archives-package_distpy)) |
 | `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
@@ -459,6 +460,60 @@ redistributed `external` paths are staged and byte-identical; the 7 empty
 folders match. Against the 966 class `build` rows of the 1.15 import (taken
 before the zoneinfo data became external): 956 staged, 10 intended
 differences.
+
+## Distribution archives (`package_dist.py`)
+
+```
+python tools/oxt/package_dist.py (--summary <package.py --summary-json> | --platform P --stage DIR)
+    (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
+    [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
+    [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
+```
+
+writes the archives of a staged layout and of its build output, and
+`SHA256SUMS` (`<sha256>  <file>`, LF, in the order below). `<root>` is
+`OXT-Beyond-<version>`:
+
+| platform | package | binaries | symbols |
+|---|---|---|---|
+| `win-x86_64` | `<root>-win-x86_64-portable.zip`: every staged file under `<root>/`, then the empty folders | `<root>-win-x86_64-binaries.zip`: `win-x86_64-bin/` without `*.pdb`, licence files at the top | `<root>-win-x86_64-symbols.zip`: the `*.pdb` under `win-x86_64-bin/` |
+| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg`, licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` |
+| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app`, as `ditto -c -k --keepParent` stores it | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` without `*.dSYM`, licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles |
+
+`--xtalk-sources` adds `<root>-xtalk-sources.zip` (`xtalk_extensions.py
+export`, from the cache only). The disk image of the Mac app is made on
+macOS with `hdiutil` by the workflow, not here.
+
+* **Windows**: the same names and entries (names, bytes, file dates, folder
+  entries) as `tools/ci/package-windows.ps1`, which the Windows CI keeps
+  using for now. Only the entry order (PowerShell sorts by culture rules),
+  the compressed bytes (.NET's Optimal is Windows' own zlib build; zlib
+  level 9, the default `--zip-level`, comes closest) and the date of an
+  empty folder's entry (the folder's own date; .NET stamps the time of
+  writing) differ. Checked with the 0.0.1 build output: all three zips
+  have the same 417, 7,274 and 0 entries with the same CRCs, sizes and
+  file dates, the sources zip is byte-identical, and `SHA256SUMS` lists
+  the same files in the same order.
+* **Unix archives** keep what `package.py` staged: modes, symbolic links
+  and empty folders; owners 0 without names; dates in whole seconds
+  (clamped to `SOURCE_DATE_EPOCH` when set); entries sorted, folders
+  first. In a Linux package, staged files of 64 KiB or more with the same
+  content are stored once as hard links (`--no-hardlinks` stores each):
+  the runtime's CEF, externals and helpers are the IDE's files. Tarballs
+  are compressed by `xz -T0` when the `xz` program exists (Python's lzma
+  uses one core; `OXT_PYTHON_XZ=1` forces it), preset 6 (`--xz-preset`).
+* **The macOS zip** has folder entries, each file's Unix mode and symbolic
+  links stored as links, as `ditto` writes them, so that `ditto -x -k`,
+  Archive Utility or `unzip` restore the app with its executables.
+* `--bin-tar` reads a CI tarball once, as a stream, and sends each member
+  to the binaries or the symbols archive under the platform's folder name
+  (`linux-<arch>-bin`, `Release`), without `._` AppleDouble files and with
+  modes, symbolic and hard links. The Linux and macOS archives are written
+  on Linux or macOS only.
+
+Under GitHub Actions it writes the step outputs `version`, `package-root`,
+`platform`, `dist-dir`, `package` and `sha256sums` and a table of the
+archives to the job summary.
 
 ## External assets
 
