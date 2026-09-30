@@ -63,6 +63,8 @@ end mouseDown
 
 on mouseUp
    put false into lMoving
+   set the lockText of field "Script" to false
+   set the lockText of field "results" to false
    pass mouseUp
 end mouseUp
 
@@ -73,11 +75,23 @@ end mouseRelease
 on mouseMove pMouseH, pMouseV
    local tLineYLoc
    put item 2 of the loc of graphic "line" into tLineYLoc
-   if pMouseV <= (tLineYLoc + kSeparatorSize/2) and pMouseV >= (tLineYLoc - kSeparatorSize/2) then 
+   if pMouseV <= (tLineYLoc + kSeparatorSize/2) and pMouseV >= (tLineYLoc - kSeparatorSize/2) then
+      # Lock the fields while the pointer is over the divider: an unlocked
+      # field takes the click itself, so mouseDown above never saw it and
+      # the divider could only be dragged where the fields do not reach
+      set the lockText of field "Script" to true
+      set the lockText of field "results" to true
       set the cursor to 30
       lock cursor
    else
       unlock cursor
+      # Off the divider the fields must be editable again, or typing stays
+      # blocked after the pointer merely passed over it. During a drag
+      # mouseUp unlocks them instead
+      if lMoving is not true then
+         set the lockText of field "Script" to false
+         set the lockText of field "results" to false
+      end if
    end if
    dragLine
 end mouseMove
