@@ -44,6 +44,18 @@ cMakeRevMenuBarStandard as a standard window: the menubar lays itself out
 before the start-up check runs, so testing "is true" there would dock the
 menubar of a profile without the preference on its first start.
 
+Last, it checks that no script of the IDE, of tools or of extensions (the
+.livecodescript files, and the script lines of tools/oxt/ide-stack-patches)
+uses appAppearance, stackAppearance or systemAppearance as a word of its
+own, outside strings and comments and not after "the" or "the effective":
+as a handler name, a variable or a call. Engines with the appearance
+properties make these words property tokens, and in an expression the
+parser takes the property before a user function, so appAppearance() no
+longer compiles there, while an engine without them (the ones a local run
+often uses) accepts it. A script-only stack that does not compile gets no
+startup message, so a headless -ui run of it waits until its timeout
+instead of failing.
+
 Exit status 1 when a check fails. Under GitHub Actions failures become
 error annotations. Needs Python 3.8 or later, standard library only.
 """
@@ -66,6 +78,13 @@ DEFAULTS = {
 }
 WRONG_KEYS = ('MakeRevToolBarDraggable',)
 
+# The engine's appearance properties (lextable.cpp), which scripts may use
+# only as properties
+APPEARANCE_WORDS = ('appAppearance', 'stackAppearance', 'systemAppearance')
+# Folders whose scripts the checks of the appearance words read
+SCRIPT_DIRS = ('ide', 'tools', 'extensions')
+STACK_PATCHES = os.path.join('tools', 'oxt', 'ide-stack-patches')
+
 
 def read_text(path):
     with open(path, 'rb') as f:
@@ -87,6 +106,77 @@ def code_lines(text):
     """The lines of a script without -- comments (the checks look at code)."""
     for line in text.split('\n'):
         yield re.sub(r'\s*--.*$', '', line)
+
+
+def script_code(text):
+    """The script with its strings, its comments (--, #, // and /* */) and
+    their text blanked out, line breaks kept so that line numbers stay."""
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith('/*', i):
+            end = text.find('*/', i + 2)
+            end = n if end < 0 else end + 2
+            out.append(re.sub(r'[^\n]', ' ', text[i:end]))
+            i = end
+        elif c == '"':
+            # LiveCode strings have no escapes and end at the line's end
+            end = i + 1
+            while end < n and text[end] not in '"\n':
+                end += 1
+            if end < n and text[end] == '"':
+                end += 1
+            out.append(' ' * (end - i))
+            i = end
+        elif c == '#' or text.startswith('--', i) or text.startswith('//', i):
+            end = text.find('\n', i)
+            end = n if end < 0 else end
+            out.append(' ' * (end - i))
+            i = end
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
+
+
+def appearance_word_uses(text):
+    """(line number, line) of each use of an appearance property's name
+    that is not the property: not after "the" or "the effective"."""
+    words = re.compile(r'\b(?:%s)\b' % '|'.join(APPEARANCE_WORDS), re.IGNORECASE)
+    property_ref = re.compile(r'\bthe\s+(?:effective\s+)?$', re.IGNORECASE)
+    uses = []
+    lines = text.split('\n')
+    for number, line in enumerate(script_code(text).split('\n'), 1):
+        for m in words.finditer(line):
+            if not property_ref.search(line[:m.start()]):
+                uses.append((number, lines[number - 1].strip()))
+                break
+    return uses
+
+
+def patch_script(text):
+    """The script lines of a stack patch (the lines between bars), the
+    other lines blank so that line numbers stay."""
+    return '\n'.join(m.group(1) if m else ''
+                     for m in (re.match(r'^\|(.*)\|$', line) for line in text.split('\n')))
+
+
+def appearance_script_files(repo):
+    """(repository path, script text) of each script the appearance-word
+    check reads."""
+    for top in SCRIPT_DIRS:
+        for folder, dirs, files in os.walk(os.path.join(repo, top)):
+            dirs[:] = sorted(d for d in dirs if d not in ('__pycache__', '_build'))
+            for name in sorted(files):
+                path = os.path.join(folder, name)
+                rel = os.path.relpath(path, repo).replace(os.sep, '/')
+                if name.lower().endswith('.livecodescript'):
+                    yield rel, read_text(path)
+                elif os.path.normpath(folder) == os.path.normpath(os.path.join(repo, STACK_PATCHES)) \
+                        and name.lower().endswith('.txt'):
+                    yield rel, patch_script(read_text(path))
 
 
 def main(argv=None):
@@ -144,15 +234,32 @@ def main(argv=None):
     else:
         print('ok      %s: an unset cMakeRevMenuBarStandard is a standard window' % menubar_rel)
 
+    scripts = 0
+    word_failures = 0
+    for rel, text in appearance_script_files(args.repo):
+        scripts += 1
+        for number, line in appearance_word_uses(text):
+            word_failures += 1
+            failures.append(('%s:%d' % (rel, number),
+                             'uses an appearance property\'s name as a word of its own (a handler, a variable '
+                             'or a call), which an engine with the property does not compile: %s' % line))
+    if not word_failures:
+        print('ok      %d scripts use appAppearance, stackAppearance and systemAppearance only as properties'
+              % scripts)
+
     for rel, message in failures:
         print('FAILED  %s: %s' % (rel, message))
         if os.environ.get('GITHUB_ACTIONS') == 'true':
-            print('::error file=%s,title=IDE preferences::%s' % (rel, message))
+            # "path:line" (the appearance words) is an annotation on that line
+            m = re.match(r'^(.*):(\d+)$', rel)
+            location = 'file=%s,line=%s' % (m.group(1), m.group(2)) if m else 'file=%s' % rel
+            print('::error %s,title=IDE preferences::%s' % (location, message))
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with open(summary, 'a', encoding='utf-8') as f:
             f.write('### IDE preference defaults\n\n%s\n\n' % (
-                'The first-install defaults are as decided (light IDE, light user stacks, menubar as a standard window).'
+                'The first-install defaults are as decided (light IDE, light user stacks, menubar as a standard window), '
+                'and the scripts use the appearance properties\' names only as properties.'
                 if not failures else '\n'.join('- `%s`: %s' % item for item in failures)))
     print('IDE preferences: %s' % ('passed' if not failures else 'FAILED (%d problem(s))' % len(failures)))
     return 1 if failures else 0
