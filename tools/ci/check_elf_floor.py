@@ -39,8 +39,9 @@ files (CEF, extension libraries) and a change of build image.
                       GLIBC_PRIVATE) fails too: it ties the file to one
                       build of the library. glibc's loader feature markers
                       count as the release that added them
-                      (GLIBC_ABI_DT_RELR as GLIBC_2.36). Names without
-                      --max are only reported.
+                      (GLIBC_ABI_DT_RELR as GLIBC_2.36), and
+                      CXXABI_FLOAT128, a public version, as CXXABI_1.3.9.
+                      Names without --max are only reported.
 --machine ARCH        every file must be for ARCH (x86_64, arm64 or
                       aarch64, x86, arm)
 --exclude PATTERN     skip matching paths (relative to ROOT, / separators,
@@ -86,7 +87,7 @@ MACHINE_ALIASES = {'arm64': 'aarch64', 'amd64': 'x86_64', 'i386': 'x86', 'i686':
 
 # NAME_1.2.3 (glibc, libstdc++, libgcc_s), NAME_1_1_0 (OpenSSL) or
 # NAME_0.9.0rc4 (ALSA). A name without a number after it, such as
-# GLIBC_PRIVATE, is a private version, but for the markers below.
+# GLIBC_PRIVATE, is a private version, but for those of the tables below.
 VERSION_RE = re.compile(r'^(?P<name>[A-Za-z][A-Za-z0-9_]*?)_(?P<version>[0-9][0-9A-Za-z._]*)$')
 
 # glibc's unnumbered marker versions: the linker adds one when the output
@@ -104,6 +105,14 @@ ABI_MARKERS = {
     'GLIBC_ABI_GNU_TLS': ('GLIBC', '2.42'),        # i386 __tls_get_addr
     'GLIBC_ABI_GNU2_TLS': ('GLIBC', '2.42'),       # TLS descriptors
 }
+
+# Unnumbered versions that are public all the same, with the numbered
+# version of the same name that first came with them: a file that needs one
+# is checked as if it needed that. libstdc++ keeps the typeinfo of
+# __float128 (typeid(__float128), x86 only) in CXXABI_FLOAT128 since GCC 5
+# (CXXABI_1.3.9), so the GCC 10 libstdc++ of Ubuntu 20.04 has it; filed as
+# a private version it would fail --max CXXABI for a file that loads there.
+PUBLIC_UNNUMBERED = {'CXXABI_FLOAT128': ('CXXABI', '1.3.9')}
 
 
 class ElfError(Exception):
@@ -285,7 +294,8 @@ def highest_per_name(needs):
     """({name: (version text, version name)}, {name: [private version names]}):
     the highest numbered version needed of each name (GLIBC: ('2.29',
     'GLIBC_2.29'); a marker of ABI_MARKERS counts as its release, GLIBC:
-    ('2.36', 'GLIBC_ABI_DT_RELR')), and the unnumbered ones such as
+    ('2.36', 'GLIBC_ABI_DT_RELR'), and a version of PUBLIC_UNNUMBERED as
+    its numbered one), and the other unnumbered ones such as
     GLIBC_PRIVATE."""
     result = {}
     private = {}
@@ -293,6 +303,8 @@ def highest_per_name(needs):
         m = VERSION_RE.match(vname)
         if vname in ABI_MARKERS:
             name, version = ABI_MARKERS[vname]
+        elif vname in PUBLIC_UNNUMBERED:
+            name, version = PUBLIC_UNNUMBERED[vname]
         elif m:
             name, version = m.group('name'), m.group('version')
         else:
