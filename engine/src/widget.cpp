@@ -157,11 +157,6 @@ const char *MCWidget::gettypestring(void)
 	return MCwidgetstring;
 }
 
-const MCObjectPropertyTable *MCWidget::getpropertytable(void) const
-{
-	return &kPropertyTable;
-}
-
 bool MCWidget::visit_self(MCObjectVisitor* p_visitor)
 {
     return p_visitor -> OnWidget(this);
