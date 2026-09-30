@@ -1,0 +1,19 @@
+# Preferences, card "Appearance": the two appearance preferences of
+# OXT-Beyond, "IDE appearance" (cIDEAppearance) and "Your stacks"
+# (cStackAppearance), shown as two option menus below the card's other
+# controls. The controls are made and kept up to date by
+# revIDEPrefsAppearanceUI in revidelibrary (script-only, so reviewable
+# text); the card only calls it at the end of its preOpenCard.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card "Appearance"
+replace:
+|   set the opaque of btn "tArrowBtn" of cd "Appearance" of stack "revPreferencesGUI" to false|
+|   |
+|end preOpenCard|
+with:
+|   set the opaque of btn "tArrowBtn" of cd "Appearance" of stack "revPreferencesGUI" to false|
+|   |
+|   -- OXT-Beyond: the appearance of the IDE and of the user's stacks|
+|   revIDEPrefsAppearanceUI the long id of me|
+|end preOpenCard|

@@ -519,6 +519,40 @@ OXT-Beyond 0.1.0 adds:
 - a fix for a crash of the Linux engine when it opens a stack whose
   text font is "(System)" without a display.
 
+The next release adds:
+
+- a light IDE on every system, dark ones included, with the appearance
+  as a choice: *View > Appearance* (and *Preferences > Appearance*) sets
+  the IDE's appearance (**Light**, the default; **Dark**; **Follow the
+  System**) and, separately, that of your own stacks (**Light, like a
+  standalone**, the default; **Dark**; **Follow the System**; **Same as
+  the IDE**). A change shows at once in every palette. The choices need
+  the engine's new appearance properties; on Linux the appearance follows
+  the GTK theme, so the items are shown but disabled;
+- your stacks looking in the IDE as they will in a standalone. A
+  standalone is light unless its stack asks for the system's appearance,
+  with one line in its `startup` or `preOpenStack` handler:
+  `set the appAppearance to "system"` (or `"dark"`);
+- the menubar as a standard window on a new install (and in a profile
+  that has no setting yet); a profile that already stores the docked
+  menubar keeps it, and *Preferences > Appearance > Show the toolbar as a
+  standard Window* switches it;
+- a dark script editor (One Dark Pro by default, adapted from HyperXTalk,
+  with Tom Perry's schemes still in the menu; the editor keeps separate
+  light and dark colours in *Preferences > Script Editor*, and a dark
+  scheme and background chosen in an earlier version become the dark
+  appearance's too, while the light appearance keeps them), and a
+  readable Inspector, Message Box, error dialog, Find and Replace,
+  Standalone Application Settings, Menu Builder and dictionary code
+  examples in the dark appearance;
+- light mode fixes for colours OpenXTalk Lite 1.15 saved into the
+  Extension Manager, Extension Builder, Search, the icon chooser and the
+  warning shown before opening a stack with scripts, and blue links in
+  About, the User Guides and the dictionary instead of OpenXTalk Lite's
+  yellow (a profile that still has the yellow default gets the blue one;
+  a colour you chose yourself stays);
+- *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
+
 ### xTalk Suite extensions
 
 OXT-Beyond ships the extensions of the

@@ -1,0 +1,35 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec). The Preferences card "Script Editor"
+# edits the slot of the appearance the IDE is in: it reads, writes and
+# resets the preference that revSEAppearanceKey names.
+# The custom scheme dialog (substack "CustomScriptCol") stores the scheme
+# "Custom" and its background the same way.
+# This one: the button "update", colourSEelements.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "update" of card 1 of stack "CustomScriptCol"
+replace:
+|      revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"|
+|      updateOpenScriptEditors|
+|      send colourScript to button "update" of stack "CustomScriptCol"|
+|   else|
+|      -- defeated the null properties!|
+|      local myKeep|
+|      put line 1 to 3 of field "importantBits" of stack "CustomScriptCol" into myKeep|
+|      put myKeep & return & mySECols into field "importantBits" of stack "CustomScriptCol"|
+|   end if|
+|   |
+|   filter mySECols without empty|
+with:
+|      revIDESetPreference "cScriptEditor," & revSEAppearanceKey("colorization,scheme"), "Custom"|
+|      updateOpenScriptEditors|
+|      send colourScript to button "update" of stack "CustomScriptCol"|
+|   else|
+|      -- defeated the null properties!|
+|      local myKeep|
+|      put line 1 to 3 of field "importantBits" of stack "CustomScriptCol" into myKeep|
+|      put myKeep & return & mySECols into field "importantBits" of stack "CustomScriptCol"|
+|   end if|
+|   |
+|   filter mySECols without empty|

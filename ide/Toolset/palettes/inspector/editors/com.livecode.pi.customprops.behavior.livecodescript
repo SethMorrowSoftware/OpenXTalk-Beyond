@@ -82,8 +82,8 @@ on editorUpdate
    set the enabled of field "value" of me to tEnabled
    set the enabled of field "key" of me to tEnabled
    if tEffective is true then
-      set the textcolor of field "value" of me to "150,150,150"
-      set the textcolor of field "key" of me to "150,150,150"
+      set the textcolor of field "value" of me to revIDEColor("text_muted")
+      set the textcolor of field "key" of me to revIDEColor("text_muted")
    else
       set the textcolor of field "value" of me to empty
       set the textcolor of field "key" of me to empty

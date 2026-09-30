@@ -3,11 +3,16 @@ on preOpenStack
    local tSplashPath
    
    lock messages
-   if the systemappearance is "dark" then put revEnvironmentEditionProperty("skin") & "/splash.png" into tSplashPath
-   if the systemappearance is "light" then put revEnvironmentEditionProperty("skin") & "/splash-light.png" into tSplashPath
-   --
-   if the systemappearance is "dark" then set the foregroundColor of this card to white
-   if the systemappearance is "light" then set the foregroundColor of this card to black
+   -- OXT-Beyond: the IDE's appearance (home.livecodescript has set it
+   -- from the preference cIDEAppearance before this first window), which
+   -- can differ from the system's
+   if revEnvironmentIsDark() then
+      put revEnvironmentEditionProperty("skin") & "/splash.png" into tSplashPath
+      set the foregroundColor of this card to white
+   else
+      put revEnvironmentEditionProperty("skin") & "/splash-light.png" into tSplashPath
+      set the foregroundColor of this card to black
+   end if
    --
    set the textfont of stack "revSplash" to "(Default)"
    set the textfont of field "moreinfo" of stack "revSplash" to "(Default)"

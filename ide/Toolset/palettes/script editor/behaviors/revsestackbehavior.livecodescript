@@ -2521,6 +2521,10 @@ end resumeStack
 #   Sent when the script editor stack is opened. Initialises the stack...
 on preOpenStack pDontCheckTarget
    revSEInitialize pDontCheckTarget
+   -- OXT-Beyond: the IDE's appearance on the panes, splitters and gutter
+   if the short name of the target is the short name of me or the short name of the target is the short name of this card of me then
+      seApplyAppearance the long id of me
+   end if
    send pFixupMacElements to stack "revseutilities" in 10 milliseconds
    
 end preOpenStack
@@ -2537,6 +2541,10 @@ command revSEInitialize pDontCheckTarget
    end if
    
    dispatch "ideSubscribe" to me with "idePreferenceChanged:cREVScriptDebugMode"
+   -- OXT-Beyond: the script editor's main stack (revseutilities) redoes
+   -- every editor when the IDE's appearance changes; subscribed from here
+   -- too, because an editor's preOpenStack does not reach the main stack
+   dispatch "ideSubscribe" to revScriptEditorMain() with "ideAppearanceChanged"
    
    # Initialize the preferences
    sePrefInit

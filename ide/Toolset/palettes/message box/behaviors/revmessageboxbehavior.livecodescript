@@ -105,11 +105,17 @@ on openStack
    revIDESubscribe "idePreferenceChanged:cShowRevolutionStacks"
    revIDESubscribe "idePreferenceChanged:revPaletteFrameSize"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,backgroundcolor"
+   -- OXT-Beyond: the script editor's colours of the dark appearance and its
+   -- selection colour (see __UpdateMessageColors)
+   revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,backgroundcolordark"
+   revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,hilitecolor"
+   revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,hilitecolordark"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,font"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,fontSize"
    
    revIDESubscribe "ideActiveStacksChanged"
-   
+   revIDESubscribe "ideAppearanceChanged"
+
    if revIDEGetPreference("revPaletteFrameSize") is empty then revIDESetPreference "revPaletteFrameSize", "small"
    
    local tMinHeight
@@ -495,6 +501,9 @@ on idePreferenceChanged pPreference, pValue
          positionOpenStacksButton
          break
       case "cScriptEditor,editor,backgroundcolor"
+      case "cScriptEditor,editor,backgroundcolordark"
+      case "cScriptEditor,editor,hilitecolor"
+      case "cScriptEditor,editor,hilitecolordark"
          __UpdateMessageColors
          break
       case "cScriptEditor,editor,font"
@@ -506,6 +515,21 @@ on idePreferenceChanged pPreference, pValue
    end switch
    unlock screen
 end idePreferenceChanged
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the fields'
+-- colours, the list of the card shown (the other lists get their colours
+-- when their card opens) and the colours of the command line's script
+on ideAppearanceChanged
+   lock screen
+   __UpdateMessageColors
+   if lSelectedCard is among the items of "Pending Messages,Front Scripts,Back Scripts,Stacks in Use" then
+      setUpDataView
+      send "getDataArray" to card lSelectedCard of me
+      send "renderView" to group "objectList" of card lSelectedCard of me
+   end if
+   dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of field "message" of card "Single Line" of me
+   unlock screen
+end ideAppearanceChanged
 
 private command __UpdateMessageFont
    local tFont, tSize
@@ -522,12 +546,39 @@ private command __UpdateMessageFont
    dispatch "layoutCard" to card "Single Line" of me
 end __UpdateMessageFont
 
+-- The command fields take the script editor's colours in the IDE's
+-- appearance (__SEPreference): its background, and its selection colour,
+-- which replaces the 200,200,255 saved into the fields (white text on it in
+-- the dark appearance could not be read). Adapted from the idea of
+-- HyperXTalk eb53f2d09 (docmeth02), 67b704c8f and dc315ab68 (Emily-Elizabeth
+-- Howard): the Message Box follows the appearance.
 private command __UpdateMessageColors
-   local tColor
-   put revIDEGetPreference("cScriptEditor,editor,backgroundcolor") into tColor
+   local tColor, tHilite
+   put __SEPreference("editor,backgroundcolor") into tColor
+   put __SEPreference("editor,hilitecolor") into tHilite
    set the backgroundColor of field "auto complete" of card "Single Line" of me to tColor
    set the backgroundColor of field "script" of card "Multiple Lines" of me to tColor
+   set the hiliteColor of field "message" of card "Single Line" of me to tHilite
+   set the hiliteColor of field "script" of card "Multiple Lines" of me to tHilite
 end __UpdateMessageColors
+
+-- A script editor preference as the script editor uses it, which is its
+-- dark value in the dark appearance (sePrefGet in revseutilities): the
+-- value the script editor has loaded, else the stored value or default
+private function __SEPreference pKey
+   local tValue
+   try
+      dispatch function "sePrefGet" to stack "revNewScriptEditor" with pKey
+      put the result into tValue
+   end try
+   if tValue is empty then
+      try
+         dispatch "revSEGetPreference" to stack "revNewScriptEditor" with pKey
+         put the result into tValue
+      end try
+   end if
+   return tValue
+end __SEPreference
 
 command positionOpenStacksButton
    lock screen

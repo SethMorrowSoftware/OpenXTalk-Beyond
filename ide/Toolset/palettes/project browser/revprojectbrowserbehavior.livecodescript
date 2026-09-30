@@ -114,7 +114,8 @@ on preOpenStack
    revIDESubscribe "idePreferenceChanged:pb_textSize"
    
    revIDESubscribe "ideShowInProjectBrowser"
-   
+   revIDESubscribe "ideAppearanceChanged"
+
    local tTextSize
    put revIDEGetPreference("pb_textSize") into tTextSize
    if tTextSize is "default" then
@@ -399,14 +400,8 @@ command setUpProjectView
    set the behavior of theStylesA["group"] to tStackID
    
    set the viewProp["row style templates"] of group "objectList" of me to theStylesA
-   set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
-   -- The selection while the list is not focused (the dataView's own
-   -- default is a light grey, also in the dark appearance)
-   set the viewProp["dimmed hilite color"] of group "objectList" of me to revIDEColor("dataView_dimmedHiliteColor")
-   
-   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")     
-   
+   __pbApplyColors
+
    set the viewProp["fixed row height"] of group "objectList" of me to "true"
    set the viewProp["row height"] of group "objectList" of me to the effective textSize of me + 14
    set the viewProp["cache"] of group "objectList" of me to "none"
@@ -414,6 +409,27 @@ command setUpProjectView
    set the viewProp["drop indicator template"] of group "objectList" of me to the long id of group "pbDragIndicator" of card "templates" of this stack
    set the foregroundColor of graphic "indicator" of group "pbDragIndicator" of card "templates" of this stack to revIDEColor("edition_color")
 end setUpProjectView
+
+-- The list's colours in the IDE's appearance (revIDEColor)
+private command __pbApplyColors
+   set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
+   -- The selection while the list is not focused (the dataView's own
+   -- default is a light grey, also in the dark appearance)
+   set the viewProp["dimmed hilite color"] of group "objectList" of me to revIDEColor("dataView_dimmedHiliteColor")
+
+   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
+   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")
+end __pbApplyColors
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): new list
+-- colours, and the rows drawn again (their behaviours take their colours
+-- from revIDEColor)
+on ideAppearanceChanged
+   lock screen
+   __pbApplyColors
+   refreshProjectView
+   unlock screen
+end ideAppearanceChanged
 
 command buildProjectView pRememberExpansion
    local tStacks, tFrontScripts, tBackScripts,tRow, tVisibleROws, tChildren
@@ -2382,7 +2398,8 @@ on updateSelection pRows
    set the style of the templateGraphic to "rectangle"
    set the opaque of the templateGraphic to false
    set the dashes of the templateGraphic to 4
-   set the foreColor of the templateGraphic to "black"
+   -- OXT-Beyond: the IDE's text colour, so the outline shows in dark too
+   set the foreColor of the templateGraphic to revIDEColor("text_1")
    
    local tNumSelected
    put the number of items in pRows into tNumSelected

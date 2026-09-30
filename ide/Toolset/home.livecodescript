@@ -22,8 +22,11 @@ on startup
       revInternal__SetupPaths
       revInternal__SetupFolders
       revInternal__SetupStackFiles
-      revInternal__SetupSplash
+      -- OXT-Beyond: the preferences before the splash, the first window,
+      -- so that the IDE's appearance is set before anything is drawn
       revInternal__SetupPreferences
+      revInternal__ApplyAppearance
+      revInternal__SetupSplash
       revInternal__SetupCustomizationPath
       revInternal__SetupExternals
    catch tError
@@ -262,16 +265,26 @@ on revInternal__openStack
    -- prefchecksection
    revInternal__setSplashStatus "Validating preference settings..."
    if the cMakeRevMenuBarDraggable of stack "revPreferences" is empty then set the cMakeRevMenuBarDraggable of stack "revPreferences" to false
-   if the cMakeRevMenuBarStandard of stack "revPreferences" is empty then set the cMakeRevMenuBarStandard of stack "revPreferences" to false
+   -- OXT-Beyond: the menubar is a standard window unless the user docks it
+   -- (Preferences > Appearance). Profiles that already store "false" keep
+   -- the docked menubar: OpenXTalk Lite and OXT-Beyond 0.1.0 and earlier
+   -- wrote "false" here into every profile, which cannot be told apart
+   -- from a choice.
+   if the cMakeRevMenuBarStandard of stack "revPreferences" is empty then set the cMakeRevMenuBarStandard of stack "revPreferences" to true
    if the cGrid of stack "revPreferences" is empty then set the cGrid of stack "revPreferences" to false
    if the cTidyUpStacks of stack "revPreferences" is empty then set the cTidyUpStacks of stack "revPreferences" to true
-   if the cUseThemeDefault of stack "revPreferences" is empty then 
-      set the cUseThemeDefault of stack "revPreferences" to true
-      set the cUseThemeDark of stack "revPreferences" to false
-      set the cUseThemelight of stack "revPreferences" to false
-      set the cReplaceSECol of stack "revPreferences" to false
-   end if
-   if the cReplaceSECol of stack "revPreferences" is empty then set the cReplaceSECol of stack "revPreferences" to false
+   -- OXT-Beyond: the appearance of the IDE and of the user's stacks (see
+   -- revIDEIsDark in revidelibrary). Both start light, on a dark system
+   -- too; dark is a choice (View > Appearance). They replace OpenXTalk
+   -- Lite's cUseThemeDefault, cUseThemeDark, cUseThemelight and
+   -- cReplaceSECol, which nothing reads any more.
+   if the cIDEAppearance of stack "revPreferences" is empty then set the cIDEAppearance of stack "revPreferences" to "light"
+   if the cStackAppearance of stack "revPreferences" is empty then set the cStackAppearance of stack "revPreferences" to "light"
+   -- OXT-Beyond: Tom's default link colour (255,212,0, for his dark IDE) is
+   -- 1.4:1 on the light IDE's white, where About, the User Guides and the
+   -- dictionary draw their links in it; profiles that still have it (or
+   -- none) get the new default, as revInternal__ResetPreferences sets it
+   if the cRevHelpHiliteColor of stack "revPreferences" is empty or the cRevHelpHiliteColor of stack "revPreferences" is "255,212,0" then set the cRevHelpHiliteColor of stack "revPreferences" to "0,102,204"
    if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
    -- OXT-Beyond: the automatic update check (oxtBeyondUpdater library) is off
    -- unless the user turns it on in Preferences > Automatic Updates.
@@ -307,11 +320,6 @@ on revInternal__openStack
          set the cDesktopClickToHide of stack "revPreferences" to true
       end if
    end if
-   -- tperry 13-7-24 (default setting for theming third-party stacks)
-   if the cThemeThirdPartyStacks of stack "revPreferences" is empty then
-      set the cThemeThirdPartyStacks of stack "revPreferences" to false
-   end if
-   
    -- tperry (19-1-25) -- by default, prompt before suppressing IDE messages
    if the cPromptToggleMsgSuppress of stack "revPreferences" is empty then set the cPromptToggleMsgSuppress of stack "revPreferences" to true
    
@@ -359,6 +367,20 @@ on revInternal__openStack
       revInternal__InitialiseMessageBox
       put the result into tSuccess
    end if
+   
+   -- OXT-Beyond: the IDE's palettes are open, and no stack of the user is
+   -- yet: the engine opens the stacks named on the command line when this
+   -- handler returns, and a stack double-clicked in the meantime or the
+   -- recent stacks come later still (relaunch, the File menu). Until now
+   -- every stack followed the appAppearance, which
+   -- revInternal__ApplyAppearance set to the IDE's appearance; now the
+   -- IDE's stacks keep it as their own stackAppearance and the
+   -- appAppearance becomes the appearance of the user's stacks.
+   try
+      revIDEApplyAppearance
+   catch tError
+      revInternal__Log "Error", tError
+   end try
    
    -- calling late inits
    revInternal__setSplashStatus "IDE loaded.."
@@ -848,6 +870,25 @@ end revInternal__SetupPreferences
       palette stack "revSplash"
    end revInternal__SetupSplash
    
+   -- OXT-Beyond: the IDE's appearance before its first window. Every
+   -- launch of the engine starts light (the appAppearance is "light")
+   -- whatever the system is set to; the preference cIDEAppearance ("light",
+   -- the default, "dark" or "system") chooses the IDE's. Every stack
+   -- follows the appAppearance until revIDEApplyAppearance (revidelibrary),
+   -- at the end of the start, gives the IDE's stacks their own
+   -- stackAppearance and the appAppearance the user's stacks' preference.
+   -- An engine without the appAppearance throws inside the do, and the IDE
+   -- follows the system as before.
+   private command revInternal__ApplyAppearance
+      local tValue
+      put the cIDEAppearance of stack "revPreferences" into tValue
+      if tValue is not among the items of "dark,system" then put "light" into tValue
+      try
+         do "set the appAppearance to tValue"
+      catch tError
+      end try
+   end revInternal__ApplyAppearance
+   
 command revInternal__ResetPreferences
    -- clear the preferences stack
    set the customKeys of stack "revPreferences" to empty
@@ -940,7 +981,7 @@ command revInternal__ResetPreferences
    put "Gray50" into tPropsArray["cSelectionHandle"]
    put "255,140,0" into tPropsArray["cToolSelectorColor"] -- tperry
    put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
-   put "False" into tPropsArray["MakeRevToolBarDraggable"] -- tperry (default, should revMenuBar be draggable?)
+   put "false" into tPropsArray["cMakeRevMenuBarDraggable"] -- tperry (default, should revMenuBar be draggable?); OXT-Beyond: the key the menubar reads
    put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
    put "true" into tPropsArray["suppressIDE"]
    put "Property Inspector" into tPropsArray["cABOptionDoubleClick"]
@@ -1025,13 +1066,20 @@ command revInternal__ResetPreferences
    put "false" into tPropsArray["cStartPageShow"] -- don't show start page (tperry 27-7-24)
    put "Gray40" into tPropsArray["cBackdropColor"] -- set backdrop colour (tperry 27-7-24)
    put "255,140,0" into tPropsArray["cToolSelectorColor"] -- set tool hilite colour (tperry 27-7-24)
-   put "255,212,0" into tPropsArray["cRevHelpHiliteColor"] -- set link colour (tperry 27-7-24)
+   -- OXT-Beyond: links in a dark blue that reads on white (7.1:1); Tom's
+   -- 255,212,0 gave 1.4:1
+   put "0,102,204" into tPropsArray["cRevHelpHiliteColor"] -- set link colour (tperry 27-7-24)
    put "Red" into tPropsArray["cSelectionHandleColor"] -- set object handle colour (tperry 27-7-24)
    put "classic,graphictools,runedit,graphic,paint" into tPropsArray["revTools_show"] -- set tools that should be visible
    put "none" into tPropsArray["cBackdrop"] -- backdrop off as default (tperry 27-7-24)
    put "true" into tPropsArray["cMiddleBtnToggle"] -- allow middle button to toggle browse and pointer tool (tperry 27-7-24)
    put "false" into tPropsArray["cDesktopClickToHide"] -- turn this off on linux, as it might give issues with xfce and 'buntu distros (tperry 31-7-24)
    put "true" into tPropsArray["cPromptToggleMsgSuppress"] -- warn if user tries to suppress IDE messages (tperry 19-1-25)
+   -- OXT-Beyond: a light IDE and light user stacks on every system, dark
+   -- ones too (see revIDEIsDark), and the menubar as a standard window
+   put "light" into tPropsArray["cIDEAppearance"]
+   put "light" into tPropsArray["cStackAppearance"]
+   put "true" into tPropsArray["cMakeRevMenuBarStandard"]
    
    put "16" into tPropsArray ["cScriptEditor,editor,fontsize"] -- set default script editor size to 16 when reset (tperry 11-02-2026)
    set the customProperties[""] of stack "revPreferences" to tPropsArray
@@ -2367,6 +2415,20 @@ end revEnvironmentEditionProperty
    function revEnvironmentIsPortable
       return false
    end revEnvironmentIsPortable
+   
+   -- OXT-Beyond: whether the IDE is drawn dark, for what runs before the
+   -- libraries are loaded (the splash): the appearance that
+   -- revInternal__ApplyAppearance set, or on an engine without it the
+   -- system's. Later, revIDEIsDark (revidelibrary) answers this.
+   function revEnvironmentIsDark
+      local tValue
+      try
+         do "put the effective appAppearance into tValue"
+      catch tError
+         return the systemAppearance is "dark"
+      end try
+      return tValue is "dark"
+   end revEnvironmentIsDark
    
    -- MW-2013-06-13: [[ CloneAndRun ]] Returns true if this is an installed IDE (as opposed
    --   to being run from a repo build).

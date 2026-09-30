@@ -1,0 +1,16 @@
+# Extension Builder: button texts saved as black (the extensions menus) and
+# white (the "edit default script" button), which were unreadable in the
+# dark and the light appearance respectively. Unset, they follow it.
+file: Toolset/palettes/extension builder/revextensionbuilder.livecode
+object: button "extensions" of card 1
+property: foregroundColor
+from: black
+to: 
+object: button "extensions2" of card 1
+property: foregroundColor
+from: black
+to: 
+object: button "defaultscript_edit" of card 1
+property: foregroundColor
+from: white
+to: 

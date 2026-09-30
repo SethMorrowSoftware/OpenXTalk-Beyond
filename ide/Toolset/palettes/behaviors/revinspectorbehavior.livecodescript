@@ -51,9 +51,19 @@ before openStack
    
    if the platform is "linux" then send tFixUpInspector to me in 1 millisecond
    send hFixPropertyPopup to me in 1 millisecond
-   
+
    updateInspector
+   revIDESubscribe "ideAppearanceChanged"
 end openStack
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the palette's
+-- colour and the editors, whose colours are set when they are filled
+on ideAppearanceChanged
+   lock screen
+   updateInspector
+   inspectorFill
+   unlock screen
+end ideAppearanceChanged
 
 on gluetoLeft
    set the right of this stack to the left of stack "revPropertyInspector 1"
@@ -867,7 +877,12 @@ on updateInspector
    
    -- should this be coloured?
    -- we attempt to set the card backgroundcolor (requested by Richmond 10-3-2025)
-   if the cInspectorBackgroundColor of stack "revPreferences" is not "" then
+   -- OXT-Beyond: only in the light appearance. The colour is chosen for a
+   -- light Inspector, and the editors' text follows the IDE's appearance,
+   -- so in dark the Inspector keeps the dark appearance's own colour (the
+   -- concern of HyperXTalk 7c9b2af5a, 6092ea873 and 3d874fa92, which made
+   -- the Inspector follow the system's window colour there)
+   if the cInspectorBackgroundColor of stack "revPreferences" is not "" and not revIDEIsDark() then
       try
          put the cInspectorBackgroundColor of stack "revPreferences" into tColValue
          set the backgroundcolor of this stack to tColValue

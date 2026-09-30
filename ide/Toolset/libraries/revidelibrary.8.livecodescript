@@ -1554,7 +1554,7 @@ function revIDEMessages
          "ideAnswerDialogClosed,ideControlDeleted,ideCardDeleted,ideEditScript,ideExtensionLog,ideExtensionsChanged,ideExtensionStatusChanged,ideFindMoreWidgets," \
          & "ideInspectedObjectsChanged,ideLibraryStack,ideNewCard,ideNewStack,ideNewControl,revIDENameChanged,ideObjectSelectionStarted,ideOpenStack," \
          & "idePluginsChanged,idePreferenceChanged,idePropertyChanged,ideReleaseStack,ideResumeStack,ideSelectedObjectChanged,ideStackDeleted,ideToolChanged," \
-         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged" \
+         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged,ideAppearanceChanged" \
          )
 end revIDEMessages
 
@@ -2515,31 +2515,658 @@ Whether the IDE draws its palettes in their dark colours.
 Returns (boolean): true in the dark appearance.
 
 Description:
-The IDE follows the appearance of the operating system, <the systemAppearance>
-on Windows and macOS. The Linux engine reports no appearance (it is always
-"light"), so on Linux a dark desktop theme is recognised by the window
-background it gives the IDE's home stack, with the rule the Tools palette has
-used to choose its dark icons: red, green and blue add up to less than 234.
+The IDE has its own appearance, chosen by the preference cIDEAppearance
+(View > Appearance, or Preferences > Appearance): "light" (the default,
+also on a system set to dark), "dark", or "system" to follow the
+operating system. The user's own stacks have a second preference,
+cStackAppearance ("light", the default, "dark", "system" or "ide"),
+because they should look in the IDE as they will in a standalone, which
+is light unless the stack opts in.
 
-The global gREVAppearanceOverride, "light" or "dark", replaces the appearance
-of the system. It is there for tests only: without a user interface (-ui) the
-engine always reports "light", so tools/ci/ide-contrast-check.livecodescript
-sets it to check the dark colours. The IDE never sets it.
+The engine carries both (an engine with the appearance properties; see
+<revIDEEngineHasAppearance>):
+- the appAppearance, global: "light" (the engine's default at every
+  launch), "dark" or "system". It governs every stack that sets no
+  appearance of its own, which is how a standalone gets its appearance.
+  The IDE sets it to cStackAppearance's value (<revIDEApplyAppearance>).
+- the stackAppearance of a stack: "" (inherit: a substack from its
+  mainstack, a mainstack from the appAppearance), "light", "dark" or
+  "system"; runtime only, never saved. The IDE sets it on its own stacks
+  and on the stacks it ships (Toolset, Plugins, Documentation) to
+  cIDEAppearance's value, and never on the user's stacks.
+- the effective appAppearance and the effective stackAppearance of a
+  stack: "light" or "dark", with inheritance and "system" resolved.
+- the systemAppearance still reports the operating system's setting, and
+  systemAppearanceChanged is still sent only when that setting changes.
+On Linux, GTK draws the native controls and cannot be forced, so every
+effective value is the GTK theme's appearance whatever is set.
 
-References: revIDEColor (function)
+This function returns whether the effective stackAppearance of the home
+stack (an IDE stack, so the IDE's appearance) is "dark". The value is
+cached; <revIDEApplyAppearance> and the IDE's refresh after an appearance
+change (__revIDEAppearanceRefresh) clear the cache. On Linux it is also
+true when the window background the engine gives the home stack is dark
+(red, green and blue add up to less than 234, the rule the Tools palette
+has used to choose its dark icons), for an engine that does not recognise
+a dark GTK theme itself.
+
+An engine without the appearance properties cannot force the IDE light or
+dark, so there the preferences are ignored and the IDE follows the
+operating system as it always has: <the systemAppearance> on Windows and
+macOS and the window background rule on Linux (where such an engine always
+reports "light").
+
+The global gREVAppearanceOverride, "light" or "dark", replaces all of this.
+It is there for tests only: without a user interface (-ui) the engine
+always reports "light", so tools/ci/ide-contrast-check.livecodescript sets
+it to check the dark colours. The IDE never sets it.
+
+References: revIDEColor (function), revIDEApplyAppearance (command),
+revIDEEngineHasAppearance (function)
 **/
 function revIDEIsDark
    global gREVAppearanceOverride
-   local tSum
+   local tSum, tValue
    if gREVAppearanceOverride is "dark" then return true
    if gREVAppearanceOverride is "light" then return false
-   if the systemAppearance is "dark" then return true
+   if revIDEEngineHasAppearance() then
+      put __revIDEEffectiveAppearance() into tValue
+      if tValue is "dark" then
+         return true
+      end if
+   else if the systemAppearance is "dark" then
+      return true
+   end if
    if the platform is "Linux" and there is a stack "home" then
       put __revIDEColorSum(the effective backgroundColor of stack "home") into tSum
       return tSum is a number and tSum < 234
    end if
    return false
 end revIDEIsDark
+
+-- The IDE's appearance as the engine resolves it for the home stack,
+-- cached in sIDEAppearance (empty: not known yet). Only called when the
+-- engine has the appearance properties.
+local sIDEAppearance
+private function __revIDEEffectiveAppearance
+   local tValue
+   if sIDEAppearance is empty then
+      try
+         do "put the effective stackAppearance of stack" && quote & "home" & quote && "into tValue"
+      catch tError
+         put empty into tValue
+      end try
+      if tValue is not among the items of "light,dark" then put "light" into tValue
+      put tValue into sIDEAppearance
+   end if
+   return sIDEAppearance
+end __revIDEEffectiveAppearance
+
+/**
+Whether the engine has the appearance properties.
+
+Returns (boolean): true when the engine knows the appAppearance (and with it
+the stackAppearance and their effective values).
+
+Description:
+The IDE runs on engines with and without the appearance properties. Every
+use of them goes through `do` inside `try`, and only when this function
+returns true: on an older engine `the appAppearance` is a compile error
+inside the `do`, while `set the stackAppearance of stack ...` would quietly
+set a custom property of that name. The result is cached.
+
+References: revIDEIsDark (function), revIDEApplyAppearance (command)
+**/
+local sEngineHasAppearance
+function revIDEEngineHasAppearance
+   local tValue
+   if sEngineHasAppearance is empty then
+      try
+         do "get the appAppearance"
+         put it into tValue
+         put tValue is among the items of "light,dark,system" into sEngineHasAppearance
+      catch tError
+         put false into sEngineHasAppearance
+      end try
+   end if
+   return sEngineHasAppearance
+end revIDEEngineHasAppearance
+
+/**
+The value of one of the IDE's two appearance preferences.
+
+Parameters:
+pWhich (enum): "ide" (cIDEAppearance) or "stacks" (cStackAppearance).
+
+Returns (string): "light", "dark" or "system" for "ide"; the same or "ide"
+for "stacks". An empty or unknown value is "light", the default.
+
+References: revIDESetAppearance (command), revIDEApplyAppearance (command)
+**/
+function revIDEAppearancePreference pWhich
+   local tValue
+   if pWhich is "ide" then
+      put revIDEGetPreference("cIDEAppearance") into tValue
+      if tValue is among the items of "dark,system" then return tValue
+      return "light"
+   end if
+   put revIDEGetPreference("cStackAppearance") into tValue
+   if tValue is among the items of "dark,system,ide" then return tValue
+   return "light"
+end revIDEAppearancePreference
+
+/**
+Applies the appearance preferences to the IDE's stacks and to the user's.
+
+Description:
+Sets the stackAppearance of every IDE stack in memory
+(<revIDEStackIsIDEStack>) and of every stack shipped with the IDE
+(<revIDEStackIsShipped>) to the IDE's appearance (cIDEAppearance), then the
+appAppearance, which every other stack follows, to the appearance of the
+user's stacks (cStackAppearance; "ide" is the IDE's value). The order
+matters: until the IDE's stacks have their own value they follow the
+appAppearance. IDE and shipped stacks that open later get theirs in the
+front script's preOpenStack. The user's stacks are never given a
+stackAppearance, so that they look as they will in a standalone.
+
+The IDE runs this at the end of its start, after its palettes are open and
+before any stack of the user opens, and after either preference changes.
+On an engine without the appearance properties it only refreshes the
+palettes, which follow the operating system there.
+
+References: revIDEIsDark (function), revIDESetAppearance (command)
+**/
+command revIDEApplyAppearance
+   local tIDE, tStacks
+   put revIDEAppearancePreference("ide") into tIDE
+   put revIDEAppearancePreference("stacks") into tStacks
+   if tStacks is "ide" then put tIDE into tStacks
+   if revIDEEngineHasAppearance() then
+      lock screen
+      repeat for each line tStack in the mainStacks
+         if revIDEStackTakesIDEAppearance(the long id of stack tStack) then
+            revIDESetStackAppearance tStack, tIDE
+         end if
+      end repeat
+      try
+         do "set the appAppearance to tStacks"
+      catch tError
+      end try
+      unlock screen
+   end if
+   __revIDEAppearanceRefresh
+end revIDEApplyAppearance
+
+-- Sets the stackAppearance of the main stack pStack (a name, or a long id
+-- such as ideMainStackOfObject gives) when the engine has it and the value
+-- is not set already (setting it redraws the stack's windows)
+command revIDESetStackAppearance pStack, pValue
+   local tStack, tValue
+   if not revIDEEngineHasAppearance() then exit revIDESetStackAppearance
+   try
+      if word 1 of pStack is "stack" then
+         put pStack into tStack
+      else
+         put the long id of stack pStack into tStack
+      end if
+      do "put the stackAppearance of tStack into tValue"
+      if tValue is not pValue then
+         do "set the stackAppearance of tStack to pValue"
+      end if
+   catch tError
+   end try
+end revIDESetStackAppearance
+
+/**
+Changes one of the IDE's appearance preferences and applies it.
+
+Parameters:
+pWhich (enum): "ide" for the IDE's own appearance (cIDEAppearance), or
+"stacks" for the appearance of the user's stacks (cStackAppearance).
+pValue (enum): "light", "dark" or "system"; for "stacks" also "ide" (the
+same as the IDE).
+
+References: revIDEApplyAppearance (command)
+**/
+command revIDESetAppearance pWhich, pValue
+   if pWhich is "ide" then
+      if pValue is not among the items of "light,dark,system" then
+         exit revIDESetAppearance
+      end if
+      revIDESetPreference "cIDEAppearance", pValue
+   else if pWhich is "stacks" then
+      if pValue is not among the items of "light,dark,system,ide" then
+         exit revIDESetAppearance
+      end if
+      revIDESetPreference "cStackAppearance", pValue
+   else
+      exit revIDESetAppearance
+   end if
+   revIDEApplyAppearance
+   -- Preferences > Appearance shows the two preferences too
+   if "revPreferencesGUI" is among the lines of the openStacks then
+      if there is a card "Appearance" of stack "revPreferencesGUI" then
+         revIDEPrefsAppearanceUI the long id of card "Appearance" of stack "revPreferencesGUI"
+      end if
+   end if
+end revIDESetAppearance
+
+/**
+Whether a main stack takes the IDE's appearance.
+
+Parameters:
+pStack: The name or the long id of a main stack.
+
+Returns (boolean): true for a stack the IDE ships (revIDEStackIsShipped),
+and for a stack with an IDE name that exists only in memory (the IDE makes
+some of its stacks that way).
+
+Description:
+revIDEStackIsIDEStack goes by the name (rev..., com.livecode...), which a
+user's project can have too: such a project, saved in the user's folders,
+keeps following the appAppearance, as it will in a standalone.
+
+References: revIDEApplyAppearance (command), revIDEStackIsShipped (function)
+**/
+function revIDEStackTakesIDEAppearance pStack
+   local tStack
+   try
+      if word 1 of pStack is "stack" then
+         put pStack into tStack
+      else
+         put the long id of stack pStack into tStack
+      end if
+   catch tError
+      return false
+   end try
+   if revIDEStackIsShipped(tStack) then return true
+   return revIDEStackIsIDEStack(tStack) and revIDEStackIsUnsaved(tStack)
+end revIDEStackTakesIDEAppearance
+
+/**
+Whether a stack exists only in memory (it has no file).
+
+Parameters:
+pStack: The name or the long id of a main stack.
+
+Returns (boolean): true when the stack has no file.
+
+Description:
+The IDE makes some of its stacks in memory; with an IDE name (see
+revIDEStackNameIsIDEStack) such a stack takes the IDE's appearance. A user's
+stack with a file takes it only when the IDE ships it (revIDEStackIsShipped).
+
+References: revIDEStackIsShipped (function)
+**/
+
+/**
+Whether a stack is shipped with the IDE.
+
+Parameters:
+pStack: The name or the long id of a main stack.
+
+Returns (boolean): true when the stack's file is in the IDE's Toolset,
+Plugins or Documentation folder.
+
+Description:
+Such stacks are part of the IDE even when their names do not say so (the
+dictionary, plugins), so they take the IDE's appearance. The samples in
+Resources are the user's to open and change, and stay user stacks.
+
+References: revIDEApplyAppearance (command)
+**/
+function revIDEStackIsUnsaved pStack
+   local tFile
+   try
+      if word 1 of pStack is "stack" then
+         put the effective filename of pStack into tFile
+      else
+         put the effective filename of stack pStack into tFile
+      end if
+   catch tError
+      return false
+   end try
+   return tFile is empty
+end revIDEStackIsUnsaved
+
+function revIDEStackIsShipped pStack
+   local tFile, tFolders
+   try
+      if word 1 of pStack is "stack" then
+         put the effective filename of pStack into tFile
+      else
+         put the effective filename of stack pStack into tFile
+      end if
+   catch tError
+      return false
+   end try
+   if tFile is empty then return false
+   put revEnvironmentToolsetPath() & return & revEnvironmentPluginsPath() & return & \
+         revEnvironmentDocumentationPath() & return & revEnvironmentDevelopmentPluginsPath() into tFolders
+   repeat for each line tFolder in tFolders
+      if tFolder is empty then next repeat
+      if the last char of tFolder is not slash then put slash after tFolder
+      if tFile begins with tFolder then return true
+   end repeat
+   return false
+end revIDEStackIsShipped
+
+/**
+Refreshes the IDE's palettes after the system's appearance changed.
+
+Description:
+Called by the front script's systemAppearanceChanged. Windows sends the
+setting change several times in a row, so the refresh runs once, 100
+milliseconds after the last call: it recomputes <revIDEIsDark> and, when
+that changed, sends ideAppearanceChanged to the palettes that subscribed to
+it (the menubar, Tools, the Project Browser, the Extension Manager, the
+Message Box, the Inspector, the script editor, the standalone inclusions
+and the Start Center).
+
+References: revIDEIsDark (function), revIDEApplyAppearance (command)
+**/
+local sAppearanceRefreshMsg
+command revIDEAppearanceRefreshSoon
+   if sAppearanceRefreshMsg is not empty then
+      cancel sAppearanceRefreshMsg
+   end if
+   send "__revIDEAppearanceRefresh" to me in 100 milliseconds
+   put the result into sAppearanceRefreshMsg
+end revIDEAppearanceRefreshSoon
+
+-- The IDE's appearance may have changed (a preference, or the system's
+-- setting): recomputes revIDEIsDark() and, when it changed, tells the
+-- palettes with ideAppearanceChanged (parameter: the new revIDEIsDark()).
+-- The first call only records the value: the palettes open before it (at
+-- the end of the IDE's start) were drawn with it.
+local sLastIsDark
+command __revIDEAppearanceRefresh
+   local tIsDark
+   put empty into sAppearanceRefreshMsg
+   put empty into sIDEAppearance
+   put revIDEIsDark() into tIsDark
+   if sLastIsDark is empty then
+      put tIsDark into sLastIsDark
+   else if tIsDark is not sLastIsDark then
+      put tIsDark into sLastIsDark
+      ideMessageSend "ideAppearanceChanged", tIsDark
+      __revIDEPrefsScriptEditorRefresh
+   end if
+end __revIDEAppearanceRefresh
+
+-- Preferences > Script Editor edits the slot of the IDE's appearance
+-- (revSEAppearanceKey). When the appearance changed while it is open, its
+-- controls show the new slot's values at once: otherwise the next edit
+-- would write a value shown from the other slot into this one.
+private command __revIDEPrefsScriptEditorRefresh
+   if "revPreferencesGUI" is not among the lines of the openStacks then
+      exit __revIDEPrefsScriptEditorRefresh
+   end if
+   try
+      if there is a group "Script Editor" of card "Script Editor" of stack "revPreferencesGUI" then
+         dispatch "update" to group "Script Editor" of card "Script Editor" of stack "revPreferencesGUI"
+      end if
+   catch tError
+   end try
+end __revIDEPrefsScriptEditorRefresh
+
+/**
+/**
+The script editor preference that holds a setting in the IDE's appearance.
+
+Parameters:
+pKey (string): A script editor preference without the "cScriptEditor,"
+prefix, for example "editor,backgroundcolor".
+
+Returns (string): In the dark appearance (<revIDEIsDark>), the preference
+that holds the dark value of a setting that has one: pKey & "dark" for the
+backgrounds, the selection, hilite and bracket colours and the
+colorization scheme, and "editor,darkFindColor" (HyperXTalk's name) for
+the find colour. Otherwise pKey.
+
+Description:
+The script editor keeps a light and a dark value for the settings whose
+colours depend on the appearance (the idea of HyperXTalk e835a23ec, by
+Emily-Elizabeth Howard). sePrefGet (revseutilities) returns the value for
+the IDE's appearance, and the Preferences card "Script Editor" edits the
+slot of the appearance the IDE is in, both through this function.
+
+References: revIDEIsDark (function)
+**/
+function revSEAppearanceKey pKey
+   -- The script editor asks for its preferences all the time, so the
+   -- appearance is only looked at for the settings that have a dark value
+   switch pKey
+      case "editor,backgroundcolor"
+      case "editor,debugBackgroundcolor"
+      case "editor,selectbackgroundcolor"
+      case "editor,hilitecolor"
+      case "editor,brackethighlightcolor"
+      case "colorization,scheme"
+      case "colorization,config"
+         if revIDEIsDark() then return pKey & "dark"
+         break
+      case "editor,findcolor"
+         if revIDEIsDark() then return "editor,darkFindColor"
+         break
+   end switch
+   return pKey
+end revSEAppearanceKey
+
+/**
+The View menu's Appearance submenu.
+
+Returns (string): The submenu's lines, each indented with a tab, with a
+check mark on the chosen value of each preference.
+
+Description:
+Two groups: the IDE's appearance and the appearance of the user's stacks
+(see <revIDEIsDark>). The items are disabled on Linux, where GTK decides
+the appearance (with a line that says so), and on an engine without the
+appearance properties. The picks arrive as "Appearance|<item>";
+<revIDEAppearanceMenuPick> handles them. The idea of an Appearance menu is
+Tom Perry's (View > Appearance in OpenXTalk Lite 1.07 to 1.13, which
+recoloured the IDE's stacks from script).
+
+References: revIDEAppearanceMenuPick (command)
+**/
+function revIDEAppearanceMenu
+   local tMenu, tEnabled, tIDE, tStacks
+   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   put revIDEAppearancePreference("ide") into tIDE
+   put revIDEAppearancePreference("stacks") into tStacks
+   repeat for each item tValue in "light,dark,system"
+      put tab & __revIDEAppearanceMenuItem("IDE:" && __revIDEAppearanceLabel("ide", tValue), tIDE is tValue, tEnabled) & return after tMenu
+   end repeat
+   put tab & "-" & return after tMenu
+   repeat for each item tValue in "light,dark,system,ide"
+      put tab & __revIDEAppearanceMenuItem("Your Stacks:" && __revIDEAppearanceLabel("stacks", tValue), tStacks is tValue, tEnabled) & return after tMenu
+   end repeat
+   if the platform is "Linux" then
+      put tab & "-" & return & tab & "(On Linux the appearance follows the GTK theme" & return after tMenu
+   else if not revIDEEngineHasAppearance() then
+      put tab & "-" & return & tab & "(This engine follows the system's appearance" & return after tMenu
+   end if
+   delete the last char of tMenu
+   return tMenu
+end revIDEAppearanceMenu
+
+private function __revIDEAppearanceMenuItem pLabel, pChecked, pEnabled
+   local tItem
+   if pChecked then
+      put "!c" & pLabel into tItem
+   else
+      put "!n" & pLabel into tItem
+   end if
+   if not pEnabled then put "(" before tItem
+   return tItem
+end __revIDEAppearanceMenuItem
+
+-- The label of a value of one of the two preferences ("ide" or "stacks"),
+-- in the View menu (after "IDE:" or "Your Stacks:") and in Preferences >
+-- Appearance
+private function __revIDEAppearanceLabel pWhich, pValue
+   switch pValue
+      case "light"
+         if pWhich is "ide" then return "Light (default)"
+         return "Light (like a standalone)"
+      case "dark"
+         return "Dark"
+      case "system"
+         return "Follow the System"
+      case "ide"
+         return "Same as the IDE"
+   end switch
+   return empty
+end __revIDEAppearanceLabel
+
+-- The value ("light", ...) of the label pLabel of one of the two
+-- preferences, or empty
+private function __revIDEAppearanceValue pWhich, pLabel
+   local tValues
+   if pWhich is "ide" then
+      put "light,dark,system" into tValues
+   else
+      put "light,dark,system,ide" into tValues
+   end if
+   repeat for each item tValue in tValues
+      if pLabel is __revIDEAppearanceLabel(pWhich, tValue) then return tValue
+   end repeat
+   return empty
+end __revIDEAppearanceValue
+
+/**
+Handles a pick of the View menu's Appearance submenu.
+
+Parameters:
+pItem (string): The item without "Appearance|", as <revIDEAppearanceMenu>
+labels it ("IDE: Dark", "Your Stacks: Same as the IDE", ...).
+
+References: revIDEAppearanceMenu (function), revIDESetAppearance (command)
+**/
+command revIDEAppearanceMenuPick pItem
+   local tValue
+   if pItem begins with "IDE: " then
+      put __revIDEAppearanceValue("ide", char 6 to -1 of pItem) into tValue
+      if tValue is not empty then
+         revIDESetAppearance "ide", tValue
+      end if
+   else if pItem begins with "Your Stacks: " then
+      put __revIDEAppearanceValue("stacks", char 14 to -1 of pItem) into tValue
+      if tValue is not empty then revIDESetAppearance "stacks", tValue
+   end if
+end revIDEAppearanceMenuPick
+
+/**
+Shows the two appearance preferences on the Preferences card "Appearance".
+
+Parameters:
+pCard: The long id of the card (card "Appearance" of revPreferencesGUI).
+
+Description:
+The card is in a binary stack; its preOpenCard calls this, which creates
+(the first time, on the card being opened) and updates two option menus
+with their labels below the card's other controls, "IDE appearance" and
+"Your stacks", and a line under them. A pick calls <revIDESetAppearance>.
+The menus are disabled on Linux and on an engine without the appearance
+properties, and the line says why. <revIDESetAppearance> updates them when
+the View menu changes a preference while the card is open.
+
+References: revIDESetAppearance (command)
+**/
+command revIDEPrefsAppearanceUI pCard
+   local tEnabled, tNote, tLeft, tTop, tName, tItems, tText, tStack, tDefaultStack, tCreate
+   if not exists(pCard) then exit revIDEPrefsAppearanceUI
+   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   if the platform is "Linux" then
+      put "On Linux the appearance follows the GTK theme." into tNote
+   else if not revIDEEngineHasAppearance() then
+      put "This engine follows the system's appearance; these settings need a newer engine." into tNote
+   else
+      put "Your stacks look as they will in a standalone, which is light unless it sets the appAppearance." into tNote
+   end if
+   lock screen
+   lock messages
+   put the defaultStack into tDefaultStack
+   put the short name of the owner of pCard into tStack
+   set the defaultStack to tStack
+   -- New controls go on the current card: create them only while the card
+   -- is the one being opened (its preOpenCard calls this)
+   put the long id of this card of stack tStack is the long id of pCard into tCreate
+   put 182 into tLeft
+   put 402 into tTop
+   set the wholeMatches to true
+   repeat for each item tWhich in "ide,stacks"
+      put "oxtAppearance_" & tWhich into tName
+      if there is not a button tName of pCard and tCreate then
+         reset the templateField
+         create field (tName & "_label")
+         set the rect of it to tLeft, tTop, tLeft + 124, tTop + 21
+         set the lockText of it to true
+         set the opaque of it to false
+         set the showBorder of it to false
+         set the traversalOn of it to false
+         reset the templateButton
+         create button tName
+         set the style of it to "menu"
+         set the menuMode of it to "option"
+         set the rect of it to tLeft + 126, tTop - 1, tLeft + 386, tTop + 21
+         set the script of it to "on menuPick pItem" & return & \
+               "   revIDEPrefsAppearancePick" && quote & tWhich & quote & ", pItem" & return & \
+               "end menuPick"
+      end if
+      -- The label is filled by name on every call: right after create,
+      -- "put ... into it" would fill the variable it (the field's long id),
+      -- not the field
+      if there is a field (tName & "_label") of pCard then
+         if tWhich is "ide" then
+            put "IDE appearance:" into field (tName & "_label") of pCard
+         else
+            put "Your stacks:" into field (tName & "_label") of pCard
+         end if
+      end if
+      if there is a button tName of pCard then
+         if tWhich is "ide" then
+            put "light,dark,system" into tItems
+         else
+            put "light,dark,system,ide" into tItems
+         end if
+         put empty into tText
+         repeat for each item tValue in tItems
+            put __revIDEAppearanceLabel(tWhich, tValue) & return after tText
+         end repeat
+         delete the last char of tText
+         set the text of button tName of pCard to tText
+         set the menuHistory of button tName of pCard to itemOffset(revIDEAppearancePreference(tWhich), tItems)
+         set the enabled of button tName of pCard to tEnabled
+      end if
+      add 30 to tTop
+   end repeat
+   if there is not a field "oxtAppearance_note" of pCard and tCreate then
+      reset the templateField
+      create field "oxtAppearance_note"
+      set the rect of it to tLeft, tTop, 660, tTop + 36
+      set the lockText of it to true
+      set the opaque of it to false
+      set the showBorder of it to false
+      set the traversalOn of it to false
+      set the dontWrap of it to false
+   end if
+   if there is a field "oxtAppearance_note" of pCard then
+      put tNote into field "oxtAppearance_note" of pCard
+      set the textColor of field "oxtAppearance_note" of pCard to revIDEColor("text_muted")
+   end if
+   set the defaultStack to tDefaultStack
+   unlock messages
+   unlock screen
+end revIDEPrefsAppearanceUI
+
+-- A pick of one of the option menus of revIDEPrefsAppearanceUI
+command revIDEPrefsAppearancePick pWhich, pItem
+   local tValue
+   put __revIDEAppearanceValue(pWhich, pItem) into tValue
+   if tValue is not empty then revIDESetAppearance pWhich, tValue
+end revIDEPrefsAppearancePick
 
 -- A colour (r,g,b, a colour name or #rrggbb) as r,g,b, or empty. Names are
 -- resolved by the engine through the colorOverlay of the template graphic,
@@ -2668,7 +3295,46 @@ function revIDEColor pTag
             return "32,32,32"
             break
          case "propertyInspector_multiValueBackground"
-            return "55,60,70"
+            -- The Inspector's field for a value that differs between the
+            -- selected objects; its text keeps the default (light) text
+            -- colour, or text_muted for an inherited value (4.8:1)
+            return "48,52,60"
+            break
+         case "text_placeholder"
+            -- Hint text in an empty field (the Message Box), on the script
+            -- editor's background (30,30,30) or a row: 3.5:1 or more
+            return "120,120,120"
+            break
+         case "palette_frame_border"
+            -- The line round a palette's header and footer: 3.2:1 on the
+            -- palette
+            return "110,110,110"
+            break
+         case "se_splitter"
+            -- The script editor's pane splitters: they only need to be seen
+            return "60,60,64"
+            break
+         case "se_gutter"
+            -- The script editor's line numbers column, a little lighter
+            -- than its dark background (30,30,30); text_muted on it: 5.3:1
+            return "44,44,46"
+            break
+         case "start_center_background"
+            return "36,36,38"
+            break
+         case "start_center_panel"
+            return "44,44,46"
+            break
+         case "start_center_corner"
+            return "54,54,58"
+            break
+         case "start_center_hover"
+            -- A recent file under the mouse: a step lighter than the panel,
+            -- as the light one is a step darker
+            return "60,60,64"
+            break
+         case "start_center_label"
+            return "160,160,160"
             break
       end switch
    end if
@@ -2744,7 +3410,41 @@ function revIDEColor pTag
          end if
          break
       case "propertyInspector_multiValueBackground"
-         return "200,206,215"
+         -- Light enough for text_muted (95,95,95) at 4.7:1; upstream's
+         -- 200,206,215 gave 4:1
+         return "216,221,229"
+         break
+      case "text_placeholder"
+         return "145,145,145"
+         break
+      case "palette_frame_border"
+         -- As upstream (revpalettebehavior's 178,178,178)
+         return "178,178,178"
+         break
+      case "se_splitter"
+         return "224,226,235"
+         break
+      case "se_gutter"
+         -- As upstream (the Numbers Template field); text_muted: 4.5:1
+         return "217,217,217"
+         break
+      case "start_center_background"
+         -- The Start Center as saved (revStartCenter.livecode): the window,
+         -- the recent files panel and the corner of its list, and its labels
+         return "255,255,255"
+         break
+      case "start_center_panel"
+         return "247,247,247"
+         break
+      case "start_center_corner"
+         return "232,232,232"
+         break
+      case "start_center_hover"
+         -- A recent file under the mouse, as upstream's start center
+         return "222,222,222"
+         break
+      case "start_center_label"
+         return "128,128,128"
          break
    end switch
 
@@ -9299,45 +9999,33 @@ on revIDEToggleToolbar pWhich
    set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group to the right-hand edge of wd (tperry)   
 end revIDEToggleToolbar
 
+-- View > Show IDE Stacks In Lists. Adapted from HyperXTalk 084195cbe and
+-- e02b2627d (Emily-Elizabeth Howard): the preference is toggled here
+-- instead of through the checkbox of the Preferences stack. The old way
+-- sent revToggleShowStacks to that checkbox, which, the first time in a
+-- session, loaded revPreferencesGUI, whose opening reset the checkbox
+-- before it was read, so the menu item took several clicks. The Project
+-- Browser and the Message Box subscribe to idePreferenceChanged:
+-- cShowRevolutionStacks; the other lists are refreshed as the checkbox
+-- does it (revToggleShowStacks), and the checkbox follows if it is open.
 on revIDEToggleShowIDEStacksInLists
-   global gREvShowStacks
+   global gREVShowStacks
+   local tShow
+   put revIDEGetPreference("cShowRevolutionStacks") is not true into tShow
+   put tShow into gREVShowStacks
    lock screen
-   set the hilite of button "show revolution stacks" of card "general" of stack "revPreferencesGUI" to not gREVShowStacks
-   
-   local tOpenStacks
-   put the openStacks into tOpenStacks
-   
-   local tFrontStack
-   put empty into tFrontStack
-   repeat for each line tStack in tOpenStacks
-      if tStack is not "revMenubar" and the mode of stack tStack is among the items of "1,2,3" then
-         put tStack into tFrontStack
-         exit repeat
-      end if
+   revIDESetPreference "cShowRevolutionStacks", tShow
+   if "revPreferencesGUI" is among the lines of the openStacks then
+      set the hilite of button "show revolution stacks" of card "general" of stack "revPreferencesGUI" to tShow
+   end if
+   if the mode of stack "revSearch" is not 0 then
+      send "revFeedback" to stack "revSearch"
+   end if
+   revUpdateAB
+   repeat for each line tPalette in revPalettesList()
+      send "revUpdatePalette" to this card of stack tPalette
    end repeat
-   if tFrontStack is not empty then
-      set the wholeMatches to true
-      local tBringToFront
-      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("App Browser", tOpenStacks) then
-         put true into tBringToFront
-      end if
-   end if
-   send "revToggleShowStacks" to button "show revolution stacks" of card "general" of stack "revPreferencesGUI"
    unlock screen
-   
-   if tBringToFront then
-      lock messages
-      switch the mode of stack tFrontStack
-         case 1
-         case 2
-            toplevel tFrontStack
-            break
-         case 3
-            modeless tFrontStack
-            break
-      end switch
-      unlock messages 
-   end if
 end revIDEToggleShowIDEStacksInLists
 
 on revIDETogglePalette pPaletteName
@@ -12945,47 +13633,6 @@ function tRandName
    return tRandNames
 end tRandName
 
-
-function fixthemebtn tid tStackName
-   -- support theming of btns (to make up for shortcoming of engine)
-   -- tperry 13-09-2025
-   put "50,50,50" into tDarkGrey-- very dark grey
-   put "225,225,255" into tLightGrey-- very light grey
-   put "48,113,250" into tDefaultBtnColour -- MacOS blue default colour
-   put "86,84,93" into tMacBtnCol -- MacOS dark background for button
-   
-   if the cUseThemeDark of stack "revPreferences" is true then
-      -- dark mode
-      if there is a btn tid of stack tStackName then
-         set the foregroundColor of btn id tID of stack tStackName to black -- black text
-         if the platform contains "mac" then
-            if the height of btn id tID of stack tStackName <50 then 
-               set the backgroundColor of btn id tID of stack tStackName to tMacBtnCol
-               set the style of btn id tID of stack tStackName to "roundRect"
-               set the borderWidth of btn id tID of stack tStackName to 0
-               set the foregroundColor of btn id tID of stack tStackName to white
-               if the default of btn id tID of stack tStackName is true then set the backgroundColor of btn id tID of stack tStackName to tDefaultBtnColour
-            end if
-         else
-            -- not mac, but dark mode on another platform
-            if the height of btn id tID of stack tStackName <50 then 
-               set the backgroundColor of btn id tID of stack tStackName to ""
-               set the style of btn id tID of stack tStackName to "roundRect"
-               set the borderWidth of btn id tID of stack tStackName to 0
-               set the foregroundColor of btn id tID of stack tStackName to ""
-            end if
-         end if
-      else
-         -- light mode
-         
-         set the foregroundColor of btn id tID of stack tStackName to ""
-         set the backgroundColor of btn id tID of stack tStackName to ""
-         if the height of btn id tID of stack tStackName <40 then set the borderWidth of btn id tID of stack tStackName to 2
-         if the height of btn id tID of stack tStackName <40 then set the style of btn id tID of stack tStackName to "standard"
-         
-      end if
-   end if
-end fixthemebtn
 
 on generateThumbOfStack
    try

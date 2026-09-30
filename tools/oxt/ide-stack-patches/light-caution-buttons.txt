@@ -1,0 +1,44 @@
+# The warning shown before opening a stack with scripts (cautionUponOpening):
+# OpenXTalk Lite 1.15 saved its buttons as 86,84,93 rounded rectangles with
+# white text (Tom Perry's dark styling of dialogs). Back to the standard
+# buttons of 1.10, which follow the appearance.
+file: Toolset/palettes/cautionUponOpening.oxtstack
+object: button "Continue to open" of card 1
+property: style
+from: roundrect
+to: standard
+property: borderWidth
+from: 0
+to: 2
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "Peek" of card 1
+property: style
+from: roundrect
+to: standard
+property: borderWidth
+from: 0
+to: 2
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "close" of card 1 of stack "scriptalert"
+property: style
+from: roundrect
+to: standard
+property: borderWidth
+from: 0
+to: 2
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 

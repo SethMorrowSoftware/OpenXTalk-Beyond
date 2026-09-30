@@ -15,7 +15,7 @@ development engine without a user interface.
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
-| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
+| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script and property patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 
@@ -945,9 +945,9 @@ or a cache that holds the zip is given.
 Most of the IDE is script-only stacks (`*.livecodescript`), which are
 edited as text. Some code lives in binary stacks (`*.livecode`, `*.rev`),
 for example the dataView behaviour in `ide/Toolset/palettes/revCore.8.livecode`.
-Those are changed only through script patches in `ide-stack-patches/`,
-applied by a headless engine, so that every change is reviewable text and
-the result is verified:
+Those are changed only through the script and property patches in
+`ide-stack-patches/`, applied by a headless engine, so that every change is
+reviewable text and the result is verified:
 
 ```
 tools/oxt/ide-stack-patch.sh <development engine> [--check]
@@ -959,15 +959,32 @@ Windows engine on a PC where OXT-Beyond or LiveCode is running: a second
 Windows engine hands its command line to the running one instead of running
 it. `--check` only reports.
 
-A patch file names a stack file (relative to `ide/`), an object of it and
-the exact script text to replace and its replacement, each line between
-bars (`|...|`) so that blanks survive editors. The text must occur exactly
-once; a patch whose replacement is already there is skipped, so the tool can
-run again at any time. For each stack file the tool dumps every object
+A script patch file names a stack file (relative to `ide/`), an object of
+it and the exact script text to replace and its replacement, each line
+between bars (`|...|`) so that blanks survive editors. The text must occur
+exactly once; a patch whose replacement is already there is skipped, so the
+tool can run again at any time.
+
+A property patch file names a stack file and, for one or more objects, a
+property with the value the file has and the new one, for example a colour
+saved into a dialog that the dark appearance cannot change:
+
+```
+file: Toolset/palettes/revsearch.rev
+object: button "Search In" of card 1
+property: foregroundColor
+from: black
+to:
+```
+
+Values are written as the dump writes them and compared exactly; a property
+that already has the new value is skipped.
+
+For each stack file the tool dumps every object
 (`ide-stack-dump.livecodescript`), applies the patches, checks that only the
-patched scripts differ, saves the stack, loads the saved file again and
-checks that it dumps exactly like the patched stack and keeps its file
-format (for example `REVO7000`); otherwise it writes the original back.
+patched scripts and properties differ, saves the stack, loads the saved file
+again and checks that it dumps exactly like the patched stack and keeps its
+file format (for example `REVO7000`); otherwise it writes the original back.
 
 The bytes of a stack saved by the engine differ from the original also where
 no content is: the character-set byte (the platform that saved it), the
@@ -980,4 +997,7 @@ OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
 ```
 
 `tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
-every patch is applied, from the stack files' bytes, without an engine.
+every script patch is applied, from the stack files' bytes, without an
+engine. Property patches cannot be seen in the bytes that way, so
+`tools/ci/ide-contrast-check.ps1` checks every patch with the engine of the
+build (`OXT_PATCH_CHECK=1`, on the staged installed layout).

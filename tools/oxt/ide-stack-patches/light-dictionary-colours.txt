@@ -1,0 +1,72 @@
+# The dictionary stack ("OpenXTalk Lite Dictionary"): saved with the colours
+# its dark styling (hSortTheming) sets at run time, a 50,50,50 stack and
+# buttons 86,84,93 with white text. hSortTheming sets its colours again
+# when the stack opens, in the IDE's appearance; the saved ones are unset.
+file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
+object: stack
+property: backgroundColor
+from: 50,50,50
+to: 
+object: button "load random" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "searchBtn" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "export" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "langxtalk" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "langdatagrid" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "langbuilder" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "favaddbtn" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "favcaption" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 
+object: button "load" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: white
+to: 

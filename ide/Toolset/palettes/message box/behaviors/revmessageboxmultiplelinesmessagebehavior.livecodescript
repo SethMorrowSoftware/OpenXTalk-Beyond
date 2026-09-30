@@ -27,9 +27,13 @@ on commandKeyDown pKey
       put empty into me
       exit commandKeyDown
    end if
-   if pKey is "V" then 
+   if pKey is "V" then
+      -- OXT-Beyond: no scriptFormat here or below: it coloured the whole
+      -- field with the light scheme's colours, which could not be read in
+      -- the dark appearance, and the Message Box runs code rather than
+      -- editing it (HyperXTalk 5454a743b and 40f4d1953, Emily-Elizabeth
+      -- Howard)
       put clipboardData["text"] into the selectedChunk
-      scriptFormat "script"
    else
       pass commandKeyDown
    end if
@@ -63,7 +67,6 @@ command revInitialise
    else
       put 0 into lHistoryIndex
    end if
-   scriptFormat "script"
 end revInitialise
 
 command revNextLine
@@ -73,7 +76,6 @@ command revNextLine
    put line lHistoryIndex of lHistory into tMessage
    replace "\n" with return in tMessage
    set the text of me to tMessage
-   scriptFormat "script"
 end revNextLine
 
 command revPrevLine
@@ -83,5 +85,4 @@ command revPrevLine
    put line lHistoryIndex of lHistory into tMessage
    replace "\n" with return in tMessage
    set the text of me to tMessage
-   scriptFormat "script"
 end revPrevLine

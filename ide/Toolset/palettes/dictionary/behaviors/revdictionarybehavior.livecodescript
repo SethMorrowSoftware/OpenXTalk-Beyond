@@ -19,6 +19,7 @@ end setAsBehavior
 on openStack
    local tMinWidth
    put kDictionaryMinWidth + kScrollbarFudge into tMinWidth
+   revIDESubscribe "ideAppearanceChanged"
    lock screen
    --Force the browser to actually resize
    set the rect of widget "Dictionary" of me to 0,0,0,0
@@ -60,6 +61,7 @@ on showTab pTab
 end showTab
 
 on browserNavigateComplete
+   applyPageAppearance
    if sEntry is not empty then
       do "goEntryName('" & sEntry["library"] & "','" & sEntry["entry"] & "','" & sEntry["type"] & "')" in widget "Dictionary" of me
       put empty into sEntry
@@ -68,6 +70,27 @@ on browserNavigateComplete
       resizeStack
    end if
 end browserNavigateComplete
+
+-- OXT-Beyond: the page's code examples in the IDE's appearance
+-- (codestyle.css, class oxt-dark); the browser widget follows the system's
+-- appearance, which the IDE's may not be
+private command applyPageAppearance
+   local tDark
+   if revIDEIsDark() then
+      put "true" into tDark
+   else
+      put "false" into tDark
+   end if
+   try
+      do "document.documentElement.classList.toggle('oxt-dark', " & tDark & ")" in widget "Dictionary" of me
+   end try
+end applyPageAppearance
+
+on ideAppearanceChanged
+   if the mode of me is not 0 then
+      applyPageAppearance
+   end if
+end ideAppearanceChanged
 
 on navigateToEntry pLibrary, pEntry, pType
    put pLibrary into sEntry["library"]
