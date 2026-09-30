@@ -804,6 +804,10 @@ enum MCPlatformWindowProperty
     kMCPlatformWindowPropertyIgnoreMouseEvents,
     
     kMCPlatformWindowPropertyDocumentFilename,
+
+    // Whether the window's frame and the system parts in it are drawn in the
+    // dark appearance (bool); the stack sets it from how its card is drawn
+    kMCPlatformWindowPropertyDarkAppearance,
 };
 
 void MCPlatformSetWindowProperty(MCPlatformWindowRef window, MCPlatformWindowProperty property, MCPlatformPropertyType type, const void *value);

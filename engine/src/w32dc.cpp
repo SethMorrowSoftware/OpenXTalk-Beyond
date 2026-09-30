@@ -39,6 +39,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "w32compat.h"
 
 #include "mctheme.h"
+#include "redraw.h"
 
 #include "graphicscontext.h"
 #include "graphics_util.h"
@@ -514,6 +515,82 @@ bool MCWin32IsSystemAppearanceDark(void)
 void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 {
 	r_appearance = MCWin32IsSystemAppearanceDark() ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
+}
+
+// A High Contrast theme replaces the system colours with the user's own, and
+// the light drawing path uses the system colours (GetSysColor and uxtheme),
+// the dark one fixed greys. So with High Contrast on, everything is drawn the
+// light way (MCAppearanceIsDark). Asked for every colour, so cached, and read
+// again on WM_SETTINGCHANGE SPI_SETHIGHCONTRAST (w32dcw32.cpp).
+static bool s_high_contrast = false;
+static bool s_high_contrast_cached = false;
+
+bool MCWin32RefreshHighContrast(void)
+{
+	HIGHCONTRASTW t_high_contrast;
+	memset(&t_high_contrast, 0, sizeof(t_high_contrast));
+	t_high_contrast.cbSize = sizeof(t_high_contrast);
+	bool t_on = SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(t_high_contrast), &t_high_contrast, 0) != FALSE &&
+		(t_high_contrast.dwFlags & HCF_HIGHCONTRASTON) != 0;
+
+	bool t_changed = s_high_contrast_cached && t_on != s_high_contrast;
+	s_high_contrast = t_on;
+	s_high_contrast_cached = true;
+	return t_changed;
+}
+
+bool MCWin32IsHighContrast(void)
+{
+	if (!s_high_contrast_cached)
+		MCWin32RefreshHighContrast();
+	return s_high_contrast;
+}
+
+extern void MCWin32UpdateSystemColors(void);
+extern bool MCWin32ThemeSystemAppearanceDark;
+
+// Applies the light or dark appearance again, to every window at once: when
+// the OS setting changed (the WM_SETTINGCHANGE "ImmersiveColorSet" handler in
+// w32dcw32.cpp, through MCPlatformHandleSystemAppearanceChanged), and when a
+// script set the appAppearance or a stackAppearance, which sends no message
+// (MCAppearanceChanged).
+void MCScreenDC::updatesystemappearance(void)
+{
+	MCAppearanceRefreshSystem();
+	MCWin32UpdateSystemColors();
+
+	// Windows re-themes itself on the light/dark switch; reopen the native
+	// theme's handles then, as for WM_THEMECHANGED. Setting the properties
+	// needs no reload: the dark and the light scrollbar handles are both
+	// kept open (MCNativeTheme::GetScrollbarTheme).
+	bool t_system_dark = MCWin32IsSystemAppearanceDark();
+	if (t_system_dark != MCWin32ThemeSystemAppearanceDark)
+	{
+		MCWin32ThemeSystemAppearanceDark = t_system_dark;
+		if (MCcurtheme != NULL && MCcurtheme->getthemeid() == LF_NATIVEWIN)
+		{
+			MCcurtheme->unload();
+			MCcurtheme->load();
+		}
+	}
+
+	// The title bars, of the windows whose appearance changed
+	MCStacknode *t_node = MCstacks->topnode();
+	if (t_node != NULL)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node->getstack();
+			if (t_stack != NULL)
+				t_stack->updatewindowappearance();
+			t_node = t_node->next();
+		}
+		while (t_node != t_start);
+	}
+
+	// Everything else is redrawn, in the colours it now has
+	MCRedrawDirtyScreen();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

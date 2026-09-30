@@ -99,25 +99,43 @@ bool MCScreenDC::hasfeature(MCPlatformFeature p_feature)
 // (OXT-Beyond: a static helper taking the screen, like the Windows engine's
 // MCWin32UpdateSystemColors(); as a free function it could not reach the
 // screen's colours and did not compile)
+//
+// OXT-Beyond: the colours follow the appAppearance (MCAppearanceIsDark(nil)),
+// not the OS setting, and AppKit is told the same (mac-core.mm), so that a
+// stack drawn light also gets light windows, menus and dialogs on a dark Mac.
+// Called at startup and whenever the appearance is applied again.
+extern void MCMacPlatformSetApplicationAppearance(bool p_follow_system, bool p_dark);
+
+static bool s_paint_colors_set = false;
+
 static void UpdateSystemColorsForAppearance(MCScreenDC *p_screen)
 {
-	MCSystemAppearance t_appearance;
-	p_screen->getsystemappearance(t_appearance);
-	
-	if (t_appearance == kMCSystemAppearanceDark)
+	MCMacPlatformSetApplicationAppearance(MCappappearance == kMCAppearanceModeSystem, MCappappearance == kMCAppearanceModeDark);
+
+	// The paint tools' colours are set once, to the light values: they are
+	// painted into images, which no appearance may change
+	if (!s_paint_colors_set)
+	{
+		MCzerocolor = MCbrushcolor = p_screen->white_pixel;
+		MCpencolor = p_screen->black_pixel;
+		s_paint_colors_set = true;
+	}
+
+	bool t_is_dark = MCAppearanceIsDark(nil);
+	if (t_is_dark)
 	{
 		// Dark mode: background = RGB(32,32,32), foreground = white
 		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0x2020; // 32/255 * 65535 ≈ 0x2020
-		MCzerocolor = MCbrushcolor = p_screen->background_pixel;
-		MCselectioncolor = MCpencolor = p_screen->white_pixel;
 	}
 	else
 	{
 		// Light mode: background = white, foreground = black
 		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0xffff;
-		MCzerocolor = MCbrushcolor = p_screen->white_pixel;
-		MCselectioncolor = MCpencolor = p_screen->black_pixel;
 	}
+
+	// Until a script chooses the colour of the selection handles
+	if (!MCselectioncolorisset)
+		MCselectioncolor = t_is_dark ? p_screen->white_pixel : p_screen->black_pixel;
 }
 
 Boolean MCScreenDC::open()
@@ -972,14 +990,38 @@ void MCScreenDC::closeIME()
 
 void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 {
-	MCPlatformGetSystemProperty(kMCPlatformSystemPropertySystemAppearance, kMCPlatformPropertyTypeInt32, &r_appearance);
+	// The platform writes an int32_t; start from light, so that a platform
+	// that does not answer reports the default
+	int32_t t_appearance = kMCPlatformSystemAppearanceLight;
+	MCPlatformGetSystemProperty(kMCPlatformSystemPropertySystemAppearance, kMCPlatformPropertyTypeInt32, &t_appearance);
+	r_appearance = t_appearance == kMCPlatformSystemAppearanceDark ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
 }
 
+// Applies the appearance again, to every window at once: when the OS setting
+// changed (MCPlatformHandleSystemAppearanceChanged) and when a script set the
+// appAppearance or a stackAppearance (MCAppearanceChanged, no message)
 void MCScreenDC::updatesystemappearance(void)
 {
+	MCAppearanceRefreshSystem();
+
 	// Update system colors based on new appearance
 	UpdateSystemColorsForAppearance(this);
-	
+
+	// The window frames of the stacks whose appearance changed
+	MCStacknode *t_node = MCstacks -> topnode();
+	if (t_node != nil)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node -> getstack();
+			if (t_stack != nil)
+				t_stack -> updatewindowappearance();
+			t_node = t_node -> next();
+		}
+		while (t_node != t_start);
+	}
+
 	// Redraw all stacks to reflect new colors
 	MCstacks -> redrawall(False);
 }

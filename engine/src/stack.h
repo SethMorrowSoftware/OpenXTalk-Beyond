@@ -305,7 +305,19 @@ protected:
     MCStringLineEndingStyle m_line_encoding_style : 3;
 	
 	bool m_is_ide_stack : 1;
-	
+
+	// The stackAppearance, an MCAppearanceMode (appearance.cpp). It is a
+	// runtime setting like m_is_ide_stack: never saved with the stack, so a
+	// stack starts at kMCAppearanceModeInherit ("") when it is loaded.
+	unsigned int m_appearance_mode : 2;
+
+	// Whether the window's frame (the title bar) was last made dark, and
+	// whether it has been set since the window was created. Setting it costs
+	// a call into the window manager, so it is only done when it changes
+	// (updatewindowappearance).
+	bool m_window_dark : 1;
+	bool m_window_dark_set : 1;
+
 	// IM-2014-05-27: [[ Bug 12321 ]] Indicate if we need to purge fonts when reopening the window
 	bool m_purge_fonts;
     
@@ -1274,7 +1286,24 @@ public:
 	void GetEffectiveShowInvisibleObjects(MCExecContext &ctxt, bool &r_show_invisibles);
     
     void GetMinStackFileVersion(MCExecContext &ctxt, MCStringRef& r_stack_file_version);
-    
+
+	// The stackAppearance and the effective stackAppearance (appearance.cpp)
+	void GetStackAppearance(MCExecContext& ctxt, intenum_t*& r_mode);
+	void SetStackAppearance(MCExecContext& ctxt, intenum_t* p_mode);
+	void GetEffectiveStackAppearance(MCExecContext& ctxt, intenum_t& r_mode);
+
+	MCAppearanceMode getappearancemode(void) const
+	{
+		return (MCAppearanceMode)m_appearance_mode;
+	}
+
+#if defined(_WINDOWS_DESKTOP) || defined(_MAC_DESKTOP)
+	// Makes the window's frame (title bar) dark or light, as its current
+	// card is drawn; only calls the window manager when that changed
+	// (w32stack.cpp, desktop-stack.cpp).
+	void updatewindowappearance(void);
+#endif
+
     virtual void SetForePixel(MCExecContext& ctxt, uinteger_t* pixel);
 	virtual void SetBackPixel(MCExecContext& ctxt, uinteger_t* pixel);
 	virtual void SetHilitePixel(MCExecContext& ctxt, uinteger_t* pixel);

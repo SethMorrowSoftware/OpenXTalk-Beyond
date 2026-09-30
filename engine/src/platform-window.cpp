@@ -54,6 +54,8 @@ MCPlatformWindow::MCPlatformWindow(void)
     m_hides_on_suspend = false;
     // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Default ignoreMouseEvents to false
     m_ignore_mouse_events = false;
+    // Light until the stack says otherwise
+    m_dark_appearance = false;
 	
     // MW-2014-05-02: [[ Bug 12348 ]] Make sure we initialize this value appropriately.
     m_use_text_input = false;
@@ -400,6 +402,11 @@ void MCPlatformWindow::SetProperty(MCPlatformWindowProperty p_property, MCPlatfo
             MCValueAssign(m_document_filename, *(MCStringRef*)p_value);
             m_changes . document_filename_changed = true;
             break;
+		case kMCPlatformWindowPropertyDarkAppearance:
+			assert(p_type == kMCPlatformPropertyTypeBool);
+			m_dark_appearance = *(bool *)p_value;
+			m_changes . dark_appearance_changed = true;
+			break;
 		default:
 			assert(false);
 			break;

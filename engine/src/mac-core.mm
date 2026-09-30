@@ -634,13 +634,15 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 		{
 			NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
 			NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+			// The value is an int32_t (kMCPlatformPropertyTypeInt32): writing
+			// 16 bits left the upper half of the caller's variable as it was
 			if (t_appearance == nil || ![t_appearance isEqualToString:@"Dark"])
 			{
-				*(int16_t *)r_value = kMCPlatformSystemAppearanceLight;
+				*(int32_t *)r_value = kMCPlatformSystemAppearanceLight;
 			}
 			else
 			{
-				*(int16_t *)r_value = kMCPlatformSystemAppearanceDark;
+				*(int32_t *)r_value = kMCPlatformSystemAppearanceDark;
 			}
 		}
 			break;
@@ -657,13 +659,31 @@ void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
         case kMCPlatformSystemPropertyVolume:
             MCMacPlatformSetGlobalVolume(*(double *)p_value);
             break;
-        
+
         default:
             assert(false);
             break;
     }
 }
 #endif // !_WINDOWS
+
+////////////////////////////////////////////////////////////////////////////////
+
+// The appAppearance, for AppKit: menus, dialogs, panels and the windows that
+// do not set their own appearance use the application's. "light" is Aqua and
+// "dark" DarkAqua whatever the Mac is set to; "system" (nil) follows the Mac.
+// The engine's default is light, so an application is Aqua on a dark Mac
+// until it opts in (desktop-dc.cpp, UpdateSystemColorsForAppearance).
+void MCMacPlatformSetApplicationAppearance(bool p_follow_system, bool p_dark)
+{
+	if (@available(macOS 10.14, *))
+	{
+		NSAppearance *t_appearance = nil;
+		if (!p_follow_system)
+			t_appearance = [NSAppearance appearanceNamed: p_dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+		[NSApp setAppearance: t_appearance];
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

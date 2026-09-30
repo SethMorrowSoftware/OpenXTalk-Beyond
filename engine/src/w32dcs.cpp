@@ -869,29 +869,43 @@ static bool WindowsIsCompositionEnabled(void)
 	return t_enabled != FALSE;
 }
 
+// The OS setting the native theme's handles were opened with; the screen's
+// updatesystemappearance reopens them when it changes (w32dc.cpp).
+bool MCWin32ThemeSystemAppearanceDark = false;
+static bool s_paint_colors_set = false;
+
 //-- tperry 4th November 2025
 // Update system colors based on current dark/light mode
 // This affects unset colors (objects without explicit backgroundColor/foregroundColor)
+//
+// OXT-Beyond: the colours follow the appAppearance (MCAppearanceIsDark(nil)),
+// not the OS setting; each object's unset colours follow the appearance it is
+// drawn in (MCObject::getforecolor). Called at startup and whenever the
+// appearance is applied again (MCScreenDC::updatesystemappearance).
 void MCWin32UpdateSystemColors(void)
 {
-	// This runs at startup and on the light/dark switch, so read the setting
-	// again here; getsystemappearance returns the cached value.
-	MCWin32RefreshSystemAppearance();
-
-	// Use the same function that 'the systemAppearance' uses
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
-	
 	MCScreenDC *t_screen = (MCScreenDC *)MCscreen;
-	
+
+	// The paint tools' colours (the penColor, brushColor and the colour of
+	// erased pixels) are set once, to the light values, and no appearance
+	// changes them: they are painted into images, and a dark mode must not
+	// bake white strokes or 32,32,32 fills into a user's pictures.
+	if (!s_paint_colors_set)
+	{
+		MCpencolor = t_screen->black_pixel;
+		MCzerocolor.red = MCzerocolor.green = MCzerocolor.blue = 0xF0F0;
+		MCbrushcolor = MCzerocolor;
+		MCWin32ThemeSystemAppearanceDark = MCWin32IsSystemAppearanceDark();
+		s_paint_colors_set = true;
+	}
+
+	bool t_is_dark = MCAppearanceIsDark(nil);
+
 	if (t_is_dark)
 	{
 		// Dark mode: background = RGB(32,32,32), foreground = white
 		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0x2020;
-		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
-		MCselectioncolor = MCpencolor = t_screen->white_pixel;
-		
+
 		//-- tperry 11th November 2025: Set gray_pixel for disabled items (RGB 137,137,137)
 		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8989;
 	}
@@ -899,13 +913,15 @@ void MCWin32UpdateSystemColors(void)
 	{
 		// Light mode: background = RGB(240,240,240), foreground = black
 		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0xF0F0;
-		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
-		MCselectioncolor = MCpencolor = t_screen->black_pixel;
-		
+
 		//-- tperry 11th November 2025: Set gray_pixel for light mode (used by opaque buttons)
 		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8080;
 	}
-	
+
+	// The selection handles are drawn on the card, so they follow the
+	// appearance, until a script chooses their colour
+	if (!MCselectioncolorisset)
+		MCselectioncolor = t_is_dark ? t_screen->white_pixel : t_screen->black_pixel;
 }
 
 //-- tperry 4th November 2025

@@ -1,0 +1,96 @@
+Name: appAppearance
+
+Type: property
+
+Syntax: set the appAppearance to {"light" | "dark" | "system"}
+
+Syntax: get the [effective] appAppearance
+
+Summary:
+Specifies whether the application is drawn in the light or the dark
+appearance, or follows the operating system's setting.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: desktop
+
+Example:
+-- In the startup or preOpenStack handler of a standalone's mainstack:
+-- follow the dark mode of Windows and macOS
+set the appAppearance to "system"
+
+Example:
+set the appAppearance to "dark"
+put the effective appAppearance -- "dark" on Windows and macOS
+
+Example:
+-- Feature test, for scripts that also run on older engines
+try
+   do "get the appAppearance"
+   put true into tHasAppearance
+catch tError
+   put false into tHasAppearance
+end try
+
+Value:
+The <appAppearance> is "light", "dark" or "system". Setting it is not
+case-sensitive; getting it returns lower case. By default it is "light",
+in every engine: the IDE, standalones, the command line (-ui) and the
+server. It is not saved: each launch starts at "light". Setting it to any
+other value is an error, and leaves it as it was.
+
+The <effective> <appAppearance> is "light" or "dark": the <appAppearance>
+with "system" resolved to the operating system's setting (the
+<systemAppearance>). It is "light" while a Windows High Contrast theme is
+on, because the dark appearance does not use its colors.
+
+Description:
+Use the <appAppearance> to choose the appearance the engine draws
+<stack|stacks> in when they do not choose their own with the
+<stackAppearance>.
+
+In the dark appearance every color a stack leaves unset comes from the
+dark theme: white text, dark fills, dark native controls, scrollbars and
+title bars. Colors a script or the author set are always drawn as set.
+Where the author set some colors and not others (a white field without a
+text color, for example), the engine fits the unset colors to the colors
+around the object, so a stack designed light still looks as designed in
+the dark appearance; see the <stackAppearance>.
+
+Standalones are light unless they opt in. Windows and macOS let each
+application decide whether it follows dark mode, and every stack made
+before this property existed was designed light. To follow the system,
+put one line in the startup or preOpenStack handler of the mainstack:
+
+    set the appAppearance to "system"
+
+Standalones built with OpenXTalk Lite 1.14 or later, or with OXT-Beyond
+0.1.0 or earlier, followed the dark mode of Windows (and of macOS). Built
+again with this engine they are light unless they add that line.
+
+Setting the <appAppearance> redraws every window at once in its new
+appearance. It does not send <systemAppearanceChanged>, which is only sent
+when the operating system's setting changes.
+
+On Linux the native controls are drawn by the GTK theme, which the engine
+cannot change: the <effective> <appAppearance> and the appearance of
+every stack are the GTK theme's (the <systemAppearance>), whatever the
+<appAppearance> is set to. The setting is still stored and returned.
+
+Printing is always done in the light appearance. Snapshots
+(<export snapshot>, <import snapshot>) are taken in the appearance the
+objects are shown in; to export a light image from a dark stack, set the
+<appAppearance> (or the <stackAppearance>) to "light" around the export.
+
+Changes:
+The <appAppearance> was added in OXT-Beyond after release 0.1.0 (engine
+9.7.1-OXT). Before it, the engine always followed the dark mode of Windows
+and macOS.
+
+References: stackAppearance (property), systemAppearance (property),
+systemAppearanceChanged (message), effective (keyword),
+export snapshot (command), import snapshot (command), stack (object)
+
+Tags: ui

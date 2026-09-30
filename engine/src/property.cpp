@@ -405,6 +405,11 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
     DEFINE_RO_PROPERTY(P_LOADED_EXTENSIONS, ProperLinesOfString, Engine, LoadedExtensions)
 	
 	DEFINE_RO_ENUM_PROPERTY(P_SYSTEM_APPEARANCE, InterfaceSystemAppearance, Interface, SystemAppearance)
+
+	// "light" (the default), "dark" or "system"; the effective one is "light"
+	// or "dark" (appearance.cpp)
+	DEFINE_RW_ENUM_NON_EFFECTIVE_PROPERTY(P_APP_APPEARANCE, InterfaceAppearanceMode, Interface, AppAppearance)
+	DEFINE_RO_ENUM_EFFECTIVE_PROPERTY(P_APP_APPEARANCE, InterfaceAppearanceMode, Interface, AppAppearance)
 };
 
 static bool MCPropertyInfoTableLookup(Properties p_which, Boolean p_effective, const MCPropertyInfo*& r_info, bool p_is_array_prop)
@@ -943,6 +948,7 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
     // MW-2014-12-10: [[ Extensions ]] Add support for global loadedExtensions property.
     case P_LOADED_EXTENSIONS:
 	case P_SYSTEM_APPEARANCE:
+	case P_APP_APPEARANCE:
         break;
     
     case P_REV_LIBRARY_MAPPING:

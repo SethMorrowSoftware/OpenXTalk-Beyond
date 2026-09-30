@@ -1760,7 +1760,10 @@ enum Properties {
     P_LAYER_CLIP_RECT,
 	
 	P_SYSTEM_APPEARANCE,
-    
+	// The global appAppearance and the stackAppearance of stacks
+	P_APP_APPEARANCE,
+	P_STACK_APPEARANCE,
+
     __P_LAST,
 };
 
