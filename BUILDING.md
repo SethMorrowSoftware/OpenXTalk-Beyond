@@ -694,6 +694,48 @@ Build outputs are staged as this repository builds them, so some of
 them differ from Tom Perry's binaries in 1.15 even where the paths
 match; the report marks them "rebuilt".
 
+### Linux package
+
+The Linux x86-64 package is made on Linux (or in WSL, under a Linux path
+such as `/tmp`, never `/mnt/c`: the tree needs Unix modes and links)
+from the two tarballs the Linux workflow uploads,
+`OXT-Beyond-linux-x86_64-bin.tar.xz` and
+`OXT-Beyond-linux-x86_64-symbols.tar.xz` (see
+[tools/oxt/README.md](tools/oxt/README.md) for the layout):
+
+```sh
+python3 tools/oxt/package.py --platform linux-x86_64 \
+    --bin-tar OXT-Beyond-linux-x86_64-bin.tar.xz --out /tmp/stage --summary-json /tmp/stage.json
+python3 tools/oxt/package_dist.py --summary /tmp/stage.json \
+    --bin-tar OXT-Beyond-linux-x86_64-bin.tar.xz \
+    --symbols-tar OXT-Beyond-linux-x86_64-symbols.tar.xz --out dist
+```
+
+This writes `OXT-Beyond-<ver>-linux-x86_64.tar.xz` (the program folder
+`OXT-Beyond-<ver>`), `-binaries.tar.xz` (`linux-x86_64-bin` without the
+`.dbg` files, plus the licence files), `-symbols.tar.xz` (the `.dbg`
+files) and `SHA256SUMS`. Besides the engine (`OXT-Beyond`) and the IDE,
+the folder has the launcher `oxt-beyond`, `install.sh`, `uninstall.sh`
+and `linux/` (desktop entry, MIME types, icons and the library list the
+launcher checks), from
+[`Installer/linux`](Installer/linux). Test it extracted to a folder
+whose path has no `_build` or `*-bin` in it:
+
+```sh
+python3 tools/ci/run_livecode_check.py smoke --package dist/OXT-Beyond-<ver>-linux-x86_64.tar.xz
+python3 tools/ci/run_livecode_check.py compile --install <folder>/OXT-Beyond-<ver> --engine <folder>/OXT-Beyond-<ver>/oxt-beyond
+python3 tools/ci/check_linux_libraries.py --root <folder>/OXT-Beyond-<ver> --repo .
+python3 tools/ci/test_linux_package.py --root <folder>/OXT-Beyond-<ver>
+```
+
+`check_linux_libraries.py` runs `ldd` over every x86-64 ELF file and
+checks that `Installer/linux/libraries.txt` names every system library
+the package needs; run it where that list's packages are installed.
+`test_linux_package.py` tests the launcher with a stand-in engine and
+runs `install.sh` and `uninstall.sh` in scratch home folders (it never
+touches your own). The Linux workflow's "Package linux-x86_64" job does
+all of this on `ubuntu-24.04` (see [Continuous integration](#9-continuous-integration)).
+
 ### External assets
 
 External assets are files that the packages include but that this
@@ -1378,6 +1420,15 @@ account. Public downloads are Releases.
 The badge at the top of the [README](README.md) and the
 [Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
 show the state of the latest runs.
+
+The Linux workflow ([`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml),
+"Build (Linux)") builds x86-64 and arm64 in an Ubuntu 20.04 container.
+Its job "Package linux-x86_64" then makes and tests the
+[Linux package](#linux-package) on `ubuntu-24.04` and uploads it as the
+artifact `OXT-Beyond-linux-x86_64`; the header of the workflow file
+lists its steps. It takes the same `no_external_assets` and
+`no_xtalk_extensions` inputs and repository variables as the Windows
+workflow.
 
 ## 10. Making a release
 

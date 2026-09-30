@@ -8,7 +8,9 @@ zip) also contain software and content written by other people under
 other terms. This file lists them, with their licence and where the
 licence text can be found.
 
-It covers the Windows x86-64 packages and this repository. Versions are
+It covers the Windows x86-64 packages, the Linux x86-64 package (see
+[The Linux x86-64 package](#the-linux-x86-64-package) for what differs
+there) and this repository. Versions are
 the ones this repository builds or ships today. Paths in the text are
 relative to the repository root; "where it ends up" gives the path in
 the installed program folder. Links point to the upstream licence text
@@ -27,6 +29,7 @@ Contents:
 - [The IDE](#the-ide)
 - [xTalk Suite extensions](#xtalk-suite-extensions)
 - [Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)
+- [The Linux x86-64 package](#the-linux-x86-64-package)
 - [Files OpenXTalk Lite shipped that OXT-Beyond does not](#files-openxtalk-lite-shipped-that-oxt-beyond-does-not)
 - [The installer](#the-installer)
 - [Microsoft components](#microsoft-components)
@@ -392,6 +395,49 @@ Licences and corresponding source:
 The asset holds no standalone runtimes for macOS or iOS (only the time
 zone library's native code for them, as OpenXTalk Lite 1.15 shipped
 it), and nothing from `Ext/`.
+
+## The Linux x86-64 package
+
+`OXT-Beyond-<version>-linux-x86_64.tar.xz` holds the same IDE, xTalk
+Suite extensions and licence files as the Windows packages, the Linux
+engine, externals and tools built from this repository (in the Ubuntu
+20.04 container of `.github/workflows/build-linux.yml`), and the parts
+of the runtimes asset that the Linux build does not replace. What
+differs from the Windows packages, file by file (every CEF file is
+there twice, in `Externals/CEF/` for the IDE and in
+`Runtime/Linux/x86-64/Externals/CEF/` for standalones; the tarball
+stores the second copy as a hard link):
+
+| Where it ends up | What it is | Licence |
+| --- | --- | --- |
+| `OXT-Beyond`, `revpdfprinter.so`, `revsecurity.so`, `Externals/*.so`, `Externals/Database Drivers/*.so`, `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, and in `Runtime/Linux/x86-64/` the standalone engine `Standalone` with its own `Support/` and `Externals/` | Built from this repository, with the libraries of [Prebuilt libraries](#prebuilt-libraries) and [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty) as on Windows, except that OpenSSL is 1.1.1w (in `revsecurity.so`), the engines and revPDFPrinter use the system's FreeType and Fontconfig instead of linking their own, and `dbodbc.so` links iODBC (next row) | GPLv3 with the permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) (OpenSSL on Linux); the third-party parts as listed in those sections |
+| `Externals/Database Drivers/dbodbc.so` | iODBC 3.52.5 (`thirdparty/libiodbc`), the ODBC driver manager, statically linked (on Windows the driver uses the system's `odbc32.dll`) | GNU Library General Public License version 2 or the BSD licence, at your choice: [`thirdparty/libiodbc/docs/`](thirdparty/libiodbc/docs/) (`LICENSE`, `LICENSE.LGPL`, `LICENSE.BSD`) |
+| `Externals/CEF/libcef.so`, `cef.pak`, `cef_100_percent.pak`, `cef_200_percent.pak`, `cef_extensions.pak`, `natives_blob.bin`, `snapshot_blob.bin`, `v8_context_snapshot.bin`, `locales/*.pak` (52 locales) | Chromium Embedded Framework 74.1.19+gb62bacf with Chromium 74.0.3729.157 (including V8): the `linux64_minimal` binary distribution from Spotify's CEF build server (`cef-builds.spotifycdn.com`), taken by `prebuilt/scripts/build-cef.sh`. Left out of the package: `chrome-sandbox` (CEF runs without its sandbox) and `devtools_resources.pak` | CEF: BSD 3-clause; Chromium: BSD 3-clause for its own code, and many components under their own licences (see [Prebuilt libraries](#prebuilt-libraries) and [Still to review](#still-to-review)) |
+| `Externals/CEF/icudtl.dat` | ICU data, as bundled with Chromium 74 | Unicode licence (ICU) |
+| `Externals/CEF/libEGL.so`, `libGLESv2.so` | ANGLE, as bundled with Chromium 74 | BSD 3-clause |
+| `Externals/CEF/swiftshader/libEGL.so`, `libGLESv2.so` | SwiftShader, as bundled with Chromium 74 | Apache License 2.0 |
+| `Externals/CEF/revbrowser-cefprocess`, `libbrowser-cefprocess` (at the root, and both at the root of `Runtime/Linux/x86-64/`) | The CEF helper processes of revBrowser and the browser widget, built from this repository (`revbrowser/`, `libbrowser/`) | GPLv3 |
+| `Extensions/com.livecode.library.timezone/code/x86_64-linux/tz.so` and `resources/zoneinfo/` | The time zone library and the IANA zoneinfo data, built from this repository (the Windows packages take both from the runtimes asset) | GPLv3; the zoneinfo data is public domain |
+| `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | The launcher, the per-user install scripts, the desktop entry, the MIME type definitions and the library list (from `Installer/linux/`), and the OXT-Beyond icon in eight sizes (see [The OXT-Beyond icon](#the-oxt-beyond-icon)) | GPLv3 |
+
+The Linux package does **not** contain OpenXTalk Lite 1.15's
+`Runtime/Linux/x86-64` (Tom Perry's 9.7.1-OXT engine and the 42 shared
+libraries in its `lib/`), which the Windows packages still carry (see
+[Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)):
+its standalones use this repository's engine. The rest of the runtimes
+asset is there as in the Windows packages: `Runtime/Windows/x86-32/`,
+`Runtime/Linux/x86-32/` (with the 91 shared library files of other
+projects in its `lib/`), `Runtime/Android/` and the time zone library's
+code for the other platforms. The Linux package has no Windows x86-64
+standalone runtime yet.
+
+The package does not contain the system libraries that the engine and
+CEF load: GTK 2, GDK, GLib, Pango, cairo, FreeType, Fontconfig, X11 and
+its extensions, NSS, NSPR, ALSA, D-Bus, expat and the accessibility
+libraries (`linux/libraries.txt`, which the launcher checks). They come
+from the user's distribution, under their own licences. Where the table
+in [xTalk Suite extensions](#xtalk-suite-extensions) says so, the
+extensions' Linux libraries use the system's OpenSSL 3.
 
 ## Files OpenXTalk Lite shipped that OXT-Beyond does not
 

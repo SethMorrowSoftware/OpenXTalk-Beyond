@@ -40,9 +40,10 @@ this before you download it.
 
 - **64-bit Windows only, for now.** OXT-Beyond is released for Windows
   x86-64. The same engine now also builds for Linux (x86-64 and arm64)
-  and macOS (Apple Silicon and Intel) in CI, but it is not packaged for
-  those platforms yet; that is the next release. There are no builds for
-  32-bit Windows.
+  and macOS (Apple Silicon and Intel) in CI. A Linux x86-64 package is
+  built and tested there too (see [Linux](#linux-x86-64)), but it is not
+  released yet, and macOS is not packaged yet; that is the next release.
+  There are no builds for 32-bit Windows.
 - **Standalones for other platforms use prebuilt runtimes.** Only the
   Windows x86-64 engine, externals and tools are built from this
   repository. The standalone runtimes for 32-bit Windows, Linux and
@@ -172,6 +173,73 @@ finds the IDE, externals and runtimes by their places next to
 `OXT-Beyond.exe`. The portable copy does not associate any file types
 with itself; open stacks from the IDE, or with *Open with* in
 Explorer.
+
+### Linux (x86-64)
+
+The Linux package is `OXT-Beyond-<version>-linux-x86_64.tar.xz`. It is
+built and tested by every run of the
+[Build (Linux) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
+(artifact `OXT-Beyond-linux-x86_64`, with the binaries and symbols
+tarballs and `SHA256SUMS`) and will be part of the releases from the
+first three-platform release on. Check it with
+`sha256sum -c SHA256SUMS --ignore-missing`.
+
+What it needs:
+
+- **64-bit x86 Linux with glibc 2.31 or newer** (Ubuntu 20.04, Debian 11,
+  Fedora 32 or later) and an X11 desktop; on Wayland it runs through
+  XWayland, which the usual desktops start by themselves. The IDE uses
+  GTK 2, as LiveCode and OpenXTalk Lite did: on Debian and Ubuntu
+  `sudo apt install libgtk2.0-0` (`libgtk2.0-0t64` on Ubuntu 24.04 and
+  Debian 13), on Fedora `sudo dnf install gtk2`. The launcher checks for
+  every library the engine needs and names the missing ones with their
+  packages, instead of the engine ending without a word.
+- **The browser widget and revBrowser** (CEF 74) also need NSS, ALSA and a
+  few more X11 libraries (the `browser` lines of `linux/libraries.txt` in
+  the package). Without them the launcher turns the browser off
+  (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
+  the dictionary and other web pages in your web browser instead.
+- **Some bundled xTalk extensions need a newer system than the IDE.**
+  SodiumXT needs glibc 2.33 (Ubuntu 21.04, Debian 12, Fedora 34 or
+  later); DataChannelXT needs glibc 2.38 and OpenSSL 3 (Ubuntu 24.04,
+  Debian 13, Fedora 39 or later). On an older system these extensions do
+  not load; the IDE and the other extensions work.
+
+To run it where you extract it:
+
+```sh
+tar -xJf OXT-Beyond-<version>-linux-x86_64.tar.xz
+cd OXT-Beyond-<version>
+./oxt-beyond
+```
+
+Extract it onto a Linux file system (ext4, Btrfs, XFS and so on, not
+FAT, exFAT or a Windows drive): the tarball holds Unix file modes,
+symbolic links and hard links. Keep it out of folders named `_build` or
+ending in `-bin`, which make the engine look for a source checkout above
+it. `oxt-beyond` is the launcher; `OXT-Beyond` is the engine itself,
+which starts without the library check. `OXT_BEYOND_SKIP_LIBRARY_CHECK=1`
+skips the check.
+
+To install it for yourself, with a menu entry (under Development),
+icons, the `.oxtstack` and `.oxtscript` file types and the command
+`oxt-beyond`:
+
+```sh
+./install.sh
+```
+
+It copies the folder to `~/.local/share/oxt-beyond` (or
+`$XDG_DATA_HOME/oxt-beyond`), links `~/.local/bin/oxt-beyond` to the
+launcher, and needs no administrator rights; it refuses to run as root
+or with `sudo`. The extracted folder can be deleted afterwards. Running
+a newer package's `install.sh` replaces the installed copy.
+`~/.local/share/oxt-beyond/uninstall.sh` removes exactly what
+`install.sh` added (it keeps a list in the installed folder). Like the
+Windows installer, it leaves `.livecode`, `.livecodescript` and `.rev`
+files alone, and OpenXTalk Lite's Linux "file associations" dialog is
+not shown. Your preferences, caches and logs are in `~/.oxt-beyond`;
+uninstalling keeps them.
 
 ### Where OXT-Beyond keeps your files
 
