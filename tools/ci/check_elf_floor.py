@@ -37,8 +37,10 @@ files (CEF, extension libraries) and a change of build image.
                       loader; GLIBCXX and CXXABI for libstdc++; GCC for
                       libgcc_s). A private version of that name (such as
                       GLIBC_PRIVATE) fails too: it ties the file to one
-                      build of the library. Names without --max are only
-                      reported.
+                      build of the library. glibc's loader feature markers
+                      count as the release that added them
+                      (GLIBC_ABI_DT_RELR as GLIBC_2.36). Names without
+                      --max are only reported.
 --machine ARCH        every file must be for ARCH (x86_64, arm64 or
                       aarch64, x86, arm)
 --exclude PATTERN     skip matching paths (relative to ROOT, / separators,
@@ -84,8 +86,24 @@ MACHINE_ALIASES = {'arm64': 'aarch64', 'amd64': 'x86_64', 'i386': 'x86', 'i686':
 
 # NAME_1.2.3 (glibc, libstdc++, libgcc_s), NAME_1_1_0 (OpenSSL) or
 # NAME_0.9.0rc4 (ALSA). A name without a number after it, such as
-# GLIBC_PRIVATE, is a private version.
+# GLIBC_PRIVATE, is a private version, but for the markers below.
 VERSION_RE = re.compile(r'^(?P<name>[A-Za-z][A-Za-z0-9_]*?)_(?P<version>[0-9][0-9A-Za-z._]*)$')
+
+# glibc's unnumbered marker versions: the linker adds one when the output
+# uses a loader feature that older glibc lacks, and the loader refuses a
+# file that needs one it does not define ("version `GLIBC_ABI_DT_RELR' not
+# found"). Each counts as the numbered version of the release that added it
+# (upstream; distributions may backport them to older releases). Without
+# this, GLIBC_ABI_DT_RELR would be filed under a name GLIBC_ABI_DT that no
+# --max limits, and a prebuilt library linked on a new distribution with
+# -z pack-relative-relocs would pass whenever its symbols need no newer
+# glibc, although glibc 2.31 refuses to load it.
+ABI_MARKERS = {
+    'GLIBC_ABI_DT_RELR': ('GLIBC', '2.36'),        # ld -z pack-relative-relocs
+    'GLIBC_ABI_DT_X86_64_PLT': ('GLIBC', '2.42'),  # ld -z mark-plt
+    'GLIBC_ABI_GNU_TLS': ('GLIBC', '2.42'),        # i386 __tls_get_addr
+    'GLIBC_ABI_GNU2_TLS': ('GLIBC', '2.42'),       # TLS descriptors
+}
 
 
 class ElfError(Exception):
@@ -266,17 +284,25 @@ def walk(root, exclude):
 def highest_per_name(needs):
     """({name: (version text, version name)}, {name: [private version names]}):
     the highest numbered version needed of each name (GLIBC: ('2.29',
-    'GLIBC_2.29')), and the unnumbered ones such as GLIBC_PRIVATE."""
+    'GLIBC_2.29'); a marker of ABI_MARKERS counts as its release, GLIBC:
+    ('2.36', 'GLIBC_ABI_DT_RELR')), and the unnumbered ones such as
+    GLIBC_PRIVATE."""
     result = {}
     private = {}
     for _, vname in needs:
         m = VERSION_RE.match(vname)
-        if not m:
-            name = vname.rsplit('_', 1)[0] if '_' in vname else vname
+        if vname in ABI_MARKERS:
+            name, version = ABI_MARKERS[vname]
+        elif m:
+            name, version = m.group('name'), m.group('version')
+        else:
+            # Filed under the name before the first '_' (GLIBC_PRIVATE and
+            # a marker newer than ABI_MARKERS, GLIBC_ABI_*, both under
+            # GLIBC), so that --max GLIBC fails every one of them
+            name = vname.split('_', 1)[0]
             if vname not in private.setdefault(name, []):
                 private[name].append(vname)
             continue
-        name, version = m.group('name'), m.group('version')
         if name not in result or version_key(version) > version_key(result[name][0]):
             result[name] = (version, vname)
     return result, private
