@@ -1,7 +1,8 @@
 # OXT layout and packaging tools
 
 These tools need only Python 3 (standard library) and run on Windows and
-Linux.
+Linux, except the IDE stack tools (`ide-stack-*`), which are LiveCode
+scripts run by a development engine without a user interface.
 
 | tool | purpose |
 |---|---|
@@ -10,6 +11,8 @@ Linux.
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
+| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
+| `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 
 ## layout.py
 
@@ -543,3 +546,45 @@ release. Until the asset is published, packaging fails at the download
 `package-windows.ps1 -NoExternalAssets`, or in CI the workflow input
 `no_external_assets` or the repository variable `OXT_NO_EXTERNAL_ASSETS=1`)
 or a cache that holds the zip is given.
+
+## Binary IDE stacks
+
+Most of the IDE is script-only stacks (`*.livecodescript`), which are
+edited as text. Some code lives in binary stacks (`*.livecode`, `*.rev`),
+for example the dataView behaviour in `ide/Toolset/palettes/revCore.8.livecode`.
+Those are changed only through script patches in `ide-stack-patches/`,
+applied by a headless engine, so that every change is reviewable text and
+the result is verified:
+
+```
+tools/oxt/ide-stack-patch.sh <development engine> [--check]
+```
+
+`<development engine>` is `LiveCode-Community` of a Linux or macOS build
+(for example from the `linux-x86_64-bin` artifact of a CI run). Do not use a
+Windows engine on a PC where OXT-Beyond or LiveCode is running: a second
+Windows engine hands its command line to the running one instead of running
+it. `--check` only reports.
+
+A patch file names a stack file (relative to `ide/`), an object of it and
+the exact script text to replace and its replacement, each line between
+bars (`|...|`) so that blanks survive editors. The text must occur exactly
+once; a patch whose replacement is already there is skipped, so the tool can
+run again at any time. For each stack file the tool dumps every object
+(`ide-stack-dump.livecodescript`), applies the patches, checks that only the
+patched scripts differ, saves the stack, loads the saved file again and
+checks that it dumps exactly like the patched stack and keeps its file
+format (for example `REVO7000`); otherwise it writes the original back.
+
+The bytes of a stack saved by the engine differ from the original also where
+no content is: the character-set byte (the platform that saved it), the
+font-table names of inherited fonts, and the order of custom properties. To
+compare two versions of a stack by content, dump both and diff the dumps:
+
+```
+OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
+    <development engine> -ui tools/oxt/ide-stack-dump.livecodescript
+```
+
+`tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
+every patch is applied, from the stack files' bytes, without an engine.

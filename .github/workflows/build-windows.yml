@@ -180,13 +180,16 @@ jobs:
       #   check_ide_colour_literals.py  colours set as literals outside
       #                                 revIDEColor, a ratchet against
       #                                 tools/ci/ide-colour-literals-baseline.txt
+      #   check_ide_stacks.py           the script patches of
+      #                                 tools/oxt/ide-stack-patches are
+      #                                 applied to the binary IDE stacks
       - name: Lint IDE sources
         id: ide_lint
         run: |
           python -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)"
           if ($LASTEXITCODE -ne 0) { throw 'python on PATH is not Python 3.8 or later' }
           $failed = @()
-          foreach ($check in @('check_ide_colour_literals.py')) {
+          foreach ($check in @('check_ide_colour_literals.py', 'check_ide_stacks.py')) {
             Write-Host "::group::$check"
             python "tools/ci/$check"
             $code = $LASTEXITCODE

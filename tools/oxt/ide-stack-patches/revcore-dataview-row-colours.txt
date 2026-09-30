@@ -1,0 +1,53 @@
+# Restores the row colours of the dataView behaviour (revCore, substack
+# revDataViewControl, button "DataView Behavior") to the upstream
+# LiveCode / OpenXTalk Lite 1.05 logic: _HiliteControl paints a row's
+# "Background" control with the list's own "row color" and "alternate row
+# color" view properties (set from revIDEColor by each list), instead of
+# the fixed 97/126 (dark) and 255/216 (light) greys that the 1.15 import
+# brought in ("Added by skids 7 Dec 2025"), which overrode every list's
+# colours and gave 2.45:1 text in the Extension Manager in dark mode.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revCore.8.livecode
+object: button "DataView Behavior" of card 1 of stack "revDataViewControl"
+replace:
+|private command _HiliteControl pControl, pBoolean|
+|   local theRow, theColor|
+|   |
+|   --# Added by skids 7 Dec 2025|
+|   put the SystemAppearance into tAppearance|
+|   |
+|   if there is a control "Background" of pControl then |
+|      if pBoolean then|
+|         set the backgroundColor of control "Background" of pControl to _GetHiliteColor()         |
+|      else|
+|         set the wholeMatches to true|
+|         put the dvRow of pControl into theRow|
+|         if theRow mod 2 is kAlternatingRowModValue then|
+|            |
+|            If the systemAppearance is "dark" then|
+|               set the backgroundColor of control "Background" of pControl to 126,126,126|
+|            else|
+|               set the backgroundColor of control "Background" of pControl to 216,216,216|
+|            end if|
+|         else|
+|            If the systemAppearance is "dark" then|
+|               set the backgroundColor of control "Background" of pControl to 97,97,97|
+|            else|
+|               set the backgroundColor of control "Background" of pControl to 255,255,255|
+|            end if|
+|         end if            |
+with:
+|private command _HiliteControl pControl, pBoolean|
+|   local theRow, theColor|
+|   |
+|   if there is a control "Background" of pControl then |
+|      if pBoolean then|
+|         set the backgroundColor of control "Background" of pControl to _GetHiliteColor()         |
+|      else|
+|         set the wholeMatches to true|
+|         put the dvRow of pControl into theRow|
+|         if theRow mod 2 is kAlternatingRowModValue then|
+|            set the backgroundColor of control "Background" of pControl to _GetEffectiveColor("alternate row color")|
+|         else|
+|            set the backgroundColor of control "Background" of pControl to _GetEffectiveColor("row color")|
+|         end if            |
