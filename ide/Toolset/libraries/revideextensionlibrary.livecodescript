@@ -1320,6 +1320,10 @@ private command __revIDELCSExtensionLoad pFullPath, pFolder, pVersion, pStatus, 
    __extensionPropertySet tCacheIndex, "uservisible", true
    __extensionPropertySet tCacheIndex, "support_files", pAdditionalInfoA["support_files"]
    
+   # Check for sample stacks, as LCB extensions do: without this the
+   # Extension Manager could not open a script library's samples
+   __extensionPropertySet tCacheIndex, "samples", __extensionSampleStacks(tId,pFolder)
+
    # Store the extension's property metadata
    --  revIDEExtensionSetInfo pID
    
