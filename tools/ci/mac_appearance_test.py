@@ -33,10 +33,16 @@ user's Appearance setting is stored:
   defaults delete -g AppleInterfaceStyle         (light)
 
   run  the Mac  appAppearance  stacks drawn
-  M1   dark     system         dark
+  M1   dark     system         light
   M2   dark     (default)      light
   M3   light    system         light
   M4   light    (default)      light
+
+The engine draws every stack light on macOS for now (MCAppearanceIsDark in
+engine/src/appearance.cpp): its classic native controls stay light, and a
+dark stack showed white text on white cards and light push buttons. M1 checks
+that a dark Mac with the appAppearance "system" still gets a readable, light
+stack, and that the systemAppearance reports "dark".
 
 Checked, in every run, with render_check.py's measurements:
 
@@ -74,7 +80,7 @@ SCENARIOS = 's1,s2'
 
 # (run, the Mac's setting, OXT_RENDER_APPEARANCE, what stacks are drawn in)
 RUNS = [
-    ('M1', 'dark', 'system', 'dark'),
+    ('M1', 'dark', 'system', 'light'),
     ('M2', 'dark', '', 'light'),
     ('M3', 'light', 'system', 'light'),
     ('M4', 'light', '', 'light'),

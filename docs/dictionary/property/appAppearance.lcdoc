@@ -18,12 +18,12 @@ Platforms: desktop
 
 Example:
 -- In the startup or preOpenStack handler of a standalone's mainstack:
--- follow the dark mode of Windows and macOS
+-- follow the dark mode of Windows
 set the appAppearance to "system"
 
 Example:
 set the appAppearance to "dark"
-put the effective appAppearance -- "dark" on Windows and macOS
+put the effective appAppearance -- "dark" on Windows
 
 Example:
 -- Feature test, for scripts that also run on older engines
@@ -79,6 +79,13 @@ cannot change: every stack follows the GTK theme, whatever the
 <appAppearance> is set to, and the <effective> <appAppearance> is the
 <systemAppearance>, which is "light" on Linux in this version. The setting
 is still stored and returned.
+
+On macOS the engine draws every stack light in this version, whatever the
+<appAppearance> is set to, and the <effective> <appAppearance> is "light":
+the classic macOS controls are drawn light in any appearance, so a stack
+drawn dark would show white text on light controls and cards. Menus,
+dialogs and window frames are light too. The setting is still stored and
+returned, and the <systemAppearance> reports the Mac's setting.
 
 Printing is always done in the light appearance. Snapshots
 (<export snapshot>, <import snapshot>) are taken in the appearance the

@@ -110,7 +110,10 @@ static bool s_paint_colors_set = false;
 
 static void UpdateSystemColorsForAppearance(MCScreenDC *p_screen)
 {
-	MCMacPlatformSetApplicationAppearance(MCappappearance == kMCAppearanceModeSystem, MCappappearance == kMCAppearanceModeDark);
+	// Aqua whatever the appAppearance says, while the engine draws every
+	// stack light on macOS (MCAppearanceIsDark): menus, dialogs and window
+	// frames match the stacks
+	MCMacPlatformSetApplicationAppearance(false, false);
 
 	// The paint tools' colours are set once, to the light values: they are
 	// painted into images, which no appearance may change
