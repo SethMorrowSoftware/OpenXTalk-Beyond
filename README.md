@@ -384,6 +384,8 @@ on the PC it runs on.
 
 ### Where OXT-Beyond keeps your files
 
+On Windows:
+
 | What | Where |
 | --- | --- |
 | Preferences (`oxt-beyond7.rev`) | `%APPDATA%\OXT-Beyond\Preferences` |
@@ -391,14 +393,35 @@ on the PC it runs on.
 | Script copies for an external script editor (if you turn that option on) | `%LOCALAPPDATA%\OXT-Beyond\Cache\IDEScriptEdits` |
 | Your own extensions and plugins | `Documents\OXT-Beyond extensions`, unless you choose another folder in Preferences |
 
+On macOS:
+
+- Preferences: `~/Library/Preferences/OXT-Beyond`
+- Cache, crash logs and documentation cache:
+  `~/Library/Application Support/OXT-Beyond/` (`Cache`, `Crash Logs`,
+  `Documentation Cache`); the script copies for an external script
+  editor are in `Cache/IDEScriptEdits`
+- IDE logs: `~/Library/Logs/OXT-Beyond/`
+- Your own extensions and plugins: `~/Documents/OXT-Beyond extensions`,
+  unless you choose another folder in Preferences
+
+On Linux:
+
+- Preferences, cache, crash logs, documentation cache and IDE logs:
+  `~/.oxt-beyond/` (`preferences`, `cache`, `crashlogs`,
+  `documentationcache`, `logs`); the script copies for an external
+  script editor are in `cache/IDEScriptEdits`
+- Your own extensions and plugins: `~/OXT-Beyond_extensions`, unless you
+  choose another folder in Preferences
+
 Installed and portable copies of OXT-Beyond on the same computer share
-these folders. LiveCode (`%APPDATA%\RunRev`) and OpenXTalk Lite
-(`%APPDATA%\xtalk`) keep their preferences elsewhere, so OXT-Beyond can
-be installed next to them.
+these folders. LiveCode and OpenXTalk Lite keep their preferences
+elsewhere (on Windows `%APPDATA%\RunRev` and `%APPDATA%\xtalk`), so
+OXT-Beyond can be installed next to them.
 
 Some files are still kept in the same places as OpenXTalk Lite or
 LiveCode, because binary stacks or the engine, which this release does
-not change, read or write them there:
+not change, read or write them there. The table gives the Windows
+locations; macOS and Linux use their own equivalents:
 
 | What | Where | Shared with |
 | --- | --- | --- |

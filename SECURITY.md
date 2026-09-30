@@ -26,8 +26,12 @@ Please include:
 - the OXT-Beyond version and build number (the version is in the title
   of the menubar window, for example "OXT-Beyond 0.0.1", and in
   `ide/.version` of a source checkout; the build number is under
-  *Preferences > Automatic Updates*) and your Windows version;
-- whether you use the installed or the portable copy;
+  *Preferences > Automatic Updates*), and your operating system and
+  version (Windows; macOS, Apple Silicon or Intel; or your Linux
+  distribution);
+- which package you use (the installer or the portable zip on Windows,
+  the disk image or the app zip on macOS, the Linux tar.xz run in place
+  or installed with `install.sh`);
 - what an attacker can do, and what they need first (for example, "a
   user opens a crafted stack file");
 - steps or a small stack or script that shows the problem.
