@@ -338,8 +338,14 @@ disagree, the layout follows the IDE:
   `revpdfprinter.bundle` go into `Contents/MacOS` from the build root
   (package.txt Engine.MacOSX: the stripped copies; the build's copies
   inside the app keep their symbols).
-  The app's `_CodeSignature` is left out: it seals the old executable name
-  and `Info.plist`, so the app has to be signed again after assembly.
+  The app's `_CodeSignature` is left out, because it seals the old
+  executable name and `Info.plist`. Also, every Mach-O the build strips
+  (`tools/extract-debug-symbols.sh` runs after Xcode's ad-hoc signing)
+  keeps a stale signature. So after assembly, sign ad hoc from the inside
+  out: every Mach-O under `Contents/Tools` (runtimes with their `Support`
+  and `Externals`, `Externals`, `Toolchain`), then
+  `Contents/MacOS/revsecurity.dylib` and `revpdfprinter.bundle`, then the
+  app. Then run `codesign --verify --deep --strict`.
   `Resources/Mobile Examples` (package.txt Mobile.MacOSX) is staged only
   here.
 * **macOS runtimes: the folder names the standalone builder uses**

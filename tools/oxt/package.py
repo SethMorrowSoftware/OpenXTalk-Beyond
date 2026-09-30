@@ -484,7 +484,25 @@ def _mac(arch):
                  ('PostgreSQL', 'dbpostgresql.bundle'), ('SqLite', 'dbsqlite.bundle')),
         # component Engine.MacOSX: from the build root, which has the
         # stripped copies (the build also copies them into the app before
-        # stripping: those keep their symbols and are left out)
+        # stripping: those keep their symbols and are left out).
+        #
+        # Every Mach-O the build strips has a stale ad-hoc signature: Xcode
+        # signs first, then tools/extract-debug-symbols.sh runs
+        # "strip -x -S", which keeps the old CodeDirectory (the page hashes
+        # and codeLimit of the unstripped file). That covers these two, the
+        # externals and drivers, lc-compile/lc-run and both engines, and
+        # staging does not fix it. The assembled app must be signed again
+        # from the inside out, then checked with
+        # "codesign --verify --deep --strict":
+        #   1. every Mach-O under Contents/Tools: the Runtime/Mac OS X/*/
+        #      Standalone*.app bundles and their Support and Externals
+        #      folders, Externals, Toolchain;
+        #   2. Contents/MacOS/revsecurity.dylib and revpdfprinter.bundle;
+        #   3. the app itself, which signs Contents/MacOS/OXT-Beyond.
+        # Apple Silicon kills a process at the first page that does not
+        # match its hash (loading revsecurity for an https URL would end in
+        # "Code Signature Invalid"). GitHub's macOS runners (SIP disabled)
+        # still run such files, so only the verify step catches it.
         engine_support=(('revsecurity.dylib', app + '/Contents/MacOS/revsecurity.dylib'),
                         ('revpdfprinter.bundle', app + '/Contents/MacOS/revpdfprinter.bundle')),
         # component Mobile.MacOSX (its Resources/Mobile Examples come from ide/)
@@ -505,7 +523,8 @@ def _mac(arch):
              'architectures (LSArchitecturePriority) and the engine\'s lowest macOS (LSMinimumSystemVersion)'),
             ('LiveCode-Community.app/Contents/_CodeSignature/**',
              'the build\'s seal of the app does not match the renamed executable and the new Info.plist; '
-             'the app is signed again after it is assembled'),
+             'the whole app, its nested code included (whose stripped copies carry stale signatures), '
+             'is signed again from the inside out after it is assembled'),
             ('LiveCode-Community.app/Contents/MacOS/revsecurity.dylib',
              'unstripped copy; package.txt Engine.MacOSX takes the build root\'s'),
             ('LiveCode-Community.app/Contents/MacOS/revpdfprinter.bundle/**',
