@@ -127,11 +127,12 @@ not been confirmed; see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).
 [HyperXTalk](https://github.com/emily-elizabeth/HyperXTalk), by
 Emily-Elizabeth Howard and contributors (docmeth02, Mark Wieder, Brian
 Milby, Paul McClernan, BerndN and others), is another fork of LiveCode
-Community, licensed under the GPLv3 like OXT-Beyond. Code adapted from it
-keeps its authors: each OXT-Beyond commit that takes code from HyperXTalk
-names the HyperXTalk commit and carries a `Co-authored-by` line for its
-author. Some HyperXTalk commits were written with an AI assistant; they
-say so in their own messages.
+Community, licensed under the GPLv3 (without LiveCode Ltd's ATL/OpenSSL
+permission; see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). Code
+adapted from it keeps its authors: each OXT-Beyond commit that takes code
+from HyperXTalk names the HyperXTalk commit and carries a
+`Co-authored-by` line for its author. Some HyperXTalk commits were written
+with an AI assistant; they say so in their own messages.
 
 | In OXT-Beyond | From HyperXTalk |
 |---|---|

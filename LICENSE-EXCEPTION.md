@@ -40,6 +40,13 @@ below, unchanged, so that LICENSE can hold the plain GPLv3 text.
   the GPLv3. It has **not been confirmed** that these contributors offer
   their changes with the permission to combine them with ATL and
   OpenSSL. Until they confirm, treat their changes as plain GPLv3.
+- **Code adapted from HyperXTalk.** Code taken from HyperXTalk
+  (Emily-Elizabeth Howard and contributors; the commits name the
+  HyperXTalk commit and author) is under HyperXTalk's licence, the plain
+  GPLv3. It has **not been confirmed** that its authors offer it with the
+  permission to combine it with ATL and OpenSSL; until they do, treat it
+  as plain GPLv3. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#code-adapted-from-hyperxtalk)
+  lists what was adapted.
 - **Contributions through pull requests.** Changes contributed to this
   repository under [CONTRIBUTING.md](CONTRIBUTING.md) are offered under
   the GPLv3 plus the same permission to combine with ATL and OpenSSL.
