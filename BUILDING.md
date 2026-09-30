@@ -1634,7 +1634,11 @@ not burned.
   release the fixed commit. Since nothing was published, you may delete
   the tag and tag the fixed commit with the same version
   (`git tag -d v0.1.0` and `git push origin :refs/tags/v0.1.0`, then
-  steps 5 and 6), or tag a new version.
+  steps 5 and 6), or tag a new version. Before you delete and push the
+  tag again, cancel the old tag's run if it is still running (or let it
+  finish), and never re-run that old run afterwards: it still builds the
+  old commit, and its publish job refuses a tag that no longer points at
+  the commit it built.
 
 A release that is published is final: `release.yml` never changes or
 replaces it (prepare and publish both stop with an error for a tag that

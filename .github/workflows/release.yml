@@ -35,7 +35,9 @@
 # burned. Fix the cause and re-run the failed jobs of the same run; the
 # publish job then reuses the draft (its notes stay as they are, the files
 # are uploaded again). A tag whose release is published already is never
-# changed: prepare and publish both stop with an error.
+# changed: prepare and publish both stop with an error. Nor does publish
+# release a tag that no longer points at the commit this run built (a tag
+# moved while the run built, or before a re-run of it).
 #
 # The release is named "OXT-Beyond <version>" and marked as a pre-release
 # when the version has a pre-release part (anything after a "-", such as
@@ -297,7 +299,12 @@ jobs:
       # so the version is not burned; re-running the failed jobs of this
       # run reuses that draft. A published release of the tag stops the job
       # before anything is changed. VERSION is ide/.version of the tagged
-      # commit (prepare), and GITHUB_REF must be its tag.
+      # commit (prepare), and GITHUB_REF must be its tag. The tag must also
+      # still point at this run's commit (GITHUB_SHA), checked at the start
+      # and again just before publishing: a tag deleted and pushed again at
+      # another commit while this run built, or before a re-run of it
+      # (re-runs keep the first attempt's GITHUB_SHA and GITHUB_REF), would
+      # otherwise get this commit's files.
       - name: Create the draft release, upload the files and publish it
         if: needs.prepare.outputs.dry-run != 'true'
         env:
@@ -308,6 +315,19 @@ jobs:
             echo "::error::This run is for $GITHUB_REF, not for the tag v$VERSION of ide/.version ($VERSION). Nothing was published."
             exit 1
           fi
+          # The commit the tag points at now; the refs/tags/ form peels an
+          # annotated tag to its commit and never finds a branch of the
+          # same name
+          tag_commit() { gh api "repos/$GH_REPO/commits/refs/tags/$TAG" --jq .sha; }
+          check_tag_commit() {
+            local sha
+            sha=$(tag_commit) || { echo "::error::Could not resolve the tag $TAG"; exit 1; }
+            if [ "$sha" != "$GITHUB_SHA" ]; then
+              echo "::error::The tag $TAG now points at $sha, but this run built $GITHUB_SHA (was the tag moved after the run started?). Nothing was published; release the tag's commit with a new run."
+              exit 1
+            fi
+          }
+          check_tag_commit
           cd "$RUNNER_TEMP/release"
           files=(*)
           echo "${#files[@]} files: ${files[*]}"
@@ -370,7 +390,9 @@ jobs:
             --dir "$RUNNER_TEMP/release" --assets "$RUNNER_TEMP/assets.tsv"
 
           # Publishing is the last step; the pre-release flag is set here
-          # too, for a reused draft
+          # too, for a reused draft. The tag is checked once more, since
+          # the uploads can take long enough for it to be moved meanwhile.
+          check_tag_commit
           gh release edit "$TAG" --verify-tag --draft=false --prerelease="$PRERELEASE"
 
           state=$(gh api "repos/$GH_REPO/releases/$id" --jq '[.draft, .prerelease, .tag_name, .html_url] | @tsv')
