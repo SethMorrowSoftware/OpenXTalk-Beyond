@@ -31,7 +31,10 @@ script "oxt_render_test"
 --           every run
 --    s2-*   a stack that sets no colours: dark in the dark appearance
 --    s3-*   a card of 30,30,30 and nothing else
---    s4-*   fields with black text of their own and no background colour
+--    s4-*   fields with black text of their own and no background colour; an
+--           opaque checkbox with a white background of its own; checkboxes
+--           in an opaque group with the native frame, on a white panel on a
+--           card of 30,30,30
 --    s5     a field with both colours of its own: the same in every run
 --    s6-*   text runs: red text and a yellow highlight in a white field, and
 --           a yellow highlight in a field with no colours
@@ -742,6 +745,43 @@ private command renderExplicitText
    makeLabel tObject
    set the textColor of tObject to "0,0,0"
    shootText tStack, tObject, "s4-label"
+
+   -- An opaque checkbox with a white background of its own and no text
+   -- colour: MCButton::draw fills its whole rect with it, so the label is
+   -- dark (setting the style cleared the opaque, so it is set after)
+   put newButton("opaqueCheck", "checkbox", "240,80,390,108", "White box") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "255,255,255"
+   shootName tStack, tObject, "s4-opaque-check"
+
+   -- A card of 30,30,30 with a white panel, and on the panel an opaque group
+   -- with the native group frame and no colour of its own, holding
+   -- checkboxes with no colours. The native frame paints no fill, so the
+   -- checkboxes show the white panel: their labels are dark, as in the light
+   -- appearance.
+   put "oxt_render_s4_group" into tStack
+   newScenarioStack tStack, 400, 200
+   set the backColor of card 1 of stack tStack to "30,30,30"
+   create graphic "panel"
+   put it into tObject
+   set the style of tObject to "rectangle"
+   set the opaque of tObject to true
+   set the lineSize of tObject to 0
+   set the backColor of tObject to "255,255,255"
+   set the rect of tObject to 20,20,380,180
+   get newButton("groupCheck", "checkbox", "60,60,300,88", "In a group")
+   get newButton("groupCheck2", "checkbox", "60,110,300,138", "Another")
+   group button "groupCheck" and button "groupCheck2"
+   -- (the only group of the card)
+   put the long id of group 1 of card 1 of stack tStack into tObject
+   set the opaque of tObject to true
+   set the showBorder of tObject to true
+   set the threeD of tObject to true
+   set the borderWidth of tObject to 2
+   set the showName of tObject to false
+   set the rect of tObject to 40,40,360,160
+   put the long id of button "groupCheck" of card 1 of stack tStack into tObject
+   shootName tStack, tObject, "s4-group-check"
 end renderExplicitText
 
 -- S5: a field with both colours of its own is drawn as set, in every run

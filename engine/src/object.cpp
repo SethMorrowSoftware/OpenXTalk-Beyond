@@ -1459,8 +1459,9 @@ Boolean MCObject::resizeparent()
 //  renders exactly as it did before dark mode existed.
 //
 
-// Whether the object shows a fill of its own where it is drawn (an opaque
-// object), rather than what is under it
+// Whether the object shows a fill of its own where it is drawn, rather than
+// what is under it: what the draw code of each type paints for an opaque
+// object
 bool MCObject::paintsownbackground(void)
 {
 	switch (gettype())
@@ -1470,20 +1471,31 @@ bool MCObject::paintsownbackground(void)
 			return true;
 
 		case CT_FIELD:
-		case CT_GROUP:
 		case CT_GRAPHIC:
 			// For a graphic, opaque means filled
 			return (flags & F_OPAQUE) != 0;
 
 		case CT_BUTTON:
+			// MCButton::draw fills the rect of every opaque button that is
+			// not a native themed face, checkboxes and radio buttons included
+			// (usesthemedfill covers the native faces)
+			return (flags & F_OPAQUE) != 0;
+
+		case CT_GROUP:
 		{
-			// The face of a push, rectangle, round or menu button; the box of
-			// a checkbox or radio button is not its background
 			if ((flags & F_OPAQUE) == 0)
 				return false;
-			uint4 t_style;
-			t_style = getstyleint(flags);
-			return t_style != F_CHECK && t_style != F_RADIO;
+			// MCGroup::draw draws the native group frame instead of a fill
+			// when the group has no background of its own. The frame paints
+			// no fill (Windows, GTK) or a translucent one (macOS), so what
+			// shows inside the group is what is under it.
+			uint2 i;
+			if (MCcurtheme != nil && borderwidth == DEFAULT_BORDER &&
+				!getcindex(DI_BACK, i) && !getpindex(DI_BACK, i) &&
+				(flags & F_SHOW_BORDER) != 0 && (flags & F_3D) != 0 &&
+				MCcurtheme -> iswidgetsupported(WTHEME_TYPE_GROUP_FRAME))
+				return false;
+			return true;
 		}
 
 		default:

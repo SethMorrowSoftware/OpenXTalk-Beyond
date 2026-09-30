@@ -255,6 +255,11 @@ EXPECT = {
     's4-bordered-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
     's4-borderless-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
     's4-label': {'*': [('record',)]},
+    # An opaque checkbox fills its rect with its own white (buttondraw.cpp),
+    # and the native group frame paints no fill, so checkboxes in such a
+    # group show the white panel under it: dark labels in every run
+    's4-opaque-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
+    's4-group-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
     # S6, text runs
     's6-plain': {'*': [('text_max_l', 60)]},
     's6-red': {'*': [('text_red',)]},

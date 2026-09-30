@@ -396,6 +396,14 @@ private command checkAppearance
       set the defaultStack to "oxt_smoke_unstyled"
       create field "plain"
       set the text of it to "No colours"
+      -- An opaque checkbox fills its rect with its own background: a white
+      -- one keeps a dark label on a card with no colour (the opaque is set
+      -- after the style, which clears it)
+      create button "boxed"
+      set the style of it to "checkbox"
+      set the opaque of it to true
+      set the backColor of it to "255,255,255"
+      set the rect of it to 20,60,200,84
 
       do "set the appAppearance to " & quote & "dark" & quote
       put the effective foreColor of field "mdHost" of stack "oxt_smoke_pattern" into tValue
@@ -404,6 +412,8 @@ private command checkAppearance
       check "dark: checkbox on a light panel keeps a dark label", relativeLuminance(tValue) < 0.179, tValue
       put the effective foreColor of field "plain" of stack "oxt_smoke_unstyled" into tValue
       check "dark: unstyled field gets white text", relativeLuminance(tValue) > 0.8, tValue
+      put the effective foreColor of button "boxed" of stack "oxt_smoke_unstyled" into tValue
+      check "dark: opaque white checkbox keeps a dark label", relativeLuminance(tValue) < 0.179, tValue
 
       do "set the appAppearance to " & quote & "light" & quote
       put the effective foreColor of field "mdHost" of stack "oxt_smoke_pattern" into tValue
@@ -412,6 +422,8 @@ private command checkAppearance
       check "light: checkbox label is black", relativeLuminance(tValue) < 0.05, tValue
       put the effective foreColor of field "plain" of stack "oxt_smoke_unstyled" into tValue
       check "light: unstyled field text is black", relativeLuminance(tValue) < 0.05, tValue
+      put the effective foreColor of button "boxed" of stack "oxt_smoke_unstyled" into tValue
+      check "light: opaque white checkbox label is black", relativeLuminance(tValue) < 0.05, tValue
 
       delete stack "oxt_smoke_pattern"
       delete stack "oxt_smoke_unstyled"
