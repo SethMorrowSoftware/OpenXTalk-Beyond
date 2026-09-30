@@ -158,6 +158,9 @@
 								'$(SDKROOT)/System/Library/Frameworks/Cocoa.framework',
 								'$(SDKROOT)/System/Library/Frameworks/MediaToolbox.framework',
 								'$(SDKROOT)/System/Library/Frameworks/Quartz.framework',
+								# CATransaction (mac-core.mm, the backdrop) lives in QuartzCore,
+								# which the Quartz umbrella does not include.
+								'$(SDKROOT)/System/Library/Frameworks/QuartzCore.framework',
 							],
 						},
 					],
