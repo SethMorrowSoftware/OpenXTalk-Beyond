@@ -111,8 +111,14 @@ function extensionLCCompileVersion pLCCompile
    extensionCompile pLCCompile, tTempFile, "", "", "", tFolder, \
          "module.lcm"
 
-	delete file tTempFile
-   return __CompiledModuleVersion(tFolder & slash & "module.lcm")
+   delete file tTempFile
+
+   # The probe's bytecode is only read for its version: do not leave it in
+   # the temporary folder either
+   local tVersion
+   put __CompiledModuleVersion(tFolder & slash & "module.lcm") into tVersion
+   delete file (tFolder & slash & "module.lcm")
+   return tVersion
 end extensionLCCompileVersion
 
 /**
