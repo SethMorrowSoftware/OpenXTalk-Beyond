@@ -75,8 +75,12 @@ class Binary(object):
     """What was read from one file. For a universal Mach-O file, archs
     lists every slice and the other fields are the union over the slices
     (floors: the highest of them), since each slice must load on its
-    own."""
-    __slots__ = ('format', 'archs', 'needed', 'rpaths', 'own_name', 'floors', 'filetype', 'chained_fixups')
+    own; slices holds one Binary per slice with that slice's own fields,
+    for checks that must not mix them (an @rpath library found through an
+    LC_RPATH of another slice does not load). A thin file or an ELF file
+    has one slice, itself."""
+    __slots__ = ('format', 'archs', 'needed', 'rpaths', 'own_name', 'floors', 'filetype', 'chained_fixups',
+                 'slices')
 
     def __init__(self, fmt):
         self.format = fmt                 # 'elf' or 'macho'
@@ -87,6 +91,7 @@ class Binary(object):
         self.floors = collections.OrderedDict()  # 'GLIBC' -> (2, 38); 'macOS' -> (11, 0)
         self.filetype = None              # ELF e_type / Mach-O filetype
         self.chained_fixups = False       # Mach-O LC_DYLD_CHAINED_FIXUPS (the Mac deployer rejects it)
+        self.slices = [self]
 
 
 def sniff(data):
@@ -273,47 +278,68 @@ def macho_slices(data):
 
 
 def _parse_macho(data):
+    slices = [_parse_macho_slice(data[off:off + size], off) for _, off, size in macho_slices(data)]
+    if len(slices) == 1:
+        return slices[0]
     info = Binary('macho')
-    first = True
-    for cpu, off, size in macho_slices(data):
-        s = data[off:off + size]
-        magic_le = struct.unpack_from('<I', s, 0)[0]
-        if magic_le in (MH_MAGIC, MH_MAGIC_64):
-            order = '<'
-        elif struct.unpack_from('>I', s, 0)[0] in (MH_MAGIC, MH_MAGIC_64):
-            order = '>'
-        else:
-            raise FormatError('slice at 0x%x has no Mach-O header' % off)
-        magic, cputype, _, filetype, ncmds, _ = struct.unpack_from(order + 'IiiIII', s, 0)
-        cputype &= 0xffffffff
-        info.archs.append(MACHO_CPUS.get(cputype, 'cpu-0x%x' % cputype))
-        if first:
-            info.filetype = filetype
-            first = False
-        o = 32 if magic == MH_MAGIC_64 else 28
-        for _ in range(ncmds):
-            cmd, cmdsize = struct.unpack_from(order + 'II', s, o)
-            if cmdsize < 8:
-                raise FormatError('load command of size %d' % cmdsize)
-            if cmd in LC_DYLIB_LOADS:
-                name = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
-                if name not in info.needed:
-                    info.needed.append(name)
-            elif cmd == LC_ID_DYLIB:
-                info.own_name = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
-            elif cmd == LC_RPATH:
-                path = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
-                if path not in info.rpaths:
-                    info.rpaths.append(path)
-            elif cmd == LC_BUILD_VERSION:
-                platform, minos = struct.unpack_from(order + 'II', s, o + 8)
-                if platform == PLATFORM_MACOS:
-                    _add_macos_floor(info, minos)
-            elif cmd == LC_VERSION_MIN_MACOSX:
-                _add_macos_floor(info, struct.unpack_from(order + 'I', s, o + 8)[0])
-            elif cmd == LC_DYLD_CHAINED_FIXUPS:
-                info.chained_fixups = True
-            o += cmdsize
+    info.slices = slices
+    info.filetype = slices[0].filetype
+    for sl in slices:
+        info.archs.extend(sl.archs)
+        for name in sl.needed:
+            if name not in info.needed:
+                info.needed.append(name)
+        for path in sl.rpaths:
+            if path not in info.rpaths:
+                info.rpaths.append(path)
+        if sl.own_name is not None:
+            info.own_name = sl.own_name
+        for key, version in sl.floors.items():
+            if version > info.floors.get(key, ()):
+                info.floors[key] = version
+        info.chained_fixups = info.chained_fixups or sl.chained_fixups
+    return info
+
+
+def _parse_macho_slice(s, off):
+    """Binary for one thin Mach-O image (off: its offset in the file, for
+    messages)."""
+    info = Binary('macho')
+    magic_le = struct.unpack_from('<I', s, 0)[0]
+    if magic_le in (MH_MAGIC, MH_MAGIC_64):
+        order = '<'
+    elif struct.unpack_from('>I', s, 0)[0] in (MH_MAGIC, MH_MAGIC_64):
+        order = '>'
+    else:
+        raise FormatError('slice at 0x%x has no Mach-O header' % off)
+    magic, cputype, _, filetype, ncmds, _ = struct.unpack_from(order + 'IiiIII', s, 0)
+    cputype &= 0xffffffff
+    info.archs.append(MACHO_CPUS.get(cputype, 'cpu-0x%x' % cputype))
+    info.filetype = filetype
+    o = 32 if magic == MH_MAGIC_64 else 28
+    for _ in range(ncmds):
+        cmd, cmdsize = struct.unpack_from(order + 'II', s, o)
+        if cmdsize < 8:
+            raise FormatError('load command of size %d' % cmdsize)
+        if cmd in LC_DYLIB_LOADS:
+            name = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
+            if name not in info.needed:
+                info.needed.append(name)
+        elif cmd == LC_ID_DYLIB:
+            info.own_name = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
+        elif cmd == LC_RPATH:
+            path = _cstr(s, o + struct.unpack_from(order + 'I', s, o + 8)[0])
+            if path not in info.rpaths:
+                info.rpaths.append(path)
+        elif cmd == LC_BUILD_VERSION:
+            platform, minos = struct.unpack_from(order + 'II', s, o + 8)
+            if platform == PLATFORM_MACOS:
+                _add_macos_floor(info, minos)
+        elif cmd == LC_VERSION_MIN_MACOSX:
+            _add_macos_floor(info, struct.unpack_from(order + 'I', s, o + 8)[0])
+        elif cmd == LC_DYLD_CHAINED_FIXUPS:
+            info.chained_fixups = True
+        o += cmdsize
     return info
 
 
