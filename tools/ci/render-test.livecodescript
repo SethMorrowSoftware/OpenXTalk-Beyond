@@ -32,7 +32,8 @@ script "oxt_render_test"
 --    s2-*   a stack that sets no colours: dark in the dark appearance; and a
 --           white panel with a checkbox that overhangs its edge, whose
 --           label stays dark
---    s3-*   a card of 30,30,30 and nothing else
+--    s3-*   a card of 30,30,30: a label, and a default field with a fill
+--           of 60,60,60 whose dark frame must meet its fill
 --    s4-*   fields with black text of their own and no background colour; an
 --           opaque checkbox with a white background of its own; checkboxes
 --           in an opaque group with the native frame, on a white panel on a
@@ -725,15 +726,26 @@ private command renderUnstyled pPrefix, pAppearance
    end if
 end renderUnstyled
 
--- S3: a card of 30,30,30 and nothing else: a label with no colours
+-- S3: a card of 30,30,30: a label with no colours, and an empty default
+-- field (threeD, a 2-pixel border: the theme's frame) with a background of
+-- 60,60,60. In the dark appearance its frame is a 1-pixel ring, and the
+-- second border pixel must have the field's fill, not the card's colour
+-- (drawdarkwidget, TEXTFIELD_FRAME): the region is that pixel's column and
+-- the fill's next to it, inside the frame's corners.
 private command renderDarkDesigned
-   local tStack, tObject
+   local tStack, tObject, tRect
    put "oxt_render_s3" into tStack
    newScenarioStack tStack, 400, 200
    set the backColor of card 1 of stack tStack to "30,30,30"
    put newTextField("label", "20,20,300,56", "Dark card") into tObject
    makeLabel tObject
    shootText tStack, tObject, "s3-text"
+
+   put newTextField("framed", "20,80,300,120", empty) into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "60,60,60"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s3-field-band", "1,6,2," & (item 4 of tRect - item 2 of tRect - 12)
 end renderDarkDesigned
 
 -- S4: fields with black text of their own and no background colour, on a

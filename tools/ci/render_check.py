@@ -268,6 +268,10 @@ EXPECT = {
     's2-panel-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
     # S3, a card of 30,30,30: white text in the dark appearance
     's3-text': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('record',)]},
+    # A field's second border pixel and the fill next to it: the fill (60)
+    # in the dark appearance; without the band the card (30) shows there,
+    # a mean of 45
+    's3-field-band': {'dark': [('region_near_l', 60, 6)]},
     # S4, black text of a field's own and no background: a light fill
     's4-bordered-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
     's4-borderless-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
