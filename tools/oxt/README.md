@@ -327,11 +327,17 @@ disagree, the layout follows the IDE:
   files `.version`, `about.dat` and `.buildnumber`; `package.txt` puts some
   of them into `Contents/Support`. Only the engine stays outside: the build's
   `LiveCode-Community.app` becomes `OXT-Beyond.app` with
-  `Contents/MacOS/OXT-Beyond` and a generated `Info.plist` naming it
-  (`CFBundleExecutable`; bundle id, document types, version and icon are
-  still LiveCode's), and `revsecurity.dylib` and `revpdfprinter.bundle` go
-  into `Contents/MacOS` from the build root (package.txt Engine.MacOSX: the
-  stripped copies; the build's copies inside the app keep their symbols).
+  `Contents/MacOS/OXT-Beyond` and a generated `Info.plist`: the build's,
+  with `CFBundleExecutable` naming it, `LSArchitecturePriority` the
+  layout's architectures, arm64 first (LiveCode's says `x86_64, i386`,
+  which would start a universal app under Rosetta on Apple Silicon), and
+  `LSMinimumSystemVersion` the lowest `minos` of the engine's slices
+  (Xcode writes the deployment target of the one build the tree came
+  from: 11.0 for arm64, 10.13 for x86_64). Bundle id, document types,
+  version and icon are still LiveCode's. `revsecurity.dylib` and
+  `revpdfprinter.bundle` go into `Contents/MacOS` from the build root
+  (package.txt Engine.MacOSX: the stripped copies; the build's copies
+  inside the app keep their symbols).
   The app's `_CodeSignature` is left out: it seals the old executable name
   and `Info.plist`, so the app has to be signed again after assembly.
   `Resources/Mobile Examples` (package.txt Mobile.MacOSX) is staged only

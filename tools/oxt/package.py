@@ -93,8 +93,11 @@ stage folder itself except on macOS):
                Externals/Database Drivers/Database Drivers.txt (at the root
                and under every runtime folder), .buildnumber (the build
                number), two empty dictionary folders (EMPTY_DIRS) and, on
-               macOS, the app's Info.plist (the build's, with the renamed
-               executable).
+               macOS, the app's Info.plist: the build's, with the renamed
+               executable (CFBundleExecutable), the layout's architectures,
+               arm64 first (LSArchitecturePriority), and the lowest
+               minimum macOS of the engine's slices
+               (LSMinimumSystemVersion).
   licences     LICENSE, LICENSE-EXCEPTION.md and THIRD-PARTY-NOTICES.md from
                the repository root (CRLF line endings on Windows).
   assets       the archives in tools/oxt/external-assets.json (see
@@ -157,6 +160,7 @@ import posixpath
 import re
 import shutil
 import stat
+import struct
 import sys
 import tarfile
 import tempfile
@@ -497,7 +501,8 @@ def _mac(arch):
             ('tz.dylib', 'native code of the timezone library; its packaged_extensions copy is installed'),
             ('inih.dylib', 'native code of com.livecode.library.ini, which package.txt does not install'),
             ('LiveCode-Community.app/Contents/Info.plist',
-             'replaced by a generated Info.plist that names the renamed executable'),
+             'replaced by a generated Info.plist that names the renamed executable, the layout\'s '
+             'architectures (LSArchitecturePriority) and the engine\'s lowest macOS (LSMinimumSystemVersion)'),
             ('LiveCode-Community.app/Contents/_CodeSignature/**',
              'the build\'s seal of the app does not match the renamed executable and the new Info.plist; '
              'the app is signed again after it is assembled'),
@@ -745,8 +750,36 @@ def plan_engine(pl):
                 pl.problems.append('%s: CFBundleExecutable is %r, not %r'
                                    % (plist_path, plist.get('CFBundleExecutable'), p.dev_engine[:-len('.app')]))
             plist['CFBundleExecutable'] = new.rsplit('/', 1)[-1]
+            # LiveCode's plist (engine/rsrc/LiveCode-Info.plist) still says
+            # LSArchitecturePriority x86_64, i386, from its Intel-only days.
+            # LaunchServices starts the first listed architecture the binary
+            # has, so a universal app would run under Rosetta on Apple Silicon.
+            # List the layout's own architectures (mac_archs puts arm64 first).
+            plist['LSArchitecturePriority'] = list(p.mac_archs)
+            # Xcode writes the deployment target of the build that the tree
+            # came from (arm64 11.0, x86_64 10.13). A universal app must
+            # declare its lowest slice's, or Intel Macs below 11 refuse it.
+            # binfmt's floors are the highest over the slices, so read each
+            # slice on its own.
+            exe = layout.native(pl.bin_dir, p.dev_engine + '/' + old)
+            try:
+                data = binfmt.read_file(exe)
+                floors = [binfmt.parse_macho(data[o:o + n]).floors.get('macOS')
+                          for _, o, n in binfmt.macho_slices(data)]
+            except (OSError, struct.error, binfmt.FormatError) as e:
+                floors = [None]
+                pl.problems.append('cannot read the macOS floor of %s: %s' % (exe, e))
+            else:
+                if None in floors:
+                    pl.problems.append('%s: a slice has no minimum macOS version (LC_BUILD_VERSION or '
+                                       'LC_VERSION_MIN_MACOSX)' % exe)
+            if None not in floors:
+                plist['LSMinimumSystemVersion'] = binfmt.version_text(min(floors))
             pl.generated(p.engine + '/Contents/Info.plist', plistlib.dumps(plist, fmt=plistlib.FMT_XML),
-                         'the build\'s Info.plist with CFBundleExecutable %s' % plist['CFBundleExecutable'])
+                         'the build\'s Info.plist with CFBundleExecutable %s, LSArchitecturePriority %s and '
+                         'LSMinimumSystemVersion %s'
+                         % (plist['CFBundleExecutable'], ', '.join(plist['LSArchitecturePriority']),
+                            plist.get('LSMinimumSystemVersion', '?')))
     for rel, target in p.engine_support:
         pl.output(target, rel, note)
 
