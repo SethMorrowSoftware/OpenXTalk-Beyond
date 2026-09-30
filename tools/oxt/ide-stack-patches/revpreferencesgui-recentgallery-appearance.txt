@@ -1,0 +1,13 @@
+# Preferences, substack "RecentStacksAsGallery" (the recent stacks as a
+# gallery): the refresh icon follows the IDE's appearance (revIDEIsDark in
+# revidelibrary), which can differ from the system's, not the
+# systemAppearance.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card 1 of stack "RecentStacksAsGallery"
+replace:
+|   -- the refresh icon|
+|   if the systemAppearance is "dark" then|
+with:
+|   -- the refresh icon, in the IDE's appearance (OXT-Beyond)|
+|   if revIDEIsDark() then|

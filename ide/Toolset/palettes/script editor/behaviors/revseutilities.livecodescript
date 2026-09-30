@@ -12,6 +12,9 @@
 on preOpenStack
    set the behavior of stack "revSETemplate" of me to the long id of stack revIDEScriptEditorBehavior("stack")
    send "setBehaviors" to stack "revSETemplate" of me
+   -- OXT-Beyond: the script editor's main stack (not each editor) follows
+   -- the IDE's appearance; dispatched, so that it is the subscriber
+   dispatch "ideSubscribe" to me with "ideAppearanceChanged"
    -- conditional datagrid stacks (tperry 4-13-24)
    if the cDisableDataGrid of stack "revPreferences" is true then send hConditionalDataGrid to stack "revMenubar" in 1 ticks
 end preOpenStack
@@ -93,6 +96,9 @@ end revSEGetDefaultPreference
 # Description
 #   Returns the value of the specified script editor preference currently being used.
 command revSEGetPreference pPreference
+   -- OXT-Beyond: the value of the IDE's appearance (revSEAppearanceKey in
+   -- revidelibrary), as sePrefGet returns it
+   put revSEAppearanceKey(pPreference) into pPreference
    local tPropname
    put "cScriptEditor," & pPreference into tPropname
    
@@ -352,6 +358,83 @@ end revSEUpdateEditors
 local sPrefs
 
 # Description
+#   OXT-Beyond: the IDE's appearance changed (revIDEIsDark). The script
+#   editor's colours and scheme depend on it (sePrefGet), so the
+#   preferences are loaded again and every open editor applies them.
+on ideAppearanceChanged
+   lock screen
+   sePrefInit
+   revSEUpdateEditors true
+   repeat for each line tEditor in revListScriptEditors()
+      seApplyAppearance tEditor
+   end repeat
+   unlock screen
+end ideAppearanceChanged
+
+# Parameters
+#   pEditor : a reference to a script editor stack
+# Description
+#   OXT-Beyond: gives the parts of a script editor that the editor's own
+#   preferences do not colour the colours of the IDE's appearance
+#   (revIDEColor): the Variables pane (its group, which had 255,255,255
+#   saved, the variables tree and the filter field; the idea of HyperXTalk
+#   b572107df), the lists of the Breakpoints and Errors panes and their
+#   templates, the vertical splitters and the gutter. Called when an editor
+#   opens and when the appearance changes.
+command seApplyAppearance pEditor
+   local tRowColor, tSplitterColor, tPane
+   if pEditor is empty or not exists(pEditor) then exit seApplyAppearance
+   put revIDEColor("dataView_rowColor") into tRowColor
+   put revIDEColor("se_splitter") into tSplitterColor
+   lock screen
+   lock messages
+   if there is a group "Variables" of group "Panes" of pEditor then
+      put the long id of group "Variables" of group "Panes" of pEditor into tPane
+      set the backgroundColor of tPane to tRowColor
+      if there is a field "Filter" of tPane then
+         set the backgroundColor of field "Filter" of tPane to tRowColor
+      end if
+      if there is a widget "tree" of tPane then
+         try
+            set the backgroundColor of widget "tree" of tPane to tRowColor
+         end try
+      end if
+   end if
+   repeat for each item tPane in "Breakpoints,Errors"
+      if there is a group "List" of group tPane of group "Panes" of pEditor then
+         set the backgroundColor of group "List" of group tPane of group "Panes" of pEditor to tRowColor
+      end if
+   end repeat
+   if there is a card "Templates" of pEditor then
+      repeat for each item tTemplate in "List Template,Breakpoint Template"
+         if there is a group tTemplate of card "Templates" of pEditor then
+            set the backgroundColor of group tTemplate of card "Templates" of pEditor to tRowColor
+         end if
+      end repeat
+   end if
+   -- The splitters are copied from revSETemplate's templates
+   local tStacks
+   if there is a stack "revSETemplate" then
+      put the long id of stack "revSETemplate" & return into tStacks
+   end if
+   put pEditor after tStacks
+   repeat for each line tStack in tStacks
+      repeat with tCard = 1 to the number of cards of tStack
+         repeat with tButton = 1 to the number of buttons of card tCard of tStack
+            if the short name of button tButton of card tCard of tStack is "Vertical Splitter" then
+               set the backgroundColor of button tButton of card tCard of tStack to tSplitterColor
+            end if
+         end repeat
+      end repeat
+   end repeat
+   unlock messages
+   if there is a group "Gutter" of group "Editor" of pEditor then
+      dispatch "applyGutterAppearance" to group "Gutter" of group "Editor" of pEditor
+   end if
+   unlock screen
+end seApplyAppearance
+
+# Description
 #   Deletes any stored script editor preferences, and reloads from the Revolution preferences stack.
 #   This is called when the Revolution preferences are reset.
 command revSEReloadPreferences
@@ -401,11 +484,22 @@ end seSendCallbacks
 #   pTag : the name of the preference setting to get
 # Returns
 #   The value of the preference setting, or empty if not found.
+# Description
+#   OXT-Beyond: the settings whose colours depend on the appearance have a
+#   light and a dark value (revSEAppearanceKey in revidelibrary; the idea of
+#   HyperXTalk e835a23ec). This returns the one of the IDE's appearance, so
+#   that the script editor's code, which asks for the light names, needs no
+#   change.
 function sePrefGet pTag
+   local tKey
    if pTag is "editor,font" and \
          sPrefs[pTag] is empty and \
          "Source Code Pro" is among the lines of the fontNames then
       return "Source Code Pro"
+   end if
+   put revSEAppearanceKey(pTag) into tKey
+   if tKey is not pTag and sPrefs[tKey] is not empty then
+      return sPrefs[tKey]
    end if
    return sPrefs[pTag]
 end sePrefGet
@@ -434,6 +528,23 @@ end sePrefList
 # Description
 #   Initialises the script editor preferences system.
 command sePrefInit
+   # OXT-Beyond: before the light and dark slots, there was one scheme and
+   # background, and a user of a dark IDE chose a dark one there (Tom
+   # Perry's "dark mode" or "oxt lite dark"). Once, before a save stores
+   # the dark defaults, a dark choice becomes the dark slot's too, so that
+   # the dark appearance keeps it instead of One Dark Pro. The light slot
+   # stays as it is: a dark editor in a light IDE may be what the user wants.
+   if revIDEGetPreference("cScriptEditor,colorization,schemedark") is empty then
+      local tBg
+      put revIDEGetPreference("cScriptEditor,editor,backgroundcolor") into tBg
+      if revIDEGetPreference("cScriptEditor,colorization,scheme") is not empty and tBg is a color and \
+            the number of items of tBg is 3 and item 1 of tBg + item 2 of tBg + item 3 of tBg < 384 then
+         revIDESetPreference "cScriptEditor,colorization,schemedark", revIDEGetPreference("cScriptEditor,colorization,scheme")
+         revIDESetPreference "cScriptEditor,editor,backgroundcolordark", tBg
+         revIDESetPreference "cScriptEditor,editor,debugBackgroundcolordark", revIDEGetPreference("cScriptEditor,editor,debugBackgroundcolor")
+      end if
+   end if
+
    # Get the default preferences, which are returned in an array.
    local tPrefs
    sePrefGetDefaults
@@ -461,8 +572,11 @@ command sePrefInit
       put "command p" into tPrefs["shortcuts,Print"]
    end if
    
-   # The colorization settings need to be loaded
+   # The colorization settings need to be loaded, for the light and (OXT-Beyond)
+   # the dark appearance; sePrefGet("colorization,config") returns the one of
+   # the IDE's appearance
    seColorizationLoadScheme tPrefs["colorization,scheme"], tPrefs
+   seColorizationLoadScheme tPrefs["colorization,schemedark"], tPrefs, "colorization,configdark"
    
    # Put the completed array into the script local sPrefs for use by the script editor.
    put tPrefs into sPrefs
@@ -571,11 +685,19 @@ command sePrefGetDefaults
    # Colorization preferences
    put "default" into tPrefs["colorization,scheme"]
    seColorizationLoadScheme "default", tPrefs
+   # OXT-Beyond: the scheme of the dark appearance (sePrefGet) is One Dark
+   # Pro; Tom Perry's "dark mode" and "oxt lite dark" stay selectable
+   put "one dark pro" into tPrefs["colorization,schemedark"]
+   seColorizationLoadScheme "one dark pro", tPrefs, "colorization,configdark"
    
    # Editor preferences
    put 500 into tPrefs["editor,paneupdatedelay"]
    put "false" into tPrefs["editor,findvisible"]
    put "0,200,0" into tPrefs["editor,findcolor"]
+   # OXT-Beyond: the dark appearance's find colour, a muted blue under which
+   # the dark scheme's light text reads (HyperXTalk 060f64701's name and
+   # colour)
+   put "38,79,120" into tPrefs["editor,darkFindColor"]
    put empty into tPrefs["editor,font"]
    put 12 into tPrefs["editor,fontsize"]
    put true into tPrefs["editor,autoformat"]
@@ -585,6 +707,13 @@ command sePrefGetDefaults
    put "166,202,240" into tPrefs["editor,selectbackgroundcolor"]
    put "255,255,255" into tPrefs["editor,backgroundcolor"]
    put "255,255,255" into tPrefs["editor,debugBackgroundcolor"]
+   # OXT-Beyond: the dark appearance's colours (sePrefGet): a near-black
+   # background (HyperXTalk e835a23ec), and a selected line, a selection
+   # and a bracket match that the scheme's light text reads on
+   put "30,30,30" into tPrefs["editor,backgroundcolordark"]
+   put "30,30,30" into tPrefs["editor,debugBackgroundcolordark"]
+   put "80,70,30" into tPrefs["editor,selectbackgroundcolordark"]
+   put "38,79,120" into tPrefs["editor,hilitecolordark"]
    put "true" into tPrefs["editor,hscrollbar"]
    put "false" into tPrefs["editor,useInteractiveFind"]
    
@@ -672,6 +801,7 @@ command sePrefGetDefaults
    put true into tPrefs["editor,bracketcompletion"]
    put true into tPrefs["editor,brackethighlighting"]
    put "255,200,200" into tPrefs["editor,brackethighlightcolor"]
+   put "90,70,40" into tPrefs["editor,brackethighlightcolordark"]
    -- autocomplete is legacy control structure completion
    put true into tPrefs["editor,autocomplete"]
    -- autocomplete is completions list
@@ -714,8 +844,11 @@ end seColorizationInit
 #   Places the appropriate settings for the specified colorization scheme into 
 #   the sPrefs array. To apply the newly loaded scheme, call seColorizationInit
 #   after the scheme has been loaded.
-command seColorizationLoadScheme pScheme, @pPreferencesArray
+# OXT-Beyond: pTargetKey is the preference that gets the scheme's settings,
+# "colorization,config" (the default) or "colorization,configdark".
+command seColorizationLoadScheme pScheme, @pPreferencesArray, pTargetKey
    local newSECols
+   if pTargetKey is empty then put "colorization,config" into pTargetKey
    switch pScheme
       case "default"
          put "group commands bold 127,127,0" & return & \
@@ -903,6 +1036,45 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
                "keyword next bold 190,255,120" & return & \
                "keyword exit bold 190,255,120" & return into newSECols
          break
+      case "one dark pro"
+         -- OXT-Beyond: One Dark Pro, the default scheme of the dark
+         -- appearance, from HyperXTalk 0ce6bba43 (Emily-Elizabeth Howard),
+         -- on the dark background 30,30,30. Three colours are lighter than
+         -- hers so that they read at 4.5:1 or more
+         -- (tools/ci/check_se_schemes.py): numbers 209,154,102 (243,57,2
+         -- gave 3.6:1), errors and "exit" 255,90,90 (255,38,0: 4:1),
+         -- comments 136,141,151 (127,132,142: 4.4:1)
+         put "group commands none 225,108,117" & return & \
+               "group properties none 97,175,239" & return & \
+               "group functions none 198,120,221" & return & \
+               "class error none 255,90,90" & return & \
+               "class singlecomment none 136,141,151" & return & \
+               "class multicomment none 136,141,151" & return & \
+               "class identifier none 97,175,239" & return & \
+               "class literal none 152,195,121" & return & \
+               "class number none 209,154,102" & return & \
+               "class keyword none 229,192,123" & return & \
+               "class operator none 198,120,221" & return & \
+               "keyword command none 198,120,221" & return & \
+               "keyword private none 198,120,221" & return & \
+               "keyword on none 198,120,221" & return & \
+               "keyword end none 198,120,221" & return & \
+               "keyword if none 198,120,221" & return & \
+               "keyword then none 198,120,221" & return & \
+               "keyword else none 198,120,221" & return & \
+               "keyword function none 198,120,221" & return & \
+               "keyword setprop none 198,120,221" & return & \
+               "keyword getprop none 198,120,221" & return & \
+               "keyword repeat none 198,120,221" & return & \
+               "keyword switch none 198,120,221" & return & \
+               "keyword try none 198,120,221" & return & \
+               "keyword catch none 198,120,221" & return & \
+               "keyword case none 198,120,221" & return & \
+               "keyword default none 198,120,221" & return & \
+               "keyword finally none 198,120,221" & return & \
+               "keyword next none 198,120,221" & return & \
+               "keyword exit none 255,90,90" into newSECols
+         break
       case "Custom"
          -- alternate method for loading custom schemes
          local sFilePath
@@ -932,10 +1104,10 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray
          close file myTmpVar
          if myTmpData is "" then exit seColorizationLoadScheme
          --put "read from file:" & return & myTmpData -- debug
-         put myTmpData into pPreferencesArray["colorization,config"]
+         put myTmpData into pPreferencesArray[pTargetKey]
          exit seColorizationLoadScheme
    end switch
-   put newSECols into pPreferencesArray["colorization,config"]
+   put newSECols into pPreferencesArray[pTargetKey]
 end seColorizationLoadScheme
 
 # Parameters
@@ -1310,7 +1482,8 @@ on pFixupMacElements
    -- specifically the popup menu of the script editor, and the apply button
    if there is a stack "revNewScriptEditor 1" then
       if the platform contains "mac" then
-         if the systemAppearance contains "dark" then
+         -- OXT-Beyond: the IDE's appearance, which can differ from the system's
+         if revIDEIsDark() then
             -- okay, we are on a mac in dark mode
             set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to black -- at least you can see it
          else

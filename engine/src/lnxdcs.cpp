@@ -1080,7 +1080,9 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
     if (window == 0 && r.x == -32768)
     {
         // Switch to a box drawing cursor and take control of the pointer
-        GdkCursor *t_cursor = gdk_cursor_new(GDK_PLUS);
+		// MDW bugfix_17257
+        // GdkCursor *t_cursor = gdk_cursor_new(GDK_PLUS);
+        GdkCursor *t_cursor = gdk_cursor_new_from_name(dpy, "crosshair");
         if (gdk_pointer_grab(t_root, False,
                              GdkEventMask(GDK_POINTER_MOTION_MASK|GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK),
                              NULL, t_cursor, GDK_CURRENT_TIME) != GDK_GRAB_SUCCESS)
@@ -1147,9 +1149,13 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
                     {
                         if (t_drawing)
                         {
-                            // Draw the selection rectangle and release the server
+                            // Erase the selection rectangle (XOR drawing)
                             gdk_draw_rectangle(t_root, t_gc, FALSE, t_rect.x, t_rect.y, t_rect.width - 1, t_rect.height - 1);
-                            x11::gdk_x11_ungrab_server();
+                            // MDW bugfix_17257
+                            // The button press no longer grabs the server, so
+                            // there is nothing to release here: an unbalanced
+                            // ungrab trips GDK's grab_count > 0 check.
+                            // x11::gdk_x11_ungrab_server();
                         }
                         
                         // End the selection
@@ -1169,7 +1175,8 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
                     break;
                     
                 case GDK_BUTTON_PRESS:
-                    x11::gdk_x11_grab_server();
+					// MDW bugfix_17257
+					// x11::gdk_x11_grab_server();
                     MCeventtime = gdk_event_get_time(t_event);
                     t_start_x = t_event_button->x;
                     t_start_y = t_event_button->y;
@@ -1180,12 +1187,14 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
                     
                 case GDK_BUTTON_RELEASE:
                     MCeventtime = gdk_event_get_time(t_event);
-                    setmods(t_event_button->state, 0, t_event_button->button, True);
+					// MDW bugfix_17257
+                    // setmods(t_event_button->state, 0, t_event_button->button, True);
                     gdk_draw_rectangle(t_root, t_gc, FALSE, t_rect.x, t_rect.y, t_rect.width - 1, t_rect.height - 1);
                     r = MCU_compute_rect(t_start_x, t_start_y, t_event_button->x, t_event_button->y);
                     if (r.width < 4 && r.height < 4)
                         r.width = r.height = 0;
-                    x11::gdk_x11_ungrab_server();
+ 					// MDW bugfix_17257
+                   // x11::gdk_x11_ungrab_server();
                     t_done = true;
                     break;
                     
@@ -1194,7 +1203,7 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
                     break;
 
 				default:
-					/* Ignore this event */
+					// ignore all other events
 					break;
             }
             

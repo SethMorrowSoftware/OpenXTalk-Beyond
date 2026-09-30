@@ -1,0 +1,32 @@
+# The dictionary stack (Documentation, "OpenXTalk Lite Dictionary"),
+# hSortTheming: Tom Perry's dark styling of its buttons followed his
+# cUseThemeDark preference, which OXT-Beyond no longer sets (the IDE's
+# appearance is cIDEAppearance, read through revIDEIsDark in revidelibrary).
+# It now follows revIDEIsDark(). In dark it made every button's text black
+# before styling the short ones; the text of the others then stayed black
+# on the dark stack, so it now leaves the text colour unset (the dark
+# appearance's own). On a Mac the short buttons still get Tom's light text
+# on 86,84,93.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
+object: stack
+replace:
+|   if the cUseThemeDark of stack "revPreferences" is true then|
+|      -- dark mode|
+|      set the backgroundColor of this stack to tDarkGrey|
+|      -- now correct buttons|
+|      put 0 into tcount|
+|      repeat the number of buttons of this stack|
+|         add 1 to tcount|
+|         put the id of button tcount of this stack into tID|
+|         set the foregroundColor of btn id tID of this stack to black|
+with:
+|   if revIDEIsDark() then|
+|      -- dark mode (the IDE's appearance, OXT-Beyond)|
+|      set the backgroundColor of this stack to tDarkGrey|
+|      -- now correct buttons|
+|      put 0 into tcount|
+|      repeat the number of buttons of this stack|
+|         add 1 to tcount|
+|         put the id of button tcount of this stack into tID|
+|         set the foregroundColor of btn id tID of this stack to empty|

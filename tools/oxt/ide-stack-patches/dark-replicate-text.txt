@@ -1,0 +1,8 @@
+# Replicate: the stack was saved with black text, black on dark in the dark
+# appearance. Unset, it follows the appearance. (replicate.oxtstack and
+# revreplicate.rev are two copies of the palette.)
+file: Toolset/palettes/replicate.oxtstack
+object: stack
+property: foregroundColor
+from: Black
+to: 

@@ -750,6 +750,23 @@ static const PropList videoclipprops[] =
         {"scale", P_SCALE},
     };
 
+static const PropList widgetprops[] =
+    {
+        {"altId", P_ALT_ID},
+        {"behavior", P_PARENT_SCRIPT},
+        {"blendLevel", P_BLEND_LEVEL},
+        {"disabled", P_DISABLED},
+        {"id", P_ID},
+        {"ink", P_INK},
+        {"label", P_LABEL},
+        {"layer", P_LAYER},
+        {"layerMode", P_LAYER_MODE},
+        {"lockLoc", P_LOCK_LOCATION},
+        {"name", P_SHORT_NAME},
+        {"rect", P_RECTANGLE},
+        {"visible", P_VISIBLE},
+    };
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void MCInterfaceLayerParse(MCExecContext& ctxt, MCStringRef p_input, MCInterfaceLayer& r_output)
@@ -3386,9 +3403,8 @@ void MCObject::DoGetProperties(MCExecContext& ctxt, uint32_t part, bool p_effect
 		tablesize = ELEMENTS(videoclipprops);
 		break;
     case CT_WIDGET:
-		table = NULL;
-		tablesize = 0;
-        // WIDGET-TODO: Implement properties
+        table = widgetprops;
+        tablesize = ELEMENTS(widgetprops);
         break;
 	default:
 		return;

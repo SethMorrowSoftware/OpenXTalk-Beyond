@@ -316,14 +316,32 @@ static gboolean gtk_idle_callback (gpointer data)
 	MCscreen -> expose();
 	return (true); 
 }
+
+// gtk_idle_callback returns true, so its timer stays installed until it is
+// removed: without this, every dialog left another 100 ms timer behind that
+// kept calling expose() for the rest of the session. (g_source_remove is not
+// in linux.stubs; finding and destroying the source does the same through
+// functions that are.)
+static void remove_idle_callback(guint p_id)
+{
+	GSource *t_source;
+	t_source = g_main_context_find_source_by_id(NULL, p_id);
+	if (t_source != NULL)
+		g_source_destroy(t_source);
+}
  
 
 void run_dialog(GtkWidget *dialog, MCStringRef &r_value)
 {
 	// TODO : This needs to be changed to a proper callback function : gdk_event_handler_set()
-	g_timeout_add(100, gtk_idle_callback, NULL);
+	guint t_idle_id;
+	t_idle_id = g_timeout_add(100, gtk_idle_callback, NULL);
 
-	if (gtk_dialog_run(GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+	gint t_response;
+	t_response = gtk_dialog_run(GTK_DIALOG (dialog));
+	remove_idle_callback(t_idle_id);
+
+	if (t_response == GTK_RESPONSE_ACCEPT)
     {
         MCAutoStringRef t_filename;
 		if ( gtk_file_chooser_get_select_multiple ( GTK_FILE_CHOOSER ( dialog ) ) )
@@ -334,14 +352,18 @@ void run_dialog(GtkWidget *dialog, MCStringRef &r_value)
             GSList * t_filename_list ;
 			
 			t_filename_list = gtk_file_chooser_get_filenames ( GTK_FILE_CHOOSER ( dialog )) ;
-			while ( t_filename_list != NULL )
+			// The list and every name in it are ours to free once copied.
+			GSList *t_iter = t_filename_list;
+			while ( t_iter != NULL )
             {
                 MCAutoStringRef t_item;
-                /* UNCHECKED */ MCStringCreateWithSysString((char*)t_filename_list -> data, &t_item);
+                /* UNCHECKED */ MCStringCreateWithSysString((char*)t_iter -> data, &t_item);
                 /* UNCHECKED */ MCListAppend(*t_filenames, *t_item);
 
-				t_filename_list = t_filename_list -> next ;
+				g_free(t_iter -> data);
+				t_iter = t_iter -> next ;
 			}
+			g_slist_free(t_filename_list);
 
             /* UNCHECKED */ MCListCopyAsString(*t_filenames, &t_filename);
 		}
@@ -780,9 +802,14 @@ bool MCA_color(MCStringRef p_title, MCColor p_initial_color, bool p_as_sheet, bo
 
 	gtk_color_selection_set_current_color  ( colorsel, &gdk_color ) ;
 
-	g_timeout_add(100, gtk_idle_callback, NULL);
-	
-	if (gtk_dialog_run(GTK_DIALOG (dialog)) == GTK_RESPONSE_OK)
+	guint t_idle_id;
+	t_idle_id = g_timeout_add(100, gtk_idle_callback, NULL);
+
+	gint t_response;
+	t_response = gtk_dialog_run(GTK_DIALOG (dialog));
+	remove_idle_callback(t_idle_id);
+
+	if (t_response == GTK_RESPONSE_OK)
 	{
         gtk_color_selection_get_current_color(colorsel, &gdk_color);
 
@@ -857,8 +884,10 @@ MCPrinterDialogResult MCA_gtk_printer_setup ( PSPrinterSettings &p_settings )
     g_object_unref(t_settings);
 #endif
     
-	g_timeout_add(100, gtk_idle_callback, NULL);
+	guint t_idle_id;
+	t_idle_id = g_timeout_add(100, gtk_idle_callback, NULL);
 	ret_code = gtk_dialog_run(GTK_DIALOG (dialog)) ;
+	remove_idle_callback(t_idle_id);
 
 	if ( ret_code == GTK_RESPONSE_OK ) 
 	{
@@ -973,9 +1002,11 @@ MCPrinterDialogResult MCA_gtk_page_setup (PSPrinterSettings &p_settings)
 	dialog = gtk_page_setup_unix_dialog_new  ( "Page setup dialog", NULL );
 	make_front_widget ( dialog ) ;
 
-	g_timeout_add(100, gtk_idle_callback, NULL);
+	guint t_idle_id;
+	t_idle_id = g_timeout_add(100, gtk_idle_callback, NULL);
 	
 	ret_code = gtk_dialog_run(GTK_DIALOG (dialog)) ;
+	remove_idle_callback(t_idle_id);
 	
 	if ( ret_code == GTK_RESPONSE_OK ) 
 	{

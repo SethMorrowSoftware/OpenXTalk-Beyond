@@ -275,9 +275,28 @@ on preOpenStack
       set the showInvisibles of stack tStack to false
       set the _ideoverride of stack tStack to true
    end if
+   -- OXT-Beyond: the IDE's appearance, before the stack draws (see
+   -- revIDEApplyAppearance), for the IDE's own stacks and the stacks it
+   -- ships (plugins, the dictionary); on the main stack, which substacks
+   -- inherit. The user's stacks get nothing: they follow the appAppearance,
+   -- as in a standalone (revIDEStackTakesIDEAppearance).
+   if revIDEEngineHasAppearance() and revIDEStackTakesIDEAppearance(ideMainStackOfObject(tTarget)) then
+      revIDESetStackAppearance ideMainStackOfObject(tTarget), revIDEAppearancePreference("ide")
+   end if
    
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass preOpenStack
 end preOpenStack
+
+-- OXT-Beyond: the operating system's light/dark setting changed. The
+-- engine sends this to the current card of the defaultStack only, so the
+-- front script (which sees it wherever it goes) has the IDE refresh its
+-- palettes when that changes the IDE's appearance (revIDEAppearanceRefreshSoon
+-- in revidelibrary): with "Follow the System", or on an engine without the
+-- appearance properties, where the IDE follows the system.
+on systemAppearanceChanged
+   revIDEAppearanceRefreshSoon
+   pass systemAppearanceChanged
+end systemAppearanceChanged
 
 on rawKeyUp pWhich
    if pWhich is 65386 then

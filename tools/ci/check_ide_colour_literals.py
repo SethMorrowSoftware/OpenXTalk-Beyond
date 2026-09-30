@@ -40,9 +40,20 @@ handlers revIDEColor and ideColorGet, commented-out statements and values
 that are expressions (variables, function calls, the accentColor, ...) are
 not literals.
 
+It also finds colour constants,
+
+  [private] constant kEffectiveTextColor = "100,100,100"[, kOther = ...]
+
+whose name starts with k and names a colour and whose value is a literal
+colour: the statements that set such a constant as a colour show only its
+name, so the literal is here.
+
 Each literal is recorded as
 
   <file> | <handler> | <property> = <literal>
+
+(a constant as "constant <name>", with the handler "(script)" when it is
+declared outside handlers)
 
 (no line numbers, so unrelated edits do not change the record). The baseline
 (tools/ci/ide-colour-literals-baseline.txt, one record per line, repeated
@@ -98,6 +109,11 @@ SET_THE = re.compile(r'^\s*set\s+(?:the\s+)?(.*)$', re.IGNORECASE | re.DOTALL)
 # tThen or revIDE.else), where a statement on the same line starts
 STATEMENT_WORD = re.compile(r'(?<![\w.])(?:then|else)(?![\w.])', re.IGNORECASE)
 TO_WORD = re.compile(r'\bto\b', re.IGNORECASE)
+CONSTANT = re.compile(r'^\s*(?:private\s+)?constant\s+(.*)$', re.IGNORECASE | re.DOTALL)
+# One "name = value" of a constant declaration; the value is a string or a
+# word (a constant declaration takes literals only)
+CONSTANT_ITEM = re.compile(r'\s*([A-Za-z_]\w*)\s*=\s*("[^"]*"|[^,\s]+)\s*(?:,|$)')
+COLOUR_CONSTANT = re.compile(r'^k\w*colou?r', re.IGNORECASE)
 RGB = re.compile(r'^"?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(\d{1,3}))?\s*"?$')
 HEX = re.compile(r'^"?(#[0-9A-Fa-f]{6})"?$')
 NAME = re.compile(r'^"?([A-Za-z]+)(\d{0,3})"?$')
@@ -225,6 +241,20 @@ def scan_script(text):
             handler = m.group(1)
             continue
         if handler.lower() in TABLE_HANDLERS:
+            continue
+        m = CONSTANT.match(line)
+        if m:
+            rest = m.group(1)
+            position = 0
+            while position < len(rest):
+                item = CONSTANT_ITEM.match(rest, position)
+                if not item or item.end() == position:
+                    break
+                position = item.end()
+                if COLOUR_CONSTANT.match(item.group(1)):
+                    literal = literal_colour(item.group(2))
+                    if literal is not None:
+                        yield number, handler, 'constant ' + item.group(1).lower(), literal
             continue
         for piece in statements(line):
             m = SET_THE.match(piece)

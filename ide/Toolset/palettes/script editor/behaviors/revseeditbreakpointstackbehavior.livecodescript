@@ -10,6 +10,7 @@ local sOriginalObject
 
 on preOpenCard
    ideSubscribe "idePreferenceChanged:cScriptEditor,editor,backgroundcolor"
+   ideSubscribe "idePreferenceChanged:cScriptEditor,editor,backgroundcolordark"
    ideSubscribe "idePreferenceChanged:cScriptEditor,editor,font"
    ideSubscribe "idePreferenceChanged:cScriptEditor,editor,fontSize"
    
@@ -358,6 +359,7 @@ on idePreferenceChanged pPreference, pValue
    lock screen
    switch pPreference
       case "cScriptEditor,editor,backgroundcolor"
+      case "cScriptEditor,editor,backgroundcolordark"
          __UpdateConditionColors
          break
       case "cScriptEditor,editor,font"
@@ -379,6 +381,7 @@ end __UpdateConditionFont
 
 private command __UpdateConditionColors
    local tColor
-   put revIDEGetPreference("cScriptEditor,editor,backgroundcolor") into tColor
+   -- OXT-Beyond: the script editor's background in the IDE's appearance
+   put sePrefGet("editor,backgroundcolor") into tColor
    set the backgroundColor of field "condition" of me to tColor
 end __UpdateConditionColors

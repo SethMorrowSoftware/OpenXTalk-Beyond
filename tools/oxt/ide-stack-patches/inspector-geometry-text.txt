@@ -1,0 +1,23 @@
+# Inspector editors: text colours saved into two editor stacks, grey on a
+# transparent control, so they were drawn grey on the dark palette too
+# (100,100,100 on 32,32,32 is 2.8:1; 64,64,64 is 1.5:1). Unset, the text
+# takes the IDE's appearance: black in light, light in dark.
+# This file: com.livecode.pi.geometry, the four object labels of the
+# Geometry editor's diagram (inspector-nudge-text.txt: the nudge editor).
+file: Toolset/palettes/inspector/editors/com.livecode.pi.geometry.livecode
+object: field "Top object" of card "revGeometryScale"
+property: foregroundColor
+from: 100,100,100
+to:
+object: field "Bottom object" of card "revGeometryScale"
+property: foregroundColor
+from: 100,100,100
+to:
+object: field "Left object" of card "revGeometryScale"
+property: foregroundColor
+from: 100,100,100
+to:
+object: field "Right object" of card "revGeometryScale"
+property: foregroundColor
+from: 100,100,100
+to:

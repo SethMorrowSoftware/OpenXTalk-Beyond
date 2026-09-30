@@ -272,6 +272,15 @@ MCCard *MCCardlist::popcard()
 		delete tptr;
 		return card;
 	}
-	return MCdispatcher->gethome()->getcurcard();
+
+	// Nothing was pushed: pop goes to the Home card, the current card of the
+	// home stack, as documented. There may be no home stack, or it may have
+	// no current card: return nil then, so that the callers throw an error
+	// instead of dereferencing a null card.
+	MCStack *t_home;
+	t_home = MCdispatcher -> gethome();
+	if (t_home == nil)
+		return nil;
+	return t_home -> getcurcard();
 }
 

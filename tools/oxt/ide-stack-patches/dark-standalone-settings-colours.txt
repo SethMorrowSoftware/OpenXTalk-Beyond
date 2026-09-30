@@ -1,0 +1,150 @@
+# Standalone Application Settings: the Windows card's "UAC Execution Level"
+# menu had black text saved (black on the dark appearance's menu), and the
+# platform check marks of the General card and the help buttons of the
+# cards white backgrounds and black text. Unset, they follow the
+# appearance (six of the help buttons had none already).
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "UAC Execution Level" of card "Windows"
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1314 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1315 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1316 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1590 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 2025 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 2065 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 3797 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1322 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1326 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1342 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1343 of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1323 of card "Stacks"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1324 of card "Stacks"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1329 of card "OS X"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1332 of card "OS X"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1333 of card "OS X"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1334 of card "OS X"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1337 of card "OS X"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1335 of card "Windows"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button id 1336 of card "Windows"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 

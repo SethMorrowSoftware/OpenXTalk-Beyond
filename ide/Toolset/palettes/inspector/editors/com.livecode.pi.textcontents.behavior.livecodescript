@@ -32,7 +32,7 @@ on editorUpdate
    end if
    set the enabled of field "htmltext" of me to tEnabled
    if tEffective is true then
-      set the textcolor of field "htmltext" of me to "150,150,150"
+      set the textcolor of field "htmltext" of me to revIDEColor("text_muted")
    else
       set the textcolor of field "htmltext" of me to empty
    end if

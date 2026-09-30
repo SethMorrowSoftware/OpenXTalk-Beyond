@@ -17,7 +17,6 @@ on preOpenStack
    addFrameItem "store","header", "navigation", "Store", "", "","showExtensionStore", the long id of me,"store"
    addFrameItem "install", "header", "action", "Install extension", "plus", "","installNew", the long id of me
    
-   set the hilitedTabColor of me to "255,255,255"
    set the navigationDisplayStyle of me to "names"
    unlock screen
 end preOpenStack

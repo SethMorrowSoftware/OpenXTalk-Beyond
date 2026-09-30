@@ -1,0 +1,7 @@
+# The Report Builder plugin: its font menu had black text saved, black on
+# dark in the dark appearance. Unset, it follows the appearance.
+file: Plugins/Report Builder.livecode
+object: button "Font" of card 1
+property: foregroundColor
+from: black
+to: 

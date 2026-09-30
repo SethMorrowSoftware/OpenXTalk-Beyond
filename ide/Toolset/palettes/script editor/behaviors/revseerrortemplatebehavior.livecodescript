@@ -81,31 +81,19 @@ on itemInit pInfo
    resize
 end itemInit
 
+# OXT-Beyond: an error row has the colours of the IDE's lists (revIDEColor)
+# in both appearances: selected, the list hilite with its text colour;
+# otherwise the row colour and the row text. The fixed white and black
+# (and the script editor's selection colour under white text) could not be
+# read in the dark appearance (HyperXTalk 672704d97 had the same problem).
 command itemHilite
-   --   set the backgroundColor of field 1 of me to "210,210,210"
-   
-   # OK-2009-03-11 : Bug 7499
-   local tHiliteColor
-   put sePrefGet("editor,hiliteColor") into tHiliteColor
-   if tHiliteColor is empty then
-      put the hiliteColor into tHiliteColor
-   end if
-   
-   if tHiliteColor is empty then
-      put "210,210,210" into tHiliteColor
-   end if
-   
-   if seGetPlatform() is not "MacOS" then
-      set the textColor of field 1 of me to "255,255,255"
-   end if
-   set the backgroundColor of field 1 of me to tHiliteColor
+   set the textColor of field 1 of me to revIDEColor("dataView_TextHiliteColor")
+   set the backgroundColor of field 1 of me to revIDEColor("dataView_hiliteColor")
 end itemHilite
 
 command itemUnhilite
-   if seGetPlatform() is not "MacOS" then
-      set the textColor of field 1 of me to "0,0,0"
-   end if
-   set the backgroundColor of field 1 of me to "255,255,255"
+   set the textColor of field 1 of me to revIDEColor("text_1")
+   set the backgroundColor of field 1 of me to revIDEColor("dataView_rowColor")
 end itemUnhilite
 
 

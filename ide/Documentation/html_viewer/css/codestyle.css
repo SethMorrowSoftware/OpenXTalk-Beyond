@@ -66,3 +66,66 @@
 .xml .hljs-cdata {
   opacity: 0.5;
 }
+
+/* OXT-Beyond: the code theme of the IDE's dark appearance, adapted from
+   HyperXTalk's (c4cb26ea3 and 0a2ba55ff, Emily-Elizabeth Howard): code
+   examples on a deep navy, every colour at 5:1 or more. HyperXTalk selects
+   it with prefers-color-scheme, which follows the system; the IDE's
+   appearance is its own preference, so the dictionary palette
+   (revdictionarybehavior) sets the class oxt-dark on the page instead. */
+.oxt-dark .hljs-comment {
+  color: #6A9955;  /* muted green */
+  font-weight: normal;
+  font-style: italic;
+}
+
+.oxt-dark .hljs-attribute,
+.oxt-dark .hljs-tag,
+.oxt-dark .hljs-regexp {
+  color: #F47067;  /* soft red */
+}
+
+.oxt-dark .hljs-preprocessor,
+.oxt-dark .hljs-pragma,
+.oxt-dark .hljs-params,
+.oxt-dark .hljs-constant,
+.oxt-dark .hljs-function,
+.oxt-dark .hljs-operator,
+.oxt-dark .hljs-keyword {
+  color: #C792EA;  /* lavender */
+}
+
+.oxt-dark .hljs-literal,
+.oxt-dark .hljs-string,
+.oxt-dark .hljs-number,
+.oxt-dark .hljs-value,
+.oxt-dark .hljs-inheritance,
+.oxt-dark .hljs-header,
+.oxt-dark .ruby .hljs-symbol,
+.oxt-dark .xml .hljs-cdata {
+  color: #F78C6C;  /* warm orange */
+}
+
+.oxt-dark .hljs-command {
+  color: #82AAFF;  /* light blue */
+  font-weight: bold;
+}
+
+.oxt-dark .hljs-control_st {
+  color: #C792EA;  /* lavender, as the keywords */
+  font-weight: bold;
+}
+
+.oxt-dark .hljs-property {
+  color: #89DDFF;  /* sky blue */
+}
+
+.oxt-dark .hljs-variable {
+  color: #EEFFFF;  /* near-white */
+}
+
+.oxt-dark .hljs {
+  background: #1A1A2E;  /* deep navy */
+  color: #EEFFFF;       /* near-white */
+  border-radius: 5px;
+}

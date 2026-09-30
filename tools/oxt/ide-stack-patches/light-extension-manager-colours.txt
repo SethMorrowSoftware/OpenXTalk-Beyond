@@ -1,0 +1,12 @@
+# Extension Manager: OpenXTalk Lite 1.15 saved the stack with a dark
+# background (61,61,61) and white text, so the Extension Manager was dark
+# in the light appearance too, and white text on the light rows. Unset,
+# they follow the appearance (1.10 had none).
+file: Toolset/palettes/extension manager/revideextensionmanager.livecode
+object: stack
+property: backgroundColor
+from: 61,61,61
+to: 
+property: foregroundColor
+from: 255,255,255
+to: 

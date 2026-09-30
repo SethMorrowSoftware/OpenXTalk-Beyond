@@ -16,6 +16,7 @@
 
 #include <Cocoa/Cocoa.h>
 #include <Carbon/Carbon.h>
+#include <QuartzCore/QuartzCore.h>
 
 #include "typedefs.h"
 #include "platform.h"
@@ -49,6 +50,7 @@ enum
 	kMCMacPlatformBreakEvent = 0,
 	kMCMacPlatformMouseSyncEvent = 1,
 	kMCMacPlatformDrawSyncEvent = 2,
+	kMCMacPlatformMouseResyncEvent = 3,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,6 +73,14 @@ bool MCMacPlatformApplicationSendEvent(NSEvent *p_event)
         [p_event subtype] == kMCMacPlatformMouseSyncEvent)
 	{
         MCMacPlatformHandleMouseSync();
+		return true;
+	}
+
+    // [[ Bug 525 ]] Non-destructive re-entry check posted after native modals.
+    if ([p_event type] == NSApplicationDefined &&
+        [p_event subtype] == kMCMacPlatformMouseResyncEvent)
+	{
+        MCMacPlatformHandleMouseResync();
 		return true;
 	}
 
@@ -1487,46 +1497,81 @@ void MCMacPlatformSyncBackdrop(void)
     
     NSWindow *t_backdrop;
     t_backdrop = ((MCMacPlatformWindow *)s_backdrop_window) -> GetHandle();
-    
-    NSDisableScreenUpdates();
-    [t_backdrop orderOut: nil];
-    
-    // Loop from front to back on our windows, making sure the backdrop window is
-    // at the back.
+
+    // Use a CATransaction to batch all window-order changes into a single
+    // composited frame with no animation.  NSDisableScreenUpdates /
+    // NSEnableScreenUpdates were the historic approach but are deprecated
+    // since macOS 14 and are now effectively no-ops, causing a visible
+    // flash when the backdrop was ordered out and back in.
+    [CATransaction begin];
+    [CATransaction setDisableActions: YES];
+
+    // Loop from front to back over our own windows and preserve their
+    // relative order, then slot the backdrop in below all of them.
+    // We no longer call orderOut: first — repositioning via
+    // orderWindow:relativeTo: is sufficient and avoids the flicker caused
+    // by the backdrop briefly disappearing from the screen.
     NSInteger t_window_above_id;
     t_window_above_id = -1;
     for(NSNumber *t_window_id in [NSWindow windowNumbersWithOptions: 0])
     {
         NSWindow *t_window;
         t_window = [NSApp windowWithWindowNumber: [t_window_id longValue]];
-        
+
+        // Skip windows belonging to other applications — [NSApp windowWithWindowNumber:]
+        // returns nil for foreign windows.  Passing a foreign window ID to
+        // orderWindow:relativeTo: activates that foreign app, which is what caused
+        // other apps' windows to come to the foreground when Background mode was toggled.
+        if (t_window == nil)
+            continue;
+
         if (t_window == t_backdrop)
             continue;
-        
+
         if (t_window_above_id != -1)
             [t_window orderWindow: NSWindowBelow relativeTo: t_window_above_id];
-        
+
         t_window_above_id = [t_window_id longValue];
     }
-    
-    [t_backdrop orderWindow: NSWindowBelow relativeTo: t_window_above_id];
-    
-    NSEnableScreenUpdates();
+
+    // Place the backdrop below the lowest own-app window, or send it to the
+    // back entirely if no own windows are currently on screen.
+    if (t_window_above_id != -1)
+        [t_backdrop orderWindow: NSWindowBelow relativeTo: t_window_above_id];
+    else
+        [t_backdrop orderBack: nil];
+
+    [CATransaction commit];
 }
 
 void MCPlatformConfigureBackdrop(MCPlatformWindowRef p_backdrop_window)
 {
 	if (s_backdrop_window != nil)
 	{
+        // Restore key-eligibility on the outgoing backdrop window so it
+        // behaves normally if it is ever repurposed.
+        NSWindow *t_old = ((MCMacPlatformWindow *)s_backdrop_window) -> GetHandle();
+        [t_old setCanBecomeKeyWindow: YES];
+
 		MCPlatformReleaseWindow(s_backdrop_window);
 		s_backdrop_window = nil;
 	}
-	
+
 	s_backdrop_window = p_backdrop_window;
-	
+
 	if (s_backdrop_window != nil)
+    {
 		MCPlatformRetainWindow(s_backdrop_window);
-	
+
+        // The backdrop must never become the key window — if it does, menu
+        // actions route through its responder chain and find no handler,
+        // so menu items like "New Stack" silently do nothing.
+        // This must be set before MCPlatformShowWindow is called so that
+        // makeKeyAndOrderFront: brings the window to front without making it key.
+        NSWindow *t_new = ((MCMacPlatformWindow *)s_backdrop_window) -> GetHandle();
+        [t_new setCanBecomeKeyWindow: NO];
+    }
+
 	MCMacPlatformSyncBackdrop();
 }
 
@@ -1967,33 +2012,15 @@ void MCMacPlatformHandleMouseCursorChange(MCPlatformWindowRef p_window)
     MCMacPlatformWindow *t_window;
     t_window = (MCMacPlatformWindow *)p_window;
     
-    // If we are on Lion+ then check to see if the mouse location is outside
-    // of any of the system tracking rects (used for resizing etc.)
-    extern uint4 MCmajorosversion;
-    if (MCmajorosversion >= MCOSVersionMake(10,7,0))
-    {
-        // MW-2014-06-11: [[ Bug 12437 ]] Make sure we only check tracking rectangles if we have
-        //   a resizable frame.
-        bool t_is_resizable;
-        MCPlatformGetWindowProperty(p_window, kMCPlatformWindowPropertyHasSizeWidget, kMCPlatformPropertyTypeBool, &t_is_resizable);
-        
-        if (t_is_resizable)
-        {
-            NSArray *t_tracking_areas;
-            t_tracking_areas = [[t_window -> GetContainerView() superview] trackingAreas];
-            
-            NSPoint t_mouse_loc;
-            t_mouse_loc = [t_window -> GetView() mapMCPointToNSPoint: s_mouse_position];
-            for(uindex_t i = 0; i < [t_tracking_areas count]; i++)
-            {
-                if (NSPointInRect(t_mouse_loc, [(NSTrackingArea *)[t_tracking_areas objectAtIndex: i] rect]))
-                    return;
-            }
-        }
-    }
-    
     // MW-2014-06-25: [[ Bug 12634 ]] Make sure we only change the cursor if we are not
     //   within a native view.
+    // Note: a Lion-era block that checked the superview's tracking areas to avoid
+    // overriding the system resize cursors was removed here.  On modern macOS the
+    // superview's tracking areas cover the entire content area (not just resize
+    // handles), so that check unconditionally suppressed cursor changes on any
+    // resizable stack.  The hitTest below is the correct gate: when the mouse is
+    // over a resize handle it sits in the window chrome (outside our view
+    // hierarchy), hitTest does not return our view, and we leave the cursor alone.
     if ([t_window -> GetContainerView() hitTest: [t_window -> GetView() mapMCPointToNSPoint: s_mouse_position]] == t_window -> GetView())
     {
         // Show the cursor attached to the window.
@@ -2219,6 +2246,92 @@ void MCMacPlatformSyncMouseAfterTracking(void)
 	[NSApp postEvent: t_event atStart: YES];
 }
 
+// [[ Bug 525 ]] Native modal panels (NSOpenPanel/NSSavePanel, NSAlert, print
+//   panels) keep their window on screen for a short while after runModal
+//   returns - the close animation is still running. A single mouse sync
+//   posted at that point asks the window server what is under the pointer,
+//   gets the still-fading panel back and so leaves s_mouse_window nil until
+//   the user physically moves the mouse. How long the panel lingers depends
+//   on how it was dismissed and on how quickly the engine gets back to the
+//   event loop, so we retry for a short period until the mouse window is
+//   re-established.
+static NSTimer *s_mouse_resync_timer = nil;
+static uint32_t s_mouse_resync_attempts = 0;
+
+static const NSTimeInterval kMCMacPlatformMouseResyncInterval = 0.05;
+static const uint32_t kMCMacPlatformMouseResyncMaxAttempts = 20; // ~1s
+
+static void MCMacPlatformStopMouseResync(void)
+{
+    if (s_mouse_resync_timer != nil)
+    {
+        [s_mouse_resync_timer invalidate];
+        [s_mouse_resync_timer release];
+        s_mouse_resync_timer = nil;
+    }
+    s_mouse_resync_attempts = 0;
+}
+
+static void MCMacPlatformPostMouseResyncEvent(void)
+{
+	NSEvent *t_event;
+	t_event = [NSEvent otherEventWithType:NSApplicationDefined
+								 location:NSMakePoint(0, 0)
+							modifierFlags:0
+								timestamp:0
+							 windowNumber:0
+								  context:NULL
+								  subtype:kMCMacPlatformMouseResyncEvent
+									data1:0
+									data2:0];
+	[NSApp postEvent: t_event atStart: NO];
+}
+
+void MCMacPlatformHandleMouseResync(void)
+{
+    // Only step in while no mouse window has been established and the user
+    // isn't in the middle of a press - a real mouse event has already done
+    // the job (or is about to), and we must never disturb button state.
+    if (s_mouse_window != nil || s_mouse_buttons != 0 || s_mouse_grabbed)
+    {
+        MCMacPlatformStopMouseResync();
+        return;
+    }
+
+	MCPoint t_location;
+	MCMacPlatformMapScreenNSPointToMCPoint([NSEvent mouseLocation], t_location);
+
+    // Force the move to be processed even if the pointer hasn't moved.
+	MCMacPlatformHandleMouseMove(t_location);
+
+    if (s_mouse_window != nil)
+        MCMacPlatformStopMouseResync();
+}
+
+void MCMacPlatformSyncMouseAfterModal(void)
+{
+    // Do the normal (destructive) sync first - this releases any button that
+    // was down when the modal started, exactly as after menu tracking.
+    MCMacPlatformSyncMouseAfterTracking();
+
+    // Then keep checking until the panel's window has actually gone.
+    MCMacPlatformStopMouseResync();
+    s_mouse_resync_timer = [[NSTimer timerWithTimeInterval: kMCMacPlatformMouseResyncInterval
+                                                   repeats: YES
+                                                     block: ^(NSTimer *p_timer) {
+        s_mouse_resync_attempts += 1;
+        if (s_mouse_resync_attempts > kMCMacPlatformMouseResyncMaxAttempts)
+        {
+            MCMacPlatformStopMouseResync();
+            return;
+        }
+        // Post rather than handle directly so the resulting mouseEnter /
+        // mouseMove messages are dispatched from the normal event path.
+        MCMacPlatformPostMouseResyncEvent();
+    }] retain];
+    [[NSRunLoop currentRunLoop] addTimer: s_mouse_resync_timer forMode: NSRunLoopCommonModes];
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void MCMacPlatformHandleModifiersChanged(MCPlatformModifiers p_modifiers)
@@ -2307,6 +2420,10 @@ void MCMacPlatformShowMessageDialog(MCStringRef p_title,
     [t_alert setInformativeText: MCStringConvertToAutoreleasedNSString(p_message)];
     [t_alert setAlertStyle:NSInformationalAlertStyle];
     [t_alert runModal];
+    [t_alert release];
+
+    // [[ Bug 525 ]] Resync the mouse window after the modal alert closes.
+    MCMacPlatformSyncMouseAfterModal();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

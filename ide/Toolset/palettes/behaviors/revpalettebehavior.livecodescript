@@ -347,7 +347,8 @@ on generateFrame
       end if
       -- changing the hover and clicked colour of the buttons in the inspector palette (tperry)
       set the hiliteColor of widget "header_background" of group "background" of me to (the cToolSelectorColor of stack "revPreferences") -- was: set the hiliteColor of widget "header_background" of group "background" of me to revIDEColor("edition_color")
-      set the borderColor of widget "header_background" of group "background" of me to "178,178,178"
+      -- OXT-Beyond: palette_frame_border, 178 in light as before and 110 in dark
+      set the borderColor of widget "header_background" of group "background" of me to revIDEColor("palette_frame_border")
    else
       if there is a widget "header_background" of group "background" of me then 
          delete widget "header_background" of group "background" of me 
@@ -363,7 +364,7 @@ on generateFrame
       set the navData of widget "footer_background" of group "background" of me to empty
       -- changing footer bkgnd colours (tperry)
       set the hiliteColor of widget "footer_background" of group "background" of me to "255,80,0" -- orange (19-4-24) -- was: revIDEColor("edition_color")
-      set the borderColor of widget "footer_background" of group "background" of me to "178,178,178"
+      set the borderColor of widget "footer_background" of group "background" of me to revIDEColor("palette_frame_border")
    else
       if there is a widget "footer_background" of group "background" of me then 
          delete widget "footer_background" of group "background" of me 

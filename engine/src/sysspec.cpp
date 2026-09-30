@@ -943,26 +943,30 @@ static bool MCS_getentries_callback(void *p_context, const MCSystemFolderEntry *
         if (!MCU_urlencode(*t_normalized, t_state -> utf8, &t_url_encoded))
 			return false;
         
+		// The times are 64-bit (Year 2038): format them as unsigned long long,
+		// casting so the argument always matches (uint64_t is unsigned long on
+		// 64-bit Linux). %ld or %u read only 32 bits of each and, where the
+		// argument slots are not 64 bits wide, the wrong slots after it.
 #ifdef _WIN32
 		if (!MCStringFormat(&t_details,
-							"%@,%I64d,,%ld,%ld,%ld,,,,%03o,",
+							"%@,%I64d,,%llu,%llu,%llu,,,,%03o,",
 							*t_url_encoded,
 							p_entry -> data_size,
-							p_entry -> creation_time,
-							p_entry -> modification_time,
-							p_entry -> access_time,
+							(unsigned long long)p_entry -> creation_time,
+							(unsigned long long)p_entry -> modification_time,
+							(unsigned long long)p_entry -> access_time,
 							p_entry -> permissions))
 			return false;
 #elif defined(_MACOSX)
 		if (!MCStringFormat(&t_details,
-							"%@,%lld,%lld,%u,%u,%u,%u,%d,%d,%03o,%.8s",
+							"%@,%lld,%lld,%llu,%llu,%llu,%llu,%d,%d,%03o,%.8s",
 							*t_url_encoded,
 							p_entry -> data_size,
 							p_entry -> resource_size,
-							p_entry -> creation_time,
-							p_entry -> modification_time,
-							p_entry -> access_time,
-							p_entry -> backup_time,
+							(unsigned long long)p_entry -> creation_time,
+							(unsigned long long)p_entry -> modification_time,
+							(unsigned long long)p_entry -> access_time,
+							(unsigned long long)p_entry -> backup_time,
 							p_entry -> user_id,
 							p_entry -> group_id,
 							p_entry -> permissions,
@@ -970,11 +974,11 @@ static bool MCS_getentries_callback(void *p_context, const MCSystemFolderEntry *
 			return false;
 #else
 		if (!MCStringFormat(&t_details,
-							"%@,%lld,,,%u,%u,,%d,%d,%03o,",
+							"%@,%lld,,,%llu,%llu,,%d,%d,%03o,",
 							*t_url_encoded,
 							p_entry -> data_size,
-							p_entry -> modification_time,
-							p_entry -> access_time,
+							(unsigned long long)p_entry -> modification_time,
+							(unsigned long long)p_entry -> access_time,
 							p_entry -> user_id,
 							p_entry -> group_id,
 							p_entry -> permissions))

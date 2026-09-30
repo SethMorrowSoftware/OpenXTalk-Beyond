@@ -819,19 +819,6 @@ private command __extensionsChanged
    end if
    send "doExtensionsChanged" to me in 10 millisecs
    put the result into sExtensionsChangedMsg
-   -- dark mode hook (Paul McClernan)
-     get the cDarkMode of stack "revPreferences"
-   if it is true then
-      try
-         setAllToDarkMode
-      end try
-      send "IDEToDarkMode" to me in 0 millisecs
-   else
-      try
-         setAllToLightMode
-      end try
-      send "IDEToLightMode" to me in 0 millisecs
-   end if
 end __extensionsChanged
 
 # Sent progress update on installation of widget
@@ -1320,6 +1307,10 @@ private command __revIDELCSExtensionLoad pFullPath, pFolder, pVersion, pStatus, 
    __extensionPropertySet tCacheIndex, "uservisible", true
    __extensionPropertySet tCacheIndex, "support_files", pAdditionalInfoA["support_files"]
    
+   # Check for sample stacks, as LCB extensions do: without this the
+   # Extension Manager could not open a script library's samples
+   __extensionPropertySet tCacheIndex, "samples", __extensionSampleStacks(tId,pFolder)
+
    # Store the extension's property metadata
    --  revIDEExtensionSetInfo pID
    

@@ -103,7 +103,18 @@ on registerForMessages
    revIDESubscribe "idePreferenceOfSetChanged"
    revIDESubscribe "ideToolChanged"
    -- revIDESubscribe "ideExtensionsChanged"
+   revIDESubscribe "ideAppearanceChanged"
 end registerForMessages
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the icon set,
+-- the widget icons' colour and the separators are chosen when the palette
+-- is generated
+on ideAppearanceChanged
+   lock screen
+   generatePalette
+   layoutPalette
+   unlock screen
+end ideAppearanceChanged
 
 on findMoreWidgets
    lock screen
@@ -619,7 +630,8 @@ on layoutPalette
          set the height of fld tFldName to 23
          set the left of fld tFldName to 0
          set the textSize of fld tFldName to 11
-         set the foregroundColor of fld tFldName to "127,127,127"
+         -- OXT-Beyond: the IDE's muted text (127 was 3.4:1 on the dark palette)
+         set the foregroundColor of fld tFldName to revIDEColor("text_muted")
          set the traversalOn of fld tFldName to false
          set the showFocusBorder of fld tFldName to false
          -- conditional positioning
@@ -940,6 +952,19 @@ on mouseDown pButton
             __hiliteRemove
          end if
       end if
+      ## test if another stack at the screenmouseLoc is more relevant e.g. overlapping stacks
+      local tTestID
+      repeat with x = 1 to the number of elements in tValidDropStacks
+         put tValidDropStacks[x]["long id"] into tStackID
+         if tScreenmouseloc is within tValidDropStacks[x]["rect"] then
+            put tStackID into tTestID
+            if tTestID <> tTargetStack then
+               put empty into tTargetStack
+            end if
+            exit repeat
+         end if
+      end repeat
+      ## End test if another stack at the screenmouseLoc is more relevant
    end repeat
    
    # Change the cursor back

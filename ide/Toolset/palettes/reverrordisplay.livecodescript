@@ -81,7 +81,8 @@ on preOpenStack
    set the dontwrap of it to true
    set the tabstops of it to "100,2000"
    set the margins of it to "8,14,8,8"
-   set the bordercolor of it to "220,220,220"
+   -- OXT-Beyond: the IDE's border colour (220 was a light line in dark too)
+   set the bordercolor of it to revIDEColor("border")
    set the showfocusborder of it to false
    create button "Ignore" in group "errordisplay"
    create button "Script" in group "errorDisplay"
@@ -139,7 +140,8 @@ on enterKey
 end enterKey
 
 constant kExternalHandlerError = 634
-constant kErrorTextColor = "64,64,64"
+-- OXT-Beyond: the text of an earlier error is revIDEColor("text_muted")
+-- (the constant was 64,64,64, 1.5:1 on the dark appearance's field)
 constant kErrorYellowIconID = 202696
 constant kErrorGreyIconID = 202697
 constant kExtensionErrorCode = 863
@@ -325,14 +327,15 @@ on preOpenCard
       exit preOpenCard
    else if lExit then
       put tErrorString into line 1 to 5 of fld "Error" of group "errorDisplay" of me
-      set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to kErrorTextColor
+      set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to revIDEColor("text_muted")
    else
       put tErrorString & cr & cr before fld "Error" of group "errorDisplay" of me
    end if
    set the imageSource of char 1 of fld "Error" of group "errorDisplay" of me to kErrorYellowIconID
    set the textStyle of line 1 of fld "Error" of group "errorDisplay" of me to "bold"
    set the textStyle of line 2 to 5 of fld "Error" of group "errorDisplay" of me to "plain"
-   set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to "black"
+   -- OXT-Beyond: the IDE's text colour, black in light and light in dark
+   set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to revIDEColor("text_1")
    set the hScroll of fld "Error" of group "errorDisplay" of me to 0
    if tUIError then
       --
@@ -409,8 +412,8 @@ on revLineColors
    put 1 into tLineStart
    add tTotal * 6 to tLineStart
    
-   set the textColor of line tLineStart to tLineStart+5 of \ 
-         fld "Error" of group "errorDisplay" of me to kErrorTextColor
+   set the textColor of line tLineStart to tLineStart+5 of \
+         fld "Error" of group "errorDisplay" of me to revIDEColor("text_muted")
    set the imageSource of char 1 of line tLineStart of \ 
          fld "Error" of group "errorDisplay" of me to kErrorGreyIconID
    
@@ -568,3 +571,12 @@ command checkScriptEditor pScriptEditor, pObject, pLineNumber
       send "checkScriptEditor pScriptEditor, pObject, pLineNumber" to me in 100 milliseconds
    end if
 end checkScriptEditor
+
+
+on CommandKeyDown pWhich
+   if (pWhich = "w") then
+      close this stack
+   else
+      pass CommandKeyDown
+   end if
+end CommandKeyDown

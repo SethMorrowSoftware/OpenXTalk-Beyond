@@ -1,0 +1,9 @@
+# Inspector editor com.livecode.pi.nudge: the label of the "Increment"
+# button was saved as 64,64,64 on a transparent button, 1.5:1 on the dark
+# palette. Unset, it takes the IDE's appearance (black in light, light in
+# dark). See inspector-geometry-text.txt for the Geometry editor.
+file: Toolset/palettes/inspector/editors/com.livecode.pi.nudge.livecode
+object: button "Increment" of card 1
+property: foregroundColor
+from: 64,64,64
+to:

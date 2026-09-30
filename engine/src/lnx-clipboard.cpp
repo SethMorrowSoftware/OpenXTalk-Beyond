@@ -726,9 +726,41 @@ MCDataRef MCLinuxRawClipboardItem::UriListToCopyList(MCDataRef p_in)
 }
 
 #ifndef _SERVER
-static bool SelectionNotifyFilter(GdkEvent *t_event, void *)
+// The conversion request that a SelectionNotify must answer to end the wait
+struct MCLinuxSelectionRequest
 {
-    return (t_event->type == GDK_SELECTION_NOTIFY);
+    GdkAtom selection;
+    GdkAtom target;
+};
+
+static bool SelectionNotifyFilter(GdkEvent *t_event, void *p_context)
+{
+    if (t_event->type != GDK_SELECTION_NOTIFY)
+        return false;
+    
+    // Only the reply to this request will do: a reply that arrives after its
+    // own request timed out must not be taken as the answer to the next one
+    // (another target, say), or that representation would get the data that
+    // was meant for the previous one. A stale reply stays on the event queue
+    // and is ignored when the event loop dispatches it.
+    const MCLinuxSelectionRequest *t_request =
+        static_cast<const MCLinuxSelectionRequest *>(p_context);
+    return t_event->selection.selection == t_request->selection &&
+           t_event->selection.target == t_request->target;
+}
+
+// How long to wait for the owner of a selection to answer a conversion
+// request. Taking over the PRIMARY selection (which the Script Editor and the
+// Message Box do as text is selected while typing) first reads what the
+// current owner holds, and under XWayland a Wayland-native app that owns
+// PRIMARY may never answer, so a 1 second wait there made typing lag a second
+// per key; an X11 owner normally answers well within 200 ms. CLIPBOARD and
+// drag-and-drop data are read only on paste or drop, and an owner that
+// encodes large data (an image, say) on request can take several hundred ms,
+// so those keep the full second.
+static uint32_t SelectionReplyTimeoutMs(GdkAtom p_selection)
+{
+    return p_selection == GDK_SELECTION_PRIMARY ? 200 : 1000;
 }
 
 // Timeout function that is triggered if we don't receive a reply from the
@@ -744,23 +776,31 @@ static gboolean SelectionNotifyTimeout(gpointer)
     return FALSE;
 }
 
-static bool WaitForSelectionNotify()
+// Waits for the owner of p_selection to answer the request to convert it to
+// p_target (see SelectionReplyTimeoutMs for how long).
+static bool WaitForSelectionNotify(GdkAtom p_selection, GdkAtom p_target)
 {
-    // Add a timeout that will be triggered if there is no reply. We will wait
-    // for a maximum of 1 second.
+    // Add a timeout that will be triggered if there is no reply
     guint t_timeout_event;
     s_selection_timeout = false;
-    t_timeout_event = g_timeout_add(1000, &SelectionNotifyTimeout, NULL);
+    t_timeout_event = g_timeout_add(SelectionReplyTimeoutMs(p_selection), &SelectionNotifyTimeout, NULL);
     
-    // Loop until a selection notify event is received
+    // Loop until the selection notify event for this request is received
+    MCLinuxSelectionRequest t_request;
+    t_request.selection = p_selection;
+    t_request.target = p_target;
     MCScreenDC *dc = (MCScreenDC*)MCscreen;
-    GdkEvent *t_notify;
-    while (!dc->GetFilteredEvent(SelectionNotifyFilter, t_notify, NULL, true))
+    GdkEvent *t_notify = NULL;
+    while (!dc->GetFilteredEvent(SelectionNotifyFilter, t_notify, &t_request, true))
     {
         // If we timed out, stop waiting
         if (s_selection_timeout)
             break;
     }
+    
+    // GetFilteredEvent hands over a copy of the event
+    if (t_notify != NULL)
+        gdk_event_free(t_notify);
     
     // If the timeout didn't trigger, remove it manually
     if (!s_selection_timeout)
@@ -815,7 +855,7 @@ void MCLinuxRawClipboardItem::FetchExternalRepresentations(GdkDragContext* p_dra
                               GDK_CURRENT_TIME);
         
         // Wait for a SelectionNotify event that tells us the data is ready
-        bool t_timed_out = !WaitForSelectionNotify();
+        bool t_timed_out = !WaitForSelectionNotify(m_clipboard->GetSelectionAtom(), t_targets_atom);
         
         // Get the data for this property
         GdkAtom t_type;
@@ -895,7 +935,7 @@ MCLinuxRawClipboardItemRep::MCLinuxRawClipboardItemRep(MCLinuxRawClipboard* p_cl
                           p_selection, p_atom, GDK_CURRENT_TIME);
     
     // Wait for a SelectionNotify event that tells us the data is ready
-    bool t_timed_out = !WaitForSelectionNotify();
+    bool t_timed_out = !WaitForSelectionNotify(p_selection, p_atom);
     
     // Get the data for this property
     GdkAtom t_type;

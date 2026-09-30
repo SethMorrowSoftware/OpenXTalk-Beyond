@@ -1,0 +1,46 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec). The Preferences card "Script Editor"
+# edits the slot of the appearance the IDE is in: it reads, writes and
+# resets the preference that revSEAppearanceKey names.
+# This one: the colorization scheme menu, which stores the scheme and a
+# background to go with it. It gets One Dark Pro (HyperXTalk 0ce6bba43,
+# Emily-Elizabeth Howard), the default scheme of the dark appearance, whose
+# background is 30,30,30; revpreferencesgui-se-scheme-menu.txt adds it to
+# the menu.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Colorization Scheme" of card "Script Editor"
+replace:
+|   if pItemName is "oxt lite dark" then|
+|      put "40,40,40" into tCustColor -- tperry 20-4-24|
+|   end if|
+|   if pItemName is "Custom" then|
+|      doCustomPopup|
+|   end if|
+|   |
+|   |
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName|
+|   set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|
+|   set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|
+|   |
+|   revIDESetPreference "cScriptEditor," & "editor,backgroundcolor", tCustColor|
+|   revIDESetPreference "cScriptEditor," & "editor,debugBackgroundcolor", tCustColor|
+with:
+|   if pItemName is "oxt lite dark" then|
+|      put "40,40,40" into tCustColor -- tperry 20-4-24|
+|   end if|
+|   if pItemName is "one dark pro" then|
+|      put "30,30,30" into tCustColor -- OXT-Beyond|
+|   end if|
+|   if pItemName is "Custom" then|
+|      doCustomPopup|
+|   end if|
+|   |
+|   -- OXT-Beyond: the slots of the IDE's appearance|
+|   revIDESetPreference "cScriptEditor," & revSEAppearanceKey("colorization,scheme"), pItemName|
+|   set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|
+|   set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|
+|   |
+|   revIDESetPreference "cScriptEditor," & revSEAppearanceKey("editor,backgroundcolor"), tCustColor|
+|   revIDESetPreference "cScriptEditor," & revSEAppearanceKey("editor,debugBackgroundcolor"), tCustColor|

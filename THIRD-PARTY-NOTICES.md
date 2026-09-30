@@ -144,6 +144,43 @@ with an AI assistant; they say so in their own messages.
 | In OXT-Beyond | From HyperXTalk |
 |---|---|
 | The dark values of `revIDEColor` in `ide/Toolset/libraries/revidelibrary.8.livecodescript` (rows, text, hilite and disclosure colours) | docmeth02, commit f6dca5882 ("dark mode: make project browser honor systemAppearance") |
+| `MCCard::createimage` and `MCStack::setcard` (`engine/src/card.cpp`, `engine/src/stack3.cpp`): painted images are kept when the card changes | Emily-Elizabeth Howard, commit 677331fd0 ("Fix painted images disappearing when navigating away from card (#427)") |
+| `MCWidget::GetState` (`engine/src/widget.cpp`): exporting a widget that has no OnSave handler | Brian Milby, commit 91e8f81fe ("Fix widget export crash (#433)") |
+| `MCMacPlatformSyncMouseAfterModal` and the mouse resync after native dialogs (`engine/src/mac-core.mm`, `mac-dialog.mm`, `mac-printer.mm`, `mac-internal.h`) | Emily-Elizabeth Howard, commit 081dd632e ("Resync mouse window after native modal panels close (#525)") |
+| `MCMacPlatformHandleMouseCursorChange` (`engine/src/mac-core.mm`): custom cursors on resizable stacks | Emily-Elizabeth Howard, commit 468ab56c4 ("mac: fix custom cursor ignored on resizable stacks") |
+| `send_startup_message` (`engine/src/dispatch.cpp`): quitting after a startup script error in -ui mode | docmeth02, commit 9ab07dd57 ("engine: exit cleanly after startup script errors in -ui mode") |
+| `autoCompleteInSlashCommentOrOutOfHandler` in the Script Editor's `revsecommoneditorbehavior.livecodescript` | BerndN, commit 217d4cd50 ("Prevent hang on "/\*" in if-then structs (#476)") |
+| `scriptCompile` in the Script Editor's `revseeditorbehavior.livecodescript`: compilation errors stay flagged with Live Errors off | BerndN, commit d05c45457 ("Fix vanishing compilation errors (#479)") |
+| `displayWidth` in `extensions/widgets/treeview/treeview.lcb`: no hang on binary data | BerndN, commit f6892a61b ("Stop Hang with binary Data treeview.lcb") |
+| `IntegerToString` in `extensions/widgets/treeview/treeview.lcb`: whole numbers without scientific notation | Emily-Elizabeth Howard, commit 75c99baf7 ("397 the ide displays large numbers in an array using scientific notation (#432)") |
+| Removing the GTK dialogs' redraw timer and freeing the multiple-selection file names (`engine/src/lnxans.cpp`) | docmeth02, commit 1feacd6a9 ("Fix GLib 2.88 compat and bugs found in code review") |
+| `MCScreenDC::processdesktopchanged` (`engine/src/w32dcs.cpp`): the backdrop sized in screen pixels | Emily-Elizabeth Howard, commit 4234ad57f ("Fix win backdrop on external monitor (#419)") |
+| `MCMacPlatformSyncBackdrop` (`engine/src/mac-core.mm`): other applications' windows are left alone | Emily-Elizabeth Howard, commit d58a3b980 ("fix(mac): prevent backdrop sync from activating foreign app windows") |
+| `MCMacPlatformSyncBackdrop`: reordering in a `CATransaction` without ordering the backdrop out | Emily-Elizabeth Howard, commit d0fed9bd9 ("fix(mac): eliminate backdrop flicker when switching modes or windows") |
+| `MCMacPlatformWindow::DoShow` (`engine/src/mac-window.mm`): new windows above the backdrop | Emily-Elizabeth Howard, commit f02730974 ("fix(mac): ensure new windows appear above the backdrop") |
+| `MCPlatformConfigureBackdrop` (`engine/src/mac-core.mm`): the backdrop cannot become the key window | Emily-Elizabeth Howard, commit 9c1a49fa2 ("fix(mac): prevent backdrop window from stealing key focus") |
+| `enablebackdrop` and `enactraisewindows` (`engine/src/desktop-dc.cpp`): the backdrop is configured before it is shown | Emily-Elizabeth Howard, commit 10def9b65 ("fix(mac): prevent backdrop from stealing key window focus") |
+| `MCA_do_file_dialog` (`engine/src/w32ans.cpp`): the dialog opens when its initial folder is gone | Emily-Elizabeth Howard, commit ffcc29a5e ("fix(win): File > Open no longer blocks when saved folder path is gone") |
+| The sample stacks of script-library extensions in `__revIDELCSExtensionLoad` (`ide/Toolset/libraries/revideextensionlibrary.livecodescript`) | Paul McClernan, commit b3c915681 ("Update revideextensionlibrary.livecodescript") |
+| The wholeMatches, expansion levels, `allParentsExpanded` and sort-type fixes in the Project Browser's `revprojectbrowserbehavior.livecodescript` | BerndN, commit 34d707279 ("Update revprojectbrowserbehavior.livecodescript") |
+| `MCButton::docascade` and `MCButton::mup` (`engine/src/button.cpp`, `button.h`): menuPick's previous selection | Mark Wieder, commit 28f9576b8 ("Allow combo and option menus to report the previous selection") |
+| `specialFolderPath("documents")` on Linux (`engine/src/dsklnx.cpp`) | Mark Wieder, commit 3affbfed8 ("allow specialfolder(documents) on linux") |
+| The localized desktop and documents folders on Linux (`engine/src/dsklnx.cpp`), re-implemented | Mark Wieder, commit d89d30993 ("Localized specialFolderPath for desktop and documents (#403)") |
+| `MCScreenDC::snapshot` (`engine/src/lnxdcs.cpp`): rubber-band snapshots without a server grab | Mark Wieder, commit 1212ec400 ("import snapshot doesn't hang linux") |
+| `GetTemporaryFileName` with `mkstemp` (`engine/src/dsklnx.cpp`) and deleting the probe's temporary file in `extensionLCCompileVersion` (`extension-utils.livecodescript`) | Mark Wieder, commit aa0c8cbfe ("//tmp//prefXXXXXX was getting crowded") |
+| The shorter wait for the owner of the PRIMARY selection (`WaitForSelectionNotify` in `engine/src/lnx-clipboard.cpp`) | Emily-Elizabeth Howard, commit 6bf54896d ("503 lin script editormessage box slow typing (#515)") |
+| Locking the Message Box fields over the divider (`revmessageboxmultiplelinescardbehavior.livecodescript`) | BerndN, commit 74b089829 ("Make dragging vertical divider more responsive (#505)") |
+| The widget properties table (`engine/src/exec-interface-object.cpp`) and `MCWidget::getpropertytable` (`engine/src/widget.h`) | Brian Milby, commit 525216689 ("Add `the properties` support for widgets (#349)") |
+| `backspaceKey` in the Script Editor's `revsecommoneditorbehavior.livecodescript` | BerndN, commit 4def940a1 ("Fixes to backspace key") |
+| `actionSelectAll` in the Script Editor's `revsecommoneditorbehavior.livecodescript`: the line numbers follow Select All | BerndN, commit 680bdfc03 ("SyncNumberOnSelectAll_ScriptEditor") |
+| `getCaretToken` in the Script Editor's `revsecommoneditorbehavior.livecodescript`: Go To Definition ignores comments | Emily-Elizabeth Howard, commit a7abeb122 ("fix(ide): improve Go To Definition token detection in script editor") |
+| The token delimiter expression in `getCaretToken` | Emily-Elizabeth Howard, commit 2c7c9b655 ("Update revsecommoneditorbehavior.livecodescript") |
+| The drop target check in the Tools palette's `mouseDown` (`revtools.livecodescript`) | BerndN, commit d596bb2f0 ("Hilite stacks at mouseLoc when dragging controls") |
+| The popup editor clean-up and selection restore in the Inspector's `revinspectoreditorbehavior.livecodescript` | Emily-Elizabeth Howard, commit 0c17d5c08 ("Update revinspectoreditorbehavior.livecodescript") |
+| Hiding the bitmap icons beside an SVG icon in the Extension Builder's `revextensionbuilderbehavior.livecodescript` | Paul McClernan, commit 99babb63f ("Refactor extension builder behavior script") |
+| `commandKeyDown` (Ctrl/Cmd-W) in `ide/Toolset/palettes/reverrordisplay.livecodescript` | Emily-Elizabeth Howard, commit 84025274f ("handle key command to close window") |
+| 64-bit times in `MCSystemFolderEntry` (`engine/src/system.h`) and the platforms' folder listings | Emily-Elizabeth Howard, commit 2aa83ba07 ("fix for Year 2038 problem") |
+| The null card checks in `MCInterfaceExecPop` and `MCInterfaceExecPopToLast` (`engine/src/exec-interface.cpp`) and the pop error in slot 396 | Emily-Elizabeth Howard, commit eb5fe5e2f ("Fix pop without push causing silent SIGSEGV crash (#425)") |
 
 Parts of the IDE that have their own author or terms are listed below.
 

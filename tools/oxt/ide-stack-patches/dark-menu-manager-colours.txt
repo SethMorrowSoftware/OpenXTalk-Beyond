@@ -1,0 +1,28 @@
+# Menu Builder (revMenuManager): its two lists and the style popups had
+# black text saved, black on dark in the dark appearance. Unset, they
+# follow it.
+file: Toolset/palettes/revmenumanager.rev
+object: field "Menu Buttons" of card "Menu Manager"
+property: foregroundColor
+from: black
+to: 
+object: field "Menu Items" of card "Menu Manager"
+property: foregroundColor
+from: black
+to: 
+object: stack "revMenuStylePopup"
+property: foregroundColor
+from: Black
+to: 
+object: button "Checked" of card 1 of stack "revMenuItemStylePopup"
+property: foregroundColor
+from: black
+to: 
+object: button "Diamond" of card 1 of stack "revMenuItemStylePopup"
+property: foregroundColor
+from: black
+to: 
+object: button "None" of card 1 of stack "revMenuItemStylePopup"
+property: foregroundColor
+from: black
+to: 
