@@ -733,6 +733,12 @@ contributions are accepted under the same licence as the project. See
   (richmond62), Axwald (Message Watcher, App Browser fixes), Neville,
   overclockedmind, micmac, mwieder, MaxV (whose MaxDictionary is the
   basis of Quick Dictionary) and the FerrusLogic team (DevGuides).
+- **HyperXTalk** ([emily-elizabeth/HyperXTalk](https://github.com/emily-elizabeth/HyperXTalk)),
+  Emily-Elizabeth Howard's GPL-3.0 fork of the same LiveCode Community
+  code, with docmeth02, Mark Wieder, Brian Milby, Paul McClernan, BerndN
+  and other contributors. OXT-Beyond's dark colour table for the IDE
+  (`revIDEColor`) is adapted from docmeth02's; code taken from HyperXTalk
+  names the HyperXTalk commit and its author in the commit message.
 - **SethMorrowSoftware** maintains OXT-Beyond.
 - **LiveCode Ltd and the LiveCode Community contributors** wrote LiveCode
   Community, on which all of this is based

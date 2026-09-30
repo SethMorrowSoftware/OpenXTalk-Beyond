@@ -400,6 +400,9 @@ command setUpProjectView
    
    set the viewProp["row style templates"] of group "objectList" of me to theStylesA
    set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
+   -- The selection while the list is not focused (the dataView's own
+   -- default is a light grey, also in the dark appearance)
+   set the viewProp["dimmed hilite color"] of group "objectList" of me to revIDEColor("dataView_dimmedHiliteColor")
    
    set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
    set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")     
