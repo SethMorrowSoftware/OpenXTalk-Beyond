@@ -181,6 +181,22 @@ with an AI assistant; they say so in their own messages.
 | `commandKeyDown` (Ctrl/Cmd-W) in `ide/Toolset/palettes/reverrordisplay.livecodescript` | Emily-Elizabeth Howard, commit 84025274f ("handle key command to close window") |
 | 64-bit times in `MCSystemFolderEntry` (`engine/src/system.h`) and the platforms' folder listings | Emily-Elizabeth Howard, commit 2aa83ba07 ("fix for Year 2038 problem") |
 | The null card checks in `MCInterfaceExecPop` and `MCInterfaceExecPopToLast` (`engine/src/exec-interface.cpp`) and the pop error in slot 396 | Emily-Elizabeth Howard, commit eb5fe5e2f ("Fix pop without push causing silent SIGSEGV crash (#425)") |
+| Dark drawing of the Windows native controls (push buttons, option menus, combo boxes, checkboxes, radio buttons, tabs, field frames, groups) and the dark bypass after the widget type switch, `engine/src/w32theme.cpp` | Emily-Elizabeth Howard, commit 7107166b1 ("[win] dark mode") |
+| The option menu's text part drawn on the dark face, not a white background, `engine/src/w32theme.cpp` | Emily-Elizabeth Howard, commit ddcb9ff9f ("win: fix option menu showing white background in dark mode") |
+| The dark slider's track strip and thumb geometry, `engine/src/w32theme.cpp` | Emily-Elizabeth Howard, commit 2d630824d ("fixed slider drawing") |
+| Button menu colours re-applied when the menu opens, the selected text colour from the hilite colour's luma, and the appearance of menus popped up from a button (`engine/src/stack3.cpp`, `button.cpp`, `block.cpp`, `mac-menu.mm`) | Emily-Elizabeth Howard, commit 798311a85 ("fix: macOS dark mode for combo box dropdowns and selected text contrast") |
+| The observer of the application's appearance for `systemAppearanceChanged` on macOS, `engine/src/mac-core.mm` | Emily-Elizabeth Howard, commit 0457ce517 ("Switch macOS systemAppearanceChanged detection to KVO (#528)") |
+| Light and dark script editor preferences (`revSEAppearanceKey`, `sePrefGet`) | Emily-Elizabeth Howard, commit e835a23ec ("412 feature request actual dark mode script editor (#462)") |
+| The One Dark Pro script editor scheme in `revseutilities`, with three colours lightened for contrast | Emily-Elizabeth Howard, commit 0ce6bba43 |
+| The script editor's find colour in the dark appearance (`editor,darkFindColor`) | Emily-Elizabeth Howard, commit 060f64701 |
+| Script editor error rows in the list colours | Emily-Elizabeth Howard, commit 672704d97 |
+| The gutter colours, set whenever the line numbers field is made | Emily-Elizabeth Howard, commit 9c9079c6c |
+| The Variables pane colours (`seApplyAppearance`) | Emily-Elizabeth Howard, commit b572107df |
+| The Inspector's own colours in the light appearance only | Emily-Elizabeth Howard, commits 7c9b2af5a, 6092ea873 and 3d874fa92 |
+| The Message Box following the appearance | docmeth02, commit eb53f2d09; Emily-Elizabeth Howard, commits 67b704c8f and dc315ab68 |
+| The Message Box without scriptFormat colouring | Emily-Elizabeth Howard, commits 5454a743b and 40f4d1953 |
+| Dark code examples in the dictionary (`codestyle.css`) | Emily-Elizabeth Howard, commits c4cb26ea3 and 0a2ba55ff |
+| *View > Show IDE Stacks In Lists* | Emily-Elizabeth Howard, commits e02b2627d and 084195cbe |
 
 Parts of the IDE that have their own author or terms are listed below.
 
