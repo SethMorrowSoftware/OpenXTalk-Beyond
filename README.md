@@ -38,8 +38,9 @@ maintained by
 
 ## Status
 
-OXT-Beyond 0.0.2 is an early release of a young project. Please read
-this before you download it.
+OXT-Beyond 0.1.0 is the first release for Windows, macOS and Linux, and
+still an early release of a young project. Please read this before you
+download it.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -499,6 +500,24 @@ OXT-Beyond 0.0.2 adds:
   and "semibold" as a text style name (the same as "demibold");
 - behind the scenes, the same engine building for Linux and macOS in
   CI, on the way to packages for those platforms.
+
+OXT-Beyond 0.1.0 adds:
+
+- packages for macOS and Linux, made and tested together with the
+  Windows ones from one tag: one universal `OXT-Beyond.app` for Apple
+  Silicon and Intel Macs (a disk image and a zip, signed ad hoc, see
+  [macOS](#macos)) and a portable Linux x86-64 package with a launcher
+  and a per-user install script (see [Linux](#linux-x86-64));
+- readable text in the Windows dark mode: disabled labels (toolbar,
+  buttons, checkboxes, radio buttons, tabs) are drawn once in a flat
+  grey instead of an engraved double image, scrollbars are dark and
+  follow a switch between light and dark, and the IDE's lists, Extension
+  Manager, Tools palette and toolbar icons have dark colours, partly
+  adapted from HyperXTalk (see [Credits](#credits));
+- two light mode colours restored that OpenXTalk Lite 1.15 had changed
+  by mistake (white text on selected list rows and on coloured badges);
+- a fix for a crash of the Linux engine when it opens a stack whose
+  text font is "(System)" without a display.
 
 ### xTalk Suite extensions
 
