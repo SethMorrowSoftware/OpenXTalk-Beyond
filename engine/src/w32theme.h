@@ -38,6 +38,7 @@ public:
 	MCNativeTheme()
 	{
 		mThemeDLL = NULL;
+		mScrollbarOwnerDraw = false;
 	}
 
 	MCWinSysHandle getmenutheme(void)
@@ -76,9 +77,11 @@ public:
 protected:
 	virtual void getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype, MCStringRef &r_colorbuf);
 	MCWinSysHandle GetTheme(Widget_Type wtype);
+	void OpenScrollbarTheme(void);
 	void CloseData();
 	Boolean GetThemePartAndState(const MCWidgetInfo &winfo, int4& aPart, int4& aState);
 	Boolean drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
+	Boolean drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 	Boolean drawprogressbar(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 
 	Boolean drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
@@ -99,6 +102,9 @@ protected:
 	MCWinSysHandle mRebarTheme;
 	MCWinSysHandle mProgressTheme;
 	MCWinSysHandle mScrollbarTheme;
+	// True in dark mode when mScrollbarTheme is the light scrollbar class, so
+	// drawwidget draws the scrollbar parts itself (see OpenScrollbarTheme).
+	bool mScrollbarOwnerDraw;
 	MCWinSysHandle mSmallScrollbarTheme;
 	MCWinSysHandle mStatusbarTheme;
 	MCWinSysHandle mTabTheme;
