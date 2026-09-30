@@ -53,10 +53,12 @@ What is checked, for the native Windows theme:
   - "contrast" (dark mode): at least 4.5:1 between the label and its
     background (WCAG AA for text).
   - "shape": the label has the shape of the same control's label when it is
-    enabled, which is drawn once. The core of a label is its pixels at least
-    half way from their background to the label colour (the disabled grey,
-    or for the enabled label its measured colour), which does not depend on
-    the antialiasing or on the colour. The disabled core may be at most 15%
+    enabled, which is drawn once, in the same grey (render-test sets its
+    foreColor: ClearType draws text a pixel heavier or lighter with the
+    contrast of its colour, so labels in different colours differ in shape).
+    The core of a label is its pixels at least half way from their
+    background to the label colour (the disabled grey, or for the enabled
+    label its measured colour). The disabled core may be at most 15%
     larger than the enabled one, and the two must overlap by at least 0.85
     (intersection over union). A second copy of the label in the same grey,
     offset by a pixel or two, passes the checks above but fails this one.

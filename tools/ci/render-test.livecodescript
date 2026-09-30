@@ -205,22 +205,39 @@ end setUpDisabledLabel
 -- enabled: a second copy of the disabled label in the same grey, a pixel
 -- or two off, passes every check of its colour, but not a comparison of its
 -- shape with the enabled label, which is drawn once.
+--
+-- The enabled label is drawn in the disabled grey too (its foreColor, which
+-- is the label colour of buttons and graphics): DirectWrite's ClearType
+-- text is heavier or lighter by a pixel with the text colour's contrast, so
+-- a grey label and a black, white or red one differ in shape although both
+-- are drawn once. In the same colour they are drawn with the same pixels.
 private command shootLabel pObject, pName
-   local tRect
+   local tRect, tForeColor
    put the rect of pObject into tRect
    exportRect tRect, pName & ".png"
    set the showName of pObject to false
    exportRect tRect, pName & "-nolabel.png"
    set the showName of pObject to true
+   put the foreColor of pObject into tForeColor
+   set the foreColor of pObject to disabledGrey()
    set the disabled of pObject to false
    exportRect tRect, pName & "-enabled.png"
    set the showName of pObject to false
    exportRect tRect, pName & "-enabled-nolabel.png"
    set the showName of pObject to true
    set the disabled of pObject to true
+   set the foreColor of pObject to tForeColor
    addRecord "SHOT", "label", pName, pName & ".png", pName & "-nolabel.png", \
          pName & "-enabled.png", pName & "-enabled-nolabel.png"
 end shootLabel
+
+-- The grey the engine draws disabled labels in on the native Windows
+-- theme (MCScreenDC's gray_pixel, engine/src/w32dcs.cpp): the colour of
+-- render_check.py's DISABLED_GREY, for the enabled reference labels
+private function disabledGrey
+   if the systemAppearance is "dark" then return "137,137,137"
+   return "128,128,128"
+end disabledGrey
 
 -- Renders a rectangle of the card (card coordinates) off screen
 private command exportRect pRect, pFile
