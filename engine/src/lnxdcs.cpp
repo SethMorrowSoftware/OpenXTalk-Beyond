@@ -1140,9 +1140,13 @@ MCImageBitmap *MCScreenDC::snapshot(MCRectangle &r, uint4 window, MCStringRef di
                     {
                         if (t_drawing)
                         {
-                            // Draw the selection rectangle and release the server
+                            // Erase the selection rectangle (XOR drawing)
                             gdk_draw_rectangle(t_root, t_gc, FALSE, t_rect.x, t_rect.y, t_rect.width - 1, t_rect.height - 1);
-                            x11::gdk_x11_ungrab_server();
+                            // MDW bugfix_17257
+                            // The button press no longer grabs the server, so
+                            // there is nothing to release here: an unbalanced
+                            // ungrab trips GDK's grab_count > 0 check.
+                            // x11::gdk_x11_ungrab_server();
                         }
                         
                         // End the selection
