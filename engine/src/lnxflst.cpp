@@ -197,6 +197,18 @@ MCFontStruct *MCNewFontlist::getfont(MCNameRef p_family, uint2& p_size, uint2 p_
         }
     }
 
+    // The special names above take their family from the GTK theme, which
+    // has none to give when there is no screen (-ui, as the IDE compile
+    // check runs the engine) or no GTK: MCPlatformGetControlThemePropString
+    // then fails and leaves t_family_name nil (or empty, for a theme font
+    // without a family), and converting nil below crashes the engine. So
+    // any stack whose textFont is "(System)" (the Quick Dictionary plugin)
+    // killed a headless engine as soon as it was loaded. Fall back to the
+    // default family, as MCPlatformGetControlThemePropFont does when there
+    // is no theme; fontconfig maps it to the system's sans-serif font.
+    if (*t_family_name == nil || MCStringIsEmpty(*t_family_name))
+        t_family_name.Reset(MCSTR(DEFAULT_TEXT_FONT));
+
 	t_font -> description = pango_font_description_new();
     MCAutoStringRefAsSysString t_font_family;
     /* UNCHECKED */ t_font_family.Lock(*t_family_name);

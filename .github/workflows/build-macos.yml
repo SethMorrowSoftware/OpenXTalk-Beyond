@@ -1,9 +1,46 @@
 # Builds the OXT-Beyond engine for macOS on GitHub-hosted runners: Apple
 # Silicon (arm64) on macos-15 and Intel (x86_64) on macos-15-intel. Each
 # architecture is built natively on its own runner with the same steps and
-# ends as an artifact of its own. Nothing here joins the two: the universal
-# app is to be assembled from both artifacts (with lipo) by the packaging
-# step that follows the builds, which is planned but does not exist yet.
+# ends as an artifact of its own ("Build mac-<arch>"). Then
+#
+#   "Package mac-universal" (macos-15) joins the two builds into one
+#   universal build output with lipo (tools/ci/merge_universal.py, dSYM
+#   bundles included), stages OXT-Beyond.app from it with the external
+#   assets and the xTalk Suite extensions (tools/oxt/package.py --platform
+#   mac-universal), signs it ad hoc from the inside out
+#   (tools/ci/sign_mac_app.py), checks that every Mach-O file of macOS code
+#   in it holds arm64 and x86_64, and writes
+#
+#     OXT-Beyond-<ver>-mac-universal.dmg              the app and a link to
+#                                                     /Applications
+#     OXT-Beyond-<ver>-mac-universal.zip              the app (ditto)
+#     OXT-Beyond-<ver>-mac-universal-binaries.tar.xz  the merged build
+#                                                     output, signed ad hoc,
+#                                                     without the build's
+#                                                     own tools (GENTLE's
+#                                                     among them)
+#     OXT-Beyond-<ver>-mac-universal-symbols.zip      the universal dSYMs
+#     SHA256SUMS
+#
+#   (tools/oxt/package_dist.py --dmg) as the artifact
+#   OXT-Beyond-mac-universal, kept for 30 days;
+#
+#   "Test mac-universal (<arch>)" (macos-15 and macos-15-intel, so that
+#   each slice runs) installs the app from the disk image into a neutral
+#   folder and runs codesign --verify --deep --strict, the headless smoke
+#   test (which loads and calls every bundled xTalk Suite extension; their
+#   libraries need macOS 15, which both runners have), the extension
+#   library check, the IDE compile check and the standalone check: the
+#   runtimes' structure and signatures, and a standalone built from the
+#   packaged Standalone-blank.app with the engine's deploy command, signed
+#   as the IDE signs one, and run (tools/ci/standalone_check.py). It also
+#   extracts the zip and verifies its signature.
+#
+# The artifact is uploaded before the test jobs run, so a release has to
+# need both the package and the test jobs.
+#
+# Signing is ad hoc (no Developer ID, no notarization): Gatekeeper blocks
+# the app until the user allows it (see the README's macOS section).
 #
 # Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
 # (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
@@ -347,3 +384,352 @@ jobs:
             prebuilt/build/**/config.log
             ide-compile-check.log
           if-no-files-found: ignore
+
+  # One universal OXT-Beyond.app from the two builds, signed ad hoc, as a
+  # disk image, a zip and the merged build output with its symbols. Every
+  # path below is under $RUNNER_TEMP (/Users/runner/work/_temp): no folder
+  # there is named _build or *-bin, which would put the engine into
+  # repository mode (tools/oxt/package.py repository_mode_trap).
+  package:
+    name: Package mac-universal
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      OXT_ASSETS_CACHE: ${{ github.workspace }}/prebuilt/fetched-assets
+    outputs:
+      version: ${{ steps.product.outputs.version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # The build jobs have checked the tag against ide/.version already.
+      # This job's build number (OXT_BUILD_NUMBER, the packaged
+      # .buildnumber and CFBundleVersion) is the UTC time now. MAC and LOGS
+      # are set here because a job's env cannot use the runner context.
+      - name: Read the product version
+        id: product
+        run: |
+          version=$(tr -d '\r' < ide/.version)
+          version="${version#"${version%%[![:space:]]*}"}"
+          version="${version%"${version##*[![:space:]]}"}"
+          if [ -z "$version" ]; then echo "::error::ide/.version is empty"; exit 1; fi
+          build_number=$(date -u +%Y%m%d%H%M)
+          echo "OXT-Beyond $version, build number $build_number"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "VERSION=$version"
+            echo "OXT_BUILD_NUMBER=$build_number"
+            echo "MAC=$RUNNER_TEMP/mac"
+            echo "LOGS=$RUNNER_TEMP/logs"
+          } >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/logs"
+          python3 --version
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
+
+      - name: Download the arm64 build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-mac-arm64-bin
+          path: ${{ runner.temp }}/artifacts/arm64
+
+      - name: Download the arm64 symbols
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-mac-arm64-symbols
+          path: ${{ runner.temp }}/artifacts/arm64
+
+      - name: Download the x86_64 build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-mac-x86_64-bin
+          path: ${{ runner.temp }}/artifacts/x86_64
+
+      - name: Download the x86_64 symbols
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-mac-x86_64-symbols
+          path: ${{ runner.temp }}/artifacts/x86_64
+
+      # Both tarballs of a build unpack as Release/: the symbols go over the
+      # build products, which puts every dSYM next to its binary. The two
+      # architectures go into folders of their own.
+      - name: Extract the two builds
+        run: |
+          for arch in arm64 x86_64; do
+            mkdir -p "$MAC/$arch"
+            for kind in bin symbols; do
+              tarball="$RUNNER_TEMP/artifacts/$arch/OXT-Beyond-mac-$arch-$kind.tar.xz"
+              if [ ! -f "$tarball" ]; then echo "::error::$tarball is missing from the artifact"; exit 1; fi
+              tar -C "$MAC/$arch" -xJf "$tarball"
+            done
+            if [ ! -d "$MAC/$arch/Release/LiveCode-Community.app" ]; then
+              echo "::error::the $arch build has no Release/LiveCode-Community.app"; exit 1
+            fi
+            echo "$arch: $(find "$MAC/$arch/Release" -type f | wc -l | tr -d ' ') files," \
+                 "$(find "$MAC/$arch/Release" -type d -name '*.dSYM' | wc -l | tr -d ' ') dSYM bundles"
+          done
+
+      # lipo -create for every Mach-O file (the dSYMs' DWARF files too),
+      # byte-for-byte comparison of everything else; see the rules in the
+      # script for what may differ or exist in one build only.
+      - name: Merge into one universal build output
+        run: |
+          python3 tools/ci/merge_universal.py --arm64 "$MAC/arm64/Release" --x86_64 "$MAC/x86_64/Release" \
+            --out "$MAC/universal/Release" --report "$LOGS/merge-report.tsv"
+
+      # The stripped Mach-O files carry stale signatures and every merged
+      # file keeps each slice's old one, so the merged tree is signed ad hoc
+      # before it is staged and archived: the binaries archive then holds
+      # code that runs on Apple Silicon (which kills a process whose pages
+      # do not match their hashes). The app is signed again after staging.
+      - name: Sign the merged build output
+        run: python3 tools/ci/sign_mac_app.py "$MAC/universal/Release"
+
+      # The same caches as build-windows.yml (see there). actions/cache
+      # keeps Windows entries apart from macOS and Linux ones, so these
+      # keys do not restore the Windows job's files here.
+      - name: Restore cached external assets
+        id: assets-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/fetched-assets/*.zip
+          key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
+
+      - name: Restore cached xTalk extension files
+        id: xtalk-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
+
+      # The external assets and the xTalk Suite extensions can be left out
+      # with the repository variables OXT_NO_EXTERNAL_ASSETS and
+      # OXT_NO_XTALK_EXTENSIONS (1), as in build-windows.yml, except in tag
+      # builds. No Visual C++ runtime is bundled here (it comes from Visual
+      # Studio on the Windows runner), so the Windows libraries of enetxt
+      # and Box2Dxt in this package need the Visual C++ Redistributable;
+      # package.py warns about it.
+      - name: Stage OXT-Beyond.app
+        env:
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && vars.OXT_NO_EXTERNAL_ASSETS == '1' }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && vars.OXT_NO_XTALK_EXTENSIONS == '1' }}
+        run: |
+          flags=
+          if [ "$NO_EXTERNAL_ASSETS" = true ]; then
+            echo "::warning title=Package::External assets left out (OXT_NO_EXTERNAL_ASSETS): the package has no standalone runtimes for other platforms."
+            flags="$flags --no-external-assets"
+          fi
+          if [ "$NO_XTALK_EXTENSIONS" = true ]; then
+            echo "::warning title=Package::xTalk Suite extensions left out (OXT_NO_XTALK_EXTENSIONS)."
+            flags="$flags --no-xtalk-extensions"
+          fi
+          python3 tools/oxt/package.py --platform mac-universal --bin "$MAC/universal/Release" \
+            --out "$RUNNER_TEMP/stage" --summary-json "$RUNNER_TEMP/package-summary.json" $flags \
+            2>&1 | tee "$LOGS/package.log"
+          app="$RUNNER_TEMP/stage/OXT-Beyond-$VERSION/OXT-Beyond.app"
+          if [ ! -d "$app" ]; then echo "::error::package.py wrote no $app"; exit 1; fi
+          echo "APP=$app" >> "$GITHUB_ENV"
+
+      - name: Save external assets to the cache
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/fetched-assets/*.zip
+          key: ${{ steps.assets-cache.outputs.cache-primary-key }}
+
+      - name: Save xTalk extension files to the cache
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
+
+      # What package.py generated: OXT-Beyond's identity (not LiveCode's),
+      # arm64 first, the Intel floor of the universal engine, the icon.
+      # PlistBuddy exits 1 for a missing key; "|| true" keeps bash -e from
+      # ending the step at the assignment, so that the comparison reports
+      # the key and PlistBuddy's message ('Print: Entry, ... Does Not Exist').
+      - name: Check the Info.plist and the icon
+        run: |
+          plist="$APP/Contents/Info.plist"
+          plutil -lint "$plist"
+          check() {
+            got=$(/usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>&1) || true
+            if [ "$got" != "$2" ]; then echo "::error::Info.plist $1 is '$got', expected '$2'"; exit 1; fi
+            echo "$1 = $got"
+          }
+          check CFBundleIdentifier io.github.sethmorrowsoftware.oxt-beyond
+          check CFBundleExecutable OXT-Beyond
+          check CFBundleShortVersionString "$VERSION"
+          check CFBundleIconFile OXT-Beyond.icns
+          check LSMinimumSystemVersion 10.13
+          check LSArchitecturePriority:0 arm64
+          check LSArchitecturePriority:1 x86_64
+          check UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.filename-extension:0 oxtstack
+          check UTExportedTypeDeclarations:1:UTTypeTagSpecification:public.filename-extension:0 oxtscript
+          python3 tools/oxt/icns.py check "$APP/Contents/Resources/OXT-Beyond.icns"
+
+      - name: Sign OXT-Beyond.app
+        run: python3 tools/ci/sign_mac_app.py "$APP"
+
+      # Every Mach-O file of macOS code in the app holds arm64 and x86_64
+      # (lipo -archs agreeing with tools/oxt/binfmt.py), except
+      # reviphoneproxy, the x86_64-only iOS simulator helper; the time zone
+      # library's iOS files are listed, not checked.
+      - name: Check that the app is universal
+        run: python3 tools/ci/merge_universal.py --check "$APP"
+
+      - name: Write the disk image and the archives
+        run: |
+          python3 tools/oxt/package_dist.py --summary "$RUNNER_TEMP/package-summary.json" \
+            --bin "$MAC/universal/Release" --out "$RUNNER_TEMP/dist" --dmg 2>&1 | tee "$LOGS/package-dist.log"
+          ls -l "$RUNNER_TEMP/dist"
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-mac-universal
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+          retention-days: 30
+          # The files are compressed already
+          compression-level: 0
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: package-logs-mac-universal
+          path: ${{ runner.temp }}/logs
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The packaged app on each architecture, installed as a user installs it:
+  # from the disk image into a folder of its own ($RUNNER_TEMP/oxt-test,
+  # never under a *-bin or _build folder, which would switch the IDE into
+  # repository mode).
+  test:
+    name: Test mac-universal (${{ matrix.arch }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
+      VERSION: ${{ needs.package.outputs.version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Download the packages
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-mac-universal
+          path: ${{ runner.temp }}/dist
+
+      - name: Check the download
+        run: |
+          echo "LOGS=$RUNNER_TEMP/logs" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/logs"
+          if [ -z "$VERSION" ]; then echo "::error::the package job gave no version"; exit 1; fi
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion); python3 $(python3 -c 'import platform; print(platform.python_version())')"
+          if [ "$(uname -m)" != "$ARCH" ]; then echo "::error::this runner is $(uname -m), not $ARCH"; exit 1; fi
+          cd "$RUNNER_TEMP/dist"
+          ls -l
+          shasum -a 256 -c SHA256SUMS
+
+      # hdiutil attach -readonly, as a user's double-click mounts it; the
+      # volume must hold the app and the link to drag it onto. The attach
+      # runs right after a large download, while XProtect or Spotlight may
+      # still scan the new image, and hdiutil then fails now and again
+      # ("Resource busy", "Resource temporarily unavailable"), as hdiutil
+      # create does in the package job: up to four tries, as there. (In an
+      # "if", a failed attach does not end the step under bash -e.)
+      - name: Install from the disk image
+        run: |
+          dmg="$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.dmg"
+          mnt="$RUNNER_TEMP/oxt-dmg"
+          mkdir -p "$mnt" "$RUNNER_TEMP/oxt-test"
+          for i in 1 2 3 4; do
+            if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg"; then break; fi
+            if [ "$i" = 4 ]; then echo "::error::hdiutil attach $dmg failed 4 times (see above)"; exit 1; fi
+            echo "hdiutil attach failed (attempt $i of 4); trying again in $((10*i)) s"
+            sleep $((10*i))
+          done
+          ls -la "$mnt"
+          if [ ! -d "$mnt/OXT-Beyond.app" ]; then echo "::error::the disk image has no OXT-Beyond.app"; exit 1; fi
+          if [ "$(readlink "$mnt/Applications")" != /Applications ]; then
+            echo "::error::the disk image has no link to /Applications"; exit 1
+          fi
+          ditto "$mnt/OXT-Beyond.app" "$RUNNER_TEMP/oxt-test/OXT-Beyond.app"
+          hdiutil detach "$mnt" || hdiutil detach -force "$mnt"
+          echo "APP=$RUNNER_TEMP/oxt-test/OXT-Beyond.app" >> "$GITHUB_ENV"
+
+      - name: Verify the signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=2 "$APP" 2>&1 | grep -E '^(Identifier|Format|Signature|CodeDirectory)' || true
+          python3 tools/ci/merge_universal.py --check "$APP"
+
+      # The headless smoke test of the installed app (the engine in
+      # Contents/MacOS, the IDE, externals and extensions in
+      # Contents/Tools): script engine, SQLite, revXML, revZip, and every
+      # bundled xTalk Suite extension loaded and called
+      - name: Smoke test
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/run_livecode_check.py smoke --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --log "$LOGS/smoke-test.log"
+
+      # Every native library of the bundled extensions finds what it needs
+      # on a user's Mac and holds both architectures. The xTalk Suite
+      # libraries need macOS 15 (the floor printed per library); nothing
+      # may need more.
+      - name: Check the extension libraries
+        run: |
+          python3 tools/ci/check_native_deps.py --root "$APP/Contents/Tools" --platform mac --max-macos 15.0
+
+      - name: IDE compile check
+        timeout-minutes: 20
+        run: |
+          python3 tools/ci/run_livecode_check.py compile --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --log "$LOGS/ide-compile-check.log"
+
+      - name: Standalone check
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --log "$LOGS/standalone-check.log"
+
+      # The zip must give the same, still valid, app
+      - name: Check the zip
+        run: |
+          dest="$RUNNER_TEMP/oxt-zip"
+          mkdir -p "$dest"
+          ditto -x -k "$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.zip" "$dest"
+          codesign --verify --deep --strict "$dest/OXT-Beyond.app"
+          diff -rq "$APP" "$dest/OXT-Beyond.app"
+          echo "The zip holds the same app as the disk image."
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-logs-mac-universal-${{ matrix.arch }}
+          path: ${{ runner.temp }}/logs
+          if-no-files-found: ignore
+          retention-days: 14
