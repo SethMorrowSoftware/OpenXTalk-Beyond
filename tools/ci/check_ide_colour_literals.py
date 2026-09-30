@@ -27,9 +27,12 @@ changed in one place (tools/ci/ide-contrast-check.livecodescript checks that
 table). A colour written straight into a palette script bypasses both. This
 lint finds such colours in ide/**/*.livecodescript: every statement
 
-  set the <property> [of <object>] to <literal>
+  set [the] <property> [of <object>] to <literal>
 
-whose property names a colour (color, colour, colors, colorOverlay["color"],
+that starts a line, follows "then" or "else" on the same line (as in
+"if the systemAppearance is "dark" then set the backColor of me to ...", a
+common form of one-off dark-mode colours) or follows a ";", whose property
+names a colour (color, colour, colors, colorOverlay["color"],
 viewProp["row color"], ...) and whose value is a literal colour: an RGB
 triplet such as 60,60,60 or "255,80,0", a "#rrggbb" string, or a colour name
 such as white or gray70 (the engine's colorNames). Statements inside the
@@ -90,7 +93,10 @@ HANDLER_START = re.compile(
     r'^\s*(?:private\s+)?(?:on|command|function|getprop|setprop|before|after)\s+([A-Za-z_][\w.]*)',
     re.IGNORECASE)
 HANDLER_END = re.compile(r'^\s*end\s+([A-Za-z_][\w.]*)\s*$', re.IGNORECASE)
-SET_THE = re.compile(r'^\s*set\s+the\s+(.*)$', re.IGNORECASE | re.DOTALL)
+SET_THE = re.compile(r'^\s*set\s+(?:the\s+)?(.*)$', re.IGNORECASE | re.DOTALL)
+# "then" and "else" as whole words (not inside an identifier such as
+# tThen or revIDE.else), where a statement on the same line starts
+STATEMENT_WORD = re.compile(r'(?<![\w.])(?:then|else)(?![\w.])', re.IGNORECASE)
 TO_WORD = re.compile(r'\bto\b', re.IGNORECASE)
 RGB = re.compile(r'^"?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(\d{1,3}))?\s*"?$')
 HEX = re.compile(r'^"?(#[0-9A-Fa-f]{6})"?$')
@@ -115,6 +121,35 @@ def strip_comment(line):
                 return line[:i]
         i += 1
     return line
+
+
+def statements(line):
+    """The statements of a logical line (without its comment): the pieces
+    between ";" and the words "then" and "else", outside strings. The
+    condition of a one-line "if" is a piece of its own, which is no set
+    statement."""
+    pieces = []
+    in_string = False
+    start = 0
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if c == '"':
+            in_string = not in_string
+        elif not in_string:
+            if c == ';':
+                pieces.append(line[start:i])
+                start = i + 1
+            else:
+                # The lookbehind sees the character before i
+                m = STATEMENT_WORD.match(line, i)
+                if m:
+                    pieces.append(line[start:i])
+                    start = i = m.end()
+                    continue
+        i += 1
+    pieces.append(line[start:])
+    return pieces
 
 
 def logical_lines(text):
@@ -191,24 +226,25 @@ def scan_script(text):
             continue
         if handler.lower() in TABLE_HANDLERS:
             continue
-        m = SET_THE.match(line)
-        if not m:
-            continue
-        statement = m.group(1)
-        tos = list(TO_WORD.finditer(statement))
-        if not tos:
-            continue
-        target = statement[:tos[-1].start()]
-        value = statement[tos[-1].end():]
-        # The property is what comes before " of " (or all of the target)
-        prop = re.split(r'\s+of\s+', target.strip(), maxsplit=1, flags=re.IGNORECASE)[0]
-        if not re.search(r'colou?r', prop, re.IGNORECASE):
-            continue
-        literal = literal_colour(value)
-        if literal is None:
-            continue
-        prop = re.sub(r'\s+', ' ', prop.strip()).lower()
-        yield number, handler, prop, literal
+        for piece in statements(line):
+            m = SET_THE.match(piece)
+            if not m:
+                continue
+            statement = m.group(1)
+            tos = list(TO_WORD.finditer(statement))
+            if not tos:
+                continue
+            target = statement[:tos[-1].start()]
+            value = statement[tos[-1].end():]
+            # The property is what comes before " of " (or all of the target)
+            prop = re.split(r'\s+of\s+', target.strip(), maxsplit=1, flags=re.IGNORECASE)[0]
+            if not re.search(r'colou?r', prop, re.IGNORECASE):
+                continue
+            literal = literal_colour(value)
+            if literal is None:
+                continue
+            prop = re.sub(r'\s+', ' ', prop.strip()).lower()
+            yield number, handler, prop, literal
 
 
 def read_text(path):

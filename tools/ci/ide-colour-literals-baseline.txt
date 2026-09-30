@@ -30,10 +30,12 @@ ide/Toolset/palettes/inspector/editors/com.livecode.pi.string.behavior.livecodes
 ide/Toolset/palettes/inspector/editors/com.livecode.pi.text.behavior.livecodescript | editorUpdate | textcolor = 150,150,150
 ide/Toolset/palettes/inspector/editors/com.livecode.pi.textcontents.behavior.livecodescript | editorUpdate | textcolor = 150,150,150
 ide/Toolset/palettes/inspector/editors/com.livecode.pi.timezone.behavior.livecodescript | editorUpdate | textcolor = 150,150,150
+ide/Toolset/palettes/inspector/editors/com.livecode.pi.timezone.behavior.livecodescript | editorUpdate | textcolor = black
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | generateTutorialGroup | backcolor = white
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | generateUpgradeGroup | textcolor = white
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | layoutMenu | backcolor = black
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | layoutMenu | backcolor = white
+ide/Toolset/palettes/menubar/revmenubar.livecodescript | preOpenStack | backgroundcolor = 61,61,61
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | revMenubarFileMenuPick | backgroundcolor = green
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | updateMenubarPreference | textcolor = black
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | updateMenubarPreference | textcolor = white
@@ -45,6 +47,8 @@ ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecode
 ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemUnhilite | backgroundcolor = 255,255,255
 ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemUnhilite | textcolor = 0,0,0
 ide/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript | pFixupMacElements | foregroundcolor = black
+ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = black
+ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = white
 ide/Toolset/palettes/standalone settings/revstandalonesettingscopyfilesbehavior.livecodescript | checkForWarning | textcolor = red
 ide/Toolset/palettes/tools/revtools.livecodescript | __hiliteAdd | backgroundcolor = 125,125,125
 ide/Toolset/palettes/tools/revtools.livecodescript | layoutPalette | foregroundcolor = 127,127,127
