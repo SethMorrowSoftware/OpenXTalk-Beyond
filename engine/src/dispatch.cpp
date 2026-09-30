@@ -1409,9 +1409,23 @@ void send_startup_message(bool p_do_relaunch = true)
 
 	MCdefaultstackptr -> setextendedstate(true, ECS_DURING_STARTUP);
 
-	MCdefaultstackptr -> getcard() -> message(MCM_start_up);
+	Exec_stat t_stat;
+	t_stat = MCdefaultstackptr -> getcard() -> message(MCM_start_up);
 
 	MCdefaultstackptr -> setextendedstate(false, ECS_DURING_STARTUP);
+
+	// With no UI (-ui) a script error in startup has already been written to
+	// stderr by MCObject::message and there is nobody to show a dialog to.
+	// Carrying on to open the stack runs the rest of the scripts on a
+	// half-initialised state, which HyperXTalk saw crash in sptr->open() on
+	// Linux, so quit instead. The exit status is 1 so that a shell script or a
+	// CI harness cannot see success after its startup handler failed; a script
+	// that already quit keeps the status it chose.
+	if (t_stat == ES_ERROR && MCnoui && !MCquit)
+	{
+		MCretcode = 1;
+		MCquit = True;
+	}
 }
 
 void MCDispatch::wclose(Window w)

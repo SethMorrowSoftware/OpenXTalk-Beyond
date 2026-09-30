@@ -37,12 +37,15 @@ If you specify a container, the long <ID> of the <card> is placed in the
 change. 
 
 If the list is empty when you use the <pop> <command>, LiveCode goes to
-the Home <card>. If you are running in the LiveCode 
-<development environment>, this is the first <card> of the "license.rev" 
-<stack>, which is the splash screen that appears when you start up 
-LiveCode. (Click this card to close the stack.) If you are running in a
-<standalone application>, the Home <card> is the first <card> of the
-<standalone application|standalone's> <main stack>.
+the Home <card> (or, with a container, puts its long <ID> there): the
+<current card> of the home <stack>. In a <standalone application>, the
+home <stack> is the <standalone application|standalone's> <main stack>.
+In the <development environment> it is one of the IDE's own <stack|stacks>,
+so there you should not pop more <card|cards> than you pushed.
+
+If the list is empty and there is no Home <card> to go to, the <pop>
+<command> throws an error ("pop: nothing pushed and no Home card to go
+to") instead.
 
 References: push (command), return (constant),
 development environment (glossary), current card (glossary),

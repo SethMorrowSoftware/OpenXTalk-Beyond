@@ -1942,6 +1942,10 @@ function autoCompleteInSlashCommentOrOutOfHandler @pScript, pLineNumber
    put slash & "*" into tSlashStart
    put "*" & slash into tSlashEnd
 
+   ## remove quoted slash-asterisks 
+   replace quote & tSlashStart & quote with quote & quote in pScript
+   replace quote & tSlashEnd & quote with quote & quote in pScript
+
    put word 2 of the selectedChunk into tSelChar
    if tSelChar is empty then
       return empty
@@ -2435,6 +2439,9 @@ on backspaceKey
    local tFrom, tTo
    put word 2 of it into tFrom
    put word 4 of it into tTo
+
+   ## caret position at char 1 -> exit
+   if tTo is 0 then exit backspaceKey
    
    local tAt, tLength
    if tFrom > tTo then
@@ -2457,7 +2464,7 @@ on backspaceKey
          local tWordFound
          put false into tWordFound
          repeat with x = tTo down to 1
-            if not matchText(char x of tScript, "\s") then
+            if not matchText(char x of tScript, "\S") then -- upper case "S" instead of lower case
                put true into tWordFound
             else
                if tWordFound then
@@ -3060,6 +3067,7 @@ command actionSelectAll
    
    if word 1 of the name of the focusedObject is "field" then
       select char 1 to -1 of the focusedObject
+      send "scrollbarDrag" to the focusedObject
    end if
    unlock messages
 end actionSelectAll
@@ -3131,17 +3139,27 @@ command getCaretToken pUseClick
    
    # Don't return tokens in comments. For now we determine if the user is typing
    # in a comment by simple means, using proper tokenization is not yet possible.
-   # This means that multi-line comments will break this.
+   # Multi-line /* */ block comments are not handled.
    local tLine
    if pUseClick then
       put word 2 of the clickLine into tLine
    else
       put word 2 of the selectedLine of getScriptField() into tLine
    end if
-   if token 1 of line tLine of tScript is empty then
+
+   local tLineText
+   put line tLine of tScript into tLineText
+
+   # Blank line
+   if token 1 of tLineText is empty then
       return empty
    end if
-   
+
+   # Line that is entirely a -- comment (handles both -- and --- etc.)
+   if word 1 of tLineText begins with "--" then
+      return empty
+   end if
+
    local tSelectedText
    if pUseClick then
       put the clickText into tSelectedText
@@ -3153,7 +3171,7 @@ command getCaretToken pUseClick
          return tSelectedText
       end if
    end if
-   
+
    # This is expanded to include tokens that the caret was placed immediately before or after,
    # the reason for this is that it allows us to begin searching for tokens while the user is typing.
    local tFrom, tTo
@@ -3164,12 +3182,33 @@ command getCaretToken pUseClick
    end if
    put word 2 of it into tFrom
    put word 4 of it into tTo
-   
+
+   # Check for inline comment: if -- appears anywhere before the click position on
+   # the same line, the click falls inside a comment. Walk back to find the line start.
+   local tLineStart
+   put 1 into tLineStart
+   repeat with i = (tFrom - 1) down to 1
+      if char i of tScript is return then
+         put i + 1 into tLineStart
+         exit repeat
+      end if
+   end repeat
+   local tBefore
+   put char tLineStart to (tFrom - 1) of tScript into tBefore
+   # "--" inside a string literal is not a comment (as in: if tArg is "--verbose"
+   # then ...), so drop complete strings first; xTalk strings have no escapes.
+   # An unterminated quote (caret inside a string) is left in place
+   put replaceText(tBefore, quote & "[^" & quote & "]*" & quote, empty) into tBefore
+   if "--" is in tBefore then
+      return empty
+   end if
+
    # We can't perfectly match tokens at the moment, so we just make a reasonable guess with a regular expression
    # to match any char that delimits a token.
    ## AL-2014-01-15: [[ Bug 11094 ]] Added # to the list of script editor token delimiters
-   local tExpression 
-   put "\s|[\%\^\&\*\(\)\-\+\=\]\]\;\,\\@\\\/\<\>\#]" into tExpression
+   ## Added [, ., " as delimiters; removed duplicate ] from character class
+   local tExpression
+   put "\s|[\%\^\&\*\(\)\-\+\=\[\]\.\" & QUOTE & "\;\,\\@\\\/\<\>\#]" into tExpression
    
    # Try looking backwards first
    local tText, tChar

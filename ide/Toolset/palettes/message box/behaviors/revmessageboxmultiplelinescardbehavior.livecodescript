@@ -63,21 +63,53 @@ end mouseDown
 
 on mouseUp
    put false into lMoving
+   set the lockText of field "Script" to false
+   set the lockText of field "results" to false
    pass mouseUp
 end mouseUp
 
 on mouseRelease
    put false into lMoving
+   # A drag released away from the control it started on (in the other
+   # field, or outside the palette) ends here, not in mouseUp
+   set the lockText of field "Script" to false
+   set the lockText of field "results" to false
 end mouseRelease
+
+on mouseLeave
+   # Only when the pointer has really left the Message Box: moving between the
+   # fields and the divider line also sends mouseLeave, after the mouseMove
+   # that locked them. The divider band spans the whole width, so the pointer
+   # can leave the palette straight from it, and the Script field keeps the
+   # keyboard focus: left locked, it would drop everything typed
+   if lMoving is not true and the mouseLoc is not within the rect of this card then
+      unlock cursor
+      set the lockText of field "Script" to false
+      set the lockText of field "results" to false
+   end if
+   pass mouseLeave
+end mouseLeave
 
 on mouseMove pMouseH, pMouseV
    local tLineYLoc
    put item 2 of the loc of graphic "line" into tLineYLoc
-   if pMouseV <= (tLineYLoc + kSeparatorSize/2) and pMouseV >= (tLineYLoc - kSeparatorSize/2) then 
+   if pMouseV <= (tLineYLoc + kSeparatorSize/2) and pMouseV >= (tLineYLoc - kSeparatorSize/2) then
+      # Lock the fields while the pointer is over the divider: an unlocked
+      # field takes the click itself, so mouseDown above never saw it and
+      # the divider could only be dragged where the fields do not reach
+      set the lockText of field "Script" to true
+      set the lockText of field "results" to true
       set the cursor to 30
       lock cursor
    else
       unlock cursor
+      # Off the divider the fields must be editable again, or typing stays
+      # blocked after the pointer merely passed over it. During a drag
+      # mouseUp unlocks them instead
+      if lMoving is not true then
+         set the lockText of field "Script" to false
+         set the lockText of field "results" to false
+      end if
    end if
    dragLine
 end mouseMove

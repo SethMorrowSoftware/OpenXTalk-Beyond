@@ -1611,6 +1611,12 @@ void MCInterfaceExecType(MCExecContext& ctxt, MCStringRef p_typing, uint2 p_modi
 void MCInterfaceExecPopToLast(MCExecContext& ctxt)
 {
 	MCCard *cptr = MCcstack->popcard();
+	// nil when nothing was pushed and there is no Home card to go to
+	if (cptr == nil)
+	{
+		ctxt . LegacyThrow(EE_POP_NOHOME);
+		return;
+	}
 	MCStack *sptr = cptr->getstack();
 	MCdefaultstackptr = sptr;
 	Boolean oldtrace = MCtrace;
@@ -1628,6 +1634,12 @@ void MCInterfaceExecPopToLast(MCExecContext& ctxt)
 void MCInterfaceExecPop(MCExecContext& ctxt, MCStringRef& r_element)
 {
 	MCCard *cptr = MCcstack->popcard();
+	// nil when nothing was pushed and there is no Home card to give
+	if (cptr == nil)
+	{
+		ctxt . LegacyThrow(EE_POP_NOHOME);
+		return;
+	}
 	MCAutoValueRef t_element;
 	if (cptr -> names(P_LONG_ID, &t_element))
 		if (ctxt.ConvertToString(*t_element, r_element))
