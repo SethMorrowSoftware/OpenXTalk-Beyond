@@ -17,7 +17,8 @@
 
 """Stage the installed layout of OXT-Beyond for one platform.
 
-  python tools/oxt/package.py [--platform P] --repo <repo> --bin <build output>
+  python tools/oxt/package.py [--platform P] --repo <repo>
+      (--bin <build output> | --bin-tar <CI build tarball>)
       --out <stage-parent> [--build-number N] [--assets-cache DIR]
       [--no-external-assets] [--no-xtalk-extensions] [--xtalk-compiler-bin DIR]
       [--vc-redist DIR] [--allow-unpinned-vc-runtime] [--xtalk-cache DIR]
@@ -42,6 +43,31 @@ P chooses the layout (PLATFORMS below; default win-x86_64):
   mac-arm64, mac-x86_64
                  OXT-Beyond.app from one architecture's build, to check the
                  layout; --allow-single-arch lets mac-universal take one too.
+
+--bin-tar takes the build output as the tarball a CI build uploads
+(OXT-Beyond-linux-<arch>-bin.tar.xz, OXT-Beyond-mac-<arch>-bin.tar.xz):
+its one top-level folder is extracted into a temporary folder first,
+without the debug symbols (*.dbg, *.dSYM, *.pdb) and macOS tar's "._"
+AppleDouble files, keeping file modes and symbolic links.
+
+The Linux and macOS layouts are Unix trees, so they are staged on Linux or
+macOS (or WSL), never on Windows, which keeps neither modes nor symbolic
+links:
+
+  modes        executable build outputs (any x bit) and native libraries
+               (of the xTalk extensions, and asset members stored with an
+               x bit) get 0755, every other file 0644 and every folder 0755,
+               whatever the umask or the checkout (git marks some IDE
+               images executable).
+  links        a symbolic link inside a build output folder is staged as
+               the same (relative) link; one that leads out of its folder
+               or is absolute is an error. A build output named directly
+               (not in a folder) is copied through a link.
+  names        two paths that differ only in letter case are a conflict on
+               Windows and macOS (whose volumes are usually
+               case-insensitive), not on Linux.
+  text         generated files (Externals.txt, Database Drivers.txt) and
+               the licence files get LF line endings; CRLF on Windows.
 
 writes <stage-parent>/OXT-Beyond-<version>/, where <version> is the content
 of ide/.version. An existing folder of that name is replaced. The folder is
@@ -69,7 +95,7 @@ stage folder itself except on macOS):
                macOS, the app's Info.plist (the build's, with the renamed
                executable).
   licences     LICENSE, LICENSE-EXCEPTION.md and THIRD-PARTY-NOTICES.md from
-               the repository root (CRLF line endings).
+               the repository root (CRLF line endings on Windows).
   assets       the archives in tools/oxt/external-assets.json (see
                fetch_assets.py), unless --no-external-assets.
   xtalk        the xTalk Suite extensions of tools/oxt/xtalk-extensions.json
@@ -96,6 +122,10 @@ The build number is --build-number, else the environment variable
 OXT_BUILD_NUMBER, else the current UTC time as YYYYMMDDHHMM. ide/.buildnumber
 in the repository is a placeholder.
 
+A warning says when the stage path has a folder name that makes the engine
+run the IDE in repository mode (see repository_mode_trap): a package must
+be tested from a neutral path.
+
 --compare (win-x86_64 only) checks the staged tree against a reference
 install (for example OpenXTalk Lite 1.15) or a TSV from "layout.py
 classify" (also a part of one, such as only its build rows): every IDE,
@@ -120,10 +150,12 @@ import datetime
 import json
 import os
 import plistlib
+import posixpath
 import re
 import shutil
 import stat
 import sys
+import tarfile
 import tempfile
 import time
 import zipfile
@@ -218,6 +250,9 @@ class Platform(object):
       not_installed        (pattern, reason) for build outputs left out
       ide_include          layout.MANAGED_EXCLUDE prefixes staged too
       elf_arch, mac_archs  what the engine binaries must be built for
+      unix                 file modes and symbolic links are staged
+      case_sensitive       paths differing only in case do not conflict
+      eol                  line ending of generated text and licence files
     """
 
     def __init__(self, name, family, arch, **kw):
@@ -243,6 +278,12 @@ class Platform(object):
         self.ide_include = kw.get('ide_include', ())
         self.elf_arch = kw.get('elf_arch')
         self.mac_archs = kw.get('mac_archs')
+        self.unix = family != 'windows'
+        # macOS volumes (APFS, HFS+) are case-insensitive unless formatted
+        # otherwise, like Windows; ext4 and the other Linux file systems
+        # are not
+        self.case_sensitive = family == 'linux'
+        self.eol = b'\r\n' if family == 'windows' else b'\n'
 
 
 def _windows_x86_64():
@@ -470,10 +511,10 @@ class PackageError(Exception):
 
 
 class Item(object):
-    """One file of the staged tree."""
-    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note')
+    """One file (or symbolic link) of the staged tree."""
+    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note', 'link')
 
-    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note=''):
+    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note='', link=None):
         self.target = target      # installed path, "/" separators
         self.origin = origin      # ide, build, generated, licence, asset, xtalk
         self.source = source      # file on disk (ide, build, licence, xtalk)
@@ -481,6 +522,7 @@ class Item(object):
         self.member = member      # zip member name (asset)
         self.asset = asset        # asset dict (asset)
         self.note = note
+        self.link = link          # target of a symbolic link (build, Unix layouts)
 
 
 # ---------------------------------------------------------------------------
@@ -524,19 +566,32 @@ def _lines(pairs, eol=b'\r\n'):
 
 
 def walk_tree(base):
-    """Relative paths ("/" separators, sorted) of the files below base;
-    names starting with "." are skipped, as upstream packaging skips them
-    (and macOS tar adds "._" AppleDouble files)."""
+    """Relative paths ("/" separators, sorted) of the files and symbolic
+    links below base; a link to a folder is one entry, not followed (a
+    macOS framework's Versions/Current must stay a link). Names starting
+    with "." are skipped, as upstream packaging skips them (and macOS tar
+    adds "._" AppleDouble files)."""
     out = []
     for dirpath, dirnames, filenames in os.walk(base):
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith('.'))
         rel = os.path.relpath(dirpath, base)
         rel = '' if rel == '.' else rel.replace(os.sep, '/') + '/'
-        for name in filenames:
+        links = [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith('.') and d not in links)
+        for name in filenames + links:
             if not name.startswith('.'):
                 out.append(rel + name)
     out.sort()
     return out
+
+
+def link_escapes(rel, link):
+    """True when the symbolic link at rel (relative to a tree) with target
+    link is absolute or leads out of the tree: staged elsewhere it would
+    dangle or point into the build machine."""
+    if link.startswith('/') or re.match(r'^[A-Za-z]:', link):
+        return True
+    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(rel), link))
+    return resolved == '..' or resolved.startswith('../')
 
 
 class Planner(object):
@@ -553,17 +608,20 @@ class Planner(object):
         self.items.append(item)
 
     def file(self, target, rel, note):
-        """A build output file at an installed path."""
+        """A build output file at an installed path (through a symbolic
+        link, if it is one: the link's target is not staged next to it)."""
         path = layout.native(self.bin_dir, rel)
         if not os.path.isfile(path):
             self.problems.append('build output missing: %s (for %s)' % (rel, target))
             return
-        self.add(Item(target, 'build', source=path, note='package.txt ' + note + ': ' + rel))
+        self.add(Item(target, 'build', source=os.path.realpath(path) if os.path.islink(path) else path,
+                      note='package.txt ' + note + ': ' + rel))
 
     def tree(self, target, rel, note, skip=(), rename=None):
         """A build output folder (or a macOS bundle) at an installed path.
         skip: glob patterns relative to the folder; rename: {relative path:
-        new relative path}."""
+        new relative path}. Symbolic links inside it stay links on Unix
+        layouts (and are copied through on Windows)."""
         base = layout.native(self.bin_dir, rel)
         if not os.path.isdir(base):
             self.problems.append('build output folder missing: %s (for %s)' % (rel, target))
@@ -572,7 +630,20 @@ class Planner(object):
         if not files:
             self.problems.append('build output folder is empty: %s' % rel)
         for p in files:
-            self.add(Item(target + '/' + (rename or {}).get(p, p), 'build', source=layout.native(base, p),
+            path = layout.native(base, p)
+            link = None
+            if os.path.islink(path):
+                link = os.readlink(path)
+                if link_escapes(p, link):
+                    self.problems.append('symbolic link %s/%s -> %s leads out of %s' % (rel, p, link, rel))
+                    continue
+                if not self.p.unix:
+                    if not os.path.isfile(path):
+                        self.problems.append('%s/%s is a link to a folder, which a Windows layout cannot keep'
+                                             % (rel, p))
+                        continue
+                    link = None
+            self.add(Item(target + '/' + (rename or {}).get(p, p), 'build', source=path, link=link,
                           note='package.txt ' + note + ': ' + rel + '/'))
 
     def output(self, target, rel, note):
@@ -609,9 +680,11 @@ def externals_component(pl, prefix, runtime):
             pl.file(ext + '/CEF/' + name, 'Externals/CEF/' + name, note)
         for tree in p.cef['trees']:
             pl.tree(ext + '/CEF/' + tree, 'Externals/CEF/' + tree, note)
-    pl.generated(ext + '/Externals.txt', _lines(p.externals + (p.database,)),
+    # The IDE and the standalone builder read these line by line, so on
+    # Linux and macOS a CR would become part of every file name
+    pl.generated(ext + '/Externals.txt', _lines(p.externals + (p.database,), p.eol),
                  'package.txt Externals: emit externals')
-    pl.generated(ext + '/Database Drivers/Database Drivers.txt', _lines(p.drivers),
+    pl.generated(ext + '/Database Drivers/Database Drivers.txt', _lines(p.drivers, p.eol),
                  'package.txt Externals: emit dbdrivers')
 
 
@@ -752,8 +825,9 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None):
             pl.problems.append('licence file missing: %s' % path)
             continue
         with open(path, 'rb') as f:
-            data = layout._normalise(f.read()).replace(b'\n', b'\r\n')
-        pl.add(Item(tools + name, 'licence', data=data, note=name + ' (CRLF line endings)'))
+            data = layout._normalise(f.read()).replace(b'\n', p.eol)
+        pl.add(Item(tools + name, 'licence', data=data,
+                    note=name + (' (CRLF line endings)' if p.eol == b'\r\n' else ' (LF line endings)')))
 
     # External assets
     for asset, archive in assets:
@@ -773,11 +847,12 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None):
                 pl.add(Item(tools + 'Extensions/' + rel, 'xtalk', source=layout.native(xtalk['out'], rel),
                             note='%s at %s' % (ext['repository'], ext['commit'][:12])))
 
-    # Conflicts (case-insensitive, as on Windows)
+    # Conflicts: case-insensitive, as on Windows and macOS volumes, except
+    # on Linux
     seen = {}
     items, problems = pl.items, pl.problems
     for it in items:
-        key = it.target.lower()
+        key = it.target if p.case_sensitive else it.target.lower()
         if key in seen:
             other = seen[key]
             problems.append('%s comes from both %s (%s) and %s (%s)'
@@ -806,7 +881,15 @@ def remove_tree(path):
         shutil.rmtree(path, onerror=_on_rm_error)
 
 
-def write_stage(stage, items, folders, eol, log):
+def _unix_mode(executable):
+    return 0o755 if executable else 0o644
+
+
+def write_stage(stage, items, folders, eol, log, platform=None):
+    """Write the planned tree. For a Unix layout every file gets 0755 or
+    0644 and every folder 0755 (see the module notes), and build symbolic
+    links are recreated; a Windows layout is written as it always was."""
+    unix = (platform or PLATFORMS[DEFAULT_PLATFORM]).unix
     if os.path.isdir(stage) and not os.path.islink(stage):
         log('removing the previous %s' % stage)
         remove_tree(stage)
@@ -822,6 +905,7 @@ def write_stage(stage, items, folders, eol, log):
             if parent not in made:
                 os.makedirs(parent, exist_ok=True)
                 made.add(parent)
+            executable = False
             if it.origin == 'ide':
                 if eol != 'keep' and layout.is_text(it.target):
                     with open(it.source, 'rb') as f:
@@ -833,9 +917,16 @@ def write_stage(stage, items, folders, eol, log):
                 else:
                     shutil.copyfile(it.source, dst)
             elif it.origin == 'build':
+                if it.link is not None:
+                    os.symlink(it.link, dst)
+                    continue
                 shutil.copy2(it.source, dst)
+                executable = bool(os.stat(it.source).st_mode & 0o111)
             elif it.origin == 'xtalk':
                 shutil.copyfile(it.source, dst)
+                # the native libraries (code/<platform id>/*); dlopen does
+                # not need the bit, but it is how libraries are installed
+                executable = '/code/' in it.target
             elif it.origin in ('generated', 'licence'):
                 with open(dst, 'wb') as f:
                     f.write(it.data)
@@ -844,18 +935,120 @@ def write_stage(stage, items, folders, eol, log):
                 if z is None:
                     z = archives[it.source] = zipfile.ZipFile(it.source)
                 info = z.getinfo(it.member)
+                # A zip made on Unix (make_runtimes_asset.py stores the
+                # modes) says which members are executable or links
+                zmode = (info.external_attr >> 16) if info.create_system == 3 else 0
+                if unix and stat.S_ISLNK(zmode):
+                    os.symlink(z.read(info).decode('utf-8'), dst)
+                    continue
                 with z.open(info) as src, open(dst, 'wb') as out:
                     shutil.copyfileobj(src, out, 1 << 20)
                 # make_runtimes_asset.py stores UTC times
                 ts = calendar.timegm(info.date_time + (0, 0, -1))
                 os.utime(dst, (ts, ts))
+                executable = bool(zmode & 0o111)
             else:
                 raise PackageError('unknown origin %s' % it.origin)
+            if unix:
+                os.chmod(dst, _unix_mode(executable))
         for d in folders:
             os.makedirs(layout.native(stage, d), exist_ok=True)
+        if unix:
+            for dirpath, dirnames, _ in os.walk(stage):
+                os.chmod(dirpath, 0o755)
     finally:
         for z in archives.values():
             z.close()
+
+
+# ---------------------------------------------------------------------------
+# Build tarballs
+
+def _is_debug(parts):
+    """Debug symbols, which no layout installs: Linux .dbg files (objcopy
+    --only-keep-debug), macOS .dSYM bundles, Windows .pdb files."""
+    return parts[-1].endswith(('.dbg', '.pdb')) or any(p.endswith('.dSYM') for p in parts)
+
+
+def extract_bin_tar(path, dest, log):
+    """Extract a CI build tarball into dest and return its build output
+    folder (the tarball's one top-level folder). Modes, symbolic links and
+    hard links are kept; debug symbols and "._" AppleDouble files (which
+    macOS tar writes for extended attributes) are skipped. Member names are
+    checked: nothing may land outside dest. Python 3.8 has no extraction
+    filter, so the checks are made here."""
+    tops, skipped, count = set(), 0, 0
+    with tarfile.open(path, 'r|*') as tf:
+        for m in tf:
+            name = m.name
+            while name.startswith('./'):
+                name = name[2:]
+            name = name.rstrip('/')
+            if not name or name == '.':
+                continue
+            parts = name.split('/')
+            if name.startswith('/') or '\\' in name or any(p in ('', '.', '..') for p in parts):
+                raise PackageError('%s: unsafe member name %r' % (path, m.name))
+            if any(p.startswith('._') for p in parts) or parts[-1] == '.DS_Store':
+                continue
+            if _is_debug(parts):
+                skipped += 1
+                continue
+            tops.add(parts[0])
+            target = os.path.join(dest, *parts)
+            if m.isdir():
+                os.makedirs(target, exist_ok=True)
+                continue
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            if m.issym():
+                if link_escapes(name, m.linkname):
+                    raise PackageError('%s: symbolic link %s -> %s leads out of the tarball'
+                                       % (path, name, m.linkname))
+                os.symlink(m.linkname, target)
+            elif m.islnk():
+                other = m.linkname
+                while other.startswith('./'):
+                    other = other[2:]
+                src = os.path.join(dest, *other.split('/'))
+                if '..' in other.split('/') or not os.path.isfile(src):
+                    raise PackageError('%s: hard link %s -> %s: no such file extracted before it'
+                                       % (path, name, m.linkname))
+                shutil.copy2(src, target)
+            elif m.isfile():
+                with tf.extractfile(m) as f, open(target, 'wb') as out:
+                    shutil.copyfileobj(f, out, 1 << 20)
+                os.chmod(target, m.mode & 0o777)
+                os.utime(target, (m.mtime, m.mtime))
+            else:
+                raise PackageError('%s: %s is a device, FIFO or other special file' % (path, name))
+            count += 1
+    folders = [t for t in tops if os.path.isdir(os.path.join(dest, t))]
+    if len(folders) != 1 or len(tops) != 1:
+        raise PackageError('%s: expected one top-level folder, found %s' % (path, ', '.join(sorted(tops)) or 'none'))
+    log('Extracted    : %d files from %s (%d debug symbol files skipped)' % (count, path, skipped))
+    return os.path.join(dest, folders[0])
+
+
+def repository_mode_trap(path, platform):
+    """The folder name in path that makes the engine run the IDE in
+    repository mode, or None. The engine's environment stack
+    (engine/src/environment/stackbehavior.livecodescript guessRepositoryPath)
+    and the IDE (home stack revEnvironmentGuessRepositoryPath) take the
+    folder above the first item of the engine's path that is
+    build-<platform>-<processor>, <platform>-<processor>-bin,
+    <platform>-bin or _build (compared without regard to case, as
+    LiveCode's "is among the items" does) as a source checkout, and load
+    the IDE from its ide/ folder instead of the package's."""
+    word = {'windows': 'win', 'linux': 'linux', 'mac': 'mac'}[platform.family]
+    procs = platform.mac_archs or (platform.arch,)
+    names = {'_build', word + '-bin'}
+    for proc in procs:
+        proc = 'x86' if proc == 'i386' else proc
+        names.update(('build-%s-%s' % (word, proc), '%s-%s-bin' % (word, proc)))
+    for part in re.split(r'[\\/]', path):
+        if part.lower() in names:
+            return part
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1143,6 +1336,8 @@ def main(argv=None):
                    help='repository root (default: two levels above this script)')
     p.add_argument('--bin', dest='bin_dir',
                    help='build output (default: the platform\'s, e.g. <repo>/win-x86_64-bin)')
+    p.add_argument('--bin-tar', metavar='FILE',
+                   help='build output as a CI tarball (OXT-Beyond-<platform>-bin.tar.xz), instead of --bin')
     p.add_argument('--out', required=True, help='folder to create OXT-Beyond-<version> in')
     p.add_argument('--build-number', help='default: $%s, else the UTC time as YYYYMMDDHHMM' % BUILD_NUMBER_ENV)
     p.add_argument('--assets-cache', metavar='DIR',
@@ -1177,14 +1372,24 @@ def main(argv=None):
     plat = PLATFORMS[args.platform]
     if args.compare and plat.family != 'windows':
         p.error('--compare compares with a Windows install (layout.py classes); use it with win-x86_64')
+    if args.bin_dir and args.bin_tar:
+        p.error('pass --bin or --bin-tar, not both')
 
     log = print
     xtalk_tmp = None
+    bin_tmp = None
     try:
+        if plat.unix and os.name == 'nt':
+            raise PackageError('stage the %s layout on Linux or macOS (or in WSL): Windows keeps neither the '
+                               'file modes nor the symbolic links of a Unix tree' % plat.name)
         repo = os.path.abspath(args.repo)
         if not os.path.isdir(os.path.join(repo, 'ide')):
             raise PackageError('%s has no ide/ folder (not the repository root?)' % repo)
-        bin_dir = os.path.abspath(args.bin_dir or layout.native(repo, plat.bin_default))
+        if args.bin_tar:
+            bin_tmp = tempfile.mkdtemp(prefix='oxt-bin-')
+            bin_dir = extract_bin_tar(os.path.abspath(args.bin_tar), bin_tmp, log)
+        else:
+            bin_dir = os.path.abspath(args.bin_dir or layout.native(repo, plat.bin_default))
         if not os.path.exists(os.path.join(bin_dir, plat.dev_engine)):
             raise PackageError('no %s build in %s (%s is missing)' % (plat.name, bin_dir, plat.dev_engine))
         version = read_version(repo)
@@ -1201,8 +1406,12 @@ def main(argv=None):
         log('Platform     : %s' % plat.name)
         log('Engine       : %s' % (engine_version(repo) or '?'))
         log('Repository   : %s' % repo)
-        log('Build output : %s' % bin_dir)
+        log('Build output : %s' % (bin_dir if not args.bin_tar else '%s (from %s)' % (bin_dir, args.bin_tar)))
         log('Stage        : %s' % stage)
+        trap = repository_mode_trap(stage, plat)
+        if trap:
+            log('WARNING: the stage path has a folder named %s: an engine started from it runs the IDE of '
+                'the source checkout above it (repository mode), not the staged one' % trap)
 
         arch_problems, arch_warnings = check_architecture(plat, bin_dir, args.allow_single_arch)
         for w in arch_warnings:
@@ -1250,7 +1459,7 @@ def main(argv=None):
             raise PackageError('%d problem(s); nothing was written' % len(problems))
 
         t0 = time.time()
-        write_stage(stage, items, folders, args.eol, log)
+        write_stage(stage, items, folders, args.eol, log, plat)
         log('written in %.0f s' % (time.time() - t0))
         used = {os.path.normcase(it.source) for it in items if it.origin == 'build'}
         by_origin, size_origin = summarise(items, stage, bin_dir, used, log, plat)
@@ -1267,7 +1476,8 @@ def main(argv=None):
                 ('exe', plat.engine),
                 ('engine_executable', plat.engine_executable),
                 ('tools_root', plat.tools.rstrip('/')),
-                ('bin_dir', bin_dir),
+                ('bin_dir', bin_dir if not args.bin_tar else None),
+                ('bin_tar', os.path.abspath(args.bin_tar) if args.bin_tar else None),
                 ('files', len(items)),
                 ('bytes', sum(size_origin.values())),
                 ('by_origin', collections.OrderedDict((o, by_origin[o]) for o in sorted(by_origin))),
@@ -1302,6 +1512,8 @@ def main(argv=None):
     finally:
         if xtalk_tmp:
             shutil.rmtree(xtalk_tmp, ignore_errors=True)
+        if bin_tmp:
+            shutil.rmtree(bin_tmp, ignore_errors=True)
     return 0
 
 

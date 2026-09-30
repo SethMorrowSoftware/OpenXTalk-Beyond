@@ -391,6 +391,38 @@ xTalk Suite extensions are compiled with the `lc-compile` and
 modules do not depend on the platform, so a macOS layout can be staged on
 Linux with a Linux build's compiler.
 
+The Linux and macOS layouts are Unix trees, staged on Linux or macOS (or
+WSL; `package.py` refuses to stage them on Windows, which keeps neither
+modes nor symbolic links):
+
+* `--bin-tar` takes the build output as the tarball a CI build uploads
+  (`OXT-Beyond-linux-<arch>-bin.tar.xz`, `OXT-Beyond-mac-<arch>-bin.tar.xz`)
+  instead of `--bin`. Its one top-level folder is extracted to a temporary
+  folder, keeping modes, symbolic and hard links, and without the debug
+  symbols (`*.dbg`, `*.dSYM`, `*.pdb`) and the `._*` AppleDouble files
+  that macOS tar adds. Member names are checked, as Python 3.8's tarfile
+  has no extraction filter.
+* **Modes**: executable build outputs (any `x` bit), the xTalk native
+  libraries and asset members stored with an `x` bit get 0755; every
+  other file 0644 and every folder 0755, whatever the umask or the
+  checkout (git marks some IDE images executable).
+* **Symbolic links** inside a build output folder (a macOS framework's
+  `Versions/Current`) are staged as the same relative links; one that is
+  absolute or leads out of its folder is an error. A build output named in
+  a table is copied through a link.
+* **Names**: paths that differ only in letter case conflict on Windows and
+  macOS (volumes are usually case-insensitive), not on Linux.
+* **Text**: `Externals.txt`, `Database Drivers.txt` and the licence files
+  get LF line endings (the IDE and the standalone builder read the lists
+  line by line, so a CR would end up in every file name); CRLF on Windows.
+
+Every platform warns when the stage path has a folder name that switches
+the engine into repository mode (`_build`, `<platform>-<processor>-bin`,
+`<platform>-bin`, `build-<platform>-<processor>`, as
+`stackbehavior.livecodescript` and the home stack's
+`revEnvironmentGuessRepositoryPath` test them): an engine started there
+runs the IDE of the checkout above it, not the staged one.
+
 ### Checking a package against OpenXTalk Lite 1.15
 
 `--compare` (`win-x86_64` only: the reference is a Windows install) checks the staged folder against a reference install or a
