@@ -1896,6 +1896,17 @@ private handler IntegerToString(in pValue as Number) returns String
 	variable tResult as String
 	variable tRemaining as Number
 	variable tDigit as Number
+
+	-- The digit loop is only exact while every whole number is representable
+	-- (below 2^53); above that it would print digits the value does not have.
+	-- An infinity would never leave the loop (it stays infinite when divided
+	-- by 10), and a NaN fails the comparison too. Keep the old formatting for
+	-- all of these.
+	if not ((the abs of pValue) < 9007199254740992.0) then
+		format pValue as string into tResult
+		return tResult
+	end if
+
 	put "0123456789" into tDigits
 	put the floor of (the abs of pValue) into tRemaining
 	if tRemaining = 0 then
