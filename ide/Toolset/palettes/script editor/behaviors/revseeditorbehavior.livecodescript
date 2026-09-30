@@ -721,10 +721,6 @@ command scriptCompile pObject
       end if
    end if
    
-   local tLiveErrors
-   put sePrefGet("editor,liveerrors") into tLiveErrors
-   put tLiveErrors and not the lockText of field "script" of me into tLiveErrors
-   
    local tState
    getDirty pObject
    if the result then
@@ -733,13 +729,20 @@ command scriptCompile pObject
       put "applied" into tState
    end if
    
-   send "clearErrors" to group "Errors" of the owner of me
-   if tResult is empty then
-      setCompilationErrors empty, pObject
-   else
-      send "addError compilation, line 1 of tResult, pObject" to group "Errors" of the owner of me
-      setCompilationErrors line 1 of tResult, pObject
-      put "error" into tState
+   # Compilation errors are refreshed whatever the Live Errors preference, so
+   # they stay flagged with Live Errors off. But while the debugger has the
+   # script locked, the Errors pane shows the execution error it stopped on,
+   # and a compile (which any Script Editor menu click triggers) must not
+   # clear it
+   if not the lockText of field "script" of me then
+      send "clearErrors" to group "Errors" of the owner of me
+      if tResult is empty then
+         setCompilationErrors empty, pObject
+      else
+         send "addError compilation, line 1 of tResult, pObject" to group "Errors" of the owner of me
+         setCompilationErrors line 1 of tResult, pObject
+         put "error" into tState
+      end if
    end if
    
    seSetObjectState pObject, tState
