@@ -51,8 +51,10 @@ without the debug symbols (*.dbg, *.dSYM, *.pdb) and macOS tar's "._"
 AppleDouble files, keeping file modes and symbolic links.
 
 The Linux and macOS layouts are Unix trees, so they are staged on Linux or
-macOS (or WSL), never on Windows, which keeps neither modes nor symbolic
-links:
+macOS (or WSL, under a Linux path such as /tmp: a Windows drive such as
+/mnt/c keeps neither modes nor letter case, and both this script and
+package_dist.py refuse it, as a probe file shows), never on Windows,
+which keeps neither modes nor symbolic links:
 
   modes        executable build outputs (any x bit) and native libraries
                (of the xTalk extensions, and asset members stored with an
@@ -985,6 +987,30 @@ def _unix_mode(executable):
     return 0o755 if executable else 0o644
 
 
+def unix_tree_problem(folder, case_sensitive):
+    """None if the file system of folder can hold a Unix layout, else what
+    it lacks. A probe is written because os.name cannot tell: in WSL a
+    Windows drive (/mnt/c: drvfs without the "metadata" mount option)
+    reports every file as 0777 whatever chmod sets, and maps names that
+    differ only in letter case to one file. The stage and its archives
+    would then mark every file world-writable and executable, and a Linux
+    layout's Readme and README would overwrite each other, all without an
+    error. OSError when folder cannot be written."""
+    probe = tempfile.mkdtemp(prefix='.oxt-probe-', dir=folder)
+    try:
+        path = os.path.join(probe, 'probe')
+        with open(path, 'wb'):
+            pass
+        os.chmod(path, 0o644)
+        if stat.S_IMODE(os.stat(path).st_mode) != 0o644:
+            return 'keeps no file modes'
+        if case_sensitive and os.path.exists(os.path.join(probe, 'PROBE')):
+            return 'does not tell letter case apart'
+        return None
+    finally:
+        shutil.rmtree(probe, ignore_errors=True)
+
+
 def write_stage(stage, items, folders, eol, log, platform=None):
     """Write the planned tree. For a Unix layout every file gets 0755 or
     0644 and every folder 0755 (see the module notes), and build symbolic
@@ -1484,8 +1510,23 @@ def main(argv=None):
     bin_tmp = None
     try:
         if plat.unix and os.name == 'nt':
-            raise PackageError('stage the %s layout on Linux or macOS (or in WSL): Windows keeps neither the '
-                               'file modes nor the symbolic links of a Unix tree' % plat.name)
+            raise PackageError('stage the %s layout on Linux or macOS (or in WSL, under a Linux path such as '
+                               '/tmp): Windows keeps neither the file modes nor the symbolic links of a Unix tree'
+                               % plat.name)
+        if plat.unix:
+            # Not only Windows itself: a Windows drive in WSL passes the
+            # os.name test but keeps no modes (see unix_tree_problem).
+            # Probed before the --bin-tar extraction, so a bad --out fails
+            # fast.
+            out_dir = os.path.abspath(args.out)
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+                why = unix_tree_problem(out_dir, plat.case_sensitive)
+            except OSError as e:
+                raise PackageError('cannot write in %s: %s' % (out_dir, e))
+            if why:
+                raise PackageError('the file system of %s %s (in WSL: a Windows drive such as /mnt/c); stage '
+                                   'the %s layout under a Linux path such as /tmp' % (out_dir, why, plat.name))
         repo = os.path.abspath(args.repo)
         if not os.path.isdir(os.path.join(repo, 'ide')):
             raise PackageError('%s has no ide/ folder (not the repository root?)' % repo)
@@ -1496,6 +1537,22 @@ def main(argv=None):
             bin_dir = os.path.abspath(args.bin_dir or layout.native(repo, plat.bin_default))
         if not os.path.exists(os.path.join(bin_dir, plat.dev_engine)):
             raise PackageError('no %s build in %s (%s is missing)' % (plat.name, bin_dir, plat.dev_engine))
+        if plat.unix:
+            # A build output is staged 0755 when any x bit is set, and on a
+            # file system that keeps no modes every file reads as 0777: the
+            # CEF .pak files, the Toolchain's .lci interfaces and the rest
+            # would all become executable. A read-only build folder cannot
+            # be probed, and need not be.
+            try:
+                why = unix_tree_problem(os.path.dirname(bin_dir), False)
+            except OSError:
+                why = None
+            if why:
+                raise PackageError('the file system of %s %s (in WSL: a Windows drive such as /mnt/c), so every '
+                                   'build output there reads as executable; %s'
+                                   % (bin_dir, why, 'set TMPDIR to a Linux path such as /tmp' if args.bin_tar else
+                                      'pass the CI tarball with --bin-tar, or extract the build under a Linux '
+                                      'path such as /tmp'))
         version = read_version(repo)
         build_number = default_build_number(args.build_number)
         out = os.path.abspath(args.out)

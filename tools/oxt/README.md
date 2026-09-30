@@ -424,8 +424,12 @@ modules do not depend on the platform, so a macOS layout can be staged on
 Linux with a Linux build's compiler.
 
 The Linux and macOS layouts are Unix trees, staged on Linux or macOS (or
-WSL; `package.py` refuses to stage them on Windows, which keeps neither
-modes nor symbolic links):
+WSL, under a Linux path such as `/tmp`: a Windows drive such as `/mnt/c`
+keeps neither modes nor letter case, and both `package.py` and
+`package_dist.py` refuse it, as a probe file in `--out` and next to the
+stage shows; a `--bin` folder there is refused too, since every build
+output would read as executable). `package.py` refuses to stage them on
+Windows, which keeps neither modes nor symbolic links:
 
 * `--bin-tar` takes the build output as the tarball a CI build uploads
   (`OXT-Beyond-linux-<arch>-bin.tar.xz`, `OXT-Beyond-mac-<arch>-bin.tar.xz`)
@@ -542,7 +546,8 @@ macOS with `hdiutil` by the workflow, not here.
   to the binaries or the symbols archive under the platform's folder name
   (`linux-<arch>-bin`, `Release`), without `._` AppleDouble files and with
   modes, symbolic and hard links. The Linux and macOS archives are written
-  on Linux or macOS only.
+  on Linux or macOS only (in WSL, from a stage under a Linux path: a probe
+  next to the stage refuses a Windows drive, whose files all read 0777).
 
 Under GitHub Actions it writes the step outputs `version`, `package-root`,
 `platform`, `dist-dir`, `package` and `sha256sums` and a table of the

@@ -73,7 +73,10 @@ libcef.so and the rest of CEF are the same files as the IDE's. The macOS
 zip stores folders, symbolic links (as links) and each file's mode, as
 ditto does, so that the app keeps its executables and bundle structure
 where the zip is extracted (ditto -x -k, Archive Utility or unzip). The
-disk image is made on macOS by the workflow (hdiutil), not here.
+disk image is made on macOS by the workflow (hdiutil), not here. They are
+written on Linux or macOS only; in WSL the stage must be under a Linux
+path, since a Windows drive reports every file as 0777 (a probe file next
+to the stage, package.unix_tree_problem, refuses one).
 
 A tarball given as --bin-tar is read once, as a stream: each member goes
 to the binaries or the symbols archive under the platform's folder name
@@ -663,6 +666,21 @@ def main(argv=None):
         if p.unix and os.name == 'nt':
             raise DistError('write the %s archives on Linux or macOS: a Windows file system does not keep '
                             'the modes and links of the staged tree' % p.name)
+        if p.unix:
+            # In WSL a stage on a Windows drive passes the test above, and
+            # its archives would store every file as 0777 (package.py
+            # refuses to stage there; this catches a stage copied there).
+            # The probe goes next to the stage, not into it, so that the
+            # stage folder's date, which the tar records, stays as it was;
+            # a folder that cannot be written cannot be probed.
+            try:
+                why = package.unix_tree_problem(os.path.dirname(stage), p.case_sensitive)
+            except OSError:
+                why = None
+            if why:
+                raise DistError('the file system of %s %s (in WSL: a Windows drive such as /mnt/c), so the '
+                                'staged modes are lost; stage and archive the %s layout under a Linux path '
+                                'such as /tmp' % (stage, why, p.name))
         out = os.path.abspath(args.out)
         os.makedirs(out, exist_ok=True)
         names = archive_names(p, root)
