@@ -879,9 +879,8 @@ Nothing of the members is kept in this repository.
   platforms) into a zip in the cache layout `<repository>/<commit>/<path>`,
   with a copy of the manifest (LF line endings) and a `README.txt`.
   Entries are sorted and dated 1980-01-01, so the same pins give the same
-  zip. Tag builds publish it with the release
-  (`OXT-Beyond-<ver>-xtalk-sources.zip`, `package-windows.ps1
-  -XtalkSourcesZip`), so that a release can be rebuilt with the extracted
+  zip. Releases publish it (`OXT-Beyond-<ver>-xtalk-sources.zip`, written
+  once, by the Windows job's `package-windows.ps1 -XtalkSourcesZip`), so that a release can be rebuilt with the extracted
   folder as the cache (`--cache DIR --offline`) if a member repository
   loses a pinned commit.
 * `list` prints the members, their extensions and probes, and the

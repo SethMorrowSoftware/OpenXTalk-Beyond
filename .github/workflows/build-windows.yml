@@ -8,16 +8,19 @@
 #   OXT-Beyond-<ver>-win-x86_64-binaries.zip  win-x86_64-bin without *.pdb,
 #                                             plus the licence files
 #   OXT-Beyond-<ver>-win-x86_64-symbols.zip   the *.pdb files
-#   OXT-Beyond-<ver>-xtalk-sources.zip        (tag builds) every file the
-#                                             xTalk Suite extensions pin,
-#                                             so that the release can be
-#                                             rebuilt without the member
-#                                             repositories
+#   OXT-Beyond-<ver>-xtalk-sources.zip        (release builds) every file
+#                                             the xTalk Suite extensions
+#                                             pin, so that the release can
+#                                             be rebuilt without the member
+#                                             repositories; the release
+#                                             takes it from here only, for
+#                                             all platforms
 #   SHA256SUMS
 #
 # <ver> is the product version in ide/.version. The build number written into
-# the packaged .buildnumber (OXT_BUILD_NUMBER) is the UTC time at which the
-# build job started, as YYYYMMDDHHMM.
+# the packaged .buildnumber (OXT_BUILD_NUMBER) is the input build-number when
+# release.yml gives one (the same for every platform of a release), else the
+# UTC time at which the build job started, as YYYYMMDDHHMM.
 #
 # After the build and its verification, the job
 #   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
@@ -46,14 +49,19 @@
 # tools/ci (check_ide_*.py), which need no build.
 # A run that passes all of these uploads the files in dist (not dist/stage)
 # as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
-# failed one, uploads the logs as "build-logs" and the render test's images
-# as "render-test".
+# failed one, uploads the logs as "build-logs-win-x86_64" and the render
+# test's images as "render-test".
 #
-# Pushing a tag that starts with "v" also publishes the files as a GitHub
-# Release "OXT-Beyond <ver>". The tag must be "v" followed by the version in
-# ide/.version (for example v0.0.1); otherwise the run fails. The release is
-# marked as a pre-release when the tag contains -alpha, -beta, -rc, -dp or
-# -pre (in any case).
+# Releases: .github/workflows/release.yml calls this workflow (workflow_call)
+# for a tag that starts with "v" and for its dry runs, together with the
+# Linux and macOS workflows, and publishes this artifact with theirs; this
+# workflow publishes nothing itself and no longer runs on tags of its own,
+# so that a tag builds every platform once. In a called run the github
+# context is the caller's: a tag build of a "v" tag fails straight away
+# unless the tag is "v" followed by ide/.version (for example v0.1.0), and
+# the input release makes the run build as for a release (the external
+# assets and the xTalk Suite extensions always included, and the xTalk
+# sources zip written) also for a dry run on a branch.
 #
 # The toolchain matches BUILDING.md: Visual Studio 2022 with the MSVC v141
 # toolset added at run time, Windows SDK 10.0.17763.0, Python 2.7 in
@@ -66,9 +74,9 @@
 name: Build (Windows)
 
 on:
+  # No tags here: release.yml builds them (see the header)
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -86,12 +94,35 @@ on:
           tools/oxt/xtalk-extensions.json
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      build-number:
+        description: >-
+          OXT_BUILD_NUMBER for every file of the run (digits; release.yml
+          gives all three platforms the same); empty for the UTC time at
+          which the build starts
+        type: string
+        required: false
+        default: ''
+      release:
+        description: >-
+          Build as for a release: never leave out the external assets or the
+          xTalk Suite extensions, and write the xTalk sources zip
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A literal name, not github.workflow: in a run that release.yml calls,
+  # github.workflow is the caller's name, which the three called builds
+  # (and release.yml itself) would share, so that they would cancel each
+  # other or wait for their caller for good. A called release build gets a
+  # group of its own (the caller's run id), so that pushes to the same
+  # branch neither cancel it nor wait for it.
+  group: build-windows-${{ inputs.release && format('release-{0}', github.run_id) || github.ref }}
   # Newer pushes to a branch or pull request replace older runs; tag builds
   # always run to completion.
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -130,13 +161,16 @@ jobs:
           persist-credentials: false
 
       # Fails a tag build straight away when the tag does not match
-      # ide/.version, instead of after the build; the release job checks
-      # again before publishing.
+      # ide/.version, instead of after the build; release.yml checks it
+      # before any build starts, and again before publishing. (In a run
+      # that release.yml calls, github.ref_type and github.ref_name are the
+      # caller's: the tag it was started for.)
       - name: Read the product version
         id: product
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
         run: |
           $version = (Get-Content -LiteralPath ide/.version -Raw).Trim()
           if ($version -notmatch '^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
@@ -145,9 +179,19 @@ jobs:
           if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -like 'v*' -and $env:REF_NAME -cne "v$version") {
             throw "Tag $env:REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
           }
-          # One build number for every file of this run: the UTC time now,
-          # at the start of the job
-          $buildNumber = [DateTime]::UtcNow.ToString('yyyyMMddHHmm')
+          # One build number for every file of this run: release.yml's, the
+          # same for every platform of a release, else the UTC time now, at
+          # the start of the job. Digits only, as tools/oxt/package.py and
+          # package-windows.ps1 require.
+          if ($env:BUILD_NUMBER_INPUT) {
+            if ($env:BUILD_NUMBER_INPUT -notmatch '^[0-9]{1,20}$') {
+              throw "The input build-number is '$env:BUILD_NUMBER_INPUT'; expected digits, such as 202610011200"
+            }
+            $buildNumber = $env:BUILD_NUMBER_INPUT
+          }
+          else {
+            $buildNumber = [DateTime]::UtcNow.ToString('yyyyMMddHHmm')
+          }
           Write-Host "OXT-Beyond $version, build number $buildNumber"
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version`nbuild-number=$buildNumber" -Encoding utf8
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "OXT_BUILD_NUMBER=$buildNumber" -Encoding utf8
@@ -328,22 +372,27 @@ jobs:
       # OXT_NO_EXTERNAL_ASSETS is 1, for example while a new asset is not
       # published yet. Likewise the xTalk Suite extensions with the input
       # no_xtalk_extensions or the variable OXT_NO_XTALK_EXTENSIONS
-      # (package-windows.ps1 reads NO_XTALK_EXTENSIONS). Tag builds, which
-      # publish a release, always include both, and also write
+      # (package-windows.ps1 reads NO_XTALK_EXTENSIONS). Release builds (a
+      # tag, or the input release from release.yml, also in its dry runs)
+      # always include both, and also write
       # OXT-Beyond-<ver>-xtalk-sources.zip (-XtalkSourcesZip): the pinned
       # xTalk files, which the packages otherwise take live from the member
-      # repositories, kept with the release. package-windows.ps1 finds
-      # the Visual C++ redistributable folder of the runner's Visual Studio
-      # with vswhere and bundles the runtime DLLs that enetxt and box2dxt
-      # import.
+      # repositories, kept with the release. It is written here only: the
+      # Linux and macOS packages take the same pinned files, and the
+      # release takes this one copy for all of them (a job of its own would
+      # fetch them all again, and the publishing job, which may write to
+      # the repository, should not fetch from other repositories).
+      # package-windows.ps1 finds the Visual C++ redistributable folder of
+      # the runner's Visual Studio with vswhere and bundles the runtime DLLs
+      # that enetxt and box2dxt import.
       - name: Package
         id: package
         timeout-minutes: 45
         env:
           OXT_ASSETS_CACHE: ${{ github.workspace }}\prebuilt\fetched-assets
-          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
-          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
-          XTALK_SOURCES_ZIP: ${{ github.ref_type == 'tag' }}
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          XTALK_SOURCES_ZIP: ${{ github.ref_type == 'tag' || inputs.release == true }}
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'build-logs\package.log'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null
@@ -445,7 +494,9 @@ jobs:
           name: render-test
           path: ${{ runner.temp }}/render-test
           if-no-files-found: ignore
+          # Diagnostics, kept as long as the logs; PNG files are compressed
           retention-days: 14
+          compression-level: 0
 
       - name: Build installer
         id: installer
@@ -559,7 +610,7 @@ jobs:
           $msbuildLog = 'build-win-x86_64\msbuild.log'
           if (Test-Path -LiteralPath $msbuildLog) {
             # Put a bounded error extract in both the live log and job summary.
-            # The complete file remains available in the build-logs artifact.
+            # The complete file remains available in the build-logs-win-x86_64 artifact.
             $errors = @(Select-String -LiteralPath $msbuildLog -Pattern '(^|[ :(])error (C|LNK|MSB)[0-9]+|fatal error' |
               Select-Object -First 50 | ForEach-Object { $_.Line.Trim() })
             if ($errors.Count -eq 0) {
@@ -580,7 +631,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: build-logs
+          # Named after the platform: in a release run the three platforms'
+          # artifacts share one list
+          name: build-logs-win-x86_64
           path: ${{ runner.temp }}/build-logs
           if-no-files-found: ignore
           retention-days: 14
@@ -607,86 +660,12 @@ jobs:
             ''
           )
           if ($env:ARTIFACT_URL) {
-            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips (on tags also the xTalk sources zip) and SHA256SUMS"
+            $lines += "- [OXT-Beyond-win-x86_64]($env:ARTIFACT_URL): the installer, the portable, binaries and symbols zips (in release builds also the xTalk sources zip) and SHA256SUMS"
           }
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs: msbuild.log and the packaging, smoke test, IDE compile check, IDE contrast check, render test and installer logs'
+          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, IDE contrast check, render test and installer logs'
           $lines += '- render-test: the images of the render test (dark and light) and what the engine printed'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
-
-  release:
-    name: Publish GitHub Release
-    needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    steps:
-      - name: Download packages
-        uses: actions/download-artifact@v7
-        with:
-          name: OXT-Beyond-win-x86_64
-          path: dist
-
-      - name: Create or update the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          set -euo pipefail
-          ls -l dist
-          (cd dist && sha256sum -c SHA256SUMS)
-
-          # VERSION is ide/.version of the tagged commit
-          if [ -z "${VERSION}" ] || [ "v${VERSION}" != "${TAG}" ]; then
-            echo "::error::Tag ${TAG} does not match ide/.version (${VERSION}); the tag for this version is v${VERSION}. Nothing was published."
-            exit 1
-          fi
-
-          prefix="OXT-Beyond-${VERSION}-win-x86_64"
-          for f in "${prefix}-setup.exe" "${prefix}-portable.zip" "${prefix}-binaries.zip" "${prefix}-symbols.zip" "OXT-Beyond-${VERSION}-xtalk-sources.zip" SHA256SUMS; do
-            if [ ! -f "dist/${f}" ]; then
-              echo "::error::dist/${f} is missing from the build artifact"
-              exit 1
-            fi
-          done
-
-          prerelease=()
-          case "${TAG,,}" in
-            *-alpha*|*-beta*|*-rc*|*-dp*|*-pre*) prerelease=(--prerelease) ;;
-          esac
-
-          cat > notes.md <<EOF
-          OXT-Beyond ${VERSION} for Windows x86-64, made by the "Build (Windows)" workflow from commit ${GITHUB_SHA}.
-
-          - \`${prefix}-setup.exe\`: the installer. It installs for all users or only for you, and adds a Start menu shortcut and the .oxtstack and .oxtscript file types.
-          - \`${prefix}-portable.zip\`: the same program folder without an installer. Extract it and run \`OXT-Beyond.exe\`.
-          - \`${prefix}-binaries.zip\`: the engine, externals and tools as built (\`win-x86_64-bin\`), without debug symbols, plus the licence files.
-          - \`${prefix}-symbols.zip\`: debug symbols (\`*.pdb\`) for the binaries.
-          - \`OXT-Beyond-${VERSION}-xtalk-sources.zip\`: every file of the bundled xTalk Suite extensions as this release took it from their repositories, with the manifest that pins them, so that the release can be rebuilt without those repositories (see BUILDING.md, "xTalk Suite extensions").
-          - \`SHA256SUMS\`: SHA-256 checksums of these files.
-
-          The program includes the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT and NostrXT) in its \`Extensions\` folder, taken from their own repositories at the commits listed in \`Extensions/XTALK-EXTENSIONS.txt\`, with the Microsoft Visual C++ runtime DLLs that enetxt and Box2Dxt need.
-
-          The Windows x86-64 engine, externals and tools are built from this repository. The standalone runtimes for other platforms (Windows x86-32, Linux and Android) and the time zone library code for platforms other than Windows x86-64 are not built here: they are taken unchanged from OpenXTalk Lite 1.15, and are stock LiveCode 9.6.3 builds and files as Tom Perry shipped them, among them his 9.7.1-OXT Linux engine (see THIRD-PARTY-NOTICES.md).
-
-          OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3. The executables are not code-signed, so Windows SmartScreen may warn when they are run for the first time.
-          EOF
-
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            echo "Release ${TAG} exists; replacing its files"
-            gh release upload "${TAG}" dist/* --clobber
-          else
-            gh release create "${TAG}" dist/* \
-              --verify-tag \
-              --title "OXT-Beyond ${VERSION}" \
-              --notes-file notes.md \
-              --generate-notes \
-              "${prerelease[@]}"
-          fi

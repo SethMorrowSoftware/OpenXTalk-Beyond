@@ -49,6 +49,20 @@ body:
       required: true
 
   - type: dropdown
+    id: platform
+    attributes:
+      label: Platforms
+      description: The platforms it is about; leave it empty if it is about all of them.
+      multiple: true
+      options:
+        - Windows x64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux x86-64
+    validations:
+      required: false
+
+  - type: dropdown
     id: help
     attributes:
       label: Would you like to work on it?

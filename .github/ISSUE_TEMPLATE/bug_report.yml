@@ -32,18 +32,35 @@ body:
     attributes:
       label: Where did you get it?
       options:
-        - Installer or portable zip from the GitHub Releases page
+        - A file from the GitHub Releases page (installer, portable zip, disk image or tar.xz)
         - Development build (GitHub Actions artifact)
         - I built it myself
     validations:
       required: true
 
-  - type: input
-    id: windows
+  - type: dropdown
+    id: platform
     attributes:
-      label: Windows version
-      description: Run `winver` to see it.
-      placeholder: Windows 11 24H2 (OS build 26100.1234)
+      label: Platform
+      description: The computer OXT-Beyond runs on. On a Mac, Apple menu > About This Mac shows the chip (Apple M1, M2 and so on) or the Intel processor.
+      options:
+        - Windows x64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux x86-64
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system version
+      description: >
+        Windows: run `winver`. macOS: Apple menu > About This Mac. Linux: the
+        distribution and its version (for example the PRETTY_NAME line of
+        `/etc/os-release`), and the desktop (X11 or Wayland) if the problem
+        is with windows or the display.
+      placeholder: Windows 11 24H2 (OS build 26100.1234), macOS 15.6, Ubuntu 24.04.3 LTS
     validations:
       required: true
 

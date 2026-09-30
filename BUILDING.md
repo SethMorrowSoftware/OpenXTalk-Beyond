@@ -1,10 +1,15 @@
-# Building OXT-Beyond for Windows
+# Building OXT-Beyond
 
 This guide builds OXT-Beyond for 64-bit Windows (x86_64) from source,
 packages it and makes its installer, using the same tools and commands
-as the project's CI build. It is the only supported build at the moment.
-The upstream LiveCode instructions for other platforms are still in
-`docs/development/`, but they are not maintained for this project.
+as the project's CI build. OXT-Beyond is also built, packaged and
+released for macOS (one universal app for Apple Silicon and Intel) and
+Linux x86-64, by their CI workflows; [Building on Linux](#12-building-on-linux)
+and [Building on macOS](#13-building-on-macos) describe what those
+workflows do, and [Making a release](#10-making-a-release) how one tag
+releases all three. The upstream LiveCode instructions for other
+platforms are still in `docs/development/`, but they are not maintained
+for this project.
 
 The engine build needs a legacy toolchain: the Visual Studio 2017 C++
 compiler (toolset v141, installed as an optional part of Visual Studio
@@ -34,6 +39,8 @@ Contents:
 9. [Continuous integration](#9-continuous-integration)
 10. [Making a release](#10-making-a-release)
 11. [Working on the IDE](#11-working-on-the-ide)
+12. [Building on Linux](#12-building-on-linux)
+13. [Building on macOS](#13-building-on-macos)
 
 ## 1. Quick reference
 
@@ -596,7 +603,7 @@ writes to `dist\` (`<ver>` is the content of `ide/.version`, for example
 | `OXT-Beyond-<ver>-win-x86_64-portable.zip` | The staged program folder, under one top folder `OXT-Beyond-<ver>\`. |
 | `OXT-Beyond-<ver>-win-x86_64-binaries.zip` | `win-x86_64-bin` without `.pdb` files, plus `LICENSE`, `LICENSE-EXCEPTION.md` and `THIRD-PARTY-NOTICES.md`. Extracting it into the root of a source checkout gives the same layout as a build. |
 | `OXT-Beyond-<ver>-win-x86_64-symbols.zip` | The `.pdb` debug symbols, under `win-x86_64-bin\`. |
-| `OXT-Beyond-<ver>-xtalk-sources.zip` | Only with `-XtalkSourcesZip` (CI sets it for tag builds): every file the [xTalk Suite extensions](#xtalk-suite-extensions) pin, as packaging took them, with the manifest. |
+| `OXT-Beyond-<ver>-xtalk-sources.zip` | Only with `-XtalkSourcesZip` (CI sets it for release builds): every file the [xTalk Suite extensions](#xtalk-suite-extensions) pin, as packaging took them, with the manifest. |
 | `SHA256SUMS` | Checksums of the zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
 
 Options: `-BuildNumber <n>`, `-AssetsCache <folder>`,
@@ -735,6 +742,47 @@ the package needs; run it where that list's packages are installed.
 runs `install.sh` and `uninstall.sh` in scratch home folders (it never
 touches your own). The Linux workflow's "Package linux-x86_64" job does
 all of this on `ubuntu-24.04` (see [Continuous integration](#9-continuous-integration)).
+
+### macOS app
+
+The universal macOS app is made on a Mac (the job "Package
+mac-universal" uses `macos-15`) from the two builds the macOS workflow
+uploads, `OXT-Beyond-mac-arm64-bin.tar.xz` and
+`OXT-Beyond-mac-x86_64-bin.tar.xz`, each with its `-symbols.tar.xz`
+extracted over it (all four unpack as `Release/`, so each architecture
+goes into a folder of its own). Keep every path free of folders named
+`_build` or `*-bin`, which put the engine into repository mode. The
+steps, as the job runs them (see
+[tools/oxt/README.md](tools/oxt/README.md#universal-build-signing-and-disk-image-macos)):
+
+```sh
+python3 tools/ci/merge_universal.py --arm64 A/Release --x86_64 X/Release --out U/Release --report merge-report.tsv
+python3 tools/ci/sign_mac_app.py U/Release
+python3 tools/oxt/package.py --platform mac-universal --bin U/Release --out /tmp/stage --summary-json /tmp/stage.json
+python3 tools/ci/sign_mac_app.py /tmp/stage/OXT-Beyond-<ver>/OXT-Beyond.app
+python3 tools/ci/merge_universal.py --check /tmp/stage/OXT-Beyond-<ver>/OXT-Beyond.app
+python3 tools/oxt/package_dist.py --summary /tmp/stage.json --bin U/Release --out dist --dmg
+```
+
+This joins the two builds with `lipo`, signs the result ad hoc, stages
+`OXT-Beyond.app` (the engine in `Contents/MacOS`, everything else in
+`Contents/Tools`), signs the app from the inside out, checks that every
+Mach-O file of macOS code in it holds arm64 and x86_64, and writes
+`OXT-Beyond-<ver>-mac-universal.dmg`, `-mac-universal.zip`,
+`-mac-universal-binaries.tar.xz`, `-mac-universal-symbols.zip` and
+`SHA256SUMS`. The test jobs install the app from the disk image into a
+neutral folder on an Apple Silicon and an Intel runner and run:
+
+```sh
+codesign --verify --deep --strict --verbose=2 <folder>/OXT-Beyond.app
+python3 tools/ci/run_livecode_check.py smoke --install <folder> --platform mac-universal
+python3 tools/ci/check_native_deps.py --root <folder>/OXT-Beyond.app/Contents/Tools --platform mac --max-macos 15.0
+python3 tools/ci/run_livecode_check.py compile --install <folder> --platform mac-universal
+python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
+```
+
+`standalone_check.py` builds a Mac standalone from the packaged runtime
+with the engine's deploy command, signs it as the IDE does and runs it.
 
 ### External assets
 
@@ -999,9 +1047,10 @@ internet access. CI caches the folder, keyed on the manifest.
 **Keeping the pinned files with a release.** The pins are commits of the
 members' branches, fetched live, so rebuilding an old release depends on
 the member repositories keeping those commits (a rewritten history, or a
-renamed or private repository, would break it). Tag builds therefore
-also publish `OXT-Beyond-<ver>-xtalk-sources.zip` with the release,
-listed in its `SHA256SUMS`: every pinned file, in the cache layout
+renamed or private repository, would break it). Release builds
+therefore also publish `OXT-Beyond-<ver>-xtalk-sources.zip` with the
+release, listed in its `SHA256SUMS` (the Windows job writes it, once for
+all platforms, since every platform takes the same pinned files): every pinned file, in the cache layout
 `<repository>\<commit>\<path>`, with a copy of `xtalk-extensions.json`.
 `xtalk_extensions.py export` writes it (sorted entries and fixed dates,
 so the same pins give the same zip), and `package-windows.ps1
@@ -1069,7 +1118,7 @@ hashes.
 `NO_XTALK_EXTENSIONS=1`) for `package-windows.ps1`,
 `--no-xtalk-extensions` for `package.py`, and in CI the workflow input
 `no_xtalk_extensions` or the repository variable
-`OXT_NO_XTALK_EXTENSIONS=1` (tag builds always include them).
+`OXT_NO_XTALK_EXTENSIONS=1` (release builds always include them).
 
 ### IDE compile check
 
@@ -1361,15 +1410,18 @@ different setting, make a fresh clone.
 
 The workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml)
 ("Build (Windows)") builds OXT-Beyond on GitHub's `windows-2022`
-runners. It runs on every push and pull request to `main`, on tags that
-start with `v`, and when started by hand from the Actions tab.
+runners. It runs on every push and pull request to `main` and when
+started by hand from the Actions tab; for a release,
+[`release.yml`](#10-making-a-release) calls it (not on tags of its own).
 
 It follows this guide:
 
 1. It reads the product version from `ide/.version` (a tag build fails
    straight away if the tag is not `v` followed by that version) and
    sets `OXT_BUILD_NUMBER` to the UTC time at which the job started
-   (`YYYYMMDDHHMM`), so every file of the run has the same build number.
+   (`YYYYMMDDHHMM`), so every file of the run has the same build number;
+   in a release, to the build number `release.yml` gives all three
+   platforms.
 2. It adds the v141 components to the runner's Visual Studio 2022 with
    `tools/ci/install-vs-components.ps1`, installs Python 2.7 and Cygwin,
    and fetches only the release prebuilt archives
@@ -1385,14 +1437,16 @@ It follows this guide:
    are left out (`-NoExternalAssets`, with a warning in the run) when
    the workflow is started by hand with the input `no_external_assets`,
    or when the repository variable `OXT_NO_EXTERNAL_ASSETS` is `1`, for
-   example while a new asset is not published yet. Tag builds always
-   include them. The files of the
+   example while a new asset is not published yet. Release builds (the
+   runs `release.yml` calls, its dry runs included) always include them.
+   The files of the
    [xTalk Suite extensions](#xtalk-suite-extensions) are cached in
    `prebuilt\fetched-assets\xtalk`, keyed on their manifest; they are
    left out with the input `no_xtalk_extensions` or the variable
-   `OXT_NO_XTALK_EXTENSIONS`, except in tag builds, which also write
+   `OXT_NO_XTALK_EXTENSIONS`, except in release builds, which also write
    `OXT-Beyond-<ver>-xtalk-sources.zip` (see
-   [xTalk Suite extensions](#xtalk-suite-extensions)). `package-windows.ps1`
+   [xTalk Suite extensions](#xtalk-suite-extensions)), the one copy of it
+   that a release carries for all platforms. `package-windows.ps1`
    finds the runner's Visual C++ redistributable folder with `vswhere`
    and bundles the runtime DLLs that enetxt and Box2Dxt need;
    `tools/ci/check-extension-imports.ps1` then checks that every Windows
@@ -1407,37 +1461,62 @@ It follows this guide:
 It uploads two artifacts:
 
 - `OXT-Beyond-win-x86_64`: when every step succeeds, the files in
-  `dist\` (the installer, the three zips and `SHA256SUMS`; not the
-  staged folder), kept for 30 days;
-- `build-logs`: `msbuild.log` and the logs of packaging, the smoke test,
-  the IDE compile check and building and testing the installer, kept for
-  14 days and uploaded even when the build fails.
+  `dist\` (the installer, the three zips, in release builds the xTalk
+  sources zip, and `SHA256SUMS`; not the staged folder), kept for 30
+  days;
+- `build-logs-win-x86_64`: `msbuild.log` and the logs of packaging, the
+  smoke test, the IDE compile check and building and testing the
+  installer, kept for 14 days and uploaded even when the build fails.
 
 When a step fails, a "Failure diagnostics" table in the job summary
 shows which step it was. Downloading artifacts requires a GitHub
 account. Public downloads are Releases.
 
-The badge at the top of the [README](README.md) and the
-[Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
+The badges at the top of the [README](README.md) and the
+[Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions)
 show the state of the latest runs.
 
 The Linux workflow ([`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml),
-"Build (Linux)") builds x86-64 and arm64 in an Ubuntu 20.04 container.
-Its job "Package linux-x86_64" then makes and tests the
-[Linux package](#linux-package) on `ubuntu-24.04` and uploads it as the
-artifact `OXT-Beyond-linux-x86_64`; the header of the workflow file
-lists its steps. It takes the same `no_external_assets` and
-`no_xtalk_extensions` inputs and repository variables as the Windows
-workflow.
+"Build (Linux)") builds x86-64 and arm64 in an Ubuntu 20.04 container
+(see [Building on Linux](#12-building-on-linux)). Its job "Package
+linux-x86_64" then makes and tests the [Linux package](#linux-package)
+on `ubuntu-24.04` and uploads it as the artifact
+`OXT-Beyond-linux-x86_64`; the header of the workflow file lists its
+steps. It takes the same `no_external_assets` and `no_xtalk_extensions`
+inputs and repository variables as the Windows workflow.
+
+The macOS workflow ([`.github/workflows/build-macos.yml`](.github/workflows/build-macos.yml),
+"Build (macOS)") builds arm64 on `macos-15` and x86_64 on
+`macos-15-intel` (see [Building on macOS](#13-building-on-macos)). Its
+job "Package mac-universal" joins the two into one universal
+[macOS app](#macos-app), signed ad hoc, and uploads it as the artifact
+`OXT-Beyond-mac-universal`; "Test mac-universal (arm64)" and "(x86_64)"
+then install it from the disk image on each architecture and test it.
+The repository variables `OXT_NO_EXTERNAL_ASSETS` and
+`OXT_NO_XTALK_EXTENSIONS` work there too.
+
+The Linux and macOS builds also upload their build outputs, without the
+build's own tools (GENTLE among them, which may not be redistributed;
+see `tools/ci/list_build_tools.py`), as `OXT-Beyond-<platform>-<arch>-bin`
+and their debug symbols as `-symbols` (30 days); their logs are kept for
+14 days. The checks of all three workflows are required for pull
+requests into `main`: "Build win-x86_64", "Build linux-x86_64", "Build
+linux-arm64", "Package linux-x86_64", "Build mac-arm64", "Build
+mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
+"Test mac-universal (x86_64)".
 
 ## 10. Making a release
 
-Releases are built by CI from a tag. The product version is the content
-of `ide/.version` (for example `0.0.1`); the tag is `v` followed by it
-(`v0.0.1`). The engine version in the `version` file (9.7.1-OXT, build
-25923) is separate: change it only when the engine changes, and then
-also check `tools/ci/verify-build.ps1` and the smoke test, which compare
-against it.
+Releases are built by CI from a tag: the workflow
+[`.github/workflows/release.yml`](.github/workflows/release.yml)
+("Release") builds, packages and tests Windows, macOS and Linux from the
+tagged commit and publishes one GitHub Release with the files of all
+three. The product version is the content of `ide/.version` (for
+example `0.1.0`); the tag is `v` followed by it (`v0.1.0`). The engine
+version in the `version` file (9.7.1-OXT, build 25923) is separate:
+change it only when the engine changes, and then also check
+`tools/ci/verify-build.ps1` and the smoke test, which compare against
+it.
 
 1. Make sure the external assets in `tools/oxt/external-assets.json`
    are published (see [External assets](#external-assets)); packaging
@@ -1445,37 +1524,71 @@ against it.
    move to newer commits of their repositories; if so, pin them (see
    [xTalk Suite extensions](#xtalk-suite-extensions)) and merge that
    first.
-2. Set `ide/.version` to the new version, for example `0.0.2`, or
+2. Set `ide/.version` to the new version, for example `0.1.0`, or
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
 3. Merge that change into `main` through a pull request and wait for the
-   build to pass.
-4. Tag the merged commit and push the tag:
+   checks of all three build workflows to pass.
+4. Do a [dry run](#dry-run) on `main` and look at its release files and
+   notes (recommended; it takes as long as a release).
+5. Tag the merged commit and push the tag:
 
    ```bat
    git checkout main
    git pull
-   git tag -a v0.0.2 -m "OXT-Beyond 0.0.2"
-   git push origin v0.0.2
+   git tag -a v0.1.0 -m "OXT-Beyond 0.1.0"
+   git push origin v0.1.0
    ```
 
-5. The workflow builds the tag. The release job then checks the files
-   against `SHA256SUMS`, checks that the tag is `v` followed by
-   `ide/.version` of the tagged commit (it publishes nothing otherwise)
-   and publishes the installer, the three zips, the xTalk sources zip
-   and `SHA256SUMS` as a
-   GitHub Release named "OXT-Beyond <version>", with a short description
-   of the files followed by GitHub's generated release notes. Tags that
-   contain `-alpha`, `-beta`, `-rc`, `-dp` or `-pre` become
-   pre-releases. Edit the notes afterwards if needed: say what changed
-   and repeat the known limitations from the README.
-6. Check that GitHub shows the new release as the latest one, for
+6. The tag starts `release.yml`:
+   - **Prepare the release** checks `ide/.version` and that the tag is
+     `v` followed by it exactly (a tag that is not stops the run before
+     anything is built), stops if a release of the tag is published
+     already, and chooses one build number (the UTC time,
+     `YYYYMMDDHHMM`) for every platform.
+   - **Windows**, **Linux** and **macOS** run `build-windows.yml`,
+     `build-linux.yml` and `build-macos.yml` as reusable workflows, with
+     every build, package and test job they run for a pull request (the
+     jobs show as "Windows / Build win-x86_64" and so on), as release
+     builds: the external assets and xTalk Suite extensions are always
+     included, and the Windows job writes the xTalk sources zip.
+   - **Publish GitHub Release** runs only when every one of those jobs
+     passed. It downloads the three package artifacts
+     (`OXT-Beyond-win-x86_64`, `OXT-Beyond-mac-universal`,
+     `OXT-Beyond-linux-x86_64`), checks each against its own
+     `SHA256SUMS` and against the release's list of files
+     ([`tools/ci/release_assets.py`](tools/ci/release_assets.py)), and
+     writes one `SHA256SUMS` over all of them. It writes the notes
+     ([`tools/ci/release_notes.py`](tools/ci/release_notes.py)), creates
+     the release "OXT-Beyond <version>" as a **draft** with those notes
+     followed by GitHub's generated list of changes, uploads every file,
+     checks what GitHub now holds (names, sizes and SHA-256), and only
+     then **publishes** the draft.
+
+   A version with a pre-release part (anything after a `-`, such as
+   `0.1.0-beta.1` or `0.1.0-rc.1`) becomes a pre-release; the update
+   check orders versions and offers pre-releases the same way. The
+   release's files:
+
+   | Platform | Files (`OXT-Beyond-<version>-...`) |
+   | --- | --- |
+   | Windows x86-64 | `win-x86_64-setup.exe`, `win-x86_64-portable.zip`, `win-x86_64-binaries.zip`, `win-x86_64-symbols.zip` |
+   | macOS universal | `mac-universal.dmg`, `mac-universal.zip`, `mac-universal-binaries.tar.xz`, `mac-universal-symbols.zip` |
+   | Linux x86-64 | `linux-x86_64.tar.xz`, `linux-x86_64-binaries.tar.xz`, `linux-x86_64-symbols.tar.xz` |
+   | All | `xtalk-sources.zip`, and `SHA256SUMS` |
+
+   Edit the notes afterwards if needed: say what changed and repeat the
+   known limitations from the README, below the opening lines. Keep the
+   first twelve lines as they are, or as short and platform-neutral:
+   the IDE's update check shows every user those lines (at most 700
+   characters, as plain text).
+7. Check that GitHub shows the new release as the latest one, for
    example with
    `gh api repos/SethMorrowSoftware/winoxt/releases/latest --jq .tag_name`.
    OXT-Beyond's update check reads that release (and the list of
    releases, if it is not an OXT-Beyond version or the user runs a
    pre-release). If another release is
-   marked latest, fix it with `gh release edit v0.0.2 --latest`.
+   marked latest, fix it with `gh release edit v0.1.0 --latest`.
    Pre-releases are never "latest"; the update check offers them only to
    people who already run a pre-release.
 
@@ -1484,10 +1597,59 @@ release. They include `ide/` and `thirdparty/`, which are part of this
 repository. The runtimes asset has its own release and names its
 sources in its `PROVENANCE.md`.
 
-If only the release job fails (for example a network problem), re-run
-it from the Actions tab; it replaces the files of an existing release.
-If the build itself fails, fix the problem on `main` and tag a new
-version rather than moving an existing tag.
+### Dry run
+
+A dry run does everything a release does except the calls that create
+it: it builds, packages and tests the three platforms, assembles and
+checks the release files, writes the notes, and uploads the files as
+the artifact `release-dry-run` (30 days); the notes, and the lines the
+update check would show, are in the summary of its last job. It creates
+no release, no draft and no tag. Start it on the Actions tab (*Release*,
+*Run workflow*, pick the branch, usually `main`, and leave *Dry run*
+ticked), or with the GitHub CLI:
+
+```bat
+gh workflow run release.yml --ref main -f dry-run=true
+```
+
+The files are named after `ide/.version` of that branch. A run started
+by hand without *Dry run* must be started on the tag `v<version>` (it
+then publishes as a push of the tag does); on a branch it stops at once.
+
+### When a release run fails
+
+Nothing is published until every platform's files are uploaded and
+checked, so a failure (a build, a test, a check, an upload) leaves at
+most a **draft** release: only people with write access to the
+repository see drafts, and the update check ignores them. The version is
+not burned.
+
+- **A passing problem** (a runner, the network, a flaky test): open the
+  run and choose *Re-run failed jobs*. The publish job then reuses the
+  draft of the tag, if there is one: its title and notes stay as they
+  are (edit them on the Releases page if you like), the files are
+  uploaded again, and it is published when everything is in. The draft
+  must still name the run's commit: an edit of its notes must keep the
+  line `Made by the "Release" workflow ... from commit <sha>`. A draft
+  made from another commit (left by a run before the tag was moved) is
+  refused, not published: delete it and re-run the job.
+- **A problem in the code:** delete the draft, if there is one (on the
+  Releases page; a new run's publish job refuses a draft of the old
+  commit rather than publish its notes), fix the problem on `main`
+  through a pull request, and release the fixed commit. Since nothing
+  was published, you may delete the tag and tag the fixed commit with
+  the same version (`git tag -d v0.1.0` and
+  `git push origin :refs/tags/v0.1.0`, then steps 5 and 6), or tag a
+  new version. Before you delete and push the tag again, cancel the old
+  tag's run if it is still running (or let it finish), and never re-run
+  that old run afterwards: it still builds the old commit, and its
+  publish job refuses a tag that no longer points at the commit it
+  built.
+
+A release that is published is final: `release.yml` never changes or
+replaces it (prepare and publish both stop with an error for a tag that
+has one), and its tag must never be moved or deleted. Fix a problem in a
+published release with a new version.
 
 ## 11. Working on the IDE
 
@@ -1529,3 +1691,156 @@ IDE files in `ide/` and `ide-support/` mirror the installed ones, and
 OpenXTalk Lite history was imported with it, and
 [CONTRIBUTING.md](CONTRIBUTING.md#importing-from-other-projects) the
 rules for new imports.
+
+## 12. Building on Linux
+
+The Linux engine is built by the workflow
+[`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml)
+in an `ubuntu:20.04` container, for x86_64 on `ubuntu-24.04` runners and
+for arm64 on `ubuntu-24.04-arm`. Ubuntu 20.04 is the newest Ubuntu that
+still ships Python 2.7, which gyp and `config.py` need, and its glibc
+2.31 is the oldest the binaries need. These are the workflow's steps,
+written for x86_64 (use `arm64` instead of `x86_64` for the other
+build); they have been run in that container only, not on other
+distributions or with other compilers.
+
+1. **Tools** (as root in the container):
+
+   ```sh
+   apt-get update
+   apt-get install -y --no-install-recommends \
+     build-essential gcc g++ make perl bison flex gawk pkg-config \
+     python2 python-is-python2 python3 openjdk-11-jdk-headless \
+     git curl ca-certificates bzip2 xz-utils zip unzip file binutils \
+     libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
+     libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
+     libexpat1-dev libgtk2.0-dev libpopt-dev liblcms2-dev
+   ```
+
+2. **Prebuilt libraries.** LiveCode's download server no longer serves
+   the Linux ones, so they are built from the pinned sources in
+   `prebuilt/versions` (the workflow keeps the result in the Actions
+   cache): OpenSSL, curl, ICU and CEF (x86_64 only), then the Thirdparty
+   set from `thirdparty/`:
+
+   ```sh
+   export MODE=release BUILDTYPE=Release PREBUILT_MAKE_JOBS="$(nproc)"
+   cd prebuilt
+   PREBUILT_BUILD_LIBS="openssl curl icu cef" ./build-libraries.sh linux x86_64
+   ./package-libs.sh linux x86_64
+   PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 PREBUILT_LINUX_LIBS="OpenSSL Curl ICU CEF" \
+     PREBUILT_BUILD_LIBS=thirdparty ./build-libraries.sh linux x86_64
+   ./package-libs.sh linux x86_64
+   PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh linux x86_64
+   cd ..
+   ```
+
+   (`PREBUILT_SKIP_VERIFY=1`: these tarballs were built here, so
+   `prebuilt/SHA256SUMS`, which lists published files, has no entries
+   for them.)
+
+3. **Configure and build**, with the same `PREBUILT_LOCAL_DIR` and
+   `PREBUILT_SKIP_VERIFY` in the environment. The second `make` copies
+   the build products into `linux-x86_64-bin`; it runs on its own
+   because its input folder is only created while the first one runs:
+
+   ```sh
+   export PREBUILT_LOCAL_DIR="$PWD/prebuilt/packaged" PREBUILT_SKIP_VERIFY=1
+   make config-linux-x86_64
+   make -C build-linux-x86_64/livecode LiveCode-all debug-symbols BUILDTYPE=Release -j"$(nproc)"
+   make -C build-linux-x86_64/livecode default BUILDTYPE=Release -j"$(nproc)"
+   ```
+
+4. **Check.** The workflow checks that the expected files are in
+   `linux-x86_64-bin`, that no ELF file needs more than glibc 2.31 and
+   the libstdc++ of that system (`tools/ci/check_elf_floor.py`), that
+   the server engine runs a script, and compiles the checkout's IDE with
+   the new development engine:
+
+   ```sh
+   python3 tools/ci/check_elf_floor.py linux-x86_64-bin --machine x86_64 --exclude '*.dbg' \
+     --max GLIBC=2.31 --max GLIBCXX=3.4.28 --max CXXABI=1.3.12 --max GCC=7.0.0
+   python3 tools/ci/run_livecode_check.py compile --repo-layout --bin linux-x86_64-bin
+   ```
+
+   The development engine, `linux-x86_64-bin/LiveCode-Community`, finds
+   the IDE of the clone as the Windows one does (repository mode); CI
+   runs it that way only headless, for this check.
+
+5. **Package** the x86_64 build as described in
+   [Linux package](#linux-package): the workflow uploads
+   `linux-x86_64-bin` as two tarballs (the `.dbg` debug files in the
+   second; the build's own tools, GENTLE among them, in neither), and
+   the job "Package linux-x86_64" makes the package from them on
+   `ubuntu-24.04`, whose glibc and OpenSSL 3 load every bundled xTalk
+   extension. Linux arm64 is built and checked, but not packaged.
+
+## 13. Building on macOS
+
+The macOS engine is built by the workflow
+[`.github/workflows/build-macos.yml`](.github/workflows/build-macos.yml),
+natively for each architecture: arm64 on `macos-15`, x86_64 on
+`macos-15-intel`. The steps below are the workflow's, for one
+architecture (`ARCH` is `arm64` or `x86_64`, the machine's own); they
+have been run on those runners only.
+
+1. **Tools:** Xcode 16.4 (`sudo xcode-select -s /Applications/Xcode_16.4.app`)
+   with its macOS SDK; a JDK, for its headers only (`JAVA_SDK` names its
+   home folder, which has `include/`); Python 2.7.18 first on `PATH` as
+   `python` and `python2` (the workflow builds it with `pyenv install
+   2.7.18` and links it into a folder of its own), for gyp and
+   `config.py`; and Python 3 (the system's), for the checks and
+   packaging.
+
+2. **Prebuilt libraries**, built from the pinned sources as on Linux
+   (OpenSSL and ICU, then the Thirdparty set; there is no CEF on macOS,
+   where revBrowser and the browser widget use the system's WebKit):
+
+   ```sh
+   export ARCH=arm64 TARGET_ARCH=arm64 PREBUILT_MAC_ARCHS=arm64
+   export XCODE_TARGET_SDK=macosx XCODE_HOST_SDK=macosx MODE=release BUILDTYPE=Release
+   export PREBUILT_MAKE_JOBS="$(sysctl -n hw.ncpu)"
+   cd prebuilt
+   PREBUILT_BUILD_LIBS="openssl icu" ./build-libraries.sh mac universal
+   ./package-libs.sh mac universal
+   PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 PREBUILT_MAC_LIBS="OpenSSL ICU" \
+     PREBUILT_BUILD_LIBS=thirdparty ./build-libraries.sh mac universal
+   ./package-libs.sh mac universal
+   PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh mac
+   cd ..
+   ```
+
+   (`PREBUILT_MAC_ARCHS` limits the "universal" libraries to this
+   machine's architecture.)
+
+3. **Configure and build**, with `PREBUILT_LOCAL_DIR` and
+   `PREBUILT_SKIP_VERIFY` set as above:
+
+   ```sh
+   export PREBUILT_LOCAL_DIR="$PWD/prebuilt/packaged" PREBUILT_SKIP_VERIFY=1
+   ./config.sh --platform mac
+   xcodebuild -project build-mac/livecode/livecode.xcodeproj -configuration Release \
+     -target default -jobs "$(sysctl -n hw.ncpu)"
+   ```
+
+   The build products are in `_build/mac/Release`, with
+   `LiveCode-Community.app` (the development engine) and
+   `Standalone-Community.app`.
+
+4. **Check.** The workflow checks the expected files, the architecture
+   of the engines and that they link nothing outside the system, that
+   every Mach-O file
+   records macOS 11.0 (arm64) or 10.13 (x86_64) as its minimum and SDK
+   11.0 (`tools/ci/check_macho_floor.py`), that the server engine runs a
+   script, and compiles the checkout's IDE with the new development
+   engine:
+
+   ```sh
+   python3 tools/ci/run_livecode_check.py compile --repo-layout --bin _build/mac/Release
+   ```
+
+5. **Package:** the workflow uploads `_build/mac/Release` as two
+   tarballs (the `.dSYM` bundles in the second; static libraries and the
+   build's own tools, GENTLE among them, in neither), and the job
+   "Package mac-universal" joins the two architectures into one
+   universal app, as described in [macOS app](#macos-app).
