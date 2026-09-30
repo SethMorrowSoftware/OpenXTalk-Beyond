@@ -545,7 +545,10 @@ The next release adds:
   examples in the dark appearance;
 - light mode fixes for colours OpenXTalk Lite 1.15 saved into the
   Extension Manager, Extension Builder, Search, the icon chooser and the
-  warning shown before opening a stack with scripts;
+  warning shown before opening a stack with scripts, and blue links in
+  About, the User Guides and the dictionary instead of OpenXTalk Lite's
+  yellow (a profile that still has the yellow default gets the blue one;
+  a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 ### xTalk Suite extensions

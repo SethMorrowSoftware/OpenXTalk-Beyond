@@ -280,6 +280,11 @@ on revInternal__openStack
    -- cReplaceSECol, which nothing reads any more.
    if the cIDEAppearance of stack "revPreferences" is empty then set the cIDEAppearance of stack "revPreferences" to "light"
    if the cStackAppearance of stack "revPreferences" is empty then set the cStackAppearance of stack "revPreferences" to "light"
+   -- OXT-Beyond: Tom's default link colour (255,212,0, for his dark IDE) is
+   -- 1.4:1 on the light IDE's white, where About, the User Guides and the
+   -- dictionary draw their links in it; profiles that still have it (or
+   -- none) get the new default, as revInternal__ResetPreferences sets it
+   if the cRevHelpHiliteColor of stack "revPreferences" is empty or the cRevHelpHiliteColor of stack "revPreferences" is "255,212,0" then set the cRevHelpHiliteColor of stack "revPreferences" to "0,102,204"
    if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
    -- OXT-Beyond: the automatic update check (oxtBeyondUpdater library) is off
    -- unless the user turns it on in Preferences > Automatic Updates.
