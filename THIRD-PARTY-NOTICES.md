@@ -168,7 +168,7 @@ with an AI assistant; they say so in their own messages.
 | The localized desktop and documents folders on Linux (`engine/src/dsklnx.cpp`), re-implemented | Mark Wieder, commit d89d30993 ("Localized specialFolderPath for desktop and documents (#403)") |
 | `MCScreenDC::snapshot` (`engine/src/lnxdcs.cpp`): rubber-band snapshots without a server grab | Mark Wieder, commit 1212ec400 ("import snapshot doesn't hang linux") |
 | `GetTemporaryFileName` with `mkstemp` (`engine/src/dsklnx.cpp`) and deleting the probe's temporary file in `extensionLCCompileVersion` (`extension-utils.livecodescript`) | Mark Wieder, commit aa0c8cbfe ("//tmp//prefXXXXXX was getting crowded") |
-| The shorter `WaitForSelectionNotify` timeout (`engine/src/lnx-clipboard.cpp`) | Emily-Elizabeth Howard, commit 6bf54896d ("503 lin script editormessage box slow typing (#515)") |
+| The shorter wait for the owner of the PRIMARY selection (`WaitForSelectionNotify` in `engine/src/lnx-clipboard.cpp`) | Emily-Elizabeth Howard, commit 6bf54896d ("503 lin script editormessage box slow typing (#515)") |
 | Locking the Message Box fields over the divider (`revmessageboxmultiplelinescardbehavior.livecodescript`) | BerndN, commit 74b089829 ("Make dragging vertical divider more responsive (#505)") |
 | The widget properties table (`engine/src/exec-interface-object.cpp`) and `MCWidget::getpropertytable` (`engine/src/widget.h`) | Brian Milby, commit 525216689 ("Add `the properties` support for widgets (#349)") |
 | `backspaceKey` in the Script Editor's `revsecommoneditorbehavior.livecodescript` | BerndN, commit 4def940a1 ("Fixes to backspace key") |
