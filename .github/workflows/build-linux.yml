@@ -20,7 +20,9 @@
 # to the build settings, or an evicted cache) rebuilds them in the same job.
 #
 # Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
-# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+# (engines, externals, toolchain, packaged extensions) as a tar.xz, without
+# the debug symbols; OXT-Beyond-linux-<arch>-symbols holds those, the *.dbg
+# files of the same folder, as a tar.xz to extract over it.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
@@ -261,14 +263,40 @@ jobs:
           ./linux-"$ARCH"-bin/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
           grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
 
-      - name: Package the bin folder
-        run: tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" "linux-$ARCH-bin"
+      # The .dbg files, the debug information that
+      # tools/extract-debug-symbols.sh splits off every binary (about 160 MB
+      # per engine, most of the folder), go into a tarball of their own and
+      # the bin tarball goes without them. Both hold the folder
+      # linux-<arch>-bin, so extracting the symbols over the binaries puts
+      # every .dbg next to its binary, where gdb finds it through the
+      # binary's .gnu_debuglink. xz uses every processor (-T0).
+      - name: Package the bin folder and the debug symbols
+        env:
+          XZ_OPT: -T0
+        run: |
+          B="linux-$ARCH-bin"
+          find "$B" -type f -name '*.dbg' | sort > "$RUNNER_TEMP/dbg.list"
+          if [ ! -s "$RUNNER_TEMP/dbg.list" ]; then
+            echo "::error::no .dbg files in $B; the build's debug-symbols target makes them"; exit 1
+          fi
+          echo "$(wc -l < "$RUNNER_TEMP/dbg.list") debug symbol files"
+          # (--exclude before the folder: GNU tar applies it to the names after it)
+          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' "$B"
+          tar -cJf "OXT-Beyond-linux-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dbg.list"
+          ls -l OXT-Beyond-linux-"$ARCH"-*.tar.xz
 
       - name: Upload the bin folder
         uses: actions/upload-artifact@v4
         with:
           name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+          if-no-files-found: error
+
+      - name: Upload the debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
+          path: OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
           if-no-files-found: error
 
       - name: Upload build logs

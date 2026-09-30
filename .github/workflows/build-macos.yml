@@ -18,7 +18,9 @@
 # build-linux.yml. Each runner builds only its own architecture's slice.
 #
 # Output: the artifact OXT-Beyond-mac-<arch>-bin holds the build products
-# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+# (engines, externals, toolchain, packaged extensions) as a tar.xz, without
+# static libraries and debug symbols; OXT-Beyond-mac-<arch>-symbols holds
+# the dSYM bundles of the same folder, as a tar.xz to extract over it.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
@@ -266,16 +268,36 @@ jobs:
           ./_build/mac/Release/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
           grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
 
-      - name: Package the build products
+      # The dSYM bundles that Xcode writes next to every binary (the debug
+      # information, without which crash reports cannot be symbolicated) go
+      # into a tarball of their own; the bin tarball stays without them.
+      # Both hold the folder Release, so extracting the symbols over the
+      # build products puts every dSYM next to its binary, where lldb and
+      # atos look for it (they match it by the binary's UUID).
+      - name: Package the build products and the debug symbols
         run: |
           tar -C _build/mac -cJf "OXT-Beyond-mac-$ARCH-bin.tar.xz" \
             --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' Release
+          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) > "$RUNNER_TEMP/dsym.list"
+          if [ ! -s "$RUNNER_TEMP/dsym.list" ]; then
+            echo "::error::no .dSYM bundles in _build/mac/Release"; exit 1
+          fi
+          echo "$(wc -l < "$RUNNER_TEMP/dsym.list" | tr -d ' ') dSYM bundles"
+          (cd _build/mac && tar -cJf "$GITHUB_WORKSPACE/OXT-Beyond-mac-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dsym.list")
+          ls -l OXT-Beyond-mac-"$ARCH"-*.tar.xz
 
       - name: Upload the build products
         uses: actions/upload-artifact@v4
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-bin
           path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
+          if-no-files-found: error
+
+      - name: Upload the debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: OXT-Beyond-mac-${{ matrix.arch }}-symbols
+          path: OXT-Beyond-mac-${{ matrix.arch }}-symbols.tar.xz
           if-no-files-found: error
 
       - name: Upload build logs
