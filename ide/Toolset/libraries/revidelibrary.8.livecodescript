@@ -2539,7 +2539,9 @@ The engine carries both (an engine with the appearance properties; see
 - the systemAppearance still reports the operating system's setting, and
   systemAppearanceChanged is still sent only when that setting changes.
 On Linux, GTK draws the native controls and cannot be forced, so every
-effective value is the GTK theme's appearance whatever is set.
+effective value is the GTK theme's appearance whatever is set. On macOS the
+engine draws every stack light for now (its classic controls stay light in
+any appearance), so every effective value there is "light".
 
 This function returns whether the effective stackAppearance of the home
 stack (an IDE stack, so the IDE's appearance) is "dark". The value is
@@ -2843,6 +2845,22 @@ function revIDEStackIsShipped pStack
    if tFile is empty then return false
    put revEnvironmentToolsetPath() & return & revEnvironmentPluginsPath() & return & \
          revEnvironmentDocumentationPath() & return & revEnvironmentDevelopmentPluginsPath() into tFolders
+   -- The Toolset folder is also the folder of the home stack's own file.
+   -- The paths above come from the tools folder the IDE's start records
+   -- (sToolsPath in home); without that start, as in the headless IDE
+   -- checks (tools/ci/ide-appearance-check), only this finds the IDE's
+   -- stacks, home included
+   local tHome
+   try
+      put the effective filename of stack "home" into tHome
+   catch tError
+      put empty into tHome
+   end try
+   if tHome is not empty then
+      set the itemDelimiter to slash
+      put return & item 1 to -2 of tHome after tFolders
+      set the itemDelimiter to comma
+   end if
    repeat for each line tFolder in tFolders
       if tFolder is empty then next repeat
       if the last char of tFolder is not slash then put slash after tFolder
@@ -2898,7 +2916,24 @@ end __revIDEAppearanceRefresh
 -- (revSEAppearanceKey). When the appearance changed while it is open, its
 -- controls show the new slot's values at once: otherwise the next edit
 -- would write a value shown from the other slot into this one.
+-- Its custom scheme dialog (the substack "CustomScriptCol", a window of its
+-- own that can stay open) is closed instead: it shows the colours of the
+-- slot it opened in, and each edit writes all of them to the file of the
+-- slot of the appearance at that moment (revSECustomSchemeFile), so after
+-- a change they would replace the new slot's colours. Loading the new slot
+-- into it is no better: with no custom colours to read, it writes the
+-- default ones and makes "Custom" that slot's scheme, which the user did
+-- not choose. The Colorization Scheme menu closes it the same way at each
+-- pick. An edit whose colour picker is open during the change is dropped
+-- by the dialog itself.
 private command __revIDEPrefsScriptEditorRefresh
+   if "CustomScriptCol" is among the lines of the openStacks and \
+         "revPreferencesGUI" is among the lines of the mainStacks then
+      try
+         close stack "CustomScriptCol" of stack "revPreferencesGUI"
+      catch tError
+      end try
+   end if
    if "revPreferencesGUI" is not among the lines of the openStacks then
       exit __revIDEPrefsScriptEditorRefresh
    end if
@@ -2954,6 +2989,47 @@ function revSEAppearanceKey pKey
 end revSEAppearanceKey
 
 /**
+The file that holds the colours of the script editor scheme "Custom" for a
+slot, light or dark.
+
+Parameters:
+pFolder (string): The folder of the file, as the caller computes it for
+the platform; the file name is appended to it as it is.
+pDark (boolean): true for the dark slot, false for the light one, empty for
+the slot of the IDE's appearance (the one <revSEAppearanceKey> names).
+pForReading (boolean): true when the file is read, false when it is
+written.
+
+Returns (string): For the light slot, pFolder & "customScriptColours.dat".
+For the dark slot, pFolder & "customScriptColours-dark.dat"; but to read
+the dark slot while that file does not exist yet, the light slot's file.
+
+Description:
+The script editor keeps a light and a dark scheme (<revSEAppearanceKey>),
+and both can be "Custom". OpenXTalk Lite keeps the custom colours in one
+file, which stays the light slot's (OpenXTalk Lite reads the same file).
+With one file for both slots, customizing the dark scheme would change the
+light one too, so the dark slot has a file of its own. Until the dark slot
+is customized it shows the light slot's colours: a custom scheme made
+before there was a dark slot carries over, and the first write of the dark
+slot creates its file. seColorizationLoadScheme (revseutilities) and the
+custom scheme dialog (the substack "CustomScriptCol" of
+revpreferencesgui.rev, which edits the slot of the IDE's appearance) name
+the file through this function.
+
+References: revSEAppearanceKey (function), revIDEIsDark (function)
+**/
+function revSECustomSchemeFile pFolder, pDark, pForReading
+   -- The slot of the IDE's appearance, chosen as revSEAppearanceKey does
+   if pDark is empty then put revIDEIsDark() into pDark
+   if pDark is not true then return pFolder & "customScriptColours.dat"
+   if pForReading is true and there is not a file (pFolder & "customScriptColours-dark.dat") then
+      return pFolder & "customScriptColours.dat"
+   end if
+   return pFolder & "customScriptColours-dark.dat"
+end revSECustomSchemeFile
+
+/**
 The View menu's Appearance submenu.
 
 Returns (string): The submenu's lines, each indented with a tab, with a
@@ -2962,8 +3038,9 @@ check mark on the chosen value of each preference.
 Description:
 Two groups: the IDE's appearance and the appearance of the user's stacks
 (see <revIDEIsDark>). The items are disabled on Linux, where GTK decides
-the appearance (with a line that says so), and on an engine without the
-appearance properties. The picks arrive as "Appearance|<item>";
+the appearance, and on macOS, where the engine draws light for now (each
+with a line that says so), and on an engine without the appearance
+properties. The picks arrive as "Appearance|<item>";
 <revIDEAppearanceMenuPick> handles them. The idea of an Appearance menu is
 Tom Perry's (View > Appearance in OpenXTalk Lite 1.07 to 1.13, which
 recoloured the IDE's stacks from script).
@@ -2972,7 +3049,7 @@ References: revIDEAppearanceMenuPick (command)
 **/
 function revIDEAppearanceMenu
    local tMenu, tEnabled, tIDE, tStacks
-   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   put revIDEEngineHasAppearance() and the platform is not "Linux" and the platform is not "MacOS" into tEnabled
    put revIDEAppearancePreference("ide") into tIDE
    put revIDEAppearancePreference("stacks") into tStacks
    repeat for each item tValue in "light,dark,system"
@@ -2984,6 +3061,8 @@ function revIDEAppearanceMenu
    end repeat
    if the platform is "Linux" then
       put tab & "-" & return & tab & "(On Linux the appearance follows the GTK theme" & return after tMenu
+   else if the platform is "MacOS" then
+      put tab & "-" & return & tab & "(On macOS OXT-Beyond is light for now" & return after tMenu
    else if not revIDEEngineHasAppearance() then
       put tab & "-" & return & tab & "(This engine follows the system's appearance" & return after tMenu
    end if
@@ -3068,8 +3147,8 @@ The card is in a binary stack; its preOpenCard calls this, which creates
 (the first time, on the card being opened) and updates two option menus
 with their labels below the card's other controls, "IDE appearance" and
 "Your stacks", and a line under them. A pick calls <revIDESetAppearance>.
-The menus are disabled on Linux and on an engine without the appearance
-properties, and the line says why. <revIDESetAppearance> updates them when
+The menus are disabled on Linux, on macOS (light for now) and on an engine
+without the appearance properties, and the line says why. <revIDESetAppearance> updates them when
 the View menu changes a preference while the card is open.
 
 References: revIDESetAppearance (command)
@@ -3077,9 +3156,11 @@ References: revIDESetAppearance (command)
 command revIDEPrefsAppearanceUI pCard
    local tEnabled, tNote, tLeft, tTop, tName, tItems, tText, tStack, tDefaultStack, tCreate
    if not exists(pCard) then exit revIDEPrefsAppearanceUI
-   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   put revIDEEngineHasAppearance() and the platform is not "Linux" and the platform is not "MacOS" into tEnabled
    if the platform is "Linux" then
       put "On Linux the appearance follows the GTK theme." into tNote
+   else if the platform is "MacOS" then
+      put "On macOS OXT-Beyond is light for now; dark mode will follow." into tNote
    else if not revIDEEngineHasAppearance() then
       put "This engine follows the system's appearance; these settings need a newer engine." into tNote
    else

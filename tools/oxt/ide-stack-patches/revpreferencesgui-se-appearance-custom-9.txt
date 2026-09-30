@@ -1,0 +1,26 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec), and both schemes can be "Custom".
+# OpenXTalk Lite keeps the custom colours in one file,
+# customScriptColours.dat, so customizing the dark scheme changed the light
+# one too. The dark slot now has a file of its own,
+# customScriptColours-dark.dat, and the custom scheme dialog (substack
+# "CustomScriptCol") reads and writes the file of the slot of the IDE's
+# appearance, which revSECustomSchemeFile (revidelibrary) names: the dark
+# slot reads the light one's until the dialog writes its own.
+# This one: the graphic "cSwatch", mouseup (a colour picked for an item).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: graphic "cSwatch" of card 1 of stack "CustomScriptCol"
+replace:
+|   put sFilePath & "customScriptColours.dat" into myTmpVar |
+|   delete file myTmpVar|
+|   open file myTmpVar|
+|   write myNewSECols to file myTmpVar|
+with:
+|   -- OXT-Beyond: the file of the slot of the IDE's appearance; the first|
+|   -- write of the dark slot creates its own|
+|   put revSECustomSchemeFile(sFilePath, empty, false) into myTmpVar|
+|   delete file myTmpVar|
+|   open file myTmpVar|
+|   write myNewSECols to file myTmpVar|
