@@ -30,6 +30,7 @@ AppKit's compatibility behaviour, so every file must record the same one.
 
     check_macho_floor.py ROOT --minos arm64=11.0 --minos x86_64=10.13
                          [--sdk 11.0] [--arch arm64] [--allow PATH=REASON]
+                         [--only-arch PATH=ARCH] [--file-minos PATH=ARCH:VERSION]
 
 --minos ARCH=VERSION  every slice of ARCH must record exactly this minos;
                       a slice of an architecture with no --minos fails
@@ -37,10 +38,24 @@ AppKit's compatibility behaviour, so every file must record the same one.
 --sdk VERSION         every slice must record this SDK version
 --arch ARCH           every file must hold a slice of ARCH (the
                       architecture this build is for)
---allow PATH=REASON   PATH (relative to ROOT, / separators; fnmatch
-                      patterns) is reported but never fails; the reason
-                      is printed with it, so a log says why
+--only-arch PATH=ARCH
+                      files matching PATH must hold exactly one slice, of
+                      ARCH, instead of a slice of --arch (a target built
+                      for one architecture whatever the build is for)
+--file-minos PATH=ARCH:VERSION
+                      ARCH slices of files matching PATH must record
+                      VERSION instead of --minos's; every other check
+                      (SDK, platform, the other architectures) still
+                      applies to them
+--allow PATH=REASON   PATH is reported but never fails; the reason is
+                      printed with it, so a log says why. Prefer
+                      --only-arch and --file-minos, which excuse one
+                      known difference and keep every other check
 --exclude PATTERN     skip matching paths altogether
+
+PATH and PATTERN are relative to ROOT, with / separators, and are
+fnmatch patterns. An --only-arch or --file-minos PATH that matches no
+file is an error: the exception it describes no longer exists.
 
 dSYM companions (file type MH_DSYM) are skipped: they hold debug
 information, not code, and record whatever their binary records.
@@ -234,16 +249,19 @@ def walk(root, exclude):
     return sorted(found)
 
 
-def check(root, minos, sdk=None, arch=None, allow=None, exclude=()):
+def check(root, minos, sdk=None, arch=None, allow=None, exclude=(), only_arch=None, file_minos=()):
     """Check every Mach-O file under root. minos: {arch: encoded version};
     sdk: encoded version or None; arch: required architecture or None;
-    allow: {pattern: reason}. Returns (rows, problems, allowed, highest):
-    rows are (path, arch, file type, platform, minos, sdk, source) for the
-    report, problems and allowed are lists of (path, message), and highest
-    maps each architecture to (minos, path)."""
+    allow: {pattern: reason}; only_arch: {pattern: arch}; file_minos:
+    [(pattern, arch, encoded version)]. Returns (rows, problems, allowed,
+    highest): rows are (path, arch, file type, platform, minos, sdk,
+    source) for the report, problems and allowed are lists of (path,
+    message), and highest maps each architecture to (minos, path)."""
     allow = allow or {}
+    only_arch = only_arch or {}
     rows, problems, allowed = [], [], []
     highest = {}
+    used = set()
     for rel in walk(root, exclude):
         try:
             slices = read_macho(os.path.join(root, rel))
@@ -255,8 +273,18 @@ def check(root, minos, sdk=None, arch=None, allow=None, exclude=()):
         reason = next((r for p, r in allow.items() if fnmatch.fnmatchcase(rel, p)), None)
         found = []
         archs = [s['arch'] for s in slices]
-        if arch and arch not in archs:
+        single = next(((p, a) for p, a in only_arch.items() if fnmatch.fnmatchcase(rel, p)), None)
+        if single is not None:
+            used.add(('--only-arch', single[0]))
+            if archs != [single[1]]:
+                found.append('holds %s, expected only %s' % (', '.join(archs), single[1]))
+        elif arch and arch not in archs:
             found.append('has no %s slice (only %s)' % (arch, ', '.join(archs)))
+        want = dict(minos)
+        for p, a, v in file_minos:
+            if fnmatch.fnmatchcase(rel, p):
+                used.add(('--file-minos', p))
+                want[a] = v
         for s in slices:
             ftype = FILE_TYPES.get(s['filetype'], 'type-%d' % s['filetype'])
             mac = [v for v in s['versions'] if v[0] == PLATFORM_MACOS]
@@ -275,16 +303,19 @@ def check(root, minos, sdk=None, arch=None, allow=None, exclude=()):
             _, v_min, v_sdk, _ = mac[0]
             if s['arch'] not in highest or v_min > highest[s['arch']][0]:
                 highest[s['arch']] = (v_min, rel)
-            if s['arch'] not in minos:
+            if s['arch'] not in want:
                 found.append('%s: unexpected architecture' % s['arch'])
-            elif v_min != minos[s['arch']]:
+            elif v_min != want[s['arch']]:
                 found.append('%s: minos %s, expected %s' % (
-                    s['arch'], version_string(v_min), version_string(minos[s['arch']])))
+                    s['arch'], version_string(v_min), version_string(want[s['arch']])))
             if sdk is not None and v_sdk != sdk:
                 found.append('%s: sdk %s, expected %s' % (s['arch'], version_string(v_sdk), version_string(sdk)))
         for message in found:
             (allowed if reason is not None else problems).append(
                 (rel, message + (' (allowed: %s)' % reason if reason is not None else '')))
+    for option, p in sorted(set([('--only-arch', p) for p in only_arch] +
+                                [('--file-minos', p) for p, _, _ in file_minos]) - used):
+        problems.append((root, '%s %s matches no Mach-O file' % (option, p)))
     return rows, problems, allowed, highest
 
 
@@ -319,6 +350,12 @@ def main(argv=None):
     p.add_argument('--allow', action='append', default=[], metavar='PATH=REASON',
                    type=lambda s: _pair(s, 'PATH=REASON'),
                    help='report PATH (fnmatch pattern, relative to root) but do not fail on it')
+    p.add_argument('--only-arch', action='append', default=[], metavar='PATH=ARCH',
+                   type=lambda s: _pair(s, 'PATH=ARCH'),
+                   help='files matching PATH must hold exactly one slice, of ARCH (instead of --arch)')
+    p.add_argument('--file-minos', action='append', default=[], metavar='PATH=ARCH:VERSION',
+                   type=lambda s: _pair(s, 'PATH=ARCH:VERSION'),
+                   help='ARCH slices of files matching PATH must record VERSION (instead of --minos)')
     p.add_argument('--exclude', action='append', default=[], metavar='PATTERN',
                    help='skip paths matching PATTERN (relative to root)')
     args = p.parse_args(argv)
@@ -329,11 +366,18 @@ def main(argv=None):
     try:
         minos = {a: parse_version(v) for a, v in args.minos}
         sdk = parse_version(args.sdk) if args.sdk else None
+        file_minos = []
+        for p, value in args.file_minos:
+            a, sep, v = value.partition(':')
+            if not sep or not a or not v:
+                raise ValueError('--file-minos expects PATH=ARCH:VERSION, got %s=%s' % (p, value))
+            file_minos.append((p, a, parse_version(v)))
     except ValueError as e:
         sys.stderr.write('error: %s\n' % e)
         return 2
 
-    rows, problems, allowed, highest = check(args.root, minos, sdk, args.arch, dict(args.allow), args.exclude)
+    rows, problems, allowed, highest = check(args.root, minos, sdk, args.arch, dict(args.allow), args.exclude,
+                                             dict(args.only_arch), file_minos)
 
     widths = [max([len(h)] + [len(r[i]) for r in rows]) for i, h in enumerate(('path', 'arch', 'type'))]
     print('%-*s  %-*s  %-*s  platform  minos   sdk     from' % (widths[0], 'path', widths[1], 'arch',

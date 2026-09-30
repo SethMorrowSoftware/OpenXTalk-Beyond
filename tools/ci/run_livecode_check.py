@@ -242,18 +242,19 @@ def extract_package(path, dest):
                     shutil.copyfileobj(src, out, 1 << 20)
                 if mode and os.name != 'nt':
                     os.chmod(target, stat.S_IMODE(mode))
-        # once all are on disk: a later link can move an earlier one's
-        # target out of dest
-        for name, link, target in links:
-            if not package.inside_tree(root, target):
-                raise CheckError('%s: link %s -> %s leads out of the package' % (path, name, link))
         tops = sorted({i.filename.split('/')[0] for i in zipfile.ZipFile(path).infolist()})
-    else:
-        top = package.extract_bin_tar(path, dest, lambda m: None)
-        return os.path.basename(top)
-    if len(tops) != 1:
-        raise CheckError('%s: expected one top-level folder, found %s' % (path, ', '.join(tops)))
-    return tops[0]
+        if len(tops) != 1:
+            raise CheckError('%s: expected one top-level folder, found %s' % (path, ', '.join(tops)))
+        # once all are on disk: a later link can move an earlier one's
+        # target out; against the package's top-level folder, which is
+        # what gets tested, not dest (as in package.extract_bin_tar)
+        top = os.path.realpath(os.path.join(dest, tops[0]))
+        for name, link, target in links:
+            if not package.inside_tree(top, target):
+                raise CheckError('%s: link %s -> %s leads out of the package' % (path, name, link))
+        return tops[0]
+    top = package.extract_bin_tar(path, dest, lambda m: None)
+    return os.path.basename(top)
 
 
 def find_layout(args, p, temp_dirs):

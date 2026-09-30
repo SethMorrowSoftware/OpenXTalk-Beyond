@@ -177,11 +177,17 @@ def check_elf(path, folder, present):
     return b.archs, b.needed, missing, problems, b.floors
 
 
-def check_macho(path, folder, present):
-    b = binfmt.parse(path)
-    problems, missing = [], []
-    rpaths = b.rpaths
-    for lib in b.needed:
+def _check_macho_slice(sl, present, missing, problems, tag):
+    """Check one slice's libraries against that slice's own LC_RPATHs
+    (dyld never uses another slice's), adding to missing and problems;
+    tag names the slice in messages of a universal file."""
+    def miss(lib, why=None):
+        if lib not in missing:
+            missing.append(lib)
+        if why and tag + why not in problems:
+            problems.append(tag + why)
+
+    for lib in sl.needed:
         if lib.startswith(MAC_SYSTEM_PREFIXES):
             continue
         name = lib.rsplit('/', 1)[-1]
@@ -189,22 +195,26 @@ def check_macho(path, folder, present):
             rel = posixpath.normpath(lib[len('@loader_path/'):])
             if '/' not in rel and rel in present:
                 continue
-            missing.append(lib)
+            miss(lib)
         elif lib.startswith('@rpath/'):
             rel = lib[len('@rpath/'):]
             ok = any(r.rstrip('/') in ('@loader_path', '@loader_path/.') and '/' not in rel and rel in present
-                     for r in rpaths)
+                     for r in sl.rpaths)
             if not ok:
-                missing.append(lib)
-                problems.append('%s: no LC_RPATH of @loader_path finds it next to the library' % lib)
+                miss(lib, '%s: no LC_RPATH of @loader_path finds it next to the library' % lib)
         elif lib.startswith('@executable_path/'):
-            missing.append(lib)
-            problems.append('%s is relative to the engine, not to the extension' % lib)
+            miss(lib, '%s is relative to the engine, not to the extension' % lib)
         else:
-            missing.append(lib)
-            if name in present:
-                problems.append('%s: the copy next to it is not used (install name %s; use @loader_path/%s)'
-                                % (name, lib, name))
+            miss(lib, ('%s: the copy next to it is not used (install name %s; use @loader_path/%s)'
+                       % (name, lib, name)) if name in present else None)
+
+
+def check_macho(path, folder, present):
+    b = binfmt.parse(path)
+    problems, missing = [], []
+    for sl in b.slices:
+        tag = '[%s] ' % ' '.join(sl.archs) if len(b.slices) > 1 else ''
+        _check_macho_slice(sl, present, missing, problems, tag)
     expected = _folder_archs(folder)
     if expected:
         lacking = [a for a in expected if a not in b.archs]
