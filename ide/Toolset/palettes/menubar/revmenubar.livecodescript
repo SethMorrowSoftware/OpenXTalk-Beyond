@@ -389,6 +389,13 @@ on generateMenubarUI
          local tFilename
          repeat for each item tStyle in "hilited,disabled,depressed,hilited-depressed"
             put revMenubarButtonNameToIconPath(tItem, tStyle) into tFilename
+            -- The disabled icons are dark grey, for a light toolbar; in the
+            -- dark appearance use their light twins (<name>-disabled-dark,
+            -- made from the enabled icons by tools/oxt/dark_disabled_icons.py)
+            if tStyle is "disabled" and revIDEIsDark() and \
+                  there is a file revMenubarButtonNameToIconPath(tItem, "disabled-dark") then
+               put revMenubarButtonNameToIconPath(tItem, "disabled-dark") into tFilename
+            end if
             if there is a file tFilename then
                create invisible image (tItem & "-" & tStyle) in group "icons" of me
                set the id of it to revIDENewIconID()

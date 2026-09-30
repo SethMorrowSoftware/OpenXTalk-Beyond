@@ -13,6 +13,7 @@ scripts run by a development engine without a user interface.
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
 | `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
+| `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 
 ## layout.py
 
