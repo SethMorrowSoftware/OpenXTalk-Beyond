@@ -2684,7 +2684,7 @@ command revIDEApplyAppearance
    if revIDEEngineHasAppearance() then
       lock screen
       repeat for each line tStack in the mainStacks
-         if revIDEStackIsIDEStack(the long id of stack tStack) or revIDEStackIsShipped(tStack) then
+         if revIDEStackTakesIDEAppearance(the long id of stack tStack) then
             revIDESetStackAppearance tStack, tIDE
          end if
       end repeat
@@ -2752,6 +2752,54 @@ command revIDESetAppearance pWhich, pValue
 end revIDESetAppearance
 
 /**
+Whether a main stack takes the IDE's appearance.
+
+Parameters:
+pStack: The name or the long id of a main stack.
+
+Returns (boolean): true for a stack the IDE ships (revIDEStackIsShipped),
+and for a stack with an IDE name that exists only in memory (the IDE makes
+some of its stacks that way).
+
+Description:
+revIDEStackIsIDEStack goes by the name (rev..., com.livecode...), which a
+user's project can have too: such a project, saved in the user's folders,
+keeps following the appAppearance, as it will in a standalone.
+
+References: revIDEApplyAppearance (command), revIDEStackIsShipped (function)
+**/
+function revIDEStackTakesIDEAppearance pStack
+   local tStack
+   try
+      if word 1 of pStack is "stack" then
+         put pStack into tStack
+      else
+         put the long id of stack pStack into tStack
+      end if
+   catch tError
+      return false
+   end try
+   if revIDEStackIsShipped(tStack) then return true
+   return revIDEStackIsIDEStack(tStack) and revIDEStackIsUnsaved(tStack)
+end revIDEStackTakesIDEAppearance
+
+/**
+Whether a stack exists only in memory (it has no file).
+
+Parameters:
+pStack: The name or the long id of a main stack.
+
+Returns (boolean): true when the stack has no file.
+
+Description:
+The IDE makes some of its stacks in memory; with an IDE name (see
+revIDEStackNameIsIDEStack) such a stack takes the IDE's appearance. A user's
+stack with a file takes it only when the IDE ships it (revIDEStackIsShipped).
+
+References: revIDEStackIsShipped (function)
+**/
+
+/**
 Whether a stack is shipped with the IDE.
 
 Parameters:
@@ -2767,6 +2815,20 @@ Resources are the user's to open and change, and stay user stacks.
 
 References: revIDEApplyAppearance (command)
 **/
+function revIDEStackIsUnsaved pStack
+   local tFile
+   try
+      if word 1 of pStack is "stack" then
+         put the effective filename of pStack into tFile
+      else
+         put the effective filename of stack pStack into tFile
+      end if
+   catch tError
+      return false
+   end try
+   return tFile is empty
+end revIDEStackIsUnsaved
+
 function revIDEStackIsShipped pStack
    local tFile, tFolders
    try
@@ -2828,8 +2890,25 @@ command __revIDEAppearanceRefresh
    else if tIsDark is not sLastIsDark then
       put tIsDark into sLastIsDark
       ideMessageSend "ideAppearanceChanged", tIsDark
+      __revIDEPrefsScriptEditorRefresh
    end if
 end __revIDEAppearanceRefresh
+
+-- Preferences > Script Editor edits the slot of the IDE's appearance
+-- (revSEAppearanceKey). When the appearance changed while it is open, its
+-- controls show the new slot's values at once: otherwise the next edit
+-- would write a value shown from the other slot into this one.
+private command __revIDEPrefsScriptEditorRefresh
+   if "revPreferencesGUI" is not among the lines of the openStacks then
+      exit __revIDEPrefsScriptEditorRefresh
+   end if
+   try
+      if there is a group "Script Editor" of card "Script Editor" of stack "revPreferencesGUI" then
+         dispatch "update" to group "Script Editor" of card "Script Editor" of stack "revPreferencesGUI"
+      end if
+   catch tError
+   end try
+end __revIDEPrefsScriptEditorRefresh
 
 /**
 /**
