@@ -523,7 +523,7 @@ differences.
 
 ```
 python tools/oxt/package_dist.py (--summary <package.py --summary-json> | --platform P --stage DIR)
-    (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
+    (--bin DIR | --bin-tar FILE | --no-binaries) [--symbols-tar FILE] --out DIR
     [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
     [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
 ```
@@ -573,6 +573,16 @@ macOS with `hdiutil` by the workflow, not here.
   modes, symbolic and hard links. The Linux and macOS archives are written
   on Linux or macOS only (in WSL, from a stage under a Linux path: a probe
   next to the stage refuses a Windows drive, whose files all read 0777).
+* `--symbols-tar` takes the CI's symbols artifact
+  (`OXT-Beyond-linux-<arch>-symbols.tar.xz`: the build output folder with
+  only its `*.dbg` files; the macOS one holds the `*.dSYM` bundles), since
+  the bin tarball no longer has them, and adds its files to the symbols
+  archive. A member that is not a debug symbol file, a hard link, or a
+  file the build output has too is an error.
+* A path of the Linux package with a folder named like a build output
+  (`package.repository_mode_trap`: `_build`, `linux-bin`,
+  `linux-<arch>-bin`, `build-linux-<arch>`) is an error: an engine on
+  such a path runs the IDE of a source checkout. There is none today.
 
 Under GitHub Actions it writes the step outputs `version`, `package-root`,
 `platform`, `dist-dir`, `package` and `sha256sums` and a table of the
