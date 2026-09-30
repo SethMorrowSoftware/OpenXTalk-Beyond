@@ -3235,6 +3235,18 @@ function revIDEColor pTag
             -- than its dark background (30,30,30); text_muted on it: 5.3:1
             return "44,44,46"
             break
+         case "start_center_background"
+            return "36,36,38"
+            break
+         case "start_center_panel"
+            return "44,44,46"
+            break
+         case "start_center_corner"
+            return "54,54,58"
+            break
+         case "start_center_label"
+            return "160,160,160"
+            break
       end switch
    end if
 
@@ -3326,6 +3338,20 @@ function revIDEColor pTag
       case "se_gutter"
          -- As upstream (the Numbers Template field); text_muted: 4.5:1
          return "217,217,217"
+         break
+      case "start_center_background"
+         -- The Start Center as saved (revStartCenter.livecode): the window,
+         -- the recent files panel and the corner of its list, and its labels
+         return "255,255,255"
+         break
+      case "start_center_panel"
+         return "247,247,247"
+         break
+      case "start_center_corner"
+         return "232,232,232"
+         break
+      case "start_center_label"
+         return "128,128,128"
          break
    end switch
 

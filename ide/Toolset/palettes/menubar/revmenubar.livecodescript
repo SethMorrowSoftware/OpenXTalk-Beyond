@@ -673,8 +673,10 @@ on layoutMenu
       set the width of field "label" of group "tutorial" of me to tLabelWidth
       set the topleft of field "label" of group "tutorial" of me to 0,0
       
-      set the backcolor of graphic "Trough" of group "progress" of me to "white"
-      set the backcolor of graphic "Bar" of group "progress" of me to "black"
+      -- OXT-Beyond: the IDE's colours (a white trough and black bar did
+      -- not show on the dark toolbar)
+      set the backcolor of graphic "Trough" of group "progress" of me to revIDEColor("dataView_rowAlternateColor")
+      set the backcolor of graphic "Bar" of group "progress" of me to revIDEColor("text_1")
       set the rect of graphic "Trough" of group "progress" of me to 0, 0, tLabelWidth, kPadding / 2
       set the rect of graphic "Bar" of group "progress" of me to 0, 0, revIDETutorialDonePercentage() * tLabelWidth / 100, kPadding / 2
       set the rect of group "progress" of me to the formattedRect of group "progress" of me

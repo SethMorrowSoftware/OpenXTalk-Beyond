@@ -70,6 +70,11 @@ text_1                              propertyInspector_multiValueBackground 4.5
 # is white in light and 30,30,30 in dark, like the rows
 text_placeholder                    dataView_rowColor                    3
 
+# Start Center: the labels on the window and on the recent files panel;
+# light keeps upstream's 128,128,128 (3.9:1 and 3.6:1)
+start_center_label                  start_center_background              4.5 dark
+start_center_label                  start_center_panel                   4.5 dark
+
 # Script editor: the line numbers in the gutter
 text_muted                          se_gutter                            4.5
 

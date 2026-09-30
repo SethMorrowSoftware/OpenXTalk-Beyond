@@ -1,0 +1,7 @@
+# Plugin Settings (revPlugInEditor): the plugin menu had black text saved,
+# black on dark in the dark appearance. Unset, it follows the appearance.
+file: Toolset/palettes/revplugineditor.rev
+object: button "list" of card 1
+property: foregroundColor
+from: 0,0,0
+to: 

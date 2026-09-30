@@ -1,0 +1,23 @@
+# Script editor, Find and Replace (substack revSEFind): three buttons saved
+# with a white background, and two of them with black text, which stayed
+# white boxes (and black on dark) in the dark appearance. Unset, they
+# follow it.
+file: Toolset/palettes/script editor/revscripteditor.8.rev
+object: button "Find" of card "Main" of stack "revSEFind"
+property: backgroundColor
+from: 255,255,255
+to: 
+object: button "Regular Expression Builder" of card "Main" of stack "revSEFind"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button "Toggle Options" of card "Main" of stack "revSEFind"
+property: backgroundColor
+from: 255,255,255
+to: 
+property: foregroundColor
+from: 0,0,0
+to: 

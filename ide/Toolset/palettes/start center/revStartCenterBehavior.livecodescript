@@ -51,6 +51,27 @@ end openStack
 
 command initialiseInterface
    hide group "Upgrade" of me
+
+   -- OXT-Beyond: the colours of the IDE's appearance. The stack was saved
+   -- white with 247/232 grey panels, a light window in the dark IDE; the
+   -- light values are those. The recent files list takes the IDE's row
+   -- colours in dark and the Data Grid's own in light.
+   set the backgroundColor of me to revIDEColor("start_center_background")
+   set the backgroundColor of graphic "filesBackground" of me to revIDEColor("start_center_panel")
+   set the foregroundColor of field "openLabel" of me to revIDEColor("start_center_label")
+   set the foregroundColor of field "startupLabel" of me to revIDEColor("start_center_label")
+   if there is a group "recentFiles" of me then
+      set the backgroundColor of graphic "dgCornerPiece" of group "recentFiles" of me to revIDEColor("start_center_corner")
+      if revIDEIsDark() then
+         set the dgProps["background color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
+         set the dgProps["row color"] of group "recentFiles" of me to revIDEColor("dataView_rowColor")
+         set the dgProps["alternate row color"] of group "recentFiles" of me to revIDEColor("dataView_rowAlternateColor")
+      else
+         set the dgProps["background color"] of group "recentFiles" of me to revIDEColor("start_center_panel")
+         set the dgProps["row color"] of group "recentFiles" of me to empty
+         set the dgProps["alternate row color"] of group "recentFiles" of me to empty
+      end if
+   end if
    
    ## First run
    if revIDEGetPreference("StartCenterClassic") is true then

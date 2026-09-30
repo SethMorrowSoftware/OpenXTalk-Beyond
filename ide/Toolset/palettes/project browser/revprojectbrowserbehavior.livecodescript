@@ -2398,7 +2398,8 @@ on updateSelection pRows
    set the style of the templateGraphic to "rectangle"
    set the opaque of the templateGraphic to false
    set the dashes of the templateGraphic to 4
-   set the foreColor of the templateGraphic to "black"
+   -- OXT-Beyond: the IDE's text colour, so the outline shows in dark too
+   set the foreColor of the templateGraphic to revIDEColor("text_1")
    
    local tNumSelected
    put the number of items in pRows into tNumSelected
