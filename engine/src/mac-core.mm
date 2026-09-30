@@ -214,11 +214,21 @@ static bool MCMacPlatformReadSystemAppearanceIsDark(void)
 // once AppKit has applied a new appearance: the value the engine reports is
 // never taken from it (see above). The engine's own changes of NSApp.appearance
 // (s_setting_application_appearance) are drawn by the engine anyway.
+//
+// The accent and highlight colours are not part of the appearance: changing
+// them sends none of the above, but NSSystemColorsDidChangeNotification (and
+// before macOS 10.14 NSControlTintDidChangeNotification, for the control
+// tint). The theme colours that follow them (the selected text background,
+// list and menu hilites, focus rings) are kept in mac-theme.mm's cache, so
+// systemColorsChanged: clears it and draws every stack again.
 static void *kMCAppearanceKVOContext = &kMCAppearanceKVOContext;
 static bool s_appearance_observer_registered = false;
+static bool s_system_colors_observer_registered = false;
 static NSString *s_last_appearance_name = nil;
 static bool s_system_appearance_dark = false;
 static bool s_setting_application_appearance = false;
+
+extern void MCMacThemeClearColorCache(void);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -408,6 +418,25 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 				   context: kMCAppearanceKVOContext];
 		s_appearance_observer_registered = true;
 	}
+
+	// The accent and highlight colours (see systemColorsChanged:)
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(systemColorsChanged:)
+												 name: NSSystemColorsDidChangeNotification
+											   object: nil];
+	if (@available(macOS 10.14, *))
+	{
+		// The accent colour replaced the control tint, and changing it posts
+		// NSSystemColorsDidChangeNotification
+	}
+	else
+	{
+		[[NSNotificationCenter defaultCenter] addObserver: self
+												 selector: @selector(systemColorsChanged:)
+													 name: NSControlTintDidChangeNotification
+												   object: nil];
+	}
+	s_system_colors_observer_registered = true;
     
 	if ([NSWindow respondsToSelector:@selector(allowsAutomaticWindowTabbing)])
 		[NSWindow setAllowsAutomaticWindowTabbing: NO];
@@ -466,8 +495,29 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 	[self checkSystemAppearance];
 }
 
+// The accent or highlight colour changed (see s_system_colors_observer_registered):
+// the theme colours are resolved again and every stack is drawn again
+- (void)systemColorsChanged:(NSNotification *)notification
+{
+	if (!m_running)
+		return;
+	MCMacThemeClearColorCache();
+	MCPlatformCallbackSendApplicationAppearanceChanged();
+}
+
 - (void)stopObservingAppearance
 {
+	if (s_system_colors_observer_registered)
+	{
+		[[NSNotificationCenter defaultCenter] removeObserver: self
+														name: NSSystemColorsDidChangeNotification
+													  object: nil];
+		[[NSNotificationCenter defaultCenter] removeObserver: self
+														name: NSControlTintDidChangeNotification
+													  object: nil];
+		s_system_colors_observer_registered = false;
+	}
+
 	if (!s_appearance_observer_registered)
 		return;
 	[NSApp removeObserver: self

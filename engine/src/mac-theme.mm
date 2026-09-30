@@ -167,7 +167,12 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatfo
 // object in a dark stack gets Aqua's colours, whatever the application's or
 // the window's appearance is. Resolving them is slow, and the same few are
 // asked for on every redraw, so they are kept by type, part, state and
-// property until the appearance changes (MCMacThemeClearColorCache).
+// property until they may have changed (MCMacThemeClearColorCache): when the
+// appearance is applied again (MCScreenDC::updatesystemappearance, for a
+// change of the Mac's light or dark setting and when a script sets the
+// appAppearance or a stackAppearance), and when the accent or highlight
+// colour changes, which several of them follow (systemColorsChanged: in
+// mac-core.mm).
 struct MCMacThemeColorCacheEntry
 {
     bool valid;
