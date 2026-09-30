@@ -62,7 +62,11 @@ script "oxt_ide_stack_patch"
 -- dump. A value may be written between bars (from: |value|) to keep
 -- leading or trailing blanks. Each object/property pair is one patch: it is
 -- applied when the property has the "from" value, and already applied when
--- it has the "to" value; anything else fails.
+-- it has the "to" value; anything else fails. The patches of a file are
+-- applied in their order, and setting one property can set others (a
+-- button's style its showBorder, a menu's text its label): a later patch
+-- of the file may declare such a property, with the value it gets or, to
+-- set it back, the value in between as "from" and the file's as "to".
 --
 -- For each stack file the tool
 --    1. loads the file (messages locked; the stack is never opened) and
@@ -490,9 +494,19 @@ private command patchFile pRel, pPatches, pCheck
    end repeat
    put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels, tAppliedLabels) into tChanged
 
+   -- The engine saves in the oldest format that holds the stack, but not
+   -- older than 7.0; a stack in an older format (REVO5500) is saved in its
+   -- own, the format of its header (REVOabcd is a.b)
+   local tVersion, tOldVersion
+   put the stackFileVersion into tOldVersion
+   put byte 5 to 8 of tOriginal into tVersion
+   if byte 1 to 4 of tOriginal is "REVO" and tVersion is an integer and tVersion < 7000 then
+      set the stackFileVersion to char 1 of tVersion & "." & char 2 of tVersion
+   end if
    save stack tMain
    -- Writing the original back sets the result, so keep the save error
    put the result into tSaveError
+   set the stackFileVersion to tOldVersion
    if tSaveError is not empty then
       put tOriginal into URL ("binfile:" & tPath)
       throw "could not save " & pRel & ": " & tSaveError
@@ -501,10 +515,8 @@ private command patchFile pRel, pPatches, pCheck
    put the short name of stack tPath into tMain
    put ideStackDump(tMain) into tAfter
    unloadStack tMain
-   set the caseSensitive to true
-   put tAfter is tExpected into tSame
-   set the caseSensitive to false
-   if not tSame then
+   put dumpsMatch(tExpected, tAfter) into tSame
+   if tSame is false then
       put tOriginal into URL ("binfile:" & tPath)
       throw "the saved file does not load as the patched stack; the original is restored"
    end if
@@ -513,11 +525,53 @@ private command patchFile pRel, pPatches, pCheck
       put tOriginal into URL ("binfile:" & tPath)
       throw "the saved file has another stack file version than the original (" & byte 1 to 8 of tOriginal & "); the original is restored"
    end if
-   write "FILE " & pRel & " | saved and verified: format " & byte 1 to 8 of tOriginal & ", " & the number of lines of tAfter & " dump lines equal to the patched stack, which differs from the original only in " & the number of lines of tChanged & " patched script(s) and propert(ies)" & return to stdout
+   local tRounding
+   if tSame > 0 then
+      put " (" & tSame & " number(s) reloaded with a rounding difference below 0.01)" into tRounding
+   end if
+   write "FILE " & pRel & " | saved and verified: format " & byte 1 to 8 of tOriginal & ", " & the number of lines of tAfter & " dump lines equal to the patched stack" & tRounding & ", which differs from the original only in " & the number of lines of tChanged & " patched script(s) and propert(ies)" & return to stdout
    repeat for each line tLine in tChanged
       write "CHANGED " & pRel & " | " & tLine & return to stdout
    end repeat
 end patchFile
+
+-- Whether pAfter, the dump of a saved and reloaded stack, is the dump
+-- pExpected of the stack before it was saved: false if not, else the
+-- number of lines that differ only by rounding. A scrollbar's lineInc,
+-- pageInc and thumbSize can come back a little different (9.999634 as
+-- 9.998886) whether or not anything was patched, so a number property
+-- whose values differ by less than 0.01 is the same.
+private function dumpsMatch pExpected, pAfter
+   local tRounded, tA, tB
+   set the caseSensitive to true
+   if pExpected is pAfter then
+      set the caseSensitive to false
+      return 0
+   end if
+   if the number of lines of pExpected is not the number of lines of pAfter then
+      set the caseSensitive to false
+      return false
+   end if
+   put 0 into tRounded
+   repeat with i = 1 to the number of lines of pExpected
+      put line i of pExpected into tA
+      put line i of pAfter into tB
+      if tA is tB then next repeat
+      if tA begins with "prop " and tB begins with "prop " and offset(": ", tA) > 0 \
+            and char 1 to offset(": ", tA) of tA is char 1 to offset(": ", tB) of tB then
+         put char offset(": ", tA) + 2 to -1 of tA into tA
+         put char offset(": ", tB) + 2 to -1 of tB into tB
+         if tA is a number and tB is a number and abs(tA - tB) < 0.01 then
+            add 1 to tRounded
+            next repeat
+         end if
+      end if
+      set the caseSensitive to false
+      return false
+   end repeat
+   set the caseSensitive to false
+   return tRounded
+end dumpsMatch
 
 -- Removes a main stack (and its substacks) from memory; the file is not
 -- touched. A stack with cantDelete set is cleared in memory first (as in
@@ -614,8 +668,11 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
             put tLabel & " | " & tKey & return after tResult
             put true into tSeen[tKey]
          end repeat
+         -- A patched property shows its new value; or, when a patch of the
+         -- same object changed it and this one set it back, the old one
          repeat for each key tProperty in pAppliedLabels[tLabel]
-            if tSeen[propertyKey(tProperty)] is not true then
+            if tSeen[propertyKey(tProperty)] is not true and \
+                  tWanted[propertyKey(tProperty)] is not among the lines of tBeforeProps then
                set the caseSensitive to false
                throw "the patched property " & tProperty & " of " & tLabel & " is not in the dump as patched"
             end if

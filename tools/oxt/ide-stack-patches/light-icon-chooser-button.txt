@@ -1,0 +1,22 @@
+# Icon chooser: OpenXTalk Lite 1.15 saved its first icon button as a filled
+# 86,84,93 rounded rectangle with white text; the other icon buttons, and
+# this one in 1.10, are transparent with 192,192,192 and a border. Back to
+# that. The style goes first: making a button transparent also makes it
+# not opaque and hides its border, which is then shown again.
+file: Toolset/palettes/reviconchooser.rev
+object: button id 1009 of card 1
+property: style
+from: roundrect
+to: transparent
+property: opaque
+from: true
+to: false
+property: showBorder
+from: false
+to: true
+property: backgroundColor
+from: 86,84,93
+to: 192,192,192
+property: foregroundColor
+from: white
+to: 192,192,192

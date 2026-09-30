@@ -24,7 +24,6 @@ ide/Toolset/palettes/behaviors/revpalettebehavior.livecodescript | generateFrame
 ide/Toolset/palettes/behaviors/revpalettebehavior.livecodescript | generateFrame | bordercolor = 178,178,178
 ide/Toolset/palettes/behaviors/revpalettebehavior.livecodescript | generateFrame | hilitecolor = 255,80,0
 ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript | (script) | constant kbackcolor = gray75
-ide/Toolset/palettes/extension manager/revideextensionmanagerbehavior.livecodescript | preOpenStack | hilitedtabcolor = 255,255,255
 ide/Toolset/palettes/inspector/editors/com.livecode.pi.timezone.behavior.livecodescript | editorUpdate | textcolor = black
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | __menubarApplyToolbarColour | backgroundcolor = 61,61,61
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | generateTutorialGroup | backcolor = white

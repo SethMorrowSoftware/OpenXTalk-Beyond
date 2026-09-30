@@ -1,0 +1,16 @@
+# Search (Find and Replace in stacks): the "Search In" menu had black text
+# saved, black on the dark appearance's menu, and the "Marked or Unmarked"
+# menu black on 86,84,93 (2.8:1, also in light; OpenXTalk Lite 1.15).
+# Unset, both follow the appearance.
+file: Toolset/palettes/revsearch.rev
+object: button "Search In" of card 1
+property: foregroundColor
+from: black
+to: 
+object: button "Marked or Unmarked" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: black
+to: 
