@@ -38,6 +38,10 @@ script "oxt_render_test"
 --    s7-*   buttons with a light and a dark background of their own
 --    s8-*   copies of s2 with the stackAppearance "dark" and "light", which
 --           must look like s2 in the other appearance
+--    s9-*   the native controls in a stack with no colours: checkboxes and
+--           radio buttons (unchecked, checked, disabled), push buttons
+--           (normal, pressed, default, disabled), an option menu, a combo
+--           box, tabs, a field frame and a group frame
 --    screen 8x8 pixels of the screen, taken after a window was opened: that
 --           used to crash the engine
 --
@@ -114,6 +118,7 @@ on startup
       renderExplicitBoth
       renderStyledRuns
       renderButtonColours
+      renderNativeControls
       if sHasAppearance then
          renderUnstyled "s8-dark", "dark"
          renderUnstyled "s8-light", "light"
@@ -790,6 +795,110 @@ private command renderButtonColours
    set the label of tObject to "Dark"
    shootName tStack, tObject, "s7-dark"
 end renderButtonColours
+
+-- A button of the given style with large bold text and a label
+private function newButton pName, pStyle, pRect, pLabel
+   create button pName
+   set the style of it to pStyle
+   set the rect of it to pRect
+   set the textSize of it to kTextSize
+   set the textStyle of it to "bold"
+   set the traversalOn of it to false
+   set the label of it to pLabel
+   return it
+end newButton
+
+-- S9: the native controls, in a stack with no colours, where they are drawn
+-- dark in the dark appearance (engine/src/w32theme.cpp, drawdarkwidget)
+private command renderNativeControls
+   local tStack, tObject, tRect
+   put "oxt_render_s9" into tStack
+   newScenarioStack tStack, 600, 440
+
+   -- Checkboxes and radio buttons: unchecked, checked and disabled
+   put newButton("check", "checkbox", "20,20,190,46", "Check") into tObject
+   shootName tStack, tObject, "s9-check"
+   shootFace tStack, tObject, "s9-check-box"
+   put newButton("checkOn", "checkbox", "20,56,190,82", "Checked") into tObject
+   set the hilite of tObject to true
+   shootFace tStack, tObject, "s9-check-on-box"
+   put newButton("checkOff", "checkbox", "20,92,190,118", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-check-disabled"
+   put newButton("radio", "radioButton", "20,128,190,154", "Radio") into tObject
+   shootName tStack, tObject, "s9-radio"
+   shootFace tStack, tObject, "s9-radio-box"
+   put newButton("radioOn", "radioButton", "20,164,190,190", "Selected") into tObject
+   set the hilite of tObject to true
+   shootFace tStack, tObject, "s9-radio-on-box"
+   put newButton("radioOff", "radioButton", "20,200,190,226", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-radio-disabled"
+
+   -- Push buttons: normal, pressed (a hilited push button is drawn
+   -- pressed), the default and disabled
+   put newButton("push", "standard", "210,20,350,56", "Push") into tObject
+   shootName tStack, tObject, "s9-push"
+   shootFace tStack, tObject, "s9-push-face"
+   put newButton("pushPressed", "standard", "210,66,350,102", "Pressed") into tObject
+   set the hilite of tObject to true
+   shootFace tStack, tObject, "s9-push-pressed-face"
+   put newButton("pushDefault", "standard", "210,112,350,148", "Default") into tObject
+   set the default of tObject to true
+   shootFace tStack, tObject, "s9-push-default-face"
+   put newButton("pushDisabled", "standard", "210,158,350,194", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-push-disabled"
+   shootFace tStack, tObject, "s9-push-disabled-face"
+
+   -- An option menu and a combo box: their arrow is on the right
+   put newButton("option", "menu", "370,20,560,46", "Option") into tObject
+   set the menuMode of tObject to "option"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   set the menuHistory of tObject to 1
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-option", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+   put newButton("combo", "menu", "370,60,560,86", "Combo") into tObject
+   set the menuMode of tObject to "comboBox"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-combo", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+
+   -- Tabs, all enabled, the second selected
+   put newButton("tabs", "menu", "370,100,580,200", "Tabs") into tObject
+   set the menuMode of tObject to "tabbed"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   set the menuHistory of tObject to 2
+   set the showName of tObject to false
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-tabs", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+
+   -- A default field (threeD, border 2): the theme's frame; empty, so
+   -- that only the frame changes when it is hidden
+   create field "field"
+   put it into tObject
+   set the rect of tObject to 20,250,260,290
+   shootFace tStack, tObject, "s9-field-frame"
+
+   -- A group with a border and its name: the theme's group frame
+   create button "grouped"
+   set the rect of it to 300,270,380,300
+   set the showBorder of it to false
+   set the opaque of it to false
+   set the showName of it to false
+   group button "grouped"
+   -- (the only group of the card)
+   put the long id of group 1 of card 1 of stack tStack into tObject
+   set the name of tObject to "Group"
+   set the showBorder of tObject to true
+   set the threeD of tObject to true
+   set the borderWidth of tObject to 2
+   set the showName of tObject to true
+   set the rect of tObject to 280,240,560,320
+   shootFace tStack, tObject, "s9-group"
+
+   exportStackRect tStack, the rect of card 1 of stack tStack, "s9.png"
+end renderNativeControls
 
 --------------------------------------------------------------------------------
 

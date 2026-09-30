@@ -83,6 +83,7 @@ protected:
 	Boolean GetThemePartAndState(const MCWidgetInfo &winfo, int4& aPart, int4& aState);
 	Boolean drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 	Boolean drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
+	Boolean drawdarkwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &rect, const MCRectangle &clip);
 	Boolean drawprogressbar(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 
 	Boolean drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);

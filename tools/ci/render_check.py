@@ -195,6 +195,28 @@ def _l(r, g, b):
 #   ('region_min_l', v)      the mean L of the region is at least v
 #   ('region_near_l', v, tol) ... within tol of v
 #   ('record',)              only measured and printed (a known limit)
+#   ('interior_max_l', v)    the inside of a face's outline has a mean L of
+#                            at most v (a dark box or button face)
+#   ('ring_contrast', r)     the far end of a face's pixels (its outline) is at
+#                            least r:1 against what is under it
+#   ('glyph_contrast', r)    in the middle of a checked box or circle, the
+#                            tick or dot is at least r:1 against the fill
+#   ('dot_shape',)           ... and the dot is round: its bounding box is
+#                            0.8 to 1.25 as wide as it is high, and it fills
+#                            0.6 to 0.9 of it
+#   ('interior_differs', name, v)  the inside differs from that of the face
+#                            shot name by at least v (a pressed button)
+#   ('accent_or_differs', name, v) the face shows the accent colour (B - R of
+#                            at least 60), or its inside differs from name's
+#                            by at least v; otherwise it is only recorded (the
+#                            default look may not show off screen)
+#   ('face_far_between', a, b) the far end L is between a and b (a frame)
+#   ('record_face',)         a face shot, only measured and printed
+#   ('chevron', px, dl, n)   in the right px pixels of the image, inside its
+#                            outline, at least n pixels differ from the face
+#                            by dl in L (the arrow of an option menu)
+#   ('tabstrip', r)          the tabs above the pane have dark faces and text
+#                            at least r:1 against the lightest face
 # Names that start with "s8-" are only compared with s2 of another run.
 EXPECT = {
     # S1, the owner's libMQTTxt colours: as designed, light, in every run
@@ -231,6 +253,28 @@ EXPECT = {
     # S7, a button's own background: the label fits it in the dark appearance
     's7-white': {'dark': [('text_max_l', 90), ('contrast', 4.5)]},
     's7-dark': {'dark': [('text_min_l', 200)]},
+    # S9, the native controls in a stack with no colours, drawn dark in the
+    # dark appearance (drawdarkwidget, engine/src/w32theme.cpp); in the light
+    # one the comparison with the reference release proves nothing changed
+    's9-check': {'dark': [('contrast', 4.5)]},
+    's9-check-disabled': {'dark': [('contrast', 4.5)]},
+    's9-radio': {'dark': [('contrast', 4.5)]},
+    's9-radio-disabled': {'dark': [('contrast', 4.5)]},
+    's9-check-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    's9-radio-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    's9-check-on-box': {'dark': [('glyph_contrast', 3.0)]},
+    's9-radio-on-box': {'dark': [('glyph_contrast', 3.0), ('dot_shape',)]},
+    's9-push': {'dark': [('contrast', 4.5)]},
+    's9-push-disabled': {'dark': [('contrast', 4.5)]},
+    's9-push-face': {'dark': [('interior_max_l', 90)]},
+    's9-push-pressed-face': {'dark': [('interior_max_l', 90), ('interior_differs', 's9-push-face', 6)]},
+    's9-push-default-face': {'dark': [('accent_or_differs', 's9-push-face', 12)]},
+    's9-push-disabled-face': {'dark': [('interior_max_l', 36)]},
+    's9-option': {'dark': [('chevron', 20, 60, 6)]},
+    's9-combo': {'dark': [('chevron', 20, 60, 6)]},
+    's9-tabs': {'dark': [('tabstrip', 4.5)]},
+    's9-field-frame': {'dark': [('face_far_between', 100, 170), ('ring_contrast', 3.0)]},
+    's9-group': {'dark': [('record_face',)]},
 }
 
 # Where a failing label is drawn, by the render test's names. The buttons and
@@ -897,24 +941,57 @@ def measure_text(rows, ref):
     return len(pixels), _median_rgb(core), _median_rgb([b for (_, _, _, b) in pixels])
 
 
+def _inner(rows, x0, y0, x1, y1, share):
+    """The pixels (flattened) of the box x0,y0-x1,y1 shrunk by share of its
+    size on each side."""
+    dx = int((x1 - x0) * share)
+    dy = int((y1 - y0) * share)
+    return [flatten(rows[y][x]) for y in range(y0 + dy, y1 - dy + 1) for x in range(x0 + dx, x1 - dx + 1)]
+
+
 def measure_face(rows, ref):
     """The pixels of a face shot (those that change when the control is
-    hidden): (count, median L of them, far-end L from what is under them,
-    mean L inside their bounding box shrunk by 30% on each side, bbox)."""
+    hidden), as a dict: count; median (L of them); far (their far-end L from
+    what is under them) with far_rgb (the median of those at least
+    TEXT_CORE_SHARE of the way there) and background_rgb (what is under
+    them); interior (the mean L inside their bounding box shrunk by 30% on
+    each side); accent (how many have B - R of at least 60); glyph_rgb,
+    fill_rgb and dot (in the middle of the box, shrunk by 20%: the pixels at
+    least 40 from the median in L, their median, the median of the middle,
+    and their bounding box and count); box."""
     pixels = label_pixels(rows, ref)
+    result = {'count': len(pixels)}
     if len(pixels) < MIN_LABEL_PIXELS:
-        return len(pixels), None, None, None, None
+        return result
     lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in pixels]
-    _, _, far = label_colour(lums)
+    _, sign, far = label_colour(lums)
+    far_distance = quantile([sign * (l - b) for (_, _, l, b) in lums], 0.98)
+    core = [c for (x, y, c, b) in pixels if sign * (luma(c) - luma(b)) >= TEXT_CORE_SHARE * far_distance]
     xs = [p[0] for p in pixels]
     ys = [p[1] for p in pixels]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-    dx = int((x1 - x0) * 0.3)
-    dy = int((y1 - y0) * 0.3)
-    inside = [luma(flatten(rows[y][x])) for y in range(y0 + dy, y1 - dy + 1) for x in range(x0 + dx, x1 - dx + 1)]
-    interior = sum(inside) / len(inside) if inside else None
-    return (len(pixels), median([l for (_, _, l, _) in lums]), far, interior,
-            '%d,%d-%d,%d' % (x0, y0, x1, y1))
+    inside = [luma(p) for p in _inner(rows, x0, y0, x1, y1, 0.3)]
+    middle = []
+    for y in range(y0 + int((y1 - y0) * 0.2), y1 - int((y1 - y0) * 0.2) + 1):
+        for x in range(x0 + int((x1 - x0) * 0.2), x1 - int((x1 - x0) * 0.2) + 1):
+            middle.append((x, y, flatten(rows[y][x])))
+    fill = _median_rgb([c for (_, _, c) in middle]) if middle else None
+    glyph = [(x, y, c) for (x, y, c) in middle if fill is not None and abs(luma(c) - luma(fill)) >= 40]
+    result.update({
+        'median': median([l for (_, _, l, _) in lums]),
+        'far': far,
+        'far_rgb': _median_rgb(core or [c for (_, _, c, _) in pixels]),
+        'background_rgb': _median_rgb([b for (_, _, _, b) in pixels]),
+        'interior': sum(inside) / len(inside) if inside else None,
+        'accent': sum(1 for (_, _, c, _) in pixels if c[2] - c[0] >= 60),
+        'fill_rgb': fill,
+        'glyph_rgb': _median_rgb([c for (_, _, c) in glyph]) if glyph else None,
+        'glyph_count': len(glyph),
+        'glyph_box': (min(g[0] for g in glyph), min(g[1] for g in glyph),
+                      max(g[0] for g in glyph), max(g[1] for g in glyph)) if glyph else None,
+        'box': '%d,%d-%d,%d' % (x0, y0, x1, y1),
+    })
+    return result
 
 
 def expected_checks(name, mode):
@@ -980,6 +1057,11 @@ def check_text(report, folder, name, image, reference):
                 measured, 'at least' if ok else 'FAILED: needs at least', want[1]))
 
 
+# The measurements of the face shots of a run so far, by name, for the checks
+# that compare one face with another
+FACE_RESULTS = {}
+
+
 def check_face(report, folder, name, image, reference):
     wanted = expected_checks(name, report.mode)
     if not wanted:
@@ -987,16 +1069,77 @@ def check_face(report, folder, name, image, reference):
     rows, ref = _load_pair(report, folder, name, image, reference)
     if rows is None:
         return
-    count, med, far, interior, box = measure_face(rows, ref)
+    face = measure_face(rows, ref)
     where = '%s against %s' % (image, reference)
-    if med is None:
-        report.check(name + ' drawn', False, 'only %d pixels change when it is hidden (%s)' % (count, where))
+    if 'median' not in face:
+        report.check(name + ' drawn', False, 'only %d pixels change when it is hidden (%s)' % (face['count'], where))
         return
+    FACE_RESULTS[name] = face
+    count, med, far, interior, box = face['count'], face['median'], face['far'], face['interior'], face['box']
     measured = '%d pixels at %s, median L=%.0f, far end L=%.0f, inside L=%s (%s)' % (
         count, box, med, far, '-' if interior is None else '%.0f' % interior, where)
     for want in wanted:
-        kind, value = want[0], want[1]
-        if kind == 'interior_min_l':
+        kind = want[0]
+        value = want[1] if len(want) > 1 else None
+        if kind == 'record_face':
+            report.check(name + ' recorded', True, '%s; far end %s on %s; recorded only' % (
+                measured, _fmt(face['far_rgb']), _fmt(face['background_rgb'])))
+        elif kind == 'interior_max_l':
+            ok = interior is not None and interior <= value
+            report.check(name + ' inside', ok, '%s, %s inside L<=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'ring_contrast':
+            ratio = contrast_ratio(face['far_rgb'], face['background_rgb'])
+            ok = ratio >= value
+            report.check(name + ' outline', ok, '%s; the outline %s on %s is %.2f:1, %s %.1f:1' % (
+                measured, _fmt(face['far_rgb']), _fmt(face['background_rgb']), ratio,
+                'at least' if ok else 'FAILED: needs at least', value))
+        elif kind in ('glyph_contrast', 'dot_shape'):
+            if face['glyph_rgb'] is None:
+                report.check(name + (' glyph' if kind == 'glyph_contrast' else ' dot'), False,
+                             '%s; nothing in the middle differs from its fill %s: no tick or dot' % (
+                                 measured, _fmt(face['fill_rgb'])))
+                continue
+            if kind == 'glyph_contrast':
+                ratio = contrast_ratio(face['glyph_rgb'], face['fill_rgb'])
+                ok = ratio >= value
+                report.check(name + ' glyph', ok, '%s; the tick or dot %s on the fill %s is %.2f:1, %s %.1f:1' % (
+                    measured, _fmt(face['glyph_rgb']), _fmt(face['fill_rgb']), ratio,
+                    'at least' if ok else 'FAILED: needs at least', value))
+            else:
+                gx0, gy0, gx1, gy1 = face['glyph_box']
+                width, height = gx1 - gx0 + 1, gy1 - gy0 + 1
+                aspect = width / float(height)
+                share = face['glyph_count'] / float(width * height)
+                ok = 0.8 <= aspect <= 1.25 and 0.6 <= share <= 0.9
+                report.check(name + ' dot', ok, '%s; the dot is %dx%d (%.2f wide per high) and fills %.2f of it, '
+                             '%s 0.8-1.25 and 0.6-0.9 (round)' % (measured, width, height, aspect, share,
+                                                                    'expected' if ok else 'FAILED: expected'))
+        elif kind in ('interior_differs', 'accent_or_differs'):
+            other = FACE_RESULTS.get(value)
+            if other is None or other.get('interior') is None or interior is None:
+                report.check(name + ' state', False, '%s; no measurement of %s to compare with' % (measured, value))
+                continue
+            difference = abs(interior - other['interior'])
+            if kind == 'interior_differs':
+                ok = difference >= want[2]
+                report.check(name + ' state', ok, '%s; inside L=%.0f against %.0f in %s: %s %d' % (
+                    measured, interior, other['interior'], value, 'differs by at least' if ok else
+                    'FAILED: must differ by at least', want[2]))
+            else:
+                if face['accent'] >= 10:
+                    report.check(name + ' state', True, '%s; %d pixels show the accent colour' % (measured, face['accent']))
+                elif difference >= want[2]:
+                    report.check(name + ' state', True, '%s; inside L=%.0f against %.0f in %s' % (
+                        measured, interior, other['interior'], value))
+                else:
+                    report.check(name + ' state', True, '%s; looks like %s (inside L=%.0f): the default look does '
+                                 'not show off screen; recorded only' % (measured, value, other['interior']))
+        elif kind == 'face_far_between':
+            ok = value <= far <= want[2]
+            report.check(name + ' outline', ok, '%s, %s far end L %d-%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value, want[2]))
+        elif kind == 'interior_min_l':
             ok = interior is not None and interior >= value
             report.check(name + ' inside', ok, '%s, %s inside L>=%d' % (
                 measured, 'expected' if ok else 'FAILED: expected', value))
@@ -1031,6 +1174,12 @@ def check_region(report, folder, name, image, region):
     measured = 'mean L=%.0f at %d,%d-%d,%d of %s' % (mean, box[0], box[1], box[2] - 1, box[3] - 1, image)
     for want in wanted:
         kind = want[0]
+        if kind == 'chevron':
+            check_chevron(report, name, rows, w, h, want[1], want[2], want[3], image)
+            continue
+        if kind == 'tabstrip':
+            check_tabstrip(report, name, rows, w, h, want[1], image)
+            continue
         if kind == 'region_min_l':
             ok = mean >= want[1]
             report.check(name + ' colour', ok, '%s, %s L>=%d' % (measured, 'expected' if ok else 'FAILED: expected', want[1]))
@@ -1038,6 +1187,60 @@ def check_region(report, folder, name, image, region):
             ok = abs(mean - want[1]) <= want[2]
             report.check(name + ' colour', ok, '%s, %s L=%d (+-%d)' % (
                 measured, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+
+
+def check_chevron(report, name, rows, w, h, width, distance, minimum, image):
+    """The arrow of an option menu or combo box: in the right width pixels
+    of the image, 4 pixels in from its edges (its outline), at least minimum
+    pixels differ from the face (their median) by distance in L."""
+    x0, x1 = max(4, w - width), w - 4
+    y0, y1 = 4, h - 4
+    values = [luma(flatten(rows[y][x])) for y in range(y0, y1) for x in range(x0, x1)]
+    if not values:
+        report.check(name + ' arrow', False, '%s is too small (%dx%d)' % (image, w, h))
+        return
+    face = median(values)
+    marks = sum(1 for v in values if abs(v - face) >= distance)
+    ok = marks >= minimum
+    report.check(name + ' arrow', ok, '%d pixels differ from the face (L=%.0f) by %d or more in columns %d-%d, rows '
+                 '%d-%d of %s, %s %d%s' % (marks, face, distance, x0, x1 - 1, y0, y1 - 1, image,
+                                           'at least' if ok else 'FAILED: expected at least', minimum,
+                                           '' if ok else ': the option menu or combo box has no arrow; see '
+                                           'MCNativeTheme::drawdarkwidget in engine/src/w32theme.cpp'))
+
+
+def check_tabstrip(report, name, rows, w, h, minimum, image):
+    """Tabs above a tab pane, in the dark appearance: the strip is the rows
+    above the pane's top edge (the first row, 3 or more down, that is mostly
+    outline grey, L 90-130). Its faces (L below 70) must be most of it, and
+    its text (L 150 or more; its far end) at least minimum:1 against the
+    lightest face."""
+    top = None
+    for y in range(3, h):
+        row = [luma(flatten(rows[y][x])) for x in range(w)]
+        if sum(1 for v in row if 90 <= v <= 130) >= 0.6 * w:
+            top = y
+            break
+    if top is None or top < 6:
+        report.check(name + ' tabs', False, 'cannot find the top edge of the tab pane in %s (%dx%d): no row is '
+                     'mostly outline grey (L 90-130); the pane is not drawn dark' % (image, w, h))
+        return
+    strip = [luma(flatten(rows[y][x])) for y in range(0, top) for x in range(w)]
+    faces = [v for v in strip if v < 70]
+    text = [v for v in strip if v >= 150]
+    share = len(faces) / float(len(strip))
+    if share < 0.5 or not text:
+        report.check(name + ' tabs', False, 'in rows 0-%d of %s, %.0f%% of the pixels are a dark face (L<70) and %d '
+                     'are text (L>=150), FAILED: expected dark faces and text; the tabs are drawn light' %
+                     (top - 1, image, 100 * share, len(text)))
+        return
+    face = max(faces)
+    colour = quantile(text, 0.98)
+    ratio = contrast_ratio(grey(colour), grey(face))
+    ok = ratio >= minimum
+    report.check(name + ' tabs', ok, 'rows 0-%d of %s: %.0f%% dark faces (the lightest L=%.0f), text L=%.0f, %.2f:1, '
+                 '%s %.1f:1' % (top - 1, image, 100 * share, face, colour, ratio,
+                                'at least' if ok else 'FAILED: needs at least', minimum))
 
 
 def check_appearance_info(report, info, system):
@@ -1065,6 +1268,7 @@ def check_appearance_info(report, info, system):
 
 def run(mode, folder, system=None, label=None):
     report = Report(mode, label)
+    FACE_RESULTS.clear()
     if system is None:
         system = mode
     try:
@@ -1282,6 +1486,68 @@ def _solid(colour, width=40, height=20):
     return [[colour] * width for _ in range(height)]
 
 
+def _indicator(background, fill, glyph, round_box, glyph_kind):
+    """A checked checkbox (a square) or radio button (a circle) filled with
+    fill, with a tick, a round dot, a square dot or nothing (glyph_kind) in
+    glyph, on background: 30x24, the indicator 14 pixels at 8,5."""
+    rows = [[background] * 30 for _ in range(24)]
+    x0, y0, size = 8, 5, 14
+    c = (size - 1) / 2.0
+    for y in range(size):
+        for x in range(size):
+            inside = (x - c) ** 2 + (y - c) ** 2 <= (size / 2.0) ** 2 if round_box else True
+            if inside:
+                rows[y0 + y][x0 + x] = fill
+    if glyph_kind == 'round':
+        for y in range(size):
+            for x in range(size):
+                if (x - c) ** 2 + (y - c) ** 2 <= 3.2 ** 2:
+                    rows[y0 + y][x0 + x] = glyph
+    elif glyph_kind == 'square':
+        for y in range(4, 10):
+            for x in range(4, 10):
+                rows[y0 + y][x0 + x] = glyph
+    elif glyph_kind == 'tick':
+        for (x, y) in ((3, 7), (4, 8), (5, 9), (6, 8), (7, 7), (8, 6), (9, 5), (10, 4),
+                       (4, 7), (5, 8), (6, 7), (7, 6), (8, 5), (9, 4)):
+            rows[y0 + y][x0 + x] = glyph
+    return rows
+
+
+def _option(face, glyph):
+    """An option menu 70x26 on the dark background: a face with an outline
+    of 110, and a chevron in its right part when glyph is given."""
+    rows = [[(32, 32, 32)] * 70 for _ in range(26)]
+    for y in range(26):
+        for x in range(70):
+            edge = y in (0, 25) or x in (0, 69)
+            rows[y][x] = (110, 110, 110) if edge else face
+    if glyph is not None:
+        for i in range(5):
+            for x in range(55 - 5 + i, 55 + 5 - i + 1):
+                rows[10 + i][x] = glyph
+    return rows
+
+
+def _tabs(face, selected, text):
+    """Three tabs above a pane: a strip of 22 rows with the faces and a
+    block of text in each tab, the pane's top edge (110) and the pane."""
+    rows = [[(32, 32, 32)] * 120 for _ in range(50)]
+    for y in range(2, 22):
+        for x in range(120):
+            rows[y][x] = selected if 40 <= x < 80 else face
+    for t in range(3):
+        for y in range(8, 16):
+            for x in range(8 + 40 * t, 30 + 40 * t, 2):
+                rows[y][x] = text
+    for x in range(120):
+        rows[22][x] = (110, 110, 110)
+    for y in range(23, 50):
+        for x in range(120):
+            rows[y][x] = (43, 43, 43)
+    return rows
+
+
 # Expectations of the self-test's synthetic shots (see EXPECT)
 SELF_TEST_EXPECT = {
     'st-black-on-white': {'*': [('contrast', 7.0), ('text_max_l', 60)]},
@@ -1297,6 +1563,19 @@ SELF_TEST_EXPECT = {
     'st-face-dark': {'*': [('face_median_min_l', 180)]},
     'st-region-32': {'*': [('region_near_l', 32, 8)]},
     'st-region-240': {'*': [('region_near_l', 32, 8)]},
+    'st-box-dark-max': {'*': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    'st-box-light-max': {'*': [('interior_max_l', 90)]},
+    'st-check-tick': {'*': [('glyph_contrast', 3.0)]},
+    'st-check-faint': {'*': [('glyph_contrast', 3.0)]},
+    'st-radio-round': {'*': [('glyph_contrast', 3.0), ('dot_shape',)]},
+    'st-radio-square': {'*': [('dot_shape',)]},
+    'st-radio-empty': {'*': [('dot_shape',)]},
+    'st-frame-dark': {'*': [('face_far_between', 100, 170), ('ring_contrast', 3.0)]},
+    'st-frame-light': {'*': [('face_far_between', 100, 170)]},
+    'st-option-chevron': {'*': [('chevron', 20, 60, 6)]},
+    'st-option-plain': {'*': [('chevron', 20, 60, 6)]},
+    'st-tabs-dark': {'*': [('tabstrip', 4.5)]},
+    'st-tabs-light': {'*': [('tabstrip', 4.5)]},
 }
 
 
@@ -1428,6 +1707,24 @@ def self_test(folder):
             write_png(os.path.join(path, 'st-face-dark.png'), _box(white, (110, 110, 110), (55, 55, 55), 18))
             write_png(os.path.join(path, 'st-region-32.png'), _solid((32, 32, 32)))
             write_png(os.path.join(path, 'st-region-240.png'), _solid((240, 240, 240)))
+            # The dark native controls: indicators, a field frame, an option
+            # menu's chevron and tabs, and what they looked like before
+            dark = (32, 32, 32)
+            accent = (0, 120, 215)
+            write_png(os.path.join(path, 'st-dark-bare.png'), _solid(dark, 30, 24))
+            write_png(os.path.join(path, 'st-box-dark-max.png'), _box(dark, (154, 154, 154), dark))
+            write_png(os.path.join(path, 'st-box-light-max.png'), _box(dark, (51, 51, 51), (250, 250, 250)))
+            write_png(os.path.join(path, 'st-check-tick.png'), _indicator(dark, accent, (0, 0, 0), False, 'tick'))
+            write_png(os.path.join(path, 'st-check-faint.png'), _indicator(dark, accent, (40, 140, 235), False, 'tick'))
+            write_png(os.path.join(path, 'st-radio-round.png'), _indicator(dark, accent, (0, 0, 0), True, 'round'))
+            write_png(os.path.join(path, 'st-radio-square.png'), _indicator(dark, accent, (0, 0, 0), True, 'square'))
+            write_png(os.path.join(path, 'st-radio-empty.png'), _indicator(dark, accent, None, True, None))
+            write_png(os.path.join(path, 'st-frame-dark.png'), _box(dark, (122, 122, 122), dark, 16))
+            write_png(os.path.join(path, 'st-frame-light.png'), _box(dark, (230, 230, 230), dark, 16))
+            write_png(os.path.join(path, 'st-option-chevron.png'), _option((55, 55, 55), (208, 208, 208)))
+            write_png(os.path.join(path, 'st-option-plain.png'), _option((32, 32, 32), None))
+            write_png(os.path.join(path, 'st-tabs-dark.png'), _tabs((32, 32, 32), (43, 43, 43), (255, 255, 255)))
+            write_png(os.path.join(path, 'st-tabs-light.png'), _tabs((240, 240, 240), (250, 250, 250), (255, 255, 255)))
             with open(os.path.join(path, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
                 f.write('INFO\tlookAndFeel\tAppearance Manager\n')
                 f.write('INFO\tsystemAppearance\t%s\n' % mode)
@@ -1442,6 +1739,13 @@ def self_test(folder):
                     f.write('SHOT\tface\t%s\t%s.png\tst-box-bare.png\n' % (shot, shot))
                 f.write('SHOT\tregion\tst-region-32\tst-region-32.png\t5,5,20,10\n')
                 f.write('SHOT\tregion\tst-region-240\tst-region-240.png\t5,5,20,10\n')
+                for shot in ('st-box-dark-max', 'st-box-light-max', 'st-check-tick', 'st-check-faint', 'st-radio-round',
+                             'st-radio-square', 'st-radio-empty', 'st-frame-dark', 'st-frame-light'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-dark-bare.png\n' % (shot, shot))
+                f.write('SHOT\tregion\tst-option-chevron\tst-option-chevron.png\t0,0,70,26\n')
+                f.write('SHOT\tregion\tst-option-plain\tst-option-plain.png\t0,0,70,26\n')
+                f.write('SHOT\tregion\tst-tabs-dark\tst-tabs-dark.png\t0,0,120,50\n')
+                f.write('SHOT\tregion\tst-tabs-light\tst-tabs-light.png\t0,0,120,50\n')
                 f.write('SHOT\tlabel\tflat\tflat.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tdouble\tdouble.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tengraved\tengraved.png\tnone.png\n')
@@ -1518,6 +1822,21 @@ def self_test(folder):
             expect('st-face-dark face', False)
             expect('st-region-32 colour', True)
             expect('st-region-240 colour', False)
+            expect('st-box-dark-max inside', True)
+            expect('st-box-dark-max outline', True)
+            expect('st-box-light-max inside', False)
+            expect('st-check-tick glyph', True)
+            expect('st-check-faint glyph', False)
+            expect('st-radio-round glyph', True)
+            expect('st-radio-round dot', True)
+            expect('st-radio-square dot', False)
+            expect('st-radio-empty dot', False)
+            expect('st-frame-dark outline', True)
+            expect('st-frame-light outline', False)
+            expect('st-option-chevron arrow', True)
+            expect('st-option-plain arrow', False)
+            expect('st-tabs-dark tabs', True)
+            expect('st-tabs-light tabs', False)
 
         count, compare_failures = _self_test_compare(folder)
         expectations.extend([('compare', None, None)] * count)
