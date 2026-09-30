@@ -1,11 +1,15 @@
 # Builds the OXT-Beyond engine for macOS on GitHub-hosted runners: Apple
 # Silicon (arm64) on macos-15 and Intel (x86_64) on macos-15-intel. Each
-# architecture is built natively on its own runner with the same steps; a
-# later packaging job joins the two into one universal app with lipo.
+# architecture is built natively on its own runner with the same steps and
+# ends as an artifact of its own. Nothing here joins the two: the universal
+# app is to be assembled from both artifacts (with lipo) by the packaging
+# step that follows the builds, which is planned but does not exist yet.
 #
 # Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
 # (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
-# AppKit behaviour whatever SDK built them.
+# AppKit behaviour whatever SDK built them. The Verify step fails when a
+# Mach-O file of the output records anything else
+# (tools/ci/check_macho_floor.py).
 #
 # Toolchain: Xcode 16.4 and its macOS SDK, Python 2.7 (built with pyenv and
 # cached; gyp and config.py need it) and the runner's JDK (headers only).
@@ -16,7 +20,14 @@
 # build-linux.yml. Each runner builds only its own architecture's slice.
 #
 # Output: the artifact OXT-Beyond-mac-<arch>-bin holds the build products
-# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+# (engines, externals, toolchain, packaged extensions) as a tar.xz, without
+# static libraries and debug symbols; OXT-Beyond-mac-<arch>-symbols holds
+# the dSYM bundles of the same folder, as a tar.xz to extract over it.
+#
+# Version: <ver> is the product version in ide/.version. A build of a tag
+# that starts with "v" fails straight away unless the tag is v<ver>, as in
+# build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
+# step ran, as YYYYMMDDHHMM.
 
 name: Build (macOS)
 
@@ -66,7 +77,42 @@ jobs:
       XCODEBUILD_FLAGS: -IDEBuildingContinueBuildingAfterErrors=YES
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          # No step pushes or fetches, so the token need not stay in .git/config
+          persist-credentials: false
+
+      # The version gate of build-windows.yml: a tag build fails straight
+      # away when the tag is not "v" followed by ide/.version, so that no
+      # platform builds (and none publishes) files under another version.
+      # One build number for every file of this job, OXT_BUILD_NUMBER: the
+      # UTC time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes
+      # into .buildnumber). Written for the bash 3.2 of macOS too.
+      - name: Read the product version
+        id: product
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(tr -d '\r' < ide/.version)
+          # Trim white space at both ends, like the Trim() of the Windows step
+          version="${version#"${version%%[![:space:]]*}"}"
+          version="${version%"${version##*[![:space:]]}"}"
+          re='^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'
+          if ! [[ $version =~ $re ]]; then
+            echo "::error::ide/.version contains '$version'; expected a version such as 0.0.1 or 0.1.0-beta.1"
+            exit 1
+          fi
+          # [vV]: the Windows step's -like 'v*' ignores case
+          if [ "$REF_TYPE" = tag ] && [[ $REF_NAME == [vV]* ]] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
+            exit 1
+          fi
+          build_number=$(date -u +%Y%m%d%H%M)
+          echo "OXT-Beyond $version, build number $build_number"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build-number=$build_number" >> "$GITHUB_OUTPUT"
+          echo "OXT_BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
 
       - name: Select Xcode
         run: |
@@ -88,7 +134,7 @@ jobs:
 
       - name: Restore Python 2.7
         id: python2-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pyenv/versions/${{ env.PYTHON2_VERSION }}
           key: python-${{ env.PYTHON2_VERSION }}-${{ matrix.runner }}-${{ matrix.arch }}-v1
@@ -120,7 +166,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -152,7 +198,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -194,7 +240,6 @@ jobs:
           for b in "$dev" "$sa" "$R/server-community" "$R/revsecurity.dylib" "$R/lc-compile"; do
             echo "== $b: $(lipo -archs "$b")"
             test "$(lipo -archs "$b")" = "$ARCH"
-            otool -l "$b" | grep -A4 'LC_BUILD_VERSION\|LC_VERSION_MIN_MACOSX' | grep -E 'minos|sdk|version' | sed -n 1,2p
             # Nothing may come from Homebrew or other non-system locations.
             # (otool -L lists a dylib's own install name first: skip it.)
             own_id=$(otool -D "$b" | sed -n 2p)
@@ -203,6 +248,31 @@ jobs:
               echo "::error::$b links a library outside the system"; exit 1
             fi
           done
+          # Every Mach-O file that ships (what the bin tarball holds: not
+          # the static libraries, dSYM bundles and header maps), every
+          # slice of it, must record the deployment target of
+          # config/mac.gypi as its minimum macOS (11.0 arm64, 10.13 x86_64:
+          # the loader refuses a newer minos, so one such file would raise
+          # the minimum of the product) and SDK 11.0 (-platform_version
+          # there; it selects AppKit's behaviour), and hold this
+          # architecture. The one exception is reviphoneproxy, the iOS
+          # simulator helper, and only in the arm64 job: revmobile.gyp
+          # builds it x86_64 only, so there it has no arm64 slice and its
+          # x86_64 slice gets the arm64 build's deployment target, 11.0.
+          # Exactly that is excused (one x86_64 slice, minos 11.0); its SDK
+          # and platform are still checked, and in the x86_64 job it is
+          # checked like every other file. The universal app is to take
+          # the x86_64 build's copy.
+          proxy=
+          if [ "$ARCH" = arm64 ]; then
+            proxy="--only-arch reviphoneproxy=x86_64 --file-minos reviphoneproxy=x86_64:11.0"
+            proxy="$proxy --only-arch reviphone.bundle/Contents/MacOS/reviphoneproxy=x86_64"
+            proxy="$proxy --file-minos reviphone.bundle/Contents/MacOS/reviphoneproxy=x86_64:11.0"
+          fi
+          # $proxy is split into words on purpose (no spaces inside them)
+          python3 tools/ci/check_macho_floor.py "$R" --arch "$ARCH" \
+            --minos arm64=11.0 --minos x86_64=10.13 --sdk 11.0 \
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' $proxy
 
       - name: Smoke test (server engine)
         run: |
@@ -210,21 +280,45 @@ jobs:
           ./_build/mac/Release/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
           grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
 
-      - name: Package the build products
+      # The dSYM bundles that Xcode writes next to every binary (the debug
+      # information, without which crash reports cannot be symbolicated) go
+      # into a tarball of their own; the bin tarball stays without them.
+      # Both hold the folder Release, so extracting the symbols over the
+      # build products puts every dSYM next to its binary, where lldb and
+      # atos look for it (they match it by the binary's UUID).
+      - name: Package the build products and the debug symbols
         run: |
           tar -C _build/mac -cJf "OXT-Beyond-mac-$ARCH-bin.tar.xz" \
             --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' Release
+          (cd _build/mac && find Release -type d -name '*.dSYM' -prune | sort) > "$RUNNER_TEMP/dsym.list"
+          if [ ! -s "$RUNNER_TEMP/dsym.list" ]; then
+            echo "::error::no .dSYM bundles in _build/mac/Release"; exit 1
+          fi
+          echo "$(wc -l < "$RUNNER_TEMP/dsym.list" | tr -d ' ') dSYM bundles"
+          (cd _build/mac && tar -cJf "$GITHUB_WORKSPACE/OXT-Beyond-mac-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dsym.list")
+          ls -l OXT-Beyond-mac-"$ARCH"-*.tar.xz
 
       - name: Upload the build products
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-bin
           path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
+
+      - name: Upload the debug symbols
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-mac-${{ matrix.arch }}-symbols
+          path: OXT-Beyond-mac-${{ matrix.arch }}-symbols.tar.xz
+          if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
 
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-logs-mac-${{ matrix.arch }}
           path: |
