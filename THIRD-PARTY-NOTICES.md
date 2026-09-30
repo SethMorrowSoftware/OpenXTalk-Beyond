@@ -408,8 +408,11 @@ build makes; the macOS standalone runtimes are this repository's (see
 `Contents/Tools` everything that the Windows program folder holds at its
 root (the IDE, externals, toolchain, extensions and runtimes).
 `-mac-universal-binaries.tar.xz` holds the build output (`Release/`,
-like the Windows binaries zip) and `-mac-universal-symbols.zip` its
-`.dSYM` debug symbols. Every program file below is built from this
+like the Windows binaries zip) without the build's own tools
+(`gentle-target`, `reflex-target`, `perfect-target`, the lc-compile
+bootstrap stages, `zic`, `lcidlc`; see [GENTLE](#gentle)), and
+`-mac-universal-symbols.zip` its `.dSYM` debug symbols (not those of the
+build's own tools). Every program file below is built from this
 repository twice, for Apple Silicon (arm64) and Intel (x86_64), and the
 two are joined into one file with `lipo`. This list was made from the
 files the macOS packaging stages. What is not mentioned is as on
@@ -524,7 +527,11 @@ has been in the LiveCode Community tree since upstream. Its licence,
   non-commercial projects; commercial use of any kind needs a licence
   from Metarga, and GENTLE itself may not be redistributed (apart from
   the copies the licence allows to be given to students and project
-  partners).
+  partners). The Linux and macOS builds leave it in their build output
+  as `gentle-target` and `reflex-target`; `tools/oxt/package_dist.py`
+  keeps those, and the build's other own tools, out of the binaries and
+  symbols archives, and fails if a `gentle-*` or `reflex-*` file would
+  get in.
 - **What GENTLE generates is shipped.** The build uses GENTLE to
   generate the parser of the LiveCode Builder compiler, and that
   parser, together with the GENTLE runtime (`grts`), is compiled into

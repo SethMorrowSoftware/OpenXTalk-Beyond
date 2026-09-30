@@ -15,7 +15,10 @@
 #                                                     /Applications
 #     OXT-Beyond-<ver>-mac-universal.zip              the app (ditto)
 #     OXT-Beyond-<ver>-mac-universal-binaries.tar.xz  the merged build
-#                                                     output, signed ad hoc
+#                                                     output, signed ad hoc,
+#                                                     without the build's
+#                                                     own tools (GENTLE's
+#                                                     among them)
 #     OXT-Beyond-<ver>-mac-universal-symbols.zip      the universal dSYMs
 #     SHA256SUMS
 #

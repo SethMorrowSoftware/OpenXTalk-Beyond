@@ -604,8 +604,20 @@ symbols, sources). `<root>` is `OXT-Beyond-<version>`:
 | platform | package | binaries | symbols |
 |---|---|---|---|
 | `win-x86_64` | `<root>-win-x86_64-portable.zip`: every staged file under `<root>/`, then the empty folders | `<root>-win-x86_64-binaries.zip`: `win-x86_64-bin/` without `*.pdb`, licence files at the top | `<root>-win-x86_64-symbols.zip`: the `*.pdb` under `win-x86_64-bin/` |
-| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg`, licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` |
-| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app` (`ditto -c -k --sequesterRsrc --keepParent` on macOS); with `--dmg`, also `<root>-mac-<arch>.dmg` | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` (for `mac-universal` the merged tree) without `*.dSYM`, licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles |
+| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg` and without the build's own tools (below), licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` (not the build tools') |
+| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app` (`ditto -c -k --sequesterRsrc --keepParent` on macOS); with `--dmg`, also `<root>-mac-<arch>.dmg` | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` (for `mac-universal` the merged tree) without `*.dSYM` and without the build's own tools (below), licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles (not the build tools') |
+
+The Linux and macOS build outputs hold the tools the build makes to build
+itself (`package.BUILD_PROGRAMS`: `gentle-target`, `reflex-target`,
+`perfect-target`, the lc-compile bootstrap stages `lc-bootstrap-compile*`
+and `lc-compile-stage*`, `zic`, `lcidlc`). `package.py` never installs
+them, and the binaries and symbols archives leave them out too, with
+their `.dSYM` bundles and `.dbg` files (the log counts them):
+`gentle-target` and `reflex-target` are GENTLE 97, which may not be
+redistributed (see `THIRD-PARTY-NOTICES.md`, "GENTLE"), and the Windows
+binaries zip holds no build tools either. An entry named `gentle-*` or
+`reflex-*` that still reaches an archive is an error, before any archive
+is written.
 
 `--xtalk-sources` adds `<root>-xtalk-sources.zip` (`xtalk_extensions.py
 export`, from the cache only).

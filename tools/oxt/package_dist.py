@@ -37,9 +37,11 @@ Written to --out, where <root> is OXT-Beyond-<version>:
     <root>-win-x86_64-symbols.zip    the *.pdb files under win-x86_64-bin/
   linux-<arch>
     <root>-linux-<arch>.tar.xz           the staged folder as <root>/
-    <root>-linux-<arch>-binaries.tar.xz  linux-<arch>-bin/ without *.dbg, and
-                                         the licence files at the top
+    <root>-linux-<arch>-binaries.tar.xz  linux-<arch>-bin/ without *.dbg and
+                                         the build's own tools (see below),
+                                         and the licence files at the top
     <root>-linux-<arch>-symbols.tar.xz   the *.dbg files under linux-<arch>-bin/
+                                         (not the build tools')
   mac-<arch>
     <root>-mac-<arch>.dmg                with --dmg (macOS only): a disk
                                          image (hdiutil, UDZO, HFS+, volume
@@ -52,9 +54,11 @@ Written to --out, where <root> is OXT-Beyond-<version>:
                                          script as ditto stores it
     <root>-mac-<arch>-binaries.tar.xz    Release/ (the build's _build/mac/
                                          Release, or the universal merge of
-                                         two) without *.dSYM, and the
+                                         two) without *.dSYM and the build's
+                                         own tools (see below), and the
                                          licence files at the top
     <root>-mac-<arch>-symbols.zip        the *.dSYM bundles under Release/
+                                         (not the build tools')
   all
     <root>-xtalk-sources.zip         with --xtalk-sources: every file the
                                      xTalk manifest pins (xtalk_extensions.py
@@ -109,6 +113,17 @@ to the binaries or the symbols archive under the platform's folder name
 (win-x86_64-bin, linux-<arch>-bin, Release), without macOS tar's "._"
 AppleDouble files; modes and links are kept, owners dropped.
 
+The Linux and macOS build outputs also hold the tools the build makes to
+build itself (package.BUILD_PROGRAMS: gentle-target, reflex-target,
+perfect-target, the lc-compile bootstrap stages, zic, lcidlc), which
+package.py never installs. Their files, .dSYM bundles and .dbg files are
+left out of the binaries and symbols archives, from a folder and from a
+tarball alike, and counted in the log: gentle-target and reflex-target
+are GENTLE 97, whose licence forbids redistributing it
+(THIRD-PARTY-NOTICES.md "GENTLE"), and the Windows binaries zip holds
+none of them either. Any entry named gentle-* or reflex-* that still
+reaches an archive is an error, and no archive is written.
+
 Under GitHub Actions it writes the step outputs version, package-root,
 platform, dist-dir, package (the main archive), dmg (with --dmg) and
 sha256sums, and a table of the archives to the job summary.
@@ -134,11 +149,16 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import package  # noqa: E402
+import layout  # noqa: E402
 import fetch_assets  # noqa: E402
 import xtalk_extensions  # noqa: E402
 
 HARDLINK_MIN_SIZE = 64 * 1024
 Levels = collections.namedtuple('Levels', 'zip xz')
+
+# Names that must never reach an archive, whatever the tables say: GENTLE
+# 97 (gentle-target, and its reflex-target) may not be redistributed
+GENTLE_PREFIXES = ('gentle-', 'reflex-')
 
 
 class DistError(Exception):
@@ -152,6 +172,23 @@ def debug_file(family, parts):
     if family == 'linux':
         return parts[-1].endswith('.dbg')
     return any(p.endswith('.dSYM') for p in parts)
+
+
+def build_tool(rel):
+    """True for a path of a Linux or macOS build output that belongs to
+    one of the build's own tools (package.BUILD_PROGRAMS, at the top of
+    the build output: gentle-target, reflex-target, perfect-target, the
+    lc-compile bootstrap stages, zic, lcidlc), or to their debug symbols
+    (X.dSYM/..., X.dbg). The binaries and symbols archives leave them out:
+    the Windows binaries zip has no such tools either (package-windows.ps1
+    takes the build's dist files), and GENTLE's licence forbids
+    redistributing gentle-target and reflex-target."""
+    top = rel.split('/')[0]
+    names = [top]
+    for suffix in ('.dSYM', '.dbg'):
+        if top.endswith(suffix):
+            names.append(top[:-len(suffix)])
+    return any(layout._glob_match(pat, n) for pat, _ in package.BUILD_PROGRAMS for n in names)
 
 
 def bin_top(p):
@@ -616,6 +653,7 @@ class _Router(object):
         self.p = p
         self.top = bin_top(p)
         self.counts = collections.Counter()
+        self.names = []                        # every entry's name, for the GENTLE guard
         if p.family == 'windows':
             self.bins, self.syms = [], []      # written at the end, in name order
             self.bin_out, self.sym_out, self.level = bin_out, sym_out, levels.zip
@@ -630,6 +668,7 @@ class _Router(object):
         where = self.route(rel.split('/'))
         name = self.top + '/' + rel
         self.counts[where] += 0 if os.path.isdir(path) and not os.path.islink(path) else 1
+        self.names.append(name)
         if self.p.family == 'windows':
             (self.syms if where == 'symbols' else self.bins).append((path, name))
         else:
@@ -639,6 +678,7 @@ class _Router(object):
         where = self.route(rel.split('/'))
         name = self.top + '/' + rel if rel else self.top
         self.counts[where] += 0 if m.isdir() else 1
+        self.names.append(name)
         target = self.sym if where == 'symbols' else self.bin
         if isinstance(target, UnixZip):
             if m.islnk():
@@ -667,14 +707,25 @@ class _Router(object):
 
 def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log):
     """The binaries and symbols archives of the build output (a folder or a
-    CI tarball). Returns (binaries entries, symbols entries)."""
+    CI tarball). Returns (binaries entries, symbols entries). A Linux or
+    macOS build output goes in without the build's own tools and their
+    debug symbols (build_tool: GENTLE among them), which are logged."""
     r = _Router(p, bin_out, sym_out, levels)
+    unix = p.family != 'windows'
+    left_out = collections.Counter()          # top-level name -> entries left out
+
+    def tool(rel):
+        if unix and build_tool(rel):
+            left_out[rel.split('/')[0]] += 1
+            return True
+        return False
+
     try:
         if bin_dir:
             files, empty, links, folders = walk(bin_dir)
-            skip = (lambda rel: False) if p.family == 'windows' else \
-                (lambda rel: any(x.startswith('._') or x == '.DS_Store' for x in rel.split('/')))
-            if p.family != 'windows':
+            skip = (lambda rel: False) if not unix else \
+                (lambda rel: any(x.startswith('._') or x == '.DS_Store' for x in rel.split('/')) or tool(rel))
+            if unix:
                 # folder entries keep empty folders and folder modes
                 for d in folders:
                     if not skip(d):
@@ -694,14 +745,29 @@ def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log)
                         raise DistError('%s: unsafe member name %r' % (bin_tar, m.name))
                     rel = '/'.join(parts[1:])
                     renamed[name] = r.top + ('/' + rel if rel else '')
-                    if not rel:
+                    # (a hard link to a tool left out then fails in UnixTar:
+                    # its target is not in the archive)
+                    if not rel or tool(rel):
                         continue
                     link = renamed.get(_member_name(m.linkname)) if m.islnk() else None
                     r.add_member(m, rel, tf.extractfile(m) if m.isfile() else None, link)
+        # The guard behind build_tool, before the archives are finished (the
+        # abort below then removes them): nothing of GENTLE may go out,
+        # whatever a later build calls its tools or wherever it puts them
+        gentle = [n for n in r.names if n.rsplit('/', 1)[-1].startswith(GENTLE_PREFIXES)]
+        if gentle:
+            raise DistError('GENTLE 97 may not be redistributed (toolchain/gentle/LICENSE), but the binaries or '
+                            'symbols archive would hold %d entr%s named gentle-* or reflex-*: %s%s; leave them '
+                            'out with package.BUILD_PROGRAMS (package_dist.build_tool)'
+                            % (len(gentle), 'y' if len(gentle) == 1 else 'ies', ', '.join(gentle[:5]),
+                               ', ...' if len(gentle) > 5 else ''))
         counts = r.finish(licences)
     except BaseException:
         r.abort()
         raise
+    if left_out:
+        log('Left out of the binaries and symbols archives: %d entries of the build\'s own tools (%s), see '
+            'THIRD-PARTY-NOTICES.md "GENTLE"' % (sum(left_out.values()), ', '.join(sorted(left_out))))
     if not r.counts['symbols']:
         log('WARNING: the build output has no debug symbols; %s is empty' % os.path.basename(sym_out))
     return counts

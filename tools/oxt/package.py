@@ -207,11 +207,14 @@ _NOT_IN_PACKAGE_TXT = (
     ('packaged_extensions/com.livecode.library.ini/**',
      'not in package.txt Extensions (not shipped by LiveCode 9.6.3 or OpenXTalk Lite 1.15)'),
 )
-# Tools that the Linux and macOS builds make to build themselves (the
-# gentle/reflex/perfect parser generators of lc-compile, its bootstrap
-# stages, the zoneinfo compiler, the external interface compiler) and
-# intermediate files
-_BUILD_TOOLS = (
+# Tools that the Linux and macOS builds make to build themselves, at the
+# top of the build output (the gentle/reflex/perfect parser generators of
+# lc-compile, its bootstrap stages, the zoneinfo compiler, the external
+# interface compiler). Never installed, and package_dist.py leaves them
+# (and their .dSYM bundles and .dbg files) out of the binaries and symbols
+# archives as well: gentle-target and reflex-target are GENTLE 97, whose
+# licence forbids redistributing it (THIRD-PARTY-NOTICES.md "GENTLE").
+BUILD_PROGRAMS = (
     ('gentle-target', 'build tool (lc-compile\'s grammar compiler)'),
     ('reflex-target', 'build tool (lc-compile\'s lexer generator)'),
     ('perfect-target', 'build tool (lc-compile\'s keyword hash generator)'),
@@ -219,6 +222,9 @@ _BUILD_TOOLS = (
     ('lc-compile-stage*', 'build tool (intermediate stage of lc-compile)'),
     ('zic', 'build tool (compiles the zoneinfo data of the timezone library)'),
     ('lcidlc', 'build tool (external interface compiler)'),
+)
+# ... and the build's intermediate files
+_BUILD_TOOLS = BUILD_PROGRAMS + (
     ('*.a', 'static library (build intermediate)'),
     ('**/*.a', 'static library (build intermediate)'),
     ('*.hmap', 'Xcode header map (build intermediate)'),
