@@ -18,16 +18,21 @@ dataView_disclosureIconColor        dataView_rowColor                    3
 dataView_disclosureIconColor        dataView_rowAlternateColor           3
 
 # Extension Manager and standalone inclusions: a selected row keeps its
-# text colours on the list's hilite colour
+# text colours on the list's hilite colour, and on the dimmed hilite colour
+# when the list is not focused
 text_1                              pb_line_selected                     4.5
 text_2                              pb_line_selected                     4.5
+text_1                              dataView_dimmedHiliteColor           4.5
+text_2                              dataView_dimmedHiliteColor           4.5
 
 # Project Browser: the script line count badge of a row
 text_3                              dataView_hiliteColor                 4.5
 text_3                              dataView_scriptErrorBackgroundColor  4.5
 
-# Project Browser: a selected row (text, disclosure arrow, badge)
+# Project Browser and Message Box: a selected row (text, disclosure arrow,
+# badge), and its text when the list is not focused
 dataView_TextHiliteColor            dataView_hiliteColor                 4.5
+dataView_TextHiliteColor            dataView_dimmedHiliteColor           4.5
 dataView_disclosureIconHiliteColor  dataView_hiliteColor                 3
 dataView_hiliteBadgeTextColor       dataView_TextHiliteColor             4.5
 

@@ -72,6 +72,9 @@ on setUpExtensionList
    
    set the viewProp["row style templates"] of group "extensionList" of card "list" of this stack to theStylesA
    set the viewProp["hilite color"] of group "extensionList" of card "list" of this stack to ideColorGet("pb_line_selected")
+   -- The selection while the list is not focused (the dataView's own
+   -- default is a light grey, also in the dark appearance)
+   set the viewProp["dimmed hilite color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_dimmedHiliteColor")
    set the viewProp["background color"] of group "extensionList" of card "list" of this stack to empty
    
    set the viewProp["row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowColor")

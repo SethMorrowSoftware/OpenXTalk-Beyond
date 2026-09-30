@@ -6,8 +6,10 @@
 light | text_2 on dataView_rowColor
 light | text_2 on dataView_rowAlternateColor
 light | text_2 on pb_line_selected
+light | text_2 on dataView_dimmedHiliteColor
 light | text_3 on dataView_hiliteColor
 light | text_3 on dataView_scriptErrorBackgroundColor
 light | dataView_TextHiliteColor on dataView_hiliteColor
+light | dataView_TextHiliteColor on dataView_dimmedHiliteColor
 light | dataView_disclosureIconHiliteColor on dataView_hiliteColor
 light | text_2 on palette_background

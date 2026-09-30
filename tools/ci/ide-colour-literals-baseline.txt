@@ -46,10 +46,6 @@ ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecode
 ide/Toolset/palettes/script editor/behaviors/revseerrortemplatebehavior.livecodescript | itemUnhilite | textcolor = 0,0,0
 ide/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript | pFixupMacElements | foregroundcolor = black
 ide/Toolset/palettes/standalone settings/revstandalonesettingscopyfilesbehavior.livecodescript | checkForWarning | textcolor = red
-ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsbehavior.livecodescript | setUpExtensionList | viewprop["alternate row color"] = 255,255,255
-ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsbehavior.livecodescript | setUpExtensionList | viewprop["alternate row color"] = 97,97,97
-ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsbehavior.livecodescript | setUpExtensionList | viewprop["row color"] = 126,126,126
-ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsbehavior.livecodescript | setUpExtensionList | viewprop["row color"] = 216,216,216
 ide/Toolset/palettes/tools/revtools.livecodescript | __hiliteAdd | backgroundcolor = 125,125,125
 ide/Toolset/palettes/tools/revtools.livecodescript | generatePalette | backgroundcolor = 175,175,175
 ide/Toolset/palettes/tools/revtools.livecodescript | generatePalette | backgroundcolor = 60,60,60
