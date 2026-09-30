@@ -4,8 +4,9 @@
 #
 # The container is Ubuntu 20.04, so the binaries need glibc 2.31 or newer
 # (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit)
-# and no newer libstdc++ than its GCC 10 one; the Verify step fails when an
-# ELF file of the output needs more (tools/ci/check_elf_floor.py). It is
+# and no newer libstdc++ or libgcc_s than its GCC 10 ones; the Verify step
+# fails when an ELF file of the output needs more
+# (tools/ci/check_elf_floor.py). It is
 # also the newest Ubuntu that still ships Python 2.7, which gyp and
 # config.py need.
 #
@@ -249,16 +250,21 @@ jobs:
           # Save as Standalone only accepts non-PIE engines (deploy_linux.cpp)
           readelf -h "$B/standalone-community" | grep 'EXEC (Executable file)'
           # The oldest Linux the header promises is this container's
-          # Ubuntu 20.04: glibc 2.31 and the libstdc++ of GCC 10
-          # (GLIBCXX_3.4.28, CXXABI_1.3.12). Every ELF file of the folder
-          # (executables and shared objects in every subfolder, CEF
-          # included; not the .dbg debug files) must load there, and be for
-          # this architecture. What is linked in this container cannot need
-          # more than it has, so this catches prebuilt files such as CEF
-          # and a change of build image. The report lists the highest
-          # version each file needs.
+          # Ubuntu 20.04: glibc 2.31, the libstdc++ of GCC 10
+          # (GLIBCXX_3.4.28, CXXABI_1.3.12) and its libgcc_s (GCC_7.0.0;
+          # the next versions, GCC_12.0.0 and GCC_13.0.0, hold the _Float16
+          # and __bf16 helpers a link with GCC 12 or newer can take from
+          # libgcc_s). No ELF file of the folder (executables and shared
+          # objects in every subfolder, CEF included; not the .dbg debug
+          # files) may need a newer version of these than that system has,
+          # and each must be for this architecture. Other version needs
+          # (CEF's NSS and ALSA) are only reported. What is linked in this
+          # container cannot need more than it has, so this catches
+          # prebuilt files such as CEF or extension libraries, and a change
+          # of build image. The report lists the highest version each file
+          # needs.
           python3 tools/ci/check_elf_floor.py "$B" --machine "$ARCH" --exclude '*.dbg' \
-            --max GLIBC=2.31 --max GLIBCXX=3.4.28 --max CXXABI=1.3.12
+            --max GLIBC=2.31 --max GLIBCXX=3.4.28 --max CXXABI=1.3.12 --max GCC=7.0.0
 
       - name: Smoke test (server engine)
         run: |
