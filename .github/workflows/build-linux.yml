@@ -407,13 +407,14 @@ jobs:
   # The Linux x86_64 package, from the build's artifacts (see the header).
   # It waits for both build legs (a job cannot need one leg of a matrix)
   # but runs whenever the x86_64 one passed, so that a failed arm64 build
-  # does not hide the package. On the runner itself, not in the build's
+  # does not hide the package (and always when the whole build passed,
+  # whatever the outputs say). On the runner itself, not in the build's
   # container: tests need the ubuntu-24.04 system, the user a package
   # would find there, and sudo for apt.
   package:
     name: Package linux-x86_64
     needs: build
-    if: ${{ !cancelled() && needs.build.outputs.built-x86_64 == 'true' }}
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
