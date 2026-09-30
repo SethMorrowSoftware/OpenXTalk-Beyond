@@ -344,8 +344,20 @@ EOF
 # was no such database before OXT-Beyond's first install, it is recorded as
 # ours ("mimedb", "desktopdb"): uninstall.sh then removes it once no other
 # program's file is left in it, instead of leaving an empty database behind.
+# In a database that is not ours, uninstall.sh runs update-mime-database
+# again, which removes our types' files but not the folders of their media
+# types: the application/ and text/ that this run's update-mime-database
+# creates are recorded as ours, so that uninstall.sh removes them when
+# they are empty.
 if command -v update-mime-database >/dev/null 2>&1; then
+    new_media=
+    for t in application text; do
+        [ -e "$data/mime/$t" ] || [ -L "$data/mime/$t" ] || new_media="$new_media $t"
+    done
     update-mime-database "$data/mime" || printf 'install.sh: warning: update-mime-database %s failed\n' "$data/mime" >&2
+    for t in $new_media; do
+        if [ -d "$data/mime/$t" ]; then record "dir $data/mime/$t"; fi
+    done
     [ "$mime_db_ours" = 1 ] && record "mimedb $data/mime"
 fi
 if command -v update-desktop-database >/dev/null 2>&1 && [ -d "$data/applications" ]; then

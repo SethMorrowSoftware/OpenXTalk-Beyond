@@ -52,9 +52,12 @@ The package's own list must pass on this machine (case 1), so run it where
 the list's packages are installed.
 
 --install runs install.sh and uninstall.sh with HOME (and XDG_DATA_HOME) in
-a scratch folder, in three set-ups: the defaults (~/.local/share), an
-XDG_DATA_HOME, and an XDG_DATA_HOME whose path has a space, $, ", ` and %
-(which the desktop entry's Exec line must quote). Each time it checks that
+a scratch folder, in four set-ups: the defaults (~/.local/share), an
+XDG_DATA_HOME, an XDG_DATA_HOME whose path has a space, $, ", ` and %
+(which the desktop entry's Exec line must quote), and (with
+update-mime-database) the defaults with another program's MIME type
+already compiled there, a database that uninstall.sh updates instead of
+removing. Each time it checks that
 
   - install.sh installs the program folder with its manifest, the desktop
     entry (Exec is the launcher's absolute path, quoted per the Desktop
@@ -114,6 +117,17 @@ exit 0
 FAKE_ZENITY = '''#!/bin/sh
 for a in "$@"; do printf '%s\\nZENITY_ARG_END\\n' "$a"; done > "$OXT_TEST_ZENITY_LOG"
 exit 0
+'''
+
+# Another program's MIME type, of the application/ media type only: the
+# text/ folder of OXT-Beyond's text/x-oxtscript is then new
+OTHER_MIME = '''<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-oxt-test-other">
+    <comment>Another program's file type</comment>
+    <glob pattern="*.oxt-test-other"/>
+  </mime-type>
+</mime-info>
 '''
 
 PROBE = '''script "oxt_install_probe"
@@ -348,7 +362,23 @@ def tool(name, required, c):
     return path
 
 
-def test_install_setup(c, root, work, label, xdg, required):
+def other_mime_database(data):
+    """A compiled MIME database of another program's type (OTHER_MIME) in
+    data/mime: not install.sh's, since it has a mime.cache already.
+    (ok, output of update-mime-database)"""
+    mime = os.path.join(data, 'mime')
+    os.makedirs(os.path.join(mime, 'packages'))
+    with open(os.path.join(mime, 'packages', 'oxt-test-other.xml'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(OTHER_MIME)
+    code, out = run(['update-mime-database', mime])
+    return (code == 0 and os.path.isfile(os.path.join(mime, 'mime.cache')) and
+            os.path.isfile(os.path.join(mime, 'application', 'x-oxt-test-other.xml')) and
+            not os.path.exists(os.path.join(mime, 'text'))), 'exit %d, output:\n%s' % (code, out)
+
+
+def test_install_setup(c, root, work, label, xdg, required, prepare=None):
+    """prepare(data folder) -> (ok, detail) sets up what is there before
+    install.sh."""
     home = os.path.join(work, 'home-' + label)
     os.makedirs(home)
     # something of the user's that install.sh must leave alone
@@ -362,8 +392,12 @@ def test_install_setup(c, root, work, label, xdg, required):
     data = xdg if xdg is not None else os.path.join(home, '.local', 'share')
     app = os.path.join(data, 'oxt-beyond')
     watch = [home] + ([xdg] if xdg is not None else [])
-    before = {w: snapshot(w) for w in watch}
     name = 'install (%s)' % label
+    if prepare is not None:
+        ok, detail = prepare(data)
+        if not c.check('%s: set-up' % name, ok, detail):
+            return
+    before = {w: snapshot(w) for w in watch}
 
     code, out = run([os.path.join(root, 'install.sh')], env=env)
     if not c.check('%s: install.sh succeeds' % name, code == 0, 'exit %d, output:\n%s' % (code, out)):
@@ -608,6 +642,11 @@ def main(argv=None):
             test_install_setup(c, root, work, 'xdg', os.path.join(work, 'xdg-data'), args.require_desktop_tools)
             test_install_setup(c, root, work, 'odd-path',
                                os.path.join(work, 'data dir $HOME "q" `x` 100%'), args.require_desktop_tools)
+            if tool('update-mime-database', args.require_desktop_tools, c):
+                test_install_setup(c, root, work, 'other-mime-types', None, args.require_desktop_tools,
+                                   prepare=other_mime_database)
+            else:
+                print('SKIP install (other-mime-types): no update-mime-database')
             test_install_guards(c, root, work, args.require_desktop_tools)
             test_install_own_command(c, root, work)
             test_install_failure(c, root, work)
