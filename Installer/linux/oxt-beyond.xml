@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The file types OXT-Beyond opens, for shared-mime-info: install.sh copies
+  this file to ~/.local/share/mime/packages/oxt-beyond.xml and runs
+  update-mime-database. The same two types as the Windows installer
+  registers (Installer/oxt-beyond/oxt-beyond.iss); LiveCode's .livecode,
+  .livecodescript and .rev are left to LiveCode. Types are matched by
+  their extension only: a magic rule for binary stacks ("REVO" at the
+  start) would also claim .livecode and .rev files.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-oxtstack">
+    <comment>OXT-Beyond stack</comment>
+    <icon name="oxt-beyond"/>
+    <glob pattern="*.oxtstack"/>
+  </mime-type>
+  <mime-type type="text/x-oxtscript">
+    <comment>OXT-Beyond script-only stack</comment>
+    <sub-class-of type="text/plain"/>
+    <icon name="oxt-beyond"/>
+    <glob pattern="*.oxtscript"/>
+  </mime-type>
+</mime-info>

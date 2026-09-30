@@ -126,6 +126,11 @@ stage folder itself except on macOS):
                load on a PC without the Visual C++ Redistributable. The
                cache is --xtalk-cache, else OXT_XTALK_CACHE, else <asset
                cache>/xtalk.
+  desktop      Linux only: the launcher oxt-beyond, install.sh and
+               uninstall.sh (mode 0755) and linux/ with the desktop entry,
+               the MIME types, the icons and the library list the launcher
+               checks, from Installer/linux and the branding PNGs
+               (LINUX_DESKTOP).
 
 The build number is --build-number, else the environment variable
 OXT_BUILD_NUMBER, else the current UTC time as YYYYMMDDHHMM. ide/.buildnumber
@@ -550,6 +555,77 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
         tags['public.filename-extension'] = exts
     out['UTImportedTypeDeclarations'] = list(imported.values())
     return out
+# The Linux package's own files (origin "desktop"), from the repository:
+# (repository path, installed path, executable, kind). kind "text" is
+# written with LF line endings whatever the checkout has (the scripts must
+# run under sh; the list is read line by line), "binary" byte for byte, and
+# "desktop" is the desktop entry, whose @WM_CLASS@ becomes the X window
+# class the engine gives the IDE's windows (lnxstack.cpp: "livecode", the
+# edition and the engine version, with "." and "-" as "_"), so that a dock
+# shows the running IDE under its menu entry.
+#
+#   oxt-beyond     the launcher: checks the system libraries of
+#                  linux/libraries.txt, turns the browser off where CEF
+#                  cannot load (LIVECODE_USE_CEF=0) and starts the engine
+#   install.sh     the per-user install: the program into
+#   uninstall.sh   ~/.local/share/oxt-beyond, the desktop entry, the icons,
+#                  the MIME types and ~/.local/bin/oxt-beyond; and its undo
+#   linux/         what install.sh installs (the desktop entry's Exec and
+#                  TryExec become the launcher's absolute path) and the
+#                  library list; the icons are the branding PNGs, in the
+#                  sizes of install.sh's icon_sizes
+#
+# The engine keeps its name OXT-Beyond: the IDE and the engine find the
+# tools folder from the engine's own path (/proc/self/exe), which exec
+# keeps, and the CEF helper libbrowser-cefprocess next to it.
+LINUX_ICON_SIZES = (16, 24, 32, 48, 64, 128, 256, 512)
+LINUX_DESKTOP = (
+    ('Installer/linux/oxt-beyond', 'oxt-beyond', True, 'text'),
+    ('Installer/linux/install.sh', 'install.sh', True, 'text'),
+    ('Installer/linux/uninstall.sh', 'uninstall.sh', True, 'text'),
+    ('Installer/linux/libraries.txt', 'linux/libraries.txt', False, 'text'),
+    ('Installer/linux/oxt-beyond.desktop', 'linux/oxt-beyond.desktop', False, 'desktop'),
+    ('Installer/linux/oxt-beyond.xml', 'linux/oxt-beyond.xml', False, 'text'),
+) + tuple(('Installer/oxt-beyond/branding/png/oxt-beyond-%d.png' % n, 'linux/icons/oxt-beyond-%d.png' % n,
+           False, 'binary') for n in LINUX_ICON_SIZES)
+
+
+def ide_window_class(repo):
+    """The WM_CLASS of the IDE's windows on Linux (MCStack::sethints in
+    engine/src/lnxstack.cpp: "livecode", the edition and "_" and the
+    engine's BUILD_SHORT_VERSION, with "." and "-" replaced by "_"), or
+    None without a version file."""
+    version = engine_version(repo)
+    if not version:
+        return None
+    return re.sub(r'[.-]', '_', 'livecode%s_%s' % (EDITION, version))
+
+
+def plan_linux_desktop(pl, repo):
+    """The Linux package's launcher, install scripts and desktop files
+    (LINUX_DESKTOP)."""
+    for rel, target, executable, kind in LINUX_DESKTOP:
+        path = layout.native(repo, rel)
+        try:
+            with open(path, 'rb') as f:
+                data = f.read()
+        except OSError as e:
+            pl.problems.append('Linux desktop file missing: %s (%s)' % (rel, e))
+            continue
+        if kind != 'binary':
+            data = layout._normalise(data)
+        if kind == 'desktop':
+            wm_class = ide_window_class(repo)
+            if not wm_class:
+                pl.problems.append('%s: no BUILD_SHORT_VERSION in %s for the window class'
+                                   % (rel, os.path.join(repo, 'version')))
+                continue
+            if b'@WM_CLASS@' not in data:
+                pl.problems.append('%s has no @WM_CLASS@ to fill in' % rel)
+                continue
+            data = data.replace(b'@WM_CLASS@', wm_class.encode('ascii'))
+        pl.add(Item(target, 'desktop', data=data, executable=executable,
+                    note='%s%s' % (rel, ' (StartupWMClass=%s)' % wm_class if kind == 'desktop' else '')))
 
 
 # The macOS runtime folders, as the IDE's standalone builder uses them
@@ -711,17 +787,19 @@ class PackageError(Exception):
 
 class Item(object):
     """One file (or symbolic link) of the staged tree."""
-    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note', 'link')
+    __slots__ = ('target', 'origin', 'source', 'data', 'member', 'asset', 'note', 'link', 'executable')
 
-    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note='', link=None):
+    def __init__(self, target, origin, source=None, data=None, member=None, asset=None, note='', link=None,
+                 executable=False):
         self.target = target      # installed path, "/" separators
-        self.origin = origin      # ide, build, generated, licence, asset, xtalk
+        self.origin = origin      # ide, build, generated, licence, asset, xtalk, desktop
         self.source = source      # file on disk (ide, build, licence, xtalk)
-        self.data = data          # bytes (generated, licence, the xtalk stamp)
+        self.data = data          # bytes (generated, licence, desktop, the xtalk stamp)
         self.member = member      # zip member name (asset)
         self.asset = asset        # asset dict (asset)
         self.note = note
         self.link = link          # target of a symbolic link (build, Unix layouts)
+        self.executable = executable  # data written with mode 0755 (desktop: the scripts)
 
 
 # ---------------------------------------------------------------------------
@@ -1100,6 +1178,8 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
 
     # Build outputs
     plan_build(pl)
+    if p.family == 'linux':
+        plan_linux_desktop(pl, repo)
 
     # Licence files
     for name in LICENCE_FILES:
@@ -1253,9 +1333,10 @@ def write_stage(stage, items, folders, eol, log, platform=None):
                 # the native libraries (code/<platform id>/*); dlopen does
                 # not need the bit, but it is how libraries are installed
                 executable = '/code/' in it.target
-            elif it.origin in ('generated', 'licence'):
+            elif it.origin in ('generated', 'licence', 'desktop'):
                 with open(dst, 'wb') as f:
                     f.write(it.data)
+                executable = it.executable
             elif it.origin == 'asset':
                 z = archives.get(it.source)
                 if z is None:
@@ -1628,7 +1709,7 @@ def summarise(items, stage, bin_dir, used, log, platform=None):
         size_group[g] += size
     log('')
     log('Staged %d files, %s bytes, in %s' % (len(items), '{:,}'.format(sum(size_origin.values())), stage))
-    for o in ('ide', 'build', 'generated', 'licence', 'asset', 'xtalk'):
+    for o in ('ide', 'build', 'generated', 'licence', 'asset', 'xtalk', 'desktop'):
         if by_origin[o]:
             log('  %-10s %6d files %15s bytes' % (o, by_origin[o], '{:,}'.format(size_origin[o])))
     empty = layout.empty_dirs(stage)

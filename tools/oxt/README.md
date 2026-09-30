@@ -397,6 +397,24 @@ disagree, the layout follows the IDE:
 * **Linux engine name:** `OXT-Beyond`, not `package.txt`'s
   `OXT-Beyond.x86_64` (one architecture per package, started through a
   launcher script).
+* **Linux launcher, install scripts and desktop files** (origin
+  `desktop`, `LINUX_DESKTOP` in `package.py`; package.txt's
+  `Installer/application.desktop` is LiveCode's and names an icon the
+  package does not have): from `Installer/linux/`, with LF line endings,
+  `oxt-beyond` (the launcher), `install.sh` and `uninstall.sh` at the
+  root with mode 0755, and `linux/` with `libraries.txt` (the system
+  libraries the launcher checks and the CI installs),
+  `oxt-beyond.desktop` (its `StartupWMClass` filled in with the window
+  class the engine gives the IDE's windows, `livecodecommunity_` and
+  the engine version with `.` and `-` as `_`), `oxt-beyond.xml` (the
+  MIME types) and `icons/oxt-beyond-<n>.png`, the branding PNGs in the
+  sizes install.sh installs (16 to 512). The launcher checks the
+  libraries, sets `LIVECODE_USE_CEF=0` where the browser cannot load,
+  and execs the engine; `install.sh` installs the folder for one user
+  under `${XDG_DATA_HOME:-~/.local/share}/oxt-beyond` with a desktop
+  entry, icons, MIME types and `~/.local/bin/oxt-beyond`, and records
+  what it made for `uninstall.sh`. The scripts' own comments describe
+  them.
 
 | build output | installed path (Linux) | installed path (macOS, below `Contents/Tools` unless noted) |
 |---|---|---|
@@ -409,6 +427,7 @@ disagree, the layout follows the IDE:
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
 | standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
 | `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+| (from the repository) `Installer/linux/*`, branding PNGs | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | none |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,
 `server-*`, `Externals/CEF/chrome-sandbox` and `devtools_resources.pak`,
@@ -592,7 +611,7 @@ mac-universal") builds the release app from the two CI builds:
 
 ```
 python tools/oxt/package_dist.py (--summary <package.py --summary-json> | --platform P --stage DIR)
-    (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
+    (--bin DIR | --bin-tar FILE | --no-binaries) [--symbols-tar FILE] --out DIR
     [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
     [--dmg] [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
 ```
@@ -668,6 +687,16 @@ it is.
   modes, symbolic and hard links. The Linux and macOS archives are written
   on Linux or macOS only (in WSL, from a stage under a Linux path: a probe
   next to the stage refuses a Windows drive, whose files all read 0777).
+* `--symbols-tar` takes the CI's symbols artifact
+  (`OXT-Beyond-linux-<arch>-symbols.tar.xz`: the build output folder with
+  only its `*.dbg` files; the macOS one holds the `*.dSYM` bundles), since
+  the bin tarball no longer has them, and adds its files to the symbols
+  archive. A member that is not a debug symbol file, a hard link, or a
+  file the build output has too is an error.
+* A path of the Linux package with a folder named like a build output
+  (`package.repository_mode_trap`: `_build`, `linux-bin`,
+  `linux-<arch>-bin`, `build-linux-<arch>`) is an error: an engine on
+  such a path runs the IDE of a source checkout. There is none today.
 
 Under GitHub Actions it writes the step outputs `version`, `package-root`,
 `platform`, `dist-dir`, `package`, `dmg` (with `--dmg`) and `sha256sums`

@@ -19,8 +19,8 @@
 staged, the build output's binaries and symbols archives, and SHA256SUMS.
 
   python tools/oxt/package_dist.py (--summary FILE | --platform P --stage DIR)
-      (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
-      [--repo DIR] [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
+      (--bin DIR | --bin-tar FILE | --no-binaries) [--symbols-tar FILE]
+      --out DIR [--repo DIR] [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
       [--dmg] [--zip-level N] [--xz-preset N] [--no-hardlinks]
       [--summary-json FILE]
 
@@ -111,7 +111,16 @@ step: the image and the zip hold it as it is.
 A tarball given as --bin-tar is read once, as a stream: each member goes
 to the binaries or the symbols archive under the platform's folder name
 (win-x86_64-bin, linux-<arch>-bin, Release), without macOS tar's "._"
-AppleDouble files; modes and links are kept, owners dropped.
+AppleDouble files; modes and links are kept, owners dropped. The CI keeps
+the debug symbols out of its bin tarball, in a tarball of their own (the
+same folder with only the *.dbg files, or the *.dSYM bundles):
+--symbols-tar adds its files to the symbols archive, and fails on anything
+in it that is not a debug symbol file or that the build output has too.
+
+In the Linux package no path may have a folder named like a build output
+(package.repository_mode_trap: _build, linux-bin, linux-<arch>-bin,
+build-linux-<arch>), which would switch an engine on that path into
+repository mode.
 
 The Linux and macOS build outputs also hold the tools the build makes to
 build itself (package.BUILD_PROGRAMS: gentle-target, reflex-target,
@@ -523,6 +532,14 @@ def write_package(p, stage, out, levels, hardlinks, log):
                                  [(os.path.join(stage, *d.split('/')), root + '/' + d + '/') for d in empty],
                                  levels.zip)
     if p.family == 'linux':
+        # The tarball is extracted anywhere, and a folder of it named like a
+        # build output would put the engine of an install into repository
+        # mode if it were ever on the engine's path; there is none today
+        for rel in folders + files + links:
+            trap = package.repository_mode_trap(root + '/' + rel, p)
+            if trap:
+                raise DistError('%s has a folder named %s (%s): the package must have no folder name that '
+                                'switches the engine into repository mode' % (stage, trap, rel))
         same = hardlink_plan(stage, files) if hardlinks else {}
         if same:
             saved = sum(os.path.getsize(os.path.join(stage, *r.split('/'))) for r in same)
@@ -654,6 +671,7 @@ class _Router(object):
         self.top = bin_top(p)
         self.counts = collections.Counter()
         self.names = []                        # every entry's name, for the GENTLE guard
+        self.symbol_paths = set()      # relative paths sent to the symbols archive
         if p.family == 'windows':
             self.bins, self.syms = [], []      # written at the end, in name order
             self.bin_out, self.sym_out, self.level = bin_out, sym_out, levels.zip
@@ -669,6 +687,8 @@ class _Router(object):
         name = self.top + '/' + rel
         self.counts[where] += 0 if os.path.isdir(path) and not os.path.islink(path) else 1
         self.names.append(name)
+        if where == 'symbols':
+            self.symbol_paths.add(rel)
         if self.p.family == 'windows':
             (self.syms if where == 'symbols' else self.bins).append((path, name))
         else:
@@ -679,6 +699,8 @@ class _Router(object):
         name = self.top + '/' + rel if rel else self.top
         self.counts[where] += 0 if m.isdir() else 1
         self.names.append(name)
+        if where == 'symbols':
+            self.symbol_paths.add(rel)
         target = self.sym if where == 'symbols' else self.bin
         if isinstance(target, UnixZip):
             if m.islnk():
@@ -705,9 +727,59 @@ class _Router(object):
                 a.discard()
 
 
-def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log):
+def add_symbols_tar(r, path):
+    """The debug symbols of a CI symbols tarball (OXT-Beyond-linux-<arch>-
+    symbols.tar.xz: the build output folder with only its *.dbg files, for
+    extracting over the bin tarball; the macOS one holds the *.dSYM
+    bundles) into the symbols archive, under the platform's folder name.
+    Anything but debug symbols in it is an error, and so is a file that is
+    in the build output (--bin, --bin-tar) as well. The debug symbols of
+    the build's own tools (build_tool: GENTLE among them) are left out, as
+    write_binaries leaves out the tools. Returns (files added, files left
+    out)."""
+    tops = set()
+    seen = set()
+    skipped = 0
+    with tarfile.open(path, 'r|*') as tf:
+        for m in tf:
+            name = _member_name(m.name)
+            parts = name.split('/') if name else []
+            if not parts or any(x.startswith('._') for x in parts) or parts[-1] == '.DS_Store':
+                continue
+            if '..' in parts or '' in parts or m.name.startswith('/'):
+                raise DistError('%s: unsafe member name %r' % (path, m.name))
+            tops.add(parts[0])
+            if len(tops) > 1:
+                raise DistError('%s: more than one top-level folder (%s); a CI symbols tarball has the build '
+                                'output\'s' % (path, ', '.join(sorted(tops))))
+            rel = '/'.join(parts[1:])
+            if not rel:
+                continue
+            if not debug_file(r.p.family, parts):
+                if m.isdir():
+                    continue
+                raise DistError('%s: %s is not a debug symbol file' % (path, m.name))
+            if m.islnk():
+                raise DistError('%s: %s is a hard link; a symbols tarball holds plain files' % (path, m.name))
+            if build_tool(rel):
+                if not m.isdir():
+                    skipped += 1
+                continue
+            if rel in seen:
+                raise DistError('%s: %s is in it twice' % (path, m.name))
+            if rel in r.symbol_paths:
+                raise DistError('%s: %s is also in the build output' % (path, m.name))
+            seen.add(rel)
+            r.add_member(m, rel, tf.extractfile(m) if m.isfile() else None)
+    if not seen:
+        raise DistError('%s holds no debug symbols' % path)
+    return len(seen), skipped
+
+
+def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log, symbols_tar=None):
     """The binaries and symbols archives of the build output (a folder or a
-    CI tarball). Returns (binaries entries, symbols entries). A Linux or
+    CI tarball), and the symbols of symbols_tar (a CI symbols tarball, see
+    add_symbols_tar). Returns (binaries entries, symbols entries). A Linux or
     macOS build output goes in without the build's own tools and their
     debug symbols (build_tool: GENTLE among them), which are logged."""
     r = _Router(p, bin_out, sym_out, levels)
@@ -751,6 +823,11 @@ def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log)
                         continue
                     link = renamed.get(_member_name(m.linkname)) if m.islnk() else None
                     r.add_member(m, rel, tf.extractfile(m) if m.isfile() else None, link)
+        if symbols_tar:
+            n, skipped = add_symbols_tar(r, symbols_tar)
+            log('  %d debug symbol files from %s%s' % (n, os.path.basename(symbols_tar),
+                                                      ' (%d of the build\'s own tools left out)' % skipped
+                                                      if skipped else ''))
         # The guard behind build_tool, before the archives are finished (the
         # abort below then removes them): nothing of GENTLE may go out,
         # whatever a later build calls its tools or wherever it puts them
@@ -787,6 +864,9 @@ def main(argv=None):
     ap.add_argument('--stage', metavar='DIR', help='the staged OXT-Beyond-<version> folder')
     ap.add_argument('--bin', dest='bin_dir', metavar='DIR', help='build output folder')
     ap.add_argument('--bin-tar', metavar='FILE', help='build output as a CI tarball')
+    ap.add_argument('--symbols-tar', metavar='FILE',
+                    help='Linux and macOS: the CI\'s debug symbols tarball (OXT-Beyond-<platform>-symbols.tar.xz), '
+                         'whose symbols join those of the build output in the symbols archive')
     ap.add_argument('--no-binaries', action='store_true', help='write no binaries or symbols archive')
     ap.add_argument('--out', required=True, help='folder for the archives (created; files of the same '
                                                  'names are replaced)')
@@ -840,6 +920,12 @@ def main(argv=None):
             raise DistError('--dmg is for the macOS layouts, not %s' % p.name)
         if args.dmg and (sys.platform != 'darwin' or not shutil.which('hdiutil')):
             raise DistError('--dmg needs macOS, whose hdiutil makes the disk image')
+        if args.symbols_tar:
+            if args.no_binaries or p.family == 'windows':
+                raise DistError('--symbols-tar adds to the symbols archive of a Linux or macOS build output; it '
+                                'cannot go with --no-binaries or win-x86_64')
+            if not os.path.isfile(args.symbols_tar):
+                raise DistError('--symbols-tar %s is not a file' % args.symbols_tar)
         if p.unix and os.name == 'nt':
             raise DistError('write the %s archives on Linux or macOS: a Windows file system does not keep '
                             'the modes and links of the staged tree' % p.name)
@@ -866,6 +952,8 @@ def main(argv=None):
         log('Platform : %s' % p.name)
         log('Stage    : %s' % stage)
         log('Build    : %s' % (bin_dir or bin_tar or '(no binaries)'))
+        if args.symbols_tar:
+            log('Symbols  : %s' % args.symbols_tar)
         log('Output   : %s' % out)
         sums = os.path.join(out, 'SHA256SUMS')
         if os.path.exists(sums):
@@ -878,7 +966,8 @@ def main(argv=None):
             log('Writing %s and %s ...' % (names['binaries'], names['symbols']))
             entries['binaries'], entries['symbols'] = write_binaries(
                 p, bin_dir and os.path.abspath(bin_dir), bin_tar, os.path.join(out, names['binaries']),
-                os.path.join(out, names['symbols']), licence_entries(p, stage), levels, log)
+                os.path.join(out, names['symbols']), licence_entries(p, stage), levels, log,
+                args.symbols_tar and os.path.abspath(args.symbols_tar))
         if args.dmg:
             log('Writing %s ...' % names['dmg'])
             entries['dmg'] = write_dmg(p, stage, os.path.join(out, names['dmg']), version, log)
