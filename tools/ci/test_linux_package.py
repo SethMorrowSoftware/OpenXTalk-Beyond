@@ -64,6 +64,10 @@ XDG_DATA_HOME, and an XDG_DATA_HOME whose path has a space, $, ", ` and %
     ~/.local/bin/oxt-beyond of the user's) stay untouched;
   - install.sh refuses a program folder it did not install.
 
+It also checks that a ~/.local/bin/oxt-beyond that the user put in place of
+install.sh's link (a wrapper script, or a link to something else) survives
+install.sh again and uninstall.sh.
+
 --require-desktop-tools makes a missing desktop-file-validate,
 update-mime-database or update-desktop-database a failure (CI installs
 desktop-file-utils and has shared-mime-info); without it they are skipped
@@ -421,6 +425,53 @@ def test_install_guards(c, root, work, required):
             code != 0 and snapshot(home) == before, 'exit %d, output:\n%s' % (code, out))
 
 
+def test_install_own_command(c, root, work):
+    """A ~/.local/bin/oxt-beyond that the user put in place of install.sh's
+    link after an install (a wrapper script that sets GDK_SCALE for a HiDPI
+    screen, or a link to something else) is theirs, although the manifest
+    names the path: install.sh again and uninstall.sh leave it as it is."""
+    for kind in ('wrapper', 'link'):
+        home = os.path.join(work, 'home-own-' + kind)
+        os.makedirs(home)
+        env = base_env(HOME=home)
+        before = snapshot(home)
+        app = os.path.join(home, '.local', 'share', 'oxt-beyond')
+        command = os.path.join(home, '.local', 'bin', 'oxt-beyond')
+        name = 'own command (%s)' % kind
+        code, out = run([os.path.join(root, 'install.sh')], env=env)
+        if not c.check('%s: install.sh succeeds and links ~/.local/bin/oxt-beyond' % name,
+                       code == 0 and os.path.islink(command), 'exit %d, output:\n%s' % (code, out)):
+            continue
+        os.remove(command)
+        if kind == 'wrapper':
+            wrapper = '#!/bin/sh\nGDK_SCALE=2 exec "%s" "$@"\n' % os.path.join(app, 'oxt-beyond')
+            with open(command, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(wrapper)
+            os.chmod(command, 0o755)
+            mine = {'.local/', '.local/bin/', '.local/bin/oxt-beyond'}
+        else:
+            os.symlink('/usr/bin/true', command)
+            mine = {'.local/', '.local/bin/', '.local/bin/oxt-beyond -> /usr/bin/true'}
+
+        def unchanged():
+            if kind == 'wrapper':
+                if os.path.islink(command) or not os.path.isfile(command):
+                    return False
+                with open(command, encoding='utf-8') as f:
+                    return f.read() == wrapper
+            return os.path.islink(command) and os.readlink(command) == '/usr/bin/true'
+
+        code, out = run([os.path.join(root, 'install.sh')], env=env)
+        c.check('%s: install.sh again leaves it as it is, with a warning' % name,
+                code == 0 and unchanged() and 'left as it is' in out, 'exit %d, output:\n%s' % (code, out))
+        code, out = run([os.path.join(app, 'uninstall.sh')], env=env)
+        after = snapshot(home)
+        # its folders stay too, since they are not empty
+        c.check('%s: uninstall.sh keeps it too, and removes the rest' % name,
+                code == 0 and unchanged() and after == before | mine,
+                'exit %d; %s\n%s' % (code, describe_diff(before | mine, after), out))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Test the launcher and install scripts of a Linux OXT-Beyond package.')
     ap.add_argument('--root', required=True, help='the extracted package folder (OXT-Beyond-<version>)')
@@ -452,6 +503,7 @@ def main(argv=None):
             test_install_setup(c, root, work, 'odd-path',
                                os.path.join(work, 'data dir $HOME "q" `x` 100%'), args.require_desktop_tools)
             test_install_guards(c, root, work, args.require_desktop_tools)
+            test_install_own_command(c, root, work)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print('')

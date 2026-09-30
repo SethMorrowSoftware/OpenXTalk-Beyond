@@ -253,9 +253,13 @@ for n in $icon_sizes; do
 done
 copy_file "$app/linux/oxt-beyond.xml" "$data/mime/packages/oxt-beyond.xml"
 
-# 4. The command
+# 4. The command. The link there is ours only while it still leads to this
+# launcher (the test uninstall.sh makes), whatever the previous manifest
+# says: a user may have put a wrapper script there since (one that sets
+# GDK_SCALE for this GTK 2 program on a HiDPI screen, say), or a link to
+# something else, and that stays.
 link=$bindir/oxt-beyond
-if [ -L "$link" ] && { in_old "link $link" || [ "$(readlink "$link")" = "$app/oxt-beyond" ]; }; then
+if [ -L "$link" ] && [ "$(readlink "$link")" = "$app/oxt-beyond" ]; then
     rm -f "$link"
 fi
 if [ -e "$link" ] || [ -L "$link" ]; then
@@ -266,15 +270,19 @@ else
     record "link $link"
 fi
 
-# 5. What the previous install created and this one did not
+# 5. What the previous install created and this one did not. A link goes
+# only while it still leads to this launcher, as in 4. (so after 4. hardly
+# ever): anything else at its path is the user's.
 while IFS= read -r line; do
+    case "$nl$new_manifest$nl" in
+        *"$nl$line$nl"*) continue ;;
+    esac
+    path=${line#* }
     case $line in
-        "file "*|"link "*)
-            case "$nl$new_manifest$nl" in
-                *"$nl$line$nl"*) ;;
-                *) path=${line#* }
-                   if [ -L "$path" ] || [ -f "$path" ]; then rm -f "$path"; fi ;;
-            esac ;;
+        "file "*)
+            if [ -L "$path" ] || [ -f "$path" ]; then rm -f "$path"; fi ;;
+        "link "*)
+            if [ -L "$path" ] && [ "$(readlink "$path")" = "$app/oxt-beyond" ]; then rm -f "$path"; fi ;;
     esac
 done <<EOF
 $old_manifest
