@@ -17,19 +17,35 @@
 
 """Measure the images written by tools/ci/render-test.livecodescript.
 
-  python tools/ci/render_check.py --mode dark|light --dir <folder>
+  python tools/ci/render_check.py --mode dark|light [--system dark|light]
+                                  [--label <run>] --dir <folder>
+  python tools/ci/render_check.py --compare <folder A> <folder B>
+                                  [--only <glob>]... [--exclude <glob>]...
+                                  [--rename <prefix>=<prefix>] [--info <key>]...
   python tools/ci/render_check.py --self-test
 
 <folder> holds render.txt and the PNG files of one run of the render test
-(tools/ci/render-test.ps1 runs it once with Windows set to dark mode and
-once set to light mode). Every check prints one line,
+(tools/ci/render-test.ps1 runs it with Windows set to dark or light mode and
+the appAppearance set to "system", "dark" or left at its default). --mode is
+the appearance the run draws stacks that set none in (the effective
+appAppearance), and --system the Windows setting (the systemAppearance
+reported); it defaults to --mode. Every check prints one line,
 
-  PASS <mode> <check>: <measurement>
-  FAIL <mode> <check>: <what is wrong and where to look>
+  PASS <run> <check>: <measurement>
+  FAIL <run> <check>: <what is wrong and where to look>
 
-and the last line is "SUMMARY passed=<n> failed=<n>". The exit code is the
-number of failed checks (at most 100), or 101 when the folder cannot be
-read.
+(<run> is --label, or the mode) and the last line is
+"SUMMARY passed=<n> failed=<n>". The exit code is the number of failed
+checks (at most 100), or 101 when the folder cannot be read.
+
+--compare compares the images of two runs, those of folder A that match the
+--only patterns (all when none is given) and none of the --exclude ones,
+with the images of the same name in folder B (--rename maps a prefix of the
+name in A to one in B). Two images match when the mean absolute difference
+of their channels is at most 0.5 and at most 0.2% of their pixels differ by
+more than 16 in a channel: the same colours give the same ClearType pixels,
+so a real difference is a bug. --info compares INFO values of render.txt.
+screen.png (a snapshot of the desktop) is never compared.
 
 What is checked, for the native Windows theme:
 
@@ -75,6 +91,18 @@ What is checked, for the native Windows theme:
   the track whose mean luminance differs from the track's by 20 or more, and
   in dark mode is brighter. The track alone cannot tell a dark scrollbar from
   none at all, or from one whose theme part draws nothing.
+* The appearance: the engine starts with the appAppearance "light"
+  (INFO appAppearanceAtStart), draws in the appearance the run asked for
+  (INFO effectiveAppAppearance is --mode) and reports the Windows setting as
+  the systemAppearance (--system). Engines without the appAppearance (the
+  reference release) are not checked for it.
+* The appearance scenarios (text, face and region shots, EXPECT below): the
+  owner's libMQTTxt colours (s1-*) look as designed, light, in every run;
+  a stack with no colours (s2-*) is dark in the dark appearance and light in
+  the light one; a dark card (s3), black text of a field's own (s4), text
+  runs (s6) and button colours (s7) get fitting unset colours. A text shot
+  is the pixels that change when the text is taken away, a face shot those
+  that change when the control is hidden, a region the mean of a rectangle.
 
 Luminance L is 0.299 R + 0.587 G + 0.114 B on the 0-255 scale; contrast
 ratios use the WCAG relative luminance.
@@ -134,6 +162,77 @@ THUMB_MIN_DIFF = 20
 # 32, the light card 240).
 DARK_BACKGROUND_MAX = 100
 LIGHT_BACKGROUND_MIN = 150
+# Two images of a comparison match when the mean absolute difference of their
+# channels is at most COMPARE_MAX_MEAN and at most COMPARE_MAX_SHARE of their
+# pixels differ by more than COMPARE_PIXEL_DIFF in a channel.
+COMPARE_MAX_MEAN = 0.5
+COMPARE_MAX_SHARE = 0.002
+COMPARE_PIXEL_DIFF = 16
+# Never compared: a snapshot of the desktop
+COMPARE_NEVER = ('screen.png',)
+# The core of a text shot: its pixels at least this share of the way from
+# their background to the far end
+TEXT_CORE_SHARE = 0.85
+
+
+def _l(r, g, b):
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+# What the text, face and region shots of the appearance scenarios are
+# checked for, by name and by the appearance of the run ('*' for both):
+#   ('text_min_l', v)        the text colour's L is at least v
+#   ('text_max_l', v)        ... at most v
+#   ('text_near_l', v, tol)  ... within tol of v
+#   ('text_red',)            the text is red: R > 150, G < 80, B < 80
+#   ('contrast', r)          at least r:1 between the text and what is under it
+#   ('interior_min_l', v)    the inside of a face's outline has a mean L of
+#                            at least v (a checkbox's box)
+#   ('face_median_min_l', v) the median L of a face's pixels is at least v
+#   ('face_far_min_l', v)    the far end of a face's pixels from what is
+#                            under them has an L of at least v (a line)
+#   ('face_far_max_l', v)    ... at most v
+#   ('region_min_l', v)      the mean L of the region is at least v
+#   ('region_near_l', v, tol) ... within tol of v
+#   ('record',)              only measured and printed (a known limit)
+# Names that start with "s8-" are only compared with s2 of another run.
+EXPECT = {
+    # S1, the owner's libMQTTxt colours: as designed, light, in every run
+    's1-title': {'*': [('text_min_l', 240)]},
+    's1-section': {'*': [('text_near_l', _l(28, 34, 46), 12)]},
+    's1-caption': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    's1-host': {'*': [('contrast', 7.0), ('text_max_l', 60)]},
+    's1-check': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-check-on': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-check-box': {'*': [('interior_min_l', 200)]},
+    's1-push': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-push-face': {'*': [('face_median_min_l', 180)]},
+    's1-messages': {'*': [('region_min_l', 200)]},
+    # S2, no colours: dark in the dark appearance, light in the light one
+    's2-field': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-field-fill': {'dark': [('region_near_l', 32, 12)], 'light': [('region_min_l', 245)]},
+    's2-label': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-check': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-push': {'*': [('contrast', 4.5)]},
+    's2-line': {'dark': [('face_far_min_l', 200)], 'light': [('face_far_max_l', 60)]},
+    's2-card': {'dark': [('region_near_l', 32, 8)], 'light': [('region_near_l', 240, 8)]},
+    # S3, a card of 30,30,30: white text in the dark appearance
+    's3-text': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('record',)]},
+    # S4, black text of a field's own and no background: a light fill
+    's4-bordered-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
+    's4-borderless-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
+    's4-label': {'*': [('record',)]},
+    # S6, text runs
+    's6-plain': {'*': [('text_max_l', 60)]},
+    's6-red': {'*': [('text_red',)]},
+    's6-yellow': {'*': [('text_max_l', 60)]},
+    's6-unstyled-yellow': {'*': [('text_max_l', 60)]},
+    's6-unstyled-plain': {'dark': [('text_min_l', 200)], 'light': [('text_max_l', 60)]},
+    # S7, a button's own background: the label fits it in the dark appearance
+    's7-white': {'dark': [('text_max_l', 90), ('contrast', 4.5)]},
+    's7-dark': {'dark': [('text_min_l', 200)]},
+}
+
 # Where a failing label is drawn, by the render test's names. The buttons and
 # tabs are drawn in engine/src/buttondraw.cpp.
 LABEL_SOURCES = {
@@ -369,8 +468,9 @@ def best_offset(copy, main):
 # Checks
 
 class Report(object):
-    def __init__(self, mode):
+    def __init__(self, mode, label=None):
         self.mode = mode
+        self.label = label or mode
         self.passed = 0
         self.failed = 0
 
@@ -379,7 +479,7 @@ class Report(object):
             self.passed += 1
         else:
             self.failed += 1
-        line = '%s %s %s: %s' % ('PASS' if ok else 'FAIL', self.mode, name, detail)
+        line = '%s %s %s: %s' % ('PASS' if ok else 'FAIL', self.label, name, detail)
         print(line)
         sys.stdout.flush()
 
@@ -771,12 +871,206 @@ def read_manifest(folder):
     return info, shots
 
 
-def run(mode, folder):
-    report = Report(mode)
+# --------------------------------------------------------------------------
+# The appearance scenarios: text, face and region shots
+
+def _median_rgb(colours):
+    return tuple(median([c[i] for c in colours]) for i in range(3))
+
+
+def measure_text(rows, ref):
+    """The text of a text shot: the pixels that differ from the render
+    without it. Returns (count, text rgb, background rgb) or (count, None,
+    None) when there are too few pixels. The text colour is the median of its
+    core, the pixels at least TEXT_CORE_SHARE of the way from their
+    background to the far end (the 2% quantile, as for labels): ClearType
+    fringes and antialiased edges stay out of it."""
+    pixels = label_pixels(rows, ref)
+    if len(pixels) < MIN_LABEL_PIXELS:
+        return len(pixels), None, None
+    lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in pixels]
+    _, sign, colour = label_colour(lums)
+    far = quantile([sign * (l - b) for (_, _, l, b) in lums], 0.98)
+    core = [c for (x, y, c, b) in pixels if sign * (luma(c) - luma(b)) >= TEXT_CORE_SHARE * far]
+    if not core:
+        core = [c for (x, y, c, b) in pixels]
+    return len(pixels), _median_rgb(core), _median_rgb([b for (_, _, _, b) in pixels])
+
+
+def measure_face(rows, ref):
+    """The pixels of a face shot (those that change when the control is
+    hidden): (count, median L of them, far-end L from what is under them,
+    mean L inside their bounding box shrunk by 30% on each side, bbox)."""
+    pixels = label_pixels(rows, ref)
+    if len(pixels) < MIN_LABEL_PIXELS:
+        return len(pixels), None, None, None, None
+    lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in pixels]
+    _, _, far = label_colour(lums)
+    xs = [p[0] for p in pixels]
+    ys = [p[1] for p in pixels]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    dx = int((x1 - x0) * 0.3)
+    dy = int((y1 - y0) * 0.3)
+    inside = [luma(flatten(rows[y][x])) for y in range(y0 + dy, y1 - dy + 1) for x in range(x0 + dx, x1 - dx + 1)]
+    interior = sum(inside) / len(inside) if inside else None
+    return (len(pixels), median([l for (_, _, l, _) in lums]), far, interior,
+            '%d,%d-%d,%d' % (x0, y0, x1, y1))
+
+
+def expected_checks(name, mode):
+    table = EXPECT.get(name, {})
+    return table.get('*', []) + table.get(mode, [])
+
+
+def _load_pair(report, folder, name, image, reference):
+    try:
+        w, h, rows = read_png(os.path.join(folder, image))
+        rw, rh, ref = read_png(os.path.join(folder, reference))
+    except (IOError, OSError, PNGError, zlib.error) as e:
+        report.check(name + ' drawn', False, 'cannot read the images: %s' % e)
+        return None, None
+    if (w, h) != (rw, rh):
+        report.check(name + ' drawn', False, '%s is %dx%d but %s is %dx%d' % (image, w, h, reference, rw, rh))
+        return None, None
+    return rows, ref
+
+
+def _fmt(rgb):
+    return '%d,%d,%d' % tuple(int(round(v)) for v in rgb)
+
+
+def check_text(report, folder, name, image, reference):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    rows, ref = _load_pair(report, folder, name, image, reference)
+    if rows is None:
+        return
+    count, text, background = measure_text(rows, ref)
+    where = '%s against %s' % (image, reference)
+    if text is None:
+        report.check(name + ' drawn', False, 'only %d text pixels (%s): the text was not drawn, or was drawn in '
+                     'the colour of what is under it' % (count, where))
+        return
+    l_text = luma(text)
+    ratio = contrast_ratio(text, background)
+    measured = 'text %s (L=%.0f) on %s (L=%.0f), %.2f:1, %d pixels (%s)' % (
+        _fmt(text), l_text, _fmt(background), luma(background), ratio, count, where)
+    for want in wanted:
+        kind = want[0]
+        if kind == 'record':
+            report.check(name + ' recorded', True, measured + '; recorded only')
+        elif kind == 'text_min_l':
+            report.check(name + ' colour', l_text >= want[1], '%s, %s L>=%.0f' % (
+                measured, 'expected' if l_text >= want[1] else 'FAILED: expected', want[1]))
+        elif kind == 'text_max_l':
+            report.check(name + ' colour', l_text <= want[1], '%s, %s L<=%.0f' % (
+                measured, 'expected' if l_text <= want[1] else 'FAILED: expected', want[1]))
+        elif kind == 'text_near_l':
+            ok = abs(l_text - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s, %s L=%.0f (+-%d): the colour set for it' % (
+                measured, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+        elif kind == 'text_red':
+            ok = text[0] > 150 and text[1] < 80 and text[2] < 80
+            report.check(name + ' colour', ok, '%s, %s red (R>150, G<80, B<80)' % (
+                measured, 'expected' if ok else 'FAILED: expected'))
+        elif kind == 'contrast':
+            ok = ratio >= want[1]
+            report.check(name + ' contrast', ok, '%s, %s %.1f:1' % (
+                measured, 'at least' if ok else 'FAILED: needs at least', want[1]))
+
+
+def check_face(report, folder, name, image, reference):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    rows, ref = _load_pair(report, folder, name, image, reference)
+    if rows is None:
+        return
+    count, med, far, interior, box = measure_face(rows, ref)
+    where = '%s against %s' % (image, reference)
+    if med is None:
+        report.check(name + ' drawn', False, 'only %d pixels change when it is hidden (%s)' % (count, where))
+        return
+    measured = '%d pixels at %s, median L=%.0f, far end L=%.0f, inside L=%s (%s)' % (
+        count, box, med, far, '-' if interior is None else '%.0f' % interior, where)
+    for want in wanted:
+        kind, value = want[0], want[1]
+        if kind == 'interior_min_l':
+            ok = interior is not None and interior >= value
+            report.check(name + ' inside', ok, '%s, %s inside L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_median_min_l':
+            ok = med >= value
+            report.check(name + ' face', ok, '%s, %s median L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_far_min_l':
+            ok = far >= value
+            report.check(name + ' colour', ok, '%s, %s far end L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_far_max_l':
+            ok = far <= value
+            report.check(name + ' colour', ok, '%s, %s far end L<=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+
+
+def check_region(report, folder, name, image, region):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    try:
+        w, h, rows = read_png(os.path.join(folder, image))
+    except (IOError, OSError, PNGError, zlib.error) as e:
+        report.check(name + ' drawn', False, 'cannot read %s: %s' % (image, e))
+        return
+    box = region_box(region, w, h) if region is not None else None
+    if box is None:
+        report.check(name + ' drawn', False, 'the region %s is outside %s (%dx%d)' % (region, image, w, h))
+        return
+    mean = box_mean(rows, box)
+    measured = 'mean L=%.0f at %d,%d-%d,%d of %s' % (mean, box[0], box[1], box[2] - 1, box[3] - 1, image)
+    for want in wanted:
+        kind = want[0]
+        if kind == 'region_min_l':
+            ok = mean >= want[1]
+            report.check(name + ' colour', ok, '%s, %s L>=%d' % (measured, 'expected' if ok else 'FAILED: expected', want[1]))
+        elif kind == 'region_near_l':
+            ok = abs(mean - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s, %s L=%d (+-%d)' % (
+                measured, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+
+
+def check_appearance_info(report, info, system):
+    """The systemAppearance and the appAppearance the run reports."""
+    appearance = info.get('systemAppearance', '')
+    report.check('system appearance', appearance == system,
+                 'the engine reports the systemAppearance "%s"%s' %
+                 (appearance, '' if appearance == system else
+                  ' but the test set AppsUseLightTheme for %s mode; see render-test.ps1 and '
+                  'MCScreenDC::getsystemappearance in engine/src/w32dc.cpp' % system))
+    if info.get('hasAppAppearance') != 'true':
+        return
+    start = info.get('appAppearanceAtStart', '')
+    report.check('appAppearance default', start == 'light',
+                 'the appAppearance is "%s" before the test sets it%s' %
+                 (start, '' if start == 'light' else ', FAILED: expected "light", the default of every engine '
+                  '(MCappappearance, engine/src/appearance.cpp)'))
+    effective = info.get('effectiveAppAppearance', '')
+    report.check('effective appAppearance', effective == report.mode,
+                 'the effective appAppearance is "%s" (the appAppearance "%s", requested "%s", systemAppearance '
+                 '"%s")%s' % (effective, info.get('appAppearance', ''), info.get('requestedAppearance', ''),
+                              appearance, '' if effective == report.mode else
+                              ', FAILED: expected "%s" (MCAppearanceIsDark, engine/src/appearance.cpp)' % report.mode))
+
+
+def run(mode, folder, system=None, label=None):
+    report = Report(mode, label)
+    if system is None:
+        system = mode
     try:
         info, shots = read_manifest(folder)
     except (IOError, OSError) as e:
-        print('FAIL %s engine run: cannot read render.txt in %s: %s' % (mode, folder, e))
+        print('FAIL %s engine run: cannot read render.txt in %s: %s' % (report.label, folder, e))
         print('SUMMARY passed=0 failed=1')
         return 101
 
@@ -791,12 +1085,7 @@ def run(mode, folder):
                                                  ', not "Appearance Manager": the native Windows theme did not '
                                                  'load (visual styles are off in this session?), so the flat '
                                                  'labels and dark scrollbars of the native theme are not tested'))
-    appearance = info.get('systemAppearance', '')
-    report.check('system appearance', appearance == mode,
-                 'the engine reports the systemAppearance "%s"%s' %
-                 (appearance, '' if appearance == mode else
-                  ' but the test set AppsUseLightTheme for %s mode; see render-test.ps1 and '
-                  'MCScreenDC::getsystemappearance in engine/src/w32dc.cpp' % mode))
+    check_appearance_info(report, info, system)
 
     # A thumb is compared with the track of the same scrollbar
     tracks = dict((shot[1], parse_region(shot[3])) for shot in shots if shot[0] == 'track' and len(shot) >= 4)
@@ -816,9 +1105,111 @@ def run(mode, folder):
                 check_track(report, folder, name, shot[2], region)
             else:
                 check_thumb(report, folder, name, shot[2], region, tracks.get(name))
+        elif name.startswith('s8-'):
+            # Compared with s2 of another run (--compare)
+            continue
+        elif kind == 'text' and len(shot) >= 4:
+            check_text(report, folder, name, shot[2], shot[3])
+        elif kind == 'face' and len(shot) >= 4:
+            check_face(report, folder, name, shot[2], shot[3])
+        elif kind == 'region' and len(shot) >= 4:
+            check_region(report, folder, name, shot[2], parse_region(shot[3]))
     if not shots:
         report.check('images', False, 'render.txt lists no images')
 
+    print('SUMMARY passed=%d failed=%d' % (report.passed, report.failed))
+    return min(report.failed, 100)
+
+
+# --------------------------------------------------------------------------
+# Comparing the images of two runs
+
+def compare_images(path_a, path_b):
+    """(mean absolute channel difference, share of pixels that differ by more
+    than COMPARE_PIXEL_DIFF, the bbox of those, None) or (.., .., .., error)."""
+    wa, ha, a = read_png(path_a)
+    wb, hb, b = read_png(path_b)
+    if (wa, ha) != (wb, hb):
+        return None, None, None, 'the sizes differ: %dx%d and %dx%d' % (wa, ha, wb, hb)
+    total = 0
+    count = 0
+    xs = []
+    ys = []
+    for y in range(ha):
+        ra = a[y]
+        rb = b[y]
+        for x in range(wa):
+            pa = flatten(ra[x])
+            pb = flatten(rb[x])
+            d0 = abs(pa[0] - pb[0])
+            d1 = abs(pa[1] - pb[1])
+            d2 = abs(pa[2] - pb[2])
+            total += d0 + d1 + d2
+            if max(d0, d1, d2) > COMPARE_PIXEL_DIFF:
+                count += 1
+                xs.append(x)
+                ys.append(y)
+    pixels = float(max(1, wa * ha))
+    box = '%d,%d-%d,%d' % (min(xs), min(ys), max(xs), max(ys)) if xs else '-'
+    return total / (3 * pixels), count / pixels, box, None
+
+
+def _matches(name, patterns):
+    import fnmatch
+    return any(fnmatch.fnmatchcase(name, p) for p in patterns)
+
+
+def compare(folder_a, folder_b, only=None, exclude=None, rename=None, info_keys=None, label=None):
+    """Compares the images of folder_a with those of folder_b; see the
+    module's description."""
+    report = Report('compare', label or 'compare')
+    only = only or []
+    exclude = list(exclude or []) + list(COMPARE_NEVER)
+    old_prefix, new_prefix = None, None
+    if rename:
+        old_prefix, new_prefix = rename.split('=', 1)
+    try:
+        names = sorted(n for n in os.listdir(folder_a) if n.lower().endswith('.png'))
+    except (IOError, OSError) as e:
+        report.check('images', False, 'cannot list %s: %s' % (folder_a, e))
+        names = []
+    names = [n for n in names if (not only or _matches(n, only)) and not _matches(n, exclude)]
+    if not names:
+        report.check('images', False, 'no images in %s match %s' % (folder_a, ', '.join(only) or '*'))
+    for name in names:
+        other = name
+        if old_prefix is not None and name.startswith(old_prefix):
+            other = new_prefix + name[len(old_prefix):]
+        path_a = os.path.join(folder_a, name)
+        path_b = os.path.join(folder_b, other)
+        title = name if other == name else '%s=%s' % (name, other)
+        if not os.path.exists(path_b):
+            report.check(title, False, '%s has no %s to compare with' % (folder_b, other))
+            continue
+        try:
+            mean, share, box, error = compare_images(path_a, path_b)
+        except (IOError, OSError, PNGError, zlib.error) as e:
+            report.check(title, False, 'cannot read the images: %s' % e)
+            continue
+        if error:
+            report.check(title, False, error)
+            continue
+        ok = mean <= COMPARE_MAX_MEAN and share <= COMPARE_MAX_SHARE
+        report.check(title, ok, 'mean difference %.3f (at most %.1f), %.3f%% of the pixels differ by more than %d '
+                     '(at most %.1f%%)%s' % (mean, COMPARE_MAX_MEAN, 100 * share, COMPARE_PIXEL_DIFF,
+                                             100 * COMPARE_MAX_SHARE, '' if ok else ', at %s' % box))
+    if info_keys:
+        try:
+            info_a, _ = read_manifest(folder_a)
+            info_b, _ = read_manifest(folder_b)
+        except (IOError, OSError) as e:
+            report.check('info', False, 'cannot read render.txt: %s' % e)
+            info_a, info_b = None, None
+        if info_a is not None:
+            for key in info_keys:
+                va = info_a.get(key)
+                vb = info_b.get(key)
+                report.check('INFO ' + key, va is not None and va == vb, '"%s" and "%s"' % (va, vb))
     print('SUMMARY passed=%d failed=%d' % (report.passed, report.failed))
     return min(report.failed, 100)
 
@@ -876,6 +1267,105 @@ def _scrollbar(track, thumb, glyph):
     return rows
 
 
+def _box(background, ring, inside, size=13, width=30, height=24):
+    """A checkbox-like square: a one-pixel ring, filled inside, on background."""
+    rows = [[background] * width for _ in range(height)]
+    x0, y0 = 8, 5
+    for y in range(size):
+        for x in range(size):
+            edge = y in (0, size - 1) or x in (0, size - 1)
+            rows[y0 + y][x0 + x] = ring if edge else inside
+    return rows
+
+
+def _solid(colour, width=40, height=20):
+    return [[colour] * width for _ in range(height)]
+
+
+# Expectations of the self-test's synthetic shots (see EXPECT)
+SELF_TEST_EXPECT = {
+    'st-black-on-white': {'*': [('contrast', 7.0), ('text_max_l', 60)]},
+    'st-white-on-white': {'*': [('contrast', 4.5)]},
+    'st-grey-on-white': {'*': [('contrast', 4.5)]},
+    'st-red': {'*': [('text_red',)]},
+    'st-black-not-red': {'*': [('text_red',)]},
+    'st-caption': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    'st-caption-black': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    'st-box-light': {'*': [('interior_min_l', 200)]},
+    'st-box-dark': {'*': [('interior_min_l', 200)]},
+    'st-face-light': {'*': [('face_median_min_l', 180)]},
+    'st-face-dark': {'*': [('face_median_min_l', 180)]},
+    'st-region-32': {'*': [('region_near_l', 32, 8)]},
+    'st-region-240': {'*': [('region_near_l', 32, 8)]},
+}
+
+
+def _self_test_compare(folder):
+    """The comparison of two runs on synthetic images; returns the failures."""
+    failures = []
+    a = os.path.join(folder, 'compare-a')
+    b = os.path.join(folder, 'compare-b')
+    for d in (a, b):
+        if not os.path.isdir(d):
+            os.makedirs(d)
+    base = _render((240, 240, 240), [((0, 0, 0), 0, 0)])
+    write_png(os.path.join(a, 'same.png'), base)
+    write_png(os.path.join(b, 'same.png'), base)
+    # One pixel off by 20 of 64x22: 0.07%, and a tiny mean
+    near = [list(r) for r in base]
+    near[3][3] = (220, 220, 220)
+    write_png(os.path.join(a, 'near.png'), base)
+    write_png(os.path.join(b, 'near.png'), near)
+    # The label in another colour: every text pixel differs
+    write_png(os.path.join(a, 'other.png'), base)
+    write_png(os.path.join(b, 'other.png'), _render((240, 240, 240), [((255, 255, 255), 0, 0)]))
+    # A dark card where the other run has a light one
+    write_png(os.path.join(a, 'card.png'), _solid((32, 32, 32)))
+    write_png(os.path.join(b, 'card.png'), _solid((240, 240, 240)))
+    # Different sizes, and an image the other run does not have
+    write_png(os.path.join(a, 'size.png'), _solid((240, 240, 240), 40, 20))
+    write_png(os.path.join(b, 'size.png'), _solid((240, 240, 240), 41, 20))
+    write_png(os.path.join(a, 'alone.png'), base)
+    # Renamed: s8-dark-x in A against s2-x in B
+    write_png(os.path.join(a, 's8-dark-x.png'), base)
+    write_png(os.path.join(b, 's2-x.png'), base)
+    # A desktop snapshot is never compared
+    write_png(os.path.join(a, 'screen.png'), _solid((1, 2, 3)))
+    write_png(os.path.join(b, 'screen.png'), _solid((200, 100, 0)))
+    for d, pen in ((a, '0,0,0'), (b, '255,255,255')):
+        with open(os.path.join(d, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write('INFO\tbrushColor\t240,240,240\n')
+            f.write('INFO\tpenColor\t%s\n' % pen)
+            f.write('INFO\tdone\ttrue\n')
+
+    import io
+    saved = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    try:
+        compare(a, b, exclude=['s8-*'], info_keys=['brushColor', 'penColor'])
+        compare(a, b, only=['s8-dark-*'], rename='s8-dark-=s2-')
+    finally:
+        sys.stdout = saved
+    output = buffer.getvalue()
+    print('--- self-test, compare')
+    print(output, end='')
+    results = {}
+    for line in output.splitlines():
+        if line.startswith(('PASS ', 'FAIL ')):
+            check = line.split(' ', 2)[2].split(':', 1)[0]
+            results[check] = line.startswith('PASS')
+    wanted = [('same.png', True), ('near.png', True), ('other.png', False), ('card.png', False),
+              ('size.png', False), ('alone.png', False), ('s8-dark-x.png=s2-x.png', True),
+              ('INFO brushColor', True), ('INFO penColor', False)]
+    for check, passed in wanted:
+        if results.get(check) is not passed:
+            failures.append('compare %s: expected %s, got %s' % (
+                check, 'PASS' if passed else 'FAIL', {True: 'PASS', False: 'FAIL', None: 'no result'}[results.get(check)]))
+    if 'screen.png' in results:
+        failures.append('compare screen.png: compared, but a desktop snapshot must never be')
+    return len(wanted), failures
+
+
 def self_test(folder):
     import shutil
     import tempfile
@@ -922,9 +1412,36 @@ def self_test(folder):
             write_png(os.path.join(path, 'track-dark.png'),
                       _scrollbar((43, 43, 43), (110, 110, 110), (154, 154, 154)))
             write_png(os.path.join(path, 'blank.png'), [[background] * 17 for _ in range(100)])
+            # The appearance scenarios: text on the owner's white fields, a
+            # checkbox's box and a push face on a white panel, a card region
+            white = (255, 255, 255)
+            write_png(os.path.join(path, 'st-bare.png'), _render(white, []))
+            write_png(os.path.join(path, 'st-black-on-white.png'), _render(white, [((0, 0, 0), 0, 0)]))
+            write_png(os.path.join(path, 'st-white-on-white.png'), _render(white, [(white, 0, 0)]))
+            write_png(os.path.join(path, 'st-grey-on-white.png'), _render(white, [((200, 200, 200), 0, 0)]))
+            write_png(os.path.join(path, 'st-red.png'), _render(white, [((230, 20, 20), 0, 0)]))
+            write_png(os.path.join(path, 'st-caption.png'), _render(white, [((138, 146, 158), 0, 0)]))
+            write_png(os.path.join(path, 'st-box-bare.png'), _solid(white, 30, 24))
+            write_png(os.path.join(path, 'st-box-light.png'), _box(white, (51, 51, 51), (250, 250, 250)))
+            write_png(os.path.join(path, 'st-box-dark.png'), _box(white, (154, 154, 154), (32, 32, 32)))
+            write_png(os.path.join(path, 'st-face-light.png'), _box(white, (173, 173, 173), (225, 225, 225), 18))
+            write_png(os.path.join(path, 'st-face-dark.png'), _box(white, (110, 110, 110), (55, 55, 55), 18))
+            write_png(os.path.join(path, 'st-region-32.png'), _solid((32, 32, 32)))
+            write_png(os.path.join(path, 'st-region-240.png'), _solid((240, 240, 240)))
             with open(os.path.join(path, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
                 f.write('INFO\tlookAndFeel\tAppearance Manager\n')
                 f.write('INFO\tsystemAppearance\t%s\n' % mode)
+                f.write('INFO\thasAppAppearance\ttrue\n')
+                f.write('INFO\tappAppearanceAtStart\tlight\n')
+                f.write('INFO\teffectiveAppAppearance\t%s\n' % mode)
+                for shot in ('st-black-on-white', 'st-white-on-white', 'st-grey-on-white', 'st-red', 'st-caption'):
+                    f.write('SHOT\ttext\t%s\t%s.png\tst-bare.png\n' % (shot, shot))
+                f.write('SHOT\ttext\tst-black-not-red\tst-black-on-white.png\tst-bare.png\n')
+                f.write('SHOT\ttext\tst-caption-black\tst-black-on-white.png\tst-bare.png\n')
+                for shot in ('st-box-light', 'st-box-dark', 'st-face-light', 'st-face-dark'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-box-bare.png\n' % (shot, shot))
+                f.write('SHOT\tregion\tst-region-32\tst-region-32.png\t5,5,20,10\n')
+                f.write('SHOT\tregion\tst-region-240\tst-region-240.png\t5,5,20,10\n')
                 f.write('SHOT\tlabel\tflat\tflat.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tdouble\tdouble.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tengraved\tengraved.png\tnone.png\n')
@@ -940,10 +1457,14 @@ def self_test(folder):
             import io
             saved = sys.stdout
             sys.stdout = buffer = io.StringIO()
+            saved_expect = dict(EXPECT)
+            EXPECT.update(SELF_TEST_EXPECT)
             try:
                 run(mode, path)
             finally:
                 sys.stdout = saved
+                EXPECT.clear()
+                EXPECT.update(saved_expect)
             output = buffer.getvalue()
             print(output, end='')
             results = {}
@@ -979,6 +1500,28 @@ def self_test(folder):
             expect('track-light thumb', mode == 'light')
             expect('track-dark thumb', True)
             expect('blank thumb', False)
+            # The appearance
+            expect('system appearance', True)
+            expect('appAppearance default', True)
+            expect('effective appAppearance', True)
+            expect('st-black-on-white contrast', True)
+            expect('st-black-on-white colour', True)
+            expect('st-white-on-white drawn', False)
+            expect('st-grey-on-white contrast', False)
+            expect('st-red colour', True)
+            expect('st-black-not-red colour', False)
+            expect('st-caption colour', True)
+            expect('st-caption-black colour', False)
+            expect('st-box-light inside', True)
+            expect('st-box-dark inside', False)
+            expect('st-face-light face', True)
+            expect('st-face-dark face', False)
+            expect('st-region-32 colour', True)
+            expect('st-region-240 colour', False)
+
+        count, compare_failures = _self_test_compare(folder)
+        expectations.extend([('compare', None, None)] * count)
+        failures.extend(compare_failures)
     finally:
         if temporary:
             shutil.rmtree(folder, ignore_errors=True)
@@ -991,17 +1534,30 @@ def self_test(folder):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    parser.add_argument('--mode', choices=('dark', 'light'))
+    parser.add_argument('--mode', choices=('dark', 'light'),
+                        help='the appearance the run draws stacks that set none in (the effective appAppearance)')
+    parser.add_argument('--system', choices=('dark', 'light'),
+                        help='the Windows setting of the run (the systemAppearance); default: --mode')
+    parser.add_argument('--label', help='what to call the run in the output; default: --mode')
     parser.add_argument('--dir', help='folder with render.txt and the PNG files')
+    parser.add_argument('--compare', nargs=2, metavar=('A', 'B'),
+                        help='compare the images of folder A with those of folder B')
+    parser.add_argument('--only', action='append', default=[], help='with --compare: images to compare (glob)')
+    parser.add_argument('--exclude', action='append', default=[], help='with --compare: images to leave out (glob)')
+    parser.add_argument('--rename', help='with --compare: OLD=NEW, a prefix of names in A and its name in B')
+    parser.add_argument('--info', action='append', default=[], help='with --compare: an INFO value to compare')
     parser.add_argument('--self-test', action='store_true',
                         help='check the checks on synthetic images, flat and engraved')
     parser.add_argument('--keep', help='with --self-test: write the synthetic images to this folder')
     args = parser.parse_args(argv)
     if args.self_test:
         return self_test(args.keep)
+    if args.compare:
+        return compare(args.compare[0], args.compare[1], args.only, args.exclude, args.rename, args.info,
+                       args.label)
     if not args.mode or not args.dir:
-        parser.error('--mode and --dir are required (or --self-test)')
-    return run(args.mode, args.dir)
+        parser.error('--mode and --dir are required (or --compare, or --self-test)')
+    return run(args.mode, args.dir, args.system, args.label)
 
 
 if __name__ == '__main__':
