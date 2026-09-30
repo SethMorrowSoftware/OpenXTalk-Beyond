@@ -34,10 +34,13 @@
 # maintainers sees and the update check ignores, so the version is not
 # burned. Fix the cause and re-run the failed jobs of the same run; the
 # publish job then reuses the draft (its notes stay as they are, the files
-# are uploaded again). A tag whose release is published already is never
-# changed: prepare and publish both stop with an error. Nor does publish
-# release a tag that no longer points at the commit this run built (a tag
-# moved while the run built, or before a re-run of it).
+# are uploaded again). The notes of a reused draft must still name this
+# run's commit ("from commit <sha>"), so an edit of them must keep that
+# line; a draft made from another commit (by a run before the tag was
+# moved) is refused, not published. A tag whose release is published
+# already is never changed: prepare and publish both stop with an error.
+# Nor does publish release a tag that no longer points at the commit this
+# run built (a tag moved while the run built, or before a re-run of it).
 #
 # The release is named "OXT-Beyond <version>" and marked as a pre-release
 # when the version has a pre-release part (anything after a "-", such as
@@ -353,6 +356,17 @@ jobs:
             exit 1
           elif [ "$count" = 1 ]; then
             id=$drafts
+            # Only a draft of this commit is reused: a draft left by a run
+            # before the tag was moved names another commit and carries
+            # that run's notes and generated list of changes, which would
+            # go public with this commit's files. The notes are not
+            # rewritten instead, which would discard a maintainer's edits.
+            body=$(gh api "repos/$GH_REPO/releases/$id" --jq .body)
+            # here-string, not a pipe (see the pipefail note above)
+            if ! grep -qF "from commit $GITHUB_SHA" <<< "$body"; then
+              echo "::error::The draft release $id of $TAG was not made from this run's commit $GITHUB_SHA (an earlier run, before the tag was moved?). Delete it on the Releases page and re-run this job; nothing was changed."
+              exit 1
+            fi
             echo "Reusing the draft release $id of $TAG, which an earlier attempt left; its title and notes stay as they are"
           else
             prerelease_flag=()

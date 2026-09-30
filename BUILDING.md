@@ -1628,17 +1628,23 @@ not burned.
   run and choose *Re-run failed jobs*. The publish job then reuses the
   draft of the tag, if there is one: its title and notes stay as they
   are (edit them on the Releases page if you like), the files are
-  uploaded again, and it is published when everything is in.
+  uploaded again, and it is published when everything is in. The draft
+  must still name the run's commit: an edit of its notes must keep the
+  line `Made by the "Release" workflow ... from commit <sha>`. A draft
+  made from another commit (left by a run before the tag was moved) is
+  refused, not published: delete it and re-run the job.
 - **A problem in the code:** delete the draft, if there is one (on the
-  Releases page), fix the problem on `main` through a pull request, and
-  release the fixed commit. Since nothing was published, you may delete
-  the tag and tag the fixed commit with the same version
-  (`git tag -d v0.1.0` and `git push origin :refs/tags/v0.1.0`, then
-  steps 5 and 6), or tag a new version. Before you delete and push the
-  tag again, cancel the old tag's run if it is still running (or let it
-  finish), and never re-run that old run afterwards: it still builds the
-  old commit, and its publish job refuses a tag that no longer points at
-  the commit it built.
+  Releases page; a new run's publish job refuses a draft of the old
+  commit rather than publish its notes), fix the problem on `main`
+  through a pull request, and release the fixed commit. Since nothing
+  was published, you may delete the tag and tag the fixed commit with
+  the same version (`git tag -d v0.1.0` and
+  `git push origin :refs/tags/v0.1.0`, then steps 5 and 6), or tag a
+  new version. Before you delete and push the tag again, cancel the old
+  tag's run if it is still running (or let it finish), and never re-run
+  that old run afterwards: it still builds the old commit, and its
+  publish job refuses a tag that no longer points at the commit it
+  built.
 
 A release that is published is final: `release.yml` never changes or
 replaces it (prepare and publish both stop with an error for a tag that
