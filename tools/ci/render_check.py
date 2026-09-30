@@ -249,6 +249,9 @@ EXPECT = {
     's2-push': {'*': [('contrast', 4.5)]},
     's2-line': {'dark': [('face_far_min_l', 200)], 'light': [('face_far_max_l', 60)]},
     's2-card': {'dark': [('region_near_l', 32, 8)], 'light': [('region_near_l', 240, 8)]},
+    # A checkbox with no colours on a white panel, its rect 4 px past the
+    # panel's edge: it takes the panel it mostly covers, not the card
+    's2-panel-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
     # S3, a card of 30,30,30: white text in the dark appearance
     's3-text': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('record',)]},
     # S4, black text of a field's own and no background: a light fill

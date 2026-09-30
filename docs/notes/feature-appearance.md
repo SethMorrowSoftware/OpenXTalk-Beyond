@@ -58,7 +58,9 @@ Scripts that must also run on older engines can test for the property:
 Where a stack is drawn dark, the engine fits each object's unset colors and
 native parts to the explicit colors the author set around it: the object's
 own fill, its own text color on a default fill, and the panel, image, group
-or card it sits on. A light-designed stack keeps its light look (black text
+or card it sits on (a panel counts when it is under at least half of the
+object, so a checkbox that overhangs its panel still fits it). A
+light-designed stack keeps its light look (black text
 in its white fields, black checkbox labels, light native buttons and
 scrollbars), and a stack that sets no colors is drawn dark. When the engine
 cannot tell, it uses light. In the light appearance nothing is fitted: every

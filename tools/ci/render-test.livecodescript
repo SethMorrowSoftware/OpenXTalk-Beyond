@@ -29,7 +29,9 @@ script "oxt_render_test"
 --           scrolling fields with no text colour, checkboxes and push
 --           buttons with no colours. It must look as designed, light, in
 --           every run
---    s2-*   a stack that sets no colours: dark in the dark appearance
+--    s2-*   a stack that sets no colours: dark in the dark appearance; and a
+--           white panel with a checkbox that overhangs its edge, whose
+--           label stays dark
 --    s3-*   a card of 30,30,30 and nothing else
 --    s4-*   fields with black text of their own and no background colour; an
 --           opaque checkbox with a white background of its own; checkboxes
@@ -650,7 +652,8 @@ end renderOwnerPattern
 
 -- S2 (and the S8 copies): a stack that sets no colours: a field with a
 -- border and text, a transparent label, a checkbox, a push button and a
--- line. In the dark appearance it is dark. pAppearance, when given, is the
+-- line. In the dark appearance it is dark. The one colour it sets is a
+-- white panel, with a checkbox on it. pAppearance, when given, is the
 -- stack's stackAppearance (S8), set before anything is created in it.
 private command renderUnstyled pPrefix, pAppearance
    local tStack, tObject, tRect, tValue
@@ -696,6 +699,19 @@ private command renderUnstyled pPrefix, pAppearance
    set the lineSize of tObject to 3
    set the points of tObject to "20,150" & return & "360,150"
    shootFace tStack, tObject, pPrefix & "-line", "10,140,370,160"
+
+   -- A white panel, and on it a checkbox with no colours whose rect
+   -- overhangs the panel's right edge by 4 pixels: it still takes the
+   -- panel's colours (its label is dark in every run)
+   create graphic "panel"
+   put it into tObject
+   set the style of tObject to "rectangle"
+   set the opaque of tObject to true
+   set the lineSize of tObject to 0
+   set the backColor of tObject to "255,255,255"
+   set the rect of tObject to 20,180,200,240
+   put newButton("panelCheck", "checkbox", "30,196,204,224", "Overhang") into tObject
+   shootName tStack, tObject, pPrefix & "-panel-check"
 
    -- The card, away from every control
    shootRegion tStack, "300,200,400,300", pPrefix & "-card", "20,20,60,60"

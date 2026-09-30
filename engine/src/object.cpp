@@ -1572,9 +1572,45 @@ static bool MCAppearanceRectContains(const MCRectangle& p_outer, const MCRectang
 		p_outer . y + p_outer . height >= p_inner . y + p_inner . height;
 }
 
+// Whether p_control, below a control whose rect is p_rect, is what that
+// control is drawn on: it is visible, and it covers the whole control (an
+// image, or a control that paints its own background), or it paints its own
+// background under at least half of it. A label or checkbox often overhangs
+// the panel it sits on by a few pixels (its rect is wider than its text), and
+// must still take the panel's colours. An image must cover it whole, so that
+// an icon under part of a dark label does not turn it light.
+static bool MCAppearanceIsBackdrop(MCControl *p_control, const MCRectangle& p_rect)
+{
+	if (!p_control -> isvisible(false))
+		return false;
+
+	bool t_image;
+	t_image = p_control -> gettype() == CT_IMAGE;
+	if (!t_image && !p_control -> paintsownbackground())
+		return false;
+
+	MCRectangle t_under;
+	t_under = p_control -> getrect();
+	if (MCAppearanceRectContains(t_under, p_rect))
+		return true;
+	if (t_image)
+		return false;
+
+	uint64_t t_area;
+	t_area = uint64_t(p_rect . width) * p_rect . height;
+	if (t_area == 0)
+		return false;
+	MCRectangle t_common;
+	t_common = MCU_intersect_rect(t_under, p_rect);
+	return uint64_t(t_common . width) * t_common . height * 2 >= t_area;
+}
+
 // What a control is drawn on inside its group or card: the nearest control
-// below it that is visible, covers the whole control and either paints its
-// own background or is an image. It looks at up to 256 controls below it.
+// below it that is visible and either covers the whole control and paints
+// its own background or is an image, or paints its own background under at
+// least half of it (MCAppearanceIsBackdrop). The nearest one wins, so a
+// panel mostly under a label beats a card-sized graphic further down. It
+// looks at up to 256 controls below it.
 //
 // This runs for every colour a control looks up while it is drawn dark, so
 // finding the control's own place among its card's layers must not walk
@@ -1634,9 +1670,7 @@ MCObject *MCObject::appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place)
 			t_ptr = t_ptr -> prev();
 			MCControl *t_control;
 			t_control = t_ptr -> getref();
-			if (t_control != nil && t_control -> isvisible(false) &&
-				MCAppearanceRectContains(t_control -> getrect(), t_rect) &&
-				(t_control -> gettype() == CT_IMAGE || t_control -> paintsownbackground()))
+			if (t_control != nil && MCAppearanceIsBackdrop(t_control, t_rect))
 			{
 				// Its place is only good on this card's layers: a shared
 				// group's parent can be another card
@@ -1656,9 +1690,7 @@ MCObject *MCObject::appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place)
 		for (MCControl *t_control = t_self; t_control != t_first && t_count < 256; t_count++)
 		{
 			t_control = t_control -> prev();
-			if (t_control -> isvisible(false) &&
-				MCAppearanceRectContains(t_control -> getrect(), t_rect) &&
-				(t_control -> gettype() == CT_IMAGE || t_control -> paintsownbackground()))
+			if (MCAppearanceIsBackdrop(t_control, t_rect))
 				return t_control;
 		}
 	}
