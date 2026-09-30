@@ -90,6 +90,16 @@ if [ ! -f "$engine" ] || [ ! -x "$engine" ]; then
     tell "OXT-Beyond: the engine $engine is missing or not executable. Extract the whole package (tar -xJf OXT-Beyond-<version>-linux-x86_64.tar.xz) and start oxt-beyond from its folder."
     exit 1
 fi
+# The engine OXT-Beyond and this launcher oxt-beyond differ only in case. On
+# a file system that does not tell the two apart, tar writes the launcher
+# (listed after the engine) over the engine, and $engine is then this very
+# file: exec would start the launcher again and again, silently, for ever.
+# ($self is this file with its links followed. A test without -ef returns
+# false, and the launcher goes on as before.)
+if [ "$engine" -ef "$self" ]; then
+    tell "OXT-Beyond: $engine is this launcher, not the engine: the folder $here does not tell upper from lower case (FAT, exFAT or a Windows drive), so extracting the package there replaced the engine OXT-Beyond with the launcher oxt-beyond. Extract it onto a Linux file system (ext4, Btrfs, XFS)."
+    exit 1
+fi
 
 # A folder named like a build output makes the engine run the IDE of the
 # source checkout above it instead of this one (repository mode; see

@@ -40,7 +40,11 @@ a library no system has:
   5. a missing "browser" library: the engine runs with LIVECODE_USE_CEF=0
      and the launcher names the library;
   6. LIVECODE_USE_CEF set by the user: kept;
-  7. no Externals/CEF/libcef.so (a package without CEF): LIVECODE_USE_CEF=0.
+  7. no Externals/CEF/libcef.so (a package without CEF): LIVECODE_USE_CEF=0;
+  8. an engine that is not executable: an error that names it;
+  9. an engine that is the launcher itself (what extracting onto a folder
+     that does not tell upper from lower case leaves): an error, not a
+     launcher that starts itself again and again.
 The package's own list must pass on this machine (case 1), so run it where
 the list's packages are installed.
 
@@ -251,6 +255,18 @@ def test_launcher(c, root, work):
     code, out = run([link], env=base_env())
     c.check('launcher: an engine that is not executable is an error that names it',
             code != 0 and 'OXT-Beyond' in out and 'ENGINE RAN' not in out, 'exit %d, output:\n%s' % (code, out))
+
+    # On FAT, exFAT or a Windows drive, tar writes the launcher oxt-beyond
+    # over the engine OXT-Beyond, extracted just before it: the engine's
+    # path is then the launcher, which would exec itself for ever
+    os.remove(engine)
+    os.link(launcher, engine)
+    try:
+        code, out = run([link], env=base_env(), timeout=30)
+    except subprocess.TimeoutExpired:
+        code, out = -1, 'still running after 30 s: the launcher starts itself again and again'
+    c.check('launcher: an engine that is the launcher itself (a case-insensitive folder) is an error, not a loop',
+            code == 1 and 'upper from lower case' in out, 'exit %d, output:\n%s' % (code, out))
 
 
 # ---------------------------------------------------------------------------
