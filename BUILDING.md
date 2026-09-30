@@ -1085,10 +1085,11 @@ rest is checked in a second run. Errors that occur on one platform only
 are listed in `tools/ci/ide-compile-baseline-<windows|linux|mac>.txt`
 next to the shared baseline, which the Python check adds on that
 platform (`--update-baseline` leaves them out of the shared file). The
-Linux file lists `Plugins/Quick Dictionary.livecode`: the Linux engine
-crashes loading any stack file whose main stack has `textFont (System)`
-and a substack when it runs without a user interface (the `(System)`
-font has no name there, see the file).
+Linux file has no entries at present: it listed
+`Plugins/Quick Dictionary.livecode` while the Linux engine crashed on a
+stack whose `textFont` is `(System)` without a user interface (the GTK
+theme gives that font no family there; the engine now falls back to its
+default family).
 
 ### Installer
 
