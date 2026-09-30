@@ -569,8 +569,9 @@ dependencies from
 [`tools/ci/check_native_deps.py`](tools/ci/check_native_deps.py), which
 reads ELF, Mach-O and PE files itself (no readelf, otool or dumpbin): a
 library that needs something that is neither a system library nor next
-to it (on Linux: next to it with an `$ORIGIN` run path; on macOS:
-`@loader_path`) fails. `--package` extracts to a neutral temporary folder,
+to it (on Linux: next to it with a run path of `$ORIGIN` itself, not
+`$ORIGIN/lib`; on macOS: `@loader_path`, and a `.bundle` or `.framework`
+folder is checked through its Mach-O) fails. `--package` extracts to a neutral temporary folder,
 keeping modes and symbolic links; an installed layout in a folder named
 `_build` or `*-bin` is refused, because the engine would run the IDE of
 the checkout (repository mode). No X display is needed: `-ui` starts no

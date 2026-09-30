@@ -34,14 +34,17 @@ this machine's) is read, and each library it needs must be
            loads extension libraries with LOAD_WITH_ALTERED_SEARCH_PATH);
   Linux    a library of the base system (LINUX_SYSTEM: glibc, libstdc++,
            libgcc_s, zlib, OpenSSL), or a file in the same folder that the
-           loader will look for there: the library must have $ORIGIN in
-           its DT_RUNPATH or DT_RPATH, since dlopen does not search the
-           folder of the library that needs another;
+           loader will look for there: the library must have $ORIGIN
+           itself (not $ORIGIN/lib) in its DT_RUNPATH or DT_RPATH, since
+           dlopen does not search the folder of the library that needs
+           another;
   macOS    in /usr/lib or /System/Library, or @loader_path/<file> (or
            @rpath/<file> with an LC_RPATH that is @loader_path) with the
            file in the same folder. @executable_path is the engine's
            folder, not the extension's, and anything else (/usr/local,
-           /opt/homebrew) is not on a user's Mac.
+           /opt/homebrew) is not on a user's Mac. A .bundle or .framework
+           folder (the IDE maps folders too) is checked through its
+           Mach-O, Contents/MacOS/<name> or <name>, and fails without one.
 
 It also checks that each library is built for its folder: code/x86_64-*
 must hold x86_64 code, x86-* x86 (i386), arm64-* arm64, and universal-*
@@ -142,18 +145,30 @@ def check_pe(path, folder, present):
     return [arch], needs, missing, problems, {}
 
 
+def _is_origin(rpath):
+    """True for a run path that is the library's own folder: $ORIGIN or
+    ${ORIGIN}, alone or with / or /. after it. $ORIGIN/lib is a subfolder
+    that the loader searches instead, so it does not find a file next to
+    the library (the Mach-O check likewise takes only @loader_path)."""
+    for token in ('$ORIGIN', '${ORIGIN}'):
+        if rpath.startswith(token):
+            rest = rpath[len(token):]
+            return rest == '' or (rest.startswith('/') and posixpath.normpath('.' + rest) == '.')
+    return False
+
+
 def check_elf(path, folder, present):
     b = binfmt.parse(path)
     problems, missing = [], []
-    origin = any(r.startswith('$ORIGIN') or r.startswith('${ORIGIN}') for r in b.rpaths)
+    origin = any(_is_origin(r) for r in b.rpaths)
     for lib in b.needed:
         if LINUX_SYSTEM_RX.match(lib):
             continue
         if lib in present:
             if not origin:
                 missing.append(lib)
-                problems.append('%s is next to it, but it has no $ORIGIN run path, so the loader does not look '
-                                'there' % lib)
+                problems.append('%s is next to it, but no run path is $ORIGIN itself, so the loader does not '
+                                'look there' % lib)
             continue
         missing.append(lib)
     expected = _folder_archs(folder)
@@ -213,6 +228,18 @@ def _is_library(family, path, name):
     return name.lower().endswith(SUFFIXES[family])
 
 
+def _bundle_binary(path):
+    """The Mach-O of a .bundle or .framework folder, named like the folder
+    (as Xcode names it): Contents/MacOS/<name>, or <name> (a framework's
+    link into Versions/Current); None when there is none."""
+    base = os.path.splitext(os.path.basename(path))[0]
+    for parts in (('Contents', 'MacOS', base), (base,), ('Versions', 'Current', base)):
+        p = os.path.join(path, *parts)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
 def check_layout(root, families, max_glibc=None, max_macos=None):
     """[result dict] for every library of the families in root/Extensions."""
     results = []
@@ -232,14 +259,30 @@ def check_layout(root, families, max_glibc=None, max_macos=None):
             present = {n.lower() for n in names} if fam == 'windows' else set(names)
             for name in names:
                 path = os.path.join(fdir, name)
-                if os.path.isdir(path) or not _is_library(fam, path, name):
+                here = present
+                if os.path.isdir(path):
+                    # The IDE maps folders as well as files, and the Mac
+                    # engine loads a .bundle or .framework folder: check the
+                    # Mach-O in it, whose @loader_path is its own folder, and
+                    # fail one without it rather than pass it unread
+                    if fam != 'mac' or not name.endswith(('.bundle', '.framework')):
+                        continue
+                    inner = _bundle_binary(path)
+                    if inner:
+                        path = inner
+                        here = set(n for n in os.listdir(os.path.dirname(inner)) if not n.startswith('.'))
+                elif not _is_library(fam, path, name):
                     continue
                 rel = os.path.relpath(path, root).replace(os.sep, '/')
                 r = dict(path=rel, extension=ext, folder=folder, format={'windows': 'pe', 'linux': 'elf',
                                                                          'mac': 'macho'}[fam],
                          archs=[], needs=[], missing=[], problems=[], floors={})
+                if os.path.isdir(path):
+                    r['problems'].append('no Mach-O at Contents/MacOS/<name> or <name>, so it is not checked')
+                    results.append(r)
+                    continue
                 try:
-                    archs, needs, missing, problems, floors = CHECKERS[fam](path, folder, present)
+                    archs, needs, missing, problems, floors = CHECKERS[fam](path, folder, here)
                 except (binfmt.FormatError, xtalk_extensions.XtalkError, OSError) as e:
                     r['problems'].append('cannot read it: %s' % e)
                     results.append(r)
