@@ -387,6 +387,24 @@ disagree, the layout follows the IDE:
 * **Linux engine name:** `OXT-Beyond`, not `package.txt`'s
   `OXT-Beyond.x86_64` (one architecture per package, started through a
   launcher script).
+* **Linux launcher, install scripts and desktop files** (origin
+  `desktop`, `LINUX_DESKTOP` in `package.py`; package.txt's
+  `Installer/application.desktop` is LiveCode's and names an icon the
+  package does not have): from `Installer/linux/`, with LF line endings,
+  `oxt-beyond` (the launcher), `install.sh` and `uninstall.sh` at the
+  root with mode 0755, and `linux/` with `libraries.txt` (the system
+  libraries the launcher checks and the CI installs),
+  `oxt-beyond.desktop` (its `StartupWMClass` filled in with the window
+  class the engine gives the IDE's windows, `livecodecommunity_` and
+  the engine version with `.` and `-` as `_`), `oxt-beyond.xml` (the
+  MIME types) and `icons/oxt-beyond-<n>.png`, the branding PNGs in the
+  sizes install.sh installs (16 to 512). The launcher checks the
+  libraries, sets `LIVECODE_USE_CEF=0` where the browser cannot load,
+  and execs the engine; `install.sh` installs the folder for one user
+  under `${XDG_DATA_HOME:-~/.local/share}/oxt-beyond` with a desktop
+  entry, icons, MIME types and `~/.local/bin/oxt-beyond`, and records
+  what it made for `uninstall.sh`. The scripts' own comments describe
+  them.
 
 | build output | installed path (Linux) | installed path (macOS, below `Contents/Tools` unless noted) |
 |---|---|---|
@@ -399,6 +417,7 @@ disagree, the layout follows the IDE:
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
 | standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
 | `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+| (from the repository) `Installer/linux/*`, branding PNGs | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | none |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,
 `server-*`, `Externals/CEF/chrome-sandbox` and `devtools_resources.pak`,
