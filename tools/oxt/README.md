@@ -541,7 +541,7 @@ keys stay):
 | `CFBundleIdentifier` | `io.github.sethmorrowsoftware.oxt-beyond` | OXT-Beyond's own, so that macOS keeps its preferences, document bindings and permissions apart from LiveCode's (`com.runrev.livecode`) |
 | `CFBundleName`, `CFBundleDisplayName` | `OXT-Beyond` | |
 | `CFBundleShortVersionString` | `ide/.version` | the version users see |
-| `CFBundleVersion` | its numeric part and the build number, `0.1.0.202609291200` | integers only, as macOS compares them; higher for every build, so LaunchServices prefers the newer of two copies |
+| `CFBundleVersion` | the build number, the UTC build time `202609291200` as `2026.929.1200` | at most three period-separated integers (Apple's rule); higher for every build, so LaunchServices prefers the newer of two copies |
 | `CFBundleGetInfoString`, `CFBundleLongVersionString` | OXT-Beyond's version, build number and the engine's version | |
 | `NSHumanReadableCopyright` | the OXT-Beyond contributors; OpenXTalk Lite by Terry Little, Tom Perry and the OpenXTalk contributors; LiveCode Community, © 2000-2020 LiveCode Ltd.; GPLv3 | as `about.dat` and the installer credit them |
 | `CFBundleIconFile` | `OXT-Beyond.icns` | made from `Installer/oxt-beyond/branding/png/` by `icns.py` |
