@@ -35,12 +35,14 @@ package and test OXT-Beyond for Windows. It is maintained by
 
 ## Status
 
-OXT-Beyond 0.0.1 is the first release of a young project. Please read
+OXT-Beyond 0.0.2 is an early release of a young project. Please read
 this before you download it.
 
-- **64-bit Windows only.** OXT-Beyond is built for Windows x86-64. There
-  are no OXT-Beyond builds for 32-bit Windows, macOS or Linux. The code
-  for those platforms is still in the tree, unmaintained.
+- **64-bit Windows only, for now.** OXT-Beyond is released for Windows
+  x86-64. The same engine now also builds for Linux (x86-64 and arm64)
+  and macOS (Apple Silicon and Intel) in CI, but it is not packaged for
+  those platforms yet; that is the next release. There are no builds for
+  32-bit Windows.
 - **Standalones for other platforms use prebuilt runtimes.** Only the
   Windows x86-64 engine, externals and tools are built from this
   repository. The standalone runtimes for 32-bit Windows, Linux and
@@ -131,7 +133,7 @@ To check a download, compare its SHA-256 with the line for it in
 `SHA256SUMS`, for example:
 
 ```bat
-certutil -hashfile OXT-Beyond-0.0.1-win-x86_64-setup.exe SHA256
+certutil -hashfile OXT-Beyond-<version>-win-x86_64-setup.exe SHA256
 ```
 
 ### With the installer
@@ -252,6 +254,19 @@ OXT-Beyond 0.0.1 adds:
   no longer used);
 - a Windows installer and a portable zip in the installed layout, with
   the standalone runtimes for other platforms.
+
+OXT-Beyond 0.0.2 adds:
+
+- the [xTalk Suite extensions](#xtalk-suite-extensions), built in and
+  taken from their own repositories at pinned versions;
+- a fix so that an extension you install yourself is loaded instead of
+  a built-in copy of the same extension (which copy won used to be
+  random);
+- from Tom Perry's macOS work: guards against a crash when a menu sends
+  a key press to a closed stack and against recursive menu bar updates,
+  and "semibold" as a text style name (the same as "demibold");
+- behind the scenes, the same engine building for Linux and macOS in
+  CI, on the way to packages for those platforms.
 
 ### xTalk Suite extensions
 
