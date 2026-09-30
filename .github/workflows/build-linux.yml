@@ -30,10 +30,41 @@
 # checkout's IDE with the new development engine
 # (tools/ci/run_livecode_check.py compile --repo-layout).
 #
+# The job "Package linux-x86_64" then makes the Linux package from the
+# x86_64 build's two artifacts, on a plain ubuntu-24.04 runner (whose glibc
+# and OpenSSL 3 load every bundled xTalk extension, which the build's
+# Ubuntu 20.04 container cannot), and uploads, as the artifact
+# OXT-Beyond-linux-x86_64:
+#
+#   OXT-Beyond-<ver>-linux-x86_64.tar.xz           the program folder
+#                                                  OXT-Beyond-<ver>, with
+#                                                  the launcher oxt-beyond
+#                                                  and install.sh
+#   OXT-Beyond-<ver>-linux-x86_64-binaries.tar.xz  linux-x86_64-bin without
+#                                                  the *.dbg files, plus the
+#                                                  licence files
+#   OXT-Beyond-<ver>-linux-x86_64-symbols.tar.xz   the *.dbg files
+#   SHA256SUMS
+#
+# (tools/oxt/package.py --platform linux-x86_64, tools/oxt/package_dist.py),
+# after testing the tarball as users get it, extracted to a neutral folder:
+# the headless smoke test (which loads and calls every bundled extension),
+# the IDE compile check run through the launcher, ldd and the launcher's
+# library list against every ELF file (tools/ci/check_linux_libraries.py),
+# desktop-file-validate, and the launcher, install.sh and uninstall.sh in
+# scratch home folders (tools/ci/test_linux_package.py). The runtime
+# libraries it installs for that are the Debian packages of
+# Installer/linux/libraries.txt, the list the launcher checks. The external
+# assets and xTalk extension files are cached as in build-windows.yml; a
+# manual run can leave them out (inputs below, or the repository variables
+# OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a tag build
+# never does. Linux arm64 is not packaged yet.
+#
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
 # build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
-# step ran, as YYYYMMDDHHMM.
+# step ran, as YYYYMMDDHHMM (the package job takes its own, when it starts
+# packaging).
 
 name: Build (Linux)
 
@@ -44,6 +75,20 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      no_external_assets:
+        description: >-
+          Package without the external assets of tools/oxt/external-assets.json
+          (no runtimes for other platforms), for testing while an asset is not
+          published yet
+        type: boolean
+        default: false
+      no_xtalk_extensions:
+        description: >-
+          Package without the xTalk Suite extensions of
+          tools/oxt/xtalk-extensions.json
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -71,6 +116,13 @@ jobs:
     container:
       image: ubuntu:20.04
     timeout-minutes: 330
+    # built-<arch> is "true" once that leg has passed every step (the last
+    # step sets it). The package job needs it because a matrix job fails as
+    # a whole when any leg fails; outputs with names of their own are
+    # combined from the legs.
+    outputs:
+      built-x86_64: ${{ steps.built.outputs.built-x86_64 }}
+      built-arm64: ${{ steps.built.outputs.built-arm64 }}
     env:
       DEBIAN_FRONTEND: noninteractive
       ARCH: ${{ matrix.arch }}
@@ -333,6 +385,12 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
             --log ide-compile-check.log
 
+      # The job output built-<arch> (see outputs above): only a leg that
+      # got here packages
+      - name: Record the finished build
+        id: built
+        run: echo "built-$ARCH=true" >> "$GITHUB_OUTPUT"
+
       # Paths in the workspace: in a container job runner.temp names the
       # host's folder, which the upload action does not see
       - name: Upload build logs
@@ -345,3 +403,236 @@ jobs:
             prebuilt/build/**/*.log
             ide-compile-check.log
           if-no-files-found: ignore
+
+  # The Linux x86_64 package, from the build's artifacts (see the header).
+  # It waits for both build legs (a job cannot need one leg of a matrix)
+  # but runs whenever the x86_64 one passed, so that a failed arm64 build
+  # does not hide the package (and always when the whole build passed,
+  # whatever the outputs say). On the runner itself, not in the build's
+  # container: tests need the ubuntu-24.04 system, the user a package
+  # would find there, and sudo for apt.
+  package:
+    name: Package linux-x86_64
+    needs: build
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # Not in a folder named *-bin or _build: nothing here should look
+      # like a build output folder (see "Extract the package" below)
+      - name: Download the build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-linux-x86_64-bin
+          path: ${{ runner.temp }}/ci-build
+
+      - name: Download the debug symbols
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-linux-x86_64-symbols
+          path: ${{ runner.temp }}/ci-symbols
+
+      # The runtime libraries the package needs, from the list the launcher
+      # checks (Installer/linux/libraries.txt: every "core", "gui" and
+      # "browser" library, so that the engine, the IDE's GUI libraries and
+      # CEF all resolve for ldd), and desktop-file-utils for
+      # desktop-file-validate and update-desktop-database. Ubuntu 24.04
+      # renamed some of the packages for the 64-bit time_t transition
+      # (libasound2t64, which apt does not find by its old name), so the
+      # name with "t64" is used where there is such a package, as the
+      # launcher's hint does.
+      - name: Install the runtime libraries and desktop tools
+        run: |
+          sudo apt-get update
+          pkgs=(desktop-file-utils shared-mime-info xz-utils)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          echo "Installing: ${pkgs[*]}"
+          # (sudo does not pass the job's environment on)
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          python3 --version
+          ldd --version | sed -n 1p
+
+      # The same caches as build-windows.yml (see there): the external
+      # assets' archives and the xTalk extensions' files. The cache version
+      # includes the runner's OS, so these entries are Linux's own.
+      - name: Restore cached external assets
+        id: assets-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/fetched-assets/*.zip
+          key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
+
+      - name: Restore cached xTalk extension files
+        id: xtalk-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
+
+      # Stages the program folder in $RUNNER_TEMP/stage/OXT-Beyond-<ver>
+      # (package.py --bin-tar extracts the build tarball itself, keeping
+      # modes and links) and writes the three archives and SHA256SUMS to
+      # dist/ (package_dist.py; the symbols come from the symbols artifact).
+      # The build number is the time packaging starts.
+      - name: Package
+        id: package
+        timeout-minutes: 45
+        env:
+          OXT_ASSETS_CACHE: ${{ github.workspace }}/prebuilt/fetched-assets
+          NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
+          NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-x86_64-bin.tar.xz
+          SYMBOLS_TAR: ${{ runner.temp }}/ci-symbols/OXT-Beyond-linux-x86_64-symbols.tar.xz
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          for f in "$BIN_TAR" "$SYMBOLS_TAR"; do
+            if [ ! -f "$f" ]; then echo "::error::$f is not in the downloaded artifact"; ls -laR "$RUNNER_TEMP"/ci-*; exit 1; fi
+          done
+          OXT_BUILD_NUMBER=$(date -u +%Y%m%d%H%M)
+          export OXT_BUILD_NUMBER
+          args=()
+          if [ "$NO_EXTERNAL_ASSETS" = true ]; then
+            echo "::warning title=Package::External assets left out (no_external_assets input or OXT_NO_EXTERNAL_ASSETS variable): the package has no standalone runtimes for other platforms."
+            args+=(--no-external-assets)
+          fi
+          if [ "$NO_XTALK_EXTENSIONS" = true ]; then
+            echo "::warning title=Package::xTalk Suite extensions left out (no_xtalk_extensions input or OXT_NO_XTALK_EXTENSIONS variable)."
+            args+=(--no-xtalk-extensions)
+          fi
+          python3 tools/oxt/package.py --platform linux-x86_64 --bin-tar "$BIN_TAR" \
+            --out "$RUNNER_TEMP/stage" --summary-json "$RUNNER_TEMP/stage-summary.json" "${args[@]}" \
+            2>&1 | tee "$RUNNER_TEMP/logs/package.log"
+          python3 tools/oxt/package_dist.py --summary "$RUNNER_TEMP/stage-summary.json" \
+            --bin-tar "$BIN_TAR" --symbols-tar "$SYMBOLS_TAR" --out dist \
+            2>&1 | tee -a "$RUNNER_TEMP/logs/package.log"
+
+      - name: Save external assets to the cache
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/fetched-assets/*.zip
+          key: ${{ steps.assets-cache.outputs.cache-primary-key }}
+
+      - name: Save xTalk extension files to the cache
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/fetched-assets/xtalk
+          key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
+
+      # As a user does: tar -xJf into an ordinary folder. A folder named
+      # _build or *-bin on the way would make the engine run the IDE of a
+      # source checkout (repository mode), so the tests run here, never
+      # from the stage or the build.
+      - name: Extract the package to a neutral folder
+        env:
+          PACKAGE: ${{ steps.package.outputs.package }}
+          PACKAGE_ROOT: ${{ steps.package.outputs.package-root }}
+        run: |
+          (cd dist && sha256sum -c SHA256SUMS)
+          tar -tJf "$PACKAGE" > "$RUNNER_TEMP/package-files.txt"
+          tops=$(cut -d/ -f1 "$RUNNER_TEMP/package-files.txt" | sort -u)
+          if [ "$tops" != "$PACKAGE_ROOT" ]; then
+            echo "::error::$PACKAGE must hold the one folder $PACKAGE_ROOT, not: $tops"; exit 1
+          fi
+          # No folder or file named _build or *-bin anywhere in it
+          # (package_dist.py refuses the exact repository-mode names; this
+          # is the wider rule)
+          if grep -E '(^|/)(_build|[^/]*-bin)(/|$)' "$RUNNER_TEMP/package-files.txt"; then
+            echo "::error::$PACKAGE has the paths above, named _build or *-bin"; exit 1
+          fi
+          test_dir="$RUNNER_TEMP/oxt-test"
+          rm -rf "$test_dir"
+          mkdir -p "$test_dir"
+          tar -xJf "$PACKAGE" -C "$test_dir"
+          root="$test_dir/$PACKAGE_ROOT"
+          for f in OXT-Beyond oxt-beyond install.sh uninstall.sh; do
+            if [ ! -x "$root/$f" ]; then echo "::error::$PACKAGE: $f is missing or not executable"; exit 1; fi
+          done
+          ls -la "$root"
+          echo "OXT_ROOT=$root" >> "$GITHUB_ENV"
+
+      # The engine itself, headless: script engine, ICU, OpenSSL, SQLite,
+      # revXML, revZip, and every bundled xTalk extension loaded and called
+      # (run_livecode_check.py extracts the tarball again, to its own
+      # neutral folder)
+      - name: Smoke test (package, headless)
+        timeout-minutes: 15
+        env:
+          PACKAGE: ${{ steps.package.outputs.package }}
+        run: |
+          python3 tools/ci/run_livecode_check.py smoke --package "$PACKAGE" --platform linux-x86_64 \
+            --log "$RUNNER_TEMP/logs/smoke-test.log"
+
+      # Every IDE script of the extracted package, compiled by its engine
+      # started through the launcher (with -ui the launcher needs only the
+      # "core" libraries and execs the engine with the arguments unchanged)
+      - name: IDE compile check (package, through the launcher)
+        timeout-minutes: 20
+        run: |
+          python3 tools/ci/run_livecode_check.py compile --install "$OXT_ROOT" --engine "$OXT_ROOT/oxt-beyond" \
+            --platform linux-x86_64 --log "$RUNNER_TEMP/logs/ide-compile-check.log"
+
+      # ldd over every x86_64 ELF file of the package (engine, externals,
+      # CEF and its helpers, toolchain, extension libraries): nothing "not
+      # found" now that the list's packages are installed, and every
+      # library they need (DT_NEEDED) or the engine loads with dlopen
+      # (engine/src/linux.stubs) is in the launcher's list, the base system
+      # or the package
+      - name: Check the system libraries (ldd and the launcher's list)
+        run: |
+          python3 tools/ci/check_linux_libraries.py --root "$OXT_ROOT" --repo . \
+            --json "$RUNNER_TEMP/logs/linux-libraries.json"
+
+      # The package's desktop entry as staged (install.sh only replaces its
+      # Exec and TryExec lines; the test below validates the installed one)
+      - name: Validate the desktop entry
+        run: |
+          out=$(desktop-file-validate "$OXT_ROOT/linux/oxt-beyond.desktop" 2>&1) || { echo "$out"; exit 1; }
+          echo "${out:-desktop-file-validate: no errors, warnings or hints}"
+          if printf '%s\n' "$out" | grep -E 'error:|warning:'; then exit 1; fi
+
+      # The launcher with a stand-in engine (missing libraries, the browser
+      # switch, links), then install.sh and uninstall.sh in scratch home
+      # folders: the files they add and remove, the installed engine run
+      # through ~/.local/bin/oxt-beyond, and the desktop entry
+      # (desktop-file-validate) with a plain and an awkward install path
+      - name: Test the launcher and the install scripts
+        timeout-minutes: 30
+        run: |
+          python3 tools/ci/test_linux_package.py --root "$OXT_ROOT" --require-desktop-tools \
+            2>&1 | tee "$RUNNER_TEMP/logs/test-linux-package.log"
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-linux-x86_64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+          # The files are compressed already
+          compression-level: 0
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: package-logs-linux-x86_64
+          path: ${{ runner.temp }}/logs
+          if-no-files-found: ignore
+          retention-days: 14

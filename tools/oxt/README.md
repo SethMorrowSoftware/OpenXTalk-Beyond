@@ -11,6 +11,7 @@ development engine without a user interface.
 | `package.py` | stages the installed layout of OXT-Beyond for Windows, Linux or macOS from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
 | `package_dist.py` | writes the platform's distribution archives (portable zip, tar.xz or app zip; binaries; symbols) and `SHA256SUMS` from a staged layout (see [Distribution archives](#distribution-archives-package_distpy)) |
 | `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform, and by `tools/ci/check_native_deps.py` and `tools/ci/run_livecode_check.py`) |
+| `icns.py` | writes the macOS app icon (`.icns`) from the branding PNGs without `iconutil`, and checks one (see [The macOS app's identity](#the-macos-apps-identity)) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
@@ -332,25 +333,19 @@ disagree, the layout follows the IDE:
   files `.version`, `about.dat` and `.buildnumber`; `package.txt` puts some
   of them into `Contents/Support`. Only the engine stays outside: the build's
   `LiveCode-Community.app` becomes `OXT-Beyond.app` with
-  `Contents/MacOS/OXT-Beyond` and a generated `Info.plist`: the build's,
-  with `CFBundleExecutable` naming it, `LSArchitecturePriority` the
-  layout's architectures, arm64 first (LiveCode's says `x86_64, i386`,
-  which would start a universal app under Rosetta on Apple Silicon), and
-  `LSMinimumSystemVersion` the lowest `minos` of the engine's slices
-  (Xcode writes the deployment target of the one build the tree came
-  from: 11.0 for arm64, 10.13 for x86_64). Bundle id, document types,
-  version and icon are still LiveCode's. `revsecurity.dylib` and
+  `Contents/MacOS/OXT-Beyond`, OXT-Beyond's own `Info.plist` and icon
+  (see [The macOS app's identity](#the-macos-apps-identity)).
+  `revsecurity.dylib` and
   `revpdfprinter.bundle` go into `Contents/MacOS` from the build root
   (package.txt Engine.MacOSX: the stripped copies; the build's copies
   inside the app keep their symbols).
   The app's `_CodeSignature` is left out, because it seals the old
   executable name and `Info.plist`. Also, every Mach-O the build strips
   (`tools/extract-debug-symbols.sh` runs after Xcode's ad-hoc signing)
-  keeps a stale signature. So after assembly, sign ad hoc from the inside
-  out: every Mach-O under `Contents/Tools` (runtimes with their `Support`
-  and `Externals`, `Externals`, `Toolchain`), then
-  `Contents/MacOS/revsecurity.dylib` and `revpdfprinter.bundle`, then the
-  app. Then run `codesign --verify --deep --strict`.
+  keeps a stale signature. So after assembly the app is signed ad hoc
+  from the inside out and verified with `codesign --verify --deep
+  --strict` ([`tools/ci/sign_mac_app.py`](../ci/sign_mac_app.py), see
+  [Universal build, signing and disk image](#universal-build-signing-and-disk-image-macos)).
   `Resources/Mobile Examples` (package.txt Mobile.MacOSX) is staged only
   here.
 * **macOS runtimes: the folder names the standalone builder uses**
@@ -374,13 +369,28 @@ disagree, the layout follows the IDE:
   cannot build (the engine has no i386 slice, and the IDE disables it on
   macOS 12 and later). `mac-universal` has all four; `mac-arm64` has
   `x64-ARM64`, `arm64` and `x86-32`; `mac-x86_64` has `x86-64` and
-  `x86-32`. A test of the Mac package must therefore build a standalone
-  for the `MacOSX x64-ARM64` target (what the standalone settings'
-  `MacOS-IntelArmUniversal` button selects) with revXML and the SQLite driver, check that
+  `x86-32`. The runtime's `Info.plist` is staged as built (the builder
+  edits it line by line), so it must already declare the lowest minimum
+  macOS of its engine; `package.py` checks that it does (after the lipo
+  merge: the x86_64 build's 10.13).
+  [`tools/ci/standalone_check.py`](../ci/standalone_check.py) checks
+  these folders in an installed app (engines, architectures, minimum
+  macOS, icons, `Support`, `Externals` lists, signatures) and builds and
+  runs a standalone from `x64-ARM64/Standalone-blank.app` with the
+  engine's deploy command (what the builder's
+  `revStandaloneDeployWithParams` runs). **Still to do (Phase 5):** a
+  test that runs the IDE's builder itself for the `MacOSX x64-ARM64`
+  target (what the standalone settings' `MacOS-IntelArmUniversal` button
+  selects) with revXML and the SQLite driver, checks that
   `Contents/MacOS/Externals/revxml.bundle` and
   `Contents/MacOS/Externals/database_drivers/dbsqlite.bundle` are in it,
-  and fail on any builder warning (`revStandaloneGetWarnings`): an app
-  without externals builds whether or not the folder exists.
+  and fails on any builder warning (`revStandaloneGetWarnings`): an app
+  without externals builds whether or not `arm64/Externals` exists. The
+  builder (`revSaveAsStandalone`, `revDoSaveAsStandalone`) needs the IDE's
+  home stack and libraries loaded in the headless engine, as upstream's
+  `tests/_standalonetestrunner/StandaloneTestRunnerBuilder.livecodescript`
+  does for a source checkout; doing that with an installed IDE is not
+  done yet.
 * **Linux CEF helpers where the code starts them:** `revbrowser-cefprocess`
   in `Externals/CEF` (cefbrowser.cpp starts it from the libcef folder) and
   `libbrowser-cefprocess` next to the engine (libbrowser_cef.cpp, Linux:
@@ -392,6 +402,24 @@ disagree, the layout follows the IDE:
 * **Linux engine name:** `OXT-Beyond`, not `package.txt`'s
   `OXT-Beyond.x86_64` (one architecture per package, started through a
   launcher script).
+* **Linux launcher, install scripts and desktop files** (origin
+  `desktop`, `LINUX_DESKTOP` in `package.py`; package.txt's
+  `Installer/application.desktop` is LiveCode's and names an icon the
+  package does not have): from `Installer/linux/`, with LF line endings,
+  `oxt-beyond` (the launcher), `install.sh` and `uninstall.sh` at the
+  root with mode 0755, and `linux/` with `libraries.txt` (the system
+  libraries the launcher checks and the CI installs),
+  `oxt-beyond.desktop` (its `StartupWMClass` filled in with the window
+  class the engine gives the IDE's windows, `livecodecommunity_` and
+  the engine version with `.` and `-` as `_`), `oxt-beyond.xml` (the
+  MIME types) and `icons/oxt-beyond-<n>.png`, the branding PNGs in the
+  sizes install.sh installs (16 to 512). The launcher checks the
+  libraries, sets `LIVECODE_USE_CEF=0` where the browser cannot load,
+  and execs the engine; `install.sh` installs the folder for one user
+  under `${XDG_DATA_HOME:-~/.local/share}/oxt-beyond` with a desktop
+  entry, icons, MIME types and `~/.local/bin/oxt-beyond`, and records
+  what it made for `uninstall.sh`. The scripts' own comments describe
+  them.
 
 | build output | installed path (Linux) | installed path (macOS, below `Contents/Tools` unless noted) |
 |---|---|---|
@@ -404,6 +432,7 @@ disagree, the layout follows the IDE:
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
 | standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
 | `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+| (from the repository) `Installer/linux/*`, branding PNGs | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | none |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,
 `server-*`, `Externals/CEF/chrome-sandbox` and `devtools_resources.pak`,
@@ -419,7 +448,8 @@ build tools.
 must be ELF files of the platform's architecture, and on macOS the engine,
 the standalone engine and `revsecurity.dylib` must hold every architecture
 of the layout (arm64 and x86_64 for `mac-universal`, which therefore needs
-the lipo merge of the two CI builds; `--allow-single-arch` stages a
+the lipo merge of the two CI builds, `tools/ci/merge_universal.py`;
+`--allow-single-arch` stages a
 single-architecture build as `mac-universal` anyway, with a warning).
 `tools/oxt/binfmt.py` reads the headers, so this works on any host.
 
@@ -505,28 +535,126 @@ folders match. Against the 966 class `build` rows of the 1.15 import (taken
 before the zoneinfo data became external): 956 staged, 10 intended
 differences.
 
+### The macOS app's identity
+
+`package.py` (`mac_info_plist`) writes the app's `Info.plist` from the
+build's (`engine/rsrc/LiveCode-Info.plist` as Xcode wrote it; its `DT*`
+keys stay):
+
+| key | value | why |
+|---|---|---|
+| `CFBundleIdentifier` | `io.github.sethmorrowsoftware.oxt-beyond` | OXT-Beyond's own, so that macOS keeps its preferences, document bindings and permissions apart from LiveCode's (`com.runrev.livecode`) |
+| `CFBundleName`, `CFBundleDisplayName` | `OXT-Beyond` | |
+| `CFBundleShortVersionString` | `ide/.version` | the version users see |
+| `CFBundleVersion` | the build number, the UTC build time `202609291200` as `2026.929.1200` | at most three period-separated integers (Apple's rule); higher for every build, so LaunchServices prefers the newer of two copies |
+| `CFBundleGetInfoString`, `CFBundleLongVersionString` | OXT-Beyond's version, build number and the engine's version | |
+| `NSHumanReadableCopyright` | the OXT-Beyond contributors; OpenXTalk Lite by Terry Little, Tom Perry and the OpenXTalk contributors; LiveCode Community, © 2000-2020 LiveCode Ltd.; GPLv3 | as `about.dat` and the installer credit them |
+| `CFBundleIconFile` | `OXT-Beyond.icns` | made from `Installer/oxt-beyond/branding/png/` by `icns.py` |
+| `CFBundleExecutable` | `OXT-Beyond` | the renamed executable |
+| `LSArchitecturePriority` | the layout's architectures, arm64 first | LiveCode's says `x86_64, i386`: LaunchServices starts the first listed architecture the binary has, so a universal app would run under Rosetta on Apple Silicon |
+| `LSMinimumSystemVersion` | the lowest `minos` of the engine's slices: 10.13 for `mac-universal` | Xcode writes the deployment target of the one build the tree came from (11.0 for arm64); a universal app must declare its lowest slice's, or Intel Macs below 11 refuse it |
+| `CFBundleDocumentTypes` | `.oxtstack` and `.oxtscript` with rank Owner; LiveCode's `.rev`, `.livecode`, `.livecodescript` entry with rank Alternate | the app opens LiveCode's files but does not take them over from an installed LiveCode, as on Windows, where the installer associates only the OXT types |
+| `UTExportedTypeDeclarations` | `io.github.sethmorrowsoftware.oxt-beyond.stack` (`.oxtstack`, public.data) and `.script` (`.oxtscript`, public.script: plain text, so Quick Look shows it) | OXT-Beyond's types; no document icon is named, so macOS 11 and later draw one from the app icon |
+| `UTImportedTypeDeclarations` | LiveCode's `com.runrev.*` types, which the engine's plist exports | LiveCode owns them; its two declarations of `com.runrev.livecode.stack` become one |
+
+`icns.py` writes the `.icns` from the PNG files without `iconutil`: the
+entries `ic11`, `ic12`, `ic07`, `ic13`, `ic08`, `ic14`, `ic09` and `ic10`
+(32 to 1024 pixels, at 1x and 2x) hold the PNG files unchanged, after a
+table of contents, as `iconutil` and Pillow write them; the 16 and 32
+pixel 1x types of `iconutil` (`ic04`, `ic05`) hold ARGB data, so they are
+left out and macOS scales the 2x images down. `icns.py check FILE`
+reads one back (every PNG's chunks, CRCs, size and image data).
+
+### Universal build, signing and disk image (macOS)
+
+The macOS workflow (`.github/workflows/build-macos.yml`, job "Package
+mac-universal") builds the release app from the two CI builds:
+
+1. **Merge**: [`tools/ci/merge_universal.py`](../ci/merge_universal.py)
+   `--arm64 A/Release --x86_64 X/Release --out U/Release` (each build's
+   bin and symbols tarballs extracted into a folder of its own) joins
+   every Mach-O file at the same path with `lipo -create` (the DWARF
+   files of the `.dSYM` bundles too), compares every other file byte for
+   byte, keeps links, modes, dates and empty folders, and then requires
+   every Mach-O file of macOS code in the result to hold arm64 and
+   x86_64. Differences are errors unless a rule in the script explains
+   them. On the arm64 and x86_64 CI builds of this repository: 41 Mach-O
+   files joined, 871 files identical, no file in one build only, and
+   these explained:
+
+   | rule | files | why |
+   |---|---:|---|
+   | `DIFFER` plist: `**/Contents/Info.plist` | 16 (every bundle's) | they differ only in `LSMinimumSystemVersion` (11.0 / 10.13; Xcode writes each build's deployment target); the x86_64 build's copy is taken byte for byte (the standalone builder edits the runtime's line by line), and it must match the lowest `minos` of the bundle's executable. Any other key that differs fails, except the build machine's (`DT*`, `BuildMachineOSBuild`), which are reported. After writing, one array is edited: `LiveCode-Community.app`'s `LSArchitecturePriority` says `x86_64, i386` (LiveCode's Intel days), and LaunchServices starts the first listed architecture the executable holds, so the universal development engine would run under Rosetta on Apple Silicon; it becomes `arm64, x86_64` (only that array, as text; a plist without the key, such as the runtime's, is not touched) |
+   | `DIFFER` seal: `**/Contents/_CodeSignature/CodeResources` | 2 (`LiveCode-Community.app`, `reviphone.bundle`) | a bundle's resource seal records the code-directory hash of its nested code, which differs per architecture; it is stale after the merge either way and written again when the tree is signed |
+   | `SINGLE_ARCH`: `**/reviphoneproxy`, `**/reviphoneproxy.dSYM/**` | 2 (`reviphoneproxy`, `reviphone.bundle/Contents/MacOS/reviphoneproxy`) | the iOS simulator helper is built for x86_64 only on both runners (revmobile.gyp); the x86_64 build's copy (10.13) is taken, and nothing of the arm64 build's copy (also x86_64 only, 11.0) is lost |
+   | `ONE_SIDED`: `**/*.dSYM/Contents/Resources/Relocations/<arch>/**` | none in these builds' binaries | dsymutil writes each architecture's relocations into a folder of its own, when it writes them |
+
+   `--dry-run` only reports; `--no-lipo` joins the slices with the
+   script's own fat-file writer, so the merge and what follows can be
+   tried on Linux or WSL. `--check DIR` checks a tree or the app only
+   (also that no bundle's `Info.plist` puts x86_64 before arm64 in
+   `LSArchitecturePriority` when its executable holds both).
+2. **Sign the merged tree** ad hoc (`sign_mac_app.py U/Release`), so that
+   the binaries archive holds code that runs on Apple Silicon.
+3. **Stage** `package.py --platform mac-universal --bin U/Release`.
+4. **Sign the app**: [`tools/ci/sign_mac_app.py`](../ci/sign_mac_app.py)
+   `OXT-Beyond.app` runs `codesign --force --sign - --timestamp=none` on
+   every bundle whose executable is macOS code (as a bundle) and every
+   other signable Mach-O file of macOS code, deepest first, then on the
+   app, and verifies each with `codesign --verify --strict` and the app
+   with `--deep` as well. No `--deep` for signing (it would reach only the
+   nested code locations, not `Contents/Tools`) and no
+   `--preserve-metadata` (the build's signatures hold only made-up
+   identifiers and Xcode's `get-task-allow` debugging entitlement).
+   Extended attributes are removed first. The time zone library's iOS
+   files, object files and `.dSYM` bundles are left alone.
+5. **Check** that the app is universal (`merge_universal.py --check`,
+   with `lipo -archs` of every file agreeing).
+6. **Archives**: `package_dist.py --dmg` (see [Distribution archives](#distribution-archives-package_distpy)).
+
 ## Distribution archives (`package_dist.py`)
 
 ```
 python tools/oxt/package_dist.py (--summary <package.py --summary-json> | --platform P --stage DIR)
-    (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
+    (--bin DIR | --bin-tar FILE | --no-binaries) [--symbols-tar FILE] --out DIR
     [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
-    [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
+    [--dmg] [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
 ```
 
 writes the archives of a staged layout and of its build output, and
-`SHA256SUMS` (`<sha256>  <file>`, LF, in the order below). `<root>` is
-`OXT-Beyond-<version>`:
+`SHA256SUMS` (`<sha256>  <file>`, LF: binaries, disk image, package,
+symbols, sources). `<root>` is `OXT-Beyond-<version>`:
 
 | platform | package | binaries | symbols |
 |---|---|---|---|
 | `win-x86_64` | `<root>-win-x86_64-portable.zip`: every staged file under `<root>/`, then the empty folders | `<root>-win-x86_64-binaries.zip`: `win-x86_64-bin/` without `*.pdb`, licence files at the top | `<root>-win-x86_64-symbols.zip`: the `*.pdb` under `win-x86_64-bin/` |
-| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg`, licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` |
-| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app`, as `ditto -c -k --keepParent` stores it | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` without `*.dSYM`, licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles |
+| `linux-<arch>` | `<root>-linux-<arch>.tar.xz`: the staged folder as `<root>/` | `<root>-linux-<arch>-binaries.tar.xz`: `linux-<arch>-bin/` without `*.dbg` and without the build's own tools (below), licence files | `<root>-linux-<arch>-symbols.tar.xz`: the `*.dbg` (not the build tools') |
+| `mac-<arch>` | `<root>-mac-<arch>.zip`: `OXT-Beyond.app` (`ditto -c -k --sequesterRsrc --keepParent` on macOS); with `--dmg`, also `<root>-mac-<arch>.dmg` | `<root>-mac-<arch>-binaries.tar.xz`: `Release/` (for `mac-universal` the merged tree) without `*.dSYM` and without the build's own tools (below), licence files | `<root>-mac-<arch>-symbols.zip`: the `*.dSYM` bundles (not the build tools') |
+
+The Linux and macOS build outputs hold the tools the build makes to build
+itself (`package.BUILD_PROGRAMS`: `gentle-target`, `reflex-target`,
+`perfect-target`, the lc-compile bootstrap stages `lc-bootstrap-compile*`
+and `lc-compile-stage*`, `zic`, `lcidlc`). `package.py` never installs
+them, and the binaries and symbols archives leave them out too, with
+their `.dSYM` bundles and `.dbg` files (the log counts them):
+`gentle-target` and `reflex-target` are GENTLE 97, which may not be
+redistributed (see `THIRD-PARTY-NOTICES.md`, "GENTLE"), and the Windows
+binaries zip holds no build tools either. An entry named `gentle-*` or
+`reflex-*` that still reaches an archive is an error, before any archive
+is written.
 
 `--xtalk-sources` adds `<root>-xtalk-sources.zip` (`xtalk_extensions.py
-export`, from the cache only). The disk image of the Mac app is made on
-macOS with `hdiutil` by the workflow, not here.
+export`, from the cache only).
+
+`--dmg` (a macOS layout, on macOS) writes the disk image: `ditto` copies
+the (signed) app into a temporary folder next to a link to
+`/Applications`, and `hdiutil create -format UDZO -fs HFS+ -volname
+"OXT-Beyond <version>"` makes the image (HFS+: every macOS the app runs
+on reads it, and it is case-insensitive like the names `package.py`
+checks). A failure is retried up to four times (hdiutil sometimes fails
+with "Resource busy" on CI runners), and `hdiutil verify` checks the
+result. Sign the app before this step: the image and the zip hold it as
+it is.
 
 * **Windows**: the same names and entries (names, bytes, file dates, folder
   entries) as `tools/ci/package-windows.ps1`, which the Windows CI keeps
@@ -550,19 +678,34 @@ macOS with `hdiutil` by the workflow, not here.
   modes either). Tarballs
   are compressed by `xz -T0` when the `xz` program exists (Python's lzma
   uses one core; `OXT_PYTHON_XZ=1` forces it), preset 6 (`--xz-preset`).
-* **The macOS zip** has folder entries, each file's Unix mode and symbolic
-  links stored as links, as `ditto` writes them, so that `ditto -x -k`,
-  Archive Utility or `unzip` restore the app with its executables.
+* **The macOS zip** is `ditto`'s own on macOS. Elsewhere (or with
+  `OXT_PYTHON_ZIP=1`) it is written here, with folder entries, each
+  file's Unix mode and symbolic links stored as links, as `ditto` writes
+  them, so that `ditto -x -k`, Archive Utility or `unzip` restore the app
+  with its executables. A signed app needs nothing else: signatures live
+  inside the files (a `__MACOSX/` side file, which `--sequesterRsrc`
+  writes for an extended attribute, is reported; `sign_mac_app.py`
+  removes them first).
 * `--bin-tar` reads a CI tarball once, as a stream, and sends each member
   to the binaries or the symbols archive under the platform's folder name
   (`linux-<arch>-bin`, `Release`), without `._` AppleDouble files and with
   modes, symbolic and hard links. The Linux and macOS archives are written
   on Linux or macOS only (in WSL, from a stage under a Linux path: a probe
   next to the stage refuses a Windows drive, whose files all read 0777).
+* `--symbols-tar` takes the CI's symbols artifact
+  (`OXT-Beyond-linux-<arch>-symbols.tar.xz`: the build output folder with
+  only its `*.dbg` files; the macOS one holds the `*.dSYM` bundles), since
+  the bin tarball no longer has them, and adds its files to the symbols
+  archive. A member that is not a debug symbol file, a hard link, or a
+  file the build output has too is an error.
+* A path of the Linux package with a folder named like a build output
+  (`package.repository_mode_trap`: `_build`, `linux-bin`,
+  `linux-<arch>-bin`, `build-linux-<arch>`) is an error: an engine on
+  such a path runs the IDE of a source checkout. There is none today.
 
 Under GitHub Actions it writes the step outputs `version`, `package-root`,
-`platform`, `dist-dir`, `package` and `sha256sums` and a table of the
-archives to the job summary.
+`platform`, `dist-dir`, `package`, `dmg` (with `--dmg`) and `sha256sums`
+and a table of the archives to the job summary.
 
 ## External assets
 

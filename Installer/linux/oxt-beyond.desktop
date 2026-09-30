@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=OXT-Beyond
+GenericName=xTalk IDE
+Comment=Build applications with the xTalk language
+Keywords=xTalk;LiveCode;HyperTalk;stack;IDE;
+Exec=oxt-beyond %f
+TryExec=oxt-beyond
+Icon=oxt-beyond
+Terminal=false
+Categories=Development;IDE;
+MimeType=application/x-oxtstack;text/x-oxtscript;
+StartupNotify=true
+StartupWMClass=@WM_CLASS@
