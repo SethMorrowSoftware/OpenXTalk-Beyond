@@ -229,6 +229,8 @@ static char menucolorsregs[][255] = {
 
 #define FIXED_THUMB_SIZE 17
 
+static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state);
+
 Boolean MCNativeTheme::load()
 {
 	if (mThemeDLL != NULL)
@@ -241,6 +243,7 @@ Boolean MCNativeTheme::load()
 	mRebarTheme = NULL;
 	mProgressTheme = NULL;
 	mScrollbarTheme = NULL;
+	mScrollbarOwnerDraw = false;
 	mSmallScrollbarTheme = NULL;
 	mStatusbarTheme = NULL;
 	mTabTheme = NULL;
@@ -389,7 +392,7 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	case WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL:
 		{
 			if (!mScrollbarTheme)
-				mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
+				OpenScrollbarTheme();
 			return mScrollbarTheme;
 		}
 	case WTHEME_TYPE_SLIDER:
@@ -441,6 +444,41 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	return NULL;
 }
 
+// In dark mode scrollbars use the dark variant of the scrollbar class that
+// Explorer uses, "DarkMode_Explorer::ScrollBar" (Windows 10 1809 and later),
+// which draws the whole scrollbar natively, with the system's own sizes and
+// hover states. The class is not documented, and uxtheme resolves an unknown
+// "<application>::" prefix to the plain class, so on a Windows without it
+// OpenThemeData hands back the light scrollbar instead of failing. So the
+// dark class is only kept when its track really draws dark. Otherwise the
+// light class is kept for the part sizes, and drawwidget draws the parts
+// itself in dark colours (drawdarkscrollbarpart). The choice is made again
+// whenever the theme is reloaded, which the light/dark switch does
+// (w32dcw32.cpp).
+void MCNativeTheme::OpenScrollbarTheme(void)
+{
+	mScrollbarOwnerDraw = false;
+
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	if (t_appearance == kMCSystemAppearanceDark)
+	{
+		mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"DarkMode_Explorer::ScrollBar");
+		if (mScrollbarTheme != NULL &&
+			MCWin32ThemePartDrawsDark(mScrollbarTheme, SP_TRACKENDVERT, TS_NORMAL))
+			return;
+
+		if (mScrollbarTheme != NULL)
+		{
+			closeTheme(mScrollbarTheme);
+			mScrollbarTheme = NULL;
+		}
+		mScrollbarOwnerDraw = true;
+	}
+
+	mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
+}
+
 void MCNativeTheme::CloseData()
 {
 	if (mToolbarTheme)
@@ -453,6 +491,7 @@ void MCNativeTheme::CloseData()
 		closeTheme(mScrollbarTheme);
 		mScrollbarTheme = NULL;
 	}
+	mScrollbarOwnerDraw = false;
 	if (mSmallScrollbarTheme)
 	{
 		closeTheme(mSmallScrollbarTheme);
@@ -486,7 +525,7 @@ void MCNativeTheme::CloseData()
 	if (mSliderTheme)
 	{
 		closeTheme(mSliderTheme);
-		mTooltipTheme = NULL;
+		mSliderTheme = NULL;
 	}
 	if (mStatusbarTheme)
 	{
@@ -512,6 +551,18 @@ void MCNativeTheme::CloseData()
 	{
 		closeTheme(mHeaderTheme);
 		mHeaderTheme = NULL;
+	}
+	// The light/dark switch reloads the theme (w32dcw32.cpp), so close every
+	// handle load() and GetTheme() open, or each switch would leak them.
+	if (mSpinTheme)
+	{
+		closeTheme(mSpinTheme);
+		mSpinTheme = NULL;
+	}
+	if (mMenuTheme)
+	{
+		closeTheme(mMenuTheme);
+		mMenuTheme = NULL;
 	}
 }
 
@@ -873,6 +924,14 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 	HANDLE htheme = GetTheme(winfo.type);
 	if (!htheme)
 		return False;
+
+	// Dark mode without the dark scrollbar class: draw the parts of the
+	// scrollbar here (the scrollbar as a whole still goes through
+	// drawscrollcontrols, which lays the parts out). GetTheme has just made
+	// that choice (see OpenScrollbarTheme).
+	if (mScrollbarOwnerDraw && htheme == (HANDLE)mScrollbarTheme && winfo.type != WTHEME_TYPE_SCROLLBAR)
+		return drawdarkscrollbarpart(dc, winfo, drect);
+
 	if (!drawThemeBG)
 		return False;
 	int4 part, state;
@@ -1164,6 +1223,96 @@ Boolean MCNativeTheme::drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, c
 	}
 
 	return True;
+}
+
+// Draws one part of a scrollbar in dark mode when the dark scrollbar class
+// is missing (see OpenScrollbarTheme). It is flat, like Tom Perry's dark
+// buttons in drawwidget: a dark track, a lighter thumb that brightens under
+// the mouse, and light grey arrow glyphs on the track colour. The thumb has
+// no gripper.
+Boolean MCNativeTheme::drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
+{
+	bool t_disabled = (winfo.state & WTHEME_STATE_DISABLED) != 0;
+	bool t_active = !t_disabled && (winfo.state & (WTHEME_STATE_HOVER | WTHEME_STATE_PRESSED)) != 0;
+
+	MCColor t_track;
+	t_track.red = t_track.green = t_track.blue = 0x2B2B;
+
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	switch (winfo.type)
+	{
+	case WTHEME_TYPE_SCROLLBAR_TRACK_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_TRACK_HORIZONTAL:
+		dc->setforeground(t_track);
+		dc->fillrect(drect);
+		return True;
+
+	case WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_THUMB_HORIZONTAL:
+		{
+			// The track shows around the thumb, as in the native scrollbars
+			dc->setforeground(t_track);
+			dc->fillrect(drect);
+
+			MCColor t_thumb;
+			t_thumb.red = t_thumb.green = t_thumb.blue = t_active ? 0x8A8A : 0x6E6E;
+			dc->setforeground(t_thumb);
+			dc->fillrect(MCU_reduce_rect(drect, 2));
+			return True;
+		}
+
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_RIGHT:
+		{
+			dc->setforeground(t_track);
+			dc->fillrect(drect);
+
+			// A triangle twice as wide as it is high, centred in the button
+			int2 t_half = (drect.width < drect.height ? drect.width : drect.height) / 4;
+			if (t_half < 2)
+				t_half = 2;
+			int2 t_cx = drect.x + drect.width / 2;
+			int2 t_cy = drect.y + drect.height / 2;
+			int2 t_near = t_half / 2;
+			int2 t_far = t_half - t_near;
+			MCPoint t_points[3];
+			switch (winfo.type)
+			{
+			case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:
+				t_points[0] = MCPointMake(t_cx - t_half, t_cy + t_far);
+				t_points[1] = MCPointMake(t_cx + t_half, t_cy + t_far);
+				t_points[2] = MCPointMake(t_cx, t_cy - t_near);
+				break;
+			case WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN:
+				t_points[0] = MCPointMake(t_cx - t_half, t_cy - t_near);
+				t_points[1] = MCPointMake(t_cx + t_half, t_cy - t_near);
+				t_points[2] = MCPointMake(t_cx, t_cy + t_far);
+				break;
+			case WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT:
+				t_points[0] = MCPointMake(t_cx + t_far, t_cy - t_half);
+				t_points[1] = MCPointMake(t_cx + t_far, t_cy + t_half);
+				t_points[2] = MCPointMake(t_cx - t_near, t_cy);
+				break;
+			default:
+				t_points[0] = MCPointMake(t_cx - t_near, t_cy - t_half);
+				t_points[1] = MCPointMake(t_cx - t_near, t_cy + t_half);
+				t_points[2] = MCPointMake(t_cx + t_far, t_cy);
+				break;
+			}
+
+			MCColor t_glyph;
+			t_glyph.red = t_glyph.green = t_glyph.blue = t_disabled ? 0x5555 : (t_active ? 0xD0D0 : 0x9A9A);
+			dc->setforeground(t_glyph);
+			dc->fillpolygon(t_points, 3);
+			return True;
+		}
+
+	default:
+		// The gripper
+		return True;
+	}
 }
 
 
@@ -2124,6 +2273,49 @@ void MCGDIDrawTheme(HDC p_dc, void *p_context)
 
 	if (t_clip_region != NULL)
 		DeleteObject(t_clip_region);
+}
+
+// Whether a theme part comes out dark: it is drawn into a small bitmap the
+// way MCThemeDraw draws it, and the mean luminance of the result over black
+// must be below half. A part that draws nothing counts as dark, which is
+// what matters here: the dark background shows through it. Used to tell the
+// dark scrollbar class from the light one it falls back to (see
+// MCNativeTheme::OpenScrollbarTheme).
+static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state)
+{
+	const uint2 t_width = 16;
+	const uint2 t_height = 32;
+
+	MCThemeDrawInfo t_info;
+	t_info . theme = p_theme;
+	t_info . part = p_part;
+	t_info . state = p_state;
+	MCU_set_rect(t_info . bounds, 0, 0, t_width, t_height);
+	t_info . clip = t_info . bounds;
+	t_info . clip_interior = false;
+	t_info . interior = t_info . bounds;
+
+	MCGDIThemeDrawContext t_context;
+	t_context . type = THEME_DRAW_TYPE_BACKGROUND;
+	t_context . info = &t_info;
+	t_context . origin = MCPointMake(0, 0);
+
+	MCImageBitmap *t_bitmap = nil;
+	if (!MCGDIDrawAlpha(t_width, t_height, MCGDIDrawTheme, &t_context, t_bitmap))
+		return false;
+
+	// MCGDIDrawAlpha keeps the colour drawn over black in the low 24 bits
+	uint64_t t_sum = 0;
+	for (uint32_t y = 0; y < t_bitmap -> height; y++)
+	{
+		const uint32_t *t_row = (const uint32_t *)((const uint8_t *)t_bitmap -> data + y * t_bitmap -> stride);
+		for (uint32_t x = 0; x < t_bitmap -> width; x++)
+			t_sum += 299 * ((t_row[x] >> 16) & 0xFF) + 587 * ((t_row[x] >> 8) & 0xFF) + 114 * (t_row[x] & 0xFF);
+	}
+	uint64_t t_pixels = uint64_t(t_bitmap -> width) * t_bitmap -> height;
+	MCImageFreeBitmap(t_bitmap);
+
+	return t_pixels != 0 && t_sum / (1000 * t_pixels) < 128;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

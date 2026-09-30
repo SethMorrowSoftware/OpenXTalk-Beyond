@@ -883,6 +883,10 @@ bool MCWin32IsSystemInDarkMode(void)
 // This affects unset colors (objects without explicit backgroundColor/foregroundColor)
 void MCWin32UpdateSystemColors(void)
 {
+	// This runs at startup and on the light/dark switch, so read the setting
+	// again here; getsystemappearance returns the cached value.
+	MCWin32RefreshSystemAppearance();
+
 	// Use the same function that 'the systemAppearance' uses
 	MCSystemAppearance t_appearance;
 	MCscreen->getsystemappearance(t_appearance);
@@ -1679,26 +1683,8 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 	{
 		case kMCPlatformSystemPropertySystemAppearance:
 		{
-			// Check Windows registry for dark mode setting
-			bool t_is_dark = false;
-			HKEY hKey;
-			
-			if (RegOpenKeyExW(HKEY_CURRENT_USER, 
-				L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-				0, KEY_READ, &hKey) == ERROR_SUCCESS)
-			{
-				DWORD value = 1; // Default to light mode
-				DWORD size = sizeof(DWORD);
-				
-				// Check AppsUseLightTheme (0 = dark, 1 = light)
-				if (RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &size) == ERROR_SUCCESS)
-				{
-					t_is_dark = (value == 0);
-				}
-				
-				RegCloseKey(hKey);
-			}
-			
+			// The same cached setting as MCScreenDC::getsystemappearance
+			bool t_is_dark = MCWin32IsSystemAppearanceDark();
 			*(int32_t *)r_value = t_is_dark ? (int32_t)kMCPlatformSystemAppearanceDark : (int32_t)kMCPlatformSystemAppearanceLight;
 		}
 		break;
