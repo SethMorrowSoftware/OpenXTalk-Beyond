@@ -1711,14 +1711,37 @@ MCObject *MCObject::appearanceowner(void)
 	return t_owner;
 }
 
+// Past MCAppearanceIsLightSurface's depth limit (a control in a deep nest of
+// transparent groups, say) the explicit fills of the owner chain still decide:
+// running out of depth is not reaching the top, and a light card under many
+// groups must not give their controls the dark default (white) text. The owner
+// chain ends at a mainstack and has no cycles, so it is walked without
+// recursion; the count only guards against a malformed chain.
+static bool MCAppearanceOwnerChainIsLight(MCObject *p_object)
+{
+	uint32_t t_count;
+	t_count = 0;
+	for (MCObject *t_object = p_object; t_object != nil && t_count < 1024; t_object = t_object -> appearanceowner(), t_count++)
+	{
+		if (t_object -> gettype() == CT_IMAGE)
+			return true;
+		bool t_light;
+		if (t_object -> explicitlightness(DI_BACK, t_light))
+			return t_light;
+	}
+	return false;
+}
+
 // Whether p_object shows a light surface: its own fill, its own text colour
 // when it paints a default fill, or else what it sits on. When nothing tells,
 // the answer is dark, so a stack that sets no colours is drawn dark. p_place
 // is p_object's place in its card's layers, when known (appearancebackdrop).
 static bool MCAppearanceIsLightSurface(MCObject *p_object, MCObjptr *p_place, int p_depth)
 {
-	if (p_depth == 0 || p_object == nil)
+	if (p_object == nil)
 		return false;
+	if (p_depth == 0)
+		return MCAppearanceOwnerChainIsLight(p_object);
 
 	// The author saw the default black text on a picture
 	if (p_object -> gettype() == CT_IMAGE)
