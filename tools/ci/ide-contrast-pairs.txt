@@ -57,3 +57,21 @@ state_hover                         palette_background                   3
 
 # Tools palette: the widget icons
 palette_icon                        palette_background                   3
+
+# Inspector: an inherited ("effective") value and a locked one are drawn in
+# text_muted, on the field's own background or, when the selected objects
+# differ, on the multi-value background; a value is text_1 there too
+text_muted                          dataView_rowColor                    4.5
+text_muted                          propertyInspector_multiValueBackground 4.5
+text_1                              propertyInspector_multiValueBackground 4.5
+
+# Message Box: the hint in the empty command line (a placeholder, which
+# must be seen but is not content) on the script editor's background, which
+# is white in light and 30,30,30 in dark, like the rows
+text_placeholder                    dataView_rowColor                    3
+
+# Palette frames and the script editor's splitters: lines that only need to
+# be seen, checked in dark. Light keeps upstream's look: a 178,178,178 frame
+# (1.8:1, inside the window's own frame) and pale splitters
+palette_frame_border                palette_background                   3 dark
+se_splitter                         palette_background                   1.3 dark

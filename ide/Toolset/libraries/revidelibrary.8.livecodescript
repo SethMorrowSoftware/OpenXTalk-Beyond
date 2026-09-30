@@ -2668,7 +2668,24 @@ function revIDEColor pTag
             return "32,32,32"
             break
          case "propertyInspector_multiValueBackground"
-            return "55,60,70"
+            -- The Inspector's field for a value that differs between the
+            -- selected objects; its text keeps the default (light) text
+            -- colour, or text_muted for an inherited value (4.8:1)
+            return "48,52,60"
+            break
+         case "text_placeholder"
+            -- Hint text in an empty field (the Message Box), on the script
+            -- editor's background (30,30,30) or a row: 3.5:1 or more
+            return "120,120,120"
+            break
+         case "palette_frame_border"
+            -- The line round a palette's header and footer: 3.2:1 on the
+            -- palette
+            return "110,110,110"
+            break
+         case "se_splitter"
+            -- The script editor's pane splitters: they only need to be seen
+            return "60,60,64"
             break
       end switch
    end if
@@ -2744,7 +2761,19 @@ function revIDEColor pTag
          end if
          break
       case "propertyInspector_multiValueBackground"
-         return "200,206,215"
+         -- Light enough for text_muted (95,95,95) at 4.7:1; upstream's
+         -- 200,206,215 gave 4:1
+         return "216,221,229"
+         break
+      case "text_placeholder"
+         return "145,145,145"
+         break
+      case "palette_frame_border"
+         -- As upstream (revpalettebehavior's 178,178,178)
+         return "178,178,178"
+         break
+      case "se_splitter"
+         return "224,226,235"
          break
    end switch
 

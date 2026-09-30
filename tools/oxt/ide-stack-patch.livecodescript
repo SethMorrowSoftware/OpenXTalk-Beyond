@@ -1,6 +1,6 @@
 script "oxt_ide_stack_patch"
--- Applies the script patches of tools/oxt/ide-stack-patches to the binary
--- IDE stacks, with proof that nothing else in the stack files changes.
+-- Applies the patches of tools/oxt/ide-stack-patches to the binary IDE
+-- stacks, with proof that nothing else in the stack files changes.
 --
 -- Run it with a development engine, without the IDE, for example the Linux
 -- engine of a build (tools/oxt/ide-stack-patch.sh does this):
@@ -9,13 +9,17 @@ script "oxt_ide_stack_patch"
 --
 -- Environment variables:
 --    OXT_PATCH_ROOT   the folder with Toolset whose stacks are patched in
---                     place, normally the repository's ide folder (required)
+--                     place, normally the repository's ide folder, or an
+--                     installed layout with OXT_PATCH_CHECK (required)
 --    OXT_PATCH_DIR    the patch definitions (default: ide-stack-patches
 --                     next to this script)
 --    OXT_PATCH_CHECK  1: only report whether each patch is applied; never
 --                     save (exit code 1 if one is not)
 --
--- A patch definition (one per *.txt file, applied in name order) is
+-- A patch definition file (*.txt, applied in name order) is either a script
+-- patch or a property patch.
+--
+-- A script patch replaces text in the script of one object:
 --
 --    # comments
 --    file: <stack file, relative to OXT_PATCH_ROOT>
@@ -37,15 +41,42 @@ script "oxt_ide_stack_patch"
 -- patch was applied before and nothing is done, so running the tool again
 -- changes nothing. Anything else fails.
 --
+-- A property patch sets properties of one or more objects of one stack
+-- file, each from a known value to a new one:
+--
+--    # comments
+--    file: <stack file, relative to OXT_PATCH_ROOT>
+--    object: <object, as for a script patch>
+--    property: <property name, for example foregroundColor>
+--    from: <the value the stack file has>
+--    to: <the new value; empty for none>
+--    property: <another property of the same object>
+--    from: ...
+--    to: ...
+--    object: <another object>
+--    ...
+--
+-- Values are written as tools/oxt/ide-stack-dump.livecodescript writes them
+-- (backslash, return, line feed and tab as \\, \r, \n and \t) and compared
+-- exactly (case-sensitive), so the "from" value is the one in the stack's
+-- dump. A value may be written between bars (from: |value|) to keep
+-- leading or trailing blanks. Each object/property pair is one patch: it is
+-- applied when the property has the "from" value, and already applied when
+-- it has the "to" value; anything else fails.
+--
 -- For each stack file the tool
 --    1. loads the file (messages locked; the stack is never opened) and
 --       dumps every object with tools/oxt/ide-stack-dump.livecodescript,
---    2. sets the patched scripts (each must compile) and dumps again: the
---       two dumps must differ in exactly the scripts of the patched objects,
+--    2. sets the patched scripts (each must compile) and properties and
+--       dumps again: the two dumps must differ in exactly the scripts of the
+--       objects with script patches and, for the objects with property
+--       patches, in exactly one property line per patched property, which
+--       now shows the new value,
 --    3. saves the stack (the engine keeps the oldest file format that holds
 --       it, 7.0 for the IDE stacks), removes it from memory, loads the saved
 --       file and dumps it: this must equal the dump of step 2 exactly, and
---       the file's header (its format version) must be unchanged.
+--       the file's header, which holds its stack file version (for example
+--       REVO7000), must be unchanged.
 -- If step 3 fails, the original file is written back. The bytes of a saved
 -- file differ from the original in places that carry no content: the
 -- character set byte (the platform that saved it), the font table names of
@@ -141,10 +172,50 @@ private function readText pFile
    return tText
 end readText
 
+-- A property value as written in a patch: optionally between bars, with
+-- the escapes of the stack dump (\\, \r, \n, \t)
+private function patchValue pText
+   local tValue, tChar, tNext, i
+   put word 1 to -1 of pText into pText
+   if the number of chars of pText >= 2 and char 1 of pText is "|" and char -1 of pText is "|" then
+      put char 2 to -2 of pText into pText
+   end if
+   put 1 into i
+   repeat while i <= the number of chars of pText
+      put char i of pText into tChar
+      if tChar is "\" and i < the number of chars of pText then
+         put char i + 1 of pText into tNext
+         switch tNext
+            case "\"
+               put "\" after tValue
+               break
+            case "n"
+               put numToCodepoint(10) after tValue
+               break
+            case "r"
+               put numToCodepoint(13) after tValue
+               break
+            case "t"
+               put tab after tValue
+               break
+            default
+               throw "unknown escape \" & tNext & " in a property value"
+         end switch
+         add 2 to i
+      else
+         put tChar after tValue
+         add 1 to i
+      end if
+   end repeat
+   return tValue
+end patchValue
+
 -- The patch definitions as a numbered array of arrays with the keys name,
--- file, object, old and new
+-- kind ("script" or "property"), file and object, and old and new for a
+-- script patch or property, from and to for a property patch
 private function readPatches pDir
-   local tNames, tPatches, tCount, tPatch, tSection, tLineNumber
+   local tNames, tPatches, tCount, tPatch, tSection, tLineNumber, tKind
+   local tFile, tObject, tInFile, tName
    put the defaultFolder into tSection
    set the defaultFolder to pDir
    put the files into tNames
@@ -152,40 +223,98 @@ private function readPatches pDir
    filter tNames with "*.txt"
    sort lines of tNames ascending text
    put 0 into tCount
-   repeat for each line tName in tNames
+   repeat for each line tFileName in tNames
       put empty into tPatch
-      put tName into tPatch["name"]
+      put tFileName into tPatch["name"]
+      put "script" into tPatch["kind"]
       put empty into tSection
+      put empty into tKind
+      put empty into tFile
+      put empty into tObject
+      put 0 into tInFile
       put 0 into tLineNumber
-      repeat for each line tLine in readText(pDir & "/" & tName)
+      repeat for each line tLine in readText(pDir & "/" & tFileName)
          add 1 to tLineNumber
          if tSection is empty and (tLine is empty or char 1 of tLine is "#") then next repeat
+         -- In a property patch file, file: and object: apply to the
+         -- property: lines that follow them, not to the one before
          if tLine begins with "file:" then
-            put word 1 to -1 of (char 6 to -1 of tLine) into tPatch["file"]
+            put word 1 to -1 of (char 6 to -1 of tLine) into tFile
+            if tKind is not "property" then
+               put tFile into tPatch["file"]
+            end if
          else if tLine begins with "object:" then
-            put word 1 to -1 of (char 8 to -1 of tLine) into tPatch["object"]
-         else if tLine is "replace:" then
+            put word 1 to -1 of (char 8 to -1 of tLine) into tObject
+            if tKind is not "property" then
+               put tObject into tPatch["object"]
+            end if
+         else if tLine begins with "property:" then
+            if tKind is "script" then throw tFileName & " line " & tLineNumber & ": a patch is either a script or a property patch"
+            put "property" into tKind
+            if tObject is empty then throw tFileName & " line " & tLineNumber & ": property: before object:"
+            -- A property patch before this one is complete: keep it
+            if tPatch["property"] is not empty then
+               checkPropertyPatch tPatch, tFileName
+               add 1 to tCount
+               put tPatch into tPatches[tCount]
+            end if
+            add 1 to tInFile
+            put empty into tPatch
+            put tFileName && "#" & tInFile into tPatch["name"]
+            put "property" into tPatch["kind"]
+            put tFile into tPatch["file"]
+            put tObject into tPatch["object"]
+            put word 1 to -1 of (char 10 to -1 of tLine) into tName
+            -- Only a plain property name: it is used in a statement
+            if tName is empty or not matchText(tName, "^[A-Za-z][A-Za-z0-9]*$") then
+               throw tFileName & " line " & tLineNumber & ": not a property name: " & tName
+            end if
+            put tName into tPatch["property"]
+         else if tLine begins with "from:" and tKind is "property" then
+            put true into tPatch["hasFrom"]
+            put patchValue(char 6 to -1 of tLine) into tPatch["from"]
+         else if tLine begins with "to:" and tKind is "property" then
+            put true into tPatch["hasTo"]
+            put patchValue(char 4 to -1 of tLine) into tPatch["to"]
+         else if tLine is "replace:" and tKind is not "property" then
+            put "script" into tKind
             put "old" into tSection
-         else if tLine is "with:" then
+         else if tLine is "with:" and tKind is not "property" then
+            put "script" into tKind
             put "new" into tSection
          else if tSection is not empty and char 1 of tLine is "|" and char -1 of tLine is "|" and the number of chars of tLine >= 2 then
             put char 2 to -2 of tLine & return after tPatch[tSection]
          else if tLine is empty then
             next repeat
          else
-            throw tName & " line " & tLineNumber & ": not a patch line: " & tLine
+            throw tFileName & " line " & tLineNumber & ": not a patch line: " & tLine
          end if
       end repeat
-      if tPatch["file"] is empty or tPatch["object"] is empty or tPatch["old"] is empty or tPatch["new"] is empty then
-         throw tName & ": needs file:, object:, replace: and with:"
+      if tKind is "property" then
+         checkPropertyPatch tPatch, tFileName
+      else if tPatch["file"] is empty or tPatch["object"] is empty or tPatch["old"] is empty or tPatch["new"] is empty then
+         throw tFileName & ": needs file:, object:, replace: and with:"
       end if
-      -- Each text ends with the return of its last line
+      -- Each text of a script patch ends with the return of its last line
       add 1 to tCount
       put tPatch into tPatches[tCount]
    end repeat
    if tCount is 0 then throw "no *.txt patch in " & pDir
    return tPatches
 end readPatches
+
+private command checkPropertyPatch pPatch, pFileName
+   if pPatch["file"] is empty or pPatch["object"] is empty or pPatch["property"] is empty \
+         or pPatch["hasFrom"] is not true or pPatch["hasTo"] is not true then
+      throw pFileName & ": a property patch needs file:, object:, property:, from: and to:"
+   end if
+   set the caseSensitive to true
+   if pPatch["from"] is pPatch["to"] then
+      set the caseSensitive to false
+      throw pFileName & ": the property " & pPatch["property"] & " of " & pPatch["object"] & " has the same from: and to:"
+   end if
+   set the caseSensitive to false
+end checkPropertyPatch
 
 -- How often pNeedle occurs in pText (case-sensitive, not overlapping)
 private function occurrences pNeedle, pText
@@ -208,11 +337,19 @@ private function objectRef pObject, pMain
    return value("the long id of" && pObject && "of stack" && quote & pMain & quote)
 end objectRef
 
+-- The value of a property of an object (pProperty is a plain name, checked
+-- by readPatches)
+private function propertyValue pObject, pProperty
+   local tValue
+   do "put the" && pProperty && "of pObject into tValue"
+   return tValue
+end propertyValue
+
 private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
-   local tAppliedHere, tFailedHere, tSame, tPatchedObjects, tLabels
-   local tCompileError, tSaveError
+   local tAppliedHere, tFailedHere, tSame, tScriptObjects, tLabels, tPropertyA
+   local tCompileError, tSaveError, tCurrent, tLabel
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
    put URL ("binfile:" & tPath) into tOriginal
@@ -224,6 +361,7 @@ private command patchFile pRel, pPatches, pCheck
    repeat with i = 1 to the number of elements of pPatches
       if pPatches[i]["file"] is not pRel then next repeat
       put pPatches[i]["name"] & " | " & pRel & " | " & pPatches[i]["object"] into tPatched
+      if pPatches[i]["kind"] is "property" then put " | " & pPatches[i]["property"] after tPatched
       try
          put objectRef(pPatches[i]["object"], tMain) into tObject
       catch tError
@@ -232,6 +370,57 @@ private command patchFile pRel, pPatches, pCheck
          put true into tFailedHere
          next repeat
       end try
+
+      if pPatches[i]["kind"] is "property" then
+         try
+            put propertyValue(tObject, pPatches[i]["property"]) into tCurrent
+         catch tError
+            write "PATCH " & tPatched & " | FAILED the object has no such property" & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+            next repeat
+         end try
+         set the caseSensitive to true
+         if tCurrent is pPatches[i]["to"] then
+            set the caseSensitive to false
+            write "PATCH " & tPatched & " | already applied" & return to stdout
+            add 1 to sAlready
+         else if tCurrent is pPatches[i]["from"] then
+            set the caseSensitive to false
+            if pCheck then
+               write "PATCH " & tPatched & " | NOT APPLIED" & return to stdout
+               add 1 to sPending
+            else
+               try
+                  do "set the" && pPatches[i]["property"] && "of tObject to pPatches[i][" & quote & "to" & quote & "]"
+                  put propertyValue(tObject, pPatches[i]["property"]) into tCurrent
+               catch tError
+                  put "(" & oneLine(tError) & ")" into tCurrent
+               end try
+               set the caseSensitive to true
+               if tCurrent is not pPatches[i]["to"] then
+                  set the caseSensitive to false
+                  write "PATCH " & tPatched & " | FAILED the property does not take the new value: " & oneLine(tCurrent) & return to stdout
+                  add 1 to sFailures
+                  put true into tFailedHere
+               else
+                  set the caseSensitive to false
+                  write "PATCH " & tPatched & " | applied" & return to stdout
+                  add 1 to sApplied
+                  add 1 to tAppliedHere
+                  -- One entry per object and property, for the dump check
+                  put pPatches[i]["to"] into tPropertyA[tObject][pPatches[i]["property"]]
+               end if
+            end if
+         else
+            set the caseSensitive to false
+            write "PATCH " & tPatched & " | FAILED the property is neither the from: nor the to: value but: " & oneLine(tCurrent) & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+         end if
+         next repeat
+      end if
+
       put the script of tObject into tScript
       put pPatches[i]["old"] into tOld
       put pPatches[i]["new"] into tNew
@@ -258,7 +447,7 @@ private command patchFile pRel, pPatches, pCheck
             write "PATCH " & tPatched & " | applied" & return to stdout
             add 1 to sApplied
             add 1 to tAppliedHere
-            put tObject & return after tPatchedObjects
+            put tObject & return after tScriptObjects
          end if
       else
          write "PATCH " & tPatched & " | FAILED the text to replace occurs " & tOldCount & " time(s) and the replacement " & tNewCount & " time(s)" & return to stdout
@@ -278,12 +467,19 @@ private command patchFile pRel, pPatches, pCheck
       exit patchFile
    end if
 
-   -- Only the patched scripts may differ from the file as it was loaded
+   -- Only the patched scripts and properties may differ from the file as
+   -- it was loaded (ideStackDumpLabel needs the dump that follows)
    put ideStackDump(tMain) into tExpected
-   repeat for each line tObject in tPatchedObjects
+   repeat for each line tObject in tScriptObjects
       put ideStackDumpLabel(tObject) & return after tLabels
    end repeat
-   put scriptsChangedOnly(tBefore, tExpected, tLabels) into tChanged
+   local tPropertyLabels
+   repeat for each key tObject in tPropertyA
+      put ideStackDumpLabel(tObject) into tLabel
+      if tLabel is empty then throw "a patched object is not in the dump"
+      put tPropertyA[tObject] into tPropertyLabels[tLabel]
+   end repeat
+   put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels) into tChanged
 
    save stack tMain
    -- Writing the original back sets the result, so keep the save error
@@ -303,13 +499,14 @@ private command patchFile pRel, pPatches, pCheck
       put tOriginal into URL ("binfile:" & tPath)
       throw "the saved file does not load as the patched stack; the original is restored"
    end if
+   -- The header holds the stack file version (REVO7000 for 7.0)
    if byte 1 to 8 of URL ("binfile:" & tPath) is not byte 1 to 8 of tOriginal then
       put tOriginal into URL ("binfile:" & tPath)
-      throw "the saved file has another format than the original (" & byte 1 to 8 of tOriginal & "); the original is restored"
+      throw "the saved file has another stack file version than the original (" & byte 1 to 8 of tOriginal & "); the original is restored"
    end if
-   write "FILE " & pRel & " | saved and verified: format " & byte 1 to 8 of tOriginal & ", " & the number of lines of tAfter & " dump lines equal to the patched stack, which differs from the original only in the script of " & the number of lines of tChanged & " object(s)" & return to stdout
-   repeat for each line tLabel in tChanged
-      write "CHANGED " & pRel & " | " & tLabel & " | script" & return to stdout
+   write "FILE " & pRel & " | saved and verified: format " & byte 1 to 8 of tOriginal & ", " & the number of lines of tAfter & " dump lines equal to the patched stack, which differs from the original only in " & the number of lines of tChanged & " patched script(s) and propert(ies)" & return to stdout
+   repeat for each line tLine in tChanged
+      write "CHANGED " & pRel & " | " & tLine & return to stdout
    end repeat
 end patchFile
 
@@ -328,12 +525,47 @@ private command unloadStack pName
    end try
 end unloadStack
 
+-- The key of a property in "the properties" (and so in the dump), for the
+-- synonyms a patch may use
+private function propertyKey pProperty
+   switch pProperty
+      case "foregroundColor"
+      case "textColor"
+      case "foreColor"
+         return "foreColor"
+      case "backgroundColor"
+      case "fillColor"
+      case "backColor"
+         return "backColor"
+      case "foregroundPattern"
+      case "forePattern"
+         return "forePattern"
+      case "backgroundPattern"
+      case "backPattern"
+         return "backPattern"
+   end switch
+   return pProperty
+end propertyKey
+
+-- The dump value of a property line: as ide-stack-dump.livecodescript
+-- writes it
+private function dumpValue pValue
+   replace "\" with "\\" in pValue
+   replace numToCodepoint(13) with "\r" in pValue
+   replace numToCodepoint(10) with "\n" in pValue
+   replace tab with "\t" in pValue
+   return pValue
+end dumpValue
+
 -- Throws unless pBefore and pAfter (two ideStackDump results) have the
--- same objects with the same properties, and differ in the scripts of
--- exactly the objects labelled in pLabels (one label per line). Returns the
--- labels of the objects whose scripts differ, one per line.
-private function scriptsChangedOnly pBefore, pAfter, pLabels
+-- same objects and differ in the scripts of exactly the objects labelled
+-- in pScriptLabels (one label per line) and, for the objects that are keys
+-- of pPropertyLabels ([label][property] = new value), in exactly one
+-- property line per patched property, which shows the new value. Returns
+-- one line per change: "<label> | script" or "<label> | <property>".
+private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabels
    local tBeforeA, tAfterA, tBeforeKeys, tAfterKeys, tChanged, tExpected
+   local tResult, tBeforeProps, tAfterProps, tWanted, tLine, tKey
    put dumpObjects(pBefore) into tBeforeA
    put dumpObjects(pAfter) into tAfterA
    put the keys of tBeforeA into tBeforeKeys
@@ -342,18 +574,49 @@ private function scriptsChangedOnly pBefore, pAfter, pLabels
    sort lines of tAfterKeys
    if tBeforeKeys is not tAfterKeys then throw "the objects of the stack changed"
    set the caseSensitive to true
-   repeat for each line tKey in tBeforeKeys
-      if tBeforeA[tKey]["props"] is not tAfterA[tKey]["props"] then
+   repeat for each line tLabel in tBeforeKeys
+      if tBeforeA[tLabel]["props"] is not tAfterA[tLabel]["props"] then
+         if pPropertyLabels[tLabel] is not an array then
+            set the caseSensitive to false
+            throw "properties of " & tLabel & " changed"
+         end if
+         -- The lines that differ must be exactly one per patched property
+         put empty into tWanted
+         repeat for each key tProperty in pPropertyLabels[tLabel]
+            put "prop " & propertyKey(tProperty) & ": " & dumpValue(pPropertyLabels[tLabel][tProperty]) into tWanted[propertyKey(tProperty)]
+         end repeat
+         put tBeforeA[tLabel]["props"] into tBeforeProps
+         put tAfterA[tLabel]["props"] into tAfterProps
+         if the number of lines of tBeforeProps is not the number of lines of tAfterProps then
+            set the caseSensitive to false
+            throw "properties of " & tLabel & " were added or removed"
+         end if
+         repeat with i = 1 to the number of lines of tAfterProps
+            put line i of tAfterProps into tLine
+            if tLine is line i of tBeforeProps then next repeat
+            put char 6 to (offset(": ", tLine) - 1) of tLine into tKey
+            if not (tLine begins with "prop ") or tWanted[tKey] is empty or tLine is not tWanted[tKey] then
+               set the caseSensitive to false
+               throw "a property of " & tLabel & " changed that no patch sets: " & tLine
+            end if
+            put tLabel & " | " & tKey & return after tResult
+            delete variable tWanted[tKey]
+         end repeat
+         if the number of elements of tWanted > 0 then
+            set the caseSensitive to false
+            throw "a patched property of " & tLabel & " is not in the dump as patched"
+         end if
+      else if pPropertyLabels[tLabel] is an array then
          set the caseSensitive to false
-         throw "properties of " & tKey & " changed"
+         throw "the patched properties of " & tLabel & " did not change in the dump"
       end if
-      if tBeforeA[tKey]["script"] is not tAfterA[tKey]["script"] then
-         put tKey & return after tChanged
+      if tBeforeA[tLabel]["script"] is not tAfterA[tLabel]["script"] then
+         put tLabel & return after tChanged
       end if
    end repeat
    delete the last char of tChanged
    -- The same object can be named by more than one patch
-   repeat for each line tLabel in pLabels
+   repeat for each line tLabel in pScriptLabels
       if tLabel is empty then throw "a patched object is not in the dump"
       if tLabel is not among the lines of tExpected then put tLabel & return after tExpected
    end repeat
@@ -366,8 +629,12 @@ private function scriptsChangedOnly pBefore, pAfter, pLabels
             the number of lines of tChanged & " changed, " & the number of lines of tExpected & " patched"
    end if
    set the caseSensitive to false
-   return tChanged
-end scriptsChangedOnly
+   repeat for each line tLabel in tChanged
+      put tLabel & " | script" & return after tResult
+   end repeat
+   delete the last char of tResult
+   return tResult
+end changedAsPatched
 
 -- The objects of a dump: [<label>]["props"] (all lines but the script)
 -- and [<label>]["script"]

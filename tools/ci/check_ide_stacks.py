@@ -24,9 +24,16 @@ Binary stacks (ide/**/*.livecode) are changed only by
 tools/oxt/ide-stack-patch.livecodescript, which needs a LiveCode engine. This
 check needs none: a stack file of format 7.0 or later stores each script as
 one UTF-8 string, with LF line ends, so an applied patch can be seen in the
-file's bytes. For every patch definition it checks that the replacement
-text occurs exactly once in the stack file and the replaced text does not
-occur.
+file's bytes. For every script patch it checks that the replacement text
+occurs exactly once in the stack file and the replaced text does not occur.
+
+Property patches (a colour or another property of an object) cannot be
+seen this way: a stack file stores properties in a binary form that no
+tool here decodes. This check only reads them (each names an existing
+stack file and has object:, property:, from: and to:);
+tools/ci/ide-contrast-check.ps1 checks that they are applied, with the
+engine of the build (tools/oxt/ide-stack-patch.livecodescript with
+OXT_PATCH_CHECK=1).
 
 It also checks what the patches are for, so that a stack saved from the IDE
 cannot bring the old code back unnoticed:
@@ -53,10 +60,15 @@ COPY = os.path.join('ide', 'Toolset', 'palettes', 'behaviors', 'revcorestackbeha
 
 
 def read_patch(path):
-    """(file, object, old text, new text) of a patch definition."""
+    """('script', file, object, old text, new text) of a script patch, or
+    ('property', file, [(object, property, from, to), ...]) of a property
+    patch (tools/oxt/ide-stack-patch.livecodescript describes both)."""
     fields = {}
     sections = {'old': [], 'new': []}
     section = None
+    kind = None
+    obj = None
+    changes = []
     with open(path, 'r', encoding='utf-8') as f:
         for number, line in enumerate(f.read().splitlines(), 1):
             if section is None and (not line or line.startswith('#')):
@@ -64,10 +76,27 @@ def read_patch(path):
             if line.startswith('file:'):
                 fields['file'] = line[5:].strip()
             elif line.startswith('object:'):
-                fields['object'] = line[7:].strip()
-            elif line == 'replace:':
+                obj = line[7:].strip()
+                if kind != 'property':
+                    fields['object'] = obj
+            elif line.startswith('property:'):
+                if kind == 'script':
+                    raise ValueError('%s line %d: a patch is either a script or a property patch' % (path, number))
+                kind = 'property'
+                if not obj:
+                    raise ValueError('%s line %d: property: before object:' % (path, number))
+                name = line[9:].strip()
+                if not re.match(r'^[A-Za-z][A-Za-z0-9]*$', name):
+                    raise ValueError('%s line %d: not a property name: %s' % (path, number, name))
+                changes.append({'object': obj, 'property': name})
+            elif kind == 'property' and (line.startswith('from:') or line.startswith('to:')):
+                key, value = line.split(':', 1)
+                changes[-1][key] = value.strip()
+            elif line == 'replace:' and kind != 'property':
+                kind = 'script'
                 section = 'old'
-            elif line == 'with:':
+            elif line == 'with:' and kind != 'property':
+                kind = 'script'
                 section = 'new'
             elif section and len(line) >= 2 and line.startswith('|') and line.endswith('|'):
                 sections[section].append(line[1:-1])
@@ -75,12 +104,19 @@ def read_patch(path):
                 continue
             else:
                 raise ValueError('%s line %d: not a patch line: %s' % (path, number, line))
+    if kind == 'property':
+        if not fields.get('file'):
+            raise ValueError('%s: needs file:' % path)
+        for change in changes:
+            if 'from' not in change or 'to' not in change:
+                raise ValueError('%s: the property %s of %s needs from: and to:' % (path, change['property'], change['object']))
+        return 'property', fields['file'], [(c['object'], c['property'], c['from'], c['to']) for c in changes]
     if not fields.get('file') or not fields.get('object') or not sections['old'] or not sections['new']:
         raise ValueError('%s: needs file:, object:, replace: and with:' % path)
     # As in the patch tool, each text ends with the line end of its last line
     old = '\n'.join(sections['old']) + '\n'
     new = '\n'.join(sections['new']) + '\n'
-    return fields['file'], fields['object'], old.encode('utf-8'), new.encode('utf-8')
+    return 'script', fields['file'], fields['object'], old.encode('utf-8'), new.encode('utf-8')
 
 
 def handler_span(data, start, end):
@@ -102,15 +138,21 @@ def check_patches(repo, failures):
     for name in names:
         rel_patch = PATCH_DIR.replace(os.sep, '/') + '/' + name
         try:
-            stack, obj, old, new = read_patch(os.path.join(folder, name))
+            patch = read_patch(os.path.join(folder, name))
         except (OSError, ValueError) as e:
             failures.append((rel_patch, str(e)))
             continue
+        stack = patch[1]
         rel_stack = 'ide/' + stack
         path = os.path.join(repo, 'ide', *stack.split('/'))
         if not os.path.isfile(path):
             failures.append((rel_patch, 'stack file not found: %s' % rel_stack))
             continue
+        if patch[0] == 'property':
+            print('engine  %s: %d property change(s) of %s, checked by tools/ci/ide-contrast-check.ps1'
+                  % (name, len(patch[2]), rel_stack))
+            continue
+        obj, old, new = patch[2], patch[3], patch[4]
         with open(path, 'rb') as f:
             data = f.read()
         new_count = data.count(new)

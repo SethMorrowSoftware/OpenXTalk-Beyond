@@ -24,6 +24,14 @@
     With -UpdateBaseline the baseline is rewritten with the pairs that fail
     now.
 
+    The same engine then checks that the patches of tools/oxt/ide-stack-patches
+    are applied to the layout's binary IDE stacks
+    (tools/oxt/ide-stack-patch.livecodescript with OXT_PATCH_CHECK=1, which
+    never saves). tools/ci/check_ide_stacks.py sees script patches in the
+    stack files' bytes without an engine, but not property patches (colours
+    and other properties are stored in binary form), so this is where those
+    are checked. A patch that is not applied fails the check.
+
     The check also fails when it did not check the dark appearance (a
     layout without revIDEIsDark()), unless the environment variable
     OXT_CONTRAST_LIGHT_ONLY is 1 (the engine inherits it).
@@ -111,46 +119,57 @@ function Read-Lines([string]$Path) {
 # As in ide-compile-check.ps1: a GUI-subsystem program, so start it with
 # redirected output and wait for it explicitly, in an empty temporary
 # folder. A script that does not compile makes the engine wait instead of
-# exiting, hence the timeout.
+# exiting, hence the timeout. $Environment holds the variables to set for
+# the run; the previous values are restored.
 $base = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
 $workDir = Join-Path $base ('oxt-contrast-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
-$outFile = Join-Path $workDir 'stdout.txt'
-$errFile = Join-Path $workDir 'stderr.txt'
 
-$saved = @{ Root = $env:OXT_CHECK_ROOT; Update = $env:OXT_CONTRAST_UPDATE }
-$env:OXT_CHECK_ROOT = $Root
-$env:OXT_CONTRAST_UPDATE = $(if ($UpdateBaseline) { '1' } else { '' })
+function Invoke-Headless([string]$Script, [hashtable]$Environment, [string]$Name) {
+    $outFile = Join-Path $workDir "$Name-stdout.txt"
+    $errFile = Join-Path $workDir "$Name-stderr.txt"
+    $saved = @{}
+    foreach ($key in $Environment.Keys) {
+        $saved[$key] = [Environment]::GetEnvironmentVariable($key)
+        [Environment]::SetEnvironmentVariable($key, $Environment[$key])
+    }
+    $run = [pscustomobject]@{ Output = @(); Stderr = @(); ExitCode = $null; TimedOut = $false; Elapsed = 0 }
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        $process = Start-Process -FilePath $Engine -ArgumentList @('-ui', ('"{0}"' -f $Script)) `
+            -WorkingDirectory $workDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile `
+            -NoNewWindow -PassThru
+        # Read the handle now: without it, ExitCode is empty after the process
+        # has exited (a known Start-Process -PassThru quirk).
+        $null = $process.Handle
+        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+            $run.TimedOut = $true
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $null = $process.WaitForExit(30000)
+        }
+        else {
+            $process.WaitForExit()
+            $run.ExitCode = $process.ExitCode
+        }
+        $run.Output = @(Read-Lines $outFile | Where-Object { $_ -ne '' })
+        $run.Stderr = @(Read-Lines $errFile | Where-Object { $_ -ne '' })
+    }
+    finally {
+        foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key]) }
+    }
+    $run.Elapsed = $timer.Elapsed.TotalSeconds
+    return $run
+}
 
-$output = @()
-$stderr = @()
-$exitCode = $null
-$timedOut = $false
-$timer = [System.Diagnostics.Stopwatch]::StartNew()
-try {
-    $process = Start-Process -FilePath $Engine -ArgumentList @('-ui', ('"{0}"' -f $checkScript)) `
-        -WorkingDirectory $workDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile `
-        -NoNewWindow -PassThru
-    # Read the handle now: without it, ExitCode is empty after the process
-    # has exited (a known Start-Process -PassThru quirk).
-    $null = $process.Handle
-    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-        $timedOut = $true
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        $null = $process.WaitForExit(30000)
-    }
-    else {
-        $process.WaitForExit()
-        $exitCode = $process.ExitCode
-    }
-    $output = @(Read-Lines $outFile | Where-Object { $_ -ne '' })
-    $stderr = @(Read-Lines $errFile | Where-Object { $_ -ne '' })
-}
-finally {
-    $env:OXT_CHECK_ROOT = $saved.Root
-    $env:OXT_CONTRAST_UPDATE = $saved.Update
-}
-$elapsed = $timer.Elapsed.TotalSeconds
+$contrastRun = Invoke-Headless $checkScript @{
+    OXT_CHECK_ROOT = $Root
+    OXT_CONTRAST_UPDATE = $(if ($UpdateBaseline) { '1' } else { '' })
+} 'contrast'
+$output = $contrastRun.Output
+$stderr = $contrastRun.Stderr
+$exitCode = $contrastRun.ExitCode
+$timedOut = $contrastRun.TimedOut
+$elapsed = $contrastRun.Elapsed
 
 $output | ForEach-Object { Write-Host $_ }
 if ($stderr.Count -gt 0) {
@@ -212,11 +231,52 @@ if ($env:GITHUB_ACTIONS -eq 'true') {
     if ($problem) { Write-Host "::error title=IDE contrast check::$problem" }
 }
 
+# --- More headless checks with the same engine and layout ---
+# Each prints a SUMMARY line and exits with 0 when it passed; lines that
+# start with a word in its $Problems pattern are reported as errors.
+$extraChecks = @(
+    [pscustomobject]@{
+        Title = 'IDE stack patches'
+        Script = Join-Path $RepoRoot 'tools\oxt\ide-stack-patch.livecodescript'
+        Environment = @{ OXT_PATCH_ROOT = $Root; OXT_PATCH_CHECK = '1'; OXT_PATCH_DIR = '' }
+        Problems = '^(PATCH .*\| (FAILED|NOT APPLIED)|FILE .*\| FAILED|FATAL )'
+        Name = 'patches'
+    }
+)
+$extraResults = @()
+foreach ($check in $extraChecks) {
+    Write-Host ''
+    Write-Host "--- $($check.Title) ($($check.Script))"
+    $run = Invoke-Headless $check.Script $check.Environment $check.Name
+    $run.Output | ForEach-Object { Write-Host $_ }
+    if ($run.Stderr.Count -gt 0) {
+        Write-Host 'Engine stderr:'
+        $run.Stderr | ForEach-Object { Write-Host "  $_" }
+    }
+    $problems = @($run.Output | Where-Object { $_ -match $check.Problems })
+    $checkSummary = $run.Output | Where-Object { $_ -match '^SUMMARY ' } | Select-Object -Last 1
+    $checkResult = if ($run.TimedOut) { "the engine did not finish within $TimeoutSeconds seconds" }
+                   elseif (-not $checkSummary) { "did not complete (exit code $($run.ExitCode), no SUMMARY line)" }
+                   elseif ($run.ExitCode -ne 0) { "FAILED: $($checkSummary.Substring(8))" }
+                   else { "passed: $($checkSummary.Substring(8))" }
+    $checkPassed = (-not $run.TimedOut) -and $checkSummary -and ($run.ExitCode -eq 0)
+    if (-not $checkPassed) { $passed = $false }
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        foreach ($line in ($problems | Select-Object -First 20)) { Write-Host "::error title=$($check.Title)::$line" }
+        if (-not $checkPassed -and $problems.Count -eq 0) { Write-Host "::error title=$($check.Title)::$checkResult" }
+    }
+    Write-Host "$($check.Title): $checkResult"
+    $extraResults += [pscustomobject]@{ Title = $check.Title; Result = $checkResult; Passed = $checkPassed; Run = $run; Problems = $problems }
+}
+
 # --- Log, step outputs and job summary ---
 if ($LogFile) {
     $logDir = Split-Path -Parent $LogFile
     if ($logDir) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
     $log = @("Layout: $Root", "Engine: $Engine", '') + @($output) + @('', 'stderr:') + @($stderr) + @('', "Result: $result")
+    foreach ($r in $extraResults) {
+        $log += @('', "--- $($r.Title)") + @($r.Run.Output) + @('', 'stderr:') + @($r.Run.Stderr) + @('', "Result: $($r.Result)")
+    }
     [System.IO.File]::WriteAllText($LogFile, ($log -join "`r`n") + "`r`n", $utf8)
 }
 if ($env:GITHUB_OUTPUT -and $summaryLine) {
@@ -244,6 +304,12 @@ if ($env:GITHUB_STEP_SUMMARY) {
         $md += $fixed
         $md += @('```', '')
     }
+    foreach ($r in $extraResults) {
+        $md += @("#### $($r.Title)", '', "Result: **$($r.Result)**", '')
+        if ($r.Problems.Count -gt 0) {
+            $md += @('```text') + @($r.Problems | Select-Object -First 50) + @('```', '')
+        }
+    }
     [System.IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, ($md -join "`n") + "`n", $utf8)
 }
 
@@ -251,5 +317,6 @@ Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
 Write-Host ("IDE contrast check: {0} ({1:N1} s)." -f $result, $elapsed)
+foreach ($r in $extraResults) { Write-Host ("{0}: {1} ({2:N1} s)." -f $r.Title, $r.Result, $r.Run.Elapsed) }
 if ($passed) { exit 0 }
 exit 1
