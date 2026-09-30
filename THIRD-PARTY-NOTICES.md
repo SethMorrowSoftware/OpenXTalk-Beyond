@@ -4,11 +4,14 @@ OXT-Beyond is licensed under the GNU General Public License, version 3
 ([LICENSE](LICENSE)); [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)
 describes an additional permission and which parts it covers. The
 OXT-Beyond packages (the installer, the portable zip and the binaries
-zip) also contain software and content written by other people under
-other terms. This file lists them, with their licence and where the
-licence text can be found.
+zip; on macOS the disk image, the app zip and the binaries tar.xz) also
+contain software and content written by other people under other terms.
+This file lists them, with their licence and where the licence text can
+be found.
 
-It covers the Windows x86-64 packages and this repository. Versions are
+It covers the Windows x86-64 packages, the macOS universal packages
+(what differs from Windows is in [The macOS app](#the-macos-app)) and
+this repository. Versions are
 the ones this repository builds or ships today. Paths in the text are
 relative to the repository root; "where it ends up" gives the path in
 the installed program folder. Links point to the upstream licence text
@@ -27,6 +30,7 @@ Contents:
 - [The IDE](#the-ide)
 - [xTalk Suite extensions](#xtalk-suite-extensions)
 - [Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)
+- [The macOS app](#the-macos-app)
 - [Files OpenXTalk Lite shipped that OXT-Beyond does not](#files-openxtalk-lite-shipped-that-oxt-beyond-does-not)
 - [The installer](#the-installer)
 - [Microsoft components](#microsoft-components)
@@ -236,8 +240,9 @@ listed in this section; those are listed in this file.
 
 ### The OXT-Beyond icon
 
-The OXT-Beyond icon (`ide/OXT-Beyond.ico`, `engine/rsrc/oxt-beyond.ico`
-and the images in `Installer/oxt-beyond/branding/png/`) and the splash
+The OXT-Beyond icon (`ide/OXT-Beyond.ico`, `engine/rsrc/oxt-beyond.ico`,
+the images in `Installer/oxt-beyond/branding/png/` and the macOS app's
+`OXT-Beyond.icns`, which packaging makes from them) and the splash
 screens are adapted from Tom Perry's OpenXTalk Lite icon
 (`ide/OpenXTalk-lite_1024.ico`, introduced in OpenXTalk Lite 1.04), with
 "Lite" replaced by "Beyond", by
@@ -391,7 +396,65 @@ Licences and corresponding source:
 
 The asset holds no standalone runtimes for macOS or iOS (only the time
 zone library's native code for them, as OpenXTalk Lite 1.15 shipped
-it), and nothing from `Ext/`.
+it), and nothing from `Ext/`. The macOS package takes all of it except
+the time zone library's macOS code and zoneinfo data, which its own
+build makes; the macOS standalone runtimes are this repository's (see
+[The macOS app](#the-macos-app)).
+
+## The macOS app
+
+`OXT-Beyond-<version>-mac-universal.dmg` and `-mac-universal.zip` hold
+`OXT-Beyond.app`: the engine in `Contents/MacOS`, and in
+`Contents/Tools` everything that the Windows program folder holds at its
+root (the IDE, externals, toolchain, extensions and runtimes).
+`-mac-universal-binaries.tar.xz` holds the build output (`Release/`,
+like the Windows binaries zip) and `-mac-universal-symbols.zip` its
+`.dSYM` debug symbols. Every program file below is built from this
+repository twice, for Apple Silicon (arm64) and Intel (x86_64), and the
+two are joined into one file with `lipo`. This list was made from the
+files the macOS packaging stages. What is not mentioned is as on
+Windows: the IDE, the xTalk Suite extensions (whose macOS libraries
+are the `code/universal-mac/*.dylib` files; see
+[xTalk Suite extensions](#xtalk-suite-extensions)) and the runtimes
+asset.
+
+| Where it ends up (in `OXT-Beyond.app`) | What it is | Licence |
+| --- | --- | --- |
+| `Contents/MacOS/OXT-Beyond`, `revsecurity.dylib`, `revpdfprinter.bundle`; `Contents/Tools/Externals/` (`revxml`, `revzip`, `revdb`, `revbrowser`, `revspeech`, `reviphone`, `revandroid` and the `Database Drivers`, as `.bundle` folders); `Contents/Tools/Toolchain/` (`lc-compile`, `lc-run`, `lc-compile-ffi-java`) | the engine, externals and toolchain | GPLv3 (and LiveCode Ltd's permission, see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) and the note on OpenSSL below). They statically link the libraries listed under [Prebuilt libraries](#prebuilt-libraries) (OpenSSL 1.1.1w and ICU 58.2, built from source by the macOS workflow; there is no CEF on macOS, where revBrowser and the browser widget use the system's WebKit) and under [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty), plus iODBC (next row). The GENTLE-generated parser is in `lc-compile` and `lc-compile-ffi-java`, as on Windows (see [GENTLE](#gentle)). |
+| the `dbodbc.bundle` database driver (in `Externals/Database Drivers/` and in each runtime's) | iODBC, statically linked (the Windows driver uses the system's `odbc32.dll` instead) | dual-licensed: LGPL version 2 or the BSD licence, at your choice; [`thirdparty/libiodbc/docs/LICENSE`](thirdparty/libiodbc/docs/LICENSE), [`LICENSE.LGPL`](thirdparty/libiodbc/docs/LICENSE.LGPL), [`LICENSE.BSD`](thirdparty/libiodbc/docs/LICENSE.BSD) |
+| `Contents/Tools/Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` and `x86-32/Standalone.app` (with `Support/` and `Externals/`, and `arm64/Externals/`) | the macOS standalone engine (`Standalone-Community.app` of the same build), under the folder names the IDE's standalone builder uses; it becomes part of every Mac standalone | GPLv3, with the same statically linked libraries as the engine |
+| `Contents/Tools/Extensions/com.livecode.library.timezone/code/universal-mac-macosx/tz.dylib` and `.../resources/zoneinfo` | the time zone library's native code and the IANA time zone data, built here (the runtimes asset's copies are left out) | see [Third-party code inside LiveCode's own sources](#third-party-code-inside-livecodes-own-sources) (IANA tz: public domain, some files BSD 3-clause) |
+| `Contents/Resources/OXT-Beyond.icns` | the OXT-Beyond icon, made from the images in `Installer/oxt-beyond/branding/png/` by [`tools/oxt/icns.py`](tools/oxt/icns.py) | see [The OXT-Beyond icon](#the-oxt-beyond-icon) |
+| `Contents/Resources/LiveCode.icns`, `LiveCodeDoc.icns` (the icon of LiveCode's own document types), `terminology.sdef`, `LiveCode-Community.rsrc`, the `*.lproj/Localisation.strings`; `Standalone.icns` and `StandaloneDoc.icns` in each runtime (the default icons of Mac standalones) | LiveCode Community's resources from `engine/rsrc/` | GPLv3, as part of LiveCode Community. The LiveCode name and logo are LiveCode Ltd's trademarks (see the README's "Trademarks"). |
+| `Contents/Tools/Resources/Mobile Examples/` | LiveCode's mobile example stacks, installed only on macOS (as upstream did) | LiveCode Community's (GPLv3); see [Examples and other resources](#examples-and-other-resources) |
+| `Contents/Info.plist` | generated by `tools/oxt/package.py` from LiveCode's `engine/rsrc/LiveCode-Info.plist` | part of OXT-Beyond (GPLv3) |
+| the build output's `server-community` (in the binaries tar.xz only) | LiveCode Server | GPLv3, statically linking libcurl 7.51.0 and OpenSSL, as on Windows |
+
+The macOS system frameworks and libraries that this code uses (AppKit,
+WebKit, libc++, libcups and the rest) are part of macOS and are not
+shipped. The app, every bundle and every Mach-O file of macOS code in it
+are signed ad hoc (no Apple Developer ID); the signatures are made in CI
+and contain no third-party material.
+
+Not in the macOS packages: the Visual C++ runtime DLLs of enetxt and
+Box2Dxt (the macOS workflow has no Visual Studio to take them from), so
+the Windows libraries of those two extensions, which the macOS app
+carries for building Windows standalones, need the Microsoft Visual C++
+Redistributable on the PC that runs such a standalone; and the Windows
+x86-64 standalone runtime, which only the Windows build makes.
+
+**OpenSSL and LiveCode Ltd's permission on macOS.** `revsecurity.dylib`
+(which the engine, the standalones and the database drivers use for SSL
+and encryption) and the server engine statically link OpenSSL 1.1.1w on
+macOS, as they do on Windows and Linux. LiveCode Ltd's additional
+permission to combine its GPL code with OpenSSL
+([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)) describes the secure
+sockets and encryption feature "on Windows and Linux", and says that it
+is only needed, and only has effect, for applications that use revBrowser
+(on Windows) or OpenSSL (on Windows and Linux). Whether the permission as
+written covers the same combination on macOS has not been reviewed: it
+needs the maintainer's legal read, and this file does not say either way
+(see [Still to review](#still-to-review)).
 
 ## Files OpenXTalk Lite shipped that OXT-Beyond does not
 
@@ -484,6 +547,11 @@ has been in the LiveCode Community tree since upstream. Its licence,
 
 ## Still to review
 
+- **LiveCode Ltd's OpenSSL permission on macOS.** The permission in
+  [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) names Windows and Linux;
+  the macOS packages combine the same GPL code with OpenSSL (see
+  [The macOS app](#the-macos-app)). Whether the permission covers macOS
+  needs a legal read by the maintainer.
 - **Tom Perry's condition** on `community.openxtalk.plugin.oxtlite`
   (quoted [above](#tom-perrys-notice-for-communityopenxtalkpluginoxtlite))
   is a restriction that the GPLv3 does not contain. How it fits with

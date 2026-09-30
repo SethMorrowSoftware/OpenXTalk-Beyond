@@ -173,6 +173,87 @@ finds the IDE, externals and runtimes by their places next to
 with itself; open stacks from the IDE, or with *Open with* in
 Explorer.
 
+### macOS
+
+OXT-Beyond for macOS is one universal app, `OXT-Beyond.app`, for Apple
+Silicon and Intel Macs. The macOS build workflow makes it as
+`OXT-Beyond-<version>-mac-universal.dmg` (a disk image) and
+`OXT-Beyond-<version>-mac-universal.zip` (the same app, for scripted
+installs), with `-binaries.tar.xz`, `-symbols.zip` and `SHA256SUMS`.
+Releases that include macOS carry these files; until then, pick a
+successful run of the
+[Build (macOS) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml)
+and download the artifact `OXT-Beyond-mac-universal`.
+
+**Requirements.** The IDE runs on macOS 10.13 High Sierra or later on an
+Intel Mac and macOS 11 Big Sur or later on Apple Silicon. The bundled
+xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT,
+Box2Dxt and CoinXT, whose native libraries are built for macOS 15) need
+macOS 15 Sequoia or later: on older macOS the IDE starts, but those
+extensions do not load.
+
+**Install.**
+
+1. Check the download if you like: in Terminal, compare the output of
+   `shasum -a 256 OXT-Beyond-<version>-mac-universal.dmg` with the line
+   for that file in `SHA256SUMS`.
+2. Open `OXT-Beyond-<version>-mac-universal.dmg` and drag
+   **OXT-Beyond** onto the **Applications** folder next to it. Eject the
+   disk image. (From the zip: double-click it, or run
+   `ditto -x -k OXT-Beyond-<version>-mac-universal.zip /Applications`.)
+3. Start OXT-Beyond from Applications. The first time, macOS blocks it.
+
+**Opening it for the first time (Gatekeeper).** OXT-Beyond is signed
+*ad hoc*: it is not signed with an Apple Developer ID and not notarized
+by Apple, so macOS will not open a downloaded copy until you allow it.
+You do this once. On macOS 15 Sequoia and later:
+
+1. Double-click OXT-Beyond. macOS says that it was not opened, because
+   Apple could not verify it is free of malware. Click **Done** (not
+   *Move to Trash*).
+2. Open **System Settings > Privacy & Security** and scroll down to
+   *Security*. Next to "OXT-Beyond was blocked to protect your Mac",
+   click **Open Anyway**.
+3. Confirm with **Open Anyway** and your password (or Touch ID).
+
+macOS 15 no longer offers *Open* when you Control-click the app, so use
+these steps (on macOS 13 and 14, Control-click the app in Finder, choose
+*Open* and then *Open* again; on macOS 12 and earlier, the button is in
+*System Preferences > Security & Privacy > General*). Or, in Terminal,
+remove the quarantine flag that the browser set on the download:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/OXT-Beyond.app
+```
+
+The same command helps if macOS says the app "is damaged and can't be
+opened": that is how some macOS versions report an app that is not
+notarized. After this, OXT-Beyond opens like any other app. It opens
+`.oxtstack` and `.oxtscript` files; LiveCode's `.livecode`, `.rev` and
+`.livecodescript` files it opens too, but it does not take them over from
+an installed LiveCode.
+
+To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
+
+**Limitations on macOS** (besides those
+[for every platform](#known-limitations-and-plans)):
+
+- The app is ad hoc signed and not notarized, hence the steps above.
+  Developer ID signing and notarization are planned.
+- The IDE still writes a few files into its own program folder (the
+  dictionary's index files), which on macOS is inside `OXT-Beyond.app`,
+  after the app was signed. Moving them to your user folders is planned.
+- Mac standalones: the standalone builder's Intel target builds x86_64
+  apps; its Apple Silicon target (*MacOS-IntelArmUniversal* in the
+  standalone settings) builds arm64-only apps and needs macOS 14 Sonoma
+  or later on the Mac that builds them. Universal standalones are
+  planned. Standalones run on macOS 10.13 or later (Intel) and 11 or
+  later (Apple Silicon); one that includes an xTalk Suite extension needs
+  macOS 15.
+- The macOS packages are built and tested automatically (on macOS 15, on
+  both an Apple Silicon and an Intel runner) but have not been tried by
+  hand yet.
+
 ### Where OXT-Beyond keeps your files
 
 | What | Where |
