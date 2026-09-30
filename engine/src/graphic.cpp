@@ -39,6 +39,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "exec.h"
 #include "exec-interface.h"
+#include "mctheme.h"
 
 #include "stackfileformat.h"
 
@@ -1389,10 +1390,23 @@ void MCGraphic::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool
 				sx = trect.x + trect.width - rightmargin - twidth - (borderwidth - DEFAULT_BORDER);
 				break;
 			}
+			// Disabled labels are engraved, except on the native Windows and GTK
+			// themes, which draw them once in the disabled grey like button labels
+			// (see MCButton::draw). The grey is set here because the foreground
+			// colour is only the grey when the graphic has no foreColor or
+			// forePattern of its own (MCObject::getforecolor).
 			if (flags & F_DISABLED && MClook != LF_MOTIF)
 			{
-				drawlabel(dc, sx + 1, sy + 1, twidth, trect, line, fontstyle);
-				setforeground(dc, DI_BOTTOM, False);
+				if (IsNativeWin() || IsNativeGTK())
+				{
+					dc->setforeground(dc->getgray());
+					dc->setfillstyle(FillSolid, nil, 0, 0);
+				}
+				else
+				{
+					drawlabel(dc, sx + 1, sy + 1, twidth, trect, line, fontstyle);
+					setforeground(dc, DI_BOTTOM, False);
+				}
 			}
 			drawlabel(dc, sx, sy, twidth, trect, line, fontstyle);
 			sy += fheight;
