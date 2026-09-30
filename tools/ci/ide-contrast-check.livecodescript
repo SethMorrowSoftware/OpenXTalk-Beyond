@@ -202,13 +202,18 @@ on startup
          write "FIXED " & tEntry & return to stdout
          add 1 to tFixed
       end repeat
+   else if tErrors > 0 then
+      -- A pair that could not be evaluated has no line in tFailures, so a
+      -- baseline written now would silently drop it; keep the old one
+      write "INFO baseline not rewritten: " & tErrors & " pair(s) could not be evaluated" & return to stdout
    else
       writeBaseline tBaselineFile, tFailures
    end if
 
    write "SUMMARY pairs=" & tCount & " failed=" & tFailed & " known=" & tKnownCount & " new=" & tNew & " fixed=" & tFixed & " errors=" & tErrors & " modes=" & tModes & return to stdout
+   if tErrors > 0 then quit 1
    if tUpdate then quit 0
-   if tNew > 0 or tErrors > 0 then quit 1
+   if tNew > 0 then quit 1
    quit 0
 end startup
 

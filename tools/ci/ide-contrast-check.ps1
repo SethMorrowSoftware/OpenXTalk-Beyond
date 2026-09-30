@@ -191,6 +191,7 @@ elseif ($env:OXT_CONTRAST_LIGHT_ONLY -ne '1' -and @("$($counts['modes'])" -split
 }
 $passed = (-not $problem) -and ($exitCode -eq 0)
 $result = if ($problem) { $problem }
+          elseif ($UpdateBaseline -and $exitCode -ne 0) { "baseline NOT rewritten: $($counts['errors']) pair(s) could not be evaluated" }
           elseif ($UpdateBaseline) { "baseline rewritten with $($counts['failed']) failing pair(s)" }
           elseif ($passed) { "passed: $($counts['failed']) failing pair(s), all in the baseline" }
           else { "FAILED: $($newPairs.Count) failing pair(s) not in the baseline" }
