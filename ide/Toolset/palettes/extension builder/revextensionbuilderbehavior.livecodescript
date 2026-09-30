@@ -340,6 +340,10 @@ private on displayExtensionData pData
       set the iconPath of widget "svgicon" of me to pData["svgicon"]
       set the iconPath of widget "svgicon_retina" of me to pData["svgicon"]
    end if
+   # An SVG icon is the one the IDE uses, so hide the bitmap images (the PNG
+   # icons, or the default icon when there are none) that would sit beside it
+   set the visible of image "icon" of me to not tHaveSvgIcon
+   set the visible of image "icon_retina" of me to not tHaveSvgIcon
    
    # Load resources
    # AL-2015-03-18: [[ Bug 14998 ]] Resources not displaying in plugin

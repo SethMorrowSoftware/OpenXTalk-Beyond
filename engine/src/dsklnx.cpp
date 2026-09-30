@@ -73,6 +73,26 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include <syslog.h>
 
+// g_get_user_special_dir and GUserDirectory are GLib 2.14. The GLib headers
+// the engine builds with (thirdparty/headers/linux, GLib 2.10) do not declare
+// them; linux.stubs loads the function from the system's GLib at run time,
+// and every distribution the engine runs on has 2.14 or later.
+#if !GLIB_CHECK_VERSION(2, 14, 0)
+typedef enum
+{
+    G_USER_DIRECTORY_DESKTOP,
+    G_USER_DIRECTORY_DOCUMENTS,
+    G_USER_DIRECTORY_DOWNLOAD,
+    G_USER_DIRECTORY_MUSIC,
+    G_USER_DIRECTORY_PICTURES,
+    G_USER_DIRECTORY_PUBLIC_SHARE,
+    G_USER_DIRECTORY_TEMPLATES,
+    G_USER_DIRECTORY_VIDEOS,
+    G_USER_N_DIRECTORIES
+} GUserDirectory;
+extern "C" const gchar *g_get_user_special_dir(GUserDirectory directory);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // This is in here so we do not need GLIBC2.4
@@ -991,8 +1011,25 @@ public:
             !MCS_resolvepath(*t_tilde, &t_home))
             return false;
 
-        if (MCNameIsEqualToCaseless(p_type, MCN_desktop))
-            return MCStringFormat(r_folder, "%@/Desktop", *t_home);
+        if (MCNameIsEqualToCaseless(p_type, MCN_desktop) ||
+            MCNameIsEqualToCaseless(p_type, MCN_documents))
+        {
+            // Both folders are named in the user's language (~/Schreibtisch,
+            // ~/Dokumente, ...) and can be moved, as recorded in the XDG
+            // user-dirs.dirs file, which GLib reads for us. GLib's answer is a
+            // path, not a format string: a folder name may contain '%'. GLib
+            // has no documents folder when none is configured; then assume
+            // the English name.
+            bool t_desktop;
+            t_desktop = MCNameIsEqualToCaseless(p_type, MCN_desktop);
+
+            const gchar *t_dir;
+            t_dir = g_get_user_special_dir(t_desktop ? G_USER_DIRECTORY_DESKTOP : G_USER_DIRECTORY_DOCUMENTS);
+            if (t_dir != NULL && *t_dir != '\0')
+                return MCStringCreateWithSysString(t_dir, r_folder);
+
+            return MCStringFormat(r_folder, t_desktop ? "%@/Desktop" : "%@/Documents", *t_home);
+        }
         else if (MCNameIsEqualToCaseless(p_type, MCN_home))
             return MCStringCopy(*t_home, r_folder);
         else if (MCNameIsEqualToCaseless(p_type, MCN_temporary))
@@ -1268,7 +1305,27 @@ public:
     // NOTE: 'GetTemporaryFileName' returns a standard (not native) path.
     virtual bool GetTemporaryFileName(MCStringRef& r_tmp_name)
     {
-        return MCStringCreateWithSysString(tmpnam(NULL), r_tmp_name);
+		// mdw 2023.09.08 tmpnam has been deprecated
+		int t_fd;
+		bool t_success;
+
+ 		char filename[] = "/tmp/prefXXXXXX";
+		/* UNCHECKED */ t_fd = mkstemp(filename);
+		t_success = t_fd != -1;
+
+		if (t_success)
+		{
+			close(t_fd);
+			t_success = unlink(filename) == 0;
+		}
+
+		if (t_success)
+			t_success = MCStringCreateWithSysString(filename, r_tmp_name);
+
+		if (!t_success)
+            r_tmp_name = MCValueRetain(kMCEmptyString);
+
+		return t_success;
     }
 
     virtual bool ListFolderEntries(MCStringRef p_folder, MCSystemListFolderEntriesCallback p_callback, void *x_context)
@@ -1325,8 +1382,8 @@ public:
             {
                 p_entry.name = *t_unicode_name;
                 p_entry.data_size = buf.st_size;
-                p_entry.modification_time = (uint32_t)buf.st_mtime;
-                p_entry.access_time = (uint32_t)buf.st_atime;
+                p_entry.modification_time = (uint64_t)buf.st_mtime;
+                p_entry.access_time = (uint64_t)buf.st_atime;
                 p_entry.group_id = buf.st_uid;
                 p_entry.user_id = buf.st_uid;
                 p_entry.permissions = buf.st_mode & 0777;

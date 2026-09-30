@@ -1214,8 +1214,8 @@ enum Exec_errors
 	// {EE-0395} Operators +: error in right operand
 	EE_PLUS_BADRIGHT,
 	
-	// {EE-0396} UNUSED
-	EE_UNUSED_0396,
+	// {EE-0396} pop: nothing pushed and no Home card to go to
+	EE_POP_NOHOME,
 	
 	// {EE-0397} pop: can't set destination
 	EE_POP_CANTSET,

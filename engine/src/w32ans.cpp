@@ -480,7 +480,10 @@ static int MCA_do_file_dialog(MCStringRef p_title, MCStringRef p_prompt, MCStrin
 				t_file_dialog -> SetFolder(t_initial_folder_shellitem);
 			if (t_initial_folder_shellitem != NULL)
 				t_initial_folder_shellitem -> Release();
-			t_succeeded = SUCCEEDED(t_hresult);
+			// The initial folder is only a starting point: a folder that has
+			// gone (a removed drive, an offline share, a deleted folder) must
+			// not stop the dialog from opening. Before, the failure went into
+			// t_succeeded and the dialog returned "cancel" without showing.
 		}
 
 		if (t_succeeded && *t_initial_file != NULL)
