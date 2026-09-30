@@ -2153,6 +2153,33 @@ bool MCObject::GetColor(MCExecContext& ctxt, Properties which, bool effective, M
 
             }
             
+            // The defaults of the dark appearance, as MCObject::getforecolor
+            // draws them, so that the effective colour is the one drawn
+            if (!t_found && isdarkappearance(CONTEXT_TYPE_SCREEN))
+            {
+                MCColor t_background, t_gray;
+                MCscreen -> getdefaultcolors(true, t_background, t_gray);
+                switch (which)
+                {
+                    case P_FORE_COLOR:
+                        r_color . color = MCscreen -> getwhite();
+                        t_found = true;
+                        break;
+                    case P_BACK_COLOR:
+                        r_color . color = t_background;
+                        t_found = true;
+                        break;
+                    case P_BORDER_COLOR:
+                        r_color . color . red = r_color . color . green = r_color . color . blue = 0x6E6E;
+                        t_found = true;
+                        break;
+                    default:
+                        break;
+                }
+                if (t_found)
+                    r_color . name = nil;
+            }
+
             // Only fall back to the dispatcher's default colours if theming failed
             if (!t_found)
                 t_found = MCdispatcher -> GetColor(ctxt, which, effective, r_color);

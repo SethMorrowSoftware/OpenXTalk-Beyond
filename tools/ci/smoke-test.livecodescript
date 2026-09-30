@@ -147,6 +147,13 @@ on startup
       check "no script error (core checks)", false, tError
    end try
 
+   -- The light and dark appearance (the appAppearance and stackAppearance)
+   try
+      checkAppearance
+   catch tError
+      check "no script error (appearance checks)", false, oneLine(tError)
+   end try
+
    -- SQLite, through revDB and dbsqlite (revDB adds the platform's suffix)
    try
       revSetDatabaseDriverPath tDrivers
@@ -229,6 +236,247 @@ private function oneLine pText
    replace numToCodepoint(13) with " " in pText
    return pText
 end oneLine
+
+-- The appAppearance and the stackAppearance (engine/src/appearance.cpp),
+-- and the colours an object reports in the dark appearance (the effective
+-- foreColor, MCObject::isdarkappearance in engine/src/object.cpp). Engines
+-- without the properties (OXT-Beyond 0.1.0 and earlier) print a SKIP line. Every use of the new syntax is inside "do": this script must still
+-- compile on those engines.
+private command checkAppearance
+   local tValue, tError, tThrew, tSystem, tPaint, tLinux, tMac, tExternals
+   local tMain, tSub, tFileA, tFileB, tSame
+   try
+      do "get the appAppearance"
+   catch tError
+      write "SKIP appearance (engine has no appAppearance)" & return to stdout
+      exit checkAppearance
+   end try
+
+   -- On Linux the GTK theme decides (the properties are stored but change
+   -- nothing), so the effective values there are the systemAppearance. On
+   -- macOS the engine draws every stack light for now (MCAppearanceIsDark),
+   -- so the effective values there are always "light"
+   put the platform is "Linux" into tLinux
+   put the platform is "MacOS" into tMac
+   put the systemAppearance into tSystem
+   put paintDefaults() into tPaint
+
+   -- The default, before anything sets it
+   do "put the appAppearance into tValue"
+   check "appAppearance default", isExactly(tValue, "light"), tValue
+
+   do "set the appAppearance to " & quote & "Dark" & quote
+   do "put the appAppearance into tValue"
+   check "appAppearance set Dark", isExactly(tValue, "dark"), tValue
+   do "put the effective appAppearance into tValue"
+   if tLinux then
+      check "effective appAppearance dark (Linux: the GTK theme's)", isExactly(tValue, tSystem), tValue & ", systemAppearance " & tSystem
+   else if tMac then
+      check "effective appAppearance dark (macOS: light for now)", isExactly(tValue, "light"), tValue
+   else
+      check "effective appAppearance dark", isExactly(tValue, "dark"), tValue
+   end if
+
+   do "set the appAppearance to " & quote & "SYSTEM" & quote
+   do "put the appAppearance into tValue"
+   check "appAppearance set system", isExactly(tValue, "system"), tValue
+   do "put the effective appAppearance into tValue"
+   check "effective appAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem, tMac)), tValue & ", systemAppearance " & tSystem
+
+   put false into tThrew
+   try
+      do "set the appAppearance to " & quote & "bogus" & quote
+   catch tError
+      put true into tThrew
+   end try
+   do "put the appAppearance into tValue"
+   check "appAppearance bogus", tThrew and isExactly(tValue, "system"), "threw " & tThrew & ", then " & tValue
+
+   do "set the appAppearance to " & quote & "light" & quote
+   do "put the effective appAppearance into tValue"
+   if tLinux then
+      check "effective appAppearance light (Linux: the GTK theme's)", isExactly(tValue, tSystem), tValue & ", systemAppearance " & tSystem
+   else
+      check "effective appAppearance light", isExactly(tValue, "light"), tValue
+   end if
+
+   check "appAppearance leaves the systemAppearance", the systemAppearance is tSystem, the systemAppearance & " (was " & tSystem & ")"
+   check "appAppearance leaves the paint colours", paintDefaults() is tPaint, paintDefaults() & " (were " & tPaint & ")"
+
+   -- The stackAppearance: "" inherits (a substack its mainstack's, a
+   -- mainstack the appAppearance), runtime only
+   put the externals of the templateStack into tExternals
+   set the externals of the templateStack to empty
+   put "oxt_smoke_appearance" into tMain
+   put "oxt_smoke_appearance_sub" into tSub
+   create stack tMain
+   create stack tSub
+   set the mainStack of stack tSub to tMain
+
+   do "put the stackAppearance of stack tMain into tValue"
+   check "stackAppearance default", tValue is empty, "'" & tValue & "'"
+
+   do "set the appAppearance to " & quote & "dark" & quote
+   do "put the effective stackAppearance of stack tMain into tValue"
+   check "stackAppearance empty follows the appAppearance", isExactly(tValue, expectedEffective("dark", tLinux, tSystem, tMac)), tValue
+   do "set the appAppearance to " & quote & "light" & quote
+
+   do "set the stackAppearance of stack tMain to " & quote & "Dark" & quote
+   do "put the stackAppearance of stack tMain into tValue"
+   check "stackAppearance set Dark", isExactly(tValue, "dark"), tValue
+   do "put the effective stackAppearance of stack tSub into tValue"
+   check "substack inherits its mainstack", isExactly(tValue, expectedEffective("dark", tLinux, tSystem, tMac)), tValue
+
+   do "set the stackAppearance of stack tSub to " & quote & "light" & quote
+   do "put the effective stackAppearance of stack tSub into tValue"
+   check "substack light in a dark mainstack", isExactly(tValue, expectedEffective("light", tLinux, tSystem, tMac)), tValue
+
+   do "set the stackAppearance of stack tSub to " & quote & "system" & quote
+   do "put the effective stackAppearance of stack tSub into tValue"
+   check "stackAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem, tMac)), tValue & ", systemAppearance " & tSystem
+   do "set the stackAppearance of stack tSub to empty"
+
+   put false into tThrew
+   try
+      do "set the stackAppearance of stack tMain to " & quote & "bogus" & quote
+   catch tError
+      put true into tThrew
+   end try
+   do "put the stackAppearance of stack tMain into tValue"
+   check "stackAppearance bogus", tThrew and isExactly(tValue, "dark"), "threw " & tThrew & ", then " & tValue
+
+   set the defaultStack to tMain
+   create button "oxt_smoke_appearance_button"
+   put false into tThrew
+   try
+      do "set the stackAppearance of button " & quote & "oxt_smoke_appearance_button" & quote & " of stack tMain to " & quote & "dark" & quote
+   catch tError
+      put true into tThrew
+   end try
+   check "only stacks have a stackAppearance", tThrew, "setting it on a button threw: " & tThrew
+
+   -- Not saved: a stack saved after setting it is the same file
+   put specialFolderPath("temporary") & "/oxt_smoke_appearance_a.livecode" into tFileA
+   put specialFolderPath("temporary") & "/oxt_smoke_appearance_b.livecode" into tFileB
+   do "set the stackAppearance of stack tMain to empty"
+   save stack tMain as tFileA
+   do "set the stackAppearance of stack tMain to " & quote & "dark" & quote
+   save stack tMain as tFileB
+   put URL ("binfile:" & tFileA) is URL ("binfile:" & tFileB) into tSame
+   check "stackAppearance is not saved", tSame, the number of bytes in URL ("binfile:" & tFileA) & " and " & the number of bytes in URL ("binfile:" & tFileB) & " bytes"
+   delete stack tMain
+   do "put the stackAppearance of stack tFileB into tValue"
+   check "stackAppearance empty after loading", tValue is empty, "'" & tValue & "'"
+   delete stack tFileB
+   delete file tFileA
+   delete file tFileB
+
+   -- The colours of objects in the dark appearance, through the effective
+   -- foreColor: a stack designed light (the owner's libMQTTxt pattern: a
+   -- light card, a white panel, a field with a white background and no text
+   -- colour, a checkbox with no colours) keeps dark text; a stack with no
+   -- colours gets white text. Not on Linux, where the GTK theme decides, nor
+   -- on macOS, where every stack is drawn light for now.
+   if not tLinux and not tMac then
+      create stack "oxt_smoke_pattern"
+      set the defaultStack to "oxt_smoke_pattern"
+      set the backColor of card 1 of stack "oxt_smoke_pattern" to "240,242,246"
+      create graphic "panel"
+      set the style of it to "rectangle"
+      set the opaque of it to true
+      set the backColor of it to "255,255,255"
+      set the rect of it to 10,10,400,300
+      create field "mdHost"
+      set the opaque of it to true
+      set the showBorder of it to true
+      set the threeD of it to false
+      set the borderWidth of it to 1
+      set the borderColor of it to "203,210,222"
+      set the backColor of it to "255,255,255"
+      set the rect of it to 20,20,200,44
+      set the text of it to "broker.example.com"
+      create button "mdTLS"
+      set the style of it to "checkbox"
+      set the rect of it to 20,60,200,84
+      create stack "oxt_smoke_unstyled"
+      set the defaultStack to "oxt_smoke_unstyled"
+      create field "plain"
+      set the text of it to "No colours"
+      -- An opaque checkbox fills its rect with its own background: a white
+      -- one keeps a dark label on a card with no colour (the opaque is set
+      -- after the style, which clears it)
+      create button "boxed"
+      set the style of it to "checkbox"
+      set the opaque of it to true
+      set the backColor of it to "255,255,255"
+      set the rect of it to 20,60,200,84
+
+      do "set the appAppearance to " & quote & "dark" & quote
+      put the effective foreColor of field "mdHost" of stack "oxt_smoke_pattern" into tValue
+      check "dark: white field keeps dark text", relativeLuminance(tValue) < 0.179, tValue
+      put the effective foreColor of button "mdTLS" of stack "oxt_smoke_pattern" into tValue
+      check "dark: checkbox on a light panel keeps a dark label", relativeLuminance(tValue) < 0.179, tValue
+      put the effective foreColor of field "plain" of stack "oxt_smoke_unstyled" into tValue
+      check "dark: unstyled field gets white text", relativeLuminance(tValue) > 0.8, tValue
+      put the effective foreColor of button "boxed" of stack "oxt_smoke_unstyled" into tValue
+      check "dark: opaque white checkbox keeps a dark label", relativeLuminance(tValue) < 0.179, tValue
+
+      do "set the appAppearance to " & quote & "light" & quote
+      put the effective foreColor of field "mdHost" of stack "oxt_smoke_pattern" into tValue
+      check "light: white field text is black", relativeLuminance(tValue) < 0.05, tValue
+      put the effective foreColor of button "mdTLS" of stack "oxt_smoke_pattern" into tValue
+      check "light: checkbox label is black", relativeLuminance(tValue) < 0.05, tValue
+      put the effective foreColor of field "plain" of stack "oxt_smoke_unstyled" into tValue
+      check "light: unstyled field text is black", relativeLuminance(tValue) < 0.05, tValue
+      put the effective foreColor of button "boxed" of stack "oxt_smoke_unstyled" into tValue
+      check "light: opaque white checkbox label is black", relativeLuminance(tValue) < 0.05, tValue
+
+      delete stack "oxt_smoke_pattern"
+      delete stack "oxt_smoke_unstyled"
+   end if
+
+   do "set the appAppearance to " & quote & "light" & quote
+   set the externals of the templateStack to tExternals
+end checkAppearance
+
+-- Comparisons of values that must be lower case
+private function isExactly pValue, pExpected
+   set the caseSensitive to true
+   return pValue is pExpected
+end isExactly
+
+-- What the effective appearance of a stack set to pMode is: pMode, except on
+-- Linux, where it is the GTK theme's
+private function expectedEffective pMode, pLinux, pSystem, pMac
+   if pLinux then return pSystem
+   if pMac then return "light"
+   return pMode
+end expectedEffective
+
+-- The colours of the paint tools, which no appearance may change
+private function paintDefaults
+   return the penColor & "|" & the brushColor & "|" & the penPattern & "|" & the brushPattern
+end paintDefaults
+
+-- The WCAG relative luminance of "r,g,b" (0 to 1); 1 for anything else, so
+-- that a colour name fails a check for a dark colour
+private function relativeLuminance pColor
+   local tSum, tChannel, tWeights
+   if the number of items of pColor is not 3 then return 1
+   put "0.2126,0.7152,0.0722" into tWeights
+   put 0 into tSum
+   repeat with i = 1 to 3
+      if item i of pColor is not an integer then return 1
+      put (item i of pColor) / 255 into tChannel
+      if tChannel <= 0.04045 then
+         put tChannel / 12.92 into tChannel
+      else
+         put ((tChannel + 0.055) / 1.055) ^ 2.4 into tChannel
+      end if
+      add (item i of tWeights) * tChannel to tSum
+   end repeat
+   return tSum
+end relativeLuminance
 
 -- Loads and calls every extension in the list pProbeFile (tab-separated
 -- lines written by smoke-test.ps1 from tools/oxt/xtalk-extensions.json):

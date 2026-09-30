@@ -5,14 +5,14 @@ Type: message
 Syntax: systemAppearanceChanged
 
 Summary:
-Sent to the <current card> of the <defaultStack> when the <system appearance|systemAppearance>
-changes.
+Sent to the <current card> of the <defaultStack> when the operating
+system's <system appearance|systemAppearance> changes.
 
 Associations: card
 
 Introduced: 1.0
 
-OS: mac, ios, android
+OS: mac, windows, ios, android
 
 Platforms: desktop,mobile
 
@@ -31,5 +31,14 @@ Description:
 Handle the <systemAppearanceChanged> <message> if you need to change the color
 of objects when the application enters either light or dark mode.
 
-References: systemAppearance (property), message (glossary), defaultStack (property)
+The message is only sent when the operating system's setting changes, and
+it is sent whatever the <appAppearance> is. Setting the <appAppearance> or
+a <stackAppearance> sends nothing: the engine redraws every window in its
+new appearance at once, and the script that set it knows. To react only
+when the application follows the system, check the <effective>
+<appAppearance> in the handler.
+
+References: systemAppearance (property), appAppearance (property),
+stackAppearance (property), effective (keyword), message (glossary),
+defaultStack (property)
 

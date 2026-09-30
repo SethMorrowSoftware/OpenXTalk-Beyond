@@ -1,0 +1,98 @@
+Name: stackAppearance
+
+Type: property
+
+Syntax: set the stackAppearance of <stack> to {empty | "light" | "dark" | "system"}
+
+Syntax: get the [effective] stackAppearance of <stack>
+
+Summary:
+Specifies whether a <stack> is drawn in the light or the dark appearance,
+or follows its mainstack or the <appAppearance>.
+
+Associations: stack
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: desktop
+
+Example:
+-- A palette that is always dark, whatever the appAppearance is
+set the stackAppearance of stack "Tools" to "dark"
+
+Example:
+set the stackAppearance of this stack to empty -- inherit again
+
+Example:
+if the effective stackAppearance of this stack is "dark" then
+   set the foreColor of field "Status" to "220,220,220"
+end if
+
+Parameters:
+stack:
+A reference to a <stack>.
+
+Value:
+The <stackAppearance> is empty, "light", "dark" or "system". Setting it
+is not case-sensitive; getting it returns lower case. It is empty by
+default: a substack then uses the <stackAppearance> of its mainstack, and
+a mainstack uses the <appAppearance>. The menus the engine builds for a
+button use the appearance of the button's stack. Setting it to any other
+value, or setting it for an object that is not a stack, is an error.
+
+The <effective> <stackAppearance> is "light" or "dark": the appearance
+the stack's objects start from, after inheritance, with "system" resolved
+to the operating system's setting (the <systemAppearance>).
+
+Description:
+Use the <stackAppearance> to draw one stack in another appearance than
+the rest of the application. The IDE uses it to draw its own windows dark
+while the stacks you are working on stay as they will be in your
+standalone.
+
+The <stackAppearance> is a runtime setting in this version: it is never
+saved with the stack (a stack saved after setting it is the same file as
+one saved without), it is not in <the properties>, it is empty when the
+stack is loaded, and a <clone> of the stack gets the same value.
+
+In the dark appearance every color a stack leaves unset comes from the
+dark theme. Where the author set some colors and not others, the engine
+fits the unset colors of each object to the explicit colors around it:
+its own fill, its own text color on a default fill, and the panel, image,
+group or card it sits on. A field with a white background and no text
+color gets black text, a checkbox on a light card gets a black label and
+a light box, and a button on a light panel gets a light native face. So a
+stack designed light looks as designed in the dark appearance, and a
+stack that sets no colors at all is drawn dark. When the engine cannot
+tell, it uses the light appearance, because that is how existing stacks
+were designed. Colors that were set are always drawn as set, and in the
+light appearance every object is drawn exactly as before.
+
+One case cannot be told apart: a transparent label or checkbox with a
+dark text color of its own, on a card with no color, keeps its dark text
+on the dark card. Give the card a color, or set the <stackAppearance> of
+the stack to "light".
+
+On Linux the native controls are drawn by the GTK theme, which the engine
+cannot change: the appearance of every stack is the GTK theme's, whatever
+the <stackAppearance> is set to. The setting is still stored and
+returned.
+
+On macOS every stack is drawn light in this version, whatever the
+<stackAppearance> is set to (see <appAppearance>). The setting is still
+stored and returned.
+
+Setting the <stackAppearance> redraws the stack, its substacks and their
+menus at once. It does not send <systemAppearanceChanged>.
+
+Changes:
+The <stackAppearance> was added in OXT-Beyond after release 0.1.0 (engine
+9.7.1-OXT).
+
+References: appAppearance (property), systemAppearance (property),
+systemAppearanceChanged (message), effective (keyword), clone (command),
+properties (property), stack (object)
+
+Tags: ui

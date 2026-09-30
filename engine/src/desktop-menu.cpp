@@ -402,6 +402,9 @@ void MCButton::macopenmenu(void)
 			break;
 	}
 
+	// The menu is drawn in the button's appearance (mac-menu.mm)
+	MCPlatformSetMenuDarkAppearance(m_system_menu, isdarkappearance(CONTEXT_TYPE_SCREEN));
+
 	switch (menumode)
 	{
 		case WM_COMBO:

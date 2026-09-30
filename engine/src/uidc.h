@@ -329,6 +329,64 @@ enum MCSystemAppearance
 	kMCSystemAppearanceDark = 1,
 };
 
+// The light or dark appearance the engine draws in (appearance.cpp). The
+// global "appAppearance" and each stack's "stackAppearance" hold one of these;
+// Inherit is only valid for stacks ("" in scripts). The values are those of
+// kMCInterfaceAppearanceModeTypeInfo (exec-interface2.cpp).
+enum MCAppearanceMode
+{
+	kMCAppearanceModeInherit = 0,
+	kMCAppearanceModeLight = 1,
+	kMCAppearanceModeDark = 2,
+	kMCAppearanceModeSystem = 3,
+};
+
+class MCStack;
+
+// The appAppearance. "light" by default in every engine: the stacks that
+// exist were designed light, and following the OS is what made the white
+// text of the dark theme land on authors' own white fields.
+extern MCAppearanceMode MCappappearance;
+
+// While above 0 everything is drawn light (printing).
+extern int MCappearanceforcelight;
+
+// Whether p_stack's objects start from the dark appearance: its
+// stackAppearance, inherited from its mainstack (or, for a menu the engine
+// builds for a button, from the button's stack), else the appAppearance,
+// with "system" resolved. p_stack nil means the appAppearance. Always false
+// in the server engine. On Linux the answer is the GTK theme's appearance,
+// which the engine cannot override.
+bool MCAppearanceIsDark(MCStack *p_stack);
+
+// The OS setting (the systemAppearance), cached for the drawing code;
+// MCAppearanceRefreshSystem reads it again, for when it has changed.
+bool MCAppearanceSystemIsDark(void);
+void MCAppearanceRefreshSystem(void);
+
+// The mode a stack's objects resolve to before "system" is resolved: its
+// own, else the inherited one, else the appAppearance.
+MCAppearanceMode MCAppearanceResolveMode(MCStack *p_stack);
+
+// Sets the appAppearance. MCAppearanceChanged redraws everything in the
+// appearance it now has (MCUIDC::updatesystemappearance), after the
+// appAppearance or a stackAppearance was set. Neither sends
+// systemAppearanceChanged, which is only sent when the OS setting changes.
+void MCAppearanceSetAppMode(MCAppearanceMode p_mode);
+void MCAppearanceChanged(void);
+
+// True once a script has set the selectionHandleColor; until then it is
+// white or black with the appearance.
+extern bool MCselectioncolorisset;
+
+// True once a script has set a global link colour (linkColor,
+// linkHiliteColor, linkVisitedColor); until then links in a field drawn dark
+// get light variants of the default colours (MCBlock::draw)
+
+// Whether a colour is light: its WCAG relative luminance is above 0.179,
+// where black and white text contrast with it equally
+bool MCAppearanceColorIsLight(const MCColor& p_color);
+
 class MCUIDC
 {
 public:
@@ -663,6 +721,10 @@ public:
 	
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 	virtual void updatesystemappearance(void);
+	// The default background and disabled grey of the light or the dark
+	// appearance, whatever the appAppearance is: colours an object leaves
+	// unset that no theme provides (MCObject::getforecolor)
+	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
     
     //
 

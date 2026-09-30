@@ -5,11 +5,12 @@ Type: property
 Syntax: get the systemAppearance
 
 Summary:
-Determins if the system appearance is dark or light mode. 
+Reports whether the operating system is set to the dark or the light
+appearance.
 
 Introduced: 9.6
 
-OS: mac, android, ios
+OS: mac, windows, linux, android, ios
 
 Platforms: desktop, mobile
 
@@ -23,8 +24,21 @@ else
 end if
 
 Description:
-The <systemAppearance> property returns either "dark" or "light" depending on
-whether the application is running in a dark mode context or not. On windows
-and linux the property will return "light".
+The <systemAppearance> property returns either "dark" or "light": the
+setting of the operating system, whatever the application is drawn in.
+The <appAppearance> and the <stackAppearance> never change it; the
+<effective> <appAppearance> and the <effective> <stackAppearance> report
+what the engine draws in.
 
-References: systemAppearanceChanged (message)
+On Windows it is the "app mode" setting (Settings > Personalization >
+Colors, the AppsUseLightTheme value). On macOS it is the Appearance setting
+(AppleInterfaceStyle), read again each time, so it is the Mac's setting
+even while the <appAppearance> is "light" or "dark". On Linux it is
+"light": this version cannot tell whether the GTK theme is dark. Without a
+user interface (-ui) it is "light".
+
+When the setting changes while the application runs, the engine sends
+<systemAppearanceChanged>, once for each change.
+
+References: appAppearance (property), stackAppearance (property),
+effective (keyword), systemAppearanceChanged (message)

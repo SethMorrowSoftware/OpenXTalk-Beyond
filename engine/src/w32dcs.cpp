@@ -824,33 +824,43 @@ static int32_t snapoffsetx, snapoffsety;
 typedef HRESULT (CALLBACK *DwmIsCompositionEnabledPtr)(BOOL *p_enabled);
 typedef HRESULT (WINAPI *DwmSetWindowAttributePtr)(HWND hwnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
 static HMODULE s_dwmapi_library = NULL;
+static bool s_dwmapi_loaded = false;
 static DwmIsCompositionEnabledPtr s_dwm_is_composition_enabled = NULL;
 static DwmSetWindowAttributePtr s_dwm_set_window_attribute = NULL;
+
+// Loads dwmapi.dll once and resolves every entry point used here. The
+// snapshot code (DwmIsCompositionEnabled) and the dark title bars
+// (DwmSetWindowAttribute) used to load it each on their own, and whichever
+// ran first only resolved its own function: once a window had been created
+// (which sets the title bar), the snapshot code found the library loaded
+// and called a DwmIsCompositionEnabled that was never resolved, so every
+// "import/export snapshot" from the screen crashed. Callers check the
+// function they need for NULL.
+static void s_ensure_dwmapi(void)
+{
+	if (s_dwmapi_loaded)
+		return;
+	s_dwmapi_loaded = true;
+
+	s_dwmapi_library = LoadLibraryA("dwmapi.dll");
+	if (s_dwmapi_library == NULL)
+		return;
+
+	s_dwm_is_composition_enabled = (DwmIsCompositionEnabledPtr)GetProcAddress(s_dwmapi_library, "DwmIsCompositionEnabled");
+
+	//-- tperry 11th October 2025
+	// Load DwmSetWindowAttribute for dark mode support
+	s_dwm_set_window_attribute = (DwmSetWindowAttributePtr)GetProcAddress(s_dwmapi_library, "DwmSetWindowAttribute");
+}
 
 static bool WindowsIsCompositionEnabled(void)
 {
 	if (MCmajorosversion < MCOSVersionMake(6,0,0))
 		return false;
 
-	if (s_dwmapi_library == NULL)
-	{
-		s_dwmapi_library = LoadLibraryA("dwmapi.dll");
-		if (s_dwmapi_library == NULL)
-			return false;
-
-		s_dwm_is_composition_enabled = (DwmIsCompositionEnabledPtr)GetProcAddress(s_dwmapi_library, "DwmIsCompositionEnabled");
-
-		//-- tperry 11th October 2025
-		// Load DwmSetWindowAttribute for dark mode support
-		s_dwm_set_window_attribute = (DwmSetWindowAttributePtr)GetProcAddress(s_dwmapi_library, "DwmSetWindowAttribute");
-
-		if (s_dwm_is_composition_enabled == NULL)
-		{
-			FreeLibrary(s_dwmapi_library);
-			s_dwmapi_library = NULL;
-			return false;
-		}
-	}
+	s_ensure_dwmapi();
+	if (s_dwm_is_composition_enabled == NULL)
+		return false;
 
 	BOOL t_enabled;
 	if (s_dwm_is_composition_enabled(&t_enabled) != S_OK)
@@ -859,48 +869,43 @@ static bool WindowsIsCompositionEnabled(void)
 	return t_enabled != FALSE;
 }
 
-//-- tperry 11th October 2025
-// Check if Windows is in dark mode by reading the registry
-bool MCWin32IsSystemInDarkMode(void)
-{
-	HKEY hKey;
-	DWORD value = 1; // Default to light mode
-	DWORD size = sizeof(DWORD);
-	
-	if (RegOpenKeyExW(HKEY_CURRENT_USER, 
-		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-		0, KEY_READ, &hKey) == ERROR_SUCCESS)
-	{
-		RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &size);
-		RegCloseKey(hKey);
-	}
-	
-	return (value == 0); // 0 means dark mode
-}
+// The OS setting the native theme's handles were opened with; the screen's
+// updatesystemappearance reopens them when it changes (w32dc.cpp).
+bool MCWin32ThemeSystemAppearanceDark = false;
+static bool s_paint_colors_set = false;
 
 //-- tperry 4th November 2025
 // Update system colors based on current dark/light mode
 // This affects unset colors (objects without explicit backgroundColor/foregroundColor)
+//
+// OXT-Beyond: the colours follow the appAppearance (MCAppearanceIsDark(nil)),
+// not the OS setting; each object's unset colours follow the appearance it is
+// drawn in (MCObject::getforecolor). Called at startup and whenever the
+// appearance is applied again (MCScreenDC::updatesystemappearance).
 void MCWin32UpdateSystemColors(void)
 {
-	// This runs at startup and on the light/dark switch, so read the setting
-	// again here; getsystemappearance returns the cached value.
-	MCWin32RefreshSystemAppearance();
-
-	// Use the same function that 'the systemAppearance' uses
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
-	
 	MCScreenDC *t_screen = (MCScreenDC *)MCscreen;
-	
+
+	// The paint tools' colours (the penColor, brushColor and the colour of
+	// erased pixels) are set once, to the light values, and no appearance
+	// changes them: they are painted into images, and a dark mode must not
+	// bake white strokes or 32,32,32 fills into a user's pictures.
+	if (!s_paint_colors_set)
+	{
+		MCpencolor = t_screen->black_pixel;
+		MCzerocolor.red = MCzerocolor.green = MCzerocolor.blue = 0xF0F0;
+		MCbrushcolor = MCzerocolor;
+		MCWin32ThemeSystemAppearanceDark = MCWin32IsSystemAppearanceDark();
+		s_paint_colors_set = true;
+	}
+
+	bool t_is_dark = MCAppearanceIsDark(nil);
+
 	if (t_is_dark)
 	{
 		// Dark mode: background = RGB(32,32,32), foreground = white
 		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0x2020;
-		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
-		MCselectioncolor = MCpencolor = t_screen->white_pixel;
-		
+
 		//-- tperry 11th November 2025: Set gray_pixel for disabled items (RGB 137,137,137)
 		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8989;
 	}
@@ -908,29 +913,22 @@ void MCWin32UpdateSystemColors(void)
 	{
 		// Light mode: background = RGB(240,240,240), foreground = black
 		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0xF0F0;
-		MCzerocolor = MCbrushcolor = t_screen->background_pixel;
-		MCselectioncolor = MCpencolor = t_screen->black_pixel;
-		
+
 		//-- tperry 11th November 2025: Set gray_pixel for light mode (used by opaque buttons)
 		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8080;
 	}
-	
+
+	// The selection handles are drawn on the card, so they follow the
+	// appearance, until a script chooses their colour
+	if (!MCselectioncolorisset)
+		MCselectioncolor = t_is_dark ? t_screen->white_pixel : t_screen->black_pixel;
 }
 
 //-- tperry 4th November 2025
 // Set dark mode attribute on window title bar
 void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode)
 {
-	// Ensure DWM library is loaded
-	if (s_dwmapi_library == NULL)
-	{
-		s_dwmapi_library = LoadLibraryA("dwmapi.dll");
-		if (s_dwmapi_library != NULL)
-		{
-			s_dwm_set_window_attribute = (DwmSetWindowAttributePtr)GetProcAddress(s_dwmapi_library, "DwmSetWindowAttribute");
-		}
-	}
-	
+	s_ensure_dwmapi();
 	if (s_dwm_set_window_attribute == NULL)
 		return;
 	

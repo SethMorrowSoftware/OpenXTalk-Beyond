@@ -741,6 +741,15 @@ template<typename A, typename B, void Method(MCExecContext&, B, A)> inline void 
 #define DEFINE_RO_ENUM_PROPERTY(prop, type, module, tag) \
 { prop, false, kMCPropertyTypeEnum, kMC##type##TypeInfo, (void *)MCPropertyThunkGetEnumType(MC##module##Get##tag), nil, false, false, kMCPropertyInfoChunkTypeNone },
 
+// A global enum property with an 'effective' form: the plain one reads and
+// sets the value, the effective one (read-only) resolves it. Both entries
+// set has_effective, so each matches only its own form.
+#define DEFINE_RW_ENUM_NON_EFFECTIVE_PROPERTY(prop, type, module, tag) \
+{ prop, false, kMCPropertyTypeEnum, kMC##type##TypeInfo, (void *)MCPropertyThunkGetEnumType(MC##module##Get##tag), (void *)MCPropertyThunkSetEnumType(MC##module##Set##tag), true, false, kMCPropertyInfoChunkTypeNone },
+
+#define DEFINE_RO_ENUM_EFFECTIVE_PROPERTY(prop, type, module, tag) \
+{ prop, true, kMCPropertyTypeEnum, kMC##type##TypeInfo, (void *)MCPropertyThunkGetEnumType(MC##module##GetEffective##tag), nil, true, false, kMCPropertyInfoChunkTypeNone },
+
 #define DEFINE_RO_CUSTOM_PROPERTY(prop, type, module, tag) \
 { prop, false, kMCPropertyTypeCustom, kMC##type##TypeInfo, (void *)MCPropertyThunkGetCustomType(MC##module##Get##tag, MC##type), nil, false, false, kMCPropertyInfoChunkTypeNone },
 
@@ -2183,6 +2192,7 @@ extern MCExecCustomTypeInfo *kMCInterfaceButtonIconTypeInfo;
 extern MCExecCustomTypeInfo *kMCInterfaceTriStateTypeInfo;
 extern MCExecCustomTypeInfo *kMCInterfaceStackFileVersionTypeInfo;
 extern MCExecEnumTypeInfo *kMCInterfaceSystemAppearanceTypeInfo;
+extern MCExecEnumTypeInfo *kMCInterfaceAppearanceModeTypeInfo;
 
 void MCInterfaceInitialize(MCExecContext& ctxt);
 void MCInterfaceFinalize(MCExecContext& ctxt);
@@ -2647,6 +2657,9 @@ void MCInterfaceSetScreenGamma(MCExecContext& ctxt, double p_value);
 void MCInterfaceGetSelectionMode(MCExecContext& ctxt, intenum_t& r_value);
 void MCInterfaceSetSelectionMode(MCExecContext& ctxt, intenum_t p_value);
 void MCInterfaceGetSystemAppearance(MCExecContext& ctxt, intenum_t& r_value);
+void MCInterfaceGetAppAppearance(MCExecContext& ctxt, intenum_t& r_value);
+void MCInterfaceSetAppAppearance(MCExecContext& ctxt, intenum_t p_value);
+void MCInterfaceGetEffectiveAppAppearance(MCExecContext& ctxt, intenum_t& r_value);
 void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color);
 void MCInterfaceSetSelectionHandleColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color);
 void MCInterfaceGetWindowBoundingRect(MCExecContext& ctxt, MCRectangle& r_value);

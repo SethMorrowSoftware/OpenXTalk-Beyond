@@ -1399,7 +1399,9 @@ void MCGraphic::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool
 			{
 				if (IsNativeWin() || IsNativeGTK())
 				{
-					dc->setforeground(dc->getgray());
+					// The disabled grey of the appearance the graphic is
+					// drawn in
+					dc->setforeground(getappearancegray(dc->gettype()));
 					dc->setfillstyle(FillSolid, nil, 0, 0);
 				}
 				else

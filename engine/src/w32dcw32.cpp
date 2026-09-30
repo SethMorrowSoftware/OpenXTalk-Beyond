@@ -667,56 +667,27 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 		{
 			if (wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0)
 			{
-				// Dark mode changed - update system colors for unset objects
-				extern void MCWin32UpdateSystemColors(void);
-				MCWin32UpdateSystemColors();
-				
-				// The native theme picks the dark or the light scrollbar
-				// class when it opens its theme data, so reopen it, as for
-				// WM_THEMECHANGED; the stacks are redrawn below.
-				if (MCcurtheme != NULL && MCcurtheme->getthemeid() == LF_NATIVEWIN)
-				{
-					MCcurtheme->unload();
-					MCcurtheme->load();
-				}
-				
-				// Update all stack window title bars
-				extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
-				MCSystemAppearance t_appearance;
-				MCscreen->getsystemappearance(t_appearance);
-				bool t_dark_mode = (t_appearance == kMCSystemAppearanceDark);
-				
-				MCStacknode *t_node = MCstacks->topnode();
-				if (t_node != NULL)
-				{
-					MCStacknode *t_start = t_node;
-					do
-					{
-						MCStack *t_stack = t_node->getstack();
-						if (t_stack != NULL && t_stack->getwindow() != NULL)
-						{
-							HWND t_hwnd = (HWND)t_stack->getwindow()->handle.window;
-							if (t_hwnd != NULL)
-							{
-								MCWin32SetWindowDarkMode(t_hwnd, t_dark_mode);
-								// Force title bar redraw
-								SetWindowPos(t_hwnd, NULL, 0, 0, 0, 0,
-									SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-								// Force window content redraw to show new colors
-								InvalidateRect(t_hwnd, NULL, TRUE);
-								// Mark stack as needing redraw
-								t_stack->dirtyall();
-							}
-						}
-						t_node = t_node->next();
-					}
-					while (t_node != t_start);
-				}
-				
-				// Notify the engine that system appearance has changed
-				// This will trigger systemAppearanceChanged message
-				MCPlatformCallbackSendSystemAppearanceChanged();
+				// Windows broadcasts this for the light/dark switch, and for
+				// other colour settings too (the accent colour, for example).
+				// Read the setting again; only a light/dark switch applies
+				// the appearance again (MCScreenDC::updatesystemappearance:
+				// colours, native theme, title bars, redraw) and sends
+				// systemAppearanceChanged, whatever the appAppearance is:
+				// scripts that follow the OS want to know
+				// (MCPlatformHandleSystemAppearanceChanged, desktop.cpp).
+				bool t_was_dark = MCWin32IsSystemAppearanceDark();
+				MCWin32RefreshSystemAppearance();
+				if (MCWin32IsSystemAppearanceDark() != t_was_dark)
+					MCPlatformCallbackSendSystemAppearanceChanged();
 			}
+		}
+
+		// A High Contrast theme was switched on or off: everything is drawn
+		// the light way under it (MCAppearanceIsDark)
+		if (msg == WM_SETTINGCHANGE && wParam == SPI_SETHIGHCONTRAST)
+		{
+			if (MCWin32RefreshHighContrast())
+				MCscreen->updatesystemappearance();
 		}
 
 		((MCScreenDC *)MCscreen) -> processdesktopchanged(true);

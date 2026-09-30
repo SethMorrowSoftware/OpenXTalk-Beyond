@@ -1868,6 +1868,19 @@ void MCMacPlatformWindow::SetFrameLocked(bool p_locked)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// A window's frame and the AppKit parts in it (the title bar, its buttons,
+// the colours AppKit resolves for it) follow its own appearance, which the
+// stack sets from how its card is drawn (kMCPlatformWindowPropertyDarkAppearance):
+// a light-designed stack gets a light window on a dark Mac, a dark one a
+// dark window whatever the appAppearance is.
+static void MCMacPlatformApplyWindowAppearance(NSWindow *p_window, bool p_dark)
+{
+	if (p_window == nil)
+		return;
+	if (@available(macOS 10.14, *))
+		[p_window setAppearance: [NSAppearance appearanceNamed: p_dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua]];
+}
+
 void MCMacPlatformWindow::DoRealize(void)
 {
 	// If the window already exists, we have nothing to do.
@@ -1970,6 +1983,8 @@ void MCMacPlatformWindow::DoRealize(void)
     
     // MERG-2015-10-11: [[ DocumentFilename ]] Set documentFilename.
     UpdateDocumentFilename();
+
+    MCMacPlatformApplyWindowAppearance(m_window_handle, m_dark_appearance);
 }
 
 void MCMacPlatformWindow::DoSynchronize(void)
@@ -2060,6 +2075,9 @@ void MCMacPlatformWindow::DoSynchronize(void)
         UpdateDocumentFilename();
     }
     
+    if (m_changes . dark_appearance_changed)
+        MCMacPlatformApplyWindowAppearance(m_window_handle, m_dark_appearance);
+
     m_synchronizing = false;
 }
 

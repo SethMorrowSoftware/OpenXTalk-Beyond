@@ -743,7 +743,14 @@ MCPlatformControlState MCObject::getcontrolstate()
     intenum_t t_theme = gettheme();
     if (t_theme == kMCInterfaceThemeLegacy)
         t_state |= kMCPlatformControlStateCompatibility;
-    
+
+    // The theme's colours of the appearance this object is drawn in. Every
+    // themed colour (getforecolor, the effective colour properties,
+    // tooltips) is looked up with this state. A printer context takes the
+    // bit off again (getforecolor).
+    if (isdarkappearance(CONTEXT_TYPE_SCREEN))
+        t_state |= kMCPlatformControlStateDarkAppearance;
+
     return MCPlatformControlState(t_state);
 }
 

@@ -1046,7 +1046,7 @@ void MCStack::clipmenu(MCContext *context, MCRectangle &crect)
 				MCRectangle dirty;
 					MCU_set_rect(dirty, 0, 0, rect.width, MENU_ARROW_SIZE);
 				if (MCcurtheme == nil ||
-					MCcurtheme -> drawmenubackground(context, dirty, curcard -> getrect(), false))
+					MCcurtheme -> drawmenubackground(context, dirty, curcard -> getrect(), false, curcard))
 				{
 					// TS-2008-01-21 : [[Bug 5566 - Handler menu not standard and blocking other menus ]]
 
@@ -1090,7 +1090,7 @@ void MCStack::clipmenu(MCContext *context, MCRectangle &crect)
 				MCRectangle dirty;
 					MCU_set_rect(dirty, 0, rect.height - MENU_ARROW_SIZE, rect.width, MENU_ARROW_SIZE);
 				if (MCcurtheme == nil ||
-					!MCcurtheme -> drawmenubackground(context, dirty, curcard -> getrect(), false))
+					!MCcurtheme -> drawmenubackground(context, dirty, curcard -> getrect(), false, curcard))
 				{
 					// TS-2008-01-21 : [[Bug 5566 - Handler menu not standard and blocking other menus ]]
 					if (IsNativeWin() )

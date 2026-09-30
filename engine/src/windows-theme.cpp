@@ -132,12 +132,10 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
     int t_color;
     
     //-- tperry 8th November 2025: Check if we're in dark mode
-    bool t_is_dark = false;
-#ifndef _SERVER
-    MCSystemAppearance t_appearance;
-    MCscreen->getsystemappearance(t_appearance);
-    t_is_dark = (t_appearance == kMCSystemAppearanceDark);
-#endif
+    // (OXT-Beyond: the appearance of the object whose colour this is, which
+    // MCObject::getcontrolstate puts in the state; a light object in a dark
+    // stack gets the light colours)
+    bool t_is_dark = (p_state & kMCPlatformControlStateDarkAppearance) != 0;
     
     switch (p_prop)
     {
@@ -146,6 +144,13 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
             t_found = true;
             if (p_state & kMCPlatformControlStateDisabled)
             {
+                // COLOR_GRAYTEXT (109) is 3.15:1 on the dark background; the
+                // dark disabled grey 137 is 4.7:1
+                if (t_is_dark)
+                {
+                    r_color.red = r_color.green = r_color.blue = 0x8989;
+                    return true;
+                }
                 t_color = COLOR_GRAYTEXT;
             }
             else if (p_state & kMCPlatformControlStateSelected)
@@ -242,6 +247,12 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                         }
                         
                     case kMCPlatformControlTypeMenuItem:
+                        // COLOR_MENU is light in both modes
+                        if (t_is_dark)
+                        {
+                            r_color.red = r_color.green = r_color.blue = 0x2020;
+                            return true;
+                        }
                         t_color = COLOR_MENU;
                         break;
                         
@@ -298,12 +309,25 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
         case kMCPlatformThemePropertyTopEdgeColor:
         case kMCPlatformThemePropertyLeftEdgeColor:
             t_found = true;
+            // The 3D system colours are light in both modes: on the dark
+            // background the white highlight is the brightest thing in a
+            // control. The dark edges keep the raised and sunken look.
+            if (t_is_dark)
+            {
+                r_color.red = r_color.green = r_color.blue = 0x5050;
+                return true;
+            }
             t_color = COLOR_3DHILIGHT;
             break;
             
         case kMCPlatformThemePropertyBottomEdgeColor:
         case kMCPlatformThemePropertyRightEdgeColor:
             t_found = true;
+            if (t_is_dark)
+            {
+                r_color.red = r_color.green = r_color.blue = 0x1010;
+                return true;
+            }
             t_color = COLOR_3DSHADOW;
             break;
     }

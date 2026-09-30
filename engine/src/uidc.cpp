@@ -2048,8 +2048,27 @@ void MCUIDC::getsystemappearance(MCSystemAppearance &r_appearance)
 
 void MCUIDC::updatesystemappearance(void)
 {
-	// Default implementation does nothing
-	// Subclasses should override to update colors and redraw
+	// Subclasses override this to update colors and redraw (Windows and
+	// macOS). Here only the cached OS setting is read again: without a user
+	// interface nothing is drawn to a screen, and on Linux the appearance is
+	// the GTK theme's, which the properties do not change.
+	MCAppearanceRefreshSystem();
+}
+
+void MCUIDC::getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray)
+{
+	// The light colours are the screen's, as they always were; the dark ones
+	// those of the Windows dark theme (MCWin32UpdateSystemColors)
+	if (p_dark)
+	{
+		r_background.red = r_background.green = r_background.blue = 0x2020;
+		r_gray.red = r_gray.green = r_gray.blue = 0x8989;
+	}
+	else
+	{
+		r_background = background_pixel;
+		r_gray = gray_pixel;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

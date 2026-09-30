@@ -61,9 +61,15 @@ extern LRESULT CALLBACK MCSocketWindowProc(HWND hwnd, UINT msg,
 	        WPARAM wParam, LPARAM lParam);
 
 // Whether Windows apps are set to dark mode (AppsUseLightTheme is 0). The
-// setting is cached; MCWin32UpdateSystemColors refreshes it (w32dc.cpp).
+// setting is cached; the WM_SETTINGCHANGE "ImmersiveColorSet" handler
+// (w32dcw32.cpp) and the screen's open() refresh it (w32dc.cpp).
 extern bool MCWin32IsSystemAppearanceDark(void);
 extern void MCWin32RefreshSystemAppearance(void);
+
+// Whether a High Contrast theme is on (SPI_GETHIGHCONTRAST), cached like the
+// setting above. The refresh returns whether it changed (w32dc.cpp).
+extern bool MCWin32IsHighContrast(void);
+extern bool MCWin32RefreshHighContrast(void);
 
 class MCEventnode : public MCDLlist
 {
@@ -252,6 +258,10 @@ public:
 	
 	// --tperry 11th October 2025: Dark mode detection
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
+	// Applies the light or dark appearance again: colours, the native theme,
+	// title bars and a redraw of every window (w32dc.cpp)
+	virtual void updatesystemappearance(void);
+	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
 
 	virtual void setgraphicsexposures(Boolean on, MCStack *sptr);
 	virtual void copyarea(Drawable source, Drawable dest, int2 depth,

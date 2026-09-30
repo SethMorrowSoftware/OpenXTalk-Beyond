@@ -595,6 +595,7 @@ const LT factor_table[] =
         {"annuity", TT_FUNCTION, F_ANNUITY},
 		{"antialiased", TT_PROPERTY, P_ANTI_ALIASED},
         {"any", TT_CHUNK, CT_ANY},
+		{"appappearance", TT_PROPERTY, P_APP_APPEARANCE},
         {"arcangle", TT_PROPERTY, P_ARC_ANGLE},
 		// JS-2013-06-19: [[ StatsFunctions ]] Token for 'arithmeticMean' (aka mean / average / avg)
         {"arithmeticmean", TT_FUNCTION, F_ARI_MEAN},
@@ -1658,6 +1659,7 @@ const LT factor_table[] =
         {"sqrt", TT_FUNCTION, F_SQRT},
         {"sslcertificates",TT_PROPERTY,P_SSL_CERTIFICATES},
         {"stack", TT_CHUNK, CT_STACK},
+		{"stackappearance", TT_PROPERTY, P_STACK_APPEARANCE},
         {"stackfiles", TT_PROPERTY, P_STACK_FILES},
         {"stackfiletype", TT_PROPERTY, P_STACK_FILE_TYPE},
 		{"stackfileversion", TT_PROPERTY, P_STACK_FILE_VERSION},

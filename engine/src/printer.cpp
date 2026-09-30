@@ -735,9 +735,17 @@ void MCPrinter::DoPrint(MCCard *p_card, const MCRectangle& p_src, const MCRectan
 		// Draw the card into the context.
 		if (m_loop_status == STATUS_READY)
 		{
+			// Printing is always in the light appearance: paper is white, and
+			// the dark defaults (32,32,32 fills, white text) would print a
+			// stack with no colours as a dark page. Every appearance decision
+			// made while the card is drawn is light (MCAppearanceIsDark);
+			// the printer context is also light on its own
+			// (MCObject::isdarkappearance, getforecolor).
+			MCappearanceforcelight++;
 			p_card -> draw(t_context, p_src, false);
 			if (m_layout_show_borders)
 				p_card -> drawborder(t_context, p_src, 1);
+			MCappearanceforcelight--;
 			SetStatusFromResult(m_device -> End(t_context));
 		}
 

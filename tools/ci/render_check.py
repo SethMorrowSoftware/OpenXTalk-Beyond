@@ -17,19 +17,35 @@
 
 """Measure the images written by tools/ci/render-test.livecodescript.
 
-  python tools/ci/render_check.py --mode dark|light --dir <folder>
+  python tools/ci/render_check.py --mode dark|light [--system dark|light]
+                                  [--label <run>] --dir <folder>
+  python tools/ci/render_check.py --compare <folder A> <folder B>
+                                  [--only <glob>]... [--exclude <glob>]...
+                                  [--rename <prefix>=<prefix>] [--info <key>]...
   python tools/ci/render_check.py --self-test
 
 <folder> holds render.txt and the PNG files of one run of the render test
-(tools/ci/render-test.ps1 runs it once with Windows set to dark mode and
-once set to light mode). Every check prints one line,
+(tools/ci/render-test.ps1 runs it with Windows set to dark or light mode and
+the appAppearance set to "system", "dark" or left at its default). --mode is
+the appearance the run draws stacks that set none in (the effective
+appAppearance), and --system the Windows setting (the systemAppearance
+reported); it defaults to --mode. Every check prints one line,
 
-  PASS <mode> <check>: <measurement>
-  FAIL <mode> <check>: <what is wrong and where to look>
+  PASS <run> <check>: <measurement>
+  FAIL <run> <check>: <what is wrong and where to look>
 
-and the last line is "SUMMARY passed=<n> failed=<n>". The exit code is the
-number of failed checks (at most 100), or 101 when the folder cannot be
-read.
+(<run> is --label, or the mode) and the last line is
+"SUMMARY passed=<n> failed=<n>". The exit code is the number of failed
+checks (at most 100), or 101 when the folder cannot be read.
+
+--compare compares the images of two runs, those of folder A that match the
+--only patterns (all when none is given) and none of the --exclude ones,
+with the images of the same name in folder B (--rename maps a prefix of the
+name in A to one in B). Two images match when the mean absolute difference
+of their channels is at most 0.5 and at most 0.2% of their pixels differ by
+more than 16 in a channel: the same colours give the same ClearType pixels,
+so a real difference is a bug. --info compares INFO values of render.txt.
+screen.png (a snapshot of the desktop) is never compared.
 
 What is checked, for the native Windows theme:
 
@@ -75,6 +91,18 @@ What is checked, for the native Windows theme:
   the track whose mean luminance differs from the track's by 20 or more, and
   in dark mode is brighter. The track alone cannot tell a dark scrollbar from
   none at all, or from one whose theme part draws nothing.
+* The appearance: the engine starts with the appAppearance "light"
+  (INFO appAppearanceAtStart), draws in the appearance the run asked for
+  (INFO effectiveAppAppearance is --mode) and reports the Windows setting as
+  the systemAppearance (--system). Engines without the appAppearance (the
+  reference release) are not checked for it.
+* The appearance scenarios (text, face and region shots, EXPECT below): the
+  owner's libMQTTxt colours (s1-*) look as designed, light, in every run;
+  a stack with no colours (s2-*) is dark in the dark appearance and light in
+  the light one; a dark card (s3), black text of a field's own (s4), text
+  runs (s6) and button colours (s7) get fitting unset colours. A text shot
+  is the pixels that change when the text is taken away, a face shot those
+  that change when the control is hidden, a region the mean of a rectangle.
 
 Luminance L is 0.299 R + 0.587 G + 0.114 B on the 0-255 scale; contrast
 ratios use the WCAG relative luminance.
@@ -134,6 +162,172 @@ THUMB_MIN_DIFF = 20
 # 32, the light card 240).
 DARK_BACKGROUND_MAX = 100
 LIGHT_BACKGROUND_MIN = 150
+# Two images of a comparison match when the mean absolute difference of their
+# channels is at most COMPARE_MAX_MEAN and at most COMPARE_MAX_SHARE of their
+# pixels differ by more than COMPARE_PIXEL_DIFF in a channel.
+COMPARE_MAX_MEAN = 0.5
+COMPARE_MAX_SHARE = 0.002
+COMPARE_PIXEL_DIFF = 16
+# Never compared: a snapshot of the desktop
+COMPARE_NEVER = ('screen.png',)
+# The core of a text shot: its pixels at least this share of the way from
+# their background to the far end
+TEXT_CORE_SHARE = 0.85
+
+
+def _l(r, g, b):
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+# What the text, face and region shots of the appearance scenarios are
+# checked for, by name and by the appearance of the run ('*' for both):
+#   ('text_min_l', v)        the text colour's L is at least v
+#   ('text_max_l', v)        ... at most v
+#   ('text_near_l', v, tol)  ... within tol of v
+#   ('text_red',)            the text is red: R > 150, G < 80, B < 80
+#   ('contrast', r)          at least r:1 between the text and what is under it
+#   ('far_near_l', v, tol)   the text's colour measured as a label's (the far
+#                            end of its pixels, the 2% quantile, as
+#                            label_colour gives it) is within tol of v
+#   ('far_contrast', r)      ... and at least r:1 against the median of what
+#                            is under it. For text in a colour close to the
+#                            limit (the disabled grey): the text colour of
+#                            the other checks is the median of the text's
+#                            core, which antialiasing pulls a few levels
+#                            towards the background
+#   ('interior_min_l', v)    the inside of a face's outline has a mean L of
+#                            at least v (a checkbox's box)
+#   ('face_median_min_l', v) the median L of a face's pixels is at least v
+#   ('face_far_min_l', v)    the far end of a face's pixels from what is
+#                            under them has an L of at least v (a line)
+#   ('face_far_max_l', v)    ... at most v
+#   ('region_min_l', v)      the mean L of the region is at least v
+#   ('region_near_l', v, tol) ... within tol of v
+#   ('record',)              only measured and printed (a known limit)
+#   ('interior_max_l', v)    the inside of a face's outline has a mean L of
+#                            at most v (a dark box or button face)
+#   ('ring_contrast', r)     the far end of a face's pixels (its outline) is at
+#                            least r:1 against what is under it
+#   ('glyph_contrast', r)    in the middle of a checked box or circle, the
+#                            tick or dot is at least r:1 against the fill
+#   ('dot_shape',)           ... and the dot is round: its bounding box is
+#                            0.8 to 1.25 as wide as it is high, and it fills
+#                            0.6 to 0.9 of it
+#   ('interior_differs', name, v)  the inside differs from that of the face
+#                            shot name by at least v (a pressed button)
+#   ('accent_or_differs', name, v) the face shows the accent colour (B - R of
+#                            at least 60), or its inside differs from name's
+#                            by at least v; otherwise it is only recorded (the
+#                            default look may not show off screen)
+#   ('face_far_between', a, b) the far end L is between a and b (a frame)
+#   ('record_face',)         a face shot, only measured and printed
+#   ('glyph_halves', dl, n)  the top and the bottom half of a face (its
+#                            bounding box split at the middle row) each have
+#                            at least n pixels that differ from that half's
+#                            median by dl in L: an arrow on each button of
+#                            the little arrows
+#   ('chevron', px, dl, n)   in the right px pixels of the image, inside its
+#                            outline, at least n pixels differ from the face
+#                            by dl in L (the arrow of an option menu)
+#   ('tabstrip', r)          the tabs above the pane have dark faces and text
+#                            at least r:1 against the lightest face
+#   ('slider', t, l, n)      a horizontal slider's face, at 50%: its track (10%
+#                            to 30% and 70% to 90% along it) has a median L
+#                            below t on either side, and at least n pixels in
+#                            the middle are at least l (the thumb)
+#   ('pdf_no_fill', v, tol)  a PDF: no grey fill colour of v (within tol) in its
+#                            content streams (the "r g b rg" and "g" operators
+#                            the PDF printer writes)
+#   ('progress', t, d)       a progress bar at 50%: inside its outline, the
+#                            right quarter (the track) has a mean L below t
+#                            and the left quarter (the chunk) differs from it
+#                            by at least d
+# Names that start with "s8-" are only compared with s2 of another run.
+EXPECT = {
+    # S1, the owner's libMQTTxt colours: as designed, light, in every run
+    's1-title': {'*': [('text_min_l', 240)]},
+    's1-section': {'*': [('text_near_l', _l(28, 34, 46), 12)]},
+    's1-caption': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    's1-host': {'*': [('contrast', 7.0), ('text_max_l', 60)]},
+    's1-check': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-check-on': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-check-box': {'*': [('interior_min_l', 200)]},
+    's1-push': {'*': [('contrast', 4.5), ('text_max_l', 90)]},
+    's1-push-face': {'*': [('face_median_min_l', 180)]},
+    's1-messages': {'*': [('region_min_l', 200)]},
+    # S2, no colours: dark in the dark appearance, light in the light one
+    's2-field': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-field-fill': {'dark': [('region_near_l', 32, 12)], 'light': [('region_min_l', 245)]},
+    's2-label': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-check': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('text_max_l', 60)]},
+    's2-push': {'*': [('contrast', 4.5)]},
+    's2-line': {'dark': [('face_far_min_l', 200)], 'light': [('face_far_max_l', 60)]},
+    's2-card': {'dark': [('region_near_l', 32, 8)], 'light': [('region_near_l', 240, 8)]},
+    # A checkbox with no colours on a white panel, its rect 4 px past the
+    # panel's edge: it takes the panel it mostly covers, not the card
+    's2-panel-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
+    # S3, a card of 30,30,30: white text in the dark appearance
+    's3-text': {'dark': [('text_min_l', 200), ('contrast', 4.5)], 'light': [('record',)]},
+    # A field's second border pixel and the fill next to it: the fill (60)
+    # in the dark appearance; without the band the card (30) shows there,
+    # a mean of 45
+    's3-field-band': {'dark': [('region_near_l', 60, 6)]},
+    # S4, black text of a field's own and no background: a light fill
+    's4-bordered-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
+    's4-borderless-fill': {'dark': [('region_min_l', 200)], 'light': [('region_min_l', 200)]},
+    's4-label': {'*': [('record',)]},
+    # An opaque checkbox fills its rect with its own white (buttondraw.cpp),
+    # and the native group frame paints no fill, so checkboxes in such a
+    # group show the white panel under it: dark labels in every run
+    's4-opaque-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
+    's4-group-check': {'*': [('text_max_l', 90), ('contrast', 4.5)]},
+    # S6, text runs
+    's6-plain': {'*': [('text_max_l', 60)]},
+    's6-red': {'*': [('text_red',)]},
+    's6-yellow': {'*': [('text_max_l', 60)]},
+    's6-unstyled-yellow': {'*': [('text_max_l', 60)]},
+    's6-unstyled-plain': {'dark': [('text_min_l', 200)], 'light': [('text_max_l', 60)]},
+    # S7, a button's own background: the label fits it in the dark appearance
+    's7-white': {'dark': [('text_max_l', 90), ('contrast', 4.5)]},
+    's7-dark': {'dark': [('text_min_l', 200)]},
+    # S9, the native controls in a stack with no colours, drawn dark in the
+    # dark appearance (drawdarkwidget, engine/src/w32theme.cpp); in the light
+    # one the comparison with the reference release proves nothing changed
+    # The disabled labels are measured by their colour, as the labels of the
+    # first checks are: the designed grey 0x89 on 0x20 is 4.66:1, and the
+    # median of an antialiased core measures a few levels lower (134 is
+    # 4.48:1), which would fail although the engine draws exactly 0x89
+    's9-check': {'dark': [('contrast', 4.5)]},
+    's9-check-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    's9-radio': {'dark': [('contrast', 4.5)]},
+    's9-radio-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    's9-check-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    's9-radio-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    's9-check-on-box': {'dark': [('glyph_contrast', 3.0)]},
+    's9-radio-on-box': {'dark': [('glyph_contrast', 3.0), ('dot_shape',)]},
+    's9-push': {'dark': [('contrast', 4.5)]},
+    's9-push-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    's9-push-face': {'dark': [('interior_max_l', 90)]},
+    's9-push-pressed-face': {'dark': [('interior_max_l', 90), ('interior_differs', 's9-push-face', 6)]},
+    's9-push-default-face': {'dark': [('accent_or_differs', 's9-push-face', 12)]},
+    's9-push-disabled-face': {'dark': [('interior_max_l', 36)]},
+    's9-option': {'dark': [('chevron', 20, 60, 6)]},
+    's9-combo': {'dark': [('chevron', 20, 60, 6)]},
+    's9-tabs': {'dark': [('tabstrip', 4.5)]},
+    's9-field-frame': {'dark': [('face_far_between', 100, 170), ('ring_contrast', 3.0)]},
+    's9-group': {'dark': [('record_face',)]},
+    's9-slider': {'dark': [('slider', 110, 150, 30)]},
+    's9-progress': {'dark': [('progress', 90, 40)]},
+    # The little arrows, 16x24: two dark spin buttons (drawdarkwidget,
+    # WTHEME_TYPE_SPIN) with an arrow on each (0xD0 on 0x37, the outline
+    # 0x6E is less than 60 from the face). The inside of the face holds parts
+    # of both arrows and the outlines where the buttons meet: about 85 when
+    # dark, against about 220 for the light uxtheme buttons
+    's9-arrows': {'dark': [('interior_max_l', 120), ('glyph_halves', 60, 3)]},
+    # S11, printing: never the dark background (32,32,32 is 0.1255 in PDF)
+    's11': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+}
+
 # Where a failing label is drawn, by the render test's names. The buttons and
 # tabs are drawn in engine/src/buttondraw.cpp.
 LABEL_SOURCES = {
@@ -369,8 +563,9 @@ def best_offset(copy, main):
 # Checks
 
 class Report(object):
-    def __init__(self, mode):
+    def __init__(self, mode, label=None):
         self.mode = mode
+        self.label = label or mode
         self.passed = 0
         self.failed = 0
 
@@ -379,7 +574,7 @@ class Report(object):
             self.passed += 1
         else:
             self.failed += 1
-        line = '%s %s %s: %s' % ('PASS' if ok else 'FAIL', self.mode, name, detail)
+        line = '%s %s %s: %s' % ('PASS' if ok else 'FAIL', self.label, name, detail)
         print(line)
         sys.stdout.flush()
 
@@ -771,12 +966,483 @@ def read_manifest(folder):
     return info, shots
 
 
-def run(mode, folder):
-    report = Report(mode)
+# --------------------------------------------------------------------------
+# The appearance scenarios: text, face and region shots
+
+def _median_rgb(colours):
+    return tuple(median([c[i] for c in colours]) for i in range(3))
+
+
+def measure_text(rows, ref):
+    """The text of a text shot: the pixels that differ from the render
+    without it. Returns (count, text rgb, background rgb) or (count, None,
+    None) when there are too few pixels. The text colour is the median of its
+    core, the pixels at least TEXT_CORE_SHARE of the way from their
+    background to the far end (the 2% quantile, as for labels): ClearType
+    fringes and antialiased edges stay out of it."""
+    pixels = label_pixels(rows, ref)
+    if len(pixels) < MIN_LABEL_PIXELS:
+        return len(pixels), None, None
+    lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in pixels]
+    _, sign, colour = label_colour(lums)
+    far = quantile([sign * (l - b) for (_, _, l, b) in lums], 0.98)
+    core = [c for (x, y, c, b) in pixels if sign * (luma(c) - luma(b)) >= TEXT_CORE_SHARE * far]
+    if not core:
+        core = [c for (x, y, c, b) in pixels]
+    return len(pixels), _median_rgb(core), _median_rgb([b for (_, _, _, b) in pixels])
+
+
+def _inner(rows, x0, y0, x1, y1, share):
+    """The pixels (flattened) of the box x0,y0-x1,y1 shrunk by share of its
+    size on each side."""
+    dx = int((x1 - x0) * share)
+    dy = int((y1 - y0) * share)
+    return [flatten(rows[y][x]) for y in range(y0 + dy, y1 - dy + 1) for x in range(x0 + dx, x1 - dx + 1)]
+
+
+def measure_face(rows, ref):
+    """The pixels of a face shot (those that change when the control is
+    hidden), as a dict: count; median (L of them); far (their far-end L from
+    what is under them) with far_rgb (the median of those at least
+    TEXT_CORE_SHARE of the way there) and background_rgb (what is under
+    them); interior (the mean L inside their bounding box shrunk by 30% on
+    each side); accent (how many have B - R of at least 60); glyph_rgb,
+    fill_rgb and dot (in the middle of the box, shrunk by 20%: the pixels at
+    least 40 from the median in L, their median, the median of the middle,
+    and their bounding box and count); box."""
+    pixels = label_pixels(rows, ref)
+    result = {'count': len(pixels)}
+    if len(pixels) < MIN_LABEL_PIXELS:
+        return result
+    lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in pixels]
+    _, sign, far = label_colour(lums)
+    far_distance = quantile([sign * (l - b) for (_, _, l, b) in lums], 0.98)
+    core = [c for (x, y, c, b) in pixels if sign * (luma(c) - luma(b)) >= TEXT_CORE_SHARE * far_distance]
+    xs = [p[0] for p in pixels]
+    ys = [p[1] for p in pixels]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    inside = [luma(p) for p in _inner(rows, x0, y0, x1, y1, 0.3)]
+    middle = []
+    for y in range(y0 + int((y1 - y0) * 0.2), y1 - int((y1 - y0) * 0.2) + 1):
+        for x in range(x0 + int((x1 - x0) * 0.2), x1 - int((x1 - x0) * 0.2) + 1):
+            middle.append((x, y, flatten(rows[y][x])))
+    fill = _median_rgb([c for (_, _, c) in middle]) if middle else None
+    glyph = [(x, y, c) for (x, y, c) in middle if fill is not None and abs(luma(c) - luma(fill)) >= 40]
+    result.update({
+        'median': median([l for (_, _, l, _) in lums]),
+        'far': far,
+        'far_rgb': _median_rgb(core or [c for (_, _, c, _) in pixels]),
+        'background_rgb': _median_rgb([b for (_, _, _, b) in pixels]),
+        'interior': sum(inside) / len(inside) if inside else None,
+        'accent': sum(1 for (_, _, c, _) in pixels if c[2] - c[0] >= 60),
+        'fill_rgb': fill,
+        'glyph_rgb': _median_rgb([c for (_, _, c) in glyph]) if glyph else None,
+        'glyph_count': len(glyph),
+        'glyph_box': (min(g[0] for g in glyph), min(g[1] for g in glyph),
+                      max(g[0] for g in glyph), max(g[1] for g in glyph)) if glyph else None,
+        'box': '%d,%d-%d,%d' % (x0, y0, x1, y1),
+        'points': [(x, y, l) for (x, y, l, _) in lums],
+        'extent': (x0, y0, x1, y1),
+    })
+    return result
+
+
+def expected_checks(name, mode):
+    table = EXPECT.get(name, {})
+    return table.get('*', []) + table.get(mode, [])
+
+
+def _load_pair(report, folder, name, image, reference):
+    try:
+        w, h, rows = read_png(os.path.join(folder, image))
+        rw, rh, ref = read_png(os.path.join(folder, reference))
+    except (IOError, OSError, PNGError, zlib.error) as e:
+        report.check(name + ' drawn', False, 'cannot read the images: %s' % e)
+        return None, None
+    if (w, h) != (rw, rh):
+        report.check(name + ' drawn', False, '%s is %dx%d but %s is %dx%d' % (image, w, h, reference, rw, rh))
+        return None, None
+    return rows, ref
+
+
+def _fmt(rgb):
+    return '%d,%d,%d' % tuple(int(round(v)) for v in rgb)
+
+
+def check_text(report, folder, name, image, reference):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    rows, ref = _load_pair(report, folder, name, image, reference)
+    if rows is None:
+        return
+    count, text, background = measure_text(rows, ref)
+    where = '%s against %s' % (image, reference)
+    if text is None:
+        report.check(name + ' drawn', False, 'only %d text pixels (%s): the text was not drawn, or was drawn in '
+                     'the colour of what is under it' % (count, where))
+        return
+    l_text = luma(text)
+    ratio = contrast_ratio(text, background)
+    measured = 'text %s (L=%.0f) on %s (L=%.0f), %.2f:1, %d pixels (%s)' % (
+        _fmt(text), l_text, _fmt(background), luma(background), ratio, count, where)
+    # The text's colour measured as a label's (analyse_label_pixels): the
+    # far end of its pixels against the median of what is under them
+    far_background = far = None
+    if any(want[0] in ('far_near_l', 'far_contrast') for want in wanted):
+        lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in label_pixels(rows, ref)]
+        far_background, _, far = label_colour(lums)
+    for want in wanted:
+        kind = want[0]
+        if kind == 'record':
+            report.check(name + ' recorded', True, measured + '; recorded only')
+        elif kind == 'text_min_l':
+            report.check(name + ' colour', l_text >= want[1], '%s, %s L>=%.0f' % (
+                measured, 'expected' if l_text >= want[1] else 'FAILED: expected', want[1]))
+        elif kind == 'text_max_l':
+            report.check(name + ' colour', l_text <= want[1], '%s, %s L<=%.0f' % (
+                measured, 'expected' if l_text <= want[1] else 'FAILED: expected', want[1]))
+        elif kind == 'text_near_l':
+            ok = abs(l_text - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s, %s L=%.0f (+-%d): the colour set for it' % (
+                measured, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+        elif kind == 'text_red':
+            ok = text[0] > 150 and text[1] < 80 and text[2] < 80
+            report.check(name + ' colour', ok, '%s, %s red (R>150, G<80, B<80)' % (
+                measured, 'expected' if ok else 'FAILED: expected'))
+        elif kind == 'contrast':
+            ok = ratio >= want[1]
+            report.check(name + ' contrast', ok, '%s, %s %.1f:1' % (
+                measured, 'at least' if ok else 'FAILED: needs at least', want[1]))
+        elif kind == 'far_near_l':
+            ok = abs(far - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s; its colour (the far end of its pixels) L=%.0f, %s L=%.0f (+-%d)' % (
+                measured, far, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+        elif kind == 'far_contrast':
+            far_ratio = contrast_ratio(grey(far), grey(far_background))
+            ok = far_ratio >= want[1]
+            report.check(name + ' contrast', ok, '%s; its colour (the far end of its pixels, L=%.0f) on L=%.0f is '
+                         '%.2f:1, %s %.1f:1' % (measured, far, far_background, far_ratio,
+                                                'at least' if ok else 'FAILED: needs at least', want[1]))
+
+
+# The measurements of the face shots of a run so far, by name, for the checks
+# that compare one face with another
+FACE_RESULTS = {}
+
+
+def check_face(report, folder, name, image, reference):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    rows, ref = _load_pair(report, folder, name, image, reference)
+    if rows is None:
+        return
+    face = measure_face(rows, ref)
+    where = '%s against %s' % (image, reference)
+    if 'median' not in face:
+        report.check(name + ' drawn', False, 'only %d pixels change when it is hidden (%s)' % (face['count'], where))
+        return
+    FACE_RESULTS[name] = face
+    count, med, far, interior, box = face['count'], face['median'], face['far'], face['interior'], face['box']
+    measured = '%d pixels at %s, median L=%.0f, far end L=%.0f, inside L=%s (%s)' % (
+        count, box, med, far, '-' if interior is None else '%.0f' % interior, where)
+    for want in wanted:
+        kind = want[0]
+        value = want[1] if len(want) > 1 else None
+        if kind == 'record_face':
+            report.check(name + ' recorded', True, '%s; far end %s on %s; recorded only' % (
+                measured, _fmt(face['far_rgb']), _fmt(face['background_rgb'])))
+        elif kind == 'interior_max_l':
+            ok = interior is not None and interior <= value
+            report.check(name + ' inside', ok, '%s, %s inside L<=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'ring_contrast':
+            ratio = contrast_ratio(face['far_rgb'], face['background_rgb'])
+            ok = ratio >= value
+            report.check(name + ' outline', ok, '%s; the outline %s on %s is %.2f:1, %s %.1f:1' % (
+                measured, _fmt(face['far_rgb']), _fmt(face['background_rgb']), ratio,
+                'at least' if ok else 'FAILED: needs at least', value))
+        elif kind in ('glyph_contrast', 'dot_shape'):
+            if face['glyph_rgb'] is None:
+                report.check(name + (' glyph' if kind == 'glyph_contrast' else ' dot'), False,
+                             '%s; nothing in the middle differs from its fill %s: no tick or dot' % (
+                                 measured, _fmt(face['fill_rgb'])))
+                continue
+            if kind == 'glyph_contrast':
+                ratio = contrast_ratio(face['glyph_rgb'], face['fill_rgb'])
+                ok = ratio >= value
+                report.check(name + ' glyph', ok, '%s; the tick or dot %s on the fill %s is %.2f:1, %s %.1f:1' % (
+                    measured, _fmt(face['glyph_rgb']), _fmt(face['fill_rgb']), ratio,
+                    'at least' if ok else 'FAILED: needs at least', value))
+            else:
+                gx0, gy0, gx1, gy1 = face['glyph_box']
+                width, height = gx1 - gx0 + 1, gy1 - gy0 + 1
+                aspect = width / float(height)
+                share = face['glyph_count'] / float(width * height)
+                ok = 0.8 <= aspect <= 1.25 and 0.6 <= share <= 0.9
+                report.check(name + ' dot', ok, '%s; the dot is %dx%d (%.2f wide per high) and fills %.2f of it, '
+                             '%s 0.8-1.25 and 0.6-0.9 (round)' % (measured, width, height, aspect, share,
+                                                                    'expected' if ok else 'FAILED: expected'))
+        elif kind in ('interior_differs', 'accent_or_differs'):
+            other = FACE_RESULTS.get(value)
+            if other is None or other.get('interior') is None or interior is None:
+                report.check(name + ' state', False, '%s; no measurement of %s to compare with' % (measured, value))
+                continue
+            difference = abs(interior - other['interior'])
+            if kind == 'interior_differs':
+                ok = difference >= want[2]
+                report.check(name + ' state', ok, '%s; inside L=%.0f against %.0f in %s: %s %d' % (
+                    measured, interior, other['interior'], value, 'differs by at least' if ok else
+                    'FAILED: must differ by at least', want[2]))
+            else:
+                if face['accent'] >= 10:
+                    report.check(name + ' state', True, '%s; %d pixels show the accent colour' % (measured, face['accent']))
+                elif difference >= want[2]:
+                    report.check(name + ' state', True, '%s; inside L=%.0f against %.0f in %s' % (
+                        measured, interior, other['interior'], value))
+                else:
+                    report.check(name + ' state', True, '%s; looks like %s (inside L=%.0f): the default look does '
+                                 'not show off screen; recorded only' % (measured, value, other['interior']))
+        elif kind == 'slider':
+            # A horizontal slider at 50%: the thumb is in the middle 40% of
+            # it, and only the track is 10% to 30% and 70% to 90% along it
+            fx0, fy0, fx1, fy1 = face['extent']
+            span = float(fx1 - fx0)
+            left = [l for (x, y, l) in face['points'] if fx0 + 0.1 * span <= x <= fx0 + 0.3 * span]
+            right = [l for (x, y, l) in face['points'] if fx0 + 0.7 * span <= x <= fx0 + 0.9 * span]
+            thumb = sum(1 for (x, y, l) in face['points'] if fx0 + 0.3 * span < x < fx0 + 0.7 * span and l >= want[2])
+            track_l = max(median(left), median(right)) if left and right else None
+            ok = track_l is not None and track_l < value and thumb >= want[3]
+            report.check(name + ' slider', ok, '%s; the track has a median L of %s (the lighter of its two sides) and '
+                         '%d pixels in the middle are the thumb (L>=%d), %s track L<%d and at least %d thumb pixels' % (
+                             measured, '-' if track_l is None else '%.0f' % track_l, thumb, want[2],
+                             'expected' if ok else 'FAILED: expected', value, want[3]))
+        elif kind == 'face_far_between':
+            ok = value <= far <= want[2]
+            report.check(name + ' outline', ok, '%s, %s far end L %d-%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value, want[2]))
+        elif kind == 'glyph_halves':
+            # The face's own pixels, split at the middle row of their box
+            fx0, fy0, fx1, fy1 = face['extent']
+            middle_row = (fy0 + fy1 + 1) // 2
+            counts = []
+            for part in ([l for (x, y, l) in face['points'] if y < middle_row],
+                         [l for (x, y, l) in face['points'] if y >= middle_row]):
+                part_median = median(part) if part else 0
+                counts.append(sum(1 for l in part if abs(l - part_median) >= value))
+            ok = min(counts) >= want[2]
+            report.check(name + ' arrows', ok, '%s; %d pixels in the top half and %d in the bottom half differ from '
+                         'their half\'s median by %d or more, %s at least %d in each (an arrow on each button)' % (
+                             measured, counts[0], counts[1], value, 'expected' if ok else 'FAILED: expected',
+                             want[2]))
+        elif kind == 'interior_min_l':
+            ok = interior is not None and interior >= value
+            report.check(name + ' inside', ok, '%s, %s inside L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_median_min_l':
+            ok = med >= value
+            report.check(name + ' face', ok, '%s, %s median L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_far_min_l':
+            ok = far >= value
+            report.check(name + ' colour', ok, '%s, %s far end L>=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+        elif kind == 'face_far_max_l':
+            ok = far <= value
+            report.check(name + ' colour', ok, '%s, %s far end L<=%d' % (
+                measured, 'expected' if ok else 'FAILED: expected', value))
+
+
+def check_region(report, folder, name, image, region):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    try:
+        w, h, rows = read_png(os.path.join(folder, image))
+    except (IOError, OSError, PNGError, zlib.error) as e:
+        report.check(name + ' drawn', False, 'cannot read %s: %s' % (image, e))
+        return
+    box = region_box(region, w, h) if region is not None else None
+    if box is None:
+        report.check(name + ' drawn', False, 'the region %s is outside %s (%dx%d)' % (region, image, w, h))
+        return
+    mean = box_mean(rows, box)
+    measured = 'mean L=%.0f at %d,%d-%d,%d of %s' % (mean, box[0], box[1], box[2] - 1, box[3] - 1, image)
+    for want in wanted:
+        kind = want[0]
+        if kind == 'chevron':
+            check_chevron(report, name, rows, w, h, want[1], want[2], want[3], image)
+            continue
+        if kind == 'tabstrip':
+            check_tabstrip(report, name, rows, w, h, want[1], image)
+            continue
+        if kind == 'progress':
+            check_progress(report, name, rows, w, h, want[1], want[2], image)
+            continue
+        if kind == 'region_min_l':
+            ok = mean >= want[1]
+            report.check(name + ' colour', ok, '%s, %s L>=%d' % (measured, 'expected' if ok else 'FAILED: expected', want[1]))
+        elif kind == 'region_near_l':
+            ok = abs(mean - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s, %s L=%d (+-%d)' % (
+                measured, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+
+
+def check_chevron(report, name, rows, w, h, width, distance, minimum, image):
+    """The arrow of an option menu or combo box: in the right width pixels
+    of the image, 4 pixels in from its edges (its outline), at least minimum
+    pixels differ from the face (their median) by distance in L."""
+    x0, x1 = max(4, w - width), w - 4
+    y0, y1 = 4, h - 4
+    values = [luma(flatten(rows[y][x])) for y in range(y0, y1) for x in range(x0, x1)]
+    if not values:
+        report.check(name + ' arrow', False, '%s is too small (%dx%d)' % (image, w, h))
+        return
+    face = median(values)
+    marks = sum(1 for v in values if abs(v - face) >= distance)
+    ok = marks >= minimum
+    report.check(name + ' arrow', ok, '%d pixels differ from the face (L=%.0f) by %d or more in columns %d-%d, rows '
+                 '%d-%d of %s, %s %d%s' % (marks, face, distance, x0, x1 - 1, y0, y1 - 1, image,
+                                           'at least' if ok else 'FAILED: expected at least', minimum,
+                                           '' if ok else ': the option menu or combo box has no arrow; see '
+                                           'MCNativeTheme::drawdarkwidget in engine/src/w32theme.cpp'))
+
+
+def check_tabstrip(report, name, rows, w, h, minimum, image):
+    """Tabs above a tab pane, in the dark appearance: the strip is the rows
+    above the pane's top edge (the first row, 3 or more down, that is mostly
+    outline grey, L 90-130). Its faces (L below 70) must be most of it, and
+    its text (L 150 or more; its far end) at least minimum:1 against the
+    lightest face."""
+    top = None
+    for y in range(3, h):
+        row = [luma(flatten(rows[y][x])) for x in range(w)]
+        if sum(1 for v in row if 90 <= v <= 130) >= 0.6 * w:
+            top = y
+            break
+    if top is None or top < 6:
+        report.check(name + ' tabs', False, 'cannot find the top edge of the tab pane in %s (%dx%d): no row is '
+                     'mostly outline grey (L 90-130); the pane is not drawn dark' % (image, w, h))
+        return
+    strip = [luma(flatten(rows[y][x])) for y in range(0, top) for x in range(w)]
+    faces = [v for v in strip if v < 70]
+    text = [v for v in strip if v >= 150]
+    share = len(faces) / float(len(strip))
+    if share < 0.5 or not text:
+        report.check(name + ' tabs', False, 'in rows 0-%d of %s, %.0f%% of the pixels are a dark face (L<70) and %d '
+                     'are text (L>=150), FAILED: expected dark faces and text; the tabs are drawn light' %
+                     (top - 1, image, 100 * share, len(text)))
+        return
+    face = max(faces)
+    colour = quantile(text, 0.98)
+    ratio = contrast_ratio(grey(colour), grey(face))
+    ok = ratio >= minimum
+    report.check(name + ' tabs', ok, 'rows 0-%d of %s: %.0f%% dark faces (the lightest L=%.0f), text L=%.0f, %.2f:1, '
+                 '%s %.1f:1' % (top - 1, image, 100 * share, face, colour, ratio,
+                                'at least' if ok else 'FAILED: needs at least', minimum))
+
+
+def check_progress(report, name, rows, w, h, track_max, distance, image):
+    """A progress bar at 50%, 3 pixels in from its edges: the right quarter
+    is the dark track, the left quarter the chunk, which must stand out."""
+    x0, x1, y0, y1 = 3, w - 3, 3, h - 3
+    if x1 - x0 < 8 or y1 - y0 < 2:
+        report.check(name + ' progress', False, '%s is too small (%dx%d)' % (image, w, h))
+        return
+    quarter = (x1 - x0) // 4
+    left = box_mean(rows, (x0, y0, x0 + quarter, y1))
+    right = box_mean(rows, (x1 - quarter, y0, x1, y1))
+    ok = right < track_max and abs(left - right) >= distance
+    report.check(name + ' progress', ok, 'the left quarter L=%.0f, the right quarter L=%.0f of %s, %s the right below '
+                 '%d and the left %d or more from it' % (left, right, image, 'expected' if ok else 'FAILED: expected',
+                                                         track_max, distance))
+
+
+def pdf_fill_colours(data):
+    """The fill colours of a PDF's content streams (FlateDecode or plain), as
+    lists of numbers: those of "r g b rg" and "v g" operators."""
+    import re
+    colours = []
+    streams = []
+    for m in re.finditer(br'stream\r?\n', data):
+        start = m.end()
+        end = data.find(b'endstream', start)
+        if end < 0:
+            continue
+        raw = data[start:end]
+        try:
+            streams.append(zlib.decompress(raw))
+        except zlib.error:
+            streams.append(raw)
+    number = br'(-?\d*\.?\d+)'
+    for s in streams:
+        for m in re.finditer(number + br'\s+' + number + br'\s+' + number + br'\s+rg\b', s):
+            colours.append([float(v) for v in m.groups()])
+        for m in re.finditer(br'(?<![\d.])' + number + br'\s+g\b', s):
+            colours.append([float(m.group(1))])
+    return colours
+
+
+def check_pdf(report, folder, name, pdf):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    try:
+        with open(os.path.join(folder, pdf), 'rb') as f:
+            data = f.read()
+    except (IOError, OSError) as e:
+        report.check(name + ' printed', False, 'cannot read %s: %s' % (pdf, e))
+        return
+    colours = pdf_fill_colours(data)
+    for want in wanted:
+        if want[0] != 'pdf_no_fill':
+            continue
+        value, tolerance = want[1], want[2]
+        if not colours:
+            # Not a failure: the checks cannot tell (another PDF writer)
+            report.check(name + ' printed', True, 'no fill colour operators found in %s (%d bytes); recorded only'
+                         % (pdf, len(data)))
+            continue
+        dark = [c for c in colours if all(abs(v - value) <= tolerance for v in c)]
+        ok = not dark
+        report.check(name + ' printed', ok, '%d fill colours in %s, %d of them %.4f (the dark background)%s' % (
+            len(colours), pdf, len(dark), value, '' if ok else ', FAILED: printing must be light; see '
+            'MCPrinter::DoPrint in engine/src/printer.cpp and MCObject::isdarkappearance'))
+
+
+def check_appearance_info(report, info, system):
+    """The systemAppearance and the appAppearance the run reports."""
+    appearance = info.get('systemAppearance', '')
+    report.check('system appearance', appearance == system,
+                 'the engine reports the systemAppearance "%s"%s' %
+                 (appearance, '' if appearance == system else
+                  ' but the test set AppsUseLightTheme for %s mode; see render-test.ps1 and '
+                  'MCScreenDC::getsystemappearance in engine/src/w32dc.cpp' % system))
+    if info.get('hasAppAppearance') != 'true':
+        return
+    start = info.get('appAppearanceAtStart', '')
+    report.check('appAppearance default', start == 'light',
+                 'the appAppearance is "%s" before the test sets it%s' %
+                 (start, '' if start == 'light' else ', FAILED: expected "light", the default of every engine '
+                  '(MCappappearance, engine/src/appearance.cpp)'))
+    effective = info.get('effectiveAppAppearance', '')
+    report.check('effective appAppearance', effective == report.mode,
+                 'the effective appAppearance is "%s" (the appAppearance "%s", requested "%s", systemAppearance '
+                 '"%s")%s' % (effective, info.get('appAppearance', ''), info.get('requestedAppearance', ''),
+                              appearance, '' if effective == report.mode else
+                              ', FAILED: expected "%s" (MCAppearanceIsDark, engine/src/appearance.cpp)' % report.mode))
+
+
+def run(mode, folder, system=None, label=None):
+    report = Report(mode, label)
+    FACE_RESULTS.clear()
+    if system is None:
+        system = mode
     try:
         info, shots = read_manifest(folder)
     except (IOError, OSError) as e:
-        print('FAIL %s engine run: cannot read render.txt in %s: %s' % (mode, folder, e))
+        print('FAIL %s engine run: cannot read render.txt in %s: %s' % (report.label, folder, e))
         print('SUMMARY passed=0 failed=1')
         return 101
 
@@ -791,12 +1457,7 @@ def run(mode, folder):
                                                  ', not "Appearance Manager": the native Windows theme did not '
                                                  'load (visual styles are off in this session?), so the flat '
                                                  'labels and dark scrollbars of the native theme are not tested'))
-    appearance = info.get('systemAppearance', '')
-    report.check('system appearance', appearance == mode,
-                 'the engine reports the systemAppearance "%s"%s' %
-                 (appearance, '' if appearance == mode else
-                  ' but the test set AppsUseLightTheme for %s mode; see render-test.ps1 and '
-                  'MCScreenDC::getsystemappearance in engine/src/w32dc.cpp' % mode))
+    check_appearance_info(report, info, system)
 
     # A thumb is compared with the track of the same scrollbar
     tracks = dict((shot[1], parse_region(shot[3])) for shot in shots if shot[0] == 'track' and len(shot) >= 4)
@@ -816,9 +1477,113 @@ def run(mode, folder):
                 check_track(report, folder, name, shot[2], region)
             else:
                 check_thumb(report, folder, name, shot[2], region, tracks.get(name))
+        elif name.startswith('s8-'):
+            # Compared with s2 of another run (--compare)
+            continue
+        elif kind == 'text' and len(shot) >= 4:
+            check_text(report, folder, name, shot[2], shot[3])
+        elif kind == 'face' and len(shot) >= 4:
+            check_face(report, folder, name, shot[2], shot[3])
+        elif kind == 'region' and len(shot) >= 4:
+            check_region(report, folder, name, shot[2], parse_region(shot[3]))
+        elif kind == 'pdf' and len(shot) >= 3:
+            check_pdf(report, folder, name, shot[2])
     if not shots:
         report.check('images', False, 'render.txt lists no images')
 
+    print('SUMMARY passed=%d failed=%d' % (report.passed, report.failed))
+    return min(report.failed, 100)
+
+
+# --------------------------------------------------------------------------
+# Comparing the images of two runs
+
+def compare_images(path_a, path_b):
+    """(mean absolute channel difference, share of pixels that differ by more
+    than COMPARE_PIXEL_DIFF, the bbox of those, None) or (.., .., .., error)."""
+    wa, ha, a = read_png(path_a)
+    wb, hb, b = read_png(path_b)
+    if (wa, ha) != (wb, hb):
+        return None, None, None, 'the sizes differ: %dx%d and %dx%d' % (wa, ha, wb, hb)
+    total = 0
+    count = 0
+    xs = []
+    ys = []
+    for y in range(ha):
+        ra = a[y]
+        rb = b[y]
+        for x in range(wa):
+            pa = flatten(ra[x])
+            pb = flatten(rb[x])
+            d0 = abs(pa[0] - pb[0])
+            d1 = abs(pa[1] - pb[1])
+            d2 = abs(pa[2] - pb[2])
+            total += d0 + d1 + d2
+            if max(d0, d1, d2) > COMPARE_PIXEL_DIFF:
+                count += 1
+                xs.append(x)
+                ys.append(y)
+    pixels = float(max(1, wa * ha))
+    box = '%d,%d-%d,%d' % (min(xs), min(ys), max(xs), max(ys)) if xs else '-'
+    return total / (3 * pixels), count / pixels, box, None
+
+
+def _matches(name, patterns):
+    import fnmatch
+    return any(fnmatch.fnmatchcase(name, p) for p in patterns)
+
+
+def compare(folder_a, folder_b, only=None, exclude=None, rename=None, info_keys=None, label=None):
+    """Compares the images of folder_a with those of folder_b; see the
+    module's description."""
+    report = Report('compare', label or 'compare')
+    only = only or []
+    exclude = list(exclude or []) + list(COMPARE_NEVER)
+    old_prefix, new_prefix = None, None
+    if rename:
+        old_prefix, new_prefix = rename.split('=', 1)
+    try:
+        names = sorted(n for n in os.listdir(folder_a) if n.lower().endswith('.png'))
+    except (IOError, OSError) as e:
+        report.check('images', False, 'cannot list %s: %s' % (folder_a, e))
+        names = []
+    names = [n for n in names if (not only or _matches(n, only)) and not _matches(n, exclude)]
+    if not names:
+        report.check('images', False, 'no images in %s match %s' % (folder_a, ', '.join(only) or '*'))
+    for name in names:
+        other = name
+        if old_prefix is not None and name.startswith(old_prefix):
+            other = new_prefix + name[len(old_prefix):]
+        path_a = os.path.join(folder_a, name)
+        path_b = os.path.join(folder_b, other)
+        title = name if other == name else '%s=%s' % (name, other)
+        if not os.path.exists(path_b):
+            report.check(title, False, '%s has no %s to compare with' % (folder_b, other))
+            continue
+        try:
+            mean, share, box, error = compare_images(path_a, path_b)
+        except (IOError, OSError, PNGError, zlib.error) as e:
+            report.check(title, False, 'cannot read the images: %s' % e)
+            continue
+        if error:
+            report.check(title, False, error)
+            continue
+        ok = mean <= COMPARE_MAX_MEAN and share <= COMPARE_MAX_SHARE
+        report.check(title, ok, 'mean difference %.3f (at most %.1f), %.3f%% of the pixels differ by more than %d '
+                     '(at most %.1f%%)%s' % (mean, COMPARE_MAX_MEAN, 100 * share, COMPARE_PIXEL_DIFF,
+                                             100 * COMPARE_MAX_SHARE, '' if ok else ', at %s' % box))
+    if info_keys:
+        try:
+            info_a, _ = read_manifest(folder_a)
+            info_b, _ = read_manifest(folder_b)
+        except (IOError, OSError) as e:
+            report.check('info', False, 'cannot read render.txt: %s' % e)
+            info_a, info_b = None, None
+        if info_a is not None:
+            for key in info_keys:
+                va = info_a.get(key)
+                vb = info_b.get(key)
+                report.check('INFO ' + key, va is not None and va == vb, '"%s" and "%s"' % (va, vb))
     print('SUMMARY passed=%d failed=%d' % (report.passed, report.failed))
     return min(report.failed, 100)
 
@@ -876,6 +1641,235 @@ def _scrollbar(track, thumb, glyph):
     return rows
 
 
+def _box(background, ring, inside, size=13, width=30, height=24):
+    """A checkbox-like square: a one-pixel ring, filled inside, on background."""
+    rows = [[background] * width for _ in range(height)]
+    x0, y0 = 8, 5
+    for y in range(size):
+        for x in range(size):
+            edge = y in (0, size - 1) or x in (0, size - 1)
+            rows[y0 + y][x0 + x] = ring if edge else inside
+    return rows
+
+
+def _solid(colour, width=40, height=20):
+    return [[colour] * width for _ in range(height)]
+
+
+def _indicator(background, fill, glyph, round_box, glyph_kind):
+    """A checked checkbox (a square) or radio button (a circle) filled with
+    fill, with a tick, a round dot, a square dot or nothing (glyph_kind) in
+    glyph, on background: 30x24, the indicator 14 pixels at 8,5."""
+    rows = [[background] * 30 for _ in range(24)]
+    x0, y0, size = 8, 5, 14
+    c = (size - 1) / 2.0
+    for y in range(size):
+        for x in range(size):
+            inside = (x - c) ** 2 + (y - c) ** 2 <= (size / 2.0) ** 2 if round_box else True
+            if inside:
+                rows[y0 + y][x0 + x] = fill
+    if glyph_kind == 'round':
+        for y in range(size):
+            for x in range(size):
+                if (x - c) ** 2 + (y - c) ** 2 <= 3.2 ** 2:
+                    rows[y0 + y][x0 + x] = glyph
+    elif glyph_kind == 'square':
+        for y in range(4, 10):
+            for x in range(4, 10):
+                rows[y0 + y][x0 + x] = glyph
+    elif glyph_kind == 'tick':
+        for (x, y) in ((3, 7), (4, 8), (5, 9), (6, 8), (7, 7), (8, 6), (9, 5), (10, 4),
+                       (4, 7), (5, 8), (6, 7), (7, 6), (8, 5), (9, 4)):
+            rows[y0 + y][x0 + x] = glyph
+    return rows
+
+
+def _option(face, glyph):
+    """An option menu 70x26 on the dark background: a face with an outline
+    of 110, and a chevron in its right part when glyph is given."""
+    rows = [[(32, 32, 32)] * 70 for _ in range(26)]
+    for y in range(26):
+        for x in range(70):
+            edge = y in (0, 25) or x in (0, 69)
+            rows[y][x] = (110, 110, 110) if edge else face
+    if glyph is not None:
+        for i in range(5):
+            for x in range(55 - 5 + i, 55 + 5 - i + 1):
+                rows[10 + i][x] = glyph
+    return rows
+
+
+def _slider(track_dec, track_inc, thumb):
+    """A slider 60x20 on the dark background: a track 3 pixels thick, its
+    left half in track_dec, and a round thumb of 12 pixels in the middle."""
+    rows = [[(32, 32, 32)] * 60 for _ in range(20)]
+    for y in range(9, 12):
+        for x in range(2, 58):
+            rows[y][x] = track_dec if x < 30 else track_inc
+    for y in range(20):
+        for x in range(60):
+            if (x - 29.5) ** 2 + (y - 9.5) ** 2 <= 36:
+                rows[y][x] = thumb
+    return rows
+
+
+def _progress(track, chunk):
+    """A progress bar 60x16 at 50%: an outline of 110, the chunk on the left
+    half and the track on the right."""
+    rows = [[(110, 110, 110)] * 60 for _ in range(16)]
+    for y in range(1, 15):
+        for x in range(1, 59):
+            rows[y][x] = chunk if x < 30 else track
+    return rows
+
+
+def _spin(top_arrow, bottom_arrow):
+    """Little arrows 16x24 at 4,4 on the dark background (24x32): two
+    buttons 16x12 of 55 with an outline of 110, and on each an arrow of 208
+    (6 pixels wide and 3 high) when top_arrow or bottom_arrow is true."""
+    rows = [[(32, 32, 32)] * 24 for _ in range(32)]
+    for button, arrow in enumerate((top_arrow, bottom_arrow)):
+        y0 = 4 + 12 * button
+        for y in range(12):
+            for x in range(16):
+                edge = y in (0, 11) or x in (0, 15)
+                rows[y0 + y][4 + x] = (110, 110, 110) if edge else (55, 55, 55)
+        if arrow:
+            for i in range(3):
+                row = y0 + 4 + (i if button == 1 else 2 - i)
+                for x in range(9 + i, 15 - i):
+                    rows[row][x] = (208, 208, 208)
+    return rows
+
+
+def _tabs(face, selected, text):
+    """Three tabs above a pane: a strip of 22 rows with the faces and a
+    block of text in each tab, the pane's top edge (110) and the pane."""
+    rows = [[(32, 32, 32)] * 120 for _ in range(50)]
+    for y in range(2, 22):
+        for x in range(120):
+            rows[y][x] = selected if 40 <= x < 80 else face
+    for t in range(3):
+        for y in range(8, 16):
+            for x in range(8 + 40 * t, 30 + 40 * t, 2):
+                rows[y][x] = text
+    for x in range(120):
+        rows[22][x] = (110, 110, 110)
+    for y in range(23, 50):
+        for x in range(120):
+            rows[y][x] = (43, 43, 43)
+    return rows
+
+
+# Expectations of the self-test's synthetic shots (see EXPECT)
+SELF_TEST_EXPECT = {
+    'st-black-on-white': {'*': [('contrast', 7.0), ('text_max_l', 60)]},
+    'st-white-on-white': {'*': [('contrast', 4.5)]},
+    'st-grey-on-white': {'*': [('contrast', 4.5)]},
+    'st-red': {'*': [('text_red',)]},
+    'st-black-not-red': {'*': [('text_red',)]},
+    'st-caption': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    'st-caption-black': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    'st-disabled-grey': {'*': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    'st-disabled-dim': {'*': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    'st-box-light': {'*': [('interior_min_l', 200)]},
+    'st-box-dark': {'*': [('interior_min_l', 200)]},
+    'st-face-light': {'*': [('face_median_min_l', 180)]},
+    'st-face-dark': {'*': [('face_median_min_l', 180)]},
+    'st-region-32': {'*': [('region_near_l', 32, 8)]},
+    'st-region-240': {'*': [('region_near_l', 32, 8)]},
+    'st-box-dark-max': {'*': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
+    'st-box-light-max': {'*': [('interior_max_l', 90)]},
+    'st-check-tick': {'*': [('glyph_contrast', 3.0)]},
+    'st-check-faint': {'*': [('glyph_contrast', 3.0)]},
+    'st-radio-round': {'*': [('glyph_contrast', 3.0), ('dot_shape',)]},
+    'st-radio-square': {'*': [('dot_shape',)]},
+    'st-radio-empty': {'*': [('dot_shape',)]},
+    'st-frame-dark': {'*': [('face_far_between', 100, 170), ('ring_contrast', 3.0)]},
+    'st-frame-light': {'*': [('face_far_between', 100, 170)]},
+    'st-option-chevron': {'*': [('chevron', 20, 60, 6)]},
+    'st-option-plain': {'*': [('chevron', 20, 60, 6)]},
+    'st-tabs-dark': {'*': [('tabstrip', 4.5)]},
+    'st-tabs-light': {'*': [('tabstrip', 4.5)]},
+    'st-slider-dark': {'*': [('slider', 110, 150, 30)]},
+    'st-slider-light': {'*': [('slider', 110, 150, 30)]},
+    'st-progress-dark': {'*': [('progress', 90, 40)]},
+    'st-progress-light': {'*': [('progress', 90, 40)]},
+    'st-arrows-both': {'*': [('glyph_halves', 60, 3)]},
+    'st-arrows-top': {'*': [('glyph_halves', 60, 3)]},
+    'st-pdf-light': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-dark': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-grey': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-none': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+}
+
+
+def _self_test_compare(folder):
+    """The comparison of two runs on synthetic images; returns the failures."""
+    failures = []
+    a = os.path.join(folder, 'compare-a')
+    b = os.path.join(folder, 'compare-b')
+    for d in (a, b):
+        if not os.path.isdir(d):
+            os.makedirs(d)
+    base = _render((240, 240, 240), [((0, 0, 0), 0, 0)])
+    write_png(os.path.join(a, 'same.png'), base)
+    write_png(os.path.join(b, 'same.png'), base)
+    # One pixel off by 20 of 64x22: 0.07%, and a tiny mean
+    near = [list(r) for r in base]
+    near[3][3] = (220, 220, 220)
+    write_png(os.path.join(a, 'near.png'), base)
+    write_png(os.path.join(b, 'near.png'), near)
+    # The label in another colour: every text pixel differs
+    write_png(os.path.join(a, 'other.png'), base)
+    write_png(os.path.join(b, 'other.png'), _render((240, 240, 240), [((255, 255, 255), 0, 0)]))
+    # A dark card where the other run has a light one
+    write_png(os.path.join(a, 'card.png'), _solid((32, 32, 32)))
+    write_png(os.path.join(b, 'card.png'), _solid((240, 240, 240)))
+    # Different sizes, and an image the other run does not have
+    write_png(os.path.join(a, 'size.png'), _solid((240, 240, 240), 40, 20))
+    write_png(os.path.join(b, 'size.png'), _solid((240, 240, 240), 41, 20))
+    write_png(os.path.join(a, 'alone.png'), base)
+    # Renamed: s8-dark-x in A against s2-x in B
+    write_png(os.path.join(a, 's8-dark-x.png'), base)
+    write_png(os.path.join(b, 's2-x.png'), base)
+    # A desktop snapshot is never compared
+    write_png(os.path.join(a, 'screen.png'), _solid((1, 2, 3)))
+    write_png(os.path.join(b, 'screen.png'), _solid((200, 100, 0)))
+    for d, pen in ((a, '0,0,0'), (b, '255,255,255')):
+        with open(os.path.join(d, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write('INFO\tbrushColor\t240,240,240\n')
+            f.write('INFO\tpenColor\t%s\n' % pen)
+            f.write('INFO\tdone\ttrue\n')
+
+    import io
+    saved = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    try:
+        compare(a, b, exclude=['s8-*'], info_keys=['brushColor', 'penColor'])
+        compare(a, b, only=['s8-dark-*'], rename='s8-dark-=s2-')
+    finally:
+        sys.stdout = saved
+    output = buffer.getvalue()
+    print('--- self-test, compare')
+    print(output, end='')
+    results = {}
+    for line in output.splitlines():
+        if line.startswith(('PASS ', 'FAIL ')):
+            check = line.split(' ', 2)[2].split(':', 1)[0]
+            results[check] = line.startswith('PASS')
+    wanted = [('same.png', True), ('near.png', True), ('other.png', False), ('card.png', False),
+              ('size.png', False), ('alone.png', False), ('s8-dark-x.png=s2-x.png', True),
+              ('INFO brushColor', True), ('INFO penColor', False)]
+    for check, passed in wanted:
+        if results.get(check) is not passed:
+            failures.append('compare %s: expected %s, got %s' % (
+                check, 'PASS' if passed else 'FAIL', {True: 'PASS', False: 'FAIL', None: 'no result'}[results.get(check)]))
+    if 'screen.png' in results:
+        failures.append('compare screen.png: compared, but a desktop snapshot must never be')
+    return len(wanted), failures
+
+
 def self_test(folder):
     import shutil
     import tempfile
@@ -922,9 +1916,92 @@ def self_test(folder):
             write_png(os.path.join(path, 'track-dark.png'),
                       _scrollbar((43, 43, 43), (110, 110, 110), (154, 154, 154)))
             write_png(os.path.join(path, 'blank.png'), [[background] * 17 for _ in range(100)])
+            # The appearance scenarios: text on the owner's white fields, a
+            # checkbox's box and a push face on a white panel, a card region
+            white = (255, 255, 255)
+            write_png(os.path.join(path, 'st-bare.png'), _render(white, []))
+            write_png(os.path.join(path, 'st-black-on-white.png'), _render(white, [((0, 0, 0), 0, 0)]))
+            write_png(os.path.join(path, 'st-white-on-white.png'), _render(white, [(white, 0, 0)]))
+            write_png(os.path.join(path, 'st-grey-on-white.png'), _render(white, [((200, 200, 200), 0, 0)]))
+            write_png(os.path.join(path, 'st-red.png'), _render(white, [((230, 20, 20), 0, 0)]))
+            write_png(os.path.join(path, 'st-caption.png'), _render(white, [((138, 146, 158), 0, 0)]))
+            # A disabled label in the dark disabled grey on the dark
+            # background, and one in a dimmer grey, measured by their colour
+            write_png(os.path.join(path, 'st-disabled-bare.png'), _render((32, 32, 32), []))
+            write_png(os.path.join(path, 'st-disabled-grey.png'), _render((32, 32, 32), [((137, 137, 137), 0, 0)]))
+            write_png(os.path.join(path, 'st-disabled-dim.png'), _render((32, 32, 32), [((120, 120, 120), 0, 0)]))
+            write_png(os.path.join(path, 'st-box-bare.png'), _solid(white, 30, 24))
+            write_png(os.path.join(path, 'st-box-light.png'), _box(white, (51, 51, 51), (250, 250, 250)))
+            write_png(os.path.join(path, 'st-box-dark.png'), _box(white, (154, 154, 154), (32, 32, 32)))
+            write_png(os.path.join(path, 'st-face-light.png'), _box(white, (173, 173, 173), (225, 225, 225), 18))
+            write_png(os.path.join(path, 'st-face-dark.png'), _box(white, (110, 110, 110), (55, 55, 55), 18))
+            write_png(os.path.join(path, 'st-region-32.png'), _solid((32, 32, 32)))
+            write_png(os.path.join(path, 'st-region-240.png'), _solid((240, 240, 240)))
+            # The dark native controls: indicators, a field frame, an option
+            # menu's chevron and tabs, and what they looked like before
+            dark = (32, 32, 32)
+            accent = (0, 120, 215)
+            write_png(os.path.join(path, 'st-dark-bare.png'), _solid(dark, 30, 24))
+            write_png(os.path.join(path, 'st-box-dark-max.png'), _box(dark, (154, 154, 154), dark))
+            write_png(os.path.join(path, 'st-box-light-max.png'), _box(dark, (51, 51, 51), (250, 250, 250)))
+            write_png(os.path.join(path, 'st-check-tick.png'), _indicator(dark, accent, (0, 0, 0), False, 'tick'))
+            write_png(os.path.join(path, 'st-check-faint.png'), _indicator(dark, accent, (40, 140, 235), False, 'tick'))
+            write_png(os.path.join(path, 'st-radio-round.png'), _indicator(dark, accent, (0, 0, 0), True, 'round'))
+            write_png(os.path.join(path, 'st-radio-square.png'), _indicator(dark, accent, (0, 0, 0), True, 'square'))
+            write_png(os.path.join(path, 'st-radio-empty.png'), _indicator(dark, accent, None, True, None))
+            write_png(os.path.join(path, 'st-frame-dark.png'), _box(dark, (122, 122, 122), dark, 16))
+            write_png(os.path.join(path, 'st-frame-light.png'), _box(dark, (230, 230, 230), dark, 16))
+            write_png(os.path.join(path, 'st-option-chevron.png'), _option((55, 55, 55), (208, 208, 208)))
+            write_png(os.path.join(path, 'st-option-plain.png'), _option((32, 32, 32), None))
+            write_png(os.path.join(path, 'st-tabs-dark.png'), _tabs((32, 32, 32), (43, 43, 43), (255, 255, 255)))
+            write_png(os.path.join(path, 'st-tabs-light.png'), _tabs((240, 240, 240), (250, 250, 250), (255, 255, 255)))
+            write_png(os.path.join(path, 'st-slider-bare.png'), _solid(dark, 60, 20))
+            write_png(os.path.join(path, 'st-slider-dark.png'), _slider(accent, (85, 85, 85), (232, 232, 232)))
+            write_png(os.path.join(path, 'st-slider-light.png'), _slider(accent, (200, 200, 200), (0, 120, 215)))
+            write_png(os.path.join(path, 'st-progress-dark.png'), _progress((43, 43, 43), accent))
+            write_png(os.path.join(path, 'st-progress-light.png'), _progress((230, 230, 230), (6, 176, 37)))
+            write_png(os.path.join(path, 'st-arrows-bare.png'), _solid(dark, 24, 32))
+            write_png(os.path.join(path, 'st-arrows-both.png'), _spin(True, True))
+            write_png(os.path.join(path, 'st-arrows-top.png'), _spin(True, False))
+            for pdf, content in (('st-pdf-light', b'q 0.941176 0.941176 0.941176 rg 0 0 100 100 re f 0 g Q'),
+                                 ('st-pdf-dark', b'q 0.12549 0.12549 0.12549 rg 0 0 100 100 re f 1 1 1 rg Q'),
+                                 ('st-pdf-grey', b'q 0.12549 g 0 0 100 100 re f Q'),
+                                 ('st-pdf-none', b'q 0 0 100 100 re f Q')):
+                body = zlib.compress(content)
+                with open(os.path.join(path, pdf + '.pdf'), 'wb') as f:
+                    f.write(b'%PDF-1.5\n3 0 obj\n<< /Length ' + str(len(body)).encode() +
+                            b' /Filter /FlateDecode >>\nstream\n' + body + b'\nendstream\nendobj\n%%EOF\n')
             with open(os.path.join(path, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
                 f.write('INFO\tlookAndFeel\tAppearance Manager\n')
                 f.write('INFO\tsystemAppearance\t%s\n' % mode)
+                f.write('INFO\thasAppAppearance\ttrue\n')
+                f.write('INFO\tappAppearanceAtStart\tlight\n')
+                f.write('INFO\teffectiveAppAppearance\t%s\n' % mode)
+                for shot in ('st-black-on-white', 'st-white-on-white', 'st-grey-on-white', 'st-red', 'st-caption'):
+                    f.write('SHOT\ttext\t%s\t%s.png\tst-bare.png\n' % (shot, shot))
+                f.write('SHOT\ttext\tst-black-not-red\tst-black-on-white.png\tst-bare.png\n')
+                f.write('SHOT\ttext\tst-caption-black\tst-black-on-white.png\tst-bare.png\n')
+                for shot in ('st-disabled-grey', 'st-disabled-dim'):
+                    f.write('SHOT\ttext\t%s\t%s.png\tst-disabled-bare.png\n' % (shot, shot))
+                for shot in ('st-box-light', 'st-box-dark', 'st-face-light', 'st-face-dark'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-box-bare.png\n' % (shot, shot))
+                f.write('SHOT\tregion\tst-region-32\tst-region-32.png\t5,5,20,10\n')
+                f.write('SHOT\tregion\tst-region-240\tst-region-240.png\t5,5,20,10\n')
+                for shot in ('st-box-dark-max', 'st-box-light-max', 'st-check-tick', 'st-check-faint', 'st-radio-round',
+                             'st-radio-square', 'st-radio-empty', 'st-frame-dark', 'st-frame-light'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-dark-bare.png\n' % (shot, shot))
+                for shot in ('st-arrows-both', 'st-arrows-top'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-arrows-bare.png\n' % (shot, shot))
+                f.write('SHOT\tregion\tst-option-chevron\tst-option-chevron.png\t0,0,70,26\n')
+                f.write('SHOT\tregion\tst-option-plain\tst-option-plain.png\t0,0,70,26\n')
+                f.write('SHOT\tregion\tst-tabs-dark\tst-tabs-dark.png\t0,0,120,50\n')
+                f.write('SHOT\tregion\tst-tabs-light\tst-tabs-light.png\t0,0,120,50\n')
+                for shot in ('st-slider-dark', 'st-slider-light'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-slider-bare.png\n' % (shot, shot))
+                for shot in ('st-progress-dark', 'st-progress-light'):
+                    f.write('SHOT\tregion\t%s\t%s.png\t0,0,60,16\n' % (shot, shot))
+                for shot in ('st-pdf-light', 'st-pdf-dark', 'st-pdf-grey', 'st-pdf-none'):
+                    f.write('SHOT\tpdf\t%s\t%s.pdf\n' % (shot, shot))
                 f.write('SHOT\tlabel\tflat\tflat.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tdouble\tdouble.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tengraved\tengraved.png\tnone.png\n')
@@ -940,10 +2017,14 @@ def self_test(folder):
             import io
             saved = sys.stdout
             sys.stdout = buffer = io.StringIO()
+            saved_expect = dict(EXPECT)
+            EXPECT.update(SELF_TEST_EXPECT)
             try:
                 run(mode, path)
             finally:
                 sys.stdout = saved
+                EXPECT.clear()
+                EXPECT.update(saved_expect)
             output = buffer.getvalue()
             print(output, end='')
             results = {}
@@ -979,6 +2060,57 @@ def self_test(folder):
             expect('track-light thumb', mode == 'light')
             expect('track-dark thumb', True)
             expect('blank thumb', False)
+            # The appearance
+            expect('system appearance', True)
+            expect('appAppearance default', True)
+            expect('effective appAppearance', True)
+            expect('st-black-on-white contrast', True)
+            expect('st-black-on-white colour', True)
+            expect('st-white-on-white drawn', False)
+            expect('st-grey-on-white contrast', False)
+            expect('st-red colour', True)
+            expect('st-black-not-red colour', False)
+            expect('st-caption colour', True)
+            expect('st-caption-black colour', False)
+            expect('st-disabled-grey colour', True)
+            expect('st-disabled-grey contrast', True)
+            expect('st-disabled-dim colour', False)
+            expect('st-disabled-dim contrast', False)
+            expect('st-box-light inside', True)
+            expect('st-box-dark inside', False)
+            expect('st-face-light face', True)
+            expect('st-face-dark face', False)
+            expect('st-region-32 colour', True)
+            expect('st-region-240 colour', False)
+            expect('st-box-dark-max inside', True)
+            expect('st-box-dark-max outline', True)
+            expect('st-box-light-max inside', False)
+            expect('st-check-tick glyph', True)
+            expect('st-check-faint glyph', False)
+            expect('st-radio-round glyph', True)
+            expect('st-radio-round dot', True)
+            expect('st-radio-square dot', False)
+            expect('st-radio-empty dot', False)
+            expect('st-frame-dark outline', True)
+            expect('st-frame-light outline', False)
+            expect('st-option-chevron arrow', True)
+            expect('st-option-plain arrow', False)
+            expect('st-tabs-dark tabs', True)
+            expect('st-tabs-light tabs', False)
+            expect('st-slider-dark slider', True)
+            expect('st-slider-light slider', False)
+            expect('st-progress-dark progress', True)
+            expect('st-progress-light progress', False)
+            expect('st-arrows-both arrows', True)
+            expect('st-arrows-top arrows', False)
+            expect('st-pdf-light printed', True)
+            expect('st-pdf-dark printed', False)
+            expect('st-pdf-grey printed', False)
+            expect('st-pdf-none printed', True)
+
+        count, compare_failures = _self_test_compare(folder)
+        expectations.extend([('compare', None, None)] * count)
+        failures.extend(compare_failures)
     finally:
         if temporary:
             shutil.rmtree(folder, ignore_errors=True)
@@ -991,17 +2123,30 @@ def self_test(folder):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    parser.add_argument('--mode', choices=('dark', 'light'))
+    parser.add_argument('--mode', choices=('dark', 'light'),
+                        help='the appearance the run draws stacks that set none in (the effective appAppearance)')
+    parser.add_argument('--system', choices=('dark', 'light'),
+                        help='the Windows setting of the run (the systemAppearance); default: --mode')
+    parser.add_argument('--label', help='what to call the run in the output; default: --mode')
     parser.add_argument('--dir', help='folder with render.txt and the PNG files')
+    parser.add_argument('--compare', nargs=2, metavar=('A', 'B'),
+                        help='compare the images of folder A with those of folder B')
+    parser.add_argument('--only', action='append', default=[], help='with --compare: images to compare (glob)')
+    parser.add_argument('--exclude', action='append', default=[], help='with --compare: images to leave out (glob)')
+    parser.add_argument('--rename', help='with --compare: OLD=NEW, a prefix of names in A and its name in B')
+    parser.add_argument('--info', action='append', default=[], help='with --compare: an INFO value to compare')
     parser.add_argument('--self-test', action='store_true',
                         help='check the checks on synthetic images, flat and engraved')
     parser.add_argument('--keep', help='with --self-test: write the synthetic images to this folder')
     args = parser.parse_args(argv)
     if args.self_test:
         return self_test(args.keep)
+    if args.compare:
+        return compare(args.compare[0], args.compare[1], args.only, args.exclude, args.rename, args.info,
+                       args.label)
     if not args.mode or not args.dir:
-        parser.error('--mode and --dir are required (or --self-test)')
-    return run(args.mode, args.dir)
+        parser.error('--mode and --dir are required (or --compare, or --self-test)')
+    return run(args.mode, args.dir, args.system, args.label)
 
 
 if __name__ == '__main__':

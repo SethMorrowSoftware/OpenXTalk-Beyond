@@ -1,6 +1,8 @@
 script "oxt_render_test"
--- Renders disabled controls and scrollbars with the native Windows theme
--- and writes them as PNG files, for tools/ci/render_check.py to measure:
+-- Renders controls with the native Windows theme and writes them as PNG
+-- files, for tools/ci/render_check.py to measure and compare.
+--
+-- Disabled controls and scrollbars (the first checks, PR #12):
 --
 --    push, check, radio  a disabled push button, checkbox and radio button,
 --                        each also rendered with showName false
@@ -17,16 +19,65 @@ script "oxt_render_test"
 --                        top
 --    card                the whole card, for people to look at
 --
+-- The light and dark appearance (the appAppearance and stackAppearance,
+-- engine/src/appearance.cpp; the colours fitted to each object,
+-- MCObject::isdarkappearance in engine/src/object.cpp), one stack each:
+--
+--    s1-*   the colours of the owner's libMQTTxt demo stack, built here (the
+--           stack itself is never used): a light card, a blue band with a
+--           white title, white panels, grey captions, white input and
+--           scrolling fields with no text colour, checkboxes and push
+--           buttons with no colours. It must look as designed, light, in
+--           every run
+--    s2-*   a stack that sets no colours: dark in the dark appearance; and a
+--           white panel with a checkbox that overhangs its edge, whose
+--           label stays dark
+--    s3-*   a card of 30,30,30: a label, and a default field with a fill
+--           of 60,60,60 whose dark frame must meet its fill
+--    s4-*   fields with black text of their own and no background colour; an
+--           opaque checkbox with a white background of its own; checkboxes
+--           in an opaque group with the native frame, on a white panel on a
+--           card of 30,30,30
+--    s5     a field with its fill, text and border colours of its own (a
+--           plain border, not the theme's frame): the same in every run
+--    s6-*   text runs: red text and a yellow highlight in a white field, and
+--           a yellow highlight in a field with no colours
+--    s7-*   buttons with a light and a dark background of their own
+--    s8-*   copies of s2 with the stackAppearance "dark" and "light", which
+--           must look like s2 in the other appearance
+--    s9-*   the native controls in a stack with no colours: checkboxes and
+--           radio buttons (unchecked, checked, disabled), push buttons
+--           (normal, pressed, default, disabled), an option menu, a combo
+--           box, tabs, a field frame, a group frame, a slider, a progress
+--           bar and little arrows
+--    s11    a stack with no colours printed to a PDF file (s11.pdf), which
+--           must be light in every appearance
+--    screen 8x8 pixels of the screen, taken after a window was opened: that
+--           used to crash the engine
+--
 -- The native theme and the light and dark colours only exist with a user
 -- interface, so this runs as the development engine's home stack, not with
 -- -ui. tools/ci/render-test.ps1 copies it to <folder>/Startup.rev, the
 -- first file the engine's environment stack (engine/src/environment) looks
 -- for in its tools folder, and points REV_TOOLS_PATH at <folder>, so the
 -- engine opens this script instead of the IDE. It sets Windows to dark or
--- light mode first (AppsUseLightTheme), once for each run.
+-- light mode first (AppsUseLightTheme), once for each run, and runs the
+-- engine of the release before this change too, as the reference for the
+-- light appearance. That engine has no appAppearance: every use of the new
+-- syntax is inside "do", so this script compiles on it, and the parts that
+-- need the properties are left out there.
 --
 -- Environment variables:
---    OXT_RENDER_OUT   folder for the PNG files and render.txt (required)
+--    OXT_RENDER_OUT         folder for the PNG files and render.txt
+--                           (required)
+--    OXT_RENDER_APPEARANCE  what to set the appAppearance to before
+--                           anything is created: light, dark or system;
+--                           empty leaves the engine's default
+--    OXT_RENDER_SCENARIOS   the parts to render, separated by commas:
+--                           controls (the first checks), s1 to s9, s11 and
+--                           screen; empty renders every part.
+--                           tools/ci/mac_appearance_test.py renders s1 and
+--                           s2 only
 --
 -- render.txt has one record per line, fields separated by tabs:
 --    INFO   <name> <value>
@@ -37,10 +88,15 @@ script "oxt_render_test"
 --    SHOT   thumb <name> <image> <x,y,width,height of the part of the
 --                 scrollbar between the up arrow and the track, where the
 --                 thumb is>
+--    SHOT   text <name> <image> <the same without the text>
+--    SHOT   face <name> <image> <the same with the control hidden>
+--    SHOT   region <name> <image> <x,y,width,height in the image>
+--    SHOT   pdf <name> <PDF file>
 --    ERROR  <where> <message>
--- and ends with "INFO done true" when every image was written.
+-- and ends with "INFO done true" when every image was written. What is
+-- checked for each text, face and region is in render_check.py, by name.
 --
--- Nothing is ever shown: the stack is created invisible and the images are
+-- Nothing is ever shown: the stacks are created invisible and the images are
 -- rendered off screen ("export snapshot from rect ... of card"). The exit
 -- code is 0 when the images were written and 2 when the script failed.
 
@@ -51,6 +107,12 @@ constant kTextSize = 16
 
 local sOut
 local sReport
+-- The parts to render (OXT_RENDER_SCENARIOS), empty for all
+local sScenarios
+-- Whether the engine has the appAppearance, and whether it draws stacks
+-- that set no appearance dark
+local sHasAppearance
+local sEffectiveDark
 
 on startup
    set the lockMessages to true
@@ -64,8 +126,30 @@ on startup
    end if
    if there is not a folder sOut then create folder sOut
 
+   put $OXT_RENDER_SCENARIOS into sScenarios
+   replace space with empty in sScenarios
+
    try
-      renderControls
+      setUpAppearance
+      if wanted("controls") then renderControls
+      if wanted("s1") then renderOwnerPattern
+      if wanted("s2") then renderUnstyled "s2", empty
+      if wanted("s3") then renderDarkDesigned
+      if wanted("s4") then renderExplicitText
+      if wanted("s5") then renderExplicitBoth
+      if wanted("s6") then renderStyledRuns
+      if wanted("s7") then renderButtonColours
+      if wanted("s9") then renderNativeControls
+      if sHasAppearance then
+         if wanted("s8") then
+            renderUnstyled "s8-dark", "dark"
+            renderUnstyled "s8-light", "light"
+         end if
+         if wanted("s11") then printUnstyled
+         -- The release before this change crashes here (w32dcs.cpp)
+         if wanted("screen") then screenSnapshot
+      end if
+      addRecord "INFO", "scenarios", sScenarios
       addRecord "INFO", "done", "true"
    catch tError
       addRecord "ERROR", "script", oneLine(tError)
@@ -73,14 +157,21 @@ on startup
    finishRun
 end startup
 
+-- Whether the part pName is rendered in this run (OXT_RENDER_SCENARIOS)
+private function wanted pName
+   return sScenarios is empty or pName is among the items of sScenarios
+end wanted
+
 -- Without the IDE an uncaught error would open a dialog and wait forever
 on errorDialog pError
    write "ERROR errorDialog " & oneLine(pError) & return to stdout
    quit 3
 end errorDialog
 
-private command renderControls
-   local tObject, tRect, tFieldText
+-- Sets the appAppearance for this run, before anything is created, and
+-- records the defaults, which render_check.py checks
+private command setUpAppearance
+   local tValue, tError, tRequested
 
    addRecord "INFO", "version", the version & " build " & the buildNumber
    addRecord "INFO", "environment", the environment
@@ -92,6 +183,45 @@ private command renderControls
    if the environment is not "development command line" then
       addRecord "INFO", "screenPixelScale", the screenPixelScale
    end if
+
+   put false into sHasAppearance
+   try
+      do "get the appAppearance"
+      put true into sHasAppearance
+   catch tError
+   end try
+   put $OXT_RENDER_APPEARANCE into tRequested
+   addRecord "INFO", "hasAppAppearance", sHasAppearance
+   addRecord "INFO", "requestedAppearance", tRequested
+
+   if sHasAppearance then
+      do "put the appAppearance into tValue"
+      addRecord "INFO", "appAppearanceAtStart", tValue
+      do "put the effective appAppearance into tValue"
+      addRecord "INFO", "effectiveAppAppearanceAtStart", tValue
+      if tRequested is not empty then
+         do "set the appAppearance to " & quote & tRequested & quote
+      end if
+      do "put the appAppearance into tValue"
+      addRecord "INFO", "appAppearance", tValue
+      do "put the effective appAppearance into tValue"
+      addRecord "INFO", "effectiveAppAppearance", tValue
+      put tValue is "dark" into sEffectiveDark
+   else
+      -- Engines before the appAppearance follow the OS
+      put the systemAppearance is "dark" into sEffectiveDark
+      addRecord "INFO", "effectiveAppAppearance", the systemAppearance
+   end if
+
+   -- The paint tools' colours are set once, light, whatever the appearance
+   -- (MCWin32UpdateSystemColors); the selection handles follow it
+   addRecord "INFO", "penColor", the penColor
+   addRecord "INFO", "brushColor", the brushColor
+   addRecord "INFO", "selectionHandleColor", the selectionHandleColor
+end setUpAppearance
+
+private command renderControls
+   local tObject, tRect, tFieldText
 
    -- The controls are created on the card of this stack; "create" puts
    -- the long id of the new object into "it"
@@ -190,6 +320,27 @@ private command renderControls
    exportRect the rect of card 1 of stack kStack, "card.png"
 end renderControls
 
+-- A snapshot of the screen once a window exists. Creating a window sets its
+-- title bar through dwmapi.dll (MCWin32SetWindowDarkMode), and the screen
+-- snapshot code then found that library loaded but its
+-- DwmIsCompositionEnabled never resolved, and crashed
+-- (engine/src/w32dcs.cpp, s_ensure_dwmapi). A crash ends the run with a
+-- non-zero exit code and no render.txt, which render-test.ps1 reports.
+-- The stack is opened invisible, so nothing is shown; the rectangle is 8
+-- pixels at the top left of the screen.
+private command screenSnapshot
+   local tFile
+   create invisible stack "oxt_render_test_window"
+   go invisible stack "oxt_render_test_window"
+   put sOut & "/screen.png" into tFile
+   export snapshot from rect "0,0,8,8" to file tFile as PNG
+   if there is not a file tFile then
+      throw "export snapshot from rect 0,0,8,8 wrote no file (the result: " & the result & ")"
+   end if
+   close stack "oxt_render_test_window"
+   addRecord "INFO", "screenSnapshot", "written after a window was opened"
+end screenSnapshot
+
 private command setUpDisabledLabel pObject
    set the showName of pObject to true
    set the textSize of pObject to kTextSize
@@ -232,20 +383,26 @@ private command shootLabel pObject, pName
 end shootLabel
 
 -- The grey the engine draws disabled labels in on the native Windows
--- theme (MCScreenDC's gray_pixel, engine/src/w32dcs.cpp): the colour of
--- render_check.py's DISABLED_GREY, for the enabled reference labels
+-- theme (MCScreenDC::getdefaultcolors, engine/src/w32dc.cpp): the colour of
+-- render_check.py's DISABLED_GREY, for the enabled reference labels. It is
+-- that of the appearance the stack is drawn in, which is no longer always
+-- the OS setting's.
 private function disabledGrey
-   if the systemAppearance is "dark" then return "137,137,137"
+   if sEffectiveDark then return "137,137,137"
    return "128,128,128"
 end disabledGrey
 
 -- Renders a rectangle of the card (card coordinates) off screen
 private command exportRect pRect, pFile
-   export snapshot from rect (pRect) of card 1 of stack kStack to file (sOut & "/" & pFile) as PNG
+   exportStackRect kStack, pRect, pFile
+end exportRect
+
+private command exportStackRect pStack, pRect, pFile
+   export snapshot from rect (pRect) of card 1 of stack pStack to file (sOut & "/" & pFile) as PNG
    if there is not a file (sOut & "/" & pFile) then
       throw "export snapshot wrote no file " & pFile & " (the result: " & the result & ")"
    end if
-end exportRect
+end exportStackRect
 
 -- Parts of a vertical scrollbar's image when the thumb is at the top, a few
 -- pixels in from the edges. "track": the lower half, above the down arrow
@@ -271,6 +428,635 @@ private function scrollbarRegion pPart, pWidth, pHeight, pBorder, pScrollbarWidt
    end if
    return (tLeft + 3) & comma & tTop & comma & (tBarWidth - 6) & comma & (tBottom - tTop)
 end scrollbarRegion
+
+--------------------------------------------------------------------------------
+-- The appearance scenarios
+
+-- A new invisible stack for one scenario, 600x400 at 100,100 unless given;
+-- the controls go on its card
+private command newScenarioStack pName, pWidth, pHeight
+   if pWidth is empty then put 600 into pWidth
+   if pHeight is empty then put 400 into pHeight
+   create invisible stack pName
+   set the defaultStack to pName
+   set the rect of stack pName to 100, 100, 100 + pWidth, 100 + pHeight
+end newScenarioStack
+
+-- A field with large bold text; its style is set up by the caller
+private function newTextField pName, pRect, pText
+   create field pName
+   set the rect of it to pRect
+   set the textSize of it to kTextSize
+   set the textStyle of it to "bold"
+   set the traversalOn of it to false
+   set the text of it to pText
+   return it
+end newTextField
+
+-- A field that shows its text only: no border, no fill
+private command makeLabel pObject
+   set the opaque of pObject to false
+   set the showBorder of pObject to false
+   set the threeD of pObject to false
+end makeLabel
+
+-- Renders a field with its text, and without it. The pixels that differ
+-- are the text's, the second image gives what is under them. pHide is how
+-- the text is taken away: empty clears it, a colour paints the text in it
+-- (the colour of a run's own background, which hides the text but keeps
+-- the run's background).
+private command shootText pStack, pObject, pName, pHide
+   local tRect, tText, tHTML
+   put the rect of pObject into tRect
+   exportStackRect pStack, tRect, pName & ".png"
+   if pHide is empty then
+      put the text of pObject into tText
+      set the text of pObject to empty
+      exportStackRect pStack, tRect, pName & "-bare.png"
+      set the text of pObject to tText
+   else
+      put the htmlText of pObject into tHTML
+      set the textColor of char 1 to -1 of field (the short name of pObject) of card 1 of stack pStack to pHide
+      exportStackRect pStack, tRect, pName & "-bare.png"
+      set the htmlText of pObject to tHTML
+   end if
+   addRecord "SHOT", "text", pName, pName & ".png", pName & "-bare.png"
+end shootText
+
+-- Renders a button with its label, and without it
+private command shootName pStack, pObject, pName
+   local tRect
+   put the rect of pObject into tRect
+   set the showName of pObject to true
+   exportStackRect pStack, tRect, pName & ".png"
+   set the showName of pObject to false
+   exportStackRect pStack, tRect, pName & "-bare.png"
+   set the showName of pObject to true
+   addRecord "SHOT", "text", pName, pName & ".png", pName & "-bare.png"
+end shootName
+
+-- Renders a control, and the same place with the control hidden: the
+-- pixels that differ are the control's (its label is hidden for both,
+-- where it has one)
+private command shootFace pStack, pObject, pName, pRect
+   local tRect, tShowName
+   if pRect is empty then put the rect of pObject into tRect
+   else put pRect into tRect
+   if word 1 of the name of pObject is "button" then
+      put the showName of pObject into tShowName
+      set the showName of pObject to false
+   end if
+   exportStackRect pStack, tRect, pName & ".png"
+   set the visible of pObject to false
+   exportStackRect pStack, tRect, pName & "-bare.png"
+   set the visible of pObject to true
+   if tShowName is not empty then set the showName of pObject to tShowName
+   addRecord "SHOT", "face", pName, pName & ".png", pName & "-bare.png"
+end shootFace
+
+-- Renders a rectangle of the card and names a region in it
+private command shootRegion pStack, pRect, pName, pRegion
+   exportStackRect pStack, pRect, pName & ".png"
+   addRecord "SHOT", "region", pName, pName & ".png", pRegion
+end shootRegion
+
+-- S1: the colours of the owner's libMQTTxt demo stack (a dump of its
+-- colours; the stack file itself is the owner's and is never used). The
+-- stack sets no colours; the card is 240,242,246; a band of 44,90,160 holds
+-- a transparent title field in white; panels are round rectangles filled
+-- 255 with 225,229,236 lines; captions and section titles are transparent
+-- fields with a grey and a near-black text colour of their own; the input
+-- and scrolling fields are opaque with a white background and a border
+-- colour, but no text colour; the checkboxes and push buttons set no
+-- colours. In the dark appearance the unset colours must fit the light
+-- design: it looks as it does in the light appearance.
+private command renderOwnerPattern
+   local tStack, tObject, tRect, tText, tHost, tValue
+   put "oxt_render_s1" into tStack
+   newScenarioStack tStack, 700, 520
+   set the backColor of card 1 of stack tStack to "240,242,246"
+
+   create graphic "uiBand"
+   put it into tObject
+   set the style of tObject to "rectangle"
+   set the opaque of tObject to true
+   set the lineSize of tObject to 0
+   set the backColor of tObject to "44,90,160"
+   set the rect of tObject to 0,0,700,48
+
+   put newTextField("uiTitle", "16,8,400,40", "libMQTTxt") into tObject
+   makeLabel tObject
+   set the foreColor of tObject to "255,255,255"
+   shootText tStack, tObject, "s1-title"
+
+   create graphic "mdBrokerPanel"
+   put it into tObject
+   set the style of tObject to "roundrect"
+   set the opaque of tObject to true
+   set the foreColor of tObject to "225,229,236"
+   set the backColor of tObject to "255,255,255"
+   set the borderColor of tObject to "225,229,236"
+   set the rect of tObject to 16,64,684,290
+
+   create graphic "mdLogPanel"
+   put it into tObject
+   set the style of tObject to "roundrect"
+   set the opaque of tObject to true
+   set the foreColor of tObject to "225,229,236"
+   set the backColor of tObject to "255,255,255"
+   set the borderColor of tObject to "225,229,236"
+   set the rect of tObject to 16,302,684,504
+
+   put newTextField("mdSecBroker", "32,72,300,100", "Broker") into tObject
+   makeLabel tObject
+   set the foreColor of tObject to "28,34,46"
+   shootText tStack, tObject, "s1-section"
+
+   put newTextField("mdHostCap", "32,104,200,130", "Host") into tObject
+   makeLabel tObject
+   set the foreColor of tObject to "138,146,158"
+   shootText tStack, tObject, "s1-caption"
+
+   -- The input fields: "rectangle" style, opaque, white, a border colour,
+   -- no text colour
+   put newTextField("mdHost", "32,132,330,164", "broker.example.com") into tObject
+   put tObject into tHost
+   set the opaque of tObject to true
+   set the showBorder of tObject to true
+   set the threeD of tObject to false
+   set the borderWidth of tObject to 1
+   set the borderColor of tObject to "203,210,222"
+   set the backColor of tObject to "255,255,255"
+   shootText tStack, tObject, "s1-host"
+
+   -- Checkboxes with no colours on the panel, one of them ticked
+   create button "mdTLS"
+   put it into tObject
+   set the style of tObject to "checkbox"
+   set the rect of tObject to 32,176,200,204
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the label of tObject to "Use TLS"
+   shootName tStack, tObject, "s1-check"
+   shootFace tStack, tObject, "s1-check-box"
+
+   create button "mdAuto"
+   put it into tObject
+   set the style of tObject to "checkbox"
+   set the rect of tObject to 220,176,420,204
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the label of tObject to "Auto connect"
+   set the hilite of tObject to true
+   shootName tStack, tObject, "s1-check-on"
+
+   -- Push buttons with no colours
+   create button "mdConnect"
+   put it into tObject
+   set the style of tObject to "standard"
+   set the rect of tObject to 32,220,172,256
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the label of tObject to "Connect"
+   shootName tStack, tObject, "s1-push"
+   shootFace tStack, tObject, "s1-push-face"
+
+   -- A scrolling field: opaque, white, a border colour, a vertical
+   -- scrollbar, no text colour
+   repeat with i = 1 to 60
+      put "Message " & i & return after tText
+   end repeat
+   put newTextField("mdMessages", "32,318,668,488", tText) into tObject
+   set the textSize of tObject to 12
+   set the textStyle of tObject to empty
+   set the opaque of tObject to true
+   set the showBorder of tObject to true
+   set the threeD of tObject to false
+   set the borderWidth of tObject to 1
+   set the borderColor of tObject to "225,229,236"
+   set the backColor of tObject to "255,255,255"
+   set the vScrollbar of tObject to true
+   set the vScroll of tObject to 0
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s1-messages", scrollbarRegion("track", item 3 of tRect - item 1 of tRect, item 4 of tRect - item 2 of tRect, the borderWidth of tObject, the scrollbarWidth of tObject)
+
+   exportStackRect tStack, the rect of card 1 of stack tStack, "s1-card.png"
+
+   addRecord "INFO", "s1HostEffectiveForeColor", the effective foreColor of tHost
+   if sHasAppearance then
+      do "put the effective stackAppearance of stack tStack into tValue"
+      addRecord "INFO", "s1EffectiveStackAppearance", tValue
+   end if
+end renderOwnerPattern
+
+-- S2 (and the S8 copies): a stack that sets no colours: a field with a
+-- border and text, a transparent label, a checkbox, a push button and a
+-- line. In the dark appearance it is dark. The one colour it sets is a
+-- white panel, with a checkbox on it. pAppearance, when given, is the
+-- stack's stackAppearance (S8), set before anything is created in it.
+private command renderUnstyled pPrefix, pAppearance
+   local tStack, tObject, tRect, tValue
+   put "oxt_render_" & pPrefix into tStack
+   newScenarioStack tStack, 400, 300
+   if pAppearance is not empty then
+      do "set the stackAppearance of stack tStack to " & quote & pAppearance & quote
+   end if
+
+   put newTextField("field", "20,20,220,60", "Some text") into tObject
+   shootText tStack, tObject, pPrefix & "-field"
+   put the rect of tObject into tRect
+   -- The field's fill, below the text
+   shootRegion tStack, tRect, pPrefix & "-field-fill", "8,30,184,6"
+
+   put newTextField("label", "240,20,380,50", "Label") into tObject
+   makeLabel tObject
+   shootText tStack, tObject, pPrefix & "-label"
+
+   create button "check"
+   put it into tObject
+   set the style of tObject to "checkbox"
+   set the rect of tObject to 20,80,200,108
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the label of tObject to "Checkbox"
+   shootName tStack, tObject, pPrefix & "-check"
+
+   create button "push"
+   put it into tObject
+   set the style of tObject to "standard"
+   set the rect of tObject to 220,80,360,116
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the label of tObject to "Push"
+   shootName tStack, tObject, pPrefix & "-push"
+
+   create graphic "line"
+   put it into tObject
+   set the style of tObject to "line"
+   set the lineSize of tObject to 3
+   set the points of tObject to "20,150" & return & "360,150"
+   shootFace tStack, tObject, pPrefix & "-line", "10,140,370,160"
+
+   -- A white panel, and on it a checkbox with no colours whose rect
+   -- overhangs the panel's right edge by 4 pixels: it still takes the
+   -- panel's colours (its label is dark in every run)
+   create graphic "panel"
+   put it into tObject
+   set the style of tObject to "rectangle"
+   set the opaque of tObject to true
+   set the lineSize of tObject to 0
+   set the backColor of tObject to "255,255,255"
+   set the rect of tObject to 20,180,200,240
+   put newButton("panelCheck", "checkbox", "30,196,204,224", "Overhang") into tObject
+   shootName tStack, tObject, pPrefix & "-panel-check"
+
+   -- The card, away from every control
+   shootRegion tStack, "300,200,400,300", pPrefix & "-card", "20,20,60,60"
+
+   exportStackRect tStack, the rect of card 1 of stack tStack, pPrefix & ".png"
+
+   if sHasAppearance then
+      do "put the effective stackAppearance of stack tStack into tValue"
+      addRecord "INFO", pPrefix & "EffectiveStackAppearance", tValue
+   end if
+end renderUnstyled
+
+-- S3: a card of 30,30,30: a label with no colours, and an empty default
+-- field (threeD, a 2-pixel border: the theme's frame) with a background of
+-- 60,60,60. In the dark appearance its frame is a 1-pixel ring, and the
+-- second border pixel must have the field's fill, not the card's colour
+-- (drawdarkwidget, TEXTFIELD_FRAME): the region is that pixel's column and
+-- the fill's next to it, inside the frame's corners.
+private command renderDarkDesigned
+   local tStack, tObject, tRect
+   put "oxt_render_s3" into tStack
+   newScenarioStack tStack, 400, 200
+   set the backColor of card 1 of stack tStack to "30,30,30"
+   put newTextField("label", "20,20,300,56", "Dark card") into tObject
+   makeLabel tObject
+   shootText tStack, tObject, "s3-text"
+
+   put newTextField("framed", "20,80,300,120", empty) into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "60,60,60"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s3-field-band", "1,6,2," & (item 4 of tRect - item 2 of tRect - 12)
+end renderDarkDesigned
+
+-- S4: fields with black text of their own and no background colour, on a
+-- card with no colours: a black text colour was meant for a light fill
+private command renderExplicitText
+   local tStack, tObject, tRect
+   put "oxt_render_s4" into tStack
+   newScenarioStack tStack, 400, 200
+
+   put newTextField("bordered", "20,20,220,60", "Black") into tObject
+   set the opaque of tObject to true
+   set the textColor of tObject to "0,0,0"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s4-bordered-fill", "8,30,184,6"
+
+   put newTextField("borderless", "20,80,220,120", "Black") into tObject
+   set the opaque of tObject to true
+   set the showBorder of tObject to false
+   set the textColor of tObject to "0,0,0"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s4-borderless-fill", "8,30,184,6"
+
+   -- A known limit: a transparent label with a dark text colour of its own
+   -- on a card with no colour stays dark on the dark card (recorded only)
+   put newTextField("label", "240,20,380,56", "Black") into tObject
+   makeLabel tObject
+   set the textColor of tObject to "0,0,0"
+   shootText tStack, tObject, "s4-label"
+
+   -- An opaque checkbox with a white background of its own and no text
+   -- colour: MCButton::draw fills its whole rect with it, so the label is
+   -- dark (setting the style cleared the opaque, so it is set after)
+   put newButton("opaqueCheck", "checkbox", "240,80,390,108", "White box") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "255,255,255"
+   shootName tStack, tObject, "s4-opaque-check"
+
+   -- A card of 30,30,30 with a white panel, and on the panel an opaque group
+   -- with the native group frame and no colour of its own, holding
+   -- checkboxes with no colours. The native frame paints no fill, so the
+   -- checkboxes show the white panel: their labels are dark, as in the light
+   -- appearance.
+   put "oxt_render_s4_group" into tStack
+   newScenarioStack tStack, 400, 200
+   set the backColor of card 1 of stack tStack to "30,30,30"
+   create graphic "panel"
+   put it into tObject
+   set the style of tObject to "rectangle"
+   set the opaque of tObject to true
+   set the lineSize of tObject to 0
+   set the backColor of tObject to "255,255,255"
+   set the rect of tObject to 20,20,380,180
+   get newButton("groupCheck", "checkbox", "60,60,300,88", "In a group")
+   get newButton("groupCheck2", "checkbox", "60,110,300,138", "Another")
+   group button "groupCheck" and button "groupCheck2"
+   -- (the only group of the card)
+   put the long id of group 1 of card 1 of stack tStack into tObject
+   set the opaque of tObject to true
+   set the showBorder of tObject to true
+   set the threeD of tObject to true
+   set the borderWidth of tObject to 2
+   set the showName of tObject to false
+   set the rect of tObject to 40,40,360,160
+   put the long id of button "groupCheck" of card 1 of stack tStack into tObject
+   shootName tStack, tObject, "s4-group-check"
+end renderExplicitText
+
+-- S5: a field with its fill, text and border colours of its own is drawn as
+-- set, in every run. Its border is a plain 1-pixel one in its own colour,
+-- not the theme's frame (threeD): the native frame is a native part, which
+-- a dark-filled field in a dark run rightly draws dark and a light run
+-- light, so it could not match between runs.
+private command renderExplicitBoth
+   local tStack, tObject
+   put "oxt_render_s5" into tStack
+   newScenarioStack tStack, 300, 100
+   put newTextField("both", "20,20,260,60", "Explicit") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "40,40,40"
+   set the foreColor of tObject to "220,220,220"
+   set the threeD of tObject to false
+   set the borderWidth of tObject to 1
+   set the borderColor of tObject to "90,90,90"
+   exportStackRect tStack, the rect of tObject, "s5.png"
+end renderExplicitBoth
+
+-- S6: text runs. In a white field: text with no colour of its own, a red
+-- run and a run with a yellow background. In a field with no colours: a
+-- run with a yellow background and plain text.
+private command renderStyledRuns
+   local tStack, tObject
+   put "oxt_render_s6" into tStack
+   newScenarioStack tStack, 400, 360
+
+   put newTextField("plain", "20,20,260,60", "Plain text") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "255,255,255"
+   shootText tStack, tObject, "s6-plain"
+
+   put newTextField("red", "20,80,260,120", "Red text") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "255,255,255"
+   set the textColor of char 1 to -1 of field "red" of card 1 of stack tStack to "255,0,0"
+   shootText tStack, tObject, "s6-red"
+
+   put newTextField("yellow", "20,140,260,180", "Yellow run") into tObject
+   set the opaque of tObject to true
+   set the backColor of tObject to "255,255,255"
+   set the backgroundColor of char 1 to -1 of field "yellow" of card 1 of stack tStack to "255,255,0"
+   shootText tStack, tObject, "s6-yellow", "255,255,0"
+
+   put newTextField("unstyledYellow", "20,200,260,240", "Yellow run") into tObject
+   set the backgroundColor of char 1 to -1 of field "unstyledYellow" of card 1 of stack tStack to "255,255,0"
+   shootText tStack, tObject, "s6-unstyled-yellow", "255,255,0"
+
+   put newTextField("unstyledPlain", "20,260,260,300", "Plain text") into tObject
+   shootText tStack, tObject, "s6-unstyled-plain"
+end renderStyledRuns
+
+-- S7: push buttons with a light and a dark background of their own and no
+-- text colour: the label fits the background in the dark appearance
+private command renderButtonColours
+   local tStack, tObject
+   put "oxt_render_s7" into tStack
+   newScenarioStack tStack, 400, 160
+
+   create button "white"
+   put it into tObject
+   set the style of tObject to "standard"
+   set the rect of tObject to 20,20,180,60
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the backColor of tObject to "255,255,255"
+   set the label of tObject to "White"
+   shootName tStack, tObject, "s7-white"
+
+   create button "dark"
+   put it into tObject
+   set the style of tObject to "standard"
+   set the rect of tObject to 200,20,360,60
+   set the textSize of tObject to kTextSize
+   set the textStyle of tObject to "bold"
+   set the traversalOn of tObject to false
+   set the backColor of tObject to "50,50,50"
+   set the label of tObject to "Dark"
+   shootName tStack, tObject, "s7-dark"
+end renderButtonColours
+
+-- S11: printing is light in every appearance (engine/src/printer.cpp): a
+-- stack with no colours, printed to a PDF file
+private command printUnstyled
+   local tStack, tObject, tFile
+   put "oxt_render_s11" into tStack
+   newScenarioStack tStack, 400, 300
+   put newTextField("field", "20,20,220,60", "Printed") into tObject
+   create button "check"
+   set the style of it to "checkbox"
+   set the rect of it to 20,80,200,106
+   set the label of it to "Checkbox"
+   put sOut & "/s11.pdf" into tFile
+   open printing to pdf tFile
+   print card 1 of stack tStack
+   close printing
+   if there is not a file tFile then
+      throw "print to pdf wrote no file s11.pdf (the result: " & the result & ")"
+   end if
+   addRecord "SHOT", "pdf", "s11", "s11.pdf"
+end printUnstyled
+
+-- A button of the given style with large bold text and a label
+private function newButton pName, pStyle, pRect, pLabel
+   create button pName
+   set the style of it to pStyle
+   set the rect of it to pRect
+   set the textSize of it to kTextSize
+   set the textStyle of it to "bold"
+   set the traversalOn of it to false
+   set the label of it to pLabel
+   return it
+end newButton
+
+-- S9: the native controls, in a stack with no colours, where they are drawn
+-- dark in the dark appearance (engine/src/w32theme.cpp, drawdarkwidget)
+private command renderNativeControls
+   local tStack, tObject, tRect
+   put "oxt_render_s9" into tStack
+   newScenarioStack tStack, 600, 440
+
+   -- Checkboxes and radio buttons: unchecked, checked and disabled
+   put newButton("check", "checkbox", "20,20,190,46", "Check") into tObject
+   shootName tStack, tObject, "s9-check"
+   shootFace tStack, tObject, "s9-check-box"
+   put newButton("checkOn", "checkbox", "20,56,190,82", "Checked") into tObject
+   set the hilite of tObject to true
+   -- A checked (hilited) checkbox or radio button with hiliteBorder true,
+   -- the button template's default, draws a border around its whole rect
+   -- (MCButton::draw, F_HILITE_BORDER), as it does in light, which would
+   -- make the whole control the measured face instead of its box
+   set the hiliteBorder of tObject to false
+   set the showBorder of tObject to false
+   shootFace tStack, tObject, "s9-check-on-box"
+   put newButton("checkOff", "checkbox", "20,92,190,118", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-check-disabled"
+   put newButton("radio", "radioButton", "20,128,190,154", "Radio") into tObject
+   shootName tStack, tObject, "s9-radio"
+   shootFace tStack, tObject, "s9-radio-box"
+   put newButton("radioOn", "radioButton", "20,164,190,190", "Selected") into tObject
+   set the hilite of tObject to true
+   set the hiliteBorder of tObject to false
+   set the showBorder of tObject to false
+   shootFace tStack, tObject, "s9-radio-on-box"
+   put newButton("radioOff", "radioButton", "20,200,190,226", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-radio-disabled"
+
+   -- Push buttons: normal, pressed (a hilited push button is drawn
+   -- pressed), the default and disabled
+   put newButton("push", "standard", "210,20,350,56", "Push") into tObject
+   shootName tStack, tObject, "s9-push"
+   shootFace tStack, tObject, "s9-push-face"
+   put newButton("pushPressed", "standard", "210,66,350,102", "Pressed") into tObject
+   set the hilite of tObject to true
+   shootFace tStack, tObject, "s9-push-pressed-face"
+   put newButton("pushDefault", "standard", "210,112,350,148", "Default") into tObject
+   set the default of tObject to true
+   shootFace tStack, tObject, "s9-push-default-face"
+   put newButton("pushDisabled", "standard", "210,158,350,194", "Disabled") into tObject
+   set the disabled of tObject to true
+   shootName tStack, tObject, "s9-push-disabled"
+   shootFace tStack, tObject, "s9-push-disabled-face"
+
+   -- An option menu and a combo box: their arrow is on the right
+   put newButton("option", "menu", "370,20,560,46", "Option") into tObject
+   set the menuMode of tObject to "option"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   set the menuHistory of tObject to 1
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-option", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+   put newButton("combo", "menu", "370,60,560,86", "Combo") into tObject
+   set the menuMode of tObject to "comboBox"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-combo", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+
+   -- Tabs, all enabled, the second selected
+   put newButton("tabs", "menu", "370,100,580,200", "Tabs") into tObject
+   set the menuMode of tObject to "tabbed"
+   set the text of tObject to "One" & return & "Two" & return & "Three"
+   set the menuHistory of tObject to 2
+   set the showName of tObject to false
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-tabs", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+
+   -- A default field (threeD, border 2): the theme's frame; empty, so
+   -- that only the frame changes when it is hidden
+   create field "field"
+   put it into tObject
+   set the rect of tObject to 20,250,260,290
+   shootFace tStack, tObject, "s9-field-frame"
+
+   -- A group with a border and its name: the theme's group frame
+   create button "grouped"
+   set the rect of it to 300,270,380,300
+   set the showBorder of it to false
+   set the opaque of it to false
+   set the showName of it to false
+   group button "grouped"
+   -- (the only group of the card)
+   put the long id of group 1 of card 1 of stack tStack into tObject
+   set the name of tObject to "Group"
+   set the showBorder of tObject to true
+   set the threeD of tObject to true
+   set the borderWidth of tObject to 2
+   set the showName of tObject to true
+   set the rect of tObject to 280,240,560,320
+   shootFace tStack, tObject, "s9-group"
+
+   -- A slider and a progress bar at 50%, and little arrows: a scrollbar at
+   -- most twice as tall as it is wide, which the theme draws as two spin
+   -- buttons (drawscrollcontrols; a taller one is a small scrollbar with a
+   -- track and a thumb)
+   create scrollbar "slider"
+   put it into tObject
+   set the style of tObject to "scale"
+   set the showValue of tObject to false
+   set the rect of tObject to 20,330,220,356
+   set the startValue of tObject to 0
+   set the endValue of tObject to 100
+   set the thumbPosition of tObject to 50
+   shootFace tStack, tObject, "s9-slider"
+   create scrollbar "progress"
+   put it into tObject
+   set the style of tObject to "progress"
+   set the rect of tObject to 240,334,440,352
+   set the startValue of tObject to 0
+   set the endValue of tObject to 100
+   set the thumbPosition of tObject to 50
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-progress", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+   create scrollbar "arrows"
+   put it into tObject
+   set the style of tObject to "scrollbar"
+   set the rect of tObject to 470,320,486,344
+   shootFace tStack, tObject, "s9-arrows"
+
+   exportStackRect tStack, the rect of card 1 of stack tStack, "s9.png"
+end renderNativeControls
+
+--------------------------------------------------------------------------------
 
 -- Any parameters after pValue are further fields, left out when empty
 private command addRecord pKind, pName, pValue

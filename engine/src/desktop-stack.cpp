@@ -218,9 +218,32 @@ void MCStack::realize(void)
         
         // MERG-2015-10-11: [[ DocumentFilename ]] update the window with the document filename property
         MCPlatformSetWindowProperty(t_window, kMCPlatformWindowPropertyDocumentFilename, kMCPlatformPropertyTypeMCString, &m_document_filename);
+
+        // The window's frame, dark or light like the stack
+        m_window_dark_set = false;
+        updatewindowappearance();
 	}
 	
 	start_externals();
+}
+
+// The window's frame and the AppKit parts in it are dark when the stack's
+// current card is drawn dark. Only set when it changes.
+void MCStack::updatewindowappearance(void)
+{
+	if (window == nil)
+		return;
+
+	// The frame goes with the card that fills the window: a light-designed
+	// stack gets a light window in a dark stack
+	bool t_dark;
+	t_dark = curcard != nil ? curcard -> isdarkappearance(CONTEXT_TYPE_SCREEN) : MCAppearanceIsDark(this);
+	if (m_window_dark_set && t_dark == m_window_dark)
+		return;
+
+	m_window_dark = t_dark;
+	m_window_dark_set = true;
+	MCPlatformSetWindowBoolProperty(window, kMCPlatformWindowPropertyDarkAppearance, t_dark);
 }
 
 MCRectangle MCStack::view_platform_getwindowrect() const
@@ -325,6 +348,10 @@ void MCStack::view_platform_updatewindow(MCRegionRef p_region)
     if (!isvisible())
         return;
     
+	// The frame goes with the contents: a card or colour change, or a new
+	// appearance, can make the window dark or light
+	updatewindowappearance();
+
 	MCPlatformInvalidateWindow(window, p_region);
 	MCPlatformUpdateWindow(window);
 }

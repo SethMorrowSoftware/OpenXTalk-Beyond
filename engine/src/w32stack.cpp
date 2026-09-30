@@ -314,10 +314,9 @@ void MCStack::setopacity(uint1 p_level)
 			
 			//-- tperry 11th October 2025
 			// Apply dark mode to window title bar based on systemAppearance
-			extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
-			MCSystemAppearance t_appearance;
-			MCscreen->getsystemappearance(t_appearance);
-			MCWin32SetWindowDarkMode((HWND)window->handle.window, t_appearance == kMCSystemAppearanceDark);
+			// (OXT-Beyond: on the appearance this stack is drawn in)
+			m_window_dark_set = false;
+			updatewindowappearance();
 			
 			// MW-2010-10-22: [[ Bug 8151 ]] Make sure we update the title string.
 			MCscreen -> setname(window, titlestring);
@@ -442,10 +441,9 @@ void MCStack::realize()
 		
 		//-- tperry 11th October 2025
 		// Apply dark mode to window title bar based on systemAppearance
-		extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
-		MCSystemAppearance t_appearance2;
-		MCscreen->getsystemappearance(t_appearance2);
-		MCWin32SetWindowDarkMode((HWND)window->handle.window, t_appearance2 == kMCSystemAppearanceDark);
+		// (OXT-Beyond: on the appearance this stack is drawn in)
+		m_window_dark_set = false;
+		updatewindowappearance();
 
 		SetWindowLongPtrA((HWND)window->handle.window, GWLP_USERDATA, mode);
 		
@@ -1126,6 +1124,10 @@ bool MCWin32GetWindowShapeAlphaMask(MCWindowShape *p_shape, MCGRaster &r_mask)
 
 void MCStack::view_platform_updatewindow(MCRegionRef p_region)
 {
+	// The title bar goes with the contents: a card or colour change, or a
+	// new appearance, can make the window dark or light
+	updatewindowappearance();
+
 	// IM-2014-01-28: [[ HiDPI ]] Create surface at the view's backing scale
 	MCGFloat t_surface_scale;
 	t_surface_scale = view_getbackingscale();
@@ -1209,6 +1211,37 @@ void MCStack::view_platform_updatewindowwithcallback(MCRegionRef p_region, MCSta
 	view_platform_updatewindow(p_region);
 	s_update_callback = nil;
 	s_update_context = nil;
+}
+
+// The window's title bar is dark when the stack's current card is drawn dark
+// (Tom Perry's dark title bars, 38d5712b2, applied per window). Setting it
+// asks the window manager to redraw the frame, so it is only done when it
+// changes.
+void MCStack::updatewindowappearance(void)
+{
+	if (window == NULL || window -> handle . window == NULL)
+		return;
+
+	// The frame goes with the card that fills the window: a light-designed
+	// stack gets a light title bar in a dark stack
+	bool t_dark;
+	t_dark = curcard != nil ? curcard -> isdarkappearance(CONTEXT_TYPE_SCREEN) : MCAppearanceIsDark(this);
+	if (m_window_dark_set && t_dark == m_window_dark)
+		return;
+
+	// A new window is set before it is shown; one that is already on the
+	// screen needs its frame redrawn (on Windows 10 the title bar keeps its
+	// colour until then)
+	bool t_redraw_frame;
+	t_redraw_frame = m_window_dark_set;
+	m_window_dark = t_dark;
+	m_window_dark_set = true;
+
+	extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
+	MCWin32SetWindowDarkMode((HWND)window -> handle . window, t_dark);
+	if (t_redraw_frame)
+		SetWindowPos((HWND)window -> handle . window, NULL, 0, 0, 0, 0,
+		             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void MCStack::onpaint(void)

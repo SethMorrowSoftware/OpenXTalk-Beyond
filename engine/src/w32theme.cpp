@@ -231,6 +231,34 @@ static char menucolorsregs[][255] = {
 
 static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state);
 
+// Whether a widget is drawn in the dark appearance: that of the object it is
+// drawn for (MCObject::isdarkappearance), so a light-designed stack keeps its
+// light native controls whatever the appAppearance is. Widgets drawn for no
+// object follow the appAppearance. Never dark on a printer.
+static bool widgetisdark(const MCWidgetInfo& p_winfo, MCDC *p_dc)
+{
+	MCContextType t_type;
+	t_type = p_dc != nil ? p_dc -> gettype() : CONTEXT_TYPE_SCREEN;
+	if (t_type == CONTEXT_TYPE_PRINTER)
+		return false;
+	if (p_winfo . whichobject != nil)
+		return p_winfo . whichobject -> isdarkappearance(t_type);
+	return MCAppearanceIsDark(nil);
+}
+
+// The same for a background the engine draws for an object (a menu's card,
+// the menubar group)
+static bool objectisdark(MCObject *p_object, MCDC *p_dc)
+{
+	MCContextType t_type;
+	t_type = p_dc != nil ? p_dc -> gettype() : CONTEXT_TYPE_SCREEN;
+	if (t_type == CONTEXT_TYPE_PRINTER)
+		return false;
+	if (p_object != nil)
+		return p_object -> isdarkappearance(t_type);
+	return MCAppearanceIsDark(nil);
+}
+
 Boolean MCNativeTheme::load()
 {
 	if (mThemeDLL != NULL)
@@ -243,7 +271,8 @@ Boolean MCNativeTheme::load()
 	mRebarTheme = NULL;
 	mProgressTheme = NULL;
 	mScrollbarTheme = NULL;
-	mScrollbarOwnerDraw = false;
+	mScrollbarDarkTheme = NULL;
+	mScrollbarDarkChecked = false;
 	mSmallScrollbarTheme = NULL;
 	mStatusbarTheme = NULL;
 	mTabTheme = NULL;
@@ -392,7 +421,7 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	case WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL:
 		{
 			if (!mScrollbarTheme)
-				OpenScrollbarTheme();
+				mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
 			return mScrollbarTheme;
 		}
 	case WTHEME_TYPE_SLIDER:
@@ -444,39 +473,32 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	return NULL;
 }
 
-// In dark mode scrollbars use the dark variant of the scrollbar class that
-// Explorer uses, "DarkMode_Explorer::ScrollBar" (Windows 10 1809 and later),
-// which draws the whole scrollbar natively, with the system's own sizes and
-// hover states. The class is not documented, and uxtheme resolves an unknown
-// "<application>::" prefix to the plain class, so on a Windows without it
-// OpenThemeData hands back the light scrollbar instead of failing. So the
-// dark class is only kept when its track really draws dark. Otherwise the
-// light class is kept for the part sizes, and drawwidget draws the parts
-// itself in dark colours (drawdarkscrollbarpart). The choice is made again
-// whenever the theme is reloaded, which the light/dark switch does
-// (w32dcw32.cpp).
-void MCNativeTheme::OpenScrollbarTheme(void)
+// Dark scrollbars use the dark variant of the scrollbar class that Explorer
+// uses, "DarkMode_Explorer::ScrollBar" (Windows 10 1809 and later), which
+// draws the scrollbar natively, with the system's own hover states. The class
+// is not documented, and uxtheme resolves an unknown "<application>::" prefix
+// to the plain class, so on a Windows without it OpenThemeData hands back the
+// light scrollbar instead of failing. So the dark class is only kept when its
+// track really draws dark; otherwise drawwidget draws the parts itself in
+// dark colours (drawdarkscrollbarpart). Both classes stay open: whether a
+// scrollbar is dark is decided for each one (widgetisdark), and the part
+// sizes always come from the light class, so a scrollbar keeps its layout in
+// either appearance. The dark class is tried again whenever the theme is
+// reloaded (CloseData).
+MCWinSysHandle MCNativeTheme::GetDarkScrollbarTheme(void)
 {
-	mScrollbarOwnerDraw = false;
-
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	if (t_appearance == kMCSystemAppearanceDark)
+	if (!mScrollbarDarkChecked && openTheme != NULL)
 	{
-		mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"DarkMode_Explorer::ScrollBar");
-		if (mScrollbarTheme != NULL &&
-			MCWin32ThemePartDrawsDark(mScrollbarTheme, SP_TRACKENDVERT, TS_NORMAL))
-			return;
-
-		if (mScrollbarTheme != NULL)
+		mScrollbarDarkChecked = true;
+		mScrollbarDarkTheme = (MCWinSysHandle)openTheme(NULL, L"DarkMode_Explorer::ScrollBar");
+		if (mScrollbarDarkTheme != NULL &&
+			!MCWin32ThemePartDrawsDark(mScrollbarDarkTheme, SP_TRACKENDVERT, TS_NORMAL))
 		{
-			closeTheme(mScrollbarTheme);
-			mScrollbarTheme = NULL;
+			closeTheme(mScrollbarDarkTheme);
+			mScrollbarDarkTheme = NULL;
 		}
-		mScrollbarOwnerDraw = true;
 	}
-
-	mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
+	return mScrollbarDarkTheme;
 }
 
 void MCNativeTheme::CloseData()
@@ -491,7 +513,12 @@ void MCNativeTheme::CloseData()
 		closeTheme(mScrollbarTheme);
 		mScrollbarTheme = NULL;
 	}
-	mScrollbarOwnerDraw = false;
+	if (mScrollbarDarkTheme)
+	{
+		closeTheme(mScrollbarDarkTheme);
+		mScrollbarDarkTheme = NULL;
+	}
+	mScrollbarDarkChecked = false;
 	if (mSmallScrollbarTheme)
 	{
 		closeTheme(mSmallScrollbarTheme);
@@ -790,9 +817,9 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
             case WCOLOR_TEXT:
                 {
                     //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
-                    MCSystemAppearance t_appearance;
-                    MCscreen->getsystemappearance(t_appearance);
-                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    // (OXT-Beyond: in the appearance of the menu's button,
+                    // MCStack::createmenu)
+                    bool t_is_dark = widgetisdark(winfo, nil);
                     
                     if (t_is_dark)
                         /* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
@@ -811,9 +838,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
             case WCOLOR_BACK:
                 {
                     //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
-                    MCSystemAppearance t_appearance;
-                    MCscreen->getsystemappearance(t_appearance);
-                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    bool t_is_dark = widgetisdark(winfo, nil);
                     
                     if (t_is_dark)
                         /* UNCHECKED */ MCStringCreateWithCString("32,32,32", r_colorbuf);
@@ -834,9 +859,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
 	else if (winfo.type == WTHEME_TYPE_OPTIONBUTTON || winfo.type == WTHEME_TYPE_OPTIONBUTTONTEXT)
 	{
 		//-- tperry 11th November 2025: Handle option menu colors for dark mode
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = widgetisdark(winfo, nil);
 		
 		switch (ctype)
 		{
@@ -862,9 +885,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
 	         winfo.type == WTHEME_TYPE_RADIOBUTTON)
 	{
 		//-- tperry 11th November 2025: Handle button/checkbox/radio colors for dark mode
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = widgetisdark(winfo, nil);
 		
 		switch (ctype)
 		{
@@ -897,40 +918,468 @@ uint2 MCNativeTheme::getthemefamilyid()
 	return LF_WIN95; //however it belongs to the win32 theme family
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+//  Dark native controls
+//
+//  uxtheme has no dark variant of the button, edit, tab, trackbar or
+//  progress classes: they draw light whatever the application's mode. Tom
+//  Perry's dark mode (38d5712b2) drew push buttons, option menus and combo
+//  boxes itself as a flat fill and a grey outline; HyperXTalk (Emily-Elizabeth
+//  Howard, 7107166b1 and ddcb9ff9f) added checkboxes, radio buttons, fields,
+//  tabs and groups. Here they are drawn flat, like the dark controls of
+//  Windows 11, with states, for widgets drawn in the dark appearance
+//  (widgetisdark). The background stays the dark theme's 0x20
+//  (windows-theme.cpp). Outlines are at least 3:1 on it, and the faces keep
+//  the disabled grey label (137) at 4.5:1. Edges are one logical pixel wide
+//  and drawn as filled strips, which stay crisp when scaled by 250%.
+
+// Push buttons, option menus and the button of combo boxes
+static const uint16_t s_dark_face = 0x3737;
+static const uint16_t s_dark_face_hover = 0x4545;
+static const uint16_t s_dark_face_pressed = 0x2B2B;
+static const uint16_t s_dark_face_disabled = 0x2020;
+static const uint16_t s_dark_face_border = 0x6E6E;
+// Checkbox and radio button indicators; checked ones are filled with the
+// accent colour
+static const uint16_t s_dark_indicator_fill = 0x2020;
+static const uint16_t s_dark_indicator_border = 0x9A9A;
+static const uint16_t s_dark_indicator_border_hover = 0xC0C0;
+static const uint16_t s_dark_indicator_disabled = 0x6E6E;
+static const uint16_t s_dark_indicator_checked_disabled = 0x5555;
+// Tabs and the tab pane
+static const uint16_t s_dark_tab_pane = 0x2B2B;
+static const uint16_t s_dark_tab_selected = 0x2B2B;
+static const uint16_t s_dark_tab_unselected = 0x2020;
+static const uint16_t s_dark_tab_hover = 0x3333;
+static const uint16_t s_dark_tab_border = 0x6E6E;
+// The frame of fields and combo boxes (the fill is the field's own)
+static const uint16_t s_dark_frame = 0x7A7A;
+static const uint16_t s_dark_frame_hover = 0x9A9A;
+static const uint16_t s_dark_frame_disabled = 0x3C3C;
+// The dark theme's field background (windows-theme.cpp), for a field whose
+// own fill is a pattern
+static const uint16_t s_dark_field_fill = 0x2020;
+// The frame of groups
+static const uint16_t s_dark_group_border = 0x6E6E;
+// Arrows: the chevron of option menus and combo boxes
+static const uint16_t s_dark_glyph = 0xD0D0;
+static const uint16_t s_dark_glyph_hover = 0xF0F0;
+static const uint16_t s_dark_glyph_disabled = 0x6E6E;
+// Sliders (the light appearance keeps the native trackbar): a thin track,
+// the accent colour on the decreasing side, and a round thumb
+static const uint16_t s_dark_slider_track = 0x5555;
+static const uint16_t s_dark_slider_track_disabled = 0x3C3C;
+static const uint16_t s_dark_slider_thumb = 0xE8E8;
+static const uint16_t s_dark_slider_thumb_hover = 0xF5F5;
+static const uint16_t s_dark_slider_thumb_pressed = 0xBCBC;
+static const uint16_t s_dark_slider_thumb_disabled = 0x4848;
+static const uint16_t s_dark_slider_thumb_border = 0x9898;
+static const uint16_t s_dark_slider_thumb_border_disabled = 0x5555;
+// Progress bars: the chunk is the accent colour
+static const uint16_t s_dark_progress_track = 0x2B2B;
+static const uint16_t s_dark_progress_border = 0x6E6E;
+static const uint16_t s_dark_progress_disabled = 0x5555;
+// Scrollbars drawn without the dark scrollbar class (drawdarkscrollbarpart)
+static const uint16_t s_dark_scrollbar_track = 0x2B2B;
+static const uint16_t s_dark_scrollbar_thumb = 0x6E6E;
+static const uint16_t s_dark_scrollbar_thumb_active = 0x8A8A;
+static const uint16_t s_dark_scrollbar_glyph = 0x9A9A;
+static const uint16_t s_dark_scrollbar_glyph_active = 0xD0D0;
+static const uint16_t s_dark_scrollbar_glyph_disabled = 0x5555;
+
+static MCColor MCDarkGrey(uint16_t p_level)
+{
+	MCColor t_color;
+	t_color . red = t_color . green = t_color . blue = p_level;
+	return t_color;
+}
+
+static void MCDarkFill(MCDC *dc, const MCRectangle& p_rect, const MCColor& p_color)
+{
+	if (p_rect . width == 0 || p_rect . height == 0)
+		return;
+	dc -> setforeground(p_color);
+	dc -> setfillstyle(FillSolid, nil, 0, 0);
+	dc -> fillrect(p_rect);
+}
+
+// An outline p_width logical pixels wide inside p_rect, as four strips. The
+// part of the top edge from p_gap_start to p_gap_end (x) is left out: the gap
+// of a tab pane under its selected tab, the label of a group.
+static void MCDarkRing(MCDC *dc, const MCRectangle& p_rect, uint2 p_width, const MCColor& p_color, int2 p_gap_start = 0, int2 p_gap_end = 0)
+{
+	if (p_rect . width <= 2 * p_width || p_rect . height <= 2 * p_width)
+	{
+		MCDarkFill(dc, p_rect, p_color);
+		return;
+	}
+
+	int2 t_left = p_rect . x;
+	int2 t_right = p_rect . x + p_rect . width;
+	if (p_gap_end > p_gap_start)
+	{
+		int2 t_start = MCU_max(t_left, MCU_min(t_right, p_gap_start));
+		int2 t_end = MCU_max(t_left, MCU_min(t_right, p_gap_end));
+		MCDarkFill(dc, MCU_make_rect(t_left, p_rect . y, t_start - t_left, p_width), p_color);
+		MCDarkFill(dc, MCU_make_rect(t_end, p_rect . y, t_right - t_end, p_width), p_color);
+	}
+	else
+		MCDarkFill(dc, MCU_make_rect(t_left, p_rect . y, p_rect . width, p_width), p_color);
+	MCDarkFill(dc, MCU_make_rect(t_left, p_rect . y + p_rect . height - p_width, p_rect . width, p_width), p_color);
+	MCDarkFill(dc, MCU_make_rect(t_left, p_rect . y + p_width, p_width, p_rect . height - 2 * p_width), p_color);
+	MCDarkFill(dc, MCU_make_rect(t_right - p_width, p_rect . y + p_width, p_width, p_rect . height - 2 * p_width), p_color);
+}
+
+// A filled triangle pointing in p_direction, centred in p_rect, twice as
+// wide as it is high: p_half is half its width. The arrows of the dark
+// scrollbar parts, the little arrows and the option and combo chevron.
+enum MCDarkGlyph
+{
+	kMCDarkGlyphUp,
+	kMCDarkGlyphDown,
+	kMCDarkGlyphLeft,
+	kMCDarkGlyphRight,
+};
+
+static void MCDarkDrawGlyph(MCDC *dc, const MCRectangle& p_rect, MCDarkGlyph p_direction, int2 p_half, const MCColor& p_color)
+{
+	if (p_half < 2)
+		p_half = 2;
+	int2 t_cx = p_rect.x + p_rect.width / 2;
+	int2 t_cy = p_rect.y + p_rect.height / 2;
+	int2 t_near = p_half / 2;
+	int2 t_far = p_half - t_near;
+	MCPoint t_points[3];
+	switch (p_direction)
+	{
+	case kMCDarkGlyphUp:
+		t_points[0] = MCPointMake(t_cx - p_half, t_cy + t_far);
+		t_points[1] = MCPointMake(t_cx + p_half, t_cy + t_far);
+		t_points[2] = MCPointMake(t_cx, t_cy - t_near);
+		break;
+	case kMCDarkGlyphDown:
+		t_points[0] = MCPointMake(t_cx - p_half, t_cy - t_near);
+		t_points[1] = MCPointMake(t_cx + p_half, t_cy - t_near);
+		t_points[2] = MCPointMake(t_cx, t_cy + t_far);
+		break;
+	case kMCDarkGlyphLeft:
+		t_points[0] = MCPointMake(t_cx + t_far, t_cy - p_half);
+		t_points[1] = MCPointMake(t_cx + t_far, t_cy + p_half);
+		t_points[2] = MCPointMake(t_cx - t_near, t_cy);
+		break;
+	default:
+		t_points[0] = MCPointMake(t_cx - t_near, t_cy - p_half);
+		t_points[1] = MCPointMake(t_cx - t_near, t_cy + p_half);
+		t_points[2] = MCPointMake(t_cx + t_far, t_cy);
+		break;
+	}
+	dc -> setforeground(p_color);
+	dc -> setfillstyle(FillSolid, nil, 0, 0);
+	dc -> fillpolygon(t_points, 3);
+}
+
+// The colour of a glyph drawn on the accent colour: black or white, whichever
+// contrasts more with it
+static MCColor MCDarkGlyphOn(const MCColor& p_fill)
+{
+	return MCAppearanceColorIsLight(p_fill) ? MCDarkGrey(0x0000) : MCDarkGrey(0xFFFF);
+}
+
+static MCColor MCDarkGlyphColor(const MCWidgetInfo& winfo)
+{
+	if (winfo . state & WTHEME_STATE_DISABLED)
+		return MCDarkGrey(s_dark_glyph_disabled);
+	if (winfo . state & (WTHEME_STATE_HOVER | WTHEME_STATE_PRESSED))
+		return MCDarkGrey(s_dark_glyph_hover);
+	return MCDarkGrey(s_dark_glyph);
+}
+
+// The face of a push button, an option menu or a combo box's button: the
+// default button and the focused one are outlined in the accent colour
+static void MCDarkDrawFace(MCDC *dc, const MCWidgetInfo& winfo, const MCRectangle& p_rect)
+{
+	uint16_t t_face;
+	if (winfo . state & WTHEME_STATE_DISABLED)
+		t_face = s_dark_face_disabled;
+	else if (winfo . state & (WTHEME_STATE_PRESSED | WTHEME_STATE_HILITED))
+		t_face = s_dark_face_pressed;
+	else if (winfo . state & WTHEME_STATE_HOVER)
+		t_face = s_dark_face_hover;
+	else
+		t_face = s_dark_face;
+	MCDarkFill(dc, p_rect, MCDarkGrey(t_face));
+
+	bool t_accent;
+	t_accent = (winfo . state & WTHEME_STATE_DISABLED) == 0 &&
+		(winfo . state & (WTHEME_STATE_HASDEFAULT | WTHEME_STATE_HASFOCUS)) != 0 &&
+		(winfo . state & WTHEME_STATE_SUPPRESSDEFAULT) == 0;
+	if (t_accent)
+		MCDarkRing(dc, p_rect, 2, MCaccentcolor);
+	else
+		MCDarkRing(dc, p_rect, 1, MCDarkGrey(s_dark_face_border));
+}
+
+// A checkbox's box or a radio button's circle: dark with a light outline,
+// or filled with the accent colour and a tick or dot when checked
+static void MCDarkDrawIndicator(MCDC *dc, const MCWidgetInfo& winfo, const MCRectangle& p_rect, bool p_round)
+{
+	bool t_disabled = (winfo . state & WTHEME_STATE_DISABLED) != 0;
+	bool t_checked = (winfo . state & WTHEME_STATE_HILITED) != 0;
+
+	// A square, centred where the theme would draw the part
+	uint2 t_size = MCU_min(p_rect . width, p_rect . height);
+	MCRectangle t_box = MCU_make_rect(p_rect . x + (p_rect . width - t_size) / 2,
+									  p_rect . y + (p_rect . height - t_size) / 2, t_size, t_size);
+
+	MCColor t_fill, t_border;
+	if (t_checked)
+	{
+		t_fill = t_disabled ? MCDarkGrey(s_dark_indicator_checked_disabled) : MCaccentcolor;
+		t_border = t_fill;
+	}
+	else
+	{
+		t_fill = MCDarkGrey(s_dark_indicator_fill);
+		if (t_disabled)
+			t_border = MCDarkGrey(s_dark_indicator_disabled);
+		else if (winfo . state & (WTHEME_STATE_HOVER | WTHEME_STATE_PRESSED))
+			t_border = MCDarkGrey(s_dark_indicator_border_hover);
+		else
+			t_border = MCDarkGrey(s_dark_indicator_border);
+	}
+
+	dc -> setfillstyle(FillSolid, nil, 0, 0);
+	if (p_round)
+	{
+		dc -> setforeground(t_border);
+		dc -> fillarc(t_box, 0, 360);
+		dc -> setforeground(t_fill);
+		dc -> fillarc(MCU_reduce_rect(t_box, 1), 0, 360);
+	}
+	else
+	{
+		MCDarkFill(dc, t_box, t_fill);
+		MCDarkRing(dc, t_box, 1, t_border);
+	}
+
+	if (!t_checked)
+		return;
+
+	MCColor t_glyph;
+	t_glyph = t_disabled ? MCDarkGrey(s_dark_indicator_fill) : MCDarkGlyphOn(t_fill);
+	dc -> setforeground(t_glyph);
+	if (p_round)
+	{
+		// A round dot, half the circle's width
+		uint2 t_dot = MCU_max(4, t_size / 2);
+		dc -> fillarc(MCU_make_rect(t_box . x + (t_size - t_dot) / 2, t_box . y + (t_size - t_dot) / 2, t_dot, t_dot), 0, 360);
+	}
+	else
+	{
+		// The tick of MCButton::drawcheck, scaled from its 9 pixels to the box
+		MCRectangle t_inside = MCU_reduce_rect(t_box, 2);
+		static const int2 s_tick[6][2] = { {1, 3}, {3, 5}, {8, 0}, {8, 3}, {3, 8}, {1, 6} };
+		MCPoint t_points[6];
+		for (int i = 0; i < 6; i++)
+		{
+			t_points[i] . x = t_inside . x + s_tick[i][0] * t_inside . width / 9;
+			t_points[i] . y = t_inside . y + s_tick[i][1] * t_inside . height / 9;
+		}
+		dc -> fillpolygon(t_points, 6);
+	}
+}
+
+// Draws the widget in the dark appearance, after drawwidget has worked out its
+// rectangle (p_rect) and the part of it to draw (p_clip). Returns false for
+// the widgets it leaves to uxtheme.
+Boolean MCNativeTheme::drawdarkwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &p_rect, const MCRectangle &p_clip)
+{
+	switch (winfo . type)
+	{
+	case WTHEME_TYPE_PUSHBUTTON:
+	case WTHEME_TYPE_OPTIONBUTTONTEXT:
+		MCDarkDrawFace(dc, winfo, p_rect);
+		return True;
+
+	case WTHEME_TYPE_OPTIONBUTTONARROW:
+		// The chevron, on the option menu's face
+		MCDarkDrawGlyph(dc, p_rect, kMCDarkGlyphDown, MCU_max(4, MCU_min(p_rect . width, p_rect . height) / 3), MCDarkGlyphColor(winfo));
+		return True;
+
+	case WTHEME_TYPE_COMBOBUTTON:
+		// The combo box's button, with its chevron; the frame around the
+		// whole combo box is drawn next (COMBOTEXT)
+		MCDarkDrawFace(dc, winfo, p_rect);
+		MCDarkDrawGlyph(dc, p_rect, kMCDarkGlyphDown, MCU_max(4, MCU_min(p_rect . width, p_rect . height) / 3), MCDarkGlyphColor(winfo));
+		return True;
+
+	case WTHEME_TYPE_CHECKBOX:
+		MCDarkDrawIndicator(dc, winfo, p_rect, false);
+		return True;
+
+	case WTHEME_TYPE_RADIOBUTTON:
+		MCDarkDrawIndicator(dc, winfo, p_rect, true);
+		return True;
+
+	case WTHEME_TYPE_TEXTFIELD_FRAME:
+	case WTHEME_TYPE_COMBOTEXT:
+	{
+		// The frame only: the field fills its content with its own
+		// background, the theme's 0x20 unless it sets one
+		uint16_t t_frame;
+		if (winfo . state & WTHEME_STATE_DISABLED)
+			t_frame = s_dark_frame_disabled;
+		else if (winfo . state & WTHEME_STATE_HASFOCUS)
+			t_frame = 0;
+		else if (winfo . state & WTHEME_STATE_HOVER)
+			t_frame = s_dark_frame_hover;
+		else
+			t_frame = s_dark_frame;
+		MCDarkRing(dc, p_rect, 1, t_frame == 0 ? MCaccentcolor : MCDarkGrey(t_frame));
+
+		// A field's native frame is its 2-pixel border, but MCField::drawrect
+		// only fills inside the border, and the ring above is 1 pixel: the
+		// second pixel would show what is behind the field, a line of the
+		// card's colour between the frame and the fill. The light uxtheme
+		// frame paints that band, so here it gets the fill the field uses
+		// (getforecolor as drawrect asks it, 'hilite' for a bordered field).
+		// Not for a combo box: its frame surrounds its button, whose outline
+		// is one pixel in, and an opaque field only (a transparent one fills
+		// nothing).
+		MCObject *t_object;
+		t_object = winfo . whichobject;
+		if (winfo . type == WTHEME_TYPE_TEXTFIELD_FRAME && t_object != nil && t_object -> getflag(F_OPAQUE))
+		{
+			MCColor t_fill;
+			MCPatternRef t_pattern;
+			t_pattern = nil;
+			int2 t_x, t_y;
+			if (!t_object -> getforecolor(DI_BACK, False, True, t_fill, t_pattern, t_x, t_y, dc -> gettype(), t_object))
+				t_fill = MCDarkGrey(s_dark_field_fill);
+			MCDarkRing(dc, MCU_reduce_rect(p_rect, 1), 1, t_fill);
+		}
+		return True;
+	}
+
+	case WTHEME_TYPE_TABPANE:
+	{
+		MCDarkFill(dc, p_rect, MCDarkGrey(s_dark_tab_pane));
+		int2 t_gap_start = 0, t_gap_end = 0;
+		if (winfo . datatype == WTHEME_DATA_TABPANE && winfo . data != nil)
+		{
+			const MCWidgetTabPaneInfo *t_pane = (const MCWidgetTabPaneInfo *)winfo . data;
+			if (t_pane -> gap_length > 0)
+			{
+				// Open under the selected tab, which joins the pane
+				t_gap_start = p_rect . x + t_pane -> gap_start + 1;
+				t_gap_end = p_rect . x + t_pane -> gap_start + t_pane -> gap_length - 1;
+			}
+		}
+		MCDarkRing(dc, p_rect, 1, MCDarkGrey(s_dark_tab_border), t_gap_start, t_gap_end);
+		return True;
+	}
+
+	case WTHEME_TYPE_TAB:
+	{
+		// The part of the tab drawwidget clips it to (p_clip), which leaves
+		// out its bottom edge where it meets the pane
+		uint16_t t_face;
+		if (winfo . state & WTHEME_STATE_HILITED)
+			t_face = s_dark_tab_selected;
+		else if ((winfo . state & WTHEME_STATE_DISABLED) == 0 && (winfo . state & (WTHEME_STATE_HOVER | WTHEME_STATE_PRESSED)) != 0)
+			t_face = s_dark_tab_hover;
+		else
+			t_face = s_dark_tab_unselected;
+		MCRectangle t_tab;
+		t_tab = MCU_intersect_rect(p_rect, p_clip);
+		MCDarkFill(dc, t_tab, MCDarkGrey(t_face));
+		if (t_tab . width > 2 && t_tab . height > 1)
+		{
+			MCColor t_border = MCDarkGrey(s_dark_tab_border);
+			MCDarkFill(dc, MCU_make_rect(t_tab . x, t_tab . y, t_tab . width, 1), t_border);
+			MCDarkFill(dc, MCU_make_rect(t_tab . x, t_tab . y + 1, 1, t_tab . height - 1), t_border);
+			MCDarkFill(dc, MCU_make_rect(t_tab . x + t_tab . width - 1, t_tab . y + 1, 1, t_tab . height - 1), t_border);
+		}
+		return True;
+	}
+
+	case WTHEME_TYPE_PROGRESSBAR_HORIZONTAL:
+	case WTHEME_TYPE_PROGRESSBAR_VERTICAL:
+		// The track (drawprogressbar draws the chunk in its content rect)
+		MCDarkFill(dc, p_rect, MCDarkGrey(s_dark_progress_track));
+		MCDarkRing(dc, p_rect, 1, MCDarkGrey(s_dark_progress_border));
+		return True;
+
+	case WTHEME_TYPE_PROGRESSBAR_CHUNK:
+	case WTHEME_TYPE_PROGRESSBAR_CHUNK_VERTICAL:
+		MCDarkFill(dc, p_rect, (winfo . state & WTHEME_STATE_DISABLED) != 0 ? MCDarkGrey(s_dark_progress_disabled) : MCaccentcolor);
+		return True;
+
+	case WTHEME_TYPE_SPIN:
+	{
+		// A button of the little arrows (drawscrollcontrols), with its arrow
+		MCDarkDrawFace(dc, winfo, p_rect);
+		MCDarkGlyph t_direction;
+		switch (winfo . part)
+		{
+		case WTHEME_PART_SPIN_ARROW_UP:
+			t_direction = kMCDarkGlyphUp;
+			break;
+		case WTHEME_PART_SPIN_ARROW_DOWN:
+			t_direction = kMCDarkGlyphDown;
+			break;
+		case WTHEME_PART_SPIN_ARROW_LEFT:
+			t_direction = kMCDarkGlyphLeft;
+			break;
+		default:
+			t_direction = kMCDarkGlyphRight;
+			break;
+		}
+		MCDarkDrawGlyph(dc, p_rect, t_direction, MCU_max(3, MCU_min(p_rect . width, p_rect . height) / 4), MCDarkGlyphColor(winfo));
+		return True;
+	}
+
+	case WTHEME_TYPE_GROUP_FRAME:
+	case WTHEME_TYPE_SECONDARYGROUP_FRAME:
+	case WTHEME_TYPE_GROUP_FILL:
+	case WTHEME_TYPE_SECONDARYGROUP_FILL:
+	{
+		// The frame only, with a gap for the label: an opaque group fills
+		// itself with its own background
+		int2 t_gap_start = 0, t_gap_end = 0;
+		if (winfo . datatype == WTHEME_DATA_RECT && winfo . data != nil)
+		{
+			const MCRectangle *t_label = (const MCRectangle *)winfo . data;
+			t_gap_start = t_label -> x;
+			t_gap_end = t_label -> x + t_label -> width;
+		}
+		MCDarkRing(dc, p_rect, 1, MCDarkGrey(s_dark_group_border), t_gap_start, t_gap_end);
+		return True;
+	}
+
+	default:
+		return False;
+	}
+}
+
 Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
 {
-	//-- tperry 18th November 2025: Custom draw widgets in dark mode
-	if (winfo.type == WTHEME_TYPE_PUSHBUTTON || 
-	    winfo.type == WTHEME_TYPE_OPTIONBUTTON ||
-	    winfo.type == WTHEME_TYPE_COMBO)
-	{
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		if (t_appearance == kMCSystemAppearanceDark)
-		{
-			// Draw widget manually in dark mode with our dark colors
-			// Fill background with dark gray
-			dc->setforeground(dc->getbg()); // Use our dark background color (32,32,32)
-			dc->fillrect(drect);
-			
-			// Draw a simple border
-			dc->setforeground(dc->getgray()); // Use gray for border
-			dc->drawrect(drect);
-			
-			return True; // Skip Windows native theme drawing
-		}
-	}
-	
 	HANDLE htheme = GetTheme(winfo.type);
 	if (!htheme)
 		return False;
 
-	// Dark mode without the dark scrollbar class: draw the parts of the
-	// scrollbar here (the scrollbar as a whole still goes through
-	// drawscrollcontrols, which lays the parts out). GetTheme has just made
-	// that choice (see OpenScrollbarTheme).
-	if (mScrollbarOwnerDraw && htheme == (HANDLE)mScrollbarTheme && winfo.type != WTHEME_TYPE_SCROLLBAR)
-		return drawdarkscrollbarpart(dc, winfo, drect);
+	// The parts of a dark scrollbar (the scrollbar as a whole goes through
+	// drawscrollcontrols, which lays the parts out with the light class's
+	// sizes): with the dark class, or drawn here when there is none (see
+	// GetDarkScrollbarTheme)
+	if (htheme == (HANDLE)mScrollbarTheme && winfo.type != WTHEME_TYPE_SCROLLBAR && widgetisdark(winfo, dc))
+	{
+		HANDLE t_dark_theme = GetDarkScrollbarTheme();
+		if (t_dark_theme == NULL)
+			return drawdarkscrollbarpart(dc, winfo, drect);
+		htheme = t_dark_theme;
+	}
 
 	if (!drawThemeBG)
 		return False;
@@ -1055,6 +1504,13 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 		break;
 	}
 
+	//-- tperry 18th November 2025: Custom draw widgets in dark mode
+	// (OXT-Beyond: here, after the switch above, as HyperXTalk 7107166b1 does,
+	// so that option menus and combo boxes are split into their parts and get
+	// their arrow; per widget, in the appearance of its object)
+	if (widgetisdark(winfo, dc) && drawdarkwidget(dc, winfo, trect, crect))
+		return True;
+
 	MCThemeDrawInfo t_info;
 	t_info . theme = (MCWinSysHandle)htheme;
 	t_info . part = part;
@@ -1111,11 +1567,99 @@ Boolean MCNativeTheme::drawprogressbar(MCDC *dc, const MCWidgetInfo &winfo, cons
 
 
 
+// A slider's track, 3 pixels thick, centred across the part of the track
+// p_segment (after HyperXTalk 2d630824d)
+static MCRectangle MCDarkSliderTrackStrip(const MCRectangle& p_segment, bool p_vertical)
+{
+	const int2 k_thickness = 3;
+	MCRectangle t_strip;
+	if (p_vertical)
+		MCU_set_rect(t_strip, p_segment . x + p_segment . width / 2 - k_thickness / 2, p_segment . y, k_thickness, p_segment . height);
+	else
+		MCU_set_rect(t_strip, p_segment . x, p_segment . y + p_segment . height / 2 - k_thickness / 2, p_segment . width, k_thickness);
+	return t_strip;
+}
+
+// A slider's round thumb: centred on the thumb's position along the track
+// and across the control, and inside it: at most 14 pixels, even (after
+// HyperXTalk 2d630824d)
+static MCRectangle MCDarkSliderThumbRect(const MCRectangle& p_thumb, const MCRectangle& p_rect, bool p_vertical)
+{
+	int2 t_diameter = (p_vertical ? p_rect . width : p_rect . height) - 2;
+	if (t_diameter < 4)
+		t_diameter = 4;
+	if (t_diameter > 14)
+		t_diameter = 14;
+	if (t_diameter % 2 != 0)
+		t_diameter--;
+
+	int2 t_cx, t_cy;
+	if (p_vertical)
+	{
+		t_cx = p_rect . x + p_rect . width / 2;
+		t_cy = p_thumb . y + p_thumb . height / 2;
+	}
+	else
+	{
+		t_cx = p_thumb . x + p_thumb . width / 2;
+		t_cy = p_rect . y + p_rect . height / 2;
+	}
+
+	MCRectangle t_rect;
+	MCU_set_rect(t_rect, t_cx - t_diameter / 2, t_cy - t_diameter / 2, t_diameter, t_diameter);
+	return t_rect;
+}
+
+// A slider in the dark appearance: the trackbar class has no dark variant
+Boolean MCNativeTheme::drawdarkslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
+{
+	MCRectangle sbincarrowrect, sbdecarrowrect, sbthumbrect, sbinctrackrect, sbdectrackrect;
+	getscrollbarrects(winfo, drect, sbincarrowrect, sbdecarrowrect, sbthumbrect, sbinctrackrect, sbdectrackrect);
+
+	bool t_vertical = (winfo . attributes & WTHEME_ATT_SBVERTICAL) != 0;
+	bool t_disabled = (winfo . state & WTHEME_STATE_DISABLED) != 0;
+	// The thumb shows the mouse only when it is over the thumb
+	bool t_thumb_part = winfo . part == WTHEME_PART_THUMB;
+	bool t_pressed = t_thumb_part && (winfo . state & WTHEME_STATE_PRESSED) != 0;
+	bool t_hover = t_thumb_part && (winfo . state & WTHEME_STATE_HOVER) != 0;
+
+	// The decreasing side of the track in the accent colour, the rest grey
+	if (sbdectrackrect . width > 0 && sbdectrackrect . height > 0)
+		MCDarkFill(dc, MCDarkSliderTrackStrip(sbdectrackrect, t_vertical), t_disabled ? MCDarkGrey(s_dark_slider_track_disabled) : MCaccentcolor);
+	if (sbinctrackrect . width > 0 && sbinctrackrect . height > 0)
+		MCDarkFill(dc, MCDarkSliderTrackStrip(sbinctrackrect, t_vertical), MCDarkGrey(t_disabled ? s_dark_slider_track_disabled : s_dark_slider_track));
+
+	if (sbthumbrect . width > 0 && sbthumbrect . height > 0)
+	{
+		MCRectangle t_thumb = MCDarkSliderThumbRect(sbthumbrect, drect, t_vertical);
+		uint16_t t_fill;
+		if (t_disabled)
+			t_fill = s_dark_slider_thumb_disabled;
+		else if (t_pressed)
+			t_fill = s_dark_slider_thumb_pressed;
+		else if (t_hover)
+			t_fill = s_dark_slider_thumb_hover;
+		else
+			t_fill = s_dark_slider_thumb;
+		// The outline as a filled circle under the fill, which keeps it
+		// crisp when scaled
+		dc -> setfillstyle(FillSolid, nil, 0, 0);
+		dc -> setforeground(MCDarkGrey(t_disabled ? s_dark_slider_thumb_border_disabled : s_dark_slider_thumb_border));
+		dc -> fillarc(t_thumb, 0, 360);
+		dc -> setforeground(MCDarkGrey(t_fill));
+		dc -> fillarc(MCU_reduce_rect(t_thumb, 1), 0, 360);
+	}
+	return True;
+}
+
 Boolean MCNativeTheme::drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
 {
 	if (winfo.datatype != WTHEME_DATA_SCROLLBAR &&
 	        winfo.type != WTHEME_TYPE_SMALLSCROLLBAR)
 		return False;
+	// The light appearance keeps the native trackbar
+	if (widgetisdark(winfo, dc))
+		return drawdarkslider(dc, winfo, drect);
 	MCWidgetScrollBarInfo *sbinfo = (MCWidgetScrollBarInfo *)winfo.data;
 	//draw arrows
 	MCWidgetInfo twinfo = winfo;
@@ -1123,6 +1667,8 @@ Boolean MCNativeTheme::drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 	getscrollbarrects(winfo, drect, sbincarrowrect, sbdecarrowrect, sbthumbrect,sbinctrackrect,sbdectrackrect);
 	uint4 sbpartdefaultstate = winfo.state & WTHEME_STATE_DISABLED? WTHEME_STATE_DISABLED: WTHEME_STATE_CLEAR;
 	memset(&twinfo,0,sizeof(MCWidgetInfo)); //clear widget info
+	// The parts are drawn in the appearance of the slider's object
+	twinfo.whichobject = winfo.whichobject;
 	//draw upper and lower tracks first
 	twinfo.type = winfo.attributes & WTHEME_ATT_SBVERTICAL ? WTHEME_TYPE_SLIDER_TRACK_VERTICAL: WTHEME_TYPE_SLIDER_TRACK_HORIZONTAL;
 	twinfo.state = sbpartdefaultstate;
@@ -1167,6 +1713,8 @@ Boolean MCNativeTheme::drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, c
 		sbpartdefaultstate |= WTHEME_STATE_CONTROL_HOVER;
 	
 	memset(&twinfo,0,sizeof(MCWidgetInfo)); //clear widget info
+	// The parts are drawn in the appearance of the scrollbar's object
+	twinfo.whichobject = winfo.whichobject;
 
 	bool t_vertical;
 	t_vertical = (winfo . attributes & WTHEME_ATT_SBVERTICAL) != 0;
@@ -1226,7 +1774,7 @@ Boolean MCNativeTheme::drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, c
 }
 
 // Draws one part of a scrollbar in dark mode when the dark scrollbar class
-// is missing (see OpenScrollbarTheme). It is flat, like Tom Perry's dark
+// is missing (see GetDarkScrollbarTheme). It is flat, like Tom Perry's dark
 // buttons in drawwidget: a dark track, a lighter thumb that brightens under
 // the mouse, and light grey arrow glyphs on the track colour. The thumb has
 // no gripper.
@@ -1236,7 +1784,7 @@ Boolean MCNativeTheme::drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo
 	bool t_active = !t_disabled && (winfo.state & (WTHEME_STATE_HOVER | WTHEME_STATE_PRESSED)) != 0;
 
 	MCColor t_track;
-	t_track.red = t_track.green = t_track.blue = 0x2B2B;
+	t_track = MCDarkGrey(s_dark_scrollbar_track);
 
 	dc->setfillstyle(FillSolid, nil, 0, 0);
 	switch (winfo.type)
@@ -1255,7 +1803,7 @@ Boolean MCNativeTheme::drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo
 			dc->fillrect(drect);
 
 			MCColor t_thumb;
-			t_thumb.red = t_thumb.green = t_thumb.blue = t_active ? 0x8A8A : 0x6E6E;
+			t_thumb = MCDarkGrey(t_active ? s_dark_scrollbar_thumb_active : s_dark_scrollbar_thumb);
 			dc->setforeground(t_thumb);
 			dc->fillrect(MCU_reduce_rect(drect, 2));
 			return True;
@@ -1270,42 +1818,24 @@ Boolean MCNativeTheme::drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo
 			dc->fillrect(drect);
 
 			// A triangle twice as wide as it is high, centred in the button
-			int2 t_half = (drect.width < drect.height ? drect.width : drect.height) / 4;
-			if (t_half < 2)
-				t_half = 2;
-			int2 t_cx = drect.x + drect.width / 2;
-			int2 t_cy = drect.y + drect.height / 2;
-			int2 t_near = t_half / 2;
-			int2 t_far = t_half - t_near;
-			MCPoint t_points[3];
+			MCDarkGlyph t_direction;
 			switch (winfo.type)
 			{
 			case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:
-				t_points[0] = MCPointMake(t_cx - t_half, t_cy + t_far);
-				t_points[1] = MCPointMake(t_cx + t_half, t_cy + t_far);
-				t_points[2] = MCPointMake(t_cx, t_cy - t_near);
+				t_direction = kMCDarkGlyphUp;
 				break;
 			case WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN:
-				t_points[0] = MCPointMake(t_cx - t_half, t_cy - t_near);
-				t_points[1] = MCPointMake(t_cx + t_half, t_cy - t_near);
-				t_points[2] = MCPointMake(t_cx, t_cy + t_far);
+				t_direction = kMCDarkGlyphDown;
 				break;
 			case WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT:
-				t_points[0] = MCPointMake(t_cx + t_far, t_cy - t_half);
-				t_points[1] = MCPointMake(t_cx + t_far, t_cy + t_half);
-				t_points[2] = MCPointMake(t_cx - t_near, t_cy);
+				t_direction = kMCDarkGlyphLeft;
 				break;
 			default:
-				t_points[0] = MCPointMake(t_cx - t_near, t_cy - t_half);
-				t_points[1] = MCPointMake(t_cx - t_near, t_cy + t_half);
-				t_points[2] = MCPointMake(t_cx + t_far, t_cy);
+				t_direction = kMCDarkGlyphRight;
 				break;
 			}
-
-			MCColor t_glyph;
-			t_glyph.red = t_glyph.green = t_glyph.blue = t_disabled ? 0x5555 : (t_active ? 0xD0D0 : 0x9A9A);
-			dc->setforeground(t_glyph);
-			dc->fillpolygon(t_points, 3);
+			MCDarkDrawGlyph(dc, drect, t_direction, (drect.width < drect.height ? drect.width : drect.height) / 4,
+							MCDarkGrey(t_disabled ? s_dark_scrollbar_glyph_disabled : (t_active ? s_dark_scrollbar_glyph_active : s_dark_scrollbar_glyph)));
 			return True;
 		}
 
@@ -1858,12 +2388,12 @@ bool MCNativeTheme::settooltiptextcolor(MCContext *p_context)
 	return true;
 }
 
-bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool p_gutter)
+bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool p_gutter, MCObject *p_object)
 {
 	//-- tperry 8th November 2025: Draw dropdown menu with dark/light mode colors
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	// (OXT-Beyond: in the appearance of the menu's card, which is that of the
+	// menu's button, MCStack::createmenu)
+	bool t_is_dark = objectisdark(p_object, dc);
 	
 	MCColor t_bg_color;
 	MCColor t_border_color;
@@ -1897,12 +2427,11 @@ bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const
 	return true;
 }
 
-bool MCNativeTheme::drawmenubarbackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool is_active)
+bool MCNativeTheme::drawmenubarbackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool is_active, MCObject *p_object)
 {
 	//-- tperry 8th November 2025: Draw menubar with dark/light mode colors
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	// (OXT-Beyond: in the menubar group's appearance)
+	bool t_is_dark = objectisdark(p_object, dc);
 	
 	// Set the background color based on dark/light mode
 	MCColor t_bg_color;
@@ -1962,9 +2491,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 		// Draw checkmark if menu item is hilited (checked)
 		if (p_button -> getstate(CS_HILITED))
 		{
-			MCSystemAppearance t_appearance;
-			MCscreen->getsystemappearance(t_appearance);
-			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			bool t_is_dark = objectisdark(p_button, p_context);
 			
 			// Set checkmark color based on dark mode
 			if (t_is_dark)
@@ -1993,9 +2520,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 		// Draw cascade arrow if menu item has submenu
 		if (p_button -> getmenumode() == WM_CASCADE)
 		{
-			MCSystemAppearance t_appearance;
-			MCscreen->getsystemappearance(t_appearance);
-			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			bool t_is_dark = objectisdark(p_button, p_context);
 			
 			// Set arrow color based on dark mode
 			if (t_is_dark)
@@ -2019,9 +2544,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 	else
 	{
 		// Draw separator line
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = objectisdark(p_button, p_context);
 		
 		MCColor t_sep_color;
 		if (t_is_dark)
@@ -2280,7 +2803,7 @@ void MCGDIDrawTheme(HDC p_dc, void *p_context)
 // must be below half. A part that draws nothing counts as dark, which is
 // what matters here: the dark background shows through it. Used to tell the
 // dark scrollbar class from the light one it falls back to (see
-// MCNativeTheme::OpenScrollbarTheme).
+// MCNativeTheme::GetDarkScrollbarTheme).
 static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state)
 {
 	const uint2 t_width = 16;

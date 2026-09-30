@@ -664,6 +664,8 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef menu, uindex_t index, MCPla
 //////////
 
 bool MCPlatformPopUpMenu(MCPlatformMenuRef menu, MCPlatformWindowRef window, MCPoint location, uindex_t item);
+// The appearance a menu pops up in (macOS 10.14 or later; nothing elsewhere)
+void MCPlatformSetMenuDarkAppearance(MCPlatformMenuRef menu, bool dark);
 
 //////////
 
@@ -804,6 +806,10 @@ enum MCPlatformWindowProperty
     kMCPlatformWindowPropertyIgnoreMouseEvents,
     
     kMCPlatformWindowPropertyDocumentFilename,
+
+    // Whether the window's frame and the system parts in it are drawn in the
+    // dark appearance (bool); the stack sets it from how its card is drawn
+    kMCPlatformWindowPropertyDarkAppearance,
 };
 
 void MCPlatformSetWindowProperty(MCPlatformWindowRef window, MCPlatformWindowProperty property, MCPlatformPropertyType type, const void *value);
@@ -1291,7 +1297,8 @@ enum
     kMCPlatformControlStateReadOnly         = (1<<7),   // Control is not modifiable
     kMCPlatformControlStateSelected         = (1<<8),   // Control is selected
     kMCPlatformControlStateWindowActive     = (1<<9),   // Control is in focused window
-    
+    kMCPlatformControlStateDarkAppearance   = (1<<10),  // Control is drawn in the dark appearance (MCObject::isdarkappearance)
+
     kMCPlatformControlStateCompatibility    = (1<<31),   // Use backwards-compatible theming
     
     kMCPlatformControlStateNormal           = 0

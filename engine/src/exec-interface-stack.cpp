@@ -2295,3 +2295,35 @@ void MCStack::GetMinStackFileVersion(MCExecContext &ctxt, MCStringRef& r_stack_f
     
     ctxt . Throw();    
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// The stackAppearance: "" (inherit), "light", "dark" or "system". Its
+// effective value is where the colours of the stack's objects start; each
+// object can still be drawn light in a dark stack (MCObject::isdarkappearance).
+
+void MCStack::GetStackAppearance(MCExecContext& ctxt, intenum_t*& r_mode)
+{
+	if (m_appearance_mode == kMCAppearanceModeInherit)
+		r_mode = nil;
+	else
+		*r_mode = (intenum_t)m_appearance_mode;
+}
+
+void MCStack::SetStackAppearance(MCExecContext& ctxt, intenum_t* p_mode)
+{
+	MCAppearanceMode t_mode = kMCAppearanceModeInherit;
+	if (p_mode != nil)
+		t_mode = (MCAppearanceMode)*p_mode;
+	if (t_mode == (MCAppearanceMode)m_appearance_mode)
+		return;
+	m_appearance_mode = t_mode;
+	// Its substacks and menus inherit it, and their colours may depend on
+	// it, so everything is redrawn
+	MCAppearanceChanged();
+}
+
+void MCStack::GetEffectiveStackAppearance(MCExecContext& ctxt, intenum_t& r_mode)
+{
+	r_mode = MCAppearanceIsDark(this) ? kMCAppearanceModeDark : kMCAppearanceModeLight;
+}

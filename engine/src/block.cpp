@@ -24,6 +24,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "globals.h"
 
 #include "stack.h"
+#include "dispatch.h"
 #include "field.h"
 #include "image.h"
 #include "paragraf.h"
@@ -1254,16 +1255,47 @@ void MCBlock::draw(MCDC *dc, coord_t x, coord_t lx, coord_t cx, int2 y, findex_t
 
 	// MW-2008-02-05: [[ Bug 5821 ]] Compute the appropriate foreground color here and use
 	//   it to set the foreground either side of the selected run.
+	// The default link colours are dark (0,0,239 is 1.9:1 on the dark
+	// background), so a field drawn dark uses light variants of those that
+	// still have the engine's default value (globals.cpp, X_clear). This is
+	// decided per colour: a stack's own link attributes start as a copy of
+	// the global ones (setting only its underlineLinks makes one), and a
+	// script that sets one link colour leaves the other two at the default.
+	// A colour a script chose is drawn as set.
+	static const MCColor s_default_link = { 0, 0, 0xEFBE };
+	static const MCColor s_default_link_visited = { 0x5144, 0x1861, 0x8038 };
+	static const MCColor s_default_link_hilite = { 0xFFFF, 0, 0 };
+	static MCColor s_dark_link = { 0x6E6E, 0xA8A8, 0xFFFF };
+	static MCColor s_dark_link_visited = { 0xBEBE, 0x9696, 0xFFFF };
+	static MCColor s_dark_link_hilite = { 0xFFFF, 0x6E6E, 0x6E6E };
 	if (fontstyle & FA_LINK)
 	{
 		Linkatts *a = f->getstack()->getlinkatts();
+		MCColor *t_link;
+		const MCColor *t_default;
+		MCColor *t_dark_variant;
 		if (flags & F_HILITED)
-			t_foreground_color = &a -> hilitecolor;
+		{
+			t_link = &a -> hilitecolor;
+			t_default = &s_default_link_hilite;
+			t_dark_variant = &s_dark_link_hilite;
+		}
+		else if (flags & F_VISITED)
+		{
+			t_link = &a -> visitedcolor;
+			t_default = &s_default_link_visited;
+			t_dark_variant = &s_dark_link_visited;
+		}
 		else
-			if (flags & F_VISITED)
-				t_foreground_color = &a -> visitedcolor;
-			else
-				t_foreground_color = &a -> color;
+		{
+			t_link = &a -> color;
+			t_default = &s_default_link;
+			t_dark_variant = &s_dark_link;
+		}
+		t_foreground_color = t_link;
+		if (t_link -> red == t_default -> red && t_link -> green == t_default -> green &&
+			t_link -> blue == t_default -> blue && f -> isdarkappearance(dc -> gettype()))
+			t_foreground_color = t_dark_variant;
 		ull = a->underline;
 	}
 
@@ -2323,14 +2355,34 @@ MCBlock *MCBlock::GetPrevBlockVisualOrder()
     return nil;
 }
 
+// Whether an object or one of its owners sets the text colour
+static bool MCBlockTextColorIsSet(MCObject *p_object)
+{
+    for (MCObject *t_object = p_object; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+    {
+        uint2 i;
+        if (t_object -> getcindex(DI_FORE, i) || t_object -> getpindex(DI_FORE, i))
+            return true;
+    }
+    return false;
+}
+
 void MCBlock::setcolorfornormaltext(MCDC* dc, MCColor* p_color)
 {
     MCField* f = parent->getparent();
-    
+
     if (p_color != nil)
         dc->setforeground(*p_color);
     else if (flags & F_HAS_COLOR)
         dc->setforeground(*atts -> color);
+    else if ((flags & F_HAS_BACK_COLOR) != 0 && !MCBlockTextColorIsSet(f) && f -> isdarkappearance(dc -> gettype()))
+    {
+        // A run with a background colour of its own (a highlight) and the
+        // default text colour, in a field drawn dark: the dark default text
+        // (white) would be lost on a light highlight such as yellow, so the
+        // text is black on a light run and white on a dark one
+        dc->setforeground(MCAppearanceColorIsLight(*atts -> backcolor) ? MCscreen -> getblack() : MCscreen -> getwhite());
+    }
     else
         f->setforeground(dc, DI_PSEUDO_TEXT_COLOR, False, True);
 }
@@ -2345,11 +2397,25 @@ void MCBlock::setcolorforhilite(MCDC* dc)
 void MCBlock::setcolorforselectedtext(MCDC* dc, MCColor* p_color)
 {
     MCField* f = parent->getparent();
-    
+
     if (p_color != nil)
         dc->setforeground(*p_color);
     else if (flags & F_HAS_COLOR)
         dc->setforeground(*atts -> color);
+    else if (f -> isdarkappearance(dc -> gettype()))
+    {
+        // In a field drawn dark neither the field's colour (the reversed
+        // background, dark) nor its text colour (white) is sure to read on
+        // the selection colour, which is the user's accent colour: choose
+        // white or black by the selection colour's perceived luminance
+        // (ITU-R BT.601), after HyperXTalk 798311a85
+        MCColor t_hilite;
+        MCPatternRef t_pattern = nil;
+        int2 t_x = 0, t_y = 0;
+        f->getforecolor(DI_HILITE, False, True, t_hilite, t_pattern, t_x, t_y, dc -> gettype(), f);
+        uint32_t t_luma = (299 * (t_hilite . red >> 8) + 587 * (t_hilite . green >> 8) + 114 * (t_hilite . blue >> 8)) / 1000;
+        dc->setforeground(t_luma < 128 ? MCscreen -> getwhite() : MCscreen -> getblack());
+    }
     else if (!IsMacLF()) // TODO: if platform reverses selected text
         f->setforeground(dc, DI_PSEUDO_TEXT_COLOR_SEL_BACK, False, True, true);
     else

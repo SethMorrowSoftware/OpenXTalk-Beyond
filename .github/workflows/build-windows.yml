@@ -484,21 +484,39 @@ jobs:
         run: ./tools/ci/ide-contrast-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-contrast-check.log"
 
       # Run the staged engine with a user interface (the native theme and the
-      # dark colours need one) on tools/ci/render-test.livecodescript, once
-      # with the runner's Windows in dark mode and once in light mode
-      # (HKCU ...\Themes\Personalize AppsUseLightTheme, put back afterwards),
-      # and measure the PNG files it writes with tools/ci/render_check.py:
-      # disabled push button, checkbox, radio button, graphic and tab labels
-      # must be drawn once, flat, in the disabled grey (not engraved with a
-      # white copy), and scrollbar tracks must be dark in dark mode and light
-      # in light mode, with a visible thumb. The images are uploaded as
-      # "render-test".
-      - name: Render test (dark and light)
+      # light and dark colours need one) on tools/ci/render-test.livecodescript
+      # (see render-test.ps1): with the runner's Windows in dark and in light
+      # mode (HKCU ...\Themes\Personalize AppsUseLightTheme, put back
+      # afterwards), with the appAppearance "system", forced "dark" and left
+      # at its default, and once with the engine of the release
+      # RENDER_BASELINE_TAG, the reference for the light appearance. The PNG
+      # files are measured with tools/ci/render_check.py (disabled labels
+      # drawn once and flat, dark and light scrollbars, the owner's light
+      # design kept in every appearance, a stack with no colours dark in the
+      # dark one) and the runs are compared: the light appearance must match
+      # the reference release, a dark Windows with the default appAppearance
+      # must match a light one, and forced dark must match dark. The images
+      # are uploaded as "render-test".
+      - name: Render test (appearances)
         id: render_test
-        timeout-minutes: 15
+        timeout-minutes: 30
         env:
           VERSION: ${{ steps.product.outputs.version }}
-        run: ./tools/ci/render-test.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -OutDir "$env:RUNNER_TEMP\render-test" -LogFile "$env:RUNNER_TEMP\build-logs\render-test.log"
+          GH_TOKEN: ${{ github.token }}
+          # The last release before the appearance properties: its light
+          # appearance is the reference. Move it only on purpose.
+          RENDER_BASELINE_TAG: v0.1.0
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'render-baseline'
+          if (Test-Path -LiteralPath $baseline) { Remove-Item -LiteralPath $baseline -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $baseline | Out-Null
+          gh release download $env:RENDER_BASELINE_TAG --repo ${{ github.repository }} --pattern "*-win-x86_64-portable.zip" --dir $baseline
+          if ($LASTEXITCODE -ne 0) { throw "Could not download the portable zip of $env:RENDER_BASELINE_TAG" }
+          $zip = @(Get-ChildItem -LiteralPath $baseline -Filter '*-win-x86_64-portable.zip')
+          if ($zip.Count -ne 1) { throw "Expected one portable zip of $env:RENDER_BASELINE_TAG, found $($zip.Count)" }
+          $layout = Join-Path $baseline 'layout'
+          Expand-Archive -LiteralPath $zip[0].FullName -DestinationPath $layout
+          ./tools/ci/render-test.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -BaselineRoot $layout -OutDir "$env:RUNNER_TEMP\render-test" -LogFile "$env:RUNNER_TEMP\build-logs\render-test.log"
 
       - name: Upload render test images
         if: always()
@@ -680,6 +698,6 @@ jobs:
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
           $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, IDE contrast check, render test and installer logs'
-          $lines += '- render-test: the images of the render test (dark and light) and what the engine printed'
+          $lines += '- render-test: the images of the render test (each run: the light and dark appearance on a dark and a light Windows, and the reference release) and what the engine printed'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8

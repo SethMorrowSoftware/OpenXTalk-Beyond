@@ -620,10 +620,10 @@ upstream `develop` branch as it was left in July 2021, version
 9.7.0-dp-1), not the 9.6.3 release, plus Tom Perry's OpenXTalk Lite
 engine changes for Windows (commit `38d5712b2`):
 
-- **Windows dark mode.** The engine follows the Windows light/dark
-  setting: dark window title bars, system colours that update when the
-  theme changes (with a `systemAppearanceChanged` message and a redraw of
-  open stacks), and dark-mode aware checkmarks and cascade arrows.
+- **Windows dark mode.** Dark window title bars, dark system colours
+  that update when the theme changes (with a `systemAppearanceChanged`
+  message and a redraw of open stacks), and dark-mode aware checkmarks
+  and cascade arrows. OXT-Beyond makes it a choice (below).
 - **Windows 11 detection.** The engine reports Windows 11 correctly.
 - **`_internal respring`.** A development-engine command that restarts
   the IDE in place: it closes all stacks and reloads the home stack.
@@ -636,6 +636,26 @@ engine changes for Windows (commit `38d5712b2`):
 - **Version 9.7.1-OXT**, build 25923 (see the `version` file). The
   engine version is separate from the OXT-Beyond product version in
   `ide/.version`.
+
+**Light by default, dark mode by choice.** The engine draws in the light
+appearance unless a script chooses otherwise, on every platform and in
+standalones too: `the appAppearance` is `"light"` by default, `"dark"`,
+or `"system"` to follow Windows or macOS, and `the stackAppearance of
+<stack>` sets it for one stack (empty inherits). The IDE uses them for
+its Light, Dark and Follow the System preferences. Where a stack is drawn
+dark, the engine fits each object's unset colours to the colours its
+author set around it, so a stack designed light (a white field with no
+text colour, a checkbox on a light card) still looks as designed, and a
+stack that sets no colours goes dark; the light appearance is drawn
+exactly as before. `the systemAppearance` still reports the operating
+system's setting. See
+[docs/notes/feature-appearance.md](docs/notes/feature-appearance.md).
+
+Standalones built with OpenXTalk Lite 1.14 or later, or with OXT-Beyond
+0.1.0 or earlier, followed the dark mode of Windows (and of macOS). Built
+again with this version they are light, unless the mainstack's startup
+or preOpenStack handler opts in with one line:
+`set the appAppearance to "system"`.
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
@@ -727,7 +747,16 @@ Known limitations, in rough order of importance:
    [Where OXT-Beyond keeps your files](#where-oxt-beyond-keeps-your-files)).
    Plan: move them to OXT-Beyond's folders when the binary stacks are
    changed, and in the engine.
-9. In an install for all users, a few things that save stacks inside
+9. The dark appearance has limits. A transparent label or checkbox with
+   a dark text colour of its own, on a card with no colour, stays dark on
+   the dark card. On Linux the native controls are drawn by the GTK
+   theme, so every stack follows it and the appearance properties change
+   nothing there; a light-designed stack under a dark GTK theme can still
+   show white text on white. On macOS the classic native controls stay
+   light in the dark appearance. Plans: a fixed light palette for the
+   Linux theme's light-designed objects, and Tom Perry's AppKit-drawn
+   macOS controls.
+10. In an install for all users, a few things that save stacks inside
    the program folder fail for standard users, because Setup keeps
    stacks and scripts there read-only: the Report Builder plugin saving
    itself when it closes, *Plugin Settings* changes to the plugins that

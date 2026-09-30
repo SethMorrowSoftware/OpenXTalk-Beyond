@@ -151,6 +151,11 @@ MCPropertyInfo MCStack::kProperties[] =
 	DEFINE_RO_OBJ_ENUM_PROPERTY(P_CHARSET, InterfaceCharset, MCStack, Charset)
 	DEFINE_RW_OBJ_PROPERTY(P_FORMAT_FOR_PRINTING, Bool, MCStack, FormatForPrinting)
 
+	// "" (inherit), "light", "dark" or "system"; the effective one is "light"
+	// or "dark" (appearance.cpp)
+	DEFINE_RW_OBJ_NON_EFFECTIVE_OPTIONAL_ENUM_PROPERTY(P_STACK_APPEARANCE, InterfaceAppearanceMode, MCStack, StackAppearance)
+	DEFINE_RO_OBJ_EFFECTIVE_ENUM_PROPERTY(P_STACK_APPEARANCE, InterfaceAppearanceMode, MCStack, StackAppearance)
+
 	DEFINE_RW_OBJ_NON_EFFECTIVE_CUSTOM_PROPERTY(P_LINK_COLOR, InterfaceNamedColor, MCStack, LinkColor)
 	DEFINE_RO_OBJ_EFFECTIVE_CUSTOM_PROPERTY(P_LINK_COLOR, InterfaceNamedColor, MCStack, LinkColor)
 	DEFINE_RW_OBJ_NON_EFFECTIVE_CUSTOM_PROPERTY(P_LINK_HILITE_COLOR, InterfaceNamedColor, MCStack, LinkHiliteColor)
@@ -324,8 +329,16 @@ MCStack::MCStack()
     m_attachments = nil;
     
 	view_init();
-    
+
     m_is_ide_stack = false;
+
+	// The stackAppearance is "" until a script sets it; it is never loaded
+	// from a stack file.
+	m_appearance_mode = kMCAppearanceModeInherit;
+	m_window_dark = false;
+	m_window_dark_set = false;
+	m_menu_baked_colors = 0;
+	m_menu_baked_dark = false;
 }
 
 MCStack::MCStack(const MCStack &sref)
@@ -539,8 +552,16 @@ MCStack::MCStack(const MCStack &sref)
     m_document_filename = MCValueRetain(kMCEmptyString);
     
 	view_copy(sref);
-    
+
     m_is_ide_stack = sref.m_is_ide_stack;
+
+	// A clone keeps the source's stackAppearance, as it keeps the IDE marker;
+	// its window is a new one.
+	m_appearance_mode = sref.m_appearance_mode;
+	m_window_dark = false;
+	m_window_dark_set = false;
+	m_menu_baked_colors = 0;
+	m_menu_baked_dark = false;
 }
 
 MCStack::~MCStack()
