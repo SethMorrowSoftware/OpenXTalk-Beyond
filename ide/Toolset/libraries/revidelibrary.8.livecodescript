@@ -2898,7 +2898,24 @@ end __revIDEAppearanceRefresh
 -- (revSEAppearanceKey). When the appearance changed while it is open, its
 -- controls show the new slot's values at once: otherwise the next edit
 -- would write a value shown from the other slot into this one.
+-- Its custom scheme dialog (the substack "CustomScriptCol", a window of its
+-- own that can stay open) is closed instead: it shows the colours of the
+-- slot it opened in, and each edit writes all of them to the file of the
+-- slot of the appearance at that moment (revSECustomSchemeFile), so after
+-- a change they would replace the new slot's colours. Loading the new slot
+-- into it is no better: with no custom colours to read, it writes the
+-- default ones and makes "Custom" that slot's scheme, which the user did
+-- not choose. The Colorization Scheme menu closes it the same way at each
+-- pick. An edit whose colour picker is open during the change is dropped
+-- by the dialog itself.
 private command __revIDEPrefsScriptEditorRefresh
+   if "CustomScriptCol" is among the lines of the openStacks and \
+         "revPreferencesGUI" is among the lines of the mainStacks then
+      try
+         close stack "CustomScriptCol" of stack "revPreferencesGUI"
+      catch tError
+      end try
+   end if
    if "revPreferencesGUI" is not among the lines of the openStacks then
       exit __revIDEPrefsScriptEditorRefresh
    end if
