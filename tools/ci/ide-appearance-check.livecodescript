@@ -122,7 +122,7 @@ on startup
       check "IDE dark: home stack", stackAppearanceOf("home") is "dark", stackAppearanceOf("home")
       check "IDE dark: user stack", stackAppearanceOf("oxtAppearanceCheckUser") is empty, stackAppearanceOf("oxtAppearanceCheckUser")
       check "IDE dark: user substack", stackAppearanceOf("oxtAppearanceCheckUserSub") is empty, stackAppearanceOf("oxtAppearanceCheckUserSub")
-      check "IDE dark: appAppearance", appAppearance() is "light", appAppearance()
+      check "IDE dark: appAppearance", currentAppAppearance() is "light", currentAppAppearance()
       check "IDE dark: systemAppearance unchanged", the systemAppearance is tSystem, the systemAppearance
       put revIDEAppearanceMenu() into tMenu
       if the platform is "Linux" then
@@ -137,13 +137,13 @@ on startup
       end if
 
       revIDESetAppearance "stacks", "ide"
-      check "stacks same as IDE: appAppearance", appAppearance() is "dark", appAppearance()
+      check "stacks same as IDE: appAppearance", currentAppAppearance() is "dark", currentAppAppearance()
       check "stacks same as IDE: user stack", stackAppearanceOf("oxtAppearanceCheckUser") is empty, stackAppearanceOf("oxtAppearanceCheckUser")
 
       revIDESetAppearance "stacks", "light"
       revIDESetAppearance "ide", "light"
       check "IDE light again: IDE stack", stackAppearanceOf("revAppearanceCheckIDE") is "light", stackAppearanceOf("revAppearanceCheckIDE")
-      check "IDE light again: appAppearance", appAppearance() is "light", appAppearance()
+      check "IDE light again: appAppearance", currentAppAppearance() is "light", currentAppAppearance()
       if the platform is not "Linux" then
          check "IDE light again: revIDEIsDark", revIDEIsDark() is false, revIDEIsDark()
          check "IDE light again: ideAppearanceChanged sent twice in all", sAppearanceMessages is 2, sAppearanceMessages
@@ -260,7 +260,10 @@ private function effectiveOf pStack
    return tValue
 end effectiveOf
 
-private function appAppearance
+-- Not named appAppearance: on an engine with the property that word is a
+-- property token, so appAppearance() would parse as the property and the
+-- script would not compile (and -ui would wait instead of quitting)
+private function currentAppAppearance
    local tValue
    try
       do "put the appAppearance into tValue"
@@ -268,4 +271,4 @@ private function appAppearance
       return "(error " & oneLine(tError) & ")"
    end try
    return tValue
-end appAppearance
+end currentAppAppearance
