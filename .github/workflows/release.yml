@@ -163,7 +163,7 @@ jobs:
               echo "::error::The release $tag is published already ($out); it is never replaced. Tag a new version."
               exit 1
             fi
-          elif ! printf '%s\n' "$out" | grep -q 'HTTP 404'; then
+          elif ! grep -q 'HTTP 404' <<< "$out"; then
             echo "::error::Could not check for a published release $tag: $out"
             exit 1
           fi
@@ -320,7 +320,9 @@ jobs:
               --jq ".[] | select(.tag_name == \"$TAG\") | \"\(.id) \(.draft)\""
           }
           releases=$(releases_of_tag)
-          if printf '%s\n' "$releases" | grep -q ' false$'; then
+          # (grep reads a here-string, not a pipe: with pipefail, grep -q
+          # ending a pipe early could make a match look like none)
+          if grep -q ' false$' <<< "$releases"; then
             echo "::error::The release $TAG is published already; it is never replaced, and nothing was changed. Tag a new version."
             exit 1
           fi
@@ -342,11 +344,16 @@ jobs:
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               --generate-notes \
               "${prerelease_flag[@]}"
-            id=$(releases_of_tag | awk '$2 == "true" { print $1 }')
-            if [ "$(printf '%s\n' "$id" | grep -c .)" != 1 ]; then
-              echo "::error::Could not find the draft release of $TAG just created (found: $(echo $id))"
-              exit 1
-            fi
+            # The list can lag a moment behind the create
+            for attempt in 1 2 3 4 5; do
+              id=$(releases_of_tag | awk '$2 == "true" { print $1 }')
+              if [ "$(printf '%s\n' "$id" | grep -c . || true)" = 1 ]; then break; fi
+              if [ "$attempt" = 5 ]; then
+                echo "::error::Could not find the draft release of $TAG just created (found: $(echo $id)); re-run this job to reuse it"
+                exit 1
+              fi
+              sleep $((5 * attempt))
+            done
             echo "Created the draft release $id of $TAG"
           fi
 
