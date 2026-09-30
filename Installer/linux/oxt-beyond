@@ -1,0 +1,231 @@
+#!/bin/sh
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# Starts OXT-Beyond on Linux: the engine OXT-Beyond in the same folder, with
+# the arguments given ("oxt-beyond my.oxtstack" opens a stack; the desktop
+# entry passes the file it is asked to open).
+#
+# Before that it checks the system libraries listed in linux/libraries.txt
+# (see there), because the engine loads GTK 2, GDK, Cairo, Pango and the
+# rest with dlopen and simply ends when a required one is missing, with
+# nothing on the screen. A missing "core" or "gui" library stops the
+# launcher with the library's name and the package to install (on the
+# terminal, or in a dialog when zenity, kdialog or xmessage is there); with
+# -ui (no user interface) only the "core" ones are needed. A missing
+# "browser" library (CEF's) sets LIVECODE_USE_CEF=0, which makes the IDE
+# show the dictionary and other web pages in the system's browser
+# (revIDEBrowserWidgetUnavailable) instead of a browser widget that cannot
+# load. So does a package without CEF. A LIVECODE_USE_CEF that is already
+# set is left alone, and OXT_BEYOND_SKIP_LIBRARY_CHECK=1 skips the checks.
+#
+# A library counts as present when it is in a folder of LD_LIBRARY_PATH, in
+# the loader's cache for this machine's architecture (ldconfig -p) or in
+# the architecture's standard library folders: where dlopen finds it.
+#
+# POSIX sh only (dash, bash, busybox sh), no readlink -f: install.sh links
+# ~/.local/bin/oxt-beyond to this file, and the engine is found next to the
+# file itself, not next to the link.
+
+set -f
+nl='
+'
+tab=$(printf '\t')
+
+# The folder of this script, with symbolic links followed one step at a time
+self=$0
+case $self in
+    */*) ;;
+    *) self=./$self ;;
+esac
+hops=0
+while [ -L "$self" ]; do
+    hops=$((hops + 1))
+    if [ "$hops" -gt 40 ] || ! link=$(readlink "$self"); then
+        printf 'oxt-beyond: cannot follow the symbolic link %s\n' "$self" >&2
+        exit 1
+    fi
+    case $link in
+        /*) self=$link ;;
+        *) self=${self%/*}/$link ;;
+    esac
+done
+dir=${self%/*}
+[ -n "$dir" ] || dir=/
+here=$(cd -P -- "$dir" && pwd -P) || exit 1
+engine=$here/OXT-Beyond
+
+# A message on the terminal, and in a dialog when there is no terminal to
+# show it (started from the application menu)
+tell() {
+    printf '%s\n' "$1" >&2
+    [ -t 2 ] && return 0
+    [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || return 0
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --no-wrap --title=OXT-Beyond --text="$1" >/dev/null 2>&1 && return 0
+    fi
+    if command -v kdialog >/dev/null 2>&1; then
+        kdialog --title OXT-Beyond --error "$1" >/dev/null 2>&1 && return 0
+    fi
+    if command -v xmessage >/dev/null 2>&1; then
+        printf '%s\n' "$1" | xmessage -center -file - >/dev/null 2>&1
+    fi
+    return 0
+}
+
+if [ ! -f "$engine" ] || [ ! -x "$engine" ]; then
+    tell "OXT-Beyond: the engine $engine is missing or not executable. Extract the whole package (tar -xJf OXT-Beyond-<version>-linux-x86_64.tar.xz) and start oxt-beyond from its folder."
+    exit 1
+fi
+
+# A folder named like a build output makes the engine run the IDE of the
+# source checkout above it instead of this one (repository mode; see
+# tools/oxt/package.py repository_mode_trap)
+lower=$(printf '%s' "$here" | tr '[:upper:]' '[:lower:]')
+case $lower/ in
+    */_build/*|*/linux-bin/*|*/linux-x86_64-bin/*|*/linux-arm64-bin/*|*/build-linux-x86_64/*|*/build-linux-arm64/*)
+        printf 'oxt-beyond: warning: %s has a folder name that makes the engine look for a source checkout above it (repository mode); move the program to another folder\n' "$here" >&2 ;;
+esac
+
+headless=0
+for arg in "$@"; do
+    [ "$arg" = -ui ] && headless=1
+done
+
+if [ "${OXT_BEYOND_SKIP_LIBRARY_CHECK:-}" != 1 ]; then
+    case $(uname -m 2>/dev/null) in
+        x86_64|amd64)
+            ldtag=x86-64
+            libdirs='/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu /lib64 /usr/lib64' ;;
+        aarch64|arm64)
+            ldtag=AArch64
+            libdirs='/lib/aarch64-linux-gnu /usr/lib/aarch64-linux-gnu /lib64 /usr/lib64' ;;
+        *)
+            ldtag=
+            libdirs='/lib /usr/lib' ;;
+    esac
+    # The loader's cache, this architecture's entries only (lines such as
+    # "<tab>libX11.so.6 (libc6,x86-64) => /lib/x86_64-linux-gnu/libX11.so.6").
+    # ldconfig is in /sbin, which a user's PATH may lack.
+    ldcache=
+    for c in ldconfig /sbin/ldconfig /usr/sbin/ldconfig; do
+        if out=$("$c" -p 2>/dev/null); then
+            if [ -n "$ldtag" ]; then
+                ldcache=$(printf '%s\n' "$out" | grep -F "libc6,$ldtag")
+            else
+                ldcache=$out
+            fi
+            break
+        fi
+    done
+
+    have_lib() {
+        if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+            saved_ifs=$IFS
+            IFS=:
+            for d in $LD_LIBRARY_PATH; do
+                if [ -n "$d" ] && [ -e "$d/$1" ]; then
+                    IFS=$saved_ifs
+                    return 0
+                fi
+            done
+            IFS=$saved_ifs
+        fi
+        case $ldcache in
+            *"$tab$1 ("*) return 0 ;;
+        esac
+        for d in $libdirs; do
+            [ -e "$d/$1" ] && return 0
+        done
+        return 1
+    }
+
+    missing=
+    missing_browser=
+    list=$here/linux/libraries.txt
+    if [ -r "$list" ]; then
+        while read -r soname use deb rpm rest; do
+            case $soname in
+                ''|'#'*) continue ;;
+            esac
+            case $use in
+                core) ;;
+                gui) [ "$headless" = 1 ] && continue ;;
+                browser) ;;
+                *) continue ;;
+            esac
+            have_lib "$soname" && continue
+            if [ "$use" = browser ]; then
+                missing_browser=$missing_browser$soname$tab$deb$tab$rpm$nl
+            else
+                missing=$missing$soname$tab$deb$tab$rpm$nl
+            fi
+        done < "$list"
+    else
+        printf 'oxt-beyond: %s is missing; the system libraries are not checked\n' "$list" >&2
+    fi
+
+    # The sonames of lines "soname<tab>deb<tab>rpm", and how to install
+    # them on this distribution (both commands when it is not known). A
+    # Debian package renamed for the 64-bit time_t transition (Debian 13,
+    # Ubuntu 24.04: libasound2t64) gets its new name where apt knows it.
+    explain() {
+        names= debs= rpms=
+        apt_cache=
+        command -v apt-cache >/dev/null 2>&1 && apt_cache=1
+        while IFS=$tab read -r soname deb rpm; do
+            [ -n "$soname" ] || continue
+            names="$names  $soname$nl"
+            if [ -n "$apt_cache" ] && apt-cache show --no-all-versions "${deb}t64" >/dev/null 2>&1; then
+                deb=${deb}t64
+            fi
+            case " $debs " in *" $deb "*) ;; *) debs="${debs:+$debs }$deb" ;; esac
+            case " $rpms " in *" $rpm "*) ;; *) rpms="${rpms:+$rpms }$rpm" ;; esac
+        done <<EOF
+$1
+EOF
+        like=
+        if [ -r /etc/os-release ]; then
+            like=$(. /etc/os-release >/dev/null 2>&1; printf '%s %s' "${ID:-}" "${ID_LIKE:-}")
+        fi
+        case " $like " in
+            *" debian "*|*" ubuntu "*) hint="Install them with:$nl  sudo apt install $debs" ;;
+            *" fedora "*|*" rhel "*|*" centos "*) hint="Install them with:$nl  sudo dnf install $rpms" ;;
+            *) hint="Install the packages that provide them, for example$nl  sudo apt install $debs   (Debian, Ubuntu, Linux Mint)$nl  sudo dnf install $rpms   (Fedora, RHEL)" ;;
+        esac
+        printf '%s%s%s' "$names" "$hint" "$nl"
+    }
+
+    if [ -n "$missing" ]; then
+        tell "OXT-Beyond cannot start: these libraries are missing:$nl$(explain "$missing")${nl}To start it anyway, set OXT_BEYOND_SKIP_LIBRARY_CHECK=1."
+        exit 127
+    fi
+fi
+
+# The browser widget and revBrowser need CEF, which only the x86_64 package
+# has, and the libraries CEF needs
+if [ -z "${LIVECODE_USE_CEF+set}" ]; then
+    if [ ! -f "$here/Externals/CEF/libcef.so" ]; then
+        LIVECODE_USE_CEF=0
+        export LIVECODE_USE_CEF
+    elif [ -n "${missing_browser:-}" ]; then
+        LIVECODE_USE_CEF=0
+        export LIVECODE_USE_CEF
+        printf 'oxt-beyond: the browser widget is turned off (LIVECODE_USE_CEF=0): the browser (CEF) needs these libraries:\n%s\n' "$(explain "$missing_browser")" >&2
+    fi
+fi
+
+exec "$engine" "$@"
