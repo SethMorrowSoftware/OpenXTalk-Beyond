@@ -186,6 +186,15 @@ def _l(r, g, b):
 #   ('text_near_l', v, tol)  ... within tol of v
 #   ('text_red',)            the text is red: R > 150, G < 80, B < 80
 #   ('contrast', r)          at least r:1 between the text and what is under it
+#   ('far_near_l', v, tol)   the text's colour measured as a label's (the far
+#                            end of its pixels, the 2% quantile, as
+#                            label_colour gives it) is within tol of v
+#   ('far_contrast', r)      ... and at least r:1 against the median of what
+#                            is under it. For text in a colour close to the
+#                            limit (the disabled grey): the text colour of
+#                            the other checks is the median of the text's
+#                            core, which antialiasing pulls a few levels
+#                            towards the background
 #   ('interior_min_l', v)    the inside of a face's outline has a mean L of
 #                            at least v (a checkbox's box)
 #   ('face_median_min_l', v) the median L of a face's pixels is at least v
@@ -275,16 +284,20 @@ EXPECT = {
     # S9, the native controls in a stack with no colours, drawn dark in the
     # dark appearance (drawdarkwidget, engine/src/w32theme.cpp); in the light
     # one the comparison with the reference release proves nothing changed
+    # The disabled labels are measured by their colour, as the labels of the
+    # first checks are: the designed grey 0x89 on 0x20 is 4.66:1, and the
+    # median of an antialiased core measures a few levels lower (134 is
+    # 4.48:1), which would fail although the engine draws exactly 0x89
     's9-check': {'dark': [('contrast', 4.5)]},
-    's9-check-disabled': {'dark': [('contrast', 4.5)]},
+    's9-check-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
     's9-radio': {'dark': [('contrast', 4.5)]},
-    's9-radio-disabled': {'dark': [('contrast', 4.5)]},
+    's9-radio-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
     's9-check-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
     's9-radio-box': {'dark': [('interior_max_l', 90), ('ring_contrast', 3.0)]},
     's9-check-on-box': {'dark': [('glyph_contrast', 3.0)]},
     's9-radio-on-box': {'dark': [('glyph_contrast', 3.0), ('dot_shape',)]},
     's9-push': {'dark': [('contrast', 4.5)]},
-    's9-push-disabled': {'dark': [('contrast', 4.5)]},
+    's9-push-disabled': {'dark': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
     's9-push-face': {'dark': [('interior_max_l', 90)]},
     's9-push-pressed-face': {'dark': [('interior_max_l', 90), ('interior_differs', 's9-push-face', 6)]},
     's9-push-default-face': {'dark': [('accent_or_differs', 's9-push-face', 12)]},
@@ -1059,6 +1072,12 @@ def check_text(report, folder, name, image, reference):
     ratio = contrast_ratio(text, background)
     measured = 'text %s (L=%.0f) on %s (L=%.0f), %.2f:1, %d pixels (%s)' % (
         _fmt(text), l_text, _fmt(background), luma(background), ratio, count, where)
+    # The text's colour measured as a label's (analyse_label_pixels): the
+    # far end of its pixels against the median of what is under them
+    far_background = far = None
+    if any(want[0] in ('far_near_l', 'far_contrast') for want in wanted):
+        lums = [(x, y, luma(c), luma(b)) for (x, y, c, b) in label_pixels(rows, ref)]
+        far_background, _, far = label_colour(lums)
     for want in wanted:
         kind = want[0]
         if kind == 'record':
@@ -1081,6 +1100,16 @@ def check_text(report, folder, name, image, reference):
             ok = ratio >= want[1]
             report.check(name + ' contrast', ok, '%s, %s %.1f:1' % (
                 measured, 'at least' if ok else 'FAILED: needs at least', want[1]))
+        elif kind == 'far_near_l':
+            ok = abs(far - want[1]) <= want[2]
+            report.check(name + ' colour', ok, '%s; its colour (the far end of its pixels) L=%.0f, %s L=%.0f (+-%d)' % (
+                measured, far, 'expected' if ok else 'FAILED: expected', want[1], want[2]))
+        elif kind == 'far_contrast':
+            far_ratio = contrast_ratio(grey(far), grey(far_background))
+            ok = far_ratio >= want[1]
+            report.check(name + ' contrast', ok, '%s; its colour (the far end of its pixels, L=%.0f) on L=%.0f is '
+                         '%.2f:1, %s %.1f:1' % (measured, far, far_background, far_ratio,
+                                                'at least' if ok else 'FAILED: needs at least', want[1]))
 
 
 # The measurements of the face shots of a run so far, by name, for the checks
@@ -1694,6 +1723,8 @@ SELF_TEST_EXPECT = {
     'st-black-not-red': {'*': [('text_red',)]},
     'st-caption': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
     'st-caption-black': {'*': [('text_near_l', _l(138, 146, 158), 12)]},
+    'st-disabled-grey': {'*': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
+    'st-disabled-dim': {'*': [('far_near_l', DISABLED_GREY['dark'], GREY_TOLERANCE), ('far_contrast', 4.5)]},
     'st-box-light': {'*': [('interior_min_l', 200)]},
     'st-box-dark': {'*': [('interior_min_l', 200)]},
     'st-face-light': {'*': [('face_median_min_l', 180)]},
@@ -1845,6 +1876,11 @@ def self_test(folder):
             write_png(os.path.join(path, 'st-grey-on-white.png'), _render(white, [((200, 200, 200), 0, 0)]))
             write_png(os.path.join(path, 'st-red.png'), _render(white, [((230, 20, 20), 0, 0)]))
             write_png(os.path.join(path, 'st-caption.png'), _render(white, [((138, 146, 158), 0, 0)]))
+            # A disabled label in the dark disabled grey on the dark
+            # background, and one in a dimmer grey, measured by their colour
+            write_png(os.path.join(path, 'st-disabled-bare.png'), _render((32, 32, 32), []))
+            write_png(os.path.join(path, 'st-disabled-grey.png'), _render((32, 32, 32), [((137, 137, 137), 0, 0)]))
+            write_png(os.path.join(path, 'st-disabled-dim.png'), _render((32, 32, 32), [((120, 120, 120), 0, 0)]))
             write_png(os.path.join(path, 'st-box-bare.png'), _solid(white, 30, 24))
             write_png(os.path.join(path, 'st-box-light.png'), _box(white, (51, 51, 51), (250, 250, 250)))
             write_png(os.path.join(path, 'st-box-dark.png'), _box(white, (154, 154, 154), (32, 32, 32)))
@@ -1893,6 +1929,8 @@ def self_test(folder):
                     f.write('SHOT\ttext\t%s\t%s.png\tst-bare.png\n' % (shot, shot))
                 f.write('SHOT\ttext\tst-black-not-red\tst-black-on-white.png\tst-bare.png\n')
                 f.write('SHOT\ttext\tst-caption-black\tst-black-on-white.png\tst-bare.png\n')
+                for shot in ('st-disabled-grey', 'st-disabled-dim'):
+                    f.write('SHOT\ttext\t%s\t%s.png\tst-disabled-bare.png\n' % (shot, shot))
                 for shot in ('st-box-light', 'st-box-dark', 'st-face-light', 'st-face-dark'):
                     f.write('SHOT\tface\t%s\t%s.png\tst-box-bare.png\n' % (shot, shot))
                 f.write('SHOT\tregion\tst-region-32\tst-region-32.png\t5,5,20,10\n')
@@ -1980,6 +2018,10 @@ def self_test(folder):
             expect('st-black-not-red colour', False)
             expect('st-caption colour', True)
             expect('st-caption-black colour', False)
+            expect('st-disabled-grey colour', True)
+            expect('st-disabled-grey contrast', True)
+            expect('st-disabled-dim colour', False)
+            expect('st-disabled-dim contrast', False)
             expect('st-box-light inside', True)
             expect('st-box-dark inside', False)
             expect('st-face-light face', True)
