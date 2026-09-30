@@ -241,6 +241,11 @@ files alone, and OpenXTalk Lite's Linux "file associations" dialog is
 not shown. Your preferences, caches and logs are in `~/.oxt-beyond`;
 uninstalling keeps them.
 
+The Linux package does not include the Visual C++ runtime DLLs that the
+Windows packages put next to enetxt and Box2Dxt: a Windows standalone
+built on Linux with either of them needs the Visual C++ Redistributable
+on the PC it runs on.
+
 ### Where OXT-Beyond keeps your files
 
 | What | Where |
@@ -513,7 +518,8 @@ the native libraries are the members' prebuilt binaries, which
 OXT-Beyond checks but does not build; the Dictionary does not have
 their documentation; the standalone builder does not add the script
 libraries by itself; and enetxt and Box2Dxt need the Visual C++ runtime,
-whose DLLs OXT-Beyond ships next to them.
+whose DLLs the Windows packages ship next to them (the Linux package
+does not yet).
 
 Issues and pull requests for any of these are welcome.
 

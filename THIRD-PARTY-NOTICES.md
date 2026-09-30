@@ -311,9 +311,11 @@ Notes:
   are built with the dynamic Visual C++ runtime; the other libraries
   link it statically or, like CoinXT's MinGW build, use Windows' own
   `msvcrt.dll`. So that they also load on a PC without the Visual C++
-  Redistributable, the packages include the DLLs they import next to
-  them, in the `code/x86_64-win32/` and `code/x86-win32/` folders of the
-  two extensions: `msvcp140.dll`, `vcruntime140.dll` and (x86-64 only)
+  Redistributable, the Windows packages include the DLLs they import
+  next to them (the Linux package does not yet; see
+  [The Linux x86-64 package](#the-linux-x86-64-package)), in the
+  `code/x86_64-win32/` and `code/x86-win32/` folders of the two
+  extensions: `msvcp140.dll`, `vcruntime140.dll` and (x86-64 only)
   `vcruntime140_1.dll` for enetxt, `vcruntime140.dll` for Box2Dxt. They
   are copied unchanged from the Visual Studio redistributable folder
   (`VC\Redist\MSVC\<version>\<arch>\Microsoft.VC14x.CRT`) of the machine
@@ -398,8 +400,9 @@ it), and nothing from `Ext/`.
 
 ## The Linux x86-64 package
 
-`OXT-Beyond-<version>-linux-x86_64.tar.xz` holds the same IDE, xTalk
-Suite extensions and licence files as the Windows packages, the Linux
+`OXT-Beyond-<version>-linux-x86_64.tar.xz` holds the same IDE and
+licence files as the Windows packages, their xTalk Suite extensions
+except for the Microsoft Visual C++ runtime (see below), the Linux
 engine, externals and tools built from this repository (in the Ubuntu
 20.04 container of `.github/workflows/build-linux.yml`), and the parts
 of the runtimes asset that the Linux build does not replace. What
@@ -430,6 +433,20 @@ asset is there as in the Windows packages: `Runtime/Windows/x86-32/`,
 projects in its `lib/`), `Runtime/Android/` and the time zone library's
 code for the other platforms. The Linux package has no Windows x86-64
 standalone runtime yet.
+
+The Linux package does not contain the Microsoft Visual C++ runtime
+DLLs (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`) that the
+Windows packages put next to the Windows libraries of enetxt and
+Box2Dxt, nor those two extensions'
+`licenses/Microsoft-Visual-C++-Runtime.txt`: only the Windows packaging
+job has a Visual Studio redistributable folder to take them from, until
+the other packages get them from the Windows build. The Windows
+libraries themselves (`code/x86_64-win32/`, `code/x86-win32/`) are there,
+and the package's `Extensions/XTALK-EXTENSIONS.txt` says that the
+runtime is not bundled. So a Windows standalone built on Linux that
+includes enetxt or Box2Dxt (a 32-bit one, as long as the package has
+only the Windows x86-32 runtime) needs the Visual C++ Redistributable on
+the PC it runs on.
 
 The package does not contain the system libraries that the engine and
 CEF load: GTK 2, GDK, GLib, Pango, cairo, FreeType, Fontconfig, X11 and
@@ -474,8 +491,8 @@ is part of OXT-Beyond.
 The engine and revBrowser use Microsoft's Active Template Library (ATL),
 and the binaries built from this repository statically link the
 Microsoft Visual C++ runtime. Two of the bundled xTalk Suite extensions,
-enetxt and Box2Dxt, need the runtime as DLLs instead, so the packages
-also contain Microsoft's redistributable `msvcp140.dll`,
+enetxt and Box2Dxt, need the runtime as DLLs instead, so the Windows
+packages also contain Microsoft's redistributable `msvcp140.dll`,
 `vcruntime140.dll` and `vcruntime140_1.dll` as separate files, in those
 extensions' `code/x86_64-win32/` and `code/x86-win32/` folders,
 unchanged from Visual Studio's redistributable folder and pinned by
@@ -492,8 +509,10 @@ terms that protect them at least as much as Microsoft's) pass to anyone
 who redistributes the DLLs, for example in a standalone.
 `Extensions/org.openxtalk.library.enet/licenses/Microsoft-Visual-C++-Runtime.txt`
 and `Extensions/org.openxtalk.box2dxt/licenses/Microsoft-Visual-C++-Runtime.txt`
-list the DLLs and say this next to them. The ATL combination is the
-reason for the licence exception in
+list the DLLs and say this next to them. (The Linux package has neither
+the DLLs nor these two files; see
+[The Linux x86-64 package](#the-linux-x86-64-package).) The ATL
+combination is the reason for the licence exception in
 [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).
 
 ## GENTLE
