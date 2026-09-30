@@ -1432,7 +1432,10 @@ end revEnsurePath
 # EJB
 # Function to return license type in 6.0
 function revLicenseType
-   if the environment is "development" then
+   -- Also "development command line": a development engine run without
+   -- the IDE (-ui), as the CI checks do, has the IDE's licence and so
+   -- must see the IDE's edition colours (ideColorGet)
+   if word 1 of the environment is "development" then
       return tolower(value("line 3 of revLicenseInfo"))
    end if
    return the environment

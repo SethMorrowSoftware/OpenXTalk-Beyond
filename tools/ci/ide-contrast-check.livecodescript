@@ -23,7 +23,8 @@ script "oxt_ide_contrast_check"
 --                            fail now instead of comparing with it
 --    OXT_CONTRAST_LIGHT_ONLY 1: accept a layout without revIDEIsDark() (an
 --                            older one, such as main before the dark
---                            palette) and check it in light only
+--                            palette) and check it in light only, and
+--                            accept a licence type other than community
 --
 -- The check loads the libraries that revIDEColor needs the way the IDE
 -- does: revcommonlibrary and revidelibrary as libraries and the script of
@@ -35,6 +36,11 @@ script "oxt_ide_contrast_check"
 -- tokens here. A layout without revIDEIsDark() cannot run the dark pass:
 -- that is an error (the dark colours would silently go unchecked), unless
 -- OXT_CONTRAST_LIGHT_ONLY is 1, and then only light is checked.
+--
+-- Some colours of ideColorGet depend on the edition, revLicenseType(); the
+-- IDE is "community". The check stops unless it sees "community" too, so
+-- that it measures the colours the IDE draws (an older revcommonlibrary
+-- gives the environment, "development command line", without the IDE).
 --
 -- Each line of the pairs table is
 --
@@ -69,7 +75,7 @@ local sOverlaySaved
 
 on startup
    local tRoot, tScriptFolder, tPairsFile, tBaselineFile, tUpdate, tPairs, tBaseline
-   local tResults, tModes, tSupportsDark, tIsDark, tKnown, tDarkError
+   local tResults, tModes, tSupportsDark, tIsDark, tKnown, tDarkError, tEdition
    local tCount, tFailed, tKnownCount, tNew, tErrors, tFixed, tFailures
    set the lockMessages to true
    -- The IDE compiles its scripts without explicit variables
@@ -101,9 +107,18 @@ on startup
       put readPairs(tPairsFile) into tPairs
       if not tUpdate then put readBaseline(tBaselineFile) into tBaseline
       loadLibraries tRoot
+      put revLicenseType() into tEdition
    catch tError
       fatal oneLine(tError)
    end try
+   write "INFO revLicenseType=" & tEdition & return to stdout
+   if tEdition is not "community" then
+      if $OXT_CONTRAST_LIGHT_ONLY is "1" then
+         write "INFO the edition colours are those of " & quote & tEdition & quote & ", not the IDE's (OXT_CONTRAST_LIGHT_ONLY)" & return to stdout
+      else
+         fatal "revLicenseType() is " & quote & tEdition & quote & ", not " & quote & "community" & quote & " as in the IDE: the edition colours of ideColorGet would not be the IDE's"
+      end if
+   end if
 
    -- The dark pass needs revIDEIsDark() and its override
    put "light" into tModes
