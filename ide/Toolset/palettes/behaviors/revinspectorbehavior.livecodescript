@@ -51,9 +51,19 @@ before openStack
    
    if the platform is "linux" then send tFixUpInspector to me in 1 millisecond
    send hFixPropertyPopup to me in 1 millisecond
-   
+
    updateInspector
+   revIDESubscribe "ideAppearanceChanged"
 end openStack
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the palette's
+-- colour and the editors, whose colours are set when they are filled
+on ideAppearanceChanged
+   lock screen
+   updateInspector
+   inspectorFill
+   unlock screen
+end ideAppearanceChanged
 
 on gluetoLeft
    set the right of this stack to the left of stack "revPropertyInspector 1"

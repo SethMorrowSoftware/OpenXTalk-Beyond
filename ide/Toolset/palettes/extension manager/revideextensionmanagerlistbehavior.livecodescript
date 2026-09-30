@@ -27,7 +27,8 @@ on preOpenCard
    revIDESubscribe "ideExtensionsChanged"
    revIDESubscribe "ideExtensionStatusChanged"
    revIDESubscribe "idePreferenceChanged:ideExtensionManager_showInactiveExtensions"
-   
+   revIDESubscribe "ideAppearanceChanged"
+
    lock screen
    setSection	
    setUpExtensionList   
@@ -61,6 +62,15 @@ end idePreferenceChanged
 on ideExtensionsChanged
    refreshExtensionList
 end ideExtensionsChanged
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the list's
+-- colours again, and its rows drawn again
+on ideAppearanceChanged
+   lock screen
+   setUpExtensionList
+   refreshExtensionList sSection
+   unlock screen
+end ideAppearanceChanged
 
 on setUpExtensionList
    local theStylesA

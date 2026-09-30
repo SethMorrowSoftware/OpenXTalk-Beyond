@@ -30,12 +30,20 @@ script "oxt_ide_appearance_check"
 --      Manager, the Project Browser) get their dark colour; "Same as the
 --      IDE" gives the appAppearance the IDE's value; the systemAppearance
 --      does not change. On Linux, where GTK decides every effective value,
---      only the stored values are checked.
+--      only the stored values are checked;
+--    - on any engine, the refresh after a change of the IDE's appearance
+--      (the test override of revIDEIsDark stands for one) sends
+--      ideAppearanceChanged once per change and gives the dataView rows
+--      their colours in the new appearance; the refresh after the
+--      system's setting changed (the front script's
+--      systemAppearanceChanged) is sent once for several calls, and runs.
 --
 -- Output: one CHECK line per check ("CHECK <name> | ok" or
 -- "CHECK <name> | FAILED <detail>"), INFO lines and a SUMMARY line.
 -- Exit code: 0 when every check passed, 1 when one failed, 2 when the
 -- check could not run.
+
+global gREVAppearanceOverride
 
 local sChecks, sFailed, sAppearanceMessages
 
@@ -143,6 +151,30 @@ on startup
       end if
    end if
 
+   -- The refresh itself, on any engine: the test override stands for a
+   -- change of the IDE's appearance (as "Follow the System" sees one when
+   -- the system's setting changes)
+   put 0 into sAppearanceMessages
+   put revIDEColor("dataView_rowColor") into tRows
+   put "dark" into gREVAppearanceOverride
+   __revIDEAppearanceRefresh
+   check "refresh to dark: ideAppearanceChanged sent once", sAppearanceMessages is 1, sAppearanceMessages
+   check "refresh to dark: dataView rows dark", revIDEColor("dataView_rowColor") is not tRows, revIDEColor("dataView_rowColor")
+   __revIDEAppearanceRefresh
+   check "refresh without a change: nothing sent", sAppearanceMessages is 1, sAppearanceMessages
+   put empty into gREVAppearanceOverride
+   __revIDEAppearanceRefresh
+   check "refresh back: ideAppearanceChanged sent again", sAppearanceMessages is 2, sAppearanceMessages
+   check "refresh back: dataView rows as before", revIDEColor("dataView_rowColor") is tRows, revIDEColor("dataView_rowColor")
+
+   -- The front script's systemAppearanceChanged: Windows sends the change
+   -- several times, and the palettes are refreshed once, 100 ms later
+   revIDEAppearanceRefreshSoon
+   revIDEAppearanceRefreshSoon
+   check "appearance refresh sent once", pendingRefreshes() is 1, the pendingMessages
+   wait 300 milliseconds with messages
+   check "appearance refresh ran", pendingRefreshes() is 0, the pendingMessages
+
    write "SUMMARY checks=" & sChecks & " failed=" & sFailed & " engine_appearance=" & tHas & return to stdout
    if sFailed > 0 then quit 1
    quit 0
@@ -197,6 +229,16 @@ private function noCustomAppearance
    end repeat
    return true
 end noCustomAppearance
+
+-- How many refreshes of the IDE's appearance are pending
+private function pendingRefreshes
+   local tCount
+   put 0 into tCount
+   repeat for each line tMessage in the pendingMessages
+      if item 3 of tMessage is "__revIDEAppearanceRefresh" then add 1 to tCount
+   end repeat
+   return tCount
+end pendingRefreshes
 
 private function stackAppearanceOf pStack
    local tValue

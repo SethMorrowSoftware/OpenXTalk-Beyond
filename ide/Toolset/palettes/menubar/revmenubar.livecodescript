@@ -47,11 +47,7 @@ on preOpenStack
    set the tStoredWidgetsSubmenu of this stack to ""  --tp 24-4, clear custom wd props
    set the tStoredControlSubmenu of this stack to ""
    if the platform contains "linux" then set the style of stack "revMenubar" to modeless  --tp 24-11, linux no toplevel
-   if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
-      -- OXT-Beyond: the IDE's appearance, which can differ from the system's
-      if revIDEIsDark() then set the backgroundColor of this stack to "61,61,61"
-      else set the backgroundColor of this stack to ""
-   end if
+   __menubarApplyToolbarColour  --tp 26-4, ensure toolbar follows systemappearance
    set the cantModify of me to true
    unlock screen
 end preOpenStack
@@ -75,7 +71,55 @@ on subscribeMessages
    
    revIDESubscribe "ideTutorialProgressChanged"
    revIDESubscribe "ideActiveStacksChanged"
+
+   revIDESubscribe "ideAppearanceChanged"
 end subscribeMessages
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark)
+on ideAppearanceChanged
+   __menubarApplyAppearance
+end ideAppearanceChanged
+
+-- The parts of the menubar that depend on the IDE's appearance: the
+-- disabled toolbar icons and, on macOS, the toolbar's colour; then the
+-- buttons are drawn again in their state
+private command __menubarApplyAppearance
+   local tImage
+   lock screen
+   repeat for each item tItem in revMenubarItems()
+      if tItem is "Divide" then next repeat
+      put tItem & "-disabled" into tImage
+      if there is an image tImage of group "icons" of me then
+         set the filename of image tImage of group "icons" of me to __menubarDisabledIconPath(tItem)
+      end if
+   end repeat
+   __menubarApplyToolbarColour
+   updateButtonState
+   unlock screen
+end __menubarApplyAppearance
+
+-- macOS: the toolbar is 61,61,61 in the dark appearance, as the system's
+-- dark toolbars are (Tom Perry); other platforms use the palette's own
+-- colour
+private command __menubarApplyToolbarColour
+   if the platform contains "mac" then
+      if revIDEIsDark() then
+         set the backgroundColor of this stack to "61,61,61"
+      else
+         set the backgroundColor of this stack to ""
+      end if
+   end if
+end __menubarApplyToolbarColour
+
+-- The disabled icons are dark grey, for a light toolbar; in the dark
+-- appearance they are their light twins (<name>-disabled-dark, made from
+-- the enabled icons by tools/oxt/dark_disabled_icons.py)
+private function __menubarDisabledIconPath pItem
+   if revIDEIsDark() and there is a file revMenubarButtonNameToIconPath(pItem, "disabled-dark") then
+      return revMenubarButtonNameToIconPath(pItem, "disabled-dark")
+   end if
+   return revMenubarButtonNameToIconPath(pItem, "disabled")
+end __menubarDisabledIconPath
 
 local sTextMenuDisabledText, sTextMenuText, sPluginMenuText  --script locals
 on setDefaultText
@@ -390,12 +434,9 @@ on generateMenubarUI
          local tFilename
          repeat for each item tStyle in "hilited,disabled,depressed,hilited-depressed"
             put revMenubarButtonNameToIconPath(tItem, tStyle) into tFilename
-            -- The disabled icons are dark grey, for a light toolbar; in the
-            -- dark appearance use their light twins (<name>-disabled-dark,
-            -- made from the enabled icons by tools/oxt/dark_disabled_icons.py)
-            if tStyle is "disabled" and revIDEIsDark() and \
-                  there is a file revMenubarButtonNameToIconPath(tItem, "disabled-dark") then
-               put revMenubarButtonNameToIconPath(tItem, "disabled-dark") into tFilename
+            -- In the dark appearance, the light twin of the disabled icon
+            if tStyle is "disabled" then
+               put __menubarDisabledIconPath(tItem) into tFilename
             end if
             if there is a file tFilename then
                create invisible image (tItem & "-" & tStyle) in group "icons" of me

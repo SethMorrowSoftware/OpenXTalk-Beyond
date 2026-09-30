@@ -12,6 +12,9 @@
 on preOpenStack
    set the behavior of stack "revSETemplate" of me to the long id of stack revIDEScriptEditorBehavior("stack")
    send "setBehaviors" to stack "revSETemplate" of me
+   -- OXT-Beyond: the script editor's main stack (not each editor) follows
+   -- the IDE's appearance; dispatched, so that it is the subscriber
+   dispatch "ideSubscribe" to me with "ideAppearanceChanged"
    -- conditional datagrid stacks (tperry 4-13-24)
    if the cDisableDataGrid of stack "revPreferences" is true then send hConditionalDataGrid to stack "revMenubar" in 1 ticks
 end preOpenStack
@@ -350,6 +353,17 @@ command revSEUpdateEditors pPrefsChanged
 end revSEUpdateEditors
 
 local sPrefs
+
+# Description
+#   OXT-Beyond: the IDE's appearance changed (revIDEIsDark). The script
+#   editor's colours and scheme depend on it (sePrefGet), so the
+#   preferences are loaded again and every open editor applies them.
+on ideAppearanceChanged
+   lock screen
+   sePrefInit
+   revSEUpdateEditors true
+   unlock screen
+end ideAppearanceChanged
 
 # Description
 #   Deletes any stored script editor preferences, and reloads from the Revolution preferences stack.

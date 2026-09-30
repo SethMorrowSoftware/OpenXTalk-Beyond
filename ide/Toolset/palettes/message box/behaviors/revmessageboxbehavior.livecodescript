@@ -109,7 +109,8 @@ on openStack
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,fontSize"
    
    revIDESubscribe "ideActiveStacksChanged"
-   
+   revIDESubscribe "ideAppearanceChanged"
+
    if revIDEGetPreference("revPaletteFrameSize") is empty then revIDESetPreference "revPaletteFrameSize", "small"
    
    local tMinHeight
@@ -506,6 +507,21 @@ on idePreferenceChanged pPreference, pValue
    end switch
    unlock screen
 end idePreferenceChanged
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the fields'
+-- colours, the list of the card shown (the other lists get their colours
+-- when their card opens) and the colours of the command line's script
+on ideAppearanceChanged
+   lock screen
+   __UpdateMessageColors
+   if lSelectedCard is among the items of "Pending Messages,Front Scripts,Back Scripts,Stacks in Use" then
+      setUpDataView
+      send "getDataArray" to card lSelectedCard of me
+      send "renderView" to group "objectList" of card lSelectedCard of me
+   end if
+   dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of field "message" of card "Single Line" of me
+   unlock screen
+end ideAppearanceChanged
 
 private command __UpdateMessageFont
    local tFont, tSize

@@ -103,7 +103,18 @@ on registerForMessages
    revIDESubscribe "idePreferenceOfSetChanged"
    revIDESubscribe "ideToolChanged"
    -- revIDESubscribe "ideExtensionsChanged"
+   revIDESubscribe "ideAppearanceChanged"
 end registerForMessages
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the icon set,
+-- the widget icons' colour and the separators are chosen when the palette
+-- is generated
+on ideAppearanceChanged
+   lock screen
+   generatePalette
+   layoutPalette
+   unlock screen
+end ideAppearanceChanged
 
 on findMoreWidgets
    lock screen

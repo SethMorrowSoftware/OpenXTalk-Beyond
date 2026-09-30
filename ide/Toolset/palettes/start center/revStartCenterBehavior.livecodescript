@@ -4,6 +4,7 @@ constant kSocialMedia = "github,stackoverflow,youtube,facebook,twitter,linkedin"
 
 on openStack
    revIDESubscribe "ideDesktopChanged"
+   revIDESubscribe "ideAppearanceChanged"
    
    ## Set up the Start Center UI   
    initialiseInterface
@@ -81,6 +82,11 @@ on firstRunVisible pVisible
    revIDESetPreference "StartCenterClassic", not pVisible
    initialiseInterface
 end firstRunVisible
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark)
+on ideAppearanceChanged
+   initialiseInterface
+end ideAppearanceChanged
 
 on ideDesktopChanged
    set the loc of me to revIDEStackScreenLoc(the short name of me)

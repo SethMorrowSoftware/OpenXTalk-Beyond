@@ -287,6 +287,17 @@ on preOpenStack
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass preOpenStack
 end preOpenStack
 
+-- OXT-Beyond: the operating system's light/dark setting changed. The
+-- engine sends this to the current card of the defaultStack only, so the
+-- front script (which sees it wherever it goes) has the IDE refresh its
+-- palettes when that changes the IDE's appearance (revIDEAppearanceRefreshSoon
+-- in revidelibrary): with "Follow the System", or on an engine without the
+-- appearance properties, where the IDE follows the system.
+on systemAppearanceChanged
+   revIDEAppearanceRefreshSoon
+   pass systemAppearanceChanged
+end systemAppearanceChanged
+
 on rawKeyUp pWhich
    if pWhich is 65386 then
       revIDEHelpKeyPressed

@@ -1554,7 +1554,7 @@ function revIDEMessages
          "ideAnswerDialogClosed,ideControlDeleted,ideCardDeleted,ideEditScript,ideExtensionLog,ideExtensionsChanged,ideExtensionStatusChanged,ideFindMoreWidgets," \
          & "ideInspectedObjectsChanged,ideLibraryStack,ideNewCard,ideNewStack,ideNewControl,revIDENameChanged,ideObjectSelectionStarted,ideOpenStack," \
          & "idePluginsChanged,idePreferenceChanged,idePropertyChanged,ideReleaseStack,ideResumeStack,ideSelectedObjectChanged,ideStackDeleted,ideToolChanged," \
-         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged" \
+         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged,ideAppearanceChanged" \
          )
 end revIDEMessages
 
@@ -2789,6 +2789,29 @@ function revIDEStackIsShipped pStack
    return false
 end revIDEStackIsShipped
 
+/**
+Refreshes the IDE's palettes after the system's appearance changed.
+
+Description:
+Called by the front script's systemAppearanceChanged. Windows sends the
+setting change several times in a row, so the refresh runs once, 100
+milliseconds after the last call: it recomputes <revIDEIsDark> and, when
+that changed, sends ideAppearanceChanged to the palettes that subscribed to
+it (the menubar, Tools, the Project Browser, the Extension Manager, the
+Message Box, the Inspector, the script editor, the standalone inclusions
+and the Start Center).
+
+References: revIDEIsDark (function), revIDEApplyAppearance (command)
+**/
+local sAppearanceRefreshMsg
+command revIDEAppearanceRefreshSoon
+   if sAppearanceRefreshMsg is not empty then
+      cancel sAppearanceRefreshMsg
+   end if
+   send "__revIDEAppearanceRefresh" to me in 100 milliseconds
+   put the result into sAppearanceRefreshMsg
+end revIDEAppearanceRefreshSoon
+
 -- The IDE's appearance may have changed (a preference, or the system's
 -- setting): recomputes revIDEIsDark() and, when it changed, tells the
 -- palettes with ideAppearanceChanged (parameter: the new revIDEIsDark()).
@@ -2797,6 +2820,7 @@ end revIDEStackIsShipped
 local sLastIsDark
 command __revIDEAppearanceRefresh
    local tIsDark
+   put empty into sAppearanceRefreshMsg
    put empty into sIDEAppearance
    put revIDEIsDark() into tIsDark
    if sLastIsDark is empty then

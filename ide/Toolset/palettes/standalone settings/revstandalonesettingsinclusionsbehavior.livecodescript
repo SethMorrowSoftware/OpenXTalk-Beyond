@@ -13,6 +13,7 @@ on preOpenCard
    end if
    
    put revSBAvailableInclusions() into sExtensionData
+   revIDESubscribe "ideAppearanceChanged"
    setUpExtensionList
    
    send "renderView" to group "extensionList" of me
@@ -33,6 +34,19 @@ on preOpenCard
    
    pass preOpenCard
 end preOpenCard
+
+-- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the list's
+-- colours again while the card is shown (they are set when it opens)
+on ideAppearanceChanged
+   if the mode of this stack is 0 or the long id of this card of this stack is not the long id of me then
+      exit ideAppearanceChanged
+   end if
+   lock screen
+   setUpExtensionList
+   send "renderView" to group "extensionList" of me
+   setExtensionList
+   unlock screen
+end ideAppearanceChanged
 
 on resizeStack
    local tRect

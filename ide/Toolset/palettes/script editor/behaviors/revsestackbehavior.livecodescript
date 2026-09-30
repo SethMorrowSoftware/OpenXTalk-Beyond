@@ -2537,6 +2537,10 @@ command revSEInitialize pDontCheckTarget
    end if
    
    dispatch "ideSubscribe" to me with "idePreferenceChanged:cREVScriptDebugMode"
+   -- OXT-Beyond: the script editor's main stack (revseutilities) redoes
+   -- every editor when the IDE's appearance changes; subscribed from here
+   -- too, because an editor's preOpenStack does not reach the main stack
+   dispatch "ideSubscribe" to revScriptEditorMain() with "ideAppearanceChanged"
    
    # Initialize the preferences
    sePrefInit
