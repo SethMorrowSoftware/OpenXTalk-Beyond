@@ -456,6 +456,23 @@ def mac_copyright(year=None):
             % ('2026' if year <= 2026 else '2026-%d' % year))
 
 
+def mac_bundle_version(build_number):
+    """CFBundleVersion for a build number: at most three period-separated
+    integers (Apple's rule for the key; tools reject more, and some read
+    each part as a 32-bit integer). The default build number, the UTC time
+    as YYYYMMDDHHMM (default_build_number), becomes YYYY.MMDD.HHMM without
+    leading zeros (202609300506 -> 2026.930.506), which compares in the
+    order of the builds; another build number of up to 9 digits is used as
+    it is."""
+    digits = str(build_number)
+    if re.match(r'^[0-9]{12}$', digits):
+        return '%d.%d.%d' % (int(digits[:4]), int(digits[4:8]), int(digits[8:]))
+    if re.match(r'^[0-9]{1,9}$', digits):
+        return str(int(digits))
+    raise PackageError('build number %r cannot be a macOS CFBundleVersion: use the UTC time as '
+                       'YYYYMMDDHHMM (the default) or at most 9 digits' % build_number)
+
+
 def mac_info_plist(plist, version, build_number, archs, executable, minimum):
     """The app's Info.plist from the build's (engine/rsrc/LiveCode-Info.plist
     as Xcode wrote it, with the engine's version and Xcode's DT* keys,
@@ -467,11 +484,13 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
       CFBundleDisplayName
       CFBundleShortVersionString
                               ide/.version, as the user sees it
-      CFBundleVersion         its numeric part and the build number
-                              (0.1.0.202609291200): integers only, as
-                              macOS compares them, and higher for every
-                              build, so that LaunchServices prefers the
-                              newer of two copies
+      CFBundleVersion         the build number (mac_bundle_version):
+                              the UTC build time 202609291200 as
+                              2026.929.1200. Apple allows at most three
+                              period-separated integers here; the build
+                              time is higher for every build, so that
+                              LaunchServices prefers the newer of two
+                              copies
       CFBundleGetInfoString,  OXT-Beyond's version and the engine's
       CFBundleLongVersionString
       NSHumanReadableCopyright
@@ -508,7 +527,6 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
     """
     out = dict(plist)
     engine_version = plist.get('CFBundleShortVersionString') or '?'
-    numeric = re.match(r'^[0-9]+(\.[0-9]+){0,2}', version)
     info = '%s %s (build %s), engine %s' % (PRODUCT, version, build_number, engine_version)
     out.update({
         'CFBundleExecutable': executable,
@@ -516,7 +534,7 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
         'CFBundleName': PRODUCT,
         'CFBundleDisplayName': PRODUCT,
         'CFBundleShortVersionString': version,
-        'CFBundleVersion': '%s.%s' % (numeric.group(0) if numeric else '0', build_number),
+        'CFBundleVersion': mac_bundle_version(build_number),
         'CFBundleGetInfoString': info,
         'CFBundleLongVersionString': info,
         'NSHumanReadableCopyright': mac_copyright(),
