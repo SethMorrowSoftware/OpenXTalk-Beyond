@@ -211,8 +211,10 @@ class Layout(object):
 def extract_package(path, dest):
     """Extract a zip or tar.xz package into dest with modes and symbolic
     links (zipfile.extractall keeps neither) and return its one top-level
-    entry."""
+    entry. Nothing may land outside dest, by its name or through a
+    symbolic link extracted before it (package.inside_tree)."""
     if path.endswith('.zip'):
+        root, links = os.path.realpath(dest), []
         with zipfile.ZipFile(path) as z:
             for info in z.infolist():
                 name = info.filename
@@ -220,6 +222,10 @@ def extract_package(path, dest):
                 if not parts or name.startswith('/') or '..' in parts or re.match(r'^[A-Za-z]:', name):
                     raise CheckError('%s: unsafe member name %r' % (path, name))
                 target = os.path.join(dest, *parts)
+                # as in package.extract_bin_tar: a link extracted before
+                # this entry must not carry it out of dest
+                if os.path.islink(target) or not package.inside_tree(root, os.path.dirname(target)):
+                    raise CheckError('%s: %s would be written through a symbolic link' % (path, name))
                 mode = (info.external_attr >> 16) if info.create_system == 3 else 0
                 if name.endswith('/'):
                     os.makedirs(target, exist_ok=True)
@@ -230,11 +236,17 @@ def extract_package(path, dest):
                     if package.link_escapes('/'.join(parts), link):
                         raise CheckError('%s: link %s -> %s leads out of the package' % (path, name, link))
                     os.symlink(link, target)
+                    links.append((name, link, target))
                     continue
                 with z.open(info) as src, open(target, 'wb') as out:
                     shutil.copyfileobj(src, out, 1 << 20)
                 if mode and os.name != 'nt':
                     os.chmod(target, stat.S_IMODE(mode))
+        # once all are on disk: a later link can move an earlier one's
+        # target out of dest
+        for name, link, target in links:
+            if not package.inside_tree(root, target):
+                raise CheckError('%s: link %s -> %s leads out of the package' % (path, name, link))
         tops = sorted({i.filename.split('/')[0] for i in zipfile.ZipFile(path).infolist()})
     else:
         top = package.extract_bin_tar(path, dest, lambda m: None)

@@ -651,6 +651,17 @@ def link_escapes(rel, link):
     return resolved == '..' or resolved.startswith('../')
 
 
+def inside_tree(root, path):
+    """True when path, with every symbolic link on disk followed, is the
+    folder root (an os.path.realpath) or below it. link_escapes reads link
+    text only, and normpath folds "sub/.." to "" although sub may itself be
+    a link: sub -> .. and l -> sub/.. both pass it, yet l leads out of the
+    tree. Only the file system can see such a chain."""
+    real = os.path.normcase(os.path.realpath(path))
+    root = os.path.normcase(root)
+    return real == root or real.startswith(root.rstrip(os.sep) + os.sep)
+
+
 class Planner(object):
     """Collects the items of one layout; problems are collected, not
     raised, so that one run reports all of them."""
@@ -1105,9 +1116,11 @@ def extract_bin_tar(path, dest, log):
     folder (the tarball's one top-level folder). Modes, symbolic links and
     hard links are kept; debug symbols and "._" AppleDouble files (which
     macOS tar writes for extended attributes) are skipped. Member names are
-    checked: nothing may land outside dest. Python 3.8 has no extraction
+    checked: nothing may land outside dest, by its name or through a
+    symbolic link extracted before it. Python 3.8 has no extraction
     filter, so the checks are made here."""
-    tops, skipped, count = set(), 0, 0
+    tops, skipped, count, links = set(), 0, 0, []
+    root = os.path.realpath(dest)
     with tarfile.open(path, 'r|*') as tf:
         for m in tf:
             name = m.name
@@ -1126,6 +1139,13 @@ def extract_bin_tar(path, dest, log):
                 continue
             tops.add(parts[0])
             target = os.path.join(dest, *parts)
+            # A clean name can still lead out through a link extracted
+            # before it (see inside_tree), so the member's folder is
+            # resolved on disk, and no member replaces a link or is written
+            # through one that leads out. Build tarballs never store a path
+            # below a link.
+            if os.path.islink(target) or not inside_tree(root, os.path.dirname(target)):
+                raise PackageError('%s: %s would be written through a symbolic link' % (path, m.name))
             if m.isdir():
                 os.makedirs(target, exist_ok=True)
                 continue
@@ -1135,12 +1155,13 @@ def extract_bin_tar(path, dest, log):
                     raise PackageError('%s: symbolic link %s -> %s leads out of the tarball'
                                        % (path, name, m.linkname))
                 os.symlink(m.linkname, target)
+                links.append((name, m.linkname, target))
             elif m.islnk():
                 other = m.linkname
                 while other.startswith('./'):
                     other = other[2:]
                 src = os.path.join(dest, *other.split('/'))
-                if '..' in other.split('/') or not os.path.isfile(src):
+                if '..' in other.split('/') or not inside_tree(root, src) or not os.path.isfile(src):
                     raise PackageError('%s: hard link %s -> %s: no such file extracted before it'
                                        % (path, name, m.linkname))
                 shutil.copy2(src, target)
@@ -1152,6 +1173,12 @@ def extract_bin_tar(path, dest, log):
             else:
                 raise PackageError('%s: %s is a device, FIFO or other special file' % (path, name))
             count += 1
+        # Checked once all are on disk: a later link can move an earlier
+        # one's target out (x -> y/../../w resolves inside until y -> ..
+        # arrives), and a staged link must not lead into the build machine
+        for name, link, target in links:
+            if not inside_tree(root, target):
+                raise PackageError('%s: symbolic link %s -> %s leads out of the tarball' % (path, name, link))
     folders = [t for t in tops if os.path.isdir(os.path.join(dest, t))]
     if len(folders) != 1 or len(tops) != 1:
         raise PackageError('%s: expected one top-level folder, found %s' % (path, ', '.join(sorted(tops)) or 'none'))

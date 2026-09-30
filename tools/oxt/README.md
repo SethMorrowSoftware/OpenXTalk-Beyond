@@ -436,8 +436,10 @@ Windows, which keeps neither modes nor symbolic links:
   instead of `--bin`. Its one top-level folder is extracted to a temporary
   folder, keeping modes, symbolic and hard links, and without the debug
   symbols (`*.dbg`, `*.dSYM`, `*.pdb`) and the `._*` AppleDouble files
-  that macOS tar adds. Member names are checked, as Python 3.8's tarfile
-  has no extraction filter.
+  that macOS tar adds. Member names and links are checked, as Python
+  3.8's tarfile has no extraction filter: each member's folder is resolved
+  on disk, since a chain of links whose text looks harmless (`sub -> ..`,
+  `l -> sub/..`) could otherwise carry a later member out of the folder.
 * **Modes**: executable build outputs (any `x` bit), the xTalk native
   libraries and asset members stored with an `x` bit get 0755; every
   other file 0644 and every folder 0755, whatever the umask or the
