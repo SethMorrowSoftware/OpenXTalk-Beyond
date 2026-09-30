@@ -90,6 +90,9 @@ jobs:
 
       - name: Check out
         uses: actions/checkout@v5
+        with:
+          # No step pushes or fetches, so the token need not stay in .git/config
+          persist-credentials: false
 
       # The version gate of build-windows.yml: a tag build fails straight
       # away when the tag is not "v" followed by ide/.version, so that no
@@ -291,6 +294,8 @@ jobs:
           name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
 
       - name: Upload the debug symbols
         uses: actions/upload-artifact@v6
@@ -298,6 +303,8 @@ jobs:
           name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
           path: OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
           if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
 
       - name: Upload build logs
         if: failure()
