@@ -530,8 +530,9 @@ OXT-Beyond 0.2.0 adds:
   stack's), with their `effective` forms, in the dictionary. Standalones
   are light unless they set the `appAppearance`; standalones built with
   OpenXTalk Lite 1.14 or later or OXT-Beyond 0.1.0 followed the dark mode
-  of Windows and macOS, and do so again after
-  `set the appAppearance to "system"`;
+  of Windows and macOS, and on Windows do so again after
+  `set the appAppearance to "system"` (on macOS every stack is drawn light
+  in this version, whatever the property says);
 - the Windows native controls drawn dark in the dark appearance
   (checkboxes, radio buttons, tabs, field and group frames, sliders,
   progress bars, option menus and combo boxes), dark title bars per
