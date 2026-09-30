@@ -13,6 +13,11 @@ script "oxt_ide_compile_check"
 --    OXT_CHECK_ROOT  the installed layout to check (required)
 --    OXT_CHECK_OUT   file to write the error records to, UTF-8, one per
 --                    line (optional)
+--    OXT_CHECK_EXCLUDE_FILE
+--                    file listing paths (relative to the root, one per
+--                    line) not to check (optional): tools/ci/
+--                    run_livecode_check.py leaves out a file that made the
+--                    engine crash and checks the rest in a second run
 --
 -- What is compiled:
 --    - every script-only stack (*.livecodescript, *.oxtscript) under
@@ -99,6 +104,9 @@ on startup
       end repeat
       sortPaths tScriptOnly
       sortPaths tBinary
+      if $OXT_CHECK_EXCLUDE_FILE is not empty then
+         excludePaths $OXT_CHECK_EXCLUDE_FILE, tScriptOnly, tBinary
+      end if
       write "INFO script-only stacks=" & the number of lines of tScriptOnly & " binary stacks=" & the number of lines of tBinary & return to stdout
 
       repeat for each line tRel in tScriptOnly
@@ -145,6 +153,33 @@ private command collectFiles pRel, pExtensions, @xList
       collectFiles pRel & "/" & tSub, pExtensions, xList
    end repeat
 end collectFiles
+
+-- Removes the paths listed in the file pFile (UTF-8, one per line) from
+-- both lists
+private command excludePaths pFile, @xScriptOnly, @xBinary
+   local tList, tCount, tLine
+   replace "\" with "/" in pFile
+   put textDecode(URL ("binfile:" & pFile), "UTF-8") into tList
+   replace numToCodepoint(13) with empty in tList
+   put 0 into tCount
+   set the wholeMatches to true
+   repeat for each line tRel in tList
+      if tRel is empty then next repeat
+      put lineOffset(tRel, xScriptOnly) into tLine
+      if tLine > 0 then
+         delete line tLine of xScriptOnly
+         add 1 to tCount
+         next repeat
+      end if
+      put lineOffset(tRel, xBinary) into tLine
+      if tLine > 0 then
+         delete line tLine of xBinary
+         add 1 to tCount
+      end if
+   end repeat
+   set the wholeMatches to false
+   write "INFO excluded=" & tCount & return to stdout
+end excludePaths
 
 -- Sorts a path list the same way on every run and machine
 private command sortPaths @xList

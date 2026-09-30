@@ -1,0 +1,15 @@
+# Known compile check errors that occur only on Linux, one per line, in the
+# format of ide-compile-baseline.txt. tools/ci/run_livecode_check.py adds
+# them to the shared baseline when it checks on Linux.
+#
+# Plugins/Quick Dictionary.livecode: the Linux engine crashes (SIGSEGV)
+# loading it without a user interface (-ui). Its main stack's textFont is
+# "(System)" and it has a substack (Data Grid Templates ...), which inherits
+# the font when the file is loaded: MCNewFontlist::getfont
+# (engine/src/lnxflst.cpp) resolves "(System)" through
+# MCPlatformGetControlThemePropString, which gives no name without a GTK
+# screen, and passes the missing name on to Pango. Any stack file whose main
+# stack has textFont (System) and a substack does the same; the IDE, which
+# has a screen, is not affected. Remove this line once the engine falls back
+# to a default family there.
+Plugins/Quick Dictionary.livecode | (file) | line 0 | the engine crashed while checking it

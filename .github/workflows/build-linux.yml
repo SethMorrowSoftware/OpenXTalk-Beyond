@@ -3,8 +3,11 @@
 # so they are built identically.
 #
 # The container is Ubuntu 20.04, so the binaries need glibc 2.31 or newer
-# (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit).
-# It is also the newest Ubuntu that still ships Python 2.7, which gyp and
+# (Ubuntu 20.04+, Debian 11+, Fedora 32+, Raspberry Pi OS Bullseye+ 64-bit)
+# and no newer libstdc++ or libgcc_s than its GCC 10 ones; the Verify step
+# fails when an ELF file of the output needs more
+# (tools/ci/check_elf_floor.py). It is
+# also the newest Ubuntu that still ships Python 2.7, which gyp and
 # config.py need.
 #
 # Prebuilt libraries: LiveCode's download server no longer serves them, so
@@ -18,7 +21,19 @@
 # to the build settings, or an evicted cache) rebuilds them in the same job.
 #
 # Output: the artifact OXT-Beyond-linux-<arch>-bin holds linux-<arch>-bin
-# (engines, externals, toolchain, packaged extensions) as a tar.xz.
+# (engines, externals, toolchain, packaged extensions) as a tar.xz, without
+# the debug symbols; OXT-Beyond-linux-<arch>-symbols holds those, the *.dbg
+# files of the same folder, as a tar.xz to extract over it.
+#
+# Checks: the build output's files, the glibc floor of every ELF file, the
+# server engine running a script, and the IDE compile check of the
+# checkout's IDE with the new development engine
+# (tools/ci/run_livecode_check.py compile --repo-layout).
+#
+# Version: <ver> is the product version in ide/.version. A build of a tag
+# that starts with "v" fails straight away unless the tag is v<ver>, as in
+# build-windows.yml. OXT_BUILD_NUMBER is the UTC time at which the version
+# step ran, as YYYYMMDDHHMM.
 
 name: Build (Linux)
 
@@ -67,7 +82,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential gcc g++ make perl bison flex gawk pkg-config \
-            python2 python-is-python2 openjdk-11-jdk-headless \
+            python2 python-is-python2 python3 openjdk-11-jdk-headless \
             git curl ca-certificates bzip2 xz-utils zip unzip file binutils \
             libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
             libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
@@ -80,7 +95,43 @@ jobs:
           echo "Processors: $(nproc)"
 
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          # No step pushes or fetches, so the token need not stay in .git/config
+          persist-credentials: false
+
+      # The version gate of build-windows.yml: a tag build fails straight
+      # away when the tag is not "v" followed by ide/.version, so that no
+      # platform builds (and none publishes) files under another version.
+      # One build number for every file of this job, OXT_BUILD_NUMBER: the
+      # UTC time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes
+      # into .buildnumber). The step runs after the tool install because
+      # the checkout needs the container's git.
+      - name: Read the product version
+        id: product
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(tr -d '\r' < ide/.version)
+          # Trim white space at both ends, like the Trim() of the Windows step
+          version="${version#"${version%%[![:space:]]*}"}"
+          version="${version%"${version##*[![:space:]]}"}"
+          re='^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'
+          if ! [[ $version =~ $re ]]; then
+            echo "::error::ide/.version contains '$version'; expected a version such as 0.0.1 or 0.1.0-beta.1"
+            exit 1
+          fi
+          # [vV]: the Windows step's -like 'v*' ignores case
+          if [ "$REF_TYPE" = tag ] && [[ $REF_NAME == [vV]* ]] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $REF_NAME does not match ide/.version ($version); the tag for this version is v$version"
+            exit 1
+          fi
+          build_number=$(date -u +%Y%m%d%H%M)
+          echo "OXT-Beyond $version, build number $build_number"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build-number=$build_number" >> "$GITHUB_OUTPUT"
+          echo "OXT_BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
 
       - name: Mark the workspace safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -99,7 +150,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -132,7 +183,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -203,10 +254,22 @@ jobs:
           file "$B/LiveCode-Community" "$B/standalone-community"
           # Save as Standalone only accepts non-PIE engines (deploy_linux.cpp)
           readelf -h "$B/standalone-community" | grep 'EXEC (Executable file)'
-          echo "Highest glibc versions required:"
-          objdump -T "$B/LiveCode-Community" "$B/standalone-community" "$B/server-community" \
-            | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
-          objdump -T "$B/LiveCode-Community" | grep -o 'GLIBCXX_[0-9.]*' | sort -Vu | tail -1 || true
+          # The oldest Linux the header promises is this container's
+          # Ubuntu 20.04: glibc 2.31, the libstdc++ of GCC 10
+          # (GLIBCXX_3.4.28, CXXABI_1.3.12) and its libgcc_s (GCC_7.0.0;
+          # the next versions, GCC_12.0.0 and GCC_13.0.0, hold the _Float16
+          # and __bf16 helpers a link with GCC 12 or newer can take from
+          # libgcc_s). No ELF file of the folder (executables and shared
+          # objects in every subfolder, CEF included; not the .dbg debug
+          # files) may need a newer version of these than that system has,
+          # and each must be for this architecture. Other version needs
+          # (CEF's NSS and ALSA) are only reported. What is linked in this
+          # container cannot need more than it has, so this catches
+          # prebuilt files such as CEF or extension libraries, and a change
+          # of build image. The report lists the highest version each file
+          # needs.
+          python3 tools/ci/check_elf_floor.py "$B" --machine "$ARCH" --exclude '*.dbg' \
+            --max GLIBC=2.31 --max GLIBCXX=3.4.28 --max CXXABI=1.3.12 --max GCC=7.0.0
 
       - name: Smoke test (server engine)
         run: |
@@ -214,22 +277,71 @@ jobs:
           ./linux-"$ARCH"-bin/server-community "$RUNNER_TEMP/smoke.lc" | tee "$RUNNER_TEMP/smoke.out"
           grep -q '^9\.7' "$RUNNER_TEMP/smoke.out"
 
-      - name: Package the bin folder
-        run: tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" "linux-$ARCH-bin"
+      # The .dbg files, the debug information that
+      # tools/extract-debug-symbols.sh splits off every binary (about 160 MB
+      # per engine, most of the folder), go into a tarball of their own and
+      # the bin tarball goes without them. Both hold the folder
+      # linux-<arch>-bin, so extracting the symbols over the binaries puts
+      # every .dbg next to its binary, where gdb finds it through the
+      # binary's .gnu_debuglink. xz uses every processor (-T0).
+      - name: Package the bin folder and the debug symbols
+        env:
+          XZ_OPT: -T0
+        run: |
+          B="linux-$ARCH-bin"
+          find "$B" -type f -name '*.dbg' | sort > "$RUNNER_TEMP/dbg.list"
+          if [ ! -s "$RUNNER_TEMP/dbg.list" ]; then
+            echo "::error::no .dbg files in $B; the build's debug-symbols target makes them"; exit 1
+          fi
+          echo "$(wc -l < "$RUNNER_TEMP/dbg.list") debug symbol files"
+          # (--exclude before the folder: GNU tar applies it to the names after it)
+          tar -cJf "OXT-Beyond-linux-$ARCH-bin.tar.xz" --exclude='*.dbg' "$B"
+          tar -cJf "OXT-Beyond-linux-$ARCH-symbols.tar.xz" -T "$RUNNER_TEMP/dbg.list"
+          ls -l OXT-Beyond-linux-"$ARCH"-*.tar.xz
 
       - name: Upload the bin folder
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
 
+      - name: Upload the debug symbols
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
+          path: OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
+          if-no-files-found: error
+          # The tarball is compressed already
+          compression-level: 0
+
+      # The IDE compile check (tools/ci/ide-compile-check.livecodescript,
+      # the baseline of tools/ci/ide-compile-baseline.txt plus its Linux
+      # supplement) over the checkout's IDE, run by the development engine
+      # just built, before anything is packaged: run_livecode_check.py
+      # --repo-layout assembles Toolset, Plugins and Extensions from ide/,
+      # ide-support/ and the build's packaged extensions. After the upload,
+      # so a failure here still leaves the build to look at. -ui needs no X
+      # display. python is Python 2 (gyp, config.py); python3 (3.8 on
+      # focal) comes from the first apt step, for the checks.
+      - name: IDE compile check (repository)
+        timeout-minutes: 20
+        run: |
+          python3 --version
+          python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
+            --log ide-compile-check.log
+
+      # Paths in the workspace: in a container job runner.temp names the
+      # host's folder, which the upload action does not see
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-logs-linux-${{ matrix.arch }}
           path: |
             prebuilt/build/**/config.log
             prebuilt/build/**/*.log
+            ide-compile-check.log
           if-no-files-found: ignore
