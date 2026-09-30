@@ -549,6 +549,15 @@ bool MCWin32IsHighContrast(void)
 extern void MCWin32UpdateSystemColors(void);
 extern bool MCWin32ThemeSystemAppearanceDark;
 
+// Tom Perry's colours of each appearance (MCWin32UpdateSystemColors, 38d5712b2):
+// the dark background 32,32,32 with the disabled grey 137 (4.7:1), and the
+// light 240,240,240 with 128
+void MCScreenDC::getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray)
+{
+	r_background.red = r_background.green = r_background.blue = p_dark ? 0x2020 : 0xF0F0;
+	r_gray.red = r_gray.green = r_gray.blue = p_dark ? 0x8989 : 0x8080;
+}
+
 // Applies the light or dark appearance again, to every window at once: when
 // the OS setting changed (the WM_SETTINGCHANGE "ImmersiveColorSet" handler in
 // w32dcw32.cpp, through MCPlatformHandleSystemAppearanceChanged), and when a

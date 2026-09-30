@@ -38,7 +38,8 @@ public:
 	MCNativeTheme()
 	{
 		mThemeDLL = NULL;
-		mScrollbarOwnerDraw = false;
+		mScrollbarDarkTheme = NULL;
+		mScrollbarDarkChecked = false;
 	}
 
 	MCWinSysHandle getmenutheme(void)
@@ -69,15 +70,15 @@ public:
 	virtual bool settooltiptextcolor(MCContext *context);
 	virtual int32_t fetchtooltipstartingheight(void);
 
-	virtual bool drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter);
-	virtual bool drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active);
+	virtual bool drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter, MCObject *object);
+	virtual bool drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active, MCObject *object);
 	virtual bool drawmenuheaderbackground(MCContext *context, const MCRectangle& dirty, MCButton *button);
 	virtual bool drawmenuitembackground(MCContext *context, const MCRectangle& dirty, MCButton *button);
 
 protected:
 	virtual void getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype, MCStringRef &r_colorbuf);
 	MCWinSysHandle GetTheme(Widget_Type wtype);
-	void OpenScrollbarTheme(void);
+	MCWinSysHandle GetDarkScrollbarTheme(void);
 	void CloseData();
 	Boolean GetThemePartAndState(const MCWidgetInfo &winfo, int4& aPart, int4& aState);
 	Boolean drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
@@ -101,10 +102,13 @@ protected:
 	MCWinSysHandle mToolbarTheme;
 	MCWinSysHandle mRebarTheme;
 	MCWinSysHandle mProgressTheme;
+	// The light scrollbar class, which also gives the part sizes, and the
+	// dark one, opened the first time a dark scrollbar is drawn; when the
+	// dark class does not draw dark, drawwidget draws the parts itself
+	// (GetDarkScrollbarTheme).
 	MCWinSysHandle mScrollbarTheme;
-	// True in dark mode when mScrollbarTheme is the light scrollbar class, so
-	// drawwidget draws the scrollbar parts itself (see OpenScrollbarTheme).
-	bool mScrollbarOwnerDraw;
+	MCWinSysHandle mScrollbarDarkTheme;
+	bool mScrollbarDarkChecked;
 	MCWinSysHandle mSmallScrollbarTheme;
 	MCWinSysHandle mStatusbarTheme;
 	MCWinSysHandle mTabTheme;

@@ -109,12 +109,12 @@ bool MCTheme::settooltiptextcolor(MCContext *context)
 	return false;
 }
 
-bool MCTheme::drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter)
+bool MCTheme::drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter, MCObject *object)
 {
 	return false;
 }
 
-bool MCTheme::drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active)
+bool MCTheme::drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active, MCObject *object)
 {
 	return false;
 }

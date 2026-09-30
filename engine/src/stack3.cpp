@@ -1656,37 +1656,21 @@ void MCStack::createmenu(MCControl *nc, uint2 width, uint2 height)
 				curcard->setsprop(P_3D, MCSTR(MCfalsestring));
 		}
 	
-	MCWidgetInfo wmenu;
-	wmenu.type = WTHEME_TYPE_MENU;
+	m_menu_baked_colors = 0;
 	if ( nc->gettype() != CT_FIELD && (MCcurtheme && MCcurtheme->getthemeid() == LF_NATIVEWIN))
 	{
 		uint2 i;
 		MCObject *tparent = getparent();
 
 		if  (!tparent->getcindex(DI_BACK, i) && !tparent->getpindex(DI_BACK,i))
-        {
-            MCAutoStringRef colorbuf;
-            MCcurtheme->getthemecolor(wmenu, WCOLOR_BACK, &colorbuf);
-			setsprop(P_BACK_COLOR, *colorbuf);
-        }
+			m_menu_baked_colors |= kMCStackMenuBakedBack;
 		if  (!tparent->getcindex(DI_BORDER, i) && !tparent->getpindex(DI_BORDER,i))
-        {
-            MCAutoStringRef colorbuf;
-            MCcurtheme->getthemecolor(wmenu, WCOLOR_BORDER, &colorbuf);
-			setsprop(P_BORDER_COLOR, *colorbuf);
-        }
+			m_menu_baked_colors |= kMCStackMenuBakedBorder;
 		if  (!tparent->getcindex(DI_FORE, i) && !tparent->getpindex(DI_FORE,i))
-        {
-            MCAutoStringRef colorbuf;
-            MCcurtheme->getthemecolor(wmenu, WCOLOR_TEXT, &colorbuf);
-			setsprop(P_FORE_COLOR, *colorbuf);
-        }
+			m_menu_baked_colors |= kMCStackMenuBakedFore;
 		if  (!tparent->getcindex( DI_HILITE, i) && !tparent->getpindex( DI_HILITE,i))
-        {
-            MCAutoStringRef colorbuf;
-            MCcurtheme->getthemecolor(wmenu, WCOLOR_HILIGHT, &colorbuf);
-			setsprop(P_HILITE_COLOR, *colorbuf);
-        }
+			m_menu_baked_colors |= kMCStackMenuBakedHilite;
+		bakemenucolors();
 	}
 
 	cards->setparent(this);
@@ -1701,6 +1685,69 @@ void MCStack::createmenu(MCControl *nc, uint2 width, uint2 height)
 		cptr = (MCControl *)cptr->next();
 	}
 	while (cptr != nc);
+}
+
+// The colours a menu the engine builds for a button takes from the native
+// Windows theme, for those its button does not set (createmenu). They are the
+// colours of the button's appearance: a light-designed stack gets a light
+// menu in a dark stack, and a dark one a dark menu. Menus are kept and opened
+// again, so MCButton::openmenu takes them again when the button's appearance
+// has changed since (updatemenuappearance). The colours stay set on the menu
+// stack rather than following the button as it is drawn: a menu that set
+// none would take the colours of its button's card.
+void MCStack::bakemenucolors(void)
+{
+	if (MCcurtheme == nil || m_menu_baked_colors == 0)
+		return;
+
+	MCObject *t_button;
+	t_button = getparent();
+
+	MCWidgetInfo t_menu;
+	memset(&t_menu, 0, sizeof(MCWidgetInfo));
+	t_menu . type = WTHEME_TYPE_MENU;
+	t_menu . whichobject = t_button;
+
+	if (m_menu_baked_colors & kMCStackMenuBakedBack)
+	{
+		MCAutoStringRef colorbuf;
+		MCcurtheme->getthemecolor(t_menu, WCOLOR_BACK, &colorbuf);
+		setsprop(P_BACK_COLOR, *colorbuf);
+	}
+	if (m_menu_baked_colors & kMCStackMenuBakedBorder)
+	{
+		MCAutoStringRef colorbuf;
+		MCcurtheme->getthemecolor(t_menu, WCOLOR_BORDER, &colorbuf);
+		setsprop(P_BORDER_COLOR, *colorbuf);
+	}
+	if (m_menu_baked_colors & kMCStackMenuBakedFore)
+	{
+		MCAutoStringRef colorbuf;
+		MCcurtheme->getthemecolor(t_menu, WCOLOR_TEXT, &colorbuf);
+		setsprop(P_FORE_COLOR, *colorbuf);
+	}
+	if (m_menu_baked_colors & kMCStackMenuBakedHilite)
+	{
+		MCAutoStringRef colorbuf;
+		MCcurtheme->getthemecolor(t_menu, WCOLOR_HILIGHT, &colorbuf);
+		setsprop(P_HILITE_COLOR, *colorbuf);
+	}
+
+	m_menu_baked_dark = t_button != nil && t_button -> isdarkappearance(CONTEXT_TYPE_SCREEN);
+}
+
+void MCStack::updatemenuappearance(void)
+{
+	if (m_menu_baked_colors == 0)
+		return;
+
+	MCObject *t_button;
+	t_button = getparent();
+	if (t_button == nil)
+		return;
+
+	if (t_button -> isdarkappearance(CONTEXT_TYPE_SCREEN) != m_menu_baked_dark)
+		bakemenucolors();
 }
 
 void MCStack::menuset(uint2 button, uint2 defy)

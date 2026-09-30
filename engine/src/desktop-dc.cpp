@@ -1004,6 +1004,10 @@ void MCScreenDC::updatesystemappearance(void)
 {
 	MCAppearanceRefreshSystem();
 
+	// The theme's colours are resolved again, in case the Mac's changed
+	extern void MCMacThemeClearColorCache(void);
+	MCMacThemeClearColorCache();
+
 	// Update system colors based on new appearance
 	UpdateSystemColorsForAppearance(this);
 
@@ -1024,6 +1028,14 @@ void MCScreenDC::updatesystemappearance(void)
 
 	// Redraw all stacks to reflect new colors
 	MCstacks -> redrawall(False);
+}
+
+// The colours of each appearance (UpdateSystemColorsForAppearance): a dark
+// background of 32,32,32 or white, and the one disabled grey of macOS
+void MCScreenDC::getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray)
+{
+	r_background.red = r_background.green = r_background.blue = p_dark ? 0x2020 : 0xFFFF;
+	r_gray.red = r_gray.green = r_gray.blue = 0x8888;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

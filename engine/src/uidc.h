@@ -379,6 +379,15 @@ void MCAppearanceChanged(void);
 // white or black with the appearance.
 extern bool MCselectioncolorisset;
 
+// True once a script has set a global link colour (linkColor,
+// linkHiliteColor, linkVisitedColor); until then links in a field drawn dark
+// get light variants of the default colours (MCBlock::draw)
+extern bool MClinkattsisset;
+
+// Whether a colour is light: its WCAG relative luminance is above 0.179,
+// where black and white text contrast with it equally
+bool MCAppearanceColorIsLight(const MCColor& p_color);
+
 class MCUIDC
 {
 public:
@@ -713,6 +722,10 @@ public:
 	
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 	virtual void updatesystemappearance(void);
+	// The default background and disabled grey of the light or the dark
+	// appearance, whatever the appAppearance is: colours an object leaves
+	// unset that no theme provides (MCObject::getforecolor)
+	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
     
     //
 

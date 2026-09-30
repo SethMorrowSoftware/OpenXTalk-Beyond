@@ -158,6 +158,15 @@ struct MCStackAttachment
 
 typedef MCObjectProxy<MCStack>::Handle MCStackHandle;
 
+// The colours of a menu stack taken from the native theme (m_menu_baked_colors)
+enum
+{
+	kMCStackMenuBakedBack = 1 << 0,
+	kMCStackMenuBakedBorder = 1 << 1,
+	kMCStackMenuBakedFore = 1 << 2,
+	kMCStackMenuBakedHilite = 1 << 3,
+};
+
 class MCStack : public MCObject, public MCMixinObjectHandle<MCStack>
 {
 public:
@@ -317,6 +326,12 @@ protected:
 	// (updatewindowappearance).
 	bool m_window_dark : 1;
 	bool m_window_dark_set : 1;
+
+	// For a menu the engine builds for a button: the colours createmenu took
+	// from the native theme (kMCStackMenuBaked*), and whether it took them in
+	// the dark appearance (bakemenucolors)
+	unsigned int m_menu_baked_colors : 4;
+	bool m_menu_baked_dark : 1;
 
 	// IM-2014-05-27: [[ Bug 12321 ]] Indicate if we need to purge fonts when reopening the window
 	bool m_purge_fonts;
@@ -1296,6 +1311,13 @@ public:
 	{
 		return (MCAppearanceMode)m_appearance_mode;
 	}
+
+	// A menu the engine builds for a button takes some colours from the
+	// native theme in the button's appearance (createmenu); the button takes
+	// them again before it opens the menu if its appearance has changed
+	// since (MCButton::openmenu).
+	void bakemenucolors(void);
+	void updatemenuappearance(void);
 
 #if defined(_WINDOWS_DESKTOP) || defined(_MAC_DESKTOP)
 	// Makes the window's frame (title bar) dark or light, as its current

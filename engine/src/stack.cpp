@@ -337,6 +337,8 @@ MCStack::MCStack()
 	m_appearance_mode = kMCAppearanceModeInherit;
 	m_window_dark = false;
 	m_window_dark_set = false;
+	m_menu_baked_colors = 0;
+	m_menu_baked_dark = false;
 }
 
 MCStack::MCStack(const MCStack &sref)
@@ -558,6 +560,8 @@ MCStack::MCStack(const MCStack &sref)
 	m_appearance_mode = sref.m_appearance_mode;
 	m_window_dark = false;
 	m_window_dark_set = false;
+	m_menu_baked_colors = 0;
+	m_menu_baked_dark = false;
 }
 
 MCStack::~MCStack()

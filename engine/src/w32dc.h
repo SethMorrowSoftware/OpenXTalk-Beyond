@@ -259,8 +259,9 @@ public:
 	// --tperry 11th October 2025: Dark mode detection
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 	// Applies the light or dark appearance again: colours, the native theme,
-	// title bars and a redraw of every window (w32dcs.cpp)
+	// title bars and a redraw of every window (w32dc.cpp)
 	virtual void updatesystemappearance(void);
+	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
 
 	virtual void setgraphicsexposures(Boolean on, MCStack *sptr);
 	virtual void copyarea(Drawable source, Drawable dest, int2 depth,

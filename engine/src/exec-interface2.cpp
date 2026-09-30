@@ -1020,7 +1020,10 @@ void MCInterfaceGetLinkColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color
 void MCInterfaceSetLinkColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . color, MClinkatts . colorname, p_color);
-	
+	// The link colours are the script's from now on, in either appearance
+	// (MCBlock::draw)
+	MClinkattsisset = true;
+
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }
@@ -1034,7 +1037,10 @@ void MCInterfaceGetLinkHiliteColor(MCExecContext& ctxt, MCInterfaceNamedColor& r
 void MCInterfaceSetLinkHiliteColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . hilitecolor, MClinkatts . hilitecolorname, p_color);
-	
+	// The link colours are the script's from now on, in either appearance
+	// (MCBlock::draw)
+	MClinkattsisset = true;
+
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }
@@ -1047,7 +1053,10 @@ void MCInterfaceGetLinkVisitedColor(MCExecContext& ctxt, MCInterfaceNamedColor& 
 void MCInterfaceSetLinkVisitedColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . visitedcolor, MClinkatts . visitedcolorname, p_color);
-	
+	// The link colours are the script's from now on, in either appearance
+	// (MCBlock::draw)
+	MClinkattsisset = true;
+
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }

@@ -969,6 +969,20 @@ public:
 	                     MCPatternRef &r_pattern, int2 &x, int2 &y, MCContextType dc_type,
                          MCObject *o, bool selected = false);
 	void setforeground(MCDC *dc, uint2 di, Boolean rev, Boolean hilite = False, bool selected = false);
+
+	// Whether this object is drawn in the dark appearance (object.cpp): never
+	// in a stack drawn light, nor when printing; in a stack drawn dark, unless
+	// the explicit colours around it show that its author designed it light.
+	bool isdarkappearance(MCContextType p_type);
+	// The disabled grey of the appearance this object is drawn in
+	MCColor getappearancegray(MCContextType p_type);
+	// The parts of the rule in isdarkappearance, for any type of object
+	bool paintsownbackground(void);
+	bool usesthemedfill(void);
+	bool explicitlightness(uint2 p_di, bool& r_light);
+	MCObject *appearancebackdrop(void);
+	MCObject *appearanceowner(void);
+
 	Boolean setcolor(uint2 index, const MCString &eptr);
 	Boolean setcolors(const MCString &data);
 	Boolean setpattern(uint2 newpixmap, MCStringRef);

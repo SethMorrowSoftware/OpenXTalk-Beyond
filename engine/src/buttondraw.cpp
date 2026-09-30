@@ -369,7 +369,9 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 			}
 			else if (IsMacLF() || t_flat_disabled)
 			{
-				dc->setforeground(dc->getgray());
+				// The disabled grey of the appearance the button is drawn
+				// in: 137 on the dark background, 128 on the light one
+				dc->setforeground(getappearancegray(dc->gettype()));
 				dc->setfillstyle(FillSolid, nil, 0, 0);
 			}
 			else
@@ -852,13 +854,12 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 			p[5].y = p[0].y + 3;
 
 			//-- tperry 21st January 2026: Make checkmark dark mode aware
+			// (OXT-Beyond: in the appearance this button is drawn in)
 			if (white && state & CS_ARMED)
 				dc->setforeground(dc->getwhite());
 			else
 			{
-				MCSystemAppearance t_appearance;
-				MCscreen->getsystemappearance(t_appearance);
-				if (t_appearance == kMCSystemAppearanceDark)
+				if (isdarkappearance(dc->gettype()))
 					dc->setforeground(dc->getwhite());
 				else
 					dc->setforeground(dc->getblack());
@@ -1257,9 +1258,8 @@ void MCButton::drawcascade(MCDC *dc, MCRectangle &srect)
 		arrow[2].y = arrow[0].y - 4;
 		
 		//-- tperry 21st January 2026: Make cascade arrow dark mode aware
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		if (t_appearance == kMCSystemAppearanceDark)
+		// (OXT-Beyond: in the appearance this button is drawn in)
+		if (isdarkappearance(dc->gettype()))
 			dc->setforeground(dc->getwhite());
 		else
 			dc->setforeground(dc->getblack());
@@ -1655,7 +1655,7 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 				// MCButton::draw); the emulated Win95 look engraves.
 				if (IsNativeWin() || IsNativeGTK())
 				{
-					dc->setforeground(dc->getgray());
+					dc->setforeground(getappearancegray(dc->gettype()));
 					dc->setfillstyle(FillSolid, nil, 0, 0);
 					break;
 				}

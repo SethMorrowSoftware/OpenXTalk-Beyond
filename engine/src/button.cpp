@@ -2804,6 +2804,12 @@ void MCButton::openmenu(Boolean grab)
 			menu->menuset(menuhistory, rect.height >> 1);
 		}
 
+		// A menu built for this button took its colours from the theme in
+		// this button's appearance; take them again if that has changed
+		// since, without building the menu again (after HyperXTalk 798311a85)
+		if (MCNameIsEmpty(menuname))
+			menu->updatemenuappearance();
+
 		menu->openrect(rel, (Window_mode)menumode, NULL, WP_DEFAULT, OP_NONE);
 		menu->mode_openasmenu(t_did_grab ? sptr : NULL);
 		

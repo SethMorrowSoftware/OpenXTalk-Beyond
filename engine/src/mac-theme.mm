@@ -161,7 +161,83 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatfo
     return t_found;
 }
 
+// The colours are AppKit's dynamic colours, which resolve in the current
+// appearance. They are resolved in the appearance of the object they are for
+// (kMCPlatformControlStateDarkAppearance, MCObject::getcontrolstate): a light
+// object in a dark stack gets Aqua's colours, whatever the application's or
+// the window's appearance is. Resolving them is slow, and the same few are
+// asked for on every redraw, so they are kept by type, part, state and
+// property until the appearance changes (MCMacThemeClearColorCache).
+struct MCMacThemeColorCacheEntry
+{
+    bool valid;
+    bool found;
+    MCPlatformControlType type;
+    MCPlatformControlPart part;
+    MCPlatformControlState state;
+    MCPlatformThemeProperty which;
+    MCColor color;
+};
+
+static MCMacThemeColorCacheEntry s_theme_color_cache[256];
+
+void MCMacThemeClearColorCache(void)
+{
+    for (uint32_t i = 0; i < sizeof(s_theme_color_cache) / sizeof(s_theme_color_cache[0]); i++)
+        s_theme_color_cache[i] . valid = false;
+}
+
+static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color);
+
 bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
+{
+    uint32_t t_slot;
+    t_slot = (uint32_t(p_type) * 31 + uint32_t(p_part) * 7 + uint32_t(p_state) * 13 + uint32_t(p_which)) % (sizeof(s_theme_color_cache) / sizeof(s_theme_color_cache[0]));
+    MCMacThemeColorCacheEntry& t_entry = s_theme_color_cache[t_slot];
+    if (t_entry . valid && t_entry . type == p_type && t_entry . part == p_part &&
+        t_entry . state == p_state && t_entry . which == p_which)
+    {
+        if (t_entry . found)
+            r_color = t_entry . color;
+        return t_entry . found;
+    }
+
+    // Resolve in the object's appearance, and leave AppKit's current one as
+    // it was
+    NSAppearance *t_saved_appearance = nil;
+    bool t_switched = false;
+    if (@available(macOS 10.14, *))
+    {
+        t_saved_appearance = [[NSAppearance currentAppearance] retain];
+        [NSAppearance setCurrentAppearance: [NSAppearance appearanceNamed: (p_state & kMCPlatformControlStateDarkAppearance) != 0 ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua]];
+        t_switched = true;
+    }
+
+    MCColor t_color;
+    bool t_found;
+    t_found = MCMacThemeLookupControlColor(p_type, p_part, p_state, p_which, t_color);
+
+    if (t_switched)
+    {
+        [NSAppearance setCurrentAppearance: t_saved_appearance];
+        [t_saved_appearance release];
+    }
+
+    t_entry . valid = true;
+    t_entry . found = t_found;
+    t_entry . type = p_type;
+    t_entry . part = p_part;
+    t_entry . state = p_state;
+    t_entry . which = p_which;
+    if (t_found)
+    {
+        t_entry . color = t_color;
+        r_color = t_color;
+    }
+    return t_found;
+}
+
+static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
 {
     bool t_found;
     t_found = false;

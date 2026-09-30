@@ -1295,7 +1295,8 @@ enum
     kMCPlatformControlStateReadOnly         = (1<<7),   // Control is not modifiable
     kMCPlatformControlStateSelected         = (1<<8),   // Control is selected
     kMCPlatformControlStateWindowActive     = (1<<9),   // Control is in focused window
-    
+    kMCPlatformControlStateDarkAppearance   = (1<<10),  // Control is drawn in the dark appearance (MCObject::isdarkappearance)
+
     kMCPlatformControlStateCompatibility    = (1<<31),   // Use backwards-compatible theming
     
     kMCPlatformControlStateNormal           = 0

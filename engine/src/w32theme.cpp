@@ -231,6 +231,34 @@ static char menucolorsregs[][255] = {
 
 static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state);
 
+// Whether a widget is drawn in the dark appearance: that of the object it is
+// drawn for (MCObject::isdarkappearance), so a light-designed stack keeps its
+// light native controls whatever the appAppearance is. Widgets drawn for no
+// object follow the appAppearance. Never dark on a printer.
+static bool widgetisdark(const MCWidgetInfo& p_winfo, MCDC *p_dc)
+{
+	MCContextType t_type;
+	t_type = p_dc != nil ? p_dc -> gettype() : CONTEXT_TYPE_SCREEN;
+	if (t_type == CONTEXT_TYPE_PRINTER)
+		return false;
+	if (p_winfo . whichobject != nil)
+		return p_winfo . whichobject -> isdarkappearance(t_type);
+	return MCAppearanceIsDark(nil);
+}
+
+// The same for a background the engine draws for an object (a menu's card,
+// the menubar group)
+static bool objectisdark(MCObject *p_object, MCDC *p_dc)
+{
+	MCContextType t_type;
+	t_type = p_dc != nil ? p_dc -> gettype() : CONTEXT_TYPE_SCREEN;
+	if (t_type == CONTEXT_TYPE_PRINTER)
+		return false;
+	if (p_object != nil)
+		return p_object -> isdarkappearance(t_type);
+	return MCAppearanceIsDark(nil);
+}
+
 Boolean MCNativeTheme::load()
 {
 	if (mThemeDLL != NULL)
@@ -243,7 +271,8 @@ Boolean MCNativeTheme::load()
 	mRebarTheme = NULL;
 	mProgressTheme = NULL;
 	mScrollbarTheme = NULL;
-	mScrollbarOwnerDraw = false;
+	mScrollbarDarkTheme = NULL;
+	mScrollbarDarkChecked = false;
 	mSmallScrollbarTheme = NULL;
 	mStatusbarTheme = NULL;
 	mTabTheme = NULL;
@@ -392,7 +421,7 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	case WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL:
 		{
 			if (!mScrollbarTheme)
-				OpenScrollbarTheme();
+				mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
 			return mScrollbarTheme;
 		}
 	case WTHEME_TYPE_SLIDER:
@@ -444,39 +473,32 @@ MCWinSysHandle MCNativeTheme::GetTheme(Widget_Type wtype)
 	return NULL;
 }
 
-// In dark mode scrollbars use the dark variant of the scrollbar class that
-// Explorer uses, "DarkMode_Explorer::ScrollBar" (Windows 10 1809 and later),
-// which draws the whole scrollbar natively, with the system's own sizes and
-// hover states. The class is not documented, and uxtheme resolves an unknown
-// "<application>::" prefix to the plain class, so on a Windows without it
-// OpenThemeData hands back the light scrollbar instead of failing. So the
-// dark class is only kept when its track really draws dark. Otherwise the
-// light class is kept for the part sizes, and drawwidget draws the parts
-// itself in dark colours (drawdarkscrollbarpart). The choice is made again
-// whenever the theme is reloaded, which the light/dark switch does
-// (w32dcw32.cpp).
-void MCNativeTheme::OpenScrollbarTheme(void)
+// Dark scrollbars use the dark variant of the scrollbar class that Explorer
+// uses, "DarkMode_Explorer::ScrollBar" (Windows 10 1809 and later), which
+// draws the scrollbar natively, with the system's own hover states. The class
+// is not documented, and uxtheme resolves an unknown "<application>::" prefix
+// to the plain class, so on a Windows without it OpenThemeData hands back the
+// light scrollbar instead of failing. So the dark class is only kept when its
+// track really draws dark; otherwise drawwidget draws the parts itself in
+// dark colours (drawdarkscrollbarpart). Both classes stay open: whether a
+// scrollbar is dark is decided for each one (widgetisdark), and the part
+// sizes always come from the light class, so a scrollbar keeps its layout in
+// either appearance. The dark class is tried again whenever the theme is
+// reloaded (CloseData).
+MCWinSysHandle MCNativeTheme::GetDarkScrollbarTheme(void)
 {
-	mScrollbarOwnerDraw = false;
-
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	if (t_appearance == kMCSystemAppearanceDark)
+	if (!mScrollbarDarkChecked && openTheme != NULL)
 	{
-		mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"DarkMode_Explorer::ScrollBar");
-		if (mScrollbarTheme != NULL &&
-			MCWin32ThemePartDrawsDark(mScrollbarTheme, SP_TRACKENDVERT, TS_NORMAL))
-			return;
-
-		if (mScrollbarTheme != NULL)
+		mScrollbarDarkChecked = true;
+		mScrollbarDarkTheme = (MCWinSysHandle)openTheme(NULL, L"DarkMode_Explorer::ScrollBar");
+		if (mScrollbarDarkTheme != NULL &&
+			!MCWin32ThemePartDrawsDark(mScrollbarDarkTheme, SP_TRACKENDVERT, TS_NORMAL))
 		{
-			closeTheme(mScrollbarTheme);
-			mScrollbarTheme = NULL;
+			closeTheme(mScrollbarDarkTheme);
+			mScrollbarDarkTheme = NULL;
 		}
-		mScrollbarOwnerDraw = true;
 	}
-
-	mScrollbarTheme = (MCWinSysHandle)openTheme(NULL, L"Scrollbar");
+	return mScrollbarDarkTheme;
 }
 
 void MCNativeTheme::CloseData()
@@ -491,7 +513,12 @@ void MCNativeTheme::CloseData()
 		closeTheme(mScrollbarTheme);
 		mScrollbarTheme = NULL;
 	}
-	mScrollbarOwnerDraw = false;
+	if (mScrollbarDarkTheme)
+	{
+		closeTheme(mScrollbarDarkTheme);
+		mScrollbarDarkTheme = NULL;
+	}
+	mScrollbarDarkChecked = false;
 	if (mSmallScrollbarTheme)
 	{
 		closeTheme(mSmallScrollbarTheme);
@@ -790,9 +817,9 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
             case WCOLOR_TEXT:
                 {
                     //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
-                    MCSystemAppearance t_appearance;
-                    MCscreen->getsystemappearance(t_appearance);
-                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    // (OXT-Beyond: in the appearance of the menu's button,
+                    // MCStack::createmenu)
+                    bool t_is_dark = widgetisdark(winfo, nil);
                     
                     if (t_is_dark)
                         /* UNCHECKED */ MCStringCreateWithCString("255,255,255", r_colorbuf);
@@ -811,9 +838,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
             case WCOLOR_BACK:
                 {
                     //-- tperry 11th November 2025: Check dark mode first, ignore registry colors
-                    MCSystemAppearance t_appearance;
-                    MCscreen->getsystemappearance(t_appearance);
-                    bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+                    bool t_is_dark = widgetisdark(winfo, nil);
                     
                     if (t_is_dark)
                         /* UNCHECKED */ MCStringCreateWithCString("32,32,32", r_colorbuf);
@@ -834,9 +859,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
 	else if (winfo.type == WTHEME_TYPE_OPTIONBUTTON || winfo.type == WTHEME_TYPE_OPTIONBUTTONTEXT)
 	{
 		//-- tperry 11th November 2025: Handle option menu colors for dark mode
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = widgetisdark(winfo, nil);
 		
 		switch (ctype)
 		{
@@ -862,9 +885,7 @@ void MCNativeTheme::getthemecolor(const MCWidgetInfo &winfo, Widget_Color ctype,
 	         winfo.type == WTHEME_TYPE_RADIOBUTTON)
 	{
 		//-- tperry 11th November 2025: Handle button/checkbox/radio colors for dark mode
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = widgetisdark(winfo, nil);
 		
 		switch (ctype)
 		{
@@ -904,17 +925,19 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 	    winfo.type == WTHEME_TYPE_OPTIONBUTTON ||
 	    winfo.type == WTHEME_TYPE_COMBO)
 	{
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		if (t_appearance == kMCSystemAppearanceDark)
+		if (widgetisdark(winfo, dc))
 		{
 			// Draw widget manually in dark mode with our dark colors
 			// Fill background with dark gray
-			dc->setforeground(dc->getbg()); // Use our dark background color (32,32,32)
+			// (OXT-Beyond: the dark colours themselves; the screen's are
+			// those of the appAppearance, which may be light)
+			MCColor t_background, t_gray;
+			MCscreen->getdefaultcolors(true, t_background, t_gray);
+			dc->setforeground(t_background); // Use our dark background color (32,32,32)
 			dc->fillrect(drect);
-			
+
 			// Draw a simple border
-			dc->setforeground(dc->getgray()); // Use gray for border
+			dc->setforeground(t_gray); // Use gray for border
 			dc->drawrect(drect);
 			
 			return True; // Skip Windows native theme drawing
@@ -925,12 +948,17 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 	if (!htheme)
 		return False;
 
-	// Dark mode without the dark scrollbar class: draw the parts of the
-	// scrollbar here (the scrollbar as a whole still goes through
-	// drawscrollcontrols, which lays the parts out). GetTheme has just made
-	// that choice (see OpenScrollbarTheme).
-	if (mScrollbarOwnerDraw && htheme == (HANDLE)mScrollbarTheme && winfo.type != WTHEME_TYPE_SCROLLBAR)
-		return drawdarkscrollbarpart(dc, winfo, drect);
+	// The parts of a dark scrollbar (the scrollbar as a whole goes through
+	// drawscrollcontrols, which lays the parts out with the light class's
+	// sizes): with the dark class, or drawn here when there is none (see
+	// GetDarkScrollbarTheme)
+	if (htheme == (HANDLE)mScrollbarTheme && winfo.type != WTHEME_TYPE_SCROLLBAR && widgetisdark(winfo, dc))
+	{
+		HANDLE t_dark_theme = GetDarkScrollbarTheme();
+		if (t_dark_theme == NULL)
+			return drawdarkscrollbarpart(dc, winfo, drect);
+		htheme = t_dark_theme;
+	}
 
 	if (!drawThemeBG)
 		return False;
@@ -1123,6 +1151,8 @@ Boolean MCNativeTheme::drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 	getscrollbarrects(winfo, drect, sbincarrowrect, sbdecarrowrect, sbthumbrect,sbinctrackrect,sbdectrackrect);
 	uint4 sbpartdefaultstate = winfo.state & WTHEME_STATE_DISABLED? WTHEME_STATE_DISABLED: WTHEME_STATE_CLEAR;
 	memset(&twinfo,0,sizeof(MCWidgetInfo)); //clear widget info
+	// The parts are drawn in the appearance of the slider's object
+	twinfo.whichobject = winfo.whichobject;
 	//draw upper and lower tracks first
 	twinfo.type = winfo.attributes & WTHEME_ATT_SBVERTICAL ? WTHEME_TYPE_SLIDER_TRACK_VERTICAL: WTHEME_TYPE_SLIDER_TRACK_HORIZONTAL;
 	twinfo.state = sbpartdefaultstate;
@@ -1167,6 +1197,8 @@ Boolean MCNativeTheme::drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, c
 		sbpartdefaultstate |= WTHEME_STATE_CONTROL_HOVER;
 	
 	memset(&twinfo,0,sizeof(MCWidgetInfo)); //clear widget info
+	// The parts are drawn in the appearance of the scrollbar's object
+	twinfo.whichobject = winfo.whichobject;
 
 	bool t_vertical;
 	t_vertical = (winfo . attributes & WTHEME_ATT_SBVERTICAL) != 0;
@@ -1226,7 +1258,7 @@ Boolean MCNativeTheme::drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, c
 }
 
 // Draws one part of a scrollbar in dark mode when the dark scrollbar class
-// is missing (see OpenScrollbarTheme). It is flat, like Tom Perry's dark
+// is missing (see GetDarkScrollbarTheme). It is flat, like Tom Perry's dark
 // buttons in drawwidget: a dark track, a lighter thumb that brightens under
 // the mouse, and light grey arrow glyphs on the track colour. The thumb has
 // no gripper.
@@ -1858,12 +1890,12 @@ bool MCNativeTheme::settooltiptextcolor(MCContext *p_context)
 	return true;
 }
 
-bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool p_gutter)
+bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool p_gutter, MCObject *p_object)
 {
 	//-- tperry 8th November 2025: Draw dropdown menu with dark/light mode colors
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	// (OXT-Beyond: in the appearance of the menu's card, which is that of the
+	// menu's button, MCStack::createmenu)
+	bool t_is_dark = objectisdark(p_object, dc);
 	
 	MCColor t_bg_color;
 	MCColor t_border_color;
@@ -1897,12 +1929,11 @@ bool MCNativeTheme::drawmenubackground(MCDC *dc, const MCRectangle& dirty, const
 	return true;
 }
 
-bool MCNativeTheme::drawmenubarbackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool is_active)
+bool MCNativeTheme::drawmenubarbackground(MCDC *dc, const MCRectangle& dirty, const MCRectangle& rect, bool is_active, MCObject *p_object)
 {
 	//-- tperry 8th November 2025: Draw menubar with dark/light mode colors
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+	// (OXT-Beyond: in the menubar group's appearance)
+	bool t_is_dark = objectisdark(p_object, dc);
 	
 	// Set the background color based on dark/light mode
 	MCColor t_bg_color;
@@ -1962,9 +1993,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 		// Draw checkmark if menu item is hilited (checked)
 		if (p_button -> getstate(CS_HILITED))
 		{
-			MCSystemAppearance t_appearance;
-			MCscreen->getsystemappearance(t_appearance);
-			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			bool t_is_dark = objectisdark(p_button, p_context);
 			
 			// Set checkmark color based on dark mode
 			if (t_is_dark)
@@ -1993,9 +2022,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 		// Draw cascade arrow if menu item has submenu
 		if (p_button -> getmenumode() == WM_CASCADE)
 		{
-			MCSystemAppearance t_appearance;
-			MCscreen->getsystemappearance(t_appearance);
-			bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+			bool t_is_dark = objectisdark(p_button, p_context);
 			
 			// Set arrow color based on dark mode
 			if (t_is_dark)
@@ -2019,9 +2046,7 @@ bool MCNativeTheme::drawmenuitembackground(MCContext *p_context, const MCRectang
 	else
 	{
 		// Draw separator line
-		MCSystemAppearance t_appearance;
-		MCscreen->getsystemappearance(t_appearance);
-		bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
+		bool t_is_dark = objectisdark(p_button, p_context);
 		
 		MCColor t_sep_color;
 		if (t_is_dark)
@@ -2280,7 +2305,7 @@ void MCGDIDrawTheme(HDC p_dc, void *p_context)
 // must be below half. A part that draws nothing counts as dark, which is
 // what matters here: the dark background shows through it. Used to tell the
 // dark scrollbar class from the light one it falls back to (see
-// MCNativeTheme::OpenScrollbarTheme).
+// MCNativeTheme::GetDarkScrollbarTheme).
 static bool MCWin32ThemePartDrawsDark(MCWinSysHandle p_theme, int4 p_part, int4 p_state)
 {
 	const uint2 t_width = 16;

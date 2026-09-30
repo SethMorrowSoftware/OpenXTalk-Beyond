@@ -2239,7 +2239,7 @@ void MCGroup::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p
 
 	if (MCcurtheme != NULL &&
 		getstack() -> hasmenubar() && hasname(getstack() -> getmenubar()) &&
-		MCcurtheme -> drawmenubarbackground(dc, dirty, getrect(), MCmenubar == this))
+		MCcurtheme -> drawmenubarbackground(dc, dirty, getrect(), MCmenubar == this, this))
 	{
 		// MW-2009-06-14: Vista menu backgrounds are assumed opaque
 		t_is_opaque = true;

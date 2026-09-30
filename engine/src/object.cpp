@@ -26,6 +26,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "dispatch.h"
 #include "stack.h"
 #include "card.h"
+#include "objptr.h"
 #include "group.h"
 #include "button.h"
 #include "image.h"
@@ -1443,6 +1444,268 @@ Boolean MCObject::resizeparent()
 	return False;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+//  The light and dark appearance of objects
+//
+//  A stack is drawn light or dark (its effective stackAppearance,
+//  appearance.cpp). In a dark stack each colour an object leaves unset comes
+//  from the dark theme: white text and dark fills. That is right for a stack
+//  that sets no colours, and wrong for one designed on a light system,
+//  whose author set light fills and left the text colour alone: the dark
+//  default text lands on the author's own white. So in a dark stack each
+//  object looks at the explicit colours around it, and is drawn light when
+//  they are light. Light stacks are never adjusted, so the light appearance
+//  renders exactly as it did before dark mode existed.
+//
+
+// Whether the object shows a fill of its own where it is drawn (an opaque
+// object), rather than what is under it
+bool MCObject::paintsownbackground(void)
+{
+	switch (gettype())
+	{
+		case CT_STACK:
+		case CT_CARD:
+			return true;
+
+		case CT_FIELD:
+		case CT_GROUP:
+		case CT_GRAPHIC:
+			// For a graphic, opaque means filled
+			return (flags & F_OPAQUE) != 0;
+
+		case CT_BUTTON:
+		{
+			// The face of a push, rectangle, round or menu button; the box of
+			// a checkbox or radio button is not its background
+			if ((flags & F_OPAQUE) == 0)
+				return false;
+			uint4 t_style;
+			t_style = getstyleint(flags);
+			return t_style != F_CHECK && t_style != F_RADIO;
+		}
+
+		default:
+			// Images, players, scrollbars, widgets and EPS objects
+			return false;
+	}
+}
+
+// Whether getforecolor takes the object's fill straight from the theme,
+// without looking at the colours of its owners: a field with a border
+// (MCField::drawrect passes 'hilite'), and the faces the native theme draws
+// for push buttons, option menus, combo boxes and tabs that have no colour
+// of their own
+bool MCObject::usesthemedfill(void)
+{
+	if (MClook == LF_MOTIF || (flags & F_OPAQUE) == 0)
+		return false;
+
+	switch (gettype())
+	{
+		case CT_FIELD:
+			return (flags & F_SHOW_BORDER) != 0 && (!(flags & F_F_AUTO_ARM) || MClook == LF_WIN95) &&
+				(flags & F_DISABLED) == 0;
+
+		case CT_BUTTON:
+		{
+			if (MCcurtheme == nil)
+				return false;
+			if (getstyleint(flags) == F_MENU)
+			{
+				uint1 t_mode;
+				t_mode = static_cast<MCButton *>(this) -> getmenumode();
+				return t_mode == WM_OPTION || t_mode == WM_COMBO || t_mode == WM_TOP_LEVEL;
+			}
+			// MCButton::draw draws a standard button with no colour of its
+			// own ('noback') with the theme
+			return standardbtn();
+		}
+
+		default:
+			return false;
+	}
+}
+
+// Whether the object itself sets the colour p_di (DI_BACK or DI_FORE), and if
+// so whether it is light. Patterns count as light: they predate dark mode,
+// and a graphic's fill gradient does too.
+bool MCObject::explicitlightness(uint2 p_di, bool& r_light)
+{
+	uint2 i;
+	if (getcindex(p_di, i))
+	{
+		r_light = MCAppearanceColorIsLight(colors[i]);
+		return true;
+	}
+	if (getpindex(p_di, i))
+	{
+		r_light = true;
+		return true;
+	}
+	if (p_di == DI_BACK && gettype() == CT_GRAPHIC &&
+		static_cast<MCGraphic *>(this) -> getgradient() != nil)
+	{
+		r_light = true;
+		return true;
+	}
+	return false;
+}
+
+static bool MCAppearanceRectContains(const MCRectangle& p_outer, const MCRectangle& p_inner)
+{
+	return p_outer . x <= p_inner . x && p_outer . y <= p_inner . y &&
+		p_outer . x + p_outer . width >= p_inner . x + p_inner . width &&
+		p_outer . y + p_outer . height >= p_inner . y + p_inner . height;
+}
+
+// What a control is drawn on inside its group or card: the nearest control
+// below it (at most 256 are looked at) that is visible, covers the whole
+// control and either paints its own background or is an image.
+MCObject *MCObject::appearancebackdrop(void)
+{
+	Chunk_term t_type;
+	t_type = gettype();
+	if (t_type < CT_FIRST_CONTROL || t_type > CT_LAST_CONTROL)
+		return nil;
+
+	MCObject *t_owner;
+	t_owner = getparent();
+	if (t_owner == nil)
+		return nil;
+
+	MCRectangle t_rect;
+	t_rect = getrect();
+
+	MCControl *t_self;
+	t_self = static_cast<MCControl *>(this);
+
+	uint32_t t_count;
+	t_count = 0;
+
+	if (t_owner -> gettype() == CT_CARD)
+	{
+		MCCard *t_card;
+		t_card = static_cast<MCCard *>(t_owner);
+		MCObjptr *t_first;
+		t_first = t_card -> getobjptrs();
+		MCObjptr *t_mine;
+		t_mine = t_card -> getobjptrforcontrol(t_self);
+		if (t_first == nil || t_mine == nil)
+			return nil;
+
+		for (MCObjptr *t_ptr = t_mine; t_ptr != t_first && t_count < 256; t_count++)
+		{
+			t_ptr = t_ptr -> prev();
+			MCControl *t_control;
+			t_control = t_ptr -> getref();
+			if (t_control != nil && t_control -> isvisible(false) &&
+				MCAppearanceRectContains(t_control -> getrect(), t_rect) &&
+				(t_control -> gettype() == CT_IMAGE || t_control -> paintsownbackground()))
+				return t_control;
+		}
+	}
+	else if (t_owner -> gettype() == CT_GROUP)
+	{
+		MCControl *t_first;
+		t_first = static_cast<MCGroup *>(t_owner) -> getcontrols();
+		if (t_first == nil)
+			return nil;
+
+		for (MCControl *t_control = t_self; t_control != t_first && t_count < 256; t_count++)
+		{
+			t_control = t_control -> prev();
+			if (t_control -> isvisible(false) &&
+				MCAppearanceRectContains(t_control -> getrect(), t_rect) &&
+				(t_control -> gettype() == CT_IMAGE || t_control -> paintsownbackground()))
+				return t_control;
+		}
+	}
+
+	return nil;
+}
+
+// What an object sits on when no control is under it: a control's group or
+// card, a card's stack, a substack's mainstack, and the button of a menu the
+// engine built for it. A mainstack sits on nothing.
+MCObject *MCObject::appearanceowner(void)
+{
+	MCObject *t_owner;
+	t_owner = getparent();
+	if (t_owner == nil || t_owner == MCdispatcher)
+		return nil;
+	return t_owner;
+}
+
+// Whether p_object shows a light surface: its own fill, its own text colour
+// when it paints a default fill, or else what it sits on. When nothing tells,
+// the answer is dark, so a stack that sets no colours is drawn dark.
+static bool MCAppearanceIsLightSurface(MCObject *p_object, int p_depth)
+{
+	if (p_depth == 0 || p_object == nil)
+		return false;
+
+	// The author saw the default black text on a picture
+	if (p_object -> gettype() == CT_IMAGE)
+		return true;
+
+	bool t_light;
+	if (p_object -> paintsownbackground())
+	{
+		// 1. Its own fill
+		if (p_object -> explicitlightness(DI_BACK, t_light))
+			return t_light;
+
+		// 2. The fill it inherits and paints as it is
+		if (!p_object -> usesthemedfill())
+			for (MCObject *t_parent = p_object -> getparent(); t_parent != nil && t_parent != MCdispatcher; t_parent = t_parent -> getparent())
+				if (t_parent -> explicitlightness(DI_BACK, t_light))
+					return t_light;
+
+		// 3. Its own text colour on a default fill: dark text was meant for
+		//    a light fill
+		if (p_object -> explicitlightness(DI_FORE, t_light))
+			return !t_light;
+	}
+
+	// 4. What it sits on
+	MCObject *t_under;
+	t_under = p_object -> appearancebackdrop();
+	if (t_under == nil)
+		t_under = p_object -> appearanceowner();
+	if (t_under == nil)
+		return false;
+
+	return MCAppearanceIsLightSurface(t_under, p_depth - 1);
+}
+
+// Is this object drawn in the dark appearance? Light stacks are never adjusted,
+// so light mode renders exactly as before dark mode existed. In a dark stack, the
+// author's explicit colours decide: a stack designed for light sets light fills and
+// leaves the text colour alone, so the dark default (white) text would land on its own
+// white. When the rule cannot tell (a pattern, a gradient, a picture), it answers
+// light, because light is how every existing stack was designed; only a stack that
+// sets nothing at all goes dark.
+bool MCObject::isdarkappearance(MCContextType p_type)
+{
+	if (p_type == CONTEXT_TYPE_PRINTER)
+		return false;
+
+	// The fast path: light is untouched
+	if (!MCAppearanceIsDark(getstack()))
+		return false;
+
+	return !MCAppearanceIsLightSurface(this, 16);
+}
+
+MCColor MCObject::getappearancegray(MCContextType p_type)
+{
+	MCColor t_background, t_gray;
+	MCscreen -> getdefaultcolors(isdarkappearance(p_type), t_background, t_gray);
+	return t_gray;
+}
+
 Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
                                MCColor &c, MCPatternRef &r_pattern,
                                int2 &x, int2 &y, MCContextType dc_type,
@@ -1497,7 +1760,8 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
     {
         if (di == DI_FORE && flags & F_DISABLED)
         {
-            c = MCscreen->getgray();
+            // The disabled grey of the appearance the object is drawn in
+            c = o -> getappearancegray(dc_type);
             return True;
         }
         if (MClook != LF_MOTIF && hilite && flags & F_OPAQUE
@@ -1518,6 +1782,10 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
                     if (selected)
                         t_control_state |= kMCPlatformControlStateSelected;
                     
+                    // Printing is always light
+                    if (dc_type == CONTEXT_TYPE_PRINTER)
+                        t_control_state &= ~(MCPlatformControlState)kMCPlatformControlStateDarkAppearance;
+
                     if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_theme_prop, c))
                         return True;
                 }
@@ -1591,10 +1859,19 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
         if (selected)
             t_control_state |= kMCPlatformControlStateSelected;
         
+        // Printing is always light
+        if (dc_type == CONTEXT_TYPE_PRINTER)
+            t_control_state &= ~(MCPlatformControlState)kMCPlatformControlStateDarkAppearance;
+
         if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_theme_prop, c))
             return True;
     }
     
+	// No theme has the colour: the defaults of the appearance the object is
+	// drawn in. The light ones are the colours the engine always used.
+	bool t_dark;
+	t_dark = o -> isdarkappearance(dc_type);
+
 	switch (di)
 	{
 
@@ -1604,12 +1881,16 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
 	case DI_FORE:
 		if (rev)
 			c = MCscreen->getwhite();
+		else if (di == DI_FORE && t_dark)
+			// Text on the dark default fill
+			c = MCscreen->getwhite();
 		else
 			c = MCscreen->getblack();
 		break;
 	case DI_BACK:
 #ifdef _MAC_DESKTOP
-		if (IsMacLFAM() && dc_type != CONTEXT_TYPE_PRINTER)
+		// The Aqua window pattern is light, so only the light appearance uses it
+		if (IsMacLFAM() && dc_type != CONTEXT_TYPE_PRINTER && !t_dark)
 		{
 			extern bool MCMacThemeGetBackgroundPattern(Window_mode p_mode, bool p_active, MCPatternRef &r_pattern);
 			x = 0;
@@ -1619,7 +1900,10 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
 				return False;
 		}
 #endif
-		c = MCscreen->getbg();
+		{
+			MCColor t_gray;
+			MCscreen -> getdefaultcolors(t_dark, c, t_gray);
+		}
 		break;
 	case DI_HILITE:
 		c = o->gettype() == CT_BUTTON ? MCaccentcolor : MChilitecolor;
@@ -1632,6 +1916,14 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
 			else
 				c = MCaccentcolor;
 		}
+		break;
+	case DI_BORDER:
+		// Black is 1.2:1 on the dark background; 110 is 3.2:1, like the
+		// borders of the dark native controls
+		if (t_dark)
+			c . red = c . green = c . blue = 0x6E6E;
+		else
+			c = MCscreen->getblack();
 		break;
 	default:
 		c = MCscreen->getblack();

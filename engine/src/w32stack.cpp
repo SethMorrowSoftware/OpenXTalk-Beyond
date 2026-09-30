@@ -1222,8 +1222,10 @@ void MCStack::updatewindowappearance(void)
 	if (window == NULL || window -> handle . window == NULL)
 		return;
 
+	// The frame goes with the card that fills the window: a light-designed
+	// stack gets a light title bar in a dark stack
 	bool t_dark;
-	t_dark = MCAppearanceIsDark(this);
+	t_dark = curcard != nil ? curcard -> isdarkappearance(CONTEXT_TYPE_SCREEN) : MCAppearanceIsDark(this);
 	if (m_window_dark_set && t_dark == m_window_dark)
 		return;
 

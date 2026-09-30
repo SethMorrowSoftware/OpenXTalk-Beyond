@@ -261,8 +261,10 @@ public:
 	virtual bool settooltiptextcolor(MCContext *context);
 	virtual int32_t fetchtooltipstartingheight(void);
 	
-	virtual bool drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter);
-	virtual bool drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active);
+	// object: the card of the menu, or the menubar group, whose appearance
+	// (light or dark) the background is drawn in
+	virtual bool drawmenubackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool with_gutter, MCObject *object);
+	virtual bool drawmenubarbackground(MCContext *context, const MCRectangle& dirty, const MCRectangle& rect, bool is_active, MCObject *object);
 	virtual bool drawmenuheaderbackground(MCContext *context, const MCRectangle& dirty, MCButton *button);
 	virtual bool drawmenuitembackground(MCContext *context, const MCRectangle& dirty, MCButton *button);
 

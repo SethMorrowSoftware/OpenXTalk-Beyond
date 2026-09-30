@@ -757,6 +757,15 @@ void MCScreenDC::beep()
 	gdk_beep();
 }
 
+// On Linux every stack is drawn in the GTK theme's appearance, and the
+// screen's background is the theme's (MCNativeTheme::load), so the defaults
+// are the screen's own in either appearance
+void MCScreenDC::getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray)
+{
+	r_background = background_pixel;
+	r_gray = gray_pixel;
+}
+
 void MCScreenDC::setinputfocus(Window window)
 {
 	gdk_window_focus(window, MCeventtime);

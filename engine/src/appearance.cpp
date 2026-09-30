@@ -46,6 +46,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 MCAppearanceMode MCappappearance = kMCAppearanceModeLight;
 int MCappearanceforcelight = 0;
 bool MCselectioncolorisset = false;
+bool MClinkattsisset = false;
 
 // The OS setting, for the drawing code: on macOS reading it goes to the
 // preferences system, which is too slow for every colour. It is read again
@@ -128,6 +129,31 @@ bool MCAppearanceIsDark(MCStack *p_stack)
 	return t_mode == kMCAppearanceModeDark;
 #endif
 #endif
+}
+
+// The sRGB transfer function, per 8-bit channel value, for the WCAG relative
+// luminance (the same formula as tools/ci/render_check.py)
+static float s_appearance_linear[256];
+static bool s_appearance_linear_ready = false;
+
+bool MCAppearanceColorIsLight(const MCColor& p_color)
+{
+	if (!s_appearance_linear_ready)
+	{
+		for (int i = 0; i < 256; i++)
+		{
+			double t_value = i / 255.0;
+			s_appearance_linear[i] = (float)(t_value <= 0.04045 ? t_value / 12.92 : pow((t_value + 0.055) / 1.055, 2.4));
+		}
+		s_appearance_linear_ready = true;
+	}
+
+	float t_luminance = 0.2126f * s_appearance_linear[p_color . red >> 8] +
+		0.7152f * s_appearance_linear[p_color . green >> 8] +
+		0.0722f * s_appearance_linear[p_color . blue >> 8];
+
+	// Above 0.179 black text contrasts more with the colour than white does
+	return t_luminance > 0.179f;
 }
 
 void MCAppearanceChanged(void)

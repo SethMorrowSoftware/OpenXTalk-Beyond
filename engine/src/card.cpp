@@ -3105,7 +3105,7 @@ void MCCard::draw(MCDC *dc, const MCRectangle& dirty, bool p_isolated)
 	// MW-2011-09-23: If we are a menuwindow, then draw a themed menu background
 	//   otherwise fill a metal background, otherwise fill with background color.
 	if (MCcurtheme != nil && getstack() -> menuwindow &&
-		MCcurtheme -> drawmenubackground(dc, dirty, getrect(), true))
+		MCcurtheme -> drawmenubackground(dc, dirty, getrect(), true, this))
 		t_draw_cardborder = false;
 	else
 		drawbackground(dc, dirty);

@@ -46,6 +46,7 @@ MCTooltip::MCTooltip()
 	cards->setstate(True, CS_NO_MESSAGES);
 
 	m_font = nil;
+	m_dark = false;
 }
 
 MCTooltip::~MCTooltip()
@@ -156,10 +157,23 @@ void MCTooltip::opentip()
 	}
 
 	minheight = minwidth = 1;
-    
+
+    // The tip takes the appearance of what it is shown for (the control
+    // under the mouse, or the card), not its own: the tooltip is one stack,
+    // shared by every stack, and keeps the colour it was last given
+    MCObject *t_for;
+    t_for = card -> getmousecontrol();
+    if (t_for == nil)
+        t_for = card;
+    m_dark = t_for -> isdarkappearance(CONTEXT_TYPE_SCREEN);
+    MCPlatformControlState t_state;
+    t_state = getcontrolstate() & ~(MCPlatformControlState)kMCPlatformControlStateDarkAppearance;
+    if (m_dark)
+        t_state |= kMCPlatformControlStateDarkAppearance;
+
     // Get the colour for the tooltip background
     MCColor t_bg_color;
-    if (MCPlatformGetControlThemePropColor(getcontroltype(), getcontrolsubpart(), getcontrolstate(), kMCPlatformThemePropertyBackgroundColor, t_bg_color))
+    if (MCPlatformGetControlThemePropColor(getcontroltype(), getcontrolsubpart(), t_state, kMCPlatformThemePropertyBackgroundColor, t_bg_color))
     {
         MCExecContext ctxt(this, nil, nil);
 		uint32_t t_pixel = MCColorGetPixel(t_bg_color);
@@ -246,7 +260,9 @@ void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 	{
 		setforeground(dc, DI_BACK, False);
 		dc -> fillrect(trect);
-		dc -> setforeground(MCscreen -> black_pixel);
+		// The background is the theme's for the appearance of what the tip
+		// is shown for (opentip)
+		dc -> setforeground(m_dark ? MCscreen -> white_pixel : MCscreen -> black_pixel);
 	}
 
 	int32_t t_fheight;
