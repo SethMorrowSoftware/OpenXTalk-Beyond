@@ -1,7 +1,9 @@
 # Builds the OXT-Beyond engine for macOS on GitHub-hosted runners: Apple
 # Silicon (arm64) on macos-15 and Intel (x86_64) on macos-15-intel. Each
-# architecture is built natively on its own runner with the same steps; a
-# later packaging job joins the two into one universal app with lipo.
+# architecture is built natively on its own runner with the same steps and
+# ends as an artifact of its own. Nothing here joins the two: the universal
+# app is to be assembled from both artifacts (with lipo) by the packaging
+# step that follows the builds, which is planned but does not exist yet.
 #
 # Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
 # (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
