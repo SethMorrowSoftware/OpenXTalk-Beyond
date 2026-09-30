@@ -23,8 +23,9 @@ Runs tools/oxt/dark_disabled_icons.py --check: every
 ide/Toolset/palettes/menubar/images/*-disabled*.png has its
 *-disabled-dark*.png twin, each twin is exactly what that script makes
 from the enabled icon, and the mean luminance of each twin's ink has at
-least 3:1 contrast with the dark toolbar (32,32,32). Exit status 1 when a
-check fails. Needs Python 3.8 or later, standard library only.
+least 3:1 contrast with each dark toolbar (32,32,32 on Windows, 61,61,61 on
+macOS). Exit status 1 when a check fails. Needs Python 3.8 or later,
+standard library only.
 """
 
 import argparse

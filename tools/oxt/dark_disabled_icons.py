@@ -32,9 +32,11 @@ the ENABLED icon of the same density, <name>.png or <name>@extra-high.png:
     disabled icon,
   - lifted: the grey is mapped from 0..255 to lift..255, with the smallest
     lift (in steps of 5) that gives the icon's ink TARGET (3.3:1) contrast
-    with the toolbar's dark background (32,32,32, the Windows dark window
-    colour). Dark icons are lifted more than light ones, and each keeps
-    as much of its shading as it can, in the same order.
+    with each dark toolbar the IDE paints (BACKGROUNDS: 32,32,32, the
+    Windows dark window colour, and 61,61,61, which revmenubar sets for the
+    macOS dark appearance; the lighter one decides). Dark icons are lifted
+    more than light ones, and each keeps as much of its shading as it can,
+    in the same order.
 
 The pHYs chunk (density) of the enabled icon is copied; other metadata is
 not.
@@ -43,8 +45,9 @@ not.
 twin, that each twin has exactly the pixels this script makes from the
 enabled icon (so the committed files are this script's output), and that
 the mean luminance of each twin's ink (its pixels with at least half of its
-highest alpha, composited over 32,32,32) has a contrast of at least 3:1
-with the background. tools/ci/check_ide_icons.py runs this check in CI.
+highest alpha, composited over the background) has a contrast of at least
+3:1 with each of the BACKGROUNDS. tools/ci/check_ide_icons.py runs this
+check in CI.
 
 Standard library only (PNG decoding and encoding with zlib and struct);
 needs Python 3.8 or later.
@@ -59,7 +62,11 @@ import zlib
 IMAGES = os.path.join('ide', 'Toolset', 'palettes', 'menubar', 'images')
 OPACITY = 0.5
 TARGET = 3.3
-BACKGROUND = (32, 32, 32)
+# The dark toolbars the twins are shown on (revIDEIsDark follows the system
+# appearance on every platform): the Windows dark window colour, and the
+# macOS dark toolbar, which revmenubar.livecodescript's preOpenStack sets
+# to 61,61,61. The lighter one needs the larger lift.
+BACKGROUNDS = ((32, 32, 32), (61, 61, 61))
 MIN_CONTRAST = 3.0
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
@@ -242,7 +249,7 @@ def dark_twin_pixels(rgba):
     icon's RGBA rows."""
     for lift in range(0, 256, 5):
         out = _faded_grey(rgba, lift)
-        if ink_contrast(out) >= TARGET:
+        if min(ink_contrast(out, background) for background in BACKGROUNDS) >= TARGET:
             return out, lift
     return _faded_grey(rgba, 255), 255
 
@@ -256,7 +263,7 @@ def relative_luminance(rgb):
     return total
 
 
-def ink_contrast(rgba, background=BACKGROUND):
+def ink_contrast(rgba, background):
     """Contrast ratio between the background and the mean luminance of the
     icon's ink (pixels with at least half of the icon's highest alpha),
     each composited over the background."""
@@ -276,6 +283,15 @@ def ink_contrast(rgba, background=BACKGROUND):
     back = relative_luminance(background)
     mean = total / count
     return (max(mean, back) + 0.05) / (min(mean, back) + 0.05)
+
+
+def rgb(colour):
+    return '%d,%d,%d' % colour
+
+
+def describe(contrasts):
+    """'3.61:1 on 32,32,32, 3.30:1 on 61,61,61' for the BACKGROUNDS."""
+    return ', '.join('%.2f:1 on %s' % (c, rgb(b)) for c, b in zip(contrasts, BACKGROUNDS))
 
 
 def pairs(images):
@@ -325,16 +341,18 @@ def main(argv=None):
             if (t_width, t_height) != (width, height) or t_rgba != expected:
                 problems.append((rel_twin, 'not the output of tools/oxt/dark_disabled_icons.py for %s' % enabled))
                 continue
-            contrast = ink_contrast(t_rgba)
-            status = 'ok' if contrast >= MIN_CONTRAST else 'LOW'
-            print('%-6s %-46s %dx%d  lift %3d  ink contrast %.2f:1 on %d,%d,%d'
-                  % ((status, twin, width, height, lift, contrast) + BACKGROUND))
-            if contrast < MIN_CONTRAST:
-                problems.append((rel_twin, 'ink contrast %.2f:1 on %d,%d,%d is below %.1f:1'
-                                 % ((contrast,) + BACKGROUND + (MIN_CONTRAST,))))
+            contrasts = [ink_contrast(t_rgba, background) for background in BACKGROUNDS]
+            status = 'ok' if min(contrasts) >= MIN_CONTRAST else 'LOW'
+            print('%-6s %-46s %dx%d  lift %3d  ink contrast %s'
+                  % (status, twin, width, height, lift, describe(contrasts)))
+            for background, contrast in zip(BACKGROUNDS, contrasts):
+                if contrast < MIN_CONTRAST:
+                    problems.append((rel_twin, 'ink contrast %.2f:1 on %s is below %.1f:1'
+                                     % (contrast, rgb(background), MIN_CONTRAST)))
         else:
             write_png(os.path.join(images, twin), width, height, expected, phys)
-            print('wrote  %-46s %dx%d  lift %3d  ink contrast %.2f:1' % (twin, width, height, lift, ink_contrast(expected)))
+            print('wrote  %-46s %dx%d  lift %3d  ink contrast %s'
+                  % (twin, width, height, lift, describe([ink_contrast(expected, b) for b in BACKGROUNDS])))
 
     for rel, message in problems:
         print('FAILED %s: %s' % (rel, message))
@@ -346,7 +364,7 @@ def main(argv=None):
             with open(summary, 'a', encoding='utf-8') as f:
                 f.write('### Toolbar icons\n\n%d disabled icon(s): %s\n\n' % (
                     len(found), 'every one has its dark twin, made by tools/oxt/dark_disabled_icons.py, '
-                    'with at least %.1f:1 on %d,%d,%d.' % ((MIN_CONTRAST,) + BACKGROUND) if not problems
+                    'with at least %.1f:1 on %s.' % (MIN_CONTRAST, ' and '.join(rgb(b) for b in BACKGROUNDS)) if not problems
                     else '%d problem(s).' % len(problems)))
         print('Toolbar icons: %s' % ('passed' if not problems else 'FAILED (%d problem(s))' % len(problems)))
     return 1 if problems else 0

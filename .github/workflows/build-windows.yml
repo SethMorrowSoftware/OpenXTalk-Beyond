@@ -184,7 +184,8 @@ jobs:
       #                                 tools/oxt/ide-stack-patches are
       #                                 applied to the binary IDE stacks
       #   check_ide_icons.py            the toolbar's disabled icons have
-      #                                 their dark twins, readable on 32,32,32
+      #                                 their dark twins, readable on the
+      #                                 dark toolbars (32,32,32 and 61,61,61)
       - name: Lint IDE sources
         id: ide_lint
         run: |
