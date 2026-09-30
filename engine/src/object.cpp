@@ -1606,22 +1606,23 @@ static bool MCAppearanceIsBackdrop(MCControl *p_control, const MCRectangle& p_re
 }
 
 // What a control is drawn on inside its group or card: the nearest control
-// below it that is visible and either covers the whole control and paints
-// its own background or is an image, or paints its own background under at
-// least half of it (MCAppearanceIsBackdrop). The nearest one wins, so a
-// panel mostly under a label beats a card-sized graphic further down. It
-// looks at up to 256 controls below it.
+// below it that is visible and either covers the whole control (an image,
+// or a control that paints its own background) or paints its own
+// background under at least half of it (MCAppearanceIsBackdrop). The
+// nearest one wins, so a panel mostly under a label beats a card-sized
+// graphic further down. It looks at up to 256 controls below it.
 //
 // This runs for every colour a control looks up while it is drawn dark, so
 // finding the control's own place among its card's layers must not walk
 // them. p_place is that place (its objptr) when the caller knows it: the
 // place this function returned in r_place for the control it found, as the
 // rule goes on to what that control sits on. Otherwise, while MCCard::draw
-// draws the control (or the group a child of it belongs to), the card knows
-// it (MCCard::getdrawingobjptr). So while the card draws it, finding its own
-// place is O(1); other callers (the effective colours, tooltips, menus) walk
-// the card's layers to it. r_place is the place of the control returned
-// when that control is on the card, and nil otherwise.
+// draws the control, the card knows it (MCCard::getdrawingobjptr); a group
+// reached from one of its children is the control the card is drawing, so
+// that holds for it too. So while the card draws it, finding its own place
+// is O(1); other callers (the effective colours, tooltips, menus) walk the
+// card's layers to it. r_place is the place of the control returned when
+// that control is on the card, and nil otherwise.
 MCObject *MCObject::appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place)
 {
 	r_place = nil;
