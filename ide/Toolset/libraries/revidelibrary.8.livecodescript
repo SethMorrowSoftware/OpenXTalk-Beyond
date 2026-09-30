@@ -2845,6 +2845,22 @@ function revIDEStackIsShipped pStack
    if tFile is empty then return false
    put revEnvironmentToolsetPath() & return & revEnvironmentPluginsPath() & return & \
          revEnvironmentDocumentationPath() & return & revEnvironmentDevelopmentPluginsPath() into tFolders
+   -- The Toolset folder is also the folder of the home stack's own file.
+   -- The paths above come from the tools folder the IDE's start records
+   -- (sToolsPath in home); without that start, as in the headless IDE
+   -- checks (tools/ci/ide-appearance-check), only this finds the IDE's
+   -- stacks, home included
+   local tHome
+   try
+      put the effective filename of stack "home" into tHome
+   catch tError
+      put empty into tHome
+   end try
+   if tHome is not empty then
+      set the itemDelimiter to slash
+      put return & item 1 to -2 of tHome after tFolders
+      set the itemDelimiter to comma
+   end if
    repeat for each line tFolder in tFolders
       if tFolder is empty then next repeat
       if the last char of tFolder is not slash then put slash after tFolder
