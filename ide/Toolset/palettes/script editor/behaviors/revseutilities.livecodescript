@@ -845,7 +845,8 @@ end seColorizationInit
 #   the sPrefs array. To apply the newly loaded scheme, call seColorizationInit
 #   after the scheme has been loaded.
 # OXT-Beyond: pTargetKey is the preference that gets the scheme's settings,
-# "colorization,config" (the default) or "colorization,configdark".
+# "colorization,config" (the default) or "colorization,configdark"; for the
+# scheme "Custom" it also chooses the slot's file.
 command seColorizationLoadScheme pScheme, @pPreferencesArray, pTargetKey
    local newSECols
    if pTargetKey is empty then put "colorization,config" into pTargetKey
@@ -1095,9 +1096,13 @@ command seColorizationLoadScheme pScheme, @pPreferencesArray, pTargetKey
             create folder sFilePath
          end if
          -- read the file
+         -- OXT-Beyond: the file of the slot that is loaded, so that the
+         -- light and the dark scheme "Custom" each keep their colours; the
+         -- dark slot reads the light one's until it has its own
+         -- (revSECustomSchemeFile in revidelibrary)
          local myTmpVar
          local myTmpData
-         put sFilePath & "customScriptColours.dat" into myTmpVar 
+         put revSECustomSchemeFile(sFilePath, (pTargetKey is "colorization,configdark"), true) into myTmpVar
          open file myTmpVar
          read from file myTmpVar until EOF
          put it into myTmpData

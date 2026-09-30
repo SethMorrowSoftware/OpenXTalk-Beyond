@@ -1,0 +1,33 @@
+# The script editor keeps a light and a dark value of the settings whose
+# colours depend on the appearance (revSEAppearanceKey in revidelibrary;
+# the idea of HyperXTalk e835a23ec), and both schemes can be "Custom", each
+# with a file of its own (revSECustomSchemeFile). The custom scheme dialog
+# (substack "CustomScriptCol") shows the colours of the slot of the IDE's
+# appearance when it opens, and an edit writes them all to the slot of the
+# appearance at that moment. The IDE closes the dialog when the appearance
+# changes (__revIDEPrefsScriptEditorRefresh in revidelibrary), but the
+# colour picker of an edit (answer color) can be open then, and the edit
+# would write the other slot's colours into the new slot: so the edit is
+# dropped when the appearance changed while its colour was picked.
+# This one: the graphic "bkgndSwatch", which sets the background.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: graphic "bkgndSwatch" of card 1 of stack "CustomScriptCol"
+replace:
+|on mouseup|
+|   local myColor|
+|   answer color with (the backgroundColor of me)|
+|   put it into myColor|
+|   if myColor is empty or myColor is cancel then exit mouseup|
+with:
+|on mouseup|
+|   local myColor, tDark|
+|   -- OXT-Beyond: the slot of the IDE's appearance, whose background the|
+|   -- dialog shows (the IDE closes it when the appearance changes)|
+|   put revIDEIsDark() into tDark|
+|   answer color with (the backgroundColor of me)|
+|   put it into myColor|
+|   if myColor is empty or myColor is cancel then exit mouseup|
+|   -- the appearance changed while the colour was picked: it was picked|
+|   -- against the other slot's background|
+|   if revIDEIsDark() is not tDark then exit mouseup|
