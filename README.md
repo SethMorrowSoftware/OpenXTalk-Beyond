@@ -1,12 +1,14 @@
 # OXT-Beyond
 
 [![Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
+[![Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml)
+[![Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
 
-OXT-Beyond is a free, open source development environment for Windows in
-which you build programs with an English-like scripting language in the
-HyperCard/HyperTalk tradition ("xTalk"). You lay out stacks of cards with
-buttons, fields and other controls, and write scripts that respond to
-what the user does.
+OXT-Beyond is a free, open source development environment for Windows,
+macOS and Linux in which you build programs with an English-like
+scripting language in the HyperCard/HyperTalk tradition ("xTalk"). You
+lay out stacks of cards with buttons, fields and other controls, and
+write scripts that respond to what the user does.
 
 OXT-Beyond continues **OpenXTalk Lite**. OpenXTalk Lite was started by
 **Terry Little** (TerryL) in September 2023 as a debranded LiveCode
@@ -30,7 +32,8 @@ upstream LiveCode Community repositories have had no changes since July
 This repository, **winoxt**, holds all of it: the engine source
 (LiveCode Community 9.7 plus Tom Perry's 9.7.1-OXT engine work), the
 OpenXTalk Lite 1.15 IDE with its history, and the scripts that build,
-package and test OXT-Beyond for Windows. It is maintained by
+package and test OXT-Beyond for Windows, macOS and Linux. It is
+maintained by
 [SethMorrowSoftware](https://github.com/SethMorrowSoftware).
 
 ## Status
@@ -38,29 +41,36 @@ package and test OXT-Beyond for Windows. It is maintained by
 OXT-Beyond 0.0.2 is an early release of a young project. Please read
 this before you download it.
 
-- **64-bit Windows only, for now.** OXT-Beyond is released for Windows
-  x86-64. The same engine now also builds for Linux (x86-64 and arm64)
-  and macOS (Apple Silicon and Intel) in CI. A Linux x86-64 package is
-  built and tested there too (see [Linux](#linux-x86-64)), but it is not
-  released yet, and macOS is not packaged yet; that is the next release.
-  There are no builds for 32-bit Windows.
-- **Standalones for other platforms use prebuilt runtimes.** Only the
-  Windows x86-64 engine, externals and tools are built from this
-  repository. The standalone runtimes for 32-bit Windows, Linux and
-  Android, and the time zone library code for the other platforms, are
-  OpenXTalk Lite 1.15's files, unchanged: stock LiveCode 9.6.3 builds and
-  files as Tom Perry shipped them, among them his 9.7.1-OXT Linux engine.
-  They are published separately as a release asset
-  (`oxt-runtimes-1.15.zip`) and added when OXT-Beyond is packaged. There
-  are no macOS or iOS runtimes. The automatic tests do not build
-  standalones.
+- **Windows, macOS and Linux.** From 0.1.0 on, every release has
+  packages for 64-bit Windows, for macOS (one universal app for Apple
+  Silicon and Intel Macs, see [macOS](#macos)) and for 64-bit x86 Linux
+  (see [Linux](#linux-x86-64)), made and tested together from one tag
+  (0.0.1 and 0.0.2 were for Windows only). Linux arm64 is built in CI
+  but not packaged. There are no builds for 32-bit Windows.
+- **Standalones for other platforms use prebuilt runtimes.** Each
+  package's engine, externals and tools, and the standalone runtime for
+  its own platform, are built from this repository: Windows x86-64,
+  macOS (Apple Silicon and Intel) and Linux x86-64. The standalone
+  runtimes for 32-bit Windows, 32-bit Linux and Android (and, in the
+  Windows and macOS packages, 64-bit Linux), and the time zone library
+  code for the other platforms, are OpenXTalk Lite 1.15's files,
+  unchanged: stock LiveCode 9.6.3 builds and files as Tom Perry shipped
+  them, among them his 9.7.1-OXT Linux engine. They are published
+  separately as a release asset (`oxt-runtimes-1.15.zip`) and added when
+  OXT-Beyond is packaged. Only the Windows package has the Windows
+  x86-64 runtime, and only the macOS package the macOS runtimes. There
+  are no iOS runtimes. Of the automatic tests, only the macOS ones build
+  a standalone (a Mac one).
 - **Old third-party libraries.** The build uses the libraries LiveCode
   Community last shipped: OpenSSL 1.1.1 (1.1.1g on Windows, 1.1.1w on
   Linux and macOS), curl 7.51.0, ICU 58.2 and CEF
   74 (Chromium 74). They are end of life and have known
   vulnerabilities. Upgrading them is planned. See [SECURITY.md](SECURITY.md).
-- **Not code-signed.** Windows SmartScreen may warn about the installer
-  and the program. Check downloads against `SHA256SUMS`.
+- **Not code-signed or notarized.** On Windows, SmartScreen may warn
+  about the installer and the program. The macOS app is signed ad hoc,
+  not with an Apple Developer ID, and not notarized, so macOS blocks it
+  until you allow it once (see [macOS](#macos)). Check downloads against
+  `SHA256SUMS`.
 - **The installer is new.** The Inno Setup installer first ships with
   0.0.1. CI installs and uninstalls it on every build, but it has had
   little use on real computers yet.
@@ -92,49 +102,96 @@ this before you download it.
   every script of the IDE and compares the errors with a list of known
   ones, and installs and uninstalls the installer (see
   [BUILDING.md](BUILDING.md#7-run-check-and-package-the-result)). The
-  IDE's windows are not tested automatically.
+  macOS and Linux packages get the same smoke test (with every bundled
+  xTalk Suite extension) and IDE compile check on their own systems,
+  from the disk image on an Apple Silicon and an Intel Mac and from the
+  extracted tarball on Ubuntu 24.04, plus a signature check and one Mac
+  standalone built and run (macOS), and library checks and the install
+  scripts (Linux). The IDE's windows are not tested automatically, and
+  the macOS and Linux packages have not been tried by hand yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
   parts for macOS and Linux only (for example the macOS ARM standalone
-  builder). They are shipped as they were and are not maintained for
-  Windows.
-- **Legacy build toolchain.** Building needs the Visual Studio 2017 C++
-  toolset (v141, installed through Visual Studio 2022), Python 2.7 and
-  Cygwin. See [BUILDING.md](BUILDING.md).
+  builder). They are shipped as they were; apart from the IDE compile
+  check they are not tested automatically.
+- **Legacy build toolchain.** Building on Windows needs the Visual
+  Studio 2017 C++ toolset (v141, installed through Visual Studio 2022),
+  Python 2.7 and Cygwin; the Linux build runs in an Ubuntu 20.04
+  container and the macOS build uses Xcode 16.4, both with Python 2.7.
+  See [BUILDING.md](BUILDING.md).
 
 ## Download
 
 Releases are published on the
 [Releases page](https://github.com/SethMorrowSoftware/winoxt/releases).
-Each release has:
+From 0.1.0 on, each release has these files for all three platforms
+(0.0.1 and 0.0.2 have the Windows files only); `<version>` is the
+version, for example `0.1.0`:
 
-| File | What it is |
-| --- | --- |
-| `OXT-Beyond-<version>-win-x86_64-setup.exe` | The installer. Use this unless you have a reason not to. |
-| `OXT-Beyond-<version>-win-x86_64-portable.zip` | The same program folder without an installer. |
-| `OXT-Beyond-<version>-win-x86_64-binaries.zip` | Only the built engine, externals and tools (`win-x86_64-bin`, without debug symbols) and the licence files, for use with a source checkout. |
-| `OXT-Beyond-<version>-win-x86_64-symbols.zip` | Debug symbols (`.pdb`), for developers. |
-| `SHA256SUMS` | SHA-256 checksums of the files above. |
+| Platform | File | What it is |
+| --- | --- | --- |
+| Windows 10 or later, 64-bit (x64) | `OXT-Beyond-<version>-win-x86_64-setup.exe` | The installer. Use this unless you have a reason not to. |
+| | `OXT-Beyond-<version>-win-x86_64-portable.zip` | The same program folder without an installer. |
+| | `OXT-Beyond-<version>-win-x86_64-binaries.zip` | Only the built engine, externals and tools (`win-x86_64-bin`, without debug symbols) and the licence files, for use with a source checkout. |
+| | `OXT-Beyond-<version>-win-x86_64-symbols.zip` | Debug symbols (`.pdb`), for developers. |
+| macOS 11 or later on Apple Silicon, 10.13 or later on Intel | `OXT-Beyond-<version>-mac-universal.dmg` | A disk image with `OXT-Beyond.app`, one app for Apple Silicon and Intel Macs, to drag to Applications (see [macOS](#macos)). |
+| | `OXT-Beyond-<version>-mac-universal.zip` | The same app, for scripted installs. |
+| | `OXT-Beyond-<version>-mac-universal-binaries.tar.xz` | Only the built engine, externals and tools (`Release/`, both architectures joined), without debug symbols and the build's own tools, and the licence files. |
+| | `OXT-Beyond-<version>-mac-universal-symbols.zip` | Debug symbols (`.dSYM`), for developers. |
+| Linux x86-64 with glibc 2.31 or later | `OXT-Beyond-<version>-linux-x86_64.tar.xz` | The program folder, with a launcher and `install.sh` for a per-user install (see [Linux](#linux-x86-64)). |
+| | `OXT-Beyond-<version>-linux-x86_64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-x86_64-bin`), without debug symbols and the build's own tools, and the licence files. |
+| | `OXT-Beyond-<version>-linux-x86_64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
+| All | `OXT-Beyond-<version>-xtalk-sources.zip` | Every file of the bundled xTalk Suite extensions as the release took it from their repositories, so that it can be rebuilt without them. |
+| All | `SHA256SUMS` | SHA-256 checksums of all the files above. |
+
+Some bundled xTalk Suite extensions need a newer system than the IDE:
+macOS 15 on a Mac, and on Linux glibc 2.33 (SodiumXT) or glibc 2.38 and
+OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
+[Linux](#linux-x86-64). The release notes list each platform's
+requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1` and
 `runtimes-1.15`, are not programs. They hold files that the build and
 the packager download: the prebuilt third-party libraries and the
 standalone runtimes for other platforms.
 
-**Latest development build.** Every successful run of the build workflow
-uploads the same files as an artifact. Open the
-[Build (Windows) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml),
-pick a successful run and download `OXT-Beyond-win-x86_64` under
-*Artifacts*. You need to be signed in to GitHub to download artifacts,
-and they are deleted after 30 days. These builds pass the automatic
-checks, but nobody has tried them by hand.
+**Latest development build.** Every successful run of a build workflow
+uploads the same files as an artifact: open the workflow, pick a
+successful run and download the artifact under *Artifacts*.
+
+| Platform | Workflow | Artifact |
+| --- | --- | --- |
+| Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
+| macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
+| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
+
+You need to be signed in to GitHub to download artifacts, and they are
+deleted after 30 days. These builds pass the automatic checks, but
+nobody has tried them by hand. They have no xTalk sources zip, and
+their build number is the time they were built.
 
 ## Quick start
 
+On Windows, use the installer or the portable zip (below). For macOS and
+Linux, see [macOS](#macos) and [Linux](#linux-x86-64).
+
 To check a download, compare its SHA-256 with the line for it in
-`SHA256SUMS`, for example:
+`SHA256SUMS`. On Windows, in Command Prompt, for example:
 
 ```bat
 certutil -hashfile OXT-Beyond-<version>-win-x86_64-setup.exe SHA256
+```
+
+On macOS, in Terminal, compare the output of
+
+```sh
+shasum -a 256 OXT-Beyond-<version>-mac-universal.dmg
+```
+
+with its line. On Linux, in the folder with the download and
+`SHA256SUMS`, this checks every file of the list that is there:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
 ```
 
 ### With the installer
@@ -177,14 +234,12 @@ Explorer.
 ### macOS
 
 OXT-Beyond for macOS is one universal app, `OXT-Beyond.app`, for Apple
-Silicon and Intel Macs. The macOS build workflow makes it as
-`OXT-Beyond-<version>-mac-universal.dmg` (a disk image) and
-`OXT-Beyond-<version>-mac-universal.zip` (the same app, for scripted
-installs), with `-binaries.tar.xz`, `-symbols.zip` and `SHA256SUMS`.
-Releases that include macOS carry these files; until then, pick a
-successful run of the
-[Build (macOS) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml)
-and download the artifact `OXT-Beyond-mac-universal`.
+Silicon and Intel Macs, in `OXT-Beyond-<version>-mac-universal.dmg` (a
+disk image) and `OXT-Beyond-<version>-mac-universal.zip` (the same app,
+for scripted installs). Releases carry them from 0.1.0 on (see
+[Download](#download)); the latest development build is the artifact
+`OXT-Beyond-mac-universal` of a successful run of the
+[Build (macOS) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml).
 
 **Requirements.** The IDE runs on macOS 10.13 High Sierra or later on an
 Intel Mac and macOS 11 Big Sur or later on Apple Silicon. The bundled
@@ -254,14 +309,15 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
 - The macOS packages are built and tested automatically (on macOS 15, on
   both an Apple Silicon and an Intel runner) but have not been tried by
   hand yet.
+
 ### Linux (x86-64)
 
-The Linux package is `OXT-Beyond-<version>-linux-x86_64.tar.xz`. It is
+The Linux package is `OXT-Beyond-<version>-linux-x86_64.tar.xz`.
+Releases carry it from 0.1.0 on (see [Download](#download)). It is also
 built and tested by every run of the
 [Build (Linux) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
 (artifact `OXT-Beyond-linux-x86_64`, with the binaries and symbols
-tarballs and `SHA256SUMS`) and will be part of the releases from the
-first three-platform release on. Check it with
+tarballs and `SHA256SUMS`). Check it with
 `sha256sum -c SHA256SUMS --ignore-missing`.
 
 What it needs:
@@ -529,6 +585,12 @@ To make the installed layout, the zips and the installer, see
 [Package](BUILDING.md#package) and [Installer](BUILDING.md#installer)
 (they need Python 3 and Inno Setup 6).
 
+Linux and macOS are built by their CI workflows: BUILDING.md describes
+their steps in [Building on Linux](BUILDING.md#12-building-on-linux) and
+[Building on macOS](BUILDING.md#13-building-on-macos), and how a
+release is made from a tag in
+[Making a release](BUILDING.md#10-making-a-release).
+
 ## Repository layout
 
 | Path | What it is |
@@ -546,8 +608,8 @@ To make the installed layout, the zips and the installer, see
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
-| `tools/ci/` | PowerShell scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE and build and test the installer. |
-| `.github/workflows/` | The GitHub Actions workflow (`build-windows.yml`). |
+| `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push and pull request; `release.yml` builds all three from a `v` tag and publishes the release. |
 | `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its Windows rules) and LiveCode's installer builder (not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites. |
 
@@ -562,10 +624,15 @@ Known limitations, in rough order of importance:
    curl 7.51.0, CEF/Chromium 74, ICU 58.2 and several older libraries in
    `thirdparty/`). Plan: rebuild the prebuilt libraries from newer
    sources.
-2. The standalone runtimes for 32-bit Windows, Linux and Android are
+2. The standalone runtimes for 32-bit Windows, 32-bit Linux and Android
+   (and the 64-bit Linux one in the Windows and macOS packages) are
    prebuilt binaries from OpenXTalk Lite 1.15, not built from this
-   repository, and building standalones is not tested automatically.
-3. The binaries are not code-signed.
+   repository; the macOS and Linux packages have no Windows x86-64
+   runtime yet. Building standalones is tested automatically only for
+   macOS.
+3. The Windows binaries are not code-signed, and the macOS app is signed
+   ad hoc, not with an Apple Developer ID, and not notarized. Plan:
+   Developer ID signing and notarization for macOS.
 4. "OpenXTalk Lite" still appears inside binary stacks, and the build
    output files are named after LiveCode. Plan: change the binary stacks
    one at a time, in reviewable commits, and rename the engine files.
