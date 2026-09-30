@@ -543,13 +543,16 @@ jobs:
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
 
       # What package.py generated: OXT-Beyond's identity (not LiveCode's),
-      # arm64 first, the Intel floor of the universal engine, the icon
+      # arm64 first, the Intel floor of the universal engine, the icon.
+      # PlistBuddy exits 1 for a missing key; "|| true" keeps bash -e from
+      # ending the step at the assignment, so that the comparison reports
+      # the key and PlistBuddy's message ('Print: Entry, ... Does Not Exist').
       - name: Check the Info.plist and the icon
         run: |
           plist="$APP/Contents/Info.plist"
           plutil -lint "$plist"
           check() {
-            got=$(/usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>&1)
+            got=$(/usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>&1) || true
             if [ "$got" != "$2" ]; then echo "::error::Info.plist $1 is '$got', expected '$2'"; exit 1; fi
             echo "$1 = $got"
           }
