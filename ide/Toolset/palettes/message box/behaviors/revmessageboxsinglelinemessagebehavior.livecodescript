@@ -113,7 +113,9 @@ end revDisplayAutoComplete
 
 on __ColorizeAutocomplete
    dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of field "auto complete"
-   set the textColor of char 1 to -1 of field "auto complete" to "gray70"
+   -- The completion hint behind the typed text, in the IDE's placeholder
+   -- colour (OXT-Beyond; gray70 was light-only, 2:1 on white)
+   set the textColor of char 1 to -1 of field "auto complete" to revIDEColor("text_placeholder")
 end __ColorizeAutocomplete
 
 command revNextLine

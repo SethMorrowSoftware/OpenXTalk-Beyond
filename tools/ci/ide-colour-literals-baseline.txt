@@ -34,7 +34,6 @@ ide/Toolset/palettes/menubar/revmenubar.livecodescript | layoutMenu | backcolor 
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | revMenubarFileMenuPick | backgroundcolor = green
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | updateMenubarPreference | textcolor = black
 ide/Toolset/palettes/menubar/revmenubar.livecodescript | updateMenubarPreference | textcolor = white
-ide/Toolset/palettes/message box/behaviors/revmessageboxsinglelinemessagebehavior.livecodescript | __ColorizeAutocomplete | textcolor = gray70
 ide/Toolset/palettes/project browser/revprojectbrowserbehavior.livecodescript | updateSelection | forecolor = black
 ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript | (script) | constant kalternaterowcolor = 230,237,247
 ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript | (script) | constant kdefaultcornercolor = 232,232,232
