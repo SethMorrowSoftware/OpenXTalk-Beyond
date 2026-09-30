@@ -702,7 +702,11 @@ class Planner(object):
             link = None
             if os.path.islink(path):
                 link = os.readlink(path)
-                if link_escapes(p, link):
+                # The text first (an absolute or "../" target), then the
+                # target resolved on disk: a chain such as a -> dir/sub/..
+                # with dir/sub -> .. passes the text check link by link but
+                # leads out of the folder (see inside_tree)
+                if link_escapes(p, link) or not inside_tree(os.path.realpath(base), path):
                     self.problems.append('symbolic link %s/%s -> %s leads out of %s' % (rel, p, link, rel))
                     continue
                 if not self.p.unix:
@@ -1173,15 +1177,18 @@ def extract_bin_tar(path, dest, log):
             else:
                 raise PackageError('%s: %s is a device, FIFO or other special file' % (path, name))
             count += 1
-        # Checked once all are on disk: a later link can move an earlier
-        # one's target out (x -> y/../../w resolves inside until y -> ..
-        # arrives), and a staged link must not lead into the build machine
-        for name, link, target in links:
-            if not inside_tree(root, target):
-                raise PackageError('%s: symbolic link %s -> %s leads out of the tarball' % (path, name, link))
     folders = [t for t in tops if os.path.isdir(os.path.join(dest, t))]
     if len(folders) != 1 or len(tops) != 1:
         raise PackageError('%s: expected one top-level folder, found %s' % (path, ', '.join(sorted(tops)) or 'none'))
+    # Checked once all are on disk: a later link can move an earlier one's
+    # target out (x -> y/../../w resolves inside until y -> .. arrives).
+    # Against the build output folder, not dest: that folder is what gets
+    # staged, and a link from it into dest's other entries (or dest itself)
+    # would dangle in the package or lead into the build machine
+    top = os.path.realpath(os.path.join(dest, folders[0]))
+    for name, link, target in links:
+        if not inside_tree(top, target):
+            raise PackageError('%s: symbolic link %s -> %s leads out of %s' % (path, name, link, folders[0]))
     log('Extracted    : %d files from %s (%d debug symbol files skipped)' % (count, path, skipped))
     return os.path.join(dest, folders[0])
 
