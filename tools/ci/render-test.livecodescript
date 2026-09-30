@@ -41,7 +41,8 @@ script "oxt_render_test"
 --    s9-*   the native controls in a stack with no colours: checkboxes and
 --           radio buttons (unchecked, checked, disabled), push buttons
 --           (normal, pressed, default, disabled), an option menu, a combo
---           box, tabs, a field frame and a group frame
+--           box, tabs, a field frame, a group frame, a slider, a progress
+--           bar and little arrows
 --    screen 8x8 pixels of the screen, taken after a window was opened: that
 --           used to crash the engine
 --
@@ -896,6 +897,32 @@ private command renderNativeControls
    set the showName of tObject to true
    set the rect of tObject to 280,240,560,320
    shootFace tStack, tObject, "s9-group"
+
+   -- A slider and a progress bar at 50%, and little arrows (a scrollbar
+   -- not much taller than it is wide)
+   create scrollbar "slider"
+   put it into tObject
+   set the style of tObject to "scale"
+   set the showValue of tObject to false
+   set the rect of tObject to 20,330,220,356
+   set the startValue of tObject to 0
+   set the endValue of tObject to 100
+   set the thumbPosition of tObject to 50
+   shootFace tStack, tObject, "s9-slider"
+   create scrollbar "progress"
+   put it into tObject
+   set the style of tObject to "progress"
+   set the rect of tObject to 240,334,440,352
+   set the startValue of tObject to 0
+   set the endValue of tObject to 100
+   set the thumbPosition of tObject to 50
+   put the rect of tObject into tRect
+   shootRegion tStack, tRect, "s9-progress", "0,0," & (item 3 of tRect - item 1 of tRect) & comma & (item 4 of tRect - item 2 of tRect)
+   create scrollbar "arrows"
+   put it into tObject
+   set the style of tObject to "scrollbar"
+   set the rect of tObject to 470,320,486,360
+   shootFace tStack, tObject, "s9-arrows"
 
    exportStackRect tStack, the rect of card 1 of stack tStack, "s9.png"
 end renderNativeControls

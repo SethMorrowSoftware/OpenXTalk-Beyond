@@ -963,6 +963,20 @@ static const uint16_t s_dark_group_border = 0x6E6E;
 static const uint16_t s_dark_glyph = 0xD0D0;
 static const uint16_t s_dark_glyph_hover = 0xF0F0;
 static const uint16_t s_dark_glyph_disabled = 0x6E6E;
+// Sliders (the light appearance keeps the native trackbar): a thin track,
+// the accent colour on the decreasing side, and a round thumb
+static const uint16_t s_dark_slider_track = 0x5555;
+static const uint16_t s_dark_slider_track_disabled = 0x3C3C;
+static const uint16_t s_dark_slider_thumb = 0xE8E8;
+static const uint16_t s_dark_slider_thumb_hover = 0xF5F5;
+static const uint16_t s_dark_slider_thumb_pressed = 0xBCBC;
+static const uint16_t s_dark_slider_thumb_disabled = 0x4848;
+static const uint16_t s_dark_slider_thumb_border = 0x9898;
+static const uint16_t s_dark_slider_thumb_border_disabled = 0x5555;
+// Progress bars: the chunk is the accent colour
+static const uint16_t s_dark_progress_track = 0x2B2B;
+static const uint16_t s_dark_progress_border = 0x6E6E;
+static const uint16_t s_dark_progress_disabled = 0x5555;
 // Scrollbars drawn without the dark scrollbar class (drawdarkscrollbarpart)
 static const uint16_t s_dark_scrollbar_track = 0x2B2B;
 static const uint16_t s_dark_scrollbar_thumb = 0x6E6E;
@@ -1265,6 +1279,42 @@ Boolean MCNativeTheme::drawdarkwidget(MCDC *dc, const MCWidgetInfo &winfo, const
 		return True;
 	}
 
+	case WTHEME_TYPE_PROGRESSBAR_HORIZONTAL:
+	case WTHEME_TYPE_PROGRESSBAR_VERTICAL:
+		// The track (drawprogressbar draws the chunk in its content rect)
+		MCDarkFill(dc, p_rect, MCDarkGrey(s_dark_progress_track));
+		MCDarkRing(dc, p_rect, 1, MCDarkGrey(s_dark_progress_border));
+		return True;
+
+	case WTHEME_TYPE_PROGRESSBAR_CHUNK:
+	case WTHEME_TYPE_PROGRESSBAR_CHUNK_VERTICAL:
+		MCDarkFill(dc, p_rect, (winfo . state & WTHEME_STATE_DISABLED) != 0 ? MCDarkGrey(s_dark_progress_disabled) : MCaccentcolor);
+		return True;
+
+	case WTHEME_TYPE_SPIN:
+	{
+		// A button of the little arrows (drawscrollcontrols), with its arrow
+		MCDarkDrawFace(dc, winfo, p_rect);
+		MCDarkGlyph t_direction;
+		switch (winfo . part)
+		{
+		case WTHEME_PART_SPIN_ARROW_UP:
+			t_direction = kMCDarkGlyphUp;
+			break;
+		case WTHEME_PART_SPIN_ARROW_DOWN:
+			t_direction = kMCDarkGlyphDown;
+			break;
+		case WTHEME_PART_SPIN_ARROW_LEFT:
+			t_direction = kMCDarkGlyphLeft;
+			break;
+		default:
+			t_direction = kMCDarkGlyphRight;
+			break;
+		}
+		MCDarkDrawGlyph(dc, p_rect, t_direction, MCU_max(3, MCU_min(p_rect . width, p_rect . height) / 4), MCDarkGlyphColor(winfo));
+		return True;
+	}
+
 	case WTHEME_TYPE_GROUP_FRAME:
 	case WTHEME_TYPE_SECONDARYGROUP_FRAME:
 	case WTHEME_TYPE_GROUP_FILL:
@@ -1492,11 +1542,99 @@ Boolean MCNativeTheme::drawprogressbar(MCDC *dc, const MCWidgetInfo &winfo, cons
 
 
 
+// A slider's track, 3 pixels thick, centred across the part of the track
+// p_segment (after HyperXTalk 2d630824d)
+static MCRectangle MCDarkSliderTrackStrip(const MCRectangle& p_segment, bool p_vertical)
+{
+	const int2 k_thickness = 3;
+	MCRectangle t_strip;
+	if (p_vertical)
+		MCU_set_rect(t_strip, p_segment . x + p_segment . width / 2 - k_thickness / 2, p_segment . y, k_thickness, p_segment . height);
+	else
+		MCU_set_rect(t_strip, p_segment . x, p_segment . y + p_segment . height / 2 - k_thickness / 2, p_segment . width, k_thickness);
+	return t_strip;
+}
+
+// A slider's round thumb: centred on the thumb's position along the track
+// and across the control, and inside it: at most 14 pixels, even (after
+// HyperXTalk 2d630824d)
+static MCRectangle MCDarkSliderThumbRect(const MCRectangle& p_thumb, const MCRectangle& p_rect, bool p_vertical)
+{
+	int2 t_diameter = (p_vertical ? p_rect . width : p_rect . height) - 2;
+	if (t_diameter < 4)
+		t_diameter = 4;
+	if (t_diameter > 14)
+		t_diameter = 14;
+	if (t_diameter % 2 != 0)
+		t_diameter--;
+
+	int2 t_cx, t_cy;
+	if (p_vertical)
+	{
+		t_cx = p_rect . x + p_rect . width / 2;
+		t_cy = p_thumb . y + p_thumb . height / 2;
+	}
+	else
+	{
+		t_cx = p_thumb . x + p_thumb . width / 2;
+		t_cy = p_rect . y + p_rect . height / 2;
+	}
+
+	MCRectangle t_rect;
+	MCU_set_rect(t_rect, t_cx - t_diameter / 2, t_cy - t_diameter / 2, t_diameter, t_diameter);
+	return t_rect;
+}
+
+// A slider in the dark appearance: the trackbar class has no dark variant
+Boolean MCNativeTheme::drawdarkslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
+{
+	MCRectangle sbincarrowrect, sbdecarrowrect, sbthumbrect, sbinctrackrect, sbdectrackrect;
+	getscrollbarrects(winfo, drect, sbincarrowrect, sbdecarrowrect, sbthumbrect, sbinctrackrect, sbdectrackrect);
+
+	bool t_vertical = (winfo . attributes & WTHEME_ATT_SBVERTICAL) != 0;
+	bool t_disabled = (winfo . state & WTHEME_STATE_DISABLED) != 0;
+	// The thumb shows the mouse only when it is over the thumb
+	bool t_thumb_part = winfo . part == WTHEME_PART_THUMB;
+	bool t_pressed = t_thumb_part && (winfo . state & WTHEME_STATE_PRESSED) != 0;
+	bool t_hover = t_thumb_part && (winfo . state & WTHEME_STATE_HOVER) != 0;
+
+	// The decreasing side of the track in the accent colour, the rest grey
+	if (sbdectrackrect . width > 0 && sbdectrackrect . height > 0)
+		MCDarkFill(dc, MCDarkSliderTrackStrip(sbdectrackrect, t_vertical), t_disabled ? MCDarkGrey(s_dark_slider_track_disabled) : MCaccentcolor);
+	if (sbinctrackrect . width > 0 && sbinctrackrect . height > 0)
+		MCDarkFill(dc, MCDarkSliderTrackStrip(sbinctrackrect, t_vertical), MCDarkGrey(t_disabled ? s_dark_slider_track_disabled : s_dark_slider_track));
+
+	if (sbthumbrect . width > 0 && sbthumbrect . height > 0)
+	{
+		MCRectangle t_thumb = MCDarkSliderThumbRect(sbthumbrect, drect, t_vertical);
+		uint16_t t_fill;
+		if (t_disabled)
+			t_fill = s_dark_slider_thumb_disabled;
+		else if (t_pressed)
+			t_fill = s_dark_slider_thumb_pressed;
+		else if (t_hover)
+			t_fill = s_dark_slider_thumb_hover;
+		else
+			t_fill = s_dark_slider_thumb;
+		// The outline as a filled circle under the fill, which keeps it
+		// crisp when scaled
+		dc -> setfillstyle(FillSolid, nil, 0, 0);
+		dc -> setforeground(MCDarkGrey(t_disabled ? s_dark_slider_thumb_border_disabled : s_dark_slider_thumb_border));
+		dc -> fillarc(t_thumb, 0, 360);
+		dc -> setforeground(MCDarkGrey(t_fill));
+		dc -> fillarc(MCU_reduce_rect(t_thumb, 1), 0, 360);
+	}
+	return True;
+}
+
 Boolean MCNativeTheme::drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
 {
 	if (winfo.datatype != WTHEME_DATA_SCROLLBAR &&
 	        winfo.type != WTHEME_TYPE_SMALLSCROLLBAR)
 		return False;
+	// The light appearance keeps the native trackbar
+	if (widgetisdark(winfo, dc))
+		return drawdarkslider(dc, winfo, drect);
 	MCWidgetScrollBarInfo *sbinfo = (MCWidgetScrollBarInfo *)winfo.data;
 	//draw arrows
 	MCWidgetInfo twinfo = winfo;

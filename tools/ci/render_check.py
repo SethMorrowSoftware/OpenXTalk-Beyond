@@ -217,6 +217,14 @@ def _l(r, g, b):
 #                            by dl in L (the arrow of an option menu)
 #   ('tabstrip', r)          the tabs above the pane have dark faces and text
 #                            at least r:1 against the lightest face
+#   ('slider', t, l, n)      a horizontal slider's face, at 50%: its track (10%
+#                            to 30% and 70% to 90% along it) has a median L
+#                            below t on either side, and at least n pixels in
+#                            the middle are at least l (the thumb)
+#   ('progress', t, d)       a progress bar at 50%: inside its outline, the
+#                            right quarter (the track) has a mean L below t
+#                            and the left quarter (the chunk) differs from it
+#                            by at least d
 # Names that start with "s8-" are only compared with s2 of another run.
 EXPECT = {
     # S1, the owner's libMQTTxt colours: as designed, light, in every run
@@ -275,6 +283,9 @@ EXPECT = {
     's9-tabs': {'dark': [('tabstrip', 4.5)]},
     's9-field-frame': {'dark': [('face_far_between', 100, 170), ('ring_contrast', 3.0)]},
     's9-group': {'dark': [('record_face',)]},
+    's9-slider': {'dark': [('slider', 110, 150, 30)]},
+    's9-progress': {'dark': [('progress', 90, 40)]},
+    's9-arrows': {'dark': [('interior_max_l', 90)]},
 }
 
 # Where a failing label is drawn, by the render test's names. The buttons and
@@ -990,6 +1001,8 @@ def measure_face(rows, ref):
         'glyph_box': (min(g[0] for g in glyph), min(g[1] for g in glyph),
                       max(g[0] for g in glyph), max(g[1] for g in glyph)) if glyph else None,
         'box': '%d,%d-%d,%d' % (x0, y0, x1, y1),
+        'points': [(x, y, l) for (x, y, l, _) in lums],
+        'extent': (x0, y0, x1, y1),
     })
     return result
 
@@ -1135,6 +1148,20 @@ def check_face(report, folder, name, image, reference):
                 else:
                     report.check(name + ' state', True, '%s; looks like %s (inside L=%.0f): the default look does '
                                  'not show off screen; recorded only' % (measured, value, other['interior']))
+        elif kind == 'slider':
+            # A horizontal slider at 50%: the thumb is in the middle 40% of
+            # it, and only the track is 10% to 30% and 70% to 90% along it
+            fx0, fy0, fx1, fy1 = face['extent']
+            span = float(fx1 - fx0)
+            left = [l for (x, y, l) in face['points'] if fx0 + 0.1 * span <= x <= fx0 + 0.3 * span]
+            right = [l for (x, y, l) in face['points'] if fx0 + 0.7 * span <= x <= fx0 + 0.9 * span]
+            thumb = sum(1 for (x, y, l) in face['points'] if fx0 + 0.3 * span < x < fx0 + 0.7 * span and l >= want[2])
+            track_l = max(median(left), median(right)) if left and right else None
+            ok = track_l is not None and track_l < value and thumb >= want[3]
+            report.check(name + ' slider', ok, '%s; the track has a median L of %s (the lighter of its two sides) and '
+                         '%d pixels in the middle are the thumb (L>=%d), %s track L<%d and at least %d thumb pixels' % (
+                             measured, '-' if track_l is None else '%.0f' % track_l, thumb, want[2],
+                             'expected' if ok else 'FAILED: expected', value, want[3]))
         elif kind == 'face_far_between':
             ok = value <= far <= want[2]
             report.check(name + ' outline', ok, '%s, %s far end L %d-%d' % (
@@ -1179,6 +1206,9 @@ def check_region(report, folder, name, image, region):
             continue
         if kind == 'tabstrip':
             check_tabstrip(report, name, rows, w, h, want[1], image)
+            continue
+        if kind == 'progress':
+            check_progress(report, name, rows, w, h, want[1], want[2], image)
             continue
         if kind == 'region_min_l':
             ok = mean >= want[1]
@@ -1241,6 +1271,22 @@ def check_tabstrip(report, name, rows, w, h, minimum, image):
     report.check(name + ' tabs', ok, 'rows 0-%d of %s: %.0f%% dark faces (the lightest L=%.0f), text L=%.0f, %.2f:1, '
                  '%s %.1f:1' % (top - 1, image, 100 * share, face, colour, ratio,
                                 'at least' if ok else 'FAILED: needs at least', minimum))
+
+
+def check_progress(report, name, rows, w, h, track_max, distance, image):
+    """A progress bar at 50%, 3 pixels in from its edges: the right quarter
+    is the dark track, the left quarter the chunk, which must stand out."""
+    x0, x1, y0, y1 = 3, w - 3, 3, h - 3
+    if x1 - x0 < 8 or y1 - y0 < 2:
+        report.check(name + ' progress', False, '%s is too small (%dx%d)' % (image, w, h))
+        return
+    quarter = (x1 - x0) // 4
+    left = box_mean(rows, (x0, y0, x0 + quarter, y1))
+    right = box_mean(rows, (x1 - quarter, y0, x1, y1))
+    ok = right < track_max and abs(left - right) >= distance
+    report.check(name + ' progress', ok, 'the left quarter L=%.0f, the right quarter L=%.0f of %s, %s the right below '
+                 '%d and the left %d or more from it' % (left, right, image, 'expected' if ok else 'FAILED: expected',
+                                                         track_max, distance))
 
 
 def check_appearance_info(report, info, system):
@@ -1529,6 +1575,30 @@ def _option(face, glyph):
     return rows
 
 
+def _slider(track_dec, track_inc, thumb):
+    """A slider 60x20 on the dark background: a track 3 pixels thick, its
+    left half in track_dec, and a round thumb of 12 pixels in the middle."""
+    rows = [[(32, 32, 32)] * 60 for _ in range(20)]
+    for y in range(9, 12):
+        for x in range(2, 58):
+            rows[y][x] = track_dec if x < 30 else track_inc
+    for y in range(20):
+        for x in range(60):
+            if (x - 29.5) ** 2 + (y - 9.5) ** 2 <= 36:
+                rows[y][x] = thumb
+    return rows
+
+
+def _progress(track, chunk):
+    """A progress bar 60x16 at 50%: an outline of 110, the chunk on the left
+    half and the track on the right."""
+    rows = [[(110, 110, 110)] * 60 for _ in range(16)]
+    for y in range(1, 15):
+        for x in range(1, 59):
+            rows[y][x] = chunk if x < 30 else track
+    return rows
+
+
 def _tabs(face, selected, text):
     """Three tabs above a pane: a strip of 22 rows with the faces and a
     block of text in each tab, the pane's top edge (110) and the pane."""
@@ -1576,6 +1646,10 @@ SELF_TEST_EXPECT = {
     'st-option-plain': {'*': [('chevron', 20, 60, 6)]},
     'st-tabs-dark': {'*': [('tabstrip', 4.5)]},
     'st-tabs-light': {'*': [('tabstrip', 4.5)]},
+    'st-slider-dark': {'*': [('slider', 110, 150, 30)]},
+    'st-slider-light': {'*': [('slider', 110, 150, 30)]},
+    'st-progress-dark': {'*': [('progress', 90, 40)]},
+    'st-progress-light': {'*': [('progress', 90, 40)]},
 }
 
 
@@ -1725,6 +1799,11 @@ def self_test(folder):
             write_png(os.path.join(path, 'st-option-plain.png'), _option((32, 32, 32), None))
             write_png(os.path.join(path, 'st-tabs-dark.png'), _tabs((32, 32, 32), (43, 43, 43), (255, 255, 255)))
             write_png(os.path.join(path, 'st-tabs-light.png'), _tabs((240, 240, 240), (250, 250, 250), (255, 255, 255)))
+            write_png(os.path.join(path, 'st-slider-bare.png'), _solid(dark, 60, 20))
+            write_png(os.path.join(path, 'st-slider-dark.png'), _slider(accent, (85, 85, 85), (232, 232, 232)))
+            write_png(os.path.join(path, 'st-slider-light.png'), _slider(accent, (200, 200, 200), (0, 120, 215)))
+            write_png(os.path.join(path, 'st-progress-dark.png'), _progress((43, 43, 43), accent))
+            write_png(os.path.join(path, 'st-progress-light.png'), _progress((230, 230, 230), (6, 176, 37)))
             with open(os.path.join(path, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
                 f.write('INFO\tlookAndFeel\tAppearance Manager\n')
                 f.write('INFO\tsystemAppearance\t%s\n' % mode)
@@ -1746,6 +1825,10 @@ def self_test(folder):
                 f.write('SHOT\tregion\tst-option-plain\tst-option-plain.png\t0,0,70,26\n')
                 f.write('SHOT\tregion\tst-tabs-dark\tst-tabs-dark.png\t0,0,120,50\n')
                 f.write('SHOT\tregion\tst-tabs-light\tst-tabs-light.png\t0,0,120,50\n')
+                for shot in ('st-slider-dark', 'st-slider-light'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-slider-bare.png\n' % (shot, shot))
+                for shot in ('st-progress-dark', 'st-progress-light'):
+                    f.write('SHOT\tregion\t%s\t%s.png\t0,0,60,16\n' % (shot, shot))
                 f.write('SHOT\tlabel\tflat\tflat.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tdouble\tdouble.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tengraved\tengraved.png\tnone.png\n')
@@ -1837,6 +1920,10 @@ def self_test(folder):
             expect('st-option-plain arrow', False)
             expect('st-tabs-dark tabs', True)
             expect('st-tabs-light tabs', False)
+            expect('st-slider-dark slider', True)
+            expect('st-slider-light slider', False)
+            expect('st-progress-dark progress', True)
+            expect('st-progress-light progress', False)
 
         count, compare_failures = _self_test_compare(folder)
         expectations.extend([('compare', None, None)] * count)

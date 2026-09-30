@@ -84,6 +84,7 @@ protected:
 	Boolean drawscrollcontrols(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 	Boolean drawdarkscrollbarpart(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 	Boolean drawdarkwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &rect, const MCRectangle &clip);
+	Boolean drawdarkslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 	Boolean drawprogressbar(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
 
 	Boolean drawslider(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect);
