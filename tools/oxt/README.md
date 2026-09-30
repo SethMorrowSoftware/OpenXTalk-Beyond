@@ -290,7 +290,8 @@ The folder is put together from:
   runs `xtalk_extensions.build` with the `--bin` build's `lc-compile` and
   `modules/lci` into a temporary folder and stages every file under
   `Extensions/` byte for byte (origin `xtalk`), plus
-  `Extensions/XTALK-EXTENSIONS.txt`. `--vc-redist` is passed through (the
+  `Extensions/XTALK-EXTENSIONS.txt` (with the platform's line endings).
+  `--vc-redist` is passed through (the
   Visual C++ runtime DLLs for enetxt and Box2Dxt); without it packaging
   warns. The cache is `--xtalk-cache`, else `OXT_XTALK_CACHE`, else the
   `xtalk` folder of the asset cache; `--offline` applies to it too.
@@ -413,9 +414,11 @@ modes nor symbolic links):
   a table is copied through a link.
 * **Names**: paths that differ only in letter case conflict on Windows and
   macOS (volumes are usually case-insensitive), not on Linux.
-* **Text**: `Externals.txt`, `Database Drivers.txt` and the licence files
-  get LF line endings (the IDE and the standalone builder read the lists
-  line by line, so a CR would end up in every file name); CRLF on Windows.
+* **Text**: `Externals.txt`, `Database Drivers.txt`,
+  `Extensions/XTALK-EXTENSIONS.txt` and the licence files get LF line
+  endings (the IDE and the standalone builder read the lists line by line,
+  so a CR would end up in every file name, and `cut` or `awk` would end
+  every field of the tab-separated xTalk list with one); CRLF on Windows.
 
 Every platform warns when the stage path has a folder name that switches
 the engine into repository mode (`_build`, `<platform>-<processor>-bin`,

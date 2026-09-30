@@ -66,8 +66,9 @@ links:
   names        two paths that differ only in letter case are a conflict on
                Windows and macOS (whose volumes are usually
                case-insensitive), not on Linux.
-  text         generated files (Externals.txt, Database Drivers.txt) and
-               the licence files get LF line endings; CRLF on Windows.
+  text         generated files (Externals.txt, Database Drivers.txt),
+               Extensions/XTALK-EXTENSIONS.txt and the licence files get
+               LF line endings; CRLF on Windows.
 
 writes <stage-parent>/OXT-Beyond-<version>/, where <version> is the content
 of ide/.version. An existing folder of that name is replaced. The folder is
@@ -104,8 +105,9 @@ stage folder itself except on macOS):
                the lc-compile of --xtalk-compiler-bin, default --bin: the
                compiled modules do not depend on the platform, so a macOS
                layout can be staged on Linux with a Linux build's compiler)
-               in a temporary folder, plus Extensions/XTALK-EXTENSIONS.txt;
-               unless --no-xtalk-extensions. Every platform gets the native
+               in a temporary folder, plus Extensions/XTALK-EXTENSIONS.txt
+               (with the platform's line endings); unless
+               --no-xtalk-extensions. Every platform gets the native
                libraries of every platform id in the manifest, so that
                standalones for the other platforms can be built.
                --vc-redist is Visual Studio's redistributable folder
@@ -519,7 +521,7 @@ class Item(object):
         self.target = target      # installed path, "/" separators
         self.origin = origin      # ide, build, generated, licence, asset, xtalk
         self.source = source      # file on disk (ide, build, licence, xtalk)
-        self.data = data          # bytes (generated)
+        self.data = data          # bytes (generated, licence, the xtalk stamp)
         self.member = member      # zip member name (asset)
         self.asset = asset        # asset dict (asset)
         self.note = note
@@ -850,8 +852,14 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
 
     # xTalk Suite extensions, as xtalk_extensions.build wrote them
     if xtalk:
-        pl.add(Item(tools + 'Extensions/' + xtalk['stamp'], 'xtalk',
-                    source=layout.native(xtalk['out'], xtalk['stamp']),
+        # except the stamp: xtalk_extensions.py writes it with CRLF, and
+        # like the other text this tool generates it gets the platform's
+        # line endings (the same bytes on Windows). It is a tab-separated
+        # list that THIRD-PARTY-NOTICES.md points to: on Linux and macOS a
+        # CR would end every source URL that cut or awk reads from it.
+        with open(layout.native(xtalk['out'], xtalk['stamp']), 'rb') as f:
+            stamp = layout._normalise(f.read()).replace(b'\n', p.eol)
+        pl.add(Item(tools + 'Extensions/' + xtalk['stamp'], 'xtalk', data=stamp,
                     note='list of the xTalk Suite extensions'))
         for ext in xtalk['extensions']:
             for rel in ext['files']:
@@ -934,7 +942,11 @@ def write_stage(stage, items, folders, eol, log, platform=None):
                 shutil.copy2(it.source, dst)
                 executable = bool(os.stat(it.source).st_mode & 0o111)
             elif it.origin == 'xtalk':
-                shutil.copyfile(it.source, dst)
+                if it.data is not None:   # XTALK-EXTENSIONS.txt (see plan)
+                    with open(dst, 'wb') as f:
+                        f.write(it.data)
+                else:
+                    shutil.copyfile(it.source, dst)
                 # the native libraries (code/<platform id>/*); dlopen does
                 # not need the bit, but it is how libraries are installed
                 executable = '/code/' in it.target
