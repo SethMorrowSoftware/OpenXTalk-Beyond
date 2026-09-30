@@ -539,7 +539,9 @@ The next release adds:
   standard Window* switches it;
 - a dark script editor (One Dark Pro by default, adapted from HyperXTalk,
   with Tom Perry's schemes still in the menu; the editor keeps separate
-  light and dark colours in *Preferences > Script Editor*), and a
+  light and dark colours in *Preferences > Script Editor*, and a dark
+  scheme and background chosen in an earlier version become the dark
+  appearance's too, while the light appearance keeps them), and a
   readable Inspector, Message Box, error dialog, Find and Replace,
   Standalone Application Settings, Menu Builder and dictionary code
   examples in the dark appearance;

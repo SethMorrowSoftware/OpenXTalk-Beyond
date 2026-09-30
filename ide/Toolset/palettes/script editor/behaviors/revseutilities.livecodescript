@@ -528,6 +528,23 @@ end sePrefList
 # Description
 #   Initialises the script editor preferences system.
 command sePrefInit
+   # OXT-Beyond: before the light and dark slots, there was one scheme and
+   # background, and a user of a dark IDE chose a dark one there (Tom
+   # Perry's "dark mode" or "oxt lite dark"). Once, before a save stores
+   # the dark defaults, a dark choice becomes the dark slot's too, so that
+   # the dark appearance keeps it instead of One Dark Pro. The light slot
+   # stays as it is: a dark editor in a light IDE may be what the user wants.
+   if revIDEGetPreference("cScriptEditor,colorization,schemedark") is empty then
+      local tBg
+      put revIDEGetPreference("cScriptEditor,editor,backgroundcolor") into tBg
+      if revIDEGetPreference("cScriptEditor,colorization,scheme") is not empty and tBg is a color and \
+            the number of items of tBg is 3 and item 1 of tBg + item 2 of tBg + item 3 of tBg < 384 then
+         revIDESetPreference "cScriptEditor,colorization,schemedark", revIDEGetPreference("cScriptEditor,colorization,scheme")
+         revIDESetPreference "cScriptEditor,editor,backgroundcolordark", tBg
+         revIDESetPreference "cScriptEditor,editor,debugBackgroundcolordark", revIDEGetPreference("cScriptEditor,editor,debugBackgroundcolor")
+      end if
+   end if
+
    # Get the default preferences, which are returned in an array.
    local tPrefs
    sePrefGetDefaults
