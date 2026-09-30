@@ -221,6 +221,11 @@ def _l(r, g, b):
 #                            default look may not show off screen)
 #   ('face_far_between', a, b) the far end L is between a and b (a frame)
 #   ('record_face',)         a face shot, only measured and printed
+#   ('glyph_halves', dl, n)  the top and the bottom half of a face (its
+#                            bounding box split at the middle row) each have
+#                            at least n pixels that differ from that half's
+#                            median by dl in L: an arrow on each button of
+#                            the little arrows
 #   ('chevron', px, dl, n)   in the right px pixels of the image, inside its
 #                            outline, at least n pixels differ from the face
 #                            by dl in L (the arrow of an option menu)
@@ -309,7 +314,12 @@ EXPECT = {
     's9-group': {'dark': [('record_face',)]},
     's9-slider': {'dark': [('slider', 110, 150, 30)]},
     's9-progress': {'dark': [('progress', 90, 40)]},
-    's9-arrows': {'dark': [('interior_max_l', 90)]},
+    # The little arrows, 16x24: two dark spin buttons (drawdarkwidget,
+    # WTHEME_TYPE_SPIN) with an arrow on each (0xD0 on 0x37, the outline
+    # 0x6E is less than 60 from the face). The inside of the face holds parts
+    # of both arrows and the outlines where the buttons meet: about 85 when
+    # dark, against about 220 for the light uxtheme buttons
+    's9-arrows': {'dark': [('interior_max_l', 120), ('glyph_halves', 60, 3)]},
     # S11, printing: never the dark background (32,32,32 is 0.1255 in PDF)
     's11': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
 }
@@ -1208,6 +1218,20 @@ def check_face(report, folder, name, image, reference):
             ok = value <= far <= want[2]
             report.check(name + ' outline', ok, '%s, %s far end L %d-%d' % (
                 measured, 'expected' if ok else 'FAILED: expected', value, want[2]))
+        elif kind == 'glyph_halves':
+            # The face's own pixels, split at the middle row of their box
+            fx0, fy0, fx1, fy1 = face['extent']
+            middle_row = (fy0 + fy1 + 1) // 2
+            counts = []
+            for part in ([l for (x, y, l) in face['points'] if y < middle_row],
+                         [l for (x, y, l) in face['points'] if y >= middle_row]):
+                part_median = median(part) if part else 0
+                counts.append(sum(1 for l in part if abs(l - part_median) >= value))
+            ok = min(counts) >= want[2]
+            report.check(name + ' arrows', ok, '%s; %d pixels in the top half and %d in the bottom half differ from '
+                         'their half\'s median by %d or more, %s at least %d in each (an arrow on each button)' % (
+                             measured, counts[0], counts[1], value, 'expected' if ok else 'FAILED: expected',
+                             want[2]))
         elif kind == 'interior_min_l':
             ok = interior is not None and interior >= value
             report.check(name + ' inside', ok, '%s, %s inside L>=%d' % (
@@ -1695,6 +1719,25 @@ def _progress(track, chunk):
     return rows
 
 
+def _spin(top_arrow, bottom_arrow):
+    """Little arrows 16x24 at 4,4 on the dark background (24x32): two
+    buttons 16x12 of 55 with an outline of 110, and on each an arrow of 208
+    (6 pixels wide and 3 high) when top_arrow or bottom_arrow is true."""
+    rows = [[(32, 32, 32)] * 24 for _ in range(32)]
+    for button, arrow in enumerate((top_arrow, bottom_arrow)):
+        y0 = 4 + 12 * button
+        for y in range(12):
+            for x in range(16):
+                edge = y in (0, 11) or x in (0, 15)
+                rows[y0 + y][4 + x] = (110, 110, 110) if edge else (55, 55, 55)
+        if arrow:
+            for i in range(3):
+                row = y0 + 4 + (i if button == 1 else 2 - i)
+                for x in range(9 + i, 15 - i):
+                    rows[row][x] = (208, 208, 208)
+    return rows
+
+
 def _tabs(face, selected, text):
     """Three tabs above a pane: a strip of 22 rows with the faces and a
     block of text in each tab, the pane's top edge (110) and the pane."""
@@ -1748,6 +1791,8 @@ SELF_TEST_EXPECT = {
     'st-slider-light': {'*': [('slider', 110, 150, 30)]},
     'st-progress-dark': {'*': [('progress', 90, 40)]},
     'st-progress-light': {'*': [('progress', 90, 40)]},
+    'st-arrows-both': {'*': [('glyph_halves', 60, 3)]},
+    'st-arrows-top': {'*': [('glyph_halves', 60, 3)]},
     'st-pdf-light': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
     'st-pdf-dark': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
     'st-pdf-grey': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
@@ -1911,6 +1956,9 @@ def self_test(folder):
             write_png(os.path.join(path, 'st-slider-light.png'), _slider(accent, (200, 200, 200), (0, 120, 215)))
             write_png(os.path.join(path, 'st-progress-dark.png'), _progress((43, 43, 43), accent))
             write_png(os.path.join(path, 'st-progress-light.png'), _progress((230, 230, 230), (6, 176, 37)))
+            write_png(os.path.join(path, 'st-arrows-bare.png'), _solid(dark, 24, 32))
+            write_png(os.path.join(path, 'st-arrows-both.png'), _spin(True, True))
+            write_png(os.path.join(path, 'st-arrows-top.png'), _spin(True, False))
             for pdf, content in (('st-pdf-light', b'q 0.941176 0.941176 0.941176 rg 0 0 100 100 re f 0 g Q'),
                                  ('st-pdf-dark', b'q 0.12549 0.12549 0.12549 rg 0 0 100 100 re f 1 1 1 rg Q'),
                                  ('st-pdf-grey', b'q 0.12549 g 0 0 100 100 re f Q'),
@@ -1938,6 +1986,8 @@ def self_test(folder):
                 for shot in ('st-box-dark-max', 'st-box-light-max', 'st-check-tick', 'st-check-faint', 'st-radio-round',
                              'st-radio-square', 'st-radio-empty', 'st-frame-dark', 'st-frame-light'):
                     f.write('SHOT\tface\t%s\t%s.png\tst-dark-bare.png\n' % (shot, shot))
+                for shot in ('st-arrows-both', 'st-arrows-top'):
+                    f.write('SHOT\tface\t%s\t%s.png\tst-arrows-bare.png\n' % (shot, shot))
                 f.write('SHOT\tregion\tst-option-chevron\tst-option-chevron.png\t0,0,70,26\n')
                 f.write('SHOT\tregion\tst-option-plain\tst-option-plain.png\t0,0,70,26\n')
                 f.write('SHOT\tregion\tst-tabs-dark\tst-tabs-dark.png\t0,0,120,50\n')
@@ -2047,6 +2097,8 @@ def self_test(folder):
             expect('st-slider-light slider', False)
             expect('st-progress-dark progress', True)
             expect('st-progress-light progress', False)
+            expect('st-arrows-both arrows', True)
+            expect('st-arrows-top arrows', False)
             expect('st-pdf-light printed', True)
             expect('st-pdf-dark printed', False)
             expect('st-pdf-grey printed', False)

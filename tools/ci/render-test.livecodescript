@@ -1005,8 +1005,10 @@ private command renderNativeControls
    set the rect of tObject to 280,240,560,320
    shootFace tStack, tObject, "s9-group"
 
-   -- A slider and a progress bar at 50%, and little arrows (a scrollbar
-   -- not much taller than it is wide)
+   -- A slider and a progress bar at 50%, and little arrows: a scrollbar at
+   -- most twice as tall as it is wide, which the theme draws as two spin
+   -- buttons (drawscrollcontrols; a taller one is a small scrollbar with a
+   -- track and a thumb)
    create scrollbar "slider"
    put it into tObject
    set the style of tObject to "scale"
@@ -1028,7 +1030,7 @@ private command renderNativeControls
    create scrollbar "arrows"
    put it into tObject
    set the style of tObject to "scrollbar"
-   set the rect of tObject to 470,320,486,360
+   set the rect of tObject to 470,320,486,344
    shootFace tStack, tObject, "s9-arrows"
 
    exportStackRect tStack, the rect of card 1 of stack tStack, "s9.png"
