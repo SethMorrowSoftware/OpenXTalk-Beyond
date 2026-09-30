@@ -35,7 +35,8 @@ text_1                              dataView_dimmedHiliteColor           4.5
 text_2                              dataView_dimmedHiliteColor           4.5
 
 # Project Browser: the script line count badge of a row (an opaque badge;
-# the Message Box draws its counts on the row, see above)
+# the Message Box draws its counts on the row, see above). The badge is red
+# for a script with errors and for a missing behaviour, on a selected row too
 text_3                              dataView_hiliteColor                 4.5
 text_3                              dataView_scriptErrorBackgroundColor  4.5
 

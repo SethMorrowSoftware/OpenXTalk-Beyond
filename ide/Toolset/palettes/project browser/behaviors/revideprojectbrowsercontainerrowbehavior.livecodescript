@@ -268,11 +268,15 @@ setProp dvHilite[pHiliteColor] pBoolean
       set the foregroundColor of field "scriptLines" of me to  revIDEColor("dataView_hiliteBadgeTextColor")
       set the backgroundColor of field "scriptLines" of me to  revIDEColor("dataView_TextHiliteColor")
       repeat with i = 1 to 10
-         set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_hiliteBadgeTextColor")
          put ("cBehaviorLongID" & i) into tCPName
          if exists(the tCPName of me) then
+            set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_hiliteBadgeTextColor")
             set the backgroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_TextHiliteColor")
          else
+            -- A missing behaviour's badge stays red on a selected row, so it
+            -- keeps the text colour of an unselected row: the selected badge
+            -- text colour is chosen for the selected badge, not for red
+            set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("text_3")
             set the backgroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_scriptErrorBackgroundColor")
          end if
       end repeat
