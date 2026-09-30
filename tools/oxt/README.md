@@ -495,7 +495,27 @@ Lite 1.15. (The xTalk Suite extensions are not assets: see
   names Windows cannot store are rejected; two members may not map to the
   same path, and a path claimed both by an asset and by the IDE or the build
   is an error.
+* `platforms` (optional) lists the `package.py` platforms the asset is for
+  (names or fnmatch patterns such as `mac-*`); without it every platform
+  gets it.
+* `exclude` (optional) maps platform patterns to globs of installed paths
+  (after `strip`, `rename` and `dest`; `*` within one path component, `**`
+  anything, as in `layout.py`): on a matching platform those members, and
+  folder entries inside such a tree, are left out. This is how an asset
+  stops supplying files that the platform's own build now produces,
+  instead of `package.py`'s "comes from both" error; `exclude_note` says
+  why. A key that matches no platform is an error, and a glob that matches
+  nothing on the platform is reported (a stale glob excludes nothing).
 * `description`, `licence` and `source` are for people.
+
+The runtimes asset excludes, per platform, what this repository's Linux and
+macOS builds make (Windows takes all of it, so its package is unchanged):
+
+| platform | left out of `oxt-runtimes-1.15` | files | why |
+|---|---|---:|---|
+| `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | 520 | the build's `standalone-community` (with its own externals and CEF) is the runtime; the build makes the timezone library's code and the zoneinfo data (tz.gyp `tzdata`, not made on Windows; the same 474 files) |
+| `linux-arm64` | timezone `resources/**` | 474 | zoneinfo from the build (1.15's x86-64 runtime stays: it is another architecture) |
+| `mac-*` | timezone `code/universal-mac-macosx10.9/**`, timezone `resources/**` | 475 | the build's `code/universal-mac-macosx` replaces it (the IDE maps every `universal-*` folder, so both would load); zoneinfo from the build |
 
 The cache folder is `--assets-cache`, else `OXT_ASSETS_CACHE`, else
 `prebuilt/fetched-assets` (ignored by git). An archive whose file name (the

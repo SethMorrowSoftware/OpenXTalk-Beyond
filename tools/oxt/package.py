@@ -147,6 +147,7 @@ import argparse
 import calendar
 import collections
 import datetime
+import fnmatch
 import json
 import os
 import plistlib
@@ -796,10 +797,11 @@ def unused_build_outputs(p, bin_dir, used):
     return out
 
 
-def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None):
+def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=None):
     """Return (items, folders, problems); folders are installed paths of
     folders to create even if empty. xtalk is what xtalk_extensions.build
-    returned, or None."""
+    returned, or None. notes (a list) gets messages worth showing that are
+    not problems."""
     p = platform or PLATFORMS[DEFAULT_PLATFORM]
     tools = p.tools
     pl = Planner(p, bin_dir)
@@ -829,9 +831,18 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None):
         pl.add(Item(tools + name, 'licence', data=data,
                     note=name + (' (CRLF line endings)' if p.eol == b'\r\n' else ' (LF line endings)')))
 
-    # External assets
+    # External assets, without what the platform's build now produces
+    # (their "exclude" for this platform)
     for asset, archive in assets:
-        files, dirs = fetch_assets.plan_members(asset, archive)
+        stats = {}
+        files, dirs = fetch_assets.plan_members(asset, archive, p.name, stats)
+        if notes is not None and stats.get('excluded'):
+            notes.append('asset %s: %d files left out on %s (its "exclude"): the build produces them'
+                         % (asset['id'], stats['excluded'], p.name))
+        for g in stats.get('unused', []):
+            if notes is not None:
+                notes.append('WARNING: asset %s: the exclude glob %s matches nothing on %s'
+                             % (asset['id'], g, p.name))
         for target, member in files:
             pl.add(Item(tools + target, 'asset', source=archive, member=member, asset=asset,
                         note='asset %s: %s' % (asset['id'], member)))
@@ -1428,6 +1439,14 @@ def main(argv=None):
             cache = fetch_assets.cache_dir(repo, args.assets_cache)
             log('Asset cache  : %s' % cache)
             for a in fetch_assets.load_manifest(args.manifest):
+                # A key that names no platform (a typo) would exclude nothing
+                for key in list(a.get('exclude', {})) + list(a.get('platforms') or []):
+                    if not any(fnmatch.fnmatchcase(n, key) for n in PLATFORMS):
+                        raise PackageError('%s: asset %s: %r matches no platform (%s)'
+                                           % (args.manifest, a['id'], key, ', '.join(PLATFORMS)))
+                if not fetch_assets.for_platform(a, plat.name):
+                    log('asset %s: not for %s (its "platforms")' % (a['id'], plat.name))
+                    continue
                 assets.append((a, fetch_assets.fetch(a, cache, args.offline, log)))
 
         xtalk = None
@@ -1452,7 +1471,10 @@ def main(argv=None):
                                            args.offline, log, args.allow_unpinned_vc_runtime)
             log('')
 
-        items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk, plat)
+        notes = []
+        items, folders, problems = plan(repo, bin_dir, build_number, assets, xtalk, plat, notes)
+        for n in notes:
+            log(n)
         if problems:
             for msg in problems:
                 sys.stderr.write('error: %s\n' % msg)

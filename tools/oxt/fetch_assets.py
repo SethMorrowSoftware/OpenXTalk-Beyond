@@ -35,6 +35,19 @@ asset is one archive with a fixed URL, size and SHA-256:
                    remaining paths are placed in ("" or "." for the root)
     "rename":      optional {"<member path after strip>": "<path relative
                    to dest>"} for members that go somewhere else
+    "platforms":   optional list of the package.py platforms (--platform
+                   names, or fnmatch patterns such as "mac-*") the asset is
+                   for; without it, every platform gets it
+    "exclude":     optional {"<platform pattern>": ["<glob>", ...]}: on a
+                   platform that a pattern matches, members whose installed
+                   path (after strip, rename and dest) matches a glob are
+                   left out, and so are folder entries inside such a tree.
+                   A glob is an installed path in which "*" matches within
+                   one path component and "**" anything (as in layout.py).
+                   This is how an asset stops supplying files that the
+                   platform's own build produces: package.py treats a path
+                   that comes from two places as an error.
+    "exclude_note": optional text saying why (for people)
     "description", "licence", "source": text for people and reports
   }
 
@@ -54,6 +67,7 @@ Only the Python 3 standard library is used.
 """
 
 import argparse
+import fnmatch
 import hashlib
 import http.client
 import json
@@ -130,6 +144,77 @@ def validate_asset(a, where='manifest'):
     for k, v in rename.items():
         safe_relpath(k, what='asset %s rename source' % name)
         safe_relpath(v, what='asset %s rename target' % name)
+    platforms = a.get('platforms')
+    if platforms is not None and (not isinstance(platforms, list) or not platforms or
+                                  not all(_is_platform_pattern(p) for p in platforms)):
+        raise AssetError('%s: asset %s: platforms must be a non-empty list of platform names or patterns'
+                         % (where, name))
+    exclude = a.get('exclude', {})
+    if not isinstance(exclude, dict):
+        raise AssetError('%s: asset %s: exclude must be an object: platform pattern -> list of globs'
+                         % (where, name))
+    for pattern, globs in exclude.items():
+        if not _is_platform_pattern(pattern):
+            raise AssetError('%s: asset %s: exclude key %r is not a platform name or pattern'
+                             % (where, name, pattern))
+        if not isinstance(globs, list) or not globs:
+            raise AssetError('%s: asset %s: exclude %s must be a non-empty list of globs' % (where, name, pattern))
+        for g in globs:
+            safe_glob(g, what='asset %s exclude %s' % (name, pattern))
+
+
+def safe_glob(glob, what='glob'):
+    """safe_relpath for an exclude glob: the same rules (checked with the
+    wildcards replaced by a letter), but "*" and "?" are wildcards, not
+    characters Windows cannot store. Returns the normalised glob."""
+    if not isinstance(glob, str):
+        raise AssetError('%s: not a string' % what)
+    safe_relpath(re.sub(r'[*?]', 'x', glob), what=what)
+    return '/'.join(x for x in glob.replace('\\', '/').split('/') if x not in ('', '.'))
+
+
+def _is_platform_pattern(value):
+    return isinstance(value, str) and re.match(r'^[a-z0-9_*?\[\]-]+$', value) is not None
+
+
+def for_platform(asset, platform):
+    """True when the asset is for the package.py platform (every asset is,
+    unless its "platforms" says otherwise; platform None means any)."""
+    patterns = asset.get('platforms')
+    return platform is None or patterns is None or any(fnmatch.fnmatchcase(platform, p) for p in patterns)
+
+
+def exclusions(asset, platform):
+    """The exclude globs of the asset that apply on the platform (none
+    when platform is None)."""
+    if platform is None:
+        return []
+    out = []
+    for pattern, globs in asset.get('exclude', {}).items():
+        if fnmatch.fnmatchcase(platform, pattern):
+            out.extend(safe_glob(g) for g in globs)
+    return out
+
+
+def glob_regex(glob):
+    """A compiled regex for an installed-path glob: "*" within one path
+    component, "?" one character in it, "**" anything (layout.py's Rule
+    patterns; fetch_assets.py does not import layout.py)."""
+    rx, i = [], 0
+    while i < len(glob):
+        if glob.startswith('**', i):
+            rx.append('.*')
+            i += 2
+        elif glob[i] == '*':
+            rx.append('[^/]*')
+            i += 1
+        elif glob[i] == '?':
+            rx.append('[^/]')
+            i += 1
+        else:
+            rx.append(re.escape(glob[i]))
+            i += 1
+    return re.compile(''.join(rx) + r'\Z')
 
 
 def safe_relpath(path, allow_empty=False, what='path'):
@@ -307,15 +392,21 @@ def _remove(path):
 # ---------------------------------------------------------------------------
 # Archive members
 
-def plan_members(asset, archive):
+def plan_members(asset, archive, platform=None, stats=None):
     """Return (files, folders) of an archive after strip, rename and dest:
     files is [(installed path, member name)], folders the installed paths
     of its directory entries (so that empty folders are kept). Other
-    folders are created as needed for the files."""
+    folders are created as needed for the files. With a package.py
+    platform name, the members that the asset's "exclude" leaves out on it
+    are dropped; stats (a dict) then gets "excluded" (the number of files
+    dropped) and "unused" (the globs that matched nothing, which the
+    caller should report: a stale glob excludes nothing)."""
     if asset['kind'] != 'zip':
         raise AssetError('asset %s: unsupported kind %s' % (asset['id'], asset['kind']))
     dest = safe_relpath(asset['dest'], allow_empty=True)
     rename = {safe_relpath(k): safe_relpath(v) for k, v in asset.get('rename', {}).items()}
+    globs = [(g, glob_regex(g)) for g in exclusions(asset, platform)]
+    matched, excluded = set(), 0
     used = set()
     files, folders = [], []
     with zipfile.ZipFile(archive) as z:
@@ -333,10 +424,19 @@ def plan_members(asset, archive):
                 used.add(rel)
                 rel = rename[rel]
             target = (dest + '/' + rel) if dest else rel
+            # A folder entry goes with the tree it is in or is the root of
+            hits = [g for g, rx in globs if rx.match(target) or (is_dir and rx.match(target + '/'))]
+            if hits:
+                matched.update(hits)
+                excluded += 0 if is_dir else 1
+                continue
             if is_dir:
                 folders.append(target)
             else:
                 files.append((target, info.filename))
+    if stats is not None:
+        stats['excluded'] = excluded
+        stats['unused'] = [g for g, _ in globs if g not in matched]
     unused = sorted(set(rename) - used)
     if unused:
         raise AssetError('asset %s: rename lists paths the archive does not have: %s'
