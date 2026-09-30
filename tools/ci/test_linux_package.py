@@ -66,7 +66,11 @@ XDG_DATA_HOME, and an XDG_DATA_HOME whose path has a space, $, ", ` and %
 
 It also checks that a ~/.local/bin/oxt-beyond that the user put in place of
 install.sh's link (a wrapper script, or a link to something else) survives
-install.sh again and uninstall.sh.
+install.sh again and uninstall.sh; and that an install that fails after
+the program folder is in place (at a dangling ~/.local/bin link; an update
+that cannot replace the desktop entry) keeps a manifest of what it and the
+previous install made, so that uninstall.sh and a new install.sh still
+work and uninstall.sh leaves exactly what was there before.
 
 --require-desktop-tools makes a missing desktop-file-validate,
 update-mime-database or update-desktop-database a failure (CI installs
@@ -472,6 +476,61 @@ def test_install_own_command(c, root, work):
                 'exit %d; %s\n%s' % (code, describe_diff(before | mine, after), out))
 
 
+def test_install_failure(c, root, work):
+    """An install that fails after the program folder is in place must not
+    leave it without a manifest (install.sh would then refuse the folder,
+    uninstall.sh refuse to run, and the desktop entry, icons and MIME file
+    it had already installed would never be updated or removed): first a
+    ~/.local/bin that is a dangling link, then an update that cannot
+    replace the desktop entry."""
+    home = os.path.join(work, 'home-failure')
+    local = os.path.join(home, '.local')
+    os.makedirs(local)
+    binfolder = os.path.join(home, 'bin-folder')
+    os.symlink(binfolder, os.path.join(local, 'bin'))    # dangling until bin-folder exists
+    env = base_env(HOME=home)
+    app = os.path.join(local, 'share', 'oxt-beyond')
+    manifest = os.path.join(app, '.install-manifest')
+    install = os.path.join(root, 'install.sh')
+    before = snapshot(home)
+
+    code, out = run([install], env=env)
+    c.check('failure: install.sh stops at a dangling ~/.local/bin, and says why',
+            code != 0 and 'is not a folder' in out, 'exit %d, output:\n%s' % (code, out))
+    c.check('failure: the program folder it put in place has a manifest', os.path.isfile(manifest), manifest)
+    code, out = run([os.path.join(root, 'uninstall.sh')], env=env)
+    after = snapshot(home)
+    c.check('failure: uninstall.sh then removes everything the failed install.sh made',
+            code == 0 and after == before, 'exit %d; %s\n%s' % (code, describe_diff(before, after), out))
+
+    code, out = run([install], env=env)
+    c.check('failure: install.sh fails the same way again', code != 0, 'exit %d, output:\n%s' % (code, out))
+    os.makedirs(binfolder)
+    fixed = before | {'bin-folder/'}
+    code, out = run([install], env=env)
+    c.check('failure: with the link fixed, install.sh takes over what the failed one made, without warnings',
+            code == 0 and 'warning' not in out and os.path.islink(os.path.join(binfolder, 'oxt-beyond')),
+            'exit %d, output:\n%s' % (code, out))
+
+    # An update that fails: the desktop entry can be neither removed nor
+    # written
+    apps = os.path.join(local, 'share', 'applications')
+    desktop = os.path.join(apps, 'oxt-beyond.desktop')
+    os.chmod(desktop, 0o444)
+    os.chmod(apps, 0o555)
+    try:
+        code, out = run([install], env=env)
+    finally:
+        os.chmod(apps, 0o755)
+        os.chmod(desktop, 0o644)
+    c.check('failure: an update that cannot replace the desktop entry fails, and keeps the manifest',
+            code != 0 and 'cannot write' in out and os.path.isfile(manifest), 'exit %d, output:\n%s' % (code, out))
+    code, out = run([os.path.join(app, 'uninstall.sh')], env=env)
+    after = snapshot(home)
+    c.check('failure: uninstall.sh after it leaves exactly what was there before the first install',
+            code == 0 and after == fixed, 'exit %d; %s\n%s' % (code, describe_diff(fixed, after), out))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Test the launcher and install scripts of a Linux OXT-Beyond package.')
     ap.add_argument('--root', required=True, help='the extracted package folder (OXT-Beyond-<version>)')
@@ -504,6 +563,7 @@ def main(argv=None):
                                os.path.join(work, 'data dir $HOME "q" `x` 100%'), args.require_desktop_tools)
             test_install_guards(c, root, work, args.require_desktop_tools)
             test_install_own_command(c, root, work)
+            test_install_failure(c, root, work)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print('')

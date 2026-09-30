@@ -37,7 +37,9 @@
 # replaced or removed. Running it again replaces the installed copy (a newer
 # version, say) and removes what the previous install created that this one
 # does not. Run from the installed copy itself, it only registers the menu
-# entry, icons, file types and link again.
+# entry, icons, file types and link again. An install that fails part of
+# the way still leaves the manifest (see die), so that install.sh again or
+# uninstall.sh can finish or undo it.
 #
 # POSIX sh only (dash, bash, busybox sh).
 
@@ -49,8 +51,36 @@ manifest_name=.install-manifest
 manifest_header='# OXT-Beyond install manifest 1'
 icon_sizes='16 24 32 48 64 128 256 512'
 
+# Once the program folder is this install's (step 1, program_ready=1), a
+# failure must not leave it without a manifest: install.sh would refuse the
+# folder next time, uninstall.sh would not run, and the desktop entry,
+# icons and MIME file already installed would be nobody's, never updated or
+# removed again. So die() then saves every entry of the previous install
+# and of this one so far; uninstall.sh skips entries whose files are gone.
+# That includes the desktop's databases when they are ours (see 6.), which
+# a failure before 6. has not recorded yet: without the entries,
+# uninstall.sh would run update-mime-database and update-desktop-database
+# over folders that hold nothing but ours, and leave the databases those
+# make behind.
+program_ready=0
+mime_db_ours=0
+desktop_db_ours=0
 die() {
     printf 'install.sh: %s\n' "$1" >&2
+    if [ "$program_ready" = 1 ]; then
+        while IFS= read -r line; do
+            case $line in
+                ''|'#'*) ;;
+                *) record "$line" ;;
+            esac
+        done <<EOF
+$old_manifest
+EOF
+        [ "$mime_db_ours" = 1 ] && record "mimedb $data/mime"
+        [ "$desktop_db_ours" = 1 ] && record "desktopdb $data/applications"
+        { printf '%s\n' "$new_manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest"; } ||
+            printf 'install.sh: cannot write %s either\n' "$manifest" >&2
+    fi
     exit 1
 }
 
@@ -193,8 +223,9 @@ else
     fi
     make_dir "$data"
     new=$app.new-$$
+    old=$app.old-$$
     failed=$app.copy-failed-$$
-    rm -rf "$new" "$failed"
+    rm -rf "$new" "$old" "$failed"
     mkdir "$new" || die "cannot create $new"
     # tar keeps the package's modes, symbolic links and hard links (the
     # runtime's CEF files are the IDE's; cp -R would store them twice)
@@ -204,21 +235,39 @@ else
         rm -rf "$new" "$failed"
         die "copying $src to $new failed (is the disk full?); nothing was changed"
     fi
-    rm -f "$new/$manifest_name"
+    # The copy gets its manifest before it takes the place of the previous
+    # copy, whose manifest goes with that: the previous install's entries
+    # and the program folder. So $app never exists without a manifest, and
+    # an install.sh that dies (see die) or is killed in the steps below
+    # still leaves both installs' files to install.sh and uninstall.sh.
+    if in_old "program $app"; then
+        printf '%s\n' "$old_manifest"
+    else
+        printf '%s\n' "${old_manifest:-$manifest_header}" "program $app"
+    fi > "$new/$manifest_name" || { rm -rf "$new"; die "cannot write $new/$manifest_name; nothing was changed"; }
+    # The previous copy is moved aside and removed only once the new one is
+    # in its place (two renames in one folder), not removed first: a removal
+    # that failed half-way would leave a program folder without a manifest.
     if [ -e "$app" ] || [ -L "$app" ]; then
-        rm -rf "$app" || die "cannot remove the previous $app (the new copy is in $new)"
+        mv "$app" "$old" || { rm -rf "$new"; die "cannot move the previous $app aside; nothing was changed"; }
     fi
-    mv "$new" "$app" || die "cannot move $new to $app"
+    if ! mv "$new" "$app"; then
+        rm -rf "$new"
+        if [ -e "$old" ] || [ -L "$old" ]; then
+            mv "$old" "$app" || die "cannot move $new to $app, nor the previous copy $old back; move it back yourself"
+        fi
+        die "cannot move $new to $app; nothing was changed"
+    fi
+    rm -rf "$old" || printf 'install.sh: warning: cannot remove the previous copy %s; remove it yourself\n' "$old" >&2
 fi
 record "program $app"
+program_ready=1
 keep_old_dirs
 
 # The desktop's databases (see 6.) before anything is added to them
-mime_db_ours=0
 if in_old "mimedb $data/mime" || [ ! -e "$data/mime/mime.cache" ]; then
     mime_db_ours=1
 fi
-desktop_db_ours=0
 if in_old "desktopdb $data/applications" || [ ! -e "$data/applications/mimeinfo.cache" ]; then
     desktop_db_ours=1
 fi
@@ -309,7 +358,9 @@ fi
 # A theme folder with a newer date makes running programs look again
 [ -d "$data/icons/hicolor" ] && touch "$data/icons/hicolor"
 
-# 7. The manifest, written last: a failed install leaves the previous one
+# 7. The manifest of this install. (A failure before the new program folder
+# was in place left the previous install as it was; one after it has saved
+# the entries so far through die.)
 printf '%s\n' "$new_manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest" || die "cannot write $manifest"
 
 printf 'Installed. Start OXT-Beyond from the application menu (Development), or with\n'
