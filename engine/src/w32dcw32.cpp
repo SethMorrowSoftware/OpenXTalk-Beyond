@@ -671,6 +671,15 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 				extern void MCWin32UpdateSystemColors(void);
 				MCWin32UpdateSystemColors();
 				
+				// The native theme picks the dark or the light scrollbar
+				// class when it opens its theme data, so reopen it, as for
+				// WM_THEMECHANGED; the stacks are redrawn below.
+				if (MCcurtheme != NULL && MCcurtheme->getthemeid() == LF_NATIVEWIN)
+				{
+					MCcurtheme->unload();
+					MCcurtheme->load();
+				}
+				
 				// Update all stack window title bars
 				extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
 				MCSystemAppearance t_appearance;

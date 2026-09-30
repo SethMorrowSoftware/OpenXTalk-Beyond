@@ -60,6 +60,11 @@ extern LRESULT CALLBACK MCBackdropWindowProc(HWND hwnd, UINT msg,
 extern LRESULT CALLBACK MCSocketWindowProc(HWND hwnd, UINT msg,
 	        WPARAM wParam, LPARAM lParam);
 
+// Whether Windows apps are set to dark mode (AppsUseLightTheme is 0). The
+// setting is cached; MCWin32UpdateSystemColors refreshes it (w32dc.cpp).
+extern bool MCWin32IsSystemAppearanceDark(void);
+extern void MCWin32RefreshSystemAppearance(void);
+
 class MCEventnode : public MCDLlist
 {
 public:
