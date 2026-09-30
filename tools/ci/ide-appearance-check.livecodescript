@@ -17,6 +17,9 @@ script "oxt_ide_appearance_check"
 -- home's revInternal__ResetPreferences, and checks:
 --    - the first-install defaults: cIDEAppearance and cStackAppearance
 --      "light", cMakeRevMenuBarStandard true;
+--    - Preferences > Appearance (revIDEPrefsAppearanceUI, on a stand-in
+--      card): both option menus with their labels, on the stored
+--      preferences, and made once when the card opens again;
 --    - on an engine without the appearance properties (such as the release
 --      engines before them): revIDEIsDark() follows the systemAppearance,
 --      the View menu's Appearance items are disabled, and
@@ -48,7 +51,7 @@ global gREVAppearanceOverride
 local sChecks, sFailed, sAppearanceMessages
 
 on startup
-   local tRoot, tHas, tMenu, tBefore, tRows, tSystem
+   local tRoot, tHas, tMenu, tBefore, tRows, tSystem, tCore, tError
    set the lockMessages to true
    -- The IDE compiles its scripts without explicit variables
    set the explicitVariables to false
@@ -86,6 +89,41 @@ on startup
    check "default cMakeRevMenuBarStandard", the cMakeRevMenuBarStandard of stack "revPreferences" is true, the cMakeRevMenuBarStandard of stack "revPreferences"
    check "unknown preference value is light", revIDEAppearancePreference("ide") is "light" and revIDEAppearancePreference("stacks") is "light", \
          revIDEAppearancePreference("ide") & "," & revIDEAppearancePreference("stacks")
+
+   -- Preferences > Appearance: revPreferencesGUI is a binary stack whose
+   -- card "Appearance" calls revIDEPrefsAppearanceUI in its preOpenCard; a
+   -- stand-in card gets the same controls. The second call is the card
+   -- opened again: the controls are updated, not made twice. The handler
+   -- colours its note with revIDEColor("text_muted"), which comes from
+   -- revCore's ideColorGet, so revCore's script is a backscript meanwhile
+   -- (loaded with messages locked, as ide-contrast-check does). An error
+   -- is a failed check: uncaught, the -ui engine would wait, not quit
+   create invisible stack "oxtAppearanceCheckPrefs"
+   set the name of card 1 of stack "oxtAppearanceCheckPrefs" to "Appearance"
+   put tRoot & "/Toolset/palettes/revCore.8.livecode" into tCore
+   try
+      set the lockMessages to true
+      insert the script of stack tCore into back
+      revIDEPrefsAppearanceUI the long id of card "Appearance" of stack "oxtAppearanceCheckPrefs"
+      revIDEPrefsAppearanceUI the long id of card "Appearance" of stack "oxtAppearanceCheckPrefs"
+      put empty into tError
+   catch tError
+   end try
+   try
+      remove the script of stack tCore from back
+   catch tIgnored
+   end try
+   set the lockMessages to false
+   check "Preferences > Appearance: runs", tError is empty, tError
+   check "Preferences > Appearance: IDE label", prefsText("oxtAppearance_ide_label") is "IDE appearance:", prefsText("oxtAppearance_ide_label")
+   check "Preferences > Appearance: stacks label", prefsText("oxtAppearance_stacks_label") is "Your stacks:", prefsText("oxtAppearance_stacks_label")
+   check "Preferences > Appearance: note", prefsText("oxtAppearance_note") is not empty and not (prefsText("oxtAppearance_note") begins with "(error"), prefsText("oxtAppearance_note")
+   check "Preferences > Appearance: IDE menu on its preference", prefsMenuHistory("oxtAppearance_ide") is 1, prefsMenuHistory("oxtAppearance_ide")
+   check "Preferences > Appearance: stacks menu on its preference", prefsMenuHistory("oxtAppearance_stacks") is 1, prefsMenuHistory("oxtAppearance_stacks")
+   check "Preferences > Appearance: menus enabled as the engine allows", prefsEnabled("oxtAppearance_ide") is (revIDEEngineHasAppearance() and the platform is not "Linux"), \
+         prefsEnabled("oxtAppearance_ide") && revIDEEngineHasAppearance() && the platform
+   check "Preferences > Appearance: controls made once", the number of controls of card "Appearance" of stack "oxtAppearanceCheckPrefs" is 5, \
+         the number of controls of card "Appearance" of stack "oxtAppearanceCheckPrefs"
 
    -- The stacks the IDE sorts: an IDE stack by its name, and a user stack
    create invisible stack "revAppearanceCheckIDE"
@@ -239,6 +277,33 @@ private function pendingRefreshes
    end repeat
    return tCount
 end pendingRefreshes
+
+-- The text of a field of the stand-in Preferences card
+private function prefsText pField
+   try
+      return the text of field pField of card "Appearance" of stack "oxtAppearanceCheckPrefs"
+   catch tError
+      return "(error " & oneLine(tError) & ")"
+   end try
+end prefsText
+
+-- The menuHistory of an option menu of the stand-in Preferences card
+private function prefsMenuHistory pButton
+   try
+      return the menuHistory of button pButton of card "Appearance" of stack "oxtAppearanceCheckPrefs"
+   catch tError
+      return "(error " & oneLine(tError) & ")"
+   end try
+end prefsMenuHistory
+
+-- The enabled of an option menu of the stand-in Preferences card
+private function prefsEnabled pButton
+   try
+      return the enabled of button pButton of card "Appearance" of stack "oxtAppearanceCheckPrefs"
+   catch tError
+      return "(error " & oneLine(tError) & ")"
+   end try
+end prefsEnabled
 
 private function stackAppearanceOf pStack
    local tValue

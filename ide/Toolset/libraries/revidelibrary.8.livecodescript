@@ -3027,11 +3027,6 @@ command revIDEPrefsAppearanceUI pCard
          set the opaque of it to false
          set the showBorder of it to false
          set the traversalOn of it to false
-         if tWhich is "ide" then
-            put "IDE appearance:" into it
-         else
-            put "Your stacks:" into it
-         end if
          reset the templateButton
          create button tName
          set the style of it to "menu"
@@ -3040,6 +3035,16 @@ command revIDEPrefsAppearanceUI pCard
          set the script of it to "on menuPick pItem" & return & \
                "   revIDEPrefsAppearancePick" && quote & tWhich & quote & ", pItem" & return & \
                "end menuPick"
+      end if
+      -- The label is filled by name on every call: right after create,
+      -- "put ... into it" would fill the variable it (the field's long id),
+      -- not the field
+      if there is a field (tName & "_label") of pCard then
+         if tWhich is "ide" then
+            put "IDE appearance:" into field (tName & "_label") of pCard
+         else
+            put "Your stacks:" into field (tName & "_label") of pCard
+         end if
       end if
       if there is a button tName of pCard then
          if tWhich is "ide" then
