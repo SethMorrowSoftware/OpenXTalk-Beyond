@@ -77,7 +77,7 @@ jobs:
       XCODEBUILD_FLAGS: -IDEBuildingContinueBuildingAfterErrors=YES
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # The version gate of build-windows.yml: a tag build fails straight
       # away when the tag is not "v" followed by ide/.version, so that no
@@ -131,7 +131,7 @@ jobs:
 
       - name: Restore Python 2.7
         id: python2-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pyenv/versions/${{ env.PYTHON2_VERSION }}
           key: python-${{ env.PYTHON2_VERSION }}-${{ matrix.runner }}-${{ matrix.arch }}-v1
@@ -163,7 +163,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -195,7 +195,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -289,14 +289,14 @@ jobs:
           ls -l OXT-Beyond-mac-"$ARCH"-*.tar.xz
 
       - name: Upload the build products
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-bin
           path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
           if-no-files-found: error
 
       - name: Upload the debug symbols
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-symbols
           path: OXT-Beyond-mac-${{ matrix.arch }}-symbols.tar.xz
@@ -304,7 +304,7 @@ jobs:
 
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-logs-mac-${{ matrix.arch }}
           path: |
