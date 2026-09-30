@@ -212,6 +212,7 @@ private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
    local tAppliedHere, tFailedHere, tSame, tPatchedObjects, tLabels
+   local tCompileError, tSaveError
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
    put URL ("binfile:" & tPath) into tOriginal
@@ -247,8 +248,10 @@ private command patchFile pRel, pPatches, pCheck
          replace tOld with tNew in tScript
          set the caseSensitive to false
          set the script of tObject to tScript
-         if the result is not empty then
-            write "PATCH " & tPatched & " | FAILED the patched script does not compile: " & oneLine(the result) & return to stdout
+         -- Keep the compile errors: the next statement resets the result
+         put the result into tCompileError
+         if tCompileError is not empty then
+            write "PATCH " & tPatched & " | FAILED the patched script does not compile: " & oneLine(tCompileError) & return to stdout
             add 1 to sFailures
             put true into tFailedHere
          else
@@ -283,9 +286,11 @@ private command patchFile pRel, pPatches, pCheck
    put scriptsChangedOnly(tBefore, tExpected, tLabels) into tChanged
 
    save stack tMain
-   if the result is not empty then
+   -- Writing the original back sets the result, so keep the save error
+   put the result into tSaveError
+   if tSaveError is not empty then
       put tOriginal into URL ("binfile:" & tPath)
-      throw "could not save " & pRel & ": " & the result
+      throw "could not save " & pRel & ": " & tSaveError
    end if
    unloadStack tMain
    put the short name of stack tPath into tMain
