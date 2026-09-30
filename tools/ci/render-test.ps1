@@ -49,9 +49,11 @@
              reference release did
       D = A  every image: the forced dark appearance on a light Windows
              draws exactly as the dark appearance on a dark Windows
-      A = B  the owner's colours (s1-*) and a field with both colours of its
-             own (s5): the same in the dark and the light appearance; and
-             the paint tools' colours (INFO penColor, brushColor)
+      A = B  the owner's colours (s1-*) and a field with its fill, text and
+             border colours of its own (s5, a plain border: the theme's
+             frame is a native part, dark in a dark run): the same in the
+             dark and the light appearance; and the paint tools' colours
+             (INFO penColor, brushColor)
       S8     a copy of s2 with the stackAppearance "dark", in B and C, draws
              as s2 in A; one with "light", in A, draws as s2 in B
 

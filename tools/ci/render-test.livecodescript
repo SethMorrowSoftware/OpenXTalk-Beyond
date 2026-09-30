@@ -37,7 +37,8 @@ script "oxt_render_test"
 --           opaque checkbox with a white background of its own; checkboxes
 --           in an opaque group with the native frame, on a white panel on a
 --           card of 30,30,30
---    s5     a field with both colours of its own: the same in every run
+--    s5     a field with its fill, text and border colours of its own (a
+--           plain border, not the theme's frame): the same in every run
 --    s6-*   text runs: red text and a yellow highlight in a white field, and
 --           a yellow highlight in a field with no colours
 --    s7-*   buttons with a light and a dark background of their own
@@ -800,7 +801,11 @@ private command renderExplicitText
    shootName tStack, tObject, "s4-group-check"
 end renderExplicitText
 
--- S5: a field with both colours of its own is drawn as set, in every run
+-- S5: a field with its fill, text and border colours of its own is drawn as
+-- set, in every run. Its border is a plain 1-pixel one in its own colour,
+-- not the theme's frame (threeD): the native frame is a native part, which
+-- a dark-filled field in a dark run rightly draws dark and a light run
+-- light, so it could not match between runs.
 private command renderExplicitBoth
    local tStack, tObject
    put "oxt_render_s5" into tStack
@@ -809,6 +814,9 @@ private command renderExplicitBoth
    set the opaque of tObject to true
    set the backColor of tObject to "40,40,40"
    set the foreColor of tObject to "220,220,220"
+   set the threeD of tObject to false
+   set the borderWidth of tObject to 1
+   set the borderColor of tObject to "90,90,90"
    exportStackRect tStack, the rect of tObject, "s5.png"
 end renderExplicitBoth
 
