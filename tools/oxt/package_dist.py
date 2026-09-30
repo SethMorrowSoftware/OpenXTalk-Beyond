@@ -19,9 +19,10 @@
 staged, the build output's binaries and symbols archives, and SHA256SUMS.
 
   python tools/oxt/package_dist.py (--summary FILE | --platform P --stage DIR)
-      (--bin DIR | --bin-tar FILE | --no-binaries) --out DIR
-      [--repo DIR] [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
-      [--zip-level N] [--xz-preset N] [--no-hardlinks] [--summary-json FILE]
+      (--bin DIR | --bin-tar FILE | --no-binaries) [--symbols-tar FILE]
+      --out DIR [--repo DIR] [--xtalk-sources [--xtalk-cache DIR] [--assets-cache DIR]]
+      [--dmg] [--zip-level N] [--xz-preset N] [--no-hardlinks]
+      [--summary-json FILE]
 
 --summary is package.py's --summary-json, which gives the platform, the
 stage folder and the build output (a --bin folder or a --bin-tar tarball);
@@ -36,23 +37,36 @@ Written to --out, where <root> is OXT-Beyond-<version>:
     <root>-win-x86_64-symbols.zip    the *.pdb files under win-x86_64-bin/
   linux-<arch>
     <root>-linux-<arch>.tar.xz           the staged folder as <root>/
-    <root>-linux-<arch>-binaries.tar.xz  linux-<arch>-bin/ without *.dbg, and
-                                         the licence files at the top
+    <root>-linux-<arch>-binaries.tar.xz  linux-<arch>-bin/ without *.dbg and
+                                         the build's own tools (see below),
+                                         and the licence files at the top
     <root>-linux-<arch>-symbols.tar.xz   the *.dbg files under linux-<arch>-bin/
+                                         (not the build tools')
   mac-<arch>
-    <root>-mac-<arch>.zip                OXT-Beyond.app, as "ditto -c -k
-                                         --keepParent" stores it
+    <root>-mac-<arch>.dmg                with --dmg (macOS only): a disk
+                                         image (hdiutil, UDZO, HFS+, volume
+                                         "OXT-Beyond <version>") holding
+                                         OXT-Beyond.app and a link to
+                                         /Applications to drag it onto
+    <root>-mac-<arch>.zip                OXT-Beyond.app: on macOS written by
+                                         "ditto -c -k --sequesterRsrc
+                                         --keepParent", elsewhere by this
+                                         script as ditto stores it
     <root>-mac-<arch>-binaries.tar.xz    Release/ (the build's _build/mac/
-                                         Release) without *.dSYM, and the
+                                         Release, or the universal merge of
+                                         two) without *.dSYM and the build's
+                                         own tools (see below), and the
                                          licence files at the top
     <root>-mac-<arch>-symbols.zip        the *.dSYM bundles under Release/
+                                         (not the build tools')
   all
     <root>-xtalk-sources.zip         with --xtalk-sources: every file the
                                      xTalk manifest pins (xtalk_extensions.py
                                      export, from the cache only)
     SHA256SUMS                       "<sha256>  <file>" for each archive, in
-                                     the order above (binaries, package,
-                                     symbols, sources), LF line endings
+                                     the order binaries, disk image,
+                                     package, symbols, sources; LF line
+                                     endings
 
 The Windows archives have the names and the entries (names, bytes, file
 dates, folder entries) that tools/ci/package-windows.ps1 writes with .NET's
@@ -72,22 +86,56 @@ stored once and hard-linked (--no-hardlinks stores each): the runtime's
 copies of libcef.so and the rest of CEF are the same files as the IDE's.
 Such a tarball must be extracted onto a file system that has hard links
 (not FAT, which could not hold the package's modes anyway). The macOS
-zip stores folders, symbolic links (as links) and each file's mode, as
-ditto does, so that the app keeps its executables and bundle structure
-where the zip is extracted (ditto -x -k, Archive Utility or unzip). The
-disk image is made on macOS by the workflow (hdiutil), not here. They are
-written on Linux or macOS only; in WSL the stage must be under a Linux
-path, since a Windows drive reports every file as 0777 (a probe file next
-to the stage, package.unix_tree_problem, refuses one).
+zip is ditto's own on macOS (it keeps everything the signed app has; a
+signature lives inside its files, so nothing needs the "__MACOSX" side
+files that --sequesterRsrc would write for extended attributes, which
+tools/ci/sign_mac_app.py removes); elsewhere, or with OXT_PYTHON_ZIP=1,
+this script writes one that stores folders, symbolic links (as links)
+and each file's mode, as ditto does, so that the app keeps its
+executables and bundle structure where the zip is extracted (ditto -x -k,
+Archive Utility or unzip). They are written on Linux or macOS only; in
+WSL the stage must be under a Linux path, since a Windows drive reports
+every file as 0777 (a probe file next to the stage,
+package.unix_tree_problem, refuses one).
+
+--dmg (a macOS layout, on macOS) also writes the disk image: the app is
+copied with ditto into a temporary folder next to a symbolic link to
+/Applications, and "hdiutil create -format UDZO -fs HFS+" makes the
+image of that folder (HFS+ rather than APFS: every macOS the app runs on
+reads it, and it matches the case-insensitive names package.py checks
+for). hdiutil sometimes fails with "Resource busy" while something
+still scans the new files, so it is tried up to four times; then
+"hdiutil verify" checks the image's checksum. Sign the app before this
+step: the image and the zip hold it as it is.
 
 A tarball given as --bin-tar is read once, as a stream: each member goes
 to the binaries or the symbols archive under the platform's folder name
 (win-x86_64-bin, linux-<arch>-bin, Release), without macOS tar's "._"
-AppleDouble files; modes and links are kept, owners dropped.
+AppleDouble files; modes and links are kept, owners dropped. The CI keeps
+the debug symbols out of its bin tarball, in a tarball of their own (the
+same folder with only the *.dbg files, or the *.dSYM bundles):
+--symbols-tar adds its files to the symbols archive, and fails on anything
+in it that is not a debug symbol file or that the build output has too.
+
+In the Linux package no path may have a folder named like a build output
+(package.repository_mode_trap: _build, linux-bin, linux-<arch>-bin,
+build-linux-<arch>), which would switch an engine on that path into
+repository mode.
+
+The Linux and macOS build outputs also hold the tools the build makes to
+build itself (package.BUILD_PROGRAMS: gentle-target, reflex-target,
+perfect-target, the lc-compile bootstrap stages, zic, lcidlc), which
+package.py never installs. Their files, .dSYM bundles and .dbg files are
+left out of the binaries and symbols archives, from a folder and from a
+tarball alike, and counted in the log: gentle-target and reflex-target
+are GENTLE 97, whose licence forbids redistributing it
+(THIRD-PARTY-NOTICES.md "GENTLE"), and the Windows binaries zip holds
+none of them either. Any entry named gentle-* or reflex-* that still
+reaches an archive is an error, and no archive is written.
 
 Under GitHub Actions it writes the step outputs version, package-root,
-platform, dist-dir, package (the main archive) and sha256sums, and a table
-of the archives to the job summary.
+platform, dist-dir, package (the main archive), dmg (with --dmg) and
+sha256sums, and a table of the archives to the job summary.
 
 Only the Python 3 standard library is used.
 """
@@ -103,17 +151,23 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import package  # noqa: E402
+import layout  # noqa: E402
 import fetch_assets  # noqa: E402
 import xtalk_extensions  # noqa: E402
 
 HARDLINK_MIN_SIZE = 64 * 1024
 Levels = collections.namedtuple('Levels', 'zip xz')
+
+# Names that must never reach an archive, whatever the tables say: GENTLE
+# 97 (gentle-target, and its reflex-target) may not be redistributed
+GENTLE_PREFIXES = ('gentle-', 'reflex-')
 
 
 class DistError(Exception):
@@ -127,6 +181,23 @@ def debug_file(family, parts):
     if family == 'linux':
         return parts[-1].endswith('.dbg')
     return any(p.endswith('.dSYM') for p in parts)
+
+
+def build_tool(rel):
+    """True for a path of a Linux or macOS build output that belongs to
+    one of the build's own tools (package.BUILD_PROGRAMS, at the top of
+    the build output: gentle-target, reflex-target, perfect-target, the
+    lc-compile bootstrap stages, zic, lcidlc), or to their debug symbols
+    (X.dSYM/..., X.dbg). The binaries and symbols archives leave them out:
+    the Windows binaries zip has no such tools either (package-windows.ps1
+    takes the build's dist files), and GENTLE's licence forbids
+    redistributing gentle-target and reflex-target."""
+    top = rel.split('/')[0]
+    names = [top]
+    for suffix in ('.dSYM', '.dbg'):
+        if top.endswith(suffix):
+            names.append(top[:-len(suffix)])
+    return any(layout._glob_match(pat, n) for pat, _ in package.BUILD_PROGRAMS for n in names)
 
 
 def bin_top(p):
@@ -144,8 +215,14 @@ def archive_names(p, root):
         'linux': ('-binaries.tar.xz', '.tar.xz', '-symbols.tar.xz'),
         'mac': ('-binaries.tar.xz', '.zip', '-symbols.zip'),
     }[p.family]
-    return collections.OrderedDict([('binaries', base + binaries), ('package', base + package_),
-                                    ('symbols', base + symbols)])
+    names = collections.OrderedDict([('binaries', base + binaries), ('package', base + package_),
+                                     ('symbols', base + symbols)])
+    if p.family == 'mac':
+        # the disk image (--dmg) goes before the zip of the same app
+        names['dmg'] = base + '.dmg'
+        names.move_to_end('dmg', last=False)
+        names.move_to_end('binaries', last=False)
+    return names
 
 
 def _sort_key(name):
@@ -455,6 +532,14 @@ def write_package(p, stage, out, levels, hardlinks, log):
                                  [(os.path.join(stage, *d.split('/')), root + '/' + d + '/') for d in empty],
                                  levels.zip)
     if p.family == 'linux':
+        # The tarball is extracted anywhere, and a folder of it named like a
+        # build output would put the engine of an install into repository
+        # mode if it were ever on the engine's path; there is none today
+        for rel in folders + files + links:
+            trap = package.repository_mode_trap(root + '/' + rel, p)
+            if trap:
+                raise DistError('%s has a folder named %s (%s): the package must have no folder name that '
+                                'switches the engine into repository mode' % (stage, trap, rel))
         same = hardlink_plan(stage, files) if hardlinks else {}
         if same:
             saved = sum(os.path.getsize(os.path.join(stage, *r.split('/'))) for r in same)
@@ -481,6 +566,29 @@ def write_package(p, stage, out, levels, hardlinks, log):
     if not os.path.isdir(app):
         raise DistError('%s has no %s' % (stage, p.engine))
     prefix = p.engine + '/'
+    others = [f for f in files + links if not f.startswith(prefix)]
+    if others:
+        log('WARNING: not in the zip (outside %s): %s' % (p.engine, ', '.join(others[:5])))
+    if use_ditto():
+        # Apple's own writer on macOS, which is what the workflow and
+        # Archive Utility users expect; it keeps what a signed app needs
+        tmp = out + '.part'
+        _remove(tmp)
+        r = subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, tmp],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if r.returncode:
+            _remove(tmp)
+            raise DistError('ditto -c -k failed (exit status %d): %s'
+                            % (r.returncode, r.stdout.decode('utf-8', 'replace').strip()))
+        os.replace(tmp, out)
+        with zipfile.ZipFile(out) as zf:
+            names = zf.namelist()
+        side = [n for n in names if n.startswith('__MACOSX/')]
+        if side:
+            log('WARNING: %d extended-attribute side files in %s (__MACOSX/, from --sequesterRsrc), for '
+                'example %s: sign the app with tools/ci/sign_mac_app.py first, which removes them'
+                % (len(side), os.path.basename(out), side[0]))
+        return len(names)
     z = UnixZip(out, levels.zip)
     try:
         z.add_path(app, prefix)
@@ -494,10 +602,54 @@ def write_package(p, stage, out, levels, hardlinks, log):
         z.discard()
         raise
     z.close()
-    others = [f for f in files + links if not f.startswith(prefix)]
-    if others:
-        log('WARNING: not in the zip (outside %s): %s' % (p.engine, ', '.join(others[:5])))
     return z.count
+
+
+def use_ditto():
+    """True on macOS with ditto (unless OXT_PYTHON_ZIP=1)."""
+    return sys.platform == 'darwin' and shutil.which('ditto') is not None and os.environ.get('OXT_PYTHON_ZIP') != '1'
+
+
+def write_dmg(p, stage, out, version, log, attempts=4):
+    """The disk image of the staged app (see the module notes). Returns the
+    number of files and links it holds."""
+    for tool in ('ditto', 'hdiutil'):
+        if sys.platform != 'darwin' or not shutil.which(tool):
+            raise DistError('--dmg needs macOS (%s is not on PATH)' % tool)
+    app = os.path.join(stage, p.engine)
+    if not os.path.isdir(app):
+        raise DistError('%s has no %s' % (stage, p.engine))
+    volume = '%s %s' % (package.PRODUCT, version)
+    src = tempfile.mkdtemp(prefix='oxt-dmg-')
+    tmp = out[:-len('.dmg')] + '.part.dmg'     # hdiutil wants the suffix
+    try:
+        r = subprocess.run(['ditto', app, os.path.join(src, p.engine)], stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT)
+        if r.returncode:
+            raise DistError('ditto %s failed: %s' % (app, r.stdout.decode('utf-8', 'replace').strip()))
+        os.symlink('/Applications', os.path.join(src, 'Applications'))
+        cmd = ['hdiutil', 'create', '-volname', volume, '-srcfolder', src, '-fs', 'HFS+', '-format', 'UDZO',
+               '-imagekey', 'zlib-level=9', '-ov', tmp]
+        for attempt in range(1, attempts + 1):
+            _remove(tmp)
+            r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            text = r.stdout.decode('utf-8', 'replace').strip()
+            if not r.returncode:
+                break
+            log('hdiutil create failed (attempt %d of %d, exit status %d): %s' % (attempt, attempts, r.returncode,
+                                                                                  text))
+            if attempt == attempts:
+                raise DistError('hdiutil create failed %d times; the last time: %s' % (attempts, text))
+            time.sleep(10 * attempt)
+        r = subprocess.run(['hdiutil', 'verify', tmp], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if r.returncode:
+            raise DistError('hdiutil verify %s failed: %s' % (tmp, r.stdout.decode('utf-8', 'replace').strip()))
+        os.replace(tmp, out)
+        files, _, links, _ = walk(src)
+        return len(files) + len(links)
+    finally:
+        _remove(tmp)
+        shutil.rmtree(src, ignore_errors=True)
 
 
 def licence_entries(p, stage):
@@ -518,6 +670,8 @@ class _Router(object):
         self.p = p
         self.top = bin_top(p)
         self.counts = collections.Counter()
+        self.names = []                        # every entry's name, for the GENTLE guard
+        self.symbol_paths = set()      # relative paths sent to the symbols archive
         if p.family == 'windows':
             self.bins, self.syms = [], []      # written at the end, in name order
             self.bin_out, self.sym_out, self.level = bin_out, sym_out, levels.zip
@@ -532,6 +686,9 @@ class _Router(object):
         where = self.route(rel.split('/'))
         name = self.top + '/' + rel
         self.counts[where] += 0 if os.path.isdir(path) and not os.path.islink(path) else 1
+        self.names.append(name)
+        if where == 'symbols':
+            self.symbol_paths.add(rel)
         if self.p.family == 'windows':
             (self.syms if where == 'symbols' else self.bins).append((path, name))
         else:
@@ -541,6 +698,9 @@ class _Router(object):
         where = self.route(rel.split('/'))
         name = self.top + '/' + rel if rel else self.top
         self.counts[where] += 0 if m.isdir() else 1
+        self.names.append(name)
+        if where == 'symbols':
+            self.symbol_paths.add(rel)
         target = self.sym if where == 'symbols' else self.bin
         if isinstance(target, UnixZip):
             if m.islnk():
@@ -567,16 +727,77 @@ class _Router(object):
                 a.discard()
 
 
-def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log):
+def add_symbols_tar(r, path):
+    """The debug symbols of a CI symbols tarball (OXT-Beyond-linux-<arch>-
+    symbols.tar.xz: the build output folder with only its *.dbg files, for
+    extracting over the bin tarball; the macOS one holds the *.dSYM
+    bundles) into the symbols archive, under the platform's folder name.
+    Anything but debug symbols in it is an error, and so is a file that is
+    in the build output (--bin, --bin-tar) as well. The debug symbols of
+    the build's own tools (build_tool: GENTLE among them) are left out, as
+    write_binaries leaves out the tools. Returns (files added, files left
+    out)."""
+    tops = set()
+    seen = set()
+    skipped = 0
+    with tarfile.open(path, 'r|*') as tf:
+        for m in tf:
+            name = _member_name(m.name)
+            parts = name.split('/') if name else []
+            if not parts or any(x.startswith('._') for x in parts) or parts[-1] == '.DS_Store':
+                continue
+            if '..' in parts or '' in parts or m.name.startswith('/'):
+                raise DistError('%s: unsafe member name %r' % (path, m.name))
+            tops.add(parts[0])
+            if len(tops) > 1:
+                raise DistError('%s: more than one top-level folder (%s); a CI symbols tarball has the build '
+                                'output\'s' % (path, ', '.join(sorted(tops))))
+            rel = '/'.join(parts[1:])
+            if not rel:
+                continue
+            if not debug_file(r.p.family, parts):
+                if m.isdir():
+                    continue
+                raise DistError('%s: %s is not a debug symbol file' % (path, m.name))
+            if m.islnk():
+                raise DistError('%s: %s is a hard link; a symbols tarball holds plain files' % (path, m.name))
+            if build_tool(rel):
+                if not m.isdir():
+                    skipped += 1
+                continue
+            if rel in seen:
+                raise DistError('%s: %s is in it twice' % (path, m.name))
+            if rel in r.symbol_paths:
+                raise DistError('%s: %s is also in the build output' % (path, m.name))
+            seen.add(rel)
+            r.add_member(m, rel, tf.extractfile(m) if m.isfile() else None)
+    if not seen:
+        raise DistError('%s holds no debug symbols' % path)
+    return len(seen), skipped
+
+
+def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log, symbols_tar=None):
     """The binaries and symbols archives of the build output (a folder or a
-    CI tarball). Returns (binaries entries, symbols entries)."""
+    CI tarball), and the symbols of symbols_tar (a CI symbols tarball, see
+    add_symbols_tar). Returns (binaries entries, symbols entries). A Linux or
+    macOS build output goes in without the build's own tools and their
+    debug symbols (build_tool: GENTLE among them), which are logged."""
     r = _Router(p, bin_out, sym_out, levels)
+    unix = p.family != 'windows'
+    left_out = collections.Counter()          # top-level name -> entries left out
+
+    def tool(rel):
+        if unix and build_tool(rel):
+            left_out[rel.split('/')[0]] += 1
+            return True
+        return False
+
     try:
         if bin_dir:
             files, empty, links, folders = walk(bin_dir)
-            skip = (lambda rel: False) if p.family == 'windows' else \
-                (lambda rel: any(x.startswith('._') or x == '.DS_Store' for x in rel.split('/')))
-            if p.family != 'windows':
+            skip = (lambda rel: False) if not unix else \
+                (lambda rel: any(x.startswith('._') or x == '.DS_Store' for x in rel.split('/')) or tool(rel))
+            if unix:
                 # folder entries keep empty folders and folder modes
                 for d in folders:
                     if not skip(d):
@@ -596,14 +817,34 @@ def write_binaries(p, bin_dir, bin_tar, bin_out, sym_out, licences, levels, log)
                         raise DistError('%s: unsafe member name %r' % (bin_tar, m.name))
                     rel = '/'.join(parts[1:])
                     renamed[name] = r.top + ('/' + rel if rel else '')
-                    if not rel:
+                    # (a hard link to a tool left out then fails in UnixTar:
+                    # its target is not in the archive)
+                    if not rel or tool(rel):
                         continue
                     link = renamed.get(_member_name(m.linkname)) if m.islnk() else None
                     r.add_member(m, rel, tf.extractfile(m) if m.isfile() else None, link)
+        if symbols_tar:
+            n, skipped = add_symbols_tar(r, symbols_tar)
+            log('  %d debug symbol files from %s%s' % (n, os.path.basename(symbols_tar),
+                                                      ' (%d of the build\'s own tools left out)' % skipped
+                                                      if skipped else ''))
+        # The guard behind build_tool, before the archives are finished (the
+        # abort below then removes them): nothing of GENTLE may go out,
+        # whatever a later build calls its tools or wherever it puts them
+        gentle = [n for n in r.names if n.rsplit('/', 1)[-1].startswith(GENTLE_PREFIXES)]
+        if gentle:
+            raise DistError('GENTLE 97 may not be redistributed (toolchain/gentle/LICENSE), but the binaries or '
+                            'symbols archive would hold %d entr%s named gentle-* or reflex-*: %s%s; leave them '
+                            'out with package.BUILD_PROGRAMS (package_dist.build_tool)'
+                            % (len(gentle), 'y' if len(gentle) == 1 else 'ies', ', '.join(gentle[:5]),
+                               ', ...' if len(gentle) > 5 else ''))
         counts = r.finish(licences)
     except BaseException:
         r.abort()
         raise
+    if left_out:
+        log('Left out of the binaries and symbols archives: %d entries of the build\'s own tools (%s), see '
+            'THIRD-PARTY-NOTICES.md "GENTLE"' % (sum(left_out.values()), ', '.join(sorted(left_out))))
     if not r.counts['symbols']:
         log('WARNING: the build output has no debug symbols; %s is empty' % os.path.basename(sym_out))
     return counts
@@ -623,6 +864,9 @@ def main(argv=None):
     ap.add_argument('--stage', metavar='DIR', help='the staged OXT-Beyond-<version> folder')
     ap.add_argument('--bin', dest='bin_dir', metavar='DIR', help='build output folder')
     ap.add_argument('--bin-tar', metavar='FILE', help='build output as a CI tarball')
+    ap.add_argument('--symbols-tar', metavar='FILE',
+                    help='Linux and macOS: the CI\'s debug symbols tarball (OXT-Beyond-<platform>-symbols.tar.xz), '
+                         'whose symbols join those of the build output in the symbols archive')
     ap.add_argument('--no-binaries', action='store_true', help='write no binaries or symbols archive')
     ap.add_argument('--out', required=True, help='folder for the archives (created; files of the same '
                                                  'names are replaced)')
@@ -638,6 +882,8 @@ def main(argv=None):
                     help='xz preset of the tarballs (default: 6, as xz and tar -J)')
     ap.add_argument('--no-hardlinks', action='store_true',
                     help='Linux: store identical staged files separately')
+    ap.add_argument('--dmg', action='store_true',
+                    help='macOS layouts, on macOS: also write the disk image <root>-mac-<arch>.dmg (hdiutil)')
     ap.add_argument('--summary-json', metavar='FILE', help='write the list of archives as JSON')
     args = ap.parse_args(argv)
     log = print
@@ -670,6 +916,16 @@ def main(argv=None):
             raise DistError('--bin-tar %s is not a file' % bin_tar)
         if bin_tar and p.family == 'windows' and not args.no_binaries:
             raise DistError('win-x86_64 takes the build output as a folder (--bin), as package-windows.ps1 does')
+        if args.dmg and p.family != 'mac':
+            raise DistError('--dmg is for the macOS layouts, not %s' % p.name)
+        if args.dmg and (sys.platform != 'darwin' or not shutil.which('hdiutil')):
+            raise DistError('--dmg needs macOS, whose hdiutil makes the disk image')
+        if args.symbols_tar:
+            if args.no_binaries or p.family == 'windows':
+                raise DistError('--symbols-tar adds to the symbols archive of a Linux or macOS build output; it '
+                                'cannot go with --no-binaries or win-x86_64')
+            if not os.path.isfile(args.symbols_tar):
+                raise DistError('--symbols-tar %s is not a file' % args.symbols_tar)
         if p.unix and os.name == 'nt':
             raise DistError('write the %s archives on Linux or macOS: a Windows file system does not keep '
                             'the modes and links of the staged tree' % p.name)
@@ -696,6 +952,8 @@ def main(argv=None):
         log('Platform : %s' % p.name)
         log('Stage    : %s' % stage)
         log('Build    : %s' % (bin_dir or bin_tar or '(no binaries)'))
+        if args.symbols_tar:
+            log('Symbols  : %s' % args.symbols_tar)
         log('Output   : %s' % out)
         sums = os.path.join(out, 'SHA256SUMS')
         if os.path.exists(sums):
@@ -708,13 +966,17 @@ def main(argv=None):
             log('Writing %s and %s ...' % (names['binaries'], names['symbols']))
             entries['binaries'], entries['symbols'] = write_binaries(
                 p, bin_dir and os.path.abspath(bin_dir), bin_tar, os.path.join(out, names['binaries']),
-                os.path.join(out, names['symbols']), licence_entries(p, stage), levels, log)
+                os.path.join(out, names['symbols']), licence_entries(p, stage), levels, log,
+                args.symbols_tar and os.path.abspath(args.symbols_tar))
+        if args.dmg:
+            log('Writing %s ...' % names['dmg'])
+            entries['dmg'] = write_dmg(p, stage, os.path.join(out, names['dmg']), version, log)
         log('Writing %s ...' % names['package'])
         entries['package'] = write_package(p, stage, os.path.join(out, names['package']), levels,
                                            not args.no_hardlinks, log)
-        order = ['binaries', 'package', 'symbols'] if not args.no_binaries else ['package']
-        for key in order:
-            written[key] = os.path.join(out, names[key])
+        for key in names:
+            if key in entries:
+                written[key] = os.path.join(out, names[key])
 
         if args.xtalk_sources:
             path = os.path.join(out, '%s-xtalk-sources.zip' % root)
@@ -760,6 +1022,8 @@ def main(argv=None):
             with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8', newline='\n') as f:
                 f.write('version=%s\npackage-root=%s\nplatform=%s\ndist-dir=%s\npackage=%s\nsha256sums=%s\n'
                         % (version, root, p.name, out, written['package'], sums))
+                if 'dmg' in written:
+                    f.write('dmg=%s\n' % written['dmg'])
         if os.environ.get('GITHUB_STEP_SUMMARY'):
             md = ['### Packages (%s)' % p.name, '', '| File | Size | Entries | SHA-256 |', '| --- | --- | --- | --- |']
             md += ['| %s | %.1f MB | %d | `%s` |' % (r['name'], r['bytes'] / 1048576.0, r['entries'], r['sha256'])

@@ -34,6 +34,10 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 
+# The Linux package's launcher (a sh script without an extension), install
+# scripts, desktop entry, MIME types and library list
+Installer/linux/** text eol=lf
+
 # These files are processed by cygwin+bash so make sure they don't end with CRLF
 prebuilt/versions/* text eol=lf
 prebuilt/SHA256SUMS text eol=lf

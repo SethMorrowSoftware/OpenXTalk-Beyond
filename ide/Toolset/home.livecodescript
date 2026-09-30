@@ -240,9 +240,14 @@ on revInternal__openStack
    -- OpenXTalk Lite's "File Associations" dialog (revFileAssociations) would
    -- also claim .rev, .livecode and .livecodescript in HKCU under the ProgIDs
    -- that LiveCode and OpenXTalk Lite use, so it is no longer shown on
-   -- Windows. On Linux revInternal__CheckFileAssociations still schedules
-   -- the Linux association dialog; on Windows and macOS it has no effect.
-   if $REV_TOOLS_PATH is empty and the platform is not "win32" then
+   -- Windows. The same goes for Linux, where the package's install.sh
+   -- installs a desktop entry and the shared-mime-info types for .oxtstack
+   -- and .oxtscript (Installer/linux) and uninstall.sh removes them again:
+   -- revInternal__CheckFileAssociations would schedule OpenXTalk Lite's
+   -- Linux association dialog (community.LinuxFileAssociations), which runs
+   -- Resources/Linux/file-associations/mimeIcons.sh, a script OXT-Beyond
+   -- does not ship. On macOS the call has no effect.
+   if $REV_TOOLS_PATH is empty and the platform is not among the items of "win32,Linux" then
       get revInternal__CheckFileAssociations()
    end if
    
