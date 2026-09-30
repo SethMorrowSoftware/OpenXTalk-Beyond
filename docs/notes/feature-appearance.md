@@ -15,6 +15,9 @@ new properties:
 `the systemAppearance` still reports the operating system's setting, and
 `systemAppearanceChanged` is still sent (only) when that setting changes.
 Setting either property redraws every window at once and sends no message.
+On macOS the systemAppearance is read again each time, so it is the Mac's
+setting even while the appAppearance forces light or dark, and the message
+is sent once for each change of the Mac's setting.
 
 The names are compound on purpose: a new property name takes precedence over
 a variable or custom property of the same name in every script, so a plain

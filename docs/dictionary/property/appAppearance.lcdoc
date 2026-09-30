@@ -75,9 +75,10 @@ appearance. It does not send <systemAppearanceChanged>, which is only sent
 when the operating system's setting changes.
 
 On Linux the native controls are drawn by the GTK theme, which the engine
-cannot change: the <effective> <appAppearance> and the appearance of
-every stack are the GTK theme's (the <systemAppearance>), whatever the
-<appAppearance> is set to. The setting is still stored and returned.
+cannot change: every stack follows the GTK theme, whatever the
+<appAppearance> is set to, and the <effective> <appAppearance> is the
+<systemAppearance>, which is "light" on Linux in this version. The setting
+is still stored and returned.
 
 Printing is always done in the light appearance. Snapshots
 (<export snapshot>, <import snapshot>) are taken in the appearance the

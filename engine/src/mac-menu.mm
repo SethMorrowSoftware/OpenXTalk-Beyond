@@ -1926,6 +1926,20 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
 
 //////////
 
+// A menu that pops up from a button is drawn in the button's appearance
+// (MCButton::macopenmenu, desktop-menu.cpp): NSMenu does not take it from
+// the view it opens in, and the button's may not be its window's when the
+// button has colours of its own. From Emily-Elizabath Howard's change in
+// HyperXTalk (798311a85, "fix: macOS dark mode for combo box dropdowns and
+// selected text contrast"), which gave the menu the view's appearance.
+void MCPlatformSetMenuDarkAppearance(MCPlatformMenuRef p_menu, bool p_dark)
+{
+	if (p_menu == nil)
+		return;
+	if (@available(macOS 10.14, *))
+		[p_menu -> menu setAppearance: [NSAppearance appearanceNamed: p_dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua]];
+}
+
 bool MCPlatformPopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_window, MCPoint p_location, uindex_t p_item)
 {
 	NSMenu *t_menu;

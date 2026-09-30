@@ -179,6 +179,49 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// The Mac's Appearance setting, read afresh from the preferences every time
+// (the systemAppearance, and the observers below). NSApp.effectiveAppearance
+// cannot tell it: once the appAppearance sets the application's appearance
+// (MCMacPlatformSetApplicationAppearance), it reports the forced one. And
+// NSUserDefaults may still hold the value it read before a change.
+// "Dark" is dark; no value, as on a light Mac, is light.
+static bool MCMacPlatformReadSystemAppearanceIsDark(void)
+{
+	CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+	CFPropertyListRef t_value;
+	t_value = CFPreferencesCopyAppValue(CFSTR("AppleInterfaceStyle"), kCFPreferencesAnyApplication);
+	if (t_value == NULL)
+		return false;
+	bool t_dark;
+	t_dark = CFGetTypeID(t_value) == CFStringGetTypeID() &&
+		CFStringCompare((CFStringRef)t_value, CFSTR("Dark"), kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+	CFRelease(t_value);
+	return t_dark;
+}
+
+// Watching the Mac's appearance, from the end of applicationDidFinishLaunching
+// to applicationWillTerminate.
+//
+// systemAppearanceChanged is sent when the value above is not the one it was
+// last sent for (s_system_appearance_dark): AppleInterfaceThemeChangedNotification
+// can come more than once for one change, and for other changes of the theme,
+// and HyperXTalk found that it can miss the return to light. So the
+// notification, the KVO below and the application becoming active all check.
+//
+// The KVO on NSApp.effectiveAppearance is Emily-Elizabeth Howard's, from
+// HyperXTalk (0457ce517, "Switch macOS systemAppearanceChanged detection to
+// KVO"). Here it only draws again (MCPlatformHandleApplicationAppearanceChanged)
+// once AppKit has applied a new appearance: the value the engine reports is
+// never taken from it (see above). The engine's own changes of NSApp.appearance
+// (s_setting_application_appearance) are drawn by the engine anyway.
+static void *kMCAppearanceKVOContext = &kMCAppearanceKVOContext;
+static bool s_appearance_observer_registered = false;
+static NSString *s_last_appearance_name = nil;
+static bool s_system_appearance_dark = false;
+static bool s_setting_application_appearance = false;
+
+////////////////////////////////////////////////////////////////////////////////
+
 @implementation com_runrev_livecode_MCApplicationDelegate
 
 //////////
@@ -351,9 +394,20 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
         [t_event release];
     }
 	
+	// The Mac's appearance now, which the first change is compared with
+	s_system_appearance_dark = MCMacPlatformReadSystemAppearanceIsDark();
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:self
 									 selector:@selector(interfaceThemeChangedNotification:)
 								     name:@"AppleInterfaceThemeChangedNotification" object:nil];
+	if (@available(macOS 10.14, *))
+	{
+		s_last_appearance_name = [[[NSApp effectiveAppearance] name] copy];
+		[NSApp addObserver: self
+				forKeyPath: @"effectiveAppearance"
+				   options: NSKeyValueObservingOptionNew
+				   context: kMCAppearanceKVOContext];
+		s_appearance_observer_registered = true;
+	}
     
 	if ([NSWindow respondsToSelector:@selector(allowsAutomaticWindowTabbing)])
 		[NSWindow setAllowsAutomaticWindowTabbing: NO];
@@ -365,7 +419,63 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)interfaceThemeChangedNotification:(NSNotification *)notification
 {
+	[self checkSystemAppearance];
+}
+
+// Sends systemAppearanceChanged if the Mac's setting is not the one it was
+// last sent for (see s_system_appearance_dark)
+- (void)checkSystemAppearance
+{
+	if (!m_running)
+		return;
+	bool t_dark;
+	t_dark = MCMacPlatformReadSystemAppearanceIsDark();
+	if (t_dark == s_system_appearance_dark)
+		return;
+	s_system_appearance_dark = t_dark;
 	MCPlatformCallbackSendSystemAppearanceChanged();
+}
+
+- (void)observeValueForKeyPath:(NSString *)p_key_path
+                      ofObject:(id)p_object
+                        change:(NSDictionary *)p_change
+                       context:(void *)p_context
+{
+	if (p_context != kMCAppearanceKVOContext)
+	{
+		[super observeValueForKeyPath: p_key_path ofObject: p_object change: p_change context: p_context];
+		return;
+	}
+
+	if (@available(macOS 10.14, *))
+	{
+		// Repeats of the same appearance are ignored
+		NSString *t_name;
+		t_name = [[NSApp effectiveAppearance] name];
+		if (t_name != nil && s_last_appearance_name != nil &&
+			[t_name isEqualToString: s_last_appearance_name])
+			return;
+		[s_last_appearance_name release];
+		s_last_appearance_name = [t_name copy];
+	}
+
+	if (s_setting_application_appearance || !m_running)
+		return;
+
+	MCPlatformCallbackSendApplicationAppearanceChanged();
+	[self checkSystemAppearance];
+}
+
+- (void)stopObservingAppearance
+{
+	if (!s_appearance_observer_registered)
+		return;
+	[NSApp removeObserver: self
+			   forKeyPath: @"effectiveAppearance"
+				  context: kMCAppearanceKVOContext];
+	s_appearance_observer_registered = false;
+	[s_last_appearance_name release];
+	s_last_appearance_name = nil;
 }
 
 - (void)runMainLoop
@@ -426,6 +536,9 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
+	// No appearance callbacks while the engine shuts down
+	[self stopObservingAppearance];
+
 	// Dispatch the shutdown callback.
 	int t_exit_code;
 	MCPlatformCallbackSendApplicationShutdown(t_exit_code);
@@ -484,6 +597,10 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
 	MCPlatformCallbackSendApplicationResume();
+
+	// The appearance may have been changed in System Settings while another
+	// application was active (see s_system_appearance_dark)
+	[self checkSystemAppearance];
 }
 
 - (void)applicationWillResignActive:(NSNotification *)notification
@@ -631,20 +748,10 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
             break;
 		
 		case kMCPlatformSystemPropertySystemAppearance:
-		{
-			NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-			NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
 			// The value is an int32_t (kMCPlatformPropertyTypeInt32): writing
-			// 16 bits left the upper half of the caller's variable as it was
-			if (t_appearance == nil || ![t_appearance isEqualToString:@"Dark"])
-			{
-				*(int32_t *)r_value = kMCPlatformSystemAppearanceLight;
-			}
-			else
-			{
-				*(int32_t *)r_value = kMCPlatformSystemAppearanceDark;
-			}
-		}
+			// 16 bits left the upper half of the caller's variable as it was.
+			// Read afresh, whatever the appAppearance forces.
+			*(int32_t *)r_value = MCMacPlatformReadSystemAppearanceIsDark() ? kMCPlatformSystemAppearanceDark : kMCPlatformSystemAppearanceLight;
 			break;
 		default:
 			assert(false);
@@ -681,7 +788,19 @@ void MCMacPlatformSetApplicationAppearance(bool p_follow_system, bool p_dark)
 		NSAppearance *t_appearance = nil;
 		if (!p_follow_system)
 			t_appearance = [NSAppearance appearanceNamed: p_dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+
+		// Only a change: every change makes AppKit apply the appearance to
+		// every window and menu again
+		NSAppearance *t_current = [NSApp appearance];
+		if (t_current == t_appearance ||
+			(t_current != nil && t_appearance != nil && [[t_current name] isEqualToString: [t_appearance name]]))
+			return;
+
+		// The engine draws everything again after this (updatesystemappearance),
+		// so the KVO in the application delegate does not
+		s_setting_application_appearance = true;
 		[NSApp setAppearance: t_appearance];
+		s_setting_application_appearance = false;
 	}
 }
 

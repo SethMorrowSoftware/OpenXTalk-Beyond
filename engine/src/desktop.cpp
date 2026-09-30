@@ -203,6 +203,19 @@ void MCPlatformHandleSystemAppearanceChanged(void)
 	MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 }
 
+// AppKit has applied another appearance to the application (macOS: the KVO
+// on NSApp.effectiveAppearance in mac-core.mm), for example when the Mac
+// changes while the appAppearance is "system": the windows are drawn again,
+// for what AppKit draws in them. Nothing else changes and no message is
+// sent; systemAppearanceChanged comes from MCPlatformHandleSystemAppearanceChanged.
+void MCPlatformHandleApplicationAppearanceChanged(void)
+{
+	if (MCscreen == nil)
+		return;
+
+	MCstacks -> redrawall(False);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 #if defined (FEATURE_PLATFORM_WINDOW)

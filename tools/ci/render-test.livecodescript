@@ -66,6 +66,11 @@ script "oxt_render_test"
 --    OXT_RENDER_APPEARANCE  what to set the appAppearance to before
 --                           anything is created: light, dark or system;
 --                           empty leaves the engine's default
+--    OXT_RENDER_SCENARIOS   the parts to render, separated by commas:
+--                           controls (the first checks), s1 to s9, s11 and
+--                           screen; empty renders every part.
+--                           tools/ci/mac_appearance_test.py renders s1 and
+--                           s2 only
 --
 -- render.txt has one record per line, fields separated by tabs:
 --    INFO   <name> <value>
@@ -95,6 +100,8 @@ constant kTextSize = 16
 
 local sOut
 local sReport
+-- The parts to render (OXT_RENDER_SCENARIOS), empty for all
+local sScenarios
 -- Whether the engine has the appAppearance, and whether it draws stacks
 -- that set no appearance dark
 local sHasAppearance
@@ -112,30 +119,41 @@ on startup
    end if
    if there is not a folder sOut then create folder sOut
 
+   put $OXT_RENDER_SCENARIOS into sScenarios
+   replace space with empty in sScenarios
+
    try
       setUpAppearance
-      renderControls
-      renderOwnerPattern
-      renderUnstyled "s2", empty
-      renderDarkDesigned
-      renderExplicitText
-      renderExplicitBoth
-      renderStyledRuns
-      renderButtonColours
-      renderNativeControls
+      if wanted("controls") then renderControls
+      if wanted("s1") then renderOwnerPattern
+      if wanted("s2") then renderUnstyled "s2", empty
+      if wanted("s3") then renderDarkDesigned
+      if wanted("s4") then renderExplicitText
+      if wanted("s5") then renderExplicitBoth
+      if wanted("s6") then renderStyledRuns
+      if wanted("s7") then renderButtonColours
+      if wanted("s9") then renderNativeControls
       if sHasAppearance then
-         renderUnstyled "s8-dark", "dark"
-         renderUnstyled "s8-light", "light"
-         printUnstyled
+         if wanted("s8") then
+            renderUnstyled "s8-dark", "dark"
+            renderUnstyled "s8-light", "light"
+         end if
+         if wanted("s11") then printUnstyled
          -- The release before this change crashes here (w32dcs.cpp)
-         screenSnapshot
+         if wanted("screen") then screenSnapshot
       end if
+      addRecord "INFO", "scenarios", sScenarios
       addRecord "INFO", "done", "true"
    catch tError
       addRecord "ERROR", "script", oneLine(tError)
    end try
    finishRun
 end startup
+
+-- Whether the part pName is rendered in this run (OXT_RENDER_SCENARIOS)
+private function wanted pName
+   return sScenarios is empty or pName is among the items of sScenarios
+end wanted
 
 -- Without the IDE an uncaught error would open a dialog and wait forever
 on errorDialog pError

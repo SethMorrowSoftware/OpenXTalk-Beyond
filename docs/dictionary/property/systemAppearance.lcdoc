@@ -32,11 +32,13 @@ what the engine draws in.
 
 On Windows it is the "app mode" setting (Settings > Personalization >
 Colors, the AppsUseLightTheme value). On macOS it is the Appearance setting
-(AppleInterfaceStyle). On Linux it is "light" unless the engine can tell
-that the GTK theme is dark. Without a user interface (-ui) it is "light".
+(AppleInterfaceStyle), read again each time, so it is the Mac's setting
+even while the <appAppearance> is "light" or "dark". On Linux it is
+"light": this version cannot tell whether the GTK theme is dark. Without a
+user interface (-ui) it is "light".
 
 When the setting changes while the application runs, the engine sends
-<systemAppearanceChanged>.
+<systemAppearanceChanged>, once for each change.
 
 References: appAppearance (property), stackAppearance (property),
 effective (keyword), systemAppearanceChanged (message)

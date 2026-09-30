@@ -331,6 +331,7 @@ void MCPlatformCallbackSendApplicationResume(void);
 
 void MCPlatformCallbackSendScreenParametersChanged(void);
 void MCPlatformCallbackSendSystemAppearanceChanged(void);
+void MCPlatformCallbackSendApplicationAppearanceChanged(void);
 
 void MCPlatformCallbackSendWindowCloseRequest(MCPlatformWindowRef window);
 void MCPlatformCallbackSendWindowClose(MCPlatformWindowRef window);

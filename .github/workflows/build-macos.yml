@@ -800,6 +800,23 @@ jobs:
           diff -rq "$APP" "$dest/OXT-Beyond.app"
           echo "The zip holds the same app as the disk image."
 
+      # The light and dark appearance, with a user interface (the tests
+      # above run the engine with -ui, which has no appearance): the app's
+      # engine runs tools/ci/render-test.livecodescript (S1 and S2 only) as
+      # its home stack with the Mac set to dark and to light (defaults
+      # write/delete -g AppleInterfaceStyle), with the appAppearance
+      # "system" and the default. The systemAppearance must be the Mac's
+      # setting, the effective appAppearance must follow the property, a
+      # stack with no colours must be dark only with "system" on the dark
+      # Mac, and the light-designed stack keeps its black input text
+      # (tools/ci/mac_appearance_test.py). The script restores the Mac's
+      # setting; the images and the engine's output are in the logs. It
+      # runs last, after the app was compared with the zip.
+      - name: Appearance test
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/mac_appearance_test.py --app "$APP" --out "$LOGS/appearance"
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v6

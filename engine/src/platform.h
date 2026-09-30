@@ -664,6 +664,8 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef menu, uindex_t index, MCPla
 //////////
 
 bool MCPlatformPopUpMenu(MCPlatformMenuRef menu, MCPlatformWindowRef window, MCPoint location, uindex_t item);
+// The appearance a menu pops up in (macOS 10.14 or later; nothing elsewhere)
+void MCPlatformSetMenuDarkAppearance(MCPlatformMenuRef menu, bool dark);
 
 //////////
 
