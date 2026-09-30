@@ -190,6 +190,9 @@ on LayoutControl pControlRect
    
    set the textColor of line 1 of field "description" of me to revIDEColor("text_1")
    set the textColor of line 2 of field "description" of me to revIDEColor("text_2")
+   -- The icon would otherwise keep the 82,82,82 stored in the row template,
+   -- which hardly shows on the dark rows
+   set the foregroundColor of widget "svgicon" of me to revIDEColor("icon")
    
    ## Action Icon
    set the loc of widget "ActionIcon" of me to the loc of me

@@ -17,6 +17,12 @@ text_2                              dataView_rowAlternateColor           4.5
 dataView_disclosureIconColor        dataView_rowColor                    3
 dataView_disclosureIconColor        dataView_rowAlternateColor           3
 
+# Extension Manager: the extension's icon on its row, selected or not
+icon                                dataView_rowColor                    3
+icon                                dataView_rowAlternateColor           3
+icon                                pb_line_selected                     3
+icon                                dataView_dimmedHiliteColor           3
+
 # Extension Manager and standalone inclusions: a selected row keeps its
 # text colours on the list's hilite colour, and on the dimmed hilite colour
 # when the list is not focused
