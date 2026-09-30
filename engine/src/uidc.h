@@ -382,7 +382,6 @@ extern bool MCselectioncolorisset;
 // True once a script has set a global link colour (linkColor,
 // linkHiliteColor, linkVisitedColor); until then links in a field drawn dark
 // get light variants of the default colours (MCBlock::draw)
-extern bool MClinkattsisset;
 
 // Whether a colour is light: its WCAG relative luminance is above 0.179,
 // where black and white text contrast with it equally

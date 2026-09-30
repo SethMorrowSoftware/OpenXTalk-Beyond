@@ -1256,23 +1256,46 @@ void MCBlock::draw(MCDC *dc, coord_t x, coord_t lx, coord_t cx, int2 y, findex_t
 	// MW-2008-02-05: [[ Bug 5821 ]] Compute the appropriate foreground color here and use
 	//   it to set the foreground either side of the selected run.
 	// The default link colours are dark (0,0,239 is 1.9:1 on the dark
-	// background), so while no script has set them a field drawn dark uses
-	// light variants of them
+	// background), so a field drawn dark uses light variants of those that
+	// still have the engine's default value (globals.cpp, X_clear). This is
+	// decided per colour: a stack's own link attributes start as a copy of
+	// the global ones (setting only its underlineLinks makes one), and a
+	// script that sets one link colour leaves the other two at the default.
+	// A colour a script chose is drawn as set.
+	static const MCColor s_default_link = { 0, 0, 0xEFBE };
+	static const MCColor s_default_link_visited = { 0x5144, 0x1861, 0x8038 };
+	static const MCColor s_default_link_hilite = { 0xFFFF, 0, 0 };
 	static MCColor s_dark_link = { 0x6E6E, 0xA8A8, 0xFFFF };
 	static MCColor s_dark_link_visited = { 0xBEBE, 0x9696, 0xFFFF };
 	static MCColor s_dark_link_hilite = { 0xFFFF, 0x6E6E, 0x6E6E };
 	if (fontstyle & FA_LINK)
 	{
 		Linkatts *a = f->getstack()->getlinkatts();
-		bool t_dark_defaults;
-		t_dark_defaults = a == &MClinkatts && !MClinkattsisset && f -> isdarkappearance(dc -> gettype());
+		MCColor *t_link;
+		const MCColor *t_default;
+		MCColor *t_dark_variant;
 		if (flags & F_HILITED)
-			t_foreground_color = t_dark_defaults ? &s_dark_link_hilite : &a -> hilitecolor;
+		{
+			t_link = &a -> hilitecolor;
+			t_default = &s_default_link_hilite;
+			t_dark_variant = &s_dark_link_hilite;
+		}
+		else if (flags & F_VISITED)
+		{
+			t_link = &a -> visitedcolor;
+			t_default = &s_default_link_visited;
+			t_dark_variant = &s_dark_link_visited;
+		}
 		else
-			if (flags & F_VISITED)
-				t_foreground_color = t_dark_defaults ? &s_dark_link_visited : &a -> visitedcolor;
-			else
-				t_foreground_color = t_dark_defaults ? &s_dark_link : &a -> color;
+		{
+			t_link = &a -> color;
+			t_default = &s_default_link;
+			t_dark_variant = &s_dark_link;
+		}
+		t_foreground_color = t_link;
+		if (t_link -> red == t_default -> red && t_link -> green == t_default -> green &&
+			t_link -> blue == t_default -> blue && f -> isdarkappearance(dc -> gettype()))
+			t_foreground_color = t_dark_variant;
 		ull = a->underline;
 	}
 

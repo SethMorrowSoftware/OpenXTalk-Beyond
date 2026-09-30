@@ -46,7 +46,6 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 MCAppearanceMode MCappappearance = kMCAppearanceModeLight;
 int MCappearanceforcelight = 0;
 bool MCselectioncolorisset = false;
-bool MClinkattsisset = false;
 
 // The OS setting, for the drawing code: on macOS reading it goes to the
 // preferences system, which is too slow for every colour. It is read again
