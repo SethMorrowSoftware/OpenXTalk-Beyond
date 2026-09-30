@@ -27,8 +27,8 @@ on editorUpdate
    set the visible of field "key label" of me to tEnabled
    set the readOnly of widget "array" of me to not tEnabled
    if tEffective is true then
-      set the textcolor of field "value" of me to "150,150,150"
-      set the textcolor of field "key" of me to "150,150,150"
+      set the textcolor of field "value" of me to revIDEColor("text_muted")
+      set the textcolor of field "key" of me to revIDEColor("text_muted")
    else
       set the textcolor of field "value" of me to empty
       set the textcolor of field "key" of me to empty

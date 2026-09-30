@@ -140,7 +140,10 @@ setprop rowLabel pLabel
          -- we attempt to set the colours of each section on the inspector
          -- requested by Richmond62 on 9-3-2025
          put the cInspectorLabelColor of stack "revPreferences" into tLabelColour
-         if tLabelColour is "" then
+         -- OXT-Beyond: the label colour of the preference is chosen on a
+         -- light Inspector; in the dark appearance the labels keep the
+         -- dark appearance's text colour
+         if tLabelColour is "" or revIDEIsDark() then
             set the textcolor of field "rowlabel" of me to ""
          else
             set the textcolor of field "rowlabel" of me to tLabelColour

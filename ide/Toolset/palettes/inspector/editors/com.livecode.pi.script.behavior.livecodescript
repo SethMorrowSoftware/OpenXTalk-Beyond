@@ -21,7 +21,7 @@ on editorUpdate
    set the enabled of field 1 of me to tEnabled
    set the visible of widget 1 of me to tEnabled
    if tEffective is true then
-      set the textcolor of field 1 of me to "150,150,150"
+      set the textcolor of field 1 of me to revIDEColor("text_muted")
    else
       set the textcolor of field 1 of me to empty
    end if

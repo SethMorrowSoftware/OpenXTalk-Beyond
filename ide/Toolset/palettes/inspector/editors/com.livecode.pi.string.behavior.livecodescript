@@ -1,6 +1,9 @@
 ﻿script "com.livecode.pi.string.behavior"
-constant kEffectiveTextColor = "100,100,100"
-constant kConflictedFieldColor = "193,201,215"
+-- OXT-Beyond: an inherited ("effective") value is drawn in the IDE's muted
+-- text colour and a value that differs between the selected objects on the
+-- multi-value background, both from revIDEColor, so that they read in the
+-- light and the dark appearance (the constants 100,100,100 and 193,201,215
+-- were light-only: 2.8:1 in dark, and white on the pale blue)
 
 on editorInitialize
    set the editorMinWidth of me to 25
@@ -21,20 +24,20 @@ on editorUpdate
       if the focusedobject is not the long ID of field 1 of me then
          put tValue into field 1 of me
       end if
-      set the textcolor of field 1 of me to kEffectiveTextColor
+      set the textcolor of field 1 of me to revIDEColor("text_muted")
       set the textstyle["italic"] of field 1 of me to true
    else
       put tValue into field 1 of me
       set the textstyle of field 1 of me to empty
       if not tEnabled then
-      	set the textcolor of field 1 of me to "108,108,108"
+      	set the textcolor of field 1 of me to revIDEColor("text_muted")
       else
       	set the textcolor of field 1 of me to empty
       end if
    end if
    
    if tConflicted then
-      set the backcolor of field 1 of me to kConflictedFieldColor
+      set the backcolor of field 1 of me to revIDEColor("propertyInspector_multiValueBackground")
    else
       set the backcolor of field 1 of me to empty
    end if
