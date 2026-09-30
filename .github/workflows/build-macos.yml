@@ -261,16 +261,23 @@ jobs:
           # the minimum of the product) and SDK 11.0 (-platform_version
           # there; it selects AppKit's behaviour), and hold this
           # architecture. The one exception is reviphoneproxy, the iOS
-          # simulator helper: revmobile.gyp builds it x86_64 only, so on
-          # the arm64 runner it has no arm64 slice and gets the arm64
-          # build's deployment target; the universal app is to take the
-          # x86_64 build's copy.
-          proxy='x86_64 only by design (revmobile.gyp), with the deployment target of this build'
+          # simulator helper, and only in the arm64 job: revmobile.gyp
+          # builds it x86_64 only, so there it has no arm64 slice and its
+          # x86_64 slice gets the arm64 build's deployment target, 11.0.
+          # Exactly that is excused (one x86_64 slice, minos 11.0); its SDK
+          # and platform are still checked, and in the x86_64 job it is
+          # checked like every other file. The universal app is to take
+          # the x86_64 build's copy.
+          proxy=
+          if [ "$ARCH" = arm64 ]; then
+            proxy="--only-arch reviphoneproxy=x86_64 --file-minos reviphoneproxy=x86_64:11.0"
+            proxy="$proxy --only-arch reviphone.bundle/Contents/MacOS/reviphoneproxy=x86_64"
+            proxy="$proxy --file-minos reviphone.bundle/Contents/MacOS/reviphoneproxy=x86_64:11.0"
+          fi
+          # $proxy is split into words on purpose (no spaces inside them)
           python3 tools/ci/check_macho_floor.py "$R" --arch "$ARCH" \
             --minos arm64=11.0 --minos x86_64=10.13 --sdk 11.0 \
-            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' \
-            --allow "reviphoneproxy=$proxy" \
-            --allow "reviphone.bundle/Contents/MacOS/reviphoneproxy=$proxy"
+            --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap' $proxy
 
       - name: Smoke test (server engine)
         run: |
