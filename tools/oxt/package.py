@@ -412,37 +412,6 @@ def _linux(arch):
         elf_arch=arch)
 
 
-# The macOS runtime folders, as the IDE's standalone builder uses them
-# (revsblibrary revEngineCheck and revSBEnginePath, revsaveasstandalone
-# revStandalonePlatformDetails and revSaveAsMacStandalone):
-#
-#   x86-64, x64-ARM64  the engines deployed for the Intel and the Apple
-#                      Silicon target, with their Support folders (and
-#                      Externals; see below).
-#   arm64              only an Externals folder. For the Apple Silicon
-#                      target revStandalonePlatformDetails takes Support
-#                      from "Mac OS X/x64-ARM64" but passes the
-#                      architecture "arm64", and revExternalPath and
-#                      revDBDriverPath (revbackscriptlibrary) then read
-#                      Mac OS X/arm64/Externals/Externals.txt and
-#                      .../Database Drivers/Database Drivers.txt: without
-#                      this folder an Apple Silicon standalone gets no
-#                      revXML, revZip, revDB, revBrowser, revSpeech or
-#                      database driver, and the builder only warns (so a
-#                      test app without externals cannot catch it; see
-#                      the README). x64-ARM64/Externals stays too, because
-#                      revStandaloneDatabaseDriversPath warns when the
-#                      target folder's Externals is missing. The copy costs
-#                      about 4.5 MB per architecture; a symbolic link to
-#                      x64-ARM64 would save it, but every later step
-#                      (--compare, the zip and the DMG, codesign) would
-#                      have to handle a linked folder.
-#   x86-32             only looked at, but it must exist: it enables the
-#                      Intel target, and every Mac standalone gets its icons
-#                      from it (Contents/Resources/Standalone*.icns). It
-#                      has no Externals, because its target cannot build:
-#                      the engine has no i386 slice, and the IDE disables
-#                      the target on macOS 12 and later.
 # The app's identity (mac_info_plist). The bundle id is OXT-Beyond's own,
 # under the project's GitHub account, so that macOS keeps its preferences,
 # document bindings and permissions apart from LiveCode's
@@ -577,6 +546,37 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
     return out
 
 
+# The macOS runtime folders, as the IDE's standalone builder uses them
+# (revsblibrary revEngineCheck and revSBEnginePath, revsaveasstandalone
+# revStandalonePlatformDetails and revSaveAsMacStandalone):
+#
+#   x86-64, x64-ARM64  the engines deployed for the Intel and the Apple
+#                      Silicon target, with their Support folders (and
+#                      Externals; see below).
+#   arm64              only an Externals folder. For the Apple Silicon
+#                      target revStandalonePlatformDetails takes Support
+#                      from "Mac OS X/x64-ARM64" but passes the
+#                      architecture "arm64", and revExternalPath and
+#                      revDBDriverPath (revbackscriptlibrary) then read
+#                      Mac OS X/arm64/Externals/Externals.txt and
+#                      .../Database Drivers/Database Drivers.txt: without
+#                      this folder an Apple Silicon standalone gets no
+#                      revXML, revZip, revDB, revBrowser, revSpeech or
+#                      database driver, and the builder only warns (so a
+#                      test app without externals cannot catch it; see
+#                      the README). x64-ARM64/Externals stays too, because
+#                      revStandaloneDatabaseDriversPath warns when the
+#                      target folder's Externals is missing. The copy costs
+#                      about 4.5 MB per architecture; a symbolic link to
+#                      x64-ARM64 would save it, but every later step
+#                      (--compare, the zip and the DMG, codesign) would
+#                      have to handle a linked folder.
+#   x86-32             only looked at, but it must exist: it enables the
+#                      Intel target, and every Mac standalone gets its icons
+#                      from it (Contents/Resources/Standalone*.icns). It
+#                      has no Externals, because its target cannot build:
+#                      the engine has no i386 slice, and the IDE disables
+#                      the target on macOS 12 and later.
 MAC_RUNTIMES = collections.OrderedDict([
     ('x86-64', dict(folder='Runtime/Mac OS X/x86-64',
                     standalone=('Standalone-Community.app', 'Standalone.app'),
