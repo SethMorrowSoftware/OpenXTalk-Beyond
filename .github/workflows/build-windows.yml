@@ -36,12 +36,16 @@
 #      which also loads every bundled xTalk extension and calls it,
 #   3. compiles every IDE script in dist/stage and compares the errors with
 #      tools/ci/ide-compile-baseline.txt (ide-compile-check.ps1),
-#   4. builds the installer (build-installer.ps1), and
-#   5. installs it per user, smoke-tests the installed program and
+#   4. renders disabled labels and scrollbars with the staged engine and the
+#      native Windows theme, in dark and in light mode, and checks the
+#      pixels (render-test.ps1),
+#   5. builds the installer (build-installer.ps1), and
+#   6. installs it per user, smoke-tests the installed program and
 #      uninstalls it (test-installer.ps1).
 # A run that passes all of these uploads the files in dist (not dist/stage)
 # as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
-# failed one, uploads the logs as "build-logs-win-x86_64".
+# failed one, uploads the logs as "build-logs-win-x86_64" and the render
+# test's images as "render-test".
 #
 # Releases: .github/workflows/release.yml calls this workflow (workflow_call)
 # for a tag that starts with "v" and for its dry runs, together with the
@@ -421,6 +425,35 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: ./tools/ci/ide-compile-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-compile-check.log"
 
+      # Run the staged engine with a user interface (the native theme and the
+      # dark colours need one) on tools/ci/render-test.livecodescript, once
+      # with the runner's Windows in dark mode and once in light mode
+      # (HKCU ...\Themes\Personalize AppsUseLightTheme, put back afterwards),
+      # and measure the PNG files it writes with tools/ci/render_check.py:
+      # disabled push button, checkbox, radio button, graphic and tab labels
+      # must be drawn once, flat, in the disabled grey (not engraved with a
+      # white copy), and scrollbar tracks must be dark in dark mode and light
+      # in light mode, with a visible thumb. The images are uploaded as
+      # "render-test".
+      - name: Render test (dark and light)
+        id: render_test
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: ./tools/ci/render-test.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -OutDir "$env:RUNNER_TEMP\render-test" -LogFile "$env:RUNNER_TEMP\build-logs\render-test.log"
+
+      - name: Upload render test images
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: render-test
+          path: ${{ runner.temp }}/render-test
+          if-no-files-found: ignore
+          # Diagnostics, kept as long as the logs; PNG files are compressed
+          retention-days: 14
+          compression-level: 0
+
       - name: Build installer
         id: installer
         timeout-minutes: 60
@@ -499,6 +532,7 @@ jobs:
           CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
+          RENDER_TEST_OUTCOME: ${{ steps.render_test.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
           TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
         run: |
@@ -514,6 +548,7 @@ jobs:
             'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
+            'Render test' = $env:RENDER_TEST_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
             'Test installer' = $env:TEST_INSTALLER_OUTCOME
           }
@@ -527,7 +562,7 @@ jobs:
           $msbuildLog = 'build-win-x86_64\msbuild.log'
           if (Test-Path -LiteralPath $msbuildLog) {
             # Put a bounded error extract in both the live log and job summary.
-            # The complete file remains available in the build-logs artifact.
+            # The complete file remains available in the build-logs-win-x86_64 artifact.
             $errors = @(Select-String -LiteralPath $msbuildLog -Pattern '(^|[ :(])error (C|LNK|MSB)[0-9]+|fatal error' |
               Select-Object -First 50 | ForEach-Object { $_.Line.Trim() })
             if ($errors.Count -eq 0) {
@@ -582,6 +617,7 @@ jobs:
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check and installer logs'
+          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, render test and installer logs'
+          $lines += '- render-test: the images of the render test (dark and light) and what the engine printed'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8

@@ -460,9 +460,18 @@ MCRectangle MCScreenDC::screentologicalrect(const MCRectangle &p_rect)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// The light/dark app setting is cached. getsystemappearance is called from
+// the drawing code for every themed colour, menu item, checkmark and
+// scrollbar, and opening the registry key for each of those calls cost CPU in
+// every redraw. MCWin32UpdateSystemColors refreshes the cache, at startup and
+// when Windows broadcasts the ImmersiveColorSet setting change (the light/dark
+// switch), which is also when the colours that depend on it are updated.
+static bool s_system_appearance_is_dark = false;
+static bool s_system_appearance_cached = false;
+
 //-- tperry 11th October 2025
 // Windows implementation of getsystemappearance - detect dark mode from registry
-void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+static bool MCWin32ReadSystemAppearanceIsDark(void)
 {
 	// Check Windows registry for dark mode setting
 	// Try both AppsUseLightTheme and SystemUsesLightTheme
@@ -485,7 +494,25 @@ void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 		RegCloseKey(hKey);
 	}
 	
-	r_appearance = t_is_dark ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
+	return t_is_dark;
+}
+
+void MCWin32RefreshSystemAppearance(void)
+{
+	s_system_appearance_is_dark = MCWin32ReadSystemAppearanceIsDark();
+	s_system_appearance_cached = true;
+}
+
+bool MCWin32IsSystemAppearanceDark(void)
+{
+	if (!s_system_appearance_cached)
+		MCWin32RefreshSystemAppearance();
+	return s_system_appearance_is_dark;
+}
+
+void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+{
+	r_appearance = MCWin32IsSystemAppearanceDark() ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
