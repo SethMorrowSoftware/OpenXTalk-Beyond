@@ -37,6 +37,10 @@ Every path of the two trees is looked at once:
   other files      compared byte for byte and copied once. A file that
                    differs is an error unless DIFFER explains it (see
                    there: the bundles' Info.plist and resource seals).
+                   After writing, an Info.plist whose LSArchitecturePriority
+                   puts x86_64 before arm64 while its bundle's executable
+                   is universal now gets arm64, x86_64 there, and nothing
+                   else changes (fix_arch_priority).
   one build only   an error unless ONE_SIDED explains it.
   SINGLE_ARCH      Mach-O files that hold one architecture by design
                    (reviphoneproxy, the iOS simulator helper, which both
@@ -65,7 +69,10 @@ Code for other platforms (the time zone library's iOS and iOS simulator
 files, from the runtimes asset) is listed but not checked: its slices are
 for iOS, which the macOS app only copies into iOS standalones. When lipo
 is on PATH (and without --no-lipo), "lipo -archs" of every file must also
-agree with what tools/oxt/binfmt.py reads.
+agree with what tools/oxt/binfmt.py reads. A bundle's Contents/Info.plist
+must not put x86_64 before arm64 in LSArchitecturePriority when its
+executable holds both (LaunchServices would start it under Rosetta on
+Apple Silicon).
 
 Only the Python 3 standard library is used (3.8 or later); lipo only
 without --dry-run and --no-lipo.
@@ -110,7 +117,10 @@ DIFFER = (
      '(11.0 on arm64, 10.13 on x86_64). The copy with the lower one is taken, so that a universal '
      'bundle declares the macOS its x86_64 slice runs on, byte for byte (the standalone builder '
      'edits the runtime\'s Info.plist line by line). Any other key that differs is an error, '
-     'except the build machine\'s (BUILD_MACHINE_KEYS), which are reported'),
+     'except the build machine\'s (BUILD_MACHINE_KEYS), which are reported. One edit follows the '
+     'write (fix_arch_priority): LiveCode-Community.app\'s says LSArchitecturePriority x86_64, i386 '
+     '(from LiveCode\'s Intel days), which LaunchServices would follow into Rosetta once the '
+     'executable is universal, so that array becomes arm64, x86_64'),
     ('**/Contents/_CodeSignature/CodeResources', 'seal',
      'the bundle\'s resource seal, which records the code directory hash of its nested code '
      '(per architecture) and is bound to its Info.plist. Neither copy matches the merged bundle, '
@@ -123,6 +133,23 @@ DIFFER = (
 # bundles differing; the plist rule reports them instead of failing.
 BUILD_MACHINE_KEYS = frozenset(('BuildMachineOSBuild', 'DTCompiler', 'DTPlatformBuild', 'DTPlatformName',
                                 'DTPlatformVersion', 'DTSDKBuild', 'DTSDKName', 'DTXcode', 'DTXcodeBuild'))
+
+# LaunchServices starts the first architecture listed in a bundle's
+# LSArchitecturePriority that its executable holds. LiveCode's plist (so
+# LiveCode-Community.app's) still lists x86_64, i386, which did no harm in
+# the arm64 build, whose executable had no x86_64 slice; in the merged,
+# universal one it would run the engine under Rosetta on Apple Silicon
+# (or have macOS offer to install Rosetta). fix_arch_priority rewrites the
+# array to ARCH_PRIORITY after writing, as package.py's mac_info_plist
+# writes it for OXT-Beyond.app, and the check refuses a plist that still
+# puts x86_64 first.
+PLIST = '**/Contents/Info.plist'
+ARCH_PRIORITY_KEY = 'LSArchitecturePriority'
+ARCH_PRIORITY = ['arm64', 'x86_64']
+# Only the array that follows the key, as text: plistlib.dump would sort
+# the keys (sort_keys=False keeps them, but not Xcode's layout), and the
+# rest of the file stays byte for byte, as the plist rule promises
+_PRIORITY_ARRAY = re.compile(br'<key>LSArchitecturePriority</key>\s*<array>(.*?)</array>', re.S)
 
 # Files that only one build has: (pattern, build, why)
 ONE_SIDED = (
@@ -528,17 +555,124 @@ def write(pl, folders, out, use_lipo):
         os.chmod(native(out, d), stat.S_IMODE(os.stat(src).st_mode))
 
 
+def first_held(priority, archs):
+    """The architecture that LaunchServices starts: the first one of an
+    LSArchitecturePriority list that the executable holds (None: none,
+    and LaunchServices picks the Mac's own)."""
+    return next((a for a in priority if a in archs), None) if isinstance(priority, list) else None
+
+
+def read_plist_priority(root, path):
+    """(the plist's bytes, its dict, the sorted archs of its bundle's
+    executable) of a Contents/Info.plist that has LSArchitecturePriority,
+    or None when it has no such key. The key is looked for in the bytes
+    first (a binary plist stores key names as text too), so that no other
+    plist is parsed."""
+    full = native(root, path)
+    with open(full, 'rb') as f:
+        data = f.read()
+    if ARCH_PRIORITY_KEY.encode('ascii') not in data:
+        return None
+    try:
+        plist = plistlib.loads(data)
+    except (ValueError, plistlib.InvalidFileException) as e:
+        raise MergeError('%s: cannot be read as a property list: %s' % (full, e))
+    if not isinstance(plist, dict) or ARCH_PRIORITY_KEY not in plist:
+        return None
+    archs = None
+    exe = plist.get('CFBundleExecutable')
+    if exe:
+        exe_path = native(root, path[:-len('Info.plist')] + 'MacOS/' + exe)
+        if os.path.isfile(exe_path):
+            archs = binfmt.macho_archs(exe_path)
+    return data, plist, sorted(archs) if archs else None
+
+
+def fix_arch_priority(pl, out):
+    """After write: every Contents/Info.plist of the plan whose bundle's
+    executable is universal now (arm64 and x86_64), and whose
+    LSArchitecturePriority would have LaunchServices start the x86_64
+    slice (LiveCode-Community.app's x86_64, i386), gets arm64, x86_64 in
+    that array; only the array is rewritten, the rest of the file stays
+    byte for byte, and so do mode and date (a plist without the key, such
+    as the runtime's, is never touched). Must run before the tree is
+    signed: sign_mac_app.py seals the edited plist. Returns [(path, what
+    was changed)]."""
+    edited = []
+    for act in pl.actions:
+        if act.what == 'link' or not match(PLIST, act.path):
+            continue
+        found = read_plist_priority(out, act.path)
+        if found is None:
+            continue
+        data, plist, archs = found
+        old = plist[ARCH_PRIORITY_KEY]
+        if archs != UNIVERSAL or first_held(old, archs) != 'x86_64':
+            continue
+        full = native(out, act.path)
+        want = dict(plist)
+        want[ARCH_PRIORITY_KEY] = list(ARCH_PRIORITY)
+        if data.startswith(b'bplist'):
+            # no text to keep; Xcode writes XML, so this is only a fallback
+            new = plistlib.dumps(want, fmt=plistlib.FMT_BINARY, sort_keys=False)
+        else:
+            m = _PRIORITY_ARRAY.search(data)
+            if m is None:
+                raise MergeError('%s: LSArchitecturePriority %s is not written as <key>...</key> <array> '
+                                 '<string>... (the text rewrite expects an XML plist as Xcode writes it)'
+                                 % (full, ', '.join(map(str, old))))
+            inner = m.group(1)
+            ws = re.match(br'\s*', inner).group(0)      # each <string>'s indent, as Xcode wrote it
+            new = data[:m.start(1)] + b''.join(ws + b'<string>' + a.encode('ascii') + b'</string>'
+                                               for a in ARCH_PRIORITY) \
+                + inner[len(inner.rstrip()):] + data[m.end(1):]
+        # the edit must change that key and nothing else
+        try:
+            ok = plistlib.loads(new) == want
+        except (ValueError, plistlib.InvalidFileException):
+            ok = False
+        if not ok:
+            raise MergeError('%s: rewriting LSArchitecturePriority %s as %s would change more than that key; '
+                             'the plist is left as it is' % (full, ', '.join(map(str, old)),
+                                                             ', '.join(ARCH_PRIORITY)))
+        st = os.stat(full)
+        tmp = full + '.oxt-tmp'
+        with open(tmp, 'wb') as f:
+            f.write(new)
+        os.chmod(tmp, stat.S_IMODE(st.st_mode))
+        os.utime(tmp, (st.st_atime, st.st_mtime))
+        os.replace(tmp, full)
+        detail = 'LSArchitecturePriority %s -> %s' % (', '.join(map(str, old)), ', '.join(ARCH_PRIORITY))
+        pl.notes.append(('Info.plist: ' + detail, act.path))
+        edited.append((act.path, detail))
+    return edited
+
+
 # ---------------------------------------------------------------------------
 # Check
 
 def check_tree(root, use_lipo):
-    """(checked, not macOS, problems) for every Mach-O file below root."""
+    """(checked, not macOS, problems) for every Mach-O file below root,
+    and every bundle's Contents/Info.plist that would start a universal
+    executable's x86_64 slice on Apple Silicon (see fix_arch_priority)."""
     checked, other, problems = [], [], []
     entries, _ = scan(root)
     for path in sorted(entries):
         if entries[path].kind != 'file':
             continue
         full = native(root, path)
+        if match(PLIST, path):
+            try:
+                found = read_plist_priority(root, path)
+            except (MergeError, OSError) as e:
+                problems.append(str(e))
+                continue
+            if found and found[2] == UNIVERSAL and first_held(found[1][ARCH_PRIORITY_KEY], found[2]) == 'x86_64':
+                problems.append('%s: LSArchitecturePriority %s puts x86_64 before arm64, but its executable holds '
+                                'both: LaunchServices would run it under Rosetta on Apple Silicon (expected %s)'
+                                % (path, ', '.join(map(str, found[1][ARCH_PRIORITY_KEY])),
+                                   ', '.join(ARCH_PRIORITY)))
+            continue
         try:
             info = macho_info(full)
         except MergeError as e:
@@ -692,6 +826,19 @@ def main(argv=None):
         return 0
     try:
         write(pl, folders, out, use_lipo)
+        # before the workflow's "Sign the merged build output", whose new
+        # seals then cover the edited plists
+        edited = fix_arch_priority(pl, out)
+        if edited:
+            log('')
+            log('Edited after the merge, as the bundles\' executables are universal now (%d file%s):'
+                % (len(edited), '' if len(edited) == 1 else 's'))
+            for path, detail in edited:
+                log('  %s: %s' % (detail, path))
+            if args.report:
+                with open(args.report, 'a', encoding='utf-8', newline='\n') as f:
+                    for path, detail in edited:
+                        f.write('edit\t%s\tmerged\t%s (the executable holds arm64 and x86_64)\n' % (path, detail))
         log('')
         checked, other, problems = check_tree(out, use_lipo)
     except (MergeError, OSError) as e:

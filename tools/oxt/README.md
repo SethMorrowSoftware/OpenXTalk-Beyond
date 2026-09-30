@@ -560,14 +560,16 @@ mac-universal") builds the release app from the two CI builds:
 
    | rule | files | why |
    |---|---:|---|
-   | `DIFFER` plist: `**/Contents/Info.plist` | 16 (every bundle's) | they differ only in `LSMinimumSystemVersion` (11.0 / 10.13; Xcode writes each build's deployment target); the x86_64 build's copy is taken byte for byte (the standalone builder edits the runtime's line by line), and it must match the lowest `minos` of the bundle's executable. Any other key that differs fails, except the build machine's (`DT*`, `BuildMachineOSBuild`), which are reported |
+   | `DIFFER` plist: `**/Contents/Info.plist` | 16 (every bundle's) | they differ only in `LSMinimumSystemVersion` (11.0 / 10.13; Xcode writes each build's deployment target); the x86_64 build's copy is taken byte for byte (the standalone builder edits the runtime's line by line), and it must match the lowest `minos` of the bundle's executable. Any other key that differs fails, except the build machine's (`DT*`, `BuildMachineOSBuild`), which are reported. After writing, one array is edited: `LiveCode-Community.app`'s `LSArchitecturePriority` says `x86_64, i386` (LiveCode's Intel days), and LaunchServices starts the first listed architecture the executable holds, so the universal development engine would run under Rosetta on Apple Silicon; it becomes `arm64, x86_64` (only that array, as text; a plist without the key, such as the runtime's, is not touched) |
    | `DIFFER` seal: `**/Contents/_CodeSignature/CodeResources` | 2 (`LiveCode-Community.app`, `reviphone.bundle`) | a bundle's resource seal records the code-directory hash of its nested code, which differs per architecture; it is stale after the merge either way and written again when the tree is signed |
    | `SINGLE_ARCH`: `**/reviphoneproxy`, `**/reviphoneproxy.dSYM/**` | 2 (`reviphoneproxy`, `reviphone.bundle/Contents/MacOS/reviphoneproxy`) | the iOS simulator helper is built for x86_64 only on both runners (revmobile.gyp); the x86_64 build's copy (10.13) is taken, and nothing of the arm64 build's copy (also x86_64 only, 11.0) is lost |
    | `ONE_SIDED`: `**/*.dSYM/Contents/Resources/Relocations/<arch>/**` | none in these builds' binaries | dsymutil writes each architecture's relocations into a folder of its own, when it writes them |
 
    `--dry-run` only reports; `--no-lipo` joins the slices with the
    script's own fat-file writer, so the merge and what follows can be
-   tried on Linux or WSL. `--check DIR` checks a tree or the app only.
+   tried on Linux or WSL. `--check DIR` checks a tree or the app only
+   (also that no bundle's `Info.plist` puts x86_64 before arm64 in
+   `LSArchitecturePriority` when its executable holds both).
 2. **Sign the merged tree** ad hoc (`sign_mac_app.py U/Release`), so that
    the binaries archive holds code that runs on Apple Silicon.
 3. **Stage** `package.py --platform mac-universal --bin U/Release`.
