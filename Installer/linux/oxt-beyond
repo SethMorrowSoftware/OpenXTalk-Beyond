@@ -69,13 +69,19 @@ here=$(cd -P -- "$dir" && pwd -P) || exit 1
 engine=$here/OXT-Beyond
 
 # A message on the terminal, and in a dialog when there is no terminal to
-# show it (started from the application menu)
+# show it (started from the application menu). zenity reads --text as Pango
+# markup (after expanding backslash escapes) unless --no-markup says it is
+# plain text: the "<version>" of the engine message, or a path with &, < or
+# a backslash, would be invalid markup and leave the dialog empty.
+# Every zenity of the distributions the engine runs on (glibc 2.31 and
+# later: zenity 3.32 and later) has --no-markup; one that rejects it fails,
+# and kdialog or xmessage take over.
 tell() {
     printf '%s\n' "$1" >&2
     [ -t 2 ] && return 0
     [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || return 0
     if command -v zenity >/dev/null 2>&1; then
-        zenity --error --no-wrap --title=OXT-Beyond --text="$1" >/dev/null 2>&1 && return 0
+        zenity --error --no-markup --no-wrap --title=OXT-Beyond --text="$1" >/dev/null 2>&1 && return 0
     fi
     if command -v kdialog >/dev/null 2>&1; then
         kdialog --title OXT-Beyond --error "$1" >/dev/null 2>&1 && return 0

@@ -41,7 +41,10 @@ a library no system has:
      and the launcher names the library;
   6. LIVECODE_USE_CEF set by the user: kept;
   7. no Externals/CEF/libcef.so (a package without CEF): LIVECODE_USE_CEF=0;
-  8. an engine that is not executable: an error that names it;
+  8. an engine that is not executable: an error that names it, which a
+     launcher without a terminal but with a display shows with zenity (a
+     stand-in that records its arguments) as plain text, --no-markup: the
+     "<version>" in it is not Pango markup;
   9. an engine that is the launcher itself (what extracting onto a folder
      that does not tell upper from lower case leaves): an error, not a
      launcher that starts itself again and again.
@@ -103,6 +106,13 @@ printf 'ENGINE RAN:'
 for a in "$@"; do printf ' [%s]' "$a"; done
 printf '\\n'
 printf 'LIVECODE_USE_CEF=%s\\n' "${LIVECODE_USE_CEF-unset}"
+exit 0
+'''
+
+# A zenity that writes each argument to $OXT_TEST_ZENITY_LOG, followed by
+# a line ZENITY_ARG_END (a message may have line breaks)
+FAKE_ZENITY = '''#!/bin/sh
+for a in "$@"; do printf '%s\\nZENITY_ARG_END\\n' "$a"; done > "$OXT_TEST_ZENITY_LOG"
 exit 0
 '''
 
@@ -255,6 +265,27 @@ def test_launcher(c, root, work):
     code, out = run([link], env=base_env())
     c.check('launcher: an engine that is not executable is an error that names it',
             code != 0 and 'OXT-Beyond' in out and 'ENGINE RAN' not in out, 'exit %d, output:\n%s' % (code, out))
+
+    # Started from a menu (no terminal, a display), the launcher shows the
+    # message with zenity. zenity reads --text as Pango markup unless told
+    # otherwise, and the "<version>" of this message is not valid markup:
+    # the dialog would be empty.
+    fakebin = os.path.join(base, 'fakebin')
+    os.makedirs(fakebin)
+    with open(os.path.join(fakebin, 'zenity'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(FAKE_ZENITY)
+    os.chmod(os.path.join(fakebin, 'zenity'), 0o755)
+    zenity_log = os.path.join(base, 'zenity.log')
+    code, out = run([link], env=base_env(DISPLAY=':99', OXT_TEST_ZENITY_LOG=zenity_log,
+                                         PATH=fakebin + os.pathsep + os.environ.get('PATH', '')))
+    args = []
+    if os.path.isfile(zenity_log):
+        with open(zenity_log, encoding='utf-8') as f:
+            args = f.read().split('\nZENITY_ARG_END\n')[:-1]
+    text = next((a[len('--text='):] for a in args if a.startswith('--text=')), None)
+    c.check('launcher: without a terminal, zenity shows the message as plain text (--no-markup), unchanged',
+            code != 0 and '--no-markup' in args and text is not None and '<version>' in text and text in out,
+            'exit %d, zenity arguments %r, output:\n%s' % (code, args, out))
 
     # On FAT, exFAT or a Windows drive, tar writes the launcher oxt-beyond
     # over the engine OXT-Beyond, extracted just before it: the engine's
