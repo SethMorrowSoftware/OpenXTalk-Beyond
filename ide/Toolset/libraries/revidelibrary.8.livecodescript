@@ -2954,6 +2954,47 @@ function revSEAppearanceKey pKey
 end revSEAppearanceKey
 
 /**
+The file that holds the colours of the script editor scheme "Custom" for a
+slot, light or dark.
+
+Parameters:
+pFolder (string): The folder of the file, as the caller computes it for
+the platform; the file name is appended to it as it is.
+pDark (boolean): true for the dark slot, false for the light one, empty for
+the slot of the IDE's appearance (the one <revSEAppearanceKey> names).
+pForReading (boolean): true when the file is read, false when it is
+written.
+
+Returns (string): For the light slot, pFolder & "customScriptColours.dat".
+For the dark slot, pFolder & "customScriptColours-dark.dat"; but to read
+the dark slot while that file does not exist yet, the light slot's file.
+
+Description:
+The script editor keeps a light and a dark scheme (<revSEAppearanceKey>),
+and both can be "Custom". OpenXTalk Lite keeps the custom colours in one
+file, which stays the light slot's (OpenXTalk Lite reads the same file).
+With one file for both slots, customizing the dark scheme would change the
+light one too, so the dark slot has a file of its own. Until the dark slot
+is customized it shows the light slot's colours: a custom scheme made
+before there was a dark slot carries over, and the first write of the dark
+slot creates its file. seColorizationLoadScheme (revseutilities) and the
+custom scheme dialog (the substack "CustomScriptCol" of
+revpreferencesgui.rev, which edits the slot of the IDE's appearance) name
+the file through this function.
+
+References: revSEAppearanceKey (function), revIDEIsDark (function)
+**/
+function revSECustomSchemeFile pFolder, pDark, pForReading
+   -- The slot of the IDE's appearance, chosen as revSEAppearanceKey does
+   if pDark is empty then put revIDEIsDark() into pDark
+   if pDark is not true then return pFolder & "customScriptColours.dat"
+   if pForReading is true and there is not a file (pFolder & "customScriptColours-dark.dat") then
+      return pFolder & "customScriptColours.dat"
+   end if
+   return pFolder & "customScriptColours-dark.dat"
+end revSECustomSchemeFile
+
+/**
 The View menu's Appearance submenu.
 
 Returns (string): The submenu's lines, each indented with a tab, with a

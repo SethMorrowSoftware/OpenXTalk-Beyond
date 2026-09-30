@@ -427,7 +427,7 @@ locations; macOS and Linux use their own equivalents:
 | What | Where | Shared with |
 | --- | --- | --- |
 | Dictionary favourites and notes | `%APPDATA%\xtalk\xTalkDictionary` | OpenXTalk Lite |
-| Custom script editor colours | `%APPDATA%\xtalk\Preferences\customScriptColours.dat` | OpenXTalk Lite |
+| Custom script editor colours | `%APPDATA%\xtalk\Preferences\customScriptColours.dat`; the dark appearance's in `customScriptColours-dark.dat` next to it, once you customize them | OpenXTalk Lite (the light appearance's file) |
 | Thumbnails of recent stacks | `Documents\OXTRecentStacks` | OpenXTalk Lite |
 | The engine's Community licence file, written by the engine when it starts | `%APPDATA%\RunRev\Licenses\livecode-community-9_7_1-OXT-25923.lclk` | LiveCode's folder; OpenXTalk Lite 1.15 writes the same file (same engine version) |
 
@@ -539,9 +539,10 @@ The next release adds:
   standard Window* switches it;
 - a dark script editor (One Dark Pro by default, adapted from HyperXTalk,
   with Tom Perry's schemes still in the menu; the editor keeps separate
-  light and dark colours in *Preferences > Script Editor*, and a dark
-  scheme and background chosen in an earlier version become the dark
-  appearance's too, while the light appearance keeps them), and a
+  light and dark colours in *Preferences > Script Editor*, the custom
+  scheme's included, and a dark scheme and background chosen in an
+  earlier version become the dark appearance's too, while the light
+  appearance keeps them), and a
   readable Inspector, Message Box, error dialog, Find and Replace,
   Standalone Application Settings, Menu Builder and dictionary code
   examples in the dark appearance;
