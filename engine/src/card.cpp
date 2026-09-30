@@ -2708,8 +2708,23 @@ MCObjptr *MCCard::getobjptrforcontrol(MCControl *p_control)
 		t_ptr = t_ptr -> next();
 	}
 	while(t_ptr != objptrs);
-	
+
 	return nil;
+}
+
+// The control MCCard::draw is drawing, and its place in that card's layers.
+// The appearance rule looks for what a control sits on below its place
+// (MCObject::appearancebackdrop) for every colour the control looks up, so
+// in a stack drawn dark, finding the place with getobjptrforcontrol would
+// make a redraw quadratic in the number of controls on the card.
+static MCCard *s_drawing_card = nil;
+static MCObjptr *s_drawing_objptr = nil;
+
+MCObjptr *MCCard::getdrawingobjptr(MCControl *p_control)
+{
+	if (s_drawing_card != this || s_drawing_objptr == nil || s_drawing_objptr -> getref() != p_control)
+		return nil;
+	return s_drawing_objptr;
 }
 
 void MCCard::clean()
@@ -3112,15 +3127,28 @@ void MCCard::draw(MCDC *dc, const MCRectangle& dirty, bool p_isolated)
 
 	if (objptrs != NULL)
 	{
+		// Each control's place, for the appearance rule (getdrawingobjptr).
+		// A card drawn while this one draws a control (a snapshot of it, for
+		// example) puts back what it found.
+		MCCard *t_old_drawing_card = s_drawing_card;
+		MCObjptr *t_old_drawing_objptr = s_drawing_objptr;
+
 		MCObjptr *tptr = objptrs;
 		do
 		{
             MCControl *t_control = tptr->getref();
             if (t_control != nullptr)
+            {
+                s_drawing_card = this;
+                s_drawing_objptr = tptr;
                 t_control->redraw(dc, dirty);
+            }
 			tptr = tptr->next();
 		}
 		while (tptr != objptrs);
+
+		s_drawing_card = t_old_drawing_card;
+		s_drawing_objptr = t_old_drawing_objptr;
 	}
 
 	dc -> setopacity(255);

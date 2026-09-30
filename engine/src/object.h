@@ -980,7 +980,7 @@ public:
 	bool paintsownbackground(void);
 	bool usesthemedfill(void);
 	bool explicitlightness(uint2 p_di, bool& r_light);
-	MCObject *appearancebackdrop(void);
+	MCObject *appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place);
 	MCObject *appearanceowner(void);
 
 	Boolean setcolor(uint2 index, const MCString &eptr);

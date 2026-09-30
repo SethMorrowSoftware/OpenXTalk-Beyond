@@ -181,6 +181,10 @@ public:
 	
 	MCObjptr *getobjptrs(void) { return objptrs; }
 	MCObjptr *getobjptrforcontrol(MCControl *control);
+	// The objptr of p_control while this card's draw is drawing it, nil
+	// otherwise: its place in the layers without walking them (the appearance
+	// rule, MCObject::appearancebackdrop)
+	MCObjptr *getdrawingobjptr(MCControl *p_control);
 
 	bool selectedbutton(integer_t p_family, bool p_background, MCStringRef& r_string);
 	void grab()

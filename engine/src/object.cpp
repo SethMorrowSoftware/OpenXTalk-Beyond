@@ -1573,10 +1573,23 @@ static bool MCAppearanceRectContains(const MCRectangle& p_outer, const MCRectang
 }
 
 // What a control is drawn on inside its group or card: the nearest control
-// below it (at most 256 are looked at) that is visible, covers the whole
-// control and either paints its own background or is an image.
-MCObject *MCObject::appearancebackdrop(void)
+// below it that is visible, covers the whole control and either paints its
+// own background or is an image. It looks at up to 256 controls below it.
+//
+// This runs for every colour a control looks up while it is drawn dark, so
+// finding the control's own place among its card's layers must not walk
+// them. p_place is that place (its objptr) when the caller knows it: the
+// place this function returned in r_place for the control it found, as the
+// rule goes on to what that control sits on. Otherwise, while MCCard::draw
+// draws the control (or the group a child of it belongs to), the card knows
+// it (MCCard::getdrawingobjptr). So while the card draws it, finding its own
+// place is O(1); other callers (the effective colours, tooltips, menus) walk
+// the card's layers to it. r_place is the place of the control returned
+// when that control is on the card, and nil otherwise.
+MCObject *MCObject::appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place)
 {
+	r_place = nil;
+
 	Chunk_term t_type;
 	t_type = gettype();
 	if (t_type < CT_FIRST_CONTROL || t_type > CT_LAST_CONTROL)
@@ -1602,9 +1615,18 @@ MCObject *MCObject::appearancebackdrop(void)
 		t_card = static_cast<MCCard *>(t_owner);
 		MCObjptr *t_first;
 		t_first = t_card -> getobjptrs();
+		if (t_first == nil)
+			return nil;
+
 		MCObjptr *t_mine;
-		t_mine = t_card -> getobjptrforcontrol(t_self);
-		if (t_first == nil || t_mine == nil)
+		t_mine = nil;
+		if (p_place != nil && p_place -> getref() == t_self)
+			t_mine = p_place;
+		if (t_mine == nil)
+			t_mine = t_card -> getdrawingobjptr(t_self);
+		if (t_mine == nil)
+			t_mine = t_card -> getobjptrforcontrol(t_self);
+		if (t_mine == nil)
 			return nil;
 
 		for (MCObjptr *t_ptr = t_mine; t_ptr != t_first && t_count < 256; t_count++)
@@ -1615,7 +1637,13 @@ MCObject *MCObject::appearancebackdrop(void)
 			if (t_control != nil && t_control -> isvisible(false) &&
 				MCAppearanceRectContains(t_control -> getrect(), t_rect) &&
 				(t_control -> gettype() == CT_IMAGE || t_control -> paintsownbackground()))
+			{
+				// Its place is only good on this card's layers: a shared
+				// group's parent can be another card
+				if (t_control -> getparent() == t_card)
+					r_place = t_ptr;
 				return t_control;
+			}
 		}
 	}
 	else if (t_owner -> gettype() == CT_GROUP)
@@ -1652,8 +1680,9 @@ MCObject *MCObject::appearanceowner(void)
 
 // Whether p_object shows a light surface: its own fill, its own text colour
 // when it paints a default fill, or else what it sits on. When nothing tells,
-// the answer is dark, so a stack that sets no colours is drawn dark.
-static bool MCAppearanceIsLightSurface(MCObject *p_object, int p_depth)
+// the answer is dark, so a stack that sets no colours is drawn dark. p_place
+// is p_object's place in its card's layers, when known (appearancebackdrop).
+static bool MCAppearanceIsLightSurface(MCObject *p_object, MCObjptr *p_place, int p_depth)
 {
 	if (p_depth == 0 || p_object == nil)
 		return false;
@@ -1683,13 +1712,17 @@ static bool MCAppearanceIsLightSurface(MCObject *p_object, int p_depth)
 
 	// 4. What it sits on
 	MCObject *t_under;
-	t_under = p_object -> appearancebackdrop();
+	MCObjptr *t_under_place;
+	t_under = p_object -> appearancebackdrop(p_place, t_under_place);
 	if (t_under == nil)
+	{
 		t_under = p_object -> appearanceowner();
+		t_under_place = nil;
+	}
 	if (t_under == nil)
 		return false;
 
-	return MCAppearanceIsLightSurface(t_under, p_depth - 1);
+	return MCAppearanceIsLightSurface(t_under, t_under_place, p_depth - 1);
 }
 
 // Is this object drawn in the dark appearance? Light stacks are never adjusted,
@@ -1708,7 +1741,7 @@ bool MCObject::isdarkappearance(MCContextType p_type)
 	if (!MCAppearanceIsDark(getstack()))
 		return false;
 
-	return !MCAppearanceIsLightSurface(this, 16);
+	return !MCAppearanceIsLightSurface(this, nil, 16);
 }
 
 MCColor MCObject::getappearancegray(MCContextType p_type)
