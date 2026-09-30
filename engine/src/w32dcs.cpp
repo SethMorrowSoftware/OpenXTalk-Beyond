@@ -1228,7 +1228,14 @@ void MCScreenDC::processdesktopchanged(bool p_notify, bool p_update_fonts)
 		const MCDisplay *t_displays;
 
 		t_display_count = getdisplays(t_displays, false);
-		SetWindowPos(backdrop_window, NULL, t_displays[0] . workarea . x, t_displays[0] . workarea . y, t_displays[0] . workarea . width, t_displays[0] . workarea . height, 0);
+
+		// The workarea is in logical coordinates but SetWindowPos wants
+		// physical screen pixels, so convert it as initialisebackdrop does;
+		// otherwise the backdrop came out the wrong size and in the wrong
+		// place at 125% or 150% scaling after a display change.
+		MCRectangle t_screen_rect;
+		t_screen_rect = logicaltoscreenrect(t_displays[0] . workarea);
+		SetWindowPos(backdrop_window, NULL, t_screen_rect . x, t_screen_rect . y, t_screen_rect . width, t_screen_rect . height, 0);
 	}
 
     // Force a recompute of fonts as they may have changed
