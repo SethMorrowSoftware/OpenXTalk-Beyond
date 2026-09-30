@@ -527,8 +527,9 @@ The next release adds:
   System**) and, separately, that of your own stacks (**Light, like a
   standalone**, the default; **Dark**; **Follow the System**; **Same as
   the IDE**). A change shows at once in every palette. The choices need
-  the engine's new appearance properties; on Linux the appearance follows
-  the GTK theme, so the items are shown but disabled;
+  the engine's new appearance properties. Dark mode is for Windows in this
+  version: on Linux the appearance follows the GTK theme, and on macOS
+  OXT-Beyond is light for now, so there the items are shown but disabled;
 - your stacks looking in the IDE as they will in a standalone. A
   standalone is light unless its stack asks for the system's appearance,
   with one line in its `startup` or `preOpenStack` handler:

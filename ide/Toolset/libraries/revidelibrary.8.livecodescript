@@ -2539,7 +2539,9 @@ The engine carries both (an engine with the appearance properties; see
 - the systemAppearance still reports the operating system's setting, and
   systemAppearanceChanged is still sent only when that setting changes.
 On Linux, GTK draws the native controls and cannot be forced, so every
-effective value is the GTK theme's appearance whatever is set.
+effective value is the GTK theme's appearance whatever is set. On macOS the
+engine draws every stack light for now (its classic controls stay light in
+any appearance), so every effective value there is "light".
 
 This function returns whether the effective stackAppearance of the home
 stack (an IDE stack, so the IDE's appearance) is "dark". The value is
@@ -3020,8 +3022,9 @@ check mark on the chosen value of each preference.
 Description:
 Two groups: the IDE's appearance and the appearance of the user's stacks
 (see <revIDEIsDark>). The items are disabled on Linux, where GTK decides
-the appearance (with a line that says so), and on an engine without the
-appearance properties. The picks arrive as "Appearance|<item>";
+the appearance, and on macOS, where the engine draws light for now (each
+with a line that says so), and on an engine without the appearance
+properties. The picks arrive as "Appearance|<item>";
 <revIDEAppearanceMenuPick> handles them. The idea of an Appearance menu is
 Tom Perry's (View > Appearance in OpenXTalk Lite 1.07 to 1.13, which
 recoloured the IDE's stacks from script).
@@ -3030,7 +3033,7 @@ References: revIDEAppearanceMenuPick (command)
 **/
 function revIDEAppearanceMenu
    local tMenu, tEnabled, tIDE, tStacks
-   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   put revIDEEngineHasAppearance() and the platform is not "Linux" and the platform is not "MacOS" into tEnabled
    put revIDEAppearancePreference("ide") into tIDE
    put revIDEAppearancePreference("stacks") into tStacks
    repeat for each item tValue in "light,dark,system"
@@ -3042,6 +3045,8 @@ function revIDEAppearanceMenu
    end repeat
    if the platform is "Linux" then
       put tab & "-" & return & tab & "(On Linux the appearance follows the GTK theme" & return after tMenu
+   else if the platform is "MacOS" then
+      put tab & "-" & return & tab & "(On macOS OXT-Beyond is light for now" & return after tMenu
    else if not revIDEEngineHasAppearance() then
       put tab & "-" & return & tab & "(This engine follows the system's appearance" & return after tMenu
    end if
@@ -3126,8 +3131,8 @@ The card is in a binary stack; its preOpenCard calls this, which creates
 (the first time, on the card being opened) and updates two option menus
 with their labels below the card's other controls, "IDE appearance" and
 "Your stacks", and a line under them. A pick calls <revIDESetAppearance>.
-The menus are disabled on Linux and on an engine without the appearance
-properties, and the line says why. <revIDESetAppearance> updates them when
+The menus are disabled on Linux, on macOS (light for now) and on an engine
+without the appearance properties, and the line says why. <revIDESetAppearance> updates them when
 the View menu changes a preference while the card is open.
 
 References: revIDESetAppearance (command)
@@ -3135,9 +3140,11 @@ References: revIDESetAppearance (command)
 command revIDEPrefsAppearanceUI pCard
    local tEnabled, tNote, tLeft, tTop, tName, tItems, tText, tStack, tDefaultStack, tCreate
    if not exists(pCard) then exit revIDEPrefsAppearanceUI
-   put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
+   put revIDEEngineHasAppearance() and the platform is not "Linux" and the platform is not "MacOS" into tEnabled
    if the platform is "Linux" then
       put "On Linux the appearance follows the GTK theme." into tNote
+   else if the platform is "MacOS" then
+      put "On macOS OXT-Beyond is light for now; dark mode will follow." into tNote
    else if not revIDEEngineHasAppearance() then
       put "This engine follows the system's appearance; these settings need a newer engine." into tNote
    else
