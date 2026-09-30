@@ -552,6 +552,30 @@ also test the other layouts:
 The smoke test does not open the IDE's windows; to check those, start
 the IDE normally.
 
+On Linux and macOS (and on Windows too) the same test runs through
+[`tools/ci/run_livecode_check.py`](tools/ci/run_livecode_check.py) with
+Python 3:
+
+```sh
+python3 tools/ci/run_livecode_check.py smoke --bin linux-x86_64-bin
+python3 tools/ci/run_livecode_check.py smoke --install <staged OXT-Beyond-<ver> folder>
+python3 tools/ci/run_livecode_check.py smoke --package OXT-Beyond-<ver>-linux-x86_64.tar.xz
+```
+
+It passes what differs between platforms to the script (the processor,
+the externals' suffix `.dll`/`.so`/`.bundle`, and the code folders the
+IDE maps for LCB libraries) and takes the extension libraries'
+dependencies from
+[`tools/ci/check_native_deps.py`](tools/ci/check_native_deps.py), which
+reads ELF, Mach-O and PE files itself (no readelf, otool or dumpbin): a
+library that needs something that is neither a system library nor next
+to it (on Linux: next to it with an `$ORIGIN` run path; on macOS:
+`@loader_path`) fails. `--package` extracts to a neutral temporary folder,
+keeping modes and symbolic links; an installed layout in a folder named
+`_build` or `*-bin` is refused, because the engine would run the IDE of
+the checkout (repository mode). No X display is needed: `-ui` starts no
+user interface.
+
 ### Package
 
 ```bat
@@ -1042,6 +1066,28 @@ Options: `-Root` (default: the single `OXT-Beyond-*` folder in
 `-LogFile`, `-TimeoutSeconds`. To rewrite the baseline from the current
 errors, add `-UpdateBaseline` (and `-BaselineSource "<description>"`);
 review the result before committing it.
+
+On Linux and macOS, `tools/ci/run_livecode_check.py compile` does the
+same with the same baseline (`--install <layout>`, `--package <file>`,
+`--root <folder> --engine <file>`, `--update-baseline`). With
+`--repo-layout --bin <build output>` it checks the source checkout before
+anything is packaged: the Toolset, Plugins and Extensions that
+`tools/oxt/layout.py` assembles from `ide/` and `ide-support/`, plus the
+build's packaged extensions, are written to a temporary folder with their
+installed paths (so the error records match the baseline's) and checked
+with the build's development engine. The Linux and macOS workflows run
+it after every build.
+
+A file that crashes the engine is recorded as
+`<file> | (file) | line 0 | the engine crashed while checking it`, and the
+rest is checked in a second run. Errors that occur on one platform only
+are listed in `tools/ci/ide-compile-baseline-<windows|linux|mac>.txt`
+next to the shared baseline, which the Python check adds on that
+platform (`--update-baseline` leaves them out of the shared file). The
+Linux file lists `Plugins/Quick Dictionary.livecode`: the Linux engine
+crashes loading any stack file whose main stack has `textFont (System)`
+and a substack when it runs without a user interface (the `(System)`
+font has no name there, see the file).
 
 ### Installer
 
