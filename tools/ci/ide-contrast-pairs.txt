@@ -29,11 +29,12 @@ text_3                              dataView_scriptErrorBackgroundColor  4.5
 # Project Browser: a selected row (text, disclosure arrow, badge)
 dataView_TextHiliteColor            dataView_hiliteColor                 4.5
 dataView_disclosureIconHiliteColor  dataView_hiliteColor                 3
-text_1                              dataView_TextHiliteColor             4.5
+dataView_hiliteBadgeTextColor       dataView_TextHiliteColor             4.5
 
 # Palettes
 text_1                              palette_background                   4.5
 text_2                              palette_background                   4.5
 text                                palette_background                   4.5
 text_muted                          palette_background                   4.5
+text_disabled                       palette_background                   3
 state_hover                         palette_background                   3

@@ -1,4 +1,9 @@
 ﻿script "revCoreStackBehavior"
+-- OXT-Beyond: a script-only copy of the stack script of
+-- palettes/revCore.8.livecode, which is the one the IDE runs
+-- (home.livecodescript inserts it into the back); no stack loads this
+-- file. ideColorGet is kept identical in both (tools/ci/check_ide_stacks.py);
+-- some other handlers here differ from revCore's.
 ################################################################
 # Reading object properties used to the project browser and application browser
 # There are two variations. Each wants slightly different properties so for 
@@ -639,6 +644,94 @@ function  ideCoreTrim pText
 end ideCoreTrim
 
 function ideColorGet pTag
+   local tEdition
+   put revLicenseType() into tEdition
+   
+   -- The dark appearance (revIDEIsDark, in revidelibrary): palette,
+   -- border, state and Project Browser colours for dark palettes, with
+   -- the same contrast as the light ones. A tag that is not listed here
+   -- (the white text on coloured states, for example) has one colour for
+   -- both. This handler is kept identical in revCore's stack script, the
+   -- copy the IDE uses (home.livecodescript inserts that script into the
+   -- back), and in palettes/behaviors/revcorestackbehavior.livecodescript;
+   -- tools/ci/check_ide_stacks.py compares the two.
+   if revIDEIsDark() then
+      switch pTag
+         case "state_disabled"
+            return "90,90,90"
+            break
+         case "palette_background"
+         case "toolbar_background"
+         case "pb_palette_background"
+         case "pb_line_show_select_background"
+            return revIDEColor("palette_background")
+            break
+         case "palette_background_muted"
+         case "pb_edit_field_bg"
+         case "pb_line_background"
+         case "state_muted_selected_secondary"
+         case "pb_line_selected_trail"
+            return "44,44,46"
+            break
+         case "border_muted_hilite"
+         case "pb_line_border_left_hilite"
+         case "border_hilite"
+            return "76,76,80"
+            break
+         case "state_normal"
+         case "pb_disclosure_arrow"
+            return "160,160,160"
+            break
+         case "state_hover"
+         case "hilite_above"
+         case "pb_script_lines_hover"
+         case "pb_behavior_script_lines_hover"
+         case "pb_drag_hilite_top"
+            return "70,140,240"
+            break
+         case "state_pressed"
+         case "hilite_below"
+         case "pb_drag_hilite_bottom"
+            return "200,90,215"
+            break
+         case "pb_no_script_lines"
+            return "40,95,120"
+            break
+         case "state_booleanTrue"
+            return "200,200,200"
+            break
+         case "state_booleanFalse"
+            return "110,110,110"
+            break
+         case "state_muted_selected"
+         case "pb_line_selected"
+            return "0,55,100"
+            break
+         case "state_muted_disabled"
+         case "hilite_center"
+         case "pb_drag_hilite_center"
+         case "pb_line_selected_hover"
+            return "110,50,50"
+            break
+         case "border"
+         case "pb_list_bottom_border"
+         case "pb_edit_field_border"
+         case "pb_line_border_left"
+            return "64,64,68"
+            break
+         case "border_muted"
+         case "pb_line_border_bottom"
+            return "52,52,56"
+            break
+         case "text"
+            return "230,230,230"
+            break
+         case "text_muted"
+            return "160,160,160"
+            break
+      end switch
+   end if
+
    switch pTag
       case "state_disabled"
          return "208,208,208"
@@ -701,7 +794,16 @@ function ideColorGet pTag
          break
       case "state_muted_selected"
       case "pb_line_selected"
-         return revEnvironmentEditionProperty("pb_line_selected_color")
+         switch tEdition
+            case "community"
+               return "226,238,185"
+               break
+            case "commercial"
+            case "professional"
+            default
+               return "222,243,255"
+               break
+         end switch
          break
       case "state_muted_disabled"
       case "hilite_center"

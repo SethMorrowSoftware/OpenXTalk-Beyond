@@ -2509,52 +2509,181 @@ function revIDEPlatformVersion
    return tSystemVersion
 end revIDEPlatformVersion
 
+/**
+Whether the IDE draws its palettes in their dark colours.
+
+Returns (boolean): true in the dark appearance.
+
+Description:
+The IDE follows the appearance of the operating system, <the systemAppearance>
+on Windows and macOS. The Linux engine reports no appearance (it is always
+"light"), so on Linux a dark desktop theme is recognised by the window
+background it gives the IDE's home stack, with the rule the Tools palette has
+used to choose its dark icons: red, green and blue add up to less than 234.
+
+The global gREVAppearanceOverride, "light" or "dark", replaces the appearance
+of the system. It is there for tests only: without a user interface (-ui) the
+engine always reports "light", so tools/ci/ide-contrast-check.livecodescript
+sets it to check the dark colours. The IDE never sets it.
+
+References: revIDEColor (function)
+**/
+function revIDEIsDark
+   global gREVAppearanceOverride
+   local tSum
+   if gREVAppearanceOverride is "dark" then return true
+   if gREVAppearanceOverride is "light" then return false
+   if the systemAppearance is "dark" then return true
+   if the platform is "Linux" and there is a stack "home" then
+      put __revIDEColorSum(the effective backgroundColor of stack "home") into tSum
+      return tSum is a number and tSum < 234
+   end if
+   return false
+end revIDEIsDark
+
+-- A colour (r,g,b, a colour name or #rrggbb) as r,g,b, or empty. Names are
+-- resolved by the engine through the colorOverlay of the template graphic,
+-- as revIDENamedColorToRGB does, and the template is restored.
+private function __revIDEColorRGB pColor
+   local tSaved, tRGB
+   if the number of items of pColor >= 3 and item 1 of pColor is an integer \
+         and item 2 of pColor is an integer and item 3 of pColor is an integer then
+      return item 1 to 3 of pColor
+   end if
+   if pColor is empty or pColor is not a color then return empty
+   put the colorOverlay of the templateGraphic into tSaved
+   set the colorOverlay["color"] of the templateGraphic to pColor
+   put the colorOverlay["color"] of the templateGraphic into tRGB
+   set the colorOverlay of the templateGraphic to tSaved
+   return tRGB
+end __revIDEColorRGB
+
+-- The sum of the red, green and blue of a colour (0 to 765), or empty
+private function __revIDEColorSum pColor
+   local tRGB
+   put __revIDEColorRGB(pColor) into tRGB
+   if tRGB is empty then return empty
+   return item 1 of tRGB + item 2 of tRGB + item 3 of tRGB
+end __revIDEColorSum
+
+/**
+The colour of one of the IDE's colour tags in the current appearance.
+
+Parameters:
+pTag (string): The name of the colour, for example "text_1" or
+"dataView_rowColor".
+
+Returns (string): The colour as r,g,b (or a colour name).
+
+Description:
+The IDE's palettes take their colours from this table, so that the light and
+the dark appearance (<revIDEIsDark>) are defined in one place. Tags that are
+not listed here come from ideColorGet (revCore's stack script), which has its
+own dark branch. tools/ci/ide-contrast-pairs.txt lists which tags are drawn
+on which, and tools/ci/ide-contrast-check.livecodescript checks their
+contrast in both appearances.
+
+References: revIDEIsDark (function)
+**/
 function revIDEColor pTag
-   
-   --# Added by skids 7 Dec 2025.
-   put the SystemAppearance into tAppearance
-   --
-   
+   local tColor, tSum
    if pTag is "edition_color" then
       return revEnvironmentEditionProperty("color")
    end if
-   
-   -- Change by Skids, 7 Dec 2025, added colour switching to text based on systemappearance 
-   -- which is stored in var tAppearance. First 3 case clauses have been modified with the
-   -- original code commented out.
-   
-   switch pTag
-      --case "text_1"
-      --return "0,0,0"
-      --break
-      --case "text_2"
-      --return "125,125,125"
-      --break
-      --case "text_3"
-      -- return "255,255,255"
-      --break
-      
-      -- Colour switching added by Skids 7 Dec 2025 first 3 clause
-      case "text_1"
-         if tAppearance is dark then
+
+   -- The dark table, adapted from HyperXTalk's (docmeth02, HXT f6dca5882).
+   -- Rows are near the Windows dark window colour (32,32,32) and the
+   -- secondary text is 160, which reads at 5.3:1 or more on both rows; the
+   -- script error badge is a darker red than in light so that its white
+   -- text reads (6.2:1). The unfocused selection is a grey that both the
+   -- white text of the Project Browser and the grey secondary text of the
+   -- Extension Manager read on.
+   if revIDEIsDark() then
+      switch pTag
+         case "text_1"
+            return "230,230,230"
+            break
+         case "text_2"
+            return "160,160,160"
+            break
+         case "text_3"
             return "255,255,255"
-         else
-            return "0,0,0"
-         end if
+            break
+         case "text_disabled"
+            return "140,140,140"
+            break
+         case "icon"
+            return "200,200,200"
+            break
+         case "dataView_rowColor"
+            return "36,36,38"
+            break
+         case "dataView_rowAlternateColor"
+            return "44,44,46"
+            break
+         case "dataView_hiliteColor"
+            return "10,95,175"
+            break
+         case "dataView_alternateHiliteColor"
+            return "8,80,150"
+            break
+         case "dataView_dimmedHiliteColor"
+            return "54,54,58"
+            break
+         case "dataView_TextHiliteColor"
+            return "255,255,255"
+            break
+         case "dataView_hiliteBadgeTextColor"
+            return "10,95,175"
+            break
+         case "dataView_scriptBackgroundColor"
+            return "8,80,150"
+            break
+         case "dataView_scriptErrorBackgroundColor"
+            return "190,30,30"
+            break
+         case "dataView_disclosureIconColor"
+            return "180,180,180"
+            break
+         case "dataView_disclosureIconHiliteColor"
+            return "230,230,230"
+            break
+         case "palette_background"
+            -- The colour the engine gives an unset palette (Windows: its
+            -- dark window colour); the dark base of the Windows engine when
+            -- the engine draws light although the IDE is dark (the test
+            -- override, or an engine that does not know the appearance)
+            put the effective backgroundColor of this stack into tColor
+            put __revIDEColorSum(tColor) into tSum
+            if tSum is a number and tSum < 384 then return tColor
+            return "32,32,32"
+            break
+         case "propertyInspector_multiValueBackground"
+            return "55,60,70"
+            break
+      end switch
+   end if
+
+   -- The light table, as in upstream LiveCode. text_3 and
+   -- dataView_TextHiliteColor are white again: the 1.15 import had made
+   -- them black and the accent colour, and the accent colour turned the
+   -- selected rows of the Project Browser into blue text on blue on
+   -- Windows.
+   switch pTag
+      case "text_1"
+         return "0,0,0"
          break
       case "text_2"
-         if tAppearance is dark then
-            return "201,201,201"
-         else
-            return "125,125,125"
-         end if
+         return "125,125,125"
          break
       case "text_3"
-         if tAppearance is dark then
-            return "255,255,255"  --white
-         else
-            return "0,0,0"
-         end if
+         return "255,255,255"
+         break
+      case "text_disabled"
+         return "128,128,128"
+         break
+      case "icon"
+         return "82,82,82"
          break
       case "dataView_rowColor"
          return "255,255,255"
@@ -2568,8 +2697,14 @@ function revIDEColor pTag
       case "dataView_alternateHiliteColor"
          return "34,154,206"
          break
+      case "dataView_dimmedHiliteColor"
+         return "212,212,212"
+         break
       case "dataView_TextHiliteColor"
-         return the accentColor
+         return "255,255,255"
+         break
+      case "dataView_hiliteBadgeTextColor"
+         return "0,0,0"
          break
       case "dataView_scriptBackgroundColor"
          return "34,154,206"
@@ -2579,10 +2714,10 @@ function revIDEColor pTag
          break
       case "dataView_disclosureIconColor"
          return "99,99,99"
-         break         
+         break
       case "dataView_disclosureIconHiliteColor"
          return "216,216,216"
-         break 
+         break
       case "palette_background"
          if the platform is "Win32" then
             return "240,240,240"
@@ -2594,7 +2729,7 @@ function revIDEColor pTag
          return "200,206,215"
          break
    end switch
-   
+
    return ideColorGet(pTag)
 end revIDEColor
 
