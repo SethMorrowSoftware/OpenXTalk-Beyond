@@ -473,8 +473,9 @@ static bool s_system_appearance_cached = false;
 // Windows implementation of getsystemappearance - detect dark mode from registry
 static bool MCWin32ReadSystemAppearanceIsDark(void)
 {
-	// Check Windows registry for dark mode setting
-	// Try both AppsUseLightTheme and SystemUsesLightTheme
+	// Check Windows registry for dark mode setting. Only AppsUseLightTheme is
+	// read: it is the "app mode" setting that applications follow;
+	// SystemUsesLightTheme is the one for the taskbar and the Start menu.
 	bool t_is_dark = false;
 	HKEY hKey;
 	

@@ -16,6 +16,8 @@ script "oxt_render_test"
 --    field               a field with a vertical scrollbar, scrolled to the
 --                        top
 --    card                the whole card, for people to look at
+--    screen              8x8 pixels of the screen, taken after a window was
+--                        opened: that used to crash the engine
 --
 -- The native theme and the light and dark colours only exist with a user
 -- interface, so this runs as the development engine's home stack, not with
@@ -188,7 +190,30 @@ private command renderControls
    addRecord "SHOT", "thumb", "field", "field.png", scrollbarRegion("thumb", item 3 of tRect - item 1 of tRect, item 4 of tRect - item 2 of tRect, the borderWidth of tObject, the scrollbarWidth of tObject)
 
    exportRect the rect of card 1 of stack kStack, "card.png"
+
+   screenSnapshot
 end renderControls
+
+-- A snapshot of the screen once a window exists. Creating a window sets its
+-- title bar through dwmapi.dll (MCWin32SetWindowDarkMode), and the screen
+-- snapshot code then found that library loaded but its
+-- DwmIsCompositionEnabled never resolved, and crashed
+-- (engine/src/w32dcs.cpp, s_ensure_dwmapi). A crash ends the run with a
+-- non-zero exit code and no render.txt, which render-test.ps1 reports.
+-- The stack is opened invisible, so nothing is shown; the rectangle is 8
+-- pixels at the top left of the screen.
+private command screenSnapshot
+   local tFile
+   create invisible stack "oxt_render_test_window"
+   go invisible stack "oxt_render_test_window"
+   put sOut & "/screen.png" into tFile
+   export snapshot from rect "0,0,8,8" to file tFile as PNG
+   if there is not a file tFile then
+      throw "export snapshot from rect 0,0,8,8 wrote no file (the result: " & the result & ")"
+   end if
+   close stack "oxt_render_test_window"
+   addRecord "INFO", "screenSnapshot", "written after a window was opened"
+end screenSnapshot
 
 private command setUpDisabledLabel pObject
    set the showName of pObject to true
