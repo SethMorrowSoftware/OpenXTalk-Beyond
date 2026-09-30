@@ -38,9 +38,8 @@ maintained by
 
 ## Status
 
-OXT-Beyond 0.1.0 is the first release for Windows, macOS and Linux, and
-still an early release of a young project. Please read this before you
-download it.
+OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
+macOS and Linux. Please read this before you download it.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -519,7 +518,36 @@ OXT-Beyond 0.1.0 adds:
 - a fix for a crash of the Linux engine when it opens a stack whose
   text font is "(System)" without a display.
 
-The next release adds:
+OXT-Beyond 0.2.0 adds:
+
+- stacks that stay readable in the dark appearance: where a stack sets
+  some colours but not others (a white field with no text colour, say, or
+  a checkbox on a light card), the unset colours now fit the ones the
+  author set, so a stack designed light looks as designed, and only a
+  stack that sets no colours at all is drawn dark;
+- the engine properties `appAppearance` (the application's appearance:
+  "light", the default, "dark" or "system") and `stackAppearance` (one
+  stack's), with their `effective` forms, in the dictionary. Standalones
+  are light unless they set the `appAppearance`; standalones built with
+  OpenXTalk Lite 1.14 or later or OXT-Beyond 0.1.0 followed the dark mode
+  of Windows and macOS, and do so again after
+  `set the appAppearance to "system"`;
+- the Windows native controls drawn dark in the dark appearance
+  (checkboxes, radio buttons, tabs, field and group frames, sliders,
+  progress bars, option menus and combo boxes), dark title bars per
+  window, and the light appearance whenever a High Contrast theme is on;
+- printing always in the light appearance, and a fix for a crash when a
+  snapshot of the screen was taken on Windows;
+- about 40 fixes from HyperXTalk (see
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#code-adapted-from-hyperxtalk)),
+  among them painted images kept when the card changes, no crash exporting
+  a widget, script editor hangs on "/*" and on binary data in a tree
+  view, the macOS backdrop and custom cursors, Linux dialog leaks and
+  typing lag, localized Desktop and Documents folders on Linux, File >
+  Open with a missing folder, file dates after 2038, and `pop` with
+  nothing pushed;
+
+and in the IDE:
 
 - a light IDE on every system, dark ones included, with the appearance
   as a choice: *View > Appearance* (and *Preferences > Appearance*) sets
