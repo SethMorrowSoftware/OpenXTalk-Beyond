@@ -3193,7 +3193,13 @@ command getCaretToken pUseClick
          exit repeat
       end if
    end repeat
-   if "--" is in (char tLineStart to (tFrom - 1) of tScript) then
+   local tBefore
+   put char tLineStart to (tFrom - 1) of tScript into tBefore
+   # "--" inside a string literal is not a comment (as in: if tArg is "--verbose"
+   # then ...), so drop complete strings first; xTalk strings have no escapes.
+   # An unterminated quote (caret inside a string) is left in place
+   put replaceText(tBefore, quote & "[^" & quote & "]*" & quote, empty) into tBefore
+   if "--" is in tBefore then
       return empty
    end if
 
