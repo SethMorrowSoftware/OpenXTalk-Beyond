@@ -9906,45 +9906,33 @@ on revIDEToggleToolbar pWhich
    set the left of group "toolbar" of stack "revMenubar" to the left of stack "revMenubar" +12 -- position toolbar group to the right-hand edge of wd (tperry)   
 end revIDEToggleToolbar
 
+-- View > Show IDE Stacks In Lists. Adapted from HyperXTalk 084195cbe and
+-- e02b2627d (Emily-Elizabeth Howard): the preference is toggled here
+-- instead of through the checkbox of the Preferences stack. The old way
+-- sent revToggleShowStacks to that checkbox, which, the first time in a
+-- session, loaded revPreferencesGUI, whose opening reset the checkbox
+-- before it was read, so the menu item took several clicks. The Project
+-- Browser and the Message Box subscribe to idePreferenceChanged:
+-- cShowRevolutionStacks; the other lists are refreshed as the checkbox
+-- does it (revToggleShowStacks), and the checkbox follows if it is open.
 on revIDEToggleShowIDEStacksInLists
-   global gREvShowStacks
+   global gREVShowStacks
+   local tShow
+   put revIDEGetPreference("cShowRevolutionStacks") is not true into tShow
+   put tShow into gREVShowStacks
    lock screen
-   set the hilite of button "show revolution stacks" of card "general" of stack "revPreferencesGUI" to not gREVShowStacks
-   
-   local tOpenStacks
-   put the openStacks into tOpenStacks
-   
-   local tFrontStack
-   put empty into tFrontStack
-   repeat for each line tStack in tOpenStacks
-      if tStack is not "revMenubar" and the mode of stack tStack is among the items of "1,2,3" then
-         put tStack into tFrontStack
-         exit repeat
-      end if
+   revIDESetPreference "cShowRevolutionStacks", tShow
+   if "revPreferencesGUI" is among the lines of the openStacks then
+      set the hilite of button "show revolution stacks" of card "general" of stack "revPreferencesGUI" to tShow
+   end if
+   if the mode of stack "revSearch" is not 0 then
+      send "revFeedback" to stack "revSearch"
+   end if
+   revUpdateAB
+   repeat for each line tPalette in revPalettesList()
+      send "revUpdatePalette" to this card of stack tPalette
    end repeat
-   if tFrontStack is not empty then
-      set the wholeMatches to true
-      local tBringToFront
-      if lineOffset(tFrontStack, tOpenStacks) < lineOffset("App Browser", tOpenStacks) then
-         put true into tBringToFront
-      end if
-   end if
-   send "revToggleShowStacks" to button "show revolution stacks" of card "general" of stack "revPreferencesGUI"
    unlock screen
-   
-   if tBringToFront then
-      lock messages
-      switch the mode of stack tFrontStack
-         case 1
-         case 2
-            toplevel tFrontStack
-            break
-         case 3
-            modeless tFrontStack
-            break
-      end switch
-      unlock messages 
-   end if
 end revIDEToggleShowIDEStacksInLists
 
 on revIDETogglePalette pPaletteName

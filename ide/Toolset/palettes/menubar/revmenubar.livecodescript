@@ -1889,7 +1889,9 @@ private function revMenubarViewMenu pContext
    put toggleMenuItem("Rulers", the mode of stack "revRulersH" is not 0) & return after tView
    put toggleMenuItem("Grid", the grid) & return after tView
    put toggleMenuItem("Backdrop/^@B", the backdrop is not "none") & return after tView  --tp 24-1, add shortcut
-   put toggleMenuItem("Show IDE Stacks In Lists", gREVShowStacks) & return after tView
+   -- The preference, which revIDEToggleShowIDEStacksInLists toggles
+   -- (HyperXTalk 084195cbe)
+   put toggleMenuItem("Show IDE Stacks In Lists", revIDEGetPreference("cShowRevolutionStacks") is true) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Show &Invisible Objects" , the showInvisibles) & return after tView
    tApplyGridSetting  --tp 24-1, ensure grid setting is correct in menu, a custom prop
