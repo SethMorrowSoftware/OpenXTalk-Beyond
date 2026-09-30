@@ -221,6 +221,9 @@ def _l(r, g, b):
 #                            to 30% and 70% to 90% along it) has a median L
 #                            below t on either side, and at least n pixels in
 #                            the middle are at least l (the thumb)
+#   ('pdf_no_fill', v, tol)  a PDF: no grey fill colour of v (within tol) in its
+#                            content streams (the "r g b rg" and "g" operators
+#                            the PDF printer writes)
 #   ('progress', t, d)       a progress bar at 50%: inside its outline, the
 #                            right quarter (the track) has a mean L below t
 #                            and the left quarter (the chunk) differs from it
@@ -286,6 +289,8 @@ EXPECT = {
     's9-slider': {'dark': [('slider', 110, 150, 30)]},
     's9-progress': {'dark': [('progress', 90, 40)]},
     's9-arrows': {'dark': [('interior_max_l', 90)]},
+    # S11, printing: never the dark background (32,32,32 is 0.1255 in PDF)
+    's11': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
 }
 
 # Where a failing label is drawn, by the render test's names. The buttons and
@@ -1289,6 +1294,58 @@ def check_progress(report, name, rows, w, h, track_max, distance, image):
                                                          track_max, distance))
 
 
+def pdf_fill_colours(data):
+    """The fill colours of a PDF's content streams (FlateDecode or plain), as
+    lists of numbers: those of "r g b rg" and "v g" operators."""
+    import re
+    colours = []
+    streams = []
+    for m in re.finditer(br'stream\r?\n', data):
+        start = m.end()
+        end = data.find(b'endstream', start)
+        if end < 0:
+            continue
+        raw = data[start:end]
+        try:
+            streams.append(zlib.decompress(raw))
+        except zlib.error:
+            streams.append(raw)
+    number = br'(-?\d*\.?\d+)'
+    for s in streams:
+        for m in re.finditer(number + br'\s+' + number + br'\s+' + number + br'\s+rg\b', s):
+            colours.append([float(v) for v in m.groups()])
+        for m in re.finditer(br'(?<![\d.])' + number + br'\s+g\b', s):
+            colours.append([float(m.group(1))])
+    return colours
+
+
+def check_pdf(report, folder, name, pdf):
+    wanted = expected_checks(name, report.mode)
+    if not wanted:
+        return
+    try:
+        with open(os.path.join(folder, pdf), 'rb') as f:
+            data = f.read()
+    except (IOError, OSError) as e:
+        report.check(name + ' printed', False, 'cannot read %s: %s' % (pdf, e))
+        return
+    colours = pdf_fill_colours(data)
+    for want in wanted:
+        if want[0] != 'pdf_no_fill':
+            continue
+        value, tolerance = want[1], want[2]
+        if not colours:
+            # Not a failure: the checks cannot tell (another PDF writer)
+            report.check(name + ' printed', True, 'no fill colour operators found in %s (%d bytes); recorded only'
+                         % (pdf, len(data)))
+            continue
+        dark = [c for c in colours if all(abs(v - value) <= tolerance for v in c)]
+        ok = not dark
+        report.check(name + ' printed', ok, '%d fill colours in %s, %d of them %.4f (the dark background)%s' % (
+            len(colours), pdf, len(dark), value, '' if ok else ', FAILED: printing must be light; see '
+            'MCPrinter::DoPrint in engine/src/printer.cpp and MCObject::isdarkappearance'))
+
+
 def check_appearance_info(report, info, system):
     """The systemAppearance and the appAppearance the run reports."""
     appearance = info.get('systemAppearance', '')
@@ -1364,6 +1421,8 @@ def run(mode, folder, system=None, label=None):
             check_face(report, folder, name, shot[2], shot[3])
         elif kind == 'region' and len(shot) >= 4:
             check_region(report, folder, name, shot[2], parse_region(shot[3]))
+        elif kind == 'pdf' and len(shot) >= 3:
+            check_pdf(report, folder, name, shot[2])
     if not shots:
         report.check('images', False, 'render.txt lists no images')
 
@@ -1650,6 +1709,10 @@ SELF_TEST_EXPECT = {
     'st-slider-light': {'*': [('slider', 110, 150, 30)]},
     'st-progress-dark': {'*': [('progress', 90, 40)]},
     'st-progress-light': {'*': [('progress', 90, 40)]},
+    'st-pdf-light': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-dark': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-grey': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
+    'st-pdf-none': {'*': [('pdf_no_fill', 32 / 255.0, 0.004)]},
 }
 
 
@@ -1804,6 +1867,14 @@ def self_test(folder):
             write_png(os.path.join(path, 'st-slider-light.png'), _slider(accent, (200, 200, 200), (0, 120, 215)))
             write_png(os.path.join(path, 'st-progress-dark.png'), _progress((43, 43, 43), accent))
             write_png(os.path.join(path, 'st-progress-light.png'), _progress((230, 230, 230), (6, 176, 37)))
+            for pdf, content in (('st-pdf-light', b'q 0.941176 0.941176 0.941176 rg 0 0 100 100 re f 0 g Q'),
+                                 ('st-pdf-dark', b'q 0.12549 0.12549 0.12549 rg 0 0 100 100 re f 1 1 1 rg Q'),
+                                 ('st-pdf-grey', b'q 0.12549 g 0 0 100 100 re f Q'),
+                                 ('st-pdf-none', b'q 0 0 100 100 re f Q')):
+                body = zlib.compress(content)
+                with open(os.path.join(path, pdf + '.pdf'), 'wb') as f:
+                    f.write(b'%PDF-1.5\n3 0 obj\n<< /Length ' + str(len(body)).encode() +
+                            b' /Filter /FlateDecode >>\nstream\n' + body + b'\nendstream\nendobj\n%%EOF\n')
             with open(os.path.join(path, 'render.txt'), 'w', encoding='utf-8', newline='\n') as f:
                 f.write('INFO\tlookAndFeel\tAppearance Manager\n')
                 f.write('INFO\tsystemAppearance\t%s\n' % mode)
@@ -1829,6 +1900,8 @@ def self_test(folder):
                     f.write('SHOT\tface\t%s\t%s.png\tst-slider-bare.png\n' % (shot, shot))
                 for shot in ('st-progress-dark', 'st-progress-light'):
                     f.write('SHOT\tregion\t%s\t%s.png\t0,0,60,16\n' % (shot, shot))
+                for shot in ('st-pdf-light', 'st-pdf-dark', 'st-pdf-grey', 'st-pdf-none'):
+                    f.write('SHOT\tpdf\t%s\t%s.pdf\n' % (shot, shot))
                 f.write('SHOT\tlabel\tflat\tflat.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tdouble\tdouble.png\tnone.png\tenabled.png\tnone.png\n')
                 f.write('SHOT\tlabel\tengraved\tengraved.png\tnone.png\n')
@@ -1924,6 +1997,10 @@ def self_test(folder):
             expect('st-slider-light slider', False)
             expect('st-progress-dark progress', True)
             expect('st-progress-light progress', False)
+            expect('st-pdf-light printed', True)
+            expect('st-pdf-dark printed', False)
+            expect('st-pdf-grey printed', False)
+            expect('st-pdf-none printed', True)
 
         count, compare_failures = _self_test_compare(folder)
         expectations.extend([('compare', None, None)] * count)

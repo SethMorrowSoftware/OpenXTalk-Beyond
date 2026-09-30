@@ -43,6 +43,8 @@ script "oxt_render_test"
 --           (normal, pressed, default, disabled), an option menu, a combo
 --           box, tabs, a field frame, a group frame, a slider, a progress
 --           bar and little arrows
+--    s11    a stack with no colours printed to a PDF file (s11.pdf), which
+--           must be light in every appearance
 --    screen 8x8 pixels of the screen, taken after a window was opened: that
 --           used to crash the engine
 --
@@ -77,6 +79,7 @@ script "oxt_render_test"
 --    SHOT   text <name> <image> <the same without the text>
 --    SHOT   face <name> <image> <the same with the control hidden>
 --    SHOT   region <name> <image> <x,y,width,height in the image>
+--    SHOT   pdf <name> <PDF file>
 --    ERROR  <where> <message>
 -- and ends with "INFO done true" when every image was written. What is
 -- checked for each text, face and region is in render_check.py, by name.
@@ -123,6 +126,7 @@ on startup
       if sHasAppearance then
          renderUnstyled "s8-dark", "dark"
          renderUnstyled "s8-light", "light"
+         printUnstyled
          -- The release before this change crashes here (w32dcs.cpp)
          screenSnapshot
       end if
@@ -796,6 +800,27 @@ private command renderButtonColours
    set the label of tObject to "Dark"
    shootName tStack, tObject, "s7-dark"
 end renderButtonColours
+
+-- S11: printing is light in every appearance (engine/src/printer.cpp): a
+-- stack with no colours, printed to a PDF file
+private command printUnstyled
+   local tStack, tObject, tFile
+   put "oxt_render_s11" into tStack
+   newScenarioStack tStack, 400, 300
+   put newTextField("field", "20,20,220,60", "Printed") into tObject
+   create button "check"
+   set the style of it to "checkbox"
+   set the rect of it to 20,80,200,106
+   set the label of it to "Checkbox"
+   put sOut & "/s11.pdf" into tFile
+   open printing to pdf tFile
+   print card 1 of stack tStack
+   close printing
+   if there is not a file tFile then
+      throw "print to pdf wrote no file s11.pdf (the result: " & the result & ")"
+   end if
+   addRecord "SHOT", "pdf", "s11", "s11.pdf"
+end printUnstyled
 
 -- A button of the given style with large bold text and a label
 private function newButton pName, pStyle, pRect, pLabel
