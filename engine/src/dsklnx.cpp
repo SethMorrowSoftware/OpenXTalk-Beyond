@@ -73,6 +73,26 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include <syslog.h>
 
+// g_get_user_special_dir and GUserDirectory are GLib 2.14. The GLib headers
+// the engine builds with (thirdparty/headers/linux, GLib 2.10) do not declare
+// them; linux.stubs loads the function from the system's GLib at run time,
+// and every distribution the engine runs on has 2.14 or later.
+#if !GLIB_CHECK_VERSION(2, 14, 0)
+typedef enum
+{
+    G_USER_DIRECTORY_DESKTOP,
+    G_USER_DIRECTORY_DOCUMENTS,
+    G_USER_DIRECTORY_DOWNLOAD,
+    G_USER_DIRECTORY_MUSIC,
+    G_USER_DIRECTORY_PICTURES,
+    G_USER_DIRECTORY_PUBLIC_SHARE,
+    G_USER_DIRECTORY_TEMPLATES,
+    G_USER_DIRECTORY_VIDEOS,
+    G_USER_N_DIRECTORIES
+} GUserDirectory;
+extern "C" const gchar *g_get_user_special_dir(GUserDirectory directory);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // This is in here so we do not need GLIBC2.4
