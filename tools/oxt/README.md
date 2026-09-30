@@ -340,12 +340,30 @@ disagree, the layout follows the IDE:
   (revsblibrary `revEngineCheck`/`revSBEnginePath`, revsaveasstandalone):
   `Runtime/Mac OS X/x86-64/Standalone.app` and
   `x64-ARM64/Standalone-blank.app` (the engines deployed for the Intel and
-  the Apple Silicon target, each with `Support/` and `Externals/`), and
+  the Apple Silicon target, each with `Support/` and `Externals/`; the
+  Apple Silicon target reads its externals from `arm64/`, below), and
   `x86-32/Standalone.app`, which is only looked at but must exist: it
   enables the Intel target and every Mac standalone takes its icons from
   it. Each is the build's `Standalone-Community.app` (the executable keeps
-  its name, which revSBEnginePath expects). `mac-universal` has all three;
-  `mac-arm64` and `mac-x86_64` only their own and `x86-32`.
+  its name, which revSBEnginePath expects). `Runtime/Mac OS X/arm64` holds
+  only `Externals/` (with `Externals.txt` and `Database Drivers/`): for the
+  Apple Silicon target `revStandalonePlatformDetails` takes `Support` from
+  `x64-ARM64` but passes the architecture `arm64`, and `revExternalPath`
+  and `revDBDriverPath` then read `Mac OS X/arm64/Externals`. Without it
+  the standalone gets no revXML, revZip, revDB, revBrowser, revSpeech or
+  database driver, and the builder only warns. `x64-ARM64/Externals`
+  stays, because `revStandaloneDatabaseDriversPath` warns when the target
+  folder's `Externals` is missing. `x86-32` has no `Externals`: its target
+  cannot build (the engine has no i386 slice, and the IDE disables it on
+  macOS 12 and later). `mac-universal` has all four; `mac-arm64` has
+  `x64-ARM64`, `arm64` and `x86-32`; `mac-x86_64` has `x86-64` and
+  `x86-32`. A test of the Mac package must therefore build a standalone
+  for the `MacOSX x64-ARM64` target (what the standalone settings'
+  `MacOS-IntelArmUniversal` button selects) with revXML and the SQLite driver, check that
+  `Contents/MacOS/Externals/revxml.bundle` and
+  `Contents/MacOS/Externals/database_drivers/dbsqlite.bundle` are in it,
+  and fail on any builder warning (`revStandaloneGetWarnings`): an app
+  without externals builds whether or not the folder exists.
 * **Linux CEF helpers where the code starts them:** `revbrowser-cefprocess`
   in `Externals/CEF` (cefbrowser.cpp starts it from the libcef folder) and
   `libbrowser-cefprocess` next to the engine (libbrowser_cef.cpp, Linux:
@@ -367,7 +385,7 @@ disagree, the layout follows the IDE:
 | CEF (x86_64 only) | `Externals/CEF/` (libcef.so, libEGL.so, libGLESv2.so, the `.pak`, `.dat` and `.bin` files, `swiftshader/`, `locales/`, `revbrowser-cefprocess`), `libbrowser-cefprocess` at the root | none (revbrowser uses WebKit) |
 | mobile | `Externals/revandroid.so` | `Externals/reviphone.bundle`, `revandroid.bundle` |
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
-| standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | the three `Runtime/Mac OS X/` folders above |
+| standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
 | `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,

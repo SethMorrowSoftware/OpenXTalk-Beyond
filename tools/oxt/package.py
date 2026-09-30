@@ -247,9 +247,10 @@ class Platform(object):
                            engine's folder; helpers_at_runtime: from the
                            build root into a runtime folder's root)
       runtimes             dicts: folder, standalone (build output,
-                           installed name), files (at the folder's root),
-                           support (into Support/), externals (bool: the
-                           Externals component)
+                           installed name; None for a folder without an
+                           engine), files (at the folder's root), support
+                           (into Support/), externals (bool: the Externals
+                           component)
       not_installed        (pattern, reason) for build outputs left out
       ide_include          layout.MANAGED_EXCLUDE prefixes staged too
       elf_arch, mac_archs  what the engine binaries must be built for
@@ -405,11 +406,35 @@ def _linux(arch):
 
 # The macOS runtime folders, as the IDE's standalone builder uses them
 # (revsblibrary revEngineCheck and revSBEnginePath, revsaveasstandalone
-# revStandalonePlatformDetails and revSaveAsMacStandalone): x86-64 and
-# x64-ARM64 are the engines deployed for the Intel and the Apple Silicon
-# target, with their Support and Externals folders; x86-32/Standalone.app
-# is only looked at, but must exist: it enables the Intel target, and every
-# Mac standalone gets its icons (Contents/Resources/Standalone*.icns).
+# revStandalonePlatformDetails and revSaveAsMacStandalone):
+#
+#   x86-64, x64-ARM64  the engines deployed for the Intel and the Apple
+#                      Silicon target, with their Support folders (and
+#                      Externals; see below).
+#   arm64              only an Externals folder. For the Apple Silicon
+#                      target revStandalonePlatformDetails takes Support
+#                      from "Mac OS X/x64-ARM64" but passes the
+#                      architecture "arm64", and revExternalPath and
+#                      revDBDriverPath (revbackscriptlibrary) then read
+#                      Mac OS X/arm64/Externals/Externals.txt and
+#                      .../Database Drivers/Database Drivers.txt: without
+#                      this folder an Apple Silicon standalone gets no
+#                      revXML, revZip, revDB, revBrowser, revSpeech or
+#                      database driver, and the builder only warns (so a
+#                      test app without externals cannot catch it; see
+#                      the README). x64-ARM64/Externals stays too, because
+#                      revStandaloneDatabaseDriversPath warns when the
+#                      target folder's Externals is missing. The copy costs
+#                      about 4.5 MB per architecture; a symbolic link to
+#                      x64-ARM64 would save it, but every later step
+#                      (--compare, the zip and the DMG, codesign) would
+#                      have to handle a linked folder.
+#   x86-32             only looked at, but it must exist: it enables the
+#                      Intel target, and every Mac standalone gets its icons
+#                      from it (Contents/Resources/Standalone*.icns). It
+#                      has no Externals, because its target cannot build:
+#                      the engine has no i386 slice, and the IDE disables
+#                      the target on macOS 12 and later.
 MAC_RUNTIMES = collections.OrderedDict([
     ('x86-64', dict(folder='Runtime/Mac OS X/x86-64',
                     standalone=('Standalone-Community.app', 'Standalone.app'),
@@ -417,6 +442,8 @@ MAC_RUNTIMES = collections.OrderedDict([
     ('x64-ARM64', dict(folder='Runtime/Mac OS X/x64-ARM64',
                        standalone=('Standalone-Community.app', 'Standalone-blank.app'),
                        files=(), support=('revpdfprinter.bundle', 'revsecurity.dylib'), externals=True)),
+    ('arm64', dict(folder='Runtime/Mac OS X/arm64', standalone=None,
+                   files=(), support=(), externals=True)),
     ('x86-32', dict(folder='Runtime/Mac OS X/x86-32',
                     standalone=('Standalone-Community.app', 'Standalone.app'),
                     files=(), support=(), externals=False)),
@@ -427,12 +454,13 @@ def _mac(arch):
     """package.txt TargetPlatform MacOSX, with the IDE under
     OXT-Beyond.app/Contents/Tools. arch 'universal' is the release layout;
     'arm64' and 'x86_64' stage one architecture's build, with only its own
-    runtime folder (and x86-32, whose Standalone.app the IDE needs for the
+    runtime folders (arm64: x64-ARM64 and its arm64 Externals; see
+    MAC_RUNTIMES) and x86-32, whose Standalone.app the IDE needs for the
     icons; with a single-architecture layout the Intel target is offered
-    but fails without x86-64/Standalone.app)."""
+    but fails without x86-64/Standalone.app."""
     app = PRODUCT + '.app'
-    folders = {'universal': ('x86-64', 'x64-ARM64', 'x86-32'),
-               'arm64': ('x64-ARM64', 'x86-32'),
+    folders = {'universal': ('x86-64', 'x64-ARM64', 'arm64', 'x86-32'),
+               'arm64': ('x64-ARM64', 'arm64', 'x86-32'),
                'x86_64': ('x86-64', 'x86-32')}[arch]
     return Platform(
         'mac-' + arch, 'mac', arch,
@@ -741,8 +769,9 @@ def plan_build(pl):
     # Runtime.<platform> (Windows Sample Icons come from the IDE part)
     for r in p.runtimes:
         folder = tools + r['folder'] + '/'
-        rel, name = r['standalone']
-        pl.output(folder + name, rel, 'Runtime.%s (%s as %s)' % (p.component, rel, name))
+        if r['standalone']:     # None: a folder with only Externals (macOS arm64)
+            rel, name = r['standalone']
+            pl.output(folder + name, rel, 'Runtime.%s (%s as %s)' % (p.component, rel, name))
         for f in r['files']:
             pl.file(folder + f, f, 'Runtime.' + p.component)
         for f in r['support']:
