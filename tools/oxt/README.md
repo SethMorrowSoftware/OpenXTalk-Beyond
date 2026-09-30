@@ -8,7 +8,7 @@ build container has 3.8) and run on Windows, Linux and macOS.
 | `layout.py` | maps an installed OpenXTalk Lite (or stock LiveCode 9.x) Windows program folder to this repository's layout and back: imports an OXT Lite IDE into `ide/` and `ide-support/` and checks an import |
 | `package.py` | stages the installed layout of OXT-Beyond for Windows, Linux or macOS from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
 | `package_dist.py` | writes the platform's distribution archives (portable zip, tar.xz or app zip; binaries; symbols) and `SHA256SUMS` from a staged layout (see [Distribution archives](#distribution-archives-package_distpy)) |
-| `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform) |
+| `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform, and by `tools/ci/check_native_deps.py` and `tools/ci/run_livecode_check.py`) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
