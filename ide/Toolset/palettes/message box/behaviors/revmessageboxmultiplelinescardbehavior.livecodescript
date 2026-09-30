@@ -70,7 +70,25 @@ end mouseUp
 
 on mouseRelease
    put false into lMoving
+   # A drag released away from the control it started on (in the other
+   # field, or outside the palette) ends here, not in mouseUp
+   set the lockText of field "Script" to false
+   set the lockText of field "results" to false
 end mouseRelease
+
+on mouseLeave
+   # Only when the pointer has really left the Message Box: moving between the
+   # fields and the divider line also sends mouseLeave, after the mouseMove
+   # that locked them. The divider band spans the whole width, so the pointer
+   # can leave the palette straight from it, and the Script field keeps the
+   # keyboard focus: left locked, it would drop everything typed
+   if lMoving is not true and the mouseLoc is not within the rect of this card then
+      unlock cursor
+      set the lockText of field "Script" to false
+      set the lockText of field "results" to false
+   end if
+   pass mouseLeave
+end mouseLeave
 
 on mouseMove pMouseH, pMouseV
    local tLineYLoc
