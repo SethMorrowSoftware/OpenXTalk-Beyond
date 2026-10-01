@@ -921,7 +921,9 @@ void MCLibVLCPlayer::SetCurrentTime(MCPlatformPlayerDuration p_time)
 
 	if (m_state == kMCLibVLCPlayerPlaying)
 	{
+		// A backwards seek must not look like the media wrapping around.
 		m_position = p_time;
+		m_last_tick_time = p_time;
 		s_libvlc.libvlc_media_player_set_time(m_player, (libvlc_time_t)p_time);
 		return;
 	}
