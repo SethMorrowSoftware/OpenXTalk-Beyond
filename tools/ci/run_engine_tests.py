@@ -400,14 +400,16 @@ def run_test_process(cmd, tests_dir, env, timeout):
 
 def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs):
     """Run one test (a process that prints TAP) and return its Result. A
-    failure that is not known is run again (--retries): one that passes
-    then is reported as flaky, with the first run's output, and does not
-    fail the check. A crash that stays is run under a debugger."""
+    failure that is not known, unless the test ran out of time, is run
+    again (--retries): one that passes then is reported as flaky, with the
+    first run's output, and does not fail the check. A crash that stays is
+    run under a debugger."""
     status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
     counts, failures = analyse_tap(text)
     outcome = worst(counts)
     flaky = None
-    if outcome == 'fail' and '%s: %s' % (suite, ident) not in known:
+    # (not one that ran out of time: that would most likely take as long again)
+    if outcome == 'fail' and status is not None and '%s: %s' % (suite, ident) not in known:
         first = (text, details, failures)
         for _ in range(args.retries):
             status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
