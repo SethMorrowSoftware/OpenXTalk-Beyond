@@ -438,6 +438,8 @@ private:
 	bool m_want_play;
 	bool m_muted;
 	uint32_t m_unmute_ticks;
+	uint32_t m_first_frame_ticks;
+	uint32_t m_first_frame_attempts;
 
 	double m_rate;
 	uint16_t m_volume;
@@ -558,6 +560,8 @@ MCLibVLCPlayer::MCLibVLCPlayer(void)
 	m_want_play = false;
 	m_muted = false;
 	m_unmute_ticks = 0;
+	m_first_frame_ticks = 0;
+	m_first_frame_attempts = 0;
 
 	m_rate = 1.0;
 	m_volume = 100;
@@ -768,6 +772,8 @@ void MCLibVLCPlayer::Close(void)
 	m_want_play = false;
 	m_muted = false;
 	m_unmute_ticks = 0;
+	m_first_frame_ticks = 0;
+	m_first_frame_attempts = 0;
 	m_last_marker = -1;
 
 	m_deliver_frames.store(false);
@@ -1017,9 +1023,12 @@ void MCLibVLCPlayer::HandleEvent(int p_type)
 		{
 			if (m_position == 0)
 			{
-				// One frame step shows the first picture without sound.
+				// A frame step shows the first picture without sound, but
+				// one made as soon as the input pauses is ignored, so the
+				// timer makes it (HandleTimer).
 				m_scrubbing.store(true);
-				s_libvlc.libvlc_media_player_next_frame(m_player);
+				m_first_frame_ticks = 2;
+				m_first_frame_attempts = 0;
 			}
 			else
 				ShowFrameAt(m_position);
@@ -1079,6 +1088,23 @@ void MCLibVLCPlayer::HandleTimer(void)
 
 	if (m_unmute_ticks > 0 && --m_unmute_ticks == 0 && !m_scrubbing.load())
 		Mute(false);
+
+	// Show the first picture after loading: step a frame, and if no picture
+	// comes, try again, then fall back to a muted scrub to the start.
+	if (m_first_frame_ticks > 0 && --m_first_frame_ticks == 0 &&
+		m_scrubbing.load() && m_state != kMCLibVLCPlayerPlaying && GetLibVLCState() == kLibVLCStatePaused)
+	{
+		if (m_first_frame_attempts++ < 3)
+		{
+			s_libvlc.libvlc_media_player_next_frame(m_player);
+			m_first_frame_ticks = 5;
+		}
+		else
+		{
+			m_scrubbing.store(false);
+			ShowFrameAt(m_position);
+		}
+	}
 
 	if (m_state != kMCLibVLCPlayerPlaying || m_prime != kMCLibVLCPrimeNone)
 		return;
