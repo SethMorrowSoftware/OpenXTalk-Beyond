@@ -213,9 +213,14 @@ void MCPlatformCreatePlayer(bool dontuseqt, MCPlatformPlayerRef& r_player)
 #ifdef TARGET_PLATFORM_WINDOWS
 class MCWin32DSPlayer;
 extern MCWin32DSPlayer *MCWin32DSPlayerCreate(void);
+// Returns nil when libVLC 3 cannot be loaded, or when the environment variable
+// OXT_PLAYER_BACKEND is "directshow" (vlc-player.cpp).
+extern MCPlatformPlayer *MCLibVLCPlayerCreate(void);
 void MCPlatformCreatePlayer(bool dontuseqt, MCPlatformPlayerRef &r_player)
 {
-	r_player = (MCPlatformPlayerRef)MCWin32DSPlayerCreate();
+	r_player = MCLibVLCPlayerCreate();
+	if (r_player == nil)
+		r_player = (MCPlatformPlayerRef)MCWin32DSPlayerCreate();
 }
 #endif
 

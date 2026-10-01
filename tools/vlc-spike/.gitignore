@@ -1,0 +1,5 @@
+*.exe
+*.obj
+*.bmp
+vlcspike
+out/
