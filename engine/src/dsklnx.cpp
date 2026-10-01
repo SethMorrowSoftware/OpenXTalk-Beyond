@@ -1424,14 +1424,26 @@ public:
             if (!MCStringFirstIndexOfChar(p_path, '/', 0, kMCStringOptionCompareExact, t_user_end))
                 t_user_end = MCStringGetLength(p_path);
 
-            // Prepend user name
-            struct passwd *t_password;
+            // Prepend the home folder: for "~" alone $HOME, as a shell does
+            // (in a container, or when a launcher or a script sets it, it
+            // need not be the user's entry in the password database), and
+            // for "~name" that user's.
+            MCAutoStringRef t_pw_dir;
+            struct passwd *t_password = NULL;
             if (t_user_end == 1)
-                t_password = getpwuid(getuid());
+            {
+                const char *t_home = getenv("HOME");
+                if (t_home != NULL && *t_home != '\0')
+                    /* UNCHECKED */ MCStringCreateWithSysString(t_home, &t_pw_dir);
+                else
+                    t_password = getpwuid(getuid());
+            }
             else
             {
+                // The name ends before the slash ("~name/folder" used to look
+                // up the user "name/", so it never resolved).
                 MCAutoStringRef t_username;
-                if (!MCStringCopySubstring(p_path, MCRangeMake(1, t_user_end), &t_username))
+                if (!MCStringCopySubstring(p_path, MCRangeMakeMinMax(1, t_user_end), &t_username))
                     return false;
 
                 MCAutoStringRefAsSysString t_username_sys;
@@ -1440,11 +1452,11 @@ public:
                 t_password = getpwnam(*t_username_sys);
             }
 
-            if (t_password != NULL)
-            {
-                MCAutoStringRef t_pw_dir;
+            if (*t_pw_dir == nil && t_password != NULL)
                 /* UNCHECKED */ MCStringCreateWithSysString(t_password->pw_dir, &t_pw_dir);
 
+            if (*t_pw_dir != nil)
+            {
                 if (!MCStringCreateMutable(0, &t_tilde_path) ||
                     !MCStringAppend(*t_tilde_path, *t_pw_dir) ||
                     !MCStringAppendSubstring(*t_tilde_path, p_path, MCRangeMakeMinMax(t_user_end, MCStringGetLength(p_path))))
