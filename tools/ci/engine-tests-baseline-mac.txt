@@ -10,22 +10,3 @@
 ? lcs: ext/ext-urls: TestMergExtURL
 ? lcs: ext/ext-urls: TestTSNetURL
 
-# The engine's Java support ("Could not initialise Java Runtime
-# Environment"): it loads $JAVA_HOME/jre/lib/jli/libjli.dylib, where only
-# Java 8 has it (Java 9 and later: $JAVA_HOME/lib), and the runners have
-# Java 11 to 21. These tests run on macOS only.
-lcs: extensions/libraries/javatest/tests/java: TestLoadJar
-lcb: lcb/stdlib/java: TestBindingStringObjectTypeInMiddle
-lcb: lcb/stdlib/java: TestCallInstanceMethod
-lcb: lcb/stdlib/java: TestCallStaticMethod
-lcb: lcb/stdlib/java: TestCreateCurrencyWithCode
-lcb: lcb/stdlib/java: TestCreateJObject
-lcb: lcb/stdlib/java: TestCreateJString
-lcb: lcb/stdlib/java: TestDefaultLocaleDisplayName
-lcb: lcb/stdlib/java: TestGetConstant
-lcb: lcb/stdlib/java: TestNativeTypeAfterObjectType
-lcb: lcb/stdlib/java: TestNullJObjectParam
-lcb: lcb/stdlib/java: TestNullJObjectReturn
-lcb: lcb/stdlib/java: TestRoundTripJByteArray
-lcb: lcb/stdlib/java: TestRoundTripJString
-lcb: lcb/vm/foreign-binding: TestForeignBinding_Java

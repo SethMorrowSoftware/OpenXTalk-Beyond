@@ -232,7 +232,13 @@ MCDataRef MCLinuxRawClipboard::EncodeFileListForTransfer(MCStringRef p_list) con
             return NULL;
         if (!MCStringFindAndReplace(*t_fixed_path, MCSTR("%2F"), MCSTR("/"), kMCStringOptionCompareExact))
             return NULL;
-        
+
+        // It is also form encoding, which writes a space as "+" (and a "+"
+        // as "%2B"); in a URI "+" is itself, so other programs got
+        // "my+file.txt" for "my file.txt". Every "+" left was a space.
+        if (!MCStringFindAndReplace(*t_fixed_path, MCSTR("+"), MCSTR("%20"), kMCStringOptionCompareExact))
+            return NULL;
+
         // Build up the modified path. The XDND protocol specifies that paths
         // are given as fully-qualified URLs but, in practice, a large number
         // of apps elide the hostname. We do that here for simplicity.
@@ -260,9 +266,15 @@ MCStringRef MCLinuxRawClipboard::DecodeTransferredFileList(MCDataRef p_data) con
     if (!MCStringCreateWithBytes(MCDataGetBytePtr(p_data), MCDataGetLength(p_data), kMCStringEncodingNative, false, &t_encoded_string))
         return NULL;
     
-    // URL-decode the string and convert from UTF-8
+    // URL-decode the string and convert from UTF-8. The decoder is a form
+    // decoder, which reads "+" as a space, but in a URI "+" is itself (a
+    // file "a+b.txt" from another program arrived as "a b.txt"): keep it.
+    MCAutoStringRef t_uri_string;
+    if (!MCStringMutableCopy(*t_encoded_string, &t_uri_string) ||
+        !MCStringFindAndReplace(*t_uri_string, MCSTR("+"), MCSTR("%2B"), kMCStringOptionCompareExact))
+        return NULL;
     MCAutoStringRef t_string;
-    MCU_urldecode(*t_encoded_string, true, &t_string);
+    MCU_urldecode(*t_uri_string, true, &t_string);
     
     // Split the string on CRLF sequences
     MCAutoArrayRef t_uri_list;
@@ -300,7 +312,10 @@ MCStringRef MCLinuxRawClipboard::DecodeTransferredFileList(MCDataRef p_data) con
             uindex_t t_end;
             if (!MCStringFirstIndexOfChar(*t_modified_path, '/', 7, kMCStringOptionCompareExact, t_end))
                 return NULL;
-            MCStringRemove(*t_modified_path, MCRangeMake(0, t_end-1));
+            // Remove everything before that slash, which starts the path
+            // (removing t_end-1 chars left the hostname's last letter in
+            // front of it: "file://host/x" became "t/x")
+            MCStringRemove(*t_modified_path, MCRangeMake(0, t_end));
         }
         
         // Append to the list

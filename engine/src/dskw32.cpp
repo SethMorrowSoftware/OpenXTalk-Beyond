@@ -196,10 +196,49 @@ Boolean wsainit()
 				sockethwnd = CreateWindowA(MC_WIN_CLASS_NAME, "MCsocket", WS_POPUP, 0, 0,
 										   8, 8, NULL, NULL, MChInst, NULL);
 #endif
+			// Without a user interface (-ui, and the server engine) the sockets
+			// signal this event (WSAEventSelect) instead of sending messages
+			// to sockethwnd, and Poll waits for it. Creating it was lost when
+			// w32spec.cpp was removed in 2016: since then WSAEventSelect failed
+			// on its NULL handle, so accept connections never listened.
+			if (MCnoui && g_socket_wakeup == NULL)
+				g_socket_wakeup = CreateEvent(NULL, FALSE, FALSE, NULL);
 		}
 	}
 	MCS_seterrno(0);
 	return wsainited;
+}
+
+// Whether any socket of the sets is ready now (a select() that does not wait,
+// on copies, as select() changes the sets it is given).
+static bool MCWindowsSocketsReady(const fd_set& p_read, const fd_set& p_write, const fd_set& p_except)
+{
+	fd_set t_read = p_read, t_write = p_write, t_except = p_except;
+	struct timeval t_no_wait = {0, 0};
+	return select(0, &t_read, &t_write, &t_except, &t_no_wait) > 0;
+}
+
+// Wait at most p_delay seconds for the notify module's event (set when
+// another thread pushes a notification, for example when shell() has read
+// a command's output) or the sockets' event.
+static void MCWindowsWaitForWakeup(real8 p_delay)
+{
+	extern HANDLE g_notify_wakeup;
+	HANDLE t_handles[2];
+	DWORD t_count = 0;
+	if (g_notify_wakeup != NULL)
+		t_handles[t_count++] = g_notify_wakeup;
+	if (g_socket_wakeup != NULL)
+		t_handles[t_count++] = g_socket_wakeup;
+
+	// Whole milliseconds, rounded up so that a short wait still waits; a
+	// wait of INFINITE would never end.
+	real8 t_milliseconds = ceil(p_delay * 1000.0);
+	DWORD t_timeout = t_milliseconds < (real8)(INFINITE - 1) ? (DWORD)t_milliseconds : INFINITE - 1;
+	if (t_count != 0)
+		WaitForMultipleObjects(t_count, t_handles, FALSE, t_timeout);
+	else
+		Sleep(t_timeout);
 }
 
 static bool read_blob_from_pipe(HANDLE p_pipe, void*& r_data, uint32_t& r_data_length)
@@ -3509,6 +3548,24 @@ cleanup:
         handled = MCSocketsAddToFileDescriptorSets(maxfd, rmaskfd, wmaskfd, emaskfd);
         if (handled)
             p_delay = 0.0;
+
+		// Poll is the wait of MCUIDC::wait, which runs without a user
+		// interface (-ui, and the server engine). select() cannot do that
+		// waiting on Windows: it fails at once (WSAEINVAL) when no socket is
+		// open, so every wait used to spin a processor for its whole length.
+		// Wait for the notify or the socket event instead, unless a socket is
+		// ready already, and then poll the sockets without waiting, as
+		// MCS_poll did before w32spec.cpp was removed in 2016.
+		bool t_have_sockets = rmaskfd.fd_count != 0 || wmaskfd.fd_count != 0 || emaskfd.fd_count != 0;
+		if (MCnoui)
+		{
+			if (p_delay > 0.0 && !(t_have_sockets && MCWindowsSocketsReady(rmaskfd, wmaskfd, emaskfd)))
+				MCWindowsWaitForWakeup(p_delay);
+			p_delay = 0.0;
+		}
+		if (!t_have_sockets)
+			return handled;
+
 		struct timeval timeoutval;
 		timeoutval.tv_sec = (long)p_delay;
 		timeoutval.tv_usec = (long)((p_delay - floor(p_delay)) * 1000000.0);

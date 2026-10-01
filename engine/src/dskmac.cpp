@@ -3845,10 +3845,21 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
             if (!MCStringFirstIndexOfChar(p_path, '/', 0, kMCStringOptionCompareExact, t_user_end))
                 t_user_end = MCStringGetLength(p_path);
             
-            // Prepend user name
-            struct passwd *t_password;
+            // Prepend the home folder: for "~" alone $HOME, as a shell does
+            // (it need not be the user's entry in the password database, for
+            // example when a launcher or a script sets it), and for "~name"
+            // that user's. Both are UTF-8 (they were appended as native
+            // chars, which garbled a home folder with non-ASCII letters).
+            const char *t_home = NULL;
             if (t_user_end == 1)
-                t_password = getpwuid(getuid());
+            {
+                t_home = getenv("HOME");
+                if (t_home == NULL || *t_home == '\0')
+                {
+                    struct passwd *t_password = getpwuid(getuid());
+                    t_home = t_password != NULL ? t_password->pw_dir : NULL;
+                }
+            }
             else
             {
                 MCAutoStringRef t_username;
@@ -3856,13 +3867,18 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
                     return false;
                 MCAutoStringRefAsUTF8String t_utf8_username;
                 /* UNCHECKED */ t_utf8_username . Lock(*t_username);
-                t_password = getpwnam(*t_utf8_username);
+                struct passwd *t_password = getpwnam(*t_utf8_username);
+                t_home = t_password != NULL ? t_password->pw_dir : NULL;
             }
-            
-            if (t_password != NULL)
+
+            MCAutoStringRef t_home_path;
+            if (t_home != NULL)
+                /* UNCHECKED */ MCStringCreateWithBytes((const byte_t *)t_home, strlen(t_home), kMCStringEncodingUTF8, false, &t_home_path);
+
+            if (*t_home_path != nil)
             {
                 if (!MCStringCreateMutable(0, &t_tilde_path) ||
-                    !MCStringAppendNativeChars(*t_tilde_path, (char_t*)t_password->pw_dir, MCCStringLength(t_password->pw_dir)) ||
+                    !MCStringAppend(*t_tilde_path, *t_home_path) ||
                     !MCStringAppendSubstring(*t_tilde_path, p_path, MCRangeMakeMinMax(t_user_end, MCStringGetLength(p_path))))
                     return false;
             }

@@ -428,17 +428,21 @@ extern "C" MC_DLLEXPORT_DEF void MCMathEvalSqrtNumber(MCNumberRef p_operand, MCN
 extern "C" MC_DLLEXPORT_DEF void MCMathEvalConvertToBase10(MCStringRef p_operand, integer_t p_source_base, integer_t& r_output)
 {
     if (p_source_base < 2 || p_source_base > 32)
+    {
         MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("source base must be between 2 and 32"), nil);
+        return;
+    }
     
     bool t_negative;
     uinteger_t t_result;
     bool t_error = false;
     if (MCMathConvertToBase10(p_operand, p_source_base, t_negative, t_result, t_error))
     {
-        if ((t_negative && t_result > INTEGER_MAX) || (!t_negative && t_result > abs(INTEGER_MIN)))
+        // An integer_t holds -2^31 to 2^31 - 1.
+        if ((t_negative && t_result > (uinteger_t)INTEGER_MAX + 1) || (!t_negative && t_result > (uinteger_t)INTEGER_MAX))
             MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("integer overflow"), nil);
         else
-            r_output = t_negative ? -t_result : t_result;
+            r_output = t_negative ? (integer_t)-(int64_t)t_result : (integer_t)t_result;
     }
 	else if (t_error)
 	{
@@ -448,12 +452,17 @@ extern "C" MC_DLLEXPORT_DEF void MCMathEvalConvertToBase10(MCStringRef p_operand
 
 extern "C" MC_DLLEXPORT_DEF void MCMathEvalConvertFromBase10(integer_t p_operand, integer_t p_dest_base, MCStringRef& r_output)
 {
+    // A base below 2 makes MCMathConvertFromBase10 divide by zero or loop
+    // forever, so return after throwing.
     if (p_dest_base < 2 || p_dest_base > 32)
+    {
         MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("destination base must be between 2 and 32"), nil);
+        return;
+    }
     
     if (p_operand < 0)
     {
-        if (MCMathConvertFromBase10(-p_operand, true, p_dest_base, r_output))
+        if (MCMathConvertFromBase10((uinteger_t)-(int64_t)p_operand, true, p_dest_base, r_output))
             return;
     }
     else
@@ -469,10 +478,16 @@ extern "C" MC_DLLEXPORT_DEF void MCMathEvalConvertBase(MCStringRef p_operand, in
 {
     
     if (p_source_base < 2 || p_source_base > 32)
+    {
         MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("source base must be between 2 and 32"), nil);
+        return;
+    }
     
     if (p_dest_base < 2 || p_dest_base > 32)
+    {
         MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("destination base must be between 2 and 32"), nil);
+        return;
+    }
     
     bool t_negative;
     uinteger_t t_result;

@@ -1193,6 +1193,7 @@ bool MCWin32DSPlayer::GetVolume(uint16_t &r_volume)
 		return false;
 
 	r_volume = volumeToPercent(t_volume);
+	return true;
 }
 
 bool MCWin32DSPlayer::SetVolume(uint16_t p_volume)

@@ -44,7 +44,9 @@ bool MCMathConvertFromBase10(uint32_t p_value, bool p_negative, integer_t p_dest
 
 bool MCMathConvertToBase10(MCStringRef p_source, integer_t p_source_base, bool& r_negative, uinteger_t& r_result, bool& r_error)
 {
-    uint32_t t_value;
+    // Accumulate in 64 bits so that a number too large for 32 bits is an
+    // error instead of wrapping around (hex 100000000 used to give 0).
+    uint64_t t_value;
     t_value = 0;
     
     bool t_negative;
@@ -96,6 +98,9 @@ bool MCMathConvertToBase10(MCStringRef p_source, integer_t p_source_base, bool& 
         else
             t_error = true;
         
+        if (t_value > UINT32_MAX)
+            t_error = true;
+        
         i += 1;
     }
     
@@ -106,7 +111,7 @@ bool MCMathConvertToBase10(MCStringRef p_source, integer_t p_source_base, bool& 
     }
     
     r_negative = t_negative;
-    r_result = t_value;
+    r_result = (uinteger_t)t_value;
     return true;
 }
 

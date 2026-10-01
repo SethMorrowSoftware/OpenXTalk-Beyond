@@ -1111,9 +1111,13 @@ void MCWidget::GetKind(MCExecContext& ctxt, MCNameRef& r_kind)
 void MCWidget::GetState(MCExecContext& ctxt, MCArrayRef& r_state)
 {
     MCAutoValueRef t_value;
-    if (!m_widget && m_rep)
+    if (m_widget == nil)
     {
-        if (!MCValueCopy(m_rep, &t_value))
+        // A widget whose kind is not loaded has no implementation to ask for
+        // its state: it exports the state it was loaded or imported with.
+        // One created by script (create widget as a kind that is not loaded)
+        // has none, and asking the missing implementation crashed.
+        if (m_rep == nil || !MCValueCopy(m_rep, &t_value))
         {
             r_state = MCValueRetain(kMCEmptyArray);
             return;
@@ -1136,6 +1140,14 @@ void MCWidget::GetState(MCExecContext& ctxt, MCArrayRef& r_state)
         return;
     }
     
+    // A saved state need not be an array (a widget saved without one has
+    // null, an imported one whatever $state held).
+    if (MCValueGetTypeCode(*t_value) != kMCValueTypeCodeArray)
+    {
+        r_state = MCValueRetain(kMCEmptyArray);
+        return;
+    }
+
     r_state = (MCArrayRef)t_value . Take();
 }
 
