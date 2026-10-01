@@ -209,16 +209,14 @@ MCDataRef MCWin32RawClipboardCommon::EncodeFileListForTransfer(MCStringRef p_lis
 	// The list holds LiveCode paths, and the clipboard native ones, which
 	// DecodeTransferredFileList converts back. Without converting them here,
 	// a path set by a script reached other programs with forward slashes and
-	// came back with its slashes swapped ("/a/b" became "\a\b"). The
-	// conversion swaps the slashes char by char, so it can take the whole
-	// list, one path a line.
-	MCAutoStringRef t_native_list;
-	if (!MCS_pathtonative(p_list, &t_native_list))
-		return NULL;
-
-	// Create a mutable copy of the list
+	// came back with its slashes swapped ("/a/b" became "\a\b"). Only the
+	// slashes become backslashes: MCS_pathtonative would also prefix a string
+	// of MAX_PATH chars or more with \\?\ (on the whole list, the first path
+	// only, once the list was that long), and would turn the backslashes of
+	// a path that a script made native already into slashes.
 	MCAutoStringRef t_copy;
-	if (!MCStringMutableCopy(*t_native_list, &t_copy))
+	if (!MCStringMutableCopy(p_list, &t_copy) ||
+		!MCStringFindAndReplaceChar(*t_copy, '/', '\\', kMCStringOptionCompareExact))
 		return NULL;
 
 	// Replace all newlines with NULs

@@ -1259,41 +1259,34 @@ void MCPlayer::freetmp()
 
 MCPlayerDuration MCPlayer::getmovieloadedtime()
 {
-    MCPlayerDuration loadedtime;
+    // The platform player leaves the value untouched if it can't get it, so start from 0.
+    MCPlayerDuration loadedtime = 0;
 	if (m_platform_player != nil && hasfilename())
 		MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyLoadedTime, kMCPlatformPropertyTypePlayerDuration, &loadedtime);
-	else
-		loadedtime = 0;
 	return loadedtime;
 }
 
 MCPlayerDuration MCPlayer::getduration() //get movie duration/length
 {
-	MCPlatformPlayerDuration duration;
+	MCPlatformPlayerDuration duration = 0;
 	if (m_platform_player != nil && hasfilename())
 		MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyDuration, kMCPlatformPropertyTypePlayerDuration, &duration);
-	else
-		duration = 0;
 	return duration;
 }
 
 MCPlayerDuration MCPlayer::gettimescale() //get moive time scale
 {
-	MCPlatformPlayerDuration timescale;
+	MCPlatformPlayerDuration timescale = 0;
 	if (m_platform_player != nil && hasfilename())
 		MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyTimescale, kMCPlatformPropertyTypePlayerDuration, &timescale);
-	else
-		timescale = 0;
 	return timescale;
 }
 
 MCPlayerDuration MCPlayer::getmoviecurtime()
 {
-	MCPlatformPlayerDuration curtime;
+	MCPlatformPlayerDuration curtime = 0;
 	if (m_platform_player != nil && hasfilename())
 		MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyCurrentTime, kMCPlatformPropertyTypePlayerDuration, &curtime);
-	else
-		curtime = 0;
 	return curtime;
 }
 
@@ -1529,6 +1522,7 @@ Boolean MCPlayer::prepare(MCStringRef options)
         return True;
     
 	MCRectangle t_movie_rect;
+	MCU_set_rect(t_movie_rect, 0, 0, 0, 0);
 	MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyMovieRect, kMCPlatformPropertyTypeRectangle, &t_movie_rect);
     
     // PM-2014-12-17: [[ Bug 14233 ]] If an invalid filename is used then keep the previous dimensions of the player rect instead of displaying only the controller
@@ -1633,7 +1627,7 @@ Boolean MCPlayer::playpause(Boolean on)
         {
             playselection(getflag(F_PLAY_SELECTION) && !m_modify_selection_while_playing);
             // PM-2014-08-06: [[ Bug 13104 ]] Remember existing playrate when starting player after a pause
-            double t_rate;
+            double t_rate = 1.0;
             MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyPlayRate, kMCPlatformPropertyTypeDouble, &t_rate);
             rate = t_rate;
 			MCPlatformStartPlayer(m_platform_player, rate);
@@ -1893,6 +1887,7 @@ void MCPlayer::setenabledtracks(uindex_t p_count, uint32_t *p_tracks_id)
             }
             
 			MCRectangle t_movie_rect;
+			MCU_set_rect(t_movie_rect, 0, 0, 0, 0);
 			MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyMovieRect, kMCPlatformPropertyTypeRectangle, &t_movie_rect);
 			MCRectangle trect = resize(t_movie_rect);
 			if (flags & F_SHOW_BORDER)
@@ -2092,6 +2087,8 @@ void MCPlayer::gethotspots(MCStringRef &r_nodes)
 
 void MCPlayer::getconstraints(MCMultimediaQTVRConstraints &r_constraints)
 {
+    // Not every platform player supports QTVR, so return zeroed constraints if it doesn't.
+    MCMemoryClear(&r_constraints, sizeof(r_constraints));
     if (m_platform_player != nil)
         MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyQTVRConstraints, kMCPlatformPropertyTypePlayerQTVRConstraints, (MCPlatformPlayerQTVRConstraints*)&(r_constraints));
 }
@@ -3426,7 +3423,7 @@ void MCPlayer::handle_mdown(int p_which)
 void MCPlayer::push_current_rate()
 {
     // get current rate
-    double t_old_rate;
+    double t_old_rate = 1.0;
     MCPlatformGetPlayerProperty(m_platform_player, kMCPlatformPlayerPropertyPlayRate, kMCPlatformPropertyTypeDouble, &t_old_rate);
     m_rate_before_scrub_buttons_pressed = t_old_rate;
 }

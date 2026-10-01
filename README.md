@@ -39,7 +39,9 @@ maintained by
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. Please read this before you download it.
+macOS and Linux. 0.2.1-rc.1, the first release candidate of 0.2.1, is a
+pre-release for testing (see what 0.2.1 adds, under
+[The IDE](#the-ide)). Please read this before you download either.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -589,6 +591,42 @@ and in the IDE:
   yellow (a profile that still has the yellow default gets the blue one;
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
+
+OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
+
+- LiveCode Community's engine test suites, about 1,150 tests of LiveCode
+  Script, LiveCode Builder, the LiveCode Builder compiler and the script
+  parser, on every build of all three platforms, compared with lists of
+  known failures (see [BUILDING.md](BUILDING.md#engine-tests));
+- fixes for engine bugs that those tests and the compiler's warnings
+  found. On Windows: creating a player in a stack that has no window (for
+  example without a user interface, `-ui`) no longer crashes; output
+  redirected to a file or a pipe (`standalone.exe > log.txt`, or `shell()`
+  from another program) reaches it again; without a user interface,
+  `accept connections` listens again and `wait` no longer keeps a
+  processor busy; dates before 1970 convert; file paths that a script
+  puts on the clipboard are native; the `playLoudness` of a player and
+  the player properties that the Windows player cannot get (the duration
+  and current time of a file it cannot play, for example) no longer
+  return random values; and the `fontNames` no longer fail for no
+  reason;
+- on Linux and macOS, `~` is `$HOME`, and on Linux `~user/folder`
+  resolves; on Linux the last second of 1969 converts, and file lists on
+  the clipboard and in drag and drop keep names with spaces and "+"; on
+  macOS, Java support finds Java 9 and later, and on Apple Silicon an
+  Objective-C exception in a method that LiveCode Builder calls is an LCB
+  error again instead of ending the program;
+- on every platform: text compares by codepoint however the engine holds
+  it (on Windows and macOS, `sort ... text` and `<` on text with chars
+  such as the euro sign or curly quotes depended on how the string had
+  been made); a pressed button's hilite follows the pointer again
+  instead of flickering; exporting a widget whose kind is not loaded no
+  longer crashes; LiveCode Builder's base conversion no longer crashes
+  for a base below 2; and the `constraints` of a player (QTVR, which no
+  current player supports) are zeros instead of random numbers;
+- one change in behaviour: `baseConvert` (and LiveCode Builder's
+  `converted from base`) of a number above 4,294,967,295 is an error
+  instead of a wrong, wrapped-around result.
 
 ### xTalk Suite extensions
 
