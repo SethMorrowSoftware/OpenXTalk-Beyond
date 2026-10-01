@@ -455,6 +455,22 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
             --log ide-compile-check.log
 
+      # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
+      # LiveCode Script tests of tests/lcs, each run on its own by the
+      # standalone engine just built, with -ui and a time limit, the
+      # LiveCode Builder tests (each handler in its own lc-run), and the
+      # LiveCode Builder compiler and LiveCode Script parser tests. A
+      # failure that is not in tools/ci/engine-tests-baseline.txt or its
+      # Linux supplement fails the step (a failed test is run once more
+      # first, and one that then passes is only reported as flaky); a
+      # baseline entry that passed is reported, to be removed. The job
+      # summary lists both, the log has every failed test's output. CI is
+      # "true" here, so the tests that act on the desktop run too. --jobs 4:
+      # the tests of four files at a time (the runners have four processors).
+      - name: Engine tests
+        timeout-minutes: 45
+        run: python3 tools/ci/run_engine_tests.py --bin "linux-$ARCH-bin" --jobs 4 --log engine-tests.log
+
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
       - name: Record the finished build
@@ -472,6 +488,7 @@ jobs:
             prebuilt/build/**/config.log
             prebuilt/build/**/*.log
             ide-compile-check.log
+            engine-tests.log
           if-no-files-found: ignore
           retention-days: 14
 

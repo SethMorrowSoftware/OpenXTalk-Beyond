@@ -1182,6 +1182,71 @@ stack whose `textFont` is `(System)` without a user interface (the GTK
 theme gives that font no family there; the engine now falls back to its
 default family).
 
+### Engine tests
+
+```bat
+python tools\ci\run_engine_tests.py --bin win-x86_64-bin
+```
+
+[`tools/ci/run_engine_tests.py`](tools/ci/run_engine_tests.py) (Python
+3) runs the test suites that LiveCode Community keeps in
+[`tests/`](tests) against a build output (`win-x86_64-bin`,
+`linux-<arch>-bin`, or on macOS `_build/mac/Release`), without a user
+interface:
+
+- `lcs`: each `on Test...` handler of the LiveCode Script tests in
+  `tests/lcs` (about 850), in its own run of the build's standalone
+  engine with `-ui` (`tests/_testrunner.livecodescript invoke`) and a
+  time limit (`--timeout`, 300 seconds). The LiveCode Builder modules of
+  `tests/` are compiled into `_tests/_build` first.
+- `lcb`: the LiveCode Builder tests of `tests/lcb` (the virtual machine,
+  the standard library and compiled code): each `Test...` handler of each
+  module, in its own run of `lc-run` with the test library. (LiveCode's
+  `tests/_testrunner.lcb` does the same, but not on Windows.)
+- `compiler`: the LiveCode Builder compiler tests of `tests/lcb/compiler`.
+- `parser`: the LiveCode Script parser tests.
+
+`--suite` runs some of them; `--filter` takes a regular expression that
+the name `<suite>: <test>` must match, for example
+`--filter "core/strings/sort"`. `--jobs N` runs the LiveCode Script tests
+of N files at a time (the tests of one file one after the other); the
+files that use fixed ports, the clipboard or programs they start
+(`SERIAL_FILES` in the script) run one after the other. CI uses
+`--jobs 4`: about 25 seconds on Linux, and a few minutes on macOS, where
+one at a time took 12.
+
+Failed tests are compared with
+[`tools/ci/engine-tests-baseline.txt`](tools/ci/engine-tests-baseline.txt)
+(failures on every platform), the platform's
+`engine-tests-baseline-<windows|linux|mac>.txt` next to it, and
+`engine-tests-baseline-<platform>-<arch>.txt` for failures on one
+processor architecture (`x86_64` or `arm64`; `--arch`, by default the
+computer's). A failure in none of them fails the check (exit code 1), but
+first the test is run once more (`--retries`), and one that passes then
+is only reported as flaky.
+Baseline entries whose tests passed are reported so that they can be
+removed; an entry marked `? ` fails only sometimes and is not reported.
+`--update-baseline` rewrites the platform's file. When a test crashes the
+engine, it is run again under a debugger and the stack goes into the log:
+on Windows with [`tools/ci/win_crashtrace.py`](tools/ci/win_crashtrace.py)
+(Python and Windows' own `dbghelp.dll`, with the `.pdb` files next to the
+binaries, or `--symbols <folder>`, for example an extracted symbols zip),
+on Linux with `gdb` and on macOS with `lldb` when they are installed. The
+log (`--log`, by default `_tests/engine-tests.log`) has the output of
+every failed test.
+
+A few tests act on the computer they run on: they start Notepad
+(TextEdit on macOS) and then end every running copy of it, write a file
+to the Desktop, or set the system clipboard. They run in CI (where `CI`
+is `true`) and are skipped elsewhere unless you pass `--desktop-tests`.
+On Windows the tests run with `the hideConsoleWindows` set, so the
+commands they run open no console windows.
+
+Every CI build runs the four suites after the IDE compile check: on
+Windows, Linux (x86-64 and arm64) and macOS (Apple Silicon and Intel).
+The job summary lists new failures, flaky tests and baseline entries
+that passed.
+
 ### Installer
 
 ```bat
@@ -1453,7 +1518,8 @@ It follows this guide:
    DLL under `Extensions` finds its imports.
 5. It runs the [smoke test](#smoke-test) on the portable zip (including
    the xTalk Suite extensions), the
-   [IDE compile check](#ide-compile-check) on the staged layout, builds
+   [IDE compile check](#ide-compile-check) on the staged layout, the
+   [engine tests](#engine-tests) on the build output, builds
    the [installer](#installer) and [tests it](#test-the-installer):
    install for the current user, smoke test of the installed program,
    uninstall.
@@ -1465,8 +1531,9 @@ It uploads two artifacts:
   sources zip, and `SHA256SUMS`; not the staged folder), kept for 30
   days;
 - `build-logs-win-x86_64`: `msbuild.log` and the logs of packaging, the
-  smoke test, the IDE compile check and building and testing the
-  installer, kept for 14 days and uploaded even when the build fails.
+  smoke test, the IDE compile check, the engine tests and building and
+  testing the installer, kept for 14 days and uploaded even when the build
+  fails.
 
 When a step fails, a "Failure diagnostics" table in the job summary
 shows which step it was. Downloading artifacts requires a GitHub

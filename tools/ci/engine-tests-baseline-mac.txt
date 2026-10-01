@@ -1,0 +1,31 @@
+# Engine test suite (tools/ci/run_engine_tests.py): tests known to fail on
+# macOS that are not in engine-tests-baseline.txt (the failures on every
+# platform). One "<suite>: <test>" per line; "? " before it: fails only
+# sometimes; text after " #" is a comment.
+
+# LiveCode Ltd's download addresses for its commercial mergExt and tsNet
+# externals, from builder/ (LiveCode's installer builder, which OXT-Beyond
+# does not use): outside servers, which answered in CI on 2026-10-01; they
+# run on macOS and Linux only
+? lcs: ext/ext-urls: TestMergExtURL
+? lcs: ext/ext-urls: TestTSNetURL
+
+# The engine's Java support ("Could not initialise Java Runtime
+# Environment"): it loads $JAVA_HOME/jre/lib/jli/libjli.dylib, where only
+# Java 8 has it (Java 9 and later: $JAVA_HOME/lib), and the runners have
+# Java 11 to 21. These tests run on macOS only.
+lcs: extensions/libraries/javatest/tests/java: TestLoadJar
+lcb: lcb/stdlib/java: TestBindingStringObjectTypeInMiddle
+lcb: lcb/stdlib/java: TestCallInstanceMethod
+lcb: lcb/stdlib/java: TestCallStaticMethod
+lcb: lcb/stdlib/java: TestCreateCurrencyWithCode
+lcb: lcb/stdlib/java: TestCreateJObject
+lcb: lcb/stdlib/java: TestCreateJString
+lcb: lcb/stdlib/java: TestDefaultLocaleDisplayName
+lcb: lcb/stdlib/java: TestGetConstant
+lcb: lcb/stdlib/java: TestNativeTypeAfterObjectType
+lcb: lcb/stdlib/java: TestNullJObjectParam
+lcb: lcb/stdlib/java: TestNullJObjectReturn
+lcb: lcb/stdlib/java: TestRoundTripJByteArray
+lcb: lcb/stdlib/java: TestRoundTripJString
+lcb: lcb/vm/foreign-binding: TestForeignBinding_Java

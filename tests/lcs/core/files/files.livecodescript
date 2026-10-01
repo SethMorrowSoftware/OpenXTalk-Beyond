@@ -27,6 +27,9 @@ on TestRegistryKeys
       TestAssert merge("Key [tTestKey]] has right value"), listRegistry(tTestKey) is ("Key1" & return & "Key2")
       TestAssert merge("Key [tTestKey]]Key1 has right value"), listRegistry(tTestKey & "Key1") is "Key1"
       TestAssert merge("Key [tTestKey]]Key2 has right value"), listRegistry(tTestKey & "Key2") is empty
+
+      -- Leave the registry of the computer the tests run on as it was
+      get deleteRegistry("HKEY_CURRENT_USER\Software\LiveCode\tests")
    else
       testSkip
       testSkip
@@ -285,6 +288,15 @@ on TestDeleteFile
 end TestDeleteFile
 
 
+-- TextEdit is in /System/Applications from macOS 10.15 on, in /Applications
+-- (specialFolderPath("apps")) before
+private function __TextEditPath
+   if there is a folder "/System/Applications/TextEdit.app" then
+      return "/System/Applications/TextEdit.app"
+   end if
+   return specialfolderpath("apps") & slash & "TextEdit.app"
+end __TextEditPath
+
 on TestLaunch
    local taskList
    
@@ -303,7 +315,7 @@ on TestLaunch
    else if the platform is "MacOS" then
       put shell("ps -ax") into taskList
       
-      launch (specialfolderpath("apps") & slash & "textEdit.app")
+      launch __TextEditPath()
       
       put shell("ps -ax") into taskList
       
@@ -347,7 +359,7 @@ on TestLaunchWith
       delete file "Test.txt"
    else if the platform is "MacOS" then
       
-      launch "Test.txt" with (specialfolderpath("apps") & slash & "textEdit.app")
+      launch "Test.txt" with __TextEditPath()
       
       put shell("ps -ax") into taskList
       

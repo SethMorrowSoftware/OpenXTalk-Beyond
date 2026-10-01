@@ -444,6 +444,24 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin _build/mac/Release \
             --log ide-compile-check.log
 
+      # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
+      # LiveCode Script tests of tests/lcs, each run on its own by the
+      # standalone engine just built (Standalone-Community.app), with -ui
+      # and a time limit, the LiveCode Builder tests (each handler in its
+      # own lc-run), and the LiveCode Builder compiler and LiveCode Script
+      # parser tests. A failure that is not in
+      # tools/ci/engine-tests-baseline.txt or its macOS supplements (-mac,
+      # and -mac-arm64 or -mac-x86_64 for this runner's processor) fails the
+      # step (a failed test is run once more first, and one that then passes
+      # is only reported as flaky); a crash is run again under lldb for a
+      # stack trace. The job summary lists the failures and the baseline
+      # entries that passed; the log has every failed test's output. --jobs
+      # 4: the tests of four files at a time (one at a time they take about
+      # 12 minutes here, starting the engine for each test).
+      - name: Engine tests
+        timeout-minutes: 45
+        run: python3 tools/ci/run_engine_tests.py --bin _build/mac/Release --jobs 4 --log engine-tests.log
+
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v6
@@ -453,6 +471,7 @@ jobs:
             ${{ runner.temp }}/xcodebuild.log
             prebuilt/build/**/config.log
             ide-compile-check.log
+            engine-tests.log
           if-no-files-found: ignore
           retention-days: 14
 

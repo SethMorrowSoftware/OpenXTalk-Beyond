@@ -35,7 +35,9 @@ on TestPageHeights
    set the itemDel to slash
    put item 1 to -2 of the filename of this stack into tFieldContentFilename
    put slash & "_pageHeightsFieldContent.txt" after tFieldContentFilename
-   set the htmlText of field "testPageHeightsField" to url ("file:/"&tFieldContentFilename)
+   -- (a "file:" URL takes a path; "file:/" & a Windows path, "/C:/...", is
+   -- no file)
+   set the htmlText of field "testPageHeightsField" to url ("file:" & tFieldContentFilename)
    
    TestAssert "Field is not empty", field "testPageHeightsField" is not empty
       

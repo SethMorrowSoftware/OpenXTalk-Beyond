@@ -1,0 +1,12 @@
+# Engine test suite (tools/ci/run_engine_tests.py): tests known to fail on
+# macOS on Apple Silicon (arm64) that are in neither
+# engine-tests-baseline.txt nor engine-tests-baseline-mac.txt. One
+# "<suite>: <test>" per line; "? " before it: fails only sometimes; text
+# after " #" is a comment.
+
+# An Objective-C exception thrown in a method that LiveCode Builder calls
+# ends the program (SIGABRT, "uncaught exception") instead of becoming an
+# LCB error: the macOS arm64 build of libffi has no unwind information
+# (FFI_NO_CFI_DIRECTIVES in thirdparty/libffi/libffi.gyp), so the exception
+# cannot unwind through ffi_call_SYSV to the @catch around it
+lcb: lcb/vm/interop-objc: TestObjcInterop_CatchObjcException

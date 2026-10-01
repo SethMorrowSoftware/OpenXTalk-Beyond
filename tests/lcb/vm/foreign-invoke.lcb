@@ -41,7 +41,8 @@ public handler TestForeignInvoke_Varargs()
    variable tString2 as String
    unsafe
       variable tInt as SInt16
-      variable tLong as SInt32
+      -- %ld reads a C long, which has 64 bits on macOS and Linux
+      variable tLong as CLong
       variable tLongLong as SInt64
       variable tFloat as CFloat
       variable tDouble as CDouble

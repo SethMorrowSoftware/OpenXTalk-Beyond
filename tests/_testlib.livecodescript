@@ -446,6 +446,8 @@ on TestLoadExternal pExternal
       put "bundle" into tExtension
    else if the platform is "linux" then
       put "so" into tExtension
+   else if the platform is "Win32" then
+      put "dll" into tExtension
    end if
 
    put TestGetBinariesPath() into tBinariesPath
@@ -619,7 +621,9 @@ end TestRepeat
 command TestRunStack pOptions, pStackFilePath, pArgs
 	local tEnginePath
 	set the itemDelimiter to ":"
-	put item 2 of the address into tEnginePath
+	-- The address is <host>:<engine path>; on Windows the path has a colon
+	-- after its drive letter
+	put item 2 to -1 of the address into tEnginePath
 
 	local tCommand
 	put format("\"%s\" %s \"%s\" %s", tEnginePath, pOptions, pStackFilePath, pArgs) into tCommand

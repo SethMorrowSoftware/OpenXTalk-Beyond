@@ -472,6 +472,26 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: ./tools/ci/ide-compile-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-compile-check.log"
 
+      # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
+      # LiveCode Script tests of tests/lcs, each run on its own by the
+      # build's standalone engine (win-x86_64-bin) with -ui and a time
+      # limit, the LiveCode Builder tests (each handler in its own lc-run),
+      # and the LiveCode Builder compiler and LiveCode Script parser tests.
+      # A failure that is not in tools/ci/engine-tests-baseline.txt
+      # or its Windows supplement fails the step (a failed test is run once
+      # more first, and one that then passes is only reported as flaky). A
+      # test that crashes the engine is run again under
+      # tools/ci/win_crashtrace.py, which logs the stack with the .pdb files
+      # next to the binaries. The job summary lists the failures and the
+      # baseline entries that passed; the log has every failed test's
+      # output. CI is "true" here, so the tests that act on the desktop
+      # (they start and end Notepad, and set the clipboard) run too. --jobs
+      # 4: the tests of four files at a time.
+      - name: Engine tests
+        id: engine_tests
+        timeout-minutes: 45
+        run: python tools/ci/run_engine_tests.py --bin win-x86_64-bin --jobs 4 --log "$env:RUNNER_TEMP\build-logs\engine-tests.log"
+
       # Evaluate the colour pairs of tools/ci/ide-contrast-pairs.txt
       # (revIDEColor tags, light and dark appearance) in the staged layout
       # with its engine; fails on pairs below their WCAG minimum that are
