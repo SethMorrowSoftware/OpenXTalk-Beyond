@@ -106,14 +106,19 @@ end TestOpenSocketFromWithLSOF
 on TestOpenSocketFromMultipleHostsSamePort
    put "livecode.com|" & uuid() into tSock1
    put "google.com|" & uuid() into tSock2
-   -- each socket is checked before the next open, which looks up its host
-   -- in a wait that ends a socket whose connection failed meanwhile
    open socket from ":8002" to tSock1
    TestAssert "open socket result is empty: " & the result, the result is empty
    TestAssert "open socket from with multiple hosts on same local port", tSock1 is among the lines of the openSockets
    open socket from ":8002" to tSock2
    TestAssert "open socket result is empty: " & the result, the result is empty
-   TestAssert "open socket from with multiple hosts on same local port", tSock2 is among the lines of the openSockets
+   -- the second open looks up its host in a wait that also handles the
+   -- first socket, and ends it if its connection failed meanwhile, which
+   -- frees the local port: then the two sockets never shared it
+   if tSock1 is among the lines of the openSockets then
+      TestAssert "open socket from with multiple hosts on same local port", tSock2 is among the lines of the openSockets
+   else
+      TestSkip "open socket from with multiple hosts on same local port", "the first connection failed before the second socket was opened"
+   end if
    close socket tSock1
    close socket tSock2
 end TestOpenSocketFromMultipleHostsSamePort
@@ -175,14 +180,19 @@ on TestOpenSocketFromMultipleHostsSameAddress
    if tLocalAddress is not empty then
       put "livecode.com|" & uuid() into tSock1
       put "google.com|" & uuid() into tSock2
-      -- each socket is checked before the next open, which looks up its host
-      -- in a wait that ends a socket whose connection failed meanwhile
       open socket from tLocalAddress & ":8006" to tSock1
       TestAssert "open socket result is empty: " & the result, the result is empty
       TestAssert "open socket from with multiple hosts using same local address", tSock1 is among the lines of the openSockets
       open socket from tLocalAddress & ":8006" to tSock2
       TestAssert "open socket result is empty: " & the result, the result is empty
-      TestAssert "open socket from with multiple hosts using same local address", tSock2 is among the lines of the openSockets
+      -- the second open looks up its host in a wait that also handles the
+      -- first socket, and ends it if its connection failed meanwhile, which
+      -- frees the local port: then the two sockets never shared it
+      if tSock1 is among the lines of the openSockets then
+         TestAssert "open socket from with multiple hosts using same local address", tSock2 is among the lines of the openSockets
+      else
+         TestSkip "open socket from with multiple hosts using same local address", "the first connection failed before the second socket was opened"
+      end if
       close socket tSock1
       close socket tSock2
    end if
