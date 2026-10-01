@@ -489,14 +489,19 @@ void MCStack::mode_constrain(MCRectangle& rect)
 }
 
 #ifdef _WINDOWS
+// A stack that has never been opened has no window, and without a user
+// interface (-ui) no stack has one; callers (players, native layers, launch)
+// get nil instead of a crash.
 MCSysWindowHandle MCStack::getrealwindow(void)
 {
+	if (window == nil)
+		return nil;
 	return window->handle.window;
 }
 
 MCSysWindowHandle MCStack::getqtwindow(void)
 {
-	return window->handle.window;
+	return getrealwindow();
 }
 #endif
 
