@@ -1008,9 +1008,15 @@ Boolean MCButton::mfocus(int2 x, int2 y)
 					(getstyleint(flags) != F_RADIO &&
 					 getstyleint(flags) != F_CHECK))
 				{
+					// The hilite as a bool: Boolean is bool since 2017, so
+					// starthilite is 0 or 1 where (state & CS_HILITED) is 0 or
+					// 64, and comparing those toggled the hilite of a pressed
+					// button at every move inside it, and never cleared it
+					// outside.
+					bool t_hilited = (state & CS_HILITED) != 0;
 					if (MCU_point_in_rect(rect, x, y))
 					{
-						if ((state & CS_HILITED) != starthilite
+						if (t_hilited != starthilite
 						        && (starthilite || getstyleint(flags) != F_RADIO))
 						{
 							state ^= CS_HILITED;
@@ -1019,7 +1025,7 @@ Boolean MCButton::mfocus(int2 x, int2 y)
 							layer_redrawall();
 						}
 					}
-					else if ((state & CS_HILITED) == starthilite
+					else if (t_hilited == starthilite
 						        && (starthilite || getstyleint(flags) != F_RADIO))
 					{
 						state ^= CS_HILITED;
