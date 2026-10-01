@@ -93,10 +93,13 @@ bool MCS_datetimetouniversal(MCDateTime& x_datetime)
 	struct tm tm_local ;
 	datetime_to_tm( true, x_datetime, tm_local);
 	
+	// -1 is the error, but also 23:59:59 UTC on 31 December 1969, which
+	// failed to convert: on success mktime and timegm set tm_wday.
+	tm_local . tm_wday = -1;
 	sys_time_t t;
 	t = sys_mktime(&tm_local);
 	
-	if ( t == -1 ) 
+	if ( t == -1 && tm_local . tm_wday == -1 )
 		return (false);
 	
 	struct tm *tm_uni ;
@@ -113,9 +116,10 @@ bool MCS_datetimetolocal(MCDateTime& x_datetime)
 	
 	// MW-2008-03-15: [[ Bug 6075 ]] 'mktime' converts local time to seconds, but we need to convert universal
 	//   time to seconds. To do this we use the glibc function 'timegm'.
+	tmp . tm_wday = -1;								// (see MCS_datetimetouniversal)
 	sys_time_t t;
 	t = sys_timegm(&tmp);							// Convert the tm struct to time_t (number of seconds);
-	if (t == -1)
+	if (t == -1 && tmp . tm_wday == -1)
 		return false;
 	
 	struct tm *ltm;
@@ -132,9 +136,10 @@ bool MCS_datetimetoseconds(const MCDateTime& x_datetime, double& r_seconds)
 	
 	// MW-2008-03-15: [[ Bug 6075 ]] 'mktime' converts local time to seconds, but we need to convert universal
 	//   time to seconds. To do this we use the glibc function 'timegm'.
+	tmp . tm_wday = -1;		// (see MCS_datetimetouniversal)
 	sys_time_t t ;
 	t = sys_timegm(&tmp);
-	if ( t == -1 ) 
+	if ( t == -1 && tmp . tm_wday == -1 )
 		return False ;
 	r_seconds = (double)t ;
 	return True ;
