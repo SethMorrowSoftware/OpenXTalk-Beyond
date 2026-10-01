@@ -107,8 +107,13 @@ macOS and Linux. Please read this before you download it.
   from the disk image on an Apple Silicon and an Intel Mac and from the
   extracted tarball on Ubuntu 24.04, plus a signature check and one Mac
   standalone built and run (macOS), and library checks and the install
-  scripts (Linux). The IDE's windows are not tested automatically, and
-  the macOS and Linux packages have not been tried by hand yet.
+  scripts (Linux). Every build on all three platforms also runs the
+  engine tests that LiveCode Community keeps in `tests/` (about 900:
+  LiveCode Script, the LiveCode Builder compiler and the script parser)
+  and compares the failures with a list of known ones (see
+  [BUILDING.md](BUILDING.md#engine-tests)). The IDE's windows are not
+  tested automatically, and the macOS and Linux packages have not been
+  tried by hand yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
   parts for macOS and Linux only (for example the macOS ARM standalone
   builder). They are shipped as they were; apart from the IDE compile
@@ -735,10 +740,10 @@ release is made from a tag in
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
-| `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
+| `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
 | `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push and pull request; `release.yml` builds all three from a `v` tag and publishes the release. |
 | `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its Windows rules) and LiveCode's installer builder (not used). |
-| `tests/`, `engine/exec-tests/` and others | Upstream test suites. |
+| `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 
 For a compatibility-first proposal to make the engine easier to test and
 change, see the [engine stabilization and modernization plan](docs/development/engine-modernization-plan.md).
