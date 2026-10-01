@@ -1655,9 +1655,21 @@ it.
    OXT-Beyond's update check reads that release (and the list of
    releases, if it is not an OXT-Beyond version or the user runs a
    pre-release). If another release is
-   marked latest, fix it with `gh release edit v0.1.0 --latest`.
+   marked latest, fix it with
+   `gh release edit v0.1.0 --latest --repo SethMorrowSoftware/winoxt`.
    Pre-releases are never "latest"; the update check offers them only to
-   people who already run a pre-release.
+   people who already run a pre-release. After a pre-release, check the
+   other way round: the latest release must still be the last one
+   without a pre-release part, and the new one must be marked as a
+   pre-release
+   (`gh release view v0.1.0-rc.1 --json isPrerelease --repo SethMorrowSoftware/winoxt`).
+   Number release candidates `-rc.1`, `-rc.2` and so on: the update check
+   compares the parts after the `-` as SemVer does, so `-rc.10` comes
+   after `-rc.2`, where `-RC10` would come before `-RC2`.
+
+The `gh` commands here name the repository (with `--repo`, or in the API
+path): a clone that also has LiveCode's repository as a remote may
+otherwise send them there.
 
 GitHub also attaches source code archives of the tagged commit to the
 release. They include `ide/` and `thirdparty/`, which are part of this
@@ -1676,7 +1688,7 @@ no release, no draft and no tag. Start it on the Actions tab (*Release*,
 ticked), or with the GitHub CLI:
 
 ```bat
-gh workflow run release.yml --ref main -f dry-run=true
+gh workflow run release.yml --ref main -f dry-run=true --repo SethMorrowSoftware/winoxt
 ```
 
 The files are named after `ide/.version` of that branch. A run started
