@@ -447,8 +447,9 @@ jobs:
       # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
       # LiveCode Script tests of tests/lcs, each run on its own by the
       # standalone engine just built (Standalone-Community.app), with -ui
-      # and a time limit, and the LiveCode Builder compiler and LiveCode
-      # Script parser tests. A failure that is not in
+      # and a time limit, the LiveCode Builder tests (each handler in its
+      # own lc-run), and the LiveCode Builder compiler and LiveCode Script
+      # parser tests. A failure that is not in
       # tools/ci/engine-tests-baseline.txt or its macOS supplement fails the
       # step (a failed test is run once more first, and one that then passes
       # is only reported as flaky); a crash is run again under lldb for a

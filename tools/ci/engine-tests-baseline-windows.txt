@@ -29,6 +29,12 @@ lcs: core/network/network: TestAcceptConnectionsInEphemeralPortRange
 lcs: core/network/network: TestOpenSocketFromWithAddressAndPortUsingLocalServer
 lcs: core/network/network: TestOpenSocketFromWithAddressUsingLocalServer
 
+# They bind C library functions (malloc, sprintf, ldiv) to "<builtin>",
+# which on Windows finds only what the program itself exports: lc-run has
+# the C runtime built in, and exports none of it
+lcb: lcb/vm/foreign-invoke: TestForeignInvoke_AggregateReturnValue
+lcb: lcb/vm/foreign-invoke: TestForeignInvoke_Varargs
+
 # The foundLoc of a found chunk was wrong once in a full run, and right when
 # the test ran again
 ? lcs: core/interface/interface: TestFoundLoc

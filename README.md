@@ -108,8 +108,9 @@ macOS and Linux. Please read this before you download it.
   extracted tarball on Ubuntu 24.04, plus a signature check and one Mac
   standalone built and run (macOS), and library checks and the install
   scripts (Linux). Every build on all three platforms also runs the
-  engine tests that LiveCode Community keeps in `tests/` (about 900:
-  LiveCode Script, the LiveCode Builder compiler and the script parser)
+  engine tests that LiveCode Community keeps in `tests/` (about 1,150:
+  LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
+  the script parser)
   and compares the failures with a list of known ones (see
   [BUILDING.md](BUILDING.md#engine-tests)). The IDE's windows are not
   tested automatically, and the macOS and Linux packages have not been

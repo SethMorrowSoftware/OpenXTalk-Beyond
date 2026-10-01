@@ -20,14 +20,14 @@ headless, on Windows, Linux or macOS, and compare the failures with a
 baseline of known ones.
 
   python tools/ci/run_engine_tests.py --bin DIR [--repo DIR]
-      [--suite lcs|compiler|parser]... [--filter REGEX]
+      [--suite lcs|lcb|compiler|parser]... [--filter REGEX]
       [--baseline FILE] [--update-baseline] [--timeout SECONDS]
       [--symbols DIR]... [--log FILE]
 
 --bin is a build output folder (win-x86_64-bin, linux-<arch>-bin, or on
 macOS the Release folder of _build/mac): the standalone engine
-(standalone-community, on macOS Standalone-Community.app), lc-compile and
-modules/lci. The tests come from the source checkout --repo (default: this
+(standalone-community, on macOS Standalone-Community.app), lc-compile,
+lc-run and modules/lci. The tests come from the source checkout --repo (default: this
 one).
 
 The suites, as tests/Makefile names them:
@@ -42,6 +42,11 @@ The suites, as tests/Makefile names them:
             (--timeout). The LiveCode Builder modules the tests load are
             compiled first, in dependency order, to _tests/_build in the
             checkout, as the Makefile's lcm_compile does.
+  lcb       (lcb-check) the LiveCode Builder tests of tests/lcb (the
+            virtual machine, the standard library and compiled code): each
+            "Test..." handler of each module, run on its own by lc-run with
+            the test library tests/_testlib.lcb, as tests/_testrunner.lcb
+            does (which does not run on Windows).
   compiler  (compiler-check) tests/_compilertestrunner.livecodescript run:
             the LiveCode Builder compiler tests of tests/lcb/compiler.
   parser    (lcs-parser-check) tests/_parsertestrunner.livecodescript run:
@@ -70,7 +75,8 @@ run in CI (when the environment variable CI is "true", as in GitHub
 Actions) or with --desktop-tests, and are reported as skipped elsewhere, so
 that running the suites on a developer's computer leaves their work alone.
 
-When the engine crashes, the test is run once more under a debugger to log
+When the engine (or lc-run) crashes, the test is run once more under a
+debugger to log
 a stack trace: on Windows with tools/ci/win_crashtrace.py and the .pdb
 files of --symbols (default: --bin), on Linux with gdb and on macOS with
 lldb when they are installed (the .dbg files or .dSYM bundles next to the
@@ -95,7 +101,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 BASELINE = os.path.join(HERE, 'engine-tests-baseline.txt')
-SUITES = ('lcs', 'compiler', 'parser')
+SUITES = ('lcs', 'lcb', 'compiler', 'parser')
 RESULT_ORDER = ('fail', 'xpass', 'xfail', 'pass', 'skip')
 ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]|\x1b\(B')
 RUNNER_LINE = re.compile(r'^(PASS|FAIL|XFAIL|XPASS|SKIP):\s+(.*?)\s+\[\d+/\d+\]\s*$')
@@ -139,6 +145,7 @@ def tools_in(bin_dir, family):
         engine = os.path.join(bin_dir, 'standalone-community' + exe)
     tools = {'engine': engine,
              'lc-compile': os.path.join(bin_dir, 'lc-compile' + exe),
+             'lc-run': os.path.join(bin_dir, 'lc-run' + exe),
              'modules': os.path.join(bin_dir, 'modules', 'lci')}
     missing = [p for p in tools.values() if not os.path.exists(p)]
     if missing:
@@ -375,7 +382,7 @@ def crash_trace(cmd, cwd, family, symbol_dirs, timeout):
     return keep or ['(the crash did not happen again under the debugger: %s)' % describe_status(status)]
 
 
-def run_lcs_test(cmd, tests_dir, env, timeout):
+def run_test_process(cmd, tests_dir, env, timeout):
     """Run one test command; returns (status, TAP text, details, seconds)."""
     started = time.monotonic()
     status, out, err = run_process(cmd, tests_dir, env, timeout)
@@ -389,6 +396,42 @@ def run_lcs_test(cmd, tests_dir, env, timeout):
             details.append('stderr:')
             details.extend('    ' + x for x in err.splitlines() if x.strip())
     return status, text, details, took
+
+
+def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs):
+    """Run one test (a process that prints TAP) and return its Result. A
+    failure that is not known is run again (--retries): one that passes
+    then is reported as flaky, with the first run's output, and does not
+    fail the check. A crash that stays is run under a debugger."""
+    status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
+    counts, failures = analyse_tap(text)
+    outcome = worst(counts)
+    flaky = None
+    if outcome == 'fail' and '%s: %s' % (suite, ident) not in known:
+        first = (text, details, failures)
+        for _ in range(args.retries):
+            status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
+            counts, failures = analyse_tap(text)
+            outcome = worst(counts)
+            if outcome != 'fail':
+                flaky = first
+                break
+    if outcome == 'fail' and crashed(status):
+        details.append('stack trace (run again under a debugger):')
+        details.extend('    ' + x for x in crash_trace(cmd, cwd, family, symbol_dirs, args.timeout))
+    result = Result(suite, ident, outcome, counts, text, details)
+    result.failures = failures
+    if flaky is not None:
+        result.flaky = True
+        result.details = ['failed on the first run, passed on the second; the first run:'] + \
+            flaky[1] + [flaky[0].rstrip()]
+        result.failures = flaky[2]
+    tally = sum(counts.values())
+    log('%-5s %s%s [%d/%d]%s%s' % (outcome.upper(), '' if suite == 'lcs' else suite + ': ', ident,
+                                   counts['pass'] + counts['xfail'] + counts['skip'], tally,
+                                   '' if took < 30 else ' (%.0f s)' % took,
+                                   ' (flaky: failed the first time)' if flaky is not None else ''))
+    return result
 
 
 def run_lcs(tools, repo, family, args, symbol_dirs, known):
@@ -408,37 +451,53 @@ def run_lcs(tools, repo, family, args, symbol_dirs, known):
             log('SKIP  %s (acts on the desktop; --desktop-tests runs it)' % ident)
             continue
         cmd = [tools['engine'], '-ui', runner, 'invoke', lc_path(path), name]
-        status, text, details, took = run_lcs_test(cmd, tests_dir, env, args.timeout)
-        counts, failures = analyse_tap(text)
-        outcome = worst(counts)
-        flaky = None
-        # A failure that is not known gets a second run: one that passes
-        # then is reported as flaky, with the first run's output, and does
-        # not fail the check.
-        if outcome == 'fail' and 'lcs: ' + ident not in known:
-            first = (text, details, failures)
-            for _ in range(args.retries):
-                status, text, details, took = run_lcs_test(cmd, tests_dir, env, args.timeout)
-                counts, failures = analyse_tap(text)
-                outcome = worst(counts)
-                if outcome != 'fail':
-                    flaky = first
-                    break
-        if outcome == 'fail' and crashed(status):
-            details.append('stack trace (run again under a debugger):')
-            details.extend('    ' + x for x in crash_trace(cmd, tests_dir, family, symbol_dirs, args.timeout))
-        result = Result('lcs', ident, outcome, counts, text, details)
-        result.failures = failures
-        if flaky is not None:
-            result.flaky = True
-            result.details = ['failed on the first run, passed on the second; the first run:'] + \
-                flaky[1] + [flaky[0].rstrip()]
-            result.failures = flaky[2]
-        results.append(result)
-        tally = sum(counts.values())
-        log('%-5s %s [%d/%d]%s%s' % (outcome.upper(), ident, counts['pass'] + counts['xfail'] + counts['skip'],
-                                     tally, '' if took < 30 else ' (%.0f s)' % took,
-                                     ' (flaky: failed the first time)' if flaky is not None else ''))
+        results.append(run_test('lcs', ident, cmd, tests_dir, env, args, known, family, symbol_dirs))
+    return results
+
+
+def run_lcb(tools, repo, family, args, symbol_dirs, known):
+    """The LiveCode Builder tests of tests/lcb, as tests/Makefile's
+    lcb-check runs them, but each handler in its own lc-run from here:
+    tests/_testrunner.lcb does the same but refuses to run on Windows."""
+    tests_dir = os.path.join(repo, 'tests')
+    build = os.path.join(repo, '_tests', '_build')
+    testlib = os.path.join(build, '_testlib.lcm')
+    root = os.path.join(tests_dir, 'lcb')
+    env = child_env()
+    modules = []
+    for folder, dirs, files in os.walk(root):
+        dirs.sort()
+        for f in sorted(files):
+            if f.endswith('.lcb'):
+                modules.append(os.path.relpath(os.path.join(folder, f), tests_dir).replace('\\', '/')[:-4])
+    log('LiveCode Builder tests: %d modules in %s' % (len(modules), lc_path(root)))
+    results = []
+    for module in modules:
+        lcm = os.path.join(build, module + '.lcm')
+        if not os.path.isfile(lcm) or not os.path.isfile(testlib):
+            ident = '%s: (the module)' % module
+            if not args.filter or re.search(args.filter, 'lcb: ' + ident):
+                results.append(Result('lcb', ident, 'fail', {'fail': 1}, 'not ok # the module did not compile\n'))
+                results[-1].failures = ['not ok # the module did not compile']
+                log('FAIL  lcb: %s' % ident)
+            continue
+        status, out, err = run_process([tools['lc-run'], '-l', testlib, '--list-handlers', lcm],
+                                       tests_dir, env, args.timeout)
+        handlers = [h.strip() for h in out.splitlines() if h.strip().lower().startswith('test')]
+        if status != 0:
+            ident = '%s: (the module)' % module
+            if not args.filter or re.search(args.filter, 'lcb: ' + ident):
+                text = 'not ok # lc-run --list-handlers %s\n' % describe_status(status)
+                results.append(Result('lcb', ident, 'fail', {'fail': 1}, text + err))
+                results[-1].failures = [text.strip()]
+                log('FAIL  lcb: %s' % ident)
+            continue
+        for handler in handlers:
+            ident = '%s: %s' % (module, handler)
+            if args.filter and not re.search(args.filter, 'lcb: ' + ident):
+                continue
+            cmd = [tools['lc-run'], '-l', testlib, '--handler', handler, lcm]
+            results.append(run_test('lcb', ident, cmd, tests_dir, env, args, known, family, symbol_dirs))
     return results
 
 
@@ -597,12 +656,15 @@ def main(argv=None):
         log('Engine   : %s' % tools['engine'])
         log('Checkout : %s' % repo)
         results = []
-        if 'lcs' in suites:
+        if 'lcs' in suites or 'lcb' in suites:
             failed = compile_test_modules(tools, repo, log_lines)
             log('Compiled the test modules to %s%s' % (
                 lc_path(os.path.join(repo, '_tests', '_build')),
                 '' if not failed else '; %d did not compile: %s' % (len(failed), ', '.join(failed))))
+        if 'lcs' in suites:
             results += run_lcs(tools, repo, family, args, symbol_dirs, known)
+        if 'lcb' in suites:
+            results += run_lcb(tools, repo, family, args, symbol_dirs, known)
         for suite in ('compiler', 'parser'):
             if suite in suites:
                 results += run_runner_suite(suite, tools, repo, args)

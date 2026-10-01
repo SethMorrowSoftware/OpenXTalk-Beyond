@@ -475,8 +475,9 @@ jobs:
       # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
       # LiveCode Script tests of tests/lcs, each run on its own by the
       # build's standalone engine (win-x86_64-bin) with -ui and a time
-      # limit, and the LiveCode Builder compiler and LiveCode Script parser
-      # tests. A failure that is not in tools/ci/engine-tests-baseline.txt
+      # limit, the LiveCode Builder tests (each handler in its own lc-run),
+      # and the LiveCode Builder compiler and LiveCode Script parser tests.
+      # A failure that is not in tools/ci/engine-tests-baseline.txt
       # or its Windows supplement fails the step (a failed test is run once
       # more first, and one that then passes is only reported as flaky). A
       # test that crashes the engine is run again under

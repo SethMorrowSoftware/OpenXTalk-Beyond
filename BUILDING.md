@@ -1197,8 +1197,12 @@ interface:
 - `lcs`: each `on Test...` handler of the LiveCode Script tests in
   `tests/lcs` (about 850), in its own run of the build's standalone
   engine with `-ui` (`tests/_testrunner.livecodescript invoke`) and a
-  time limit (`--timeout`, 300 seconds). The LiveCode Builder modules the
-  tests load are compiled into `_tests/_build` first.
+  time limit (`--timeout`, 300 seconds). The LiveCode Builder modules of
+  `tests/` are compiled into `_tests/_build` first.
+- `lcb`: the LiveCode Builder tests of `tests/lcb` (the virtual machine,
+  the standard library and compiled code): each `Test...` handler of each
+  module, in its own run of `lc-run` with the test library. (LiveCode's
+  `tests/_testrunner.lcb` does the same, but not on Windows.)
 - `compiler`: the LiveCode Builder compiler tests of `tests/lcb/compiler`.
 - `parser`: the LiveCode Script parser tests.
 
@@ -1230,7 +1234,7 @@ is `true`) and are skipped elsewhere unless you pass `--desktop-tests`.
 On Windows the tests run with `the hideConsoleWindows` set, so the
 commands they run open no console windows.
 
-Every CI build runs the three suites after the IDE compile check: on
+Every CI build runs the four suites after the IDE compile check: on
 Windows, Linux (x86-64 and arm64) and macOS (Apple Silicon and Intel).
 The job summary lists new failures, flaky tests and baseline entries
 that passed.
