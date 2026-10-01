@@ -1364,6 +1364,23 @@ void MCRemotePageSetupDialog(MCDataRef p_config_data, MCDataRef &r_reply_data, u
 typedef BOOL (WINAPI *AttachConsolePtr)(DWORD id);
 void MCModePreMain(void)
 {
+	// Attaching to the console makes Windows replace the standard handles that
+	// the engine inherited without STARTF_USESTDHANDLES, as cmd.exe passes
+	// them, with the console's: output redirected to a file or a pipe
+	// (standalone.exe > log.txt, or shell() in another program) went to the
+	// console instead, and input from a file was not read. Such handles are
+	// put back after attaching.
+	static const DWORD kStdHandleIds[3] = { STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE };
+	HANDLE t_redirected[3];
+	for (int i = 0; i < 3; i++)
+	{
+		HANDLE t_handle = GetStdHandle(kStdHandleIds[i]);
+		DWORD t_type = FILE_TYPE_UNKNOWN;
+		if (t_handle != NULL && t_handle != INVALID_HANDLE_VALUE)
+			t_type = GetFileType(t_handle);
+		t_redirected[i] = (t_type == FILE_TYPE_DISK || t_type == FILE_TYPE_PIPE) ? t_handle : NULL;
+	}
+
 	HMODULE t_kernel;
 	t_kernel = LoadLibraryA("kernel32.dll");
 	if (t_kernel != nil)
@@ -1372,7 +1389,12 @@ void MCModePreMain(void)
 		t_attach_console = GetProcAddress(t_kernel, "AttachConsole");
 		if (t_attach_console != nil)
 		{
-			((AttachConsolePtr)t_attach_console)(-1);
+			if (((AttachConsolePtr)t_attach_console)(-1))
+			{
+				for (int i = 0; i < 3; i++)
+					if (t_redirected[i] != NULL)
+						SetStdHandle(kStdHandleIds[i], t_redirected[i]);
+			}
 			return;
 		}
 	}
