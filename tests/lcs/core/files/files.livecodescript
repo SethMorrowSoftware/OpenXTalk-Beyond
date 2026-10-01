@@ -27,6 +27,9 @@ on TestRegistryKeys
       TestAssert merge("Key [tTestKey]] has right value"), listRegistry(tTestKey) is ("Key1" & return & "Key2")
       TestAssert merge("Key [tTestKey]]Key1 has right value"), listRegistry(tTestKey & "Key1") is "Key1"
       TestAssert merge("Key [tTestKey]]Key2 has right value"), listRegistry(tTestKey & "Key2") is empty
+
+      -- Leave the registry of the computer the tests run on as it was
+      get deleteRegistry("HKEY_CURRENT_USER\Software\LiveCode\tests")
    else
       testSkip
       testSkip
