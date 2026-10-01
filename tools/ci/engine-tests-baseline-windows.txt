@@ -3,32 +3,6 @@
 # platform). One "<suite>: <test>" per line; "? " before it: fails only
 # sometimes; text after " #" is a comment.
 
-# Text compares by the Windows-1252 code of a char the engine holds as a
-# native one (the euro sign is 0x80), and by codepoint otherwise, so sort
-# and < depend on how a string was made
-lcs: core/array/combine: TestCombineMixed
-lcs: core/array/combine: TestCombineStrings
-
-# The engine attaches to the console of the program that started it, and
-# Windows then replaces the standard handles it inherited from cmd.exe:
-# shell() gets none of its output
-lcs: core/debugging/log: TestLog
-
-# No date before 1970 converts (the C runtime's time functions start then)
-lcs: core/engine/localproperties: TestCenturyCutOff
-
-# Creating a player crashes the engine when the stack has no window, as
-# every stack without a user interface (-ui) has none
-lcs: core/engine/put: TestPutBeforeIntoAfterInvalidContainer
-lcs: core/interface/controlatloc: TestControlAtLoc
-lcs: core/interface/group: TestGroupUndo_Bug20642
-
-# Without a user interface, accept connections does not listen (the event
-# that the sockets signal is never created)
-lcs: core/network/network: TestAcceptConnectionsInEphemeralPortRange
-lcs: core/network/network: TestOpenSocketFromWithAddressAndPortUsingLocalServer
-lcs: core/network/network: TestOpenSocketFromWithAddressUsingLocalServer
-
 # They bind C library functions (malloc, sprintf, ldiv) to "<builtin>",
 # which on Windows finds only what the program itself exports: lc-run has
 # the C runtime built in, and exports none of it
