@@ -1,0 +1,14 @@
+# Engine test suite (tools/ci/run_engine_tests.py): tests known to fail on
+# Linux that are not in engine-tests-baseline.txt (the failures on every
+# platform). One "<suite>: <test>" per line; "? " before it: fails only
+# sometimes; text after " #" is a comment.
+
+# LiveCode Ltd's download addresses for its commercial mergExt and tsNet
+# externals, from builder/ (LiveCode's installer builder, which OXT-Beyond
+# does not use); they run on macOS and Linux only
+lcs: ext/ext-urls: TestMergExtURL
+lcs: ext/ext-urls: TestTSNetURL
+
+# Loads a jar through the engine's Java support, which needs a Java runtime
+# it can find (JAVA_HOME)
+? lcs: extensions/libraries/javatest/tests/java: TestLoadJar

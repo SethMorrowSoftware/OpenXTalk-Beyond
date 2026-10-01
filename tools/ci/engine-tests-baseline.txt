@@ -1,0 +1,13 @@
+# Engine test suite (tools/ci/run_engine_tests.py): tests known to fail on
+# every platform. Each platform family has a supplement next to this file
+# (engine-tests-baseline-windows.txt, -linux.txt, -mac.txt) with the tests
+# that fail only there.
+#
+# One "<suite>: <test>" per line, as the check names failures; "? " before
+# it marks a test that fails only sometimes (its passing is not reported);
+# text after " #" is a comment. Remove a line when its test passes: the
+# check lists the baseline entries that did.
+
+# Asks http://httpstat.us for a 204 response: an outside service, which
+# has not always answered
+? lcs: liburl/status_codes: TestStatusCodes
