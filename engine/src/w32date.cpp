@@ -82,6 +82,152 @@ void MCS_getlocaldatetime(MCDateTime& r_datetime)
 	tm_to_datetime(true, t_tm, r_datetime);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// The C runtime's _mkgmtime64, _mktime64, _gmtime64_s and _localtime64_s only
+// handle the years 1970 to 3000, so every date before 1970 failed to convert
+// on Windows (convert "1/1/1960" to dateItems left it as it was) while the
+// same script worked on Linux and macOS. The runtime is still used for the
+// years it handles, so their results do not change; the other years are
+// converted below: universal time with the proleptic Gregorian calendar, as
+// timegm and gmtime do on other platforms, and local time with the rules of
+// the time zone that Windows applies to the year (SystemTimeToTzSpecific-
+// LocalTime), or before 1601, which SYSTEMTIME cannot hold, the zone's
+// standard time.
+
+static int64_t floor_div(int64_t p_numerator, int64_t p_denominator)
+{
+	int64_t t_quotient = p_numerator / p_denominator;
+	if ((p_numerator % p_denominator != 0) && ((p_numerator < 0) != (p_denominator < 0)))
+		t_quotient -= 1;
+	return t_quotient;
+}
+
+// The days from 1970-01-01 to the given date (Howard Hinnant's
+// days_from_civil); month is 1 to 12, day may be out of range.
+static int64_t days_from_civil(int64_t p_year, int64_t p_month, int64_t p_day)
+{
+	p_year -= p_month <= 2 ? 1 : 0;
+	int64_t t_era = floor_div(p_year, 400);
+	int64_t t_year_of_era = p_year - t_era * 400;
+	int64_t t_day_of_year = (153 * (p_month + (p_month > 2 ? -3 : 9)) + 2) / 5 + p_day - 1;
+	int64_t t_day_of_era = t_year_of_era * 365 + t_year_of_era / 4 - t_year_of_era / 100 + t_day_of_year;
+	return t_era * 146097 + t_day_of_era - 719468;
+}
+
+// The date that is the given number of days from 1970-01-01 (Howard
+// Hinnant's civil_from_days).
+static void civil_from_days(int64_t p_days, int64_t& r_year, int64_t& r_month, int64_t& r_day)
+{
+	p_days += 719468;
+	int64_t t_era = floor_div(p_days, 146097);
+	int64_t t_day_of_era = p_days - t_era * 146097;
+	int64_t t_year_of_era = (t_day_of_era - t_day_of_era / 1460 + t_day_of_era / 36524 - t_day_of_era / 146096) / 365;
+	int64_t t_day_of_year = t_day_of_era - (365 * t_year_of_era + t_year_of_era / 4 - t_year_of_era / 100);
+	int64_t t_month_index = (5 * t_day_of_year + 2) / 153;
+	r_day = t_day_of_year - (153 * t_month_index + 2) / 5 + 1;
+	r_month = t_month_index + (t_month_index < 10 ? 3 : -9);
+	r_year = t_year_of_era + t_era * 400 + (r_month <= 2 ? 1 : 0);
+}
+
+// The seconds from 1970-01-01 00:00:00 to the date and time, with fields out
+// of range carried over as timegm does (month 13 is January of the next year).
+static int64_t datetime_to_epoch_seconds(const MCDateTime& p_datetime)
+{
+	int64_t t_months = (int64_t)p_datetime . year * 12 + (p_datetime . month - 1);
+	int64_t t_year = floor_div(t_months, 12);
+	int64_t t_month = t_months - t_year * 12 + 1;
+	int64_t t_days = days_from_civil(t_year, t_month, 1) + (p_datetime . day - 1);
+	return t_days * 86400 + (int64_t)p_datetime . hour * 3600 + (int64_t)p_datetime . minute * 60 + p_datetime . second;
+}
+
+static void epoch_seconds_to_datetime(int64_t p_seconds, MCDateTime& r_datetime)
+{
+	int64_t t_days = floor_div(p_seconds, 86400);
+	int64_t t_second_of_day = p_seconds - t_days * 86400;
+	int64_t t_year, t_month, t_day;
+	civil_from_days(t_days, t_year, t_month, t_day);
+	r_datetime . year = (int4)t_year;
+	r_datetime . month = (int4)t_month;
+	r_datetime . day = (int4)t_day;
+	r_datetime . hour = (int4)(t_second_of_day / 3600);
+	r_datetime . minute = (int4)((t_second_of_day / 60) % 60);
+	r_datetime . second = (int4)(t_second_of_day % 60);
+	r_datetime . bias = 0;
+}
+
+// A SYSTEMTIME holds the years 1601 to 30827.
+static bool epoch_seconds_to_systemtime(int64_t p_seconds, SYSTEMTIME& r_time)
+{
+	MCDateTime t_datetime;
+	epoch_seconds_to_datetime(p_seconds, t_datetime);
+	if (t_datetime . year < 1601 || t_datetime . year > 30827)
+		return false;
+	r_time . wYear = (WORD)t_datetime . year;
+	r_time . wMonth = (WORD)t_datetime . month;
+	r_time . wDayOfWeek = 0;
+	r_time . wDay = (WORD)t_datetime . day;
+	r_time . wHour = (WORD)t_datetime . hour;
+	r_time . wMinute = (WORD)t_datetime . minute;
+	r_time . wSecond = (WORD)t_datetime . second;
+	r_time . wMilliseconds = 0;
+	return true;
+}
+
+static int64_t systemtime_to_epoch_seconds(const SYSTEMTIME& p_time)
+{
+	MCDateTime t_datetime;
+	t_datetime . year = p_time . wYear;
+	t_datetime . month = p_time . wMonth;
+	t_datetime . day = p_time . wDay;
+	t_datetime . hour = p_time . wHour;
+	t_datetime . minute = p_time . wMinute;
+	t_datetime . second = p_time . wSecond;
+	t_datetime . bias = 0;
+	return datetime_to_epoch_seconds(t_datetime);
+}
+
+// The offset of the time zone's standard time from universal time, in
+// seconds (east is positive, as in MCDateTime's bias).
+static int64_t standard_time_offset(void)
+{
+	TIME_ZONE_INFORMATION t_zone;
+	if (GetTimeZoneInformation(&t_zone) == TIME_ZONE_ID_INVALID)
+		return 0;
+	return -(int64_t)(t_zone . Bias + t_zone . StandardBias) * 60;
+}
+
+static void universal_to_local_any_year(MCDateTime& x_datetime)
+{
+	int64_t t_universal, t_local;
+	t_universal = datetime_to_epoch_seconds(x_datetime);
+
+	SYSTEMTIME t_universal_time, t_local_time;
+	if (epoch_seconds_to_systemtime(t_universal, t_universal_time) &&
+		SystemTimeToTzSpecificLocalTime(NULL, &t_universal_time, &t_local_time))
+		t_local = systemtime_to_epoch_seconds(t_local_time);
+	else
+		t_local = t_universal + standard_time_offset();
+
+	epoch_seconds_to_datetime(t_local, x_datetime);
+	x_datetime . bias = (int4)((t_local - t_universal) / 60);
+}
+
+static void local_to_universal_any_year(MCDateTime& x_datetime)
+{
+	int64_t t_local, t_universal;
+	t_local = datetime_to_epoch_seconds(x_datetime);
+
+	SYSTEMTIME t_local_time, t_universal_time;
+	if (epoch_seconds_to_systemtime(t_local, t_local_time) &&
+		TzSpecificLocalTimeToSystemTime(NULL, &t_local_time, &t_universal_time))
+		t_universal = systemtime_to_epoch_seconds(t_universal_time);
+	else
+		t_universal = t_local - standard_time_offset();
+
+	epoch_seconds_to_datetime(t_universal, x_datetime);
+}
+
 bool MCS_datetimetolocal(MCDateTime& x_datetime)
 {
 	struct tm t_universal_datetime;
@@ -89,11 +235,13 @@ bool MCS_datetimetolocal(MCDateTime& x_datetime)
 
 	__time64_t t_time;
 	t_time = _mkgmtime64(&t_universal_datetime);
-	if (t_time == -1)
-		return false;
 
 	struct tm t_local_tm;
-	_localtime64_s(&t_local_tm, &t_time);
+	if (t_time == -1 || _localtime64_s(&t_local_tm, &t_time) != 0)
+	{
+		universal_to_local_any_year(x_datetime);
+		return true;
+	}
 
 	tm_to_datetime(true, t_local_tm, x_datetime);
 
@@ -107,11 +255,13 @@ bool MCS_datetimetouniversal(MCDateTime& x_datetime)
 
 	__time64_t t_universal_time;
 	t_universal_time = _mktime64(&t_local_datetime);
-	if (t_universal_time == -1)
-		return false;
 
 	struct tm t_universal_tm;
-	_gmtime64_s(&t_universal_tm, &t_universal_time);
+	if (t_universal_time == -1 || _gmtime64_s(&t_universal_tm, &t_universal_time) != 0)
+	{
+		local_to_universal_any_year(x_datetime);
+		return true;
+	}
 
 	tm_to_datetime(false, t_universal_tm, x_datetime);
 
@@ -126,7 +276,7 @@ bool MCS_datetimetoseconds(const MCDateTime& p_datetime, double& r_seconds)
 	__time64_t t_universal_time;
 	t_universal_time = _mkgmtime64(&t_universal_tm);
 	if (t_universal_time == -1)
-		return false;
+		t_universal_time = datetime_to_epoch_seconds(p_datetime);
 
 	r_seconds = (double)t_universal_time;
 
@@ -135,11 +285,20 @@ bool MCS_datetimetoseconds(const MCDateTime& p_datetime, double& r_seconds)
 
 bool MCS_secondstodatetime(double p_seconds, MCDateTime& r_datetime)
 {
+	// About 31 million years either way: further than any calendar date, and
+	// within what the conversions below can hold.
+	if (!(fabs(p_seconds) < 1e15))
+		return false;
+
 	__time64_t t_universal_time;
-	t_universal_time = (__time64_t)(p_seconds + 0.5);
+	t_universal_time = (__time64_t)floor(p_seconds + 0.5);
 
 	struct tm t_universal_tm;
-	_gmtime64_s(&t_universal_tm, &t_universal_time);
+	if (_gmtime64_s(&t_universal_tm, &t_universal_time) != 0)
+	{
+		epoch_seconds_to_datetime(t_universal_time, r_datetime);
+		return true;
+	}
 
 	tm_to_datetime(false, t_universal_tm, r_datetime);
 
