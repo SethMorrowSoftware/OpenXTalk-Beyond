@@ -227,12 +227,16 @@ end handler
 handler TestBaseConvert_LargerThanInteger() returns LCInt
 	return "80000000" converted from base 16
 end handler
+handler TestBaseConvert_LargerThan32Bits() returns LCInt
+	return "100000000" converted from base 16
+end handler
 public handler TestBaseConvertFromLimits()
 	test "convert from hex (largest integer)" when "7FFFFFFF" converted from base 16 is 2147483647
 	test "convert from hex (smallest integer)" when ("-80000000" converted from base 16) + 1 is -2147483647
 	test "convert to hex (smallest integer)" when ("-80000000" converted from base 16) converted to base 16 is "-80000000"
 
 	MCUnitTestHandlerThrows(TestBaseConvert_LargerThanInteger, "convert from hex (larger than the largest integer)")
+	MCUnitTestHandlerThrows(TestBaseConvert_LargerThan32Bits, "convert from hex (larger than 32 bits)")
 end handler
 
 public handler TestBaseConvertTo()
