@@ -450,7 +450,8 @@ jobs:
       # and a time limit, the LiveCode Builder tests (each handler in its
       # own lc-run), and the LiveCode Builder compiler and LiveCode Script
       # parser tests. A failure that is not in
-      # tools/ci/engine-tests-baseline.txt or its macOS supplement fails the
+      # tools/ci/engine-tests-baseline.txt or its macOS supplements (-mac,
+      # and -mac-arm64 or -mac-x86_64 for this runner's processor) fails the
       # step (a failed test is run once more first, and one that then passes
       # is only reported as flaky); a crash is run again under lldb for a
       # stack trace. The job summary lists the failures and the baseline

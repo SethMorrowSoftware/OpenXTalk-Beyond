@@ -21,7 +21,7 @@ baseline of known ones.
 
   python tools/ci/run_engine_tests.py --bin DIR [--repo DIR]
       [--suite lcs|lcb|compiler|parser]... [--filter REGEX]
-      [--baseline FILE] [--update-baseline] [--timeout SECONDS]
+      [--baseline FILE] [--arch ARCH] [--update-baseline] [--timeout SECONDS]
       [--symbols DIR]... [--log FILE]
 
 --bin is a build output folder (win-x86_64-bin, linux-<arch>-bin, or on
@@ -59,16 +59,19 @@ FAIL (a "not ok", or the engine ending with a non-zero status, crashing or
 running out of time), XPASS, XFAIL, PASS, SKIP. Each failed test is named
 "<suite>: <test>", for example "lcs: core/engine/put:
 TestPutBeforeIntoAfterInvalidContainer", and looked up in the baseline:
-tools/ci/engine-tests-baseline.txt (failures on every platform) and the
+tools/ci/engine-tests-baseline.txt (failures on every platform), the
 platform family's engine-tests-baseline-<windows|linux|mac>.txt next to
-it. A failure in neither is new, and fails the check (exit status 1); a
-baseline entry that passed is reported, so that it can be removed, but is
-not an error (some tests depend on timing); an entry marked "? " fails only
-sometimes, and its passing is not reported. A LiveCode Script test that
-fails and is not in the baseline is run again (--retries, default once);
-when it passes then, it is reported as flaky and does not fail the check.
---update-baseline rewrites the family's file with the failures that are not
-in the shared one.
+it, and engine-tests-baseline-<family>-<arch>.txt for the failures on one
+processor architecture, x86_64 or arm64 (--arch, by default this
+computer's). A failure in none of them is new, and fails the check (exit
+status 1); a baseline entry that passed is reported, so that it can be
+removed, but is not an error (some tests depend on timing); an entry
+marked "? " fails only sometimes, and its passing is not reported. A
+LiveCode Script test that fails and is not in the baseline is run again
+(--retries, default once); when it passes then, it is reported as flaky
+and does not fail the check. --update-baseline rewrites the family's file
+with the failures that are in neither the shared one nor the
+architecture's.
 
 Some tests act on the desktop of the computer they run on: they launch
 Notepad or TextEdit and then end every running copy of it, write a file to
@@ -93,6 +96,7 @@ summary. Exit status: 0 when no test failed that is not in the baseline,
 import argparse
 import concurrent.futures
 import os
+import platform
 import re
 import shutil
 import signal
@@ -150,6 +154,16 @@ def host_family():
     if sys.platform == 'darwin':
         return 'mac'
     return 'linux'
+
+
+def host_arch():
+    """This computer's processor architecture, as the builds name it."""
+    machine = platform.machine().lower()
+    if machine in ('amd64', 'x86_64', 'x64'):
+        return 'x86_64'
+    if machine in ('arm64', 'aarch64'):
+        return 'arm64'
+    return machine
 
 
 def tools_in(bin_dir, family):
@@ -706,6 +720,9 @@ def main(argv=None):
                          '(default: %(default)s; 0 never)')
     ap.add_argument('--desktop-tests', action='store_true',
                     help='also run the tests that act on this computer\'s desktop (always run in CI)')
+    ap.add_argument('--arch', default=host_arch(), metavar='ARCH',
+                    help='processor architecture of the build, which picks its baseline '
+                         '(default: this computer\'s, %(default)s)')
     args = ap.parse_args(argv)
 
     family = host_family()
@@ -718,13 +735,17 @@ def main(argv=None):
     started = time.monotonic()
     shared_path = os.path.abspath(args.baseline)
     family_path = family_baseline(shared_path, family)
+    arch_path = family_baseline(shared_path, '%s-%s' % (family, args.arch))
     shared = read_baseline(shared_path)
+    arch_known = read_baseline(arch_path)
     known = dict(shared)
     known.update(read_baseline(family_path))
+    known.update(arch_known)
     try:
         tools = tools_in(os.path.abspath(args.bin_dir), family)
         log('Engine   : %s' % tools['engine'])
         log('Checkout : %s' % repo)
+        log('Platform : %s %s' % (family, args.arch))
         results = []
         if 'lcs' in suites or 'lcb' in suites:
             failed = compile_test_modules(tools, repo, log_lines)
@@ -751,8 +772,8 @@ def main(argv=None):
     totals = dict((k, sum(1 for r in results if r.outcome == k)) for k in RESULT_ORDER)
 
     with open(log_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write('Engine: %s\nCheckout: %s\nBaselines: %s, %s\n\n' % (tools['engine'], repo, shared_path,
-                                                                     family_path))
+        f.write('Engine: %s\nCheckout: %s\nBaselines: %s, %s, %s\n\n' % (tools['engine'], repo, shared_path,
+                                                                         family_path, arch_path))
         for line in log_lines:
             f.write(line + '\n')
         for r in results:
@@ -787,11 +808,12 @@ def main(argv=None):
     log('Log: %s' % log_path)
 
     if args.update_baseline:
-        write_family_baseline(family_path, family, [r.ident for r in failing], shared,
-                              baseline_entries(family_path))
+        # The failures of one architecture stay in its own file.
+        write_family_baseline(family_path, family, [r.ident for r in failing],
+                              list(shared) + list(arch_known), baseline_entries(family_path))
         log('Wrote %s' % family_path)
 
-    md = ['### Engine tests (%s)' % family, '',
+    md = ['### Engine tests (%s %s)' % (family, args.arch), '',
           '%d tests in %.0f s: %s.' % (len(results), elapsed, ', '.join('%d %s' % (totals[k], k)
                                                                         for k in RESULT_ORDER)),
           '%d failure(s) in the baseline, **%d new**.' % (len(failing) - len(new), len(new))]

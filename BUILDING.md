@@ -1217,10 +1217,13 @@ one at a time took 12.
 
 Failed tests are compared with
 [`tools/ci/engine-tests-baseline.txt`](tools/ci/engine-tests-baseline.txt)
-(failures on every platform) and the platform's
-`engine-tests-baseline-<windows|linux|mac>.txt` next to it. A failure in
-neither fails the check (exit code 1), but first the test is run once
-more (`--retries`), and one that passes then is only reported as flaky.
+(failures on every platform), the platform's
+`engine-tests-baseline-<windows|linux|mac>.txt` next to it, and
+`engine-tests-baseline-<platform>-<arch>.txt` for failures on one
+processor architecture (`x86_64` or `arm64`; `--arch`, by default the
+computer's). A failure in none of them fails the check (exit code 1), but
+first the test is run once more (`--retries`), and one that passes then
+is only reported as flaky.
 Baseline entries whose tests passed are reported so that they can be
 removed; an entry marked `? ` fails only sometimes and is not reported.
 `--update-baseline` rewrites the platform's file. When a test crashes the
