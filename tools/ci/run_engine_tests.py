@@ -35,7 +35,9 @@ The suites, as tests/Makefile names them:
   lcs       (lcs-check) every "on Test..." handler of the LiveCode Script
             tests in tests/lcs, each run on its own by the standalone engine
             with -ui through tests/_testrunner.livecodescript (invoke), as
-            the test runner's own "run" does, but started from here: the
+            the test runner's own "run" does, but started from here (with
+            --jobs N, the tests of N files at a time, those of the files in
+            SERIAL_FILES one file after the other): the
             output is read from the engine's standard output directly (on
             Windows the runner's shell() through cmd.exe gets nothing from
             the engine, a GUI program), and each test has a time limit
@@ -89,6 +91,7 @@ summary. Exit status: 0 when no test failed that is not in the baseline,
 """
 
 import argparse
+import concurrent.futures
 import os
 import re
 import shutil
@@ -106,6 +109,18 @@ RESULT_ORDER = ('fail', 'xpass', 'xfail', 'pass', 'skip')
 ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]|\x1b\(B')
 RUNNER_LINE = re.compile(r'^(PASS|FAIL|XFAIL|XPASS|SKIP):\s+(.*?)\s+\[\d+/\d+\]\s*$')
 TEST_HANDLER = re.compile(r'^\s*on\s+([^\s,;()"\[\]]+)', re.IGNORECASE)
+
+# LiveCode Script test files whose tests must not run beside other tests
+# with --jobs: they use fixed ports, the system clipboard, programs that they
+# start and end, or files and registry keys of fixed names. (prefixes of
+# the file's name in tests/lcs)
+SERIAL_FILES = (
+    'core/network/',        # ports 8001 and 8008 to 8010
+    'liburl/',              # outside hosts, and their time limits
+    'core/engine/clipboard',
+    'core/chunks/cut',      # the clipboard
+    'core/files/files',     # Notepad or TextEdit, Test.txt on the Desktop, the registry
+)
 
 # Tests that act on the desktop of the computer they run on (see the
 # docstring), as patterns matched against "<suite>: <test>".
@@ -398,12 +413,13 @@ def run_test_process(cmd, tests_dir, env, timeout):
     return status, text, details, took
 
 
-def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs):
+def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs, out=None):
     """Run one test (a process that prints TAP) and return its Result. A
     failure that is not known, unless the test ran out of time, is run
     again (--retries): one that passes then is reported as flaky, with the
     first run's output, and does not fail the check. A crash that stays is
-    run under a debugger."""
+    run under a debugger. The result line goes to out (a list) when given,
+    else to the console."""
     status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
     counts, failures = analyse_tap(text)
     outcome = worst(counts)
@@ -429,10 +445,14 @@ def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs):
             flaky[1] + [flaky[0].rstrip()]
         result.failures = flaky[2]
     tally = sum(counts.values())
-    log('%-5s %s%s [%d/%d]%s%s' % (outcome.upper(), '' if suite == 'lcs' else suite + ': ', ident,
-                                   counts['pass'] + counts['xfail'] + counts['skip'], tally,
-                                   '' if took < 30 else ' (%.0f s)' % took,
-                                   ' (flaky: failed the first time)' if flaky is not None else ''))
+    line = '%-5s %s%s [%d/%d]%s%s' % (outcome.upper(), '' if suite == 'lcs' else suite + ': ', ident,
+                                      counts['pass'] + counts['xfail'] + counts['skip'], tally,
+                                      '' if took < 30 else ' (%.0f s)' % took,
+                                      ' (flaky: failed the first time)' if flaky is not None else '')
+    if out is None:
+        log(line)
+    else:
+        out.append(line)
     return result
 
 
@@ -441,20 +461,66 @@ def run_lcs(tools, repo, family, args, symbol_dirs, known):
     runner = lc_path(os.path.join(tests_dir, '_testrunner.livecodescript'))
     tests = lcs_tests(os.path.join(tests_dir, 'lcs'), args.filter)
     log('LiveCode Script tests: %d in %s' % (len(tests), lc_path(os.path.join(tests_dir, 'lcs'))))
-    results = []
     env = child_env()
     desktop_tests = args.desktop_tests or os.environ.get('CI', '').lower() == 'true'
-    for path, name, ident in tests:
-        if not desktop_tests and any(re.search(x, 'lcs: ' + ident) for x in INTRUSIVE):
-            result = Result('lcs', ident, 'skip', {'skip': 1},
-                            'ok # SKIP acts on this computer\'s desktop (run with --desktop-tests)\n')
-            result.failures = []
-            results.append(result)
-            log('SKIP  %s (acts on the desktop; --desktop-tests runs it)' % ident)
-            continue
-        cmd = [tools['engine'], '-ui', runner, 'invoke', lc_path(path), name]
-        results.append(run_test('lcs', ident, cmd, tests_dir, env, args, known, family, symbol_dirs))
-    return results
+
+    def run_file(file_tests, out):
+        file_results = []
+        for path, name, ident in file_tests:
+            if not desktop_tests and any(re.search(x, 'lcs: ' + ident) for x in INTRUSIVE):
+                result = Result('lcs', ident, 'skip', {'skip': 1},
+                                'ok # SKIP acts on this computer\'s desktop (run with --desktop-tests)\n')
+                result.failures = []
+                file_results.append(result)
+                line = 'SKIP  %s (acts on the desktop; --desktop-tests runs it)' % ident
+                if out is None:
+                    log(line)
+                else:
+                    out.append(line)
+                continue
+            cmd = [tools['engine'], '-ui', runner, 'invoke', lc_path(path), name]
+            file_results.append(run_test('lcs', ident, cmd, tests_dir, env, args, known, family,
+                                         symbol_dirs, out))
+        return file_results
+
+    if args.jobs <= 1:
+        return run_file(tests, None)
+
+    # With --jobs, the files run side by side, the tests of a file one after
+    # the other; the files of SERIAL_FILES run one after the other in one of
+    # the workers, so that none of them runs beside another. A file's lines
+    # are printed when it is done, and the results keep the order of a run
+    # without --jobs.
+    files = []
+    for test in tests:
+        name = test[2].split(': ', 1)[0]
+        if not files or files[-1][0] != name:
+            files.append((name, []))
+        files[-1][1].append(test)
+    serial = [f for f in files if f[0].startswith(SERIAL_FILES)]
+
+    def run_serial(out):
+        return dict((name, run_file(file_tests, out)) for name, file_tests in serial)
+
+    by_file = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        running = {}
+        if serial:
+            out = []
+            running[pool.submit(run_serial, out)] = (None, out)
+        for name, file_tests in files:
+            if not name.startswith(SERIAL_FILES):
+                out = []
+                running[pool.submit(run_file, file_tests, out)] = (name, out)
+        for future in concurrent.futures.as_completed(running):
+            name, out = running[future]
+            if name is None:
+                by_file.update(future.result())
+            else:
+                by_file[name] = future.result()
+            for line in out:
+                log(line)
+    return [r for name, _ in files for r in by_file[name]]
 
 
 def run_lcb(tools, repo, family, args, symbol_dirs, known):
@@ -633,6 +699,8 @@ def main(argv=None):
     ap.add_argument('--symbols', action='append', default=[], metavar='DIR',
                     help='Windows: folders with the .pdb files for crash traces (default: --bin)')
     ap.add_argument('--log', metavar='FILE', help='default: _tests/engine-tests.log in the checkout')
+    ap.add_argument('--jobs', type=int, default=1, metavar='N',
+                    help='run the LiveCode Script tests of N files at a time (default: %(default)s)')
     ap.add_argument('--retries', type=int, default=1, metavar='N',
                     help='run a failed test that is not in the baseline again, at most N times '
                          '(default: %(default)s; 0 never)')

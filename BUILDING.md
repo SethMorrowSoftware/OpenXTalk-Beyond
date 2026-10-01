@@ -1208,7 +1208,12 @@ interface:
 
 `--suite` runs some of them; `--filter` takes a regular expression that
 the name `<suite>: <test>` must match, for example
-`--filter "core/strings/sort"`.
+`--filter "core/strings/sort"`. `--jobs N` runs the LiveCode Script tests
+of N files at a time (the tests of one file one after the other); the
+files that use fixed ports, the clipboard or programs they start
+(`SERIAL_FILES` in the script) run one after the other. CI uses
+`--jobs 4`: about 25 seconds on Linux, and a few minutes on macOS, where
+one at a time took 12.
 
 Failed tests are compared with
 [`tools/ci/engine-tests-baseline.txt`](tools/ci/engine-tests-baseline.txt)

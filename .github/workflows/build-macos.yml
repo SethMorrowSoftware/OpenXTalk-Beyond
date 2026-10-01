@@ -454,10 +454,12 @@ jobs:
       # step (a failed test is run once more first, and one that then passes
       # is only reported as flaky); a crash is run again under lldb for a
       # stack trace. The job summary lists the failures and the baseline
-      # entries that passed; the log has every failed test's output.
+      # entries that passed; the log has every failed test's output. --jobs
+      # 4: the tests of four files at a time (one at a time they take about
+      # 12 minutes here, starting the engine for each test).
       - name: Engine tests
         timeout-minutes: 45
-        run: python3 tools/ci/run_engine_tests.py --bin _build/mac/Release --log engine-tests.log
+        run: python3 tools/ci/run_engine_tests.py --bin _build/mac/Release --jobs 4 --log engine-tests.log
 
       - name: Upload build logs
         if: failure()

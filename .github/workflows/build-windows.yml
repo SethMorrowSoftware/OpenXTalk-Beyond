@@ -485,11 +485,12 @@ jobs:
       # next to the binaries. The job summary lists the failures and the
       # baseline entries that passed; the log has every failed test's
       # output. CI is "true" here, so the tests that act on the desktop
-      # (they start and end Notepad, and set the clipboard) run too.
+      # (they start and end Notepad, and set the clipboard) run too. --jobs
+      # 4: the tests of four files at a time.
       - name: Engine tests
         id: engine_tests
         timeout-minutes: 45
-        run: python tools/ci/run_engine_tests.py --bin win-x86_64-bin --log "$env:RUNNER_TEMP\build-logs\engine-tests.log"
+        run: python tools/ci/run_engine_tests.py --bin win-x86_64-bin --jobs 4 --log "$env:RUNNER_TEMP\build-logs\engine-tests.log"
 
       # Evaluate the colour pairs of tools/ci/ide-contrast-pairs.txt
       # (revIDEColor tags, light and dark appearance) in the staged layout

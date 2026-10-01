@@ -465,10 +465,11 @@ jobs:
       # first, and one that then passes is only reported as flaky); a
       # baseline entry that passed is reported, to be removed. The job
       # summary lists both, the log has every failed test's output. CI is
-      # "true" here, so the tests that act on the desktop run too.
+      # "true" here, so the tests that act on the desktop run too. --jobs 4:
+      # the tests of four files at a time (the runners have four processors).
       - name: Engine tests
         timeout-minutes: 45
-        run: python3 tools/ci/run_engine_tests.py --bin "linux-$ARCH-bin" --log engine-tests.log
+        run: python3 tools/ci/run_engine_tests.py --bin "linux-$ARCH-bin" --jobs 4 --log engine-tests.log
 
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
