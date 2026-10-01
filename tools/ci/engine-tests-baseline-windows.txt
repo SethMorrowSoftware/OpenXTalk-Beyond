@@ -39,7 +39,8 @@ lcb: lcb/vm/foreign-invoke: TestForeignInvoke_Varargs
 # the test ran again
 ? lcs: core/interface/interface: TestFoundLoc
 
-# They set the system clipboard, and run only in CI (or with
-# --desktop-tests); two failed in the one run on a developer's PC
-? lcs: core/engine/clipboard: TestClipboardMultipleTypes
-? lcs: core/engine/clipboard: TestClipboardPrivateKey
+# The "files" type of the clipboard comes back with its slashes swapped:
+# the paths are put on the clipboard as they are, not as native ones, and
+# converted from native ones when they are read ("/file/path" became
+# "\file\path"). It runs only in CI (or with --desktop-tests)
+lcs: core/engine/clipboard: TestClipboardMultipleTypes
