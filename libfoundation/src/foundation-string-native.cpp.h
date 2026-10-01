@@ -297,12 +297,35 @@ __MCNativeChar_Equal_Folded(char_t p_left,
     return true;
 }
 
+// The place of a native char in the order of strings: the Unicode codepoint
+// it maps to. MCUnicodeCompare orders strings by codepoint, so this keeps a
+// string's order the same whether it is held as native chars or as UTF-16;
+// comparing the native char codes themselves sorted Windows-1252's 0x80-0x9F
+// (the euro sign, curly quotes, dashes...) and most of Mac Roman's upper half
+// differently in the two forms, so sort and < depended on how a string had
+// been made. (Equality does not change: the mapping is one-to-one.)
+static inline ssize_t
+__MCNativeChar_Ordinal(char_t p_char)
+{
+#if defined(__ISO_8859_1__)
+    return p_char;
+#else
+    if (p_char < 0x80)
+        return p_char;
+    return MCUnicodeCharMapFromNative(p_char);
+#endif
+}
+
 // Compare two uncased or prefolded chars.
 inline ssize_t
 __MCNativeChar_Compare_Unfolded(char_t p_left,
                                 char_t p_right)
 {
-    return p_left - p_right;
+    if (p_left != p_right)
+        return __MCNativeChar_Ordinal(p_left) -
+                __MCNativeChar_Ordinal(p_right);
+
+    return 0;
 }
 
 // Compare an unfolded char with an uncased or prefolded char.
@@ -311,9 +334,9 @@ __MCNativeChar_Compare_Prefolded(char_t p_left,
                                  char_t p_folded_right)
 {
     if (p_left != p_folded_right)
-        return __MCNativeChar_Fold(p_left) -
-                p_folded_right;
-    
+        return __MCNativeChar_Ordinal(__MCNativeChar_Fold(p_left)) -
+                __MCNativeChar_Ordinal(p_folded_right);
+
     return 0;
 }
 
@@ -323,9 +346,9 @@ __MCNativeChar_Compare_Folded(char_t p_left,
                               char_t p_right)
 {
     if (p_left != p_right)
-        return __MCNativeChar_Fold(p_left) -
-                __MCNativeChar_Fold(p_right);
-    
+        return __MCNativeChar_Ordinal(__MCNativeChar_Fold(p_left)) -
+                __MCNativeChar_Ordinal(__MCNativeChar_Fold(p_right));
+
     return 0;
 }
 
