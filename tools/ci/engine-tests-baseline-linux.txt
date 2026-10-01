@@ -3,11 +3,6 @@
 # platform). One "<suite>: <test>" per line; "? " before it: fails only
 # sometimes; text after " #" is a comment.
 
-# "~" is the password database's home folder, not $HOME: in GitHub's
-# containers (HOME is /github/home, root's home /root) files("~") and
-# files($HOME) differ
-lcs: core/files/folders: TestFilesOfTilde
-
 # Page breaks of a field in Segoe UI 13: the number of pages depends on the
 # fonts installed (24 on some systems, not in the CI container)
 ? lcs: core/field/pageHeights: TestPageHeights
