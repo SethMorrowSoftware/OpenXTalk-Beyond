@@ -306,16 +306,24 @@ private:
 static bool s_weak_link_jvm = false;
 
 extern "C" int initialise_weak_link_jvm_with_path(const char*);
+static bool initialise_weak_link_jvm_with_string(MCStringRef p_path)
+{
+    MCAutoStringRefAsSysString t_jvm_lib;
+    if (!t_jvm_lib . Lock(p_path))
+        return false;
+    
+    return initialise_weak_link_jvm_with_path(*t_jvm_lib) != 0;
+}
+
 static bool initialise_weak_link_jvm()
 {
     if (s_weak_link_jvm)
         return true;
     
-    MCAutoStringRef t_path;
 #if defined(TARGET_PLATFORM_LINUX)
     // On linux we require the path to libjvm.so to be in LD_LIBRARY_PATH
     // so we can just weak link directly.
-    if (!MCStringFormat(&t_path, "libjvm.so"))
+    if (!initialise_weak_link_jvm_with_string(MCSTR("libjvm.so")))
         return false;
 #else
     const char *t_javahome = getenv("JAVA_HOME");
@@ -323,16 +331,33 @@ static bool initialise_weak_link_jvm()
     if (t_javahome == nullptr)
         return false;
     
-    if (!MCStringFormat(&t_path, "%s/jre/lib/jli/libjli.dylib", t_javahome))
+    // Where a JDK keeps libjli: lib since Java 11, lib/jli in Java 9 and
+    // 10, jre/lib/jli in Java 8. Only the last was tried, so no current
+    // Java could be found.
+    static const char * const s_libjli_paths[] =
+    {
+        "/lib/libjli.dylib",
+        "/lib/jli/libjli.dylib",
+        "/jre/lib/jli/libjli.dylib",
+    };
+    
+    bool t_loaded = false;
+    for (const char *t_libjli_path : s_libjli_paths)
+    {
+        MCAutoStringRef t_path;
+        if (!MCStringFormat(&t_path, "%s%s", t_javahome, t_libjli_path))
+            return false;
+        
+        if (initialise_weak_link_jvm_with_string(*t_path))
+        {
+            t_loaded = true;
+            break;
+        }
+    }
+    
+    if (!t_loaded)
         return false;
 #endif
-    
-    MCAutoStringRefAsSysString t_jvm_lib;
-    if (!t_jvm_lib . Lock(*t_path))
-        return false;
-    
-    if (!initialise_weak_link_jvm_with_path(*t_jvm_lib))
-        return false;
     
     s_weak_link_jvm = true;
     return true;
