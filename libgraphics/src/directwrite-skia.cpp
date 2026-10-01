@@ -535,6 +535,8 @@ static bool MCGDWAddCollectionFontsToList(IDWriteFontCollection *p_collection, M
 		if (t_family != nil)
 			t_family->Release();
 	}
+
+	return t_success;
 }
 
 bool MCGFontGetPlatformFontList(MCProperListRef &r_fonts)
