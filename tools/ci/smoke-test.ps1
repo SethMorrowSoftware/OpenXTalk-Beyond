@@ -157,6 +157,10 @@ if ($InstallDir) {
 else {
     $Layout = 'development'
     if (-not $BinDir) { $BinDir = Join-Path $RepoRoot 'win-x86_64-bin' }
+    # A full path, as for an installed layout: the engine loads the
+    # externals by these paths with LoadLibraryEx and
+    # LOAD_WITH_ALTERED_SEARCH_PATH, which takes no relative path
+    $BinDir = (Resolve-Path -LiteralPath $BinDir).Path
     if (-not $Exe) { $Exe = $DevExe }
     $engineDir = $BinDir
     $externalsDir = $BinDir

@@ -48,8 +48,8 @@
 # Before the build, it lints the IDE sources with the Python 3 checks in
 # tools/ci (check_ide_*.py), which need no build, and builds the prebuilt
 # third-party libraries from source (OpenSSL, curl, ICU and those of
-# thirdparty/, prebuilt/build-libraries-windows.ps1) unless its cache has
-# them; only the CEF archive is downloaded (prebuilts-v1).
+# thirdparty/, prebuilt/build-libraries-windows.ps1, which also repackages
+# Spotify's CEF build) unless its cache has them.
 # A run that passes all of these uploads the files in dist (not dist/stage)
 # as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
 # failed one, uploads the logs as "build-logs-win-x86_64" and the render
@@ -150,7 +150,7 @@ jobs:
       # Read by util/invoke-unix.bat, which runs the Cygwin bash, flex and bison
       CYGPATH: C:\cygwin64
       # Read by prebuilt/fetch-libraries.sh: only the Release libraries are
-      # needed, and every tarball it downloads (CEF) must match
+      # needed, and a tarball it had to download would have to match
       # prebuilt/SHA256SUMS; the ones built here come from PREBUILT_LOCAL_DIR
       PREBUILT_WIN32_SUBPLATFORMS: v141_static_release
       PREBUILT_STRICT: '1'
@@ -309,17 +309,17 @@ jobs:
       # The prebuilt libraries are built here from source, as on Linux and
       # macOS (prebuilt/build-libraries-windows.ps1): OpenSSL, curl and ICU
       # from the releases pinned in prebuilt/versions, Thirdparty from
-      # thirdparty/, all with the v141 toolset, as Release x86_64 archives in
-      # prebuilt/packaged. The cache key covers what they are made from: the
-      # versions, the script, the thirdparty/ tree and the build settings the
-      # Thirdparty libraries are compiled with. A cache miss builds them in
-      # this job (about 40 minutes). Only CEF still comes from the
-      # prebuilts-v1 release (LiveCode's CEF 74 archive), checked against
-      # prebuilt/SHA256SUMS.
+      # thirdparty/, all with the v141 toolset, and CEF repackaged from
+      # Spotify's build (its SHA-1 pinned in prebuilt/cef-sha1sums), as
+      # Release x86_64 archives in prebuilt/packaged. The cache key covers
+      # what they are made from: the versions, the script and the CEF sums,
+      # the thirdparty/ tree and the build settings the Thirdparty libraries
+      # are compiled with. A cache miss builds them in this job (about 25
+      # minutes).
       - name: Compute the prebuilt libraries cache key
         id: prebuilt-key
         env:
-          SCRIPTS_HASH: ${{ hashFiles('prebuilt/versions/*', 'prebuilt/build-libraries-windows.ps1', 'prebuilt/thirdparty.gyp', 'config/*.gypi', 'tools/ci/build-windows.ps1', 'make.cmd') }}
+          SCRIPTS_HASH: ${{ hashFiles('prebuilt/versions/*', 'prebuilt/build-libraries-windows.ps1', 'prebuilt/cef-sha1sums', 'prebuilt/thirdparty.gyp', 'config/*.gypi', 'tools/ci/build-windows.ps1', 'make.cmd') }}
         run: |
           $thirdparty = (git rev-parse HEAD:thirdparty).Substring(0, 12)
           if ($LASTEXITCODE -ne 0) { throw 'git rev-parse HEAD:thirdparty failed' }
@@ -342,14 +342,14 @@ jobs:
           choco install nasm -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco install nasm exited with code $LASTEXITCODE" }
 
-      - name: Build OpenSSL, curl and ICU from source
+      - name: Build OpenSSL, curl and ICU from source, repackage CEF
         id: prebuilt-build
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         timeout-minutes: 90
         env:
           VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
         run: |
-          ./prebuilt/build-libraries-windows.ps1 -Libraries OpenSSL, Curl, ICU -Arch x86_64 -Mode release
+          ./prebuilt/build-libraries-windows.ps1 -Libraries OpenSSL, Curl, ICU, CEF -Arch x86_64 -Mode release
           Get-ChildItem -LiteralPath prebuilt/packaged | Format-Table Name, Length -AutoSize | Out-String | Write-Host
 
       # The engine's own build files compile thirdparty/ (msbuild target
@@ -387,22 +387,12 @@ jobs:
           # The archives are compressed already
           compression-level: 0
 
-      # The CEF archive is downloaded (from prebuilts-v1); restore and save
-      # are separate so that a verified download is cached even when a later
-      # step fails
-      - name: Restore the cached CEF archive
-        id: cef-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: prebuilt/fetched/CEF-*.tar.bz2
-          key: prebuilt-win32-x86_64-cef-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/cef*', 'prebuilt/SHA256SUMS') }}
-
       # A login shell puts Cygwin's /usr/bin first on PATH and starts in the
       # home folder, hence the cd. "set -e" comes after the profile scripts.
       # The archives built above are copied from PREBUILT_LOCAL_DIR (and
-      # taken as built here: they have no SHA256SUMS entries); CEF is
-      # downloaded and checked. PREBUILT_LOCAL_DIR stays set for the build,
-      # whose fetch step runs the same script again.
+      # taken as built here: they have no SHA256SUMS entries); nothing is
+      # downloaded. PREBUILT_LOCAL_DIR stays set for the build, whose fetch
+      # step runs the same script again.
       - name: Fetch prebuilt libraries
         id: prebuilt
         timeout-minutes: 30
@@ -415,14 +405,6 @@ jobs:
           ./fetch-libraries.sh win32 x86_64
           ls -l fetched
           ls unpacked
-
-      - name: Save the CEF archive to the cache
-        if: steps.cef-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        uses: actions/cache/save@v5
-        with:
-          path: prebuilt/fetched/CEF-*.tar.bz2
-          key: ${{ steps.cef-cache.outputs.cache-primary-key }}
 
       - name: Configure (config.py and gyp)
         id: configure
@@ -553,6 +535,18 @@ jobs:
           $package = "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip"
           if (-not (Test-Path -LiteralPath $package -PathType Leaf)) { throw "$package was not written" }
           ./tools/ci/smoke-test.ps1 -Package $package -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test-portable.log"
+
+      # A standalone built from the portable zip's own runtime
+      # (Runtime/Windows/x86-64/Standalone) by its engine, as the IDE's
+      # builder does at its core ("_internal deploy windows"), then run;
+      # tools/ci/standalone_check.py extracts the zip to a neutral folder
+      # and checks the runtime folder's binaries first
+      - name: Standalone check
+        id: standalone
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/standalone_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
 
       # Compile every IDE script of the staged installed layout with its
       # engine; fails on compile errors that are not in the baseline.
@@ -730,6 +724,7 @@ jobs:
           PACKAGE_OUTCOME: ${{ steps.package.outcome }}
           CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          STANDALONE_OUTCOME: ${{ steps.standalone.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           CONTRAST_CHECK_OUTCOME: ${{ steps.contrast_check.outcome }}
           RENDER_TEST_OUTCOME: ${{ steps.render_test.outcome }}
@@ -750,6 +745,7 @@ jobs:
             'Package' = $env:PACKAGE_OUTCOME
             'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
+            'Standalone check' = $env:STANDALONE_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'IDE contrast check' = $env:CONTRAST_CHECK_OUTCOME
             'Render test' = $env:RENDER_TEST_OUTCOME
@@ -821,7 +817,229 @@ jobs:
           else {
             $lines += '- OXT-Beyond-win-x86_64: not uploaded (an earlier step failed)'
           }
-          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, IDE compile check, IDE contrast check, render test and installer logs'
+          $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, standalone check, IDE compile check, IDE contrast check, render test and installer logs'
           $lines += '- render-test: the images of the render test (each run: the light and dark appearance on a dark and a light Windows, and the reference release) and what the engine printed'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
+
+  # The 32-bit Windows build, for the standalone runtime
+  # Runtime/Windows/x86-32 (the IDE's "Windows" target), which the runtimes
+  # asset carries for every package (tools/oxt/make_runtimes_asset.py
+  # --builds). The toolchain and the prebuilt libraries of the job above,
+  # for x86: prebuilt/build-libraries-windows.ps1 -Arch x86 (CEF from
+  # Spotify's 32-bit build of the same version), config.py --platform
+  # win-x86 and make.cmd with the Win32 platform. It is checked like the
+  # x86-64 build (verify-build.ps1, the headless smoke test of the build
+  # output, the engine tests), on the same 64-bit Windows, which runs 32-bit
+  # programs. Outputs: win-x86-bin without its .pdb files as the artifact
+  # OXT-Beyond-win-x86-bin, the .pdb files as OXT-Beyond-win-x86-symbols;
+  # nothing is packaged.
+  build-x86:
+    name: Build win-x86
+    runs-on: windows-2022
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      BUILDTYPE: Release
+      BUILD_PLATFORM: win-x86
+      WINSDK_VERSION: 10.0.17763.0
+      WINSDK_COMPONENT: Microsoft.VisualStudio.Component.Windows10SDK.17763
+      CYGPATH: C:\cygwin64
+      PREBUILT_WIN32_SUBPLATFORMS: v141_static_release
+      PREBUILT_STRICT: '1'
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Install MSVC v141 toolset into Visual Studio 2022
+        id: vs
+        timeout-minutes: 45
+        run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -WindowsSdkComponent $env:WINSDK_COMPONENT -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
+
+      - name: Install Python 2.7
+        timeout-minutes: 15
+        run: |
+          $python = 'C:\Python27\python.exe'
+          for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
+            choco install python2 -y --no-progress
+            Write-Host "choco exited with code $LASTEXITCODE (attempt $attempt)"
+            if ($LASTEXITCODE -ne 0 -and $attempt -lt 2) { Start-Sleep -Seconds 10 }
+          }
+          if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
+
+      - name: Install Cygwin
+        timeout-minutes: 20
+        uses: cygwin/cygwin-install-action@v6
+        with:
+          platform: x86_64
+          install-dir: C:\cygwin64
+          add-to-path: 'false'
+          packages: flex bison m4 gawk sed grep curl tar bzip2 make
+
+      # As in the job above, for x86
+      - name: Compute the prebuilt libraries cache key
+        id: prebuilt-key
+        env:
+          SCRIPTS_HASH: ${{ hashFiles('prebuilt/versions/*', 'prebuilt/build-libraries-windows.ps1', 'prebuilt/cef-sha1sums', 'prebuilt/thirdparty.gyp', 'config/*.gypi', 'tools/ci/build-windows.ps1', 'make.cmd') }}
+        run: |
+          $thirdparty = (git rev-parse HEAD:thirdparty).Substring(0, 12)
+          if ($LASTEXITCODE -ne 0) { throw 'git rev-parse HEAD:thirdparty failed' }
+          $key = "prebuilt-win32-x86-v141_static_release-$($env:SCRIPTS_HASH.Substring(0, 16))-$thirdparty"
+          Write-Host "Cache key: $key"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "key=$key" -Encoding utf8
+
+      - name: Restore prebuilt libraries
+        id: prebuilt-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      - name: Install NASM
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: |
+          choco install nasm -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install nasm exited with code $LASTEXITCODE" }
+
+      - name: Build OpenSSL, curl and ICU from source, repackage CEF
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 90
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: |
+          ./prebuilt/build-libraries-windows.ps1 -Libraries OpenSSL, Curl, ICU, CEF -Arch x86 -Mode release
+          Get-ChildItem -LiteralPath prebuilt/packaged | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Build the Thirdparty libraries from thirdparty/
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 90
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: |
+          ./prebuilt/build-libraries-windows.ps1 -Libraries Thirdparty -Arch x86 -Mode release
+          Get-ChildItem -LiteralPath prebuilt/packaged | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Save prebuilt libraries to the cache
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      - name: Fetch prebuilt libraries
+        timeout-minutes: 30
+        shell: C:\cygwin64\bin\bash.exe --login -o igncr '{0}'
+        run: |
+          set -eo pipefail
+          cd "$(cygpath -u "$GITHUB_WORKSPACE")/prebuilt"
+          export PREBUILT_LOCAL_DIR="$PWD/packaged"
+          echo "PREBUILT_LOCAL_DIR=$(cygpath -w "$PREBUILT_LOCAL_DIR")" >> "$GITHUB_ENV"
+          ./fetch-libraries.sh win32 x86
+          ls -l fetched
+          ls unpacked
+
+      - name: Configure (config.py and gyp)
+        timeout-minutes: 20
+        run: ./tools/ci/build-windows.ps1 -Stage configure
+
+      - name: Build (make.cmd)
+        timeout-minutes: 240
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: ./tools/ci/build-windows.ps1 -Stage build
+
+      - name: Verify build output
+        run: ./tools/ci/verify-build.ps1 -BinDir win-x86-bin
+
+      # Uploaded before the tests, so that a failing test leaves the build
+      # output to look at (as the Linux x86 job does)
+      # 7-Zip is on the runner image; both archives hold the folder
+      # win-x86-bin, so the symbols can be extracted over the binaries
+      - name: Package the bin folder and the debug symbols
+        run: |
+          $7z = Join-Path $env:ProgramFiles '7-Zip\7z.exe'
+          & $7z a -tzip -mx=7 OXT-Beyond-win-x86-bin.zip win-x86-bin '-xr!*.pdb'
+          if ($LASTEXITCODE -ne 0) { throw "7z exited with code $LASTEXITCODE" }
+          & $7z a -tzip -mx=7 OXT-Beyond-win-x86-symbols.zip '-ir!win-x86-bin\*.pdb'
+          if ($LASTEXITCODE -ne 0) { throw "7z exited with code $LASTEXITCODE" }
+          Get-Item OXT-Beyond-win-x86-*.zip | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Upload the bin folder
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-win-x86-bin
+          path: OXT-Beyond-win-x86-bin.zip
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload the debug symbols
+        uses: actions/upload-artifact@v6
+        with:
+          name: OXT-Beyond-win-x86-symbols
+          path: OXT-Beyond-win-x86-symbols.zip
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      # The build output's development engine, headless: the script engine,
+      # ICU, OpenSSL, SQLite, revXML and revZip, as 32-bit code
+      - name: Smoke test (build output, headless)
+        timeout-minutes: 15
+        env:
+          OXT_EXPECT_PROCESSOR: x86
+        run: ./tools/ci/smoke-test.ps1 -BinDir win-x86-bin -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test.log"
+
+      - name: Engine tests
+        timeout-minutes: 45
+        run: python tools/ci/run_engine_tests.py --bin win-x86-bin --arch x86 --jobs 4 --log "$env:RUNNER_TEMP\build-logs\engine-tests.log"
+
+      # A standalone built from this build's runtime (standalone-community.exe)
+      # by its development engine, as the IDE's builder does at its core,
+      # then run as the 32-bit program it is (tools/ci/standalone_check.py)
+      - name: Standalone check (build output)
+        timeout-minutes: 15
+        run: python tools/ci/standalone_check.py --engine win-x86-bin/LiveCode-Community.exe --runtime win-x86-bin/standalone-community.exe --platform win-x86 --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
+
+      - name: Collect logs
+        if: always()
+        continue-on-error: true
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'build-logs'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          foreach ($log in @('build-win-x86\msbuild.log', 'C:\ProgramData\chocolatey\logs\chocolatey.log')) {
+            if (Test-Path -LiteralPath $log) { Copy-Item -LiteralPath $log -Destination $dest -Force }
+          }
+          $prebuiltWork = 'prebuilt\build\windows'
+          if (Test-Path -LiteralPath $prebuiltWork) {
+            foreach ($f in @(Get-ChildItem -LiteralPath $prebuiltWork -Recurse -File -Include 'config.log', 'CMakeError.log', 'CMakeConfigureLog.yaml' -ErrorAction SilentlyContinue)) {
+              $name = ($f.FullName.Substring((Resolve-Path $prebuiltWork).ProviderPath.Length + 1) -replace '[\\/]', '_')
+              Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $dest "prebuilt-$name") -Force
+            }
+          }
+          $msbuildLog = 'build-win-x86\msbuild.log'
+          if (Test-Path -LiteralPath $msbuildLog) {
+            $errors = @(Select-String -LiteralPath $msbuildLog -Pattern '(^|[ :(])error (C|LNK|MSB)[0-9]+|fatal error' |
+              Select-Object -First 50 | ForEach-Object { $_.Line.Trim() })
+            if ($errors.Count -gt 0) {
+              Write-Host 'msbuild.log errors:'
+              $errors | ForEach-Object { Write-Host $_ }
+            }
+          }
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-logs-win-x86
+          path: ${{ runner.temp }}/build-logs
+          if-no-files-found: ignore
+          retention-days: 14

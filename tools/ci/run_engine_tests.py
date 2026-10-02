@@ -165,6 +165,8 @@ def host_arch():
         return 'x86_64'
     if machine in ('arm64', 'aarch64'):
         return 'arm64'
+    if machine in ('i386', 'i486', 'i586', 'i686', 'x86'):
+        return 'x86'
     return machine
 
 
