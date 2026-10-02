@@ -886,9 +886,10 @@ void MCGDIMetaContext::domark(MCMark *p_mark)
 
 		case MARK_TYPE_IMAGE:
 		{
+			// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
 			HDC t_src_dc;
-			t_src_dc = ((MCScreenDC *)MCscreen) -> getsrchdc();
-			
+			t_src_dc = MCWin32GetScreenSourceDC();
+
 			// Work out source/dst sizes and decompressed bitmap
 			HBITMAP t_src_bitmap = nil;
 			HBITMAP t_src_mask = nil;
@@ -1089,7 +1090,8 @@ bool MCGDIMetaContext::begincomposite(const MCRectangle& p_mark_clip, MCGContext
 	t_width = p_mark_clip . width * t_scale;
 	t_height = p_mark_clip . height * t_scale;
 
-	t_success = create_temporary_dib(((MCScreenDC*)MCscreen)->getsrchdc(), t_width, t_height, t_bitmap, t_bits);
+	// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
+	t_success = create_temporary_dib(MCWin32GetScreenSourceDC(), t_width, t_height, t_bitmap, t_bits);
 
 	if (t_success)
 		t_success = MCGContextCreateWithPixels(t_width, t_height, t_width * sizeof(uint32_t), t_bits, true, t_context);
@@ -1132,7 +1134,8 @@ void MCGDIMetaContext::endcomposite(MCRegionRef p_clip_region)
 	else
 		MCRegionConvertToDeviceAndClip(p_clip_region, (MCSysContextHandle)m_dc);
 
-	HDC t_src_dc = ((MCScreenDC*)MCscreen)->getsrchdc();
+	// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
+	HDC t_src_dc = MCWin32GetScreenSourceDC();
 	SelectObject(t_src_dc, m_composite_bitmap);
 
 	BitBlt(m_dc, m_composite_rect . x * SCALE, m_composite_rect . y * SCALE, m_composite_rect . width * SCALE, m_composite_rect . height * SCALE, t_src_dc, 0, 0, SRCCOPY);

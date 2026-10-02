@@ -308,8 +308,9 @@ bool MCImageBitmapToMetafile(MCImageBitmap *p_bitmap, MCWinSysMetafileHandle &r_
 {
 	bool t_success = true;
 
+	// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
 	HDC t_src_dc;
-	t_src_dc = ((MCScreenDC *)MCscreen) -> getsrchdc();
+	t_src_dc = MCWin32GetScreenSourceDC();
 
 	HDC t_dst_dc;
 	t_success = nil != (t_dst_dc = CreateMetaFileA(NULL));

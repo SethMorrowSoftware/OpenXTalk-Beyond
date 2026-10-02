@@ -272,7 +272,8 @@ bool relaunch_get_current_instance(instance_t& r_instance, MCStringRef p_id)
 	memcpy(&r_instance . id[0], t_file_id, 16);
 	memcpy(&r_instance . id[4], t_stack_id, 16);
 	r_instance . process_id = t_process_id;
-	r_instance . message_window = MCscreen != NULL ? ((MCScreenDC *)MCscreen) -> getinvisiblewindow() : NULL;
+	// OXT-Beyond: in no-UI mode MCscreen is a plain MCUIDC, with no window
+	r_instance . message_window = MCscreen != NULL && !MCnoui ? ((MCScreenDC *)MCscreen) -> getinvisiblewindow() : NULL;
 	r_instance . launch_time = timeGetTime();
 	r_instance . process_handle = NULL;
 

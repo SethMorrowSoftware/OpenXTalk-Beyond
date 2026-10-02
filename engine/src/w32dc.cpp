@@ -331,6 +331,27 @@ void *MCScreenDC::GetNativeWindowHandle(Window p_win)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: see w32dc.h. MCScreenDC::open makes its DCs the same way.
+HDC MCWin32GetScreenSourceDC(void)
+{
+	if (!MCnoui)
+		return static_cast<MCScreenDC *>(MCscreen)->getsrchdc();
+
+	static HDC s_noui_src_dc = CreateCompatibleDC(NULL);
+	return s_noui_src_dc;
+}
+
+HDC MCWin32GetScreenDestinationDC(void)
+{
+	if (!MCnoui)
+		return static_cast<MCScreenDC *>(MCscreen)->getdsthdc();
+
+	static HDC s_noui_dst_dc = CreateCompatibleDC(NULL);
+	return s_noui_dst_dc;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 #define NORMAL_DENSITY (96.0)
 
 // IM-2014-01-28: [[ HiDPI ]] Return the DPI scale factor of the main screen.
