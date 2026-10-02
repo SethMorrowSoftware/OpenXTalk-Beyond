@@ -142,6 +142,37 @@ static Language2FontCharset s_fontcharsetmap[] =
 	{LCH_UNICODE, ANSI_CHARSET}
 };
 
+// OXT-Beyond: see w32dc.h. Defined here because the server engine compiles
+// this file (and not w32dc.cpp); its MCscreen is always a plain MCUIDC
+// (srvmain.cpp), whether or not MCnoui is set. The DCs made here are made
+// as MCScreenDC::open makes its own.
+static bool MCWin32ScreenHasDCs(void)
+{
+#ifdef _SERVER
+	return false;
+#else
+	return !MCnoui;
+#endif
+}
+
+HDC MCWin32GetScreenSourceDC(void)
+{
+	if (MCWin32ScreenHasDCs())
+		return static_cast<MCScreenDC *>(MCscreen)->getsrchdc();
+
+	static HDC s_src_dc = CreateCompatibleDC(NULL);
+	return s_src_dc;
+}
+
+HDC MCWin32GetScreenDestinationDC(void)
+{
+	if (MCWin32ScreenHasDCs())
+		return static_cast<MCScreenDC *>(MCscreen)->getdsthdc();
+
+	static HDC s_dst_dc = CreateCompatibleDC(NULL);
+	return s_dst_dc;
+}
+
 // Sets the lfFaceName of a LOGFONT structure to the correct name for the
 // appropriate special UI font
 static void set_facename_for_status_font(LOGFONTW& x_logfont)
