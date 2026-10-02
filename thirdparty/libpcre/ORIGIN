@@ -1,4 +1,6 @@
-Files in this folder are based on pcre-8.39
+Files in this folder are based on pcre-8.45 (the last release of PCRE 1);
+include/pcre.h is pcre.h.generic, and config.h and pcre_chartables.c are
+kept from the earlier version (config.h with the new version number)
 
 Original source archives are available from <http://www.pcre.org/>
 

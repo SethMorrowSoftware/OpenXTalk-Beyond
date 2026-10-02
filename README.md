@@ -71,9 +71,13 @@ pre-release for testing (see what 0.2.1 adds, under
   a standalone (a Mac one).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
-  source for every platform. The browser widget and revBrowser still use
+  source for every platform, and so are the image and pattern libraries
+  the engine compiles in (zlib 1.3.2, libpng 1.6.59, giflib 5.2.2,
+  libjpeg 9f, and PCRE 8.45, the last release of PCRE 1). The browser
+  widget and revBrowser still use
   CEF 74 (Chromium 74, from 2019), and several libraries in
-  `thirdparty/` (libxml2, libpng, zlib and others) are years old; they
+  `thirdparty/` (libxml2, libxslt, libzip, cairo and the database client
+  libraries among them) are years old; they
   have known vulnerabilities, and upgrading them is planned. See
   [SECURITY.md](SECURITY.md).
 - **Not code-signed or notarized.** On Windows, SmartScreen may warn
@@ -666,7 +670,13 @@ adds:
   less, which also ends the old MySQL driver's encrypted connections
   (it speaks TLS 1.0 only). The macOS server engine follows HTTP
   redirects again (a version check skipped them with the system's
-  curl 8).
+  curl 8);
+- current versions of the image and pattern libraries that the engine
+  compiles in (new in 0.2.1-rc.3): zlib 1.3.2 instead of 1.2.8, libpng
+  1.6.59 instead of 1.6.26, giflib 5.2.2 instead of 5.1.4, libjpeg 9f
+  instead of 9b and PCRE 8.45 (the last release of PCRE 1) instead of
+  8.39, which fix their published vulnerabilities in reading
+  compressed data, images and regular expressions.
 
 ### xTalk Suite extensions
 
@@ -835,8 +845,9 @@ change, see the [engine stabilization and modernization plan](docs/development/e
 Known limitations, in rough order of importance:
 
 1. Old third-party libraries with known vulnerabilities: CEF/Chromium
-   74 and several older libraries in `thirdparty/`. (OpenSSL, curl and
-   ICU are current from 0.2.1-rc.3 on.) Plan: update them too.
+   74 and several older libraries in `thirdparty/`. (OpenSSL, curl,
+   ICU, zlib, libpng, giflib, libjpeg and PCRE are current from
+   0.2.1-rc.3 on.) Plan: update them too.
 2. The standalone runtimes for 32-bit Windows, 32-bit Linux and Android
    (and the 64-bit Linux one in the Windows and macOS packages) are
    prebuilt binaries from OpenXTalk Lite 1.15, not built from this

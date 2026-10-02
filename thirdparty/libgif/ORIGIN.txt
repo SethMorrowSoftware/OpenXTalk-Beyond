@@ -1,3 +1,3 @@
-Files in this folder are based on giflib-5.1.4
+Files in this folder are based on giflib-5.2.2, unchanged
 
-Original source archives are available from <http://giflib.sourceforge.net/>
+Original source archives are available from <https://giflib.sourceforge.net/>
