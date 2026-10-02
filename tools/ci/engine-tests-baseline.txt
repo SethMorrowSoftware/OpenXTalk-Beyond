@@ -8,10 +8,6 @@
 # text after " #" is a comment. Remove a line when its test passes: the
 # check lists the baseline entries that did.
 
-# Asks http://httpstat.us for a 204 response: an outside service, which
-# has not always answered
-? lcs: liburl/status_codes: TestStatusCodes
-
 # Moves a button for 100 milliseconds without waiting and expects the move to
 # be over 150 milliseconds later: on a busy runner (macOS in CI) it was not
 ? lcs: core/interface/interface: TestMovingControls
