@@ -4,15 +4,17 @@ source "${BASEDIR}/scripts/platform.inc"
 source "${BASEDIR}/scripts/lib_versions.inc"
 source "${BASEDIR}/scripts/util.inc"
 
-# Configuration flags
+# Configuration flags: HTTP(S) and FTP(S) only, with OpenSSL and nothing else
+# (what the server engine's put and post use, srvspec.cpp)
 CURL_CONFIG="--disable-debug \
             --enable-http --enable-ftp --disable-file --disable-ldap --disable-ldaps --disable-rtsp --disable-dict --disable-telnet \
-            --disable-tftp --disable-pop3 --disable-imap --disable-smtp \
-            --disable-manual \
+            --disable-tftp --disable-pop3 --disable-imap --disable-smtp --disable-gopher --disable-mqtt --disable-smb \
+            --disable-manual --disable-docs \
             --enable-shared=no \
             --disable-sspi --disable-crypto-auth --disable-cookies \
-            --without-gnutls --without-polarssl --without-nss --without-libssh2 --without-librtmp --without-libidn \
-            --with-pic --without-nghttp2 --without-libpsl --without-brotli --without-zstd"
+            --without-gnutls --without-mbedtls --without-wolfssl --without-rustls \
+            --without-libssh2 --without-libssh --without-librtmp --without-libidn2 \
+            --with-pic --without-nghttp2 --without-nghttp3 --without-ngtcp2 --without-libpsl --without-brotli --without-zstd"
 
 # Grab the source for the library
 CURL_TGZ="curl-${Curl_VERSION}.tar.gz"
@@ -44,7 +46,7 @@ function buildCurl {
 
 	CURL_ARCH_SRC="${CURL_SRC}-${PLATFORM}-${ARCH}"
 	
-	CURL_ARCH_CONFIG="${CURL_CONFIG} --prefix=${INSTALL_DIR}/${PLATFORM}/${ARCH} --with-ssl=${INSTALL_DIR}/${PLATFORM}/${ARCH}"
+	CURL_ARCH_CONFIG="${CURL_CONFIG} --prefix=${INSTALL_DIR}/${PLATFORM}/${ARCH} --with-openssl=${INSTALL_DIR}/${PLATFORM}/${ARCH}"
 	
 	if [ "${PLATFORM}" == "mac" -a "${ARCH}" == "ppc" ] ; then
 		CURL_ARCH_CONFIG="${CURL_ARCH_CONFIG} --host i386"

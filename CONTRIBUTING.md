@@ -251,12 +251,12 @@ build number (packaging writes it).
 
 ## Third-party code
 
-`thirdparty/` holds the sources of the third-party libraries. On
-Windows, most of them are **not** compiled from `thirdparty/` by the
-normal build: the engine links the static libraries in the "Thirdparty"
-prebuilt archive, so changing a source file there usually has no effect
-on the Windows programs until the prebuilt archive is rebuilt. SQLite is
-the exception (it is compiled from `thirdparty/libsqlite`). See
+`thirdparty/` holds the sources of the third-party libraries. Most of
+them are not compiled by the normal build: the engine links the static
+libraries of the "Thirdparty" prebuilt archive, which every platform
+builds from `thirdparty/` beforehand (CI rebuilds it whenever
+`thirdparty/` changes; on your own Windows machine, run
+`prebuilt\build-libraries-windows.ps1 -Libraries Thirdparty` again). See
 [thirdparty/README.md](thirdparty/README.md) and the "Prebuilt libraries"
 section of [BUILDING.md](BUILDING.md#6-prebuilt-libraries).
 

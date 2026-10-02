@@ -559,7 +559,7 @@ bool MCUnicodeNormaliseNFC(const unichar_t *p_in, uindex_t p_in_length,
 {
     // Get the instance of the NFC normaliser
     UErrorCode t_error;
-    const Normalizer2 *t_normaliser;
+    const icu::Normalizer2 *t_normaliser;
     t_error = U_ZERO_ERROR;
     t_normaliser = icu::Normalizer2::getNFCInstance(t_error);
     if (U_FAILURE(t_error))
@@ -594,7 +594,7 @@ bool MCUnicodeNormaliseNFKC(const unichar_t *p_in, uindex_t p_in_length,
 {
     // Get the instance of the NFKC normaliser
     UErrorCode t_error;
-    const Normalizer2 *t_normaliser;
+    const icu::Normalizer2 *t_normaliser;
     t_error = U_ZERO_ERROR;
     t_normaliser = icu::Normalizer2::getNFKCInstance(t_error);
     if (U_FAILURE(t_error))
@@ -630,7 +630,7 @@ bool MCUnicodeNormaliseNFD(const unichar_t *p_in, uindex_t p_in_length,
     
     // Get the instance of the NFD normaliser
     UErrorCode t_error;
-    const Normalizer2 *t_normaliser;
+    const icu::Normalizer2 *t_normaliser;
     t_error = U_ZERO_ERROR;
     t_normaliser = icu::Normalizer2::getNFDInstance(t_error);
     if (U_FAILURE(t_error))
@@ -665,7 +665,7 @@ bool MCUnicodeNormaliseNFKD(const unichar_t *p_in, uindex_t p_in_length,
 {
     // Get the instance of the NFC normaliser
     UErrorCode t_error;
-    const Normalizer2 *t_normaliser;
+    const icu::Normalizer2 *t_normaliser;
     t_error = U_ZERO_ERROR;
     t_normaliser = icu::Normalizer2::getNFCInstance(t_error);
     if (U_FAILURE(t_error))
@@ -1415,7 +1415,8 @@ bool MCUnicodeCreateSortKeyWithCollator(MCUnicodeCollatorRef p_collator,
     
     // Find the length of the sort key that will be generated
     uindex_t t_key_length;
-    t_key_length = (unsigned)t_collator->getSortKey(p_string, (signed)p_string_length, NULL, 0);
+    // ICU 59 and later take UTF-16 as char16_t, the same code units as unichar_t
+    t_key_length = (unsigned)t_collator->getSortKey(reinterpret_cast<const char16_t *>(p_string), (signed)p_string_length, NULL, 0);
     
     // Allocate memory for the sort key
     MCAutoArray<byte_t> t_key;
@@ -1423,7 +1424,7 @@ bool MCUnicodeCreateSortKeyWithCollator(MCUnicodeCollatorRef p_collator,
         return false;
     
     // Generate the sort key
-    t_collator->getSortKey(p_string, (signed)p_string_length, t_key.Ptr(), (signed)t_key.Size());
+    t_collator->getSortKey(reinterpret_cast<const char16_t *>(p_string), (signed)p_string_length, t_key.Ptr(), (signed)t_key.Size());
     
     t_key.Take(r_key, r_key_length);
     
@@ -1442,7 +1443,8 @@ int32_t MCUnicodeCollateWithCollator(MCUnicodeCollatorRef p_collator,
     
     // Do the comparison
     UCollationResult t_result;
-    t_result = t_collator->compare(p_first, (signed)p_first_length, p_second, (signed)p_second_length, t_error);
+    t_result = t_collator->compare(reinterpret_cast<const char16_t *>(p_first), (signed)p_first_length,
+                                   reinterpret_cast<const char16_t *>(p_second), (signed)p_second_length, t_error);
     
     // The UCollationResult type maps UCOL_{GREATER,EQUAL,LESS} to +1,0,-1
     return int32_t(t_result);

@@ -69,11 +69,13 @@ pre-release for testing (see what 0.2.1 adds, under
   x86-64 runtime, and only the macOS package the macOS runtimes. There
   are no iOS runtimes. Of the automatic tests, only the macOS ones build
   a standalone (a Mac one).
-- **Old third-party libraries.** The build uses the libraries LiveCode
-  Community last shipped: OpenSSL 1.1.1 (1.1.1g on Windows, 1.1.1w on
-  Linux and macOS), curl 7.51.0, ICU 58.2 and CEF
-  74 (Chromium 74). They are end of life and have known
-  vulnerabilities. Upgrading them is planned. See [SECURITY.md](SECURITY.md).
+- **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
+  support release), curl (8.22.0) and ICU (78.3) are current, built from
+  source for every platform. The browser widget and revBrowser still use
+  CEF 74 (Chromium 74, from 2019), and several libraries in
+  `thirdparty/` (libxml2, libpng, zlib and others) are years old; they
+  have known vulnerabilities, and upgrading them is planned. See
+  [SECURITY.md](SECURITY.md).
 - **Not code-signed or notarized.** On Windows, SmartScreen may warn
   about the installer and the program. The macOS app is signed ad hoc,
   not with an Apple Developer ID, and not notarized, so macOS blocks it
@@ -650,7 +652,21 @@ adds:
   [github.com/SethMorrowSoftware/OpenXTalk-Beyond](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond)
   (it was `winoxt`), in the update check, the About box and the
   installer (new in 0.2.1-rc.2). 0.2.0 and 0.2.1-rc.1 still find updates
-  through GitHub's redirect from the old address.
+  through GitHub's redirect from the old address;
+- current versions of three libraries that had reached their end of
+  life, built from source for every platform, Windows included (new in
+  0.2.1-rc.3): OpenSSL 3.5.9 instead of 1.1.1 (secure sockets, `encrypt`
+  and the database drivers' encryption), ICU 78.3 instead of 58.2
+  (Unicode 17 instead of 9: text comparison, sorting, case and break
+  rules) and, for the server engine, curl 8.22.0 instead of 7.51.0.
+  `encrypt` and the `cipherNames` still offer the older ciphers (Blowfish,
+  DES, RC4 and others), from OpenSSL's legacy provider. Secure
+  connections now need TLS 1.2 or later, and keys of at least 2048 bits
+  (RSA) in the certificates: OpenSSL 3's default security level refuses
+  less, which also ends the old MySQL driver's encrypted connections
+  (it speaks TLS 1.0 only). The macOS server engine follows HTTP
+  redirects again (a version check skipped them with the system's
+  curl 8).
 
 ### xTalk Suite extensions
 
@@ -756,8 +772,10 @@ or preOpenStack handler opts in with one line:
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
-libraries that LiveCode's server no longer provides are mirrored in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
+third-party libraries are built from source (only LiveCode's CEF 74
+archive for Windows, which LiveCode's server no longer provides, is
+mirrored, in the
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)),
 the build scripts were updated for Visual Studio 2022 with the v141
 toolset, and GitHub Actions workflows build, package and test it for
 Windows, macOS and Linux.
@@ -800,7 +818,7 @@ release is made from a tag in
 | `ide-support/` | Eleven IDE libraries kept in the engine repository (the standalone builder and others); they are installed into `Toolset/libraries`. |
 | `docs/` | Dictionary, guides and release note fragments from LiveCode Community; development notes in `docs/development/`. |
 | `thirdparty/` | Third-party library sources, vendored from `livecode/livecode-thirdparty`. |
-| `prebuilt/` | Scripts that fetch the prebuilt third-party libraries for Windows (from the `prebuilts-v1` release) and build them from source on Linux and macOS, with their versions and checksums. |
+| `prebuilt/` | Scripts that build the prebuilt third-party libraries from source (`build-libraries-windows.ps1` on Windows, `build-libraries.sh` on Linux and macOS) and fetch them for the build, with their versions and checksums; Windows' CEF 74 archive comes from the `prebuilts-v1` release. |
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
@@ -816,10 +834,9 @@ change, see the [engine stabilization and modernization plan](docs/development/e
 
 Known limitations, in rough order of importance:
 
-1. Old third-party libraries with known vulnerabilities (OpenSSL 1.1.1,
-   curl 7.51.0, CEF/Chromium 74, ICU 58.2 and several older libraries in
-   `thirdparty/`). Plan: rebuild the prebuilt libraries from newer
-   sources.
+1. Old third-party libraries with known vulnerabilities: CEF/Chromium
+   74 and several older libraries in `thirdparty/`. (OpenSSL, curl and
+   ICU are current from 0.2.1-rc.3 on.) Plan: update them too.
 2. The standalone runtimes for 32-bit Windows, 32-bit Linux and Android
    (and the 64-bit Linux one in the Windows and macOS packages) are
    prebuilt binaries from OpenXTalk Lite 1.15, not built from this
@@ -839,8 +856,10 @@ Known limitations, in rough order of importance:
 6. The mergExt externals are not included.
 7. It has not been confirmed that Tom Perry and the other OpenXTalk Lite
    contributors offer their changes with LiveCode's permission to combine
-   the code with OpenSSL and ATL (see
-   [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)).
+   the code with ATL (see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)).
+   OpenSSL no longer needs that permission: from 0.2.1-rc.3 on,
+   OXT-Beyond ships OpenSSL 3, under the Apache License 2.0, which the
+   GPLv3 is compatible with.
 8. Dictionary favourites and notes, custom script editor colours and
    recent-stack thumbnails are shared with OpenXTalk Lite, and the
    engine writes its licence file into LiveCode's `RunRev` folder (see

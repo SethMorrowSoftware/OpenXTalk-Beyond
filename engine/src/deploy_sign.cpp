@@ -369,8 +369,9 @@ static bool MCDeployThrowOpenSSL(MCDeployError p_error)
 ////////////////////////////////////////////////////////////////////////////////
 
 // This template simplifies conversion of a object structure to the DER
-// binary encoding.
-template<typename T> static bool i2d(int (*p_i2d)(T *, unsigned char **), T *p_object, uint8_t*& r_data, uint32_t& r_length)
+// binary encoding. (OXT-Beyond: the i2d function is a type of its own, as
+// OpenSSL 3 declares the object parameter const and 1.1 did not.)
+template<typename I2D, typename T> static bool i2d(I2D p_i2d, T *p_object, uint8_t*& r_data, uint32_t& r_length)
 {
 	bool t_success;
 	t_success = true;

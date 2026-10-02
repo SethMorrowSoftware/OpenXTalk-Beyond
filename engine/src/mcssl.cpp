@@ -41,6 +41,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 #endif
 
 #ifdef _WIN32
@@ -107,7 +110,18 @@ Boolean InitSSLCrypt()
 
 #ifdef MCSSL
         OPENSSL_init_ssl(0, NULL);
-        
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        // OXT-Beyond: OpenSSL 3 keeps the older ciphers that encrypt and
+        // the cipherNames have always offered (bf, cast5, des, rc2, rc4,
+        // idea, seed) in its "legacy" provider. It is built into
+        // revsecurity (no-module), but not loaded by default. Loading a
+        // provider by name stops the "default" one from loading on its
+        // own, so that one is loaded too.
+        OSSL_PROVIDER_load(NULL, "legacy");
+        OSSL_PROVIDER_load(NULL, "default");
+#endif
+
         uint32_t t_randomseed_bytes[4];
 		RAND_seed(t_randomseed_bytes, sizeof(t_randomseed_bytes));
         MCrandomseed = t_randomseed_bytes[0];

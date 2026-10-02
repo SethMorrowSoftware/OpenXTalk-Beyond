@@ -231,12 +231,14 @@ const icu::Locale& MCLocaleGetICULocale(MCLocaleRef p_locale)
 
 bool MCStringCreateWithICUString(icu::UnicodeString& p_string, MCStringRef &r_string)
 {
-    return MCStringCreateWithChars(p_string.getBuffer(), p_string.length(), r_string);
+    // ICU 59 and later hold UTF-16 as char16_t; unichar_t is the same 16-bit
+    // code unit under another type
+    return MCStringCreateWithChars(reinterpret_cast<const unichar_t *>(p_string.getBuffer()), p_string.length(), r_string);
 }
 
 bool MCStringConvertToICUString(MCStringRef p_string, icu::UnicodeString &r_string)
 {
-    r_string.setTo(MCStringGetCharPtr(p_string), MCStringGetLength(p_string));
+    r_string.setTo(reinterpret_cast<const char16_t *>(MCStringGetCharPtr(p_string)), MCStringGetLength(p_string));
     return true;
 }
 

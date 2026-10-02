@@ -22,6 +22,13 @@
 
 #include "unicode/uloc.h"
 
+// The ICU classes the functions below take. (ICU 58's headers declared
+// them for any includer of uloc.h; ICU 59 and later do not.)
+U_NAMESPACE_BEGIN
+class Locale;
+class UnicodeString;
+U_NAMESPACE_END
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Given a LocaleRef, returns the underlying ICU locale object

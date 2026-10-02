@@ -4,6 +4,13 @@
 		'../common.gypi',
 	],
 	
+	'variables':
+	{
+		# ICU's data file is icudt<major version>l.dat (the l for little-endian),
+		# after the version in prebuilt/versions/icu
+		'icu_data_file': 'icudt<!(perl <(DEPTH)/util/decode_prebuilt_version.pl --major <(DEPTH)/prebuilt/versions/icu)l.dat',
+	},
+	
 	'target_defaults':
 	{
 		'conditions':
@@ -88,6 +95,21 @@
 
 				'conditions':
 				[
+					# Since ICU 59 UChar is char16_t in C++. The engine's unichar_t
+					# is the type ICU 58 used for UChar (wchar_t on Windows,
+					# uint16_t elsewhere), so its code passes unichar_t buffers to
+					# ICU's C functions. UCHAR_TYPE makes UChar that type again in
+					# code that uses ICU (not in ICU itself); ICU's C++ API takes
+					# char16_t, which no definition of UChar changes.
+					[
+						'OS == "win"',
+						{
+							'defines': [ 'UCHAR_TYPE=wchar_t', ],
+						},
+						{
+							'defines': [ 'UCHAR_TYPE=uint16_t', ],
+						},
+					],
 					[
 						'OS == "win"',
 						{
@@ -184,6 +206,16 @@
 								'-licuuc',
 								'-licudata',
 								'-ldl',
+								# ICU 64 and later lock with std::mutex and
+								# std::call_once. With glibc before 2.34 these
+								# need libpthread in the program, or they throw
+								# std::system_error ("Unknown error -1"); a
+								# program that calls no pthread function itself
+								# (lc-run) would not get it through -lpthread
+								# with --as-needed, Ubuntu's default.
+								'-Wl,--push-state,--no-as-needed',
+								'-lpthread',
+								'-Wl,--pop-state',
 							],
 						},
 					],
@@ -276,7 +308,7 @@
 					'action_name': 'list_icu_data',
 					'inputs':
 					[
-						'>(prebuilt_icu_share_dir)/icudt58l.dat',
+						'>(prebuilt_icu_share_dir)/<(icu_data_file)',
 					],
 					'outputs':
 					[
@@ -286,7 +318,7 @@
 					[
 						'>(prebuilt_icu_bin_dir)/icupkg',
 						'--list',
-						'>(prebuilt_icu_share_dir)/icudt58l.dat',
+						'>(prebuilt_icu_share_dir)/<(icu_data_file)',
 						'--auto_toc_prefix',
 						'--outlist',
 						'<(INTERMEDIATE_DIR)/data/icudata-full-list.txt',
@@ -331,7 +363,7 @@
 						'--remove',
 						'<(INTERMEDIATE_DIR)/data/icudata-remove-list.txt',
 						'--auto_toc_prefix',
-						'>(prebuilt_icu_share_dir)/icudt58l.dat',
+						'>(prebuilt_icu_share_dir)/<(icu_data_file)',
 						'<(SHARED_INTERMEDIATE_DIR)/data/icudata-minimal.dat',
 					],
 				},
