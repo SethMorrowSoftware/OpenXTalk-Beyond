@@ -129,9 +129,8 @@ pre-release for testing (see what 0.2.1 adds, under
   IDE's windows are not tested automatically, and the macOS and Linux
   packages have not been tried by hand yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
-  parts for macOS and Linux only (for example the macOS ARM standalone
-  builder). They are shipped as they were; apart from the IDE compile
-  check they are not tested automatically.
+  parts for macOS and Linux only. They are shipped as they were; apart
+  from the IDE compile check they are not tested automatically.
 - **Legacy build toolchain.** Building on Windows needs the Visual
   Studio 2017 C++ toolset (v141, installed through Visual Studio 2022),
   Python 2.7 and Cygwin; the Linux build runs in an Ubuntu 20.04

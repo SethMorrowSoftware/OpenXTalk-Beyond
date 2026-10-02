@@ -1155,10 +1155,10 @@ Errors listed in
 are known, pre-existing errors. The check fails (exit code 1) when there
 is an error that is not in the baseline, or when the engine does not
 finish; baseline entries that no longer occur are reported as warnings.
-Today the baseline has one entry: a button script in the macOS ARM
-standalone builder (`mac-arm-deploy.oxtstack`) that uses
-`_internal build MacARM`, which only Tom Perry's macOS ARM engine
-understands.
+Today the baseline lists no errors. Its last entry was a button script
+in the macOS ARM standalone builder (`mac-arm-deploy.oxtstack`), which
+called `_internal build MacARM`, a command this engine does not have;
+nothing opened that stack, so it was removed.
 
 Options: `-Root` (default: the single `OXT-Beyond-*` folder in
 `dist\stage`), `-Engine` (default: the layout's `OXT-Beyond.exe`, or

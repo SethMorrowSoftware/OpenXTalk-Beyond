@@ -4,5 +4,6 @@
 # here and reports listed errors that no longer occur. Regenerate with
 #   tools/ci/ide-compile-check.ps1 -Root <installed layout> -UpdateBaseline
 # Generated from the OpenXTalk Lite 1.15 IDE (layout.py assemble) and the packaged_extensions of a build
-# with engine 9.7.1-OXT (build 25923): 296 files, 2010 scripts, 1 error(s).
-Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack | stack "macOS-ARM standalone builder" > card (id 1002) > button "Build" (id 1009) | line 28 | compile error 494 (near "build")
+# with engine 9.7.1-OXT (build 25923). The one error that run found was in
+# Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack, which has
+# been removed since, so no errors are listed now.
