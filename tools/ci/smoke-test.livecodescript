@@ -121,6 +121,13 @@ on startup
       put the result into tEncryptResult
       decrypt tCipher using "aes-256-cbc" with password "pw"
       check "encrypt/decrypt aes-256-cbc (OpenSSL)", it is "secret message" and tCipher is not "secret message", "result='" & tEncryptResult & "', ciphertext " & the number of bytes in tCipher & " bytes"
+      -- Blowfish is one of the older ciphers that OpenSSL 3 keeps in its
+      -- legacy provider, which revsecurity has built in and the engine loads
+      encrypt "secret message" using "bf-cbc" with password "pw"
+      put it into tCipher
+      put the result into tEncryptResult
+      decrypt tCipher using "bf-cbc" with password "pw"
+      check "encrypt/decrypt bf-cbc (OpenSSL legacy provider)", it is "secret message" and tCipher is not "secret message", "result='" & tEncryptResult & "', ciphertext " & the number of bytes in tCipher & " bytes"
       check "randomBytes", the number of bytes in randomBytes(16) = 16, the number of bytes in randomBytes(16) & " bytes"
 
       -- Windows light/dark mode support. Without a user interface the

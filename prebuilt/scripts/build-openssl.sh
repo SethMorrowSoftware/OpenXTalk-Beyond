@@ -14,7 +14,12 @@ cd "${BUILDDIR}"
 if [ ! -d "$OPENSSL_SRC" ] ; then
 	if [ ! -e "$OPENSSL_TGZ" ] ; then
 		echo "Fetching OpenSSL source"
-		fetchUrl "https://github.com/openssl/openssl/releases/download/OpenSSL_${OpenSSL_VERSION//./_}/openssl-${OpenSSL_VERSION}.tar.gz" "${OPENSSL_TGZ}"
+		# The release tags are openssl-<version> from 3.0 on (OpenSSL_1_1_1w before)
+		case "${OpenSSL_VERSION}" in
+			1.*) OPENSSL_TAG="OpenSSL_${OpenSSL_VERSION//./_}" ;;
+			*) OPENSSL_TAG="openssl-${OpenSSL_VERSION}" ;;
+		esac
+		fetchUrl "https://github.com/openssl/openssl/releases/download/${OPENSSL_TAG}/openssl-${OpenSSL_VERSION}.tar.gz" "${OPENSSL_TGZ}"
 		if [ $? != 0 ] ; then
 			echo "    failed"
 			if [ -e "${OPENSSL_TGZ}" ] ; then 
@@ -108,12 +113,14 @@ function buildOpenSSL {
 		local PLATFORM_NAME=${PLATFORM}
 	fi
 	
-	# The android-* targets derive the arch from the last portion of the target name
-	# so this needs to be a prefix instead of suffix.
-	CUSTOM_SPEC="livecode_${SPEC}"
-
 	OPENSSL_ARCH_SRC="${OPENSSL_SRC}-${PLATFORM_NAME}-${ARCH}"
-	OPENSSL_ARCH_CONFIG="no-rc5 no-hw no-threads shared -DOPENSSL_NO_ASYNC=1 --prefix=${INSTALL_DIR}/${NAME} ${CUSTOM_SPEC} ${EXTRA_OPTIONS}"
+
+	# Static libraries only (OpenSSL 3 compiles them position-independent,
+	# for revsecurity), with the legacy provider built into libcrypto
+	# (no-module): the engine loads it for the older ciphers that encrypt
+	# accepts. No openssl program, tests or manuals, which nothing here
+	# uses. --libdir=lib: OpenSSL 3 would install into lib64 on 64-bit Linux.
+	OPENSSL_ARCH_CONFIG="no-shared no-module no-apps no-tests no-docs no-threads no-async no-rc5 --libdir=lib --prefix=${INSTALL_DIR}/${NAME} ${SPEC} ${EXTRA_OPTIONS}"
 
 	# Copy the source to a target-specific directory
 	if [ ! -d "${OPENSSL_ARCH_SRC}" ] ; then
@@ -131,33 +138,6 @@ function buildOpenSSL {
 	# Re-configure and re-build, if required
 	if [ "${OPENSSL_ARCH_CONFIG}" != "${OPENSSL_ARCH_CURRENT_CONFIG}" ] ; then
 		cd "${OPENSSL_ARCH_SRC}"
-
-		# Customise the OpenSSL configuration to ensure variables are exported as functions
-		if [ "${SPEC}" == "darwin64-arm64-cc" ] && ! grep -q '"darwin64-arm64-cc"' Configurations/10-main.conf ; then
-			# OpenSSL before 1.1.1i has no Apple Silicon target; this is the
-			# definition 1.1.1i added, plus EXPORT_VAR_AS_FN
-			cat > Configurations/99-livecode.conf << EOF
-my %targets = (
-"${CUSTOM_SPEC}" => {
-	inherit_from => [ "darwin-common", asm("aarch64_asm") ],
-	CFLAGS => add("-Wall"),
-	cflags => add("-arch arm64"),
-	lib_cppflags => add("-DL_ENDIAN"),
-	bn_ops => "SIXTY_FOUR_BIT_LONG EXPORT_VAR_AS_FN",
-	perlasm_scheme => "ios64",
-},
-);
-EOF
-		else
-			cat > Configurations/99-livecode.conf << EOF
-my %targets = (
-"${CUSTOM_SPEC}" => {
-	inherit_from => [ "${SPEC}" ],
-	bn_ops => add("EXPORT_VAR_AS_FN"),
-},
-);
-EOF
-		fi
 
 		if [ $CONFIGURE_CC_FOR_TARGET != 0 ] ; then
 			setCCForTarget "${PLATFORM}" "${ARCH}" "${SUBPLATFORM}"
@@ -177,7 +157,7 @@ EOF
 		fi
 
 		echo "Building OpenSSL for ${NAME}"
-		make clean && make depend && make ${MAKEFLAGS} && make install_sw
+		make clean && make ${MAKEFLAGS} && make install_sw
 		RESULT=$?
 		cd ..
 		

@@ -154,10 +154,15 @@
 								'unpacked/openssl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib',
 							],
 							
+							# OpenSSL 3's names (1.1's archives renamed them to
+							# 1.0's libeay32 and ssleay32), and what its static
+							# libraries need from Windows: bcrypt for its random
+							# seed
 							'libraries':
 							[
-								'-llibeay32',
-								'-lssleay32',
+								'-llibcrypto',
+								'-llibssl',
+								'-lbcrypt',
 							],
 						},
 					],

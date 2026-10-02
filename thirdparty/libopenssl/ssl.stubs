@@ -1,11 +1,18 @@
 crypto ./revsecurity ./revsecurity ./revsecurity
-	# OpenSSL 1.1.1g
+	# OpenSSL 3.5. Functions that OpenSSL 3 turned into macros are listed under
+	# the names the macros call (EVP_CIPHER_get_key_length for
+	# EVP_CIPHER_key_length, SSL_get1_peer_certificate for
+	# SSL_get_peer_certificate and so on): those are the symbols code compiled
+	# against the OpenSSL 3 headers references, and revsecurity exports.
 
 	# <openssl/conf.h>
 	OPENSSL_config: (pointer) -> ()
 
 	# <openssl/crypto.h>
 	OPENSSL_init_crypto: (integer64, pointer) -> (integer)
+
+	# <openssl/provider.h>
+	OSSL_PROVIDER_load: (pointer, pointer) -> (pointer)
 
 	CRYPTO_malloc: (integer) -> (pointer)
 	CRYPTO_free: (pointer) -> ()
@@ -34,11 +41,11 @@ crypto ./revsecurity ./revsecurity ./revsecurity
 	EVP_PKEY_new: () -> (pointer)
 	EVP_PKEY_assign: (pointer, integer, pointer) -> (pointer)
 	
-	EVP_CIPHER_key_length: (pointer) -> (integer)
+	EVP_CIPHER_get_key_length: (pointer) -> (integer)
 	EVP_CIPHER_CTX_new: () -> (pointer)
 	EVP_CIPHER_CTX_free: (pointer) -> ()
-	EVP_CIPHER_CTX_key_length: (pointer) -> (integer)
-	EVP_CIPHER_CTX_block_size: (pointer) -> (integer)
+	EVP_CIPHER_CTX_get_key_length: (pointer) -> (integer)
+	EVP_CIPHER_CTX_get_block_size: (pointer) -> (integer)
 	EVP_CIPHER_CTX_reset: (pointer) -> ()
 
 	EVP_MD_CTX_new: () -> (pointer)
@@ -229,7 +236,7 @@ ssl ./revsecurity ./revsecurity ./revsecurity
 	SSL_shutdown: (pointer) -> (integer)
 	SSL_set_connect_state: (pointer) -> ()
 	SSL_set_accept_state: (pointer) -> ()
-	SSL_get_peer_certificate: (pointer) -> (pointer)
+	SSL_get1_peer_certificate: (pointer) -> (pointer)
 	SSL_get_verify_result: (pointer) -> (integer)
 	SSL_get_peer_cert_chain: (pointer) -> (pointer)
 	SSL_get_current_cipher: (pointer) -> (pointer)
@@ -238,7 +245,7 @@ ssl ./revsecurity ./revsecurity ./revsecurity
 	SSL_get_shared_ciphers: (pointer, pointer, integer) -> (pointer)
 	SSL_pending: (pointer) -> (integer)
 	SSL_set_quiet_shutdown: (pointer, integer) -> ()
-	SSL_set_options: (pointer, integer) -> (integer)
+	SSL_set_options: (pointer, integer64) -> (integer64)
 	SSL_check_private_key: (pointer) -> (integer)
 	SSL_ctrl: (pointer, integer, integer, pointer) -> (integer)
 	SSL_set_ex_data: (pointer, integer, pointer) -> (integer)
@@ -258,7 +265,7 @@ ssl ./revsecurity ./revsecurity ./revsecurity
 	SSL_CTX_ctrl: (pointer, integer, integer, pointer) -> (integer)
 	SSL_CTX_set_cipher_list: (pointer, pointer) -> (integer)
 	SSL_CTX_set_session_id_context: (pointer, pointer, integer) -> (integer)
-	SSL_CTX_set_options: (pointer, integer) -> (integer)
+	SSL_CTX_set_options: (pointer, integer64) -> (integer64)
 	SSL_CTX_use_certificate_file: (pointer, pointer, integer) -> (integer)
 	SSL_CTX_use_PrivateKey_file: (pointer, pointer, integer) -> (integer)
 	SSL_CTX_use_certificate_chain_file: (pointer, pointer) -> (integer)
