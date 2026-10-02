@@ -49,6 +49,7 @@ Once the tools in section 2 are installed, a build is (in `cmd.exe`):
 ```bat
 git clone --recurse-submodules https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git C:\src\OpenXTalk-Beyond
 cd /d C:\src\OpenXTalk-Beyond
+powershell -ExecutionPolicy Bypass -File prebuilt\build-libraries-windows.ps1
 set PATH=C:\Python27;%PATH%
 C:\Python27\python.exe config.py --platform win-x86_64
 cd build-win-x86_64
@@ -65,12 +66,17 @@ powershell -ExecutionPolicy Bypass -File tools\ci\package-windows.ps1
 powershell -ExecutionPolicy Bypass -File tools\ci\build-installer.ps1
 ```
 
+The second line builds the prebuilt third-party libraries (OpenSSL,
+curl, ICU and those of `thirdparty/`) once, in about 40 minutes (section
+6); later builds reuse them.
+
 Allow several gigabytes of disk space. On an existing tree the clone
-(files and Git history) took about 0.8 GB, the downloaded prebuilt
-archives 0.3 GB, the unpacked prebuilt libraries 1.5 GB, the build
-folder 3.5 GB and `win-x86_64-bin` 0.5 GB. Packaging needs about 1 GB
-more for `dist\stage`, 0.2 GB for the downloaded runtimes and about
-0.6 GB for the zips, plus the installer.
+(files and Git history) took about 0.8 GB, the prebuilt archives
+0.3 GB, the unpacked prebuilt libraries 1.5 GB, the build folder 3.5 GB
+and `win-x86_64-bin` 0.5 GB; building the prebuilt libraries needs a few
+GB more in `prebuilt\build\windows`, which you can delete afterwards.
+Packaging needs about 1 GB more for `dist\stage`, 0.2 GB for the
+downloaded runtimes and about 0.6 GB for the zips, plus the installer.
 
 A first build compiles everything, one project at a time, and takes a
 long while. Later builds only rebuild what changed.
@@ -83,7 +89,9 @@ long while. Later builds only rebuild what changed.
 | Python | 2.7.18, 64-bit | `C:\Python27` |
 | Strawberry Perl | any recent 64-bit release | default location, on `PATH` |
 | Git for Windows | any recent release | default location |
-| Cygwin | 64-bit, with flex, bison and a few other packages | `C:\cygwin64`, **not** on `PATH` |
+| Cygwin | 64-bit, with flex, bison, make and a few other packages | `C:\cygwin64`, **not** on `PATH` |
+| NASM (for the prebuilt libraries) | any recent release | `C:\Program Files\NASM` or on `PATH` |
+| CMake (for the prebuilt libraries) | 3.20 or later | on `PATH`, or Visual Studio's "C++ CMake tools for Windows" |
 | Python 3 (for packaging) | 3.8 or later | any; found as `py -3`, `python3` or `python` |
 | Inno Setup (for the installer) | 6.3 or later | default location |
 
@@ -217,7 +225,7 @@ Download [setup-x86_64.exe](https://cygwin.com/setup-x86_64.exe) and run:
 ```bat
 setup-x86_64.exe -q -n -R C:\cygwin64 -l C:\cygwin64\packages ^
   -s https://mirrors.kernel.org/sourceware/cygwin/ ^
-  -P flex,bison,m4,gawk,sed,grep,curl,tar,bzip2
+  -P flex,bison,m4,gawk,sed,grep,curl,tar,bzip2,make
 ```
 
 `-q` runs unattended, `-n` skips the shortcuts, `-R` sets the install
@@ -348,7 +356,7 @@ for `error`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `BUILDTYPE` | `Release` | `Release` or `Debug`. |
-| `BUILD_PLATFORM` | `win-x86_64` | Only `win-x86_64` works; no 32-bit prebuilt libraries are available (LiveCode's server no longer serves them, and the `prebuilts-v1` mirror has only x86_64). |
+| `BUILD_PLATFORM` | `win-x86_64` | Only `win-x86_64` works: `prebuilt\build-libraries-windows.ps1 -Arch x86` builds the 32-bit libraries, but there is no 32-bit CEF archive (the `prebuilts-v1` mirror has only x86_64). |
 | `VSINSTALLDIR` | found with `vswhere` | Visual Studio folder to use. Without it, `make.cmd` picks the newest installation that has the v141 toolset component, then a Visual Studio 2017 installation with the C++ build tools, then the newest installation of any version with the C++ build tools. |
 | `WINSDK_VERSION` | the SDK that `vcvarsall.bat` selected | Windows SDK version passed to MSBuild as `/p:WindowsTargetPlatformVersion`, for example `10.0.17763.0`. |
 | `MSBUILD_EXTRA_ARGS` | empty | Extra arguments added to the end of the MSBuild command line, for example `/v:minimal`. |
@@ -392,38 +400,108 @@ command line, so build with it.
 ## 6. Prebuilt libraries
 
 The engine links a set of third-party libraries that are not compiled
-during the normal build. They come as prebuilt archives:
+during the normal build. They come as prebuilt archives, one for each
+library, architecture and configuration:
 
 | Archive | Contents |
 | --- | --- |
-| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser |
-| `OpenSSL-<version>-...-PIC` | OpenSSL: `prebuilt/versions/openssl` (1.1.1w) on Linux and macOS; `prebuilt/versions/openssl_win32` (1.1.1g, the published Windows prebuilts) on Windows |
-| `Curl-7.51.0-...-PIC` | libcurl 7.51.0 (server engine) |
-| `ICU-58.2-...-1-PIC` | ICU 58.2 |
+| `OpenSSL-3.5.9-...-PIC` | OpenSSL 3.5.9 (a long-term support release): libcrypto and libssl, static, with OpenSSL's legacy provider built in |
+| `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
+| `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
 | `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MySQL Connector/C, libpq, SQLite) |
+| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows and Linux |
 
-Each comes in a `v141_static_release` and a `v141_static_debug` variant,
-for x86_64 only. LiveCode Ltd's build servers produced them, and
-LiveCode's download server no longer serves them. They are mirrored,
-unchanged, as assets of this repository's
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
+The versions are in `prebuilt/versions/`. Every platform builds
+OpenSSL, curl, ICU and Thirdparty from source: Linux and macOS with
+`prebuilt/build-libraries.sh` and `package-libs.sh` (see
+[Building on Linux](#12-building-on-linux) and
+[Building on macOS](#13-building-on-macos)), Windows with
+`prebuilt\build-libraries-windows.ps1` (below). CI builds them when
+their versions, scripts or sources change and keeps them in its cache.
+The one archive that is still downloaded is Windows' CEF: LiveCode
+Ltd's build of CEF 74 for x86_64 (`v141_static_release` and
+`v141_static_debug`), mirrored unchanged as an asset of this
+repository's
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)
+and checked against [`prebuilt/SHA256SUMS`](prebuilt/SHA256SUMS). (Linux
+repackages Spotify's CEF build itself, `prebuilt/scripts/build-cef.sh`;
+macOS has no CEF.) Until OXT-Beyond 0.2.1-rc.2, Windows downloaded
+LiveCode's archives of all five libraries, with OpenSSL 1.1.1g, curl
+7.51.0 and ICU 58.2.
 
-SQLite is the exception: the `Thirdparty` archive still holds an older
-SQLite (3.34.0), so the Windows build compiles `dbsqlite.dll` against
-the SQLite 3.51.1 source in `thirdparty/libsqlite` instead.
+On Windows, `dbsqlite.dll` is compiled from the SQLite source in
+`thirdparty/libsqlite` rather than linked from the Thirdparty archive,
+as it was while that archive still held SQLite 3.34.0.
 
-### Automatic download
+### Building them on Windows
 
-You normally do nothing: the first build runs
-`prebuilt/fetch-libraries.sh` (through `util\invoke-unix.bat` and Cygwin),
-which
+```bat
+powershell -ExecutionPolicy Bypass -File prebuilt\build-libraries-windows.ps1
+```
 
-1. downloads the archives into `prebuilt\fetched`, both the debug and the
-   release variants;
-2. checks each one against [`prebuilt/SHA256SUMS`](prebuilt/SHA256SUMS);
+builds OpenSSL, curl, ICU and Thirdparty for x86_64 Release and writes
+their archives to `prebuilt\packaged`, where the build's fetch step
+finds them. It takes about 40 minutes on a four-core machine. Besides
+the tools of section 2 it needs:
+
+- [NASM](https://www.nasm.us) (OpenSSL's assembler), in
+  `C:\Program Files\NASM` or on `PATH`, for example from
+  `choco install nasm`;
+- CMake (for curl), which Visual Studio installs with its "C++ CMake
+  tools for Windows" component, or any CMake on `PATH`;
+- Cygwin's `make` (ICU's build runs under Cygwin with `cl`), which the
+  package list of section 2.5 includes.
+
+The compiler is MSVC v141 (14.16), the toolset the engine is built
+with: a v141 link cannot take static libraries made by a newer
+compiler. The script finds the Visual Studio with the v141 component
+(or uses `VSINSTALLDIR`), calls `vcvarsall.bat` with
+`-vcvars_ver=14.16` and the Windows SDK in `WINSDK_VERSION`, if set, and
+checks that `cl.exe` is MSVC 14.16. OpenSSL is configured with
+`no-shared no-module`, so that its static libraries take the C runtime
+of whatever links them and the legacy provider (the older ciphers that
+`encrypt` offers) is built in; ICU is compiled with `/std:c++17`, which
+ICU 75 and later need. Thirdparty is compiled by the engine's own build
+files (`config.py` and the msbuild target `thirdparty-prebuilts`,
+through `tools\ci\build-windows.ps1`), so it also needs Python 2.7, and
+it uses the folder `build-win-x86_64`, which the engine build then
+reuses.
+
+Options: `-Libraries` (any of `OpenSSL`, `Curl`, `ICU`, `Thirdparty`;
+curl and Thirdparty need the OpenSSL archive in the output folder
+first), `-Arch x86`, `-Mode debug`, `-OutDir` (default
+`prebuilt\packaged`), `-WorkDir` (downloads and build folders, default
+`prebuilt\build\windows`), `-CygwinRoot`, `-VsInstallDir` and `-NoAsm`
+(OpenSSL without NASM: slower, for trying things out only).
+
+Instead of building them, you can take the archives a CI build made:
+every run of the Build (Windows) workflow (see
+[Continuous integration](#9-continuous-integration)) uploads them as the
+artifact `prebuilt-libraries-win-x86_64` (Release, x86_64). Extract it
+into `prebuilt\packaged`.
+
+**Debug builds need the debug archives.** Run the script with
+`-Mode debug` as well, and set
+`PREBUILT_WIN32_SUBPLATFORMS=v141_static_debug v141_static_release`
+(below).
+
+### Automatic fetch
+
+The first build runs `prebuilt/fetch-libraries.sh` (through
+`util\invoke-unix.bat` and Cygwin), which
+
+1. copies each archive from `prebuilt\packaged` (or the folder in
+   `PREBUILT_LOCAL_DIR`) into `prebuilt\fetched`, or downloads it when
+   it is not there (CEF, from `prebuilts-v1`);
+2. checks downloads against [`prebuilt/SHA256SUMS`](prebuilt/SHA256SUMS);
+   an archive copied from the local folder is checked too when it has an
+   entry there, and is otherwise taken as built locally;
 3. unpacks them into `prebuilt\unpacked`.
 
-Later builds reuse what is there. Both folders are ignored by Git.
+Later builds reuse what is there. All of these folders are ignored by
+Git. An archive in `prebuilt\fetched` is not replaced by a newer one of
+the same name in `prebuilt\packaged`: after rebuilding a library with
+the same version, delete `prebuilt\fetched` and `prebuilt\unpacked`.
 
 To fetch without building, run the script with Cygwin's bash:
 
@@ -439,42 +517,37 @@ through to the script.
 
 | Variable | Meaning |
 | --- | --- |
-| `PREBUILT_URL` | Where to download from. Default: `https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1`. |
-| `PREBUILT_LOCAL_DIR` | A folder that already holds the `.tar.bz2` files. They are copied from there instead of downloaded. A Windows path such as `C:\prebuilts` is fine. |
+| `PREBUILT_LOCAL_DIR` | A folder that holds the `.tar.bz2` files; they are copied from there instead of downloaded. Default: `prebuilt\packaged`, if it exists. A Windows path such as `C:\prebuilts` is fine. |
+| `PREBUILT_URL` | Where to download what is not in the local folder. Default: `https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1`. |
 | `PREBUILT_CACHE_DIR` | Download into this folder instead of `prebuilt\fetched`. |
 | `PREBUILT_WIN32_LIBS` | Which libraries to fetch, for example `OpenSSL Curl`. Default: all five. |
-| `PREBUILT_WIN32_SUBPLATFORMS` | Which variants to fetch. Default: `v141_static_debug v141_static_release`. CI uses `v141_static_release`, which skips about 165 MB of debug downloads. |
+| `PREBUILT_WIN32_SUBPLATFORMS` | Which variants to fetch. Default: `v141_static_release`; a Debug build needs `v141_static_debug v141_static_release`. |
 | `PREBUILT_SKIP_VERIFY=1` | Do not check the SHA-256 sums. Only for testing new archives. |
-| `PREBUILT_STRICT=1` | Fail if an archive has no entry in `prebuilt/SHA256SUMS` (by default that is only a warning). |
-
-**Debug builds need the debug archives.** The default fetches both
-variants, so this only matters if you set
-`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`.
+| `PREBUILT_STRICT=1` | Fail if a downloaded archive has no entry in `prebuilt/SHA256SUMS` (by default that is only a warning). CI sets it. |
 
 ### Offline use
 
-On a machine with internet access, download the `.tar.bz2` files you
-need from the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)
-(and `SHA256SUMS` if you want to check them yourself). Copy them to the
-build machine, then:
-
-```bat
-set PREBUILT_LOCAL_DIR=C:\prebuilts
-cmd /c ..\make.cmd
-```
+Build the archives where you have internet access (the script
+downloads the source releases), or take them from a CI run, and copy
+them, together with the CEF archives from the
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
+into `prebuilt\packaged` on the build machine (or another folder named
+by `PREBUILT_LOCAL_DIR`). The CEF archives are checked against
+`prebuilt/SHA256SUMS` there too.
 
 ### Changing the prebuilt libraries
 
-The archives are identified by the versions in `prebuilt/versions/` and
-checked against `prebuilt/SHA256SUMS`. To publish new ones (for example
-newer OpenSSL or CEF builds), create a new release tag holding the
-archives and their checksums, update `prebuilt/versions/`,
-`prebuilt/SHA256SUMS` and the default `PREBUILT_URL`, and never replace
-the assets of an existing release. The scripts that built the archives
-upstream (`prebuilt/build-libs.bat`, `prebuilt/scripts/build-*.bat`) are
-unchanged from LiveCode and still expect VS 2017; bringing them up to
-date is future work.
+To move a library to a newer release, change its file in
+`prebuilt/versions/` (and the build scripts, if its build changed),
+build, and run the tests. CI builds the new archives by itself, since
+the versions and scripts are part of its cache keys. Update the
+versions in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and
+[SECURITY.md](SECURITY.md) with them.
+
+Windows' CEF is the exception, as a published archive: to change it,
+publish the new archives under a new release tag, update
+`prebuilt/versions/cef*`, `prebuilt/SHA256SUMS` and the default
+`PREBUILT_URL`, and never replace the assets of an existing release.
 
 ## 7. Run, check and package the result
 
@@ -1416,12 +1489,25 @@ is missing (section 2.1).
 **The build fails in a folder with spaces in its name.** Move or clone
 the repository to a path without spaces, such as `C:\src\OpenXTalk-Beyond`.
 
-**Downloading the prebuilt libraries fails**, or reports a SHA-256
+**Downloading the CEF archive fails**, or reports a SHA-256
 mismatch. A mismatching file is deleted, so running the build again
-retries the download. Behind a proxy or firewall, download the archives
-some other way and use `PREBUILT_LOCAL_DIR` (section 6).
+retries the download. Behind a proxy or firewall, download the archive
+some other way and put it into `prebuilt\packaged` (section 6).
 
-**LNK1104: cannot open file `libcef.lib`, `libeay32.lib` and so on.**
+**"failed to find library OpenSSL-..." (or Curl, ICU, Thirdparty)
+during the build.** The prebuilt libraries have not been built: run
+`prebuilt\build-libraries-windows.ps1` (section 6). For a Debug build,
+run it with `-Mode debug` as well.
+
+**`build-libraries-windows.ps1` stops** with "NASM not found" (install
+NASM), "cl.exe of MSVC 14.16 (v141) is not first on PATH" (the v141
+toolset is missing: section 2.1), "cmake.exe not found" (install CMake)
+or a missing Cygwin tool (add `make` to Cygwin, section 2.5). ICU's
+configure and build run in Cygwin's bash; their output, and
+`prebuilt\build\windows\icu-<triple>-build\config.log`, show what went
+wrong.
+
+**LNK1104: cannot open file `libcef.lib`, `libcrypto.lib` and so on.**
 The prebuilt libraries are not unpacked for the configuration you are
 building. Check that `prebuilt\unpacked\<Library>\x86_64-win32-v141_static_release`
 (or `_debug` for a Debug build) exists. If in doubt, delete
@@ -1513,10 +1599,14 @@ It follows this guide:
    `check_ide_prefs.py` (the first-install preferences). Every check
    runs; the step fails if any of them did.
 3. It adds the v141 components to the runner's Visual Studio 2022 with
-   `tools/ci/install-vs-components.ps1`, installs Python 2.7 and Cygwin,
-   and fetches only the release prebuilt archives
-   (`PREBUILT_WIN32_SUBPLATFORMS=v141_static_release`, with
-   `PREBUILT_STRICT=1`, cached between runs).
+   `tools/ci/install-vs-components.ps1` and installs Python 2.7 and
+   Cygwin. It takes the prebuilt libraries (section 6) from its cache, or,
+   when their versions, build script or sources changed, installs NASM
+   and builds them with `prebuilt/build-libraries-windows.ps1` (OpenSSL,
+   curl and ICU, then Thirdparty, Release x86_64, about 40 minutes) and
+   caches them; then it fetches them, with the CEF archive downloaded from
+   `prebuilts-v1` (`PREBUILT_STRICT=1`: it must match
+   `prebuilt/SHA256SUMS`).
 4. It configures and builds Release x64 with `tools/ci/build-windows.ps1`
    and Windows SDK 10.0.17763.0, and checks the result with
    `tools/ci/verify-build.ps1`.
@@ -1566,7 +1656,7 @@ workflow runs in. That release is not copied into forks, so in a fork
 the render test fails until the fork has a release `v0.1.0` with that
 zip (pull requests into this repository run it here).
 
-It uploads three artifacts:
+It uploads four artifacts:
 
 - `OXT-Beyond-win-x86_64`: when every step succeeds, the files in
   `dist\` (the installer, the three zips, in release builds the xTalk
@@ -1577,7 +1667,10 @@ It uploads three artifacts:
   check, the render test and building and testing the installer, kept
   for 14 days and uploaded even when the build fails;
 - `render-test`: the images of the render test and what the engine
-  printed, kept for 14 days.
+  printed, kept for 14 days;
+- `prebuilt-libraries-win-x86_64`: the prebuilt library archives the
+  build used (OpenSSL, curl, ICU and Thirdparty, Release x86_64; see
+  [Prebuilt libraries](#6-prebuilt-libraries)), kept for 30 days.
 
 When a step fails, a "Failure diagnostics" table in the job summary
 shows which step it was. Downloading artifacts requires a GitHub

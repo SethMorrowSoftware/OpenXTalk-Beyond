@@ -127,30 +127,32 @@ They are ordinary links; nothing is downloaded into OXT-Beyond.
 
 ## Known issues in bundled components
 
-The builds for all three platforms still use the versions of the
-third-party libraries that LiveCode Community last shipped (Linux and
-macOS build the same versions from source, except OpenSSL, which is the
-last 1.1.1 release there). They are old, no longer supported by their
-authors, and have publicly known vulnerabilities:
+OpenSSL, curl and ICU are current releases, built from source for all
+three platforms (from 0.2.1-rc.3 on; before, the builds used the
+versions LiveCode Community last shipped):
 
 | Component | Version in this build | Status |
 | --- | --- | --- |
-| OpenSSL | 1.1.1g (2020) on Windows; 1.1.1w (2023, the last 1.1.1 release) on Linux and macOS | The 1.1.1 series reached end of life in September 2023 ([announcement](https://openssl-library.org/post/2023-09-11-eol-111/)). 1.1.1w has the fixes up to then; the Windows prebuilts are still 1.1.1g until they are rebuilt. Later vulnerabilities are fixed only in OpenSSL 3. |
-| curl (libcurl) | 7.51.0 (2016) | Many vulnerabilities have been fixed since; see curl's [vulnerability table](https://curl.se/docs/vulnerabilities.html). Used by the server engine. |
-| CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser. Do not use them to display content you do not trust. |
-| ICU | 58.2 (2016) | Old; later releases include security fixes. |
-| MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. |
+| OpenSSL | 3.5.9 (September 2026) | The 3.5 series is a long-term support release, supported until April 2030 ([release strategy](https://openssl-library.org/policies/releasestrat/)). Earlier releases of OXT-Beyond shipped 1.1.1g on Windows and 1.1.1w on Linux and macOS; the 1.1.1 series reached end of life in September 2023. |
+| curl (libcurl) | 8.22.0 (September 2026) | Current; see curl's [vulnerability table](https://curl.se/docs/vulnerabilities.html). Used by the server engine (on macOS the server engine uses the system's libcurl). Earlier releases had 7.51.0 (2016). |
+| ICU | 78.3 (March 2026) | Current. Earlier releases had 58.2 (2016). |
+
+These are still old and have publicly known vulnerabilities:
+
+| Component | Version in this build | Status |
+| --- | --- | --- |
+| CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser on Windows and Linux. Do not use them to display content you do not trust. |
+| MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. It speaks TLS 1.0 only, which OpenSSL 3 refuses, so its encrypted connections fail. |
 | libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
 Other libraries in `thirdparty/` (libxml2 2.9.4, libpng 1.6.26, zlib
 1.2.8, PCRE 8.39 and others) are also several years old. SQLite was
 updated to 3.51.1.
 
-Upgrading these libraries is planned. It needs new prebuilt archives
-built from source, which is tracked as future work. Until then, treat
-the browser components and any network or file-parsing features as
-unsafe for untrusted input. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
-lists every bundled component.
+Upgrading these libraries is planned. Until then, treat the browser
+components and any network or file-parsing features as unsafe for
+untrusted input. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists
+every bundled component.
 
 Stacks are programs: opening a stack can run its scripts. Only open
 stacks from sources you trust.

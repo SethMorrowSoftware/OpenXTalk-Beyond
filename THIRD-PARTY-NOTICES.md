@@ -43,10 +43,16 @@ Contents:
 
 ## Prebuilt libraries
 
-These come from the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
-which mirrors, unchanged, the archives LiveCode Ltd's build servers
-produced. The archives contain no licence files of their own.
+OpenSSL, curl and ICU are built from their source releases (the
+versions in `prebuilt/versions/`) for every platform, by the CI
+workflows (`prebuilt/build-libraries-windows.ps1` on Windows,
+`prebuilt/build-libraries.sh` on Linux and macOS). CEF comes from
+Spotify's CEF builds: repackaged by the Linux workflow, and on Windows
+as LiveCode Ltd's archive, mirrored unchanged in the
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
+The licence texts of OpenSSL, curl and ICU are in the IDE's notice file
+(see [The IDE's own notice file](#the-ides-own-notice-file)), which the
+packages install.
 
 | Component | Version | Where it ends up | Licence | Licence text |
 | --- | --- | --- | --- | --- |
@@ -55,22 +61,24 @@ produced. The archives contain no licence files of their own.
 | ANGLE | as bundled with Chromium 74 | `Externals/CEF/libEGL.dll`, `libGLESv2.dll` | BSD 3-clause | [upstream](https://github.com/google/angle/blob/main/LICENSE) |
 | SwiftShader | as bundled with Chromium 74 | `Externals/CEF/swiftshader/` | Apache License 2.0 | [upstream](https://github.com/google/swiftshader/blob/master/LICENSE.txt) |
 | Direct3D shader compiler (`d3dcompiler_47.dll`) | as shipped in the CEF binary distribution | `Externals/CEF/` | Microsoft redistributable file, not open source; Microsoft's terms apply | not in this repository |
-| OpenSSL | 1.1.1g on Windows (the published prebuilts); 1.1.1w on Linux and macOS (built from source in CI) | statically linked into `revsecurity` (which the engines and database drivers use for SSL and encryption) and into the server engine | OpenSSL License and original SSLeay License | [upstream](https://github.com/openssl/openssl/blob/OpenSSL_1_1_1w/LICENSE); an older copy is in [`ide/Open Source Licenses.txt`](ide/Open%20Source%20Licenses.txt) |
-| libcurl | 7.51.0 | statically linked into the server engine (`server-community.exe`, in the binaries zip only) | curl licence (MIT/X style) | [upstream](https://github.com/curl/curl/blob/curl-7_51_0/COPYING); also in `ide/Open Source Licenses.txt` |
-| ICU | 58.2 | statically linked into the engines and tools (through libfoundation) | Unicode licence ("ICU 58 and later"), plus the older ICU licence and third-party data notices in the same file | [upstream](https://github.com/unicode-org/icu/blob/release-58-2/icu4c/LICENSE) |
+| OpenSSL | 3.5.9 | statically linked into `revsecurity` (which the engines and database drivers use for SSL and encryption) and into the server engine | Apache License 2.0 | in [`ide/Open Source Licenses.txt`](ide/Open%20Source%20Licenses.txt); [upstream](https://github.com/openssl/openssl/blob/openssl-3.5.9/LICENSE.txt) |
+| libcurl | 8.22.0 (headers in `thirdparty/libcurl/include`) | statically linked into the server engine (`server-community.exe`, in the binaries zip only) | curl licence (MIT/X style) | [`thirdparty/libcurl/COPYING`](thirdparty/libcurl/COPYING), also in `ide/Open Source Licenses.txt` |
+| ICU | 78.3 | statically linked into the engines and tools (through libfoundation), with a cut-down copy of its data | Unicode License V3, plus the older ICU licence and the third-party notices of its data (among them the word-break dictionaries the engines include) in the same file | in `ide/Open Source Licenses.txt`; [upstream](https://github.com/unicode-org/icu/blob/release-78.3/LICENSE) |
 
-OpenSSL 1.1.1, curl 7.51.0, ICU 58.2 and CEF/Chromium 74 are old and
-no longer supported upstream. See [SECURITY.md](SECURITY.md).
+CEF/Chromium 74 is old and no longer supported upstream. See
+[SECURITY.md](SECURITY.md).
 
 ## Libraries built from `thirdparty/`
 
-The "Thirdparty" prebuilt archive holds static libraries built from the
-`thirdparty/` tree (upstream `livecode-thirdparty` at commit
+The "Thirdparty" prebuilt archive holds static libraries that every
+platform's build compiles from the `thirdparty/` tree (upstream
+`livecode-thirdparty` at commit
 `e5e050573c226f60acfbb9107c2b4aea853b0cbe`, now vendored in this
-repository). A few pieces, such as the CEF C++ wrapper, are compiled
-from `thirdparty/` during the normal build instead. Either way the
-source and, where upstream provided it, the licence text are in
-`thirdparty/`.
+repository; on Windows from 0.2.1-rc.3 on, before which it was LiveCode
+Ltd's archive of the same sources). A few pieces, such as the CEF C++
+wrapper, are compiled from `thirdparty/` during the normal build
+instead. Either way the source and, where upstream provided it, the
+licence text are in `thirdparty/`.
 
 | Component | Version | Used by | Licence | Licence text |
 | --- | --- | --- | --- | --- |
@@ -303,12 +311,14 @@ includes these web libraries:
 
 The IDE ships the notice file it inherited from LiveCode Community,
 [`ide/Open Source Licenses.txt`](ide/Open%20Source%20Licenses.txt)
-(installed at the root of the program folder). It covers bsdiff, curl,
-FreeType, giflib, cairo (MPL), iODBC, libjpeg, bzip2, libpng, libxml2,
-libzip, OpenSSL, PCRE, PostgreSQL, Skia, sqlitedataset, zlib, WebKit and
-the merg externals. It does not cover ICU, CEF/Chromium, ANGLE,
-SwiftShader, libffi, libxslt, MySQL Connector/C or the components
-listed in this section; those are listed in this file.
+(installed at the root of the program folder). It covers bsdiff, curl
+(8.22.0's licence), FreeType, giflib, cairo (MPL), ICU (78.3's licence,
+with the notices of its data), iODBC, libjpeg, bzip2, libpng, libxml2,
+libzip, OpenSSL (3.5.9's licence, the Apache License 2.0), PCRE,
+PostgreSQL, Skia, sqlitedataset, zlib, WebKit and the merg externals. It
+does not cover CEF/Chromium, ANGLE, SwiftShader, libffi, libxslt, MySQL
+Connector/C or the components listed in this section; those are listed
+in this file.
 
 ### The OXT-Beyond icon
 
@@ -374,7 +384,7 @@ Notes:
   `openssl-3.6.4` tag of [openssl/openssl](https://github.com/openssl/openssl)
   and pinned by SHA-256 like the other files, as `OpenSSL-LICENSE.txt`
   to both extensions' `licenses/` folders. OpenSSL 3 has no `NOTICE`
-  file. These copies are separate from the OpenSSL 1.1.1g inside
+  file. These copies are separate from the OpenSSL 3.5.9 inside
   `revsecurity.dll` ([Prebuilt libraries](#prebuilt-libraries)).
 - **MPL 2.0 source.** The source of libdatachannel and libjuice is at
   [paullouisageneau/libdatachannel](https://github.com/paullouisageneau/libdatachannel)
@@ -503,7 +513,7 @@ asset.
 
 | Where it ends up (in `OXT-Beyond.app`) | What it is | Licence |
 | --- | --- | --- |
-| `Contents/MacOS/OXT-Beyond`, `revsecurity.dylib`, `revpdfprinter.bundle`; `Contents/Tools/Externals/` (`revxml`, `revzip`, `revdb`, `revbrowser`, `revspeech`, `reviphone`, `revandroid` and the `Database Drivers`, as `.bundle` folders); `Contents/Tools/Toolchain/` (`lc-compile`, `lc-run`, `lc-compile-ffi-java`) | the engine, externals and toolchain | GPLv3 (and LiveCode Ltd's permission, see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) and the note on OpenSSL below). They statically link the libraries listed under [Prebuilt libraries](#prebuilt-libraries) (OpenSSL 1.1.1w and ICU 58.2, built from source by the macOS workflow; there is no CEF on macOS, where revBrowser and the browser widget use the system's WebKit) and under [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty), plus iODBC (next row). The GENTLE-generated parser is in `lc-compile` and `lc-compile-ffi-java`, as on Windows (see [GENTLE](#gentle)). |
+| `Contents/MacOS/OXT-Beyond`, `revsecurity.dylib`, `revpdfprinter.bundle`; `Contents/Tools/Externals/` (`revxml`, `revzip`, `revdb`, `revbrowser`, `revspeech`, `reviphone`, `revandroid` and the `Database Drivers`, as `.bundle` folders); `Contents/Tools/Toolchain/` (`lc-compile`, `lc-run`, `lc-compile-ffi-java`) | the engine, externals and toolchain | GPLv3 (and LiveCode Ltd's permission, see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) and the note on OpenSSL below). They statically link the libraries listed under [Prebuilt libraries](#prebuilt-libraries) (OpenSSL 3.5.9 and ICU 78.3, built from source by the macOS workflow; there is no CEF on macOS, where revBrowser and the browser widget use the system's WebKit) and under [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty), plus iODBC (next row). The GENTLE-generated parser is in `lc-compile` and `lc-compile-ffi-java`, as on Windows (see [GENTLE](#gentle)). |
 | the `dbodbc.bundle` database driver (in `Externals/Database Drivers/` and in each runtime's) | iODBC, statically linked (the Windows driver uses the system's `odbc32.dll` instead) | dual-licensed: LGPL version 2 or the BSD licence, at your choice; [`thirdparty/libiodbc/docs/LICENSE`](thirdparty/libiodbc/docs/LICENSE), [`LICENSE.LGPL`](thirdparty/libiodbc/docs/LICENSE.LGPL), [`LICENSE.BSD`](thirdparty/libiodbc/docs/LICENSE.BSD) |
 | `Contents/Tools/Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` and `x86-32/Standalone.app` (with `Support/` and `Externals/`, and `arm64/Externals/`) | the macOS standalone engine (`Standalone-Community.app` of the same build), under the folder names the IDE's standalone builder uses; it becomes part of every Mac standalone | GPLv3, with the same statically linked libraries as the engine |
 | `Contents/Tools/Extensions/com.livecode.library.timezone/code/universal-mac-macosx/tz.dylib` and `.../resources/zoneinfo` | the time zone library's native code and the IANA time zone data, built here (the runtimes asset's copies are left out) | see [Third-party code inside LiveCode's own sources](#third-party-code-inside-livecodes-own-sources) (IANA tz: public domain, some files BSD 3-clause) |
@@ -511,7 +521,7 @@ asset.
 | `Contents/Resources/LiveCode.icns`, `LiveCodeDoc.icns` (the icon of LiveCode's own document types), `terminology.sdef`, `LiveCode-Community.rsrc`, the `*.lproj/Localisation.strings`; `Standalone.icns` and `StandaloneDoc.icns` in each runtime (the default icons of Mac standalones) | LiveCode Community's resources from `engine/rsrc/` | GPLv3, as part of LiveCode Community. The LiveCode name and logo are LiveCode Ltd's trademarks (see the README's "Trademarks"). |
 | `Contents/Tools/Resources/Mobile Examples/` | LiveCode's mobile example stacks, installed only on macOS (as upstream did) | LiveCode Community's (GPLv3); see [Examples and other resources](#examples-and-other-resources) |
 | `Contents/Info.plist` | generated by `tools/oxt/package.py` from LiveCode's `engine/rsrc/LiveCode-Info.plist` | part of OXT-Beyond (GPLv3) |
-| the build output's `server-community` (in the binaries tar.xz only) | LiveCode Server | GPLv3, statically linking OpenSSL as on Windows; on macOS it uses the system's libcurl (`prebuilt/libcurl.gyp`) instead of libcurl 7.51.0 |
+| the build output's `server-community` (in the binaries tar.xz only) | LiveCode Server | GPLv3, statically linking OpenSSL as on Windows; on macOS it uses the system's libcurl (`prebuilt/libcurl.gyp`) instead of libcurl 8.22.0 |
 
 The macOS system frameworks and libraries that this code uses (AppKit,
 WebKit, libc++, libcups and the rest) are part of macOS and are not
@@ -526,18 +536,16 @@ carries for building Windows standalones, need the Microsoft Visual C++
 Redistributable on the PC that runs such a standalone; and the Windows
 x86-64 standalone runtime, which only the Windows build makes.
 
-**OpenSSL and LiveCode Ltd's permission on macOS.** `revsecurity.dylib`
-(which the engine, the standalones and the database drivers use for SSL
-and encryption) and the server engine statically link OpenSSL 1.1.1w on
-macOS, as they do on Windows and Linux. LiveCode Ltd's additional
-permission to combine its GPL code with OpenSSL
-([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)) describes the secure
-sockets and encryption feature "on Windows and Linux", and says that it
-is only needed, and only has effect, for applications that use revBrowser
-(on Windows) or OpenSSL (on Windows and Linux). Whether the permission as
-written covers the same combination on macOS has not been reviewed: it
-needs the maintainer's legal read, and this file does not say either way
-(see [Still to review](#still-to-review)).
+**OpenSSL on macOS.** `revsecurity.dylib` (which the engine, the
+standalones and the database drivers use for SSL and encryption) and the
+server engine statically link OpenSSL 3.5.9 on macOS, as they do on
+Windows and Linux. OpenSSL 3 is under the Apache License 2.0, which the
+Free Software Foundation considers compatible with the GPLv3, so this
+combination needs no additional permission. (LiveCode Ltd's permission
+in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) describes the feature
+"on Windows and Linux"; whether it covered the macOS packages of
+0.2.1-rc.2 and earlier, which linked OpenSSL 1.1.1w, has not been
+reviewed: see [Still to review](#still-to-review).)
 
 ## The Linux x86-64 package
 
@@ -554,7 +562,7 @@ stores the second copy as a hard link):
 
 | Where it ends up | What it is | Licence |
 | --- | --- | --- |
-| `OXT-Beyond`, `revpdfprinter.so`, `revsecurity.so`, `Externals/*.so`, `Externals/Database Drivers/*.so`, `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, and in `Runtime/Linux/x86-64/` the standalone engine `Standalone` with its own `Support/` and `Externals/` | Built from this repository, with the libraries of [Prebuilt libraries](#prebuilt-libraries) and [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty) as on Windows, except that OpenSSL is 1.1.1w (in `revsecurity.so`), the engines and revPDFPrinter use the system's FreeType and Fontconfig instead of linking their own, and `dbodbc.so` links iODBC (next row) | GPLv3 with the permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) (OpenSSL on Linux); the third-party parts as listed in those sections |
+| `OXT-Beyond`, `revpdfprinter.so`, `revsecurity.so`, `Externals/*.so`, `Externals/Database Drivers/*.so`, `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, and in `Runtime/Linux/x86-64/` the standalone engine `Standalone` with its own `Support/` and `Externals/` | Built from this repository, with the libraries of [Prebuilt libraries](#prebuilt-libraries) and [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty) as on Windows, except that the engines and revPDFPrinter use the system's FreeType and Fontconfig instead of linking their own, and `dbodbc.so` links iODBC (next row) | GPLv3 with the permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md); the third-party parts as listed in those sections |
 | `Externals/Database Drivers/dbodbc.so` | iODBC 3.52.5 (`thirdparty/libiodbc`), the ODBC driver manager, statically linked (on Windows the driver uses the system's `odbc32.dll`) | GNU Library General Public License version 2 or the BSD licence, at your choice: [`thirdparty/libiodbc/docs/`](thirdparty/libiodbc/docs/) (`LICENSE`, `LICENSE.LGPL`, `LICENSE.BSD`) |
 | `Externals/CEF/libcef.so`, `cef.pak`, `cef_100_percent.pak`, `cef_200_percent.pak`, `cef_extensions.pak`, `natives_blob.bin`, `snapshot_blob.bin`, `v8_context_snapshot.bin`, `locales/*.pak` (52 locales) | Chromium Embedded Framework 74.1.19+gb62bacf with Chromium 74.0.3729.157 (including V8): the `linux64_minimal` binary distribution from Spotify's CEF build server (`cef-builds.spotifycdn.com`), taken by `prebuilt/scripts/build-cef.sh`. Left out of the package: `chrome-sandbox` (CEF runs without its sandbox) and `devtools_resources.pak` | CEF: BSD 3-clause; Chromium: BSD 3-clause for its own code, and many components under their own licences (see [Prebuilt libraries](#prebuilt-libraries) and [Still to review](#still-to-review)) |
 | `Externals/CEF/icudtl.dat` | ICU data, as bundled with Chromium 74 | Unicode licence (ICU) |
@@ -698,11 +706,13 @@ has been in the LiveCode Community tree since upstream. Its licence,
 
 ## Still to review
 
-- **LiveCode Ltd's OpenSSL permission on macOS.** The permission in
-  [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) names Windows and Linux;
-  the macOS packages combine the same GPL code with OpenSSL (see
-  [The macOS app](#the-macos-app)). Whether the permission covers macOS
-  needs a legal read by the maintainer.
+- **LiveCode Ltd's OpenSSL permission on macOS, for 0.2.1-rc.2 and
+  earlier.** The permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)
+  names Windows and Linux; the macOS packages up to 0.2.1-rc.2 combined
+  the same GPL code with OpenSSL 1.1.1w. Whether the permission covered
+  them needs a legal read by the maintainer. Later packages use OpenSSL 3
+  (see [The macOS app](#the-macos-app)), for which the question does not
+  arise.
 - **Tom Perry's condition** on `community.openxtalk.plugin.oxtlite`
   (quoted [above](#tom-perrys-notice-for-communityopenxtalkpluginoxtlite))
   is a restriction that the GPLv3 does not contain. How it fits with

@@ -13,6 +13,15 @@ Both are under licences that are not compatible with the GPL. LiveCode Community
 shipped this permission at the top of its LICENSE file. It is copied
 below, unchanged, so that LICENSE can hold the plain GPLv3 text.
 
+For OpenSSL the permission is no longer needed. LiveCode Community used
+OpenSSL 1.1.1 and earlier, which are under the OpenSSL and SSLeay
+licences. From 0.2.1-rc.3 on, OXT-Beyond ships OpenSSL 3, which is
+licensed under the Apache License 2.0, and the Free Software Foundation
+considers the Apache License 2.0 compatible with version 3 of the GPL.
+So the points below that have not been confirmed matter for ATL
+(revBrowser on Windows), and for OpenSSL only to someone who combines
+the code with OpenSSL 1.1.1 or earlier.
+
 ## Where it applies in this repository
 
 - **Code from LiveCode Community.** Most of this repository (the
