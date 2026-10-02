@@ -1,17 +1,21 @@
 {
   "assets": [
     {
-      "id": "oxt-runtimes-1.15",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
-      "sha256": "6811d5cc028ea15f7e784ff58c03e4bc8994507f7f56e62fa148a27673cf995a",
-      "size": 199237317,
+      "id": "oxt-runtimes-0.2.1-rc.3",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.1-rc.3/oxt-runtimes-0.2.1-rc.3.zip",
+      "sha256": "2f7278dbb948ef2c561690e6383badb878769ab79b91cb1fa1cd4650457ab13c",
+      "size": 316117085,
       "kind": "zip",
       "strip": 1,
       "dest": "",
       "rename": {
-        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-1.15.md"
+        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.1-rc.3.md"
       },
       "exclude": {
+        "win-x86_64": [
+          "Runtime/Windows/x86-64/**",
+          "Extensions/com.livecode.library.timezone/code/x86_64-win32/**"
+        ],
         "linux-x86_64": [
           "Runtime/Linux/x86-64/**",
           "Extensions/com.livecode.library.timezone/code/x86_64-linux/**",
@@ -21,14 +25,13 @@
           "Extensions/com.livecode.library.timezone/resources/**"
         ],
         "mac-*": [
-          "Extensions/com.livecode.library.timezone/code/universal-mac-macosx10.9/**",
           "Extensions/com.livecode.library.timezone/resources/**"
         ]
       },
-      "exclude_note": "The Linux and macOS builds of this repository produce these themselves: the Linux x86-64 standalone runtime (standalone-community with its own externals), the timezone library's native code for their platform and the zoneinfo data (tz.gyp target tzdata, which the Windows build does not make). macOS takes its own universal-mac-macosx code folder instead of 1.15's universal-mac-macosx10.9: the IDE maps every universal-* folder, so both would be loaded. Windows takes the whole asset.",
-      "description": "Standalone runtimes that the Windows x86-64 build does not produce, taken unchanged from OpenXTalk Lite 1.15: Windows x86-32, Linux and Android engines and externals, the timezone library's code for other platforms and its zoneinfo data. See PROVENANCE.md in the archive.",
-      "licence": "GPL-3.0 (LiveCode Community and OpenXTalk Lite engine builds); IANA tz data: public domain; the shared libraries under Runtime/Linux/*/lib keep their own licences (see PROVENANCE.md)",
-      "source": "OpenXTalk Lite 1.15 for Windows (openxtalk-lite-1.15-win-noinstaller.7z), built by Tom Perry; made with tools/oxt/make_runtimes_asset.py"
+      "exclude_note": "What each package's own build makes: Windows x86-64 its runtime and the timezone library's code for it; Linux x86-64 the same and the zoneinfo data (tz.gyp target tzdata, which the Windows builds do not make); Linux arm64 and macOS the zoneinfo data (their own runtimes are not in this asset).",
+      "description": "Standalone runtimes for the platforms other than the package's own, built from this repository (commit 7f16ee6546f8): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with their externals, the timezone library's code for them and its zoneinfo data; and the Android runtime with the timezone library's Android code, carried over unchanged from oxt-runtimes-1.15 (OpenXTalk Lite 1.15). See PROVENANCE.md in the archive.",
+      "licence": "GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds); GPL-3.0 (the Android runtime from LiveCode Community 9.6.3); CEF: BSD-3-Clause with Chromium's licences; IANA tz data: public domain; see PROVENANCE.md",
+      "source": "OXT-Beyond's CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64 of commit 7f16ee6546f8610dab81af38c9812591556f5387, made with tools/oxt/make_runtimes_asset.py --builds; the Android parts from oxt-runtimes-1.15"
     }
   ]
 }

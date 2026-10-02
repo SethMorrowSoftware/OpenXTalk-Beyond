@@ -56,21 +56,22 @@ pre-release for testing (see what 0.2.1 adds, under
   (0.0.1 and 0.0.2 were for Windows only). Linux arm64 is built in CI
   but not packaged, and so are 32-bit Windows and Linux, for their
   standalone runtimes.
-- **Standalones for other platforms use prebuilt runtimes.** Each
-  package's engine, externals and tools, and the standalone runtime for
-  its own platform, are built from this repository: Windows x86-64,
-  macOS (Apple Silicon and Intel) and Linux x86-64. The standalone
-  runtimes for 32-bit Windows, 32-bit Linux and Android (and, in the
-  Windows and macOS packages, 64-bit Linux), and the time zone library
-  code for the other platforms, are OpenXTalk Lite 1.15's files,
-  unchanged: stock LiveCode 9.6.3 builds and files as Tom Perry shipped
-  them, among them his 9.7.1-OXT Linux engine. They are published
-  separately as a release asset (`oxt-runtimes-1.15.zip`) and added when
-  OXT-Beyond is packaged. Only the Windows package has the Windows
-  x86-64 runtime, and only the macOS package the macOS runtimes. There
-  are no iOS runtimes. The automatic tests build and run a standalone
-  from each package's own runtime and from the 32-bit Windows and Linux
-  builds, not yet from the other runtimes a package carries.
+- **The Android runtime is still a prebuilt one.** Each package's
+  engine, externals and tools are built from this repository (Windows
+  x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
+  the standalone runtimes that every package carries for Windows
+  (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
+  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.3.zip`)
+  brings each platform's runtimes into the other packages. The Android
+  runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
+  builds as Tom Perry shipped them), carried over unchanged in that
+  asset. Only the macOS package has the macOS runtimes, there are no iOS
+  runtimes, and 32-bit Linux standalones have no browser (CEF's 32-bit
+  Linux builds ended with CEF 101). A Linux standalone uses the system's
+  libraries, as LiveCode's do (OpenXTalk Lite 1.15's Linux runtimes came
+  with copies of some). The automatic tests build a standalone from every
+  runtime a package carries, Android aside, and run those the test
+  machine can run.
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
@@ -178,10 +179,11 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 [Linux](#linux-x86-64). The release notes list each platform's
 requirements too.
 
-Releases whose tags do not start with `v`, such as `prebuilts-v1` and
-`runtimes-1.15`, are not programs. They hold files that the build and
-the packager download: the prebuilt third-party libraries and the
-standalone runtimes for other platforms.
+Releases whose tags do not start with `v`, such as `prebuilts-v1`,
+`runtimes-1.15` and `runtimes-0.2.1-rc.3`, are not programs. They hold
+files that the build and the packager download: the prebuilt
+third-party libraries of earlier versions and the standalone runtimes
+for other platforms.
 
 **Latest development build.** Every successful run of a build workflow
 uploads the same files as an artifact: open the workflow, pick a
@@ -681,7 +683,15 @@ adds:
   1.6.59 instead of 1.6.26, giflib 5.2.2 instead of 5.1.4, libjpeg 9f
   instead of 9b and PCRE 8.45 (the last release of PCRE 1) instead of
   8.39, which fix their published vulnerabilities in reading
-  compressed data, images and regular expressions.
+  compressed data, images and regular expressions;
+- standalone runtimes built from this repository in every package (new
+  in 0.2.1-rc.3), for Windows (x86-64 and x86) and Linux (x86-64 and
+  x86), in place of OpenXTalk Lite 1.15's: the macOS and Linux packages
+  can build Windows x86-64 standalones now, and Linux standalones built
+  with the Windows and macOS packages get their externals and database
+  drivers and a 64-bit `revsecurity` and `revpdfprinter` (1.15's 64-bit
+  Linux runtime had no externals list and 32-bit copies of those two).
+  Every package's tests build a standalone from each runtime it carries.
 
 ### xTalk Suite extensions
 
@@ -853,14 +863,12 @@ Known limitations, in rough order of importance:
    74 and several older libraries in `thirdparty/`. (OpenSSL, curl,
    ICU, zlib, libpng, giflib, libjpeg and PCRE are current from
    0.2.1-rc.3 on.) Plan: update them too.
-2. The standalone runtimes for 32-bit Windows, 32-bit Linux and Android
-   (and the 64-bit Linux one in the Windows and macOS packages) are
-   prebuilt binaries from OpenXTalk Lite 1.15, not built from this
-   repository; the macOS and Linux packages have no Windows x86-64
-   runtime yet. The 32-bit Windows and Linux runtimes are now built in
-   CI (see [BUILDING.md](BUILDING.md#9-continuous-integration)), but the
-   packages do not carry them yet. Building standalones is tested
-   automatically for each package's own runtime and the 32-bit builds.
+2. The Android standalone runtime is OpenXTalk Lite 1.15's (LiveCode
+   Community 9.6.3 builds), not built from this repository, and Android
+   standalones are not tested automatically. The Windows and Linux
+   runtimes are built from this repository from 0.2.1-rc.3 on, and every
+   package's tests build a standalone from each of them. Plan: build the
+   Android engine here too.
 3. The Windows binaries are not code-signed, and the macOS app is signed
    ad hoc, not with an Apple Developer ID, and not notarized. Plan:
    Developer ID signing and notarization for macOS.

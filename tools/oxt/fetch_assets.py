@@ -18,10 +18,11 @@
 """Download, cache and verify the external assets that packaging adds to
 the installed layout (tools/oxt/external-assets.json).
 
-External assets are files this repository does not build: prebuilt
-runtimes for other platforms taken from OpenXTalk Lite 1.15 and, later,
-extensions consumed from their own repositories at pinned versions. Each
-asset is one archive with a fixed URL, size and SHA-256:
+External assets are files that packaging takes from a published archive
+rather than from the build: the standalone runtimes for other platforms
+(made from this repository's CI builds by make_runtimes_asset.py
+--builds, with OpenXTalk Lite 1.15's Android runtime). Each asset is one
+archive with a fixed URL, size and SHA-256:
 
   {
     "id":          unique name, used in messages and reports

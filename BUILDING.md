@@ -899,13 +899,19 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-1.15`: the Windows x86-32, Linux
-and Android runtimes and the time zone library code for other platforms
-from OpenXTalk Lite 1.15, unchanged, with a `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-1.15.md`). It is published as the file
-`oxt-runtimes-1.15.zip` of this repository's release `runtimes-1.15`
-(published on 29 September 2026). The manifest names that release in
-this repository, so a fork downloads it from here too. To package
+Today there is one asset, `oxt-runtimes-0.2.1-rc.3`: the Windows (x86-64
+and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
+code for them and its zoneinfo data, made from this repository's CI
+builds, with the Android runtime and its time zone library code carried
+over unchanged from the earlier asset `oxt-runtimes-1.15` (OpenXTalk
+Lite 1.15's files). Its `PROVENANCE.md` (installed as
+`PROVENANCE-oxt-runtimes-0.2.1-rc.3.md`) names the commit and the CI
+runs and lists every file; the 1.15 asset's provenance comes with it as
+`PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
+`oxt-runtimes-0.2.1-rc.3.zip` of this repository's release
+`runtimes-0.2.1-rc.3`. Each package leaves out the part its own build
+makes (the entry's `exclude`). The manifest names that release in this
+repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
 published yet, use `-NoExternalAssets` (in CI, the `no_external_assets`
 input or the `OXT_NO_EXTERNAL_ASSETS` variable; see
@@ -935,10 +941,22 @@ its file name from the URL) into the cache folder; with `--offline`,
 altogether; the IDE then offers no standalone targets for other
 platforms.
 
-**Making the runtimes asset.**
-[`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
-builds it from an extracted OpenXTalk Lite release, taking only files
-that `layout.py` classes "external" (not `Ext\`):
+**Making the runtimes asset.** Start the "Runtimes asset" workflow
+([`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)) by
+hand with a label (the version whose packages will take the asset, for
+example `0.2.1-rc.3`) and the ids of a "Build (Windows)" and a "Build
+(Linux)" run of the same commit whose 32-bit and 64-bit builds passed.
+It makes the archive with
+[`tools/oxt/make_runtimes_asset.py --builds`](tools/oxt/README.md#the-runtimes-asset),
+shows the manifest entry in its summary and, with `publish` and a
+commit on `main`, publishes the pre-release `runtimes-<label>`. Then pin
+that entry in `tools/oxt/external-assets.json` in a pull request. Make
+a new asset whenever the engine or the externals change, so that the
+other platforms' runtimes in the packages stay those of the release.
+
+`oxt-runtimes-1.15` was made differently, from an extracted OpenXTalk
+Lite release, taking only files that `layout.py` classes "external" (not
+`Ext\`):
 
 ```bat
 python tools\oxt\make_runtimes_asset.py "C:\path\to\OpenXTalk Lite" --out C:\tmp\oxt-asset --source-archive openxtalk-lite-1.15-win-noinstaller.7z --update-manifest
@@ -952,9 +970,10 @@ entries, file dates from the files), so the same folder and options
 give the same SHA-256. `--update-manifest` writes the size and SHA-256
 into `tools/oxt/external-assets.json`; commit that change.
 
-**Publishing an asset** is a manual step for a maintainer. Create a
-release with a tag that does not start with `v` and attach the files;
-`PROVENANCE.md` is too long for release notes, so attach it as a file:
+**Publishing an asset** made by hand is a manual step for a maintainer
+(the runtimes workflow does the same itself). Create a release with a
+tag that does not start with `v` and attach the files; `PROVENANCE.md` is
+too long for release notes, so attach it as a file:
 
 ```bat
 gh release create runtimes-1.15 C:\tmp\oxt-asset\oxt-runtimes-1.15.zip C:\tmp\oxt-asset\PROVENANCE.md --prerelease --title "Standalone runtimes from OpenXTalk Lite 1.15" --notes "Prebuilt files used by tools/oxt/package.py. See PROVENANCE.md (also inside the zip)."
@@ -1575,9 +1594,10 @@ build again.
 **The command prompt closes when the build finishes.** Run
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
-**Packaging fails to download `oxt-runtimes-1.15.zip`.** The download
-comes from this repository's `runtimes-1.15` release (also in a fork,
-which needs no copy of its own), so a failure is usually the network:
+**Packaging fails to download the runtimes asset**
+(`oxt-runtimes-0.2.1-rc.3.zip`). The download comes from this
+repository's `runtimes-0.2.1-rc.3` release (also in a fork, which needs
+no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
 downloading when its size and SHA-256 match (see
