@@ -74,10 +74,17 @@ end TestProcessID
 
 on TestShortFilePath2
    if the platform is "win32" then
-      local tShortFolder, tLongFolder
-      	
-      put the shortfilepath of the defaultFolder into tShortFolder
-      put the longfilepath of the defaultFolder into tLongFolder
+      local tLongFolder, tShortFolder
+      
+      // A folder of its own with a long name, in the temporary folder: the
+      // folder the tests run in may be on a volume that has no 8.3 names
+      // (the D: drive of the GitHub runners) and its name may be 8.3 already
+      put specialFolderPath("temporary") & "/OXT short file path test" into tLongFolder
+      if there is not a folder tLongFolder then
+         create folder tLongFolder
+      end if
+      put the shortfilepath of tLongFolder into tShortFolder
+      delete folder tLongFolder
       
       // check path components are in 8.3 format
       set the itemdelimiter to "/"
