@@ -83,7 +83,9 @@ on TestFoundLoc
    put the selectedloc of field kCreatedField into tCharLoc
    
    find characters "b" in field kCreatedField
-   TestAssert "foundLoc for found chunk", the foundLoc is tCharLoc
+   -- (with both values: it failed now and then on Windows in CI, which logs
+   -- only the description)
+   TestAssert "foundLoc for found chunk:" && the foundLoc && "selectedLoc:" && tCharLoc, the foundLoc is tCharLoc
    
    find characters "x" in field kCreatedField
    TestAssert "foundLoc for non-found chunk", the foundLoc is empty
