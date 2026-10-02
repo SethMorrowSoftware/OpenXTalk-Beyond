@@ -3,6 +3,11 @@
 #include "zip.h"
 #include "zipint.h"
 
+// OXT-Beyond: calloc, free and strlen; the Windows SDK's headers no longer
+// bring them in
+#include <stdlib.h>
+#include <string.h>
+
 WCHAR* ConvertCStringToLpwstr(const char *p_input)
 {
 	int t_length;

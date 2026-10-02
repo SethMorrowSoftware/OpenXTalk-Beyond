@@ -14,7 +14,7 @@ function readVersion {
 		eval ${LIBNAME}_BUILDREVISION='"${BUILDREVISION}"'
 	fi
 
-	# Per-platform version: versions/<lib>_<platform> (e.g. openssl_win32)
+	# Per-platform version: versions/<lib>_<platform> (e.g. cef_win32)
 	# sets <Lib>_VERSION_<platform>, which fetch-libraries.sh uses for that
 	# platform instead of the common version. It lets one platform keep using
 	# published prebuilts while the others move to a newer release.
@@ -37,10 +37,11 @@ readVersion CEF
 readVersion CEFChromium
 
 # The Thirdparty version used to be the commit of the thirdparty git submodule.
-# thirdparty/ is now vendored into this repository, so the version is pinned in
-# versions/thirdparty instead: it is the livecode-thirdparty commit that the
-# published Thirdparty prebuilts were built from. Change it when publishing a
-# new Thirdparty prebuilt.
+# thirdparty/ is now vendored into this repository, and every platform builds
+# the Thirdparty archives from it (build-thirdparty.sh,
+# build-libraries-windows.ps1), so versions/thirdparty is only the label in
+# their names: the livecode-thirdparty commit that thirdparty/ was vendored
+# from.
 readVersion Thirdparty
 
 # Libraries used on all platforms

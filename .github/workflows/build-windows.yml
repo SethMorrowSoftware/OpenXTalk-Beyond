@@ -46,7 +46,10 @@
 #   7. installs it per user, smoke-tests the installed program and
 #      uninstalls it (test-installer.ps1).
 # Before the build, it lints the IDE sources with the Python 3 checks in
-# tools/ci (check_ide_*.py), which need no build.
+# tools/ci (check_ide_*.py), which need no build, and builds the prebuilt
+# third-party libraries from source (OpenSSL, curl, ICU and those of
+# thirdparty/, prebuilt/build-libraries-windows.ps1) unless its cache has
+# them; only the CEF archive is downloaded (prebuilts-v1).
 # A run that passes all of these uploads the files in dist (not dist/stage)
 # as the workflow artifact "OXT-Beyond-win-x86_64". Every run, including a
 # failed one, uploads the logs as "build-logs-win-x86_64" and the render
@@ -147,7 +150,8 @@ jobs:
       # Read by util/invoke-unix.bat, which runs the Cygwin bash, flex and bison
       CYGPATH: C:\cygwin64
       # Read by prebuilt/fetch-libraries.sh: only the Release libraries are
-      # needed, and every tarball must match prebuilt/SHA256SUMS
+      # needed, and every tarball it downloads (CEF) must match
+      # prebuilt/SHA256SUMS; the ones built here come from PREBUILT_LOCAL_DIR
       PREBUILT_WIN32_SUBPLATFORMS: v141_static_release
       PREBUILT_STRICT: '1'
     outputs:
@@ -299,21 +303,106 @@ jobs:
           # util/invoke-unix.bat finds it through CYGPATH; on PATH its tools
           # would shadow Git's and Strawberry Perl's
           add-to-path: 'false'
-          packages: flex bison m4 gawk sed grep curl tar bzip2
+          # make: ICU's build (prebuilt/build-libraries-windows.ps1)
+          packages: flex bison m4 gawk sed grep curl tar bzip2 make
 
-      # Restore and save are separate steps so that the downloaded archives
-      # are cached as soon as they have been fetched and verified, even when
-      # a later step (usually the build) fails. The plain actions/cache would
-      # only save them at the end of a successful job.
-      - name: Restore cached prebuilt libraries
+      # The prebuilt libraries are built here from source, as on Linux and
+      # macOS (prebuilt/build-libraries-windows.ps1): OpenSSL, curl and ICU
+      # from the releases pinned in prebuilt/versions, Thirdparty from
+      # thirdparty/, all with the v141 toolset, as Release x86_64 archives in
+      # prebuilt/packaged. The cache key covers what they are made from: the
+      # versions, the script, the thirdparty/ tree and the build settings the
+      # Thirdparty libraries are compiled with. A cache miss builds them in
+      # this job (about 40 minutes). Only CEF still comes from the
+      # prebuilts-v1 release (LiveCode's CEF 74 archive), checked against
+      # prebuilt/SHA256SUMS.
+      - name: Compute the prebuilt libraries cache key
+        id: prebuilt-key
+        env:
+          SCRIPTS_HASH: ${{ hashFiles('prebuilt/versions/*', 'prebuilt/build-libraries-windows.ps1', 'prebuilt/thirdparty.gyp', 'config/*.gypi', 'tools/ci/build-windows.ps1', 'make.cmd') }}
+        run: |
+          $thirdparty = (git rev-parse HEAD:thirdparty).Substring(0, 12)
+          if ($LASTEXITCODE -ne 0) { throw 'git rev-parse HEAD:thirdparty failed' }
+          $key = "prebuilt-win32-x86_64-v141_static_release-$($env:SCRIPTS_HASH.Substring(0, 16))-$thirdparty"
+          Write-Host "Cache key: $key"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "key=$key" -Encoding utf8
+
+      - name: Restore prebuilt libraries
         id: prebuilt-cache
         uses: actions/cache/restore@v5
         with:
-          path: prebuilt/fetched
-          key: prebuilt-win32-x86_64-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/*', 'prebuilt/SHA256SUMS') }}
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      # OpenSSL's assembler (AES-NI and the other fast, constant-time code)
+      - name: Install NASM
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: |
+          choco install nasm -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install nasm exited with code $LASTEXITCODE" }
+
+      - name: Build OpenSSL, curl and ICU from source
+        id: prebuilt-build
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 90
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: |
+          ./prebuilt/build-libraries-windows.ps1 -Libraries OpenSSL, Curl, ICU -Arch x86_64 -Mode release
+          Get-ChildItem -LiteralPath prebuilt/packaged | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      # The engine's own build files compile thirdparty/ (msbuild target
+      # thirdparty-prebuilts, in build-win-x86_64, which the engine build
+      # below reuses); its fetch step takes OpenSSL's headers (libpq and
+      # libmysql use them) from the archives just built
+      - name: Build the Thirdparty libraries from thirdparty/
+        id: prebuilt-thirdparty
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 90
+        env:
+          VSINSTALLDIR: ${{ steps.vs.outputs.install-path }}
+        run: |
+          ./prebuilt/build-libraries-windows.ps1 -Libraries Thirdparty -Arch x86_64 -Mode release
+          Get-ChildItem -LiteralPath prebuilt/packaged | Format-Table Name, Length -AutoSize | Out-String | Write-Host
+
+      - name: Save prebuilt libraries to the cache
+        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: prebuilt/packaged
+          key: ${{ steps.prebuilt-key.outputs.key }}
+
+      # For developers who would rather not build them (BUILDING.md,
+      # "Prebuilt libraries"): extracted into prebuilt\packaged, a local
+      # build takes them as this one did
+      - name: Upload the prebuilt libraries
+        uses: actions/upload-artifact@v6
+        with:
+          name: prebuilt-libraries-win-x86_64
+          path: prebuilt/packaged/*.tar.bz2
+          if-no-files-found: error
+          retention-days: 30
+          # The archives are compressed already
+          compression-level: 0
+
+      # The CEF archive is downloaded (from prebuilts-v1); restore and save
+      # are separate so that a verified download is cached even when a later
+      # step fails
+      - name: Restore the cached CEF archive
+        id: cef-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: prebuilt/fetched/CEF-*.tar.bz2
+          key: prebuilt-win32-x86_64-cef-${{ env.PREBUILT_WIN32_SUBPLATFORMS }}-${{ hashFiles('prebuilt/versions/cef*', 'prebuilt/SHA256SUMS') }}
 
       # A login shell puts Cygwin's /usr/bin first on PATH and starts in the
       # home folder, hence the cd. "set -e" comes after the profile scripts.
+      # The archives built above are copied from PREBUILT_LOCAL_DIR (and
+      # taken as built here: they have no SHA256SUMS entries); CEF is
+      # downloaded and checked. PREBUILT_LOCAL_DIR stays set for the build,
+      # whose fetch step runs the same script again.
       - name: Fetch prebuilt libraries
         id: prebuilt
         timeout-minutes: 30
@@ -321,17 +410,19 @@ jobs:
         run: |
           set -eo pipefail
           cd "$(cygpath -u "$GITHUB_WORKSPACE")/prebuilt"
+          export PREBUILT_LOCAL_DIR="$PWD/packaged"
+          echo "PREBUILT_LOCAL_DIR=$(cygpath -w "$PREBUILT_LOCAL_DIR")" >> "$GITHUB_ENV"
           ./fetch-libraries.sh win32 x86_64
           ls -l fetched
           ls unpacked
 
-      - name: Save prebuilt libraries to the cache
-        if: steps.prebuilt-cache.outputs.cache-hit != 'true'
+      - name: Save the CEF archive to the cache
+        if: steps.cef-cache.outputs.cache-hit != 'true'
         continue-on-error: true
         uses: actions/cache/save@v5
         with:
-          path: prebuilt/fetched
-          key: ${{ steps.prebuilt-cache.outputs.cache-primary-key }}
+          path: prebuilt/fetched/CEF-*.tar.bz2
+          key: ${{ steps.cef-cache.outputs.cache-primary-key }}
 
       - name: Configure (config.py and gyp)
         id: configure
@@ -606,6 +697,15 @@ jobs:
           foreach ($log in $logs) {
             if (Test-Path -LiteralPath $log) { Copy-Item -LiteralPath $log -Destination $dest -Force }
           }
+          # configure's own logs of a prebuilt library build (ICU, curl's
+          # CMake), named after their folder
+          $prebuiltWork = 'prebuilt\build\windows'
+          if (Test-Path -LiteralPath $prebuiltWork) {
+            foreach ($f in @(Get-ChildItem -LiteralPath $prebuiltWork -Recurse -File -Include 'config.log', 'CMakeError.log', 'CMakeConfigureLog.yaml' -ErrorAction SilentlyContinue)) {
+              $name = ($f.FullName.Substring((Resolve-Path $prebuiltWork).ProviderPath.Length + 1) -replace '[\\/]', '_')
+              Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $dest "prebuilt-$name") -Force
+            }
+          }
           Get-ChildItem -LiteralPath $dest -Recurse -File | ForEach-Object {
             Write-Host ('{0,12:N0}  {1}' -f $_.Length, $_.FullName.Substring($dest.Length + 1))
           }
@@ -621,6 +721,8 @@ jobs:
           VS_OUTCOME: ${{ steps.vs.outcome }}
           PYTHON_OUTCOME: ${{ steps.python.outcome }}
           CYGWIN_OUTCOME: ${{ steps.cygwin.outcome }}
+          PREBUILT_BUILD_OUTCOME: ${{ steps.prebuilt-build.outcome }}
+          PREBUILT_THIRDPARTY_OUTCOME: ${{ steps.prebuilt-thirdparty.outcome }}
           PREBUILT_OUTCOME: ${{ steps.prebuilt.outcome }}
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           COMPILE_OUTCOME: ${{ steps.compile.outcome }}
@@ -639,6 +741,8 @@ jobs:
             'Visual Studio setup' = $env:VS_OUTCOME
             'Python setup' = $env:PYTHON_OUTCOME
             'Cygwin setup' = $env:CYGWIN_OUTCOME
+            'Build OpenSSL, curl, ICU' = $env:PREBUILT_BUILD_OUTCOME
+            'Build Thirdparty' = $env:PREBUILT_THIRDPARTY_OUTCOME
             'Prebuilt libraries' = $env:PREBUILT_OUTCOME
             'Configure' = $env:CONFIGURE_OUTCOME
             'Compile' = $env:COMPILE_OUTCOME

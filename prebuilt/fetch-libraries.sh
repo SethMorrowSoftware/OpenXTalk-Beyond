@@ -12,10 +12,17 @@
 #   PREBUILT_LINUX_LIBS, PREBUILT_MAC_LIBS
 #                          The same for Linux and macOS.
 #   PREBUILT_WIN32_SUBPLATFORMS
-#                          Windows subplatforms to fetch, e.g.
-#                          "v141_static_release" for a Release-only build.
+#                          Windows subplatforms to fetch. Default:
+#                          "v141_static_release"; a Debug build needs
+#                          "v141_static_debug v141_static_release" (and
+#                          build-libraries-windows.ps1 -Mode debug).
 #   PREBUILT_SKIP_VERIFY=1 Do not check tarballs against prebuilt/SHA256SUMS.
-#   PREBUILT_STRICT=1      Fail when a tarball has no entry in SHA256SUMS.
+#   PREBUILT_STRICT=1      Fail when a downloaded tarball has no entry in
+#                          SHA256SUMS. A tarball copied from
+#                          PREBUILT_LOCAL_DIR without an entry is taken as
+#                          built locally (build-libraries.sh,
+#                          build-libraries-windows.ps1) and only noted; one
+#                          with an entry is checked like a download.
 # The folder variables also accept Windows paths (C:\...).
 
 # Libraries to fetch
@@ -34,7 +41,7 @@ LIBS_linux=( Thirdparty OpenSSL Curl ICU CEF )
 LIBS_emscripten=( Thirdparty ICU )
 
 SUBPLATFORMS_ios=(iPhoneSimulator11.2 iPhoneSimulator12.1 iPhoneSimulator13.2 iPhoneSimulator14.4 iPhoneSimulator14.5 iPhoneOS11.2 iPhoneOS12.1 iPhoneOS13.2 iPhoneOS14.4 iPhoneOS14.5)
-SUBPLATFORMS_win32=(v141_static_debug v141_static_release)
+SUBPLATFORMS_win32=(v141_static_release)
 SUBPLATFORMS_android=(ndk16r15)
 
 # Override the Windows library and subplatform lists (space or comma separated)
@@ -88,7 +95,8 @@ URL="${PREBUILT_URL:-https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/rele
 URL="${URL%/}"
 
 # Optional local folder to copy tarballs from: PREBUILT_LOCAL_DIR, otherwise
-# the folder that LiveCode's Windows build machines used, if it exists
+# prebuilt/packaged, where build-libraries.sh/package-libs.sh and
+# build-libraries-windows.ps1 write the tarballs they build, if it exists
 LOCAL_DIR=
 if [ -n "${PREBUILT_LOCAL_DIR}" ] ; then
 	LOCAL_DIR=$(toUnixPath "${PREBUILT_LOCAL_DIR}")
@@ -96,10 +104,8 @@ if [ -n "${PREBUILT_LOCAL_DIR}" ] ; then
 		echo "warning: PREBUILT_LOCAL_DIR '${PREBUILT_LOCAL_DIR}' is not a folder; ignoring it" >&2
 		LOCAL_DIR=
 	fi
-elif [ "${OS}" = "Windows_NT" ] ; then
-	if [ -d /cygdrive/c/LiveCode/Prebuilt/libraries ] ; then
-		LOCAL_DIR=/cygdrive/c/LiveCode/Prebuilt/libraries
-	fi
+elif [ -d "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/packaged" ] ; then
+	LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/packaged"
 fi
 
 # Versions
@@ -183,7 +189,8 @@ function sha256Of {
 	echo "${SUM}" | tr 'A-F' 'a-f'
 }
 
-# Check a tarball against SHA256SUMS; a bad tarball is deleted
+# Check a tarball against SHA256SUMS; a bad tarball is deleted. A tarball
+# copied from PREBUILT_LOCAL_DIR has a "<tarball>.local" marker next to it.
 function verifyTarball {
 	local FILE=$1
 	local FILE_NAME=$(basename "${FILE}")
@@ -211,6 +218,10 @@ function verifyTarball {
 		local REASON="no entry in ${SUMS_FILE}"
 		if [ ! -f "${SUMS_FILE}" ] ; then
 			REASON="${SUMS_FILE} not found"
+		fi
+		if [ -f "${FILE}.local" ] ; then
+			echo "${FILE_NAME}: copied from PREBUILT_LOCAL_DIR, ${REASON}; taken as built locally"
+			return 0
 		fi
 		if [ "${PREBUILT_STRICT}" = "1" ] ; then
 			echo "error: cannot verify ${FILE_NAME}: ${REASON} (PREBUILT_STRICT=1)" >&2
@@ -351,8 +362,10 @@ function fetchLibrary {
 			exit 1
 		fi
 		PARTIAL_PATH=
+		touch "${TARBALL}.local"
 	else
 		echo "Fetching remote library: ${NAME}"
+		rm -f "${TARBALL}.local"
 		if ! downloadFile "${URL}/${NAME}.tar.bz2" "${TARBALL}" ; then
 			echo "error: failed to find library ${NAME} either remotely or locally." >&2
 			echo "    Set PREBUILT_URL to a location that has ${NAME}.tar.bz2," >&2
