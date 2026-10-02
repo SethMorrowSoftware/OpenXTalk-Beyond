@@ -24,7 +24,7 @@ so that you can send the details there.
 Please include:
 
 - the OXT-Beyond version and build number (the version is in the title
-  of the menubar window, for example "OXT-Beyond 0.0.1", and in
+  of the menubar window, for example "OXT-Beyond 0.2.0", and in
   `ide/.version` of a source checkout; the build number is under
   *Preferences > Automatic Updates*), and your operating system and
   version (Windows; macOS, Apple Silicon or Intel; or your Linux
@@ -47,8 +47,10 @@ maintainers.
 
 ## Supported versions
 
-Only the latest release, and the `main` branch, get fixes. OXT-Beyond
-0.0.1 is the first release.
+Only the latest release, and the `main` branch, get fixes. A
+pre-release (a release candidate such as 0.2.1-rc.1) is for testing: it
+gets no fixes of its own, and the next pre-release or release replaces
+it.
 
 ## Downloads and signatures
 
@@ -125,8 +127,10 @@ They are ordinary links; nothing is downloaded into OXT-Beyond.
 
 ## Known issues in bundled components
 
-The Windows build still uses the third-party libraries that LiveCode
-Community last shipped. They are old, no longer supported by their
+The builds for all three platforms still use the versions of the
+third-party libraries that LiveCode Community last shipped (Linux and
+macOS build the same versions from source, except OpenSSL, which is the
+last 1.1.1 release there). They are old, no longer supported by their
 authors, and have publicly known vulnerabilities:
 
 | Component | Version in this build | Status |
@@ -136,7 +140,7 @@ authors, and have publicly known vulnerabilities:
 | CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser. Do not use them to display content you do not trust. |
 | ICU | 58.2 (2016) | Old; later releases include security fixes. |
 | MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. |
-| libpq (PostgreSQL) | from PostgreSQL 8.1.8 | Old client library used by the PostgreSQL database driver. |
+| libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
 Other libraries in `thirdparty/` (libxml2 2.9.4, libpng 1.6.26, zlib
 1.2.8, PCRE 8.39 and others) are also several years old. SQLite was

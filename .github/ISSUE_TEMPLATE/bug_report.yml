@@ -19,11 +19,11 @@ body:
       label: OXT-Beyond version
       description: >
         Shown in the title of the menubar window (for example "OXT-Beyond
-        0.0.1"), in the name of the file you downloaded, or in `ide/.version`
+        0.2.0"), in the name of the file you downloaded, or in `ide/.version`
         of a source checkout. Add the build number from Preferences >
         Automatic Updates if you can. If you built it yourself, add the
         commit (`git rev-parse --short HEAD`).
-      placeholder: 0.0.1, build 202610011200
+      placeholder: 0.2.1-rc.1, build 202610011503
     validations:
       required: true
 

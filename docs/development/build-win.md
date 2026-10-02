@@ -1,4 +1,4 @@
-# Compiling OpenXTalk Lite for Windows
+# Compiling OXT-Beyond for Windows
 
 The Windows build instructions are now in [BUILDING.md](../../BUILDING.md)
 at the root of the repository.

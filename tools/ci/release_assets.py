@@ -82,7 +82,7 @@ SUMS = 'SHA256SUMS'
 # The version rule of ide/.version, as the build workflows check it
 VERSION_RE = re.compile(r'^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$')
 
-# What a release holds, per CI artifact (the roadmap's "Target end state"):
+# What a release holds, per CI artifact:
 # (artifact, platform, the files after "<root>" in their names). Linux arm64
 # is built but not packaged, so it has no artifact here.
 ASSETS = (

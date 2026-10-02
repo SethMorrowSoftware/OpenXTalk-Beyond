@@ -23,23 +23,7 @@ have the right to contribute. If you bring in work by someone else (for
 example from an OpenXTalk forum post), say so in the pull request, with
 its author, source and licence.
 
-### Sign your commits (recommended)
-
-We recommend adding a `Signed-off-by` line to each commit to certify the
-[Developer Certificate of Origin](https://developercertificate.org/)
-(DCO): that you wrote the change, or otherwise have the right to submit
-it under the project's licence. Git adds the line for you:
-
-```bat
-git commit -s
-```
-
-The line uses the name and e-mail address in your Git configuration:
-
-```bat
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-```
+Commits do not need a `Signed-off-by` line.
 
 ## Before you start
 
@@ -75,10 +59,12 @@ git config --global user.email "you@example.com"
   mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
   "Test mac-universal (x86_64)". If one fails, the log artifacts of its
   run help: `build-logs-win-x86_64` (`msbuild.log` and the logs of
-  packaging, the smoke test, the IDE compile check and the installer
-  test), `build-logs-linux-<arch>` and `build-logs-mac-<arch>` (uploaded
-  when a build fails), `package-logs-linux-x86_64`,
-  `package-logs-mac-universal` and `test-logs-mac-universal-<arch>`.
+  packaging, the smoke test, the IDE compile check, the engine tests,
+  the IDE contrast check, the render test and the installer test),
+  `render-test` (the render test's images), `build-logs-linux-<arch>`
+  and `build-logs-mac-<arch>` (uploaded when a build fails),
+  `package-logs-linux-x86_64`, `package-logs-mac-universal` and
+  `test-logs-mac-universal-<arch>`.
 - Keep each pull request to one change, or a few closely related ones.
   Update it by pushing more commits.
 
@@ -112,8 +98,6 @@ diff: alternatives you tried, things you could not test, follow-up
 work.
 
 Fixes #123
-
-Signed-off-by: Your Name <you@example.com>
 ```
 
 - Write the summary in the imperative ("Fix crash when ...", not "Fixed"
@@ -122,8 +106,9 @@ Signed-off-by: Your Name <you@example.com>
   or pull request description closes the issue when the change is merged.
 - Old commits use tags such as `[[ Bug 12345 ]]`, which refer to LiveCode
   Ltd's bug tracker (quality.livecode.com). Do not use them for new work.
-- A commit that changes a binary stack must say what changed in it (see
-  [below](#binary-stacks)), because Git cannot show it.
+- A commit that changes a binary stack without a patch file must say
+  what changed in it (see [below](#binary-stacks)), because Git cannot
+  show it.
 
 ## Coding style
 
@@ -141,8 +126,8 @@ and line endings). For new code, the upstream guides still apply:
   `-- OXT-Beyond:` and says why. Keep the existing dated comments, such
   as Tom Perry's `(tperry 28-6-24)` and Terry Little's; they are the
   record of their changes.
-- Python (`tools/oxt/`): Python 3, standard library only, working on
-  Windows and Linux.
+- Python (`tools/oxt/`, `tools/ci/`): Python 3.8 or later, standard
+  library only, working on Windows, Linux and macOS.
 - PowerShell (`tools/ci/`): must run in both Windows PowerShell 5.1 and
   PowerShell 7, with `$ErrorActionPreference = 'Stop'`, and must check
   `$LASTEXITCODE` after running programs.
@@ -174,15 +159,21 @@ can store but not diff or merge.
 
 ### Binary stacks
 
+- Change the scripts and properties of objects in binary stacks with a
+  patch file in `tools/oxt/ide-stack-patches/`, applied with
+  `tools/oxt/ide-stack-patch.sh`, and commit the patch file together
+  with the stack it changes (see
+  [BUILDING.md](BUILDING.md#11-working-on-the-ide)). The patch is the
+  reviewable record of the change, and CI checks that every patch is
+  applied.
 - Do not open and save binary stacks you do not intend to change.
   Saving rewrites the whole file (and can change its stack format
   version and the paths stored in it), even if you changed nothing.
-- Change a binary stack only with the IDE built from this repository,
-  run from your clone (see
-  [BUILDING.md](BUILDING.md#11-working-on-the-ide)), so that it is saved
-  by the engine this project ships.
-- Keep each binary stack change in its own commit, and say in the commit
-  message which objects, properties or scripts changed and why.
+- A change that a patch cannot express (adding or deleting objects, for
+  example) is made with the IDE built from this repository, run from
+  your clone, so that the stack is saved by the engine this project
+  ships. Keep it in its own commit, and say in the commit message which
+  objects, properties or scripts changed and why.
 - Do not remove other people's credits or dated comments from stacks.
 - The "OpenXTalk Lite" text that is still inside binary stacks will be
   changed in reviewable steps like these; please coordinate in an issue
@@ -218,12 +209,15 @@ header; see
   and credits the people involved, and a merge commit (see
   [above](#how-pull-requests-are-merged)). Record what was left out and
   why.
-- **Binaries this repository does not build** (runtimes for other
-  platforms, and later extensions from the xTalk Suite repositories at
-  pinned versions) are not committed. They are listed in
+- **Binaries this repository does not build** are not committed. The
+  runtimes for other platforms are listed in
   [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json) with
-  a URL, size and SHA-256, and added by the packager (see
-  [BUILDING.md](BUILDING.md#external-assets)).
+  a URL, size and SHA-256 (see
+  [BUILDING.md](BUILDING.md#external-assets)), and the extensions of the
+  xTalk Suite are pinned to commits of their own repositories in
+  [`tools/oxt/xtalk-extensions.json`](tools/oxt/xtalk-extensions.json)
+  (see [BUILDING.md](BUILDING.md#xtalk-suite-extensions)). The packager
+  adds both.
 - Every import must come with its licence: update
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), and leave out files
   whose terms do not allow redistribution (as `layout.py` does with the
@@ -288,12 +282,19 @@ you changed:
   (`smoke` and `compile`), and the checks of the
   [Linux package](BUILDING.md#linux-package) or the
   [macOS app](BUILDING.md#macos-app), if you changed something that
-  works differently there.
+  works differently there;
+- run the engine tests of `tests/` with
+  `tools/ci/run_engine_tests.py` (see
+  [BUILDING.md](BUILDING.md#engine-tests)) if you changed the engine,
+  the toolchain or a test; `--filter` runs only the tests whose name
+  matches;
+- run the IDE lint checks (`python tools/ci/check_ide_colour_literals.py`,
+  `check_ide_stacks.py`, `check_ide_icons.py`, `check_se_schemes.py` and
+  `check_ide_prefs.py`) if you changed the IDE; they need no build.
 
-CI runs all of these on every pull request, on each platform. The C++ unit tests
-(`cmd /c ..\make.cmd check`) and the upstream LiveCode script test suites
-in `tests/` have not been set up for this project yet; help with that is
-welcome.
+CI runs all of these on every pull request. The C++ unit tests
+(`cmd /c ..\make.cmd check`) have not been set up for this project yet;
+help with that is welcome.
 
 ## Release notes
 

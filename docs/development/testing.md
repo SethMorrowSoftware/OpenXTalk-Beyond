@@ -1,5 +1,11 @@
 # How to test LiveCode
 
+> **Note:** This page comes from upstream LiveCode. In OXT-Beyond, CI
+> runs the LiveCode Script, LiveCode Builder, compiler and parser test
+> suites on Windows, macOS and Linux with `tools/ci/run_engine_tests.py`,
+> which you can also run yourself, on Windows too; see
+> [Engine tests](../../BUILDING.md#engine-tests).
+
 Tests are small programs that check that a particular, specific function works correctly.  They are run automatically to check whether LiveCode works properly.  They're really useful for ensuring that changes to one part of LiveCode don't break other things!
 
 The main LiveCode engine repository contains the following sets of tests ("test suites"):
@@ -12,7 +18,7 @@ The main LiveCode engine repository contains the following sets of tests ("test 
 
 ## Running the Tests
 
-This assumes that you've already got the LiveCode source code and that you've successfully compiled it.  See the [installation instructions](../README.md) for more details.
+This assumes that you've already got the LiveCode source code and that you've successfully compiled it.  See the [build instructions](../../BUILDING.md) for more details.
 
 ### Running tests on Mac OS X and Linux
 

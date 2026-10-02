@@ -1,8 +1,8 @@
 # Contributing to LiveCode Documentation
 
 > **Note:** This page comes from upstream LiveCode and is not fully
-> maintained for OpenXTalk Lite (Windows x86_64 only). The descriptions of
-> the documentation formats still apply; the parts about LiveCode's
+> maintained for OXT-Beyond. The descriptions of the documentation
+> formats still apply; the parts about LiveCode's
 > contributor agreement, build servers and bug tracker do not. See
 > [CONTRIBUTING.md](../CONTRIBUTING.md).
 

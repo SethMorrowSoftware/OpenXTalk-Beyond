@@ -21,8 +21,10 @@ September 2026 Tom said that 1.15 is as far as he will take OpenXTalk
 Lite on the LiveCode 9 engine, that his new OXTL7 (built on a LiveCode 7
 engine) is meant to replace it, and that anyone may carry 1.15 on as
 their own fork. OXT-Beyond is that continuation, on the 9.x engine,
-starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the whole
-story, version by version.
+starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the story
+up to OXT-Beyond 0.0.1, version by version; the notes of each release
+since are on the
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
 Like OpenXTalk Lite, OXT-Beyond is based on **LiveCode Community**, the
 GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
@@ -100,11 +102,11 @@ pre-release for testing (see what 0.2.1 adds, under
   favourites and notes, custom script editor colours, recent-stack
   thumbnails and the engine's licence file (see
   [Where OXT-Beyond keeps your files](#where-oxt-beyond-keeps-your-files)).
-- **Tested automatically, but only in part.** Every CI build checks that
-  the programs and libraries exist and are genuine x86-64 PE images with
-  the expected versions, runs a headless smoke test of the engine in the
-  portable zip and in an installed copy (the script engine, Unicode,
-  OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
+- **Tested automatically, but only in part.** Every Windows CI build
+  checks that the programs and libraries exist and are genuine x86-64 PE
+  images with the expected versions, runs a headless smoke test of the
+  engine in the portable zip and in an installed copy (the script engine,
+  Unicode, OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
   every script of the IDE and compares the errors with a list of known
   ones, and installs and uninstalls the installer (see
   [BUILDING.md](BUILDING.md#7-run-check-and-package-the-result)). The
@@ -118,9 +120,14 @@ pre-release for testing (see what 0.2.1 adds, under
   LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
   the script parser)
   and compares the failures with a list of known ones (see
-  [BUILDING.md](BUILDING.md#engine-tests)). The IDE's windows are not
-  tested automatically, and the macOS and Linux packages have not been
-  tried by hand yet.
+  [BUILDING.md](BUILDING.md#engine-tests)). On Windows, CI also lints the
+  IDE sources, checks the contrast of the IDE's colours in the light and
+  dark appearance, and renders test stacks in the light and dark
+  appearance on a dark and a light Windows; on macOS it checks the
+  appearance on a dark and a light Mac (see
+  [Continuous integration](BUILDING.md#9-continuous-integration)). The
+  IDE's windows are not tested automatically, and the macOS and Linux
+  packages have not been tried by hand yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
   parts for macOS and Linux only (for example the macOS ARM standalone
   builder). They are shipped as they were; apart from the IDE compile
@@ -318,6 +325,11 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
   planned. Standalones run on macOS 10.13 or later (Intel) and 11 or
   later (Apple Silicon); one that includes an xTalk Suite extension needs
   macOS 15.
+- The macOS package does not include the Visual C++ runtime DLLs that
+  the Windows packages put next to enetxt and Box2Dxt: a Windows
+  standalone built on a Mac with either of them needs the Visual C++
+  Redistributable on the PC it runs on. It has no Windows x86-64
+  standalone runtime either.
 - The macOS packages are built and tested automatically (on macOS 15, on
   both an Apple Silicon and an Intel runner) but have not been tried by
   hand yet.
@@ -739,7 +751,8 @@ submodules are ordinary folders in the repository, the prebuilt
 libraries that LiveCode's server no longer provides are mirrored in the
 [`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
 the build scripts were updated for Visual Studio 2022 with the v141
-toolset, and a GitHub Actions workflow builds, packages and tests it.
+toolset, and GitHub Actions workflows build, package and test it for
+Windows, macOS and Linux.
 
 ## Building from source
 
@@ -779,13 +792,13 @@ release is made from a tag in
 | `ide-support/` | Eleven IDE libraries kept in the engine repository (the standalone builder and others); they are installed into `Toolset/libraries`. |
 | `docs/` | Dictionary, guides and release note fragments from LiveCode Community; development notes in `docs/development/`. |
 | `thirdparty/` | Third-party library sources, vendored from `livecode/livecode-thirdparty`. |
-| `prebuilt/` | Scripts that fetch the prebuilt third-party libraries (from the `prebuilts-v1` release), their versions and checksums. |
+| `prebuilt/` | Scripts that fetch the prebuilt third-party libraries for Windows (from the `prebuilts-v1` release) and build them from source on Linux and macOS, with their versions and checksums. |
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
 | `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
-| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push and pull request; `release.yml` builds all three from a `v` tag and publishes the release. |
-| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its Windows rules) and LiveCode's installer builder (not used). |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `release.yml` builds all three from a `v` tag and publishes the release. |
+| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's installer builder (not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 
 For a compatibility-first proposal to make the engine easier to test and
@@ -810,7 +823,9 @@ Known limitations, in rough order of importance:
    Developer ID signing and notarization for macOS.
 4. "OpenXTalk Lite" still appears inside binary stacks, and the build
    output files are named after LiveCode. Plan: change the binary stacks
-   one at a time, in reviewable commits, and rename the engine files.
+   a few at a time with the stack patches of `tools/oxt/ide-stack-patches`
+   (see [BUILDING.md](BUILDING.md#11-working-on-the-ide)), and rename the
+   engine files.
 5. Legacy toolchain (v141, Python 2.7, Cygwin). Plan: move to the current
    Visual Studio toolset and Python 3.
 6. The mergExt externals are not included.
@@ -829,8 +844,9 @@ Known limitations, in rough order of importance:
    the dark card. On Linux the native controls are drawn by the GTK
    theme, so every stack follows it and the appearance properties change
    nothing there; a light-designed stack under a dark GTK theme can still
-   show white text on white. On macOS the classic native controls stay
-   light in the dark appearance. Plans: a fixed light palette for the
+   show white text on white. On macOS every stack is drawn light for
+   now, whatever the appearance properties say, because the classic
+   native controls stay light. Plans: a fixed light palette for the
    Linux theme's light-designed objects, and Tom Perry's AppKit-drawn
    macOS controls.
 10. In an install for all users, a few things that save stacks inside
@@ -849,8 +865,8 @@ the native libraries are the members' prebuilt binaries, which
 OXT-Beyond checks but does not build; the Dictionary does not have
 their documentation; the standalone builder does not add the script
 libraries by itself; and enetxt and Box2Dxt need the Visual C++ runtime,
-whose DLLs the Windows packages ship next to them (the Linux package
-does not yet).
+whose DLLs the Windows packages ship next to them (the Linux and macOS
+packages do not yet).
 
 Issues and pull requests for any of these are welcome.
 

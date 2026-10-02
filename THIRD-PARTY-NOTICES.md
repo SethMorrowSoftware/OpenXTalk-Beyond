@@ -89,7 +89,7 @@ source and, where upstream provided it, the licence text are in
 | SQLite | 3.51.1 | `dbsqlite.dll` | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
 | sqlitedataset | 0.1.0 | `dbsqlite.dll` | MIT | [`thirdparty/libsqlite/docs/LICENSE`](thirdparty/libsqlite/docs/LICENSE) |
 | MySQL Connector/C | 6.0.0 | `dbmysql.dll` | GPL version 2 with the MySQL FLOSS License Exception (version 0.6) | [`thirdparty/libmysql/docs/COPYING`](thirdparty/libmysql/docs/COPYING) and [`EXCEPTIONS-CLIENT`](thirdparty/libmysql/docs/EXCEPTIONS-CLIENT) |
-| libpq (from PostgreSQL) | 8.1.8 | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/docs/COPYRIGHT`](thirdparty/libpq/docs/COPYRIGHT) |
+| libpq (from PostgreSQL) | 9.4.5 | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/docs/COPYRIGHT`](thirdparty/libpq/docs/COPYRIGHT) |
 
 Not used by the Windows build, although present in `thirdparty/`:
 FreeType, HarfBuzz and expat (Android, Linux and HTML5 builds only), and

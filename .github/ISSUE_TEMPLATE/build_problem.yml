@@ -1,6 +1,6 @@
 name: Build problem
 description: Building OXT-Beyond from source fails.
-labels: ["build"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
@@ -53,6 +53,7 @@ body:
       options:
         - Installing the tools
         - Cloning the repository
+        - Linting the IDE sources (tools/ci/check_ide_*.py, check_se_schemes.py)
         - Configuring (config.py, configure.bat, make config-linux-* or config.sh)
         - Building or fetching the prebuilt libraries
         - Building (make.cmd or msbuild, make, or xcodebuild)
@@ -62,6 +63,9 @@ body:
         - Joining or signing the macOS app (tools/ci/merge_universal.py, sign_mac_app.py)
         - Smoke test (tools/ci/smoke-test.ps1 or run_livecode_check.py smoke)
         - IDE compile check (tools/ci/ide-compile-check.ps1 or run_livecode_check.py compile)
+        - Engine tests (tools/ci/run_engine_tests.py)
+        - IDE contrast check or render test (tools/ci/ide-contrast-check.ps1, render-test.ps1)
+        - macOS appearance test (tools/ci/mac_appearance_test.py)
         - Testing the Linux package (check_linux_libraries.py, test_linux_package.py)
         - Building the Windows installer (tools/ci/build-installer.ps1)
         - Testing the Windows installer (tools/ci/test-installer.ps1)

@@ -378,7 +378,7 @@ disagree, the layout follows the IDE:
   macOS, icons, `Support`, `Externals` lists, signatures) and builds and
   runs a standalone from `x64-ARM64/Standalone-blank.app` with the
   engine's deploy command (what the builder's
-  `revStandaloneDeployWithParams` runs). **Still to do (Phase 5):** a
+  `revStandaloneDeployWithParams` runs). **Still to do:** a
   test that runs the IDE's builder itself for the `MacOSX x64-ARM64`
   target (what the standalone settings' `MacOS-IntelArmUniversal` button
   selects) with revXML and the SQLite driver, checks that
@@ -524,7 +524,8 @@ Intended differences from OXT Lite 1.15:
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
 Result with the CI build of this repository
-(`OpenXTalkLite-9.7.1-OXT-win-x86_64-binaries.zip`), the runtimes asset and
+(`OpenXTalkLite-9.7.1-OXT-win-x86_64-binaries.zip`, as the binaries zip
+was named then), the runtimes asset and
 the IDE as it was when this was written, compared with the 1.15 install:
 `COMPARE PASSED`. All 5,898 `ide` paths are staged (7 of them already changed
 and 2 files added by the OXT-Beyond branding and updater work); of the 492
@@ -934,8 +935,10 @@ gh release create runtimes-1.15 oxt-runtimes-1.15.zip PROVENANCE.md --prerelease
 
 A pre-release never becomes the repository's latest release: the IDE's
 update check reads `releases/latest`, which has to stay an OXT-Beyond
-release. Until the asset is published, packaging fails at the download
-(HTTP 404) unless the assets are left out (`--no-external-assets`,
+release. The `runtimes-1.15` release was published on 29 September 2026.
+A new asset has to be published the same way before packaging can
+download it; until then, packaging fails at the download (HTTP 404)
+unless the assets are left out (`--no-external-assets`,
 `package-windows.ps1 -NoExternalAssets`, or in CI the workflow input
 `no_external_assets` or the repository variable `OXT_NO_EXTERNAL_ASSETS=1`)
 or a cache that holds the zip is given.

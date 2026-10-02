@@ -29,8 +29,6 @@ Operating system versions used for testing:
 
 ## Checklist
 
-- [ ] The commits are signed off (`git commit -s`), certifying the
-      [Developer Certificate of Origin](https://developercertificate.org/)
 - [ ] I agree that this contribution is licensed under the GPLv3 with the
       additional permission in `LICENSE-EXCEPTION.md` (see CONTRIBUTING.md)
 - [ ] The change is limited to one topic, and does not reformat unrelated code

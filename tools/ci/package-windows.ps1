@@ -119,7 +119,7 @@
 
 .PARAMETER Python
     Python 3 interpreter. Default: the first of "py -3", python3 and python
-    that is Python 3.6 or later.
+    that is Python 3.8 or later.
 
 .PARAMETER CompressionLevel
     Optimal (default), Fastest or NoCompression.
@@ -224,11 +224,11 @@ function Find-Python {
         }
         catch { $code = 1 }
         finally { $ErrorActionPreference = $saved }
-        if ($code -eq 0 -and "$v".Trim() -match '^3 (\d+)$' -and [int]$Matches[1] -ge 6) {
+        if ($code -eq 0 -and "$v".Trim() -match '^3 (\d+)$' -and [int]$Matches[1] -ge 8) {
             return New-Object PSObject -Property @{ Exe = $exe; Pre = $pre; Version = "3.$($Matches[1])" }
         }
     }
-    throw 'Python 3.6 or later was not found (tried py -3, python3 and python); pass -Python.'
+    throw 'Python 3.8 or later was not found (tried py -3, python3 and python); pass -Python.'
 }
 $py = Find-Python
 
