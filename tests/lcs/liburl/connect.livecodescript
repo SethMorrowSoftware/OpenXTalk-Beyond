@@ -1,7 +1,7 @@
 ﻿script "TestLibUrlCONNECT"
 
 on TestSetup
-   TestSkipIfNot "platform", "MacOS,Windows,Linux"
+   TestSkipIfNot "platform", "MacOS,Win32,Linux"
    TestSkipIf "stack", "StandaloneTestRunnerMainstack"
    TestSkipIf "environment", "server"
          
