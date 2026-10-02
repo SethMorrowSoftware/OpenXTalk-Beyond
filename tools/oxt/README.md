@@ -153,10 +153,9 @@ scripts, except
 * `ide/Resources/Mobile Examples` (installed on macOS only; a Windows install
   says nothing about them).
 
-Everything else (`ide/.gitignore`, `ide/.gitattributes`, `ide/README.md`,
-`ide/tests`, `ide/notes`, `ide/examples`, the release-notes PDFs at the root of
-`ide/`, the other `ide-support` files, `docs/`, engine sources) is never
-written or deleted. Ignored files that happen to be in a managed folder (for
+Everything else (`ide/.gitignore`, `ide/.gitattributes`, `ide/tests`,
+`ide/notes`, `ide/examples`, the other `ide-support` files, `docs/`,
+engine sources) is never written or deleted. Ignored files that happen to be in a managed folder (for
 example docs builder output in `ide/Documentation/html_viewer/resources/data`)
 are treated like any other file there.
 
