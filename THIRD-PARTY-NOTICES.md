@@ -85,12 +85,12 @@ licence text are in `thirdparty/`.
 | cairo (including pixman) | 1.9.4 | revPDFPrinter (on Windows the server engine does not link it) | LGPL 2.1 or MPL 1.1, at your choice (pixman: MIT-style) | [`thirdparty/libcairo/docs/`](thirdparty/libcairo/docs/) (`COPYING`, `COPYING-LGPL-2.1`, `COPYING-MPL-1.1`); pixman terms are in the headers of `thirdparty/libcairo/src/pixman*` |
 | CEF C++ wrapper and headers | 74.1.16 (`thirdparty/libcef/include/cef_version.h`) | browser widget, revBrowser | BSD 3-clause | [`thirdparty/libcef/LICENSE.txt`](thirdparty/libcef/LICENSE.txt) |
 | libffi | git commit `ee718066` | LiveCode Builder runtime, `lc-compile`, `lc-run` | MIT | file headers in `thirdparty/libffi/`, [upstream](https://github.com/libffi/libffi/blob/master/LICENSE) |
-| giflib | 5.1.4 | engines, libgraphics | MIT | [`thirdparty/libgif/docs/COPYING`](thirdparty/libgif/docs/COPYING) |
-| libjpeg (IJG) | 9b | engines, libgraphics | IJG licence | "LEGAL ISSUES" in [`thirdparty/libjpeg/docs/README`](thirdparty/libjpeg/docs/README) |
-| libpng | 1.6.26 | engines, libgraphics | libpng licence | [`thirdparty/libpng/docs/LICENSE`](thirdparty/libpng/docs/LICENSE) |
-| zlib | 1.2.8 | engines, revZip, revXML | zlib licence | "Copyright notice" in [`thirdparty/libz/docs/README`](thirdparty/libz/docs/README) |
+| giflib | 5.2.2 | engines, libgraphics | MIT | [`thirdparty/libgif/docs/COPYING`](thirdparty/libgif/docs/COPYING) |
+| libjpeg (IJG) | 9f | engines, libgraphics | IJG licence | "LEGAL ISSUES" in [`thirdparty/libjpeg/docs/README`](thirdparty/libjpeg/docs/README) |
+| libpng | 1.6.59 | engines, libgraphics | libpng licence | [`thirdparty/libpng/docs/LICENSE`](thirdparty/libpng/docs/LICENSE) |
+| zlib | 1.3.2 | engines, revZip, revXML | zlib licence | "Copyright notice" in [`thirdparty/libz/docs/README`](thirdparty/libz/docs/README) |
 | libzip | not recorded | revZip | BSD 3-clause | [`thirdparty/libzip/docs/LICENSE`](thirdparty/libzip/docs/LICENSE) |
-| PCRE | 8.39 | engines | BSD | [`thirdparty/libpcre/docs/LICENCE`](thirdparty/libpcre/docs/LICENCE) |
+| PCRE | 8.45 | engines | BSD | [`thirdparty/libpcre/docs/LICENCE`](thirdparty/libpcre/docs/LICENCE) |
 | Skia | revision `20471894` | engine, libgraphics | BSD 3-clause | [upstream](https://github.com/google/skia/blob/main/LICENSE); file headers in `thirdparty/libskia/` |
 | libxml2 | 2.9.4 | revXML | MIT | [`thirdparty/libxml/docs/COPYING`](thirdparty/libxml/docs/COPYING) |
 | libxslt and libexslt | as vendored | revXML | MIT-style | [`thirdparty/libxslt/Copyright`](thirdparty/libxslt/Copyright) |

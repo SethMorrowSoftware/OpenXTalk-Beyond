@@ -136,6 +136,11 @@ versions LiveCode Community last shipped):
 | OpenSSL | 3.5.9 (September 2026) | The 3.5 series is a long-term support release, supported until April 2030 ([release strategy](https://openssl-library.org/policies/releasestrat/)). Earlier releases of OXT-Beyond shipped 1.1.1g on Windows and 1.1.1w on Linux and macOS; the 1.1.1 series reached end of life in September 2023. |
 | curl (libcurl) | 8.22.0 (September 2026) | Current; see curl's [vulnerability table](https://curl.se/docs/vulnerabilities.html). Used by the server engine (on macOS the server engine uses the system's libcurl). Earlier releases had 7.51.0 (2016). |
 | ICU | 78.3 (March 2026) | Current. Earlier releases had 58.2 (2016). |
+| zlib | 1.3.2 (February 2026) | Current. Earlier releases had 1.2.8 (2013). |
+| libpng | 1.6.59 (September 2026) | Current. Earlier releases had 1.6.26 (2016). |
+| giflib | 5.2.2 (February 2024) | The current release of the 5.x series, whose interface the engine uses. Earlier releases had 5.1.4 (2016). |
+| libjpeg (IJG) | 9f (January 2024) | Current. Earlier releases had 9b (2016). |
+| PCRE | 8.45 (June 2021) | The last release of PCRE 1, which is no longer maintained (its successor, PCRE2, has another interface); it has the fixes for the published vulnerabilities of PCRE 1. Earlier releases had 8.39 (2016). |
 
 These are still old and have publicly known vulnerabilities:
 
@@ -145,9 +150,9 @@ These are still old and have publicly known vulnerabilities:
 | MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. It speaks TLS 1.0 only, which OpenSSL 3 refuses, so its encrypted connections fail. |
 | libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
-Other libraries in `thirdparty/` (libxml2 2.9.4, libpng 1.6.26, zlib
-1.2.8, PCRE 8.39 and others) are also several years old. SQLite was
-updated to 3.51.1.
+Other libraries in `thirdparty/` (libxml2 2.9.4, libxslt, libzip,
+cairo 1.9.4 and others) are also several years old. SQLite was updated
+to 3.51.1.
 
 Upgrading these libraries is planned. Until then, treat the browser
 components and any network or file-parsing features as unsafe for
