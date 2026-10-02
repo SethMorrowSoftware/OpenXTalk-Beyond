@@ -2,7 +2,7 @@
   "assets": [
     {
       "id": "oxt-runtimes-1.15",
-      "url": "https://github.com/SethMorrowSoftware/winoxt/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
       "sha256": "6811d5cc028ea15f7e784ff58c03e4bc8994507f7f56e62fa148a27673cf995a",
       "size": 199237317,
       "kind": "zip",

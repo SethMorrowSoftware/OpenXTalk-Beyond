@@ -31,7 +31,7 @@
 
 #define AppName "OXT-Beyond"
 #define AppExeName "OXT-Beyond.exe"
-#define RepoUrl "https://github.com/SethMorrowSoftware/winoxt"
+#define RepoUrl "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond"
 
 #ifndef RepoRoot
   #define RepoRoot AddBackslash(SourcePath) + "..\.."

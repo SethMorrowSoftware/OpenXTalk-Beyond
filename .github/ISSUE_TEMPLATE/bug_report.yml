@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for taking the time to report a problem.
 
-        - **Security problems:** do not report them here. See [SECURITY.md](https://github.com/SethMorrowSoftware/winoxt/security/policy).
+        - **Security problems:** do not report them here. See [SECURITY.md](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/security/policy).
         - **Problems building from source:** use the "Build problem" form instead.
         - **Questions about scripting:** the [OpenXTalk forums](https://openxtalk.org/forum/) are a better place.
 
@@ -19,11 +19,11 @@ body:
       label: OXT-Beyond version
       description: >
         Shown in the title of the menubar window (for example "OXT-Beyond
-        0.0.1"), in the name of the file you downloaded, or in `ide/.version`
+        0.2.0"), in the name of the file you downloaded, or in `ide/.version`
         of a source checkout. Add the build number from Preferences >
         Automatic Updates if you can. If you built it yourself, add the
         commit (`git rev-parse --short HEAD`).
-      placeholder: 0.0.1, build 202610011200
+      placeholder: 0.2.1-rc.2, build 202610021200
     validations:
       required: true
 

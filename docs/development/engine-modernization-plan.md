@@ -1,8 +1,25 @@
 # Engine stabilization and modernization plan
 
 Status: **proposal for review; no implementation is authorized by this document**  
+Written: 27 September 2026, when OXT-Beyond was built for Windows only  
 Scope: `engine/`, its direct library boundaries, and the Windows build/test path  
 Primary constraint: preserve language, stack-file, extension, and external behavior
+
+**What changed since it was written** (October 2026, OXT-Beyond 0.2.1-rc.1):
+
+* OXT-Beyond is now built, packaged and tested for macOS and Linux as well as
+  Windows. Where this plan says Windows, read it as the first platform, not the
+  only one.
+* Every CI build on all three platforms runs the test suites of `tests/` (the
+  LiveCode test framework: LiveCode Script, LiveCode Builder, the LCB compiler and
+  the script parser, about 1,150 tests) with `tools/ci/run_engine_tests.py`,
+  against lists of known failures (`tools/ci/engine-tests-baseline*.txt`); see
+  [Engine tests](../../BUILDING.md#engine-tests). The legacy engine bugs these
+  tests and the compiler's warnings found were fixed in 0.2.1. The execution tests
+  of `engine/exec-tests` (`*.test`) and the C++ (GoogleTest) tests are not run yet,
+  so Milestone A (section 10) is only partly done.
+* The review snapshot in section 2 describes the tree as it was on
+  27 September 2026.
 
 ## 1. Purpose
 
@@ -41,7 +58,8 @@ judgements:
 * There are useful safety-net assets: 322 execution test files, the LiveCode test
   framework, and GoogleTest wiring. However, only a handful of engine C++ tests are
   listed in `engine_test_source_files`, and the Windows CI currently verifies build
-  products rather than running behavioral engine tests.
+  products rather than running behavioral engine tests. (Since October 2026 CI runs
+  the suites of `tests/` on all three platforms; see the note at the top.)
 * More than 2,000 `UNCHECKED` annotations exist under `engine/src`. These are useful
   archaeological markers, but they do not distinguish a deliberately infallible
   operation from ignored allocation, conversion, or OS failure.

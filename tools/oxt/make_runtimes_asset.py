@@ -74,7 +74,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import layout  # noqa: E402
 
-REPO_URL = 'https://github.com/SethMorrowSoftware/winoxt'
+REPO_URL = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 RELEASE_TAG_FMT = 'runtimes-{version}'
 DEFAULT_MANIFEST = os.path.join(HERE, 'external-assets.json')
 

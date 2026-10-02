@@ -47,9 +47,9 @@ script "oxtBeyondUpdater"
 --       The fields the check uses from a GitHub release object, or from each
 --       release in a list (keys 1, 2, ...).
 
-constant kLatestReleaseApiUrl = "https://api.github.com/repos/SethMorrowSoftware/winoxt/releases/latest"
-constant kReleaseListApiUrl = "https://api.github.com/repos/SethMorrowSoftware/winoxt/releases?per_page=30"
-constant kReleasesPageUrl = "https://github.com/SethMorrowSoftware/winoxt/releases"
+constant kLatestReleaseApiUrl = "https://api.github.com/repos/SethMorrowSoftware/OpenXTalk-Beyond/releases/latest"
+constant kReleaseListApiUrl = "https://api.github.com/repos/SethMorrowSoftware/OpenXTalk-Beyond/releases?per_page=30"
+constant kReleasesPageUrl = "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases"
 constant kDialogTitle = "OXT-Beyond Updates"
 constant kProductName = "OXT-Beyond"
 -- Give up on the server after this many milliseconds without data.

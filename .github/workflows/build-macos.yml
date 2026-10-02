@@ -825,9 +825,9 @@ jobs:
       # its home stack with the Mac set to dark and to light (defaults
       # write/delete -g AppleInterfaceStyle), with the appAppearance
       # "system" and the default. The systemAppearance must be the Mac's
-      # setting, the effective appAppearance must follow the property, a
-      # stack with no colours must be dark only with "system" on the dark
-      # Mac, and the light-designed stack keeps its black input text
+      # setting, every stack is drawn light (the engine draws every stack
+      # light on macOS for now, also with "system" on the dark Mac), and
+      # the light-designed stack keeps its black input text
       # (tools/ci/mac_appearance_test.py). The script restores the Mac's
       # setting; the images and the engine's output are in the logs. It
       # runs last, after the app was compared with the zip.

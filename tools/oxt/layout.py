@@ -332,6 +332,10 @@ def _rules():
              'zero-byte file that no script refers to; the dictionary '
              'database is Documentation/html_viewer/resources/data/api/'
              'api.sqlite'))
+    add(Rule('Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack', JUNK, None,
+             'macOS ARM standalone builder that nothing opens: its button '
+             'calls "_internal build MacARM", which this engine does not '
+             'have (removed from ide/ in 0.2.1)'))
     add(Rule('Toolset/**', IDE, 'ide/Toolset/', 'package.txt Toolset: rfolder ide:Toolset'))
 
     # --- Not redistributed (before the folder rules that would take them) --

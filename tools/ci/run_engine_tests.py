@@ -56,7 +56,9 @@ The suites, as tests/Makefile names them:
 
 A test's result is its worst TAP result, as the test runner counts them:
 FAIL (a "not ok", or the engine ending with a non-zero status, crashing or
-running out of time), XPASS, XFAIL, PASS, SKIP. Each failed test is named
+running out of time), XPASS, XFAIL, PASS, SKIP; a LiveCode Script test
+that skipped all but the test runner's check that its script compiles is
+SKIP. Each failed test is named
 "<suite>: <test>", for example "lcs: core/engine/put:
 TestPutBeforeIntoAfterInvalidContainer", and looked up in the baseline:
 tools/ci/engine-tests-baseline.txt (failures on every platform), the
@@ -296,6 +298,18 @@ def worst(counts):
     return 'pass'
 
 
+def outcome_of(counts, text):
+    """The result of a test that printed text: its worst TAP result, but
+    SKIP for a LiveCode Script test whose only pass is the test runner's
+    own check that the script compiles (a TestSkipIf in the TestSetup,
+    for example, skips all of the test after that)."""
+    outcome = worst(counts)
+    if outcome == 'pass' and counts['skip'] and \
+            counts['pass'] == len(re.findall(r'(?m)^ok - script compiles\s*$', text)):
+        return 'skip'
+    return outcome
+
+
 class Result:
     def __init__(self, suite, name, outcome, counts=None, output='', details=None):
         self.suite = suite
@@ -436,7 +450,7 @@ def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs, out=
     else to the console."""
     status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
     counts, failures = analyse_tap(text)
-    outcome = worst(counts)
+    outcome = outcome_of(counts, text)
     flaky = None
     # (not one that ran out of time: that would most likely take as long again)
     if outcome == 'fail' and status is not None and '%s: %s' % (suite, ident) not in known:
@@ -444,7 +458,7 @@ def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs, out=
         for _ in range(args.retries):
             status, text, details, took = run_test_process(cmd, cwd, env, args.timeout)
             counts, failures = analyse_tap(text)
-            outcome = worst(counts)
+            outcome = outcome_of(counts, text)
             if outcome != 'fail':
                 flaky = first
                 break

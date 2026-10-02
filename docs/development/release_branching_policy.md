@@ -1,8 +1,8 @@
 # Release Branching Policy
 
 > **Note:** This page describes upstream LiveCode's branch and release
-> process and is not maintained for OpenXTalk Lite (Windows x86_64 only).
-> This project uses `main` plus feature branches; see
+> process and is not maintained for OXT-Beyond. This project uses `main`
+> plus feature branches; see
 > [CONTRIBUTING.md](../../CONTRIBUTING.md) and
 > [BUILDING.md](../../BUILDING.md#10-making-a-release).
 

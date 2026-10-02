@@ -1,8 +1,8 @@
 # OXT-Beyond
 
-[![Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
-[![Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml)
-[![Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
+[![Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml)
+[![Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml)
+[![Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
 
 OXT-Beyond is a free, open source development environment for Windows,
 macOS and Linux in which you build programs with an English-like
@@ -21,25 +21,31 @@ September 2026 Tom said that 1.15 is as far as he will take OpenXTalk
 Lite on the LiveCode 9 engine, that his new OXTL7 (built on a LiveCode 7
 engine) is meant to replace it, and that anyone may carry 1.15 on as
 their own fork. OXT-Beyond is that continuation, on the 9.x engine,
-starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the whole
-story, version by version.
+starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the story
+up to OXT-Beyond 0.0.1, version by version; the notes of each release
+since are on the
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
 Like OpenXTalk Lite, OXT-Beyond is based on **LiveCode Community**, the
 GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
 upstream LiveCode Community repositories have had no changes since July
 2021 and are now archived (read-only).
 
-This repository, **winoxt**, holds all of it: the engine source
-(LiveCode Community 9.7 plus Tom Perry's 9.7.1-OXT engine work), the
-OpenXTalk Lite 1.15 IDE with its history, and the scripts that build,
-package and test OXT-Beyond for Windows, macOS and Linux. It is
-maintained by
-[SethMorrowSoftware](https://github.com/SethMorrowSoftware).
+This repository, **OpenXTalk-Beyond** (called winoxt until October
+2026), holds all of it: the engine source (LiveCode Community 9.7 plus
+Tom Perry's 9.7.1-OXT engine work), the OpenXTalk Lite 1.15 IDE with
+its history, and the scripts that build, package and test OXT-Beyond
+for Windows, macOS and Linux. It is maintained by
+[SethMorrowSoftware](https://github.com/SethMorrowSoftware). GitHub
+forwards the old name's addresses, so existing clones and links keep
+working; `git remote set-url origin
+https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git` points a
+clone at the new one.
 
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.1, the first release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.2, the second release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -96,11 +102,11 @@ pre-release for testing (see what 0.2.1 adds, under
   favourites and notes, custom script editor colours, recent-stack
   thumbnails and the engine's licence file (see
   [Where OXT-Beyond keeps your files](#where-oxt-beyond-keeps-your-files)).
-- **Tested automatically, but only in part.** Every CI build checks that
-  the programs and libraries exist and are genuine x86-64 PE images with
-  the expected versions, runs a headless smoke test of the engine in the
-  portable zip and in an installed copy (the script engine, Unicode,
-  OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
+- **Tested automatically, but only in part.** Every Windows CI build
+  checks that the programs and libraries exist and are genuine x86-64 PE
+  images with the expected versions, runs a headless smoke test of the
+  engine in the portable zip and in an installed copy (the script engine,
+  Unicode, OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
   every script of the IDE and compares the errors with a list of known
   ones, and installs and uninstalls the installer (see
   [BUILDING.md](BUILDING.md#7-run-check-and-package-the-result)). The
@@ -114,13 +120,17 @@ pre-release for testing (see what 0.2.1 adds, under
   LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
   the script parser)
   and compares the failures with a list of known ones (see
-  [BUILDING.md](BUILDING.md#engine-tests)). The IDE's windows are not
-  tested automatically, and the macOS and Linux packages have not been
-  tried by hand yet.
+  [BUILDING.md](BUILDING.md#engine-tests)). On Windows, CI also lints the
+  IDE sources, checks the contrast of the IDE's colours in the light and
+  dark appearance, and renders test stacks in the light and dark
+  appearance on a dark and a light Windows; on macOS it checks the
+  appearance on a dark and a light Mac (see
+  [Continuous integration](BUILDING.md#9-continuous-integration)). The
+  IDE's windows are not tested automatically, and the macOS and Linux
+  packages have not been tried by hand yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
-  parts for macOS and Linux only (for example the macOS ARM standalone
-  builder). They are shipped as they were; apart from the IDE compile
-  check they are not tested automatically.
+  parts for macOS and Linux only. They are shipped as they were; apart
+  from the IDE compile check they are not tested automatically.
 - **Legacy build toolchain.** Building on Windows needs the Visual
   Studio 2017 C++ toolset (v141, installed through Visual Studio 2022),
   Python 2.7 and Cygwin; the Linux build runs in an Ubuntu 20.04
@@ -130,7 +140,7 @@ pre-release for testing (see what 0.2.1 adds, under
 ## Download
 
 Releases are published on the
-[Releases page](https://github.com/SethMorrowSoftware/winoxt/releases).
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 From 0.1.0 on, each release has these files for all three platforms
 (0.0.1 and 0.0.2 have the Windows files only); `<version>` is the
 version, for example `0.1.0`:
@@ -168,9 +178,9 @@ successful run and download the artifact under *Artifacts*.
 
 | Platform | Workflow | Artifact |
 | --- | --- | --- |
-| Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
-| macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
-| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
+| Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
+| macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
+| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
 
 You need to be signed in to GitHub to download artifacts, and they are
 deleted after 30 days. These builds pass the automatic checks, but
@@ -247,7 +257,7 @@ disk image) and `OXT-Beyond-<version>-mac-universal.zip` (the same app,
 for scripted installs). Releases carry them from 0.1.0 on (see
 [Download](#download)); the latest development build is the artifact
 `OXT-Beyond-mac-universal` of a successful run of the
-[Build (macOS) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml).
+[Build (macOS) workflow](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml).
 
 **Requirements.** The IDE runs on macOS 10.13 High Sierra or later on an
 Intel Mac and macOS 11 Big Sur or later on Apple Silicon. The bundled
@@ -314,6 +324,11 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
   planned. Standalones run on macOS 10.13 or later (Intel) and 11 or
   later (Apple Silicon); one that includes an xTalk Suite extension needs
   macOS 15.
+- The macOS package does not include the Visual C++ runtime DLLs that
+  the Windows packages put next to enetxt and Box2Dxt: a Windows
+  standalone built on a Mac with either of them needs the Visual C++
+  Redistributable on the PC it runs on. It has no Windows x86-64
+  standalone runtime either.
 - The macOS packages are built and tested automatically (on macOS 15, on
   both an Apple Silicon and an Intel runner) but have not been tried by
   hand yet.
@@ -323,7 +338,7 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
 The Linux package is `OXT-Beyond-<version>-linux-x86_64.tar.xz`.
 Releases carry it from 0.1.0 on (see [Download](#download)). It is also
 built and tested by every run of the
-[Build (Linux) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
+[Build (Linux) workflow](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
 (artifact `OXT-Beyond-linux-x86_64`, with the binaries and symbols
 tarballs and `SHA256SUMS`). Check it with
 `sha256sum -c SHA256SUMS --ignore-missing`.
@@ -592,7 +607,8 @@ and in the IDE:
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
-OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
+OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1 and 0.2.1-rc.2)
+adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
   Script, LiveCode Builder, the LiveCode Builder compiler and the script
@@ -613,9 +629,12 @@ OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
 - on Linux and macOS, `~` is `$HOME`, and on Linux `~user/folder`
   resolves; on Linux the last second of 1969 converts, and file lists on
   the clipboard and in drag and drop keep names with spaces and "+"; on
-  macOS, Java support finds Java 9 and later, and on Apple Silicon an
+  macOS, Java support finds Java 9 and later, on Apple Silicon an
   Objective-C exception in a method that LiveCode Builder calls is an LCB
-  error again instead of ending the program;
+  error again instead of ending the program, and without a user interface
+  (`-ui`) socket events are handled at once instead of at the next timer,
+  so libURL's requests no longer take until their 60-second timeout
+  (new in 0.2.1-rc.2);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had
@@ -626,7 +645,12 @@ OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
   current player supports) are zeros instead of random numbers;
 - one change in behaviour: `baseConvert` (and LiveCode Builder's
   `converted from base`) of a number above 4,294,967,295 is an error
-  instead of a wrong, wrapped-around result.
+  instead of a wrong, wrapped-around result;
+- the repository's new address,
+  [github.com/SethMorrowSoftware/OpenXTalk-Beyond](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond)
+  (it was `winoxt`), in the update check, the About box and the
+  installer (new in 0.2.1-rc.2). 0.2.0 and 0.2.1-rc.1 still find updates
+  through GitHub's redirect from the old address.
 
 ### xTalk Suite extensions
 
@@ -733,9 +757,10 @@ or preOpenStack handler opts in with one line:
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
 libraries that LiveCode's server no longer provides are mirrored in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1),
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
 the build scripts were updated for Visual Studio 2022 with the v141
-toolset, and a GitHub Actions workflow builds, packages and tests it.
+toolset, and GitHub Actions workflows build, package and test it for
+Windows, macOS and Linux.
 
 ## Building from source
 
@@ -743,8 +768,8 @@ See [BUILDING.md](BUILDING.md). In short: install Visual Studio 2022 with
 the v141 toolset, Python 2.7, Strawberry Perl, Git and Cygwin, then
 
 ```bat
-git clone --recurse-submodules https://github.com/SethMorrowSoftware/winoxt.git C:\src\winoxt
-cd /d C:\src\winoxt
+git clone --recurse-submodules https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git C:\src\OpenXTalk-Beyond
+cd /d C:\src\OpenXTalk-Beyond
 set PATH=C:\Python27;%PATH%
 C:\Python27\python.exe config.py --platform win-x86_64
 cd build-win-x86_64
@@ -775,13 +800,13 @@ release is made from a tag in
 | `ide-support/` | Eleven IDE libraries kept in the engine repository (the standalone builder and others); they are installed into `Toolset/libraries`. |
 | `docs/` | Dictionary, guides and release note fragments from LiveCode Community; development notes in `docs/development/`. |
 | `thirdparty/` | Third-party library sources, vendored from `livecode/livecode-thirdparty`. |
-| `prebuilt/` | Scripts that fetch the prebuilt third-party libraries (from the `prebuilts-v1` release), their versions and checksums. |
+| `prebuilt/` | Scripts that fetch the prebuilt third-party libraries for Windows (from the `prebuilts-v1` release) and build them from source on Linux and macOS, with their versions and checksums. |
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
 | `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
-| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push and pull request; `release.yml` builds all three from a `v` tag and publishes the release. |
-| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its Windows rules) and LiveCode's installer builder (not used). |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `release.yml` builds all three from a `v` tag and publishes the release. |
+| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's installer builder (not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 
 For a compatibility-first proposal to make the engine easier to test and
@@ -806,7 +831,9 @@ Known limitations, in rough order of importance:
    Developer ID signing and notarization for macOS.
 4. "OpenXTalk Lite" still appears inside binary stacks, and the build
    output files are named after LiveCode. Plan: change the binary stacks
-   one at a time, in reviewable commits, and rename the engine files.
+   a few at a time with the stack patches of `tools/oxt/ide-stack-patches`
+   (see [BUILDING.md](BUILDING.md#11-working-on-the-ide)), and rename the
+   engine files.
 5. Legacy toolchain (v141, Python 2.7, Cygwin). Plan: move to the current
    Visual Studio toolset and Python 3.
 6. The mergExt externals are not included.
@@ -825,8 +852,9 @@ Known limitations, in rough order of importance:
    the dark card. On Linux the native controls are drawn by the GTK
    theme, so every stack follows it and the appearance properties change
    nothing there; a light-designed stack under a dark GTK theme can still
-   show white text on white. On macOS the classic native controls stay
-   light in the dark appearance. Plans: a fixed light palette for the
+   show white text on white. On macOS every stack is drawn light for
+   now, whatever the appearance properties say, because the classic
+   native controls stay light. Plans: a fixed light palette for the
    Linux theme's light-designed objects, and Tom Perry's AppKit-drawn
    macOS controls.
 10. In an install for all users, a few things that save stacks inside
@@ -845,15 +873,15 @@ the native libraries are the members' prebuilt binaries, which
 OXT-Beyond checks but does not build; the Dictionary does not have
 their documentation; the standalone builder does not add the script
 libraries by itself; and enetxt and Box2Dxt need the Visual C++ runtime,
-whose DLLs the Windows packages ship next to them (the Linux package
-does not yet).
+whose DLLs the Windows packages ship next to them (the Linux and macOS
+packages do not yet).
 
 Issues and pull requests for any of these are welcome.
 
 ## Getting help and reporting problems
 
 - **Bugs and feature requests:**
-  [GitHub issues](https://github.com/SethMorrowSoftware/winoxt/issues).
+  [GitHub issues](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues).
   There are forms for bugs, build problems and feature requests.
 - **Security problems:** report them privately, as described in
   [SECURITY.md](SECURITY.md).

@@ -92,7 +92,7 @@ KINDS = ('zip',)
 
 ATTEMPTS = 4
 TIMEOUT = 60
-USER_AGENT = 'OXT-Beyond-packager (+https://github.com/SethMorrowSoftware/winoxt)'
+USER_AGENT = 'OXT-Beyond-packager (+https://github.com/SethMorrowSoftware/OpenXTalk-Beyond)'
 
 
 class AssetError(Exception):

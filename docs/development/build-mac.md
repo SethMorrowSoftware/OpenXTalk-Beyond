@@ -1,9 +1,10 @@
 # Compiling LiveCode for Mac OS X and iOS
 
 > **Note:** This page comes from upstream LiveCode and is not maintained
-> for OpenXTalk Lite, which currently builds for Windows x86_64 only. The
-> instructions below have not been checked against this repository. To
-> build OpenXTalk Lite, see [BUILDING.md](../../BUILDING.md).
+> for OXT-Beyond, which builds for macOS but not for iOS. The
+> instructions below have not been checked against this repository.
+> OXT-Beyond's macOS build is described in
+> [Building on macOS](../../BUILDING.md#13-building-on-macos).
 
 ![LiveCode Community Logo](http://livecode.com/wp-content/uploads/2015/02/livecode-logo.png)
 

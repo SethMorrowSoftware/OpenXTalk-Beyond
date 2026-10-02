@@ -27,7 +27,7 @@ build. The engine links static libraries from the "Thirdparty" prebuilt
 archive instead (`prebuilt/unpacked/Thirdparty/...`). That archive was
 built by LiveCode Ltd from this folder at commit `e5e0505` and is mirrored
 in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1).
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
 The headers, on the other hand, are always taken from this folder.
 
 So a change to a library's source here does **not** reach the Windows
@@ -42,6 +42,17 @@ exceptions, compiled from this folder by the normal build, are:
 
 FreeType, HarfBuzz, expat and iODBC are not used on Windows.
 
+## How the Linux and macOS builds use it
+
+The Linux and macOS workflows build the Thirdparty libraries from this
+folder themselves (the step "Build the Thirdparty libraries from
+thirdparty/", with `prebuilt/build-libraries.sh`), and keep the result
+in the GitHub Actions cache. The cache key includes the Git tree of this
+folder, so any change here is built into the next Linux and macOS
+builds; no archive has to be published for them. See
+[Building on Linux](../BUILDING.md#12-building-on-linux) and
+[Building on macOS](../BUILDING.md#13-building-on-macos).
+
 ## Updating a library
 
 1. Replace the sources, keeping the folder layout and the `.gyp` file
@@ -49,7 +60,8 @@ FreeType, HarfBuzz, expat and iODBC are not used on Windows.
 2. Update [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) and, if it
    fixes security problems, [SECURITY.md](../SECURITY.md).
 3. If the library comes from the Thirdparty archive on Windows (see
-   above), the change also needs a new archive:
+   above), the change also needs a new archive for Windows (Linux and
+   macOS build it from this folder):
    - build the static libraries with the `thirdparty-prebuilts` MSBuild
      target (`cmd /c ..\make.cmd thirdparty-prebuilts` in
      `build-win-x86_64`, after configuring as in

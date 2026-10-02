@@ -23,8 +23,7 @@ XCODEBUILD ?= xcodebuild
 WINE ?= wine
 EMMAKE ?= emmake
 
-# Some magic to control which versions of iOS we try to build.  N.b. you may
-# also need to modify the buildbot configuration
+# Some magic to control which versions of iOS we try to build.
 IPHONEOS_VERSIONS ?= 11.2 12.1 13.2 14.4 14.5
 IPHONESIMULATOR_VERSIONS ?= 11.2 12.1 13.2 14.4 14.5
 SKIP_IPHONEOS_VERSIONS ?= 9.2 10.2

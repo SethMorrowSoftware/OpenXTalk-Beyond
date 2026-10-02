@@ -22,30 +22,6 @@ import os
 import subprocess
 import shutil
 
-# The set of platforms for which this branch supports automated builds
-BUILDBOT_PLATFORM_TRIPLES = (
-    'x86-linux-debian8',
-    'x86_64-linux-debian8',
-    'armv7-android-ndk16r15',
-    'arm64-android-ndk16r15',
-    'x86-android-ndk16r15',
-    'x86_64-android-ndk16r15',
-    'universal-mac-macosx10.9', # Minimum deployment target
-    'universal-ios-iphoneos14.5',
-    'universal-ios-iphoneos14.4',
-    'universal-ios-iphoneos13.2',
-    'universal-ios-iphoneos12.1',
-    'universal-ios-iphoneos11.2',
-    'universal-ios-iphonesimulator14.5',
-    'universal-ios-iphonesimulator14.4',
-    'universal-ios-iphonesimulator13.2',
-    'universal-ios-iphonesimulator12.1',
-    'universal-ios-iphonesimulator11.2',
-    'x86-win32', # TODO[2017-03-23] More specific ABI
-    'x86_64-win32',
-    'js-emscripten-sdk1.35',
-)
-
 KNOWN_PLATFORMS = (
     'linux-x86', 'linux-x86_64', 'linux-armv6hf', 'linux-armv7', 'linux-arm64',
     'android-armv6', 'android-armv7', 'android-arm64', 'android-x86', 'android-x86_64',

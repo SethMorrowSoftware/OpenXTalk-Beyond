@@ -105,7 +105,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `Runtime/Windows/x86-64/**` | build | | Runtime.Windows x86-64 |
 | `Runtime/**` (Windows x86-32, Linux, Android, Emscripten, macOS, iOS) | external | | Runtime.* for other platforms |
 | `Ext/**` | external | | Ext: mergExt collection downloaded by the builder |
-| `*.lnk`, `test.db`, names starting with `.` below the root | junk | | |
+| `*.lnk`, `test.db`, `Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack`, names starting with `.` below the root | junk | | |
 
 Notes on the choices:
 
@@ -140,6 +140,10 @@ Notes on the choices:
   `Toolset/palettes/dictionary/api.sqlite` are zero-byte SQLite files; no
   script refers to the latter (the IDE and the Quick Dictionary plugin use
   `Documentation/html_viewer/resources/data/api/api.sqlite`).
+  `mac-arm-deploy.oxtstack`, a macOS ARM standalone builder, is opened by
+  nothing, and its button calls `_internal build MacARM`, which this engine
+  does not have; it was removed from `ide/` in 0.2.1, and is junk so that
+  an import does not bring it back.
 
 ### Managed files
 
@@ -153,10 +157,9 @@ scripts, except
 * `ide/Resources/Mobile Examples` (installed on macOS only; a Windows install
   says nothing about them).
 
-Everything else (`ide/.gitignore`, `ide/.gitattributes`, `ide/README.md`,
-`ide/tests`, `ide/notes`, `ide/examples`, the release-notes PDFs at the root of
-`ide/`, the other `ide-support` files, `docs/`, engine sources) is never
-written or deleted. Ignored files that happen to be in a managed folder (for
+Everything else (`ide/.gitignore`, `ide/.gitattributes`, `ide/tests`,
+`ide/notes`, `ide/examples`, the other `ide-support` files, `docs/`,
+engine sources) is never written or deleted. Ignored files that happen to be in a managed folder (for
 example docs builder output in `ide/Documentation/html_viewer/resources/data`)
 are treated like any other file there.
 
@@ -378,7 +381,7 @@ disagree, the layout follows the IDE:
   macOS, icons, `Support`, `Externals` lists, signatures) and builds and
   runs a standalone from `x64-ARM64/Standalone-blank.app` with the
   engine's deploy command (what the builder's
-  `revStandaloneDeployWithParams` runs). **Still to do (Phase 5):** a
+  `revStandaloneDeployWithParams` runs). **Still to do:** a
   test that runs the IDE's builder itself for the `MacOSX x64-ARM64`
   target (what the standalone settings' `MacOS-IntelArmUniversal` button
   selects) with revXML and the SQLite driver, checks that
@@ -524,7 +527,8 @@ Intended differences from OXT Lite 1.15:
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
 Result with the CI build of this repository
-(`OpenXTalkLite-9.7.1-OXT-win-x86_64-binaries.zip`), the runtimes asset and
+(`OpenXTalkLite-9.7.1-OXT-win-x86_64-binaries.zip`, as the binaries zip
+was named then), the runtimes asset and
 the IDE as it was when this was written, compared with the 1.15 install:
 `COMPARE PASSED`. All 5,898 `ide` paths are staged (7 of them already changed
 and 2 files added by the OXT-Beyond branding and updater work); of the 492
@@ -720,7 +724,7 @@ Lite 1.15. (The xTalk Suite extensions are not assets: see
   "assets": [
     {
       "id": "oxt-runtimes-1.15",
-      "url": "https://github.com/SethMorrowSoftware/winoxt/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 199237317,
       "kind": "zip",
@@ -934,8 +938,10 @@ gh release create runtimes-1.15 oxt-runtimes-1.15.zip PROVENANCE.md --prerelease
 
 A pre-release never becomes the repository's latest release: the IDE's
 update check reads `releases/latest`, which has to stay an OXT-Beyond
-release. Until the asset is published, packaging fails at the download
-(HTTP 404) unless the assets are left out (`--no-external-assets`,
+release. The `runtimes-1.15` release was published on 29 September 2026.
+A new asset has to be published the same way before packaging can
+download it; until then, packaging fails at the download (HTTP 404)
+unless the assets are left out (`--no-external-assets`,
 `package-windows.ps1 -NoExternalAssets`, or in CI the workflow input
 `no_external_assets` or the repository variable `OXT_NO_EXTERNAL_ASSETS=1`)
 or a cache that holds the zip is given.
