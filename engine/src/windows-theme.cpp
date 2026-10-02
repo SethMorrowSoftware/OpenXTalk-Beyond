@@ -37,6 +37,14 @@
 static bool logfont_for_control(MCPlatformControlType p_type, LOGFONTW& r_lf)
 {
 #ifndef _SERVER
+    // OXT-Beyond: in no-UI mode (-ui) MCscreen is a plain MCUIDC (X_open),
+    // not an MCScreenDC, so there are no non-client metrics to read: the
+    // cast read past the end of the object, and crashed the 32-bit engine
+    // when that was the end of the heap's memory. The callers then use the
+    // default UI font and size.
+    if (MCnoui)
+        return false;
+
     // Get the font used for the non-client areas of Windows. This font
     // gets used throughout the Windows UI.
     const NONCLIENTMETRICSW& t_ncm = ((MCScreenDC *)MCscreen)->getnonclientmetrics();
