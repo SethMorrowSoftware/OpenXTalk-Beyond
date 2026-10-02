@@ -1,0 +1,11 @@
+# SHA-1 of the CEF binary distributions that prebuilt/scripts/build-cef.sh
+# (Linux) and prebuilt/build-libraries-windows.ps1 (Windows) repackage, as
+# Spotify publishes them with the files (https://cef-builds.spotifycdn.com,
+# index.json). A download whose SHA-1 differs is deleted and the build
+# stops. Add the lines of a new CEF version when prebuilt/versions/cef*
+# changes.
+acc0ab17efcf814c615e5b0bfd134e2127a6281d  cef_binary_74.1.19+gb62bacf+chromium-74.0.3729.157_windows32_minimal.tar.bz2
+7535412453e2bce8e22efc4888376af5d2064df6  cef_binary_74.1.19+gb62bacf+chromium-74.0.3729.157_windows32.tar.bz2
+5a7b4230f596cb1c67223a5a86cee69a11d6d343  cef_binary_74.1.19+gb62bacf+chromium-74.0.3729.157_windows64_minimal.tar.bz2
+49ce388a3db55993db56963719941196fc809e6d  cef_binary_74.1.19+gb62bacf+chromium-74.0.3729.157_windows64.tar.bz2
+dd5ead2f577c002b6c49c566b0421e37d0c72998  cef_binary_74.1.19+gb62bacf+chromium-74.0.3729.157_linux64_minimal.tar.bz2

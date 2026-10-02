@@ -19,6 +19,7 @@ else
 fi
 
 CEF_TGZ="${CEF_DST}.tar.bz2"
+CEF_SUMS="$(cd "${BASEDIR}" && pwd)/cef-sha1sums"
 cd "${BUILDDIR}"
 
 if [ ! -d "$CEF_DST" ] ; then
@@ -34,6 +35,20 @@ if [ ! -d "$CEF_DST" ] ; then
 		fi
 	fi
 	
+	# The SHA-1 that Spotify publishes for the file (prebuilt/cef-sha1sums)
+	EXPECTED=$(awk -v f="${CEF_TGZ}" '$0 !~ /^#/ && $2 == f { print tolower($1) }' "${CEF_SUMS}")
+	if [ -z "${EXPECTED}" ] ; then
+		echo "error: ${CEF_TGZ} has no entry in prebuilt/cef-sha1sums" >&2
+		exit 1
+	fi
+	ACTUAL=$(sha1sum "${CEF_TGZ}" | cut -d' ' -f1)
+	if [ "${ACTUAL}" != "${EXPECTED}" ] ; then
+		rm -f "${CEF_TGZ}"
+		echo "error: SHA-1 of ${CEF_TGZ} is ${ACTUAL}, not ${EXPECTED} (prebuilt/cef-sha1sums); the download was deleted" >&2
+		exit 1
+	fi
+	echo "SHA-1 OK: ${CEF_TGZ}"
+
 	echo "Unpacking CEF source"
 	tar -jxf "${CEF_TGZ}"
 fi

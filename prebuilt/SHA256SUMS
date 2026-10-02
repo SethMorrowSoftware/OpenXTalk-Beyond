@@ -1,2 +1,8 @@
-d0ffbd0c1709405742acacd15a9f2fcbbd164d840d698f397171ecd4da8006e8  CEF-74.1.19-x86_64-win32-v141_static_debug-gb62bacf.tar.bz2
-7d7a8cf444c5cb2f72f256293b918b761c85bbda2edd2624b25cf08e5544878e  CEF-74.1.19-x86_64-win32-v141_static_release-gb62bacf.tar.bz2
+# SHA-256 of the prebuilt archives that fetch-libraries.sh may download
+# (from PREBUILT_URL), as "<sha256>  <file>" lines; a download without a
+# line here fails with PREBUILT_STRICT=1. There are none now: every
+# platform builds its archives itself (build-libraries.sh,
+# build-libraries-windows.ps1, which also repackage Spotify's CEF builds,
+# checked against cef-sha1sums), and the build copies them from the local
+# folder. LiveCode's archives in the prebuilts-v1 release are no longer
+# used.
