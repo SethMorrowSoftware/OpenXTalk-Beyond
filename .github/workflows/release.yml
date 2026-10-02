@@ -371,12 +371,25 @@ jobs:
           else
             prerelease_flag=()
             if [ "$PRERELEASE" = true ]; then prerelease_flag=(--prerelease); fi
+            # GitHub's generated list starts at the previous release: the
+            # latest published release whose tag starts with "v". Left to
+            # itself, GitHub starts at the latest tag of any kind, which can
+            # be an asset's (runtimes-*, prebuilts-*), and leaves out what
+            # came before that tag (0.2.1-rc.3's list started at
+            # runtimes-0.2.1-rc.3 and missed #29).
+            prev_tag=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+                --jq '.[] | select(.draft == false and (.tag_name | startswith("v"))) | "\(.published_at) \(.tag_name)"' |
+              awk -v tag="$TAG" '$2 != tag' | sort | tail -n 1 | cut -d' ' -f2)
+            start_tag=()
+            if [ -n "$prev_tag" ]; then start_tag=(--notes-start-tag "$prev_tag"); fi
+            echo "Generated list of changes since: ${prev_tag:-(no earlier release)}"
             # Our notes first, then GitHub's generated list of changes, as
             # the Windows workflow's release job did
             gh release create "$TAG" --draft --verify-tag \
               --title "OXT-Beyond $VERSION" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               --generate-notes \
+              "${start_tag[@]}" \
               "${prerelease_flag[@]}"
             # The list can lag a moment behind the create
             for attempt in 1 2 3 4 5; do

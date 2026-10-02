@@ -40,9 +40,9 @@ the extensions' higher minimums, and a pointer to the rest; no Markdown
 links or code spans there, which the dialog would show as they are.
 Then one section per platform with its files and what it needs, the
 files of all platforms and how to check them against SHA256SUMS, and
-where the parts come from. GitHub's generated list of changes follows
-when release.yml creates the release (gh release create
---generate-notes).
+where the parts come from. GitHub's generated list of changes since the
+previous release follows when release.yml creates the release (gh
+release create --generate-notes --notes-start-tag).
 
 --excerpt prints what the update check shows of these notes (see
 updater_excerpt) instead of the notes. The script checks that the
