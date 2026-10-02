@@ -47,8 +47,8 @@ Contents:
 Once the tools in section 2 are installed, a build is (in `cmd.exe`):
 
 ```bat
-git clone --recurse-submodules https://github.com/SethMorrowSoftware/winoxt.git C:\src\winoxt
-cd /d C:\src\winoxt
+git clone --recurse-submodules https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git C:\src\OpenXTalk-Beyond
+cd /d C:\src\OpenXTalk-Beyond
 set PATH=C:\Python27;%PATH%
 C:\Python27\python.exe config.py --platform win-x86_64
 cd build-win-x86_64
@@ -267,7 +267,7 @@ find it, it tries to install Inno Setup with Chocolatey itself (see
 Clone with Git, into a path **without spaces**:
 
 ```bat
-git clone --recurse-submodules https://github.com/SethMorrowSoftware/winoxt.git C:\src\winoxt
+git clone --recurse-submodules https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git C:\src\OpenXTalk-Beyond
 ```
 
 - A "Download ZIP" of the repository will not configure: configuring
@@ -291,7 +291,7 @@ Configuring runs gyp, which writes Visual Studio project files into
 `cmd.exe`:
 
 ```bat
-cd /d C:\src\winoxt
+cd /d C:\src\OpenXTalk-Beyond
 set PATH=C:\Python27;%PATH%
 C:\Python27\python.exe config.py --platform win-x86_64
 ```
@@ -406,7 +406,7 @@ Each comes in a `v141_static_release` and a `v141_static_debug` variant,
 for x86_64 only. LiveCode Ltd's build servers produced them, and
 LiveCode's download server no longer serves them. They are mirrored,
 unchanged, as assets of this repository's
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1).
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
 
 SQLite is the exception: the `Thirdparty` archive still holds an older
 SQLite (3.34.0), so the Windows build compiles `dbsqlite.dll` against
@@ -428,7 +428,7 @@ Later builds reuse what is there. Both folders are ignored by Git.
 To fetch without building, run the script with Cygwin's bash:
 
 ```bat
-C:\cygwin64\bin\bash.exe -lc "cd /cygdrive/c/src/winoxt/prebuilt && ./fetch-libraries.sh win32 x86_64"
+C:\cygwin64\bin\bash.exe -lc "cd /cygdrive/c/src/OpenXTalk-Beyond/prebuilt && ./fetch-libraries.sh win32 x86_64"
 ```
 
 ### Settings
@@ -439,7 +439,7 @@ through to the script.
 
 | Variable | Meaning |
 | --- | --- |
-| `PREBUILT_URL` | Where to download from. Default: `https://github.com/SethMorrowSoftware/winoxt/releases/download/prebuilts-v1`. |
+| `PREBUILT_URL` | Where to download from. Default: `https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1`. |
 | `PREBUILT_LOCAL_DIR` | A folder that already holds the `.tar.bz2` files. They are copied from there instead of downloaded. A Windows path such as `C:\prebuilts` is fine. |
 | `PREBUILT_CACHE_DIR` | Download into this folder instead of `prebuilt\fetched`. |
 | `PREBUILT_WIN32_LIBS` | Which libraries to fetch, for example `OpenSSL Curl`. Default: all five. |
@@ -455,7 +455,7 @@ variants, so this only matters if you set
 
 On a machine with internet access, download the `.tar.bz2` files you
 need from the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1)
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)
 (and `SHA256SUMS` if you want to check them yourself). Copy them to the
 build machine, then:
 
@@ -481,7 +481,7 @@ date is future work.
 ### Run the IDE from your clone
 
 ```bat
-cd /d C:\src\winoxt
+cd /d C:\src\OpenXTalk-Beyond
 win-x86_64-bin\LiveCode-Community.exe
 ```
 
@@ -1404,7 +1404,7 @@ installation that has them.
 is missing (section 2.1).
 
 **The build fails in a folder with spaces in its name.** Move or clone
-the repository to a path without spaces, such as `C:\src\winoxt`.
+the repository to a path without spaces, such as `C:\src\OpenXTalk-Beyond`.
 
 **Downloading the prebuilt libraries fails**, or reports a SHA-256
 mismatch. A mismatching file is deleted, so running the build again
@@ -1540,7 +1540,7 @@ shows which step it was. Downloading artifacts requires a GitHub
 account. Public downloads are Releases.
 
 The badges at the top of the [README](README.md) and the
-[Actions tab](https://github.com/SethMorrowSoftware/winoxt/actions)
+[Actions tab](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions)
 show the state of the latest runs.
 
 The Linux workflow ([`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml),
@@ -1651,18 +1651,18 @@ it.
    characters, as plain text).
 7. Check that GitHub shows the new release as the latest one, for
    example with
-   `gh api repos/SethMorrowSoftware/winoxt/releases/latest --jq .tag_name`.
+   `gh api repos/SethMorrowSoftware/OpenXTalk-Beyond/releases/latest --jq .tag_name`.
    OXT-Beyond's update check reads that release (and the list of
    releases, if it is not an OXT-Beyond version or the user runs a
    pre-release). If another release is
    marked latest, fix it with
-   `gh release edit v0.1.0 --latest --repo SethMorrowSoftware/winoxt`.
+   `gh release edit v0.1.0 --latest --repo SethMorrowSoftware/OpenXTalk-Beyond`.
    Pre-releases are never "latest"; the update check offers them only to
    people who already run a pre-release. After a pre-release, check the
    other way round: the latest release must still be the last one
    without a pre-release part, and the new one must be marked as a
    pre-release
-   (`gh release view v0.1.0-rc.1 --json isPrerelease --repo SethMorrowSoftware/winoxt`).
+   (`gh release view v0.1.0-rc.1 --json isPrerelease --repo SethMorrowSoftware/OpenXTalk-Beyond`).
    Number release candidates `-rc.1`, `-rc.2` and so on: the update check
    compares the parts after the `-` as SemVer does, so `-rc.10` comes
    after `-rc.2`, where `-RC10` would come before `-RC2`.
@@ -1688,7 +1688,7 @@ no release, no draft and no tag. Start it on the Actions tab (*Release*,
 ticked), or with the GitHub CLI:
 
 ```bat
-gh workflow run release.yml --ref main -f dry-run=true --repo SethMorrowSoftware/winoxt
+gh workflow run release.yml --ref main -f dry-run=true --repo SethMorrowSoftware/OpenXTalk-Beyond
 ```
 
 The files are named after `ide/.version` of that branch. A run started

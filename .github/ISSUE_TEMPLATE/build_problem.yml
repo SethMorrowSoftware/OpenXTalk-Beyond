@@ -6,15 +6,15 @@ body:
     attributes:
       value: |
         Before you file this, please read the troubleshooting section of
-        [BUILDING.md](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#8-troubleshooting).
+        [BUILDING.md](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/BUILDING.md#8-troubleshooting).
         Many Windows build failures come from a missing Visual Studio
         component, Python 3 being used instead of Python 2.7 for the build
         (packaging needs Python 3), or the wrong `bash` (Git's or WSL's
         instead of Cygwin's). Linux and macOS builds follow the steps of
         their CI workflows; see
-        [Building on Linux](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#12-building-on-linux)
+        [Building on Linux](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/BUILDING.md#12-building-on-linux)
         and
-        [Building on macOS](https://github.com/SethMorrowSoftware/winoxt/blob/main/BUILDING.md#13-building-on-macos).
+        [Building on macOS](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/BUILDING.md#13-building-on-macos).
 
   - type: dropdown
     id: platform

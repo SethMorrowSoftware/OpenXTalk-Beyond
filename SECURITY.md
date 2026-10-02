@@ -5,7 +5,7 @@
 Please report security problems privately, not in a public issue.
 
 Use GitHub's private reporting form:
-<https://github.com/SethMorrowSoftware/winoxt/security/advisories/new>
+<https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/security/advisories/new>
 (you need to be signed in to GitHub). Only the maintainers can see the
 report. GitHub's documentation explains
 [how private reporting works](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability).
@@ -13,7 +13,7 @@ report. GitHub's documentation explains
 At the time of writing, private reporting has not been turned on for
 this repository yet, so the form may say that it is not available. In
 that case, open an ordinary
-[issue](https://github.com/SethMorrowSoftware/winoxt/issues) that says
+[issue](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues) that says
 only that you have a security report and would like a private way to
 send it. Do not include any details of the problem in that issue. A
 maintainer can then open a draft security advisory, which only the
@@ -59,7 +59,7 @@ signature that lets macOS check that the app's files are intact but
 names no Apple Developer ID, and it is not notarized by Apple, so macOS
 blocks it until you allow it (see the README's macOS section). The Linux package is not signed. Download
 them only from this repository's
-[Releases page](https://github.com/SethMorrowSoftware/winoxt/releases)
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases)
 and check them against the `SHA256SUMS` file of the same release, which
 lists every file of the release, for example:
 

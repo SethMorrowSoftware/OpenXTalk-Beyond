@@ -82,7 +82,7 @@ $ErrorActionPreference = 'Stop'
 $ProductName = 'OXT-Beyond'
 $ExeName = 'OXT-Beyond.exe'
 $Publisher = 'OXT-Beyond contributors'
-$RepoUrl = 'https://github.com/SethMorrowSoftware/winoxt'
+$RepoUrl = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 $UsersSid = 'S-1-5-32-545'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 

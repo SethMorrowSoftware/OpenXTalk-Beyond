@@ -145,7 +145,7 @@ usage(int status)
 "specified, then an interface file may be generated in the first PATH\n"
 "specified.\n"
 "\n"
-"Report bugs to <https://github.com/SethMorrowSoftware/winoxt/issues>\n"
+"Report bugs to <https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues>\n"
             );
     exit (status);
 }

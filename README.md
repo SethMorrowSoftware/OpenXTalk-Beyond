@@ -1,8 +1,8 @@
 # OXT-Beyond
 
-[![Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml)
-[![Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml)
-[![Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
+[![Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml)
+[![Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml)
+[![Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
 
 OXT-Beyond is a free, open source development environment for Windows,
 macOS and Linux in which you build programs with an English-like
@@ -29,12 +29,16 @@ GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
 upstream LiveCode Community repositories have had no changes since July
 2021 and are now archived (read-only).
 
-This repository, **winoxt**, holds all of it: the engine source
-(LiveCode Community 9.7 plus Tom Perry's 9.7.1-OXT engine work), the
-OpenXTalk Lite 1.15 IDE with its history, and the scripts that build,
-package and test OXT-Beyond for Windows, macOS and Linux. It is
-maintained by
-[SethMorrowSoftware](https://github.com/SethMorrowSoftware).
+This repository, **OpenXTalk-Beyond** (called winoxt until October
+2026), holds all of it: the engine source (LiveCode Community 9.7 plus
+Tom Perry's 9.7.1-OXT engine work), the OpenXTalk Lite 1.15 IDE with
+its history, and the scripts that build, package and test OXT-Beyond
+for Windows, macOS and Linux. It is maintained by
+[SethMorrowSoftware](https://github.com/SethMorrowSoftware). GitHub
+forwards the old name's addresses, so existing clones and links keep
+working; `git remote set-url origin
+https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git` points a
+clone at the new one.
 
 ## Status
 
@@ -130,7 +134,7 @@ pre-release for testing (see what 0.2.1 adds, under
 ## Download
 
 Releases are published on the
-[Releases page](https://github.com/SethMorrowSoftware/winoxt/releases).
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 From 0.1.0 on, each release has these files for all three platforms
 (0.0.1 and 0.0.2 have the Windows files only); `<version>` is the
 version, for example `0.1.0`:
@@ -168,9 +172,9 @@ successful run and download the artifact under *Artifacts*.
 
 | Platform | Workflow | Artifact |
 | --- | --- | --- |
-| Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
-| macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
-| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
+| Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
+| macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
+| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
 
 You need to be signed in to GitHub to download artifacts, and they are
 deleted after 30 days. These builds pass the automatic checks, but
@@ -247,7 +251,7 @@ disk image) and `OXT-Beyond-<version>-mac-universal.zip` (the same app,
 for scripted installs). Releases carry them from 0.1.0 on (see
 [Download](#download)); the latest development build is the artifact
 `OXT-Beyond-mac-universal` of a successful run of the
-[Build (macOS) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-macos.yml).
+[Build (macOS) workflow](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml).
 
 **Requirements.** The IDE runs on macOS 10.13 High Sierra or later on an
 Intel Mac and macOS 11 Big Sur or later on Apple Silicon. The bundled
@@ -323,7 +327,7 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
 The Linux package is `OXT-Beyond-<version>-linux-x86_64.tar.xz`.
 Releases carry it from 0.1.0 on (see [Download](#download)). It is also
 built and tested by every run of the
-[Build (Linux) workflow](https://github.com/SethMorrowSoftware/winoxt/actions/workflows/build-linux.yml)
+[Build (Linux) workflow](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
 (artifact `OXT-Beyond-linux-x86_64`, with the binaries and symbols
 tarballs and `SHA256SUMS`). Check it with
 `sha256sum -c SHA256SUMS --ignore-missing`.
@@ -733,7 +737,7 @@ or preOpenStack handler opts in with one line:
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
 libraries that LiveCode's server no longer provides are mirrored in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1),
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
 the build scripts were updated for Visual Studio 2022 with the v141
 toolset, and a GitHub Actions workflow builds, packages and tests it.
 
@@ -743,8 +747,8 @@ See [BUILDING.md](BUILDING.md). In short: install Visual Studio 2022 with
 the v141 toolset, Python 2.7, Strawberry Perl, Git and Cygwin, then
 
 ```bat
-git clone --recurse-submodules https://github.com/SethMorrowSoftware/winoxt.git C:\src\winoxt
-cd /d C:\src\winoxt
+git clone --recurse-submodules https://github.com/SethMorrowSoftware/OpenXTalk-Beyond.git C:\src\OpenXTalk-Beyond
+cd /d C:\src\OpenXTalk-Beyond
 set PATH=C:\Python27;%PATH%
 C:\Python27\python.exe config.py --platform win-x86_64
 cd build-win-x86_64
@@ -853,7 +857,7 @@ Issues and pull requests for any of these are welcome.
 ## Getting help and reporting problems
 
 - **Bugs and feature requests:**
-  [GitHub issues](https://github.com/SethMorrowSoftware/winoxt/issues).
+  [GitHub issues](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues).
   There are forms for bugs, build problems and feature requests.
 - **Security problems:** report them privately, as described in
   [SECURITY.md](SECURITY.md).

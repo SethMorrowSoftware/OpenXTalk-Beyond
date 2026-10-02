@@ -44,7 +44,7 @@ Contents:
 ## Prebuilt libraries
 
 These come from the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1),
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
 which mirrors, unchanged, the archives LiveCode Ltd's build servers
 produced. The archives contain no licence files of their own.
 

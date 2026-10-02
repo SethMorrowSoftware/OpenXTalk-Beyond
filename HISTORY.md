@@ -155,7 +155,8 @@ OXTL7, and it is not an official OpenXTalk or OpenXTalk Lite release.
 
 ## OXT-Beyond
 
-This repository (winoxt) was started in September 2026 to build
+This repository (called winoxt until October 2026, now
+OpenXTalk-Beyond) was started in September 2026 to build
 LiveCode Community for 64-bit Windows with Tom Perry's engine work,
 using GitHub Actions: the `thirdparty` and `ide` submodules became
 ordinary folders, the prebuilt libraries LiveCode's server no longer

@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for taking the time to report a problem.
 
-        - **Security problems:** do not report them here. See [SECURITY.md](https://github.com/SethMorrowSoftware/winoxt/security/policy).
+        - **Security problems:** do not report them here. See [SECURITY.md](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/security/policy).
         - **Problems building from source:** use the "Build problem" form instead.
         - **Questions about scripting:** the [OpenXTalk forums](https://openxtalk.org/forum/) are a better place.
 

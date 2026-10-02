@@ -720,7 +720,7 @@ Lite 1.15. (The xTalk Suite extensions are not assets: see
   "assets": [
     {
       "id": "oxt-runtimes-1.15",
-      "url": "https://github.com/SethMorrowSoftware/winoxt/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 199237317,
       "kind": "zip",

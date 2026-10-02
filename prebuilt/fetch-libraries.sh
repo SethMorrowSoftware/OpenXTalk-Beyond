@@ -84,7 +84,7 @@ SUMS_FILE="${SCRIPT_DIR}/SHA256SUMS"
 # LiveCode's own server (downloads.livecode.com/prebuilts) no longer serves the
 # prebuilts. The default is a GitHub Release of this repository, which only has
 # the x86_64 Windows (MSVC v141) tarballs.
-URL="${PREBUILT_URL:-https://github.com/SethMorrowSoftware/winoxt/releases/download/prebuilts-v1}"
+URL="${PREBUILT_URL:-https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1}"
 URL="${URL%/}"
 
 # Optional local folder to copy tarballs from: PREBUILT_LOCAL_DIR, otherwise

@@ -27,7 +27,7 @@ build. The engine links static libraries from the "Thirdparty" prebuilt
 archive instead (`prebuilt/unpacked/Thirdparty/...`). That archive was
 built by LiveCode Ltd from this folder at commit `e5e0505` and is mirrored
 in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/winoxt/releases/tag/prebuilts-v1).
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
 The headers, on the other hand, are always taken from this folder.
 
 So a change to a library's source here does **not** reach the Windows

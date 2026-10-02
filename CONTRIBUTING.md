@@ -44,7 +44,7 @@ git config --global user.email "you@example.com"
 ## Before you start
 
 - For anything bigger than a small fix, open an
-  [issue](https://github.com/SethMorrowSoftware/winoxt/issues) first to
+  [issue](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues) first to
   talk about the idea. It saves work on both sides.
 - Read [BUILDING.md](BUILDING.md) and get a local build working. Changes
   to the engine, externals or build files need to be built and tried
@@ -309,7 +309,7 @@ OXT-Beyond 0.0.1.
 
 ## Reporting bugs
 
-Use the [issue forms](https://github.com/SethMorrowSoftware/winoxt/issues/new/choose)
+Use the [issue forms](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new/choose)
 for bugs, build problems and feature requests. Report security problems
 privately as described in [SECURITY.md](SECURITY.md). For general
 questions about xTalk programming, the
