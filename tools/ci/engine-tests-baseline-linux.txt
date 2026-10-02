@@ -9,7 +9,3 @@
 # run on macOS and Linux only
 ? lcs: ext/ext-urls: TestMergExtURL
 ? lcs: ext/ext-urls: TestTSNetURL
-
-# Loads a jar through the engine's Java support, which needs a Java runtime
-# it can find (JAVA_HOME)
-? lcs: extensions/libraries/javatest/tests/java: TestLoadJar
