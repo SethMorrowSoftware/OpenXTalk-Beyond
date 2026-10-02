@@ -45,7 +45,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.1, the first release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.2, the second release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -607,7 +607,8 @@ and in the IDE:
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
-OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
+OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1 and 0.2.1-rc.2)
+adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
   Script, LiveCode Builder, the LiveCode Builder compiler and the script
@@ -628,9 +629,12 @@ OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
 - on Linux and macOS, `~` is `$HOME`, and on Linux `~user/folder`
   resolves; on Linux the last second of 1969 converts, and file lists on
   the clipboard and in drag and drop keep names with spaces and "+"; on
-  macOS, Java support finds Java 9 and later, and on Apple Silicon an
+  macOS, Java support finds Java 9 and later, on Apple Silicon an
   Objective-C exception in a method that LiveCode Builder calls is an LCB
-  error again instead of ending the program;
+  error again instead of ending the program, and without a user interface
+  (`-ui`) socket events are handled at once instead of at the next timer,
+  so libURL's requests no longer take until their 60-second timeout
+  (new in 0.2.1-rc.2);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had
@@ -641,7 +645,12 @@ OXT-Beyond 0.2.1 (its first release candidate is 0.2.1-rc.1) adds:
   current player supports) are zeros instead of random numbers;
 - one change in behaviour: `baseConvert` (and LiveCode Builder's
   `converted from base`) of a number above 4,294,967,295 is an error
-  instead of a wrong, wrapped-around result.
+  instead of a wrong, wrapped-around result;
+- the repository's new address,
+  [github.com/SethMorrowSoftware/OpenXTalk-Beyond](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond)
+  (it was `winoxt`), in the update check, the About box and the
+  installer (new in 0.2.1-rc.2). 0.2.0 and 0.2.1-rc.1 still find updates
+  through GitHub's redirect from the old address.
 
 ### xTalk Suite extensions
 
