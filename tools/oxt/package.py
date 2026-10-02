@@ -1548,11 +1548,29 @@ def reference_engine(paths):
     return exes[0] if len(exes) == 1 else None
 
 
+# The folders of an OpenXTalk Lite 1.15 install that a runtimes asset made
+# from this repository's builds (make_runtimes_asset.py --builds) replaces
+# rather than copies: with such an asset their files may differ from the
+# reference, be missing (1.15's Linux runtimes bundled shared libraries
+# of other projects in lib/) or be new. Runtime/Android is carried over
+# unchanged, so it is still compared byte for byte.
+REBUILT_RUNTIMES = ('Runtime/Windows/x86-32/', 'Runtime/Linux/',
+                    'Extensions/com.livecode.library.timezone/')
+RUNTIMES_1_15 = 'oxt-runtimes-1.15'
+
+
 def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=None):
     """Print the comparison; return the number of unexplained differences.
     The reference is a Windows install (layout.py's classes describe
     one), so this is for the win-x86_64 layout."""
     exe_name = (platform or PLATFORMS[DEFAULT_PLATFORM]).engine
+    # A runtimes asset other than 1.15's is made from this repository's
+    # builds (see REBUILT_RUNTIMES)
+    rebuilt = any(it.origin == 'asset' and str(it.asset.get('id', '')).startswith('oxt-runtimes-')
+                  and it.asset.get('id') != RUNTIMES_1_15 for it in items)
+
+    def replaced(path):
+        return rebuilt and path.startswith(REBUILT_RUNTIMES)
     root, ref_paths, ref_empty, listed_classes = load_reference(ref)
     by_target = {it.target: it for it in items}
     by_lower = {it.target.lower(): it for it in items}
@@ -1586,6 +1604,9 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             elif cls == layout.XTALK and no_xtalk:
                 rows.append(('intended missing', p, '', cls, '--no-xtalk-extensions'))
                 counts[(cls, 'intended missing')] += 1
+            elif cls == layout.EXTERNAL and replaced(p):
+                rows.append(('intended missing', p, '', cls, 'not in the runtimes built from this repository'))
+                counts[(cls, 'intended missing')] += 1
             elif cls == layout.IDE:
                 rows.append(('IDE change: removed', p, '', cls, 'not in the repository\'s IDE'))
                 counts[(cls, 'not in the IDE any more')] += 1
@@ -1609,6 +1630,8 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             elif cls == layout.IDE:
                 if not layout.same_content(p, ref_file, staged):
                     status = 'IDE change: modified'
+            elif cls == layout.EXTERNAL and replaced(p):
+                status = 'present (identical)' if _same_bytes(ref_file, staged) else 'present (rebuilt)'
             elif cls == layout.EXTERNAL:
                 if not _same_bytes(ref_file, staged):
                     status = 'ERROR content'
@@ -1633,6 +1656,8 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             status, why = 'intended addition', 'OXT-Beyond licence file'
         elif it.origin == 'asset' and _asset_rel(it) in it.asset.get('rename', {}):
             status, why = 'intended addition', 'notice file of an external asset (%s)' % it.note
+        elif it.origin == 'asset' and rebuilt and it.target.startswith(REBUILT_RUNTIMES + ('PROVENANCE-',)):
+            status, why = 'intended addition', 'a file of the runtimes built from this repository (%s)' % it.note
         elif it.origin == 'ide':
             status, why = 'IDE change: added', it.note
         elif it.origin == 'xtalk':
@@ -1652,6 +1677,10 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             counts[('(empty folders)', 'present')] += 1
         elif cls == layout.EXTERNAL and (no_assets or d.startswith('Ext/')):
             rows.append(('intended missing', d + '/', '', 'folder', 'empty folder of an asset left out'))
+            counts[('(empty folders)', 'intended missing')] += 1
+        elif cls == layout.EXTERNAL and replaced(d + '/'):
+            rows.append(('intended missing', d + '/', '', 'folder',
+                         'empty folder of 1.15 that the runtimes built from this repository fill or lack'))
             counts[('(empty folders)', 'intended missing')] += 1
         else:
             rows.append(('ERROR missing', d + '/', '', 'folder', 'empty folder of the reference'))

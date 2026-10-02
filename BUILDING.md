@@ -757,8 +757,9 @@ folder, or a TSV path list written by `layout.py classify`. It fails if
 a file of 1.15 that is not part of the IDE is missing without a reason,
 if a staged file that is not part of the IDE is not in 1.15 and is not
 an intended addition, or if a file from an external asset is not
-byte-identical to 1.15's. IDE changes since 1.15 are listed but are not
-errors. The intended differences are:
+byte-identical to 1.15's (but see the runtime folders below). IDE
+changes since 1.15 are listed but are not errors. The intended
+differences are:
 
 - `OpenXTalk-Lite.exe` is staged as `OXT-Beyond.exe`;
 - `Ext\` (the mergExt externals) is not included (see
@@ -773,8 +774,16 @@ errors. The intended differences are:
   `Toolset\palettes\dictionary\api.sqlite`, the unused
   `Toolset\palettes\standalone settings\mac-arm-deploy.oxtstack`) are not
   staged;
-- the licence files, `PROVENANCE-oxt-runtimes-1.15.md` and the xTalk
-  Suite extensions (with `Extensions\XTALK-EXTENSIONS.txt`) are added.
+- the licence files, the runtimes asset's `PROVENANCE-*.md` and the
+  xTalk Suite extensions (with `Extensions\XTALK-EXTENSIONS.txt`) are
+  added;
+- with a runtimes asset made from this repository's builds (any but
+  `oxt-runtimes-1.15`), the runtime folders it replaces
+  (`Runtime\Windows\x86-32`, `Runtime\Linux` and the time zone library's
+  code and data) may differ from 1.15's, lack the shared libraries that
+  1.15's Linux runtimes bundled in `lib\`, or have new files.
+  `Runtime\Android`, carried over unchanged, is still compared byte for
+  byte.
 
 Build outputs are staged as this repository builds them, so some of
 them differ from Tom Perry's binaries in 1.15 even where the paths
