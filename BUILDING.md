@@ -1309,8 +1309,8 @@ Failed tests are compared with
 (failures on every platform), the platform's
 `engine-tests-baseline-<windows|linux|mac>.txt` next to it, and
 `engine-tests-baseline-<platform>-<arch>.txt` for failures on one
-processor architecture (`x86_64` or `arm64`; `--arch`, by default the
-computer's). A failure in none of them fails the check (exit code 1), but
+processor architecture (`x86_64`, `arm64` or `x86`; `--arch`, by default
+the computer's). A failure in none of them fails the check (exit code 1), but
 first the test is run once more (`--retries`), and one that passes then
 is only reported as flaky.
 Baseline entries whose tests passed are reported so that they can be
@@ -1334,9 +1334,11 @@ commands they run open no console windows.
 Every CI build runs the four suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
 (Apple Silicon and Intel). The job summary lists new failures, flaky
-tests and baseline entries that passed. The 32-bit Linux build has a
-supplement of its own, `tools/ci/engine-tests-baseline-linux-x86.txt`
-(dates before 1901, x87 floating point and the 32-bit `naturalfloat`).
+tests and baseline entries that passed. The 32-bit builds have
+supplements of their own: `tools/ci/engine-tests-baseline-linux-x86.txt`
+(dates before 1901, x87 floating point and the 32-bit `naturalfloat`) and
+`tools/ci/engine-tests-baseline-windows-x86.txt` (the 32-bit
+`naturalfloat`).
 
 ### Standalone check
 
