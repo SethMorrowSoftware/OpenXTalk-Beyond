@@ -1866,7 +1866,9 @@ it.
      writes one `SHA256SUMS` over all of them. It writes the notes
      ([`tools/ci/release_notes.py`](tools/ci/release_notes.py)), creates
      the release "OXT-Beyond <version>" as a **draft** with those notes
-     followed by GitHub's generated list of changes, uploads every file,
+     followed by GitHub's generated list of changes since the previous
+     release (the latest published release whose tag starts with `v`,
+     not an asset's `runtimes-*` or `prebuilts-*` tag), uploads every file,
      checks what GitHub now holds (names, sizes and SHA-256), and only
      then **publishes** the draft.
 
