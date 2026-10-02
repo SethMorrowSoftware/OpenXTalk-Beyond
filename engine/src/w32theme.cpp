@@ -766,8 +766,8 @@ void MCNativeTheme::getwidgetrect(const MCWidgetInfo &winfo, Widget_Metric wmetr
 			return;
 		SetRect(&trect,srect.x,srect.y,
 		        srect.width+srect.x,srect.height+srect.y);
-		MCScreenDC *pms = (MCScreenDC *)MCscreen;
-		HDC tdc = pms->getsrchdc();
+		// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
+		HDC tdc = MCWin32GetScreenSourceDC();
 		if (!tdc)
 			return;
 		if (wmetric == WTHEME_METRIC_CONTENTSIZE)
@@ -2602,7 +2602,8 @@ bool MCWin32ThemeDrawBuffered(MCGContextRef p_context, MCThemeDrawType p_type, M
 	t_width = p_info_ptr->bounds.width;
 	t_height = p_info_ptr->bounds.height;
 
-	HDC t_dc = ((MCScreenDC*)MCscreen)->getdsthdc();
+	// OXT-Beyond: has a DC in no-UI mode too (w32dc.h)
+	HDC t_dc = MCWin32GetScreenDestinationDC();
 	t_success = t_dc != nil;
 
 	HDC t_paintdc = nil;

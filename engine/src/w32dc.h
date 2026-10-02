@@ -441,4 +441,13 @@ inline HDC MCScreenDC::getdsthdc(void) const
 	return f_dst_dc;
 }
 
+// OXT-Beyond: the memory DCs, compatible with the screen, that the engine
+// measures and draws with outside a window, MCScreenDC's source and
+// destination DCs. In no-UI mode (-ui), and always in the server engine,
+// MCscreen is a plain MCUIDC, not an MCScreenDC, and has no DCs (casting
+// it to call getsrchdc or getdsthdc read past its end): these then return
+// DCs made the same way, once. (Defined in w32flst.cpp.)
+HDC MCWin32GetScreenSourceDC(void);
+HDC MCWin32GetScreenDestinationDC(void);
+
 #endif
