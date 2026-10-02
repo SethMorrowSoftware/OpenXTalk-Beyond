@@ -7,10 +7,6 @@
 # fonts installed (24 on some systems, not in the CI container)
 ? lcs: core/field/pageHeights: TestPageHeights
 
-# Needs lsof, and a connection to livecode.com (lsof's line for the
-# socket names that host); the CI container has no lsof
-? lcs: core/network/network: TestOpenSocketFromWithLSOF
-
 # LiveCode Ltd's download addresses for its commercial mergExt and tsNet
 # externals, from builder/ (LiveCode's installer builder, which OXT-Beyond
 # does not use): outside servers, which answered in CI on 2026-10-01; they
