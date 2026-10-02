@@ -3,10 +3,3 @@
 # platform). One "<suite>: <test>" per line; "? " before it: fails only
 # sometimes; text after " #" is a comment.
 
-# LiveCode Ltd's download addresses for its commercial mergExt and tsNet
-# externals, from builder/ (LiveCode's installer builder, which OXT-Beyond
-# does not use): outside servers, which answered in CI on 2026-10-01; they
-# run on macOS and Linux only
-? lcs: ext/ext-urls: TestMergExtURL
-? lcs: ext/ext-urls: TestTSNetURL
-
