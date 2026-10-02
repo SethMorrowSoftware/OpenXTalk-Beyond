@@ -143,7 +143,12 @@ def default_platform():
         return 'win-x86_64'
     if fam == 'mac':
         return 'mac-universal'
-    return 'linux-arm64' if host.machine().lower() in ('aarch64', 'arm64') else 'linux-x86_64'
+    machine = host.machine().lower()
+    if machine in ('aarch64', 'arm64'):
+        return 'linux-arm64'
+    if machine in ('i386', 'i486', 'i586', 'i686', 'x86'):
+        return 'linux-x86'
+    return 'linux-x86_64'
 
 
 def engine_processor(engine):
@@ -151,7 +156,7 @@ def engine_processor(engine):
     for Mach-O this machine's architecture when the engine has it (a
     universal engine runs the native slice)."""
     if engine.lower().endswith('.exe'):
-        return 'x86_64'
+        return binfmt.pe_arch(engine) or 'x86_64'
     arch = binfmt.elf_arch(engine)
     if arch:
         return arch

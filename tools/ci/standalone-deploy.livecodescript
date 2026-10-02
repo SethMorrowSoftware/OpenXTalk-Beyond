@@ -26,7 +26,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- Run with a development engine, without a user interface:
 --    <engine> -ui tools/ci/standalone-deploy.livecodescript
 -- Environment:
---    OXT_DEPLOY_PLATFORM  macosx or linux (the deploy command's platform)
+--    OXT_DEPLOY_PLATFORM  macosx, linux or windows (the deploy command's
+--                         platform)
 --    OXT_DEPLOY_ENGINE    the standalone engine to attach the stack to
 --    OXT_DEPLOY_OUTPUT    the standalone to write
 --    OXT_DEPLOY_STACK     where to save the stack file
@@ -50,8 +51,8 @@ on startup
    local tParams, tResult
    write "INFO engine version=" & the version & " platform=" & the platform & " processor=" & the processor & return to stdout
    try
-      if $OXT_DEPLOY_PLATFORM is not among the items of "macosx,linux" then
-         throw "OXT_DEPLOY_PLATFORM must be macosx or linux, not '" & $OXT_DEPLOY_PLATFORM & "'"
+      if $OXT_DEPLOY_PLATFORM is not among the items of "macosx,linux,windows" then
+         throw "OXT_DEPLOY_PLATFORM must be macosx, linux or windows, not '" & $OXT_DEPLOY_PLATFORM & "'"
       end if
       if there is not a file $OXT_DEPLOY_ENGINE then
          throw "no standalone engine at " & $OXT_DEPLOY_ENGINE
@@ -72,6 +73,10 @@ on startup
          -- a new LC_UUID for the executable, as the builder gives each one
          put uuid() into tParams["uuid"]
          _internal deploy macosx tParams
+      else if $OXT_DEPLOY_PLATFORM is "windows" then
+         -- what revStandaloneDeployWithParams passes besides the icons,
+         -- the version resource and the manifest, which are optional
+         _internal deploy windows tParams
       else
          _internal deploy linux tParams
       end if
