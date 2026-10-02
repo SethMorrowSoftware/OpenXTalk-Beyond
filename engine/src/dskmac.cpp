@@ -4573,6 +4573,13 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
     
     virtual Boolean Poll(real8 p_delay, int p_fd)
     {
+        // Without a UI, MCNotifyPing() wakes the main thread by writing to
+        // this pipe (with one, it breaks the Cocoa event wait instead): the
+        // socket thread's notifications for a 'wait for messages' are only
+        // handled at the next timer message, as libURL's socket timeout, if
+        // the select below does not wake for it.
+        extern int g_notify_pipe[2];
+
         fd_set rmaskfd, wmaskfd, emaskfd;
         FD_ZERO(&rmaskfd);
         FD_ZERO(&wmaskfd);
@@ -4590,17 +4597,29 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
             if (MCshellfd > maxfd)
                 maxfd = MCshellfd;
         }
-        
+        if (g_notify_pipe[0] != -1)
+        {
+            FD_SET(g_notify_pipe[0], &rmaskfd);
+            if (g_notify_pipe[0] > maxfd)
+                maxfd = g_notify_pipe[0];
+        }
+
         struct timeval timeoutval;
         timeoutval.tv_sec = (long)p_delay;
         timeoutval.tv_usec = (long)((p_delay - floor(p_delay)) * 1000000.0);
         int n = 0;
-        
+
         n = select(maxfd + 1, &rmaskfd, &wmaskfd, &emaskfd, &timeoutval);
-        
+
         if (n <= 0)
             return False;
-        
+
+        if (g_notify_pipe[0] != -1 && FD_ISSET(g_notify_pipe[0], &rmaskfd))
+        {
+            char t_notify_char;
+            read(g_notify_pipe[0], &t_notify_char, 1);
+        }
+
         if (MCshellfd != -1 && FD_ISSET(MCshellfd, &rmaskfd))
             return True;
         
