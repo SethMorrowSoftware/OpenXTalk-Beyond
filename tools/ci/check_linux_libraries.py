@@ -89,10 +89,6 @@ NOT_LINUX = ('Runtime/Android/*', 'Extensions/*/code/*-android*/*')
 FONT_MODULES = ('pango', 'pangocairo', 'pangoft2')
 
 
-class ListError(Exception):
-    pass
-
-
 def read_list(path):
     """{soname: (use, deb, rpm)} from the launcher's library list."""
     out = collections.OrderedDict()

@@ -17,10 +17,7 @@
        and desktop shortcuts, the .oxtstack and .oxtscript associations, and
        that the Users group has Modify on the folders and files the IDE
        writes to at run time.
-    4. Runs tools/ci/smoke-test.ps1 -InstallDir on the installed folder. With
-       an older smoke-test.ps1 that has no -InstallDir parameter, it runs
-       tools/ci/smoke-test.livecodescript with the installed OXT-Beyond.exe
-       directly, the same way.
+    4. Runs tools/ci/smoke-test.ps1 -InstallDir on the installed folder.
     5. Runs the uninstaller silently and checks that the registration, the
        installed files, the shortcuts and the associations are gone. Files
        that were not installed but are left in the folder are listed as a
@@ -206,43 +203,6 @@ function Get-ShortcutTarget([string]$Path) {
     $shell = New-Object -ComObject WScript.Shell
     try { return $shell.CreateShortcut($Path).TargetPath }
     finally { [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
-}
-
-# Runs smoke-test.livecodescript with the installed engine, as
-# smoke-test.ps1 -InstallDir does; returns the number of failed checks
-function Invoke-DirectSmokeTest([string]$Dir, [string]$LogFile) {
-    $engine = Join-Path $Dir $ExeName
-    $smokeScript = Join-Path $PSScriptRoot 'smoke-test.livecodescript'
-    $versionLine = Get-Content -LiteralPath (Join-Path $RepoRoot 'version') | Where-Object { $_ -match '^\s*BUILD_SHORT_VERSION\s*=' } | Select-Object -First 1
-    $sqliteLine = Get-Content -LiteralPath (Join-Path $RepoRoot 'thirdparty\libsqlite\include\sqlite3.h') | Where-Object { $_ -match '^#define\s+SQLITE_VERSION\s+"' } | Select-Object -First 1
-    if (-not $versionLine -or -not $sqliteLine) { throw 'Expected engine or SQLite version not found in the source tree' }
-    $env:OXT_EXPECT_VERSION = ($versionLine -split '=', 2)[1].Trim()
-    $env:OXT_EXPECT_SQLITE = [regex]::Match($sqliteLine, '"([^"]+)"').Groups[1].Value
-    $env:OXT_EXTERNALS_DIR = Join-Path $Dir 'Externals'
-    $env:OXT_DRIVERS_DIR = Join-Path $Dir 'Externals\Database Drivers'
-    $outFile = [System.IO.Path]::GetTempFileName()
-    $errFile = [System.IO.Path]::GetTempFileName()
-    try {
-        $process = Start-Process -FilePath $engine -ArgumentList @('-ui', ('"{0}"' -f $smokeScript)) `
-            -WorkingDirectory $Dir -RedirectStandardOutput $outFile -RedirectStandardError $errFile -NoNewWindow -PassThru
-        $null = $process.Handle
-        if (-not $process.WaitForExit(300000)) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw 'The engine did not finish within 300 seconds'
-        }
-        $process.WaitForExit()
-        $output = @(Get-Content -LiteralPath $outFile)
-        $errors = @(Get-Content -LiteralPath $errFile | Where-Object { $_ -ne '' })
-        $output | ForEach-Object { Write-Host $_ }
-        [System.IO.File]::WriteAllLines($LogFile, [string[]](@($output) + @('', 'stderr:') + @($errors)), $utf8)
-        $summary = $output | Where-Object { $_ -match '^SUMMARY passed=(\d+) failed=(\d+)' } | Select-Object -Last 1
-        if (-not $summary) { throw "The smoke test did not finish (exit code $($process.ExitCode), no SUMMARY line)" }
-        $null = $summary -match '^SUMMARY passed=(\d+) failed=(\d+)'
-        return [int]$Matches[2]
-    }
-    finally {
-        Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue
-    }
 }
 
 # --- Before installing ---
@@ -439,21 +399,12 @@ try {
         Write-Host 'Smoke test of the installed program:'
         $smokeLog = Join-Path $LogDir 'smoke-test-installed.log'
         $smokePath = Join-Path $PSScriptRoot 'smoke-test.ps1'
-        $smokeParams = (Get-Command -Name $smokePath -CommandType ExternalScript).Parameters
         $failedCount = $null
         $detail = ''
         try {
-            if ($smokeParams.ContainsKey('InstallDir')) {
-                $splat = @{ InstallDir = $InstallDir; LogFile = $smokeLog }
-                if ($smokeParams.ContainsKey('Exe')) { $splat['Exe'] = $ExeName }
-                $global:LASTEXITCODE = 0
-                & $smokePath @splat
-                $failedCount = $LASTEXITCODE
-            }
-            else {
-                Write-Host '  (smoke-test.ps1 has no -InstallDir parameter; running the engine directly)'
-                $failedCount = Invoke-DirectSmokeTest $InstallDir $smokeLog
-            }
+            $global:LASTEXITCODE = 0
+            & $smokePath -InstallDir $InstallDir -Exe $ExeName -LogFile $smokeLog
+            $failedCount = $LASTEXITCODE
             $detail = "$failedCount failed"
         }
         catch {
