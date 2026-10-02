@@ -43,6 +43,12 @@ P chooses the layout (PLATFORMS below; default win-x86_64):
   mac-arm64, mac-x86_64
                  OXT-Beyond.app from one architecture's build, to check the
                  layout; --allow-single-arch lets mac-universal take one too.
+  win-x86, linux-x86
+                 the 32-bit builds, which are made for their standalone
+                 runtimes (Runtime/Windows/x86-32, Runtime/Linux/x86-32):
+                 tools/oxt/make_runtimes_asset.py --builds takes those from
+                 them with this script's tables, for the runtimes asset that
+                 every package installs. They are not packaged themselves.
 
 --bin-tar takes the build output as the tarball a CI build uploads
 (OXT-Beyond-linux-<arch>-bin.tar.xz, OXT-Beyond-mac-<arch>-bin.tar.xz):
@@ -309,13 +315,17 @@ class Platform(object):
         self.eol = b'\r\n' if family == 'windows' else b'\n'
 
 
-def _windows_x86_64():
-    """package.txt TargetPlatform Windows, TargetArchitecture x86_64."""
+def _windows(arch):
+    """package.txt TargetPlatform Windows, TargetArchitecture x86_64 or x86.
+    The x86 (32-bit) build is made for its standalone runtime,
+    Runtime/Windows/x86-32 (the IDE's "Windows" target), which the
+    packages take from the runtimes asset (tools/oxt/make_runtimes_asset.py
+    --builds); it is not packaged itself."""
     externals = (('Speech', 'revspeech.dll'), ('XML', 'revxml.dll'),
                  ('Browser', 'revbrowser.dll'), ('Revolution Zip', 'revzip.dll'))
     return Platform(
-        'win-x86_64', 'windows', 'x86_64',
-        bin_default='win-x86_64-bin',
+        'win-' + arch, 'windows', arch,
+        bin_default='win-%s-bin' % arch,
         dev_engine='LiveCode-Community.exe',
         engine=PRODUCT + '.exe',
         component='Windows',
@@ -333,7 +343,7 @@ def _windows_x86_64():
         # component Toolchain.Windows
         toolchain=('lc-compile.exe', 'lc-run.exe', 'lc-compile-ffi-java.exe'),
         # component Externals.CEF.Windows: the helpers from the build root,
-        # the rest from win-x86_64:Externals/CEF
+        # the rest from the build's Externals/CEF
         cef=dict(
             helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe'),
             helpers_at_engine=(), helpers_at_runtime=(),
@@ -343,8 +353,9 @@ def _windows_x86_64():
                    'natives_blob.bin', 'snapshot_blob.bin', 'v8_context_snapshot.bin',
                    'swiftshader/libEGL.dll', 'swiftshader/libGLESv2.dll'),
             trees=('locales',)),
-        # component Runtime.Windows x86-64 (Sample Icons come from the IDE part)
-        runtimes=(dict(folder='Runtime/Windows/x86-64',
+        # component Runtime.Windows x86-64 or x86-32 (Sample Icons come
+        # from the IDE part)
+        runtimes=(dict(folder='Runtime/Windows/' + {'x86_64': 'x86-64', 'x86': 'x86-32'}[arch],
                        standalone=('standalone-community.exe', 'Standalone'),
                        files=('w32-manifest-template.xml',
                               'w32-manifest-template-dpiaware.xml',
@@ -366,7 +377,11 @@ def _windows_x86_64():
 def _linux(arch):
     """package.txt TargetPlatform Linux. The arm64 build has no CEF and the
     IDE no Linux arm64 standalone target (revsblibrary: Linux, Linux x64,
-    Linux armv6-hf), so linux-arm64 has neither."""
+    Linux armv6-hf), so linux-arm64 has neither. The x86 (32-bit) build has
+    no CEF either (CEF's 32-bit Linux builds ended with CEF 101); it is
+    built for its standalone runtime, Runtime/Linux/x86-32 (the IDE's
+    "Linux" target), which the other platforms' packages take from the
+    runtimes asset (tools/oxt/make_runtimes_asset.py --builds)."""
     cef = arch == 'x86_64'
     externals = (('XML', 'revxml.so'), ('Revolution Zip', 'revzip.so'))
     if cef:
@@ -381,10 +396,10 @@ def _linux(arch):
         ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Linux'),
     ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS
     runtimes = ()
-    if arch == 'x86_64':
-        # component Runtime.Linux with TargetArchitecture x86_64, plus
-        # Externals (which includes Externals.CEF.Linux)
-        runtimes = (dict(folder='Runtime/Linux/x86-64',
+    if arch in ('x86_64', 'x86'):
+        # component Runtime.Linux with TargetArchitecture x86_64 or x86,
+        # plus Externals (which includes Externals.CEF.Linux on x86_64)
+        runtimes = (dict(folder='Runtime/Linux/' + {'x86_64': 'x86-64', 'x86': 'x86-32'}[arch],
                          standalone=('standalone-community', 'Standalone'),
                          files=(), support=('revpdfprinter.so', 'revsecurity.so'),
                          externals=True),)
@@ -773,7 +788,8 @@ def _mac(arch):
 
 
 PLATFORMS = collections.OrderedDict((p.name, p) for p in (
-    _windows_x86_64(), _linux('x86_64'), _linux('arm64'), _mac('universal'), _mac('arm64'), _mac('x86_64')))
+    _windows('x86_64'), _windows('x86'), _linux('x86_64'), _linux('arm64'), _linux('x86'), _mac('universal'),
+    _mac('arm64'), _mac('x86_64')))
 DEFAULT_PLATFORM = 'win-x86_64'
 
 # Paths of a reference install (layout.py class build) that packaging does
@@ -1064,6 +1080,24 @@ def plan_engine(pl):
         pl.output(target, rel, note)
 
 
+def plan_runtimes(pl, tools):
+    """Runtime.<platform>: the standalone runtime folders under tools (the
+    tools root, '' or ending in '/'). Windows Sample Icons come from the
+    IDE part. Also used by tools/oxt/make_runtimes_asset.py --builds."""
+    p = pl.p
+    for r in p.runtimes:
+        folder = tools + r['folder'] + '/'
+        if r['standalone']:     # None: a folder with only Externals (macOS arm64)
+            rel, name = r['standalone']
+            pl.output(folder + name, rel, 'Runtime.%s (%s as %s)' % (p.component, rel, name))
+        for f in r['files']:
+            pl.file(folder + f, f, 'Runtime.' + p.component)
+        for f in r['support']:
+            pl.output(folder + 'Support/' + f, f, 'Runtime.' + p.component)
+        if r['externals']:
+            externals_component(pl, folder, True)
+
+
 def plan_build(pl):
     p = pl.p
     tools = p.tools
@@ -1079,18 +1113,7 @@ def plan_build(pl):
     for name in p.toolchain:
         pl.file(tools + 'Toolchain/' + name, name, 'Toolchain.' + p.component)
     pl.tree(tools + 'Toolchain/modules', 'modules', 'Toolchain.' + p.component)
-    # Runtime.<platform> (Windows Sample Icons come from the IDE part)
-    for r in p.runtimes:
-        folder = tools + r['folder'] + '/'
-        if r['standalone']:     # None: a folder with only Externals (macOS arm64)
-            rel, name = r['standalone']
-            pl.output(folder + name, rel, 'Runtime.%s (%s as %s)' % (p.component, rel, name))
-        for f in r['files']:
-            pl.file(folder + f, f, 'Runtime.' + p.component)
-        for f in r['support']:
-            pl.output(folder + 'Support/' + f, f, 'Runtime.' + p.component)
-        if r['externals']:
-            externals_component(pl, folder, True)
+    plan_runtimes(pl, tools)
     # Extensions and TimeZone
     for ext in PACKAGED_EXTENSIONS:
         pl.tree(tools + 'Extensions/' + ext, 'packaged_extensions/' + ext,
