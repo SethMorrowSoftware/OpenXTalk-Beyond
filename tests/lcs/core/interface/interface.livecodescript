@@ -234,8 +234,15 @@ on TestMovingControls
    create button
    move button 1 relative 50,50 in 100 milliseconds without waiting
    TestAssert "Moving control is referenced", the long id of button 1 is among the lines of the movingControls
-   wait 150 milliseconds
-   
+
+   -- The move takes 100 milliseconds, but a busy computer can get to its end
+   -- much later: wait until it is over (for 5 seconds at most) rather than
+   -- for a fixed time
+   local tDeadline
+   put the milliseconds + 5000 into tDeadline
+   repeat while the movingControls is not empty and the milliseconds < tDeadline
+      wait 10 milliseconds with messages
+   end repeat
    TestAssert "Control removed from the movingControls list", the movingControls is empty
 end TestMovingControls
 
