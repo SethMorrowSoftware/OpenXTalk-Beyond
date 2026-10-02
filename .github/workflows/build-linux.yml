@@ -879,15 +879,16 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --install "$OXT_ROOT" --engine "$OXT_ROOT/oxt-beyond" \
             --platform linux-x86_64 --log "$RUNNER_TEMP/logs/ide-compile-check.log"
 
-      # A standalone built from the package's own runtime
-      # (Runtime/Linux/x86-64/Standalone) by its engine, as the IDE's
-      # builder does at its core ("_internal deploy linux"), then run; the
+      # A standalone built from each runtime of the package (Linux x86-64
+      # and x86, Windows x86-64 and x86) by its engine, as the IDE's builder
+      # does at its core ("_internal deploy"); the Linux x86-64 one is run,
+      # the others checked as files of their format and architecture. Each
       # runtime folder's binaries are checked first
       # (tools/ci/standalone_check.py)
       - name: Standalone check
         timeout-minutes: 15
         run: |
-          python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+          python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform linux-x86_64 --targets all \
             --log "$RUNNER_TEMP/logs/standalone-check.log"
 
       # ldd over every x86_64 ELF file of the package (engine, externals,

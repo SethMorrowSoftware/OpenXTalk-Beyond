@@ -117,8 +117,8 @@ pre-release for testing (see what 0.2.1 adds, under
   engine in the portable zip and in an installed copy (the script engine,
   Unicode, OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
   every script of the IDE and compares the errors with a list of known
-  ones, builds a standalone from the portable zip's runtime and runs it,
-  and installs and uninstalls the installer (see
+  ones, builds a standalone from each runtime in the portable zip and
+  runs the Windows ones, and installs and uninstalls the installer (see
   [BUILDING.md](BUILDING.md#7-run-check-and-package-the-result)). The
   macOS and Linux packages get the same smoke test (with every bundled
   xTalk Suite extension), IDE compile check and standalone check on

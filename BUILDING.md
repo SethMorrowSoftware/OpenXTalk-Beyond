@@ -1396,8 +1396,9 @@ x86-64 and x86, the Mac's universal one), building each standalone with
 the layout's engine, since any engine deploys for every platform:
 Windows runs both Windows standalones, Linux and macOS their own. Android
 standalones need the Android SDK and are not checked. The CI jobs run
-it on every package with its own runtime, and on the 32-bit builds with
-`--engine` and `--runtime`.
+it with `--targets all` on every package (the Windows portable zip, the
+Linux tar.xz and the macOS app on both Mac architectures), and on the
+32-bit builds with `--engine` and `--runtime`.
 
 ### Installer
 
