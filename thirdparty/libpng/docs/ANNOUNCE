@@ -1,39 +1,45 @@
+libpng 1.6.59 - September 28, 2026
+==================================
 
-Libpng 1.5.26 - December 17, 2015
+This is a public release of libpng, intended for use in production code.
 
-This is a public release of libpng, intended for use in production codes.
 
-Files available for download:
+Files available for download
+----------------------------
 
-Source files with LF line endings (for Unix/Linux) and with a
-"configure" script
+Source files:
 
-   libpng-1.5.26.tar.xz (LZMA-compressed, recommended)
-   libpng-1.5.26.tar.gz
-
-Source files with CRLF line endings (for Windows), without the
-"configure" script
-
-   lpng1526.7z  (LZMA-compressed, recommended)
-   lpng1526.zip
+ * libpng-1.6.59.tar.xz (LZMA-compressed, recommended)
+ * libpng-1.6.59.tar.gz (deflate-compressed)
+ * lpng1659.7z (LZMA-compressed)
+ * lpng1659.zip (deflate-compressed)
 
 Other information:
 
-   libpng-1.5.26-README.txt
-   libpng-1.5.26-LICENSE.txt
-   libpng-1.5.26-*.asc (armored detached GPG signatures)
+ * README.md
+ * LICENSE.md
+ * AUTHORS.md
+ * TRADEMARK.md
 
-Changes since the last public release (1.5.25):
-  Fixed an out-of-range read in png_check_keyword() (Bug report from
-    Qixue Xiao, CVE-2015-8540).
-  Corrected copyright dates in source files.
-  Moved png_check_keyword() from pngwutil.c to pngset.c
-  Added keyword checks to pngset.c (John Bowler).
 
-Send comments/corrections/commendations to png-mng-implement at lists.sf.net
-(subscription required; visit
-https://lists.sourceforge.net/lists/listinfo/png-mng-implement
-to subscribe)
-or to glennrp at users.sourceforge.net
+Changes from version 1.6.58 to version 1.6.59
+---------------------------------------------
 
-Glenn R-P
+ * Fixed CVE-2026-46675 (medium severity):
+   Use-after-free of zlib input in `png_read_end` after incomplete zTXt, iTXt
+   or iCCP decompression.
+   (Reported independently by Ze Sheng and
+   <JasonHonKL@users.noreply.github.com>.)
+ * Fixed a regression introduced in version 1.6.47 that caused libpng to reject
+   hIST chunks in their correct position, after PLTE.
+   (Contributed by Yuki Sekiguchi.)
+ * Prevented a double free of `png_struct` members after an allocation failure.
+   (Contributed by Anthony Hurtado.)
+ * Applied fixes and updates to the CMake build.
+ * Adopted the REUSE Specification for licensing the CI files.
+
+
+Send comments/corrections/commendations to png-mng-implement at lists.sf.net.
+Subscription is required; visit
+<https://lists.sourceforge.net/lists/listinfo/png-mng-implement>
+to subscribe.
