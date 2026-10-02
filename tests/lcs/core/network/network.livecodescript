@@ -147,7 +147,7 @@ on TestOpenSocketFromWithAddress
       put "livecode.com|" & uuid() into tSock
       open socket from tLocalAddress to tSock
       TestAssert "open socket from with local address", tSock is among the lines of the openSockets
-      close socket tSock1
+      close socket tSock
    end if
 end TestOpenSocketFromWithAddress
 
