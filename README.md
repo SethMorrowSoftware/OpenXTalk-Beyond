@@ -45,7 +45,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.2, the second release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.3, the third release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -620,7 +620,8 @@ and in the IDE:
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
-OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1 and 0.2.1-rc.2)
+OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2 and
+0.2.1-rc.3)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
@@ -637,8 +638,11 @@ adds:
   puts on the clipboard are native; the `playLoudness` of a player and
   the player properties that the Windows player cannot get (the duration
   and current time of a file it cannot play, for example) no longer
-  return random values; and the `fontNames` no longer fail for no
-  reason;
+  return random values; the `fontNames` no longer fail for no reason;
+  and without a user interface (`-ui`) the engine no longer reads past
+  the end of its screen object for the theme font, which now and then
+  crashed the 32-bit engine at startup, or for the device context it
+  measures fonts and draws themed controls with (new in 0.2.1-rc.3);
 - on Linux and macOS, `~` is `$HOME`, and on Linux `~user/folder`
   resolves; on Linux the last second of 1969 converts, and file lists on
   the clipboard and in drag and drop keep names with spaces and "+"; on
