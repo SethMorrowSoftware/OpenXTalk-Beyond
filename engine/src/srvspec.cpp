@@ -187,8 +187,15 @@ static void url_execute(MCStringRef p_url, MCUrlExecuteCallback p_callback, void
 
 	if (t_error == NULL)
 	{
-#if LIBCURL_VERSION_MINOR >= 19
+// OXT-Beyond: test the whole version (7.19.0 and later), not the minor
+// number alone, which is below 19 in curl 8.0 to 8.18 (macOS's system curl)
+#if LIBCURL_VERSION_NUM >= 0x071300
+#if LIBCURL_VERSION_NUM >= 0x075500
+		// CURLOPT_REDIR_PROTOCOLS is deprecated from curl 7.85.0 on
+		if (curl_easy_setopt(t_url_handle, CURLOPT_REDIR_PROTOCOLS_STR, "http,https") != CURLE_OK ||
+#else
 		if (curl_easy_setopt(t_url_handle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS) != CURLE_OK ||
+#endif
 			curl_easy_setopt(t_url_handle, CURLOPT_FOLLOWLOCATION, 1) != CURLE_OK)
 			t_error = "couldn't configure follow";
 #endif

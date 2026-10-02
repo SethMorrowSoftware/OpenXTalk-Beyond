@@ -1,3 +1,6 @@
-Files in this folder are based on libcurl-7.21.1
+Files in this folder are the public headers (include/curl) of curl 8.22.0,
+unchanged, and its licence (COPYING). The Linux server engine compiles
+against them and links the libcurl that prebuilt/scripts/build-curl.sh builds
+from the same release (prebuilt/versions/curl).
 
-Original source archives are available from <http://curl.haxx.se/libcurl/>
+Original source archives are available from <https://curl.se/download/>
