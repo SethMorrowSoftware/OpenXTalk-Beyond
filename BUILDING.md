@@ -693,7 +693,9 @@ errors. The intended differences are:
 - files `layout.py` classes "excluded" (Apple's Human Interface
   Guidelines PDF, `animationEngine6.zip`) or "junk"
   (`OpenXTalk Lite.lnk`, `test.db`, an empty
-  `Toolset\palettes\dictionary\api.sqlite`) are not staged;
+  `Toolset\palettes\dictionary\api.sqlite`, the unused
+  `Toolset\palettes\standalone settings\mac-arm-deploy.oxtstack`) are not
+  staged;
 - the licence files, `PROVENANCE-oxt-runtimes-1.15.md` and the xTalk
   Suite extensions (with `Extensions\XTALK-EXTENSIONS.txt`) are added.
 

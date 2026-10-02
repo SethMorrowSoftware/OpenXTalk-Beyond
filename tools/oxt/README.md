@@ -105,7 +105,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `Runtime/Windows/x86-64/**` | build | | Runtime.Windows x86-64 |
 | `Runtime/**` (Windows x86-32, Linux, Android, Emscripten, macOS, iOS) | external | | Runtime.* for other platforms |
 | `Ext/**` | external | | Ext: mergExt collection downloaded by the builder |
-| `*.lnk`, `test.db`, names starting with `.` below the root | junk | | |
+| `*.lnk`, `test.db`, `Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack`, names starting with `.` below the root | junk | | |
 
 Notes on the choices:
 
@@ -140,6 +140,10 @@ Notes on the choices:
   `Toolset/palettes/dictionary/api.sqlite` are zero-byte SQLite files; no
   script refers to the latter (the IDE and the Quick Dictionary plugin use
   `Documentation/html_viewer/resources/data/api/api.sqlite`).
+  `mac-arm-deploy.oxtstack`, a macOS ARM standalone builder, is opened by
+  nothing, and its button calls `_internal build MacARM`, which this engine
+  does not have; it was removed from `ide/` in 0.2.1, and is junk so that
+  an import does not bring it back.
 
 ### Managed files
 
