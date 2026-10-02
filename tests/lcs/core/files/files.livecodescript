@@ -84,8 +84,9 @@ on TestShortFilePath2
          create folder tLongFolder
       end if
       put the shortfilepath of tLongFolder into tShortFolder
+      TestAssert "the folder has a short path:" && the result, tShortFolder is not empty
       delete folder tLongFolder
-      
+
       // check path components are in 8.3 format
       set the itemdelimiter to "/"
       repeat for each item tPart in tShortFolder
