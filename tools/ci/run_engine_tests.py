@@ -189,11 +189,39 @@ def lc_path(path):
     return os.path.abspath(path).replace('\\', '/')
 
 
+def linux_jvm_dir():
+    """The folder of a JDK's libjvm.so on Linux (from JAVA_HOME, else from
+    javac on the PATH), or None."""
+    home = os.environ.get('JAVA_HOME')
+    if not home:
+        javac = shutil.which('javac')
+        if javac is None:
+            return None
+        # <home>/bin/javac
+        home = os.path.dirname(os.path.dirname(os.path.realpath(javac)))
+    # lib/server since Java 9, jre/lib/<arch>/server in Java 8
+    for sub in [os.path.join('lib', 'server')] + \
+            [os.path.join('jre', 'lib', a, 'server') for a in ('amd64', 'aarch64', 'arm', 'i386')]:
+        folder = os.path.join(home, sub)
+        if os.path.isfile(os.path.join(folder, 'libjvm.so')):
+            return folder
+    return None
+
+
 def child_env():
     env = dict(os.environ)
     # Headless: -ui needs no display, and a test must not reach one.
     for var in ('DISPLAY', 'WAYLAND_DISPLAY'):
         env.pop(var, None)
+    # On Linux the engine loads Java as "libjvm.so", which it finds only on
+    # the library path (libfoundation/src/foundation-java-private.cpp), as a
+    # user of the engine's Java support sets it up: without it the Java
+    # tests fail with "Could not initialise Java Runtime Environment"
+    if sys.platform.startswith('linux'):
+        jvm = linux_jvm_dir()
+        if jvm is not None:
+            env['LD_LIBRARY_PATH'] = os.pathsep.join(
+                [jvm] + [x for x in env.get('LD_LIBRARY_PATH', '').split(os.pathsep) if x])
     return env
 
 
@@ -809,6 +837,15 @@ def main(argv=None):
         log('  NEW   %s' % r.ident)
         for line in getattr(r, 'failures', [])[:10] + r.details[:30]:
             log('        %s' % line)
+    # what a "? " entry failed with: without it a test that fails every time
+    # behind its "sometimes" mark goes unnoticed, and so does how it failed
+    sometimes = [r for r in failing if known.get(r.ident)]
+    if sometimes:
+        log('Failed, in the baseline as failing only sometimes:')
+        for r in sometimes:
+            log('  ?     %s' % r.ident)
+            for line in getattr(r, 'failures', [])[:5]:
+                log('        %s' % line)
     if flaky:
         log('Flaky (failed, then passed when run again; not counted as failures):')
         for r in flaky:
