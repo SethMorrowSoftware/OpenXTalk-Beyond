@@ -56,7 +56,32 @@
 				'include',
 				'src',
 			],
-			
+
+			# ICU 75 and later need C++17 for their C++ headers
+			# (unicode/unistr.h includes <string_view>), which
+			# foundation-unicode.cpp and foundation-locale.cpp use. The rest of
+			# the engine keeps its older standard. (A later -std wins.)
+			'cflags_cc':
+			[
+				'-std=c++17',
+			],
+
+			'xcode_settings':
+			{
+				'CLANG_CXX_LANGUAGE_STANDARD': 'c++17',
+			},
+
+			'msvs_settings':
+			{
+				'VCCLCompilerTool':
+				{
+					'AdditionalOptions':
+					[
+						'/std:c++17',
+					],
+				},
+			},
+
 			'sources':
 			[
 				'include/foundation.h',

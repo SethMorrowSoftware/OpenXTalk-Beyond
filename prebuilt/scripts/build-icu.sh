@@ -33,7 +33,14 @@ esac
 if [ ! -d "$ICU_SRC" ] ; then
 	if [ ! -e "$ICU_TGZ" ] ; then
 		echo "Fetching ICU source"
-		fetchUrl "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION//./-}/icu4c-${ICU_VERSION_ALT}-src.tgz" "${ICU_TGZ}"
+		# ICU 78 and later: tag release-78.3, file icu4c-78.3-sources.tgz; before
+		# that: tag release-58-2, file icu4c-58_2-src.tgz
+		if [ "${ICU_VERSION_MAJOR}" -ge 78 ] ; then
+			ICU_URL="https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION}/icu4c-${ICU_VERSION}-sources.tgz"
+		else
+			ICU_URL="https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION//./-}/icu4c-${ICU_VERSION_ALT}-src.tgz"
+		fi
+		fetchUrl "${ICU_URL}" "${ICU_TGZ}"
 		if [ $? != 0 ] ; then
 			echo "    failed"
 			if [ -e "${ICU_TGZ}" ] ; then 
@@ -46,15 +53,6 @@ if [ ! -d "$ICU_SRC" ] ; then
 	echo "Unpacking ICU source"
 	tar -xf "${ICU_TGZ}"
 	mv icu "${ICU_SRC}"
-
-	# glibc 2.26 removed <xlocale.h>; ICU 58 still includes it. (macOS
-	# still declares strtod_l in <xlocale.h>, so only change it on Linux.)
-	if [ "$(uname -s)" = "Linux" ] ; then
-		sed -i.bak -e 's/#   include <xlocale.h>/#   include <locale.h>/' "${ICU_SRC}/source/i18n/digitlst.cpp"
-	fi
-
-	# C++17 removed the register storage class, which ICU 58 still uses
-	sed -i.bak -e 's/register int32_t nulLen = 0;/int32_t nulLen = 0;/' "${ICU_SRC}/source/common/ustr_wcs.cpp"
 fi
 
 ICU_LIBS="data i18n io le lx tu uc"
