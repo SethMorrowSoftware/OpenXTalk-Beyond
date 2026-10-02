@@ -1,0 +1,271 @@
+# Makes the runtimes asset, oxt-runtimes-<label>.zip: the standalone
+# runtimes that every package installs for the platforms other than its own
+# (tools/oxt/make_runtimes_asset.py --builds, which says what it holds),
+# from the build outputs of one Windows and one Linux CI run of the same
+# commit, and can publish it as a GitHub Release. Start it by hand (Actions
+# > Runtimes asset > Run workflow) with:
+#
+#   label        the asset's label: the archive oxt-runtimes-<label>.zip,
+#                released under the tag runtimes-<label> (for example the
+#                version whose packages will take it, 0.2.1-rc.3)
+#   windows-run  the id (the number in its URL) of a "Build (Windows)" run
+#                whose jobs "Build win-x86" and "Build win-x86_64" passed
+#   linux-run    the id of a "Build (Linux)" run of the same commit whose
+#                jobs "Build linux-x86" and "Build linux-x86_64" passed
+#   publish      also publish the archive as the pre-release
+#                runtimes-<label>, tagged at that commit, which must be on
+#                main; without it the archive is only the artifact
+#                runtimes-asset of this run
+#
+#   assemble  checks the two runs, checks out their commit (so that the
+#             tool and package.py's tables are the ones the builds were
+#             made with), downloads the four builds' outputs
+#             (OXT-Beyond-win-x86-bin, the binaries zip in OXT-Beyond-
+#             win-x86_64, OXT-Beyond-linux-x86-bin and
+#             OXT-Beyond-linux-x86_64-bin) and the earlier asset whose
+#             Android parts are carried over, and makes the archive, its
+#             PROVENANCE.md and the entry for tools/oxt/external-assets.json
+#             (in the job summary and the artifact runtimes-asset);
+#   publish   creates the release with the archive and checks the upload.
+#             A tag that exists already is never changed: an asset is
+#             published once, and a new one gets a new label.
+#
+# The packages take the asset once tools/oxt/external-assets.json pins it:
+# a pull request replaces the oxt-runtimes-* entry with the one this run
+# wrote (make_runtimes_asset.py --update-manifest writes the same).
+#
+# Permissions: the assemble job reads the repository and the two runs'
+# artifacts (contents: read, actions: read); only the publish job may write
+# (contents: write), for the release. Neither keeps the token in the
+# checkout; the gh commands get it from the environment.
+
+name: Runtimes asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: >-
+          Label: the archive oxt-runtimes-<label>.zip under the tag
+          runtimes-<label> (for example 0.2.1-rc.3)
+        required: true
+        type: string
+      windows-run:
+        description: Id of a "Build (Windows)" run whose win-x86 and win-x86_64 builds passed
+        required: true
+        type: string
+      linux-run:
+        description: Id of a "Build (Linux)" run of the same commit whose linux-x86 and linux-x86_64 builds passed
+        required: true
+        type: string
+      publish:
+        description: Publish the archive as the pre-release runtimes-<label> (the commit must be on main)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtimes-asset-${{ inputs.label }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  assemble:
+    name: Assemble oxt-runtimes-${{ inputs.label }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      commit: ${{ steps.runs.outputs.commit }}
+    env:
+      LABEL: ${{ inputs.label }}
+      WINDOWS_RUN: ${{ inputs.windows-run }}
+      LINUX_RUN: ${{ inputs.linux-run }}
+    steps:
+      # Each run must be of its build workflow (not a release's call of it)
+      # and must have passed the two jobs whose outputs the asset takes;
+      # both must have built the same commit
+      - name: Check the label and the two runs
+        id: runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          [[ "$LABEL" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]] || fail "label '$LABEL': use letters, digits, '.', '_' and '-'"
+          [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]] || fail "windows-run '$WINDOWS_RUN' is not a run id"
+          [[ "$LINUX_RUN" =~ ^[0-9]+$ ]] || fail "linux-run '$LINUX_RUN' is not a run id"
+          # sets run_sha (not a command substitution, so that fail ends the step)
+          check_run() {
+            local id=$1 file=$2 info path branch job conclusion
+            shift 2
+            info=$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '[.path, .head_sha, .head_branch] | @tsv') ||
+              fail "cannot read the run $id"
+            IFS=$'\t' read -r path run_sha branch <<< "$info"
+            [ "$path" = ".github/workflows/$file" ] || fail "run $id is of $path, not of .github/workflows/$file"
+            for job in "$@"; do
+              conclusion=$(gh api --paginate "repos/$GH_REPO/actions/runs/$id/jobs?per_page=100" \
+                --jq ".jobs[] | select(.name == \"$job\") | .conclusion")
+              [ "$conclusion" = success ] || fail "job \"$job\" of run $id: ${conclusion:-not found}"
+            done
+            echo "run $id: $file on $branch at $run_sha"
+          }
+          check_run "$WINDOWS_RUN" build-windows.yml "Build win-x86" "Build win-x86_64"
+          windows_sha=$run_sha
+          check_run "$LINUX_RUN" build-linux.yml "Build linux-x86" "Build linux-x86_64"
+          linux_sha=$run_sha
+          [ "$windows_sha" = "$linux_sha" ] ||
+            fail "the runs built different commits: $windows_sha (Windows), $linux_sha (Linux)"
+          echo "commit=$windows_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the builds' commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.runs.outputs.commit }}
+          persist-credentials: false
+
+      - name: Download the win-x86 build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-win-x86-bin
+          path: ${{ runner.temp }}/builds/win-x86
+          run-id: ${{ inputs.windows-run }}
+          github-token: ${{ github.token }}
+
+      - name: Download the win-x86_64 packages (for the binaries zip)
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-win-x86_64
+          path: ${{ runner.temp }}/builds/win-x86_64
+          run-id: ${{ inputs.windows-run }}
+          github-token: ${{ github.token }}
+
+      - name: Download the linux-x86 build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-linux-x86-bin
+          path: ${{ runner.temp }}/builds/linux-x86
+          run-id: ${{ inputs.linux-run }}
+          github-token: ${{ github.token }}
+
+      - name: Download the linux-x86_64 build
+        uses: actions/download-artifact@v7
+        with:
+          name: OXT-Beyond-linux-x86_64-bin
+          path: ${{ runner.temp }}/builds/linux-x86_64
+          run-id: ${{ inputs.linux-run }}
+          github-token: ${{ github.token }}
+
+      # The earlier asset with the Android parts is downloaded by the tool
+      # and checked against the SHA-256 it records
+      - name: Make the archive
+        env:
+          COMMIT: ${{ steps.runs.outputs.commit }}
+        run: |
+          B="$RUNNER_TEMP/builds"
+          ls -l "$B"/*
+          win64=("$B"/win-x86_64/OXT-Beyond-*-win-x86_64-binaries.zip)
+          [ "${#win64[@]}" = 1 ] && [ -f "${win64[0]}" ] || { echo "::error::expected one binaries zip in OXT-Beyond-win-x86_64"; exit 1; }
+          runs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs"
+          python3 tools/oxt/make_runtimes_asset.py --builds --label "$LABEL" --out "$RUNNER_TEMP/asset" \
+            --bin "win-x86=$B/win-x86/OXT-Beyond-win-x86-bin.zip" \
+            --bin "win-x86_64=${win64[0]}" \
+            --bin "linux-x86=$B/linux-x86/OXT-Beyond-linux-x86-bin.tar.xz" \
+            --bin "linux-x86_64=$B/linux-x86_64/OXT-Beyond-linux-x86_64-bin.tar.xz" \
+            --assets-cache "$RUNNER_TEMP/assets-cache" \
+            --commit "$COMMIT" \
+            --run "win-x86,win-x86_64=$runs/$WINDOWS_RUN" \
+            --run "linux-x86,linux-x86_64=$runs/$LINUX_RUN"
+          ls -l "$RUNNER_TEMP/asset"
+          {
+            echo "### oxt-runtimes-$LABEL"
+            echo
+            echo "From commit \`$COMMIT\` (runs $runs/$WINDOWS_RUN and $runs/$LINUX_RUN)."
+            echo "The entry for \`tools/oxt/external-assets.json\` (in place of the oxt-runtimes-* entry):"
+            echo
+            echo '```json'
+            cat "$RUNNER_TEMP/asset/oxt-runtimes-$LABEL.manifest.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtimes-asset
+          path: ${{ runner.temp }}/asset/*
+          if-no-files-found: error
+          retention-days: 30
+          # The archive is compressed already
+          compression-level: 0
+
+  publish:
+    name: Publish runtimes-${{ inputs.label }}
+    needs: assemble
+    if: inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      LABEL: ${{ inputs.label }}
+      COMMIT: ${{ needs.assemble.outputs.commit }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download the archive
+        uses: actions/download-artifact@v7
+        with:
+          name: runtimes-asset
+          path: ${{ runner.temp }}/asset
+
+      # The commit must be on main (the compare API says "behind" or
+      # "identical" when main contains it), and the tag must be new
+      - name: Check the commit and the tag
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          status=$(gh api "repos/$GH_REPO/compare/main...$COMMIT" --jq .status) || fail "cannot compare $COMMIT with main"
+          case "$status" in
+            identical|behind) ;;
+            *) fail "commit $COMMIT is not on main ($status); publish runtimes from main only" ;;
+          esac
+          if gh api "repos/$GH_REPO/git/ref/tags/runtimes-$LABEL" --silent 2> /dev/null; then
+            fail "the tag runtimes-$LABEL exists already; a published asset is never replaced, so choose a new label"
+          fi
+
+      - name: Create the release and check the upload
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          name="oxt-runtimes-$LABEL"
+          dir="$RUNNER_TEMP/asset"
+          sha=$(sha256sum "$dir/$name.zip" | cut -d' ' -f1)
+          size=$(stat -c %s "$dir/$name.zip")
+          [ "$sha" = "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$dir/$name.manifest.json")" ] ||
+            fail "the archive does not match its manifest entry"
+          {
+            echo "Standalone runtimes that OXT-Beyond packages install for the platforms other than their own,"
+            echo "built from commit $COMMIT by OXT-Beyond's CI: Windows x86-32 and x86-64, Linux x86-32 and x86-64,"
+            echo "with the Android runtime carried over from runtimes-1.15. Not an OXT-Beyond release by itself:"
+            echo "tools/oxt/external-assets.json pins it, and PROVENANCE.md in the archive lists every file."
+            echo
+            echo "- \`$name.zip\`: $size bytes, SHA-256 \`$sha\`"
+            echo
+            echo '```json'
+            cat "$dir/$name.manifest.json"
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "runtimes-$LABEL" "$dir/$name.zip" "$dir/PROVENANCE.md" --target "$COMMIT" --prerelease --latest=false \
+            --title "Standalone runtimes $LABEL" --notes-file "$RUNNER_TEMP/notes.md"
+          uploaded=$(gh api "repos/$GH_REPO/releases/tags/runtimes-$LABEL" \
+            --jq ".assets[] | select(.name == \"$name.zip\") | [.size, .state, (.digest // \"\")] | @tsv")
+          echo "uploaded: $uploaded"
+          IFS=$'\t' read -r usize ustate udigest <<< "$uploaded"
+          [ "$usize" = "$size" ] && [ "$ustate" = uploaded ] || fail "the upload is $usize bytes, $ustate"
+          [ -z "$udigest" ] || [ "$udigest" = "sha256:$sha" ] || fail "the upload's digest is $udigest, not sha256:$sha"
+          echo "Published runtimes-$LABEL: $GITHUB_SERVER_URL/$GH_REPO/releases/tag/runtimes-$LABEL" >> "$GITHUB_STEP_SUMMARY"

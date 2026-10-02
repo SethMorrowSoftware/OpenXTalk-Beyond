@@ -64,7 +64,7 @@ TestPutBeforeIntoAfterInvalidContainer", and looked up in the baseline:
 tools/ci/engine-tests-baseline.txt (failures on every platform), the
 platform family's engine-tests-baseline-<windows|linux|mac>.txt next to
 it, and engine-tests-baseline-<family>-<arch>.txt for the failures on one
-processor architecture, x86_64 or arm64 (--arch, by default this
+processor architecture, x86_64, arm64 or x86 (--arch, by default this
 computer's). A failure in none of them is new, and fails the check (exit
 status 1); a baseline entry that passed is reported, so that it can be
 removed, but is not an error (some tests depend on timing); an entry
@@ -165,6 +165,8 @@ def host_arch():
         return 'x86_64'
     if machine in ('arm64', 'aarch64'):
         return 'arm64'
+    if machine in ('i386', 'i486', 'i586', 'i686', 'x86'):
+        return 'x86'
     return machine
 
 

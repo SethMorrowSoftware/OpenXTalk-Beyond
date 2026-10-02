@@ -243,8 +243,21 @@ MCFontnode::MCFontnode(MCNameRef fname, uint2 &size, uint2 style, Boolean printe
 
 	// MW-2013-11-07: [[ Bug 11393 ]] 'printer' in the fontstruct now means use ideal
 	//   metrics for rendering and measuring.
-	MCScreenDC *pms = (MCScreenDC *)MCscreen;
-	hdc = pms->getsrchdc();
+	// OXT-Beyond: in no-UI mode (-ui) MCscreen is a plain MCUIDC, not an
+	// MCScreenDC, so it has no source DC (the cast read past the end of the
+	// object, and GDI got a garbage DC, which left the metrics below
+	// uninitialised); a memory DC compatible with the screen, made once,
+	// measures the fonts there.
+	if (MCnoui)
+	{
+		static HDC s_noui_dc = CreateCompatibleDC(NULL);
+		hdc = s_noui_dc;
+	}
+	else
+	{
+		MCScreenDC *pms = (MCScreenDC *)MCscreen;
+		hdc = pms->getsrchdc();
+	}
 	logfont.lfHeight = MulDiv(MulDiv(size, 7, 8),
 	                          SCREEN_WIDTH_FOR_FONT_USE, 72);
 

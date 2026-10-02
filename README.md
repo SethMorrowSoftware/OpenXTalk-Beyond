@@ -54,7 +54,8 @@ pre-release for testing (see what 0.2.1 adds, under
   Silicon and Intel Macs, see [macOS](#macos)) and for 64-bit x86 Linux
   (see [Linux](#linux-x86-64)), made and tested together from one tag
   (0.0.1 and 0.0.2 were for Windows only). Linux arm64 is built in CI
-  but not packaged. There are no builds for 32-bit Windows.
+  but not packaged, and so are 32-bit Windows and Linux, for their
+  standalone runtimes.
 - **Standalones for other platforms use prebuilt runtimes.** Each
   package's engine, externals and tools, and the standalone runtime for
   its own platform, are built from this repository: Windows x86-64,
@@ -67,8 +68,9 @@ pre-release for testing (see what 0.2.1 adds, under
   separately as a release asset (`oxt-runtimes-1.15.zip`) and added when
   OXT-Beyond is packaged. Only the Windows package has the Windows
   x86-64 runtime, and only the macOS package the macOS runtimes. There
-  are no iOS runtimes. Of the automatic tests, only the macOS ones build
-  a standalone (a Mac one).
+  are no iOS runtimes. The automatic tests build and run a standalone
+  from each package's own runtime and from the 32-bit Windows and Linux
+  builds, not yet from the other runtimes a package carries.
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
@@ -114,14 +116,17 @@ pre-release for testing (see what 0.2.1 adds, under
   engine in the portable zip and in an installed copy (the script engine,
   Unicode, OpenSSL, SQLite 3.51.1 through revDB, revXML and revZip), compiles
   every script of the IDE and compares the errors with a list of known
-  ones, and installs and uninstalls the installer (see
+  ones, builds a standalone from the portable zip's runtime and runs it,
+  and installs and uninstalls the installer (see
   [BUILDING.md](BUILDING.md#7-run-check-and-package-the-result)). The
   macOS and Linux packages get the same smoke test (with every bundled
-  xTalk Suite extension) and IDE compile check on their own systems,
-  from the disk image on an Apple Silicon and an Intel Mac and from the
-  extracted tarball on Ubuntu 24.04, plus a signature check and one Mac
-  standalone built and run (macOS), and library checks and the install
-  scripts (Linux). Every build on all three platforms also runs the
+  xTalk Suite extension), IDE compile check and standalone check on
+  their own systems, from the disk image on an Apple Silicon and an
+  Intel Mac and from the extracted tarball on Ubuntu 24.04, plus a
+  signature check (macOS), and library checks and the install scripts
+  (Linux). The 32-bit Windows and Linux builds, made for their
+  standalone runtimes, get the smoke test, the engine tests and the
+  standalone check too. Every build on all three platforms also runs the
   engine tests that LiveCode Community keeps in `tests/` (about 1,150:
   LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
   the script parser)
@@ -852,8 +857,10 @@ Known limitations, in rough order of importance:
    (and the 64-bit Linux one in the Windows and macOS packages) are
    prebuilt binaries from OpenXTalk Lite 1.15, not built from this
    repository; the macOS and Linux packages have no Windows x86-64
-   runtime yet. Building standalones is tested automatically only for
-   macOS.
+   runtime yet. The 32-bit Windows and Linux runtimes are now built in
+   CI (see [BUILDING.md](BUILDING.md#9-continuous-integration)), but the
+   packages do not carry them yet. Building standalones is tested
+   automatically for each package's own runtime and the 32-bit builds.
 3. The Windows binaries are not code-signed, and the macOS app is signed
    ad hoc, not with an Apple Developer ID, and not notarized. Plan:
    Developer ID signing and notarization for macOS.

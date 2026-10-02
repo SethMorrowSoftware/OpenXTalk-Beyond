@@ -18,7 +18,8 @@
 """Read what packaging and the CI checks need from ELF (Linux) and Mach-O
 (macOS) binaries, with the Python standard library only, so that the same
 checks run on any host (a Windows or Linux machine can check a macOS
-build, which has no otool there):
+build, which has no otool there). Of Windows (PE) files only the machine
+is read (pe_arch), for the checks of the Windows standalone runtimes:
 
   the architecture(s)     ELF e_machine; Mach-O cputype of each slice of a
                           universal ("fat") file
@@ -47,6 +48,9 @@ import sys
 ELF_MAGIC = b'\x7fELF'
 # e_machine -> the architecture names used in platform ids and folders
 ELF_MACHINES = {3: 'x86', 62: 'x86_64', 40: 'arm', 183: 'arm64'}
+
+# PE (COFF) Machine -> the same names as ELF_MACHINES
+PE_MACHINES = {0x14c: 'x86', 0x8664: 'x86_64', 0xaa64: 'arm64', 0x1c4: 'arm'}
 
 # Mach-O cputype -> name (lipo -archs spelling)
 MACHO_CPUS = {7: 'i386', 0x01000007: 'x86_64', 12: 'arm', 0x0100000c: 'arm64', 0x0200000c: 'arm64_32',
@@ -374,6 +378,36 @@ def elf_arch(path):
     order = {1: '<', 2: '>'}.get(data[5], '<')
     machine = struct.unpack_from(order + 'H', data, 18)[0]
     return ELF_MACHINES.get(machine, 'machine-%d' % machine)
+
+
+def pe_arch(path):
+    """Architecture of a Windows PE file (an .exe or .dll) from its COFF
+    header, or None when it is not one: the "MZ" header's e_lfanew leads
+    to "PE\0\0" and the Machine field after it."""
+    data = read_file(path, 4096)
+    if data[:2] != b'MZ' or len(data) < 64:
+        return None
+    off = struct.unpack_from('<I', data, 0x3c)[0]
+    if off + 6 > len(data):
+        data = read_file(path, off + 6)
+    if len(data) < off + 6 or data[off:off + 4] != b'PE\0\0':
+        return None
+    machine = struct.unpack_from('<H', data, off + 4)[0]
+    return PE_MACHINES.get(machine, 'machine-0x%x' % machine)
+
+
+def arch_of(path):
+    """(format, architectures) of an ELF, Mach-O or PE file, from its
+    headers; (None, []) for anything else."""
+    kind = sniff(read_file(path, 64))
+    if kind == 'elf':
+        return kind, [elf_arch(path)]
+    if kind == 'macho':
+        return kind, macho_archs(path) or []
+    if kind == 'pe':
+        a = pe_arch(path)
+        return (kind, [a]) if a else (None, [])
+    return None, []
 
 
 def main(argv=None):

@@ -1,13 +1,14 @@
 <#
 .SYNOPSIS
-    Checks a Windows build output folder (win-x86_64-bin).
+    Checks a Windows build output folder (win-x86_64-bin or win-x86-bin).
 
 .DESCRIPTION
     Fails (exit code 1) unless:
       - the expected engine, external, database driver, toolchain and CEF
         files exist and are not empty;
-      - every required .exe and .dll is a valid x86-64 PE image (rather than
-        a stale 32-bit binary or a placeholder file);
+      - every required .exe and .dll is a valid PE image for the build's
+        architecture (rather than one of the other architecture or a
+        placeholder file);
       - modules\lci and packaged_extensions are not empty;
       - dbsqlite.dll contains the SQLITE_SOURCE_ID string from
         thirdparty/libsqlite/include/sqlite3.h, which shows that it was linked
@@ -24,6 +25,11 @@
 
 .PARAMETER BinDir
     Folder to check. Default: <RepoRoot>\win-x86_64-bin.
+
+.PARAMETER Arch
+    x86_64 or x86: the PE machine every required .exe and .dll must have
+    (0x8664 or 0x14c). Default: x86 for a folder named win-x86-bin, else
+    x86_64.
 
 .PARAMETER Version
     Expected version string. Default: BUILD_SHORT_VERSION from <RepoRoot>\version.
@@ -43,6 +49,8 @@
 param(
     [string]$RepoRoot,
     [string]$BinDir,
+    [ValidateSet('', 'x86_64', 'x86')]
+    [string]$Arch = '',
     [string]$Version,
     [string]$SqliteSourceId,
     [string[]]$RequiredFiles = @(
@@ -90,6 +98,15 @@ if (-not (Test-Path -LiteralPath $BinDir -PathType Container)) {
     exit 1
 }
 $BinDir = (Resolve-Path -LiteralPath $BinDir).ProviderPath.TrimEnd('\')
+if (-not $Arch) {
+    if ((Split-Path -Leaf $BinDir) -eq 'win-x86-bin') { $Arch = 'x86' } else { $Arch = 'x86_64' }
+}
+$expectedMachine = 0x8664
+$machineName = 'x86-64 (0x8664)'
+if ($Arch -eq 'x86') {
+    $expectedMachine = 0x14c
+    $machineName = 'x86 (0x14c)'
+}
 
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $latin1 = [System.Text.Encoding]::GetEncoding(28591)
@@ -178,9 +195,9 @@ foreach ($rel in $RequiredFiles) {
     }
     elseif ([System.IO.Path]::GetExtension($rel) -in @('.exe', '.dll')) {
         $machine = Get-PeMachine $p
-        if ($machine -ne 0x8664) {
+        if ($machine -ne $expectedMachine) {
             $description = if ($null -eq $machine) { 'not a valid PE image' } else { 'PE machine 0x{0:x4}' -f $machine }
-            Add-Failure "$rel is $description; expected x86-64 (0x8664)"
+            Add-Failure "$rel is $description; expected $machineName"
         }
     }
 }

@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
     Builds the Windows prebuilt libraries (OpenSSL, curl, ICU, Thirdparty)
-    from source with the MSVC v141 toolset and packages them for
-    prebuilt/fetch-libraries.sh.
+    from source with the MSVC v141 toolset, repackages CEF, and packages them
+    for prebuilt/fetch-libraries.sh.
 
 .DESCRIPTION
     The Windows counterpart of prebuilt/build-libraries.sh and package-libs.sh.
@@ -29,11 +29,18 @@
                   need): sicudt/in/io/tu/uc.lib, the full data file
                   share\icudt<major>l.dat and the host tools icupkg.exe and
                   pkgdata.exe, which the build uses to cut the data down.
+      CEF         Spotify's CEF binary distribution of the version in
+                  prebuilt\versions\cef* ("minimal" for release, the standard
+                  one, which has Debug\, for debug), checked against its
+                  SHA-1 in prebuilt\cef-sha1sums, repackaged as LiveCode's
+                  build-cef.bat did: Release\ (or Debug\) and Resources\ in
+                  lib\CEF. Nothing is compiled.
       Thirdparty  The libraries of thirdparty\ (zlib, libpng, ..., libpq,
                   MySQL Connector/C, Skia), compiled by the engine's own build
                   files (config.py, msbuild target thirdparty-prebuilts) through
                   tools\ci\build-windows.ps1. libpq and libmysql use OpenSSL's
-                  headers, so the OpenSSL archive must be in OutDir first.
+                  headers, and the build fetches every other archive first,
+                  so OpenSSL, Curl, ICU and CEF must be in OutDir before it.
 
     The compiler is v141 (VS 2017, MSVC 14.16), which the engine is built
     with too: a v141 link cannot take static libraries made by a newer
@@ -45,9 +52,9 @@
     The build folders in WorkDir are made afresh each time.
 
 .PARAMETER Libraries
-    Which libraries to build, in this order: OpenSSL, Curl, ICU, Thirdparty.
-    Default: all four. Curl and Thirdparty need the OpenSSL archive of the
-    same architecture and configuration in OutDir.
+    Which libraries to build, in this order: OpenSSL, Curl, ICU, CEF,
+    Thirdparty. Default: all five. Curl needs the OpenSSL archive of the same
+    architecture and configuration in OutDir, Thirdparty all four others.
 
 .PARAMETER Arch
     x86_64 (default) or x86.
@@ -80,8 +87,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('OpenSSL', 'Curl', 'ICU', 'Thirdparty')]
-    [string[]]$Libraries = @('OpenSSL', 'Curl', 'ICU', 'Thirdparty'),
+    [ValidateSet('OpenSSL', 'Curl', 'ICU', 'CEF', 'Thirdparty')]
+    [string[]]$Libraries = @('OpenSSL', 'Curl', 'ICU', 'CEF', 'Thirdparty'),
     [ValidateSet('x86_64', 'x86')]
     [string]$Arch = 'x86_64',
     [ValidateSet('release', 'debug')]
@@ -118,7 +125,7 @@ function Read-Version([string]$Name) {
 }
 $Versions = @{}
 $Revisions = @{}
-foreach ($lib in @('OpenSSL', 'Curl', 'ICU', 'Thirdparty')) {
+foreach ($lib in @('OpenSSL', 'Curl', 'ICU', 'CEF', 'Thirdparty')) {
     $Versions[$lib] = Read-Version $lib.ToLowerInvariant()
     $Revisions[$lib] = Read-Version ($lib.ToLowerInvariant() + '_buildrevision')
     if (-not $Versions[$lib]) { throw "prebuilt\versions\$($lib.ToLowerInvariant()) is missing or empty" }
@@ -451,6 +458,51 @@ function Build-ICU {
     Write-Archive 'ICU' $stage
 }
 
+# --- CEF ---
+function Build-CEF {
+    $v = $Versions['CEF']
+    $chromium = Read-Version 'cefchromium'
+    $bits = '64'
+    if ($Arch -eq 'x86') { $bits = '32' }
+    # The minimal distribution has Release\ and Resources\, all that is
+    # repackaged, at about half the download; Debug\ is only in the
+    # standard one
+    $flavour = '_minimal'
+    $config = 'Release'
+    if ($Mode -eq 'debug') { $flavour = ''; $config = 'Debug' }
+    $name = "cef_binary_$v+$($Revisions['CEF'])+chromium-$($chromium)_windows$bits$flavour"
+    $file = "$name.tar.bz2"
+    $url = 'https://cef-builds.spotifycdn.com/' + ($file -replace '\+', '%2B')
+
+    # The SHA-1 that Spotify publishes for the file (cef-builds.spotifycdn.com/index.json)
+    $expected = $null
+    foreach ($line in (Get-Content -LiteralPath (Join-Path $PrebuiltDir 'cef-sha1sums'))) {
+        if ($line -match '^\s*([0-9a-fA-F]{40})\s+\*?(\S+)\s*$' -and $Matches[2] -eq $file) { $expected = $Matches[1].ToLowerInvariant() }
+    }
+    if (-not $expected) { throw "$file has no entry in prebuilt\cef-sha1sums" }
+    $archive = Get-Source $url $file
+    $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA1).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) {
+        Remove-Item -LiteralPath $archive -Force
+        throw "SHA-1 of $file is $actual, not $expected (prebuilt\cef-sha1sums); the download was deleted"
+    }
+    Write-Host "SHA-1 OK: $file"
+
+    $src = New-CleanDir (Join-Path $WorkDir "cef-$Triple-src")
+    Invoke-Bash "cd '$(ConvertTo-CygPath $src)' && /usr/bin/tar -xjf '$(ConvertTo-CygPath $archive)'"
+    $top = Join-Path $src $name
+    foreach ($d in @($config, 'Resources')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $top $d))) { throw "$file has no $d folder" }
+    }
+    $stage = New-CleanDir (Join-Path $WorkDir 'stage-cef')
+    $lib = Join-Path $stage "$Triple\lib\CEF"
+    New-Item -ItemType Directory -Force -Path $lib | Out-Null
+    foreach ($d in @($config, 'Resources')) {
+        Copy-Item -Recurse -Path (Join-Path $top "$d\*") -Destination $lib
+    }
+    Write-Archive 'CEF' $stage
+}
+
 # --- Thirdparty ---
 function Build-Thirdparty {
     $platform = "win-$Arch"
@@ -500,7 +552,7 @@ function Build-Thirdparty {
     Write-Archive 'Thirdparty' $stage
 }
 
-foreach ($lib in @('OpenSSL', 'Curl', 'ICU', 'Thirdparty')) {
+foreach ($lib in @('OpenSSL', 'Curl', 'ICU', 'CEF', 'Thirdparty')) {
     if ($Libraries -contains $lib) {
         Write-Host ''
         Write-Host "=== $lib $($Versions[$lib]) ($Triple) ==="
