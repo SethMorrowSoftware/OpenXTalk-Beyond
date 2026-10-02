@@ -14,7 +14,7 @@ development engine without a user interface.
 | `icns.py` | writes the macOS app icon (`.icns`) from the branding PNGs without `iconutil`, and checks one (see [The macOS app's identity](#the-macos-apps-identity)) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
-| `make_runtimes_asset.py` | builds the `oxt-runtimes-<version>.zip` asset from an installed OXT Lite (see [The runtimes asset](#the-runtimes-asset)) |
+| `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
 | `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script and property patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
@@ -381,7 +381,11 @@ disagree, the layout follows the IDE:
   macOS, icons, `Support`, `Externals` lists, signatures) and builds and
   runs a standalone from `x64-ARM64/Standalone-blank.app` with the
   engine's deploy command (what the builder's
-  `revStandaloneDeployWithParams` runs). **Still to do:** a
+  `revStandaloneDeployWithParams` runs). It does the same for the Windows
+  and Linux runtimes (`--targets all`: every runtime of a layout, each
+  standalone built with the layout's engine and run where the machine can
+  run it), and CI runs it on every package and on the 32-bit builds; see
+  [BUILDING.md](../../BUILDING.md#standalone-check). **Still to do:** a
   test that runs the IDE's builder itself for the `MacOSX x64-ARM64`
   target (what the standalone settings' `MacOS-IntelArmUniversal` button
   selects) with revXML and the SQLite driver, checks that
@@ -893,6 +897,60 @@ Nothing of the members is kept in this repository.
 Exit status 0 on success, 1 on any error.
 
 ## The runtimes asset
+
+The runtimes asset holds the standalone runtimes that each package
+installs for the platforms other than its own. `package.py` adds its
+files at their installed paths, without the parts that the package's own
+build makes (the asset's `exclude` in `external-assets.json`).
+
+### From this repository's builds (`--builds`)
+
+```
+python tools/oxt/make_runtimes_asset.py --builds --label LABEL --out DIR
+    --bin win-x86=PATH --bin win-x86_64=PATH --bin linux-x86=PATH --bin linux-x86_64=PATH
+    [--carry oxt-runtimes-1.15.zip] [--assets-cache DIR] [--commit SHA]
+    [--run BUILDS=URL]... [--update-manifest [FILE]]
+```
+
+Each `PATH` is a build output folder or the CI archive that holds it
+(`OXT-Beyond-win-x86-bin.zip`, the binaries zip of the `OXT-Beyond-win-x86_64`
+artifact, `OXT-Beyond-linux-<arch>-bin.tar.xz`). From each build the tool
+takes what `package.py` installs as that platform's own runtime, with
+`package.py`'s tables (`plan_runtimes`): `Runtime/Windows/x86-32`,
+`Runtime/Windows/x86-64`, `Runtime/Linux/x86-32` and `Runtime/Linux/x86-64`
+(engine, `Support`, externals, database drivers and their lists, and on
+Windows and Linux x86-64 the CEF files), and the timezone library's code
+for that platform; the zoneinfo data comes from the Linux x86-64 build
+(the Windows builds do not make it). `Runtime/Android` and the timezone
+library's Android code are not built here: they are carried over unchanged
+from `oxt-runtimes-1.15` (downloaded into the assets cache and checked
+against its SHA-256, which the tool records), and that asset's
+`PROVENANCE.md` goes into the new archive as
+`PROVENANCE-oxt-runtimes-1.15.md`. Every `.exe`, `.dll`, `.so` and engine
+must be a PE or ELF file of its build's architecture, and every
+`Standalone` must carry this source tree's engine version, or no archive
+is written. The generated `PROVENANCE.md` names the commit and the CI
+runs (`--commit`, `--run`), the archives the builds came from with their
+SHA-256, each engine's version strings, the licences, and every file with
+its size, SHA-256, date and build. Besides the zip, the `--out` folder gets
+`PROVENANCE.md` and `oxt-runtimes-<label>.manifest.json`, the manifest
+entry: its `exclude` leaves out of each package what its build makes
+(`win-x86_64`: its runtime and timezone code; `linux-x86_64`: the same
+and the zoneinfo data; `linux-arm64` and `mac-*`: the zoneinfo data).
+`--update-manifest` puts that entry in place of the `oxt-runtimes-*`
+entries of `external-assets.json`.
+
+[`.github/workflows/runtimes.yml`](../../.github/workflows/runtimes.yml)
+("Runtimes asset", started by hand) does all of this from the artifacts
+of a "Build (Windows)" and a "Build (Linux)" run of the same commit,
+whose 32-bit and 64-bit builds must have passed; it uploads the result
+as the artifact `runtimes-asset` and, with `publish`, creates the
+pre-release `runtimes-<label>` at that commit (which must be on `main`)
+with the zip and its `PROVENANCE.md`. A published asset is never
+replaced: a new one gets a new label. The packages take it once a pull
+request pins its entry in `external-assets.json`.
+
+### From an installed OpenXTalk Lite (`oxt-runtimes-1.15`)
 
 ```
 python tools/oxt/make_runtimes_asset.py "<OXT Lite 1.15 install>" --out DIR

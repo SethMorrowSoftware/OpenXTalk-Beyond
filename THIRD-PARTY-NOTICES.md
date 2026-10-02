@@ -46,9 +46,13 @@ Contents:
 OpenSSL, curl and ICU are built from their source releases (the
 versions in `prebuilt/versions/`) for every platform, by the CI
 workflows (`prebuilt/build-libraries-windows.ps1` on Windows,
-`prebuilt/build-libraries.sh` on Linux and macOS). CEF comes from
-Spotify's CEF builds: repackaged by the Linux workflow, and on Windows
-as LiveCode Ltd's archive, mirrored unchanged in the
+`prebuilt/build-libraries.sh` on Linux and macOS). CEF is not
+compiled: the Windows (x86-64 and x86) and Linux x86-64 workflows
+repackage Spotify's CEF binary distributions
+(`cef-builds.spotifycdn.com`), checked against the SHA-1 that Spotify
+publishes for each file (pinned in `prebuilt/cef-sha1sums`). Until
+0.2.1-rc.2, Windows used LiveCode Ltd's archive of the same CEF
+version, mirrored in the
 [`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1).
 The licence texts of OpenSSL, curl and ICU are in the IDE's notice file
 (see [The IDE's own notice file](#the-ides-own-notice-file)), which the

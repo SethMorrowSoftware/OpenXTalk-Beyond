@@ -356,7 +356,7 @@ for `error`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `BUILDTYPE` | `Release` | `Release` or `Debug`. |
-| `BUILD_PLATFORM` | `win-x86_64` | Only `win-x86_64` works: `prebuilt\build-libraries-windows.ps1 -Arch x86` builds the 32-bit libraries, but there is no 32-bit CEF archive (the `prebuilts-v1` mirror has only x86_64). |
+| `BUILD_PLATFORM` | `win-x86_64` | `win-x86_64`, or `win-x86` for the 32-bit build (into `win-x86-bin`). That one is made for its standalone runtime, `Runtime\Windows\x86-32`, and is not packaged; build its prebuilt libraries first with `prebuilt\build-libraries-windows.ps1 -Arch x86`. |
 | `VSINSTALLDIR` | found with `vswhere` | Visual Studio folder to use. Without it, `make.cmd` picks the newest installation that has the v141 toolset component, then a Visual Studio 2017 installation with the C++ build tools, then the newest installation of any version with the C++ build tools. |
 | `WINSDK_VERSION` | the SDK that `vcvarsall.bat` selected | Windows SDK version passed to MSBuild as `/p:WindowsTargetPlatformVersion`, for example `10.0.17763.0`. |
 | `MSBUILD_EXTRA_ARGS` | empty | Extra arguments added to the end of the MSBuild command line, for example `/v:minimal`. |
@@ -409,25 +409,29 @@ library, architecture and configuration:
 | `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
 | `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
 | `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MySQL Connector/C, libpq, SQLite) |
-| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows and Linux |
+| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
 
 The versions are in `prebuilt/versions/`. Every platform builds
 OpenSSL, curl, ICU and Thirdparty from source: Linux and macOS with
 `prebuilt/build-libraries.sh` and `package-libs.sh` (see
 [Building on Linux](#12-building-on-linux) and
 [Building on macOS](#13-building-on-macos)), Windows with
-`prebuilt\build-libraries-windows.ps1` (below). CI builds them when
-their versions, scripts or sources change and keeps them in its cache.
-The one archive that is still downloaded is Windows' CEF: LiveCode
-Ltd's build of CEF 74 for x86_64 (`v141_static_release` and
-`v141_static_debug`), mirrored unchanged as an asset of this
-repository's
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)
-and checked against [`prebuilt/SHA256SUMS`](prebuilt/SHA256SUMS). (Linux
-repackages Spotify's CEF build itself, `prebuilt/scripts/build-cef.sh`;
-macOS has no CEF.) Until OXT-Beyond 0.2.1-rc.2, Windows downloaded
-LiveCode's archives of all five libraries, with OpenSSL 1.1.1g, curl
-7.51.0 and ICU 58.2.
+`prebuilt\build-libraries-windows.ps1` (below). CEF is not compiled:
+Windows and Linux x86_64 repackage Spotify's binary distribution of the
+CEF version in `prebuilt/versions/cef*`, as LiveCode's scripts did,
+downloaded from <https://cef-builds.spotifycdn.com> and checked against
+the SHA-1 that Spotify publishes for the file, pinned in
+[`prebuilt/cef-sha1sums`](prebuilt/cef-sha1sums)
+(`prebuilt\build-libraries-windows.ps1 -Libraries CEF`,
+`prebuilt/scripts/build-cef.sh`). macOS has no CEF, and neither has the
+32-bit Linux build: CEF's 32-bit Linux builds ended with CEF 101. CI
+builds the archives when their versions, scripts or sources change and
+keeps them in its cache. Until OXT-Beyond 0.2.1-rc.2, Windows downloaded
+LiveCode's archives of all five libraries (OpenSSL 1.1.1g, curl 7.51.0,
+ICU 58.2, Thirdparty and CEF 74 for x86_64 only), mirrored in the
+[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
+which stays published for those versions; nothing is downloaded from it
+now.
 
 On Windows, `dbsqlite.dll` is compiled from the SQLite source in
 `thirdparty/libsqlite` rather than linked from the Thirdparty archive,
@@ -439,9 +443,9 @@ as it was while that archive still held SQLite 3.34.0.
 powershell -ExecutionPolicy Bypass -File prebuilt\build-libraries-windows.ps1
 ```
 
-builds OpenSSL, curl, ICU and Thirdparty for x86_64 Release and writes
-their archives to `prebuilt\packaged`, where the build's fetch step
-finds them. It takes about 40 minutes on a four-core machine. Besides
+builds OpenSSL, curl, ICU and Thirdparty for x86_64 Release, repackages
+CEF, and writes their archives to `prebuilt\packaged`, where the build's
+fetch step finds them. It takes about 40 minutes on a four-core machine. Besides
 the tools of section 2 it needs:
 
 - [NASM](https://www.nasm.us) (OpenSSL's assembler), in
@@ -467,9 +471,11 @@ through `tools\ci\build-windows.ps1`), so it also needs Python 2.7, and
 it uses the folder `build-win-x86_64`, which the engine build then
 reuses.
 
-Options: `-Libraries` (any of `OpenSSL`, `Curl`, `ICU`, `Thirdparty`;
-curl and Thirdparty need the OpenSSL archive in the output folder
-first), `-Arch x86`, `-Mode debug`, `-OutDir` (default
+Options: `-Libraries` (any of `OpenSSL`, `Curl`, `ICU`, `CEF`,
+`Thirdparty`; curl needs the OpenSSL archive in the output folder
+first, Thirdparty all four others), `-Arch x86`, `-Mode debug`
+(CEF's debug libraries come from Spotify's standard distribution, the
+release ones from its smaller "minimal" one), `-OutDir` (default
 `prebuilt\packaged`), `-WorkDir` (downloads and build folders, default
 `prebuilt\build\windows`), `-CygwinRoot`, `-VsInstallDir` and `-NoAsm`
 (OpenSSL without NASM: slower, for trying things out only).
@@ -477,8 +483,8 @@ first), `-Arch x86`, `-Mode debug`, `-OutDir` (default
 Instead of building them, you can take the archives a CI build made:
 every run of the Build (Windows) workflow (see
 [Continuous integration](#9-continuous-integration)) uploads them as the
-artifact `prebuilt-libraries-win-x86_64` (Release, x86_64). Extract it
-into `prebuilt\packaged`.
+artifact `prebuilt-libraries-win-x86_64` (Release, x86_64, CEF
+included). Extract it into `prebuilt\packaged`.
 
 **Debug builds need the debug archives.** Run the script with
 `-Mode debug` as well, and set
@@ -491,8 +497,9 @@ The first build runs `prebuilt/fetch-libraries.sh` (through
 `util\invoke-unix.bat` and Cygwin), which
 
 1. copies each archive from `prebuilt\packaged` (or the folder in
-   `PREBUILT_LOCAL_DIR`) into `prebuilt\fetched`, or downloads it when
-   it is not there (CEF, from `prebuilts-v1`);
+   `PREBUILT_LOCAL_DIR`) into `prebuilt\fetched`; an archive that is not
+   there would be downloaded from `PREBUILT_URL`, which has none of the
+   current versions, so build them first;
 2. checks downloads against [`prebuilt/SHA256SUMS`](prebuilt/SHA256SUMS);
    an archive copied from the local folder is checked too when it has an
    entry there, and is otherwise taken as built locally;
@@ -518,7 +525,7 @@ through to the script.
 | Variable | Meaning |
 | --- | --- |
 | `PREBUILT_LOCAL_DIR` | A folder that holds the `.tar.bz2` files; they are copied from there instead of downloaded. Default: `prebuilt\packaged`, if it exists. A Windows path such as `C:\prebuilts` is fine. |
-| `PREBUILT_URL` | Where to download what is not in the local folder. Default: `https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1`. |
+| `PREBUILT_URL` | Where to download what is not in the local folder. Default: `https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/prebuilts-v1`, which holds LiveCode's archives of the versions before 0.2.1-rc.3 only. |
 | `PREBUILT_CACHE_DIR` | Download into this folder instead of `prebuilt\fetched`. |
 | `PREBUILT_WIN32_LIBS` | Which libraries to fetch, for example `OpenSSL Curl`. Default: all five. |
 | `PREBUILT_WIN32_SUBPLATFORMS` | Which variants to fetch. Default: `v141_static_release`; a Debug build needs `v141_static_debug v141_static_release`. |
@@ -528,12 +535,9 @@ through to the script.
 ### Offline use
 
 Build the archives where you have internet access (the script
-downloads the source releases), or take them from a CI run, and copy
-them, together with the CEF archives from the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1),
-into `prebuilt\packaged` on the build machine (or another folder named
-by `PREBUILT_LOCAL_DIR`). The CEF archives are checked against
-`prebuilt/SHA256SUMS` there too.
+downloads the source releases and Spotify's CEF distribution), or take
+them from a CI run, and copy them into `prebuilt\packaged` on the build
+machine (or another folder named by `PREBUILT_LOCAL_DIR`).
 
 ### Changing the prebuilt libraries
 
@@ -544,10 +548,10 @@ the versions and scripts are part of its cache keys. Update the
 versions in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and
 [SECURITY.md](SECURITY.md) with them.
 
-Windows' CEF is the exception, as a published archive: to change it,
-publish the new archives under a new release tag, update
-`prebuilt/versions/cef*`, `prebuilt/SHA256SUMS` and the default
-`PREBUILT_URL`, and never replace the assets of an existing release.
+For a new CEF version, also add the SHA-1 lines of its files to
+`prebuilt/cef-sha1sums`, as Spotify's `index.json` lists them (Windows
+64-bit and 32-bit, minimal and standard, and Linux 64-bit minimal): a
+download whose SHA-1 is not listed there, or differs, stops the build.
 
 ## 7. Run, check and package the result
 
@@ -807,6 +811,7 @@ whose path has no `_build` or `*-bin` in it:
 python3 tools/ci/run_livecode_check.py smoke --package dist/OXT-Beyond-<ver>-linux-x86_64.tar.xz
 python3 tools/ci/run_livecode_check.py compile --install <folder>/OXT-Beyond-<ver> --engine <folder>/OXT-Beyond-<ver>/oxt-beyond
 python3 tools/ci/check_linux_libraries.py --root <folder>/OXT-Beyond-<ver> --repo .
+python3 tools/ci/standalone_check.py --install <folder>/OXT-Beyond-<ver> --platform linux-x86_64
 python3 tools/ci/test_linux_package.py --root <folder>/OXT-Beyond-<ver>
 ```
 
@@ -857,7 +862,8 @@ python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
 ```
 
 `standalone_check.py` builds a Mac standalone from the packaged runtime
-with the engine's deploy command, signs it as the IDE does and runs it.
+with the engine's deploy command, signs it as the IDE does and runs it
+(see [Standalone check](#standalone-check)).
 Last, `tools/ci/mac_appearance_test.py --app <folder>/OXT-Beyond.app
 --out <folder>` runs the app's engine with a user interface on a Mac set
 to dark and to light, and checks that the `systemAppearance` follows the
@@ -1326,9 +1332,42 @@ On Windows the tests run with `the hideConsoleWindows` set, so the
 commands they run open no console windows.
 
 Every CI build runs the four suites after the IDE compile check: on
-Windows, Linux (x86-64 and arm64) and macOS (Apple Silicon and Intel).
-The job summary lists new failures, flaky tests and baseline entries
-that passed.
+Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
+(Apple Silicon and Intel). The job summary lists new failures, flaky
+tests and baseline entries that passed. The 32-bit Linux build has a
+supplement of its own, `tools/ci/engine-tests-baseline-linux-x86.txt`
+(dates before 1901, x87 floating point and the 32-bit `naturalfloat`).
+
+### Standalone check
+
+[`tools/ci/standalone_check.py`](tools/ci/standalone_check.py) builds a
+standalone the way the IDE's standalone builder does at its core: the
+layout's engine runs `tools/ci/standalone-deploy.livecodescript`, which
+saves a one-handler stack and attaches it to a copy of a runtime with
+`_internal deploy` (the command `revStandaloneDeployWithParams` uses).
+The standalone must be a file of the runtime's format and architecture;
+where this computer can run it, it is run without a user interface and
+must report the engine's version, its processor, its platform and the
+environment `command line`. Before that, the runtime's folder is
+checked: its engine, its Support files and every external, database
+driver and (for the browser) CEF library that its lists name must be
+there, built for that runtime's architecture.
+
+```bat
+python tools\ci\standalone_check.py --package dist\OXT-Beyond-<ver>-win-x86_64-portable.zip --platform win-x86_64
+python tools\ci\standalone_check.py --package dist\OXT-Beyond-<ver>-win-x86_64-portable.zip --platform win-x86_64 --targets all
+python tools\ci\standalone_check.py --engine win-x86-bin\LiveCode-Community.exe --runtime win-x86-bin\standalone-community.exe --platform win-x86
+```
+
+`--install <folder>` takes an installed layout instead of a package. By
+default (`--targets own`) the layout's own runtime is used; `--targets
+all` takes every runtime of the layout (Windows x86-64 and x86, Linux
+x86-64 and x86, the Mac's universal one), building each standalone with
+the layout's engine, since any engine deploys for every platform:
+Windows runs both Windows standalones, Linux and macOS their own. Android
+standalones need the Android SDK and are not checked. The CI jobs run
+it on every package with its own runtime, and on the 32-bit builds with
+`--engine` and `--runtime`.
 
 ### Installer
 
@@ -1489,10 +1528,13 @@ is missing (section 2.1).
 **The build fails in a folder with spaces in its name.** Move or clone
 the repository to a path without spaces, such as `C:\src\OpenXTalk-Beyond`.
 
-**Downloading the CEF archive fails**, or reports a SHA-256
-mismatch. A mismatching file is deleted, so running the build again
-retries the download. Behind a proxy or firewall, download the archive
-some other way and put it into `prebuilt\packaged` (section 6).
+**Downloading CEF fails**, or reports a SHA-1 mismatch
+(`prebuilt\build-libraries-windows.ps1`). A mismatching file is deleted,
+so running the script again retries the download. Behind a proxy or
+firewall, download the file named in the message from
+<https://cef-builds.spotifycdn.com> some other way and put it into
+`prebuilt\build\windows\downloads`; the script checks its SHA-1 before
+using it (section 6).
 
 **"failed to find library OpenSSL-..." (or Curl, ICU, Thirdparty)
 during the build.** The prebuilt libraries have not been built: run
@@ -1603,10 +1645,10 @@ It follows this guide:
    Cygwin. It takes the prebuilt libraries (section 6) from its cache, or,
    when their versions, build script or sources changed, installs NASM
    and builds them with `prebuilt/build-libraries-windows.ps1` (OpenSSL,
-   curl and ICU, then Thirdparty, Release x86_64, about 40 minutes) and
-   caches them; then it fetches them, with the CEF archive downloaded from
-   `prebuilts-v1` (`PREBUILT_STRICT=1`: it must match
-   `prebuilt/SHA256SUMS`).
+   curl, ICU and CEF, then Thirdparty, Release x86_64, about 40 minutes)
+   and caches them; then it fetches them from there
+   (`PREBUILT_STRICT=1`: an archive that had to be downloaded instead
+   would fail the step).
 4. It configures and builds Release x64 with `tools/ci/build-windows.ps1`
    and Windows SDK 10.0.17763.0, and checks the result with
    `tools/ci/verify-build.ps1`.
@@ -1633,6 +1675,8 @@ It follows this guide:
    DLL under `Extensions` finds its imports.
 6. It runs the [smoke test](#smoke-test) on the portable zip (including
    the xTalk Suite extensions), the
+   [standalone check](#standalone-check) on it (a Windows x86-64
+   standalone built and run), the
    [IDE compile check](#ide-compile-check) on the staged layout, the
    [engine tests](#engine-tests) on the build output, the IDE contrast
    check and the render test (below), builds
@@ -1663,14 +1707,26 @@ It uploads four artifacts:
   sources zip, and `SHA256SUMS`; not the staged folder), kept for 30
   days;
 - `build-logs-win-x86_64`: `msbuild.log` and the logs of packaging, the
-  smoke test, the IDE compile check, the engine tests, the IDE contrast
+  smoke test, the standalone check, the IDE compile check, the engine
+  tests, the IDE contrast
   check, the render test and building and testing the installer, kept
   for 14 days and uploaded even when the build fails;
 - `render-test`: the images of the render test and what the engine
   printed, kept for 14 days;
 - `prebuilt-libraries-win-x86_64`: the prebuilt library archives the
-  build used (OpenSSL, curl, ICU and Thirdparty, Release x86_64; see
-  [Prebuilt libraries](#6-prebuilt-libraries)), kept for 30 days.
+  build used (OpenSSL, curl, ICU, CEF and Thirdparty, Release x86_64;
+  see [Prebuilt libraries](#6-prebuilt-libraries)), kept for 30 days.
+
+A second job, "Build win-x86", builds the 32-bit engine the same way
+(`prebuilt/build-libraries-windows.ps1 -Arch x86`, `BUILD_PLATFORM`
+`win-x86`, with its own cache) for its standalone runtime. It checks it
+like the x86-64 build (`verify-build.ps1`, the smoke test and the engine
+tests, as 32-bit programs, and the [standalone check](#standalone-check)
+with a standalone built from its runtime and run) and uploads `win-x86-bin`
+without its `.pdb` files as the artifact `OXT-Beyond-win-x86-bin` (the
+`.pdb` files as `OXT-Beyond-win-x86-symbols`). It is not packaged: the
+packages take its runtime from the runtimes asset (see
+[External assets](#external-assets)).
 
 When a step fails, a "Failure diagnostics" table in the job summary
 shows which step it was. Downloading artifacts requires a GitHub
@@ -1684,9 +1740,14 @@ The Linux workflow ([`.github/workflows/build-linux.yml`](.github/workflows/buil
 "Build (Linux)") builds x86-64 and arm64 in an Ubuntu 20.04 container
 (see [Building on Linux](#12-building-on-linux)). Its job "Package
 linux-x86_64" then makes and tests the [Linux package](#linux-package)
-on `ubuntu-24.04` and uploads it as the artifact
-`OXT-Beyond-linux-x86_64`; the header of the workflow file lists its
-steps. It takes the same `no_external_assets` and `no_xtalk_extensions`
+on `ubuntu-24.04` (the [standalone check](#standalone-check) among the
+tests) and uploads it as the artifact `OXT-Beyond-linux-x86_64`; the
+header of the workflow file lists its steps. Its job "Build linux-x86"
+builds the 32-bit engine for its standalone runtime in a Debian 11 i386
+container (`tools/ci/i386-container.sh`: Ubuntu has no i386 images
+after 18.04, and Debian 11 has the same glibc 2.31 floor), checks it
+as the other legs do, plus the standalone check, and uploads
+`OXT-Beyond-linux-x86-bin`; it is not packaged either. It takes the same `no_external_assets` and `no_xtalk_extensions`
 inputs and repository variables as the Windows workflow.
 
 The macOS workflow ([`.github/workflows/build-macos.yml`](.github/workflows/build-macos.yml),
@@ -1709,7 +1770,13 @@ and their debug symbols as `-symbols` (30 days); their logs are kept for
 requests into `main`: "Build win-x86_64", "Build linux-x86_64", "Build
 linux-arm64", "Package linux-x86_64", "Build mac-arm64", "Build
 mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
-"Test mac-universal (x86_64)".
+"Test mac-universal (x86_64)". The 32-bit builds, "Build win-x86" and
+"Build linux-x86", run with them but are not in that list.
+
+The workflow [`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)
+("Runtimes asset") is only started by hand: it makes the runtimes asset
+from the outputs of one Windows and one Linux run and can publish it
+(see [External assets](#external-assets)).
 
 ## 10. Making a release
 
