@@ -33,7 +33,9 @@
 #   library check, the IDE compile check and the standalone check: the
 #   runtimes' structure and signatures, and a standalone built from the
 #   packaged Standalone-blank.app with the engine's deploy command, signed
-#   as the IDE signs one, and run (tools/ci/standalone_check.py). It also
+#   as the IDE signs one, and run, and a standalone built from each
+#   Windows and Linux runtime of the package and checked as a file of its
+#   format and architecture (tools/ci/standalone_check.py). It also
 #   extracts the zip and verifies its signature.
 #
 # The artifact is uploaded before the test jobs run, so a release has to
@@ -806,7 +808,7 @@ jobs:
       - name: Standalone check
         timeout-minutes: 15
         run: |
-          python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+          python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal --targets all \
             --log "$LOGS/standalone-check.log"
 
       # The zip must give the same, still valid, app

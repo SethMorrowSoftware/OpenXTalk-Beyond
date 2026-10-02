@@ -75,16 +75,16 @@ download and `SHA256SUMS`, `sha256sum -c SHA256SUMS --ignore-missing`.
 Development builds (workflow artifacts on the Actions tab) are made by
 the same workflows but are not reviewed as releases.
 
-The packages also contain prebuilt files that are not built from this
-repository: the standalone runtimes for 32-bit Windows, Linux and
-Android, taken unchanged from OpenXTalk Lite 1.15. The packager
-downloads them from this repository's `runtimes-1.15` release and
-refuses them unless their SHA-256 matches the one recorded in
-[`tools/oxt/external-assets.json`](tools/oxt/external-assets.json).
-They are old builds (stock LiveCode 9.6.3 files and files as Tom Perry
-shipped them, among them his 9.7.1-OXT Linux engine), and the
-Linux runtimes include shared libraries of other projects at the
-versions Tom shipped; they have not been rebuilt or updated. See
+The standalone runtimes for the other platforms in each package come
+from a release asset of this repository (`runtimes-0.2.1-rc.3`), which
+the packager downloads and refuses unless its SHA-256 matches the one
+recorded in
+[`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
+Windows and Linux runtimes in it are built from this repository by its
+CI, with the same libraries as the packages themselves. The Android
+runtime in it is not: it is OpenXTalk Lite 1.15's, taken unchanged
+(LiveCode 9.6.3 builds and files as Tom Perry shipped them), and has
+not been rebuilt or updated. See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#standalone-runtimes-for-other-platforms).
 
 ## Updates

@@ -527,7 +527,8 @@ Intended differences from OXT Lite 1.15:
 | `Toolchain/modules/lci/com.livecode.commercial.license.lci` | also from stock 9.6.3; this repository compiles `engine/src/license.lcb` into lc-compile (`engine_syntax_only_lcb_files`) and writes no `.lci` for it |
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
-| `PROVENANCE-oxt-runtimes-1.15.md` | added: provenance of the runtimes asset |
+| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.1-rc.3.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
+| `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
 Result with the CI build of this repository
@@ -719,22 +720,25 @@ and a table of the archives to the job summary.
 
 `external-assets.json` lists archives that packaging adds to the installed
 layout: files this repository does not build, kept out of git and published
-as GitHub Release assets. Now these are the other-platform runtimes from OXT
-Lite 1.15. (The xTalk Suite extensions are not assets: see
+as GitHub Release assets. Now this is the runtimes asset: the other
+platforms' standalone runtimes, built from this repository, with OXT Lite
+1.15's Android runtime (see [The runtimes asset](#the-runtimes-asset)). (The
+xTalk Suite extensions are not assets: see
 [below](#xtalk-suite-extensions-xtalk_extensionspy).)
 
 ```json
 {
   "assets": [
     {
-      "id": "oxt-runtimes-1.15",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-1.15/oxt-runtimes-1.15.zip",
+      "id": "oxt-runtimes-0.2.1-rc.3",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.1-rc.3/oxt-runtimes-0.2.1-rc.3.zip",
       "sha256": "<64 lowercase hex digits>",
-      "size": 199237317,
+      "size": 123456789,
       "kind": "zip",
       "strip": 1,
       "dest": "",
-      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-1.15.md" },
+      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.1-rc.3.md" },
+      "exclude": { "win-x86_64": ["Runtime/Windows/x86-64/**", "..."], "...": ["..."] },
       "description": "...", "licence": "...", "source": "..."
     }
   ]
@@ -763,14 +767,19 @@ Lite 1.15. (The xTalk Suite extensions are not assets: see
   nothing on the platform is reported (a stale glob excludes nothing).
 * `description`, `licence` and `source` are for people.
 
-The runtimes asset excludes, per platform, what this repository's Linux and
-macOS builds make (Windows takes all of it, so its package is unchanged):
+The runtimes asset excludes, per platform, what that platform's own build
+makes (`make_runtimes_asset.py` writes these; `OWN_PARTS` there):
 
-| platform | left out of `oxt-runtimes-1.15` | files | why |
-|---|---|---:|---|
-| `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | 520 | the build's `standalone-community` (with its own externals and CEF) is the runtime; the build makes the timezone library's code and the zoneinfo data (tz.gyp `tzdata`, not made on Windows; the same 474 files) |
-| `linux-arm64` | timezone `resources/**` | 474 | zoneinfo from the build (1.15's x86-64 runtime stays: it is another architecture) |
-| `mac-*` | timezone `code/universal-mac-macosx10.9/**`, timezone `resources/**` | 475 | the build's `code/universal-mac-macosx` replaces it (the IDE maps every `universal-*` folder, so both would load); zoneinfo from the build |
+| platform | left out of `oxt-runtimes-0.2.1-rc.3` | why |
+|---|---|---|
+| `win-x86_64` | `Runtime/Windows/x86-64/**`, timezone `code/x86_64-win32/**` | the build's own runtime and timezone code |
+| `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | the build's own runtime and timezone code, and the zoneinfo data (tz.gyp `tzdata`, which the Windows builds do not make) |
+| `linux-arm64` | timezone `resources/**` | zoneinfo from the build (the asset has no arm64 runtime) |
+| `mac-*` | timezone `resources/**` | zoneinfo from the build; the asset has no macOS or iOS code, so 1.15's `code/universal-mac-macosx10.9` no longer comes along |
+
+Until 0.2.1-rc.3 the packages took `oxt-runtimes-1.15` (OpenXTalk Lite
+1.15's runtimes, unchanged), whose `exclude` left out only what the Linux and
+macOS builds made: the Windows package took all of it.
 
 The cache folder is `--assets-cache`, else `OXT_ASSETS_CACHE`, else
 `prebuilt/fetched-assets` (ignored by git). An archive whose file name (the

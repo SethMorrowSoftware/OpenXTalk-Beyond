@@ -536,17 +536,18 @@ jobs:
           if (-not (Test-Path -LiteralPath $package -PathType Leaf)) { throw "$package was not written" }
           ./tools/ci/smoke-test.ps1 -Package $package -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test-portable.log"
 
-      # A standalone built from the portable zip's own runtime
-      # (Runtime/Windows/x86-64/Standalone) by its engine, as the IDE's
-      # builder does at its core ("_internal deploy windows"), then run;
-      # tools/ci/standalone_check.py extracts the zip to a neutral folder
-      # and checks the runtime folder's binaries first
+      # A standalone built from each runtime of the portable zip
+      # (Windows x86-64 and x86, Linux x86-64 and x86) by its engine, as the
+      # IDE's builder does at its core ("_internal deploy"); the Windows
+      # ones are run (this runner runs both architectures), the Linux ones
+      # checked as ELF files. tools/ci/standalone_check.py extracts the zip
+      # to a neutral folder and checks each runtime folder's binaries first.
       - name: Standalone check
         id: standalone
         timeout-minutes: 15
         env:
           VERSION: ${{ steps.product.outputs.version }}
-        run: python tools/ci/standalone_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
+        run: python tools/ci/standalone_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --targets all --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
 
       # Compile every IDE script of the staged installed layout with its
       # engine; fails on compile errors that are not in the baseline.

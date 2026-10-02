@@ -23,7 +23,7 @@ body:
         of a source checkout. Add the build number from Preferences >
         Automatic Updates if you can. If you built it yourself, add the
         commit (`git rev-parse --short HEAD`).
-      placeholder: 0.2.1-rc.2, build 202610021200
+      placeholder: 0.2.1-rc.3, build 202610031200
     validations:
       required: true
 

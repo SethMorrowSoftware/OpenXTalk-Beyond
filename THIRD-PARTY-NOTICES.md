@@ -430,70 +430,60 @@ Notes:
 
 ## Standalone runtimes for other platforms
 
-OXT-Beyond builds the engine and the standalone runtime of each
-package's own platform (Windows x86-64, macOS universal and Linux
-x86-64). So that its IDE can offer the same other standalone targets as
-OpenXTalk Lite 1.15, the packages include files that are not built from
-this repository. They come from one release asset of this repository,
-`oxt-runtimes-1.15.zip` (release tag `runtimes-1.15`), listed with its
-SHA-256 in
+Every package carries standalone runtimes for the other platforms that
+the IDE's standalone builder targets, so that it can build standalones
+for them and not only for its own platform. They come from one release
+asset of this repository, `oxt-runtimes-0.2.1-rc.3.zip` (release tag
+`runtimes-0.2.1-rc.3`), listed with its SHA-256 in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
-asset was made with
+"Runtimes asset" workflow made it with
 [`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
-from OpenXTalk Lite 1.15 for Windows
-(`openxtalk-lite-1.15-win-noinstaller.7z`, build 202605052228), and the
-files are unchanged. Its `PROVENANCE.md`, installed as
-`PROVENANCE-oxt-runtimes-1.15.md` at the root of the program folder,
-lists every file with its size and SHA-256 and says which ones are
-byte-identical to the stock LiveCode Community 9.6.3 installer. The
-Linux package leaves out the asset's `Runtime/Linux/x86-64/`, whose
-place this repository's own Linux runtime takes (see
-[The Linux x86-64 package](#the-linux-x86-64-package)); what the macOS
-package leaves out is at the end of this section.
+`--builds` from the outputs of this repository's CI builds of one
+commit; only the Android runtime is not built here. Its `PROVENANCE.md`,
+installed as `PROVENANCE-oxt-runtimes-0.2.1-rc.3.md` at the root of the
+program folder, names that commit and the CI runs and lists every file
+with its size, SHA-256 and the build it comes from. Each package leaves
+out what its own build makes: the Windows and Linux packages their own
+x86-64 runtime and the time zone library's code for it, and the Linux
+and macOS packages the zoneinfo data (the asset's `exclude`).
 
 | Where it ends up | What it is |
 | --- | --- |
-| `Runtime/Windows/x86-32/` | 32-bit Windows standalone engine and externals: stock LiveCode Community 9.6.3 builds (all 86 files identical to LiveCode's installer). |
-| `Runtime/Linux/x86-64/` (Windows and macOS packages) | 64-bit Linux standalone engine (version 9.7.1-OXT, dated May 2026): Tom Perry's build. Its two support libraries (`revpdfprinter.so`, `revsecurity.so`) differ from LiveCode's 9.6.3 files and carry no version string; they are dated September 2023, before Tom's first engine builds, and their origin is not recorded (possibly LiveCode 9.6.3-rc-3 builds). Plus 42 shared libraries of other projects in `lib/` (for example glibc, GLib, PulseAudio, ALSA, libsndfile, FLAC, Ogg, Vorbis, Opus, LAME, mpg123, libxcb and X11 libraries, zlib and zstd). |
-| `Runtime/Linux/x86-32/` | 32-bit Linux standalone engine (version string 9.6.3-rc-3, not identical to LiveCode's) and LiveCode's externals, plus 91 files of shared libraries of other projects in `lib/` (for example GTK 2, GDK, GLib, Pango, cairo, pixman, HarfBuzz, FreeType, fontconfig, libpng, libjpeg, libtiff, libwebp and X11 libraries). |
-| `Runtime/Android/` | Android standalone engines for four ABIs (version string 9.6.3-rc-3) and support files; 31 of 38 files are identical to LiveCode's 9.6.3 installer, the others are as Tom Perry shipped them. |
-| `Extensions/com.livecode.library.timezone/code/<platform>/` and `.../resources/` | The time zone library's native code for platforms other than Windows x86-64, including iOS (device and simulator) and macOS (17 of 23 files identical to LiveCode's; the iOS simulator and macOS `tz.dylib` files differ), and its zoneinfo data (identical to LiveCode's). |
+| `Runtime/Windows/x86-32/`, and `Runtime/Windows/x86-64/` in the macOS and Linux packages | Windows standalone engines, `revsecurity.dll` and `revpdfprinter.dll`, the externals, the database drivers and CEF, built from this repository by the Windows workflow's 32-bit and 64-bit jobs: the same components as the Windows package's own files (see [Prebuilt libraries](#prebuilt-libraries) and [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty)). |
+| `Runtime/Linux/x86-64/` in the Windows and macOS packages, and `Runtime/Linux/x86-32/` | Linux standalone engines, support libraries, externals and database drivers, built from this repository by the Linux workflow (x86-64 in its Ubuntu 20.04 container, x86 in its Debian 11 i386 container), with CEF in the x86-64 runtime only: the same components as the Linux package's own files (see [The Linux x86-64 package](#the-linux-x86-64-package)). There are no shared libraries of other projects in them: a Linux standalone uses the system's. |
+| `Extensions/com.livecode.library.timezone/code/<platform>/` and `.../resources/` | The time zone library's native code for Windows x86-32 and x86-64 and Linux x86-32 and x86-64, built from this repository, and its zoneinfo data, compiled by the Linux x86-64 build; the Android code (next row) is 1.15's. |
+| `Runtime/Android/` and `Extensions/com.livecode.library.timezone/code/*-android/` | Carried over unchanged from the earlier asset `oxt-runtimes-1.15`, which holds OpenXTalk Lite 1.15's files: Android standalone engines for four ABIs (version string 9.6.3-rc-3) and support files, of which 31 of 38 are identical to LiveCode's 9.6.3 installer and the others are as Tom Perry shipped them. That asset's provenance is installed as `PROVENANCE-oxt-runtimes-1.15.md`. |
 
 Licences and corresponding source:
 
-- **Files identical to LiveCode Community 9.6.3** (engines, externals,
-  Android templates, time zone library): GPLv3. Source:
-  [livecode/livecode](https://github.com/livecode/livecode), tag
+- **Built from this repository** (all but the Android files): as the
+  packages' own files of those platforms: GPLv3 with the exception in
+  [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for OXT-Beyond's code, and
+  the third-party components of the sections above (OpenSSL, curl, ICU,
+  the libraries of `thirdparty/`, CEF). Source: this repository at the
+  commit that `PROVENANCE-oxt-runtimes-0.2.1-rc.3.md` names.
+- **Android files identical to LiveCode Community 9.6.3**: GPLv3.
+  Source: [livecode/livecode](https://github.com/livecode/livecode), tag
   [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3). This
   repository's history contains the upstream commits up to that tag.
-- **Tom Perry's 9.7.1-OXT Linux x86-64 engine**: GPLv3. Tom publishes
-  his engine source archives for Windows, macOS and Linux at
-  [openxtalk.net/OXT-lite-source](https://www.openxtalk.net/OXT-lite-source/index.php);
-  which archive matches this engine is not recorded.
-- **The other files that differ from LiveCode's 9.6.3 files** (among
-  them the Linux x86-32 and Android engines that report `9.6.3-rc-3`,
-  the Linux x86-64 support libraries and the iOS simulator and macOS
-  time zone libraries): GPLv3. They are as Tom Perry shipped them in
-  OpenXTalk Lite; how each one was built is not recorded. They may be
-  LiveCode builds (source: tag
+- **The other Android files** (the engines that report `9.6.3-rc-3`,
+  `Classes`, `Manifest.xml` and the arm64 `DbMysql`): GPLv3. They are as
+  Tom Perry shipped them in OpenXTalk Lite; how each one was built is not
+  recorded. They may be LiveCode builds (source: tag
   [`9.6.3-rc-3`](https://github.com/livecode/livecode/tree/9.6.3-rc-3)
   or [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3)) or
-  builds by Tom (source: his archives above).
+  builds by Tom (source: his archives at
+  [openxtalk.net/OXT-lite-source](https://www.openxtalk.net/OXT-lite-source/index.php)).
 - **IANA time zone data** (`resources/zoneinfo`): public domain; the
   source is in `extensions/libraries/timezone/tz/`.
-- **Shared libraries in `Runtime/Linux/*/lib/`**: each under the licence
-  of its own project (for example LGPL for glibc, GLib, GTK and Pango;
-  MIT or BSD-style licences for several X11, compression and codec
-  libraries). Their licence texts and sources are available from those
-  projects; they are not in the asset. See
-  [Still to review](#still-to-review).
 
-The asset holds no standalone runtimes for macOS or iOS (only the time
-zone library's native code for them, as OpenXTalk Lite 1.15 shipped
-it), and nothing from `Ext/`. The macOS package takes all of it except
-the time zone library's macOS code and zoneinfo data, which its own
-build makes; the macOS standalone runtimes are this repository's (see
-[The macOS app](#the-macos-app)).
+The asset holds no standalone runtimes for macOS or iOS, and nothing
+from `Ext/`. The macOS standalone runtimes are this repository's, in
+the macOS package only (see [The macOS app](#the-macos-app)). Until
+0.2.1-rc.2 the packages took the asset `oxt-runtimes-1.15` instead:
+OpenXTalk Lite 1.15's runtimes, unchanged (LiveCode 9.6.3 builds for
+32-bit Windows, and Linux runtimes with shared libraries of other
+projects in their `lib/`), which had no Windows x86-64 runtime.
 
 ## The macOS app
 
@@ -576,16 +566,12 @@ stores the second copy as a hard link):
 | `Extensions/com.livecode.library.timezone/code/x86_64-linux/tz.so` and `resources/zoneinfo/` | The time zone library and the IANA zoneinfo data, built from this repository (the Windows packages take both from the runtimes asset) | GPLv3; the zoneinfo data is public domain |
 | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | The launcher, the per-user install scripts, the desktop entry, the MIME type definitions and the library list (from `Installer/linux/`), and the OXT-Beyond icon in eight sizes (see [The OXT-Beyond icon](#the-oxt-beyond-icon)) | GPLv3 |
 
-The Linux package does **not** contain OpenXTalk Lite 1.15's
-`Runtime/Linux/x86-64` (Tom Perry's 9.7.1-OXT engine and the 42 shared
-libraries in its `lib/`), which the Windows packages still carry (see
-[Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)):
-its standalones use this repository's engine. The rest of the runtimes
-asset is there as in the Windows packages: `Runtime/Windows/x86-32/`,
-`Runtime/Linux/x86-32/` (with the 91 shared library files of other
-projects in its `lib/`), `Runtime/Android/` and the time zone library's
-code for the other platforms. The Linux package has no Windows x86-64
-standalone runtime yet.
+The Linux package's own `Runtime/Linux/x86-64` is its build's; the
+runtimes asset adds the other platforms' runtimes, as in the other
+packages: `Runtime/Windows/x86-64/`, `Runtime/Windows/x86-32/`,
+`Runtime/Linux/x86-32/`, `Runtime/Android/` and the time zone library's
+code for those platforms (see
+[Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)).
 
 The Linux package does not contain the Microsoft Visual C++ runtime
 DLLs (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`) that the
@@ -741,10 +727,10 @@ has been in the LiveCode Community tree since upstream. Its licence,
   recorded, and **`Documentation/linked_files/`** (the sample stacks and
   zip archives from LiveCode's lessons and samples): authors and terms
   are not recorded.
-- **The runtimes asset:** the shared libraries in `Runtime/Linux/*/lib/`
-  come without their licence texts or source offers, and how Tom Perry
-  built the runtime files that differ from LiveCode's 9.6.3 files is
-  not recorded. Building these runtimes from source would settle both.
+- **The runtimes asset's Android files:** how Tom Perry built those
+  that differ from LiveCode's 9.6.3 files is not recorded. Building the
+  Android runtime from source would settle it (the other runtimes are
+  built from source from 0.2.1-rc.3 on).
 - `extensions/libraries/iconsvg/` contains SVG path data for Font Awesome
   icons (its default "fontawesome" icon family). The Font Awesome version
   and the licence notice that should go with it are not recorded in the
