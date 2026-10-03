@@ -895,12 +895,14 @@ jobs:
       # The browser widget, revBrowser (CEF) and the player (mplayer) in a
       # standalone of the package, with a screen (Xvfb): a page loads and
       # its JavaScript calls back into the script, a WAV and an MP4 file
-      # play, pause and end (tools/ci/media_check.py)
+      # play, pause and end, and the player's controller plays, pauses and
+      # seeks when clicked (tools/ci/media_check.py; the snapshots of the
+      # controller go with the logs)
       - name: Browser and player check
         timeout-minutes: 10
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
-            --log "$RUNNER_TEMP/logs/media-check.log"
+            --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
 
       # ldd over every x86_64 ELF file of the package (engine, externals,
       # CEF and its helpers, toolchain, extension libraries): nothing "not
