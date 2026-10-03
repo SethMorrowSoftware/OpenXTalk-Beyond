@@ -870,19 +870,25 @@ bool MCWin32DSPlayer::OpenFile(MCStringRef p_filename)
 	if (t_success)
 	{
 		// Ask the graph builder to render each output pin of the source filter.
+		// A stream that cannot be rendered (the sound of a video on a computer
+		// without a sound device, a stream with no decoder) is left out: the
+		// file opens when at least one of its streams plays.
+		bool t_rendered = false;
 		IPin *t_pin;
 		while (t_success && S_OK == t_enum_pins->Next(1, &t_pin, NULL))
 		{
 			PIN_DIRECTION t_direction;
 			t_success = SUCCEEDED(t_pin->QueryDirection(&t_direction));
 
-			if (t_success && t_direction == PINDIR_OUTPUT)
-			{
-				t_success = SUCCEEDED(t_graph->Render(t_pin));
-			}
+			if (t_success && t_direction == PINDIR_OUTPUT &&
+				SUCCEEDED(t_graph->Render(t_pin)))
+				t_rendered = true;
 
 			t_pin->Release();
 		}
+
+		if (t_success)
+			t_success = t_rendered;
 	}
 
 	if (t_success && t_vmr9 != NULL)
