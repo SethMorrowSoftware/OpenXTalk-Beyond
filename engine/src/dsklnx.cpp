@@ -437,6 +437,9 @@ int inet_aton(const char *cp, struct in_addr *inp)
 // SIGCHLD handler.
 pid_t waitedpid;
 
+// Set by the SIGCHLD handler for MCS_handlechildexits
+static volatile sig_atomic_t s_child_exited = 0;
+
 static void handle_signal(int sig)
 {
     MCHandler handler(HT_MESSAGE);
@@ -488,47 +491,19 @@ static void handle_signal(int sig)
     case SIGCHLD:
         {
 #if defined(_LINUX_DESKTOP)
-            MCPlayerHandle t_player = MCplayers;
-            // If we have some players waiting then deal with these first
-            waitedpid = -1;
-            if (t_player.IsValid())
-            {
-                waitedpid = wait(NULL);
-                // Moving these two lines half fixes bug 5966 - however it still isn't quite right
-                // as there will still be some interaction between a player and shell command
-                while(t_player.IsValid())
-                {
-                    if (t_player.IsValid() && waitedpid == t_player->getpid())
-                    {
-                        if (t_player->isdisposable())
-                            t_player->playstop();
-                        else
-                            MCscreen->delaymessage(t_player, MCM_play_stopped, NULL, NULL);
-
-                        t_player->shutdown();
-                        break;
-                    }
-                    t_player = t_player -> getnextplayer() ;
-                }
-            }
-            else
-            {
-                // Check to see if we have created a video window. If we have got to here it means
-                // that we could not start mplayer -- so the child thread has exited, but the player
-                // object has not had a chance to be created yet. TODO - investigate if there is a
-                // cleaner way of dealing with this situation.
-                if ( MClastvideowindow != DNULL )
-                {
-                    gdk_window_hide(MClastvideowindow);
-                    gdk_window_destroy(MClastvideowindow);
-                    MClastvideowindow = DNULL ;
-                }
-                else
-                {
-                    MCS_checkprocesses();
-                }
-            }
+            // OXT-Beyond: a player whose mplayer has ended is told so in the
+            // event loop (MCS_handlechildexits), not here: telling it posts a
+            // message and destroys its window, which allocate memory and call
+            // X, and a signal handler must do neither (the engine hung now and
+            // then at the end of a movie, when the signal came during an
+            // allocation or an X call of its own). The handler no longer
+            // reaps a child of its own either, so a shell command's or an
+            // open process's exit status is no longer lost to it.
+            s_child_exited = 1;
+            if (MCplayers.IsValid() || MClastvideowindow != DNULL)
+                break;
 #endif /* LINUX_DESKTOP */
+            MCS_checkprocesses();
         }
         break;
     case SIGALRM:
@@ -544,6 +519,36 @@ static void handle_signal(int sig)
         break;
     }
     return;
+}
+
+// OXT-Beyond: called by the event loop (MCScreenDC::wait). When a child
+// process has ended since the last call, each player whose mplayer has
+// ended stops (it gets playStopped, a disposable one is deleted), and the
+// processes of open process and shell are checked.
+void MCS_handlechildexits(void)
+{
+    if (!s_child_exited)
+        return;
+    s_child_exited = 0;
+
+    MCPlayerHandle t_player = MCplayers;
+    while (t_player.IsValid())
+    {
+        MCPlayerHandle t_next = t_player -> getnextplayer();
+        pid_t t_pid = t_player -> getpid();
+        if (t_pid > 0 && waitpid(t_pid, NULL, WNOHANG) == t_pid)
+        {
+            // (playstop deletes a disposable player)
+            t_player -> shutdown();
+            if (t_player -> isdisposable())
+                t_player -> playstop();
+            else
+                MCscreen -> delaymessage(t_player, MCM_play_stopped, NULL, NULL);
+        }
+        t_player = t_next;
+    }
+
+    MCS_checkprocesses();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

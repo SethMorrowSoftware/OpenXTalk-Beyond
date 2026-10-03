@@ -679,8 +679,9 @@ adds:
   a player again (new in 0.2.1-rc.5);
 - on Linux a player shows its controller (`showController`), with a
   play/pause button and a well to seek in: mplayer draws only the video,
-  and OpenXTalk Lite's player had no controller at all (new in
-  0.2.1-rc.6);
+  and OpenXTalk Lite's player had no controller at all; and the engine no
+  longer hangs now and then when a movie ends, and a shell command's exit
+  status is no longer lost while a player is open (new in 0.2.1-rc.6);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had
