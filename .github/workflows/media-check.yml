@@ -1,0 +1,131 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The browser widget, revBrowser and the player in the packages of a
+# published release, on each platform's runner: tools/ci/media_check.py
+# with the Windows portable zip, the Linux tar.xz and the macOS zip as
+# users download them (on macOS on both architectures). The build
+# workflows run the same check on the packages they make; this one checks
+# what is already out, without a build: by hand for any release
+# (workflow_dispatch), and on a pull request that changes the check itself,
+# against the latest release.
+
+name: Browser and player check (release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to check (for example v0.2.1-rc.3); empty for the latest one
+        type: string
+        default: ''
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/media-check.yml
+      - tools/ci/media_check.py
+      - tools/ci/media-check.livecodescript
+      - tools/ci/media/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.platform }} (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win-x86_64
+            runner: windows-2022
+            asset: win-x86_64-portable.zip
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            asset: linux-x86_64.tar.xz
+          - platform: mac-universal
+            runner: macos-15
+            asset: mac-universal.zip
+          - platform: mac-universal
+            runner: macos-15-intel
+            asset: mac-universal.zip
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          if [ -z "$TAG" ]; then
+            # the newest release whose tag is a version (not runtimes-* or prebuilts-*)
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-$ASSET" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          cd "$RUNNER_TEMP/dist"
+          # (pwd -W: the Windows path, for Python, in Git Bash)
+          echo "PACKAGE=$(pwd -W 2>/dev/null || pwd)/$(ls *-"$ASSET")" >> "$GITHUB_ENV"
+
+      # mplayer for the player (the engine runs /usr/bin/mplayer), Xvfb for
+      # a screen, and the libraries of the launcher's list
+      - name: Install mplayer, Xvfb and the runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          pkgs=(mplayer xvfb xauth)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      # The macOS zip holds OXT-Beyond.app, which ditto extracts as Finder
+      # does; the others are extracted by the check itself
+      - name: Extract the app
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/oxt-test"
+          ditto -x -k "$PACKAGE" "$RUNNER_TEMP/oxt-test"
+          echo "LAYOUT=--install=$RUNNER_TEMP/oxt-test" >> "$GITHUB_ENV"
+
+      - name: Browser and player check
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
+            --log "$RUNNER_TEMP/media-check.log"

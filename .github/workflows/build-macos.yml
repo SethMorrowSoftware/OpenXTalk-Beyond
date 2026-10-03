@@ -811,6 +811,16 @@ jobs:
           python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal --targets all \
             --log "$LOGS/standalone-check.log"
 
+      # The browser widget (WKWebView), revBrowser and the player
+      # (AVFoundation) in a standalone of the app: a page loads and its
+      # JavaScript calls back into the script, a WAV and an MP4 file play,
+      # pause and end (tools/ci/media_check.py)
+      - name: Browser and player check
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --log "$LOGS/media-check.log"
+
       # The zip must give the same, still valid, app
       - name: Check the zip
         run: |
