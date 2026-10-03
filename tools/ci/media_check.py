@@ -187,6 +187,9 @@ def main(argv=None):
                     help='the layout (default: this machine\'s, %s)' % rlc.default_platform())
     ap.add_argument('--what', default='widget,revbrowser,player',
                     help='comma-separated: widget, revbrowser, player (default: %(default)s)')
+    ap.add_argument('--must-play', metavar='FILES', default='',
+                    help='comma-separated media files that must play although KNOWN lists them (for example the '
+                         'MP4 files on Windows with LAV Filters installed)')
     ap.add_argument('--log', metavar='FILE', help='write the results here too')
     ap.add_argument('--timeout', type=int, default=240, help='seconds for the engine run (default: %(default)s)')
     args = ap.parse_args(argv)
@@ -248,6 +251,8 @@ def main(argv=None):
                     raise rlc.CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
         known = dict(KNOWN.get(p.family, {}))
+        for name in args.must_play.split(','):
+            known.pop(name.strip(), None)
         if p.family == 'windows' and 'player' in what:
             devices = windows_sound_devices()
             lines.append('INFO sound devices: %s' % devices)

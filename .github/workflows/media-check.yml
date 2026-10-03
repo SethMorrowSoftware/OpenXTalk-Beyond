@@ -49,7 +49,7 @@ concurrency:
 
 jobs:
   check:
-    name: ${{ matrix.platform }} (${{ matrix.runner }})
+    name: ${{ matrix.platform }} (${{ matrix.runner }})${{ matrix.lav && ' with LAV Filters' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +57,12 @@ jobs:
           - platform: win-x86_64
             runner: windows-2022
             asset: win-x86_64-portable.zip
+          # With LAV Filters, the DirectShow filters that read MP4 and
+          # decode H.264 and AAC: the MP4 files must play then
+          - platform: win-x86_64
+            runner: windows-2022
+            asset: win-x86_64-portable.zip
+            lav: true
           - platform: linux-x86_64
             runner: ubuntu-24.04
             asset: linux-x86_64.tar.xz
@@ -112,6 +118,10 @@ jobs:
           done < Installer/linux/libraries.txt
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
 
+      - name: Install LAV Filters
+        if: matrix.lav
+        run: choco install lavfilters -y --no-progress
+
       # The macOS zip holds OXT-Beyond.app, which ditto extracts as Finder
       # does; the others are extracted by the check itself
       - name: Extract the app
@@ -124,8 +134,9 @@ jobs:
       - name: Browser and player check
         env:
           PLATFORM: ${{ matrix.platform }}
+          MUST_PLAY: ${{ matrix.lav && 'oxt-check.mp4,oxt-check-silent.mp4' || '' }}
         run: |
           py=python3
           [ "$RUNNER_OS" = Windows ] && py=python
-          "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
+          "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" --must-play "$MUST_PLAY" \
             --log "$RUNNER_TEMP/media-check.log"
