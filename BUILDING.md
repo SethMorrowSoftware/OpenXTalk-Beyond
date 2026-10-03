@@ -1885,6 +1885,14 @@ it.
    git push origin v0.1.0
    ```
 
+   Without the right to push tags (from a cloud session, for example),
+   wait until the three build workflows have passed on `main`'s latest
+   commit and run the "Tag a release" workflow
+   ([`.github/workflows/tag-release.yml`](.github/workflows/tag-release.yml))
+   on `main` instead: it tags that commit `v<ide/.version>`, refuses a
+   tag that exists already or a commit whose builds did not pass, and
+   starts `release.yml` on the new tag, which then does what step 6 says.
+
 6. The tag starts `release.yml`:
    - **Prepare the release** checks `ide/.version` and that the tag is
      `v` followed by it exactly (a tag that is not stops the run before
