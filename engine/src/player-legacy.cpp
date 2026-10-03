@@ -59,6 +59,13 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #undef X11
 #ifdef TARGET_PLATFORM_LINUX
 #define X11
+
+// OXT-Beyond: the controller the engine draws below mplayer's video, as
+// tall as the Mac and Windows players' one; the size of its thumb, and how
+// often it shows the time while the movie plays (milliseconds)
+#define CONTROLLER_HEIGHT 26
+#define CONTROLLER_THUMB 10
+#define CONTROLLER_TICK 250
 #endif
 
 //////////
@@ -99,6 +106,9 @@ MCPlayer::MCPlayer()
 	command = NULL;
 	m_player = NULL ;
 	atom = GDK_NONE;
+	m_controller_time = 0;
+	m_controller_duration = 0;
+	m_controller_seeking = false;
 #endif
     
 }
@@ -128,6 +138,9 @@ MCPlayer::MCPlayer(const MCPlayer &sref) : MCControl(sref)
 	command = NULL;
 	m_player = NULL ;
 	atom = GDK_NONE;
+	m_controller_time = 0;
+	m_controller_duration = 0;
+	m_controller_seeking = false;
 #endif
     
 }
@@ -198,6 +211,20 @@ Boolean MCPlayer::mfocus(int2 x, int2 y)
         || (flags & F_DISABLED && getstack()->gettool(this) == T_BROWSE))
 		return False;
     
+#ifdef X11
+	// While the mouse is down in the controller's well, the movie follows it
+	// (when the mouse went up elsewhere, as under a dialog the script opened
+	// on mouseDown, the seek has ended)
+	if (m_controller_seeking && !(state & CS_MFOCUSED))
+		m_controller_seeking = false;
+	if (m_controller_seeking)
+	{
+		MCControl::mfocus(x, y);
+		x11_controllerseek(x);
+		return True;
+	}
+#endif
+
 	return MCControl::mfocus(x, y);
 }
 
@@ -222,6 +249,15 @@ Boolean MCPlayer::mdown(uint2 which)
             switch (getstack()->gettool(this))
 		{
             case T_BROWSE:
+#ifdef X11
+                // The controller acts on a click before the script hears of
+                // it, as the Mac and Windows players' one does
+                if (x11_controllerdown())
+                {
+                    message_with_valueref_args(MCM_mouse_down, MCSTR("1"));
+                    return True;
+                }
+#endif
                 if (message_with_valueref_args(MCM_mouse_down, MCSTR("1")) == ES_NORMAL)
                     return True;
                 break;
@@ -265,6 +301,9 @@ Boolean MCPlayer::mup(uint2 which, bool p_release) //mouse up
             switch (getstack()->gettool(this))
 		{
             case T_BROWSE:
+#ifdef X11
+                x11_controllerup();
+#endif
                 if (!p_release && MCU_point_in_rect(rect, mx, my))
                     message_with_valueref_args(MCM_mouse_up, MCSTR("1"));
                 else
@@ -295,11 +334,24 @@ Boolean MCPlayer::mup(uint2 which, bool p_release) //mouse up
 
 Boolean MCPlayer::doubledown(uint2 which)
 {
+#ifdef X11
+	// A second click on the controller is a click of its own
+	if (which == Button1 && getstack() -> gettool(this) == T_BROWSE && x11_controllerdown())
+		return True;
+#endif
 	return MCControl::doubledown(which);
 }
 
 Boolean MCPlayer::doubleup(uint2 which)
 {
+#ifdef X11
+	if (which == Button1 && getstack() -> gettool(this) == T_BROWSE &&
+		(m_controller_seeking || (x11_hascontroller() && MCU_point_in_rect(x11_getcontrollerrect(), mx, my))))
+	{
+		x11_controllerup();
+		return True;
+	}
+#endif
 	return MCControl::doubleup(which);
 }
 
@@ -312,9 +364,22 @@ void MCPlayer::applyrect(const MCRectangle &nrect)
 
 void MCPlayer::timer(MCNameRef mptr, MCParameter *params)
 {
+#ifdef X11
+    if (MCNameIsEqualToCaseless(mptr, MCM_internal))
+    {
+        x11_controllertick();
+        return;
+    }
+#endif
     if (MCNameIsEqualToCaseless(mptr, MCM_play_stopped))
     {
         state |= CS_PAUSED;
+#ifdef X11
+        // mplayer has ended (at the end of the movie): the controller shows
+        // that end, as mplayer cannot tell the time any more
+        m_controller_time = m_controller_duration;
+        x11_redrawcontroller();
+#endif
         if (isbuffering()) //so the last frame gets to be drawn
         {
             // MW-2011-08-18: [[ Layers ]] Invalidate the whole object.
@@ -964,6 +1029,11 @@ void MCPlayer::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 	dc->setbackground(MCzerocolor);
 	dc->setfillstyle(FillSolid, nil, 0, 0);
     
+#ifdef X11
+	if (x11_hascontroller())
+		x11_drawcontroller(dc);
+#endif
+
 	if (getflag(F_SHOW_BORDER))
 	{
 		if (getflag(F_3D))
@@ -1030,7 +1100,11 @@ Boolean MCPlayer::x11_prepare(void)
     Boolean t_success;
     MCAutoStringRefAsCString t_filename_cstring;
     /* UNCHECKED */ t_filename_cstring . Lock(*t_filename);
-    t_success = (m_player -> init(*t_filename_cstring, getstack(), rect));
+    t_success = (m_player -> init(*t_filename_cstring, getstack(), x11_getvideorect()));
+    
+    m_controller_time = 0;
+    m_controller_duration = 0;
+    x11_redrawcontroller();
     
     return t_success;
 }
@@ -1039,6 +1113,15 @@ Boolean MCPlayer::x11_playpause(Boolean on)
 {
     if ( m_player != NULL)
         m_player -> play(!on) ;
+    
+    // Playing, the controller shows the time as it moves on; paused, the
+    // time it stopped at
+    if (on)
+        x11_synccontroller();
+    else if (x11_hascontroller())
+        MCscreen -> addtimer(this, MCM_internal, CONTROLLER_TICK);
+    x11_redrawcontroller();
+    
     return True;
 }
 
@@ -1058,6 +1141,10 @@ Boolean MCPlayer::x11_playstop(void)
 {
     if ( m_player != NULL)
         m_player -> pause();
+    
+    m_controller_time = 0;
+    x11_redrawcontroller();
+    
     return True;
 }
 
@@ -1065,7 +1152,7 @@ void MCPlayer::x11_setrect(const MCRectangle& nrect)
 {
     rect = nrect;
     if ( m_player != NULL ) 
-        m_player -> resize(nrect);
+        m_player -> resize(x11_getvideorect());
 }
 
 uint4 MCPlayer::x11_getduration(void)
@@ -1094,8 +1181,12 @@ uint4 MCPlayer::x11_getmoviecurtime(void)
 
 void MCPlayer::x11_setcurtime(uint4 newtime)
 {
-    if ( m_player != NULL)
+    if ( m_player != NULL && m_player -> isrunning())
+    {
         m_player -> setcurrenttime ( newtime ) ;
+        m_controller_time = newtime;
+        x11_redrawcontroller();
+    }
 }
 
 void MCPlayer::x11_setlooping(Boolean loop)
@@ -1142,6 +1233,238 @@ pid_t MCPlayer::getpid(void)
 void MCPlayer::shutdown(void)
 {
     if ( m_player != NULL) m_player -> shutdown(); 
+}
+
+//// The controller
+//
+// mplayer only draws the video, in a window of its own (lnxmplayer.cpp):
+// the engine draws the controller below that window, after the Mac and
+// Windows players' one (player-platform.cpp), with a play/pause button and
+// a well to seek in. Its colors are theirs: the backColor of the player
+// for the icons and the thumb, the hiliteColor for the part played.
+
+bool MCPlayer::x11_hascontroller(void)
+{
+    return getflag(F_SHOW_CONTROLLER) && getactiverect() . height > CONTROLLER_HEIGHT;
+}
+
+MCRectangle MCPlayer::x11_getcontrollerrect(void)
+{
+    MCRectangle t_rect;
+    t_rect = getactiverect();
+    t_rect . y += t_rect . height - CONTROLLER_HEIGHT;
+    t_rect . height = CONTROLLER_HEIGHT;
+    return t_rect;
+}
+
+MCRectangle MCPlayer::x11_getcontrollerwellrect(void)
+{
+    MCRectangle t_rect;
+    t_rect = x11_getcontrollerrect();
+    if (t_rect . width < 3 * CONTROLLER_HEIGHT)
+        return MCRectangleMake(t_rect . x, t_rect . y, 0, 0);
+    return MCRectangleMake(t_rect . x + CONTROLLER_HEIGHT, t_rect . y, t_rect . width - CONTROLLER_HEIGHT - CONTROLLER_HEIGHT / 3, CONTROLLER_HEIGHT);
+}
+
+// The rect of mplayer's window: above the controller when there is one
+MCRectangle MCPlayer::x11_getvideorect(void)
+{
+    if (!x11_hascontroller())
+        return rect;
+    
+    MCRectangle t_rect;
+    t_rect = getactiverect();
+    t_rect . height -= CONTROLLER_HEIGHT;
+    return t_rect;
+}
+
+void MCPlayer::x11_showcontroller(Boolean show)
+{
+    if (m_player != NULL)
+        m_player -> resize(x11_getvideorect());
+    if (show && x11_controllerplaying())
+        MCscreen -> addtimer(this, MCM_internal, CONTROLLER_TICK);
+    layer_redrawall();
+}
+
+bool MCPlayer::x11_controllerplaying(void)
+{
+    return getstate(CS_PREPARED) && m_player != NULL && m_player -> isrunning() && m_player -> isplaying();
+}
+
+static void x11_setcontrollerfill(MCGContextRef p_gcontext, const MCColor& p_color)
+{
+    MCGContextSetFillRGBAColor(p_gcontext, p_color . red / 65535.0f, p_color . green / 65535.0f, p_color . blue / 65535.0f, 1.0f);
+}
+
+void MCPlayer::x11_drawcontroller(MCDC *dc)
+{
+    MCRectangle t_rect;
+    t_rect = x11_getcontrollerrect();
+    
+    MCColor t_icon_color, t_played_color;
+    uint2 t_index;
+    if (getcindex(DI_BACK, t_index))
+        t_icon_color = colors[t_index];
+    else
+        t_icon_color . red = t_icon_color . green = t_icon_color . blue = 0xFFFF;
+    if (getcindex(DI_HILITE, t_index))
+        t_played_color = colors[t_index];
+    else
+        t_played_color = MChilitecolor;
+    
+    dc -> save();
+    dc -> cliprect(t_rect);
+    
+    MCGContextRef t_gcontext;
+    t_gcontext = nil;
+    if (dc -> lockgcontext(t_gcontext))
+    {
+        MCGContextAddRectangle(t_gcontext, MCRectangleToMCGRectangle(t_rect));
+        MCGContextSetFillRGBAColor(t_gcontext, 0x22 / 255.0f, 0x22 / 255.0f, 0x22 / 255.0f, 1.0f);
+        MCGContextFill(t_gcontext);
+        
+        MCGContextSetShouldAntialias(t_gcontext, true);
+        
+        // The play/pause button: two bars while the movie plays, a triangle
+        // otherwise
+        MCGFloat t_x, t_y, t_size;
+        t_x = t_rect . x;
+        t_y = t_rect . y;
+        t_size = CONTROLLER_HEIGHT;
+        if (x11_controllerplaying())
+        {
+            MCGContextAddRectangle(t_gcontext, MCGRectangleMake(t_x + 0.3f * t_size, t_y + 0.3f * t_size, 0.15f * t_size, 0.4f * t_size));
+            MCGContextAddRectangle(t_gcontext, MCGRectangleMake(t_x + 0.55f * t_size, t_y + 0.3f * t_size, 0.15f * t_size, 0.4f * t_size));
+        }
+        else
+        {
+            MCGContextMoveTo(t_gcontext, MCGPointMake(t_x + 0.35f * t_size, t_y + 0.3f * t_size));
+            MCGContextLineTo(t_gcontext, MCGPointMake(t_x + 0.35f * t_size, t_y + 0.7f * t_size));
+            MCGContextLineTo(t_gcontext, MCGPointMake(t_x + 0.68f * t_size, t_y + 0.5f * t_size));
+            MCGContextCloseSubpath(t_gcontext);
+        }
+        x11_setcontrollerfill(t_gcontext, t_icon_color);
+        MCGContextFill(t_gcontext);
+        
+        // The well, the part played and the thumb at the current time
+        MCRectangle t_well;
+        t_well = x11_getcontrollerwellrect();
+        if (t_well . width > CONTROLLER_THUMB)
+        {
+            MCGFloat t_start, t_position, t_middle;
+            t_start = t_well . x + CONTROLLER_THUMB / 2.0f;
+            t_position = t_start;
+            if (m_controller_duration > 0)
+                t_position += (t_well . width - CONTROLLER_THUMB) * (MCGFloat)MCMin(m_controller_time, m_controller_duration) / m_controller_duration;
+            t_middle = t_well . y + CONTROLLER_HEIGHT / 2.0f;
+            
+            MCGContextAddRoundedRectangle(t_gcontext, MCGRectangleMake(t_well . x, t_middle - 3, t_well . width, 6), MCGSizeMake(6, 6));
+            MCGContextSetFillRGBAColor(t_gcontext, 0.0f, 0.0f, 0.0f, 1.0f);
+            MCGContextFill(t_gcontext);
+            
+            if (t_position > t_start)
+            {
+                MCGContextAddRoundedRectangle(t_gcontext, MCGRectangleMake(t_well . x + 1, t_middle - 2, t_position - t_well . x - 1, 4), MCGSizeMake(4, 4));
+                x11_setcontrollerfill(t_gcontext, t_played_color);
+                MCGContextFill(t_gcontext);
+            }
+            
+            MCGContextAddEllipse(t_gcontext, MCGPointMake(t_position, t_middle), MCGSizeMake(CONTROLLER_THUMB / 2.0f, CONTROLLER_THUMB / 2.0f), 0);
+            x11_setcontrollerfill(t_gcontext, t_icon_color);
+            MCGContextFill(t_gcontext);
+        }
+        
+        dc -> unlockgcontext(t_gcontext);
+    }
+    
+    dc -> restore();
+}
+
+void MCPlayer::x11_redrawcontroller(void)
+{
+    if (x11_hascontroller())
+        layer_redrawrect(x11_getcontrollerrect());
+}
+
+// Reads the time and duration the controller shows from mplayer
+void MCPlayer::x11_synccontroller(void)
+{
+    if (m_player == NULL || !m_player -> isrunning() || m_controller_seeking)
+        return;
+    m_controller_duration = m_player -> getduration();
+    m_controller_time = m_player -> getcurrenttime();
+}
+
+// While the movie plays, the controller shows its time every CONTROLLER_TICK
+void MCPlayer::x11_controllertick(void)
+{
+    if (!opened || !x11_hascontroller() || !x11_controllerplaying())
+        return;
+    x11_synccontroller();
+    x11_redrawcontroller();
+    MCscreen -> addtimer(this, MCM_internal, CONTROLLER_TICK);
+}
+
+// A click at mx, my: false when it is not on the controller
+bool MCPlayer::x11_controllerdown(void)
+{
+    if (!x11_hascontroller() || !MCU_point_in_rect(x11_getcontrollerrect(), mx, my))
+        return false;
+    
+    if (mx < x11_getcontrollerrect() . x + CONTROLLER_HEIGHT)
+    {
+        if (x11_controllerplaying())
+            playpause(True);
+        else if (getstate(CS_PREPARED))
+            playpause(False);
+        else
+            playstart(kMCEmptyString);
+    }
+    else if (MCU_point_in_rect(x11_getcontrollerwellrect(), mx, my))
+    {
+        m_controller_seeking = true;
+        x11_controllerseek(mx);
+    }
+    
+    return true;
+}
+
+// Seeks to the time at x in the well (mplayer starts again, paused, if it
+// has played the movie to its end)
+void MCPlayer::x11_controllerseek(int2 x)
+{
+    MCRectangle t_well;
+    t_well = x11_getcontrollerwellrect();
+    if (t_well . width <= CONTROLLER_THUMB)
+        return;
+    
+    if (!getstate(CS_PREPARED) && !prepare(kMCEmptyString))
+        return;
+    if (m_player == NULL || !m_player -> restart())
+        return;
+    if (m_controller_duration == 0)
+        m_controller_duration = m_player -> getduration();
+    if (m_controller_duration == 0)
+        return;
+    
+    int32_t t_range, t_offset;
+    t_range = t_well . width - CONTROLLER_THUMB;
+    t_offset = MCClamp(x - t_well . x - CONTROLLER_THUMB / 2, 0, t_range);
+    
+    uint4 t_time;
+    t_time = (uint4)((uint64_t)m_controller_duration * t_offset / t_range);
+    if (t_time != m_controller_time)
+        setcurtime(t_time, false);
+}
+
+// The mouse is up: a seek in the well has ended
+void MCPlayer::x11_controllerup(void)
+{
+    if (!m_controller_seeking)
+        return;
+    m_controller_seeking = false;
+    message_with_args(MCM_current_time_changed, m_controller_time);
 }
 
 #endif
