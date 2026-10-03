@@ -1865,6 +1865,13 @@ it.
 2. Set `ide/.version` to the new version, for example `0.1.0`, or
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
+   Add a section for the version at the top of
+   [CHANGELOG.md](CHANGELOG.md), one line per commit since the previous
+   release with the number of the pull request that brought it in:
+   `git log --reverse --no-merges --format="- %s" v0.1.0..main` gives
+   the lines (with the previous release's tag), and
+   `git log --first-parent --merges --format="%h %s" v0.1.0..main` the
+   pull requests.
 3. Merge that change into `main` through a pull request and wait for the
    checks of all three build workflows to pass.
 4. Do a [dry run](#dry-run) on `main` and look at its release files and
