@@ -326,7 +326,14 @@ private on  __setPropertyDataOfObjectFromFile pObjectType, pFile, pPropInfoA
       
       local tPropertyName
       put tLineDataA["name"] into tPropertyName
-      
+
+      -- OXT-Beyond: the Linux player (player-legacy) has no mirrored
+      -- property, so setting it to its default made every new player fail
+      -- to be created, and the inspector could not show or set it
+      if tPropertyName is "mirrored" and pObjectType is "com.livecode.interface.classic.Player" and the platform is "Linux" then
+         next repeat
+      end if
+
       repeat for each key tOverride in tLineDataA
          if tLineDataA[tOverride] is not empty then
             put tLineDataA[tOverride] into pPropInfoA[tPropertyName][tOverride]
