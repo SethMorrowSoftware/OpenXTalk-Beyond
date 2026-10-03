@@ -268,6 +268,7 @@ def main(argv=None):
             if os.path.exists(result_log):
                 with open(result_log, encoding='utf-8', errors='replace') as f:
                     results = [x.rstrip('\r\n') for x in f if x.strip()]
+            finished = any(x.startswith('DONE ') for x in results)
             results = [x for x in results if not x.startswith('DONE ') and not (x.startswith('INFO platform=')
                                                                               and part != what[0])]
             for name, reason in sorted(known.items()):
@@ -278,7 +279,7 @@ def main(argv=None):
                            for x in results]
             lines += results
             problems += [x[5:] for x in results if x.startswith('FAIL ')]
-            if not any(x.startswith('DONE ') for x in results):
+            if not finished:
                 problems.append('%s: the engine did not finish (%s)'
                                 % (part, 'timed out after %d seconds' % args.timeout if code is None
                                    else 'exit status %s' % code))
