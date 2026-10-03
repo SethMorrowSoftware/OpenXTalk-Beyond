@@ -899,17 +899,17 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.1-rc.3`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.1-rc.4`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, with the Android runtime and its time zone library code carried
 over unchanged from the earlier asset `oxt-runtimes-1.15` (OpenXTalk
 Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.1-rc.3.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.1-rc.4.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.1-rc.3.zip` of this repository's release
-`runtimes-0.2.1-rc.3`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.1-rc.4.zip` of this repository's release
+`runtimes-0.2.1-rc.4`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1629,8 +1629,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.1-rc.3.zip`). The download comes from this
-repository's `runtimes-0.2.1-rc.3` release (also in a fork, which needs
+(`oxt-runtimes-0.2.1-rc.4.zip`). The download comes from this
+repository's `runtimes-0.2.1-rc.4` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -1865,6 +1865,13 @@ it.
 2. Set `ide/.version` to the new version, for example `0.1.0`, or
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
+   Add a section for the version at the top of
+   [CHANGELOG.md](CHANGELOG.md), one line per commit since the previous
+   release with the number of the pull request that brought it in:
+   `git log --reverse --no-merges --format="- %s" v0.1.0..main` gives
+   the lines (with the previous release's tag), and
+   `git log --first-parent --merges --format="%h %s" v0.1.0..main` the
+   pull requests.
 3. Merge that change into `main` through a pull request and wait for the
    checks of all three build workflows to pass.
 4. Do a [dry run](#dry-run) on `main` and look at its release files and

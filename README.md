@@ -24,7 +24,9 @@ their own fork. OXT-Beyond is that continuation, on the 9.x engine,
 starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the story
 up to OXT-Beyond 0.0.1, version by version; the notes of each release
 since are on the
-[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases),
+and [CHANGELOG.md](CHANGELOG.md) lists every change made since Tom
+Perry's last commit, release by release.
 
 Like OpenXTalk Lite, OXT-Beyond is based on **LiveCode Community**, the
 GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
@@ -45,7 +47,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.3, the third release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.4, the fourth release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -61,7 +63,7 @@ pre-release for testing (see what 0.2.1 adds, under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.3.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.4.zip`)
   brings each platform's runtimes into the other packages. The Android
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
@@ -180,7 +182,7 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15` and `runtimes-0.2.1-rc.3`, are not programs. They hold
+`runtimes-1.15` and `runtimes-0.2.1-rc.4`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -376,6 +378,8 @@ What it needs:
   later); DataChannelXT needs glibc 2.38 and OpenSSL 3 (Ubuntu 24.04,
   Debian 13, Fedora 39 or later). On an older system these extensions do
   not load; the IDE and the other extensions work.
+- **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
+  `sudo apt install mplayer`. Without it, players open no file.
 
 To run it where you extract it:
 
@@ -620,8 +624,8 @@ and in the IDE:
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
-OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2 and
-0.2.1-rc.3)
+OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
+0.2.1-rc.3 and 0.2.1-rc.4)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
@@ -651,7 +655,11 @@ adds:
   error again instead of ending the program, and without a user interface
   (`-ui`) socket events are handled at once instead of at the next timer,
   so libURL's requests no longer take until their 60-second timeout
-  (new in 0.2.1-rc.2);
+  (new in 0.2.1-rc.2); and on Linux the player plays files: it had sent
+  its commands to mplayer without ending them, so mplayer ignored them,
+  and a paused player no longer moves on a frame each time a script reads one
+  of its properties, in the IDE and in the Linux standalones that every
+  package builds (new in 0.2.1-rc.4);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had
@@ -695,7 +703,12 @@ adds:
   with the Windows and macOS packages get their externals and database
   drivers and a 64-bit `revsecurity` and `revpdfprinter` (1.15's 64-bit
   Linux runtime had no externals list and 32-bit copies of those two).
-  Every package's tests build a standalone from each runtime it carries.
+  Every package's tests build a standalone from each runtime it carries;
+- a check of the browser widget, revBrowser and the player in a
+  standalone on every build of all three platforms (new in 0.2.1-rc.4;
+  see [BUILDING.md](BUILDING.md#browser-and-player-check));
+- [CHANGELOG.md](CHANGELOG.md), which lists every change made since Tom
+  Perry's last commit, release by release (new in 0.2.1-rc.4).
 
 ### xTalk Suite extensions
 
@@ -906,7 +919,14 @@ Known limitations, in rough order of importance:
    native controls stay light. Plans: a fixed light palette for the
    Linux theme's light-designed objects, and Tom Perry's AppKit-drawn
    macOS controls.
-10. In an install for all users, a few things that save stacks inside
+10. The player depends on what the system can play. On Windows it uses
+   DirectShow, which cannot open MP4 (H.264 and AAC) files without a
+   third-party DirectShow filter such as LAV Filters; AVI files play.
+   On Linux it runs mplayer, which must be installed (`sudo apt install
+   mplayer` on Debian and Ubuntu); without it no file plays. macOS
+   plays both. A Media Foundation player for Windows would open MP4
+   files by itself; it is not planned yet.
+11. In an install for all users, a few things that save stacks inside
    the program folder fail for standard users, because Setup keeps
    stacks and scripts there read-only: the Report Builder plugin saving
    itself when it closes, *Plugin Settings* changes to the plugins that
