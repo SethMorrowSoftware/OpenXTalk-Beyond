@@ -393,9 +393,9 @@ public:
 	Boolean x11_ispaused(void);
 	uint2 x11_getloudness(void);
 	void x11_setloudness(uint2 loudn);
+	void x11_setcurtime(uint4 newtime);
 	
 	// Not supported
-	void x11_setcurtime(uint4 newtime) {}
 	void x11_setselection(void) {}
 	void x11_showbadge(Boolean show) {}
 	void x11_editmovie(Boolean edit) {}

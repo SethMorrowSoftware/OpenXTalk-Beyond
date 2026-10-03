@@ -59,6 +59,7 @@ class MPlayer
 		uint4 getduration(void);
 		uint4 gettimescale(void);
 		uint4 getcurrenttime(void);
+		void setcurrenttime(uint4 p_time);
 		uint4 getloudness(void);
 
 	

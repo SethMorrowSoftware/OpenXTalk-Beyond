@@ -1092,6 +1092,12 @@ uint4 MCPlayer::x11_getmoviecurtime(void)
         return 0;
 }
 
+void MCPlayer::x11_setcurtime(uint4 newtime)
+{
+    if ( m_player != NULL)
+        m_player -> setcurrenttime ( newtime ) ;
+}
+
 void MCPlayer::x11_setlooping(Boolean loop)
 {
     if ( m_player != NULL)
