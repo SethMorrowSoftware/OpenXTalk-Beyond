@@ -531,6 +531,7 @@ void MCS_handlechildexits(void)
         return;
     s_child_exited = 0;
 
+#if defined(_LINUX_DESKTOP)
     MCPlayerHandle t_player = MCplayers;
     while (t_player.IsValid())
     {
@@ -547,6 +548,7 @@ void MCS_handlechildexits(void)
         }
         t_player = t_next;
     }
+#endif /* LINUX_DESKTOP */
 
     MCS_checkprocesses();
 }
