@@ -99,7 +99,7 @@ KNOWN = {
 }
 # Without a sound device (a CI runner) Windows cannot play a file that is
 # only sound
-NO_SOUND_DEVICE = {'oxt-check.wav': 'no sound device on this machine'}
+NO_SOUND_DEVICE = {'oxt-check.wav': 'Windows without a sound device (as on the CI runners) does not open it'}
 MPLAYER = '/usr/bin/mplayer'
 
 # The page the browsers open: media-check.livecodescript looks for its
