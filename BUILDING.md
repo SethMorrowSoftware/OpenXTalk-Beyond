@@ -1412,7 +1412,9 @@ in that engine: the page must load in the browser widget and in revBrowser
 (revBrowserOpenCef; on macOS revBrowserOpen), its JavaScript must call a
 handler of the script, and a WAV file and
 [`tools/ci/media/oxt-check.mp4`](tools/ci/media/oxt-check.mp4) (H.264 and
-AAC) must play, pause and send `playStopped` at their end.
+AAC; with it a video-only MP4 and AVI, which tell a format a player cannot
+open from a machine without a sound device) must play, pause and send
+`playStopped` at their end. Each part runs in an engine of its own.
 
 ```sh
 python3 tools/ci/media_check.py --package dist/OXT-Beyond-<ver>-linux-x86_64.tar.xz

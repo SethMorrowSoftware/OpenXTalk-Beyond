@@ -148,10 +148,12 @@ command checkRevBrowser pUrl
    if tId is not an integer then exit checkRevBrowser
    revBrowserSet tId, "rect", "0,0,640,400"
    check "revBrowser: the page loads", waitFor("browserDocumentComplete:", 30), sEvents
+   -- (htmltext is the page's source on macOS, the document after its
+   -- JavaScript ran with CEF)
    put revBrowserGet(tId, "htmltext") into tHtml
-   check "revBrowser: htmltext is the page after its JavaScript ran", tHtml contains "script ran: 3", char 1 to 120 of tHtml
-   put revBrowserExecuteScript(tId, "result = document.title;") into tTitle
-   check "revBrowser: revBrowserExecuteScript", tTitle is "OXT media check", tTitle
+   check "revBrowser: htmltext is the page", tHtml contains "<title>OXT media check</title>", char 1 to 120 of tHtml
+   put revBrowserExecuteScript(tId, "result = document.getElementById('h').textContent;") into tText
+   check "revBrowser: the page's JavaScript ran (revBrowserExecuteScript)", tText is "script ran: 3", tText
    revBrowserClose tId
 end checkRevBrowser
 
@@ -163,8 +165,15 @@ command checkPlayer pFile
    create player "Player" in card 1 of stack "MediaCheck"
    set the rect of player "Player" of stack "MediaCheck" to 0,0,320,260
    set the filename of player "Player" of stack "MediaCheck" to pFile
+   if the result is not empty then logLine "INFO " & tName & ": setting the filename: " & the result
    start player "Player" of stack "MediaCheck"
-   wait 1500 milliseconds with messages
+   -- until it has played for a while (a player may take a moment to start)
+   put the milliseconds + 4000 into tEnd
+   repeat while the milliseconds < tEnd
+      wait 250 milliseconds with messages
+      if the currentTime of player "Player" of stack "MediaCheck" > 0 then exit repeat
+   end repeat
+   wait 500 milliseconds with messages
    put the duration of player "Player" of stack "MediaCheck" into tDuration
    put the timeScale of player "Player" of stack "MediaCheck" into tScale
    check tName & ": duration and timeScale", tDuration > 0 and tScale > 0, "duration=" & tDuration && "timeScale=" & tScale

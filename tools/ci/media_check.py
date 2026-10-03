@@ -36,9 +36,17 @@ That engine then runs tools/ci/media-check.livecodescript, which
   - does the same with revBrowser (revBrowserOpenCef; on macOS
     revBrowserOpen), loaded from the runtime's Externals by a stack's
     externals property, as in a standalone;
-  - plays a WAV file this script writes and tools/ci/media/oxt-check.mp4
-    (H.264 and AAC, 3 seconds): duration and timeScale, currentTime
-    moving on while it plays, pausing, and playStopped at the end.
+  - plays a WAV file this script writes and the files of tools/ci/media:
+    oxt-check.mp4 (H.264 and AAC), oxt-check-silent.mp4 (H.264 only) and
+    oxt-check-silent.avi (Motion JPEG only), 3 seconds each: duration and
+    timeScale, currentTime moving on while it plays, pausing, and
+    playStopped at the end. The files without sound tell a player that
+    cannot open a format from one that cannot play sound (a machine with
+    no sound device).
+
+Each of the three runs in an engine of its own, as an application would
+use one of them, so that one cannot hide a failure of another (the
+browser widget and revBrowser load the same CEF).
 
 On Linux the engine runs under xvfb-run when there is no DISPLAY, and the
 player needs mplayer (/usr/bin/mplayer, as the engine runs it). On a
@@ -72,7 +80,8 @@ import run_livecode_check as rlc  # noqa: E402
 import standalone_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'media-check.livecodescript')
-VIDEO = os.path.join(HERE, 'media', 'oxt-check.mp4')
+MEDIA = os.path.join(HERE, 'media')
+VIDEOS = ('oxt-check.mp4', 'oxt-check-silent.mp4', 'oxt-check-silent.avi')
 MPLAYER = '/usr/bin/mplayer'
 
 # The page the browsers open: media-check.livecodescript looks for its
@@ -94,7 +103,7 @@ def gha():
     return bool(os.environ.get('GITHUB_ACTIONS'))
 
 
-def write_tone(path, seconds=2.0, rate=44100):
+def write_tone(path, seconds=3.0, rate=44100):
     """A 440 Hz sine, 16-bit mono PCM."""
     frames = bytearray()
     for i in range(int(seconds * rate)):
@@ -140,6 +149,17 @@ def stage_runtime(tools, p, work):
     return os.path.join(app, name), os.path.join(app, 'Externals', 'revbrowser.so')
 
 
+def windows_sound_devices():
+    """The names of the sound devices Windows has (Win32_SoundDevice)."""
+    try:
+        out = subprocess.run(['powershell', '-NoProfile', '-Command',
+                              '(Get-CimInstance Win32_SoundDevice | ForEach-Object { $_.Name }) -join "; "'],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60).stdout
+        return out.decode('utf-8', 'replace').strip() or 'none'
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return 'unknown (%s)' % e
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Check the browser widget, revBrowser and the player in a standalone '
                                              'of an installed OXT-Beyond.')
@@ -181,14 +201,12 @@ def main(argv=None):
         media = os.path.join(work, 'media')
         os.makedirs(media)
         write_tone(os.path.join(media, 'oxt-check.wav'))
-        shutil.copy(VIDEO, media)
-        files = [os.path.join(media, n).replace('\\', '/') for n in ('oxt-check.wav', 'oxt-check.mp4')]
+        for name in VIDEOS:
+            shutil.copy(os.path.join(MEDIA, name), media)
+        files = [os.path.join(media, n).replace('\\', '/') for n in ('oxt-check.wav',) + VIDEOS]
 
-        result_log = os.path.join(work, 'media-check.log')
         env = dict(os.environ)
         env.update({
-            'OXT_MEDIA_LOG': result_log,
-            'OXT_MEDIA_WHAT': ','.join(what),
             'OXT_MEDIA_URL': 'http://127.0.0.1:%d/index.html' % port,
             'OXT_MEDIA_FILES': ','.join(files),
             'OXT_MEDIA_EXTENSIONS': os.path.join(lay.tools, 'Extensions').replace('\\', '/'),
@@ -211,27 +229,35 @@ def main(argv=None):
                 if not xvfb:
                     raise rlc.CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
+        elif p.family == 'windows' and 'player' in what:
+            lines.append('INFO sound devices: %s' % windows_sound_devices())
         rlc.log('Running : %s' % ' '.join(cmd))
-        try:
-            proc = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                  timeout=args.timeout)
-            code, output = proc.returncode, proc.stdout
-        except subprocess.TimeoutExpired as e:
-            code, output = None, e.stdout or b''
-        results = []
-        if os.path.exists(result_log):
-            with open(result_log, encoding='utf-8', errors='replace') as f:
-                results = [x.rstrip('\r\n') for x in f if x.strip()]
-        lines += [x for x in results if not x.startswith('DONE ')]
-        problems += [x[5:] for x in results if x.startswith('FAIL ')]
-        if not any(x.startswith('DONE ') for x in results):
-            problems.append('the engine did not finish (%s)' % ('timed out after %d seconds' % args.timeout
-                                                                if code is None else 'exit status %s' % code))
-            tail = output.decode('utf-8', 'replace').splitlines()[-30:]
-            if tail:
-                rlc.log('Engine output (last lines):')
-                for x in tail:
-                    rlc.log('  ' + x)
+        for part in what:
+            result_log = os.path.join(work, 'media-check-%s.log' % part)
+            env['OXT_MEDIA_LOG'] = result_log
+            env['OXT_MEDIA_WHAT'] = part
+            try:
+                proc = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                      timeout=args.timeout)
+                code, output = proc.returncode, proc.stdout
+            except subprocess.TimeoutExpired as e:
+                code, output = None, e.stdout or b''
+            results = []
+            if os.path.exists(result_log):
+                with open(result_log, encoding='utf-8', errors='replace') as f:
+                    results = [x.rstrip('\r\n') for x in f if x.strip()]
+            lines += [x for x in results if not x.startswith('DONE ') and not (x.startswith('INFO platform=')
+                                                                             and part != what[0])]
+            problems += [x[5:] for x in results if x.startswith('FAIL ')]
+            if not any(x.startswith('DONE ') for x in results):
+                problems.append('%s: the engine did not finish (%s)'
+                                % (part, 'timed out after %d seconds' % args.timeout if code is None
+                                   else 'exit status %s' % code))
+                tail = output.decode('utf-8', 'replace').splitlines()[-30:]
+                if tail:
+                    rlc.log('Engine output (%s, last lines):' % part)
+                    for x in tail:
+                        rlc.log('  ' + x)
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))
     finally:
