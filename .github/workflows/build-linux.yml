@@ -739,7 +739,8 @@ jobs:
       - name: Install the runtime libraries and desktop tools
         run: |
           sudo apt-get update
-          pkgs=(desktop-file-utils shared-mime-info xz-utils)
+          # mplayer, Xvfb and xauth: the browser and player check
+          pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -890,6 +891,16 @@ jobs:
         run: |
           python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform linux-x86_64 --targets all \
             --log "$RUNNER_TEMP/logs/standalone-check.log"
+
+      # The browser widget, revBrowser (CEF) and the player (mplayer) in a
+      # standalone of the package, with a screen (Xvfb): a page loads and
+      # its JavaScript calls back into the script, a WAV and an MP4 file
+      # play, pause and end (tools/ci/media_check.py)
+      - name: Browser and player check
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+            --log "$RUNNER_TEMP/logs/media-check.log"
 
       # ldd over every x86_64 ELF file of the package (engine, externals,
       # CEF and its helpers, toolchain, extension libraries): nothing "not

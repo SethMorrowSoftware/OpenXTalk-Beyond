@@ -1400,6 +1400,39 @@ it with `--targets all` on every package (the Windows portable zip, the
 Linux tar.xz and the macOS app on both Mac architectures), and on the
 32-bit builds with `--engine` and `--runtime`.
 
+### Browser and player check
+
+[`tools/ci/media_check.py`](tools/ci/media_check.py) checks the browser
+widget, revBrowser and the player in a standalone with a user interface.
+It copies the layout's own standalone runtime to a folder of its own (with
+its Externals and, on Windows and Linux, CEF and its helper processes, as
+a built standalone has them), serves a test page on 127.0.0.1 and runs
+[`tools/ci/media-check.livecodescript`](tools/ci/media-check.livecodescript)
+in that engine: the page must load in the browser widget and in revBrowser
+(revBrowserOpenCef; on macOS revBrowserOpen), its JavaScript must call a
+handler of the script, and a WAV file and
+[`tools/ci/media/oxt-check.mp4`](tools/ci/media/oxt-check.mp4) (H.264 and
+AAC; with it an AVI with Motion JPEG and PCM, and a video-only MP4 and
+AVI, which tell a format a player cannot open from a machine without a
+sound device) must play, pause and send `playStopped` at their end. Each
+part runs in an engine of its own. What a platform's player is known not
+to play is reported as KNOWN without failing the check (`KNOWN` in the
+script): on Windows, MP4, which DirectShow cannot open without a
+third-party filter, and on a Windows machine without a sound device, the
+WAV file.
+
+```sh
+python3 tools/ci/media_check.py --package dist/OXT-Beyond-<ver>-linux-x86_64.tar.xz
+python3 tools/ci/media_check.py --install <folder> --platform mac-universal
+```
+
+On Linux the player runs `/usr/bin/mplayer` (the `mplayer` package), the
+engine runs under `xvfb-run` when there is no `DISPLAY`, and on a machine
+without a sound card mplayer plays without sound (`ao=null` through
+`MPLAYER_HOME`). The CI runs it on every package after the standalone
+check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
+the packages of a published release (by hand, for any tag).
+
 ### Installer
 
 ```bat

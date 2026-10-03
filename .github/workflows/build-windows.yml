@@ -549,6 +549,17 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/standalone_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --targets all --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
 
+      # The browser widget, revBrowser (CEF) and the player (DirectShow) in a
+      # standalone of the portable zip, with the runner's desktop: a page
+      # loads and its JavaScript calls back into the script, a WAV and an
+      # MP4 file play, pause and end (tools/ci/media_check.py)
+      - name: Browser and player check
+        id: media_check
+        timeout-minutes: 10
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/media_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --log "$env:RUNNER_TEMP\build-logs\media-check.log"
+
       # Compile every IDE script of the staged installed layout with its
       # engine; fails on compile errors that are not in the baseline.
       - name: IDE compile check
@@ -726,6 +737,7 @@ jobs:
           CHECK_IMPORTS_OUTCOME: ${{ steps.check_imports.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STANDALONE_OUTCOME: ${{ steps.standalone.outcome }}
+          MEDIA_CHECK_OUTCOME: ${{ steps.media_check.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           CONTRAST_CHECK_OUTCOME: ${{ steps.contrast_check.outcome }}
           RENDER_TEST_OUTCOME: ${{ steps.render_test.outcome }}
@@ -747,6 +759,7 @@ jobs:
             'Extension DLL imports' = $env:CHECK_IMPORTS_OUTCOME
             'Smoke test' = $env:SMOKE_OUTCOME
             'Standalone check' = $env:STANDALONE_OUTCOME
+            'Browser and player check' = $env:MEDIA_CHECK_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'IDE contrast check' = $env:CONTRAST_CHECK_OUTCOME
             'Render test' = $env:RENDER_TEST_OUTCOME

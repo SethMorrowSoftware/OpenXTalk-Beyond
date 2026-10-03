@@ -36,6 +36,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "lnxmplayer.h"
 
 #include <sys/stat.h>
+#include <poll.h>
 #include <sys/wait.h>
 
 #include <unistd.h>
@@ -253,8 +254,13 @@ bool MPlayer::init(const char * p_filename, MCStack *p_stack, MCRectangle p_rect
 	m_window = w ;
 	MClastvideowindow = w ;
 	
-	if ( m_filename == NULL ) 
+	// The file to play: play() restarts an mplayer that has ended with
+	// m_filename itself, a new file replaces the one it played before.
+	if ( m_filename != p_filename )
+	{
+		free(m_filename);
 		m_filename = strdup(p_filename) ;
+	}
 	m_player_rect = p_rect ;
 	m_stack = p_stack ;
 
@@ -293,9 +299,15 @@ void MPlayer::write_command (MCStringRef p_cmd )
 	if ( m_window == DNULL)
 		return ;
 
+	// mplayer -slave reads one command per line: without the newline it
+	// runs none of them (the media played to its end whatever the script
+	// did, and every property read waited for an answer that never came)
 	MCAutoStringRefAsCString t_cstring;
 	if (t_cstring.Lock(p_cmd))
+	{
 		write(m_pfd_write[WRITE], *t_cstring, MCStringGetLength(p_cmd));
+		write(m_pfd_write[WRITE], "\n", 1);
+	}
 }
 
 bool MPlayer::read_command(MCStringRef p_ans, MCStringRef& r_ret)
@@ -309,11 +321,22 @@ bool MPlayer::read_command(MCStringRef p_ans, MCStringRef& r_ret)
 	if (!MCStringCreateMutable(0, &t_read))
 		return false;	
 
+	// mplayer answers a property it does not have with ANS_ERROR=...; if it
+	// has ended, or says nothing for a while, there is no answer either.
+	const char *cmd_error = "ANS_ERROR=";
+	const int kReadTimeout = 2000; // milliseconds
+
 	char t_char;
-	int t_size = 0;
-	while (t_size != -1)
+	for (;;)
 	{
-		t_size = read(m_pfd_read[READ], &t_char, 1);
+		struct pollfd t_poll;
+		t_poll.fd = m_pfd_read[READ];
+		t_poll.events = POLLIN;
+		t_poll.revents = 0;
+		if (poll(&t_poll, 1, kReadTimeout) <= 0)
+			return false;
+		if (read(m_pfd_read[READ], &t_char, 1) != 1)
+			return false;
 		
 		// Read a line into the string
 		if (t_char != '\n')
@@ -324,7 +347,8 @@ bool MPlayer::read_command(MCStringRef p_ans, MCStringRef& r_ret)
 		}
 
 
-		if (MCStringIsEqualToCString(*t_read, cmd_failed, kMCStringOptionCompareCaseless))
+		if (MCStringIsEqualToCString(*t_read, cmd_failed, kMCStringOptionCompareCaseless) ||
+			MCStringBeginsWithCString(*t_read, (const char_t *)cmd_error, kMCStringOptionCompareCaseless))
 			return false;
 
 		if (MCStringBeginsWith(*t_read, p_ans, kMCStringOptionCompareCaseless))
@@ -377,7 +401,12 @@ void MPlayer::pause ( void )
 }
 
 
-void MPlayer::seek ( int4 p_amount ) 
+// While mplayer is paused, a command prefixed pausing_keep leaves the pause
+// for one frame, so every currentTime read would step the movie on a frame.
+// Reads, settings and the osd use pausing_keep_force, which stays paused;
+// seeks keep pausing_keep, since mplayer does them only outside the pause
+// (and so shows the frame it seeked to).
+void MPlayer::seek ( int4 p_amount )
 {
 	MCAutoStringRef t_seek_cmd;
 	if (MCStringFormat(&t_seek_cmd, "pausing_keep seek %d 0", p_amount))
@@ -392,13 +421,13 @@ void MPlayer::seek(void)
 void MPlayer::osd (uint4 p_level = 0)
 {
 	MCAutoStringRef t_pause_cmd;
-	if (MCStringFormat(&t_pause_cmd, "pausing_keep osd %d", p_level))
+	if (MCStringFormat(&t_pause_cmd, "pausing_keep_force osd %d", p_level))
 		write_command (*t_pause_cmd);
 }
 
 void MPlayer::osd(void)
 {
-	write_command(MCSTR("pausing_keep osd"));
+	write_command(MCSTR("pausing_keep_force osd"));
 }
 
 void MPlayer::quit(void)
@@ -414,7 +443,7 @@ void MPlayer::quit(void)
 		MClastvideowindow = DNULL ;
 		if ( m_filename != NULL)
 		{
-			delete m_filename ;
+			free(m_filename) ;
 			m_filename = NULL ;
 		}
 
@@ -431,14 +460,14 @@ void MPlayer::set_property(const char * p_prop, MCPlayerPropertyType p_type, voi
 		{
 			uint4 t_value;
 			t_value = *(uint4 *)p_value;
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %d", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %d", p_prop, t_value);
 		}			
 			break;
 		case kMCPlayerPropertyTypeDouble:
 		{
 			double t_value;
 			t_value = *(double *)p_value;
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %f", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %f", p_prop, t_value);
 		}
 			break;
 		case kMCPlayerPropertyTypeBool:
@@ -448,7 +477,7 @@ void MPlayer::set_property(const char * p_prop, MCPlayerPropertyType p_type, voi
 				t_value = "0";
 			else
 				t_value = "-1";
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %s", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %s", p_prop, t_value);
 		}
 			break;
 		default:
@@ -466,7 +495,7 @@ bool MPlayer::get_property(const char* p_prop, MCPlayerPropertyType p_type, void
 		return false;
 
 	MCAutoStringRef t_get_cmd;
-	if (!MCStringFormat(&t_get_cmd, "pausing_keep get_property %s", p_prop))
+	if (!MCStringFormat(&t_get_cmd, "pausing_keep_force get_property %s", p_prop))
 		return false;
 	
 	write_command (*t_get_cmd);
@@ -504,12 +533,21 @@ bool MPlayer::get_property(const char* p_prop, MCPlayerPropertyType p_type, void
 	return false;
 }
 
+// The duration and the current time are in milliseconds (mplayer's length
+// and time_pos, in seconds), so the timeScale is 1000. (The byte length and
+// position of the stream that were used before are not times: the demuxer
+// reads ahead of what plays.)
+static const uint4 kMPlayerTimeScale = 1000;
+
 uint4 MPlayer::getduration(void)
 {
 	if (m_duration == UINT32_MAX)
 	{
-		if (!get_property("stream_length", kMCPlayerPropertyTypeUInt, &m_duration))
-			m_duration = 0;
+		double t_length;
+		if (get_property("length", kMCPlayerPropertyTypeDouble, &t_length) && t_length > 0)
+			m_duration = (uint4)(t_length * kMPlayerTimeScale + 0.5);
+		else
+			return 0;
 	}
 	return m_duration;
 }
@@ -517,29 +555,25 @@ uint4 MPlayer::getduration(void)
 
 uint4 MPlayer::getcurrenttime(void)
 {
-	uint4 t_time;
-	if (!get_property("stream_pos", kMCPlayerPropertyTypeUInt, &t_time))
-		t_time = 0;
+	double t_time;
+	if (!get_property("time_pos", kMCPlayerPropertyTypeDouble, &t_time) || t_time < 0)
+		return 0;
 
-	return t_time;
+	return (uint4)(t_time * kMPlayerTimeScale + 0.5);
+}
+
+
+void MPlayer::setcurrenttime(uint4 p_time)
+{
+	MCAutoStringRef t_seek_cmd;
+	if (MCStringFormat(&t_seek_cmd, "pausing_keep seek %.3f 2", (double)p_time / kMPlayerTimeScale))
+		write_command(*t_seek_cmd);
 }
 
 
 uint4 MPlayer::gettimescale(void)
 {
-	if (m_timescale == UINT32_MAX)
-	{
-		double t_length ;
-		if (get_property("length", kMCPlayerPropertyTypeDouble, &t_length))
-		{
-			m_timescale = floor(getduration() / t_length);
-		}
-		else
-		{
-			m_timescale = 1;
-		}
-	}
-	return m_timescale ;
+	return kMPlayerTimeScale;
 }
 
 
@@ -550,20 +584,25 @@ void MPlayer::setspeed(double p_speed)
 
 void MPlayer::setlooping(bool p_loop)
 {
-	set_property("looping", kMCPlayerPropertyTypeBool, &p_loop);
+	set_property("loop", kMCPlayerPropertyTypeBool, &p_loop);
 }	
 
 void MPlayer::setloudness(uint4 p_volume)
 {
 	set_property("volume", kMCPlayerPropertyTypeUInt, &p_volume);
+	m_loudness = p_volume;
 }
 
 uint4 MPlayer::getloudness(void)
 {
 	if (m_loudness == UINT32_MAX)
 	{
-		if (!get_property("volume", kMCPlayerPropertyTypeUInt, &m_loudness))
-			m_loudness = 0;
+		// mplayer answers the volume as a real number (ANS_volume=100.000000)
+		double t_volume;
+		if (get_property("volume", kMCPlayerPropertyTypeDouble, &t_volume) && t_volume >= 0)
+			m_loudness = (uint4)(t_volume + 0.5);
+		else
+			return 100;
 	}
 	return m_loudness;
 
