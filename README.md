@@ -372,14 +372,23 @@ What it needs:
   few more X11 libraries (the `browser` lines of `linux/libraries.txt` in
   the package). Without them the launcher turns the browser off
   (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
-  the dictionary and other web pages in your web browser instead.
+  the dictionary and other web pages in your web browser instead, and
+  leaves the browser widget out of the Tools palette.
 - **Some bundled xTalk extensions need a newer system than the IDE.**
   SodiumXT needs glibc 2.33 (Ubuntu 21.04, Debian 12, Fedora 34 or
   later); DataChannelXT needs glibc 2.38 and OpenSSL 3 (Ubuntu 24.04,
   Debian 13, Fedora 39 or later). On an older system these extensions do
   not load; the IDE and the other extensions work.
 - **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
-  `sudo apt install mplayer`. Without it, players open no file.
+  `sudo apt install mplayer`. Without it, players open no file, and the
+  Tools palette has no Player tool.
+
+Either one can be turned on or off in Preferences > Compatibility ("Disable
+the Browser widget", "Disable the Player tool"); the IDE sets them when it
+first starts, from what it finds, and a change takes effect when it starts
+again. The browser widget is in the Widgets section of the Tools palette,
+which is hidden at first on every platform: the arrow at the palette's top
+right shows it.
 
 To run it where you extract it:
 

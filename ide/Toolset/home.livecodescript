@@ -291,20 +291,7 @@ on revInternal__openStack
    if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
    -- added as of 13-4-24 (tperry)
    if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
-   if the cDisableBrowserWidget of stack "revPreferences" is empty then
-      if the platform contains "linux" then
-         set the cDisableBrowserWidget of stack "revPreferences" to true
-      else
-         set the cDisableBrowserWidget of stack "revPreferences" to false
-      end if
-   end if
-   if the cDisablePlayerTool of stack "revPreferences" is empty then
-      if the platform contains "linux" then
-         set the cDisablePlayerTool of stack "revPreferences" to true
-      else
-         set the cDisablePlayerTool of stack "revPreferences" to false
-      end if
-   end if
+   -- (cDisableBrowserWidget and cDisablePlayerTool: revInternal__InitialiseMediaTools)
    if the cScrnSharedMem of stack "revPreferences" is empty then 
       if the platform contains "linux" then 
          set the cScrnSharedMem of stack "revPreferences" to true
@@ -1375,10 +1362,34 @@ command revInternal__InstallFileAssociations
          do "set the revCrashReportSettings to tCrashSettings"
       end if
       
+      revInternal__InitialiseMediaTools
+      
       revInternal__Log "Leave", "System Initialisation"
       
       return tSuccess
    end revInternal__InitialiseSystem
+   
+   -- OXT-Beyond: whether the browser widget and the Player tool are turned
+   -- off (Preferences > Compatibility). OpenXTalk Lite turned both off on
+   -- Linux while its player did not work there; they are on where they can
+   -- work. On Linux that is the browser widget unless the launcher turned
+   -- CEF off (LIVECODE_USE_CEF=0: the package has no CEF, or a library CEF
+   -- needs is missing; Installer/linux/oxt-beyond), and the Player tool when
+   -- mplayer, which the Linux player runs, is installed. Linux profiles that
+   -- have the old defaults get these once (cLinuxMediaToolsDefaults), since
+   -- the old defaults cannot be told apart from a choice. This runs before
+   -- the libraries load the extensions, which leave out the browser widget
+   -- when it is off (__extensionsLoad in revideextensionlibrary).
+   command revInternal__InitialiseMediaTools
+      if the platform is "Linux" and the cLinuxMediaToolsDefaults of stack "revPreferences" is empty then
+         -- (an unset variable is 0 too)
+         set the cDisableBrowserWidget of stack "revPreferences" to ($LIVECODE_USE_CEF is not empty and $LIVECODE_USE_CEF is 0)
+         set the cDisablePlayerTool of stack "revPreferences" to (there is not a file "/usr/bin/mplayer")
+         set the cLinuxMediaToolsDefaults of stack "revPreferences" to true
+      end if
+      if the cDisableBrowserWidget of stack "revPreferences" is empty then set the cDisableBrowserWidget of stack "revPreferences" to false
+      if the cDisablePlayerTool of stack "revPreferences" is empty then set the cDisablePlayerTool of stack "revPreferences" to false
+   end revInternal__InitialiseMediaTools
    
    command revInternal__InitialiseGlobals
       revInternal__Log "Enter", "Globals Initialisation"
