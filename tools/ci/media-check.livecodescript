@@ -179,12 +179,21 @@ command checkPlayer pFile
    check tName & ": duration and timeScale", tDuration > 0 and tScale > 0, "duration=" & tDuration && "timeScale=" & tScale
    put the currentTime of player "Player" of stack "MediaCheck" into tTime
    check tName & ": it plays (currentTime moves on)", tTime > 0 and tTime < tDuration and not the paused of player "Player" of stack "MediaCheck", "currentTime=" & tTime && "paused=" & the paused of player "Player" of stack "MediaCheck"
+   -- Paused, the currentTime must stop: at once with a sound device, or
+   -- once the sound already sent has drained without one (mplayer with
+   -- ao=null keeps counting that for a moment), and then stay put
    set the paused of player "Player" of stack "MediaCheck" to true
-   wait 200 milliseconds with messages
    put the currentTime of player "Player" of stack "MediaCheck" into tTime
+   put the milliseconds + 2000 into tEnd
+   repeat while the milliseconds < tEnd
+      wait 200 milliseconds with messages
+      put the currentTime of player "Player" of stack "MediaCheck" into tLater
+      if tLater = tTime then exit repeat
+      put tLater into tTime
+   end repeat
    wait 600 milliseconds with messages
    put the currentTime of player "Player" of stack "MediaCheck" into tLater
-   check tName & ": it pauses", the paused of player "Player" of stack "MediaCheck" and tScale > 0 and abs(tLater - tTime) / tScale < 0.2, "currentTime " & tTime & " then " & tLater && "paused=" & the paused of player "Player" of stack "MediaCheck"
+   check tName & ": it pauses", the paused of player "Player" of stack "MediaCheck" and tScale > 0 and abs(tLater - tTime) / tScale < 0.05, "currentTime " & tTime & " then " & tLater && "paused=" & the paused of player "Player" of stack "MediaCheck"
    put empty into sEvents
    start player "Player" of stack "MediaCheck"
    if tScale > 0 then put tDuration / tScale + 10 into tWait
