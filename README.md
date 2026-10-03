@@ -47,7 +47,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.4, the fourth release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.5, the fifth release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -372,14 +372,23 @@ What it needs:
   few more X11 libraries (the `browser` lines of `linux/libraries.txt` in
   the package). Without them the launcher turns the browser off
   (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
-  the dictionary and other web pages in your web browser instead.
+  the dictionary and other web pages in your web browser instead, and
+  leaves the browser widget out of the Tools palette.
 - **Some bundled xTalk extensions need a newer system than the IDE.**
   SodiumXT needs glibc 2.33 (Ubuntu 21.04, Debian 12, Fedora 34 or
   later); DataChannelXT needs glibc 2.38 and OpenSSL 3 (Ubuntu 24.04,
   Debian 13, Fedora 39 or later). On an older system these extensions do
   not load; the IDE and the other extensions work.
 - **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
-  `sudo apt install mplayer`. Without it, players open no file.
+  `sudo apt install mplayer`. Without it, players open no file, and the
+  Tools palette has no Player tool.
+
+Either one can be turned on or off in Preferences > Compatibility ("Disable
+the Browser widget", "Disable the Player tool"); the IDE sets them when it
+first starts, from what it finds, and a change takes effect when it starts
+again. The browser widget is in the Widgets section of the Tools palette,
+which is hidden at first on every platform: the arrow at the palette's top
+right shows it.
 
 To run it where you extract it:
 
@@ -625,7 +634,7 @@ and in the IDE:
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3 and 0.2.1-rc.4)
+0.2.1-rc.3, 0.2.1-rc.4 and 0.2.1-rc.5)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
@@ -660,6 +669,10 @@ adds:
   and a paused player no longer moves on a frame each time a script reads one
   of its properties, in the IDE and in the Linux standalones that every
   package builds (new in 0.2.1-rc.4);
+- in the IDE on Linux, the Player tool and the browser widget are on where
+  they can work (with mplayer, and with the libraries the browser needs),
+  instead of off as OpenXTalk Lite left them, and the Player tool creates
+  a player again (new in 0.2.1-rc.5);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had
