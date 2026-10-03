@@ -23,6 +23,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Server engine: build dsklnx.cpp without the players (#39)
 - Server engine: leave SIGCHLD alone, as before (#39)
 - Version 0.2.1-rc.6, with its changelog (#40)
+- Runtimes: oxt-runtimes-0.2.1-rc.6, built from the commit that #39 merged, with the Linux player controller (#40)
 
 ## 0.2.1-rc.5 (2026-10-03, pre-release)
 
