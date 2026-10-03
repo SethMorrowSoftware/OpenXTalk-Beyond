@@ -118,6 +118,31 @@ jobs:
           done < Installer/linux/libraries.txt
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
 
+      # A sound device: Windows runners have none, and DirectShow then
+      # opens no file with sound, and plays one without sound as fast as it
+      # can. Scream is a virtual sound card (its driver is signed with its
+      # own certificate, which is trusted first); devcon installs it.
+      - name: Install a virtual sound card (Scream)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Service -Name Audiosrv -StartupType Automatic
+          Start-Service -Name Audiosrv
+          $zip = Join-Path $env:RUNNER_TEMP 'Scream4.0.zip'
+          Invoke-WebRequest -Uri 'https://github.com/duncanthrax/scream/releases/download/4.0/Scream4.0.zip' -OutFile $zip
+          $dir = Join-Path $env:RUNNER_TEMP 'Scream'
+          Expand-Archive -Path $zip -DestinationPath $dir
+          $driver = Join-Path $dir 'Install\driver\x64'
+          $cert = (Get-AuthenticodeSignature (Join-Path $driver 'Scream.cat')).SignerCertificate
+          foreach ($name in 'TrustedPublisher', 'Root') {
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($name, 'LocalMachine')
+            $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
+          }
+          Push-Location $driver
+          & (Join-Path $dir 'Install\helpers\devcon-x64.exe') install Scream.inf '*Scream'
+          Pop-Location
+          Get-CimInstance Win32_SoundDevice | Format-Table Name, Status
+
       - name: Install LAV Filters
         if: matrix.lav
         run: choco install lavfilters -y --no-progress
