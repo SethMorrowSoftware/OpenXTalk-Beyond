@@ -29,7 +29,8 @@ Use the <showController> <property> to enable access to the
 
 A player's controller bar is used to start, pause, rewind, and
 fast-forward a movie or sound, and to select a portion of a movie or
-sound for playback.
+sound for playback. On Linux, the controller bar has a play/pause button
+and a well to seek in, but no volume, step or selection buttons.
 
 Set a player's <showController> <property> to false if you are providing
 these capabilities in the stack already, or if you do not want the user
