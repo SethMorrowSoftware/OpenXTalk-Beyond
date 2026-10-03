@@ -498,12 +498,13 @@ static void handle_signal(int sig)
             // then at the end of a movie, when the signal came during an
             // allocation or an X call of its own). The handler no longer
             // reaps a child of its own either, so a shell command's or an
-            // open process's exit status is no longer lost to it.
+            // open process's exit status is no longer lost to it. (The server
+            // engine does nothing here, as before: its shell waits for its
+            // own child, which a check from here could reap first.)
             s_child_exited = 1;
-            if (MCplayers.IsValid() || MClastvideowindow != DNULL)
-                break;
+            if (!MCplayers.IsValid() && MClastvideowindow == DNULL)
+                MCS_checkprocesses();
 #endif /* LINUX_DESKTOP */
-            MCS_checkprocesses();
         }
         break;
     case SIGALRM:
