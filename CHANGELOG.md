@@ -14,7 +14,18 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## 0.2.1-rc.5 (pre-release, not tagged yet)
+## 0.2.1-rc.6 (pre-release, not tagged yet)
+
+- Linux player: the engine draws its controller (#39)
+- Browser and player check: click the Linux player's controller (#39)
+- Dictionary: the Linux player's controller bar (#39)
+- Linux player: tell a player its mplayer ended outside the signal handler (#39)
+- Server engine: build dsklnx.cpp without the players (#39)
+- Server engine: leave SIGCHLD alone, as before (#39)
+- Version 0.2.1-rc.6, with its changelog (#40)
+- Runtimes: oxt-runtimes-0.2.1-rc.6, built from the commit that #39 merged, with the Linux player controller (#40)
+
+## 0.2.1-rc.5 (2026-10-03, pre-release)
 
 - Linux IDE: the browser widget and the Player tool are on where they work (#38)
 - Linux IDE: a new player is created again (#38)

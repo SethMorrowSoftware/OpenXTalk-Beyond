@@ -47,7 +47,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.5, the fifth release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.6, the sixth release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -63,7 +63,7 @@ pre-release for testing (see what 0.2.1 adds, under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.4.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.6.zip`)
   brings each platform's runtimes into the other packages. The Android
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
@@ -182,7 +182,7 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15` and `runtimes-0.2.1-rc.4`, are not programs. They hold
+`runtimes-1.15` and `runtimes-0.2.1-rc.6`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -638,7 +638,7 @@ and in the IDE:
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3, 0.2.1-rc.4 and 0.2.1-rc.5)
+0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5 and 0.2.1-rc.6)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
@@ -681,7 +681,8 @@ adds:
   play/pause button and a well to seek in: mplayer draws only the video,
   and OpenXTalk Lite's player had no controller at all; and the engine no
   longer hangs now and then when a movie ends, and a shell command's exit
-  status is no longer lost while a player is open (new in 0.2.1-rc.6);
+  status is no longer lost while a player is open, in the IDE and in the
+  Linux standalones that every package builds (new in 0.2.1-rc.6);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had

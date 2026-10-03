@@ -76,7 +76,7 @@ Development builds (workflow artifacts on the Actions tab) are made by
 the same workflows but are not reviewed as releases.
 
 The standalone runtimes for the other platforms in each package come
-from a release asset of this repository (`runtimes-0.2.1-rc.4`), which
+from a release asset of this repository (`runtimes-0.2.1-rc.6`), which
 the packager downloads and refuses unless its SHA-256 matches the one
 recorded in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
