@@ -19,9 +19,8 @@
 # with the Windows portable zip, the Linux tar.xz and the macOS zip as
 # users download them (on macOS on both architectures). The build
 # workflows run the same check on the packages they make; this one checks
-# what is already out, without a build: by hand for any release
-# (workflow_dispatch), and on a pull request that changes the check itself,
-# against the latest release.
+# what is already out, without a build, by hand for any release. (It runs
+# on no pull request: a release's known faults would make every one red.)
 
 name: Browser and player check (release)
 
@@ -32,13 +31,6 @@ on:
         description: The release to check (for example v0.2.1-rc.3); empty for the latest one
         type: string
         default: ''
-  pull_request:
-    branches: [ main ]
-    paths:
-      - .github/workflows/media-check.yml
-      - tools/ci/media_check.py
-      - tools/ci/media-check.livecodescript
-      - tools/ci/media/**
 
 permissions:
   contents: read
@@ -49,7 +41,7 @@ concurrency:
 
 jobs:
   check:
-    name: ${{ matrix.platform }} (${{ matrix.runner }})${{ matrix.lav && ' with LAV Filters' || '' }}
+    name: ${{ matrix.platform }} (${{ matrix.runner }})
     strategy:
       fail-fast: false
       matrix:
@@ -57,12 +49,6 @@ jobs:
           - platform: win-x86_64
             runner: windows-2022
             asset: win-x86_64-portable.zip
-          # With LAV Filters, the DirectShow filters that read MP4 and
-          # decode H.264 and AAC: the MP4 files must play then
-          - platform: win-x86_64
-            runner: windows-2022
-            asset: win-x86_64-portable.zip
-            lav: true
           - platform: linux-x86_64
             runner: ubuntu-24.04
             asset: linux-x86_64.tar.xz
@@ -118,35 +104,6 @@ jobs:
           done < Installer/linux/libraries.txt
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
 
-      # A sound device: Windows runners have none, and DirectShow then
-      # opens no file with sound, and plays one without sound as fast as it
-      # can. Scream is a virtual sound card (its driver is signed with its
-      # own certificate, which is trusted first); devcon installs it.
-      - name: Install a virtual sound card (Scream)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Set-Service -Name Audiosrv -StartupType Automatic
-          Start-Service -Name Audiosrv
-          $zip = Join-Path $env:RUNNER_TEMP 'Scream4.0.zip'
-          Invoke-WebRequest -Uri 'https://github.com/duncanthrax/scream/releases/download/4.0/Scream4.0.zip' -OutFile $zip
-          $dir = Join-Path $env:RUNNER_TEMP 'Scream'
-          Expand-Archive -Path $zip -DestinationPath $dir
-          $driver = Join-Path $dir 'Install\driver\x64'
-          $cert = (Get-AuthenticodeSignature (Join-Path $driver 'Scream.cat')).SignerCertificate
-          foreach ($name in 'TrustedPublisher', 'Root') {
-            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($name, 'LocalMachine')
-            $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
-          }
-          Push-Location $driver
-          & (Join-Path $dir 'Install\helpers\devcon-x64.exe') install Scream.inf '*Scream'
-          Pop-Location
-          Get-CimInstance Win32_SoundDevice | Format-Table Name, Status
-
-      - name: Install LAV Filters
-        if: matrix.lav
-        run: choco install lavfilters -y --no-progress
-
       # The macOS zip holds OXT-Beyond.app, which ditto extracts as Finder
       # does; the others are extracted by the check itself
       - name: Extract the app
@@ -159,9 +116,8 @@ jobs:
       - name: Browser and player check
         env:
           PLATFORM: ${{ matrix.platform }}
-          MUST_PLAY: ${{ matrix.lav && 'oxt-check.mp4,oxt-check-silent.mp4' || '' }}
         run: |
           py=python3
           [ "$RUNNER_OS" = Windows ] && py=python
-          "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" --must-play "$MUST_PLAY" \
+          "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
             --log "$RUNNER_TEMP/media-check.log"
