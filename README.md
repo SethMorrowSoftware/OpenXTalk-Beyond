@@ -381,7 +381,11 @@ What it needs:
   not load; the IDE and the other extensions work.
 - **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
   `sudo apt install mplayer`. Without it, players open no file, and the
-  Tools palette has no Player tool.
+  Tools palette has no Player tool. mplayer draws only the video: the
+  controller below it (`showController`) is drawn by OXT-Beyond, with a
+  play/pause button and a well to seek in, but no volume, step or
+  selection buttons as on Windows and macOS. A click in the well of an
+  MP4 file goes to the key frame before that time, as mplayer seeks.
 
 Either one can be turned on or off in Preferences > Compatibility ("Disable
 the Browser widget", "Disable the Player tool"); the IDE sets them when it
@@ -673,6 +677,11 @@ adds:
   they can work (with mplayer, and with the libraries the browser needs),
   instead of off as OpenXTalk Lite left them, and the Player tool creates
   a player again (new in 0.2.1-rc.5);
+- on Linux a player shows its controller (`showController`), with a
+  play/pause button and a well to seek in: mplayer draws only the video,
+  and OpenXTalk Lite's player had no controller at all; and the engine no
+  longer hangs now and then when a movie ends, and a shell command's exit
+  status is no longer lost while a player is open (new in 0.2.1-rc.6);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had

@@ -20,7 +20,7 @@ standalone of an installed OXT-Beyond, with a user interface.
 
   python tools/ci/media_check.py (--install DIR | --package FILE)
       [--platform P] [--what widget,revbrowser,player] [--log FILE]
-      [--timeout SECONDS]
+      [--snapshots DIR] [--timeout SECONDS]
 
 The layout is one of run_livecode_check.py's (--install, or --package to
 extract first). Its own platform's standalone runtime (standalone_check.py
@@ -44,7 +44,12 @@ That engine then runs tools/ci/media-check.livecodescript, which
     playStopped at the end. The files without sound tell a player that
     cannot open a format from one that cannot play sound (a machine with
     no sound device). What a platform is known not to play (KNOWN) is
-reported without failing the check.
+    reported without failing the check;
+  - on Linux, clicks the controller the engine draws below mplayer's
+    video: its play button plays and pauses, a click in its well seeks,
+    and the snapshots of what it draws show which. With --snapshots those
+    snapshots, and the screen with the video, are written to DIR (and,
+    under GitHub Actions, into the log as base64).
 
 Each of the three runs in an engine of its own, as an application would
 use one of them, so that one cannot hide a failure of another (the
@@ -62,6 +67,7 @@ the Python 3 standard library is used (3.8 or later).
 """
 
 import argparse
+import base64
 import functools
 import http.server
 import math
@@ -191,6 +197,7 @@ def main(argv=None):
                     help='comma-separated media files that must play although KNOWN lists them (for example the '
                          'MP4 files on Windows with LAV Filters installed)')
     ap.add_argument('--log', metavar='FILE', help='write the results here too')
+    ap.add_argument('--snapshots', metavar='DIR', help='write the snapshots of the Linux player\'s controller here')
     ap.add_argument('--timeout', type=int, default=240, help='seconds for the engine run (default: %(default)s)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
@@ -233,6 +240,9 @@ def main(argv=None):
             'OXT_MEDIA_EXTENSIONS': os.path.join(lay.tools, 'Extensions').replace('\\', '/'),
             'OXT_MEDIA_REVBROWSER': revbrowser.replace('\\', '/'),
         })
+        if args.snapshots:
+            os.makedirs(args.snapshots, exist_ok=True)
+            env['OXT_MEDIA_SNAPSHOTS'] = os.path.abspath(args.snapshots).replace('\\', '/')
         cmd = [engine, SCRIPT]
         if p.family == 'linux':
             if 'player' in what:
@@ -301,6 +311,14 @@ def main(argv=None):
         for d in temp_dirs:
             shutil.rmtree(d, ignore_errors=True)
 
+    if args.snapshots and gha() and os.path.isdir(args.snapshots):
+        names = sorted(os.listdir(args.snapshots))
+        if names:
+            rlc.log('::group::Snapshots (base64)')
+            for name in names:
+                with open(os.path.join(args.snapshots, name), 'rb') as f:
+                    rlc.log('%s %s' % (name, base64.b64encode(f.read()).decode('ascii')))
+            rlc.log('::endgroup::')
     rlc.log('')
     for x in lines:
         rlc.log(x)

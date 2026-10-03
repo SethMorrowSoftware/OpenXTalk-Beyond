@@ -35,6 +35,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_MEDIA_EXTENSIONS the Extensions folder with the browser widget
 --                         and com.livecode.library.widgetutils
 --    OXT_MEDIA_REVBROWSER the revbrowser external (.so, .dll or .bundle)
+--    OXT_MEDIA_SNAPSHOTS  a folder for the snapshots of the player's
+--                         controller (Linux), if set
 --
 -- Quits with the number of failed checks.
 
@@ -71,7 +73,7 @@ end waitFor
 -- The handlers of the test stack, which report every message to this one
 private function stackScript
    local tScript
-   repeat for each item tMessage in "browserDocumentLoadComplete,browserDocumentLoadFailed,browserDocumentComplete,browserDocumentFailed,oxtReport,playStopped"
+   repeat for each item tMessage in "browserDocumentLoadComplete,browserDocumentLoadFailed,browserDocumentComplete,browserDocumentFailed,oxtReport,playStopped,currentTimeChanged"
       put "on" && tMessage && "p1, p2" & return after tScript
       put "   dispatch" && quote & "mediaCheckEvent" & quote && "to stack" && quote & "OXTMediaCheck" & quote && "with" && quote & tMessage & ":" & quote && "&& p1 && p2" & return after tScript
       put "end" && tMessage & return after tScript
@@ -97,6 +99,18 @@ on startup
          repeat for each item tFile in $OXT_MEDIA_FILES
             checkPlayer tFile
          end repeat
+         -- On Linux the engine draws the controller (mplayer only draws the
+         -- video): it is checked with the first AVI file, whose frames are
+         -- all key frames (mplayer seeks an MP4 file to its key frame
+         -- before the time, and the MP4 files have one)
+         if the platform is "Linux" then
+            repeat for each item tFile in $OXT_MEDIA_FILES
+               if tFile ends with ".avi" then
+                  checkController tFile
+                  exit repeat
+               end if
+            end repeat
+         end if
       end if
    catch tError
       check "no script error", false, tError
@@ -201,3 +215,106 @@ command checkPlayer pFile
    check tName & ": playStopped at the end", waitFor("playStopped:", tWait), sEvents
    delete player "Player" of stack "MediaCheck"
 end checkPlayer
+
+-- The controller of the Linux player (engine/src/player-legacy.cpp): its
+-- play button plays and pauses the movie and shows which it does, a click
+-- in its well seeks there (with currentTimeChanged) and moves the thumb.
+-- The controller is the bottom 26 pixels of the player: the play button
+-- the 26 on the left, the well from there to 8 pixels from the right.
+command checkController pFile
+   put empty into sEvents
+   set the itemdelimiter to "/"
+   put "player controller (" & item -1 of pFile & ")" into tName
+   set the itemdelimiter to comma
+   set the defaultStack to "MediaCheck"
+   create player "Player" in card 1 of stack "MediaCheck"
+   set the showBorder of player "Player" of stack "MediaCheck" to false
+   set the rect of player "Player" of stack "MediaCheck" to 0,0,320,260
+   set the showController of player "Player" of stack "MediaCheck" to true
+   -- (the part played is drawn in the hiliteColor)
+   set the hiliteColor of player "Player" of stack "MediaCheck" to 255,0,0
+   set the filename of player "Player" of stack "MediaCheck" to pFile
+   wait 500 milliseconds with messages
+   put 247 into tY
+   check tName & ": it is drawn, paused (the play button)", controllerPixels(tY, "2,13") is "dark,light", controllerPixels(tY, "2,13")
+   controllerSnapshot "paused"
+
+   click at 13, tY
+   put the milliseconds + 4000 into tEnd
+   repeat while the milliseconds < tEnd
+      wait 250 milliseconds with messages
+      if the currentTime of player "Player" of stack "MediaCheck" > 0 then exit repeat
+   end repeat
+   wait 300 milliseconds with messages
+   put the currentTime of player "Player" of stack "MediaCheck" into tTime
+   check tName & ": its play button plays the movie", tTime > 0 and not the paused of player "Player" of stack "MediaCheck", "currentTime=" & tTime && "paused=" & the paused of player "Player" of stack "MediaCheck"
+   check tName & ": it shows the pause button while the movie plays", item 2 of controllerPixels(tY, "2,13") is "dark", controllerPixels(tY, "2,13")
+   controllerSnapshot "playing"
+
+   click at 13, tY
+   wait 300 milliseconds with messages
+   check tName & ": its pause button pauses the movie", the paused of player "Player" of stack "MediaCheck", "paused=" & the paused of player "Player" of stack "MediaCheck"
+   check tName & ": it shows the play button while paused", item 2 of controllerPixels(tY, "2,13") is "light", controllerPixels(tY, "2,13")
+
+   -- The middle of the well (26 to 312, its thumb 10 wide) is half the
+   -- movie
+   put empty into sEvents
+   click at 169, tY
+   wait 500 milliseconds with messages
+   put the duration of player "Player" of stack "MediaCheck" into tDuration
+   put the timeScale of player "Player" of stack "MediaCheck" into tScale
+   put the currentTime of player "Player" of stack "MediaCheck" into tTime
+   check tName & ": a click in its well seeks there", tDuration > 0 and tScale > 0 and abs(tTime - tDuration / 2) / tScale < 0.3, "currentTime=" & tTime && "duration=" & tDuration && "timeScale=" & tScale
+   check tName & ": currentTimeChanged after the seek", waitFor("currentTimeChanged:", 2), sEvents
+   check tName & ": the thumb is at the middle of the well", controllerPixels(tY, "100,169,250") is "played,light,dark", controllerPixels(tY, "100,169,250")
+   controllerSnapshot "seeked"
+
+   put empty into sEvents
+   click at 13, tY
+   if tScale > 0 then put tDuration / tScale + 10 into tWait
+   else put 15 into tWait
+   check tName & ": playStopped at the end", waitFor("playStopped:", tWait), sEvents
+   wait 300 milliseconds with messages
+   check tName & ": at the end, the play button and the thumb at the end", controllerPixels(tY, "13,250,306") is "light,played,light", controllerPixels(tY, "13,250,306")
+   controllerSnapshot "ended"
+   delete player "Player" of stack "MediaCheck"
+end checkController
+
+-- What the controller shows at x, y for each x of pXs (in the snapshot of
+-- the player the engine draws): dark (its background or the well), light
+-- (an icon or the thumb, white), played (red, the hiliteColor), or the
+-- color
+private function controllerPixels pY, pXs
+   create invisible image "Snapshot" in card 1 of stack "MediaCheck"
+   export snapshot from player "Player" of stack "MediaCheck" to image "Snapshot" of stack "MediaCheck" as PNG
+   put the width of image "Snapshot" of stack "MediaCheck" into tWidth
+   put the imageData of image "Snapshot" of stack "MediaCheck" into tData
+   delete image "Snapshot" of stack "MediaCheck"
+   repeat for each item tX in pXs
+      put (pY * tWidth + tX) * 4 into tOffset
+      put byteToNum(byte tOffset + 2 of tData) & comma & byteToNum(byte tOffset + 3 of tData) & comma & byteToNum(byte tOffset + 4 of tData) into tRGB
+      if max(item 1 of tRGB, item 2 of tRGB, item 3 of tRGB) < 60 then
+         put "dark" into tWhat
+      else if min(item 1 of tRGB, item 2 of tRGB, item 3 of tRGB) > 200 then
+         put "light" into tWhat
+      else if item 1 of tRGB > 200 and max(item 2 of tRGB, item 3 of tRGB) < 60 then
+         put "played" into tWhat
+      else
+         put tRGB into tWhat
+      end if
+      put tWhat & comma after tResult
+   end repeat
+   delete the last char of tResult
+   return tResult
+end controllerPixels
+
+-- The player as the engine draws it and as the screen shows it (with
+-- mplayer's video), when OXT_MEDIA_SNAPSHOTS names a folder for them
+private command controllerSnapshot pName
+   if $OXT_MEDIA_SNAPSHOTS is empty then exit controllerSnapshot
+   export snapshot from player "Player" of stack "MediaCheck" to file ($OXT_MEDIA_SNAPSHOTS & "/controller-" & pName & ".png") as PNG
+   put globalLoc(the topLeft of player "Player" of stack "MediaCheck") into tTopLeft
+   put globalLoc(the bottomRight of player "Player" of stack "MediaCheck") into tBottomRight
+   set the JPEGQuality to 60
+   export snapshot from rectangle (tTopLeft & comma & tBottomRight) to file ($OXT_MEDIA_SNAPSHOTS & "/screen-" & pName & ".jpg") as JPEG
+end controllerSnapshot
