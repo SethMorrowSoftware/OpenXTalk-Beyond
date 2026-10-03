@@ -30,7 +30,8 @@ words, is in the [README](README.md#the-ide) and on the
 - Release browser and player check: by hand only, no sound card step (#35)
 - Browser and player check: a paused player's time may drain before it stops (#35)
 - Linux player: reading a paused player's time leaves it paused (#35)
-- Version 0.2.1-rc.4, with this changelog and the documentation for it
+- Version 0.2.1-rc.4, with this changelog and the documentation for it (#36)
+- Runtimes: oxt-runtimes-0.2.1-rc.4, built from the commit that #35 merged, with the Linux player fix (#36)
 
 ## 0.2.1-rc.3 (2026-10-02, pre-release)
 
