@@ -401,7 +401,12 @@ void MPlayer::pause ( void )
 }
 
 
-void MPlayer::seek ( int4 p_amount ) 
+// While mplayer is paused, a command prefixed pausing_keep leaves the pause
+// for one frame, so every currentTime read would step the movie on a frame.
+// Reads, settings and the osd use pausing_keep_force, which stays paused;
+// seeks keep pausing_keep, since mplayer does them only outside the pause
+// (and so shows the frame it seeked to).
+void MPlayer::seek ( int4 p_amount )
 {
 	MCAutoStringRef t_seek_cmd;
 	if (MCStringFormat(&t_seek_cmd, "pausing_keep seek %d 0", p_amount))
@@ -416,13 +421,13 @@ void MPlayer::seek(void)
 void MPlayer::osd (uint4 p_level = 0)
 {
 	MCAutoStringRef t_pause_cmd;
-	if (MCStringFormat(&t_pause_cmd, "pausing_keep osd %d", p_level))
+	if (MCStringFormat(&t_pause_cmd, "pausing_keep_force osd %d", p_level))
 		write_command (*t_pause_cmd);
 }
 
 void MPlayer::osd(void)
 {
-	write_command(MCSTR("pausing_keep osd"));
+	write_command(MCSTR("pausing_keep_force osd"));
 }
 
 void MPlayer::quit(void)
@@ -455,14 +460,14 @@ void MPlayer::set_property(const char * p_prop, MCPlayerPropertyType p_type, voi
 		{
 			uint4 t_value;
 			t_value = *(uint4 *)p_value;
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %d", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %d", p_prop, t_value);
 		}			
 			break;
 		case kMCPlayerPropertyTypeDouble:
 		{
 			double t_value;
 			t_value = *(double *)p_value;
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %f", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %f", p_prop, t_value);
 		}
 			break;
 		case kMCPlayerPropertyTypeBool:
@@ -472,7 +477,7 @@ void MPlayer::set_property(const char * p_prop, MCPlayerPropertyType p_type, voi
 				t_value = "0";
 			else
 				t_value = "-1";
-			t_success = MCStringFormat(&t_set_cmd, "pausing_keep set_property %s %s", p_prop, t_value);
+			t_success = MCStringFormat(&t_set_cmd, "pausing_keep_force set_property %s %s", p_prop, t_value);
 		}
 			break;
 		default:
@@ -490,7 +495,7 @@ bool MPlayer::get_property(const char* p_prop, MCPlayerPropertyType p_type, void
 		return false;
 
 	MCAutoStringRef t_get_cmd;
-	if (!MCStringFormat(&t_get_cmd, "pausing_keep get_property %s", p_prop))
+	if (!MCStringFormat(&t_get_cmd, "pausing_keep_force get_property %s", p_prop))
 		return false;
 	
 	write_command (*t_get_cmd);
