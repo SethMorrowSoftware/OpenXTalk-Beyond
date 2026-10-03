@@ -47,7 +47,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.5, the fifth release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.6, the sixth release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -638,7 +638,7 @@ and in the IDE:
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3, 0.2.1-rc.4 and 0.2.1-rc.5)
+0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5 and 0.2.1-rc.6)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
