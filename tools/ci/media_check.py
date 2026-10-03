@@ -37,12 +37,14 @@ That engine then runs tools/ci/media-check.livecodescript, which
     revBrowserOpen), loaded from the runtime's Externals by a stack's
     externals property, as in a standalone;
   - plays a WAV file this script writes and the files of tools/ci/media:
-    oxt-check.mp4 (H.264 and AAC), oxt-check-silent.mp4 (H.264 only) and
-    oxt-check-silent.avi (Motion JPEG only), 3 seconds each: duration and
+    oxt-check.mp4 (H.264 and AAC), oxt-check-silent.mp4 (H.264 only),
+    oxt-check.avi (Motion JPEG and PCM) and oxt-check-silent.avi (Motion
+    JPEG only), 3 seconds each: duration and
     timeScale, currentTime moving on while it plays, pausing, and
     playStopped at the end. The files without sound tell a player that
     cannot open a format from one that cannot play sound (a machine with
-    no sound device).
+    no sound device). What a platform is known not to play (KNOWN) is
+reported without failing the check.
 
 Each of the three runs in an engine of its own, as an application would
 use one of them, so that one cannot hide a failure of another (the
@@ -81,7 +83,23 @@ import standalone_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'media-check.livecodescript')
 MEDIA = os.path.join(HERE, 'media')
-VIDEOS = ('oxt-check.mp4', 'oxt-check-silent.mp4', 'oxt-check-silent.avi')
+VIDEOS = ('oxt-check.mp4', 'oxt-check-silent.mp4', 'oxt-check.avi', 'oxt-check-silent.avi')
+
+# Files a platform's player is known not to play, with the reason: their
+# failures are reported (KNOWN) but do not fail the check, and a file that
+# plays after all is reported so that it can come off the list.
+KNOWN = {
+    # DirectShow (engine/src/w32-ds-player.cpp) has no reader for MP4: the
+    # player says "could not create movie reference" unless a DirectShow
+    # filter for it (LAV Filters, a codec pack) is installed
+    'windows': {
+        'oxt-check.mp4': 'Windows: DirectShow cannot open MP4 without a third-party filter',
+        'oxt-check-silent.mp4': 'Windows: DirectShow cannot open MP4 without a third-party filter',
+    },
+}
+# Without a sound device (a CI runner) Windows cannot play a file that is
+# only sound
+NO_SOUND_DEVICE = {'oxt-check.wav': 'no sound device on this machine'}
 MPLAYER = '/usr/bin/mplayer'
 
 # The page the browsers open: media-check.livecodescript looks for its
@@ -229,8 +247,12 @@ def main(argv=None):
                 if not xvfb:
                     raise rlc.CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
-        elif p.family == 'windows' and 'player' in what:
-            lines.append('INFO sound devices: %s' % windows_sound_devices())
+        known = dict(KNOWN.get(p.family, {}))
+        if p.family == 'windows' and 'player' in what:
+            devices = windows_sound_devices()
+            lines.append('INFO sound devices: %s' % devices)
+            if devices == 'none':
+                known.update(NO_SOUND_DEVICE)
         rlc.log('Running : %s' % ' '.join(cmd))
         for part in what:
             result_log = os.path.join(work, 'media-check-%s.log' % part)
@@ -246,8 +268,15 @@ def main(argv=None):
             if os.path.exists(result_log):
                 with open(result_log, encoding='utf-8', errors='replace') as f:
                     results = [x.rstrip('\r\n') for x in f if x.strip()]
-            lines += [x for x in results if not x.startswith('DONE ') and not (x.startswith('INFO platform=')
-                                                                             and part != what[0])]
+            results = [x for x in results if not x.startswith('DONE ') and not (x.startswith('INFO platform=')
+                                                                              and part != what[0])]
+            for name, reason in sorted(known.items()):
+                mine = [x for x in results if x.split(' ', 1)[-1].startswith('player %s:' % name)]
+                if mine and not any(x.startswith('FAIL ') for x in mine):
+                    lines.append('INFO player %s plays, though it is listed as known not to (%s)' % (name, reason))
+                results = ['KNOWN' + x[4:] + ' [%s]' % reason if x in mine and x.startswith('FAIL ') else x
+                           for x in results]
+            lines += results
             problems += [x[5:] for x in results if x.startswith('FAIL ')]
             if not any(x.startswith('DONE ') for x in results):
                 problems.append('%s: the engine did not finish (%s)'
