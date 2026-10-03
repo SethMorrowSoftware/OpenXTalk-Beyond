@@ -283,6 +283,17 @@ bool MPlayer::init(const char * p_filename, MCStack *p_stack, MCRectangle p_rect
 
 
 
+bool MPlayer::restart(void)
+{
+	if ( m_window != DNULL )
+		return true;
+	if ( m_filename == NULL )
+		return false;
+	return init(m_filename, m_stack, m_player_rect);
+}
+
+
+
 void MPlayer::resize( MCRectangle p_rect)
 {
 	if ( m_window == DNULL)

@@ -35,6 +35,8 @@ class MPlayer
 		// This also creates a new child window of the given stack
         bool init (const char *p_filename, MCStack *p_stack, MCRectangle p_rect );
 		bool shutdown ( void ) ;
+		// Start mplayer again, paused, for the file it played to its end
+		bool restart ( void ) ;
 	
 		// Basic commands for manipulating the media
 		void play ( bool p_play );

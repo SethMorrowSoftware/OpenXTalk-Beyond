@@ -49,6 +49,12 @@ private:
 	char *command;
 	Atom atom;
 	MPlayer *m_player ;
+
+	// OXT-Beyond: the time and duration the controller shows, and whether
+	// the mouse went down in its well
+	uint4 m_controller_time;
+	uint4 m_controller_duration;
+	bool m_controller_seeking;
 #endif
 	
 #ifdef FEATURE_QUICKTIME
@@ -400,12 +406,27 @@ public:
 	void x11_showbadge(Boolean show) {}
 	void x11_editmovie(Boolean edit) {}
 	void x11_playselection(Boolean play) {}
-	void x11_showcontroller(Boolean show) {}
     MCRectangle x11_getpreferredrect(void) { MCRectangle t_rect; t_rect.x = 0;t_rect.y = 0;t_rect.width=0;t_rect.height=0; return t_rect;}
     void x11_gettracks(MCStringRef &r_tracks) { r_tracks = MCValueRetain(kMCEmptyString); }
     void x11_getenabledtracks(uindex_t &r_count, uint32_t *&r_tracks_id) { r_count = 0; }
     void x11_setenabledtracks(uindex_t p_count, uint32_t *p_tracks_id) {}
 	void x11_draw(MCDC *dc, const MCRectangle& dirty) {}
+
+	// OXT-Beyond: mplayer only draws the video, so the engine draws the
+	// controller below it (a play/pause button and a well to seek in)
+	void x11_showcontroller(Boolean show);
+	bool x11_hascontroller(void);
+	MCRectangle x11_getcontrollerrect(void);
+	MCRectangle x11_getcontrollerwellrect(void);
+	MCRectangle x11_getvideorect(void);
+	void x11_drawcontroller(MCDC *dc);
+	void x11_redrawcontroller(void);
+	bool x11_controllerplaying(void);
+	void x11_synccontroller(void);
+	void x11_controllertick(void);
+	bool x11_controllerdown(void);
+	void x11_controllerseek(int2 x);
+	void x11_controllerup(void);
 	
 	pid_t getpid(void);
 	void  shutdown(void);

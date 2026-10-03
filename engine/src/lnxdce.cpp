@@ -50,6 +50,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #define WM_TITLE_HEIGHT 16
 
+// dsklnx.cpp: tells the players whose mplayer has ended
+extern void MCS_handlechildexits(void);
+
 // IM-2014-01-29: [[ HiDPI ]] Placeholder method for Linux HiDPI support
 void MCScreenDC::platform_boundrect(MCRectangle &rect, Boolean title, Window_mode m, Boolean resizable)
 {
@@ -394,6 +397,8 @@ Boolean MCScreenDC::wait(real8 duration, Boolean dispatch, Boolean anyevent)
 		// MM-2012-09-04: Make sure MCModeQueueEvents is called.  This is used by the property listener feature.
 		MCModeQueueEvents();
 		
+		// OXT-Beyond: what the SIGCHLD handler left to do (dsklnx.cpp)
+		MCS_handlechildexits();
 		if (MCplayers)
 			IO_cleanprocesses();
 

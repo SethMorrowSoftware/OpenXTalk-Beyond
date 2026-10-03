@@ -1429,8 +1429,12 @@ python3 tools/ci/media_check.py --install <folder> --platform mac-universal
 On Linux the player runs `/usr/bin/mplayer` (the `mplayer` package), the
 engine runs under `xvfb-run` when there is no `DISPLAY`, and on a machine
 without a sound card mplayer plays without sound (`ao=null` through
-`MPLAYER_HOME`). The CI runs it on every package after the standalone
-check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
+`MPLAYER_HOME`). There the check also clicks the controller the engine
+draws below mplayer's video (play, pause, a click in the well of the AVI
+file, whose frames are all key frames) and reads what it draws from
+snapshots of the player; `--snapshots <folder>` keeps those snapshots and
+the screen with the video (the Linux build puts them with its logs). The
+CI runs it on every package after the standalone check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
 the packages of a published release (by hand, for any tag).
 
 ### Installer
