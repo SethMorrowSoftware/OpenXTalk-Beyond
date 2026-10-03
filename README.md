@@ -47,7 +47,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.4, the fourth release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.5, the fifth release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -634,7 +634,7 @@ and in the IDE:
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3 and 0.2.1-rc.4)
+0.2.1-rc.3, 0.2.1-rc.4 and 0.2.1-rc.5)
 adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
@@ -669,6 +669,10 @@ adds:
   and a paused player no longer moves on a frame each time a script reads one
   of its properties, in the IDE and in the Linux standalones that every
   package builds (new in 0.2.1-rc.4);
+- in the IDE on Linux, the Player tool and the browser widget are on where
+  they can work (with mplayer, and with the libraries the browser needs),
+  instead of off as OpenXTalk Lite left them, and the Player tool creates
+  a player again (new in 0.2.1-rc.5);
 - on every platform: text compares by codepoint however the engine holds
   it (on Windows and macOS, `sort ... text` and `<` on text with chars
   such as the euro sign or curly quotes depended on how the string had

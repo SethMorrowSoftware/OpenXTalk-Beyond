@@ -14,7 +14,13 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## 0.2.1-rc.4 (pre-release, not tagged yet)
+## 0.2.1-rc.5 (pre-release, not tagged yet)
+
+- Linux IDE: the browser widget and the Player tool are on where they work (#38)
+- Linux IDE: a new player is created again (#38)
+- Version 0.2.1-rc.5, with its changelog (#38)
+
+## 0.2.1-rc.4 (2026-10-03, pre-release)
 
 - Release: the generated list of changes starts at the previous release (#34)
 - Linux player: mplayer runs the commands it is sent (#35)
@@ -32,6 +38,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Linux player: reading a paused player's time leaves it paused (#35)
 - Version 0.2.1-rc.4, with this changelog and the documentation for it (#36)
 - Runtimes: oxt-runtimes-0.2.1-rc.4, built from the commit that #35 merged, with the Linux player fix (#36)
+- Release: a workflow that tags main and starts the release (#37)
 
 ## 0.2.1-rc.3 (2026-10-02, pre-release)
 
