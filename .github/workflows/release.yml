@@ -111,7 +111,7 @@ jobs:
       dry-run: ${{ steps.product.outputs.dry-run }}
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # No step pushes or fetches, so the token need not stay in .git/config
           persist-credentials: false
@@ -243,7 +243,7 @@ jobs:
       DRY_RUN: ${{ needs.prepare.outputs.dry-run }}
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # The scripts below only; the token stays out of .git/config
           persist-credentials: false
@@ -252,19 +252,19 @@ jobs:
       # its artifact (what release_assets.py expects). Artifacts of the
       # called workflows belong to this run, so they are found by name.
       - name: Download the Windows packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-win-x86_64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-win-x86_64
 
       - name: Download the macOS packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-universal
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-mac-universal
 
       - name: Download the Linux packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86_64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-linux-x86_64
@@ -288,7 +288,7 @@ jobs:
 
       - name: Upload the release files (dry run)
         if: needs.prepare.outputs.dry-run == 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-dry-run
           path: ${{ runner.temp }}/release/*

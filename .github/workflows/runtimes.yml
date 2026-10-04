@@ -126,13 +126,13 @@ jobs:
           echo "commit=$windows_sha" >> "$GITHUB_OUTPUT"
 
       - name: Check out the builds' commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.runs.outputs.commit }}
           persist-credentials: false
 
       - name: Download the win-x86 build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-win-x86-bin
           path: ${{ runner.temp }}/builds/win-x86
@@ -140,7 +140,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download the win-x86_64 packages (for the binaries zip)
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-win-x86_64
           path: ${{ runner.temp }}/builds/win-x86_64
@@ -148,7 +148,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download the linux-x86 build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86-bin
           path: ${{ runner.temp }}/builds/linux-x86
@@ -156,7 +156,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download the linux-x86_64 build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86_64-bin
           path: ${{ runner.temp }}/builds/linux-x86_64
@@ -196,7 +196,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the archive
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: runtimes-asset
           path: ${{ runner.temp }}/asset/*
@@ -220,7 +220,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Download the archive
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: runtimes-asset
           path: ${{ runner.temp }}/asset
