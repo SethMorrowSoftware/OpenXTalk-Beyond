@@ -1,0 +1,16 @@
+# About window: the release name (ide/.codename, for 0.2.1 Frankenstein) on
+# the line under the version, before the build number, as
+# "Frankenstein" · build: <number>. The version line has no room for it.
+# Without the file the line is as before.
+file: Toolset/palettes/about.oxtstack
+object: stack
+replace:
+|      put "build: " & tBuildNumber  into fld "buildfield"|
+with:
+|      put "build: " & tBuildNumber into tBuildLine|
+|      put item 1 to -3 of the filename of stack "home" & "/.codename" into tFilePath|
+|      if there is a file tFilePath then|
+|         put word 1 to -1 of line 1 of textDecode(url ("binfile:" & tFilePath), "utf-8") into tCodename|
+|         if tCodename is not empty then put numToCodepoint(0x201C) & tCodename & numToCodepoint(0x201D) & " " & numToCodepoint(0x00B7) & " " before tBuildLine|
+|      end if|
+|      put tBuildLine into fld "buildfield"|

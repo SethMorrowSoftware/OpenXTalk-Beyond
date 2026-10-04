@@ -385,8 +385,17 @@ jobs:
             echo "Generated list of changes since: ${prev_tag:-(no earlier release)}"
             # Our notes first, then GitHub's generated list of changes, as
             # the Windows workflow's release job did
+            # The release name (ide/.codename, for example Frankenstein)
+            # goes after the version: OXT-Beyond 0.2.1 "Frankenstein"
+            title="OXT-Beyond $VERSION"
+            if [ -f ide/.codename ]; then
+              codename=$(head -n 1 ide/.codename | tr -d '\r')
+              codename="${codename#"${codename%%[![:space:]]*}"}"
+              codename="${codename%"${codename##*[![:space:]]}"}"
+              if [ -n "$codename" ]; then title="$title “$codename”"; fi
+            fi
             gh release create "$TAG" --draft --verify-tag \
-              --title "OXT-Beyond $VERSION" \
+              --title "$title" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               --generate-notes \
               "${start_tag[@]}" \

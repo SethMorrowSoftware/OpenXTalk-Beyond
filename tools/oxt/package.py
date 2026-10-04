@@ -445,7 +445,7 @@ def _linux(arch):
 MAC_BUNDLE_ID = 'io.github.sethmorrowsoftware.oxt-beyond'
 MAC_ICON = PRODUCT + '.icns'
 # Installer/oxt-beyond/branding/png/oxt-beyond-<size>.png, made by
-# make-branding.ps1; tools/oxt/icns.py takes the sizes it needs
+# draw_branding.py; tools/oxt/icns.py takes the sizes it needs
 MAC_ICON_PNGS = 'Installer/oxt-beyond/branding/png'
 # The document types that OXT-Beyond owns: (UTI, extension, name, the
 # types it conforms to). A script-only stack is plain text, so .oxtscript

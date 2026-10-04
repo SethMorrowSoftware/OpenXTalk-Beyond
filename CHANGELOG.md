@@ -14,7 +14,13 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## 0.2.1-rc.6 (pre-release, not tagged yet)
+## Next release (not tagged yet)
+
+- README: the project's history in detail (#41)
+- IDE stack patches: image patches, and tools/oxt/ico.py for Windows icons (#42)
+- Branding: the 0.2.1 "Frankenstein" icon, splash screens, installer art and release name (#42)
+
+## 0.2.1-rc.6 (2026-10-04, pre-release)
 
 - Linux player: the engine draws its controller (#39)
 - Browser and player check: click the Linux player's controller (#39)

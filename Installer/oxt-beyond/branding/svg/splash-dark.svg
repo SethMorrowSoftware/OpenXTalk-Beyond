@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1182" height="612" viewBox="0 0 1182 612"><defs><linearGradient id="sb" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0" stop-color="#15171A"/><stop offset="1" stop-color="#1E2126"/></linearGradient>
+<radialGradient id="gl" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#B9F56A" stop-opacity="0.55"/>
+<stop offset="1" stop-color="#B9F56A" stop-opacity="0"/></radialGradient></defs>
+<rect width="1182" height="612" fill="url(#sb)"/>
+<circle cx="900" cy="300" r="330" fill="url(#gl)"/>
+<g transform="translate(1010,40) scale(2.2)"><path d="M30 0 L0 56 H22 L8 100 L52 36 H28 L44 0 Z" fill="#FFE14D" stroke="#7A5A00" stroke-width="3" stroke-linejoin="round"/></g><g transform="translate(700,70) scale(1.5)"><path d="M30 0 L0 56 H22 L8 100 L52 36 H28 L44 0 Z" fill="#FFE14D" stroke="#7A5A00" stroke-width="3" stroke-linejoin="round"/></g>
+<g transform="translate(730,70) scale(1.75)">
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9BD36A"/><stop offset="1" stop-color="#4E7F2E"/></linearGradient>
+  </defs>
+  <rect x="62" y="200" width="76" height="50" fill="#4E7F2E"/>
+  <rect x="34" y="208" width="30" height="20" rx="4" fill="#9AA3AD" stroke="#2A2E33" stroke-width="4"/>
+  <rect x="136" y="208" width="30" height="20" rx="4" fill="#9AA3AD" stroke="#2A2E33" stroke-width="4"/>
+  <rect x="24" y="212" width="12" height="12" rx="2" fill="#C9D1D9" stroke="#2A2E33" stroke-width="3"/>
+  <rect x="164" y="212" width="12" height="12" rx="2" fill="#C9D1D9" stroke="#2A2E33" stroke-width="3"/>
+  <path d="M30 40 H170 V170 Q170 214 130 218 H70 Q30 214 30 170 Z" fill="url(#skin)" stroke="#1B2A12" stroke-width="6"/>
+  <path d="M24 18 H176 V62 L164 52 L150 66 L134 52 L118 68 L100 52 L82 68 L66 52 L50 66 L36 52 L24 62 Z" fill="#111" stroke="#111" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M56 84 L146 78" stroke="#1B2A12" stroke-width="4" fill="none"/>
+  <g stroke="#1B2A12" stroke-width="3">
+    <path d="M66 76 L68 92"/><path d="M82 75 L84 91"/><path d="M98 74 L100 90"/><path d="M114 73 L116 89"/><path d="M130 72 L132 88"/></g>
+  <rect x="44" y="102" width="46" height="12" fill="#111"/><rect x="110" y="102" width="46" height="12" fill="#111"/>
+  <path d="M50 122 H86 Q80 136 68 136 Q56 136 50 122 Z" fill="#F4F1D0" stroke="#111" stroke-width="3"/>
+  <path d="M114 122 H150 Q144 136 132 136 Q120 136 114 122 Z" fill="#F4F1D0" stroke="#111" stroke-width="3"/>
+  <circle cx="68" cy="127" r="5" fill="#111"/><circle cx="132" cy="127" r="5" fill="#111"/>
+  <path d="M100 136 L92 166 H108" stroke="#1B2A12" stroke-width="4" fill="none" stroke-linejoin="round"/>
+  <path d="M70 188 H130" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+  <g stroke="#111" stroke-width="3"><path d="M82 182 V194"/><path d="M100 182 V194"/><path d="M118 182 V194"/></g>
+  <path d="M150 150 L160 182" stroke="#1B2A12" stroke-width="3"/>
+  <g stroke="#1B2A12" stroke-width="3"><path d="M148 160 L160 156"/><path d="M151 170 L163 166"/></g>
+</g>
+<text transform="translate(40,120) scale(0.8,1)" font-family="DejaVu Sans" font-weight="bold" font-size="112" text-anchor="start" fill="#000" stroke="#000" stroke-width="10" stroke-linejoin="round">OXT-Beyond</text><text transform="translate(40,120) scale(0.8,1)" font-family="DejaVu Sans" font-weight="bold" font-size="112" text-anchor="start" fill="#FF7700">OXT-Beyond</text>
+<text transform="translate(44,205) scale(0.78,1)" font-family="DejaVu Sans" font-weight="bold" font-size="82" text-anchor="start" fill="#F1F3F5">FRANKENSTEIN</text>
+<path d="M44 236 H640" stroke="#B9F56A" stroke-width="3"/><path d="M52 229 L56 243" stroke="#B9F56A" stroke-width="3"/><path d="M70 229 L74 243" stroke="#B9F56A" stroke-width="3"/><path d="M88 229 L92 243" stroke="#B9F56A" stroke-width="3"/><path d="M106 229 L110 243" stroke="#B9F56A" stroke-width="3"/><path d="M124 229 L128 243" stroke="#B9F56A" stroke-width="3"/><path d="M142 229 L146 243" stroke="#B9F56A" stroke-width="3"/><path d="M160 229 L164 243" stroke="#B9F56A" stroke-width="3"/><path d="M178 229 L182 243" stroke="#B9F56A" stroke-width="3"/><path d="M196 229 L200 243" stroke="#B9F56A" stroke-width="3"/><path d="M214 229 L218 243" stroke="#B9F56A" stroke-width="3"/><path d="M232 229 L236 243" stroke="#B9F56A" stroke-width="3"/><path d="M250 229 L254 243" stroke="#B9F56A" stroke-width="3"/><path d="M268 229 L272 243" stroke="#B9F56A" stroke-width="3"/><path d="M286 229 L290 243" stroke="#B9F56A" stroke-width="3"/><path d="M304 229 L308 243" stroke="#B9F56A" stroke-width="3"/><path d="M322 229 L326 243" stroke="#B9F56A" stroke-width="3"/><path d="M340 229 L344 243" stroke="#B9F56A" stroke-width="3"/><path d="M358 229 L362 243" stroke="#B9F56A" stroke-width="3"/><path d="M376 229 L380 243" stroke="#B9F56A" stroke-width="3"/><path d="M394 229 L398 243" stroke="#B9F56A" stroke-width="3"/><path d="M412 229 L416 243" stroke="#B9F56A" stroke-width="3"/><path d="M430 229 L434 243" stroke="#B9F56A" stroke-width="3"/><path d="M448 229 L452 243" stroke="#B9F56A" stroke-width="3"/><path d="M466 229 L470 243" stroke="#B9F56A" stroke-width="3"/><path d="M484 229 L488 243" stroke="#B9F56A" stroke-width="3"/><path d="M502 229 L506 243" stroke="#B9F56A" stroke-width="3"/><path d="M520 229 L524 243" stroke="#B9F56A" stroke-width="3"/><path d="M538 229 L542 243" stroke="#B9F56A" stroke-width="3"/><path d="M556 229 L560 243" stroke="#B9F56A" stroke-width="3"/><path d="M574 229 L578 243" stroke="#B9F56A" stroke-width="3"/><path d="M592 229 L596 243" stroke="#B9F56A" stroke-width="3"/><path d="M610 229 L614 243" stroke="#B9F56A" stroke-width="3"/><path d="M628 229 L632 243" stroke="#B9F56A" stroke-width="3"/>
+<rect x="0" y="520" width="1182" height="92" fill="#000" fill-opacity="0.25"/></svg>

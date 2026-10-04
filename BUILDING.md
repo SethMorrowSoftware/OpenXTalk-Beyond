@@ -1869,6 +1869,10 @@ it.
 2. Set `ide/.version` to the new version, for example `0.1.0`, or
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
+   `ide/.codename` holds the release name ("Frankenstein" for 0.2.1),
+   which the About window shows and the GitHub release's title carries;
+   change it for a release with a new name, together with its artwork
+   (`Installer/oxt-beyond/branding/README.md`).
    Add a section for the version at the top of
    [CHANGELOG.md](CHANGELOG.md), one line per commit since the previous
    release with the number of the pull request that brought it in:

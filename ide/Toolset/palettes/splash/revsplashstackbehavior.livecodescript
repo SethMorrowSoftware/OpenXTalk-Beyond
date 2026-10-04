@@ -28,7 +28,11 @@ on preOpenStack
    set the id of image "Splash" to the id of stack "revIcons"
    set the location of me to the screenLoc
    set the htmlText of field "License" to revEnvironmentEditionProperty("splash_strap")
-   
+   -- OXT-Beyond: the splash art carries the product and release name and
+   -- the stack script puts the version into field "Info"; the line under it
+   -- replaces OpenXTalk Lite's
+   put "It" & numToCodepoint(0x2019) & "s alive! Free and open source xTalk for Windows, macOS and Linux." into field "moreinfo" of me
+
    unlock messages
 end preOpenStack
 

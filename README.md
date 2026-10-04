@@ -1,5 +1,7 @@
 # OXT-Beyond
 
+![OXT-Beyond 0.2.1 "Frankenstein"](Installer/oxt-beyond/branding/art/oxt-beyond-banner.png)
+
 [![Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml)
 [![Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml)
 [![Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
@@ -1000,8 +1002,8 @@ contributions are accepted under the same licence as the project. See
   Linux and Windows, and the 9.7.1-OXT engine work this repository is
   built on (for Windows: dark mode, `_internal respring`, the
   colourisation speed-ups, OneCore voices, Windows 11 detection and the
-  SQLite update). The OXT-Beyond icon is adapted from his OpenXTalk Lite
-  icon.
+  SQLite update). The OXT-Beyond icon up to 0.2.1-rc.6 was adapted from
+  his OpenXTalk Lite icon.
 - **Paul McClernan** (OpenXTalkPaul) contributed `.oxtstack` support, the
   dark-mode hook, the alignment guides integration, the macOS Native
   Tools library and lessons.
