@@ -19,7 +19,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Release check: start the IDE on macOS and keep any crash report (#48)
 - Release check: the IDE start's crash report and an lldb backtrace (#48)
 - macOS menus: leave alone the submenus AppKit adds, which crashed the IDE at startup on macOS 14 and 15 (#48)
-- Version 0.2.2, with its changelog (#49)
+- Version 0.2.2, with its changelog (#50)
 
 ## 0.2.1 (2026-10-04)
 
