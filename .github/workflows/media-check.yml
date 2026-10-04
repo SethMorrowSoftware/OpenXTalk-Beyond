@@ -121,3 +121,50 @@ jobs:
           [ "$RUNNER_OS" = Windows ] && py=python
           "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
             --log "$RUNNER_TEMP/media-check.log"
+
+      # The IDE as a user starts it: the app's own engine with its home
+      # stack, splash, menus and palettes and a user interface, which no
+      # other check does on macOS (they run -ui or a test stack of their
+      # own). It must still be running after two minutes; a screenshot,
+      # its output and any crash report macOS wrote are uploaded.
+      - name: Start the IDE
+        if: always() && runner.os == 'macOS'
+        run: |
+          APP="$RUNNER_TEMP/oxt-test/OXT-Beyond.app"
+          OUT="$RUNNER_TEMP/ide-start"
+          mkdir -p "$OUT"
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string 2>/dev/null)"
+          sysctl -n machdep.cpu.features machdep.cpu.leaf7_features 2>/dev/null || true
+          ls ~/Library/Logs/DiagnosticReports > "$OUT/reports-before.txt" 2>/dev/null || true
+          "$APP/Contents/MacOS/OXT-Beyond" > "$OUT/ide-output.txt" 2>&1 &
+          pid=$!
+          status=running
+          for i in $(seq 1 120); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              wait "$pid"; status="ended with exit status $? after $i s"; break
+            fi
+            [ "$i" = 30 ] && screencapture -x "$OUT/ide-30s.png" || true
+            sleep 1
+          done
+          screencapture -x "$OUT/ide-end.png" || true
+          echo "IDE: $status"
+          kill "$pid" 2>/dev/null || true
+          sleep 3
+          for d in ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports; do
+            find "$d" -maxdepth 1 \( -name 'OXT-Beyond*' -o -name 'LiveCode*' \) -exec cp {} "$OUT/" \; 2>/dev/null || true
+          done
+          ls -l "$OUT"
+          echo "--- output"; head -c 20000 "$OUT/ide-output.txt" || true
+          for f in "$OUT"/*.ips "$OUT"/*.crash; do
+            [ -f "$f" ] || continue
+            echo "--- $f"; head -c 30000 "$f"
+          done
+          [ "$status" = running ]
+
+      - name: Upload the IDE start
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-start-${{ matrix.runner }}
+          path: ${{ runner.temp }}/ide-start
+          if-no-files-found: ignore
