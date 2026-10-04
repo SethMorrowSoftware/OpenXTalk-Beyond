@@ -48,7 +48,7 @@ clone at the new one.
 ## Status
 
 OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.6, the sixth release candidate of 0.2.1, is a
+macOS and Linux. 0.2.1-rc.7, the seventh release candidate of 0.2.1, is a
 pre-release for testing (see what 0.2.1 adds, under
 [The IDE](#the-ide)). Please read this before you download either.
 
@@ -639,8 +639,8 @@ and in the IDE:
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
 OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5 and 0.2.1-rc.6)
-adds:
+0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5, 0.2.1-rc.6 and
+0.2.1-rc.7) adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
   Script, LiveCode Builder, the LiveCode Builder compiler and the script
@@ -732,7 +732,12 @@ adds:
   standalone on every build of all three platforms (new in 0.2.1-rc.4;
   see [BUILDING.md](BUILDING.md#browser-and-player-check));
 - [CHANGELOG.md](CHANGELOG.md), which lists every change made since Tom
-  Perry's last commit, release by release (new in 0.2.1-rc.4).
+  Perry's last commit, release by release (new in 0.2.1-rc.4);
+- the "Frankenstein" artwork of 0.2.1: a new OXT-Beyond icon (an orange
+  "OXT" struck by lightning, over a stitched seam) for the app on Windows,
+  macOS and Linux, the About box and the dialogs, and a friendly
+  flat-topped monster on the splash screens and the Windows installer.
+  The About box names the release "Frankenstein" (new in 0.2.1-rc.7).
 
 ### xTalk Suite extensions
 
