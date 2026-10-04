@@ -13,7 +13,7 @@ the history of this folder (up to 0.2.1-rc.6); his original stays in
 | --- | --- |
 | `draw_branding.py` | Draws every picture below and writes every file made from them. |
 | `svg/icon.svg` | The icon (1024 × 1024): the head, lightning and "OXT" on a rounded tile. |
-| `svg/icon-small.svg` | The head alone on the tile, for 64 px and smaller, where lightning and lettering would be a few pixels. |
+| `svg/icon-small.svg` | The head alone on the tile, for 16 and 24 px, where lightning and lettering would be a pixel or two. |
 | `svg/splash-dark.svg`, `svg/splash-light.svg` | The IDE splash screens (1182 × 612), for the dark and light appearance. |
 | `svg/wizard.svg` | The tall image of the Windows installer (534 × 1022). |
 | `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |
@@ -43,12 +43,12 @@ of the GitHub release.
 
 ## The splash screens
 
-The IDE writes over the splash (`ide/Toolset/palettes/splash/`, at 1x):
-the product and version in field "Info" (4,145 to 582,186), a line about
-the project in "moreinfo" (5,190 to 255,275) and the loading status in
-"Status" (5,270 to 478,293). So the title stays above y 135, the left
-half below it is plain, and the bottom 46 px are a darker band for the
-status.
+The art carries the product and release name. The IDE writes the rest
+over it (`ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`,
+at 1x): "<version> · It's alive!" in grey 20 px text under the stitches
+(field "moreinfo", 24,134 to 560,170), and the loading status in the
+darker band at the bottom (field "Status", 5,270 to 478,293). The stack's
+own field "Info" (product and version) is hidden.
 
 ## Making the files again
 

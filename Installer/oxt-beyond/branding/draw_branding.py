@@ -22,9 +22,9 @@ made from it.
 Writes, from the repository root:
   Installer/oxt-beyond/branding/svg/*.svg     the drawings (the source)
   Installer/oxt-beyond/branding/png/oxt-beyond-<n>.png
-                                              the icon, 16 to 1024 px; up
-                                              to 64 px the head alone, so it
-                                              reads at small sizes
+                                              the icon, 16 to 1024 px; at
+                                              16 and 24 px the head alone,
+                                              so it reads at that size
   Installer/oxt-beyond/branding/art/oxt-beyond-wizard.png
                                               the tall installer image
                                               (534 x 1022), which
@@ -62,13 +62,13 @@ BOLT = '#FFE14D'
 CHARCOAL = '#15171A'
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256, 512, 1024)
-SMALL_ICON_MAX = 64     # sizes up to this use the head-only icon
+SMALL_ICON_MAX = 24     # sizes up to this use the head-only icon
 
 # The splash is 591 x 306 (1x) and 1182 x 612 (@extra-high). The IDE writes
-# over it (ide/Toolset/palettes/splash/revSplash.livecode, at 1x): the
-# version (field "Info", 4,145 to 582,186), a line about the project
-# ("moreinfo", 5,190 to 255,275) and the loading status ("Status", 5,270 to
-# 478,293). So the title stays above y 135 and the left half below it plain.
+# over it (ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript,
+# at 1x): the version line "<version> · It's alive!" under the stitches
+# (field "moreinfo", baseline about y 160, grey) and the loading status in
+# the darker band at the bottom ("Status", 5,270 to 478,293).
 
 
 def head(x, y, s, gid):
@@ -138,7 +138,7 @@ def icon():
 
 def icon_small():
     # The head alone, filling the tile: the lightning and the lettering
-    # would be a few pixels at 16 to 64 px
+    # would be a pixel or two at 16 and 24 px
     return svg(1024, 1024, TILE + head(122, 70, 3.9, 'skin'))
 
 
@@ -155,9 +155,9 @@ def splash(dark):
 <circle cx="900" cy="300" r="330" fill="url(#gl)"/>
 {bolt(1010, 40, 2.2)}{bolt(700, 70, 1.5)}
 {head(730, 70, 1.75, 'skin')}
-{word(40, 120, 112, 'OXT-Beyond', ORANGE, '#000', 10, sx=0.8)}
-{word(44, 205, 82, 'FRANKENSTEIN', fg, sx=0.78)}
-{stitches(44, 640, 236, glow)}
+{word(60, 150, 112, 'OXT-Beyond', ORANGE, '#000', 10, sx=0.8)}
+{word(64, 240, 82, 'FRANKENSTEIN', fg, sx=0.78)}
+{stitches(64, 660, 268, glow)}
 <rect x="0" y="520" width="1182" height="92" fill="#000" fill-opacity="{shade}"/>''')
 
 
