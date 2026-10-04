@@ -141,8 +141,8 @@ pre-release for testing (see what 0.2.1 adds, under
   appearance on a dark and a light Windows; on macOS it checks the
   appearance on a dark and a light Mac (see
   [Continuous integration](BUILDING.md#9-continuous-integration)). The
-  IDE's windows are not tested automatically, and the macOS and Linux
-  packages have not been tried by hand yet.
+  IDE's windows are not tested automatically; the Linux package has been
+  tried by hand on Kubuntu 24.04, and the macOS package not yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
   parts for macOS and Linux only. They are shipped as they were; apart
   from the IDE compile check they are not tested automatically.
@@ -894,7 +894,7 @@ release is made from a tag in
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
 | `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
-| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `release.yml` builds all three from a `v` tag and publishes the release. |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `release.yml` builds all three from a `v` tag and publishes the release; `tag-release.yml` tags `main` and starts it; `runtimes.yml` makes the standalone runtimes asset; `media-check.yml` checks the browser and player in a published release. |
 | `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's installer builder (not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 
@@ -954,7 +954,7 @@ Known limitations, in rough order of importance:
    On Linux it runs mplayer, which must be installed (`sudo apt install
    mplayer` on Debian and Ubuntu); without it no file plays. macOS
    plays both. A Media Foundation player for Windows would open MP4
-   files by itself; it is not planned yet.
+   files by itself; whether to write one is not decided yet.
 11. In an install for all users, a few things that save stacks inside
    the program folder fail for standard users, because Setup keeps
    stacks and scripts there read-only: the Report Builder plugin saving

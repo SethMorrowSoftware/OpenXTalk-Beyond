@@ -1805,6 +1805,13 @@ The badges at the top of the [README](README.md) and the
 [Actions tab](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions)
 show the state of the latest runs.
 
+Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) checks
+every week for newer versions of the GitHub Actions the workflows use
+and opens one pull request (`ci: bump the github-actions group ...`)
+with all of them; like any pull request, it is merged once the three build
+workflows pass. Nothing else is tracked: the build's sources and
+prebuilt archives are pinned in the repository.
+
 The Linux workflow ([`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml),
 "Build (Linux)") builds x86-64 and arm64 in an Ubuntu 20.04 container
 (see [Building on Linux](#12-building-on-linux)). Its job "Package
@@ -1921,7 +1928,9 @@ it.
      ([`tools/ci/release_assets.py`](tools/ci/release_assets.py)), and
      writes one `SHA256SUMS` over all of them. It writes the notes
      ([`tools/ci/release_notes.py`](tools/ci/release_notes.py)), creates
-     the release "OXT-Beyond <version>" as a **draft** with those notes
+     the release "OXT-Beyond <version>" (followed by the release name
+     of `ide/.codename` in quotes, for example
+     `OXT-Beyond 0.2.1-rc.8 “Frankenstein”`) as a **draft** with those notes
      followed by GitHub's generated list of changes since the previous
      release (the latest published release whose tag starts with `v`,
      not an asset's `runtimes-*` or `prebuilts-*` tag), uploads every file,

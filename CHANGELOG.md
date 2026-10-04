@@ -17,6 +17,8 @@ words, is in the [README](README.md#the-ide) and on the
 ## Next release (not tagged yet)
 
 - Release workflow: read the release name from the checkout, so the title has it (#44)
+- ci: bump the github-actions group with 4 updates (#45)
+- Docs: current with 0.2.1-rc.7 (#46)
 
 ## 0.2.1-rc.7 (2026-10-04, pre-release)
 
