@@ -19,6 +19,9 @@ words, is in the [README](README.md#the-ide) and on the
 - README: the project's history in detail (#41)
 - IDE stack patches: image patches, and tools/oxt/ico.py for Windows icons (#42)
 - Branding: the 0.2.1 "Frankenstein" icon, splash screens, installer art and release name (#42)
+- Branding: the splash and small icons as the concept art was drawn (#42)
+- IDE colour literals: the splash's version line, in the grey of its artwork (#42)
+- Changelog: the branding commits (#42)
 
 ## 0.2.1-rc.6 (2026-10-04, pre-release)
 
