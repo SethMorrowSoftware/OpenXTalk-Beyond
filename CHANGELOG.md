@@ -14,6 +14,11 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## Next release (not tagged yet)
+
+- Release check: start the IDE on macOS and keep any crash report (#48)
+- macOS menus: leave alone the submenus AppKit adds, which crashed the IDE at startup on macOS 15 (#48)
+
 ## 0.2.1 (2026-10-04)
 
 - Release workflow: read the release name from the checkout, so the title has it (#44)

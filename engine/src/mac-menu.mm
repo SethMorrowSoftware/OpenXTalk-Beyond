@@ -1086,6 +1086,9 @@ static MCPlatformMenuRef s_menubar = nil;
 // The delegate for the app menu.
 static com_runrev_livecode_MCAppMenuDelegate *s_app_menu_delegate = nil;
 
+// The platform menu of an NSMenu, or nil if it is not one of the engine's.
+static MCPlatformMenuRef MCPlatformMenuRefOfNSMenu(NSMenu *p_menu);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 enum MCShadowedItemTags
@@ -1204,7 +1207,10 @@ enum MCShadowedItemTags
     bool t_quit_accelerator_present;
     t_quit_accelerator_present = false;
     if ([[t_item keyEquivalent] isEqualToString: @"q"])
-        t_quit_accelerator_present = [(com_runrev_livecode_MCMenuDelegate *)[[t_item menu] delegate] platformMenuRef] -> quit_item != nil;
+    {
+        MCPlatformMenuRef t_menu_ref = MCPlatformMenuRefOfNSMenu([t_item menu]);
+        t_quit_accelerator_present = t_menu_ref != nil && t_menu_ref -> quit_item != nil;
+    }
     
 	if (s_menu_select_lock == 0 || t_quit_accelerator_present)
     {
@@ -1510,6 +1516,20 @@ void MCMacPlatformUnlockMenuSelect(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// The platform menu of an NSMenu, or nil if the menu is not one of the
+// engine's: AppKit adds menus of its own to an application's menus (on macOS
+// 15, apps built with its SDK get "Writing Tools" and "AutoFill" submenus in
+// their Edit menu), and their delegates are AppKit's, or nil.
+static MCPlatformMenuRef MCPlatformMenuRefOfNSMenu(NSMenu *p_menu)
+{
+	if (p_menu == nil)
+		return nil;
+	id t_delegate = [p_menu delegate];
+	if (![t_delegate isKindOfClass: [com_runrev_livecode_MCMenuDelegate class]])
+		return nil;
+	return [(MCMenuDelegate *)t_delegate platformMenuRef];
+}
+
 static void MCPlatformAddSubmenuToMenu(MCPlatformMenuRef p_menu, MCPlatformMenuRef p_submenu)
 {
     uindex_t t_first_free = p_menu->submenu_count;
@@ -1562,7 +1582,11 @@ static void MCPlatformDestroyMenuItem(MCPlatformMenuRef p_menu, uindex_t p_index
 		return;
 	
 	MCPlatformMenuRef t_submenu_ref;
-	t_submenu_ref = [(MCMenuDelegate *)[t_submenu delegate] platformMenuRef];
+	t_submenu_ref = MCPlatformMenuRefOfNSMenu(t_submenu);
+	
+	// A submenu AppKit added is AppKit's to keep.
+	if (t_submenu_ref == nil)
+		return;
 	
 	// Update the submenu pointer (so we don't have any dangling
 	// refs).
@@ -1626,6 +1650,9 @@ void MCPlatformRetainMenu(MCPlatformMenuRef p_menu)
 
 void MCPlatformReleaseMenu(MCPlatformMenuRef p_menu)
 {
+	if (p_menu == nil)
+		return;
+	
 	p_menu -> references -= 1;
 	if (p_menu -> references != 0)
 		return;
@@ -1709,7 +1736,12 @@ void MCPlatformGetMenuParent(MCPlatformMenuRef p_menu, MCPlatformMenuRef& r_pare
 	}
 	
 	r_index = [t_parent indexOfItemWithSubmenu: p_menu -> menu];
-	r_parent = [(MCMenuDelegate *)[t_parent delegate] platformMenuRef];
+	r_parent = MCPlatformMenuRefOfNSMenu(t_parent);
+	if (r_parent == nil)
+	{
+		r_index = 0;
+		return;
+	}
 	if (r_parent -> is_menubar)
 		r_index -= 1;
 }
@@ -1736,7 +1768,7 @@ void MCPlatformGetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
             MCPlatformMenuRef t_current_submenu_ref = nil;
             if (t_current_submenu != nil)
             {
-                t_current_submenu_ref = [(MCMenuDelegate *)[t_current_submenu delegate] platformMenuRef];
+                t_current_submenu_ref = MCPlatformMenuRefOfNSMenu(t_current_submenu);
             }
             *(MCPlatformMenuRef *)r_value = t_current_submenu_ref;
         }
@@ -1784,10 +1816,10 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
                 NSMenu *t_supermenu;
                 t_supermenu = [p_menu -> menu supermenu];
                 
-                if (t_supermenu != nil)
+                MCPlatformMenuRef t_supermenu_ref;
+                t_supermenu_ref = MCPlatformMenuRefOfNSMenu(t_supermenu);
+                if (t_supermenu_ref != nil)
                 {
-                    MCPlatformMenuRef t_supermenu_ref;
-                    t_supermenu_ref = [(MCMenuDelegate *)[t_supermenu delegate] platformMenuRef];
                     if (t_action == kMCPlatformMenuItemActionQuit)
                     {
                         [t_item setTag:kMCShadowedItemQuit];
@@ -1881,7 +1913,7 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
 			if (t_current_submenu != nil)
 			{
 				MCPlatformMenuRef t_current_submenu_ref;
-				t_current_submenu_ref = [(MCMenuDelegate *)[t_current_submenu delegate] platformMenuRef];
+				t_current_submenu_ref = MCPlatformMenuRefOfNSMenu(t_current_submenu);
                 
                 MCPlatformRemoveSubmenuFromMenu(p_menu, t_current_submenu_ref);
 				MCPlatformReleaseMenu(t_current_submenu_ref);

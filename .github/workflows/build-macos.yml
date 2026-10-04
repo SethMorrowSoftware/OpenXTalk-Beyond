@@ -843,6 +843,15 @@ jobs:
       # (tools/ci/mac_appearance_test.py). The script restores the Mac's
       # setting; the images and the engine's output are in the logs. It
       # runs last, after the app was compared with the zip.
+      # The IDE as a user starts it, with its home stack, menu bar and
+      # palettes, still running after 90 seconds; the other steps run the
+      # engine with -ui or a test stack of their own
+      # (tools/ci/mac_ide_start.sh, which prints the crash report if not)
+      - name: Start the IDE
+        timeout-minutes: 5
+        run: |
+          tools/ci/mac_ide_start.sh "$APP" "$LOGS/ide-start"
+
       - name: Appearance test
         timeout-minutes: 15
         run: |
