@@ -1435,7 +1435,8 @@ file, whose frames are all key frames) and reads what it draws from
 snapshots of the player; `--snapshots <folder>` keeps those snapshots and
 the screen with the video (the Linux build puts them with its logs). The
 CI runs it on every package after the standalone check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
-the packages of a published release (by hand, for any tag).
+the packages of a published release (by hand, for any tag), and on
+macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
 ### Installer
 
@@ -1833,8 +1834,14 @@ job "Package mac-universal" joins the two into one universal
 [macOS app](#macos-app), signed ad hoc, and uploads it as the artifact
 `OXT-Beyond-mac-universal`; "Test mac-universal (arm64)" and "(x86_64)"
 then install it from the disk image on each architecture and test it
-(the signature, the smoke test, the IDE compile check, a standalone and
-the light and dark appearance; see [macOS app](#macos-app)).
+(the signature, the smoke test, the IDE compile check, a standalone,
+the IDE started as a user starts it and the light and dark appearance;
+see [macOS app](#macos-app)). The IDE start
+([`tools/ci/mac_ide_start.sh`](tools/ci/mac_ide_start.sh)) runs the app
+with its home stack, menu bar and palettes and fails if it is not still
+running after 90 seconds, printing the faulting thread of the crash
+report macOS wrote; every other step runs the engine with `-ui` or with a
+test stack of its own.
 The repository variables `OXT_NO_EXTERNAL_ASSETS` and
 `OXT_NO_XTALK_EXTENSIONS` work there too.
 

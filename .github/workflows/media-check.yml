@@ -121,3 +121,18 @@ jobs:
           [ "$RUNNER_OS" = Windows ] && py=python
           "$py" tools/ci/media_check.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
             --log "$RUNNER_TEMP/media-check.log"
+
+      # The IDE as a user starts it, with its menus and palettes
+      # (tools/ci/mac_ide_start.sh); the build workflow runs it too
+      - name: Start the IDE
+        if: always() && runner.os == 'macOS'
+        run: |
+          tools/ci/mac_ide_start.sh "$RUNNER_TEMP/oxt-test/OXT-Beyond.app" "$RUNNER_TEMP/ide-start"
+
+      - name: Upload the IDE start
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-start-${{ matrix.runner }}
+          path: ${{ runner.temp }}/ide-start
+          if-no-files-found: ignore
