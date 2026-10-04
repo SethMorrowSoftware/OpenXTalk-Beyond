@@ -181,7 +181,7 @@ jobs:
           echo "Processors: $(nproc)"
 
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # No step pushes or fetches, so the token need not stay in .git/config
           persist-credentials: false
@@ -249,7 +249,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -282,7 +282,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -420,7 +420,7 @@ jobs:
           done
 
       - name: Upload the bin folder
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
@@ -430,7 +430,7 @@ jobs:
           compression-level: 0
 
       - name: Upload the debug symbols
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
           path: OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
@@ -481,7 +481,7 @@ jobs:
       # host's folder, which the upload action does not see
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs-linux-${{ matrix.arch }}
           path: |
@@ -515,7 +515,7 @@ jobs:
       BUILDTYPE: Release
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -536,7 +536,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -560,7 +560,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -633,7 +633,7 @@ jobs:
             done'
 
       - name: Upload the bin folder
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-linux-x86-bin
           path: OXT-Beyond-linux-x86-bin.tar.xz
@@ -642,7 +642,7 @@ jobs:
           compression-level: 0
 
       - name: Upload the debug symbols
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-linux-x86-symbols
           path: OXT-Beyond-linux-x86-symbols.tar.xz
@@ -676,7 +676,7 @@ jobs:
 
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs-linux-x86
           path: |
@@ -709,20 +709,20 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       # Not in a folder named *-bin or _build: nothing here should look
       # like a build output folder (see "Extract the package" below)
       - name: Download the build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86_64-bin
           path: ${{ runner.temp }}/ci-build
 
       - name: Download the debug symbols
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86_64-symbols
           path: ${{ runner.temp }}/ci-symbols
@@ -759,14 +759,14 @@ jobs:
       # includes the runner's OS, so these entries are Linux's own.
       - name: Restore cached external assets
         id: assets-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
 
       - name: Restore cached xTalk extension files
         id: xtalk-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
@@ -814,7 +814,7 @@ jobs:
       - name: Save external assets to the cache
         if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
@@ -822,7 +822,7 @@ jobs:
       - name: Save xTalk extension files to the cache
         if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
@@ -935,7 +935,7 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/logs/test-linux-package.log"
 
       - name: Upload the package
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-linux-x86_64
           path: dist/*
@@ -946,7 +946,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: package-logs-linux-x86_64
           path: ${{ runner.temp }}/logs

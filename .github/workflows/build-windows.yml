@@ -159,7 +159,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           persist-credentials: false
@@ -329,7 +329,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -369,7 +369,7 @@ jobs:
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -378,7 +378,7 @@ jobs:
       # "Prebuilt libraries"): extracted into prebuilt\packaged, a local
       # build takes them as this one did
       - name: Upload the prebuilt libraries
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilt-libraries-win-x86_64
           path: prebuilt/packaged/*.tar.bz2
@@ -438,14 +438,14 @@ jobs:
       # version).
       - name: Restore cached external assets
         id: assets-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
 
       - name: Restore cached xTalk extension files
         id: xtalk-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
@@ -499,7 +499,7 @@ jobs:
       - name: Save external assets to the cache
         if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
@@ -507,7 +507,7 @@ jobs:
       - name: Save xTalk extension files to the cache
         if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
@@ -638,7 +638,7 @@ jobs:
       - name: Upload render test images
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: render-test
           path: ${{ runner.temp }}/render-test
@@ -675,7 +675,7 @@ jobs:
 
       - name: Upload packages
         id: upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-win-x86_64
           # Everything in dist except the staged layout
@@ -795,7 +795,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           # Named after the platform: in a release run the three platforms'
           # artifacts share one list
@@ -866,7 +866,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           persist-credentials: false
@@ -910,7 +910,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -943,7 +943,7 @@ jobs:
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -987,7 +987,7 @@ jobs:
           Get-Item OXT-Beyond-win-x86-*.zip | Format-Table Name, Length -AutoSize | Out-String | Write-Host
 
       - name: Upload the bin folder
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-win-x86-bin
           path: OXT-Beyond-win-x86-bin.zip
@@ -996,7 +996,7 @@ jobs:
           compression-level: 0
 
       - name: Upload the debug symbols
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-win-x86-symbols
           path: OXT-Beyond-win-x86-symbols.zip
@@ -1051,7 +1051,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs-win-x86
           path: ${{ runner.temp }}/build-logs

@@ -153,7 +153,7 @@ jobs:
       XCODEBUILD_FLAGS: -IDEBuildingContinueBuildingAfterErrors=YES
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # No step pushes or fetches, so the token need not stay in .git/config
           persist-credentials: false
@@ -223,7 +223,7 @@ jobs:
 
       - name: Restore Python 2.7
         id: python2-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.pyenv/versions/${{ env.PYTHON2_VERSION }}
           key: python-${{ env.PYTHON2_VERSION }}-${{ matrix.runner }}-${{ matrix.arch }}-v1
@@ -255,7 +255,7 @@ jobs:
 
       - name: Restore prebuilt libraries
         id: prebuilt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -287,7 +287,7 @@ jobs:
 
       - name: Save prebuilt libraries to the cache
         if: steps.prebuilt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/packaged
           key: ${{ steps.prebuilt-key.outputs.key }}
@@ -411,7 +411,7 @@ jobs:
           done
 
       - name: Upload the build products
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-bin
           path: OXT-Beyond-mac-${{ matrix.arch }}-bin.tar.xz
@@ -421,7 +421,7 @@ jobs:
           compression-level: 0
 
       - name: Upload the debug symbols
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-mac-${{ matrix.arch }}-symbols
           path: OXT-Beyond-mac-${{ matrix.arch }}-symbols.tar.xz
@@ -466,7 +466,7 @@ jobs:
 
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs-mac-${{ matrix.arch }}
           path: |
@@ -493,7 +493,7 @@ jobs:
       version: ${{ steps.product.outputs.version }}
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -525,25 +525,25 @@ jobs:
           echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
 
       - name: Download the arm64 build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-arm64-bin
           path: ${{ runner.temp }}/artifacts/arm64
 
       - name: Download the arm64 symbols
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-arm64-symbols
           path: ${{ runner.temp }}/artifacts/arm64
 
       - name: Download the x86_64 build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-x86_64-bin
           path: ${{ runner.temp }}/artifacts/x86_64
 
       - name: Download the x86_64 symbols
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-x86_64-symbols
           path: ${{ runner.temp }}/artifacts/x86_64
@@ -588,14 +588,14 @@ jobs:
       # keys do not restore the Windows job's files here.
       - name: Restore cached external assets
         id: assets-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: oxt-external-assets-${{ hashFiles('tools/oxt/external-assets.json') }}
 
       - name: Restore cached xTalk extension files
         id: xtalk-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
@@ -632,7 +632,7 @@ jobs:
       - name: Save external assets to the cache
         if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/*.zip
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
@@ -640,7 +640,7 @@ jobs:
       - name: Save xTalk extension files to the cache
         if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
         continue-on-error: true
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
@@ -687,7 +687,7 @@ jobs:
           ls -l "$RUNNER_TEMP/dist"
 
       - name: Upload the packages
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-mac-universal
           path: ${{ runner.temp }}/dist/*
@@ -698,7 +698,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: package-logs-mac-universal
           path: ${{ runner.temp }}/logs
@@ -727,12 +727,12 @@ jobs:
       VERSION: ${{ needs.package.outputs.version }}
     steps:
       - name: Check out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Download the packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-universal
           path: ${{ runner.temp }}/dist
@@ -850,7 +850,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-logs-mac-universal-${{ matrix.arch }}
           path: ${{ runner.temp }}/logs
