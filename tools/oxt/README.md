@@ -11,11 +11,12 @@ development engine without a user interface.
 | `package.py` | stages the installed layout of OXT-Beyond for Windows, Linux or macOS from the repository, a build and the external assets (see [Packaging](#packaging-packagepy)) |
 | `package_dist.py` | writes the platform's distribution archives (portable zip, tar.xz or app zip; binaries; symbols) and `SHA256SUMS` from a staged layout (see [Distribution archives](#distribution-archives-package_distpy)) |
 | `binfmt.py` | reads architectures, needed libraries, run paths and OS floors from ELF and Mach-O files without readelf or otool (used by `package.py` to check that a build is for the platform, and by `tools/ci/check_native_deps.py` and `tools/ci/run_livecode_check.py`) |
+| `ico.py` | writes the Windows icon files (`ide/OXT-Beyond.ico`, `engine/rsrc/oxt-beyond.ico`) from the branding PNGs, and checks one (used by `Installer/oxt-beyond/branding/draw_branding.py`) |
 | `icns.py` | writes the macOS app icon (`.icns`) from the branding PNGs without `iconutil`, and checks one (see [The macOS app's identity](#the-macos-apps-identity)) |
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
-| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script and property patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
+| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property and image patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 
@@ -1018,7 +1019,7 @@ or a cache that holds the zip is given.
 Most of the IDE is script-only stacks (`*.livecodescript`), which are
 edited as text. Some code lives in binary stacks (`*.livecode`, `*.rev`),
 for example the dataView behaviour in `ide/Toolset/palettes/revCore.8.livecode`.
-Those are changed only through the script and property patches in
+Those are changed only through the script, property and image patches in
 `ide-stack-patches/`, applied by a headless engine, so that every change is
 reviewable text and the result is verified:
 
@@ -1053,6 +1054,18 @@ to:
 Values are written as the dump writes them and compared exactly; a property
 that already has the new value is skipped.
 
+An image patch file names a stack file and, for one or more images, a PNG
+file of the repository (relative to its root) and the SHA-1 of the image's
+data in the stack file, as the dump shows it; the PNG must have the image's
+size. The 0.2.1 icon in the About window and the dialogs is one:
+
+```
+file: Toolset/palettes/revgeneralicons.rev
+object: image id 210112 of card "theAlertIcons"
+image: Installer/oxt-beyond/branding/png/oxt-beyond-64.png
+from-sha1: 0f68ea29bec282ccb97aa734914244242d1561c6
+```
+
 For each stack file the tool dumps every object
 (`ide-stack-dump.livecodescript`), applies the patches, checks that only the
 patched scripts and properties differ, saves the stack, loads the saved file
@@ -1070,7 +1083,7 @@ OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
 ```
 
 `tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
-every script patch is applied, from the stack files' bytes, without an
-engine. Property patches cannot be seen in the bytes that way, so
+every script and image patch is applied, from the stack files' bytes,
+without an engine. Property patches cannot be seen in the bytes that way, so
 `tools/ci/ide-contrast-check.ps1` checks every patch with the engine of the
 build (`OXT_PATCH_CHECK=1`, on the staged installed layout).

@@ -35,6 +35,10 @@ tools/ci/ide-contrast-check.ps1 checks that they are applied, with the
 engine of the build (tools/oxt/ide-stack-patch.livecodescript with
 OXT_PATCH_CHECK=1).
 
+Image patches (an image's data replaced with a PNG file of the repository)
+are checked here too: a stack file stores an image's PNG data unchanged,
+so an applied patch shows as the PNG file's bytes in the stack file.
+
 It also checks what the patches are for, so that a stack saved from the IDE
 cannot bring the old code back unnoticed:
   - the dataView behaviour in Toolset/palettes/revCore.8.livecode paints row
@@ -62,7 +66,8 @@ COPY = os.path.join('ide', 'Toolset', 'palettes', 'behaviors', 'revcorestackbeha
 def read_patch(path):
     """('script', file, object, old text, new text) of a script patch, or
     ('property', file, [(object, property, from, to), ...]) of a property
-    patch (tools/oxt/ide-stack-patch.livecodescript describes both)."""
+    patch, or ('image', file, [(object, png, from-sha1), ...]) of an image
+    patch (tools/oxt/ide-stack-patch.livecodescript describes them)."""
     fields = {}
     sections = {'old': [], 'new': []}
     section = None
@@ -77,9 +82,20 @@ def read_patch(path):
                 fields['file'] = line[5:].strip()
             elif line.startswith('object:'):
                 obj = line[7:].strip()
-                if kind != 'property':
+                if kind not in ('property', 'image'):
                     fields['object'] = obj
+            elif line.startswith('image:'):
+                if kind not in (None, 'image'):
+                    raise ValueError('%s line %d: a patch is a script, a property or an image patch' % (path, number))
+                kind = 'image'
+                if not obj:
+                    raise ValueError('%s line %d: image: before object:' % (path, number))
+                changes.append({'object': obj, 'png': line[6:].strip()})
+            elif kind == 'image' and line.startswith('from-sha1:'):
+                changes[-1]['from'] = line[10:].strip()
             elif line.startswith('property:'):
+                if kind == 'image':
+                    raise ValueError('%s line %d: a patch is a script, a property or an image patch' % (path, number))
                 if kind == 'script':
                     raise ValueError('%s line %d: a patch is either a script or a property patch' % (path, number))
                 kind = 'property'
@@ -92,10 +108,10 @@ def read_patch(path):
             elif kind == 'property' and (line.startswith('from:') or line.startswith('to:')):
                 key, value = line.split(':', 1)
                 changes[-1][key] = value.strip()
-            elif line == 'replace:' and kind != 'property':
+            elif line == 'replace:' and kind not in ('property', 'image'):
                 kind = 'script'
                 section = 'old'
-            elif line == 'with:' and kind != 'property':
+            elif line == 'with:' and kind not in ('property', 'image'):
                 kind = 'script'
                 section = 'new'
             elif section and len(line) >= 2 and line.startswith('|') and line.endswith('|'):
@@ -111,6 +127,13 @@ def read_patch(path):
             if 'from' not in change or 'to' not in change:
                 raise ValueError('%s: the property %s of %s needs from: and to:' % (path, change['property'], change['object']))
         return 'property', fields['file'], [(c['object'], c['property'], c['from'], c['to']) for c in changes]
+    if kind == 'image':
+        if not fields.get('file'):
+            raise ValueError('%s: needs file:' % path)
+        for change in changes:
+            if not re.match(r'^[0-9a-f]{40}$', change.get('from', '')):
+                raise ValueError('%s: the image %s needs from-sha1: (40 lowercase hex digits)' % (path, change['object']))
+        return 'image', fields['file'], [(c['object'], c['png'], c['from']) for c in changes]
     if not fields.get('file') or not fields.get('object') or not sections['old'] or not sections['new']:
         raise ValueError('%s: needs file:, object:, replace: and with:' % path)
     # As in the patch tool, each text ends with the line end of its last line
@@ -155,9 +178,23 @@ def check_patches(repo, failures):
             print('engine  %s: %d property change(s) of %s, checked by tools/ci/ide-contrast-check.ps1'
                   % (name, len(patch[2]), rel_stack))
             continue
-        obj, old, new = patch[2], patch[3], patch[4]
         with open(path, 'rb') as f:
             data = f.read()
+        if patch[0] == 'image':
+            for obj, png, _ in patch[2]:
+                try:
+                    with open(os.path.join(repo, *png.split('/')), 'rb') as f:
+                        image = f.read()
+                except OSError as e:
+                    failures.append((rel_patch, 'cannot read %s: %s' % (png, e)))
+                    continue
+                if data.count(image) >= 1:
+                    print('ok      %s: %s is the image data of %s in %s' % (name, png, obj, rel_stack))
+                else:
+                    failures.append((rel_stack, '%s is not applied: %s is not the data of %s; '
+                                     'run tools/oxt/ide-stack-patch.sh' % (name, png, obj)))
+            continue
+        obj, old, new = patch[2], patch[3], patch[4]
         new_count = data.count(new)
         old_count = data.count(old)
         if new_count == 1 and old_count == 0:

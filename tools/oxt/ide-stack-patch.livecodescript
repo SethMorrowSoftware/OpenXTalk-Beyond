@@ -56,6 +56,26 @@ script "oxt_ide_stack_patch"
 --    object: <another object>
 --    ...
 --
+-- An image patch replaces the data of one or more images of one stack
+-- file with PNG files of the repository, each from a known content to the
+-- new one:
+--
+--    # comments
+--    file: <stack file, relative to OXT_PATCH_ROOT>
+--    object: <an image, as for a script patch>
+--    image: <PNG file, relative to the repository root (two folders above
+--            this script)>
+--    from-sha1: <SHA-1 of the image's text in the stack file, as the
+--                stack dump shows it ("image text sha1")>
+--    object: <another image>
+--    ...
+--
+-- Each image is one patch: it is applied when the image's text has the
+-- from-sha1: digest, and already applied when it is the PNG file; anything
+-- else fails. The PNG file must have the image's width and height, so that
+-- the image keeps its rectangle; only its "image text sha1" dump line may
+-- change.
+--
 -- Values are written as tools/oxt/ide-stack-dump.livecodescript writes them
 -- (backslash, return, line feed and tab as \\, \r, \n and \t) and compared
 -- exactly (case-sensitive), so the "from" value is the one in the stack's
@@ -92,7 +112,7 @@ script "oxt_ide_stack_patch"
 -- failed or, with OXT_PATCH_CHECK, is not applied, 2 when the tool could
 -- not run.
 
-local sRoot, sFailures, sApplied, sAlready, sPending
+local sRoot, sRepo, sFailures, sApplied, sAlready, sPending
 
 on startup
    local tScriptFolder, tPatchDir, tCheck, tPatches, tFiles
@@ -111,6 +131,7 @@ on startup
    put the effective filename of this stack into tScriptFolder
    replace "\" with "/" in tScriptFolder
    put item 1 to -2 of tScriptFolder into tScriptFolder
+   put item 1 to -3 of tScriptFolder into sRepo
    set the itemDelimiter to comma
    put $OXT_PATCH_DIR into tPatchDir
    if tPatchDir is empty then put tScriptFolder & "/ide-stack-patches" into tPatchDir
@@ -244,15 +265,34 @@ private function readPatches pDir
          -- property: lines that follow them, not to the one before
          if tLine begins with "file:" then
             put word 1 to -1 of (char 6 to -1 of tLine) into tFile
-            if tKind is not "property" then
+            if tKind is not "property" and tKind is not "image" then
                put tFile into tPatch["file"]
             end if
          else if tLine begins with "object:" then
             put word 1 to -1 of (char 8 to -1 of tLine) into tObject
-            if tKind is not "property" then
+            if tKind is not "property" and tKind is not "image" then
                put tObject into tPatch["object"]
             end if
+         else if tLine begins with "image:" then
+            if tKind is not empty and tKind is not "image" then throw tFileName & " line " & tLineNumber & ": a patch is a script, a property or an image patch"
+            put "image" into tKind
+            if tObject is empty then throw tFileName & " line " & tLineNumber & ": image: before object:"
+            if tPatch["png"] is not empty then
+               checkImagePatch tPatch, tFileName
+               add 1 to tCount
+               put tPatch into tPatches[tCount]
+            end if
+            add 1 to tInFile
+            put empty into tPatch
+            put tFileName && "#" & tInFile into tPatch["name"]
+            put "image" into tPatch["kind"]
+            put tFile into tPatch["file"]
+            put tObject into tPatch["object"]
+            put word 1 to -1 of (char 7 to -1 of tLine) into tPatch["png"]
+         else if tLine begins with "from-sha1:" and tKind is "image" then
+            put word 1 to -1 of (char 11 to -1 of tLine) into tPatch["fromSha1"]
          else if tLine begins with "property:" then
+            if tKind is "image" then throw tFileName & " line " & tLineNumber & ": a patch is a script, a property or an image patch"
             if tKind is "script" then throw tFileName & " line " & tLineNumber & ": a patch is either a script or a property patch"
             put "property" into tKind
             if tObject is empty then throw tFileName & " line " & tLineNumber & ": property: before object:"
@@ -296,6 +336,8 @@ private function readPatches pDir
       end repeat
       if tKind is "property" then
          checkPropertyPatch tPatch, tFileName
+      else if tKind is "image" then
+         checkImagePatch tPatch, tFileName
       else if tPatch["file"] is empty or tPatch["object"] is empty or tPatch["old"] is empty or tPatch["new"] is empty then
          throw tFileName & ": needs file:, object:, replace: and with:"
       else if occurrences(tPatch["old"], tPatch["new"]) > 0 then
@@ -309,6 +351,13 @@ private function readPatches pDir
    if tCount is 0 then throw "no *.txt patch in " & pDir
    return tPatches
 end readPatches
+
+private command checkImagePatch pPatch, pFileName
+   if pPatch["file"] is empty or pPatch["object"] is empty or pPatch["png"] is empty \
+         or not matchText(pPatch["fromSha1"], "^[0-9a-f]{40}$") then
+      throw pFileName & ": an image patch needs file:, object:, image: and from-sha1: (40 lowercase hex digits)"
+   end if
+end checkImagePatch
 
 private command checkPropertyPatch pPatch, pFileName
    if pPatch["file"] is empty or pPatch["object"] is empty or pPatch["property"] is empty \
@@ -369,6 +418,7 @@ private command patchFile pRel, pPatches, pCheck
       if pPatches[i]["file"] is not pRel then next repeat
       put pPatches[i]["name"] & " | " & pRel & " | " & pPatches[i]["object"] into tPatched
       if pPatches[i]["kind"] is "property" then put " | " & pPatches[i]["property"] after tPatched
+      if pPatches[i]["kind"] is "image" then put " | " & pPatches[i]["png"] after tPatched
       try
          put objectRef(pPatches[i]["object"], tMain) into tObject
       catch tError
@@ -377,6 +427,56 @@ private command patchFile pRel, pPatches, pCheck
          put true into tFailedHere
          next repeat
       end try
+
+      if pPatches[i]["kind"] is "image" then
+         local tPng, tPngSha1, tCurrentSha1, tPngWidth, tPngHeight
+         put URL ("binfile:" & sRepo & "/" & pPatches[i]["png"]) into tPng
+         if word 1 of the name of tObject is not "image" then
+            write "PATCH " & tPatched & " | FAILED not an image" & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+            next repeat
+         end if
+         if byte 1 to 8 of tPng is not (numToByte(137) & "PNG" & numToByte(13) & numToByte(10) & numToByte(26) & numToByte(10)) then
+            write "PATCH " & tPatched & " | FAILED not a PNG file: " & sRepo & "/" & pPatches[i]["png"] & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+            next repeat
+         end if
+         get binaryDecode("MM", byte 17 to 24 of tPng, tPngWidth, tPngHeight)
+         put sha1Hex(tPng) into tPngSha1
+         put sha1Hex(the text of tObject) into tCurrentSha1
+         if tCurrentSha1 is tPngSha1 then
+            write "PATCH " & tPatched & " | already applied" & return to stdout
+            add 1 to sAlready
+            put tPngSha1 into tPropertyA[tObject]["@image"]
+         else if tCurrentSha1 is not pPatches[i]["fromSha1"] then
+            write "PATCH " & tPatched & " | FAILED the image is neither the from-sha1: image nor the PNG file but " & tCurrentSha1 & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+         else if tPngWidth is not the width of tObject or tPngHeight is not the height of tObject then
+            write "PATCH " & tPatched & " | FAILED the PNG file is " & tPngWidth & " x " & tPngHeight & " pixels, the image " & the width of tObject & " x " & the height of tObject & return to stdout
+            add 1 to sFailures
+            put true into tFailedHere
+         else if pCheck then
+            write "PATCH " & tPatched & " | NOT APPLIED" & return to stdout
+            add 1 to sPending
+         else
+            set the text of tObject to tPng
+            if sha1Hex(the text of tObject) is not tPngSha1 then
+               write "PATCH " & tPatched & " | FAILED the image does not take the PNG file" & return to stdout
+               add 1 to sFailures
+               put true into tFailedHere
+            else
+               write "PATCH " & tPatched & " | applied" & return to stdout
+               add 1 to sApplied
+               add 1 to tAppliedHere
+               put tPngSha1 into tPropertyA[tObject]["@image"]
+               put true into tAppliedA[tObject]["@image"]
+            end if
+         end if
+         next repeat
+      end if
 
       if pPatches[i]["kind"] is "property" then
          try
@@ -649,7 +749,11 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
          put empty into tWanted
          put empty into tSeen
          repeat for each key tProperty in pPropertyLabels[tLabel]
-            put "prop " & propertyKey(tProperty) & ": " & dumpValue(pPropertyLabels[tLabel][tProperty]) into tWanted[propertyKey(tProperty)]
+            if tProperty is "@image" then
+               put "image text sha1: " & pPropertyLabels[tLabel][tProperty] into tWanted["@image"]
+            else
+               put "prop " & propertyKey(tProperty) & ": " & dumpValue(pPropertyLabels[tLabel][tProperty]) into tWanted[propertyKey(tProperty)]
+            end if
          end repeat
          put tBeforeA[tLabel]["props"] into tBeforeProps
          put tAfterA[tLabel]["props"] into tAfterProps
@@ -660,8 +764,12 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
          repeat with i = 1 to the number of lines of tAfterProps
             put line i of tAfterProps into tLine
             if tLine is line i of tBeforeProps then next repeat
-            put char 6 to (offset(": ", tLine) - 1) of tLine into tKey
-            if not (tLine begins with "prop ") or tWanted[tKey] is empty or tLine is not tWanted[tKey] then
+            if tLine begins with "image text sha1: " then
+               put "@image" into tKey
+            else
+               put char 6 to (offset(": ", tLine) - 1) of tLine into tKey
+            end if
+            if not (tLine begins with "prop " or tKey is "@image") or tWanted[tKey] is empty or tLine is not tWanted[tKey] then
                set the caseSensitive to false
                throw "a property of " & tLabel & " changed that no patch sets: " & tLine
             end if
@@ -706,6 +814,12 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
    delete the last char of tResult
    return tResult
 end changedAsPatched
+
+private function sha1Hex pData
+   local tHex
+   get binaryDecode("H*", sha1Digest(pData), tHex)
+   return tHex
+end sha1Hex
 
 -- The objects of a dump: [<label>]["props"] (all lines but the script)
 -- and [<label>]["script"]
