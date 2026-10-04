@@ -47,10 +47,9 @@ clone at the new one.
 
 ## Status
 
-OXT-Beyond 0.2.0 is an early release of a young project, for Windows,
-macOS and Linux. 0.2.1-rc.7, the seventh release candidate of 0.2.1, is a
-pre-release for testing (see what 0.2.1 adds, under
-[The IDE](#the-ide)). Please read this before you download either.
+OXT-Beyond 0.2.1 "Frankenstein" is an early release of a young project,
+for Windows, macOS and Linux (see what 0.2.1 adds, under
+[The IDE](#the-ide)). Please read this before you download it.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -638,9 +637,8 @@ and in the IDE:
   a colour you chose yourself stays);
 - *View > Show IDE Stacks In Lists* in one click (from HyperXTalk).
 
-OXT-Beyond 0.2.1 (its release candidates are 0.2.1-rc.1, 0.2.1-rc.2,
-0.2.1-rc.3, 0.2.1-rc.4, 0.2.1-rc.5, 0.2.1-rc.6 and
-0.2.1-rc.7) adds:
+OXT-Beyond 0.2.1 "Frankenstein" (its release candidates were 0.2.1-rc.1
+to 0.2.1-rc.7) adds:
 
 - LiveCode Community's engine test suites, about 1,150 tests of LiveCode
   Script, LiveCode Builder, the LiveCode Builder compiler and the script
