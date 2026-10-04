@@ -1,0 +1,13 @@
+# The OXT-Beyond icon in the About window and in answer and ask dialogs:
+# images "oxt-l-32.png" and "oxt-l-64.png" (OpenXTalk Lite's icon, by Tom
+# Perry) become the 0.2.1 "Frankenstein" icon. The image names stay, because
+# the dialogs, the About window and the Linux file associations find the
+# images by name. Installer/oxt-beyond/branding/draw_branding.py makes the
+# PNG files.
+file: Toolset/palettes/revgeneralicons.rev
+object: image id 210111 of card "theAlertIcons"
+image: Installer/oxt-beyond/branding/png/oxt-beyond-32.png
+from-sha1: 27b2e3638f3a29a956da5c98532f91e60bf29bba
+object: image id 210112 of card "theAlertIcons"
+image: Installer/oxt-beyond/branding/png/oxt-beyond-64.png
+from-sha1: 0f68ea29bec282ccb97aa734914244242d1561c6

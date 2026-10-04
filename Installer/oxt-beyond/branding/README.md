@@ -1,66 +1,80 @@
-# OXT-Beyond icon and splash artwork
+# OXT-Beyond artwork: 0.2.1 "Frankenstein"
 
-The OXT-Beyond icon is **Tom Perry's OpenXTalk Lite icon** with the word
-"Lite" replaced by "Beyond". Tom Perry (tperry2x) made the icon and the IDE
-splash screens for OpenXTalk Lite, which he built and maintained from version
-0.91 to 1.15; OXT-Beyond continues from OpenXTalk Lite 1.15 and adapts his
-artwork with credit to him.
+From 0.2.1 the icon is an orange "OXT" struck by lightning over a
+stitched seam and "BEYOND", on a charcoal tile with an orange rim. The
+splash screens, the installer art and the release banner are the
+"Frankenstein" drawings: a friendly flat-top monster with neck bolts, a
+stitched scar and lightning, on a charcoal background. The earlier icon,
+Tom Perry's OpenXTalk Lite icon with "Lite" replaced by "Beyond", is in
+the history of this folder (up to 0.2.1-rc.6); his original stays in
+`ide/OpenXTalk-lite_1024.ico`.
 
 ## Files
 
 | File | What it is |
 | --- | --- |
-| `source/oxt-lite-icon-512.png` | Tom Perry's original: the largest image (512 × 512 px) in `ide/OpenXTalk-lite_1024.ico`, unchanged. |
-| `png/oxt-beyond-<size>.png` | The OXT-Beyond icon at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px. The source is 512 px, so the 1024 px image is the source enlarged, with the "Beyond" lettering drawn at full resolution. |
-| `make-branding.ps1` | Makes everything listed here from the source icon. |
+| `draw_branding.py` | Draws every picture below and writes every file made from them. |
+| `svg/icon.svg` | The icon (1024 × 1024): "OXT", lightning, a stitched seam and "BEYOND" on a rounded tile. |
+| `svg/icon-small.svg` | "OXT" and the lightning alone, larger, for 16 to 48 px, where the seam and "BEYOND" would be a pixel or two. |
+| `svg/splash-dark.svg`, `svg/splash-light.svg` | The IDE splash screens (1182 × 612), for the dark and light appearance. |
+| `svg/wizard.svg` | The tall image of the Windows installer (534 × 1022). |
+| `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |
+| `png/oxt-beyond-<size>.png` | The icon at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px. |
+| `art/oxt-beyond-wizard.png`, `art/oxt-beyond-banner.png` | The installer image and the banner. They are kept out of `png/`, whose every file packaging puts into the macOS icon. |
 
-Made by `make-branding.ps1` elsewhere in the repository:
+Made by `draw_branding.py` elsewhere in the repository:
 
 | File | Used for |
 | --- | --- |
-| `ide/OXT-Beyond.ico` | 16, 24, 32, 48, 64 and 128 px as 32-bit bitmaps and 256 px as PNG; for the installer, shortcuts and file associations. |
+| `ide/OXT-Beyond.ico` | 16 to 128 px as 32-bit bitmaps and 256 px as PNG (`tools/oxt/ico.py`); the installer, shortcuts and file associations. |
 | `engine/rsrc/oxt-beyond.ico` | The same icon, compiled into the development engine (packaged as `OXT-Beyond.exe`) as icon 111 by `engine/rsrc/development.rc`. Standalone applications keep their own icon (`standalone.rc` is unchanged). |
-| `ide/Toolset/resources/community/ideSkin/splash.png`, `splash-light.png` and their `@extra-high` versions | Tom Perry's splash screens with the new icon. |
+| `ide/Toolset/resources/community/ideSkin/splash.png`, `splash-light.png` and their `@extra-high` versions | The splash screens at 591 × 306 and 1182 × 612. |
 
-## How the icon is made
+Made from these files elsewhere:
 
-1. The pixels of the yellow "Lite" letters and their dark outline are
-   removed. Inside the circle, the background behind them is filled in by
-   continuing the circle's own shading around the circle (the shading is
-   concentric); outside the circle they become transparent.
-2. "Beyond" is drawn in Arial Black, in the orange of the "OXT" letters
-   (`#FF7700`) with a black outline 9 px wide at 512 px, in the band that
-   "Lite" used.
-3. The lower parts of the "OXT" letters are drawn again in front, with the
-   same drop shadow they cast on "Lite" (9 px down, 49 % brightness).
-4. The smaller sizes are scaled down from the 512 px image.
+| What | How |
+| --- | --- |
+| The macOS app icon, `OXT-Beyond.icns` | `tools/oxt/package.py` with `tools/oxt/icns.py`, from `png/`, when a package is staged. |
+| The Linux menu icons | `tools/oxt/package.py` copies `png/oxt-beyond-16.png` to `-512.png` into the package. |
+| The installer's wizard images | `Installer/oxt-beyond/make-wizard-images.ps1`: the tall image from `art/oxt-beyond-wizard.png`, the small one from the icon. |
+| The icon in the About window and in answer and ask dialogs | Images `oxt-l-32.png` and `oxt-l-64.png` in `ide/Toolset/palettes/revgeneralicons.rev`, replaced with `png/oxt-beyond-32.png` and `-64.png` by the image patch `tools/oxt/ide-stack-patches/branding-dialog-icons.txt`. |
 
-For the splash screens, the script finds the old icon in each image, removes
-it together with its drop shadow (offset and darkness measured from the
-image), and draws the new icon there with a matching shadow.
+The release name, "Frankenstein", is in `ide/.codename`: the About window
+shows it under the version, and the Release workflow puts it in the title
+of the GitHub release.
+
+## The splash screens
+
+The art carries the product and release name. The IDE writes the rest
+over it (`ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`,
+at 1x): "<version> · It's alive!" in grey 20 px text under the stitches
+(field "moreinfo", 24,134 to 560,170), and the loading status in the
+darker band at the bottom (field "Status", 5,270 to 478,293). The stack's
+own field "Info" (product and version) is hidden.
 
 ## Making the files again
 
-On Windows, from the repository root:
+From the repository root, on any system:
 
 ```
-powershell -ExecutionPolicy Bypass -File Installer\oxt-beyond\branding\make-branding.ps1 -Splash
+python3 -m pip install cairosvg
+python3 Installer/oxt-beyond/branding/draw_branding.py
 ```
 
-It needs Windows PowerShell 5.1 or PowerShell 7 on Windows (System.Drawing),
-the Arial Black font that comes with Windows, and, for `-Splash`, git: the
-original splash images are read from commit `523b3b208` (the OpenXTalk Lite
-1.15 IDE), so the step can be repeated. `-FillColor '#FFE400'` draws the
-lettering in the yellow that "Lite" used; `-Preview <file>` also writes a
-256 px preview.
+It needs CairoSVG and the DejaVu Sans font (part of most Linux
+distributions). To change a picture, edit the drawing functions in
+`draw_branding.py`, or edit an SVG file in a vector editor and run
+`draw_branding.py --render-only`, which keeps the SVG files and only
+renders them. After changing `png/oxt-beyond-32.png` or `-64.png`, update
+the `from-sha1:` lines of `tools/oxt/ide-stack-patches/branding-dialog-icons.txt`
+to the old images' digests and run `tools/oxt/ide-stack-patch.sh`.
 
-## Artwork still to replace
+## Colours
 
-Some copies of the OpenXTalk Lite icon are images inside binary stacks, which
-are not changed in this phase:
-
-- `ide/Toolset/palettes/revgeneralicons.rev`: image 210111 `oxt-l-32.png` and
-  image 210112 `oxt-l-64.png` (the icon in answer dialogs and the About
-  window). `png/oxt-beyond-32.png` and `png/oxt-beyond-64.png` are the
-  replacements. Image 210096 `lc-64.png` in the same stack is the LiveCode
-  logo.
+| Role | Colour |
+| --- | --- |
+| "OXT" orange (kept from the earlier icon) | `#FF7700` |
+| Monster green, light to shadow | `#9BD36A` to `#4E7F2E` |
+| Glow and stitches | `#B9F56A` |
+| Lightning | `#FFE14D`, edge `#7A5A00` |
+| Charcoal background | `#15171A` to `#2B2F36` |

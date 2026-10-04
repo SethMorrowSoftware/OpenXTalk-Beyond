@@ -326,15 +326,16 @@ in this file.
 
 ### The OXT-Beyond icon
 
-The OXT-Beyond icon (`ide/OXT-Beyond.ico`, `engine/rsrc/oxt-beyond.ico`,
-the images in `Installer/oxt-beyond/branding/png/` and the macOS app's
-`OXT-Beyond.icns`, which packaging makes from them) and the splash
-screens are adapted from Tom Perry's OpenXTalk Lite icon
-(`ide/OpenXTalk-lite_1024.ico`, introduced in OpenXTalk Lite 1.04), with
-"Lite" replaced by "Beyond", by
-[`Installer/oxt-beyond/branding/make-branding.ps1`](Installer/oxt-beyond/branding/make-branding.ps1).
-The unmodified source image is kept in
-`Installer/oxt-beyond/branding/source/`. The icon is distributed as part
+The OXT-Beyond icon and artwork from 0.2.1 "Frankenstein" (`ide/OXT-Beyond.ico`,
+`engine/rsrc/oxt-beyond.ico`, the images in `Installer/oxt-beyond/branding/`,
+the macOS app's `OXT-Beyond.icns`, which packaging makes from them, the
+splash screens and the icon images in `ide/Toolset/palettes/revgeneralicons.rev`)
+were drawn for OXT-Beyond by
+[`Installer/oxt-beyond/branding/draw_branding.py`](Installer/oxt-beyond/branding/draw_branding.py)
+and are covered by the GNU General Public License version 3, like the
+rest of OXT-Beyond. Releases up to 0.2.1-rc.6 used an icon adapted from
+Tom Perry's OpenXTalk Lite icon (`ide/OpenXTalk-lite_1024.ico`,
+introduced in OpenXTalk Lite 1.04), which is still distributed as part
 of the IDE, on the same basis as the rest of OpenXTalk Lite's changes
 (above).
 

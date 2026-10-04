@@ -224,6 +224,8 @@ XTALK_EXTENSIONS = _xtalk_extensions()
 # Root files of the install that are IDE content, kept at the root of ide/.
 ROOT_IDE_FILES = (
     ('.buildnumber', 'OXT build number, read by the updater'),
+    ('.codename', 'OXT-Beyond release name, read by the splash screen, the '
+     'About window and the release workflow'),
     ('.version', 'OXT version, read by the IDE (revmenubar) and the updater'),
     ('about.dat', 'OXT About text (replaces about.txt)'),
     ('about.txt', 'package.txt Misc: textfile ide:about.txt'),
@@ -432,7 +434,7 @@ UPSTREAM_DIFFERENCES = (
 # stores them (ide/.gitattributes and the root .gitattributes, plus
 # auto-detection): as text with LF line endings.
 TEXT_EXTENSIONS = frozenset((
-    '.buildnumber', '.css', '.csv', '.dat', '.htm', '.html', '.js', '.json',
+    '.buildnumber', '.codename', '.css', '.csv', '.dat', '.htm', '.html', '.js', '.json',
     '.lc', '.lcb', '.lcdoc', '.lci', '.livecodescript', '.map', '.md',
     '.mlc', '.snippet', '.svg', '.template', '.tsv', '.txt', '.version',
     '.xml', '.yaml', '.yml',

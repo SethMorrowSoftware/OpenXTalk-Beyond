@@ -8,8 +8,11 @@
 
       wizard-image-<w>x<h>.bmp    for WizardImageFile: the tall image on the
                                   left of the Welcome and Setup Completed
-                                  pages (the icon and the product name on a
-                                  dark background)
+                                  pages: the tall art (-TallArt, by default
+                                  Installer\oxt-beyond\branding\art\
+                                  oxt-beyond-wizard.png) scaled to fill it,
+                                  or without tall art the icon and the
+                                  product name on a dark background
       wizard-small-image-<n>.bmp  for WizardSmallImageFile: the square image
                                   in the top right corner of the other pages
                                   (the icon on white)
@@ -40,6 +43,11 @@
 .PARAMETER Source
     A .png or .ico file to use instead of the search described above.
 
+.PARAMETER TallArt
+    A tall .png file for the tall image, instead of
+    Installer\oxt-beyond\branding\art\oxt-beyond-wizard.png. It is scaled to
+    cover each size and centred; the edges that do not fit are cut off.
+
 .PARAMETER Title
     Text under the icon in the tall image. Default: OXT-Beyond.
 #>
@@ -49,6 +57,7 @@ param(
     [string]$OutDir,
     [string]$RepoRoot,
     [string]$Source,
+    [string]$TallArt,
     [string]$Title = 'OXT-Beyond'
 )
 
@@ -216,6 +225,18 @@ else {
     }
 }
 
+if (-not $TallArt) {
+    $defaultArt = Join-Path $PSScriptRoot 'branding\art\oxt-beyond-wizard.png'
+    if (Test-Path -LiteralPath $defaultArt -PathType Leaf) { $TallArt = $defaultArt }
+}
+$tall = $null
+$tallPath = $null
+if ($TallArt) {
+    $tallPath = (Resolve-Path -LiteralPath $TallArt).ProviderPath
+    Write-Host "Tall wizard image art: $tallPath"
+    $tall = ConvertFrom-PngBytes ([System.IO.File]::ReadAllBytes($tallPath))
+}
+
 Write-Host "Wizard image art: $artPath"
 $art = Read-Art $artPath
 Write-Host ("  {0} x {1} pixels" -f $art.Width, $art.Height)
@@ -252,6 +273,18 @@ try {
         $canvas = New-Canvas $w $h
         $bmp = $canvas[0]; $g = $canvas[1]
         try {
+            if ($tall) {
+                # The tall art, scaled to cover the image and centred
+                $scale = [Math]::Max($w / $tall.Width, $h / $tall.Height)
+                $dw = [int][Math]::Ceiling($tall.Width * $scale)
+                $dh = [int][Math]::Ceiling($tall.Height * $scale)
+                $dest = New-Object System.Drawing.Rectangle([int](($w - $dw) / 2), [int](($h - $dh) / 2), $dw, $dh)
+                $g.DrawImage($tall, $dest, 0, 0, $tall.Width, $tall.Height, [System.Drawing.GraphicsUnit]::Pixel, $attributes)
+                $path = Join-Path $OutDir ('wizard-image-{0}x{1}.bmp' -f $w, $h)
+                $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Bmp)
+                $large += $path
+                continue
+            }
             $rect = New-Object System.Drawing.Rectangle(0, 0, $w, $h)
             $brush = New-Object System.Drawing.Drawing2D.LinearGradientBrush($rect, $BackTop, $BackBottom, [System.Drawing.Drawing2D.LinearGradientMode]::Vertical)
             try { $g.FillRectangle($brush, $rect) } finally { $brush.Dispose() }
@@ -316,6 +349,7 @@ try {
 finally {
     $attributes.Dispose()
     $art.Dispose()
+    if ($tall) { $tall.Dispose() }
 }
 
 Write-Host "Wrote $($large.Count + $small.Count) wizard images to $OutDir"
@@ -323,5 +357,6 @@ New-Object PSObject -Property @{
     WizardImageFile = ($large -join ',')
     WizardSmallImageFile = ($small -join ',')
     Source = $artPath
+    TallArt = $tallPath
     Placeholder = $placeholder
 }

@@ -51,6 +51,8 @@ ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecode
 ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript | (script) | constant kplaceholderdefaultbackgroundcolor = 240,240,240
 ide/Toolset/palettes/script editor/behaviors/revsehandlerlistbehavior.livecodescript | (script) | constant kdefaulthandlertextcolor = #777777
 ide/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript | pFixupMacElements | foregroundcolor = black
+ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = 154,163,173
+ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = 74,82,92
 ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = black
 ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack | foregroundcolor = white
 ide/Toolset/palettes/standalone settings/revstandalonesettingscopyfilesbehavior.livecodescript | checkForWarning | textcolor = red
