@@ -10,18 +10,18 @@ scripting language in the HyperCard/HyperTalk tradition ("xTalk"). You
 lay out stacks of cards with buttons, fields and other controls, and
 write scripts that respond to what the user does.
 
-OXT-Beyond continues **OpenXTalk Lite**. OpenXTalk Lite was started by
+OXT-Beyond continues **OpenXTalk Lite**. OpenXTalk Lite was (to my understanding) initiated by
 **Terry Little** (TerryL) in September 2023 as a debranded LiveCode
 Community 9.6.3, and was built and maintained by **Tom Perry**
 (tperry2x) from version 0.91 (September 2023) to version 1.15 (June
 2026), for macOS, Linux and Windows, with contributions from **Paul
 McClernan** (OpenXTalkPaul) and other members of the
 [OpenXTalk community](https://www.openxtalk.org). In August and
-September 2026 Tom said that 1.15 is as far as he will take OpenXTalk
+September 2026 Tom said that 1.15 is probably as far as he will take OpenXTalk
 Lite on the LiveCode 9 engine, that his new OXTL7 (built on a LiveCode 7
 engine) is meant to replace it, and that anyone may carry 1.15 on as
-their own fork. OXT-Beyond is that continuation, on the 9.x engine,
-starting with version 0.0.1. [HISTORY.md](HISTORY.md) tells the story
+their own fork. OXT-Beyond is one such continuation, on the 9.x engine.
+[HISTORY.md](HISTORY.md) tells the story
 up to OXT-Beyond 0.0.1, version by version; the notes of each release
 since are on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases),
@@ -33,8 +33,7 @@ GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
 upstream LiveCode Community repositories have had no changes since July
 2021 and are now archived (read-only).
 
-This repository, **OpenXTalk-Beyond** (called winoxt until October
-2026), holds all of it: the engine source (LiveCode Community 9.7 plus
+This repository, **OpenXTalk-Beyond**, holds all of it: the engine source (LiveCode Community 9.7 plus
 Tom Perry's 9.7.1-OXT engine work), the OpenXTalk Lite 1.15 IDE with
 its history, and the scripts that build, package and test OXT-Beyond
 for Windows, macOS and Linux. It is maintained by
