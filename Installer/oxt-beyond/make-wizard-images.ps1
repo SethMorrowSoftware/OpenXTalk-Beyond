@@ -8,7 +8,7 @@
 
       wizard-image-<w>x<h>.bmp    for WizardImageFile: the tall image on the
                                   left of the Welcome and Setup Completed
-                                  pages: the tall art (-Art, by default
+                                  pages: the tall art (-TallArt, by default
                                   Installer\oxt-beyond\branding\art\
                                   oxt-beyond-wizard.png) scaled to fill it,
                                   or without tall art the icon and the
@@ -43,10 +43,11 @@
 .PARAMETER Source
     A .png or .ico file to use instead of the search described above.
 
-.PARAMETER Art
+.PARAMETER TallArt
     A tall .png file for the tall image, instead of
     Installer\oxt-beyond\branding\art\oxt-beyond-wizard.png. It is scaled to
     cover each size and centred; the edges that do not fit are cut off.
+
 .PARAMETER Title
     Text under the icon in the tall image. Default: OXT-Beyond.
 #>
@@ -56,7 +57,7 @@ param(
     [string]$OutDir,
     [string]$RepoRoot,
     [string]$Source,
-    [string]$Art,
+    [string]$TallArt,
     [string]$Title = 'OXT-Beyond'
 )
 
@@ -224,14 +225,14 @@ else {
     }
 }
 
-if (-not $Art) {
+if (-not $TallArt) {
     $defaultArt = Join-Path $PSScriptRoot 'branding\art\oxt-beyond-wizard.png'
-    if (Test-Path -LiteralPath $defaultArt -PathType Leaf) { $Art = $defaultArt }
+    if (Test-Path -LiteralPath $defaultArt -PathType Leaf) { $TallArt = $defaultArt }
 }
 $tall = $null
 $tallPath = $null
-if ($Art) {
-    $tallPath = (Resolve-Path -LiteralPath $Art).ProviderPath
+if ($TallArt) {
+    $tallPath = (Resolve-Path -LiteralPath $TallArt).ProviderPath
     Write-Host "Tall wizard image art: $tallPath"
     $tall = ConvertFrom-PngBytes ([System.IO.File]::ReadAllBytes($tallPath))
 }
@@ -356,6 +357,6 @@ New-Object PSObject -Property @{
     WizardImageFile = ($large -join ',')
     WizardSmallImageFile = ($small -join ',')
     Source = $artPath
-    Art = $tallPath
+    TallArt = $tallPath
     Placeholder = $placeholder
 }
