@@ -387,9 +387,11 @@ jobs:
             # the Windows workflow's release job did
             # The release name (ide/.codename, for example Frankenstein)
             # goes after the version: OXT-Beyond 0.2.1 "Frankenstein"
+            # (read from the checkout: this step works in the release folder)
             title="OXT-Beyond $VERSION"
-            if [ -f ide/.codename ]; then
-              codename=$(head -n 1 ide/.codename | tr -d '\r')
+            codename_file="$GITHUB_WORKSPACE/ide/.codename"
+            if [ -f "$codename_file" ]; then
+              codename=$(head -n 1 "$codename_file" | tr -d '\r')
               codename="${codename#"${codename%%[![:space:]]*}"}"
               codename="${codename%"${codename##*[![:space:]]}"}"
               if [ -n "$codename" ]; then title="$title “$codename”"; fi

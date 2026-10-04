@@ -14,6 +14,10 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## Next release (not tagged yet)
+
+- Release workflow: read the release name from the checkout, so the title has it (#44)
+
 ## 0.2.1-rc.7 (2026-10-04, pre-release)
 
 - README: the project's history in detail (#41)
