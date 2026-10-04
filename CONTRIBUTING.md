@@ -305,7 +305,11 @@ download on each platform, what each platform needs, and how to check
 the downloads). Give your pull request a title that makes sense in that
 list, and describe any change users will notice in its description. The
 fragments in `docs/notes/` are upstream LiveCode release notes; do not
-add new ones there. [HISTORY.md](HISTORY.md) records the history up to
+add new ones there. [CHANGELOG.md](CHANGELOG.md) lists every commit
+since Tom Perry's last one, under the release that included it; the
+maintainer adds a release's section in the pull request that sets its
+version (see [BUILDING.md](BUILDING.md#10-making-a-release)), so you do
+not need to edit it. [HISTORY.md](HISTORY.md) records the history up to
 OXT-Beyond 0.0.1.
 
 ## Reporting bugs
