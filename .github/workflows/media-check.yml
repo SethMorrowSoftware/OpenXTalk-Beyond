@@ -125,17 +125,22 @@ jobs:
       # The IDE as a user starts it: the app's own engine with its home
       # stack, splash, menus and palettes and a user interface, which no
       # other check does on macOS (they run -ui or a test stack of their
-      # own). It must still be running after two minutes; a screenshot,
-      # its output and any crash report macOS wrote are uploaded.
+      # own). It must still be running after two minutes. A screenshot, its
+      # output and any crash report macOS wrote are uploaded; if it ends,
+      # it is started again under lldb, with the release's debug symbols,
+      # for the backtrace of every thread.
       - name: Start the IDE
         if: always() && runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
         run: |
+          set +e
           APP="$RUNNER_TEMP/oxt-test/OXT-Beyond.app"
           OUT="$RUNNER_TEMP/ide-start"
           mkdir -p "$OUT"
           echo "Machine: $(uname -m), macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string 2>/dev/null)"
-          sysctl -n machdep.cpu.features machdep.cpu.leaf7_features 2>/dev/null || true
-          ls ~/Library/Logs/DiagnosticReports > "$OUT/reports-before.txt" 2>/dev/null || true
           "$APP/Contents/MacOS/OXT-Beyond" > "$OUT/ide-output.txt" 2>&1 &
           pid=$!
           status=running
@@ -143,23 +148,45 @@ jobs:
             if ! kill -0 "$pid" 2>/dev/null; then
               wait "$pid"; status="ended with exit status $? after $i s"; break
             fi
-            [ "$i" = 30 ] && screencapture -x "$OUT/ide-30s.png" || true
+            [ "$i" = 30 ] && screencapture -x "$OUT/ide-30s.png"
             sleep 1
           done
-          screencapture -x "$OUT/ide-end.png" || true
+          screencapture -x "$OUT/ide-end.png"
           echo "IDE: $status"
-          kill "$pid" 2>/dev/null || true
-          sleep 3
-          for d in ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports; do
-            find "$d" -maxdepth 1 \( -name 'OXT-Beyond*' -o -name 'LiveCode*' \) -exec cp {} "$OUT/" \; 2>/dev/null || true
+          kill "$pid" 2>/dev/null
+          echo "--- output"; head -c 20000 "$OUT/ide-output.txt"
+          [ "$status" = running ] && exit 0
+
+          # the crash report (macOS writes it a few seconds after the crash)
+          for i in $(seq 1 30); do
+            ls ~/Library/Logs/DiagnosticReports/OXT-Beyond* > /dev/null 2>&1 && break
+            sleep 1
           done
-          ls -l "$OUT"
-          echo "--- output"; head -c 20000 "$OUT/ide-output.txt" || true
+          cp ~/Library/Logs/DiagnosticReports/OXT-Beyond* "$OUT/" 2>/dev/null
           for f in "$OUT"/*.ips "$OUT"/*.crash; do
             [ -f "$f" ] || continue
-            echo "--- $f"; head -c 30000 "$f"
+            echo "--- $f"; head -c 60000 "$f"; echo
           done
-          [ "$status" = running ]
+
+          # again under lldb, with the dSYMs next to the binaries
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal-symbols.zip" --dir "$RUNNER_TEMP/sym" \
+            && ditto -x -k "$RUNNER_TEMP"/sym/*-mac-universal-symbols.zip "$RUNNER_TEMP/sym/x"
+          find "$RUNNER_TEMP/sym/x" -maxdepth 3 -name '*.dSYM' | head -20
+          {
+            find "$RUNNER_TEMP/sym/x" -maxdepth 3 -name '*.dSYM' | while read -r d; do echo "add-dsym \"$d\""; done
+            echo "run"
+          } > "$OUT/lldb-commands.txt"
+          printf '%s\n' 'thread backtrace all -c 60' 'register read' 'image list -b' quit > "$OUT/lldb-oncrash.txt"
+          lldb --batch -s "$OUT/lldb-commands.txt" -K "$OUT/lldb-oncrash.txt" \
+            -- "$APP/Contents/MacOS/OXT-Beyond" > "$OUT/lldb.txt" 2>&1 &
+          lpid=$!
+          for i in $(seq 1 180); do kill -0 "$lpid" 2>/dev/null || break; sleep 1; done
+          kill "$lpid" 2>/dev/null
+          echo "--- lldb"; head -c 120000 "$OUT/lldb.txt"
+          exit 1
 
       - name: Upload the IDE start
         if: always() && runner.os == 'macOS'
