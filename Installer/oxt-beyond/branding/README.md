@@ -1,6 +1,8 @@
 # OXT-Beyond artwork: 0.2.1 "Frankenstein"
 
-From 0.2.1 the icon, the splash screens and the installer art are the
+From 0.2.1 the icon is an orange "OXT" struck by lightning over a
+stitched seam and "BEYOND", on a charcoal tile with an orange rim. The
+splash screens, the installer art and the release banner are the
 "Frankenstein" drawings: a friendly flat-top monster with neck bolts, a
 stitched scar and lightning, on a charcoal background. The earlier icon,
 Tom Perry's OpenXTalk Lite icon with "Lite" replaced by "Beyond", is in
@@ -12,8 +14,8 @@ the history of this folder (up to 0.2.1-rc.6); his original stays in
 | File | What it is |
 | --- | --- |
 | `draw_branding.py` | Draws every picture below and writes every file made from them. |
-| `svg/icon.svg` | The icon (1024 × 1024): the head, lightning and "OXT" on a rounded tile. |
-| `svg/icon-small.svg` | The head alone on the tile, for 16 and 24 px, where lightning and lettering would be a pixel or two. |
+| `svg/icon.svg` | The icon (1024 × 1024): "OXT", lightning, a stitched seam and "BEYOND" on a rounded tile. |
+| `svg/icon-small.svg` | "OXT" and the lightning alone, larger, for 16 to 48 px, where the seam and "BEYOND" would be a pixel or two. |
 | `svg/splash-dark.svg`, `svg/splash-light.svg` | The IDE splash screens (1182 × 612), for the dark and light appearance. |
 | `svg/wizard.svg` | The tall image of the Windows installer (534 × 1022). |
 | `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |

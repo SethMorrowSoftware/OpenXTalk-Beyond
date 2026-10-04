@@ -22,6 +22,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Branding: the splash and small icons as the concept art was drawn (#42)
 - IDE colour literals: the splash's version line, in the grey of its artwork (#42)
 - Changelog: the branding commits (#42)
+- Branding: the icon is "OXT" struck by lightning; the monster stays on the splash and installer art (#42)
 
 ## 0.2.1-rc.6 (2026-10-04, pre-release)
 

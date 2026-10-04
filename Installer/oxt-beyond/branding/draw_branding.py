@@ -22,9 +22,9 @@ made from it.
 Writes, from the repository root:
   Installer/oxt-beyond/branding/svg/*.svg     the drawings (the source)
   Installer/oxt-beyond/branding/png/oxt-beyond-<n>.png
-                                              the icon, 16 to 1024 px; at
-                                              16 and 24 px the head alone,
-                                              so it reads at that size
+                                              the icon, 16 to 1024 px; up
+                                              to 48 px "OXT" and the
+                                              lightning alone, so it reads
   Installer/oxt-beyond/branding/art/oxt-beyond-wizard.png
                                               the tall installer image
                                               (534 x 1022), which
@@ -62,7 +62,7 @@ BOLT = '#FFE14D'
 CHARCOAL = '#15171A'
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256, 512, 1024)
-SMALL_ICON_MAX = 24     # sizes up to this use the head-only icon
+SMALL_ICON_MAX = 48     # sizes up to this use the icon without its lower line
 
 # The splash is 591 x 306 (1x) and 1182 x 612 (@extra-high). The IDE writes
 # over it (ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript,
@@ -128,18 +128,23 @@ def svg(w, h, body):
 
 TILE = f'''<defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
 <stop offset="0" stop-color="#2B2F36"/><stop offset="1" stop-color="{CHARCOAL}"/></linearGradient></defs>
-<rect x="64" y="64" width="896" height="896" rx="200" fill="url(#tile)"/>'''
+<rect x="64" y="64" width="896" height="896" rx="200" fill="url(#tile)"/>
+<rect x="64" y="64" width="896" height="896" rx="200" fill="none" stroke="{ORANGE}" stroke-width="18"/>'''
 
 
 def icon():
-    return svg(1024, 1024, TILE + bolt(120, 110, 3.0) + bolt(780, 140, 2.4) + head(262, 96, 2.5, 'skin')
-               + word(512, 920, 140, 'OXT', ORANGE, '#000', 16, 'middle', sx=0.9))
+    # "OXT" struck by lightning, a stitched seam and "BEYOND"
+    return svg(1024, 1024, TILE + bolt(600, 150, 4.2)
+               + word(512, 640, 330, 'OXT', ORANGE, '#000', 22, 'middle', sx=0.9)
+               + stitches(220, 804, 740, '#8A9099')
+               + word(512, 860, 120, 'BEYOND', '#E9ECEF', anchor='middle', sx=0.9))
 
 
 def icon_small():
-    # The head alone, filling the tile: the lightning and the lettering
-    # would be a pixel or two at 16 and 24 px
-    return svg(1024, 1024, TILE + head(122, 70, 3.9, 'skin'))
+    # "OXT" and the lightning alone, larger: the seam and "BEYOND" would be
+    # a pixel or two at 16 to 48 px
+    return svg(1024, 1024, TILE + bolt(590, 120, 5.0)
+               + word(512, 690, 400, 'OXT', ORANGE, '#000', 26, 'middle', sx=0.86))
 
 
 def splash(dark):
