@@ -47,9 +47,9 @@ clone at the new one.
 
 ## Status
 
-OXT-Beyond 0.2.1 "Frankenstein" is an early release of a young project,
-for Windows, macOS and Linux (see what 0.2.1 adds, under
-[The IDE](#the-ide)). Please read this before you download it.
+OXT-Beyond 0.2.2 "Frankenstein" is an early release of a young project,
+for Windows, macOS and Linux (see what 0.2.1 adds, and what 0.2.2 fixes,
+under [The IDE](#the-ide)). Please read this before you download it.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -736,6 +736,13 @@ to 0.2.1-rc.7) adds:
   macOS and Linux, the About box and the dialogs, and a friendly
   flat-topped monster on the splash screens and the Windows installer.
   The About box names the release "Frankenstein" (new in 0.2.1-rc.7).
+
+OXT-Beyond 0.2.2 fixes a crash of 0.2.1: on macOS 14 and 15 the IDE quit
+just after its splash screen, on Apple Silicon and Intel Macs alike.
+macOS adds submenus of its own to the Edit menu (AutoFill, Writing
+Tools), and the engine took them for its own menus. Every macOS build
+now also starts the IDE and fails if it is not still running after 90
+seconds (see [BUILDING.md](BUILDING.md)).
 
 ### xTalk Suite extensions
 
