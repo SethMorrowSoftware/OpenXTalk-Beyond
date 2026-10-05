@@ -14,6 +14,10 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## Next release (not tagged yet)
+
+- Preferences > Appearance: the appearance menus and their note fit above the window's bottom row (#52)
+
 ## 0.2.2 (2026-10-04)
 
 - Release check: start the IDE on macOS and keep any crash report (#48)
