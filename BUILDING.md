@@ -1441,6 +1441,27 @@ CI runs it on every package after the standalone check; [`media-check.yml`](.git
 the packages of a published release (by hand, for any tag), and on
 macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
+### Browser window manager check (Linux)
+
+[`tools/ci/browser_wm_check.py`](tools/ci/browser_wm_check.py) runs the
+browser widget in a standalone of the Linux package on an Xvfb screen
+under real window managers, xfwm4 and openbox in turn, with
+[`tools/ci/browser-wm-check.livecodescript`](tools/ci/browser-wm-check.livecodescript),
+and checks from outside the engine (xdotool, xwininfo and ImageMagick's
+`import`) that the page is on the screen in a new stack, in that stack
+closed and opened again and in a second stack, that typing goes to a
+field of the stack after the page loaded and after a click into the
+browser, and that the application gets no `suspend` while the keyboard is
+in the browser. Up to 0.2.3 the browser's window could stay unmapped under
+openbox and kept the keyboard under xfwm4 (pull request #57).
+
+```sh
+sudo apt-get install xvfb xfwm4 openbox xdotool x11-utils imagemagick
+python3 tools/ci/browser_wm_check.py --install <folder> --shots <folder>
+```
+
+The Linux build runs it on its package after the browser and player check.
+
 ### Installer
 
 ```bat
