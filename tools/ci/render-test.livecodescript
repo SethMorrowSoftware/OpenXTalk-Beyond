@@ -76,8 +76,8 @@ script "oxt_render_test"
 --    OXT_RENDER_SCENARIOS   the parts to render, separated by commas:
 --                           controls (the first checks), s1 to s9, s11 and
 --                           screen; empty renders every part.
---                           tools/ci/mac_appearance_test.py renders s1 and
---                           s2 only
+--                           tools/ci/mac_appearance_test.py renders s1, s2
+--                           and s9 only
 --
 -- render.txt has one record per line, fields separated by tabs:
 --    INFO   <name> <value>
