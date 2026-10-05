@@ -38,4 +38,11 @@ void MCRedrawEnableScreenUpdates(void);
 
 void MCRedrawDoUpdateScreen(void);
 
+// OXT-Beyond: on the Mac a screen update after a statement can be left for
+// later (MCRedrawIsScreenUpdateDue, redraw.cpp). A wait's update is made at
+// once, and the next few after statements are too; catching up makes an
+// update that was left, as if each statement had made its own.
+void MCRedrawUpdateScreenForWait(void);
+void MCRedrawCatchUpScreen(void);
+
 #endif
