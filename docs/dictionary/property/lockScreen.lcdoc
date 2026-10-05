@@ -34,6 +34,14 @@ screen until the <lockScreen> is set back to false.
 
 If the <lockScreen> is false, all changes are displayed immediately.
 
+> *Note:* On macOS 11 and later, where updating a window waits for the
+> display, the screen catches up with a <handler> that keeps changing it
+> many times a second rather than after every <statement>, so that such
+> a handler is not held up by each change. The first few changes after a
+> wait (such as the one before a handler the user starts) still appear
+> at once, and a <wait>, a dialog, the end of the handler, <lock screen>
+> and a snapshot of the screen bring the screen up to date.
+
 Setting the <lockScreen> to true also speeds up <handler|handlers> that
 affect the screen appearance. Since LiveCode does not need to take time
 <redraw|redrawing> its windows when the <lockScreen> is true, a
