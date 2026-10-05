@@ -3045,7 +3045,8 @@ check mark on the chosen value of each preference.
 Description:
 Two groups: the IDE's appearance and the appearance of the user's stacks
 (see <revIDEIsDark>). The items are disabled on Linux, where GTK decides
-the appearance, and on an engine without the appearance properties (each
+the appearance (the check marks are on "Follow the System" there, and the
+last line says whether the GTK theme is dark), and on an engine without the appearance properties (each
 with a line that says so). The picks arrive as "Appearance|<item>";
 <revIDEAppearanceMenuPick> handles them. The idea of an Appearance menu is
 Tom Perry's (View > Appearance in OpenXTalk Lite 1.07 to 1.13, which
@@ -3056,8 +3057,14 @@ References: revIDEAppearanceMenuPick (command)
 function revIDEAppearanceMenu
    local tMenu, tEnabled, tIDE, tStacks
    put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
-   put revIDEAppearancePreference("ide") into tIDE
-   put revIDEAppearancePreference("stacks") into tStacks
+   if the platform is "Linux" then
+      -- What happens there whatever the preferences say
+      put "system" into tIDE
+      put "system" into tStacks
+   else
+      put revIDEAppearancePreference("ide") into tIDE
+      put revIDEAppearancePreference("stacks") into tStacks
+   end if
    repeat for each item tValue in "light,dark,system"
       put tab & __revIDEAppearanceMenuItem("IDE:" && __revIDEAppearanceLabel("ide", tValue), tIDE is tValue, tEnabled) & return after tMenu
    end repeat
@@ -3066,13 +3073,20 @@ function revIDEAppearanceMenu
       put tab & __revIDEAppearanceMenuItem("Your Stacks:" && __revIDEAppearanceLabel("stacks", tValue), tStacks is tValue, tEnabled) & return after tMenu
    end repeat
    if the platform is "Linux" then
-      put tab & "-" & return & tab & "(On Linux the appearance follows the GTK theme" & return after tMenu
+      put tab & "-" & return & tab & "(On Linux the appearance follows the GTK theme, now" && __revIDEGtkAppearance() & return after tMenu
    else if not revIDEEngineHasAppearance() then
       put tab & "-" & return & tab & "(This engine follows the system's appearance" & return after tMenu
    end if
    delete the last char of tMenu
    return tMenu
 end revIDEAppearanceMenu
+
+-- Linux: "dark" or "light", the GTK theme's appearance as the IDE is drawn
+-- in it (revIDEIsDark)
+private function __revIDEGtkAppearance
+   if revIDEIsDark() then return "dark"
+   return "light"
+end __revIDEGtkAppearance
 
 private function __revIDEAppearanceMenuItem pLabel, pChecked, pEnabled
    local tItem
@@ -3167,7 +3181,7 @@ command revIDEPrefsAppearanceUI pCard
    if not exists(pCard) then exit revIDEPrefsAppearanceUI
    put revIDEEngineHasAppearance() and the platform is not "Linux" into tEnabled
    if the platform is "Linux" then
-      put "On Linux the appearance follows the GTK theme." into tNote
+      put "On Linux the appearance follows the GTK theme, now" && __revIDEGtkAppearance() & "." into tNote
    else if not revIDEEngineHasAppearance() then
       put "This engine follows the system's appearance; these settings need a newer engine." into tNote
    else
@@ -3225,7 +3239,12 @@ command revIDEPrefsAppearanceUI pCard
          end repeat
          delete the last char of tText
          set the text of button tName of pCard to tText
-         set the menuHistory of button tName of pCard to itemOffset(revIDEAppearancePreference(tWhich), tItems)
+         -- On Linux what happens: the GTK theme's appearance
+         if the platform is "Linux" then
+            set the menuHistory of button tName of pCard to itemOffset("system", tItems)
+         else
+            set the menuHistory of button tName of pCard to itemOffset(revIDEAppearancePreference(tWhich), tItems)
+         end if
          set the enabled of button tName of pCard to tEnabled
       end if
       add 24 to tTop

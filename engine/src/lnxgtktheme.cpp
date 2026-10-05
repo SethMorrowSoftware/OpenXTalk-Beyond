@@ -230,11 +230,19 @@ static GtkWidgetState getpartandstate(const MCWidgetInfo &winfo, GtkThemeWidgetT
 	return state;
 }
 
+// OXT-Beyond: whether the GTK theme is dark, from the background of a
+// window it has not painted (gProtoWindow, MCNativeTheme::load), as
+// OpenXTalk Lite 1.15's IDE worked it out: a theme's name does not say.
+// MCScreenDC::getsystemappearance (lnxdcs.cpp) reports it.
+bool MCLinuxGtkThemeIsDark = false;
+
 static gboolean reload_theme(void)
 {
 	Boolean reload = True;
 	if (MCcurtheme && MCcurtheme->getthemeid() == LF_NATIVEGTK)
 	{
+		bool t_was_dark = MCAppearanceSystemIsDark();
+
 		// We have changed themes, so remove the image cache and replace with new one
 		if ( MCimagecache != NULL)
 			delete MCimagecache ;
@@ -245,6 +253,11 @@ static gboolean reload_theme(void)
 
 		// MW-2011-08-17: [[ Redraw ]] The theme has changed so redraw everything.
 		MCRedrawDirtyScreen();
+
+		// Another theme can be light where the old one was dark: the IDE
+		// redraws its palettes on systemAppearanceChanged
+		if (MCAppearanceSystemIsDark() != t_was_dark && MCdefaultstackptr.IsValid())
+			MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 	}
 	return (TRUE);
 }
@@ -307,11 +320,16 @@ Boolean MCNativeTheme::load()
 		moz_gtk_get_widget_color(GTK_STATE_NORMAL,
 		                         tbackcolor.red,tbackcolor.green,tbackcolor.blue) ;
 		MCscreen->background_pixel = tbackcolor;//tcolor = zcolor;
+		MCLinuxGtkThemeIsDark = !MCAppearanceColorIsLight(tbackcolor);
 		
 		// MW-2012-01-27: [[ Bug 9511 ]] Set the hilite color based on the current GTK theme.
 		MCColor thilitecolor;
 		moz_gtk_get_widget_color(GTK_STATE_SELECTED, thilitecolor.red, thilitecolor.green, thilitecolor.blue);
 		MChilitecolor = thilitecolor;
+
+		// What the appearance was read as before the theme was loaded (the
+		// screen opens first) is read again
+		MCAppearanceRefreshSystem();
 	}
 
 	return true;
@@ -330,6 +348,10 @@ void MCNativeTheme::unload()
 	//make sure that we call moz_gtk_shutdown first in case it uses gtk
 	moz_gtk_shutdown();
 	mNeedNewGC = true;
+
+	// Without the GTK theme the engine draws its own, light, controls
+	MCLinuxGtkThemeIsDark = false;
+	MCAppearanceRefreshSystem();
 }
 
 uint2 MCNativeTheme::getthemeid()
