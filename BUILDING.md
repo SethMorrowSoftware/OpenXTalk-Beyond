@@ -876,9 +876,12 @@ with the engine's deploy command, signs it as the IDE does and runs it
 Last, `tools/ci/mac_appearance_test.py --app <folder>/OXT-Beyond.app
 --out <folder>` runs the app's engine with a user interface on a Mac set
 to dark and to light, and checks that the `systemAppearance` follows the
-Mac's setting while every stack is drawn light (the engine draws every
-stack light on macOS for now) and a light-designed stack keeps its
-black input text readable.
+Mac's setting, that a stack is drawn dark only when the Mac is dark and
+the `appAppearance` is `"system"`, that the native controls of a dark
+stack (which the engine draws itself) pass `render_check.py`'s checks,
+and that a light-designed stack keeps its black input text readable. It
+also prints the cards of the dark and light runs into the log as base64
+lines, which `tools/ci/print_images.py` turns back into PNG files.
 
 ### External assets
 

@@ -14,10 +14,14 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## Next release (not tagged yet)
+## 0.2.3 (2026-10-05)
 
 - Preferences > Appearance: the appearance menus and their note fit above the window's bottom row (#52)
-- macOS: dark mode. Stacks follow the appAppearance and stackAppearance on macOS 10.14 and later, the engine draws the native controls of a dark stack itself, and the IDE's appearance preferences work on the Mac
+- macOS: dark mode. Stacks follow the appAppearance and stackAppearance on macOS 10.14 and later, the engine draws the native controls of a dark stack itself, and the IDE's appearance preferences work on the Mac (#53)
+- Render test: the macOS appearance test renders S9 too (#53)
+- macOS dark mode: the system accent, a whole combo box, the field frame (#53)
+- macOS dark mode: a disabled push button the test can see, option menu corners (#53)
+- Version 0.2.3, with its changelog (#54)
 
 ## 0.2.2 (2026-10-04)
 

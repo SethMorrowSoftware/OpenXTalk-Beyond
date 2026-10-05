@@ -47,9 +47,10 @@ clone at the new one.
 
 ## Status
 
-OXT-Beyond 0.2.2 "Frankenstein" is an early release of a young project,
-for Windows, macOS and Linux (see what 0.2.1 adds, and what 0.2.2 fixes,
-under [The IDE](#the-ide)). Please read this before you download it.
+OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
+for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
+what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
+download it.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -748,6 +749,17 @@ Tools), and the engine took them for its own menus. Every macOS build
 now also starts the IDE and fails if it is not still running after 90
 seconds (see [BUILDING.md](BUILDING.md)).
 
+OXT-Beyond 0.2.3 adds dark mode on macOS (experimental). From macOS 10.14
+on, stacks follow the `appAppearance` and `stackAppearance` as they do on
+Windows, and the IDE's appearance choices (*View > Appearance* and
+*Preferences > Appearance*) work on the Mac. The classic macOS theme only
+draws its native controls light, so the engine draws the controls of a
+dark stack itself, in macOS's dark colours with the Mac's accent colour.
+The IDE and your stacks stay light unless you choose otherwise. 0.2.3
+also fixes *Preferences > Appearance*, where the appearance menus and
+their note covered the window's bottom row and part of the Reset button
+([#51](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/51)).
+
 ### xTalk Suite extensions
 
 OXT-Beyond ships the extensions of the
@@ -955,7 +967,7 @@ Known limitations, in rough order of importance:
    show white text on white. On macOS the classic native theme only
    draws light controls, so the engine draws the controls of a dark stack
    itself, in the shapes and colours of macOS's dark controls but not
-   their exact pixels (new after 0.2.2, experimental). Plan: a fixed
+   their exact pixels (new in 0.2.3, experimental). Plan: a fixed
    light palette for the Linux theme's light-designed objects.
 10. The player depends on what the system can play. On Windows it uses
    DirectShow, which cannot open MP4 (H.264 and AAC) files without a
