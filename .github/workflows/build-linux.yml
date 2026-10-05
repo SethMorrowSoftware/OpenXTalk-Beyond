@@ -739,8 +739,11 @@ jobs:
       - name: Install the runtime libraries and desktop tools
         run: |
           sudo apt-get update
-          # mplayer, Xvfb and xauth: the browser and player check
-          pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth)
+          # mplayer, Xvfb and xauth: the browser and player check; the
+          # window managers, xdotool, xwininfo (x11-utils) and ImageMagick:
+          # the browser window manager check
+          pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
+                xfwm4 openbox xdotool x11-utils imagemagick)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -903,6 +906,16 @@ jobs:
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # The browser widget in a standalone under xfwm4 and openbox: the page
+      # is on the screen in a new stack, a stack opened again and a second
+      # stack, and the keys go to a field of the stack, not on to the
+      # browser (tools/ci/browser_wm_check.py)
+      - name: Browser window manager check
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
+            --log "$RUNNER_TEMP/logs/browser-wm-check.log" --shots "$RUNNER_TEMP/logs/browser-wm-shots"
 
       # The appearance a standalone of the package reports under a light
       # and a dark GTK theme (GTK2_RC_FILES, with Xvfb): the GTK theme's,

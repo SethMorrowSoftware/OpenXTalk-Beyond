@@ -746,7 +746,7 @@ struct MCCefErrorInfo
 	CefLoadHandler::ErrorCode error_code;
 };
 
-class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler
+class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler, CefFocusHandler
 {
 public:
 	enum PageOrigin
@@ -847,6 +847,7 @@ public:
 	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefDragHandler> GetDragHandler() OVERRIDE { return this; }
+	virtual CefRefPtr<CefFocusHandler> GetFocusHandler() OVERRIDE { return this; }
 	
 	void AddLoadingUrl(const CefString &p_url, PageOrigin p_origin)
 	{
@@ -1302,6 +1303,25 @@ public:
 			MCCefMenuFilterItems(p_model);
 		else
 			p_model->Clear();
+	}
+	
+	// CefFocusHandler interface
+	
+	// On Linux CEF gives its browser window the X input focus whenever a page
+	// starts to load, without the window manager knowing, so the keyboard
+	// stayed in the browser: the IDE window the user then clicked (a field, the
+	// message box) got no more key presses on window managers that do not set
+	// the focus again on a click into the window they think is active already
+	// (xfwm4, Mutter and others). The browser still takes the focus when it is
+	// clicked (FOCUS_SOURCE_SYSTEM), and the engine takes it back when one of
+	// its windows is clicked (MCScreenDC, lnxdclnx.cpp).
+	virtual bool OnSetFocus(CefRefPtr<CefBrowser> p_browser, FocusSource p_source) OVERRIDE
+	{
+#if defined(TARGET_PLATFORM_LINUX)
+		return p_source == FOCUS_SOURCE_NAVIGATION;
+#else
+		return false;
+#endif
 	}
 	
 	IMPLEMENT_REFCOUNTING(MCCefBrowserClient);

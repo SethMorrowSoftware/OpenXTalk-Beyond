@@ -253,6 +253,45 @@ extern "C"
 void gtk_main_do_event(GdkEvent*);
 }
 
+// The X input focus window (XGetInputFocus), or one of its ancestors, is a
+// window GDK knows: a window of this process. An ancestor counts because a
+// native layer embeds the window of another X connection in a stack (the
+// browser widget's CEF window, MCNativeLayerX11): with the focus in that
+// window the application still has the focus. The windows are walked with an
+// X error trap: the focus window can go away while this runs.
+static bool focus_window_is_ours(GdkDisplay *p_display, x11::Window p_window)
+{
+    x11::Display *t_xdisplay = x11::gdk_x11_display_get_xdisplay(p_display);
+    x11::Window t_window = p_window;
+    bool t_ours = false;
+    
+    gdk_error_trap_push();
+    // None and PointerRoot (0 and 1) are no windows
+    for (int t_depth = 0; !t_ours && t_window > 1 && t_depth < 64; t_depth++)
+    {
+        if (x11::gdk_x11_window_lookup_for_display(p_display, t_window) != NULL)
+        {
+            t_ours = true;
+            break;
+        }
+        
+        x11::Window t_root, t_parent;
+        x11::Window *t_children = NULL;
+        unsigned int t_child_count = 0;
+        if (!x11::XQueryTree(t_xdisplay, t_window, &t_root, &t_parent, &t_children, &t_child_count))
+            break;
+        if (t_children != NULL)
+            x11::XFree(t_children);
+        if (t_parent == t_root)
+            break;
+        t_window = t_parent;
+    }
+    gdk_flush();
+    gdk_error_trap_pop();
+    
+    return t_ours;
+}
+
 static bool motion_event_filter_fn(GdkEvent *p_event, void*)
 {
     return p_event->type == GDK_MOTION_NOTIFY;
@@ -347,7 +386,8 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
                         // Look up the X11 window XID in GDK's window table. If
                         // it isn't found, it definitely isn't one of ours.
                         GdkWindow *t_window;
-                        if ((t_window = x11::gdk_x11_window_lookup_for_display(dpy, t_return_window)) == NULL)
+                        if ((t_window = x11::gdk_x11_window_lookup_for_display(dpy, t_return_window)) == NULL &&
+                            !focus_window_is_ours(dpy, t_return_window))
                             t_lostfocus = true;
                         
                         // Even if we found it, it may not be ours. This is very
@@ -641,6 +681,29 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
                                 t_delay = t_event->button.time - clicktime;
                             
                             clicktime = t_event->button.time;
+                            
+                            // A click into a stack while the keyboard focus is
+                            // in a window a native layer embeds in a stack (the
+                            // browser widget's CEF window, which takes the focus
+                            // when it is clicked) gives the focus back to the
+                            // clicked stack. The window manager does not: to it
+                            // the stack's window is still the active window, so
+                            // the keys went on to the browser.
+                            if (t_mousestack != NULL && t_mousestack->getwindow() != NULL)
+                            {
+                                x11::Display *t_xdisplay = x11::gdk_x11_display_get_xdisplay(dpy);
+                                x11::Window t_focus_window;
+                                int t_focus_revert;
+                                x11::XGetInputFocus(t_xdisplay, &t_focus_window, &t_focus_revert);
+                                if (x11::gdk_x11_window_lookup_for_display(dpy, t_focus_window) == NULL &&
+                                    focus_window_is_ours(dpy, t_focus_window))
+                                {
+                                    gdk_error_trap_push();
+                                    x11::XSetInputFocus(t_xdisplay, x11::gdk_x11_drawable_get_xid(t_mousestack->getwindow()), RevertToParent, t_event->button.time);
+                                    gdk_flush();
+                                    gdk_error_trap_pop();
+                                }
+                            }
                             
                             // Was the click on the background window?
                             if (backdrop != DNULL && t_event->button.window == backdrop)
