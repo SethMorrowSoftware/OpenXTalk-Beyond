@@ -3153,9 +3153,14 @@ Description:
 The card is in a binary stack; its preOpenCard calls this, which creates
 (the first time, on the card being opened) and updates two option menus
 with their labels below the card's other controls, "IDE appearance" and
-"Your stacks", and a line under them. A pick calls <revIDESetAppearance>.
+"Your stacks", and a note to their right. They fit between the card's
+other controls (which end at 397) and the line above the window's bottom
+row (at 448), which holds Reset Preferences and the preferences file: a
+note below the menus covered that row and took its clicks. The rects are
+set on every call, so the layout does not depend on when the controls
+were made. A pick calls <revIDESetAppearance>.
 The menus are disabled on Linux, on macOS (light for now) and on an engine
-without the appearance properties, and the line says why. <revIDESetAppearance> updates them when
+without the appearance properties, and the note says why. <revIDESetAppearance> updates them when
 the View menu changes a preference while the card is open.
 
 References: revIDESetAppearance (command)
@@ -3167,11 +3172,11 @@ command revIDEPrefsAppearanceUI pCard
    if the platform is "Linux" then
       put "On Linux the appearance follows the GTK theme." into tNote
    else if the platform is "MacOS" then
-      put "On macOS OXT-Beyond is light for now; dark mode will follow." into tNote
+      put "On macOS OXT-Beyond stays light for now, even in dark mode." into tNote
    else if not revIDEEngineHasAppearance() then
       put "This engine follows the system's appearance; these settings need a newer engine." into tNote
    else
-      put "Your stacks look as they will in a standalone, which is light unless it sets the appAppearance." into tNote
+      put "Your stacks look as in a standalone: light unless it sets the appAppearance." into tNote
    end if
    lock screen
    lock messages
@@ -3182,14 +3187,13 @@ command revIDEPrefsAppearanceUI pCard
    -- is the one being opened (its preOpenCard calls this)
    put the long id of this card of stack tStack is the long id of pCard into tCreate
    put 182 into tLeft
-   put 402 into tTop
+   put 399 into tTop
    set the wholeMatches to true
    repeat for each item tWhich in "ide,stacks"
       put "oxtAppearance_" & tWhich into tName
       if there is not a button tName of pCard and tCreate then
          reset the templateField
          create field (tName & "_label")
-         set the rect of it to tLeft, tTop, tLeft + 124, tTop + 21
          set the lockText of it to true
          set the opaque of it to false
          set the showBorder of it to false
@@ -3198,7 +3202,6 @@ command revIDEPrefsAppearanceUI pCard
          create button tName
          set the style of it to "menu"
          set the menuMode of it to "option"
-         set the rect of it to tLeft + 126, tTop - 1, tLeft + 386, tTop + 21
          set the script of it to "on menuPick pItem" & return & \
                "   revIDEPrefsAppearancePick" && quote & tWhich & quote & ", pItem" & return & \
                "end menuPick"
@@ -3207,6 +3210,7 @@ command revIDEPrefsAppearanceUI pCard
       -- "put ... into it" would fill the variable it (the field's long id),
       -- not the field
       if there is a field (tName & "_label") of pCard then
+         set the rect of field (tName & "_label") of pCard to tLeft, tTop, tLeft + 110, tTop + 21
          if tWhich is "ide" then
             put "IDE appearance:" into field (tName & "_label") of pCard
          else
@@ -3214,6 +3218,7 @@ command revIDEPrefsAppearanceUI pCard
          end if
       end if
       if there is a button tName of pCard then
+         set the rect of button tName of pCard to tLeft + 112, tTop - 1, tLeft + 292, tTop + 21
          if tWhich is "ide" then
             put "light,dark,system" into tItems
          else
@@ -3228,12 +3233,11 @@ command revIDEPrefsAppearanceUI pCard
          set the menuHistory of button tName of pCard to itemOffset(revIDEAppearancePreference(tWhich), tItems)
          set the enabled of button tName of pCard to tEnabled
       end if
-      add 30 to tTop
+      add 24 to tTop
    end repeat
    if there is not a field "oxtAppearance_note" of pCard and tCreate then
       reset the templateField
       create field "oxtAppearance_note"
-      set the rect of it to tLeft, tTop, 660, tTop + 36
       set the lockText of it to true
       set the opaque of it to false
       set the showBorder of it to false
@@ -3241,6 +3245,8 @@ command revIDEPrefsAppearanceUI pCard
       set the dontWrap of it to false
    end if
    if there is a field "oxtAppearance_note" of pCard then
+      set the rect of field "oxtAppearance_note" of pCard to tLeft + 302, 396, 670, 447
+      set the textSize of field "oxtAppearance_note" of pCard to 11
       put tNote into field "oxtAppearance_note" of pCard
       set the textColor of field "oxtAppearance_note" of pCard to revIDEColor("text_muted")
    end if
