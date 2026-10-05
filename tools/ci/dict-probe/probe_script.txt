@@ -18,6 +18,16 @@ on plog pText
 end plog
 
 on probe
+   if $OXT_PROBE_DARK is "1" then
+      set the cIDEAppearance of stack "revPreferences" to "dark"
+      try
+         revIDEApplyAppearance
+      catch tErr
+         plog "THROW appearance " & line 1 of tErr
+      end try
+      plog "ide dark=" & revIDEIsDark()
+   end if
+   plog "system appearance=" & the systemAppearance & " app=" & the appAppearance
    plog "platform=" & the platform & " version=" & the version & " engine=" & specialFolderPath("engine")
    plog "prefs display=" & the cDictionaryDisplayMethod of stack "revPreferences" & " quick=" & the cQuickDictionary of stack "revPreferences"
    -- the text dictionary

@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-14, macos-15, macos-15-intel]
+        runner: [macos-14, macos-15-intel]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
@@ -29,18 +29,32 @@ jobs:
           OUT=$RUNNER_TEMP/probe; mkdir -p $OUT
           PROBE_SRC=$PWD/tools/ci/dict-probe/probe_script.txt PROBE_DST=$OUT/DictProbe.livecode \
             "$APP/Contents/MacOS/OXT-Beyond" -ui $PWD/tools/ci/dict-probe/mkprobe.livecodescript
-          OXT_PROBE_OUT=$OUT/probe.log "$APP/Contents/MacOS/OXT-Beyond" $OUT/DictProbe.livecode > $OUT/ide.txt 2>&1 &
-          pid=$!
-          for i in $(seq 1 90); do
-            kill -0 $pid 2>/dev/null || break
-            [ "$i" = 22 ] && screencapture -x $OUT/s22.png
-            [ "$i" = 26 ] && screencapture -x $OUT/s26.png
-            sleep 1
-          done
-          kill $pid 2>/dev/null || true
-          echo "--- probe.log"; cat $OUT/probe.log || true
-          echo "--- ide output"; head -c 20000 $OUT/ide.txt || true
-          ls -la ~/Library/Preferences/ | grep -i -E "oxt|xtalk|runrev|livecode" || true
+          run() {
+            name=$1
+            echo "=================== run $name"
+            rm -rf ~/Library/Preferences/OXT-Beyond
+            OXT_PROBE_OUT=$OUT/$name.log "$APP/Contents/MacOS/OXT-Beyond" $OUT/DictProbe.livecode > $OUT/$name-ide.txt 2>&1 &
+            pid=$!
+            for i in $(seq 1 90); do
+              kill -0 $pid 2>/dev/null || break
+              sleep 1
+            done
+            kill $pid 2>/dev/null || true; sleep 2; kill -9 $pid 2>/dev/null || true
+            cat $OUT/$name.log || true
+            head -c 4000 $OUT/$name-ide.txt || true
+            for f in $OUT/$name.log-text.png $OUT/$name.log-quick.png; do
+              [ -f "$f" ] || continue
+              sips -s format jpeg -s formatOptions 50 "$f" --out "$f.jpg" >/dev/null
+              python3 -c "import base64,sys; d=base64.b64encode(open(sys.argv[1],'rb').read()).decode(); n=(len(d)+59999)//60000; [print('IMAGE %s %d/%d %s'%(sys.argv[2],i+1,n,d[i*60000:(i+1)*60000])) for i in range(n)]" "$f.jpg" "$(basename $f).jpg"
+            done
+          }
+          run light
+          defaults write -g AppleInterfaceStyle Dark
+          run darkmac
+          OXT_PROBE_DARK=1 run darkide
+          defaults delete -g AppleInterfaceStyle || true
+          chmod -R a-w "$APP/Contents/Tools/Documentation" "$APP/Contents/Tools/Plugins"
+          run readonly
       - uses: actions/upload-artifact@v4
         if: always()
         with:
