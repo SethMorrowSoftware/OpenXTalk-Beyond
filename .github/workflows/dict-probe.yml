@@ -1,0 +1,48 @@
+# TEMPORARY diagnostic (removed before the PR): opens both dictionaries in
+# the real IDE of the published 0.2.3 Mac app and logs what happens.
+name: Dictionary probe
+on:
+  push:
+    branches: [claude/mac-dictionaries-pbbgsg]
+    paths: ['.github/workflows/dict-probe.yml', 'tools/ci/dict-probe/**']
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install 0.2.3
+        run: |
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
+          curl -sSL -o oxt.dmg https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.3/OXT-Beyond-0.2.3-mac-universal.dmg
+          mkdir -p mnt
+          for i in 1 2 3 4; do hdiutil attach -nobrowse -readonly -noautoopen -mountpoint mnt oxt.dmg && break; sleep $((10*i)); done
+          ditto mnt/OXT-Beyond.app /Applications/OXT-Beyond.app
+          hdiutil detach mnt || hdiutil detach -force mnt
+      - name: Probe
+        run: |
+          APP=/Applications/OXT-Beyond.app
+          OUT=$RUNNER_TEMP/probe; mkdir -p $OUT
+          PROBE_SRC=$PWD/tools/ci/dict-probe/probe_script.txt PROBE_DST=$OUT/DictProbe.livecode \
+            "$APP/Contents/MacOS/OXT-Beyond" -ui $PWD/tools/ci/dict-probe/mkprobe.livecodescript
+          OXT_PROBE_OUT=$OUT/probe.log "$APP/Contents/MacOS/OXT-Beyond" $OUT/DictProbe.livecode > $OUT/ide.txt 2>&1 &
+          pid=$!
+          for i in $(seq 1 90); do
+            kill -0 $pid 2>/dev/null || break
+            [ "$i" = 22 ] && screencapture -x $OUT/s22.png
+            [ "$i" = 26 ] && screencapture -x $OUT/s26.png
+            sleep 1
+          done
+          kill $pid 2>/dev/null || true
+          echo "--- probe.log"; cat $OUT/probe.log || true
+          echo "--- ide output"; head -c 20000 $OUT/ide.txt || true
+          ls -la ~/Library/Preferences/ | grep -i -E "oxt|xtalk|runrev|livecode" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dict-probe-${{ matrix.runner }}
+          path: ${{ runner.temp }}/probe
