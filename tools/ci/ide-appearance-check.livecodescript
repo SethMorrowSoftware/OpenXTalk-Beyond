@@ -118,8 +118,8 @@ on startup
    check "Preferences > Appearance: IDE label", prefsText("oxtAppearance_ide_label") is "IDE appearance:", prefsText("oxtAppearance_ide_label")
    check "Preferences > Appearance: stacks label", prefsText("oxtAppearance_stacks_label") is "Your stacks:", prefsText("oxtAppearance_stacks_label")
    check "Preferences > Appearance: note", prefsText("oxtAppearance_note") is not empty and not (prefsText("oxtAppearance_note") begins with "(error"), prefsText("oxtAppearance_note")
-   check "Preferences > Appearance: IDE menu on its preference", prefsMenuHistory("oxtAppearance_ide") is 1, prefsMenuHistory("oxtAppearance_ide")
-   check "Preferences > Appearance: stacks menu on its preference", prefsMenuHistory("oxtAppearance_stacks") is 1, prefsMenuHistory("oxtAppearance_stacks")
+   check "Preferences > Appearance: IDE menu on its preference (Linux: Follow the System)", prefsMenuHistory("oxtAppearance_ide") is linuxOr(3, 1), prefsMenuHistory("oxtAppearance_ide")
+   check "Preferences > Appearance: stacks menu on its preference (Linux: Follow the System)", prefsMenuHistory("oxtAppearance_stacks") is linuxOr(3, 1), prefsMenuHistory("oxtAppearance_stacks")
    check "Preferences > Appearance: menus enabled as the engine allows", prefsEnabled("oxtAppearance_ide") is (revIDEEngineHasAppearance() and the platform is not "Linux"), \
          prefsEnabled("oxtAppearance_ide") && revIDEEngineHasAppearance() && the platform
    check "Preferences > Appearance: controls made once", the number of controls of card "Appearance" of stack "oxtAppearanceCheckPrefs" is 5, \
@@ -337,3 +337,9 @@ private function currentAppAppearance
    end try
    return tValue
 end currentAppAppearance
+
+-- pLinux on Linux, else pOther
+private function linuxOr pLinux, pOther
+   if the platform is "Linux" then return pLinux
+   return pOther
+end linuxOr
