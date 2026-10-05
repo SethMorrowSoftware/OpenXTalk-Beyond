@@ -21,7 +21,8 @@ field work) in an engine with a user interface, and on macOS profiles it.
 The script runs as the development engine's home stack (copied to
 <out>/tools/Startup.rev, REV_TOOLS_PATH pointing there), or with --ide in
 the real IDE, which is started first and then sent the script as a
-document to open. While the script solves the puzzle (it writes
+document to open. While the script fills the cells with the screen
+unlocked and while it solves the puzzle (it writes <out>/speed/filling and
 <out>/speed/solving), `sample` records the engine for a few seconds; the
 same happens if the run does not end in time. The engine's frames are
 named with atos and the dSYM given with --dsym, as release binaries carry
@@ -74,14 +75,12 @@ def symbolicate(text, dsym, image):
     `sample` report with atos and the dSYM's DWARF file."""
     if not dsym or not os.path.isfile(dsym) or not shutil.which('atos'):
         return text
-    load = None
-    for line in text.splitlines():
-        m = re.match(r'\s*(0x[0-9a-f]+)\s+-\s+0x[0-9a-f]+\s+\+?%s\b' % re.escape(image), line)
-        if m:
-            load = m.group(1)
-            break
-    if load is None:
+    # sample names an app's image by its bundle identifier in Binary
+    # Images, but every unnamed frame says where the image was loaded
+    m = re.search(r'\(in %s\)\s+load address (0x[0-9a-f]+) \+' % re.escape(image), text)
+    if m is None:
         return text
+    load = m.group(1)
     frame = re.compile(r'(\S.*?)\s+\(in %s\)(.*?)\[(0x[0-9a-f]+)(?:,0x[0-9a-f]+)*\]' % re.escape(image))
     addresses = sorted(set(m.group(3) for m in frame.finditer(text)))
     names = {}
@@ -189,8 +188,10 @@ def run(args):
         print('The Mac: AppleInterfaceStyle %s' % (read_mac_setting() or '(not set: light)'))
 
     results = os.path.join(speed, 'speed.txt')
-    solving = os.path.join(speed, 'solving')
-    sampled = None
+    # the profiles: (marker file, report), each taken once
+    markers = [(os.path.join(speed, name), os.path.join(out, 'sample-%s.txt' % name))
+               for name in ('filling', 'solving')]
+    sampled = []
     status = 'did not finish in %d s' % args.timeout
     started = time.time()
     with open(os.path.join(out, 'engine-output.txt'), 'wb') as log:
@@ -209,17 +210,19 @@ def run(args):
                         if '\tdone\t' in f.read():
                             status = 'reported done after %.0f s' % (time.time() - started)
                             break
-                if sampled is None and os.path.isfile(solving) and sys.platform == 'darwin':
-                    sampled = os.path.join(out, 'sample-solving.txt')
-                    if not sample(proc.pid, args.sample_seconds, sampled):
-                        sampled = None
-                        print('(sample failed)')
+                if sys.platform == 'darwin':
+                    for marker, report in markers:
+                        if os.path.isfile(marker) and report not in sampled and proc.poll() is None:
+                            sampled.append(report)
+                            if not sample(proc.pid, args.sample_seconds, report):
+                                print('(sample failed: %s)' % os.path.basename(report))
                 time.sleep(0.2)
             if proc.poll() is None and sys.platform == 'darwin' and 'did not finish' in status:
                 # where it is stuck
-                sampled = os.path.join(out, 'sample-timeout.txt')
-                if not sample(proc.pid, args.sample_seconds, sampled):
-                    sampled = None
+                report = os.path.join(out, 'sample-timeout.txt')
+                sampled.append(report)
+                if not sample(proc.pid, args.sample_seconds, report):
+                    print('(sample failed: timeout)')
         finally:
             if proc.poll() is None:
                 proc.kill()
@@ -242,8 +245,10 @@ def run(args):
     print('--- the engine\'s output (first 3000 bytes)')
     with open(os.path.join(out, 'engine-output.txt'), 'rb') as f:
         print(f.read(3000).decode('utf-8', 'replace'))
-    if sampled:
-        print_sample(sampled, args.dsym, image)
+    for report in sampled:
+        if os.path.isfile(report):
+            print('=== %s' % os.path.basename(report))
+            print_sample(report, args.dsym, image)
     sys.stdout.flush()
     return 0 if '\tdone\t' in text else 1
 

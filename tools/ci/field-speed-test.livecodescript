@@ -29,8 +29,10 @@ script "oxt_field_speed_test"
 -- speed.txt has one line per result, separated by tabs:
 --    INFO    name  value
 --    RESULT  step  milliseconds  count  milliseconds per count
--- When the solve starts the script writes <OXT_SPEED_OUT>/solving, for a
--- profiler to start. Exit code 0 when every step ran, 3 on a script error.
+--    INFO    write-unlocked-ms  the milliseconds each unlocked write took
+-- Before the unlocked filling and before the solve the script writes
+-- <OXT_SPEED_OUT>/filling and <OXT_SPEED_OUT>/solving, for a profiler to
+-- start. Exit code 0 when every step ran, 3 on a script error.
 
 constant kStack = "oxt_field_speed"
 -- Arto Inkala's 2012 puzzle, rows from the top, "-" for an empty cell
@@ -199,7 +201,7 @@ private command makeButton pName, pRect, pSize
 end makeButton
 
 private command timeSteps
-   local t0, tScript, tCell, tDigit, tX
+   local t0, t1, t2, tScript, tCell, tDigit, tX, tTimes
 
    -- Showing it
    put the milliseconds into t0
@@ -209,6 +211,7 @@ private command timeSteps
 
    -- Filling the cells and pruning the candidates, with the screen
    -- unlocked, as a card's openCard would; then drawing it
+   if sOut is not "-" then put empty into url ("binfile:" & sOut & "/filling")
    put the milliseconds into t0
    fillCells
    pruneAll
@@ -217,6 +220,27 @@ private command timeSteps
    put the milliseconds into t0
    wait 0 milliseconds with messages
    addResult "draw-after-fill", the milliseconds - t0, 1
+
+   -- One cell written 60 times with the screen unlocked, each write timed:
+   -- every statement that changes what is shown updates the screen
+   put firstOpenCell() into tCell
+   put fld ("B" & tCell) into tX
+   put empty into tTimes
+   put the milliseconds into t0
+   put t0 into t1
+   repeat with i = 1 to 60
+      if i mod 2 is 1 then
+         put 5 into fld ("B" & tCell)
+      else
+         put empty into fld ("B" & tCell)
+      end if
+      put the milliseconds into t2
+      put t2 - t1 & space after tTimes
+      put t2 into t1
+   end repeat
+   addResult "write-unlocked", the milliseconds - t0, 60
+   addRecord "INFO", "write-unlocked-ms", word 1 to -1 of tTimes
+   put tX into fld ("B" & tCell)
 
    lock screen
    put the milliseconds into t0
