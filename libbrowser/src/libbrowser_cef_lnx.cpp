@@ -97,12 +97,42 @@ bool MCCefLinuxBrowser::PlatformGetNativeLayer(void *&r_layer)
 	return GetXWindow((Window&)r_layer);
 }
 
+// The window CEF creates its browser windows in, until the native layer
+// embeds each one in its stack (MCNativeLayerX11). A browser window made
+// directly on the root window is a top-level window, so the window manager
+// takes it as soon as CEF maps it: depending on the window manager and on
+// timing, the browser then stayed unmapped after the native layer took it
+// (an empty browser, typically from the second browser on) or was shown and
+// focused as a window of its own. This window is never mapped and is
+// override-redirect, so the window manager never sees it or its children.
+// It is a child of the root window with the root's visual, the visual CEF
+// needs (with the stack's window as the parent the content views were not
+// created and CEF crashed). One for the process, never destroyed.
+static Window s_cef_holder_window = None;
+
+static Window MCCefLinuxGetHolderWindow(Display *p_display)
+{
+	if (s_cef_holder_window == None && p_display != nil)
+	{
+		XSetWindowAttributes t_attributes;
+		t_attributes.override_redirect = True;
+		s_cef_holder_window = XCreateWindow(p_display, DefaultRootWindow(p_display),
+		                                    -100, -100, 1, 1, 0,
+		                                    CopyFromParent, InputOutput, CopyFromParent,
+		                                    CWOverrideRedirect, &t_attributes);
+		// CEF uses a connection of its own, so the window must exist on the
+		// server before CEF creates the browser window in it
+		XSync(p_display, False);
+	}
+	
+	return s_cef_holder_window;
+}
+
 void MCCefLinuxBrowser::PlatformConfigureWindow(CefWindowInfo &r_info)
 {
-	// Let CEF use DefaultRootWindow as the parent window so
-	// it is created with a visual it supports otherwise the content
-	// views will not be create causing a crash
-	//r_info.SetAsChild(m_parent_window, CefRect(0,0,1,1));
+	// Only the parent: the size stays CEF's default, as when the root
+	// window was the parent, and the native layer sets the real one
+	r_info.parent_window = MCCefLinuxGetHolderWindow(m_display);
 }
 
 bool MCCefLinuxBrowser::PlatformGetRect(MCBrowserRect &r_rect)
