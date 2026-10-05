@@ -1,0 +1,18 @@
+# The dictionary stack (Documentation, "OpenXTalk Lite Dictionary") wrote
+# the list of its entries to exports/<syntax>/index.txt in the install each
+# time it opened. Nothing reads that file, the install may be read-only, and
+# on macOS writing inside the signed app breaks its signature, so it is no
+# longer written (see oxtdictionary-readonly-load.txt).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
+object: card 1
+replace:
+|   put tRegenInFolder & "/index.txt" into tIndexFile|
+|   delete file tIndexFile|
+|   open file tIndexFile|
+|   write tTheFiles to file tIndexFile|
+|   close file tIndexFile|
+with:
+|   -- OXT-Beyond: index.txt is no longer written into the install, which|
+|   -- may be read-only (and on macOS is inside the signed app); nothing|
+|   -- reads it|
