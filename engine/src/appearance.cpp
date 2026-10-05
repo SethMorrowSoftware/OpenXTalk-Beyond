@@ -114,18 +114,16 @@ bool MCAppearanceIsDark(MCStack *p_stack)
 	// GTK draws the native controls in the colours of its theme, and the
 	// engine cannot draw them in another: the appearance is the theme's
 	return MCAppearanceSystemIsDark();
-#elif defined(_MAC_DESKTOP)
-	// macOS draws light for now. The classic native controls (HITheme) are
-	// drawn light whatever the appearance, and the theme's window colour of
-	// a card resolved light, so a stack drawn dark showed the dark default
-	// (white) text on white cards and on light push buttons (the macOS CI
-	// appearance test, tools/ci/mac_appearance_test.py). Until the
-	// AppKit-drawn controls of Tom Perry's macOS work are imported and tested
-	// on a Mac, every stack is drawn light; the appAppearance and
-	// stackAppearance are stored, and the systemAppearance still reports
-	// the Mac's setting.
-	return false;
 #else
+#if defined(_MAC_DESKTOP)
+	// macOS has a dark appearance from 10.14 on. The classic native controls
+	// (HITheme) only draw Aqua, so osxtheme.mm draws those of a dark stack
+	// itself (MCMacDrawThemeDark), and the theme's colours resolve in the
+	// dark appearance (mac-theme.mm). Before 10.14 every stack is light.
+	if (MCmajorosversion < MCOSVersionMake(10, 14, 0))
+		return false;
+#endif
+
 #if defined(_WINDOWS_DESKTOP)
 	// With a High Contrast theme the system colours are the user's choice;
 	// the light path uses them (GetSysColor), the dark one does not

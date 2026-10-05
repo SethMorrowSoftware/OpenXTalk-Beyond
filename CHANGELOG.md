@@ -17,6 +17,7 @@ words, is in the [README](README.md#the-ide) and on the
 ## Next release (not tagged yet)
 
 - Preferences > Appearance: the appearance menus and their note fit above the window's bottom row (#52)
+- macOS: dark mode. Stacks follow the appAppearance and stackAppearance on macOS 10.14 and later, the engine draws the native controls of a dark stack itself, and the IDE's appearance preferences work on the Mac
 
 ## 0.2.2 (2026-10-04)
 

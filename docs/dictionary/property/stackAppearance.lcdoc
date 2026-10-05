@@ -80,9 +80,8 @@ cannot change: the appearance of every stack is the GTK theme's, whatever
 the <stackAppearance> is set to. The setting is still stored and
 returned.
 
-On macOS every stack is drawn light in this version, whatever the
-<stackAppearance> is set to (see <appAppearance>). The setting is still
-stored and returned.
+On macOS the dark appearance needs macOS 10.14 or later (see
+<appAppearance>).
 
 Setting the <stackAppearance> redraws the stack, its substacks and their
 menus at once. It does not send <systemAppearanceChanged>.

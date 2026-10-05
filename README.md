@@ -583,13 +583,17 @@ OXT-Beyond 0.2.0 adds:
   stack's), with their `effective` forms, in the dictionary. Standalones
   are light unless they set the `appAppearance`; standalones built with
   OpenXTalk Lite 1.14 or later or OXT-Beyond 0.1.0 followed the dark mode
-  of Windows and macOS, and on Windows do so again after
-  `set the appAppearance to "system"` (on macOS every stack is drawn light
-  in this version, whatever the property says);
+  of Windows and macOS, and do so again after
+  `set the appAppearance to "system"` (on macOS from 10.14 on);
 - the Windows native controls drawn dark in the dark appearance
   (checkboxes, radio buttons, tabs, field and group frames, sliders,
   progress bars, option menus and combo boxes), dark title bars per
   window, and the light appearance whenever a High Contrast theme is on;
+- the macOS native controls drawn dark in the dark appearance (push
+  buttons, checkboxes, radio buttons, option menus, combo boxes, little
+  arrows, tabs, field and group frames, scrollbars, sliders and progress
+  bars), by the engine itself, since the classic macOS theme only draws
+  them light (experimental);
 - printing always in the light appearance, and a fix for a crash when a
   snapshot of the screen was taken on Windows;
 - about 40 fixes from HyperXTalk (see
@@ -609,9 +613,9 @@ and in the IDE:
   System**) and, separately, that of your own stacks (**Light, like a
   standalone**, the default; **Dark**; **Follow the System**; **Same as
   the IDE**). A change shows at once in every palette. The choices need
-  the engine's new appearance properties. Dark mode is for Windows in this
-  version: on Linux the appearance follows the GTK theme, and on macOS
-  OXT-Beyond is light for now, so there the items are shown but disabled;
+  the engine's new appearance properties. Dark mode is for Windows and
+  macOS: on Linux the appearance follows the GTK theme, so there the items
+  are shown but disabled;
 - your stacks looking in the IDE as they will in a standalone. A
   standalone is light unless its stack asks for the system's appearance,
   with one line in its `startup` or `preOpenStack` handler:
@@ -948,11 +952,11 @@ Known limitations, in rough order of importance:
    the dark card. On Linux the native controls are drawn by the GTK
    theme, so every stack follows it and the appearance properties change
    nothing there; a light-designed stack under a dark GTK theme can still
-   show white text on white. On macOS every stack is drawn light for
-   now, whatever the appearance properties say, because the classic
-   native controls stay light. Plans: a fixed light palette for the
-   Linux theme's light-designed objects, and Tom Perry's AppKit-drawn
-   macOS controls.
+   show white text on white. On macOS the classic native theme only
+   draws light controls, so the engine draws the controls of a dark stack
+   itself, in the shapes and colours of macOS's dark controls but not
+   their exact pixels (new after 0.2.2, experimental). Plan: a fixed
+   light palette for the Linux theme's light-designed objects.
 10. The player depends on what the system can play. On Windows it uses
    DirectShow, which cannot open MP4 (H.264 and AAC) files without a
    third-party DirectShow filter such as LAV Filters; AVI files play.

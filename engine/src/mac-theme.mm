@@ -260,7 +260,13 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
             t_found = true;
             if (p_state & kMCPlatformControlStateDisabled)
             {
-                t_color = [NSColor disabledControlTextColor];
+                // OXT-Beyond: in the dark appearance disabledControlTextColor
+                // is white at 25%; the engine's disabled grey
+                // (MCScreenDC::getdefaultcolors), 4.5:1 on the dark window
+                if (p_state & kMCPlatformControlStateDarkAppearance)
+                    t_color = [NSColor colorWithCalibratedWhite: 0x88 / 255.0 alpha: 1.0];
+                else
+                    t_color = [NSColor disabledControlTextColor];
             }
             else
             {
@@ -396,7 +402,12 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
         case kMCPlatformThemePropertyBorderColor:
         {
             t_found = true;
-            t_color = [NSColor blackColor];
+            // OXT-Beyond: black is 1.2:1 on the dark window; the grey of the
+            // engine's dark borders (MCObject::getforecolor, DI_BORDER)
+            if (p_state & kMCPlatformControlStateDarkAppearance)
+                t_color = [NSColor colorWithCalibratedWhite: 0x6E / 255.0 alpha: 1.0];
+            else
+                t_color = [NSColor blackColor];
             break;
         }
             
@@ -440,19 +451,49 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
     
     if (t_found && t_color != nil)
     {
-        if (t_is_pattern)
+        bool t_dark;
+        t_dark = (p_state & kMCPlatformControlStateDarkAppearance) != 0;
+        
+        if (t_is_pattern && !t_dark)
         {
             // Patterns not supported at the moment
             t_color = [[NSColor controlHighlightColor] colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
         }
         else
         {
+            // OXT-Beyond: in the dark appearance windowBackgroundColor and
+            // controlColor are plain colours (macOS 10.14 and later), and
+            // controlHighlightColor, which stands in for them in the light
+            // one, would give a dark stack a light card
             t_color = [t_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
         }
         
-        r_color.red = [t_color redComponent] * 65535;
-        r_color.green = [t_color greenComponent] * 65535;
-        r_color.blue = [t_color blueComponent] * 65535;
+        CGFloat t_red, t_green, t_blue;
+        t_red = [t_color redComponent];
+        t_green = [t_color greenComponent];
+        t_blue = [t_color blueComponent];
+        
+        // OXT-Beyond: many of the dark appearance's colours are white with
+        // some alpha (controlColor is white at 25%), which the engine
+        // cannot use; a fill or a line is that colour over the dark window,
+        // as AppKit draws it. Text keeps its colour (white).
+        if (t_dark && p_which != kMCPlatformThemePropertyTextColor && [t_color alphaComponent] < 1.0)
+        {
+            NSColor *t_window;
+            t_window = [[NSColor windowBackgroundColor] colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+            if (t_window != nil)
+            {
+                CGFloat t_alpha;
+                t_alpha = [t_color alphaComponent];
+                t_red = t_red * t_alpha + [t_window redComponent] * (1 - t_alpha);
+                t_green = t_green * t_alpha + [t_window greenComponent] * (1 - t_alpha);
+                t_blue = t_blue * t_alpha + [t_window blueComponent] * (1 - t_alpha);
+            }
+        }
+        
+        r_color.red = t_red * 65535;
+        r_color.green = t_green * 65535;
+        r_color.blue = t_blue * 65535;
     }
     
     return t_found;

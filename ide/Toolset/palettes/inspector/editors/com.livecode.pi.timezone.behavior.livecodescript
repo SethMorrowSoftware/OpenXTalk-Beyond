@@ -96,9 +96,6 @@ on editorUpdate
       set the textcolor of button "pulldown" of me to revIDEColor("text_muted")
    else
       set the textcolor of button "pulldown" of me to empty
-      -- macOS: the classic pulldown stays light in the dark appearance, so
-      -- its text is black there (and the default black in light)
-      if the platform contains "mac" and revIDEIsDark() then set the textcolor of button "pulldown" of me to black
    end if
    unlock messages
    unlock screen

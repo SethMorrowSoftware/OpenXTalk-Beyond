@@ -25,24 +25,23 @@ The other tests run the engine with -ui, where there is no appearance: the
 systemAppearance is always "light". This runs the installed app's engine
 with a user interface, four times, with tools/ci/render-test.livecodescript
 as its home stack (copied to <run>/tools/Startup.rev, REV_TOOLS_PATH set to
-that folder, as tools/ci/render-test.ps1 does on Windows), rendering S1 and
-S2 only (OXT_RENDER_SCENARIOS). The Mac is set to dark or light first, as a
-user's Appearance setting is stored:
+that folder, as tools/ci/render-test.ps1 does on Windows), rendering S1, S2
+and S9 only (OXT_RENDER_SCENARIOS). The Mac is set to dark or light first, as
+a user's Appearance setting is stored:
 
   defaults write -g AppleInterfaceStyle Dark     (dark)
   defaults delete -g AppleInterfaceStyle         (light)
 
   run  the Mac  appAppearance  stacks drawn
-  M1   dark     system         light
+  M1   dark     system         dark
   M2   dark     (default)      light
   M3   light    system         light
   M4   light    (default)      light
 
-The engine draws every stack light on macOS for now (MCAppearanceIsDark in
-engine/src/appearance.cpp): its classic native controls stay light, and a
-dark stack showed white text on white cards and light push buttons. M1 checks
-that a dark Mac with the appAppearance "system" still gets a readable, light
-stack, and that the systemAppearance reports "dark".
+HITheme, which draws the classic native controls, only draws them light, so
+the engine draws those of a dark stack itself (MCMacDrawThemeDark in
+engine/src/osxtheme.mm). M1 checks them, and M2 that a dark Mac leaves a
+stack light until a script asks for the dark appearance.
 
 Checked, in every run, with render_check.py's measurements:
 
@@ -56,7 +55,17 @@ Checked, in every run, with render_check.py's measurements:
   when drawn dark and above 200 when drawn light;
 * S1, the colours of the owner's libMQTTxt stack (built by the script): the
   black text of its white input field (s1-host) is at least 7:1 against the
-  field, dark or not.
+  field, dark or not;
+* in the dark run, S2 (but its card, above) and S9, the native controls in
+  a stack with no colours, with render_check.py's checks (EXPECT) as on
+  Windows, where macOS's dark controls differ (MAC_DARK_EXPECT): lighter
+  push button faces (101, as macOS's), a thin progress bar
+  (check_mac_progress), and a disabled grey of 136 on the window's 50.
+
+The whole cards of S2 and S9 of M1 and M3 are also printed, as base64 PNG
+in lines "IMAGE <run>/<file> <part>/<parts> <base64>", for a person to look
+at without downloading the logs (tools/ci/print_images.py puts them back
+together from a saved log).
 
 The Mac's setting is restored at the end. Every check prints one line,
 "PASS <run> <check>: ..." or "FAIL <run> <check>: ...", the last line is
@@ -66,6 +75,7 @@ run are left in <folder>/<run>.
 """
 
 import argparse
+import base64
 import os
 import shutil
 import subprocess
@@ -76,11 +86,32 @@ sys.path.insert(0, HERE)
 import render_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'render-test.livecodescript')
-SCENARIOS = 's1,s2'
+SCENARIOS = 's1,s2,s9'
+
+# The images printed for people to look at, by run
+PRINTED = {'M1': ('s2-card.png', 's9.png'), 'M3': ('s2-card.png', 's9.png')}
+IMAGE_PART = 4000
+
+# render_check.py's checks of the dark run, where macOS's dark controls
+# differ from Windows's: a push button face of 101 (pressed 132, disabled
+# 66), not 0x37; the disabled grey of the Mac (0x88) on its dark window (50)
+# is 3.6:1; the little arrows' face is 101 with white arrows. The card is
+# checked above (S2_DARK_MAX), and the progress bar by check_mac_progress.
+MAC_DARK_EXPECT = {
+    's2-card': [],
+    's9-push-face': [('interior_max_l', 115)],
+    's9-push-pressed-face': [('interior_max_l', 145), ('interior_differs', 's9-push-face', 6)],
+    's9-push-disabled-face': [('interior_max_l', 80)],
+    's9-check-disabled': [('far_near_l', 136, render_check.GREY_TOLERANCE), ('far_contrast', 3.0)],
+    's9-radio-disabled': [('far_near_l', 136, render_check.GREY_TOLERANCE), ('far_contrast', 3.0)],
+    's9-push-disabled': [('far_near_l', 136, render_check.GREY_TOLERANCE), ('far_contrast', 3.0)],
+    's9-arrows': [('interior_max_l', 140), ('glyph_halves', 60, 3)],
+    's9-progress': [],
+}
 
 # (run, the Mac's setting, OXT_RENDER_APPEARANCE, what stacks are drawn in)
 RUNS = [
-    ('M1', 'dark', 'system', 'light'),
+    ('M1', 'dark', 'system', 'dark'),
     ('M2', 'dark', '', 'light'),
     ('M3', 'light', 'system', 'light'),
     ('M4', 'light', '', 'light'),
@@ -146,6 +177,73 @@ def shot(shots, name):
     return None
 
 
+def print_images(run, images):
+    """Prints the run's PRINTED images as base64, in parts."""
+    for name in PRINTED.get(run, ()):
+        path = os.path.join(images, name)
+        if not os.path.isfile(path):
+            print('IMAGE %s/%s missing' % (run, name))
+            continue
+        with open(path, 'rb') as f:
+            data = base64.b64encode(f.read()).decode('ascii')
+        parts = [data[i:i + IMAGE_PART] for i in range(0, len(data), IMAGE_PART)] or ['']
+        for i, part in enumerate(parts):
+            print('IMAGE %s/%s %d/%d %s' % (run, name, i + 1, len(parts), part))
+    sys.stdout.flush()
+
+
+def check_mac_progress(report, images, shots):
+    """The progress bar at 50%, a thin bar in the middle of its rect: in
+    its middle row, the left quarter (done, the accent colour) shows the
+    accent (B - R of at least 60) or differs from the right quarter (the
+    track) by at least 25 in L."""
+    shot_ = shot(shots, 's9-progress')
+    if shot_ is None or len(shot_) < 3:
+        report.check('s9-progress progress', False, 'render.txt has no s9-progress shot')
+        return
+    try:
+        w, h, rows = render_check.read_png(os.path.join(images, shot_[2]))
+    except Exception as e:  # a broken image is a failure, not a crash
+        report.check('s9-progress progress', False, 'cannot read %s: %s' % (shot_[2], e))
+        return
+    y = h // 2
+    quarter = (w - 6) // 4
+    if quarter < 2:
+        report.check('s9-progress progress', False, '%s is too small (%dx%d)' % (shot_[2], w, h))
+        return
+    left = [render_check.flatten(rows[y][x]) for x in range(3, 3 + quarter)]
+    right = [render_check.flatten(rows[y][x]) for x in range(w - 3 - quarter, w - 3)]
+    mean = lambda ps, i: sum(p[i] for p in ps) / float(len(ps))
+    left_rgb = [mean(left, i) for i in range(3)]
+    right_rgb = [mean(right, i) for i in range(3)]
+    left_l = render_check.luma(left_rgb)
+    right_l = render_check.luma(right_rgb)
+    ok = left_rgb[2] - left_rgb[0] >= 60 or abs(left_l - right_l) >= 25
+    report.check('s9-progress progress', ok, 'row %d of %s: the left quarter %s (L=%.0f), the right quarter %s '
+                 '(L=%.0f), %s the accent on the left or 25 in L between them (MCMacDarkDrawTrack, '
+                 'engine/src/osxtheme.mm)' % (y, shot_[2], render_check._fmt(left_rgb), left_l,
+                                              render_check._fmt(right_rgb), right_l,
+                                              'expected' if ok else 'FAILED: expected'))
+
+
+def check_shots(report, images, shots, prefixes):
+    """render_check.py's checks of the shots whose names start with one of
+    prefixes, as render_check.run makes them."""
+    for s in shots:
+        kind, name = s[0], s[1]
+        if not name.startswith(prefixes):
+            continue
+        if kind == 'label' and len(s) >= 4:
+            enabled = s[4:6] if len(s) >= 6 else [None, None]
+            render_check.check_label(report, images, name, s[2], s[3], enabled[0], enabled[1])
+        elif kind == 'text' and len(s) >= 4:
+            render_check.check_text(report, images, name, s[2], s[3])
+        elif kind == 'face' and len(s) >= 4:
+            render_check.check_face(report, images, name, s[2], s[3])
+        elif kind == 'region' and len(s) >= 4:
+            render_check.check_region(report, images, name, s[2], render_check.parse_region(s[3]))
+
+
 def check_run(report, images, mac, drawn, code, timeout):
     if code is None:
         report.check('engine run', False, 'the engine did not finish within %d seconds (see engine-stdout.txt); '
@@ -206,6 +304,21 @@ def check_run(report, images, mac, drawn, code, timeout):
     else:
         render_check.check_text(report, images, 's1-host', host[2], host[3])
 
+    # S2 and S9 in the dark appearance, the controls drawn by
+    # MCMacDrawThemeDark (engine/src/osxtheme.mm)
+    if drawn == 'dark':
+        render_check.FACE_RESULTS.clear()
+        check_shots(report, images, shots, ('s2-', 's9-'))
+        check_mac_progress(report, images, shots)
+
+
+def use_mac_expectations():
+    """Puts MAC_DARK_EXPECT into render_check.EXPECT's dark checks."""
+    for name, checks in MAC_DARK_EXPECT.items():
+        table = dict(render_check.EXPECT.get(name, {}))
+        table['dark'] = checks
+        render_check.EXPECT[name] = table
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
@@ -216,6 +329,7 @@ def main(argv=None):
     parser.add_argument('--timeout', type=int, default=180, help='seconds for each run (default: %(default)s)')
     args = parser.parse_args(argv)
 
+    use_mac_expectations()
     engine = args.engine or os.path.join(args.app, 'Contents', 'MacOS', 'OXT-Beyond')
     if not os.path.isfile(engine):
         print('FAIL setup: no engine at %s' % engine)
@@ -237,6 +351,7 @@ def main(argv=None):
             sys.stdout.flush()
             folder = os.path.join(args.out, run)
             code, images = run_engine(engine, folder, appearance, args.timeout)
+            print_images(run, images)
             report = render_check.Report(drawn, run)
             check_run(report, images, mac, drawn, code, args.timeout)
             passed += report.passed
