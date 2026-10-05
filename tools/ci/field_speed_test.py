@@ -24,15 +24,19 @@ the real IDE, which is started first and then sent the script as a
 document to open. While the script fills the cells with the screen
 unlocked and while it solves the puzzle (it writes <out>/speed/filling and
 <out>/speed/solving), `sample` records the engine for a few seconds; the
-same happens if the run does not end in time. The engine's frames are
-named with atos and the dSYM given with --dsym, as release binaries carry
-no symbols. Everything is printed, for the CI log.
+same happens, with the machine's busiest processes and a screenshot, if
+the run does not end in time or the engine's memory passes --max-rss-mb.
+The engine's frames are named with atos and the dSYM given with --dsym, as
+release binaries carry no symbols. A line every 15 seconds says how far
+the run is. Everything is printed, for the CI log; screenshots as lines
+tools/ci/print_images.py turns back into PNG files.
 
 Exit status 0 when the script reported "done" and every step given with
 --limit took at most its milliseconds per count.
 """
 
 import argparse
+import base64
 import os
 import platform
 import re
@@ -66,9 +70,74 @@ def read_mac_setting():
 def sample(pid, seconds, path):
     if not shutil.which('sample'):
         return False
-    proc = subprocess.run(['sample', str(pid), str(seconds), '-file', path],
-                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        proc = subprocess.run(['sample', str(pid), str(seconds), '-file', path],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=seconds + 60)
+    except subprocess.TimeoutExpired:
+        print('(sample did not end in %d s)' % (seconds + 60))
+        return False
     return proc.returncode == 0 and os.path.isfile(path)
+
+
+def process_state(pid):
+    """ps's state, memory (KB) and CPU of the process, for the log."""
+    try:
+        proc = subprocess.run(['ps', '-o', 'stat=,rss=,pcpu=', '-p', str(pid)],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30)
+    except subprocess.TimeoutExpired:
+        return '(ps did not answer)'
+    return ' '.join(proc.stdout.decode('utf-8', 'replace').split()) or '(gone)'
+
+
+def process_rss_mb(pid):
+    """The process's resident memory in MB, or None."""
+    try:
+        proc = subprocess.run(['ps', '-o', 'rss=', '-p', str(pid)], stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL, timeout=30)
+        return int(proc.stdout.split()[0]) / 1024.0
+    except (subprocess.TimeoutExpired, ValueError, IndexError):
+        return None
+
+
+def system_state():
+    """Prints the machine's busiest processes and its memory (top's second
+    sample, the first has no CPU figures)."""
+    if not shutil.which('top'):
+        return
+    try:
+        proc = subprocess.run(['top', '-l', '2', '-s', '1', '-n', '8', '-o', 'cpu',
+                               '-stats', 'pid,command,cpu,mem,state'],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+    except subprocess.TimeoutExpired:
+        print('(top did not end)')
+        return
+    lines = proc.stdout.decode('utf-8', 'replace').splitlines()
+    starts = [i for i, line in enumerate(lines) if line.startswith('Processes:')]
+    print('\n'.join(lines[starts[-1]:] if starts else lines))
+
+
+def screenshot(path):
+    """The whole screen, at most 1200 pixels wide, as a PNG file."""
+    if not shutil.which('screencapture'):
+        return False
+    try:
+        subprocess.run(['screencapture', '-x', path], stdout=subprocess.PIPE,
+                       stderr=subprocess.STDOUT, timeout=30)
+        if os.path.isfile(path) and shutil.which('sips'):
+            subprocess.run(['sips', '-Z', '1200', path, '--out', path], stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, timeout=30)
+    except subprocess.TimeoutExpired:
+        print('(screencapture did not end)')
+    return os.path.isfile(path)
+
+
+def print_image(name, path):
+    """Prints a PNG file into the log as tools/ci/print_images.py reads it."""
+    with open(path, 'rb') as f:
+        data = base64.b64encode(f.read()).decode('ascii')
+    parts = [data[i:i + 4000] for i in range(0, len(data), 4000)] or ['']
+    for i, part in enumerate(parts):
+        print('IMAGE %s %d/%d %s' % (name, i + 1, len(parts), part))
 
 
 def symbolicate(text, dsym, image):
@@ -193,8 +262,13 @@ def run(args):
     markers = [(os.path.join(speed, name), os.path.join(out, 'sample-%s.txt' % name))
                for name in ('filling', 'solving')]
     sampled = []
+    screens = []
     status = 'did not finish in %d s' % args.timeout
+    # until the engine ends or reports done
+    stuck = True
     started = time.time()
+    progress = started
+    checked = started
     with open(os.path.join(out, 'engine-output.txt'), 'wb') as log:
         proc = subprocess.Popen([engine], cwd=tools, env=env, stdout=log, stderr=subprocess.STDOUT)
         try:
@@ -205,29 +279,61 @@ def run(args):
             while time.time() - started < args.timeout:
                 if proc.poll() is not None:
                     status = 'ended with exit status %d after %.0f s' % (proc.returncode, time.time() - started)
+                    stuck = False
                     break
                 if args.ide and os.path.isfile(results):
                     with open(results, encoding='utf-8', errors='replace') as f:
                         if '\tdone\t' in f.read():
                             status = 'reported done after %.0f s' % (time.time() - started)
+                            stuck = False
                             break
+                if time.time() - checked >= 1:
+                    checked = time.time()
+                    rss = process_rss_mb(proc.pid)
+                    if rss is not None and rss > args.max_rss_mb:
+                        # stopped before it takes the machine's memory
+                        status = 'used %.0f MB after %.0f s' % (rss, checked - started)
+                        break
                 if sys.platform == 'darwin':
                     for marker, report in markers:
                         if os.path.isfile(marker) and report not in sampled and proc.poll() is None:
                             sampled.append(report)
+                            if marker.endswith('solving'):
+                                # the screen is locked while it solves: the
+                                # window shows what the unlocked steps left
+                                screen = os.path.join(out, 'screen-solving.png')
+                                if screenshot(screen):
+                                    screens.append(screen)
                             if not sample(proc.pid, args.sample_seconds, report):
                                 print('(sample failed: %s)' % os.path.basename(report))
+                if time.time() - progress >= 15:
+                    progress = time.time()
+                    last = '(no results yet)'
+                    if os.path.isfile(results):
+                        with open(results, encoding='utf-8', errors='replace') as f:
+                            lines = f.read().splitlines()
+                        last = lines[-1] if lines else last
+                    print('after %.0f s: engine %s; last line: %s' % (progress - started, process_state(proc.pid), last))
+                    sys.stdout.flush()
                 time.sleep(0.2)
-            if proc.poll() is None and sys.platform == 'darwin' and 'did not finish' in status:
+            if stuck and proc.poll() is None and sys.platform == 'darwin':
                 # where it is stuck
-                report = os.path.join(out, 'sample-timeout.txt')
+                print('Stopped (%s): engine %s' % (status, process_state(proc.pid)))
+                system_state()
+                screen = os.path.join(out, 'screen-stopped.png')
+                if screenshot(screen):
+                    screens.append(screen)
+                report = os.path.join(out, 'sample-stopped.txt')
                 sampled.append(report)
                 if not sample(proc.pid, args.sample_seconds, report):
-                    print('(sample failed: timeout)')
+                    print('(sample failed: stopped)')
         finally:
             if proc.poll() is None:
                 proc.kill()
-                proc.wait()
+                try:
+                    proc.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    print('The engine did not end when killed: %s' % process_state(proc.pid))
             if sys.platform == 'darwin':
                 if saved is None:
                     set_mac_setting('light')
@@ -250,6 +356,9 @@ def run(args):
         if os.path.isfile(report):
             print('=== %s' % os.path.basename(report))
             print_sample(report, args.dsym, image)
+    # (python3 tools/ci/print_images.py <log> <folder> writes them back)
+    for screen in screens:
+        print_image('%s/%s' % (os.path.basename(out), os.path.basename(screen)), screen)
     sys.stdout.flush()
     if '\tdone\t' not in text:
         print('::error::the field speed test did not finish (%s)' % status)
@@ -292,6 +401,8 @@ def main(argv=None):
     parser.add_argument('--solve-ms', type=int, default=20000, help='how long the solve may run (default %(default)s)')
     parser.add_argument('--sample-seconds', type=int, default=5)
     parser.add_argument('--timeout', type=int, default=180, help='seconds for the run (default %(default)s)')
+    parser.add_argument('--max-rss-mb', type=int, default=3000,
+                        help="the engine's memory at which the run is stopped (default %(default)s)")
     parser.add_argument('--dsym', default='', help="the engine's dSYM DWARF file, for atos")
     parser.add_argument('--limit', action='append', default=[], metavar='STEP=MS',
                         help='fail when the step takes more than MS milliseconds per count (repeatable)')

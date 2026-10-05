@@ -1445,14 +1445,22 @@ void MCRedrawEnableScreenUpdates(void)
 // or more (MCMacPlatformWindow::DoUpdate), so a script that changed a
 // field at every statement spent nearly all its time waiting: a Sudoku
 // stack filling its 81 cells with the screen unlocked took 30 seconds on
-// an Intel Mac CI runner, and a fifth of a second on Linux. There, the next
-// update a statement asks for now waits until the script has run three
-// times as long as the last update took (at least a thirtieth of a second,
-// at most a quarter): the screen still follows the script many times a
-// second, and the script gets three quarters of the time. Waiting (wait, a
-// dialog, the end of the handler) updates the screen at once, as before.
+// an Intel Mac CI runner, and a fifth of a second on Linux. There, the
+// first few updates a script asks for after a wait are still made at once
+// (a message it shows before a long command is on screen while that
+// runs), and after those an update is made once the script has run twice
+// as long as the last update took (at least a sixtieth of a second, at
+// most a quarter): the screen follows the script many times a second, and
+// the script gets two thirds of the time. Until then the update stays
+// scheduled; a wait (wait, a dialog, the end of the handler), lock screen
+// and a snapshot of the screen make it at once.
 #if defined(_MAC_DESKTOP)
+// When the next update after a statement is due, how many were made
+// before they were due since the last wait, and whether one was left
 static real8 s_screen_update_due = 0.0;
+static uint32_t s_screen_early_updates = 0;
+static bool s_screen_update_left = false;
+static const uint32_t kMCRedrawEarlyUpdates = 3;
 
 // Seconds on a clock that a change of the time of day does not move
 static real8 MCRedrawClock(void)
@@ -1466,9 +1474,33 @@ static real8 MCRedrawClock(void)
 bool MCRedrawIsScreenUpdateDue(void)
 {
 #if defined(_MAC_DESKTOP)
-	return MCRedrawClock() >= s_screen_update_due;
+	if (MCRedrawClock() >= s_screen_update_due)
+		return true;
+	if (s_screen_early_updates < kMCRedrawEarlyUpdates)
+	{
+		s_screen_early_updates++;
+		return true;
+	}
+	s_screen_update_left = true;
+	return false;
 #else
 	return true;
+#endif
+}
+
+void MCRedrawUpdateScreenForWait(void)
+{
+	MCRedrawUpdateScreen();
+#if defined(_MAC_DESKTOP)
+	s_screen_early_updates = 0;
+#endif
+}
+
+void MCRedrawCatchUpScreen(void)
+{
+#if defined(_MAC_DESKTOP)
+	if (s_screen_update_left)
+		MCRedrawUpdateScreen();
 #endif
 }
 
@@ -1523,7 +1555,8 @@ void MCRedrawDoUpdateScreen(void)
 
 #if defined(_MAC_DESKTOP)
 	real8 t_finished = MCRedrawClock();
-	s_screen_update_due = t_finished + MCMin(MCMax(3 * (t_finished - t_started), 1.0 / 30), 0.25);
+	s_screen_update_due = t_finished + MCMin(MCMax(2 * (t_finished - t_started), 1.0 / 60), 0.25);
+	s_screen_update_left = false;
 #endif
 	
 	if (MClockscreen == 0 && s_screen_is_dirty && !s_screen_updates_disabled)
