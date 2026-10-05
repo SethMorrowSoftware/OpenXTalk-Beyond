@@ -96,7 +96,7 @@ IMAGE_PART = 4000
 
 # render_check.py's checks of the dark run, where macOS's dark controls
 # differ from Windows's: a push button face of 101 (pressed 132, disabled
-# 56), not 0x37; the disabled grey of the Mac (0x88) on its dark window (50)
+# 59), not 0x37; the disabled grey of the Mac (0x88) on its dark window (50)
 # is 3.6:1; the little arrows' face is 101 with white arrows. The card is
 # checked above (S2_DARK_MAX), the progress bar by check_mac_progress, and
 # the field's frame by check_mac_field_frame (a Mac field's own fill, 30,

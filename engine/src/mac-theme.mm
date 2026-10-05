@@ -415,6 +415,22 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
                         t_found = t_color != nil;
                         break;
                         
+                    case kMCPlatformControlTypeOptionMenu:
+                        // OXT-Beyond: the engine fills an opaque option menu's
+                        // rect with this before the theme draws its rounded
+                        // face (MCButton::draw). In the light appearance it is
+                        // white, as the window is; in the dark one it is the
+                        // window's colour too, or the face would sit on a
+                        // square of controlColor
+                        if (p_state & kMCPlatformControlStateDarkAppearance)
+                            t_color = [NSColor windowBackgroundColor];
+                        else
+                        {
+                            t_is_pattern = true;
+                            t_color = [NSColor controlColor];
+                        }
+                        break;
+                        
                     case kMCPlatformControlTypeWindow:
                         // In compatibility mode, handle window colour the old way
                         if (p_state & kMCPlatformControlStateCompatibility)

@@ -922,7 +922,7 @@ enum
 	kMCMacDarkWindow = 50,
 	kMCMacDarkFace = 101,
 	kMCMacDarkFacePressed = 132,
-	kMCMacDarkFaceDisabled = 56,
+	kMCMacDarkFaceDisabled = 59,
 	kMCMacDarkField = 30,
 	kMCMacDarkFieldFrame = 140,
 	kMCMacDarkBox = 75,
