@@ -186,10 +186,51 @@ struct MCMacThemeColorCacheEntry
 
 static MCMacThemeColorCacheEntry s_theme_color_cache[256];
 
+// OXT-Beyond: the system's accent colour as the dark appearance draws it
+// (controlAccentColor, macOS 10.14 and later), for the controls the engine
+// draws itself in a dark stack (osxtheme.mm). MCaccentcolor is LiveCode's
+// own navy, not the user's choice. Cached with the theme colours.
+static bool s_accent_color_valid = false;
+static bool s_accent_color_found = false;
+static MCColor s_accent_color;
+
 void MCMacThemeClearColorCache(void)
 {
     for (uint32_t i = 0; i < sizeof(s_theme_color_cache) / sizeof(s_theme_color_cache[0]); i++)
         s_theme_color_cache[i] . valid = false;
+    s_accent_color_valid = false;
+}
+
+bool MCMacThemeGetAccentColor(MCColor& r_color)
+{
+    if (!s_accent_color_valid)
+    {
+        s_accent_color_found = false;
+        if (@available(macOS 10.14, *))
+        {
+            NSAppearance *t_saved_appearance;
+            t_saved_appearance = [[NSAppearance currentAppearance] retain];
+            [NSAppearance setCurrentAppearance: [NSAppearance appearanceNamed: NSAppearanceNameDarkAqua]];
+            
+            NSColor *t_color;
+            t_color = [[NSColor controlAccentColor] colorUsingColorSpace: [NSColorSpace sRGBColorSpace]];
+            if (t_color != nil)
+            {
+                s_accent_color . red = [t_color redComponent] * 65535;
+                s_accent_color . green = [t_color greenComponent] * 65535;
+                s_accent_color . blue = [t_color blueComponent] * 65535;
+                s_accent_color_found = true;
+            }
+            
+            [NSAppearance setCurrentAppearance: t_saved_appearance];
+            [t_saved_appearance release];
+        }
+        s_accent_color_valid = true;
+    }
+    
+    if (s_accent_color_found)
+        r_color = s_accent_color;
+    return s_accent_color_found;
 }
 
 static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color);
@@ -464,8 +505,10 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
             // OXT-Beyond: in the dark appearance windowBackgroundColor and
             // controlColor are plain colours (macOS 10.14 and later), and
             // controlHighlightColor, which stands in for them in the light
-            // one, would give a dark stack a light card
-            t_color = [t_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+            // one, would give a dark stack a light card. They are resolved
+            // in sRGB, the space AppKit's dark colours are defined in (the
+            // calibrated space gives a darker window: 37 rather than 50).
+            t_color = [t_color colorUsingColorSpace: [NSColorSpace sRGBColorSpace]];
         }
         
         CGFloat t_red, t_green, t_blue;
@@ -480,7 +523,7 @@ static bool MCMacThemeLookupControlColor(MCPlatformControlType p_type, MCPlatfor
         if (t_dark && p_which != kMCPlatformThemePropertyTextColor && [t_color alphaComponent] < 1.0)
         {
             NSColor *t_window;
-            t_window = [[NSColor windowBackgroundColor] colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+            t_window = [[NSColor windowBackgroundColor] colorUsingColorSpace: [NSColorSpace sRGBColorSpace]];
             if (t_window != nil)
             {
                 CGFloat t_alpha;

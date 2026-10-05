@@ -922,7 +922,9 @@ enum
 	kMCMacDarkWindow = 50,
 	kMCMacDarkFace = 101,
 	kMCMacDarkFacePressed = 132,
-	kMCMacDarkFaceDisabled = 66,
+	kMCMacDarkFaceDisabled = 56,
+	kMCMacDarkField = 30,
+	kMCMacDarkFieldFrame = 140,
 	kMCMacDarkBox = 75,
 	kMCMacDarkBoxPressed = 95,
 	kMCMacDarkBoxDisabled = 58,
@@ -970,14 +972,23 @@ static void MCMacDarkSetStrokeGrey(CGContextRef p_context, int p_level)
 	CGContextSetRGBStrokeColor(p_context, p_level / 255.0, p_level / 255.0, p_level / 255.0, 1.0);
 }
 
-// The accent colour (the system's, MCaccentcolor), or the grey of a disabled
+// The accent colour (the user's, from System Settings; MCaccentcolor, the
+// engine's own navy, only if the system has none), or the grey of a disabled
 // control
+extern bool MCMacThemeGetAccentColor(MCColor& r_color);
+
 static void MCMacDarkSetFillAccent(CGContextRef p_context, bool p_disabled)
 {
 	if (p_disabled)
+	{
 		MCMacDarkSetFillGrey(p_context, 90);
-	else
-		CGContextSetRGBFillColor(p_context, MCaccentcolor . red / 65535.0, MCaccentcolor . green / 65535.0, MCaccentcolor . blue / 65535.0, 1.0);
+		return;
+	}
+	
+	MCColor t_accent;
+	if (!MCMacThemeGetAccentColor(t_accent))
+		t_accent = MCaccentcolor;
+	CGContextSetRGBFillColor(p_context, t_accent . red / 65535.0, t_accent . green / 65535.0, t_accent . blue / 65535.0, 1.0);
 }
 
 // A rounded rectangle, the corners on the left and right rounded or not (the
@@ -1199,21 +1210,37 @@ static bool MCMacDarkDrawButton(CGContextRef p_context, const MCThemeDrawInfo& p
 			
 		case kThemeComboBox:
 		{
-			// The combo box's button: an accent-coloured box with the arrow
-			// down
-			CGRect t_box;
-			t_box = CGRectInset(t_bounds, 1, 2);
-			if (t_box . size . width > t_box . size . height)
-				t_box = CGRectInset(t_box, (t_box . size . width - t_box . size . height) / 2, 0);
-			MCMacDarkSetFillAccent(p_context, t_disabled);
-			MCMacDarkFillRoundedRect(p_context, t_box, 4);
-			if (t_pressed && !t_disabled)
+			// The whole combo box, as HITheme draws it: a rounded field (at
+			// most 22 px high, centred) in the colour of a field, which the
+			// combo's own field covers but for its edges, and at its right
+			// an accent-coloured box with the arrow down
+			CGFloat t_height;
+			t_height = t_bounds . size . height > 8 ? MCMacDarkMin(t_bounds . size . height - 4, 22.0) : t_bounds . size . height;
+			CGRect t_body;
+			t_body = CGRectMake(t_bounds . origin . x, t_bounds . origin . y + floor((t_bounds . size . height - t_height) / 2), t_bounds . size . width, t_height);
+			MCMacDarkSetFillGrey(p_context, kMCMacDarkField);
+			MCMacDarkFillRoundedRect(p_context, t_body, 5);
+			MCMacDarkSetStrokeGrey(p_context, t_disabled ? kMCMacDarkOutlineDisabled : kMCMacDarkFieldFrame);
+			CGContextSetLineWidth(p_context, 1.0);
+			MCMacDarkAddRoundedRect(p_context, CGRectInset(t_body, 0.5, 0.5), 4.5);
+			CGContextStrokePath(p_context);
+			
+			CGFloat t_box_size;
+			t_box_size = MCMacDarkMin(16.0, t_height - 6);
+			if (t_box_size > 6)
 			{
-				CGContextSetRGBFillColor(p_context, 0, 0, 0, 0.25);
+				CGRect t_box;
+				t_box = CGRectMake(CGRectGetMaxX(t_body) - 3 - t_box_size, t_body . origin . y + floor((t_height - t_box_size) / 2), t_box_size, t_box_size);
+				MCMacDarkSetFillAccent(p_context, t_disabled);
 				MCMacDarkFillRoundedRect(p_context, t_box, 4);
+				if (t_pressed && !t_disabled)
+				{
+					CGContextSetRGBFillColor(p_context, 0, 0, 0, 0.25);
+					MCMacDarkFillRoundedRect(p_context, t_box, 4);
+				}
+				MCMacDarkChevron(p_context, CGRectGetMidX(t_box), CGRectGetMidY(t_box), MCMacDarkMax(t_box_size / 5, 2.0), false,
+								 t_disabled ? kMCMacDarkGlyphDisabled : kMCMacDarkGlyph);
 			}
-			MCMacDarkChevron(p_context, CGRectGetMidX(t_box), CGRectGetMidY(t_box), MCMacDarkMax(t_box . size . width / 5, 2.0), false,
-							 t_disabled ? kMCMacDarkGlyphDisabled : kMCMacDarkGlyph);
 			return true;
 		}
 			
@@ -1418,12 +1445,13 @@ static bool MCMacDrawThemeDark(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, 
 			
 		case THEME_DRAW_TYPE_FRAME:
 		{
-			// The frame of a field or a list: a 1 px line inside the bounds
+			// The frame of a field or a list: a 1 px line just outside the
+			// bounds, where HITheme draws its frame (the field's edge)
 			HIRect t_bounds;
 			assign(t_bounds, p_info . frame . bounds);
-			MCMacDarkSetStrokeGrey(p_context, p_info . frame . state == kThemeStateInactive ? kMCMacDarkOutlineDisabled : kMCMacDarkOutline);
+			MCMacDarkSetStrokeGrey(p_context, p_info . frame . state == kThemeStateInactive ? kMCMacDarkOutlineDisabled : kMCMacDarkFieldFrame);
 			CGContextSetLineWidth(p_context, 1.0);
-			CGContextStrokeRect(p_context, CGRectInset(t_bounds, 0.5, 0.5));
+			CGContextStrokeRect(p_context, CGRectInset(t_bounds, -0.5, -0.5));
 			return true;
 		}
 			

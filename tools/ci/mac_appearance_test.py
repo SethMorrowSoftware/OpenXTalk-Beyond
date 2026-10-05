@@ -60,7 +60,9 @@ Checked, in every run, with render_check.py's measurements:
   a stack with no colours, with render_check.py's checks (EXPECT) as on
   Windows, where macOS's dark controls differ (MAC_DARK_EXPECT): lighter
   push button faces (101, as macOS's), a thin progress bar
-  (check_mac_progress), and a disabled grey of 136 on the window's 50.
+  (check_mac_progress), a field whose own fill differs from the window
+  (check_mac_field_frame checks its frame), and a disabled grey of 136 on
+  the window's 50.
 
 The whole cards of S2 and S9 of M1 and M3 are also printed, as base64 PNG
 in lines "IMAGE <run>/<file> <part>/<parts> <base64>", for a person to look
@@ -94,9 +96,11 @@ IMAGE_PART = 4000
 
 # render_check.py's checks of the dark run, where macOS's dark controls
 # differ from Windows's: a push button face of 101 (pressed 132, disabled
-# 66), not 0x37; the disabled grey of the Mac (0x88) on its dark window (50)
+# 56), not 0x37; the disabled grey of the Mac (0x88) on its dark window (50)
 # is 3.6:1; the little arrows' face is 101 with white arrows. The card is
-# checked above (S2_DARK_MAX), and the progress bar by check_mac_progress.
+# checked above (S2_DARK_MAX), the progress bar by check_mac_progress, and
+# the field's frame by check_mac_field_frame (a Mac field's own fill, 30,
+# differs from the window, so the whole field changes when it is hidden).
 MAC_DARK_EXPECT = {
     's2-card': [],
     's9-push-face': [('interior_max_l', 115)],
@@ -107,7 +111,12 @@ MAC_DARK_EXPECT = {
     's9-push-disabled': [('far_near_l', 136, render_check.GREY_TOLERANCE), ('far_contrast', 3.0)],
     's9-arrows': [('interior_max_l', 140), ('glyph_halves', 60, 3)],
     's9-progress': [],
+    's9-field-frame': [('record_face',)],
 }
+
+# The frame of a field: its outermost pixels, where HITheme draws it
+FIELD_FRAME_L = (100, 170)
+FIELD_FRAME_CONTRAST = 3.0
 
 # (run, the Mac's setting, OXT_RENDER_APPEARANCE, what stacks are drawn in)
 RUNS = [
@@ -226,6 +235,39 @@ def check_mac_progress(report, images, shots):
                                               'expected' if ok else 'FAILED: expected'))
 
 
+def check_mac_field_frame(report, images, shots):
+    """The frame of an empty field: the outermost ring of pixels of its face
+    shot (the field's rect) has a median L in FIELD_FRAME_L, and at least
+    FIELD_FRAME_CONTRAST against the same ring with the field hidden (the
+    card)."""
+    shot_ = shot(shots, 's9-field-frame')
+    if shot_ is None or len(shot_) < 4:
+        report.check('s9-field-frame frame', False, 'render.txt has no s9-field-frame shot')
+        return
+    try:
+        w, h, rows = render_check.read_png(os.path.join(images, shot_[2]))
+        rw, rh, ref = render_check.read_png(os.path.join(images, shot_[3]))
+    except Exception as e:  # a broken image is a failure, not a crash
+        report.check('s9-field-frame frame', False, 'cannot read %s and %s: %s' % (shot_[2], shot_[3], e))
+        return
+    if (w, h) != (rw, rh) or w < 8 or h < 8:
+        report.check('s9-field-frame frame', False, '%s is %dx%d and %s is %dx%d' % (shot_[2], w, h, shot_[3], rw, rh))
+        return
+    # The ring without its corners, which a rounded frame may leave out
+    ring = [(x, 0) for x in range(2, w - 2)] + [(x, h - 1) for x in range(2, w - 2)] + \
+        [(0, y) for y in range(2, h - 2)] + [(w - 1, y) for y in range(2, h - 2)]
+    frame = render_check._median_rgb([render_check.flatten(rows[y][x]) for (x, y) in ring])
+    card = render_check._median_rgb([render_check.flatten(ref[y][x]) for (x, y) in ring])
+    frame_l = render_check.luma(frame)
+    ratio = render_check.contrast_ratio(frame, card)
+    ok = FIELD_FRAME_L[0] <= frame_l <= FIELD_FRAME_L[1] and ratio >= FIELD_FRAME_CONTRAST
+    report.check('s9-field-frame frame', ok, 'the outermost pixels of %s are %s (L=%.0f) on the card %s, %.2f:1, '
+                 '%s L %d-%d and at least %.1f:1 (THEME_DRAW_TYPE_FRAME in MCMacDrawThemeDark, '
+                 'engine/src/osxtheme.mm)' % (shot_[2], render_check._fmt(frame), frame_l, render_check._fmt(card),
+                                              ratio, 'expected' if ok else 'FAILED: expected', FIELD_FRAME_L[0],
+                                              FIELD_FRAME_L[1], FIELD_FRAME_CONTRAST))
+
+
 def check_shots(report, images, shots, prefixes):
     """render_check.py's checks of the shots whose names start with one of
     prefixes, as render_check.run makes them."""
@@ -310,6 +352,7 @@ def check_run(report, images, mac, drawn, code, timeout):
         render_check.FACE_RESULTS.clear()
         check_shots(report, images, shots, ('s2-', 's9-'))
         check_mac_progress(report, images, shots)
+        check_mac_field_frame(report, images, shots)
 
 
 def use_mac_expectations():
