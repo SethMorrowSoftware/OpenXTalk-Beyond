@@ -21,7 +21,10 @@
 # A user's Sudoku stack froze the macOS IDE of 0.2.3: every statement that
 # changed a field waited for the display. The build workflow checks its own
 # package the same way (build-macos.yml, "Field speed check"); this one
-# compares releases that are already out, by hand.
+# compares releases that are already out, by hand. A light-sdk run (such as
+# light-sdk10.9) times a release as if its engine recorded another macOS SDK
+# (tools/ci/macho_sdk.py): LiveCode's Mac build records 10.9, OXT-Beyond's
+# 11.0, and AppKit draws windows differently from the 10.14 SDK on.
 
 name: Field speed (macOS releases)
 
@@ -33,7 +36,7 @@ on:
         type: string
         default: v0.2.3 v0.2.2
       runs:
-        description: "The runs for each release, separated by spaces: light, dark, ide"
+        description: "The runs for each release, separated by spaces: light, dark, ide, light-sdk<version> (such as light-sdk10.9)"
         type: string
         default: light dark ide
       runner:
@@ -97,13 +100,28 @@ jobs:
             dwarf=$(find "$RUNNER_TEMP/$tag-symbols" -path '*LiveCode-Community.app.dSYM/Contents/Resources/DWARF/*' -type f | head -n 1)
             for run in $RUNS; do
               echo "::group::$tag, $run"
+              run_app=$app
               case $run in
                 light) args=(--mac light) ;;
                 dark) args=(--mac dark --appearance system) ;;
                 ide) args=(--mac light --ide --timeout 240) ;;
-                *) echo "::error::no run called $run"; failed=1; continue ;;
+                light-sdk*)
+                  # A copy whose engine records that SDK, signed again
+                  run_app="$RUNNER_TEMP/$tag-$run/OXT-Beyond.app"
+                  rm -rf "$RUNNER_TEMP/$tag-$run"
+                  mkdir -p "$RUNNER_TEMP/$tag-$run"
+                  if ! { ditto "$app" "$run_app" &&
+                         python3 tools/ci/macho_sdk.py "$run_app/Contents/MacOS/OXT-Beyond" --set "${run#light-sdk}" &&
+                         python3 tools/ci/sign_mac_app.py "$run_app"; }; then
+                    echo "::error::$tag could not record SDK ${run#light-sdk}"
+                    failed=1
+                    echo "::endgroup::"
+                    continue
+                  fi
+                  args=(--mac light) ;;
+                *) echo "::error::no run called $run"; failed=1; echo "::endgroup::"; continue ;;
               esac
-              python3 tools/ci/field_speed_test.py --app "$app" --out "$RUNNER_TEMP/runs/$tag-$run" \
+              python3 tools/ci/field_speed_test.py --app "$run_app" --out "$RUNNER_TEMP/runs/$tag-$run" \
                 --dsym "$dwarf" "${args[@]}" || failed=1
               echo "::endgroup::"
             done
