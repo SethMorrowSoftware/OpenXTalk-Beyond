@@ -15,7 +15,10 @@ script "oxt_field_speed_test"
 -- syntax newer than OpenXTalk Lite 1.15 is inside "do".
 --
 -- Environment variables:
---    OXT_SPEED_OUT         folder for speed.txt (required)
+--    OXT_SPEED_OUT         folder for speed.txt (required); "-" writes
+--                          the lines to stdout instead (OpenXTalk Lite
+--                          1.15's Linux standalone engine cannot open
+--                          files: its fopen is a loop)
 --    OXT_SPEED_APPEARANCE  what to set the appAppearance to first (light,
 --                          dark or system); empty leaves the default
 --    OXT_SPEED_FONT        the text font of the large puzzle field; empty
@@ -41,23 +44,38 @@ local sStopped
 local sSolved
 local sGuesses
 local sStarted
+local sReport
 
 on startup
+   local tCode
    put true into sStarted
    runSpeedTest
-   if the result is not empty then quit the result
+   put the result into tCode
+   if tCode is not empty then quit tCode
    quit 0
 end startup
 
 -- Opened in the IDE (tools/ci/field_speed_test.py --ide sends the IDE an
--- open document event for this file): the same steps once the IDE has
--- opened it. The IDE is left running; the driver ends it.
+-- open document event for this file), or as the main stack of a
+-- standalone: the same steps once it is open. The IDE is left running for
+-- the driver to end; a standalone quits. (The stack this script builds
+-- sends its openStack here too when this is the home stack: sStarted.)
 on openStack
-   if sStarted or the short name of the target is not the short name of me then pass openStack
+   if sStarted then pass openStack
    put true into sStarted
-   send "runSpeedTest" to me in 1 second
+   send "runOpened" to me in 1 second
    pass openStack
 end openStack
+
+command runOpened
+   local tCode
+   runSpeedTest
+   put the result into tCode
+   if the environment is not "development" then
+      if tCode is not empty then quit tCode
+      quit 0
+   end if
+end runOpened
 
 -- Empty when every step ran, otherwise the exit code
 command runSpeedTest
@@ -68,8 +86,11 @@ command runSpeedTest
       write "OXT_SPEED_OUT is not set" & return to stdout
       return 2
    end if
-   if there is not a folder sOut then create folder sOut
-   put empty into url ("binfile:" & sOut & "/speed.txt")
+   put empty into sReport
+   if sOut is not "-" then
+      if there is not a folder sOut then create folder sOut
+      put empty into url ("binfile:" & sOut & "/speed.txt")
+   end if
    put $OXT_SPEED_SOLVE_MS into sSolveMs
    if sSolveMs is not an integer then put 20000 into sSolveMs
 
@@ -251,7 +272,7 @@ private command timeSteps
 
    -- Solving it on the fields, as the user's stack does after New Puzzle,
    -- for at most sSolveMs
-   put empty into url ("binfile:" & sOut & "/solving")
+   if sOut is not "-" then put empty into url ("binfile:" & sOut & "/solving")
    put 0 into sGuesses
    put false into sSolved
    put false into sStopped
@@ -448,7 +469,14 @@ private command addRecord pKind, pName, pValue
    repeat with i = 4 to the paramCount
       put tab & param(i) after tLine
    end repeat
-   put tLine & return after url ("file:" & sOut & "/speed.txt")
+   -- The whole file each time: "put after url" spins in OpenXTalk Lite
+   -- 1.15's Linux engine
+   put tLine & return after sReport
+   if sOut is "-" then
+      write tLine & return to stdout
+   else
+      put sReport into url ("file:" & sOut & "/speed.txt")
+   end if
 end addRecord
 
 private function oneLine pText
