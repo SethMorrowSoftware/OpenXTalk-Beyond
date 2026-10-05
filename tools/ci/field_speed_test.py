@@ -28,7 +28,8 @@ same happens if the run does not end in time. The engine's frames are
 named with atos and the dSYM given with --dsym, as release binaries carry
 no symbols. Everything is printed, for the CI log.
 
-Exit status 0 when the script reported "done".
+Exit status 0 when the script reported "done" and every step given with
+--limit took at most its milliseconds per count.
 """
 
 import argparse
@@ -250,7 +251,32 @@ def run(args):
             print('=== %s' % os.path.basename(report))
             print_sample(report, args.dsym, image)
     sys.stdout.flush()
-    return 0 if '\tdone\t' in text else 1
+    if '\tdone\t' not in text:
+        print('::error::the field speed test did not finish (%s)' % status)
+        return 1
+    return check_limits(text, args.limit)
+
+
+def check_limits(text, limits):
+    """0 when every step named in limits ("step=ms") took at most that many
+    milliseconds per count, else 1."""
+    per = {}
+    for line in text.splitlines():
+        fields = line.split('\t')
+        if len(fields) == 5 and fields[0] == 'RESULT':
+            per[fields[1]] = float(fields[4])
+    failed = 0
+    for limit in limits:
+        step, _, most = limit.partition('=')
+        if step not in per:
+            print('::error::the field speed test reported no %s step' % step)
+            failed = 1
+        elif per[step] > float(most):
+            print('::error::%s took %.3f ms per count, more than %s' % (step, per[step], most))
+            failed = 1
+        else:
+            print('%s: %.3f ms per count (at most %s)' % (step, per[step], most))
+    return failed
 
 
 def main(argv=None):
@@ -267,6 +293,8 @@ def main(argv=None):
     parser.add_argument('--sample-seconds', type=int, default=5)
     parser.add_argument('--timeout', type=int, default=180, help='seconds for the run (default %(default)s)')
     parser.add_argument('--dsym', default='', help="the engine's dSYM DWARF file, for atos")
+    parser.add_argument('--limit', action='append', default=[], metavar='STEP=MS',
+                        help='fail when the step takes more than MS milliseconds per count (repeatable)')
     args = parser.parse_args(argv)
     if args.ide and not args.app:
         parser.error('--ide needs --app')

@@ -15,20 +15,23 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 # How long a Sudoku-shaped stack's field work takes in the macOS packages of
-# published releases (tools/ci/field_speed_test.py), with the Mac light and
-# dark, with the engine alone and in the IDE, profiled with `sample`. A
-# user's Sudoku stack froze the macOS IDE of 0.2.3; this compares releases
-# on both Mac architectures to find out where the time goes.
+# published releases (tools/ci/field_speed_test.py), on both Mac
+# architectures, with the Mac light and dark, with the engine alone and in
+# the IDE, profiled with `sample` and named from each release's symbols.
+# A user's Sudoku stack froze the macOS IDE of 0.2.3: every statement that
+# changed a field waited for the display. The build workflow checks its own
+# package the same way (build-macos.yml, "Field speed check"); this one
+# compares releases that are already out, by hand.
 
 name: Field speed (macOS releases)
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/field-speed.yml
-      - tools/ci/field-speed-test.livecodescript
-      - tools/ci/field_speed_test.py
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: The releases to compare, separated by spaces
+        type: string
+        default: v0.2.3 v0.2.2
 
 permissions:
   contents: read
@@ -45,10 +48,12 @@ jobs:
       matrix:
         runner: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
+    env:
+      TAGS: ${{ inputs.tags }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -61,7 +66,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
-          for tag in v0.2.3 v0.2.2; do
+          for tag in $TAGS; do
             dl="$RUNNER_TEMP/dl-$tag"
             mkdir -p "$dl" "$RUNNER_TEMP/$tag" "$RUNNER_TEMP/$tag-symbols"
             gh release download "$tag" --repo "$REPO" --pattern "*-mac-universal.zip" \
@@ -69,63 +74,30 @@ jobs:
             ditto -x -k "$dl"/*-mac-universal.zip "$RUNNER_TEMP/$tag"
             ditto -x -k "$dl"/*-mac-universal-symbols.zip "$RUNNER_TEMP/$tag-symbols"
             rm -rf "$dl"
+          done
+
+      # Each release with the engine alone (its home stack) on the light
+      # and the dark Mac, then in the IDE; a run that fails does not stop
+      # the others
+      - name: Time the releases
+        run: |
+          failed=0
+          for tag in $TAGS; do
+            app="$RUNNER_TEMP/$tag/OXT-Beyond.app"
             dwarf=$(find "$RUNNER_TEMP/$tag-symbols" -path '*LiveCode-Community.app.dSYM/Contents/Resources/DWARF/*' -type f | head -n 1)
-            echo "$tag: dSYM $dwarf"
-            dwarfdump --uuid "$dwarf" || true
-            dwarfdump --uuid "$RUNNER_TEMP/$tag/OXT-Beyond.app/Contents/MacOS/OXT-Beyond" || true
-            key=$(echo "$tag" | tr -d 'v.')
-            echo "DWARF_$key=$dwarf" >> "$GITHUB_ENV"
+            for run in light dark ide; do
+              echo "::group::$tag, $run"
+              case $run in
+                light) args=(--mac light) ;;
+                dark) args=(--mac dark --appearance system) ;;
+                ide) args=(--mac light --ide --timeout 240) ;;
+              esac
+              python3 tools/ci/field_speed_test.py --app "$app" --out "$RUNNER_TEMP/runs/$tag-$run" \
+                --dsym "$dwarf" "${args[@]}" || failed=1
+              echo "::endgroup::"
+            done
           done
-
-      # OpenXTalk Lite 1.15 for comparison, if its releases are on GitHub
-      - name: Look for OpenXTalk Lite 1.15
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release list --repo openxtalk/OpenXTalk-lite --limit 20 || true
-          for tag in $(gh release list --repo openxtalk/OpenXTalk-lite --limit 20 --json tagName --jq '.[].tagName' 2>/dev/null); do
-            echo "== $tag"
-            gh release view "$tag" --repo openxtalk/OpenXTalk-lite --json assets \
-              --jq '.assets[] | .name + "  " + (.size|tostring)' || true
-          done
-
-      - name: 0.2.3, engine alone, the Mac light
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.3/OXT-Beyond.app" \
-            --out "$RUNNER_TEMP/runs/023-light" --mac light --dsym "$DWARF_023"
-
-      - name: 0.2.2, engine alone, the Mac light
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.2/OXT-Beyond.app" \
-            --out "$RUNNER_TEMP/runs/022-light" --mac light --dsym "$DWARF_022"
-
-      - name: 0.2.3, engine alone, the Mac dark, appAppearance system
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.3/OXT-Beyond.app" \
-            --out "$RUNNER_TEMP/runs/023-dark" --mac dark --appearance system --dsym "$DWARF_023"
-
-      - name: 0.2.2, engine alone, the Mac dark, appAppearance system
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.2/OXT-Beyond.app" \
-            --out "$RUNNER_TEMP/runs/022-dark" --mac dark --appearance system --dsym "$DWARF_022"
-
-      - name: 0.2.3 in the IDE, the Mac light
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.3/OXT-Beyond.app" --ide \
-            --out "$RUNNER_TEMP/runs/023-ide" --mac light --dsym "$DWARF_023" --timeout 240
-          screencapture -x "$RUNNER_TEMP/runs/023-ide/screen.png" || true
-
-      - name: 0.2.2 in the IDE, the Mac light
-        if: always()
-        run: |
-          python3 tools/ci/field_speed_test.py --app "$RUNNER_TEMP/v0.2.2/OXT-Beyond.app" --ide \
-            --out "$RUNNER_TEMP/runs/022-ide" --mac light --dsym "$DWARF_022" --timeout 240
+          exit $failed
 
       - name: Upload the runs
         if: always()

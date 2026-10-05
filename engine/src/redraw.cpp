@@ -43,6 +43,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "resolution.h"
 
+#include <time.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // This method resets the layer-related attribtues to defaults and marks them
@@ -1437,6 +1439,39 @@ void MCRedrawEnableScreenUpdates(void)
         MCActionsSchedule(kMCActionsUpdateScreen);
 }
 
+// A script updates the screen after each of its statements that changed
+// what is shown (MCActionsRunAfterStatement). On macOS 11 and later a
+// window update waits until AppKit has drawn the window, a display frame
+// or more (MCMacPlatformWindow::DoUpdate), so a script that changed a
+// field at every statement spent nearly all its time waiting: a Sudoku
+// stack filling its 81 cells with the screen unlocked took 30 seconds on
+// an Intel Mac CI runner, and a fifth of a second on Linux. There, the next
+// update a statement asks for now waits until the script has run three
+// times as long as the last update took (at least a thirtieth of a second,
+// at most a quarter): the screen still follows the script many times a
+// second, and the script gets three quarters of the time. Waiting (wait, a
+// dialog, the end of the handler) updates the screen at once, as before.
+#if defined(_MAC_DESKTOP)
+static real8 s_screen_update_due = 0.0;
+
+// Seconds on a clock that a change of the time of day does not move
+static real8 MCRedrawClock(void)
+{
+	struct timespec t_time;
+	clock_gettime(CLOCK_MONOTONIC, &t_time);
+	return t_time.tv_sec + t_time.tv_nsec / 1e9;
+}
+#endif
+
+bool MCRedrawIsScreenUpdateDue(void)
+{
+#if defined(_MAC_DESKTOP)
+	return MCRedrawClock() >= s_screen_update_due;
+#else
+	return true;
+#endif
+}
+
 void MCRedrawDoUpdateScreen(void)
 {
 	if (MClockscreen != 0)
@@ -1452,6 +1487,10 @@ void MCRedrawDoUpdateScreen(void)
 	t_stacks = MCstacks -> topnode();
 	if (t_stacks == nil)
 		return;
+
+#if defined(_MAC_DESKTOP)
+	real8 t_started = MCRedrawClock();
+#endif
 
 	MCStacknode *tptr = t_stacks->prev();
 	do
@@ -1481,6 +1520,11 @@ void MCRedrawDoUpdateScreen(void)
 	while (tptr != t_stacks->prev());
 
 	s_screen_is_dirty = false;
+
+#if defined(_MAC_DESKTOP)
+	real8 t_finished = MCRedrawClock();
+	s_screen_update_due = t_finished + MCMin(MCMax(3 * (t_finished - t_started), 1.0 / 30), 0.25);
+#endif
 	
 	if (MClockscreen == 0 && s_screen_is_dirty && !s_screen_updates_disabled)
         MCActionsSchedule(kMCActionsUpdateScreen);

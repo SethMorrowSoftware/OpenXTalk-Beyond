@@ -859,6 +859,20 @@ jobs:
         run: |
           python3 tools/ci/mac_appearance_test.py --app "$APP" --out "$LOGS/appearance"
 
+      # A script that changes what is shown at every statement, with the
+      # screen unlocked: a Sudoku-shaped stack filling and pruning its 81
+      # cells, one cell written 60 times, and digits tried in a cell
+      # (tools/ci/field-speed-test.livecodescript). Each statement's screen
+      # update used to wait for the display, about 50 ms here, which froze
+      # such a stack for half a minute; they now catch up with the script
+      # every so often (MCRedrawIsScreenUpdateDue, engine/src/redraw.cpp).
+      - name: Field speed check
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/field_speed_test.py --app "$APP" --out "$LOGS/field-speed" --mac light \
+            --solve-ms 3000 --limit fill-and-prune=5000 --limit write-unlocked=10 \
+            --limit try-digit-unlocked=25
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v7

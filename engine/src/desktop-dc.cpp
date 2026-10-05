@@ -1183,6 +1183,10 @@ MCDragAction MCScreenDC::dodragdrop(Window w, MCDragActionSet p_allowed_actions,
 //  Mismatching types - thus the 'unimplemented' MCUICDC::snapshot was called instead of the MCScreenDC one
 MCImageBitmap *MCScreenDC::snapshot(MCRectangle &p_rect, uint4 p_window, MCStringRef p_display_name, MCPoint *p_size)
 {
+	// The screen as the script has left it: the update for its last
+	// statements may not have been due yet (MCRedrawIsScreenUpdateDue)
+	MCRedrawUpdateScreen();
+
 	MCImageBitmap *t_bitmap;
 	if (p_window == 0)
 	{

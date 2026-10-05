@@ -456,7 +456,7 @@ Exec_stat MCHandler::exec(MCExecContext& ctxt, MCParameter *plist)
         tspr->exec_ctxt(ctxt);
 		stat = ctxt . GetExecStat();
         
-        MCActionsRunAll();
+        MCActionsRunAfterStatement();
         
 		switch(stat)
 		{
