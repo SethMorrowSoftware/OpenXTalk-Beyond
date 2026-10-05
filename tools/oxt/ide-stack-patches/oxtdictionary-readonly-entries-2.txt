@@ -1,0 +1,19 @@
+# The dictionary stack (Documentation, "OpenXTalk Lite Dictionary") reads
+# its entries from text files in the install. "open file" opens a file for
+# update, which fails where the install cannot be written: on macOS when the
+# app runs from the disk image, from where it was unzipped (App
+# Translocation) or for a user who is not an administrator, or any install
+# owned by root. Every read then gave nothing, and the dictionary showed an
+# empty window and never came back (OpenXTalk Lite 1.15; Tom Perry's report
+# on 0.2.3, macOS Sonoma). It now opens them for read.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
+object: field "tEntries" of card 1
+replace:
+|      -- now recheck, and if not, give up|
+|      if there is a file tfilename then|
+|         open file tfilename|
+with:
+|      -- now recheck, and if not, give up|
+|      if there is a file tfilename then|
+|         open file tfilename for read -- OXT-Beyond: the install may be read-only (plugin entry)|
