@@ -203,6 +203,7 @@ public:
 	virtual void setinputfocus(Window window);
 	// The GTK theme's colours: on Linux the appearance is always the theme's
 	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
+	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 	virtual void freepixmap(Pixmap &pixmap);
 	virtual Pixmap createpixmap(uint2 width, uint2 height,
 	                            uint2 depth, Boolean purge);

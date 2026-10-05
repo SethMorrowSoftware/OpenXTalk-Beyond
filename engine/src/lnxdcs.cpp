@@ -766,6 +766,15 @@ void MCScreenDC::getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r
 	r_gray = gray_pixel;
 }
 
+// The GTK theme's appearance: dark when the background of a window it has
+// not painted is (MCLinuxGtkThemeIsDark, lnxgtktheme.cpp). Without the GTK
+// theme (another lookAndFeel) the engine draws its own light controls.
+void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+{
+	extern bool MCLinuxGtkThemeIsDark;
+	r_appearance = MCLinuxGtkThemeIsDark ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
+}
+
 void MCScreenDC::setinputfocus(Window window)
 {
 	gdk_window_focus(window, MCeventtime);

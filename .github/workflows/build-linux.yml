@@ -917,6 +917,16 @@ jobs:
           python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
             --log "$RUNNER_TEMP/logs/browser-wm-check.log" --shots "$RUNNER_TEMP/logs/browser-wm-shots"
 
+      # The appearance a standalone of the package reports under a light
+      # and a dark GTK theme (GTK2_RC_FILES, with Xvfb): the GTK theme's,
+      # from the background of a window it has not painted
+      # (tools/ci/linux_appearance_check.py)
+      - name: GTK appearance check
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/linux_appearance_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+            --log "$RUNNER_TEMP/logs/linux-appearance-check.log"
+
       # ldd over every x86_64 ELF file of the package (engine, externals,
       # CEF and its helpers, toolchain, extension libraries): nothing "not
       # found" now that the list's packages are installed, and every

@@ -3510,6 +3510,10 @@ void MCInterfaceExecLockRecent(MCExecContext& ctxt)
 
 void MCInterfaceExecLockScreen(MCExecContext& ctxt)
 {
+	// OXT-Beyond: the locked screen shows what the script did before, though
+	// a Mac update after a statement may not have been due yet
+	// (MCRedrawIsScreenUpdateDue)
+	MCRedrawCatchUpScreen();
 	MCRedrawLockScreen();
 }
 
@@ -3529,6 +3533,8 @@ void MCInterfaceExecLockScreenForEffect(MCExecContext& ctxt, MCRectangle *p_regi
 		MCdefaultstackptr -> snapshotwindow(MCcur_effects_rect);
 	}
 	
+	// OXT-Beyond: as for lock screen
+	MCRedrawCatchUpScreen();
 	MCRedrawLockScreen();
 }
 

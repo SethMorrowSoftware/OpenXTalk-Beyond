@@ -1,0 +1,119 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# How long a Sudoku-shaped stack's field work takes in the macOS packages of
+# published releases (tools/ci/field_speed_test.py), on both Mac
+# architectures, with the Mac light and dark, with the engine alone and in
+# the IDE, profiled with `sample` and named from each release's symbols.
+# A user's Sudoku stack froze the macOS IDE of 0.2.3: every statement that
+# changed a field waited for the display. The build workflow checks its own
+# package the same way (build-macos.yml, "Field speed check"); this one
+# compares releases that are already out, by hand.
+
+name: Field speed (macOS releases)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: The releases to compare, separated by spaces
+        type: string
+        default: v0.2.3 v0.2.2
+      runs:
+        description: "The runs for each release, separated by spaces: light, dark, ide"
+        type: string
+        default: light dark ide
+      runner:
+        description: The Macs to run on
+        type: choice
+        options: [both, macos-15, macos-15-intel]
+        default: both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: field-speed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  speed:
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.runner == 'both' && '["macos-15", "macos-15-intel"]' || format('["{0}"]', inputs.runner)) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAGS: ${{ inputs.tags }}
+      RUNS: ${{ inputs.runs }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
+          for tag in $TAGS; do
+            dl="$RUNNER_TEMP/dl-$tag"
+            mkdir -p "$dl" "$RUNNER_TEMP/$tag" "$RUNNER_TEMP/$tag-symbols"
+            gh release download "$tag" --repo "$REPO" --pattern "*-mac-universal.zip" \
+              --pattern "*-mac-universal-symbols.zip" --dir "$dl"
+            ditto -x -k "$dl"/*-mac-universal.zip "$RUNNER_TEMP/$tag"
+            ditto -x -k "$dl"/*-mac-universal-symbols.zip "$RUNNER_TEMP/$tag-symbols"
+            rm -rf "$dl"
+          done
+
+      # Each release with the engine alone (its home stack) on the light
+      # and the dark Mac, then in the IDE, or the runs asked for; a run that
+      # fails does not stop the others
+      - name: Time the releases
+        run: |
+          failed=0
+          for tag in $TAGS; do
+            app="$RUNNER_TEMP/$tag/OXT-Beyond.app"
+            dwarf=$(find "$RUNNER_TEMP/$tag-symbols" -path '*LiveCode-Community.app.dSYM/Contents/Resources/DWARF/*' -type f | head -n 1)
+            for run in $RUNS; do
+              echo "::group::$tag, $run"
+              case $run in
+                light) args=(--mac light) ;;
+                dark) args=(--mac dark --appearance system) ;;
+                ide) args=(--mac light --ide --timeout 240) ;;
+                *) echo "::error::no run called $run"; failed=1; continue ;;
+              esac
+              python3 tools/ci/field_speed_test.py --app "$app" --out "$RUNNER_TEMP/runs/$tag-$run" \
+                --dsym "$dwarf" "${args[@]}" || failed=1
+              echo "::endgroup::"
+            done
+          done
+          exit $failed
+
+      - name: Upload the runs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: field-speed-${{ matrix.runner }}
+          path: ${{ runner.temp }}/runs
+          if-no-files-found: ignore

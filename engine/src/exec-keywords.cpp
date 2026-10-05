@@ -59,7 +59,7 @@ static Exec_stat MCKeywordsExecuteStatements(MCExecContext& ctxt, MCStatement *p
         stat = ctxt . GetExecStat();
         ctxt . IgnoreLastError();
         
-        MCActionsRunAll();
+        MCActionsRunAfterStatement();
         
         switch(stat)
         {
@@ -763,7 +763,7 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
         stat = ctxt . GetExecStat();
         ctxt . IgnoreLastError();
         
-        MCActionsRunAll();
+        MCActionsRunAfterStatement();
         
 		switch(stat)
 		{

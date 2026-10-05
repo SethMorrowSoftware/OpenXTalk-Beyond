@@ -558,6 +558,22 @@ inline void MCActionsRunSome(uint32_t mask)
         MCActionsDoRunSome(mask);
 }
 
+// After each statement of a script: everything the statement made
+// necessary, except a screen update that is not due yet
+// (MCRedrawIsScreenUpdateDue, redraw.cpp), which stays scheduled for a
+// later statement or the next wait.
+extern bool MCRedrawIsScreenUpdateDue(void);
+
+inline void MCActionsRunAfterStatement(void)
+{
+    if (MCactionsrequired == 0)
+        return;
+    if ((MCactionsrequired & kMCActionsUpdateScreen) != 0 && !MCRedrawIsScreenUpdateDue())
+        MCActionsRunSome(~uint32_t(kMCActionsUpdateScreen));
+    else
+        MCActionsDoRunSome(UINT32_MAX);
+}
+
 inline void MCRedrawUpdateScreen(void)
 {
     MCActionsRunSome(kMCActionsUpdateScreen);

@@ -1,0 +1,13 @@
+# Quick Dictionary (Plugins): with auto-search on (the button left of the
+# search field), the search field "Cerca" asked SQLite for
+# "entry_name !LIKE '%...%'", which SQLite rejects ("unrecognized token:
+# "!""), so every search showed only that error. The other search field,
+# "Cerca2", has always used LIKE; now both do (OpenXTalk Lite 1.15).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Plugins/Quick Dictionary.livecode
+object: field "Cerca" of card 1
+replace:
+|   put "SELECT entry_name, entry_type FROM dictionary_data WHERE entry_name !LIKE '%" & temp & "%' " into tSQL|
+with:
+|   -- OXT-Beyond: LIKE, as in field "Cerca2" (it was !LIKE, which SQLite rejects)|
+|   put "SELECT entry_name, entry_type FROM dictionary_data WHERE entry_name LIKE '%" & temp & "%' " into tSQL|
