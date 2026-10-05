@@ -833,16 +833,18 @@ jobs:
 
       # The light and dark appearance, with a user interface (the tests
       # above run the engine with -ui, which has no appearance): the app's
-      # engine runs tools/ci/render-test.livecodescript (S1 and S2 only) as
+      # engine runs tools/ci/render-test.livecodescript (S1, S2 and S9) as
       # its home stack with the Mac set to dark and to light (defaults
       # write/delete -g AppleInterfaceStyle), with the appAppearance
       # "system" and the default. The systemAppearance must be the Mac's
-      # setting, every stack is drawn light (the engine draws every stack
-      # light on macOS for now, also with "system" on the dark Mac), and
-      # the light-designed stack keeps its black input text
-      # (tools/ci/mac_appearance_test.py). The script restores the Mac's
-      # setting; the images and the engine's output are in the logs. It
-      # runs last, after the app was compared with the zip.
+      # setting, a stack is drawn dark only with "system" on the dark Mac,
+      # where its native controls are drawn dark (MCMacDrawThemeDark,
+      # engine/src/osxtheme.mm), and the light-designed stack keeps its
+      # black input text (tools/ci/mac_appearance_test.py). The script
+      # restores the Mac's setting; the images and the engine's output are
+      # in the logs, and the cards of S2 and S9 are printed into this log
+      # (tools/ci/print_images.py). It runs last, after the app was
+      # compared with the zip.
       # The IDE as a user starts it, with its home stack, menu bar and
       # palettes, still running after 90 seconds; the other steps run the
       # engine with -ui or a test stack of their own

@@ -88,11 +88,11 @@ look as they will in your standalone.
   cannot change: every stack follows the GTK theme, and the two properties
   are stored and returned but change nothing. A light-designed stack under a
   dark GTK theme still shows the old problem.
-- On macOS the engine draws every stack light in this version, and menus,
-  dialogs and window frames are light too, whatever the two properties say:
-  the classic native controls stay light in any appearance, so a stack
-  drawn dark showed white text on light controls and cards. Dark mode on
-  macOS waits for the AppKit-drawn controls from OpenXTalk Lite's macOS
-  work. The properties are stored and returned, and the systemAppearance
-  reports the Mac's setting.
+- On macOS the dark appearance needs macOS 10.14 or later. The classic
+  native controls (HITheme) only draw Aqua, so the engine draws those of a
+  dark stack itself in macOS's dark colours (MCMacDrawThemeDark in
+  engine/src/osxtheme.mm): push buttons, checkboxes, radio buttons, option
+  menus, combo boxes, little arrows, tabs, field and group frames,
+  scrollbars, sliders and progress bars. They follow the shapes of current
+  macOS controls, not their exact pixels.
 - The stackAppearance is not saved with the stack in this version.

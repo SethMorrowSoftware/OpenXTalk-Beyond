@@ -80,12 +80,12 @@ cannot change: every stack follows the GTK theme, whatever the
 <systemAppearance>, which is "light" on Linux in this version. The setting
 is still stored and returned.
 
-On macOS the engine draws every stack light in this version, whatever the
-<appAppearance> is set to, and the <effective> <appAppearance> is "light":
-the classic macOS controls are drawn light in any appearance, so a stack
-drawn dark would show white text on light controls and cards. Menus,
-dialogs and window frames are light too. The setting is still stored and
-returned, and the <systemAppearance> reports the Mac's setting.
+On macOS the dark appearance needs macOS 10.14 or later; before it every
+stack is light. The engine draws the classic macOS controls of a dark stack
+(push buttons, checkboxes, radio buttons, option menus, tabs, scrollbars,
+sliders and progress bars) in macOS's dark colours itself, since the
+classic theme only draws them light. Menus, dialogs and window frames
+follow the <appAppearance>.
 
 Printing is always done in the light appearance. Snapshots
 (<export snapshot>, <import snapshot>) are taken in the appearance the

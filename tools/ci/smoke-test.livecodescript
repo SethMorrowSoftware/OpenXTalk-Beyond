@@ -250,7 +250,7 @@ end oneLine
 -- without the properties (OXT-Beyond 0.1.0 and earlier) print a SKIP line. Every use of the new syntax is inside "do": this script must still
 -- compile on those engines.
 private command checkAppearance
-   local tValue, tError, tThrew, tSystem, tPaint, tLinux, tMac, tExternals
+   local tValue, tError, tThrew, tSystem, tPaint, tLinux, tExternals
    local tMain, tSub, tFileA, tFileB, tSame
    try
       do "get the appAppearance"
@@ -260,11 +260,8 @@ private command checkAppearance
    end try
 
    -- On Linux the GTK theme decides (the properties are stored but change
-   -- nothing), so the effective values there are the systemAppearance. On
-   -- macOS the engine draws every stack light for now (MCAppearanceIsDark),
-   -- so the effective values there are always "light"
+   -- nothing), so the effective values there are the systemAppearance
    put the platform is "Linux" into tLinux
-   put the platform is "MacOS" into tMac
    put the systemAppearance into tSystem
    put paintDefaults() into tPaint
 
@@ -278,8 +275,6 @@ private command checkAppearance
    do "put the effective appAppearance into tValue"
    if tLinux then
       check "effective appAppearance dark (Linux: the GTK theme's)", isExactly(tValue, tSystem), tValue & ", systemAppearance " & tSystem
-   else if tMac then
-      check "effective appAppearance dark (macOS: light for now)", isExactly(tValue, "light"), tValue
    else
       check "effective appAppearance dark", isExactly(tValue, "dark"), tValue
    end if
@@ -288,7 +283,7 @@ private command checkAppearance
    do "put the appAppearance into tValue"
    check "appAppearance set system", isExactly(tValue, "system"), tValue
    do "put the effective appAppearance into tValue"
-   check "effective appAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem, tMac)), tValue & ", systemAppearance " & tSystem
+   check "effective appAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem)), tValue & ", systemAppearance " & tSystem
 
    put false into tThrew
    try
@@ -325,22 +320,22 @@ private command checkAppearance
 
    do "set the appAppearance to " & quote & "dark" & quote
    do "put the effective stackAppearance of stack tMain into tValue"
-   check "stackAppearance empty follows the appAppearance", isExactly(tValue, expectedEffective("dark", tLinux, tSystem, tMac)), tValue
+   check "stackAppearance empty follows the appAppearance", isExactly(tValue, expectedEffective("dark", tLinux, tSystem)), tValue
    do "set the appAppearance to " & quote & "light" & quote
 
    do "set the stackAppearance of stack tMain to " & quote & "Dark" & quote
    do "put the stackAppearance of stack tMain into tValue"
    check "stackAppearance set Dark", isExactly(tValue, "dark"), tValue
    do "put the effective stackAppearance of stack tSub into tValue"
-   check "substack inherits its mainstack", isExactly(tValue, expectedEffective("dark", tLinux, tSystem, tMac)), tValue
+   check "substack inherits its mainstack", isExactly(tValue, expectedEffective("dark", tLinux, tSystem)), tValue
 
    do "set the stackAppearance of stack tSub to " & quote & "light" & quote
    do "put the effective stackAppearance of stack tSub into tValue"
-   check "substack light in a dark mainstack", isExactly(tValue, expectedEffective("light", tLinux, tSystem, tMac)), tValue
+   check "substack light in a dark mainstack", isExactly(tValue, expectedEffective("light", tLinux, tSystem)), tValue
 
    do "set the stackAppearance of stack tSub to " & quote & "system" & quote
    do "put the effective stackAppearance of stack tSub into tValue"
-   check "stackAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem, tMac)), tValue & ", systemAppearance " & tSystem
+   check "stackAppearance system", isExactly(tValue, expectedEffective(tSystem, tLinux, tSystem)), tValue & ", systemAppearance " & tSystem
    do "set the stackAppearance of stack tSub to empty"
 
    put false into tThrew
@@ -382,9 +377,8 @@ private command checkAppearance
    -- foreColor: a stack designed light (the owner's libMQTTxt pattern: a
    -- light card, a white panel, a field with a white background and no text
    -- colour, a checkbox with no colours) keeps dark text; a stack with no
-   -- colours gets white text. Not on Linux, where the GTK theme decides, nor
-   -- on macOS, where every stack is drawn light for now.
-   if not tLinux and not tMac then
+   -- colours gets white text. Not on Linux, where the GTK theme decides.
+   if not tLinux then
       create stack "oxt_smoke_pattern"
       set the defaultStack to "oxt_smoke_pattern"
       set the backColor of card 1 of stack "oxt_smoke_pattern" to "240,242,246"
@@ -454,9 +448,8 @@ end isExactly
 
 -- What the effective appearance of a stack set to pMode is: pMode, except on
 -- Linux, where it is the GTK theme's
-private function expectedEffective pMode, pLinux, pSystem, pMac
+private function expectedEffective pMode, pLinux, pSystem
    if pLinux then return pSystem
-   if pMac then return "light"
    return pMode
 end expectedEffective
 

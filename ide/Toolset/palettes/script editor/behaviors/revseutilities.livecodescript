@@ -1487,10 +1487,11 @@ on pFixupMacElements
    -- specifically the popup menu of the script editor, and the apply button
    if there is a stack "revNewScriptEditor 1" then
       if the platform contains "mac" then
-         -- OXT-Beyond: the IDE's appearance, which can differ from the system's
+         -- OXT-Beyond: the IDE's appearance, which can differ from the
+         -- system's. The engine draws the menu dark in the dark appearance,
+         -- so its default (white) text is the one to see there
          if revIDEIsDark() then
-            -- okay, we are on a mac in dark mode
-            set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to black -- at least you can see it
+            set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to empty
          else
             -- we are on a mac, but in light mode -- so we return these to default
          end if
