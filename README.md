@@ -50,16 +50,19 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.1 is a test release (a pre-release) of the fixes
-made since 0.2.3; 0.2.3 stays the main download until it has held up.
+download it. 0.2.4-rc.2 is a test release (a pre-release) of the fixes
+made since 0.2.3, and the first with a package for 64-bit ARM Linux;
+0.2.3 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
   Silicon and Intel Macs, see [macOS](#macos)) and for 64-bit x86 Linux
   (see [Linux](#linux-x86-64)), made and tested together from one tag
-  (0.0.1 and 0.0.2 were for Windows only). Linux arm64 is built in CI
-  but not packaged, and so are 32-bit Windows and Linux, for their
-  standalone runtimes.
+  (0.0.1 and 0.0.2 were for Windows only). From 0.2.4-rc.2 on there is
+  a package for 64-bit ARM Linux too (a Raspberry Pi 3, 4 or 5 on a
+  64-bit system; see [Linux (64-bit ARM)](#linux-64-bit-arm)), without
+  the browser widget. 32-bit Windows and Linux are built in CI but not
+  packaged, for their standalone runtimes.
 - **The Android runtime is still a prebuilt one.** Each package's
   engine, externals and tools are built from this repository (Windows
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
@@ -174,6 +177,9 @@ version, for example `0.1.0`:
 | Linux x86-64 with glibc 2.31 or later | `OXT-Beyond-<version>-linux-x86_64.tar.xz` | The program folder, with a launcher and `install.sh` for a per-user install (see [Linux](#linux-x86-64)). |
 | | `OXT-Beyond-<version>-linux-x86_64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-x86_64-bin`), without debug symbols and the build's own tools, and the licence files. |
 | | `OXT-Beyond-<version>-linux-x86_64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
+| 64-bit ARM Linux with glibc 2.31 or later (from 0.2.4-rc.2) | `OXT-Beyond-<version>-linux-arm64.tar.xz` | The same program folder for 64-bit ARM, such as a Raspberry Pi 3, 4 or 5 on a 64-bit system, without the browser widget (see [Linux (64-bit ARM)](#linux-64-bit-arm)). |
+| | `OXT-Beyond-<version>-linux-arm64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-arm64-bin`), as for x86-64. |
+| | `OXT-Beyond-<version>-linux-arm64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
 | All | `OXT-Beyond-<version>-xtalk-sources.zip` | Every file of the bundled xTalk Suite extensions as the release took it from their repositories, so that it can be rebuilt without them. |
 | All | `SHA256SUMS` | SHA-256 checksums of all the files above. |
 
@@ -197,7 +203,7 @@ successful run and download the artifact under *Artifacts*.
 | --- | --- | --- |
 | Windows | [Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml) | `OXT-Beyond-win-x86_64` |
 | macOS | [Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml) | `OXT-Beyond-mac-universal` |
-| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64` |
+| Linux | [Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml) | `OXT-Beyond-linux-x86_64`, `OXT-Beyond-linux-arm64` |
 
 You need to be signed in to GitHub to download artifacts, and they are
 deleted after 30 days. These builds pass the automatic checks, but
@@ -436,6 +442,31 @@ The Linux package does not include the Visual C++ runtime DLLs that the
 Windows packages put next to enetxt and Box2Dxt: a Windows standalone
 built on Linux with either of them needs the Visual C++ Redistributable
 on the PC it runs on.
+
+### Linux (64-bit ARM)
+
+From 0.2.4-rc.2 on, releases also carry
+`OXT-Beyond-<version>-linux-arm64.tar.xz`, for 64-bit ARM Linux: a
+Raspberry Pi 3, 4 or 5 running a 64-bit system (Raspberry Pi OS 64-bit,
+Ubuntu) or an ARM server. It is experimental. It is the same program
+folder as the x86-64 package, built natively on GitHub's ARM machines
+and put through the same checks there (the IDE starts, a standalone is
+built and run, the player plays, the bundled xTalk Suite extensions
+load), and it is installed and run the same way (see
+[Linux (x86-64)](#linux-x86-64)). It needs the same libraries, glibc
+2.31 or later and a 64-bit system: a 32-bit Raspberry Pi OS cannot run
+it.
+
+What it does not have:
+
+- **No browser widget and no revBrowser.** They use CEF 74, which has no
+  Linux ARM build, so the package leaves them out, the IDE opens web
+  pages in your web browser, and the Tools palette has no browser widget.
+- **Standalones for 64-bit ARM Linux are built only by this package**,
+  from its own runtime ("Linux arm64" in the standalone settings). The
+  other packages carry no arm64 runtime, so they do not offer it.
+- **No Raspberry Pi has run it in CI**: the checks run on GitHub's ARM
+  servers, under a virtual screen.
 
 ### Where OXT-Beyond keeps your files
 
@@ -780,6 +811,14 @@ OXT-Beyond 0.2.4-rc.1, a test release, fixes bugs reported on 0.2.3:
   administrator, or a Linux install owned by root): it used to open empty
   and stop responding. The Quick Dictionary's auto-search finds entries
   again instead of reporting a database error.
+
+OXT-Beyond 0.2.4-rc.2, a second test release, adds a package for 64-bit
+ARM Linux (a Raspberry Pi 3, 4 or 5 on a 64-bit system, or an ARM
+server), experimental and without the browser widget (see
+[Linux (64-bit ARM)](#linux-64-bit-arm)). The bundled xTalk Suite
+extensions carry 64-bit ARM Linux libraries for it, and the standalone
+builder offers "Linux arm64" in that package. Everything else is
+0.2.4-rc.1's.
 
 ### xTalk Suite extensions
 

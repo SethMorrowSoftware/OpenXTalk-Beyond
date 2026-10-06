@@ -17,10 +17,10 @@
 #                                         tar.xz, symbols zip
 #               OXT-Beyond-linux-x86_64   program tar.xz, binaries and
 #                                         symbols tar.xz
-#             each with its own SHA256SUMS (Linux arm64 is built, not
-#             packaged);
+#               OXT-Beyond-linux-arm64    the same, for 64-bit ARM Linux
+#             each with its own SHA256SUMS;
 #   publish   runs only when every job of the three builds has passed. It
-#             downloads those three artifacts (not the logs or the
+#             downloads those four artifacts (not the logs or the
 #             per-architecture build outputs), checks each against its
 #             SHA256SUMS and the release's file list, writes one combined
 #             SHA256SUMS (tools/ci/release_assets.py) and the release notes
@@ -228,7 +228,7 @@ jobs:
 
   # Runs only when every job of the three builds passed (the called
   # workflows' results cover all their jobs: the macOS tests after its
-  # package, the Linux arm64 build). The only job that may write.
+  # package, both Linux packages). The only job that may write.
   publish:
     name: ${{ needs.prepare.outputs.dry-run == 'true' && 'Assemble the release (dry run)' || 'Publish GitHub Release' }}
     needs: [prepare, windows, linux, macos]
@@ -248,7 +248,7 @@ jobs:
           # The scripts below only; the token stays out of .git/config
           persist-credentials: false
 
-      # The packages of the three platforms, each into a folder named after
+      # The packages of the platforms, each into a folder named after
       # its artifact (what release_assets.py expects). Artifacts of the
       # called workflows belong to this run, so they are found by name.
       - name: Download the Windows packages
@@ -268,6 +268,12 @@ jobs:
         with:
           name: OXT-Beyond-linux-x86_64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-linux-x86_64
+
+      - name: Download the Linux arm64 packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-arm64
+          path: ${{ runner.temp }}/artifacts/OXT-Beyond-linux-arm64
 
       # Each artifact against its own SHA256SUMS and the release's file
       # list (none missing, none extra, the xTalk sources zip once), then

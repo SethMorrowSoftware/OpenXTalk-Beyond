@@ -63,8 +63,8 @@
 # manual run can leave them out (inputs below, or the repository variables
 # OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a release build
 # never does. The arm64 package has no browser (CEF 74 has no Linux ARM
-# build), so the browser checks run on x86_64 only, and it is not
-# published: release.yml takes the x86_64 package only.
+# build), so the browser checks run on x86_64 only; release.yml publishes
+# both packages.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
@@ -705,8 +705,7 @@ jobs:
   # package would find there, and sudo for apt.
   #
   # The arm64 package (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers) is
-  # made and tested here but not published: release.yml takes the x86_64
-  # one only. It has no browser (CEF 74 has no Linux ARM build), so the
+  # published beside the x86_64 one since 0.2.4-rc.2. It has no browser (CEF 74 has no Linux ARM build), so the
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
