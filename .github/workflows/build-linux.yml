@@ -989,6 +989,31 @@ jobs:
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
 
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-linux-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/logs/ui-tour/index.html
+            ${{ runner.temp }}/logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        env:
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH" --summary --url="$URL"
+
       # ldd over every ELF file of the package (engine, externals,
       # CEF and its helpers on x86_64, toolchain, extension libraries):
       # nothing "not found" now that the list's packages are installed, and every

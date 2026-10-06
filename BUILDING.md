@@ -1494,12 +1494,28 @@ sudo apt-get install xvfb gnome-themes-extra gtk2-engines-pixbuf
 python3 tools/ci/ui_tour.py --install <folder> --appearance dark --out <folder>
 ```
 
-Every pull request's build runs it light and dark: on the Windows staged
-IDE, the Linux packages and the Mac app on both architectures.
+Every build runs it light and dark (pull requests, `main` and
+releases): on the Windows staged IDE, the Linux packages and the Mac app
+on both architectures.
 [`ui-tour.yml`](.github/workflows/ui-tour.yml) runs it on the packages of
 a published release (by hand, for any tag), and on the latest release for
 a pull request that changes the tour, where the release's own problems
 only warn.
+
+To look through them, each of those jobs uploads the snapshots as an
+artifact of their own, `ide-screenshots-<platform>` in a build
+(`win-x86_64`, `linux-x86_64`, `linux-arm64`, `mac-universal-arm64`,
+`mac-universal-x86_64`) and `ui-tour-<platform>-<runner>` in
+`ui-tour.yml`, kept 14 days, and its job summary links the download.
+Unzip it and open `index.html`: each window light and dark side by side,
+each a link to the full-size snapshot, with the steps that failed and the
+script errors at the top.
+[`tools/ci/ui_tour_page.py`](tools/ci/ui_tour_page.py) writes that page
+from the folder with `light/` and `dark/` (the tours' `--out`):
+
+```sh
+python3 tools/ci/ui_tour_page.py <folder> --title "Linux x86_64"
+```
 
 ### Installer
 

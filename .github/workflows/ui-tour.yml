@@ -20,7 +20,9 @@
 # the release's IDE with tools/ci/ui-tour.livecodescript, which opens the
 # windows one by one and snapshots the screen around each. The snapshots
 # are printed into the log (tools/ci/print_images.py puts them back
-# together from a saved log) and uploaded. Run it by hand on a release; it
+# together from a saved log) and uploaded with a page that shows each
+# window light and dark side by side (tools/ci/ui_tour_page.py; the job
+# summary links the download). Run it by hand on a release; it
 # also runs on a pull request that changes the tour itself, where what the
 # release gets wrong (perhaps what the pull request fixes) shows as a
 # warning instead of failing: the pull request's own builds run the tour on
@@ -34,6 +36,7 @@ on:
       - .github/workflows/ui-tour.yml
       - tools/ci/ui_tour.py
       - tools/ci/ui-tour.livecodescript
+      - tools/ci/ui_tour_page.py
   workflow_dispatch:
     inputs:
       tag:
@@ -89,6 +92,7 @@ jobs:
             TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
           fi
           echo "Release: $TAG"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/dist"
           gh release download "$TAG" --repo "$REPO" --pattern "*-$ASSET" --dir "$RUNNER_TEMP/dist"
           ls -l "$RUNNER_TEMP/dist"
@@ -139,7 +143,20 @@ jobs:
           "$py" tools/ci/ui_tour.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
             --appearance dark --out "$RUNNER_TEMP/ui-tour/dark"
 
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots and linked from the job summary
+      - name: Review page
+        if: always()
+        env:
+          TITLE: ${{ matrix.platform }} (${{ matrix.runner }})
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour_page.py "$RUNNER_TEMP/ui-tour" --title "$RELEASE_TAG, $TITLE"
+
       - name: Upload the screenshots
+        id: upload
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -147,3 +164,13 @@ jobs:
           path: ${{ runner.temp }}/ui-tour
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Link in the summary
+        if: always()
+        env:
+          TITLE: ${{ matrix.platform }} (${{ matrix.runner }})
+          URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour_page.py "$RUNNER_TEMP/ui-tour" --title "$RELEASE_TAG, $TITLE" --summary --url="$URL"

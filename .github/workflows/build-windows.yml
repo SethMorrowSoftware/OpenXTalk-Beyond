@@ -716,6 +716,31 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
 
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        run: python tools/ci/ui_tour_page.py "$env:RUNNER_TEMP\build-logs\ui-tour" --title "Windows x86_64"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-win-x86_64
+          path: |
+            ${{ runner.temp }}/build-logs/ui-tour/index.html
+            ${{ runner.temp }}/build-logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        env:
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python tools/ci/ui_tour_page.py "$env:RUNNER_TEMP\build-logs\ui-tour" --title "Windows x86_64" --summary --url="$env:URL"
+
       - name: Collect logs
         id: collect_logs
         if: always()

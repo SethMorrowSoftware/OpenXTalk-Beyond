@@ -895,6 +895,34 @@ jobs:
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance dark --out "$LOGS/ui-tour/dark"
 
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() }}
+        env:
+          TITLE: macOS ${{ matrix.arch == 'arm64' && 'arm64 (Apple silicon)' || 'x86_64 (Intel)' }}
+        run: python3 tools/ci/ui_tour_page.py "$LOGS/ui-tour" --title "$TITLE"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-mac-universal-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/logs/ui-tour/index.html
+            ${{ runner.temp }}/logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() }}
+        env:
+          TITLE: macOS ${{ matrix.arch == 'arm64' && 'arm64 (Apple silicon)' || 'x86_64 (Intel)' }}
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python3 tools/ci/ui_tour_page.py "$LOGS/ui-tour" --title "$TITLE" --summary --url="$URL"
+
       # The browser widget (WKWebView), revBrowser and the player
       # (AVFoundation) in a standalone of the app: a page loads and its
       # JavaScript calls back into the script, a WAV and an MP4 file play,
