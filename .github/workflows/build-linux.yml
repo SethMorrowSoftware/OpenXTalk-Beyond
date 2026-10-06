@@ -991,7 +991,9 @@ jobs:
 
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
-      # snapshots as an artifact of their own, which the job summary links
+      # snapshots and the tour's lines as an artifact of their own, which
+      # the job summary links; after a push to main, ide-screenshots.yml
+      # puts the newest of each platform on the branch ide-screenshots
       - name: IDE screenshots, review page
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH"
@@ -1005,6 +1007,7 @@ jobs:
           path: |
             ${{ runner.temp }}/logs/ui-tour/index.html
             ${{ runner.temp }}/logs/ui-tour/*/shots
+            ${{ runner.temp }}/logs/ui-tour/*/tour.txt
           if-no-files-found: ignore
           retention-days: 14
 

@@ -1,0 +1,123 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# The IDE screenshots of the latest builds of main, kept on the branch
+# ide-screenshots, where GitHub shows each platform's windows light and dark
+# side by side with no download (see "IDE screenshots" in BUILDING.md). When
+# one of the three build workflows finishes a run on a push to main,
+# tools/ci/ide_screenshots_branch.py downloads the newest
+# ide-screenshots-<platform> artifact of each platform from the builds of
+# main and writes a page for each, and this job replaces the branch with
+# them: one commit with no history, pushed with --force, so only the newest
+# screenshots are kept and the branch does not grow. A push to that branch
+# starts no workflow. A pull request that changes this workflow or the script
+# tries them on the latest builds of its own branch and uploads what the
+# branch would hold, as the artifact ide-screenshots-branch, instead.
+#
+# Permissions: contents: write to push the branch, actions: read for the
+# runs and their artifacts, in this job only.
+
+name: IDE screenshots (branch)
+
+on:
+  workflow_run:
+    workflows: [ "Build (Windows)", "Build (Linux)", "Build (macOS)" ]
+    types: [ completed ]
+    branches: [ main ]
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/ide-screenshots.yml
+      - tools/ci/ide_screenshots_branch.py
+
+permissions:
+  contents: read
+
+# each run collects every platform's newest screenshots, so a newer run
+# replaces one that has not finished
+concurrency:
+  group: ide-screenshots-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Collect and publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # after a build of a push to main in this repository (the branches
+    # filter alone would also let in a pull request from a branch called main)
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: ${{ github.event_name != 'pull_request' }}
+
+      - name: Download the newest screenshots of each platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
+          EVENT: ${{ github.event_name == 'pull_request' && 'pull_request' || 'push' }}
+        run: python3 tools/ci/ide_screenshots_branch.py download "$RUNNER_TEMP/artifacts" --branch "$BRANCH" --event "$EVENT"
+
+      - name: Write the pages
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: python3 tools/ci/ide_screenshots_branch.py pages "$RUNNER_TEMP/artifacts" "$RUNNER_TEMP/branch" --message "$RUNNER_TEMP/message.txt"
+
+      - name: Replace the ide-screenshots branch
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          if [ -z "$(ls -A "$RUNNER_TEMP/branch")" ]; then
+            echo "No screenshots to publish; the branch stays as it is."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -q --orphan ide-screenshots
+          git clean -q -f -d -x
+          cp -R "$RUNNER_TEMP/branch/." .
+          git add -A
+          git commit -q -F "$RUNNER_TEMP/message.txt"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/tree/ide-screenshots"
+          if git fetch -q --depth=1 origin ide-screenshots 2> /dev/null && git diff --quiet FETCH_HEAD HEAD; then
+            echo "The [ide-screenshots]($url) branch has these screenshots already." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            git push -q --force origin HEAD:refs/heads/ide-screenshots
+            echo "Published on the [ide-screenshots]($url) branch." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload what the branch would hold
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-branch
+          path: ${{ runner.temp }}/branch
+          if-no-files-found: ignore
+          retention-days: 7

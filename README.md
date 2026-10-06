@@ -144,9 +144,14 @@ made since 0.2.3, and the first with a package for 64-bit ARM Linux;
   dark appearance, and renders test stacks in the light and dark
   appearance on a dark and a light Windows; on macOS it checks the
   appearance on a dark and a light Mac (see
-  [Continuous integration](BUILDING.md#9-continuous-integration)). The
-  IDE's windows are not tested automatically; the Linux package has been
-  tried by hand on Kubuntu 24.04, and the macOS package not yet.
+  [Continuous integration](BUILDING.md#9-continuous-integration)). Every
+  build also opens the IDE's own windows one by one, light and dark, and
+  takes screenshots of them; a step that fails, or a script error, fails
+  the build (see [IDE screenshots](BUILDING.md#ide-screenshots)). The
+  newest of each platform from `main` are on the
+  [`ide-screenshots`](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/tree/ide-screenshots)
+  branch. The Linux package has been tried by hand on Kubuntu 24.04, and
+  the macOS package not yet.
 - **Mac and Linux parts of the IDE.** Tom Perry's IDE also contains
   parts for macOS and Linux only. They are shipped as they were; apart
   from the IDE compile check they are not tested automatically.
