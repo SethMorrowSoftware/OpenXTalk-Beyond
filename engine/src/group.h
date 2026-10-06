@@ -171,6 +171,11 @@ public:
     
 	void makegroup(MCControl *newcontrols, MCObject *newparent);
 	MCControl *getcontrols();
+	// The group's controls, without the count getcontrols makes of its
+	// card's layers to save the group's number: that count takes every
+	// control it cannot find off the card, which while the stack loads is
+	// every control not loaded yet
+	MCControl *getcontrollist(void) const { return controls; }
 	void setcontrols(MCControl *newcontrols);
 	void appendcontrol(MCControl *cptr);
 	void removecontrol(MCControl *cptr, Boolean cf);

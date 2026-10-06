@@ -1,0 +1,17 @@
+widget com.livecode.lcs_tests.core.widget_font
+
+use com.livecode.canvas
+use com.livecode.widget
+
+-- The size of the widget's font when it was created, as the treeview widget
+-- reads it: the engine looks the font up through the theme, and in a stack
+-- drawn dark that asks what the widget sits on (MCObject::appearancebackdrop)
+private variable mFontSize as Number
+
+property fontSizeAtCreate get mFontSize
+
+public handler OnCreate()
+   put the size of my font into mFontSize
+end handler
+
+end widget
