@@ -21,7 +21,10 @@
 # windows one by one and snapshots the screen around each. The snapshots
 # are printed into the log (tools/ci/print_images.py puts them back
 # together from a saved log) and uploaded. Run it by hand on a release; it
-# also runs on a pull request that changes the tour itself.
+# also runs on a pull request that changes the tour itself, where what the
+# release gets wrong (perhaps what the pull request fixes) shows as a
+# warning instead of failing: the pull request's own builds run the tour on
+# their IDE.
 name: IDE screenshots (release)
 
 on:
@@ -116,6 +119,7 @@ jobs:
           echo "LAYOUT=--install=$RUNNER_TEMP/oxt-test" >> "$GITHUB_ENV"
 
       - name: IDE screenshots, light
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
@@ -126,6 +130,7 @@ jobs:
 
       - name: IDE screenshots, dark
         if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |

@@ -1494,7 +1494,9 @@ python3 tools/ci/ui_tour.py --install <folder> --appearance dark --out <folder>
 Every pull request's build runs it light and dark: on the Windows staged
 IDE, the Linux packages and the Mac app on both architectures.
 [`ui-tour.yml`](.github/workflows/ui-tour.yml) runs it on the packages of
-a published release (by hand, for any tag).
+a published release (by hand, for any tag), and on the latest release for
+a pull request that changes the tour, where the release's own problems
+only warn.
 
 ### Installer
 
