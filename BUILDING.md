@@ -1530,9 +1530,12 @@ which downloads the newest `ide-screenshots-<platform>` artifact of each
 platform from the builds of main and writes those pages, and replaces the
 branch with one commit of them, pushed with `--force`: only the newest
 are kept, so the branch (about 25 MB) does not grow. A pull request that
-changes the workflow or the script tries them on the latest builds of its
-own branch and uploads the result, as the artifact
-`ide-screenshots-branch`, instead.
+changes the workflow or the script tries them, as it stands in the pull
+request, on the newest finished builds of its branch and uploads the
+result, as the artifact `ide-screenshots-branch`, instead. The pull
+request's own builds start at the same time, so those are of an earlier
+commit (or there are none yet, for a new branch): this checks the steps,
+not the screenshots, which the builds' own artifacts have.
 
 ```sh
 GH_REPO=<owner>/<repo> python3 tools/ci/ide_screenshots_branch.py download <folder>
