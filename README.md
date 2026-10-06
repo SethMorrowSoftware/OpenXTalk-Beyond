@@ -73,7 +73,9 @@ made since 0.2.3, and the first with a package for 64-bit ARM Linux;
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
   asset. Only the macOS package has the macOS runtimes, there are no iOS
-  runtimes, and 32-bit Linux standalones have no browser (CEF's 32-bit
+  runtimes (so the Standalone Settings have no iOS card, and a stack set
+  to build for iOS in LiveCode builds for its other platforms), and
+  32-bit Linux standalones have no browser (CEF's 32-bit
   Linux builds ended with CEF 101). A Linux standalone uses the system's
   libraries, as LiveCode's do (OpenXTalk Lite 1.15's Linux runtimes came
   with copies of some). The automatic tests build a standalone from every

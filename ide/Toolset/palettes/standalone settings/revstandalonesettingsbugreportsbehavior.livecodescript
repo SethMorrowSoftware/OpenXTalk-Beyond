@@ -11,6 +11,8 @@ on preOpenCard
    set the hilite of btn "save" to tStandaloneSettingsA["errorDialog,save"] = true
    set the hilite of btn "email1" to tStandaloneSettingsA["errorDialog,email"] <> ""
    set the enabled of group "email" to tStandaloneSettingsA["errorDialog,email"] <> ""
-   set the enabled of button "errorDialog" to not tStandaloneSettingsA["ios"]
+   -- OXT-Beyond: no iOS standalones, so a stack's iOS setting from
+   -- LiveCode doesn't turn this off
+   set the enabled of button "errorDialog" to true
    pass preOpenCard
 end preOpenCard
