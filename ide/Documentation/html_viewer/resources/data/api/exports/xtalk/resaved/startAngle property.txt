@@ -19,7 +19,7 @@ set the startAngle to the startAngle + 12
 Description:
 Use the startAngle property to create an arc shape from an oval graphic, or to cause the Oval paint tool to draw arcs.
 
-By default, ovals display their entire arc from zero to 360°, forming a complete oval. Use the startAngle and arcAngle properties to specify that only a portion of the oval, forming an arc, should be drawn.
+By default, ovals display their entire arc from zero to 360Â°, forming a complete oval. Use the startAngle and arcAngle properties to specify that only a portion of the oval, forming an arc, should be drawn.
 
 The startAngle determines the starting point of the arc. The *angleInDegrees* zero is at the right edge, 3 o'clock. Increasing the *angleInDegrees* moves the starting point counter-clockwise around the arc.
 

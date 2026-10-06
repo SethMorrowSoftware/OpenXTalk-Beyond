@@ -24,7 +24,7 @@ put the last index of "b" after 2 in tVar into tOffset
 ----
 
 Description:
-Use `the index of?Ķ after` to find where particular elements occur within a list.  Starting from but not including the position After, Haystack is scanned for an element that is equal to Needle, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.
+Use `the index of… after` to find where particular elements occur within a list.  Starting from but not including the position After, Haystack is scanned for an element that is equal to Needle, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.
 
 Values:
 Returns the index in Haystack relative to After. 

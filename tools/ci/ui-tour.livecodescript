@@ -12,9 +12,11 @@ script "oxt_ui_tour"
 -- objects), the Script Editor (and its results of a Find All), the
 -- Message Box, the Project Browser, the Dictionary, each pane of
 -- Preferences, each card of the Standalone Settings, the Menu Builder, the
--- Extension Manager and Builder, the Message Watcher, Search, the Start
--- Center, the Object Library, the Card Navigator, the About window, the
--- answer and ask dialogs and the icon chooser. For each it
+-- Extension Manager and Builder, the Message Watcher, Search, the Object
+-- Library, the Card Navigator, the About window, the answer and ask
+-- dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
+-- turned it off (no menu opens it and its Preferences are greyed out),
+-- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
 -- of the stack, so with its title bar), and with the mouse over a tool of
 -- the Tools palette and over a row of the inspector it snapshots the
@@ -40,7 +42,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -257,6 +259,7 @@ on tour_tooltip_inspector
    if tControl is empty or the tooltip of tControl is empty then put tourObjectWithTooltip(tPI) into tControl
    if tControl is empty then throw "no control of" && tPI && "has a tooltip"
    tourRecord "INFO tooltip" && the short name of tControl & ":" && tourJoin(the tooltip of tControl)
+   tourOnScreen tPI
    tourHover tControl, tPI
    tourShotAround tControl, tPI, "09-tooltip-inspector"
    tourMouseAway
@@ -291,6 +294,8 @@ on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
    tourShotStack revIDEPaletteToStackName("message box"), "11-message-box"
+   -- a palette, in front of the windows of the later steps
+   close stack revIDEPaletteToStackName("message box")
 end tour_message_box
 
 -- With the sample's button shown in it, as Show In Project Browser does:
@@ -322,9 +327,50 @@ on tour_dictionary
    end repeat
    if tNew is empty then throw "no dictionary window opened"
    tourWait 4000
+   tourDictionaryEntry tNew, "try control structure.txt"
    tourShotStack tNew, "13-dictionary"
    close stack tNew
 end tour_dictionary
+
+-- The dictionary stack opens on an entry picked at random: it shows the
+-- entry pFile instead, as a click on it in the list does, so that each
+-- build's snapshot shows the same one. The entry has a parameter list,
+-- whose bullets are UTF-8 in the file and showed as two or three wrong
+-- characters each when the dictionary read it as native text, and a link
+-- of one word and one of two in its description, which must be linked
+-- whole: the link of two words was linked as "er[ror]".
+command tourDictionaryEntry pStack, pFile
+   local tPath, tText, tPhrase, tOffset, tLink, tStart
+   if there is not a button "load" of card 1 of stack pStack \
+         or there is not a field "path" of card 1 of stack pStack \
+         or there is not a field "styledTextField" of card 1 of stack pStack then
+      tourRecord "INFO" && pStack && "is not the dictionary stack: its entry stays"
+      exit tourDictionaryEntry
+   end if
+   put the effective filename of stack pStack into tPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of tPath & "/exports/xtalk/resaved/" & pFile into tPath
+   set the itemDelimiter to comma
+   if there is not a file tPath then throw "no dictionary entry" && tPath
+   put tPath into field "path" of card 1 of stack pStack
+   send "mouseDown" to button "load" of card 1 of stack pStack
+   tourWait 1500
+   if numToCodepoint(0x2022) is not in field "styledTextField" of card 1 of stack pStack then
+      throw "the dictionary entry" && pFile && "shows no bullet: its text was not read as UTF-8"
+   end if
+   put the text of field "styledTextField" of card 1 of stack pStack into tText
+   put "series of statements and handle any error messages" into tPhrase
+   put offset(tPhrase, tText) into tOffset
+   if tOffset is 0 then throw "the dictionary entry" && pFile && "does not say:" && tPhrase
+   repeat for each item tLink in "statements,error messages"
+      put tOffset + offset(tLink, tPhrase) - 1 into tStart
+      if the textStyle of char tStart to tStart + the number of chars in tLink - 1 \
+            of field "styledTextField" of card 1 of stack pStack is not "link" then
+         throw "the dictionary entry" && pFile && "does not link" && quote & tLink & quote && "whole"
+      end if
+   end repeat
+   tourRecord "INFO dictionary entry" && pFile
+end tourDictionaryEntry
 
 on tour_preferences
    local tStack, tPane, tIndex
@@ -393,13 +439,10 @@ on tour_search
    tourPalette "search", "20-search", 1500
 end tour_search
 
-on tour_start_center
-   tourPalette "start center", "21-start-center", 2000
-end tour_start_center
-
 on tour_object_library
-   -- as Development > Object Library does
-   go card 1 of stack "revImageLibrary" as modeless
+   -- with Development > Object Library, which also selects the Objects tab
+   -- (the stack was saved with the Images tab selected)
+   dispatch "revMenubarDevelopmentMenuPick" to stack "revMenuBar" with "Object Library"
    tourWait 1500
    tourShotStack "revImageLibrary", "22-object-library"
    close stack "revImageLibrary"
@@ -659,6 +702,9 @@ end tourScreenLoc
 -- tooltip
 command tourHover pObject, pStack
    local tLoc
+   -- the screen unlocked, as when the IDE is idle: on Linux a locked screen
+   -- kept the Inspector's tooltip from showing
+   tourUnlockScreen "hover over" && the short name of pObject
    put tourScreenLoc(pObject, pStack) into tLoc
    -- from just beside it, so that the engine sees the pointer arrive
    tourMoveMouse (item 1 of tLoc - 3) & "," & (item 2 of tLoc - 3)
@@ -693,23 +739,42 @@ command tourShotStack pStack, pFile
    if pStack is empty or there is not a stack pStack then throw "no stack" && pStack
    if the mode of stack pStack is 0 or not the visible of stack pStack then throw "the stack" && pStack && "is not open"
    tourOnScreen pStack
-   tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack
+   -- with the title, which Linux in CI, with no window manager, doesn't show
+   tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack && "title" && quote & the title of stack pStack & quote
    tourShotRect the effective rect of stack pStack, pFile
 end tourShotStack
 
 -- The screens of the runners are small (1024 by 768 on Windows and the
 -- Apple silicon Mac, 1440 by 900 on Linux), and a tall window, such as
--- the Standalone Settings on its iOS and Android cards, went past the
--- bottom: it moves up, at most to the top of the screen, so that all of
--- it, or as much as fits, is in the snapshot
+-- the Standalone Settings on its Android card, went past the bottom: it
+-- moves up, at most to the top of the screen, so that all of it, or as
+-- much as fits, is in the snapshot. A window over the Tools palette, as
+-- the Inspector and the answer and ask dialogs open, moves to the right
+-- of it, as far as the screen allows: on Windows the palette is a system
+-- window (tfixwindowsToolsDrag in revtools.livecodescript), in front of
+-- every other window, and hid their left side
 command tourOnScreen pStack
-   local tScreen, tRect, tUp
+   local tScreen, tRect, tUp, tTools, tRight
    put the working screenRect into tScreen
    put the effective rect of stack pStack into tRect
    put min(item 4 of tRect - item 4 of tScreen, item 2 of tRect - item 2 of tScreen) into tUp
    if tUp > 0 then
       set the top of stack pStack to the top of stack pStack - tUp
       tourWait 300
+   end if
+   if pStack is "revTools" or there is not a stack "revTools" then exit tourOnScreen
+   if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then exit tourOnScreen
+   put the rect of stack "revTools" into tTools
+   put the rect of stack pStack into tRect
+   if item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools then
+      -- 20 pixels clear, for the borders round both windows on Windows
+      put min(item 3 of tTools + 20 - item 1 of tRect, \
+            item 3 of tScreen - item 3 of the effective rect of stack pStack) into tRight
+      if tRight > 0 then
+         set the left of stack pStack to the left of stack pStack + tRight
+         tourWait 300
+      end if
    end if
 end tourOnScreen
 
@@ -730,19 +795,24 @@ command tourShotScreen pFile
    tourShotRect tRect, pFile, tWidth & "," & tHeight
 end tourShotScreen
 
-command tourShotRect pRect, pFile, pSize
-   local tFile, tScreen
-   -- A handler of the IDE that stopped on an error between lock screen and
-   -- unlock screen leaves the screen locked until no handler runs, which
-   -- for a user is the next moment the IDE is idle, but here not until the
-   -- tour ends: unlocked, so that the windows show what they hold
+-- A handler of the IDE that locked the screen and stopped on an error, or
+-- left the unlock to the end of the event, leaves the screen locked until
+-- no handler runs, which for a user is the next moment the IDE is idle,
+-- but here not until the tour ends: unlocked, so that the windows show
+-- what they hold
+command tourUnlockScreen pWhat
    if the lockScreen then
-      tourRecord "INFO" && pFile & ": the screen was locked"
+      tourRecord "INFO" && pWhat & ": the screen was locked"
       repeat while the lockScreen
          unlock screen
       end repeat
       tourWait 300
    end if
+end tourUnlockScreen
+
+command tourShotRect pRect, pFile, pSize
+   local tFile, tScreen
+   tourUnlockScreen pFile
    put the screenRect into tScreen
    -- on the screen
    put max(item 1 of pRect, item 1 of tScreen) into item 1 of pRect

@@ -1,0 +1,43 @@
+# The dictionary stack (Documentation, "OpenXTalk Lite Dictionary") turns
+# the links in an entry ("statement|statements": the target, a bar, the
+# text shown) into linked text. It worked out which characters to link
+# from the lengths of the target's last word and of the word after the bar,
+# which came out right only when the text shown was as long as the target
+# or longer: a link of two words ("error message|error messages") was
+# linked letters late, as "er[ror]", or on its first word alone, and a link
+# whose text is shorter than its target ("player(object)|players") lost its
+# first letters or was not made at all, about 1,700 of the 5,900 links in
+# the entries (OpenXTalk Lite 1.15). The link is now the text after the
+# bar, one word or two, without the punctuation after it, and still none
+# where a blank follows the bar.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
+object: button "load random" of card 1
+replace:
+|            put 1 into tAdVChar|
+|            if char (tFoundCharOfChunk - tCharPlus) + tCharMinus +1 of fld tSFldName is "|" then put 2 into tAdVChar|
+|            set the textStyle of char (tFoundCharOfChunk - tCharPlus) + tCharMinus +tAdVChar to (tFoundCharOfChunk + tCharPlus ) of fld tSFldName to "link" -- make it a link|
+|            set the linkText of char (tFoundCharOfChunk - tCharPlus) + tCharMinus +tAdVChar to (tFoundCharOfChunk + tCharPlus ) of fld tSFldName to tSetLinkName -- define the link|
+with:
+|            -- OXT-Beyond: the link is the text after the bar, one word or, for|
+|            -- a link of two words, two, without the punctuation after it|
+|            put char (tFoundCharOfChunk + 1) to (tFoundCharOfChunk + 200) of tText into tLinkShown|
+|            if char 1 of tLinkShown is among the chars of (space & tab & return) then|
+|               put empty into tLinkShown|
+|            else if tCharExtends > 0 then|
+|               put word 1 to 2 of tLinkShown into tLinkShown|
+|            else|
+|               put word 1 of tLinkShown into tLinkShown|
+|            end if|
+|            repeat while the number of chars in tLinkShown > 1|
+|               put the last char of tLinkShown into tLinkLast|
+|               if tLinkLast is among the chars of ".,;:!?" or (tLinkLast is ")" and "(" is not in tLinkShown) or (tLinkLast is quote and offset(quote, tLinkShown) is the number of chars in tLinkShown) then|
+|                  delete the last char of tLinkShown|
+|               else|
+|                  exit repeat|
+|               end if|
+|            end repeat|
+|            if tLinkShown is not empty then|
+|               set the textStyle of char (tFoundCharOfChunk + 1) to (tFoundCharOfChunk + the number of chars in tLinkShown) of fld tSFldName to "link" -- make it a link|
+|               set the linkText of char (tFoundCharOfChunk + 1) to (tFoundCharOfChunk + the number of chars in tLinkShown) of fld tSFldName to tSetLinkName -- define the link|
+|            end if|

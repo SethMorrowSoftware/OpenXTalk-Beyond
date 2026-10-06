@@ -16,7 +16,7 @@ truewordsToSkip ( ): The truewordsToSkip is a non-negative integer. If you don't
 Examples:
 truewordOffset("Chile",tListOfCountries) -- returns 48
 ----
-truewordOffset("d'être","Ce n'est pas tant d'être riche qui fait le bonheur, c'est de le devenir.") -- returns 5
+truewordOffset("d'Ãªtre","Ce n'est pas tant d'Ãªtre riche qui fait le bonheur, c'est de le devenir.") -- returns 5
 ----
 
 Description:

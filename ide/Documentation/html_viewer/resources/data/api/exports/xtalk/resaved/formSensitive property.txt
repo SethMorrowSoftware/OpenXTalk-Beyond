@@ -15,8 +15,8 @@ set the formSensitive to true
 ----
 set the formSensitive to true
 put "e" & numToCodepoint("0x301") into tExample        -- Acute accent
-put tExample is "é" -- Returns false
-put normalizeText(tExample, "NFC") is "é"            -- Returns true
+put tExample is "Ã©" -- Returns false
+put normalizeText(tExample, "NFC") is "Ã©"            -- Returns true
 ----
 
 Description:

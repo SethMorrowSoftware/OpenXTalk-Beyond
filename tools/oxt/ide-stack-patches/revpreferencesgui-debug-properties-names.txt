@@ -1,0 +1,14 @@
+# Preferences, card "Debug Properties": the name of each property was set
+# off with the accentColor behind the field's own text colour, which in the
+# light appearance is black on navy (macOS, Linux) or on Windows blue, and
+# could hardly be read. The names are white on the IDE's selection blue now
+# (revIDEColor, as the Project Browser's selected row), light and dark.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: field "fPREFFS" of card "Debug Properties"
+replace:
+|            set the backgroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to the accentColor|
+with:
+|            -- OXT-Beyond: white on the IDE's selection blue, light and dark (the accentColor was behind black)|
+|            set the backgroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_hiliteColor")|
+|            set the foregroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_TextHiliteColor")|

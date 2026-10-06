@@ -67,7 +67,9 @@ on preOpenCard
       set the enabled of group "OSX" to false
       
       send mouseup to group "Flavors" of card "OS X" of this stack
-      exit preopencard
+      -- OXT-Beyond: on to the stack's preOpenCard, which names this card in
+      -- the window's title, as on a Mac (exit left the previous card's name)
+      pass preOpenCard
       
    end if
    

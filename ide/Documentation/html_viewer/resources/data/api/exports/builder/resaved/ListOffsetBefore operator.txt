@@ -24,7 +24,7 @@ put the first offset of ["b","c"] before 6 in tVar into tOffset
 ----
 
 Description:
-Use `the offset of?Ķ before` to find where a particular sub-list occurs within a list.  Haystack is scanned for a sequence of elements that are equal to the elements of Needle, stopping before the position Before, and the position of the start of the sequence found is returned.  If no sub-list of Haystack before the position Before is equal to Needle, the return value is 0.  If neither "first" nor "last" is specified, the last matching subsequence is found.
+Use `the offset of… before` to find where a particular sub-list occurs within a list.  Haystack is scanned for a sequence of elements that are equal to the elements of Needle, stopping before the position Before, and the position of the start of the sequence found is returned.  If no sub-list of Haystack before the position Before is equal to Needle, the return value is 0.  If neither "first" nor "last" is specified, the last matching subsequence is found.
 
 Values:
 Returns the index in Haystack. 

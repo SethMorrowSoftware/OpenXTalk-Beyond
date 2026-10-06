@@ -1479,7 +1479,10 @@ installed IDE as a user does with
 [`tools/ci/ui-tour.livecodescript`](tools/ci/ui-tour.livecodescript)
 named on the command line. The script opens the palettes, each section
 of the Inspector, the script editor, the message box, each pane of
-Preferences and each card of the Standalone Settings, the dictionary,
+Preferences and each card of the Standalone Settings, the dictionary
+(on its entry for `try`, whose bullets must show, as they did not while
+the entries were read as native text instead of UTF-8, and whose links of
+one word and of two must be linked whole),
 the other editors and some dialogs one by one, shows two tooltips and a
 shape of the Tools palette under the pointer, and snapshots the screen
 around each. The snapshots stay in `<out>/shots`

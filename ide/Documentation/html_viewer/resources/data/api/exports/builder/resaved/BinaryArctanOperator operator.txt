@@ -14,14 +14,14 @@ xCoord ( ): An expression that evaluates to a number.
 
 Examples:
     variable tVar as Number
-    put atan2(-1,-1) into tVar --tVar contains ?àí3?Ä/4.
+    put atan2(-1,-1) into tVar --tVar contains âˆ’3Ï€/4.
 ----
     variable tVar as Number
-    put the binary arctangent of -1 and -1 into tVar --tVar contains ?àí3?Ä/4.
+    put the binary arctangent of -1 and -1 into tVar --tVar contains âˆ’3Ï€/4.
 ----
 
 Description:
-The binary arctan operator returns the angle in radians between the x-axis and the line from the origin to the point (xCoord, yCoord). The angle returned has absolute value less than pi: ?àí?Ä  arctan2(y, x) ?â§ ?Ä.
+The binary arctan operator returns the angle in radians between the x-axis and the line from the origin to the point (xCoord, yCoord). The angle returned has absolute value less than pi: âˆ’Ï€ < arctan2(y, x) â‰¤ Ï€.
 
 Values:
 
