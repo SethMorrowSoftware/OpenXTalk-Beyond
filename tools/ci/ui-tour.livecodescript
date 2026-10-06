@@ -12,9 +12,11 @@ script "oxt_ui_tour"
 -- objects), the Script Editor (and its results of a Find All), the
 -- Message Box, the Project Browser, the Dictionary, each pane of
 -- Preferences, each card of the Standalone Settings, the Menu Builder, the
--- Extension Manager and Builder, the Message Watcher, Search, the Start
--- Center, the Object Library, the Card Navigator, the About window, the
--- answer and ask dialogs and the icon chooser. For each it
+-- Extension Manager and Builder, the Message Watcher, Search, the Object
+-- Library, the Card Navigator, the About window, the answer and ask
+-- dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
+-- turned it off (no menu opens it and its Preferences are greyed out),
+-- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
 -- of the stack, so with its title bar), and with the mouse over a tool of
 -- the Tools palette and over a row of the inspector it snapshots the
@@ -40,7 +42,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -334,9 +336,11 @@ end tour_dictionary
 -- entry pFile instead, as a click on it in the list does, so that each
 -- build's snapshot shows the same one. The entry has a parameter list,
 -- whose bullets are UTF-8 in the file and showed as two or three wrong
--- characters each when the dictionary read it as native text.
+-- characters each when the dictionary read it as native text, and a link
+-- of one word and one of two in its description, which must be linked
+-- whole: the link of two words was linked as "er[ror]".
 command tourDictionaryEntry pStack, pFile
-   local tPath
+   local tPath, tText, tPhrase, tOffset, tLink, tStart
    if there is not a button "load" of card 1 of stack pStack \
          or there is not a field "path" of card 1 of stack pStack \
          or there is not a field "styledTextField" of card 1 of stack pStack then
@@ -354,6 +358,17 @@ command tourDictionaryEntry pStack, pFile
    if numToCodepoint(0x2022) is not in field "styledTextField" of card 1 of stack pStack then
       throw "the dictionary entry" && pFile && "shows no bullet: its text was not read as UTF-8"
    end if
+   put the text of field "styledTextField" of card 1 of stack pStack into tText
+   put "series of statements and handle any error messages" into tPhrase
+   put offset(tPhrase, tText) into tOffset
+   if tOffset is 0 then throw "the dictionary entry" && pFile && "does not say:" && tPhrase
+   repeat for each item tLink in "statements,error messages"
+      put tOffset + offset(tLink, tPhrase) - 1 into tStart
+      if the textStyle of char tStart to tStart + the number of chars in tLink - 1 \
+            of field "styledTextField" of card 1 of stack pStack is not "link" then
+         throw "the dictionary entry" && pFile && "does not link" && quote & tLink & quote && "whole"
+      end if
+   end repeat
    tourRecord "INFO dictionary entry" && pFile
 end tourDictionaryEntry
 
@@ -423,10 +438,6 @@ end tour_message_watcher
 on tour_search
    tourPalette "search", "20-search", 1500
 end tour_search
-
-on tour_start_center
-   tourPalette "start center", "21-start-center", 2000
-end tour_start_center
 
 on tour_object_library
    -- with Development > Object Library, which also selects the Objects tab
