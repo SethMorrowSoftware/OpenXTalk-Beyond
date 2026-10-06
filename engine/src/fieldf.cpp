@@ -601,6 +601,11 @@ void MCField::drawcursor(MCContext *p_context, const MCRectangle &dirty)
 	{
 		// MW-2012-01-27: [[ Bug 9511 ]] Make sure we don't render the win95-esque focus
 		//   border in native GTK mode.
+		// OXT-Beyond: only the primary rect. A list field's cursor is not split
+		//   (replacecursor sets cursorrectp alone), so cursorrects, which all
+		//   fields share, held the lower half of the last text caret of any
+		//   field, and a focused list field on Windows drew it as a stray line
+		//   at that place in its own window (in Preferences' list of panes).
 		if (!focusedparagraph->IsEmpty() && !IsMacLF() && !IsNativeGTK() && !getstate(CS_MENUFIELD))
 		{
 			if (MClook == LF_WIN95)
@@ -612,14 +617,12 @@ void MCField::drawcursor(MCContext *p_context, const MCRectangle &dirty)
 				p_context->setdashes(0, dotlist, 2);
 				p_context->setfunction(GXxor);
 				p_context->drawrect(cursorrectp);
-                p_context->drawrect(cursorrects);
 				p_context->setfunction(GXcopy);
 				p_context->setlineatts(0, LineSolid, CapButt, JoinBevel);
 			}
 			else
             {
 				p_context->drawrect(cursorrectp);
-                p_context->drawrect(cursorrects);
             }
 		}
 	}
