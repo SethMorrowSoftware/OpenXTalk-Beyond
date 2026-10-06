@@ -85,7 +85,7 @@ OXT-Beyond {version} for Windows, macOS and Linux.{pre}
 Download from the release page, under Assets:
 - {windows_min}: {root}-win-x86_64-setup.exe
 - {mac_min}: {root}-mac-universal.dmg
-- {linux_min}: {root}-linux-x86_64.tar.xz
+- {linux_min}: {root}-linux-x86_64.tar.xz (64-bit ARM: -linux-arm64.tar.xz)
 
 The Mac app is not notarized, so macOS blocks it until you allow it (see below).
 
@@ -136,6 +136,14 @@ Needs 64-bit x86 Linux with glibc 2.31 or later (Ubuntu 20.04, Debian 11, Fedora
 - `{root}-linux-x86_64.tar.xz`: the program folder `{root}`. Extract it onto a Linux file system (not FAT, exFAT or a Windows drive) and run `./oxt-beyond` in it, or run `./install.sh` to install it for yourself: under `~/.local/share/oxt-beyond`, with a menu entry, icons, the .oxtstack and .oxtscript file types and the command `oxt-beyond`, without administrator rights.
 - `{root}-linux-x86_64-binaries.tar.xz`: the engine, externals and tools as built (`linux-x86_64-bin`), without debug symbols and the build's own tools, plus the licence files.
 - `{root}-linux-x86_64-symbols.tar.xz`: debug symbols (`.dbg` files) for the binaries.
+
+## Linux (64-bit ARM)
+
+For 64-bit ARM Linux with glibc 2.31 or later: a Raspberry Pi 3, 4 or 5 running a 64-bit system (Raspberry Pi OS 64-bit, Ubuntu), or an ARM server. It needs what the x86-64 package needs, and is installed the same way. New in 0.2.4-rc.2 and experimental. It has no browser widget or revBrowser, because CEF, the browser engine they use, has no Linux ARM build at the version OXT-Beyond uses; everything else, the player and the bundled xTalk Suite extensions included, is there, with the same glibc needs as on x86-64. It is built and tested on GitHub's ARM machines; no Raspberry Pi has run it in CI.
+
+- `{root}-linux-arm64.tar.xz`: the program folder `{root}`, as for x86-64.
+- `{root}-linux-arm64-binaries.tar.xz`: the engine, externals and tools as built (`linux-arm64-bin`), without debug symbols and the build's own tools, plus the licence files.
+- `{root}-linux-arm64-symbols.tar.xz`: debug symbols (`.dbg` files) for the binaries.
 
 ## All platforms
 

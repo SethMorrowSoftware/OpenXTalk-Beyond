@@ -24,7 +24,7 @@ so that you can send the details there.
 Please include:
 
 - the OXT-Beyond version and build number (the version is in the title
-  of the menubar window, for example "OXT-Beyond 0.2.4-rc.1", and in
+  of the menubar window, for example "OXT-Beyond 0.2.4-rc.2", and in
   `ide/.version` of a source checkout; the build number is under
   *Preferences > Automatic Updates*), and your operating system and
   version (Windows; macOS, Apple Silicon or Intel; or your Linux

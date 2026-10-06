@@ -33,11 +33,11 @@
 # checkout's IDE with the new development engine
 # (tools/ci/run_livecode_check.py compile --repo-layout).
 #
-# The job "Package linux-x86_64" then makes the Linux package from the
-# x86_64 build's two artifacts, on a plain ubuntu-24.04 runner (whose glibc
-# and OpenSSL 3 load every bundled xTalk extension, which the build's
-# Ubuntu 20.04 container cannot), and uploads, as the artifact
-# OXT-Beyond-linux-x86_64:
+# The jobs "Package linux-<arch>" then make the Linux package of each
+# architecture from its build's two artifacts, on a plain ubuntu-24.04
+# runner of that architecture (whose glibc and OpenSSL 3 load every bundled
+# xTalk extension, which the build's Ubuntu 20.04 container cannot), and
+# upload, as the artifact OXT-Beyond-linux-<arch> (x86_64 shown):
 #
 #   OXT-Beyond-<ver>-linux-x86_64.tar.xz           the program folder
 #                                                  OXT-Beyond-<ver>, with
@@ -49,10 +49,11 @@
 #   OXT-Beyond-<ver>-linux-x86_64-symbols.tar.xz   the *.dbg files
 #   SHA256SUMS
 #
-# (tools/oxt/package.py --platform linux-x86_64, tools/oxt/package_dist.py),
+# (tools/oxt/package.py --platform linux-<arch>, tools/oxt/package_dist.py),
 # after testing the tarball as users get it, extracted to a neutral folder:
 # the headless smoke test (which loads and calls every bundled extension),
-# the IDE compile check run through the launcher, ldd and the launcher's
+# the IDE compile check run through the launcher, the IDE started through
+# the launcher on a screen (tools/ci/linux_ide_start.sh), ldd and the launcher's
 # library list against every ELF file (tools/ci/check_linux_libraries.py),
 # desktop-file-validate, and the launcher, install.sh and uninstall.sh in
 # scratch home folders (tools/ci/test_linux_package.py). The runtime
@@ -61,7 +62,9 @@
 # assets and xTalk extension files are cached as in build-windows.yml; a
 # manual run can leave them out (inputs below, or the repository variables
 # OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a release build
-# never does. Linux arm64 is not packaged yet.
+# never does. The arm64 package has no browser (CEF 74 has no Linux ARM
+# build), so the browser checks run on x86_64 only; release.yml publishes
+# both packages.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
@@ -692,21 +695,35 @@ jobs:
         if: always()
         run: tools/ci/i386-container.sh stop
 
-  # The Linux x86_64 package, from the build's artifacts (see the header).
-  # It waits for both build legs (a job cannot need one leg of a matrix)
-  # but runs whenever the x86_64 one passed, so that a failed arm64 build
-  # does not hide the package (and always when the whole build passed,
-  # whatever the outputs say). On the runner itself, not in the build's
-  # container: tests need the ubuntu-24.04 system, the user a package
-  # would find there, and sudo for apt.
+  # The Linux packages, x86_64 and arm64, each from its build's artifacts
+  # (see the header) on a runner of its own architecture. It waits for
+  # both build legs (a job cannot need one leg of a matrix) but runs
+  # whenever one of them passed, so that a failed build of one
+  # architecture does not hide the other's package (a leg whose build
+  # failed fails at its download). On the runner itself, not in the
+  # build's container: tests need the ubuntu-24.04 system, the user a
+  # package would find there, and sudo for apt.
+  #
+  # The arm64 package (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers) is
+  # published beside the x86_64 one since 0.2.4-rc.2. It has no browser (CEF 74 has no Linux ARM build), so the
+  # browser checks are the x86_64 leg's; its player check runs.
   package:
-    name: Package linux-x86_64
+    name: Package linux-${{ matrix.arch }}
     needs: build
-    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true') }}
-    runs-on: ubuntu-24.04
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     env:
       DEBIAN_FRONTEND: noninteractive
+      ARCH: ${{ matrix.arch }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -718,13 +735,13 @@ jobs:
       - name: Download the build
         uses: actions/download-artifact@v8
         with:
-          name: OXT-Beyond-linux-x86_64-bin
+          name: OXT-Beyond-linux-${{ matrix.arch }}-bin
           path: ${{ runner.temp }}/ci-build
 
       - name: Download the debug symbols
         uses: actions/download-artifact@v8
         with:
-          name: OXT-Beyond-linux-x86_64-symbols
+          name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
           path: ${{ runner.temp }}/ci-symbols
 
       # The runtime libraries the package needs, from the list the launcher
@@ -789,8 +806,8 @@ jobs:
           NO_EXTERNAL_ASSETS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_external_assets == true || vars.OXT_NO_EXTERNAL_ASSETS == '1') }}
           NO_XTALK_EXTENSIONS: ${{ github.ref_type != 'tag' && !inputs.release && (inputs.no_xtalk_extensions == true || vars.OXT_NO_XTALK_EXTENSIONS == '1') }}
           BUILD_NUMBER_INPUT: ${{ inputs.build-number }}
-          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-x86_64-bin.tar.xz
-          SYMBOLS_TAR: ${{ runner.temp }}/ci-symbols/OXT-Beyond-linux-x86_64-symbols.tar.xz
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+          SYMBOLS_TAR: ${{ runner.temp }}/ci-symbols/OXT-Beyond-linux-${{ matrix.arch }}-symbols.tar.xz
         run: |
           mkdir -p "$RUNNER_TEMP/logs"
           for f in "$BIN_TAR" "$SYMBOLS_TAR"; do
@@ -807,7 +824,7 @@ jobs:
             echo "::warning title=Package::xTalk Suite extensions left out (no_xtalk_extensions input or OXT_NO_XTALK_EXTENSIONS variable)."
             args+=(--no-xtalk-extensions)
           fi
-          python3 tools/oxt/package.py --platform linux-x86_64 --bin-tar "$BIN_TAR" \
+          python3 tools/oxt/package.py --platform "linux-$ARCH" --bin-tar "$BIN_TAR" \
             --out "$RUNNER_TEMP/stage" --summary-json "$RUNNER_TEMP/stage-summary.json" "${args[@]}" \
             2>&1 | tee "$RUNNER_TEMP/logs/package.log"
           python3 tools/oxt/package_dist.py --summary "$RUNNER_TEMP/stage-summary.json" \
@@ -830,6 +847,11 @@ jobs:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
 
+      # The checks below run once the package is extracted (OXT_ROOT set),
+      # each even when one before it failed, so that one run reports every
+      # problem; the job fails if any did, and the package is uploaded only
+      # when all passed.
+      #
       # As a user does: tar -xJf into an ordinary folder. A folder named
       # _build or *-bin on the way would make the engine run the IDE of a
       # source checkout (repository mode), so the tests run here, never
@@ -867,21 +889,23 @@ jobs:
       # (run_livecode_check.py extracts the tarball again, to its own
       # neutral folder)
       - name: Smoke test (package, headless)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 15
         env:
           PACKAGE: ${{ steps.package.outputs.package }}
         run: |
-          python3 tools/ci/run_livecode_check.py smoke --package "$PACKAGE" --platform linux-x86_64 \
+          python3 tools/ci/run_livecode_check.py smoke --package "$PACKAGE" --platform "linux-$ARCH" \
             --log "$RUNNER_TEMP/logs/smoke-test.log"
 
       # Every IDE script of the extracted package, compiled by its engine
       # started through the launcher (with -ui the launcher needs only the
       # "core" libraries and execs the engine with the arguments unchanged)
       - name: IDE compile check (package, through the launcher)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 20
         run: |
           python3 tools/ci/run_livecode_check.py compile --install "$OXT_ROOT" --engine "$OXT_ROOT/oxt-beyond" \
-            --platform linux-x86_64 --log "$RUNNER_TEMP/logs/ide-compile-check.log"
+            --platform "linux-$ARCH" --log "$RUNNER_TEMP/logs/ide-compile-check.log"
 
       # A standalone built from each runtime of the package (Linux x86-64
       # and x86, Windows x86-64 and x86) by its engine, as the IDE's builder
@@ -890,9 +914,10 @@ jobs:
       # runtime folder's binaries are checked first
       # (tools/ci/standalone_check.py)
       - name: Standalone check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 15
         run: |
-          python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform linux-x86_64 --targets all \
+          python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --targets all \
             --log "$RUNNER_TEMP/logs/standalone-check.log"
 
       # The browser widget, revBrowser (CEF) and the player (mplayer) in a
@@ -902,9 +927,10 @@ jobs:
       # seeks when clicked (tools/ci/media_check.py; the snapshots of the
       # controller go with the logs)
       - name: Browser and player check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
-          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
 
       # The browser widget in a standalone under xfwm4 and openbox: the page
@@ -912,6 +938,7 @@ jobs:
       # stack, and the keys go to a field of the stack, not on to the
       # browser (tools/ci/browser_wm_check.py)
       - name: Browser window manager check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
         timeout-minutes: 15
         run: |
           python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
@@ -922,18 +949,29 @@ jobs:
       # from the background of a window it has not painted
       # (tools/ci/linux_appearance_check.py)
       - name: GTK appearance check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
-          python3 tools/ci/linux_appearance_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+          python3 tools/ci/linux_appearance_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --log "$RUNNER_TEMP/logs/linux-appearance-check.log"
 
-      # ldd over every x86_64 ELF file of the package (engine, externals,
-      # CEF and its helpers, toolchain, extension libraries): nothing "not
-      # found" now that the list's packages are installed, and every
+      # The IDE itself, started through the launcher as a user does, on an
+      # Xvfb screen under openbox with a scratch home folder: still running
+      # after 90 s, with windows on the screen (tools/ci/linux_ide_start.sh;
+      # its output and screenshots go with the logs)
+      - name: IDE start check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: tools/ci/linux_ide_start.sh "$OXT_ROOT" "$RUNNER_TEMP/logs/ide-start" 90
+
+      # ldd over every ELF file of the package (engine, externals,
+      # CEF and its helpers on x86_64, toolchain, extension libraries):
+      # nothing "not found" now that the list's packages are installed, and every
       # library they need (DT_NEEDED) or the engine loads with dlopen
       # (engine/src/linux.stubs) is in the launcher's list, the base system
       # or the package
       - name: Check the system libraries (ldd and the launcher's list)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
           python3 tools/ci/check_linux_libraries.py --root "$OXT_ROOT" --repo . \
             --json "$RUNNER_TEMP/logs/linux-libraries.json"
@@ -941,6 +979,7 @@ jobs:
       # The package's desktop entry as staged (install.sh only replaces its
       # Exec and TryExec lines; the test below validates the installed one)
       - name: Validate the desktop entry
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
           out=$(desktop-file-validate "$OXT_ROOT/linux/oxt-beyond.desktop" 2>&1) || { echo "$out"; exit 1; }
           echo "${out:-desktop-file-validate: no errors, warnings or hints}"
@@ -952,6 +991,7 @@ jobs:
       # through ~/.local/bin/oxt-beyond, and the desktop entry
       # (desktop-file-validate) with a plain and an awkward install path
       - name: Test the launcher and the install scripts
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 30
         run: |
           python3 tools/ci/test_linux_package.py --root "$OXT_ROOT" --require-desktop-tools \
@@ -960,7 +1000,7 @@ jobs:
       - name: Upload the package
         uses: actions/upload-artifact@v7
         with:
-          name: OXT-Beyond-linux-x86_64
+          name: OXT-Beyond-linux-${{ matrix.arch }}
           path: dist/*
           if-no-files-found: error
           retention-days: 30
@@ -971,7 +1011,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: package-logs-linux-x86_64
+          name: package-logs-linux-${{ matrix.arch }}
           path: ${{ runner.temp }}/logs
           if-no-files-found: ignore
           retention-days: 14

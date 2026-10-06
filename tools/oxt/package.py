@@ -33,9 +33,11 @@ P chooses the layout (PLATFORMS below; default win-x86_64):
   linux-x86_64   the engine as OXT-Beyond and everything else in one folder:
                  what the portable tar.xz holds. --bin defaults to
                  <repo>/linux-x86_64-bin.
-  linux-arm64    the same from an arm64 build, for staging only: the IDE has
-                 no Linux arm64 standalone target and that build has no CEF,
-                 so there is no browser and no Runtime folder of its own.
+  linux-arm64    the same from an arm64 build (64-bit ARM: Raspberry Pi
+                 3/4/5 on a 64-bit OS, ARM servers): its standalone runtime
+                 is Runtime/Linux/arm64 (the IDE's "Linux arm64" target),
+                 and it has no browser, as that build has no CEF (CEF 74
+                 has no Linux ARM build).
   mac-universal  OXT-Beyond.app, with everything the other layouts have at
                  their root in OXT-Beyond.app/Contents/Tools, from a build
                  whose Mach-O files hold arm64 and x86_64 (the lipo merge of
@@ -374,10 +376,17 @@ def _windows(arch):
         ) + _NOT_IN_PACKAGE_TXT)
 
 
+# The Linux runtime folder of each architecture under Runtime/Linux, as the
+# IDE's standalone builder names them (revsblibrary revSBEnginePath)
+LINUX_RUNTIME_FOLDERS = {'x86_64': 'x86-64', 'x86': 'x86-32', 'arm64': 'arm64'}
+
+
 def _linux(arch):
-    """package.txt TargetPlatform Linux. The arm64 build has no CEF and the
-    IDE no Linux arm64 standalone target (revsblibrary: Linux, Linux x64,
-    Linux armv6-hf), so linux-arm64 has neither. The x86 (32-bit) build has
+    """package.txt TargetPlatform Linux. The arm64 build has no CEF (CEF 74
+    has no Linux ARM build), so linux-arm64 has no browser; its runtime is
+    Runtime/Linux/arm64, the IDE's "Linux arm64" target (revsblibrary),
+    which LiveCode never had (its ARM target was 32-bit armv6-hf, which
+    this repository does not build). The x86 (32-bit) build has
     no CEF either (CEF's 32-bit Linux builds ended with CEF 101); it is
     built for its standalone runtime, Runtime/Linux/x86-32 (the IDE's
     "Linux" target), which the other platforms' packages take from the
@@ -395,14 +404,12 @@ def _linux(arch):
          'and the helper would need root ownership and mode 4755'),
         ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Linux'),
     ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS
-    runtimes = ()
-    if arch in ('x86_64', 'x86'):
-        # component Runtime.Linux with TargetArchitecture x86_64 or x86,
-        # plus Externals (which includes Externals.CEF.Linux on x86_64)
-        runtimes = (dict(folder='Runtime/Linux/' + {'x86_64': 'x86-64', 'x86': 'x86-32'}[arch],
-                         standalone=('standalone-community', 'Standalone'),
-                         files=(), support=('revpdfprinter.so', 'revsecurity.so'),
-                         externals=True),)
+    # component Runtime.Linux with TargetArchitecture x86_64, x86 or arm64,
+    # plus Externals (which includes Externals.CEF.Linux on x86_64)
+    runtimes = (dict(folder='Runtime/Linux/' + LINUX_RUNTIME_FOLDERS[arch],
+                     standalone=('standalone-community', 'Standalone'),
+                     files=(), support=('revpdfprinter.so', 'revsecurity.so'),
+                     externals=True),)
     return Platform(
         'linux-' + arch, 'linux', arch,
         bin_default='linux-%s-bin' % arch,

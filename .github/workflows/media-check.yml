@@ -52,6 +52,11 @@ jobs:
           - platform: linux-x86_64
             runner: ubuntu-24.04
             asset: linux-x86_64.tar.xz
+          # Player only: the arm64 package has no browser (CEF 74 has no
+          # Linux ARM build); media_check.py drops the browser checks there
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            asset: linux-arm64.tar.xz
           - platform: mac-universal
             runner: macos-15
             asset: mac-universal.zip

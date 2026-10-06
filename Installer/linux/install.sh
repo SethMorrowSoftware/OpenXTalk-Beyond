@@ -16,7 +16,7 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 # Installs OXT-Beyond for the current user, from the folder this script is
-# in (the extracted OXT-Beyond-<version>-linux-x86_64.tar.xz):
+# in (the extracted OXT-Beyond-<version>-linux-<arch>.tar.xz):
 #
 #   ${XDG_DATA_HOME:-~/.local/share}/oxt-beyond/   a copy of the folder
 #   .../applications/oxt-beyond.desktop            the menu entry; it opens

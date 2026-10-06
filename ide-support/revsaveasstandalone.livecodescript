@@ -513,6 +513,9 @@ private function revStandalonePlatformDetails pTarget
             -- FG-2014-08-19: [[ RPi ]] Compute the correct path for 64-bit Linux
             put "Linux/armv6-hf" into tArchFolder
             put "armv6-hf" into tDetailsA["architecture"]
+         else if pTarget is "Linux arm64" then
+            put "Linux/arm64" into tArchFolder
+            put "arm64" into tDetailsA["architecture"]
          end if
          put ".so" into tDetailsA["loadable_extension"]
          put "Linux" into tDetailsA["platform"]

@@ -2478,6 +2478,10 @@ end revEnvironmentEditionProperty
          case "Linux armv6_hf"
             put slash & "linux-armv6_hf-bin" after tNonNativeBinariesPath
             break
+         case "Linux arm64"
+         case "Linux aarch64"
+            put slash & "linux-arm64-bin" after tNonNativeBinariesPath
+            break
          case "MacOS"
          case "MacOSX x86-32"
          case "MacOSX x86_32"

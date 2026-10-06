@@ -11,6 +11,10 @@ on preOpenCard
    -- FG-2014-08-19: [[ RPi ]] Don't show the ARMv6 checkbox if the engine isn't present
    set the visible of button "Linux ARMv6-HF" to revEngineCheck("Linux armv6-hf")
    
+   -- OXT-Beyond: the 64-bit ARM target (Runtime/Linux/arm64, revsblibrary)
+   __EnsureArm64Button
+   set the visible of button "Linux arm64" to revEngineCheck("Linux arm64")
+   
    set the enabled of group "UNIX" to false
    
    repeat with X = 1 to the number of buttons of group "flavors"
@@ -34,3 +38,30 @@ on preOpenCard
    
    pass preOpenCard
 end preOpenCard
+
+-- The palette's stack file has no checkbox for the "Linux arm64" target, so
+-- it is made here, in memory, the first time the card opens: a copy of the
+-- ARMv6-HF checkbox, in the same "Flavors" group, whose mouseUp stores every
+-- checkbox's hilite under its short name. It takes the ARMv6-HF checkbox's
+-- place, as OXT-Beyond ships no ARMv6-HF runtime (that one is hidden), or
+-- the place below it if that runtime is there.
+private command __EnsureArm64Button
+   if there is a button "Linux arm64" of group "Flavors" of me then
+      exit __EnsureArm64Button
+   end if
+   local tCount, tRect
+   lock screen
+   lock messages
+   put the number of buttons of group "Flavors" of me into tCount
+   copy button "Linux ARMv6-HF" of group "Flavors" of me to group "Flavors" of me
+   put the rect of button "Linux ARMv6-HF" of group "Flavors" of me into tRect
+   set the name of button (tCount + 1) of group "Flavors" of me to "Linux arm64"
+   set the label of button "Linux arm64" of group "Flavors" of me to "Linux arm64"
+   if revEngineCheck("Linux armv6-hf") then
+      set the top of button "Linux arm64" of group "Flavors" of me to item 4 of tRect + 4
+   else
+      set the rect of button "Linux arm64" of group "Flavors" of me to tRect
+   end if
+   unlock messages
+   unlock screen
+end __EnsureArm64Button

@@ -16,7 +16,7 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """Put the files of one OXT-Beyond release together from the packages of
-the three platforms, and check them before and after they are uploaded.
+the platforms, and check them before and after they are uploaded.
 
   python3 tools/ci/release_assets.py assemble --version V --artifacts DIR --out DIR
   python3 tools/ci/release_assets.py check-uploaded --dir DIR --assets FILE
@@ -29,6 +29,7 @@ after it, as actions/download-artifact writes a named artifact:
   OXT-Beyond-win-x86_64     build-windows.yml, job "Build win-x86_64"
   OXT-Beyond-mac-universal  build-macos.yml, job "Package mac-universal"
   OXT-Beyond-linux-x86_64   build-linux.yml, job "Package linux-x86_64"
+  OXT-Beyond-linux-arm64    build-linux.yml, job "Package linux-arm64"
 
 assemble checks each artifact folder of --artifacts:
 
@@ -83,8 +84,7 @@ SUMS = 'SHA256SUMS'
 VERSION_RE = re.compile(r'^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$')
 
 # What a release holds, per CI artifact:
-# (artifact, platform, the files after "<root>" in their names). Linux arm64
-# is built but not packaged, so it has no artifact here.
+# (artifact, platform, the files after "<root>" in their names).
 ASSETS = (
     ('OXT-Beyond-win-x86_64', 'win-x86_64', (
         '-win-x86_64-setup.exe',
@@ -106,6 +106,13 @@ ASSETS = (
         '-linux-x86_64.tar.xz',
         '-linux-x86_64-binaries.tar.xz',
         '-linux-x86_64-symbols.tar.xz',
+    )),
+    # 64-bit ARM Linux (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers),
+    # published since 0.2.4-rc.2; the same three files as x86_64
+    ('OXT-Beyond-linux-arm64', 'linux-arm64', (
+        '-linux-arm64.tar.xz',
+        '-linux-arm64-binaries.tar.xz',
+        '-linux-arm64-symbols.tar.xz',
     )),
 )
 
