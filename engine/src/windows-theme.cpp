@@ -279,11 +279,22 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                             return true;
                         }
                         
+                    case kMCPlatformControlTypeTooltip:
+                        // Windows 11's dark tooltips, a shade lighter than
+                        // the dark window (MCTooltip draws a dark tip itself;
+                        // the theme draws the light one)
+                        if (t_is_dark)
+                        {
+                            r_color.red = r_color.green = r_color.blue = 0x2B2B;
+                            return true;
+                        }
+                        /* FALLTHROUGH */
+
                     case kMCPlatformControlTypeWindow:
                         // Use the control colour instead of the window colour
                         //t_color = COLOR_WINDOW;
                         //break;
-                        
+
                     default:
                         //-- tperry 8th November 2025: Return dark/light mode colors
                         if (t_is_dark)

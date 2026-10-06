@@ -165,22 +165,40 @@ void MCTooltip::opentip()
     t_for = card -> getmousecontrol();
     if (t_for == nil)
         t_for = card;
-    m_dark = t_for -> isdarkappearance(CONTEXT_TYPE_SCREEN);
+    bool t_dark;
+    t_dark = t_for -> isdarkappearance(CONTEXT_TYPE_SCREEN);
     MCPlatformControlState t_state;
     t_state = getcontrolstate() & ~(MCPlatformControlState)kMCPlatformControlStateDarkAppearance;
-    if (m_dark)
+    if (t_dark)
         t_state |= kMCPlatformControlStateDarkAppearance;
 
-    // Get the colour for the tooltip background
+    // Get the colour for the tooltip background. A tip for something drawn
+    // dark is dark: the theme's tooltip colour can be light in either
+    // appearance (macOS's toolTipColor) or missing (GTK has none here, and
+    // then it was the pale yellow MCttbgcolor), and the text is white on it.
     MCColor t_bg_color;
-    if (MCPlatformGetControlThemePropColor(getcontroltype(), getcontrolsubpart(), t_state, kMCPlatformThemePropertyBackgroundColor, t_bg_color))
+    t_bg_color . red = t_bg_color . green = t_bg_color . blue = 0xFFFF;
+    bool t_found;
+    t_found = MCPlatformGetControlThemePropColor(getcontroltype(), getcontrolsubpart(), t_state, kMCPlatformThemePropertyBackgroundColor, t_bg_color);
+    if (t_dark && (!t_found || MCAppearanceColorIsLight(t_bg_color)))
+    {
+        t_bg_color . red = t_bg_color . green = t_bg_color . blue = 0x2B2B;
+        t_found = true;
+    }
+    if (t_found)
     {
         MCExecContext ctxt(this, nil, nil);
 		uint32_t t_pixel = MCColorGetPixel(t_bg_color);
         SetBackPixel(ctxt, &t_pixel);
     }
     else
+    {
         setsprop(P_BACK_COLOR, MCttbgcolor);
+        MCscreen -> parsecolor(MCttbgcolor, t_bg_color, nil);
+    }
+
+    // The text is white on a dark background and black on a light one
+    m_dark = !MCAppearanceColorIsLight(t_bg_color);
 
     // Get the font for the tooltip
     if (!MCPlatformGetControlThemePropFont(getcontroltype(), getcontrolsubpart(), getcontrolstate(), kMCPlatformThemePropertyTextFont, m_font))
@@ -250,7 +268,9 @@ void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 	bool t_themed;
 	t_themed = false;
 
-	if (MCcurtheme != NULL &&
+	// The theme draws a light tip (Windows); a dark one is filled with its
+	// colour
+	if (!m_dark && MCcurtheme != NULL &&
 		MCcurtheme -> drawtooltipbackground(dc, trect))
 	{
 		MCcurtheme -> settooltiptextcolor(dc);
@@ -261,7 +281,7 @@ void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 		setforeground(dc, DI_BACK, False);
 		dc -> fillrect(trect);
 		// The background is the theme's for the appearance of what the tip
-		// is shown for (opentip)
+		// is shown for (opentip), and the text white or black on it
 		dc -> setforeground(m_dark ? MCscreen -> white_pixel : MCscreen -> black_pixel);
 	}
 
@@ -285,7 +305,18 @@ void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 		t_y += t_fheight + 3;
 	}
 
-	if (!MCaqua && !t_themed)
+	// A dark tip has a grey border on every platform, the engine's dark
+	// border colour (MCObject::getforecolor), or it would not stand out
+	// from a dark window
+	if (m_dark)
+	{
+		MCColor t_border;
+		t_border . red = t_border . green = t_border . blue = 0x6E6E;
+		dc -> setforeground(t_border);
+		dc -> setlineatts(1, LineSolid, CapButt, JoinMiter);
+		dc -> drawrect(trect, true);
+	}
+	else if (!MCaqua && !t_themed)
 		drawborder(dc, trect, 1);
 }
 
