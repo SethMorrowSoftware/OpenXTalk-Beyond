@@ -2,7 +2,11 @@
 # menu had black text saved (black on the dark appearance's menu), and the
 # platform check marks of the General card and the help buttons of the
 # cards white backgrounds and black text. Unset, they follow the
-# appearance (six of the help buttons had none already).
+# appearance (six of the help buttons had none already). The column
+# headers over the iOS and Android requirements (Required, Prohibited or
+# Used, n/a) are disabled fields with 66,66,66 text, which the dark
+# appearance shows on 46,46,46; unset, they take the appearance's grey for
+# disabled text.
 file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
 object: button "UAC Execution Level" of card "Windows"
 property: foregroundColor
@@ -147,4 +151,28 @@ from: 255,255,255
 to: 
 property: foregroundColor
 from: 0,0,0
+to: 
+object: field id 3617 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 3618 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 3619 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 2265 of card "Android"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 2266 of card "Android"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 2267 of card "Android"
+property: foregroundColor
+from: 66,66,66
 to: 

@@ -175,3 +175,49 @@ on TestExportWidgetOfKindNotLoaded
 
    delete stack "WidgetNotLoadedExportTest"
 end TestExportWidgetOfKindNotLoaded
+
+on TestWidgetLoadedDarkKeepsCardControls
+   -- The appAppearance makes a stack dark on Windows and macOS; on Linux
+   -- the GTK theme decides, and there is none without a user interface
+   if the platform is "Linux" then
+      TestSkip "a widget in a group loaded in a dark stack", "the GTK theme decides the appearance on Linux"
+      exit TestWidgetLoadedDarkKeepsCardControls
+   end if
+
+   TestLoadAuxiliaryExtension "_widget_font"
+
+   -- A widget that looks up its font when it is created, in a group with
+   -- a control after it, and a control after the group
+   create stack "WidgetDarkLoadTest"
+   set the defaultStack to "WidgetDarkLoadTest"
+   create button "Before"
+   create widget "Font" as "com.livecode.lcs_tests.core.widget_font"
+   create button "After"
+   group button "Before" and widget "Font" and button "After"
+   create button "Last"
+   TestAssert "the stack has its controls before it is saved", \
+         the number of controls of card 1 of stack "WidgetDarkLoadTest" is 5
+
+   local tPath
+   put the tempName into tPath
+   save stack "WidgetDarkLoadTest" as tPath
+   delete stack "WidgetDarkLoadTest"
+
+   -- Loaded dark: the widget's font was looked up while the card's other
+   -- controls were not loaded yet, through the group's controls, which
+   -- counted the card's layers and took every control it could not find
+   -- off the card (MCGroup::getcontrols, MCCard::clean)
+   local tAppearance
+   put the appAppearance into tAppearance
+   set the appAppearance to "dark"
+   local tCount
+   put the number of controls of card 1 of stack tPath into tCount
+   set the appAppearance to tAppearance
+   TestAssert "a group with a widget, loaded dark, keeps the card's controls", tCount is 5
+   local tSize
+   put the fontSizeAtCreate of widget "Font" of stack "WidgetDarkLoadTest" into tSize
+   TestAssert "the widget looked up its font when it was loaded", tSize is a number and tSize > 0
+
+   delete stack "WidgetDarkLoadTest"
+   delete file tPath
+end TestWidgetLoadedDarkKeepsCardControls

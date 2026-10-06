@@ -1683,14 +1683,22 @@ MCObject *MCObject::appearancebackdrop(MCObjptr *p_place, MCObjptr *&r_place)
 	}
 	else if (t_owner -> gettype() == CT_GROUP)
 	{
+		// Not getcontrols(), which counts the card's layers and takes every
+		// control the count cannot find off the card. A widget looks up its
+		// font while it is created, as its stack loads, so in a stack opened
+		// dark that took every control not loaded yet off its card.
 		MCControl *t_first;
-		t_first = static_cast<MCGroup *>(t_owner) -> getcontrols();
+		t_first = static_cast<MCGroup *>(t_owner) -> getcontrollist();
 		if (t_first == nil)
 			return nil;
 
 		for (MCControl *t_control = t_self; t_control != t_first && t_count < 256; t_count++)
 		{
 			t_control = t_control -> prev();
+			// A control its group is still loading is not in the group's
+			// list yet
+			if (t_control == t_self)
+				return nil;
 			if (MCAppearanceIsBackdrop(t_control, t_rect))
 				return t_control;
 		}

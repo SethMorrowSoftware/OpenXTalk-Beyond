@@ -94,9 +94,14 @@ on updateSettings
    put computeDefault(tSettings["android,nfc"], false) into tNFC
    set the hilited of button "NFC Tag Reading" to tNFC
    
+   -- OXT-Beyond: the Android card of this IDE has no such button (and its
+   -- Android build no such setting): setting it stopped the card's update
+   -- with an error
    local tAllowHttpConnections
-   put computeDefault(tSettings["android,allow http"], false) into tAllowHttpConnections
-   set the hilited of button "Allow Http Connections" to tAllowHttpConnections
+   if there is a button "Allow Http Connections" then
+      put computeDefault(tSettings["android,allow http"], false) into tAllowHttpConnections
+      set the hilited of button "Allow Http Connections" to tAllowHttpConnections
+   end if
 
    repeat with i = 1 to the number of groups of group "device capabilities"
       get tSettings["android,device capabilities"][the short name of group i of group "Device Capabilities"]

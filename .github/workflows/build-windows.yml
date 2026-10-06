@@ -239,7 +239,11 @@ jobs:
       #                                 the IDE contrast check runs them)
       #   check_ide_icons.py            the toolbar's disabled icons have
       #                                 their dark twins, readable on the
-      #                                 dark toolbars (32,32,32 and 61,61,61)
+      #                                 dark toolbars (32,32,32 and 61,61,61),
+      #                                 the dark Tools palette's outline
+      #                                 icons read on each dark palette, and
+      #                                 the Project Browser's dark row icons
+      #                                 read on its dark rows
       #   check_se_schemes.py           the script editor's colour schemes
       #                                 on its light and dark backgrounds,
       #                                 a ratchet against
@@ -687,6 +691,55 @@ jobs:
           retention-days: 30
           # The files are compressed already
           compression-level: 0
+
+      # The IDE's own windows, as a user sees them with Windows light and
+      # dark: tools/ci/ui_tour.py starts the staged IDE with
+      # tools/ci/ui-tour.livecodescript, which opens the palettes, the
+      # inspector (each section), the editors, each pane of Preferences and
+      # each card of the Standalone Settings, the dictionary, dialogs and
+      # two tooltips one by one and snapshots each. A step that fails or a
+      # script error in the IDE fails the check. The snapshots go with the
+      # logs and are printed into this log (tools/ci/print_images.py).
+      - name: IDE screenshots, light
+        id: ui_tour_light
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\light"
+
+      - name: IDE screenshots, dark
+        id: ui_tour_dark
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
+
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        run: python tools/ci/ui_tour_page.py "$env:RUNNER_TEMP\build-logs\ui-tour" --title "Windows x86_64"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-win-x86_64
+          path: |
+            ${{ runner.temp }}/build-logs/ui-tour/index.html
+            ${{ runner.temp }}/build-logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        env:
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python tools/ci/ui_tour_page.py "$env:RUNNER_TEMP\build-logs\ui-tour" --title "Windows x86_64" --summary --url="$env:URL"
 
       - name: Collect logs
         id: collect_logs

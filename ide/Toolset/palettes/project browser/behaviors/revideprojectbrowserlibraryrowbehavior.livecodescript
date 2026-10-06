@@ -24,6 +24,9 @@ on LayoutControl pControlRect
    set the rect of graphic "background" of me to pControlRect   
    set the width of graphic "bottom_border" of me to (item 3 of pControlRect - item 1 of pControlRect)
    set the bottomLeft of graphic "bottom_border" of me to the left of graphic "background" of me, the bottom of graphic "background" of me
+   -- OXT-Beyond: the line under the row in the IDE's appearance (the
+   -- template's is light grey)
+   set the foregroundColor of graphic "bottom_border" of me to revIDEColor("pb_line_border_bottom")
    
    set the width of field "type" of me to the formattedWidth of field "type" of me
    set the width of field "name" of me to the formattedWidth of field "name" of me

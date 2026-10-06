@@ -758,9 +758,11 @@ jobs:
           sudo apt-get update
           # mplayer, Xvfb and xauth: the browser and player check; the
           # window managers, xdotool, xwininfo (x11-utils) and ImageMagick:
-          # the browser window manager check
+          # the browser window manager check; the Adwaita GTK 2 themes, light
+          # and dark, as a desktop has them: the IDE screenshots
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
-                xfwm4 openbox xdotool x11-utils imagemagick)
+                xfwm4 openbox xdotool x11-utils imagemagick
+                gnome-themes-extra gtk2-engines-pixbuf)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -963,6 +965,54 @@ jobs:
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: tools/ci/linux_ide_start.sh "$OXT_ROOT" "$RUNNER_TEMP/logs/ide-start" 90
+
+      # The IDE's own windows, as a user sees them under the Adwaita GTK
+      # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE
+      # (on an Xvfb screen) with tools/ci/ui-tour.livecodescript, which
+      # opens the palettes, the inspector (each section), the editors, each
+      # pane of Preferences and each card of the Standalone Settings, the
+      # dictionary, dialogs and two tooltips one by one and snapshots each.
+      # A step that fails or a script error in the IDE fails the check. The
+      # snapshots go with the logs and are printed into this log
+      # (tools/ci/print_images.py).
+      - name: IDE screenshots, light
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+            --appearance light --out "$RUNNER_TEMP/logs/ui-tour/light"
+
+      - name: IDE screenshots, dark
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+            --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
+
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-linux-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/logs/ui-tour/index.html
+            ${{ runner.temp }}/logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        env:
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH" --summary --url="$URL"
 
       # ldd over every ELF file of the package (engine, externals,
       # CEF and its helpers on x86_64, toolchain, extension libraries):

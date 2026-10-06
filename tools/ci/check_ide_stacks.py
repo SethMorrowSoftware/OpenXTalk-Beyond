@@ -25,7 +25,9 @@ tools/oxt/ide-stack-patch.livecodescript, which needs a LiveCode engine. This
 check needs none: a stack file of format 7.0 or later stores each script as
 one UTF-8 string, with LF line ends, so an applied patch can be seen in the
 file's bytes. For every script patch it checks that the replacement text
-occurs exactly once in the stack file and the replaced text does not occur.
+occurs exactly once in the stack file and the replaced text does not occur
+(when patches of several objects with the same script write the same text,
+as the two copies of a script editor pane do, it occurs once for each).
 
 Property patches (a colour or another property of an object) cannot be
 seen this way: a stack file stores properties in a binary form that no
@@ -161,12 +163,22 @@ def check_patches(repo, failures):
     names = sorted(n for n in os.listdir(folder) if n.endswith('.txt'))
     if not names:
         failures.append((PATCH_DIR, 'no patch definitions'))
+    patches = {}
+    for name in names:
+        try:
+            patches[name] = read_patch(os.path.join(folder, name))
+        except (OSError, ValueError) as e:
+            patches[name] = e
+    # How many script patches write each text into each stack file
+    writers = {}
+    for patch in patches.values():
+        if not isinstance(patch, Exception) and patch[0] == 'script':
+            writers[(patch[1], patch[4])] = writers.get((patch[1], patch[4]), 0) + 1
     for name in names:
         rel_patch = PATCH_DIR.replace(os.sep, '/') + '/' + name
-        try:
-            patch = read_patch(os.path.join(folder, name))
-        except (OSError, ValueError) as e:
-            failures.append((rel_patch, str(e)))
+        patch = patches[name]
+        if isinstance(patch, Exception):
+            failures.append((rel_patch, str(patch)))
             continue
         stack = patch[1]
         rel_stack = 'ide/' + stack
@@ -197,11 +209,13 @@ def check_patches(repo, failures):
         obj, old, new = patch[2], patch[3], patch[4]
         new_count = data.count(new)
         old_count = data.count(old)
-        if new_count == 1 and old_count == 0:
+        expected = writers[(stack, new)]
+        if new_count == expected and old_count == 0:
             print('ok      %s: applied to %s, %s' % (name, rel_stack, obj))
         else:
-            failures.append((rel_stack, '%s is not applied to %s (replacement found %d time(s), replaced text %d time(s)); '
-                             'run tools/oxt/ide-stack-patch.sh' % (name, obj, new_count, old_count)))
+            failures.append((rel_stack, '%s is not applied to %s (replacement found %d time(s) for %d patch(es), '
+                             'replaced text %d time(s)); run tools/oxt/ide-stack-patch.sh'
+                             % (name, obj, new_count, expected, old_count)))
 
 
 def check_dataview(repo, failures):

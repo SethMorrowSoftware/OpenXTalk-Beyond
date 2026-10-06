@@ -1437,7 +1437,10 @@ draws below mplayer's video (play, pause, a click in the well of the AVI
 file, whose frames are all key frames) and reads what it draws from
 snapshots of the player; `--snapshots <folder>` keeps those snapshots and
 the screen with the video (the Linux build puts them with its logs). The
-CI runs it on every package after the standalone check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
+CI runs it on every package after the standalone check, on macOS after the
+IDE screenshots: there macOS then asks whether Python, which started it,
+may find devices on the local network, and the question stays on the
+screen. [`media-check.yml`](.github/workflows/media-check.yml) runs it on
 the packages of a published release (by hand, for any tag), and on
 macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
@@ -1461,6 +1464,58 @@ python3 tools/ci/browser_wm_check.py --install <folder> --shots <folder>
 ```
 
 The Linux build runs it on its package after the browser and player check.
+
+### IDE screenshots
+
+[`tools/ci/ui_tour.py`](tools/ci/ui_tour.py) looks at the IDE's own
+windows, which no other check does: the other checks run the engine with
+`-ui` or with a test stack, and the palettes, the Inspector, the editors
+and the dialogs are stacks with colours of their own. It sets the
+system's appearance (`--appearance light` or `dark`: on macOS
+`AppleInterfaceStyle`, on Windows the apps and system mode, on Linux the
+Adwaita or Adwaita-dark GTK 2 theme of `gnome-themes-extra`, else a
+gtkrc of plain colours), restores it at the end, and starts the
+installed IDE as a user does with
+[`tools/ci/ui-tour.livecodescript`](tools/ci/ui-tour.livecodescript)
+named on the command line. The script opens the palettes, each section
+of the Inspector, the script editor, the message box, each pane of
+Preferences and each card of the Standalone Settings, the dictionary,
+the other editors and some dialogs one by one, shows two tooltips and a
+shape of the Tools palette under the pointer, and snapshots the screen
+around each. The snapshots stay in `<out>/shots`
+and are printed into the output, from which
+[`tools/ci/print_images.py`](tools/ci/print_images.py) rebuilds them.
+A step that fails, or a script error in the IDE's windows, fails the
+check. `--only` runs some of the steps, named as the script's `kSteps`
+names them (for example `--only appearance,tooltip-tools`).
+
+```sh
+sudo apt-get install xvfb gnome-themes-extra gtk2-engines-pixbuf
+python3 tools/ci/ui_tour.py --install <folder> --appearance dark --out <folder>
+```
+
+Every build runs it light and dark (pull requests, `main` and
+releases): on the Windows staged IDE, the Linux packages and the Mac app
+on both architectures.
+[`ui-tour.yml`](.github/workflows/ui-tour.yml) runs it on the packages of
+a published release (by hand, for any tag), and on the latest release for
+a pull request that changes the tour, where the release's own problems
+only warn.
+
+To look through them, each of those jobs uploads the snapshots as an
+artifact of their own, `ide-screenshots-<platform>` in a build
+(`win-x86_64`, `linux-x86_64`, `linux-arm64`, `mac-universal-arm64`,
+`mac-universal-x86_64`) and `ui-tour-<platform>-<runner>` in
+`ui-tour.yml`, kept 14 days, and its job summary links the download.
+Unzip it and open `index.html`: each window light and dark side by side,
+each a link to the full-size snapshot, with the steps that failed and the
+script errors at the top.
+[`tools/ci/ui_tour_page.py`](tools/ci/ui_tour_page.py) writes that page
+from the folder with `light/` and `dark/` (the tours' `--out`):
+
+```sh
+python3 tools/ci/ui_tour_page.py <folder> --title "Linux x86_64"
+```
 
 ### Installer
 
@@ -1729,7 +1784,9 @@ It follows this guide:
    `check_ide_stacks.py` (every script patch of
    `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks; see
    [Working on the IDE](#11-working-on-the-ide)), `check_ide_icons.py`
-   (the toolbar's disabled icons have dark twins),
+   (the toolbar's disabled icons have dark twins, the dark Tools
+   palette's outline icons read on it, and the Project Browser's dark row
+   icons on its dark rows),
    `check_se_schemes.py` (the script editor's colour schemes against
    their backgrounds, against `tools/ci/se-schemes-baseline.txt`) and
    `check_ide_prefs.py` (the first-install preferences). Every check
@@ -1859,8 +1916,8 @@ job "Package mac-universal" joins the two into one universal
 `OXT-Beyond-mac-universal`; "Test mac-universal (arm64)" and "(x86_64)"
 then install it from the disk image on each architecture and test it
 (the signature, the smoke test, the IDE compile check, a standalone,
-the IDE started as a user starts it and the light and dark appearance;
-see [macOS app](#macos-app)). The IDE start
+the IDE started as a user starts it, the light and dark appearance and
+the [IDE screenshots](#ide-screenshots); see [macOS app](#macos-app)). The IDE start
 ([`tools/ci/mac_ide_start.sh`](tools/ci/mac_ide_start.sh)) runs the app
 with its home stack, menu bar and palettes and fails if it is not still
 running after 90 seconds, printing the faulting thread of the crash

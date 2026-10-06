@@ -811,16 +811,6 @@ jobs:
           python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal --targets all \
             --log "$LOGS/standalone-check.log"
 
-      # The browser widget (WKWebView), revBrowser and the player
-      # (AVFoundation) in a standalone of the app: a page loads and its
-      # JavaScript calls back into the script, a WAV and an MP4 file play,
-      # pause and end (tools/ci/media_check.py)
-      - name: Browser and player check
-        timeout-minutes: 10
-        run: |
-          python3 tools/ci/media_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --log "$LOGS/media-check.log"
-
       # The zip must give the same, still valid, app
       - name: Check the zip
         run: |
@@ -882,6 +872,70 @@ jobs:
           python3 tools/ci/field_speed_test.py --app "$APP" --out "$LOGS/field-speed-dark" --mac dark \
             --appearance system --solve-ms 3000 --limit fill-and-prune=5000 --limit write-unlocked=20 \
             --limit try-digit-unlocked=25
+
+      # The IDE's own windows, as a user sees them with the Mac light and
+      # dark: tools/ci/ui_tour.py starts the app's IDE with
+      # tools/ci/ui-tour.livecodescript, which opens the palettes, the
+      # inspector (each section), the editors, each pane of Preferences and
+      # each card of the Standalone Settings, the dictionary, dialogs and
+      # two tooltips one by one and snapshots each. A step that fails or a
+      # script error in the IDE fails the check. The snapshots go with the
+      # logs and are printed into this log (tools/ci/print_images.py).
+      - name: IDE screenshots, light
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --appearance light --out "$LOGS/ui-tour/light"
+
+      - name: IDE screenshots, dark
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --appearance dark --out "$LOGS/ui-tour/dark"
+
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots as an artifact of their own, which the job summary links
+      - name: IDE screenshots, review page
+        if: ${{ !cancelled() }}
+        env:
+          TITLE: macOS ${{ matrix.arch == 'arm64' && 'arm64 (Apple silicon)' || 'x86_64 (Intel)' }}
+        run: python3 tools/ci/ui_tour_page.py "$LOGS/ui-tour" --title "$TITLE"
+
+      - name: Upload the IDE screenshots
+        id: ui_tour_upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ide-screenshots-mac-universal-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/logs/ui-tour/index.html
+            ${{ runner.temp }}/logs/ui-tour/*/shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: IDE screenshots, link in the summary
+        if: ${{ !cancelled() }}
+        env:
+          TITLE: macOS ${{ matrix.arch == 'arm64' && 'arm64 (Apple silicon)' || 'x86_64 (Intel)' }}
+          URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
+        run: python3 tools/ci/ui_tour_page.py "$LOGS/ui-tour" --title "$TITLE" --summary --url="$URL"
+
+      # The browser widget (WKWebView), revBrowser and the player
+      # (AVFoundation) in a standalone of the app: a page loads and its
+      # JavaScript calls back into the script, a WAV and an MP4 file play,
+      # pause and end (tools/ci/media_check.py). It runs after the IDE
+      # screenshots: macOS then asks whether Python, which started it, may
+      # find devices on the local network, and the question stays on the
+      # screen
+      - name: Browser and player check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --log "$LOGS/media-check.log"
 
       - name: Upload logs
         if: always()

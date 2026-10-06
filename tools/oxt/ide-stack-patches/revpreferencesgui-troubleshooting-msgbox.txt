@@ -1,0 +1,12 @@
+# Preferences, card "Troubleshooting": the card's preOpenCard set the hilite
+# of button "cMsgboxDontMess", which is named "MsgboxDontMess", so the card
+# stopped with "Chunk: no such object" before it set the inspector's
+# buttons. The property is empty until the button is first clicked, which a
+# hilite cannot be set to: true only when it is true.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card "Troubleshooting"
+replace:
+|   set the hilite of btn "cMsgboxDontMess" to the cMsgboxdontTouch of stack "revPreferences"|
+with:
+|   set the hilite of btn "MsgboxDontMess" to (the cMsgboxdontTouch of stack "revPreferences" is true)|

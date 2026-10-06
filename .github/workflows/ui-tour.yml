@@ -1,0 +1,176 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# Screenshots of the IDE's own windows (palettes, inspector, editors,
+# dialogs, a tooltip) in a published release, with the system light and
+# dark, on Windows, Linux and both kinds of Mac: tools/ci/ui_tour.py starts
+# the release's IDE with tools/ci/ui-tour.livecodescript, which opens the
+# windows one by one and snapshots the screen around each. The snapshots
+# are printed into the log (tools/ci/print_images.py puts them back
+# together from a saved log) and uploaded with a page that shows each
+# window light and dark side by side (tools/ci/ui_tour_page.py; the job
+# summary links the download). Run it by hand on a release; it
+# also runs on a pull request that changes the tour itself, where what the
+# release gets wrong (perhaps what the pull request fixes) shows as a
+# warning instead of failing: the pull request's own builds run the tour on
+# their IDE.
+name: IDE screenshots (release)
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/ui-tour.yml
+      - tools/ci/ui_tour.py
+      - tools/ci/ui-tour.livecodescript
+      - tools/ci/ui_tour_page.py
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to look at (for example v0.2.4-rc.1); empty for the latest one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-tour-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tour:
+    name: ${{ matrix.platform }} (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win-x86_64
+            runner: windows-2022
+            asset: win-x86_64-portable.zip
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            asset: linux-x86_64.tar.xz
+          - platform: mac-universal
+            runner: macos-15
+            asset: mac-universal.zip
+          - platform: mac-universal
+            runner: macos-15-intel
+            asset: mac-universal.zip
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-$ASSET" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          cd "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$(pwd -W 2>/dev/null || pwd)/$(ls *-"$ASSET")" >> "$GITHUB_ENV"
+
+      # The runtime libraries, Xvfb, and the Adwaita GTK 2 themes, light and
+      # dark, as a desktop Linux has them
+      - name: Install Xvfb, the GTK themes and the runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          pkgs=(xvfb xauth gnome-themes-extra gtk2-engines-pixbuf fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      - name: Extract the app
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/oxt-test"
+          ditto -x -k "$PACKAGE" "$RUNNER_TEMP/oxt-test"
+          echo "LAYOUT=--install=$RUNNER_TEMP/oxt-test" >> "$GITHUB_ENV"
+
+      - name: IDE screenshots, light
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
+            --appearance light --out "$RUNNER_TEMP/ui-tour/light"
+
+      - name: IDE screenshots, dark
+        if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
+            --appearance dark --out "$RUNNER_TEMP/ui-tour/dark"
+
+      # For a person to look through: a page with each window light and
+      # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
+      # snapshots and linked from the job summary
+      - name: Review page
+        if: always()
+        env:
+          TITLE: ${{ matrix.platform }} (${{ matrix.runner }})
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour_page.py "$RUNNER_TEMP/ui-tour" --title "$RELEASE_TAG, $TITLE"
+
+      - name: Upload the screenshots
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-tour-${{ matrix.platform }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/ui-tour
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Link in the summary
+        if: always()
+        env:
+          TITLE: ${{ matrix.platform }} (${{ matrix.runner }})
+          URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          "$py" tools/ci/ui_tour_page.py "$RUNNER_TEMP/ui-tour" --title "$RELEASE_TAG, $TITLE" --summary --url="$URL"

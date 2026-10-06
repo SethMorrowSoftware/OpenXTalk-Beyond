@@ -55,8 +55,10 @@ text_muted                          palette_background                   4.5
 text_disabled                       palette_background                   3
 state_hover                         palette_background                   3
 
-# Tools palette: the widget icons
+# Tools palette: the widget icons, and the colour a classic object's icon
+# is tinted with under the mouse
 palette_icon                        palette_background                   3
+palette_icon_hover                  palette_background                   3
 
 # Inspector: an inherited ("effective") value and a locked one are drawn in
 # text_muted, on the field's own background or, when the selected objects

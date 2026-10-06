@@ -2,7 +2,10 @@
 # 86,84,93 rounded rectangle with white text; the other icon buttons, and
 # this one in 1.10, are transparent with 192,192,192 and a border. Back to
 # that. The style goes first: making a button transparent also makes it
-# not opaque and hides its border, which is then shown again.
+# not opaque and hides its border, which is then shown again. Its "Image
+# library" menu had black text on 86,84,93 saved, black on the dark
+# appearance's menu; unset, it follows the appearance, as the Search
+# window's menus do (light-search-colours.txt).
 file: Toolset/palettes/reviconchooser.rev
 object: button id 1009 of card 1
 property: style
@@ -20,3 +23,10 @@ to: 192,192,192
 property: foregroundColor
 from: white
 to: 192,192,192
+object: button "library chooser" of card 1
+property: backgroundColor
+from: 86,84,93
+to: 
+property: foregroundColor
+from: black
+to: 

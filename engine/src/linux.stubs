@@ -150,6 +150,7 @@ gdk libgdk-x11-2.0.so.0
 	gdk_event_get: () -> (pointer)
 	gdk_colormap_new: (pointer, integer) -> (pointer)
 	gdk_visual_get_best_with_depth: (integer) -> (pointer)
+	gdk_visual_get_best_with_both: (integer, integer) -> (pointer)
 	gdk_drawable_set_colormap: (pointer, pointer) -> ()
 	gdk_gc_new: (pointer) -> (pointer)
 	gdk_gc_set_colormap: (pointer, pointer) -> ()

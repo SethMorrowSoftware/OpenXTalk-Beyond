@@ -1,9 +1,12 @@
 ﻿script "com.livecode.pi.gradient.behavior"
 local sPopupDefaults
+-- OXT-Beyond: the bar's own fill (white), for the light IDE
+local sLightFill
 
 on editorInitialize
    set the editorMinWidth of me to 25
    set the editorMaxWidth of me to 0
+   if sLightFill is empty then put the backColor of graphic 1 of me into sLightFill
    
    local tPopupData, tDefaultStore
    put editorPropertyGet("popup") into tPopupData
@@ -73,6 +76,14 @@ private command updateDisplay pValue
    
    lock messages
    set the fillgradient of graphic 1 of me to tFillData
+   -- OXT-Beyond: with no gradient the bar shows its own fill, white in the
+   -- light IDE and the palette's colour in the dark one, where white was a
+   -- glaring empty bar
+   if revIDEIsDark() then
+      set the backColor of graphic 1 of me to empty
+   else
+      set the backColor of graphic 1 of me to sLightFill
+   end if
    unlock messages 
 end updateDisplay
 

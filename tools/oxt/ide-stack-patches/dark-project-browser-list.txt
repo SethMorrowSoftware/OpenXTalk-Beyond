@@ -1,0 +1,35 @@
+# Project Browser: in the dark appearance the stack script of OpenXTalk
+# Lite 1.15 made the list dark by inverting it: a white image over the
+# list with the difference ink (image "cover-square") and the exclusion ink
+# on the list's group ("content"). The list now has dark colours of its own
+# (revIDEColor; __pbApplyColors and the row behaviours), which the
+# inversion turned light again on every platform: light grey rows with
+# grey text and brown script badges, and on Linux a light grey list. The
+# list is now drawn as it is in both appearances; the refresh button still
+# gets its white icon on a dark palette.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/project browser/revideprojectbrowser.livecode
+object: stack
+replace:
+|      if tMaxColValues <234 then|
+|         -- I've decided to set UI to dark|
+|         show image "cover-square" of card "list" of this stack|
+|         set the rect of image "cover-square" of card "list" of stack "revIDEProjectBrowser" to the rect of group "objectList" of card "list" of stack "revIDEProjectBrowser"|
+|         set the ink of group "content" to "blendExclusion"|
+|         put the id of image "white-refresh" of card 1 of stack "revIcons" into tRefID|
+|      else|
+|         -- I've decided to set UI to light|
+|         hide image "cover-square" of card "list" of this stack|
+|         set the ink of group "content" to "srcCopy"|
+|         put the id of image "dark-refresh" of card 1 of stack "revIcons" into tRefID|
+|      end if|
+with:
+|      -- OXT-Beyond: the list has dark colours of its own in the dark|
+|      -- appearance (revIDEColor), which inverting it made light again|
+|      hide image "cover-square" of card "list" of this stack|
+|      set the ink of group "content" to "srcCopy"|
+|      if tMaxColValues <234 then|
+|         put the id of image "white-refresh" of card 1 of stack "revIcons" into tRefID|
+|      else|
+|         put the id of image "dark-refresh" of card 1 of stack "revIcons" into tRefID|
+|      end if|
