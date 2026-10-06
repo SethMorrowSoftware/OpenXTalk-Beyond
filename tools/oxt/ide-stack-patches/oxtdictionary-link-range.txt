@@ -6,7 +6,7 @@
 # or longer: a link of two words ("error message|error messages") was
 # linked letters late, as "er[ror]", or on its first word alone, and a link
 # whose text is shorter than its target ("player(object)|players") lost its
-# first letters or was not made at all, about 2,000 of the 6,700 links in
+# first letters or was not made at all, about 1,700 of the 5,900 links in
 # the entries (OpenXTalk Lite 1.15). The link is now the text after the
 # bar, one word or two, without the punctuation after it, and still none
 # where a blank follows the bar.
