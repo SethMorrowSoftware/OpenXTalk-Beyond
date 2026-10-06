@@ -194,10 +194,18 @@ on revSaveAsStandalone pStack, pFolder, pPreview, pSuppressSuccessMsg
    end if
    
    -- Make sure there is actually something to build..
-   
-   if revSBNoPlatforms(tSettings) then
+   -- OXT-Beyond: iOS doesn't count, since revDoSaveAsStandalone leaves it
+   -- out, so a stack set to build for iOS alone gets this message rather
+   -- than nothing built and the success message
+   local tBuildable
+   put tSettings into tBuildable
+   delete variable tBuildable["ios"]
+   if revSBNoPlatforms(tBuildable) then
       local tMessage
       put "You have not selected any platforms to build for. Please do so using Standalone Settings." into tMessage
+      if tSettings["ios"] then
+         put "OXT-Beyond can't build iOS standalones, and no other platform is selected. Please select one in the Standalone Settings." into tMessage
+      end if
       if revSBSuppressDialogs() then
          return tMessage
       else

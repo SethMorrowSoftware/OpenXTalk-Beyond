@@ -25,8 +25,11 @@
 # them: one commit with no history, pushed with --force, so only the newest
 # screenshots are kept and the branch does not grow. A push to that branch
 # starts no workflow. A pull request that changes this workflow or the script
-# tries them on the latest builds of its own branch and uploads what the
-# branch would hold, as the artifact ide-screenshots-branch, instead.
+# tries them on the newest finished builds of its own branch and uploads
+# what the branch would hold, as the artifact ide-screenshots-branch,
+# instead. Its own builds start with it, so those are of an earlier commit
+# (or there are none, on a new branch): it checks the steps. It can't wait
+# for them with workflow_run, which runs the copy of this file on main.
 #
 # Permissions: contents: write to push the branch, actions: read for the
 # runs and their artifacts, in this job only.
