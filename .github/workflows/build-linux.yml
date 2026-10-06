@@ -848,6 +848,11 @@ jobs:
           path: prebuilt/fetched-assets/xtalk
           key: ${{ steps.xtalk-cache.outputs.cache-primary-key }}
 
+      # The checks below run once the package is extracted (OXT_ROOT set),
+      # each even when one before it failed, so that one run reports every
+      # problem; the job fails if any did, and the package is uploaded only
+      # when all passed.
+      #
       # As a user does: tar -xJf into an ordinary folder. A folder named
       # _build or *-bin on the way would make the engine run the IDE of a
       # source checkout (repository mode), so the tests run here, never
@@ -885,6 +890,7 @@ jobs:
       # (run_livecode_check.py extracts the tarball again, to its own
       # neutral folder)
       - name: Smoke test (package, headless)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 15
         env:
           PACKAGE: ${{ steps.package.outputs.package }}
@@ -896,6 +902,7 @@ jobs:
       # started through the launcher (with -ui the launcher needs only the
       # "core" libraries and execs the engine with the arguments unchanged)
       - name: IDE compile check (package, through the launcher)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 20
         run: |
           python3 tools/ci/run_livecode_check.py compile --install "$OXT_ROOT" --engine "$OXT_ROOT/oxt-beyond" \
@@ -908,6 +915,7 @@ jobs:
       # runtime folder's binaries are checked first
       # (tools/ci/standalone_check.py)
       - name: Standalone check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 15
         run: |
           python3 tools/ci/standalone_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --targets all \
@@ -920,6 +928,7 @@ jobs:
       # seeks when clicked (tools/ci/media_check.py; the snapshots of the
       # controller go with the logs)
       - name: Browser and player check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
@@ -930,7 +939,7 @@ jobs:
       # stack, and the keys go to a field of the stack, not on to the
       # browser (tools/ci/browser_wm_check.py)
       - name: Browser window manager check
-        if: matrix.arch == 'x86_64'
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
         timeout-minutes: 15
         run: |
           python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
@@ -941,6 +950,7 @@ jobs:
       # from the background of a window it has not painted
       # (tools/ci/linux_appearance_check.py)
       - name: GTK appearance check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
           python3 tools/ci/linux_appearance_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
@@ -951,6 +961,7 @@ jobs:
       # after 90 s, with windows on the screen (tools/ci/linux_ide_start.sh;
       # its output and screenshots go with the logs)
       - name: IDE start check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: tools/ci/linux_ide_start.sh "$OXT_ROOT" "$RUNNER_TEMP/logs/ide-start" 90
 
@@ -961,6 +972,7 @@ jobs:
       # (engine/src/linux.stubs) is in the launcher's list, the base system
       # or the package
       - name: Check the system libraries (ldd and the launcher's list)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
           python3 tools/ci/check_linux_libraries.py --root "$OXT_ROOT" --repo . \
             --json "$RUNNER_TEMP/logs/linux-libraries.json"
@@ -968,6 +980,7 @@ jobs:
       # The package's desktop entry as staged (install.sh only replaces its
       # Exec and TryExec lines; the test below validates the installed one)
       - name: Validate the desktop entry
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
           out=$(desktop-file-validate "$OXT_ROOT/linux/oxt-beyond.desktop" 2>&1) || { echo "$out"; exit 1; }
           echo "${out:-desktop-file-validate: no errors, warnings or hints}"
@@ -979,6 +992,7 @@ jobs:
       # through ~/.local/bin/oxt-beyond, and the desktop entry
       # (desktop-file-validate) with a plain and an awkward install path
       - name: Test the launcher and the install scripts
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 30
         run: |
           python3 tools/ci/test_linux_package.py --root "$OXT_ROOT" --require-desktop-tools \
