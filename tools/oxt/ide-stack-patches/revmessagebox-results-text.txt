@@ -1,0 +1,8 @@
+# Message Box, single line: the results field was saved with "97,97,97" in
+# it (OpenXTalk Lite 1.15), which the Message Box showed until something
+# was put into it.
+file: Toolset/palettes/message box/revmessagebox.8.rev
+object: field "results" of card "Single Line"
+property: htmlText
+from: <p>97,97,97</p>
+to: <p></p>

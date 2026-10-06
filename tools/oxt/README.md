@@ -1054,7 +1054,8 @@ to:
 ```
 
 Values are written as the dump writes them and compared exactly; a property
-that already has the new value is skipped.
+that already has the new value is skipped. A field's text is patched as its
+`htmlText` (an empty field's is `<p></p>`).
 
 An image patch file names a stack file and, for one or more images, a PNG
 file of the repository (relative to its root) and the SHA-1 of the image's

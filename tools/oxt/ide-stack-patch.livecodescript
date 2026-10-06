@@ -87,6 +87,8 @@ script "oxt_ide_stack_patch"
 -- button's style its showBorder, a menu's text its label): a later patch
 -- of the file may declare such a property, with the value it gets or, to
 -- set it back, the value in between as "from" and the file's as "to".
+-- The text of a field is patched as its htmlText (an empty field's is
+-- <p></p>), which the dump shows twice, as a property and on its own line.
 --
 -- For each stack file the tool
 --    1. loads the file (messages locked; the stack is never opened) and
@@ -766,6 +768,11 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
             if tLine is line i of tBeforeProps then next repeat
             if tLine begins with "image text sha1: " then
                put "@image" into tKey
+            else if tLine begins with "field htmlText: " then
+               -- A field's htmlText is in its properties and again on a
+               -- line of its own, which shows the patched value too
+               put "htmlText" into tKey
+               put "prop " & char 7 to -1 of tLine into tLine
             else
                put char 6 to (offset(": ", tLine) - 1) of tLine into tKey
             end if
@@ -773,7 +780,7 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
                set the caseSensitive to false
                throw "a property of " & tLabel & " changed that no patch sets: " & tLine
             end if
-            put tLabel & " | " & tKey & return after tResult
+            if tSeen[tKey] is not true then put tLabel & " | " & tKey & return after tResult
             put true into tSeen[tKey]
          end repeat
          -- A patched property shows its new value; or, when a patch of the
