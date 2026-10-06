@@ -1,0 +1,10 @@
+# Preferences, Mobile Support: the Android SDK group is opaque with no
+# colour of its own, so macOS fills it with its theme's control colour,
+# which in the dark appearance is a lighter grey panel on the dark pane (on
+# Windows and Linux, and in the light appearance, it is the pane's colour).
+# Transparent, it shows the pane on every platform; nothing lies under it.
+file: Toolset/palettes/revpreferencesgui.rev
+object: group "Android SDK" of card "Mobile Support"
+property: opaque
+from: true
+to: false

@@ -1,0 +1,67 @@
+# Script Editor, Search Results pane (Find and Replace, Find All): the
+# results were written in 80,80,80 (the object) and 16,16,16 (the line
+# of the script), which the dark appearance shows on its dark pane; in
+# the dark appearance they take the IDE's grey and text colour. The
+# script editor's first window (revNewScriptEditor 1) and the template
+# of the others (revSETemplate) each have the pane; this one: revSETemplate.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/script editor/revscripteditor.8.rev
+object: group "Search Results" of card "Main" of stack "revSETemplate"
+replace:
+|   set the itemDelimiter to tab|
+|   |
+|   local tResultNumber|
+|   put 1 into tResultNumber|
+|   |
+|   local tResults|
+|   repeat for each line tMatch in line 3 to -1 of pResultsString|
+|      local tObjectString|
+|      put formatObjectReference(item 1 of tMatch) into tObjectString|
+|      |
+|      # As the context may contains html characters if its a quoted string in the script,|
+|      # we have to escape these to prevent the formatting of results getting messed up.|
+|      local tContext|
+|      put item 5 of tMatch into tContext|
+|      |
+|      replace "&" with "&amp;" in tContext|
+|      replace "<" with "&lt;" in tContext|
+|      # Strictly this should be done, but it may ommited for speed reasons.|
+|      #replace ">" with "&gt;" in tContext|
+|      |
+|      put "<p><font color=" & quote & "#505050" & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & "#101010" & quote & ">" & tContext & "</font></p>" & return after tHtml|
+with:
+|   -- OXT-Beyond: in the dark appearance (revIDEIsDark) the object in the|
+|   -- IDE's grey and the line of the script in its text colour|
+|   -- (revIDEColor): the 80,80,80 and 16,16,16 of the light one could not|
+|   -- be read on the dark pane|
+|   local tObjectColor, tContextColor|
+|   put "#505050" into tObjectColor|
+|   put "#101010" into tContextColor|
+|   if revIDEIsDark() then|
+|      put revIDEColor("text_2") into tObjectColor|
+|      put format("#%02X%02X%02X", item 1 of tObjectColor, item 2 of tObjectColor, item 3 of tObjectColor) into tObjectColor|
+|      put revIDEColor("text_1") into tContextColor|
+|      put format("#%02X%02X%02X", item 1 of tContextColor, item 2 of tContextColor, item 3 of tContextColor) into tContextColor|
+|   end if|
+|   |
+|   set the itemDelimiter to tab|
+|   |
+|   local tResultNumber|
+|   put 1 into tResultNumber|
+|   |
+|   local tResults|
+|   repeat for each line tMatch in line 3 to -1 of pResultsString|
+|      local tObjectString|
+|      put formatObjectReference(item 1 of tMatch) into tObjectString|
+|      |
+|      # As the context may contains html characters if its a quoted string in the script,|
+|      # we have to escape these to prevent the formatting of results getting messed up.|
+|      local tContext|
+|      put item 5 of tMatch into tContext|
+|      |
+|      replace "&" with "&amp;" in tContext|
+|      replace "<" with "&lt;" in tContext|
+|      # Strictly this should be done, but it may ommited for speed reasons.|
+|      #replace ">" with "&gt;" in tContext|
+|      |
+|      put "<p><font color=" & quote & tObjectColor & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & tContextColor & quote & ">" & tContext & "</font></p>" & return after tHtml|
