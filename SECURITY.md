@@ -24,7 +24,7 @@ so that you can send the details there.
 Please include:
 
 - the OXT-Beyond version and build number (the version is in the title
-  of the menubar window, for example "OXT-Beyond 0.2.3", and in
+  of the menubar window, for example "OXT-Beyond 0.2.4-rc.1", and in
   `ide/.version` of a source checkout; the build number is under
   *Preferences > Automatic Updates*), and your operating system and
   version (Windows; macOS, Apple Silicon or Intel; or your Linux
@@ -76,7 +76,7 @@ Development builds (workflow artifacts on the Actions tab) are made by
 the same workflows but are not reviewed as releases.
 
 The standalone runtimes for the other platforms in each package come
-from a release asset of this repository (`runtimes-0.2.1-rc.6`), which
+from a release asset of this repository (`runtimes-0.2.4-rc.1`), which
 the packager downloads and refuses unless its SHA-256 matches the one
 recorded in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The

@@ -14,6 +14,22 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4-rc.1 (2026-10-06, pre-release)
+
+- Linux: follow a dark GTK theme (#56)
+- Dictionaries: work where the install is read-only, and fix Quick Dictionary auto-search (#58)
+- CI: time a Sudoku-shaped stack's field work in the macOS releases (#55)
+- Field speed test: run when opened in the IDE or a standalone (#55)
+- Field speed test: time each unlocked write, profile the unlocked filling (#55)
+- macOS: a script's screen updates catch up with it instead of waiting each time (#55)
+- macOS: a script's first screen updates after a wait show at once (#55)
+- Dictionary: how the Mac screen catches up with a handler (#55)
+- Linux browser widget: keep the window manager and the keyboard out of its window (#57)
+- Linux engine stubs: XCreateWindow and XSync, which libbrowser now calls (#57)
+- CI: check the Linux browser widget under xfwm4 and openbox (#57)
+- Version 0.2.4-rc.1, with its changelog (#60)
+- Runtimes: oxt-runtimes-0.2.4-rc.1, built from the commit that #57 merged, with the Linux browser and dark mode fixes (#60)
+
 ## 0.2.3 (2026-10-05)
 
 - Preferences > Appearance: the appearance menus and their note fit above the window's bottom row (#52)

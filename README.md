@@ -50,7 +50,8 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it.
+download it. 0.2.4-rc.1 is a test release (a pre-release) of the fixes
+made since 0.2.3; 0.2.3 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -64,7 +65,7 @@ download it.
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.1-rc.6.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.4-rc.1.zip`)
   brings each platform's runtimes into the other packages. The Android
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
@@ -183,7 +184,7 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15` and `runtimes-0.2.1-rc.6`, are not programs. They hold
+`runtimes-1.15` and `runtimes-0.2.4-rc.1`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -760,6 +761,26 @@ also fixes *Preferences > Appearance*, where the appearance menus and
 their note covered the window's bottom row and part of the Reset button
 ([#51](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/51)).
 
+OXT-Beyond 0.2.4-rc.1, a test release, fixes bugs reported on 0.2.3:
+
+- macOS: a script that changes what is on screen at every statement (a
+  stack that fills and clears dozens of fields while a card opens, for
+  example) no longer freezes the IDE. Each such update used to wait for
+  the Mac to draw, about 50 ms a time; the screen now catches up with the
+  script instead.
+- Linux: the browser widget always shows its page, no longer keeps the
+  keyboard after a page loads (typing into the message box or another
+  stack works again), and clicking a stack takes the keyboard back from
+  it.
+- Linux: with a dark GTK theme the engine reports the `systemAppearance`
+  as `"dark"`, so the IDE draws its dark palettes. *View > Appearance*
+  shows "Follow the System" there.
+- The text dictionary works when the install's folder cannot be written
+  (the Mac app run from its disk image or by a user who is not an
+  administrator, or a Linux install owned by root): it used to open empty
+  and stop responding. The Quick Dictionary's auto-search finds entries
+  again instead of reporting a database error.
+
 ### xTalk Suite extensions
 
 OXT-Beyond ships the extensions of the
@@ -963,7 +984,8 @@ Known limitations, in rough order of importance:
    a dark text colour of its own, on a card with no colour, stays dark on
    the dark card. On Linux the native controls are drawn by the GTK
    theme, so every stack follows it and the appearance properties change
-   nothing there; a light-designed stack under a dark GTK theme can still
+   nothing there (since 0.2.4-rc.1 the engine reports a dark GTK theme as
+   the `systemAppearance`, so the IDE's palettes follow it too); a light-designed stack under a dark GTK theme can still
    show white text on white. On macOS the classic native theme only
    draws light controls, so the engine draws the controls of a dark stack
    itself, in the shapes and colours of macOS's dark controls but not
