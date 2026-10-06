@@ -688,6 +688,30 @@ jobs:
           # The files are compressed already
           compression-level: 0
 
+      # The IDE's own windows, as a user sees them with Windows light and
+      # dark: tools/ci/ui_tour.py starts the staged IDE with
+      # tools/ci/ui-tour.livecodescript, which opens the palettes, the
+      # inspector (each section), the editors, each pane of Preferences and
+      # each card of the Standalone Settings, the dictionary, dialogs and
+      # two tooltips one by one and snapshots each. A step that fails or a
+      # script error in the IDE fails the check. The snapshots go with the
+      # logs and are printed into this log (tools/ci/print_images.py).
+      - name: IDE screenshots, light
+        id: ui_tour_light
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\light"
+
+      - name: IDE screenshots, dark
+        id: ui_tour_dark
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        timeout-minutes: 15
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
+
       - name: Collect logs
         id: collect_logs
         if: always()
