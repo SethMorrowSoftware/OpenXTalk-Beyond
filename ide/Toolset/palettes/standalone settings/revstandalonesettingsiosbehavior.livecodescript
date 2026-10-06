@@ -157,12 +157,16 @@ on updateSettings
    put computeDefault(tSettings["ios,launch-image-dark-2x"], empty) into field "launch-image-dark-2x"
    put computeDefault(tSettings["ios,launch-image-dark-3x"], empty) into field "launch-image-dark-3x"
    
+   -- OXT-Beyond: the iOS card of this IDE has no App Tracking Transparency
+   -- controls: setting them stopped the card's update with an error
    local tAppTrackingTransparency
-   put computeDefault(tSettings["ios,AppTrackingTransparency"], false) into tAppTrackingTransparency
-   set the hilite of button "App Tracking Transparency Check" to tAppTrackingTransparency
-   put computeDefault(tSettings["ios,AppTrackingTransparencyMessage"], empty) into field "App Tracking Transparency Message"
-   set the enabled of field "App Tracking Transparency Message" to tAppTrackingTransparency
-   
+   if there is a button "App Tracking Transparency Check" then
+      put computeDefault(tSettings["ios,AppTrackingTransparency"], false) into tAppTrackingTransparency
+      set the hilite of button "App Tracking Transparency Check" to tAppTrackingTransparency
+      put computeDefault(tSettings["ios,AppTrackingTransparencyMessage"], empty) into field "App Tracking Transparency Message"
+      set the enabled of field "App Tracking Transparency Message" to tAppTrackingTransparency
+   end if
+
    set the opaque of graphic "launch-backcolor" to tSettings["ios,launch-backcolor"] is not empty
    set the hilite of button "Use system background color" to tSettings["ios,launch-backcolor"] is empty
    set the backColor of graphic "launch-backcolor" to tSettings["ios,launch-backcolor"]
