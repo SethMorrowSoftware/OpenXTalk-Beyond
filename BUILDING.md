@@ -1462,6 +1462,39 @@ python3 tools/ci/browser_wm_check.py --install <folder> --shots <folder>
 
 The Linux build runs it on its package after the browser and player check.
 
+### IDE screenshots
+
+[`tools/ci/ui_tour.py`](tools/ci/ui_tour.py) looks at the IDE's own
+windows, which no other check does: the other checks run the engine with
+`-ui` or with a test stack, and the palettes, the Inspector, the editors
+and the dialogs are stacks with colours of their own. It sets the
+system's appearance (`--appearance light` or `dark`: on macOS
+`AppleInterfaceStyle`, on Windows the apps and system mode, on Linux the
+Adwaita or Adwaita-dark GTK 2 theme of `gnome-themes-extra`, else a
+gtkrc of plain colours), restores it at the end, and starts the
+installed IDE as a user does with
+[`tools/ci/ui-tour.livecodescript`](tools/ci/ui-tour.livecodescript)
+named on the command line. The script opens the palettes, each section
+of the Inspector, the script editor, the message box, each pane of
+Preferences and each card of the Standalone Settings, the dictionary,
+the other editors and some dialogs one by one, shows two tooltips, and
+snapshots the screen around each. The snapshots stay in `<out>/shots`
+and are printed into the output, from which
+[`tools/ci/print_images.py`](tools/ci/print_images.py) rebuilds them.
+A step that fails, or a script error in the IDE's windows, fails the
+check. `--only` runs some of the steps, named as the script's `kSteps`
+names them (for example `--only appearance,tooltip-tools`).
+
+```sh
+sudo apt-get install xvfb gnome-themes-extra gtk2-engines-pixbuf
+python3 tools/ci/ui_tour.py --install <folder> --appearance dark --out <folder>
+```
+
+Every pull request's build runs it light and dark: on the Windows staged
+IDE, the Linux packages and the Mac app on both architectures.
+[`ui-tour.yml`](.github/workflows/ui-tour.yml) runs it on the packages of
+a published release (by hand, for any tag).
+
 ### Installer
 
 ```bat
@@ -1859,8 +1892,8 @@ job "Package mac-universal" joins the two into one universal
 `OXT-Beyond-mac-universal`; "Test mac-universal (arm64)" and "(x86_64)"
 then install it from the disk image on each architecture and test it
 (the signature, the smoke test, the IDE compile check, a standalone,
-the IDE started as a user starts it and the light and dark appearance;
-see [macOS app](#macos-app)). The IDE start
+the IDE started as a user starts it, the light and dark appearance and
+the [IDE screenshots](#ide-screenshots); see [macOS app](#macos-app)). The IDE start
 ([`tools/ci/mac_ide_start.sh`](tools/ci/mac_ide_start.sh)) runs the app
 with its home stack, menu bar and palettes and fails if it is not still
 running after 90 seconds, printing the faulting thread of the crash
