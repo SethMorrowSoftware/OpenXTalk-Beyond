@@ -239,7 +239,9 @@ jobs:
       #                                 the IDE contrast check runs them)
       #   check_ide_icons.py            the toolbar's disabled icons have
       #                                 their dark twins, readable on the
-      #                                 dark toolbars (32,32,32 and 61,61,61)
+      #                                 dark toolbars (32,32,32 and 61,61,61),
+      #                                 and the dark Tools palette's outline
+      #                                 icons read on each dark palette
       #   check_se_schemes.py           the script editor's colour schemes
       #                                 on its light and dark backgrounds,
       #                                 a ratchet against

@@ -39,7 +39,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -175,6 +175,21 @@ on tour_tooltip_tools
    tourShotAround tButton, "revTools", "02-tooltip-tools"
    tourMouseAway
 end tour_tooltip_tools
+
+-- A shape of the Tools palette under the pointer: the palette turns the
+-- icon of a classic object one colour (a colour overlay), which must not be
+-- the colour of the palette
+on tour_hover_tools
+   local tButton
+   revIDEOpenPalette "tools"
+   tourWait 300
+   put tourControlNamed("revTools", "com.livecode.interface.classic.RectangleGraphic") into tButton
+   if tButton is empty then throw "no Rectangle Graphic in the Tools palette"
+   tourHover tButton, "revTools"
+   tourRecord "INFO hover" && the short name of tButton & ":" && tourJoin(the colorOverlay["color"] of tButton)
+   tourShotAround tButton, "revTools", "02-hover-tools"
+   tourMouseAway
+end tour_hover_tools
 
 on tour_menubar
    -- Windows and Linux: the IDE's menu bar and toolbar are a stack

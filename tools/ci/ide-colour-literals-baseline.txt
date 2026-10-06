@@ -58,7 +58,6 @@ ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript | preOpenStack
 ide/Toolset/palettes/standalone settings/revstandalonesettingscopyfilesbehavior.livecodescript | checkForWarning | textcolor = red
 ide/Toolset/palettes/tools/revtools.livecodescript | __hiliteAdd | backgroundcolor = 125,125,125
 ide/Toolset/palettes/tools/revtools.livecodescript | mouseDown | bordercolor = 137,137,137
-ide/Toolset/palettes/tools/revtools.livecodescript | mouseEnter | coloroverlay["color"] = 0,0,0
 ide/Toolset/palettes/tools/revtools.livecodescript | toolDisable | coloroverlay["color"] = 255,255,255
 ide/Toolset/palettes/tutorial/revtutorial.livecodescript | revInitialiseTutorial | backcolor = white
 ide/Toolset/palettes/tutorial/revtutorial.livecodescript | revInitialiseTutorial | textcolor = white

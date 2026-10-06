@@ -3356,6 +3356,13 @@ function revIDEColor pTag
          case "palette_icon_disabled"
             return "90,90,90"
             break
+         case "palette_icon_hover"
+            -- The colour a classic object's icon in the Tools palette is
+            -- tinted with under the mouse (a colour overlay, 100 of 255
+            -- opaque): black, as in light, darkened the icon into the dark
+            -- palette, so a lighter icon shows the hover here
+            return "255,255,255"
+            break
          case "palette_separator"
             return "60,60,60"
             break
@@ -3473,6 +3480,9 @@ function revIDEColor pTag
          break
       case "palette_icon_disabled"
          return "200,200,200"
+         break
+      case "palette_icon_hover"
+         return "0,0,0"
          break
       case "palette_separator"
          return "175,175,175"

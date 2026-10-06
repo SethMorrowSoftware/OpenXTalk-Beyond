@@ -1037,7 +1037,9 @@ on mouseEnter
       # We are hovering over a draggable item
       revIDESetCursor "com.livecode.cursor.grab"
       set the coloroverlay["opacity"] of the target to "100" -- was 50 (tperry)
-      set the coloroverlay["color"] of the target to "0,0,0"
+      -- black in light, white in dark (black darkened the icon into the
+      -- dark palette)
+      set the coloroverlay["color"] of the target to revIDEColor("palette_icon_hover")
    else if the cStatus of the target is "error" then
       # Not working on windows.. get the egg timer so disabling for now
       --revIDESetCursor "help"

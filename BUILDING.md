@@ -1477,8 +1477,9 @@ installed IDE as a user does with
 named on the command line. The script opens the palettes, each section
 of the Inspector, the script editor, the message box, each pane of
 Preferences and each card of the Standalone Settings, the dictionary,
-the other editors and some dialogs one by one, shows two tooltips, and
-snapshots the screen around each. The snapshots stay in `<out>/shots`
+the other editors and some dialogs one by one, shows two tooltips and a
+shape of the Tools palette under the pointer, and snapshots the screen
+around each. The snapshots stay in `<out>/shots`
 and are printed into the output, from which
 [`tools/ci/print_images.py`](tools/ci/print_images.py) rebuilds them.
 A step that fails, or a script error in the IDE's windows, fails the
@@ -1762,7 +1763,8 @@ It follows this guide:
    `check_ide_stacks.py` (every script patch of
    `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks; see
    [Working on the IDE](#11-working-on-the-ide)), `check_ide_icons.py`
-   (the toolbar's disabled icons have dark twins),
+   (the toolbar's disabled icons have dark twins, and the dark Tools
+   palette's outline icons read on it),
    `check_se_schemes.py` (the script editor's colour schemes against
    their backgrounds, against `tools/ci/se-schemes-baseline.txt`) and
    `check_ide_prefs.py` (the first-install preferences). Every check
