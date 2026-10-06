@@ -3,6 +3,9 @@ on preOpenCard
    send hUpdateHeights to stack "revStandaloneSettings" in 10 milliseconds
    
    initialize
+   -- OXT-Beyond: on to the stack's preOpenCard, which sizes the window
+   -- for this card and names it in the title, as the other cards do
+   pass preOpenCard
 end preOpenCard
 
 

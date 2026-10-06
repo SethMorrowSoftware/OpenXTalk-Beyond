@@ -1502,8 +1502,9 @@ a published release (by hand, for any tag), and on the latest release for
 a pull request that changes the tour, where the release's own problems
 only warn.
 
-To look through them, each of those jobs uploads the snapshots as an
-artifact of their own, `ide-screenshots-<platform>` in a build
+To look through them, each of those jobs uploads the snapshots, with the
+script's lines of each appearance (`tour.txt`), as an artifact of their
+own, `ide-screenshots-<platform>` in a build
 (`win-x86_64`, `linux-x86_64`, `linux-arm64`, `mac-universal-arm64`,
 `mac-universal-x86_64`) and `ui-tour-<platform>-<runner>` in
 `ui-tour.yml`, kept 14 days, and its job summary links the download.
@@ -1515,6 +1516,27 @@ from the folder with `light/` and `dark/` (the tours' `--out`):
 
 ```sh
 python3 tools/ci/ui_tour_page.py <folder> --title "Linux x86_64"
+```
+
+The newest snapshots of the builds of `main` are also on the branch
+[`ide-screenshots`](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/tree/ide-screenshots),
+where GitHub shows them with nothing to download: a page for each
+platform with each window light and dark side by side, and at the top a
+line for each platform with the build they came from. When one of the
+build workflows finishes a run on a push to `main`,
+[`ide-screenshots.yml`](.github/workflows/ide-screenshots.yml) runs
+[`tools/ci/ide_screenshots_branch.py`](tools/ci/ide_screenshots_branch.py),
+which downloads the newest `ide-screenshots-<platform>` artifact of each
+platform from the builds of main and writes those pages, and replaces the
+branch with one commit of them, pushed with `--force`: only the newest
+are kept, so the branch (about 25 MB) does not grow. A pull request that
+changes the workflow or the script tries them on the latest builds of its
+own branch and uploads the result, as the artifact
+`ide-screenshots-branch`, instead.
+
+```sh
+GH_REPO=<owner>/<repo> python3 tools/ci/ide_screenshots_branch.py download <folder>
+python3 tools/ci/ide_screenshots_branch.py pages <folder> <out>
 ```
 
 ### Installer
@@ -1941,6 +1963,12 @@ The workflow [`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)
 ("Runtimes asset") is only started by hand: it makes the runtimes asset
 from the outputs of one Windows and one Linux run and can publish it
 (see [External assets](#external-assets)).
+
+The workflow [`.github/workflows/ide-screenshots.yml`](.github/workflows/ide-screenshots.yml)
+("IDE screenshots (branch)") runs when one of the three build workflows
+finishes a run on a push to `main`, and keeps the newest IDE screenshots
+of each platform on the branch `ide-screenshots` (see
+[IDE screenshots](#ide-screenshots)).
 
 ## 10. Making a release
 

@@ -692,9 +692,26 @@ end tourWait
 command tourShotStack pStack, pFile
    if pStack is empty or there is not a stack pStack then throw "no stack" && pStack
    if the mode of stack pStack is 0 or not the visible of stack pStack then throw "the stack" && pStack && "is not open"
+   tourOnScreen pStack
    tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack
    tourShotRect the effective rect of stack pStack, pFile
 end tourShotStack
+
+-- The screens of the runners are small (1024 by 768 on Windows and the
+-- Apple silicon Mac, 1440 by 900 on Linux), and a tall window, such as
+-- the Standalone Settings on its iOS and Android cards, went past the
+-- bottom: it moves up, at most to the top of the screen, so that all of
+-- it, or as much as fits, is in the snapshot
+command tourOnScreen pStack
+   local tScreen, tRect, tUp
+   put the working screenRect into tScreen
+   put the effective rect of stack pStack into tRect
+   put min(item 4 of tRect - item 4 of tScreen, item 2 of tRect - item 2 of tScreen) into tUp
+   if tUp > 0 then
+      set the top of stack pStack to the top of stack pStack - tUp
+      tourWait 300
+   end if
+end tourOnScreen
 
 -- Snapshot of the screen around pObject (of the stack pStack), big enough
 -- for its tooltip

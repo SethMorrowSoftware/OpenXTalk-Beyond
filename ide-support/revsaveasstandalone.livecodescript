@@ -298,6 +298,10 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    else
       put pSettings into sStandaloneSettingsA
    end if
+   -- OXT-Beyond: no iOS standalones (no iOS runtime, and no GPL apps in
+   -- the App Store), and the Standalone Settings have no iOS card to
+   -- untick it on: a stack ticked for iOS in LiveCode builds the rest
+   delete variable sStandaloneSettingsA["ios"]
    
    put the mainStack of stack pStack into pStack
    set the defaultStack to pStack

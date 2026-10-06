@@ -39,7 +39,8 @@ private command updateTabButtons pSettings
          or pSettings["Linux x64"] = true \
          or pSettings["Linux ARMv6-HF"] = true \
          or pSettings["Linux arm64"] = true
-   set the visible of button "IosChecked" of group "checks" of me to pSettings["ios"] = true
+   -- OXT-Beyond: no iOS (see below)
+   set the visible of button "IosChecked" of group "checks" of me to false
    set the visible of button "AndroidChecked" of group "checks" of me to pSettings["android"] = true
    set the visible of button "BugsChecked" of group "checks" of me to pSettings["errorDialog"] = true
    set the visible of button "EmscriptenChecked" of group "checks" of me to pSettings["Emscripten"] = true
@@ -55,7 +56,11 @@ private command updateTabButtons pSettings
    show button "Bug Reports" of group "cards" of me
    show button "Copy Files" of group "cards" of me
    show button "Unix" of group "cards" of me
-   show button "iOS" of group "cards" of me
+   -- OXT-Beyond: no iOS card. The open source version has no iOS
+   -- runtime, and Apple takes no GPL apps in the App Store, so iOS
+   -- standalones can't be built (revSaveAsStandalone leaves out a stack's
+   -- iOS setting from LiveCode)
+   hide button "iOS" of group "cards" of me
    show button "Emscripten" of group "cards" of me
    
    local tLeft
