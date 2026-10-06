@@ -1437,7 +1437,10 @@ draws below mplayer's video (play, pause, a click in the well of the AVI
 file, whose frames are all key frames) and reads what it draws from
 snapshots of the player; `--snapshots <folder>` keeps those snapshots and
 the screen with the video (the Linux build puts them with its logs). The
-CI runs it on every package after the standalone check; [`media-check.yml`](.github/workflows/media-check.yml) runs it on
+CI runs it on every package after the standalone check, on macOS after the
+IDE screenshots: there macOS then asks whether Python, which started it,
+may find devices on the local network, and the question stays on the
+screen. [`media-check.yml`](.github/workflows/media-check.yml) runs it on
 the packages of a published release (by hand, for any tag), and on
 macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
