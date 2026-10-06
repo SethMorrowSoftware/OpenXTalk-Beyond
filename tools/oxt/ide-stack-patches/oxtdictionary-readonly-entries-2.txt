@@ -6,6 +6,11 @@
 # owned by root. Every read then gave nothing, and the dictionary showed an
 # empty window and never came back (OpenXTalk Lite 1.15; Tom Perry's report
 # on 0.2.3, macOS Sonoma). It now opens them for read.
+# The entries are UTF-8 text, which "open file" read as native text
+# (Mac Roman on macOS, Windows-1252 on Windows, ISO-8859-1 on Linux):
+# every bullet of a parameter list, and each other character beyond
+# ASCII, showed as two or three wrong ones (OpenXTalk Lite 1.15). They
+# are read as UTF-8 text now.
 # Text lines are between bars, so that trailing blanks survive editors.
 file: Documentation/html_viewer/resources/data/api/oxt_dictionary.oxtstack
 object: field "tEntries" of card 1
@@ -16,4 +21,4 @@ replace:
 with:
 |      -- now recheck, and if not, give up|
 |      if there is a file tfilename then|
-|         open file tfilename for read -- OXT-Beyond: the install may be read-only (plugin entry)|
+|         open file tfilename for "UTF-8" text read -- OXT-Beyond: the install may be read-only, and the entries are UTF-8 (plugin entry)|

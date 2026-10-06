@@ -71,7 +71,7 @@ When you set the HTMLText of a field(object), all tags other than those above ar
 
 If a chunk of text includes more than one of the above styles, OpenXTalk encloses the text in the tags corresponding to each style, from the inside out. For example, if the word "Flail" in a field is underlined and bold, its corresponding HTMLText is "<u><b>Flail</b></u>".
 
-Special characters (whose ASCII value is greater than 127) are encoded as HTML entities. Named HTML entities are enclosed by a leading ampersand and trailing semicolon; e.g. &agrave; for � and &euro; for ?. OpenXTalk recognizes all 253 entities defined in the XHTML specification at http://www.w3.org/TR/html4/sgml/entities.html.
+Special characters (whose ASCII value is greater than 127) are encoded as HTML entities. Named HTML entities are enclosed by a leading ampersand and trailing semicolon; e.g. &agrave; for à and &euro; for €. OpenXTalk recognizes all 253 entities defined in the XHTML specification at http://www.w3.org/TR/html4/sgml/entities.html.
 
 Unicode characters whose decimal numeric value is greater than 255 are encoded as "bignum" entities, with a leading ampersand and trailing semicolon. For example, the Japanese character whose numeric value is 12387 is encoded as an entity like this:&#12387;.
 

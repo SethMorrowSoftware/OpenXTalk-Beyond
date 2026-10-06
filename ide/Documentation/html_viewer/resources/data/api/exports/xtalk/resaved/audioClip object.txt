@@ -30,7 +30,7 @@ Unlike a player, an audio clip contains the sound that it plays. In  the case of
 
 If your stack accesses external audio clip|audio clips you must take care to keep the external file together with the stack file.
 
-audio clip|Audio clips can be in *uncompressed* WAV, AIFF, or AU format, which is always compressed. An audio clip may also be in 2:1  µ-law compressed AU format.
+audio clip|Audio clips can be in *uncompressed* WAV, AIFF, or AU format, which is always compressed. An audio clip may also be in 2:1  Âµ-law compressed AU format.
 
 An audioClip object is contained in a stack. audioClip|Audio clips  cannot contain other objects. (Hence, an audioClip is not a control,  since it has no user interface and cannot be owned by a card.)  To play an audioClip, use the syntax       play audioClip <filename_of_audioclip>  Or the syntax      play audioClip "/path/to/file.wav"  To stop an audioClip, use the syntax       play stop
 

@@ -24,7 +24,7 @@ put the first index of "b" before 5 in tVar into tOffset
 ----
 
 Description:
-Use `the index of?Ķ before` to find where particular elements occur within a list.  Haystack is scanned for an element that is equal to Needle, stopping before the position Before, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.  If neither "first" nor "last" is specified, the last matching element is found.
+Use `the index of… before` to find where particular elements occur within a list.  Haystack is scanned for an element that is equal to Needle, stopping before the position Before, and the position of the element found is returned.  If no element of Haystack is equal to Needle, the return value is 0.  If neither "first" nor "last" is specified, the last matching element is found.
 
 Values:
 Returns the index in Haystack. 
