@@ -257,6 +257,7 @@ on tour_tooltip_inspector
    if tControl is empty or the tooltip of tControl is empty then put tourObjectWithTooltip(tPI) into tControl
    if tControl is empty then throw "no control of" && tPI && "has a tooltip"
    tourRecord "INFO tooltip" && the short name of tControl & ":" && tourJoin(the tooltip of tControl)
+   tourOnScreen tPI
    tourHover tControl, tPI
    tourShotAround tControl, tPI, "09-tooltip-inspector"
    tourMouseAway
@@ -291,6 +292,8 @@ on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
    tourShotStack revIDEPaletteToStackName("message box"), "11-message-box"
+   -- a palette, in front of the windows of the later steps
+   close stack revIDEPaletteToStackName("message box")
 end tour_message_box
 
 -- With the sample's button shown in it, as Show In Project Browser does:
@@ -693,23 +696,42 @@ command tourShotStack pStack, pFile
    if pStack is empty or there is not a stack pStack then throw "no stack" && pStack
    if the mode of stack pStack is 0 or not the visible of stack pStack then throw "the stack" && pStack && "is not open"
    tourOnScreen pStack
-   tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack
+   -- with the title, which Linux in CI, with no window manager, doesn't show
+   tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack && "title" && quote & the title of stack pStack & quote
    tourShotRect the effective rect of stack pStack, pFile
 end tourShotStack
 
 -- The screens of the runners are small (1024 by 768 on Windows and the
 -- Apple silicon Mac, 1440 by 900 on Linux), and a tall window, such as
--- the Standalone Settings on its iOS and Android cards, went past the
--- bottom: it moves up, at most to the top of the screen, so that all of
--- it, or as much as fits, is in the snapshot
+-- the Standalone Settings on its Android card, went past the bottom: it
+-- moves up, at most to the top of the screen, so that all of it, or as
+-- much as fits, is in the snapshot. A window over the Tools palette, as
+-- the Inspector and the answer and ask dialogs open, moves to the right
+-- of it, as far as the screen allows: on Windows the palette is a system
+-- window (tfixwindowsToolsDrag in revtools.livecodescript), in front of
+-- every other window, and hid their left side
 command tourOnScreen pStack
-   local tScreen, tRect, tUp
+   local tScreen, tRect, tUp, tTools, tRight
    put the working screenRect into tScreen
    put the effective rect of stack pStack into tRect
    put min(item 4 of tRect - item 4 of tScreen, item 2 of tRect - item 2 of tScreen) into tUp
    if tUp > 0 then
       set the top of stack pStack to the top of stack pStack - tUp
       tourWait 300
+   end if
+   if pStack is "revTools" or there is not a stack "revTools" then exit tourOnScreen
+   if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then exit tourOnScreen
+   put the rect of stack "revTools" into tTools
+   put the rect of stack pStack into tRect
+   if item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools then
+      -- 20 pixels clear, for the borders round both windows on Windows
+      put min(item 3 of tTools + 20 - item 1 of tRect, \
+            item 3 of tScreen - item 3 of the effective rect of stack pStack) into tRight
+      if tRight > 0 then
+         set the left of stack pStack to the left of stack pStack + tRight
+         tourWait 300
+      end if
    end if
 end tourOnScreen
 
