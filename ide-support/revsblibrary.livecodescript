@@ -715,7 +715,8 @@ end revFolderNameMakeLegal
 
 // List of all desktop target platforms + architecture
 -- added MacOSX x64-ARM64, tperry 25-09-2025
-constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64,Linux,Linux x64,Linux armv6-hf"
+-- added Linux arm64 (64-bit ARM: Raspberry Pi 3/4/5 on a 64-bit OS), OXT-Beyond 2026-10-06
+constant kDesktopTargets = "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64,Linux,Linux x64,Linux armv6-hf,Linux arm64"
 function revSBDesktopTargets
    return kDesktopTargets
 end revSBDesktopTargets
@@ -740,7 +741,7 @@ end revSBTargetToPlatform
 -- item 1 of the architectures should be the default architecture
 constant kWindowsArchitectures = "x86-32,x86-64"
 constant kMacOSXArchitectures = "x86-32,x86-64,x64-ARM64"
-constant kLinuxArchitectures =  "x86-32,x86-64,armv6-hf"
+constant kLinuxArchitectures =  "x86-32,x86-64,armv6-hf,arm64"
 constant kAndroidArchitectures =  "armv7,arm64,x86,x86_64"
 constant kiOSArchitectures =  "armv7,arm64"
 constant kEmscriptenArchitectures =  "js"
@@ -1050,6 +1051,11 @@ function revEngineCheck pEngine
             -- FG-2014-08-19: [[ RPi ]] Check to see if the ARMv6 engine is present
          case "Linux ARMv6-HF"
             if there is a file (tPath & "/Linux/armv6-hf/Standalone") then
+               return true
+            end if
+            break
+         case "Linux arm64"
+            if there is a file (tPath & "/Linux/arm64/Standalone") then
                return true
             end if
             break
@@ -3087,6 +3093,9 @@ function revSBEnginePath pPlatform
             -- FG-2014-08-19: [[ RPi ]] Compute the correct path for ARMv6 Linux
          case "Linux armv6-hf"
             return tRuntimePath & "/Linux/armv6-hf/Standalone"
+            break
+         case "Linux arm64"
+            return tRuntimePath & "/Linux/arm64/Standalone"
             break
          default
             return "error"

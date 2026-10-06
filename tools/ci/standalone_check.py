@@ -43,6 +43,7 @@ tables describe their folders (RUNTIMES):
   win-x86         Runtime/Windows/x86-32/Standalone
   linux-x86_64    Runtime/Linux/x86-64/Standalone
   linux-x86       Runtime/Linux/x86-32/Standalone
+  linux-arm64     Runtime/Linux/arm64/Standalone
 
 --targets own (the default) takes the layout's own platform's runtime;
 --targets all every one of them that the layout has (a package's runtimes
@@ -131,6 +132,7 @@ RUNTIMES = collections.OrderedDict([
     ('win-x86', 'Runtime/Windows/x86-32/Standalone'),
     ('linux-x86_64', 'Runtime/Linux/x86-64/Standalone'),
     ('linux-x86', 'Runtime/Linux/x86-32/Standalone'),
+    ('linux-arm64', 'Runtime/Linux/arm64/Standalone'),
 ])
 # the deploy command's platform, what "the platform" says in a standalone,
 # and the binary format (binfmt.arch_of), by package.py family

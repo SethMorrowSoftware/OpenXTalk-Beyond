@@ -37,7 +37,8 @@ private command updateTabButtons pSettings
    // SN-2015-01-13: [[ Bug 14373 ]] Check also if Linux 64 or Linux ARM are checked
    set the visible of button "UnixChecked" of group "checks" of me to pSettings["Linux"] = true \
          or pSettings["Linux x64"] = true \
-         or pSettings["Linux ARMv6-HF"] = true
+         or pSettings["Linux ARMv6-HF"] = true \
+         or pSettings["Linux arm64"] = true
    set the visible of button "IosChecked" of group "checks" of me to pSettings["ios"] = true
    set the visible of button "AndroidChecked" of group "checks" of me to pSettings["android"] = true
    set the visible of button "BugsChecked" of group "checks" of me to pSettings["errorDialog"] = true

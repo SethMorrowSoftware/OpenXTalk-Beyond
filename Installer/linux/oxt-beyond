@@ -93,7 +93,7 @@ tell() {
 }
 
 if [ ! -f "$engine" ] || [ ! -x "$engine" ]; then
-    tell "OXT-Beyond: the engine $engine is missing or not executable. Extract the whole package (tar -xJf OXT-Beyond-<version>-linux-x86_64.tar.xz) and start oxt-beyond from its folder."
+    tell "OXT-Beyond: the engine $engine is missing or not executable. Extract the whole package (tar -xJf OXT-Beyond-<version>-linux-<architecture>.tar.xz) and start oxt-beyond from its folder."
     exit 1
 fi
 # The engine OXT-Beyond and this launcher oxt-beyond differ only in case. On
