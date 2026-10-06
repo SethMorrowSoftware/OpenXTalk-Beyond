@@ -1053,8 +1053,9 @@ command revInternal__ResetPreferences
    put "false" into tPropsArray["cStartPageShow"] -- don't show start page (tperry 27-7-24)
    put "Gray40" into tPropsArray["cBackdropColor"] -- set backdrop colour (tperry 27-7-24)
    put "255,140,0" into tPropsArray["cToolSelectorColor"] -- set tool hilite colour (tperry 27-7-24)
-   -- OXT-Beyond: links in a dark blue that reads on white (7.1:1); Tom's
-   -- 255,212,0 gave 1.4:1
+   -- OXT-Beyond: links in a dark blue that reads on white (5.6:1); Tom's
+   -- 255,212,0 gave 1.4:1. While it is the default, the dark appearance
+   -- draws links in a light blue instead (revIDEHelpLinkColor)
    put "0,102,204" into tPropsArray["cRevHelpHiliteColor"] -- set link colour (tperry 27-7-24)
    put "Red" into tPropsArray["cSelectionHandleColor"] -- set object handle colour (tperry 27-7-24)
    put "classic,graphictools,runedit,graphic,paint" into tPropsArray["revTools_show"] -- set tools that should be visible

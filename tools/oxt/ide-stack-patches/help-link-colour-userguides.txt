@@ -1,0 +1,15 @@
+# The Lessons and Examples window (userguides.oxtstack) colours its links in
+# the "hypertext color" of Preferences > Appearance, whose default
+# (0,102,204) reads on white (5.6:1) but hardly on the dark appearance's
+# fields (2.5 to 3:1). It now takes the colour from revIDEHelpLinkColor
+# (revidelibrary): the user's colour or, while it is the default, the
+# appearance's, a light blue (102,178,255) in dark.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/userguides/userguides.oxtstack
+object: stack
+replace:
+|   put the cREVHelpHiliteColor of stack "revPreferences" into tNavLinkColour|
+with:
+|   -- OXT-Beyond: the hypertext colour of Preferences, or while it is|
+|   -- the default, the appearance's (revIDEHelpLinkColor, revidelibrary)|
+|   put revIDEHelpLinkColor() into tNavLinkColour|
