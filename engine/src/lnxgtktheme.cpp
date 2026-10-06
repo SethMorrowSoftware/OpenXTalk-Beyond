@@ -1632,7 +1632,17 @@ static GdkPixbuf* drawtheme_calc_alpha (MCThemeDrawInfo &p_info)
 	t_white = gdk_pixmap_new(NULL, t_w, t_h, t_screen_depth);
 	
 	// We need to attach a colourmap to the Drawables in GDK
-	best_vis = gdk_visual_get_best_with_depth(t_screen_depth);
+	// OXT-Beyond: of a TrueColor visual. The best visual of a depth is
+	// DirectColor where the X server has one, as Xvfb and many Xorg servers
+	// do at depth 24 beside TrueColor (with a compositor the depth is 32,
+	// where it is TrueColor). GDK draws an image with alpha onto a
+	// DirectColor pixmap through a dithered colour cube, not XRender, so
+	// the images of a pixmap theme came out wrong: Adwaita's field frames
+	// and scrollbar troughs red. The widgets the theme draws are on the
+	// same kind of visual (setup_widget_prototype, lnxgtkthemedrawing.cpp).
+	best_vis = gdk_visual_get_best_with_both(t_screen_depth, GDK_VISUAL_TRUE_COLOR);
+	if (best_vis == NULL)
+		best_vis = gdk_visual_get_best_with_depth(t_screen_depth);
     if (best_vis == NULL)
         return NULL;
     

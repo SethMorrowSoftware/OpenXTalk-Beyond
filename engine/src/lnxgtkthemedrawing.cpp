@@ -152,7 +152,11 @@ static gint setup_widget_prototype(GtkWidget * widget)
 		else 
 			screendepth = 24;
         
-        GdkVisual * t_vis = gdk_visual_get_best_with_depth (screendepth);
+        // OXT-Beyond: a TrueColor visual, as for the pixmaps they are drawn
+        // into (drawtheme_calc_alpha, lnxgtktheme.cpp, says why)
+        GdkVisual * t_vis = gdk_visual_get_best_with_both (screendepth, GDK_VISUAL_TRUE_COLOR);
+        if (t_vis == NULL)
+            t_vis = gdk_visual_get_best_with_depth (screendepth);
 		if (t_vis != NULL)
         {
             gtk_widget_set_colormap ( GTK_WIDGET(gProtoWindow), gdk_colormap_new (t_vis, False ));
