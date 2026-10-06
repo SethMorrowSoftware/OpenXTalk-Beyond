@@ -422,11 +422,12 @@ private command __pbApplyColors
 end __pbApplyColors
 
 -- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): new list
--- colours, and the rows drawn again (their behaviours take their colours
--- from revIDEColor)
+-- colours and icons, and the rows drawn again (their behaviours take their
+-- colours from revIDEColor)
 on ideAppearanceChanged
    lock screen
    __pbApplyColors
+   loadImages
    refreshProjectView
    unlock screen
 end ideAppearanceChanged
@@ -2423,23 +2424,43 @@ end controlsOfGroup
    //unlock messages
 //end propertyChanged
 
+-- OXT-Beyond: in the dark appearance (revIDEIsDark) an icon of the dark
+-- folder replaces the one of the same name: light grey for the dark rows
+-- (tools/oxt/dark_pb_icons.py)
 on loadImages
-   local tImage, tFile
-   
+   local tImage, tFolder, tDark, tFile
+
+   put revIDESpecialFolderPath("Toolset") & "/resources/supporting_files/images/" into tFolder
+   put revIDEIsDark() into tDark
    lock screen
    lock messages
    repeat with x = 1 to the number of images of card "templates" of this stack
       put the short name of image x of card "templates" of this stack into tImage
-      put revIDESpecialFolderPath("Toolset") & "/resources/supporting_files/images/" & tImage into tFile
-      if there is a file tFile then
+      put empty into tFile
+      if tDark then
+         put __pbImageFile(tFolder & "dark/" & tImage) into tFile
+      end if
+      if tFile is empty then
+         put __pbImageFile(tFolder & tImage) into tFile
+      end if
+      if tFile is not empty then
          set the filename of image  x of card "templates" of this stack to tFile
-      else if there is a file (tFile & ".png") then
-         set the filename of image  x of card "templates" of this stack to (tFile & ".png")
       end if
    end repeat
    unlock messages
    unlock screen
 end loadImages
+
+-- The file of an image of card "templates": its name, or its name and
+-- ".png", empty if neither is a file
+private function __pbImageFile pFile
+   if there is a file pFile then
+      return pFile
+   else if there is a file (pFile & ".png") then
+      return pFile & ".png"
+   end if
+   return empty
+end __pbImageFile
 
 on revUpdatePalette
    ## Do nothing

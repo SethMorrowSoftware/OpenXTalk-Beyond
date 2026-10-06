@@ -127,6 +127,9 @@ on LayoutControl pControlRect
    set the rect of graphic "background" of me to pControlRect
    set the width of graphic "bottom_border" of me to (item 3 of pControlRect - item 1 of pControlRect)+2
    set the bottomLeft of graphic "bottom_border" of me to item 1 of pControlRect-1, item 4 of pControlRect
+   -- OXT-Beyond: the line under the row in the IDE's appearance (the
+   -- template's is light grey)
+   set the foregroundColor of graphic "bottom_border" of me to revIDEColor("pb_line_border_bottom")
    
    ## Set the formatted height of all the fields
    set the fixedLineHeight of field "type" of me to false

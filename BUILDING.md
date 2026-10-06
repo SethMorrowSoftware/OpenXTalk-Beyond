@@ -1768,8 +1768,9 @@ It follows this guide:
    `check_ide_stacks.py` (every script patch of
    `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks; see
    [Working on the IDE](#11-working-on-the-ide)), `check_ide_icons.py`
-   (the toolbar's disabled icons have dark twins, and the dark Tools
-   palette's outline icons read on it),
+   (the toolbar's disabled icons have dark twins, the dark Tools
+   palette's outline icons read on it, and the Project Browser's dark row
+   icons on its dark rows),
    `check_se_schemes.py` (the script editor's colour schemes against
    their backgrounds, against `tools/ci/se-schemes-baseline.txt`) and
    `check_ide_prefs.py` (the first-install preferences). Every check

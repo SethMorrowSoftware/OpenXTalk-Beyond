@@ -278,8 +278,20 @@ on tour_message_box
    tourShotStack revIDEPaletteToStackName("message box"), "11-message-box"
 end tour_message_box
 
+-- With the sample's button shown in it, as Show In Project Browser does:
+-- the rows of a stack, a card and controls, with their icons
 on tour_project_browser
-   tourPalette "project browser", "12-project-browser", 1500
+   local tStack, tButton
+   put tourSample("Push") into tButton
+   put revIDEPaletteToStackName("project browser") into tStack
+   revIDEOpenPalette "project browser"
+   tourWait 1000
+   revIDEShowInProjectBrowser tButton
+   tourWait 1000
+   if tStack is empty or there is not a stack tStack then throw "no stack for the palette project browser"
+   if not the visible of stack tStack then throw "the palette project browser (" & tStack & ") is not visible"
+   tourShotStack tStack, "12-project-browser"
+   close stack tStack
 end tour_project_browser
 
 on tour_dictionary

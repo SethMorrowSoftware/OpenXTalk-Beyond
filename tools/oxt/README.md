@@ -20,6 +20,7 @@ development engine without a user interface.
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 | `dark_tool_icons.py` | makes the outline icons of the dark Tools palette (the theme folders' `dark` sets) light where they had too little contrast; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
+| `dark_pb_icons.py` | makes the light grey twins of the Project Browser's grey row icons (the object types, the visible and cantSelect toggles) in `ide/Toolset/resources/supporting_files/images/dark`, which the browser shows in the dark appearance; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 
 ## layout.py
 

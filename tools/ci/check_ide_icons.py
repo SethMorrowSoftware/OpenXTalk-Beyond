@@ -27,9 +27,13 @@ least 3:1 contrast with each dark toolbar (32,32,32 on Windows, 61,61,61 on
 macOS). Then tools/oxt/dark_tool_icons.py --check: every Tools palette icon
 of a theme is in its dark folder, and the outline icons there (the shapes,
 the arrow, the label field, the line and select tools and some tool
-options) have at least 3:1 contrast with the platform's dark palette. Both
-run; exit status 1 when either fails. Needs Python 3.8 or later, standard
-library only.
+options) have at least 3:1 contrast with the platform's dark palette. Then
+tools/oxt/dark_pb_icons.py --check: the Project Browser's grey row icons
+have their twins in the dark folder of
+ide/Toolset/resources/supporting_files/images, each exactly what that
+script makes, with at least 3:1 contrast with the dark rows. All three run;
+exit status 1 when any fails. Needs Python 3.8 or later, standard library
+only.
 """
 
 import argparse
@@ -40,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'oxt'))
 
 import dark_disabled_icons  # noqa: E402  (found through the path above)
+import dark_pb_icons  # noqa: E402
 import dark_tool_icons  # noqa: E402
 
 
@@ -50,7 +55,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     toolbar = dark_disabled_icons.main(['--check', '--repo', args.repo])
     tools = dark_tool_icons.main(['--check', '--repo', args.repo])
-    return 1 if toolbar or tools else 0
+    browser = dark_pb_icons.main(['--check', '--repo', args.repo])
+    return 1 if toolbar or tools or browser else 0
 
 
 if __name__ == '__main__':
