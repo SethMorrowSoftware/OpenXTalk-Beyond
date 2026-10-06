@@ -14,6 +14,12 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4-rc.2 (2026-10-06, pre-release)
+
+- Linux arm64: package it in CI, with its own standalone runtime and an IDE start check (#61)
+- Linux package checks: run every check once the package is extracted (#61)
+- Release a Linux arm64 package, version 0.2.4-rc.2 (#61)
+
 ## 0.2.4-rc.1 (2026-10-06, pre-release)
 
 - Linux: follow a dark GTK theme (#56)
