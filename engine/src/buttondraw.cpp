@@ -568,8 +568,21 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
                 if (IsMacLFAM() && MCmajorosversion >= MCOSVersionMake(10,10,0) && MCaqua
                     && !(flags & F_DISABLED) && isstdbtn && getstyleint(flags) == F_STANDARD
                     && ((state & CS_HILITED) || (state & CS_SHOW_DEFAULT))
-                    && rect.height <= 24 && MCappisactive)
-                    setforeground(dc, DI_BACK, False, True);
+                    && MCappisactive)
+                {
+                    // Drawn dark (osxtheme.mm), the default button is the
+                    // accent colour and a pressed one a lighter grey, at any
+                    // height: white text, as macOS has it. The button's
+                    // themed background, which the light ones take, is the
+                    // dark control colour there, near invisible on the accent.
+                    if (isdarkappearance(dc -> gettype()))
+                    {
+                        dc -> setforeground(MCscreen -> getwhite());
+                        dc -> setfillstyle(FillSolid, nil, 0, 0);
+                    }
+                    else if (rect.height <= 24)
+                        setforeground(dc, DI_BACK, False, True);
+                }
                 // PM-2014-11-26: [[ Bug 14070 ]] [Removed code] Make sure text color in menuButton inverts when hilited
         
 #endif
