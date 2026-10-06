@@ -9,11 +9,12 @@ script "oxt_ui_tour"
 -- windows one by one: the Tools palette, a stack of the user with the
 -- usual controls, the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
--- objects), the Script Editor, the Message Box, the Project Browser, the
--- Dictionary, each pane of Preferences, each card of the Standalone
--- Settings, the Menu Builder, the Extension Manager and Builder, the
--- Message Watcher, Search, the Start Center, the Object Library, the Card
--- Navigator, the About window and the answer and ask dialogs. For each it
+-- objects), the Script Editor (and its results of a Find All), the
+-- Message Box, the Project Browser, the Dictionary, each pane of
+-- Preferences, each card of the Standalone Settings, the Menu Builder, the
+-- Extension Manager and Builder, the Message Watcher, Search, the Start
+-- Center, the Object Library, the Card Navigator, the About window, the
+-- answer and ask dialogs and the icon chooser. For each it
 -- writes a snapshot of the screen around the window (the effective rect
 -- of the stack, so with its title bar), and with the mouse over a tool of
 -- the Tools palette and over a row of the inspector it snapshots the
@@ -39,7 +40,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,start-center,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -272,6 +273,20 @@ on tour_script_editor
    close stack tSE
 end tour_script_editor
 
+-- The Search Results pane, as Find All of the Find and Replace dialog
+-- fills it: the matches of "mouse" in the scripts of the sample's card
+on tour_script_editor_search
+   local tSE
+   revIDEEditScriptOfObject tourSample("Push")
+   tourWait 2000
+   put tourStackNamed("revNewScriptEditor") into tSE
+   if tSE is empty then throw "no script editor opened:" && tourJoin(the openStacks)
+   send "revSEFindAll" && quote & "mouse" & quote & ", false, false, false, true," && quote & "card" & quote to stack tSE
+   tourWait 2000
+   tourShotStack tSE, "10-script-editor-search"
+   close stack tSE
+end tour_script_editor_search
+
 on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
@@ -423,6 +438,15 @@ on tour_ask
    send "tourShotDialog" && quote & "26-ask" & quote to me in 1500 milliseconds
    ask question "A question from the screenshot tour:" with "An answer"
 end tour_ask
+
+-- The icon chooser of the inspector's icon properties, which opens it as
+-- a sheet; here a palette, so that the tour need not wait on it
+on tour_icon_chooser
+   palette stack "revIconChooser"
+   tourWait 1000
+   tourShotStack "revIconChooser", "27-icon-chooser"
+   close stack "revIconChooser"
+end tour_icon_chooser
 
 on tour_screen_end
    tourShotScreen "99-screen-end"
