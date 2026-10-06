@@ -325,9 +325,37 @@ on tour_dictionary
    end repeat
    if tNew is empty then throw "no dictionary window opened"
    tourWait 4000
+   tourDictionaryEntry tNew, "try control structure.txt"
    tourShotStack tNew, "13-dictionary"
    close stack tNew
 end tour_dictionary
+
+-- The dictionary stack opens on an entry picked at random: it shows the
+-- entry pFile instead, as a click on it in the list does, so that each
+-- build's snapshot shows the same one. The entry has a parameter list,
+-- whose bullets are UTF-8 in the file and showed as two or three wrong
+-- characters each when the dictionary read it as native text.
+command tourDictionaryEntry pStack, pFile
+   local tPath
+   if there is not a button "load" of card 1 of stack pStack \
+         or there is not a field "path" of card 1 of stack pStack \
+         or there is not a field "styledTextField" of card 1 of stack pStack then
+      tourRecord "INFO" && pStack && "is not the dictionary stack: its entry stays"
+      exit tourDictionaryEntry
+   end if
+   put the effective filename of stack pStack into tPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of tPath & "/exports/xtalk/resaved/" & pFile into tPath
+   set the itemDelimiter to comma
+   if there is not a file tPath then throw "no dictionary entry" && tPath
+   put tPath into field "path" of card 1 of stack pStack
+   send "mouseDown" to button "load" of card 1 of stack pStack
+   tourWait 1500
+   if numToCodepoint(0x2022) is not in field "styledTextField" of card 1 of stack pStack then
+      throw "the dictionary entry" && pFile && "shows no bullet: its text was not read as UTF-8"
+   end if
+   tourRecord "INFO dictionary entry" && pFile
+end tourDictionaryEntry
 
 on tour_preferences
    local tStack, tPane, tIndex
@@ -401,8 +429,9 @@ on tour_start_center
 end tour_start_center
 
 on tour_object_library
-   -- as Development > Object Library does
-   go card 1 of stack "revImageLibrary" as modeless
+   -- with Development > Object Library, which also selects the Objects tab
+   -- (the stack was saved with the Images tab selected)
+   dispatch "revMenubarDevelopmentMenuPick" to stack "revMenuBar" with "Object Library"
    tourWait 1500
    tourShotStack "revImageLibrary", "22-object-library"
    close stack "revImageLibrary"
@@ -662,6 +691,9 @@ end tourScreenLoc
 -- tooltip
 command tourHover pObject, pStack
    local tLoc
+   -- the screen unlocked, as when the IDE is idle: on Linux a locked screen
+   -- kept the Inspector's tooltip from showing
+   tourUnlockScreen "hover over" && the short name of pObject
    put tourScreenLoc(pObject, pStack) into tLoc
    -- from just beside it, so that the engine sees the pointer arrive
    tourMoveMouse (item 1 of tLoc - 3) & "," & (item 2 of tLoc - 3)
@@ -752,19 +784,24 @@ command tourShotScreen pFile
    tourShotRect tRect, pFile, tWidth & "," & tHeight
 end tourShotScreen
 
-command tourShotRect pRect, pFile, pSize
-   local tFile, tScreen
-   -- A handler of the IDE that stopped on an error between lock screen and
-   -- unlock screen leaves the screen locked until no handler runs, which
-   -- for a user is the next moment the IDE is idle, but here not until the
-   -- tour ends: unlocked, so that the windows show what they hold
+-- A handler of the IDE that locked the screen and stopped on an error, or
+-- left the unlock to the end of the event, leaves the screen locked until
+-- no handler runs, which for a user is the next moment the IDE is idle,
+-- but here not until the tour ends: unlocked, so that the windows show
+-- what they hold
+command tourUnlockScreen pWhat
    if the lockScreen then
-      tourRecord "INFO" && pFile & ": the screen was locked"
+      tourRecord "INFO" && pWhat & ": the screen was locked"
       repeat while the lockScreen
          unlock screen
       end repeat
       tourWait 300
    end if
+end tourUnlockScreen
+
+command tourShotRect pRect, pFile, pSize
+   local tFile, tScreen
+   tourUnlockScreen pFile
    put the screenRect into tScreen
    -- on the screen
    put max(item 1 of pRect, item 1 of tScreen) into item 1 of pRect
