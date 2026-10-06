@@ -844,7 +844,10 @@ on hFixPropertyPopup
    repeat the number of items in fxNames
       add 1 to tFXCount
       put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
-      set the destroystack of stack tTryDestroyAndCloseStack to true
+      -- OXT-Beyond: only the popups that have been opened exist
+      if there is a stack tTryDestroyAndCloseStack then
+         set the destroystack of stack tTryDestroyAndCloseStack to true
+      end if
    end repeat
 end hFixPropertyPopup
 
@@ -862,11 +865,14 @@ on hFixPropertyWithClose
    repeat the number of items in fxNames
       add 1 to tFXCount
       put "revPropertyPopup " & item tFXCount of fxNames into tTryDestroyAndCloseStack
-      set the destroystack of stack tTryDestroyAndCloseStack to true
-      try
-         close stack tTryDestroyAndCloseStack
-      catch e
-      end try
+      -- OXT-Beyond: only the popups that have been opened exist
+      if there is a stack tTryDestroyAndCloseStack then
+         set the destroystack of stack tTryDestroyAndCloseStack to true
+         try
+            close stack tTryDestroyAndCloseStack
+         catch e
+         end try
+      end if
    end repeat
    unlock messages
    

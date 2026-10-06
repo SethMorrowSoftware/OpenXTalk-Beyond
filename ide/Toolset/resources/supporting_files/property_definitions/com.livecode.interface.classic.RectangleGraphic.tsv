@@ -1,6 +1,6 @@
 Property : optional getter : optional setter	Label	Section	Editor	User Visible	Read Only	Group	Default	Options	Subsection	min	max	step
 type	graphic											
-title 							Rectangle Graphic					
+title	Rectangle Graphic											
 												
 -----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----	-----
 name							Rectangle					
