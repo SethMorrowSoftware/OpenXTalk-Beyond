@@ -309,7 +309,7 @@ jobs:
           xcodebuild -project build-mac/livecode/livecode.xcodeproj \
             -configuration Release -target default \
             -jobs "$(sysctl -n hw.ncpu)" $XCODEBUILD_FLAGS 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" \
-            | grep -E '(error|warning: unable|\*\* BUILD|Check dependencies|^Build target)' || true
+            | grep -E '(error|warning: unable|\*\* BUILD|Check dependencies|^Build target|Undefined symbols|duplicate symbol|referenced from|^ld: |^ +[^ ].* in .*\.o$)' || true
           grep -q '\*\* BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/xcodebuild.log"
 
       - name: Verify build output

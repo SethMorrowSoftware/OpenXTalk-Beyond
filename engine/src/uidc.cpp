@@ -2045,9 +2045,6 @@ void MCUIDC::getsystemappearance(MCSystemAppearance &r_appearance)
 {
 	r_appearance = kMCSystemAppearanceLight;
 }
-#if defined(_MACOSX) /* OXT-TOM: macOS */
-
-#else /* OXT-TOM: Windows */
 
 void MCUIDC::updatesystemappearance(void)
 {
@@ -2055,5 +2052,4 @@ void MCUIDC::updatesystemappearance(void)
 	// Subclasses should override to update colors and redraw
 }
 
-#endif /* OXT-TOM */
 ////////////////////////////////////////////////////////////////////////////////

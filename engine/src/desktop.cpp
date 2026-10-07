@@ -203,10 +203,24 @@ void MCPlatformHandleSystemAppearanceChanged(void)
 	if (MCscreen == nil)
 		return;
 	
-	// Update system colors and redraw all stacks
-	MCscreen -> updatesystemappearance();
+	//-- tperry 11th October 2025
+	// Redraw all stacks to reflect new appearance colors
+	// (Colors are now applied at render time in MCObject::getforecolor)
+	MCStacknode *t_node = MCstacks->topnode();
+	if (t_node != nil)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node->getstack();
+			if (t_stack != NULL)
+				t_stack->dirtyall();
+			
+			t_node = t_node->next();
+		} while (t_node != nil && t_node != t_start);
+	}
 	
-	// Send message to scripts
+	// Also send the message so scripts can handle it if needed
 	MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 }
 
