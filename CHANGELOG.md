@@ -16,9 +16,9 @@ words, is in the [README](README.md#the-ide) and on the
 
 ## 0.2.4-rc.4 (2026-10-07, pre-release)
 
-- Take out OXT-Beyond's own dark mode and go back to Tom Perry's
-- macOS: Tom Perry's macOS engine work
-- Version 0.2.4-rc.4, with its changelog
+- Take out OXT-Beyond's own dark mode and go back to Tom Perry's (#68)
+- macOS: Tom Perry's macOS engine work (#68)
+- Version 0.2.4-rc.4, with its changelog (#68)
 
 ## 0.2.4-rc.3 (2026-10-07, pre-release)
 
