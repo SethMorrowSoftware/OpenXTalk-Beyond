@@ -4,8 +4,8 @@ script "oxt_ui_tour"
 -- engine opens it once the IDE has started (home.livecodescript,
 -- revInternal__openStack).
 --
--- It waits for the IDE to finish starting, sets it to follow the system
--- (View > Appearance: the IDE and the user's stacks), then opens the IDE's
+-- It waits for the IDE to finish starting, records the system's
+-- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette, a stack of the user with the
 -- usual controls, the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
@@ -139,21 +139,9 @@ end tourScriptError
 -- Steps
 
 on tour_appearance
-   local tError
-   revIDESetAppearance "ide", "system"
-   revIDESetAppearance "stacks", "ide"
+   -- The IDE follows the system's appearance as OpenXTalk Lite 1.15 does
    tourWait 1000
    tourRecord "INFO systemAppearance" && the systemAppearance
-   tourRecord "INFO revIDEIsDark" && revIDEIsDark()
-   tourRecord "INFO cIDEAppearance" && revIDEAppearancePreference("ide") && "cStackAppearance" && revIDEAppearancePreference("stacks")
-   try
-      do "get the effective appAppearance"
-      tourRecord "INFO effective appAppearance" && it
-      do "get the effective stackAppearance of stack" && quote & "revTools" & quote
-      tourRecord "INFO effective stackAppearance of revTools" && it
-   catch tError
-      tourRecord "INFO appearance properties" && tourJoin(line 1 of tError)
-   end try
 end tour_appearance
 
 on tour_screen

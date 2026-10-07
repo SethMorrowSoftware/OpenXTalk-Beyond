@@ -9,8 +9,7 @@ script "oxt_field_speed_test"
 -- builds a stack of the same shape (its own code, not that stack) so that
 -- the time each step takes can be compared between engines and platforms.
 --
--- Like tools/ci/render-test.livecodescript, it runs as the development
--- engine's home stack: copied to <folder>/Startup.rev with REV_TOOLS_PATH
+-- It runs as the development engine's home stack: copied to <folder>/Startup.rev with REV_TOOLS_PATH
 -- set to <folder> (tools/ci/field_speed_test.py does this). Every use of
 -- syntax newer than OpenXTalk Lite 1.15 is inside "do".
 --

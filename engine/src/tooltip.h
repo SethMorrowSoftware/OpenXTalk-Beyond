@@ -39,9 +39,6 @@ private:
 	MCCard *card;
 
 	MCFontRef m_font;
-	// Whether the tip is dark, with white text: its background, taken when
-	// it opens from the appearance of the object it is shown for (opentip)
-	bool m_dark;
     
 public:
     

@@ -33,9 +33,8 @@ Property patches (a colour or another property of an object) cannot be
 seen this way: a stack file stores properties in a binary form that no
 tool here decodes. This check only reads them (each names an existing
 stack file and has object:, property:, from: and to:);
-tools/ci/ide-contrast-check.ps1 checks that they are applied, with the
-engine of the build (tools/oxt/ide-stack-patch.livecodescript with
-OXT_PATCH_CHECK=1).
+the Linux build checks that they are applied, with the engine of the
+build (tools/oxt/ide-stack-patch.sh --check).
 
 Image patches (an image's data replaced with a PNG file of the repository)
 are checked here too: a stack file stores an image's PNG data unchanged,
@@ -46,10 +45,7 @@ cannot bring the old code back unnoticed:
   - the dataView behaviour in Toolset/palettes/revCore.8.livecode paints row
     backgrounds with _GetEffectiveColor("row color") and
     _GetEffectiveColor("alternate row color") (the colours each list sets
-    from revIDEColor), and _HiliteControl sets no literal grey;
-  - ideColorGet in revCore's stack script, the copy the IDE runs, is the
-    same as in the script-only copy
-    Toolset/palettes/behaviors/revcorestackbehavior.livecodescript.
+    from revIDEColor), and _HiliteControl sets no literal grey.
 
 Exit status 1 when a check fails. Under GitHub Actions failures become
 error annotations. Needs Python 3.8 or later, standard library only.
@@ -62,7 +58,6 @@ import sys
 
 PATCH_DIR = os.path.join('tools', 'oxt', 'ide-stack-patches')
 REVCORE = os.path.join('ide', 'Toolset', 'palettes', 'revCore.8.livecode')
-COPY = os.path.join('ide', 'Toolset', 'palettes', 'behaviors', 'revcorestackbehavior.livecodescript')
 
 
 def read_patch(path):
@@ -187,7 +182,7 @@ def check_patches(repo, failures):
             failures.append((rel_patch, 'stack file not found: %s' % rel_stack))
             continue
         if patch[0] == 'property':
-            print('engine  %s: %d property change(s) of %s, checked by tools/ci/ide-contrast-check.ps1'
+            print('engine  %s: %d property change(s) of %s, checked by tools/oxt/ide-stack-patch.sh --check'
                   % (name, len(patch[2]), rel_stack))
             continue
         with open(path, 'rb') as f:
@@ -236,29 +231,6 @@ def check_dataview(repo, failures):
         print('ok      %s: _HiliteControl paints rows with the lists\' row colours' % rel)
 
 
-def check_idecolorget(repo, failures):
-    """revCore's stack script (the backscript the IDE uses) and the
-    script-only copy revcorestackbehavior.livecodescript must have the same
-    ideColorGet, so that the copy can be read and reviewed as text."""
-    rel = REVCORE.replace(os.sep, '/')
-    copy = COPY.replace(os.sep, '/')
-    with open(os.path.join(repo, REVCORE), 'rb') as f:
-        live = handler_span(f.read(), b'function ideColorGet pTag\n', b'\nend ideColorGet')
-    with open(os.path.join(repo, COPY), 'rb') as f:
-        text = f.read()
-    if text.startswith(b'\xef\xbb\xbf'):
-        text = text[3:]
-    text = text.replace(b'\r\n', b'\n')
-    reference = handler_span(text, b'function ideColorGet pTag\n', b'\nend ideColorGet')
-    if live is None or reference is None:
-        failures.append((rel, 'ideColorGet is not exactly once in %s and in %s' % (rel, copy)))
-    elif live != reference:
-        failures.append((rel, 'ideColorGet differs from the one in %s; change both (the stack through '
-                              'tools/oxt/ide-stack-patches)' % copy))
-    else:
-        print('ok      %s: ideColorGet is the same as in %s' % (rel, copy))
-
-
 def main(argv=None):
     here = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
@@ -269,7 +241,6 @@ def main(argv=None):
     failures = []
     check_patches(args.repo, failures)
     check_dataview(args.repo, failures)
-    check_idecolorget(args.repo, failures)
 
     for rel, message in failures:
         print('FAILED  %s: %s' % (rel, message))

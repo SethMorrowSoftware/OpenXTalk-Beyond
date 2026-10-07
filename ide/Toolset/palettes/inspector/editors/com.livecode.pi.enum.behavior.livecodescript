@@ -1,7 +1,5 @@
 ﻿script "com.livecode.pi.enum.behavior" with behavior "revInspectorEditorBehavior"
--- OXT-Beyond: an inherited ("effective") value is drawn in the IDE's muted
--- text colour, revIDEColor("text_muted"), which reads in the light and the
--- dark appearance (the constant 100,100,100 gave 2.8:1 in dark)
+constant kEffectiveTextColor = "100,100,100"
 global gRevLanguageNames
 
 on editorInitialize
@@ -61,7 +59,7 @@ on editorUpdate
    
    set the enabled of me to tEnabled
    if tEffective is true then
-      set the textcolor of button "pulldown" of me to revIDEColor("text_muted")
+      set the textcolor of button "pulldown" of me to kEffectiveTextColor
       set the textstyle["italic"] of button "pulldown" of me to true
    else
       set the textcolor of button "pulldown" of me to empty

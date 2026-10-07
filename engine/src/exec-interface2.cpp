@@ -447,25 +447,6 @@ static MCExecEnumTypeInfo _kMCInterfaceSystemAppearanceTypeInfo =
 	_kMCInterfaceSystemAppearanceElementInfo,
 };
 
-//////////
-
-// The appAppearance and the stackAppearance (MCAppearanceMode, uidc.h). A
-// stack's "" (inherit) is the empty value of its optional enum; the
-// effective properties only return "light" or "dark".
-static MCExecEnumTypeElementInfo _kMCInterfaceAppearanceModeElementInfo[] =
-{
-	{ "light", kMCAppearanceModeLight, false },
-	{ "dark", kMCAppearanceModeDark, false },
-	{ "system", kMCAppearanceModeSystem, false },
-};
-
-static MCExecEnumTypeInfo _kMCInterfaceAppearanceModeTypeInfo =
-{
-	"Interface.AppearanceMode",
-	sizeof(_kMCInterfaceAppearanceModeElementInfo) / sizeof(MCExecEnumTypeElementInfo),
-	_kMCInterfaceAppearanceModeElementInfo,
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 
 MCExecEnumTypeInfo *kMCInterfaceLookAndFeelTypeInfo = &_kMCInterfaceLookAndFeelTypeInfo;
@@ -476,7 +457,6 @@ MCExecEnumTypeInfo *kMCInterfaceProcessTypeTypeInfo = &_kMCInterfaceProcessTypeT
 MCExecEnumTypeInfo *kMCInterfaceSelectionModeTypeInfo = &_kMCInterfaceSelectionModeTypeInfo;
 MCExecCustomTypeInfo *kMCInterfaceStackFileVersionTypeInfo = &_kMCInterfaceStackFileVersionTypeInfo;
 MCExecEnumTypeInfo *kMCInterfaceSystemAppearanceTypeInfo = &_kMCInterfaceSystemAppearanceTypeInfo;
-MCExecEnumTypeInfo *kMCInterfaceAppearanceModeTypeInfo = &_kMCInterfaceAppearanceModeTypeInfo;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1020,6 +1000,7 @@ void MCInterfaceGetLinkColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color
 void MCInterfaceSetLinkColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . color, MClinkatts . colorname, p_color);
+	
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }
@@ -1033,6 +1014,7 @@ void MCInterfaceGetLinkHiliteColor(MCExecContext& ctxt, MCInterfaceNamedColor& r
 void MCInterfaceSetLinkHiliteColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . hilitecolor, MClinkatts . hilitecolorname, p_color);
+	
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }
@@ -1045,6 +1027,7 @@ void MCInterfaceGetLinkVisitedColor(MCExecContext& ctxt, MCInterfaceNamedColor& 
 void MCInterfaceSetLinkVisitedColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MClinkatts . visitedcolor, MClinkatts . visitedcolorname, p_color);
+	
 	// MW-2011-08-17: [[ Redraw ]] Global property could affect anything so dirty screen.
 	MCRedrawDirtyScreen();
 }
@@ -1736,30 +1719,9 @@ void MCInterfaceSetSelectionMode(MCExecContext& ctxt, intenum_t p_value)
 
 void MCInterfaceGetSystemAppearance(MCExecContext& ctxt, intenum_t& r_value)
 {
-	// Light unless the platform says otherwise (the macOS platform property
-	// writes its value into it)
-	MCSystemAppearance t_appearance = kMCSystemAppearanceLight;
+	MCSystemAppearance t_appearance;
 	MCscreen->getsystemappearance(t_appearance);
 	r_value = (intenum_t)t_appearance;
-}
-
-// The appAppearance is the stored mode, "system" included; the effective one
-// is what the engine draws stacks that do not set their own in. Setting it
-// only redraws: systemAppearanceChanged is kept for changes of the OS
-// setting (appearance.cpp).
-void MCInterfaceGetAppAppearance(MCExecContext& ctxt, intenum_t& r_value)
-{
-	r_value = (intenum_t)MCappappearance;
-}
-
-void MCInterfaceSetAppAppearance(MCExecContext& ctxt, intenum_t p_value)
-{
-	MCAppearanceSetAppMode((MCAppearanceMode)p_value);
-}
-
-void MCInterfaceGetEffectiveAppAppearance(MCExecContext& ctxt, intenum_t& r_value)
-{
-	r_value = MCAppearanceIsDark(nil) ? kMCAppearanceModeDark : kMCAppearanceModeLight;
 }
 
 void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color)
@@ -1770,9 +1732,6 @@ void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedCol
 void MCInterfaceSetSelectionHandleColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)
 {
 	set_interface_color(MCselectioncolor, MCselectioncolorname, p_color);
-	// From now on the colour is the script's: a change of the appearance no
-	// longer makes it white or black (MCWin32UpdateSystemColors)
-	MCselectioncolorisset = true;
 	MCselected->redraw();
 }
 

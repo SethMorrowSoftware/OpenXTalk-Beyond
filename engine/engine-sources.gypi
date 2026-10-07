@@ -187,7 +187,6 @@
 			'src/socket.h',			
 			'src/text.cpp',
 			'src/uidc.cpp',
-			'src/appearance.cpp',
 			'src/unicode.cpp',
 			'src/util.cpp',
 			'src/uuid.cpp',

@@ -24,9 +24,6 @@ on LayoutControl pControlRect
    set the rect of graphic "background" of me to pControlRect   
    set the width of graphic "bottom_border" of me to (item 3 of pControlRect - item 1 of pControlRect)
    set the bottomLeft of graphic "bottom_border" of me to the left of graphic "background" of me, the bottom of graphic "background" of me
-   -- OXT-Beyond: the line under the row in the IDE's appearance (the
-   -- template's is light grey)
-   set the foregroundColor of graphic "bottom_border" of me to revIDEColor("pb_line_border_bottom")
    
    set the width of field "type" of me to the formattedWidth of field "type" of me
    set the width of field "name" of me to the formattedWidth of field "name" of me
@@ -107,7 +104,7 @@ setProp dvHilite[pHiliteColor] pBoolean
    if pBoolean then
       set the foregroundColor of field "type" of me to revIDEColor("dataView_TextHiliteColor")
       set the foregroundColor of field "name" of me to  revIDEColor("dataView_TextHiliteColor")
-      set the foregroundColor of field "scriptLines" of me to  revIDEColor("dataView_hiliteBadgeTextColor")
+      set the foregroundColor of field "scriptLines" of me to  revIDEColor("text_1")
       set the backgroundColor of field "scriptLines" of me to  revIDEColor("dataView_TextHiliteColor")
       set the colorOverlay["color"] of button "typeIcon" of me to revIDEColor("dataView_TextHiliteColor")
       set the foregroundColor of me to revIDEColor("dataView_disclosureIconHiliteColor")

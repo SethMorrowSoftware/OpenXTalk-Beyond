@@ -151,9 +151,6 @@ on LayoutControl pControlRect
    
    set the width of graphic "bottom_border" of me to (item 3 of pControlRect - item 1 of pControlRect)+2
    set the bottomLeft of graphic "bottom_border" of me to item 1 of pControlRect-1, item 4 of pControlRect
-   -- OXT-Beyond: the line under the row in the IDE's appearance (the
-   -- template's is light grey)
-   set the foregroundColor of graphic "bottom_border" of me to revIDEColor("pb_line_border_bottom")
    
    ## Set the formatted height of all the fields
    set the fixedLineHeight of field "type" of me to false
@@ -268,18 +265,14 @@ setProp dvHilite[pHiliteColor] pBoolean
    if pBoolean then
       set the foregroundColor of field "type" of me to revIDEColor("dataView_TextHiliteColor")
       set the foregroundColor of field "name" of me to  revIDEColor("dataView_TextHiliteColor")
-      set the foregroundColor of field "scriptLines" of me to  revIDEColor("dataView_hiliteBadgeTextColor")
+      set the foregroundColor of field "scriptLines" of me to  revIDEColor("text_1")
       set the backgroundColor of field "scriptLines" of me to  revIDEColor("dataView_TextHiliteColor")
       repeat with i = 1 to 10
+         set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("text_1")
          put ("cBehaviorLongID" & i) into tCPName
          if exists(the tCPName of me) then
-            set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_hiliteBadgeTextColor")
             set the backgroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_TextHiliteColor")
          else
-            -- A missing behaviour's badge stays red on a selected row, so it
-            -- keeps the text colour of an unselected row: the selected badge
-            -- text colour is chosen for the selected badge, not for red
-            set the foregroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("text_3")
             set the backgroundColor of grc ("behaviorScriptLines" & i) of me to revIDEColor("dataView_scriptErrorBackgroundColor")
          end if
       end repeat

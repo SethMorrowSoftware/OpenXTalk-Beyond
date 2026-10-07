@@ -458,6 +458,14 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
             --log ide-compile-check.log
 
+      # The property and image patches of tools/oxt/ide-stack-patches are
+      # applied to the binary IDE stacks, checked with the engine just built
+      # (tools/oxt/ide-stack-patch.sh --check; tools/ci/check_ide_stacks.py
+      # checks the script patches without an engine)
+      - name: IDE stack patch check
+        timeout-minutes: 10
+        run: tools/oxt/ide-stack-patch.sh "$PWD/linux-$ARCH-bin/LiveCode-Community" --check
+
       # The engine test suites of tests/ (tools/ci/run_engine_tests.py): the
       # LiveCode Script tests of tests/lcs, each run on its own by the
       # standalone engine just built, with -ui and a time limit, the
@@ -945,17 +953,6 @@ jobs:
         run: |
           python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
             --log "$RUNNER_TEMP/logs/browser-wm-check.log" --shots "$RUNNER_TEMP/logs/browser-wm-shots"
-
-      # The appearance a standalone of the package reports under a light
-      # and a dark GTK theme (GTK2_RC_FILES, with Xvfb): the GTK theme's,
-      # from the background of a window it has not painted
-      # (tools/ci/linux_appearance_check.py)
-      - name: GTK appearance check
-        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 10
-        run: |
-          python3 tools/ci/linux_appearance_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
-            --log "$RUNNER_TEMP/logs/linux-appearance-check.log"
 
       # The IDE itself, started through the launcher as a user does, on an
       # Xvfb screen under openbox with a scratch home folder: still running

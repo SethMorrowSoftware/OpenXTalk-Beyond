@@ -30,7 +30,6 @@ void MCPlatformHandleApplicationRun(bool& r_continue);
 
 void MCPlatformHandleScreenParametersChanged(void);
 void MCPlatformHandleSystemAppearanceChanged(void);
-void MCPlatformHandleApplicationAppearanceChanged(void);
 
 void MCPlatformHandleWindowCloseRequest(MCPlatformWindowRef window);
 void MCPlatformHandleWindowClose(MCPlatformWindowRef window);
@@ -134,11 +133,6 @@ void MCPlatformCallbackSendScreenParametersChanged(void)
 void MCPlatformCallbackSendSystemAppearanceChanged(void)
 {
 	MCPlatformHandleSystemAppearanceChanged();
-}
-
-void MCPlatformCallbackSendApplicationAppearanceChanged(void)
-{
-	MCPlatformHandleApplicationAppearanceChanged();
 }
 
 //////////
