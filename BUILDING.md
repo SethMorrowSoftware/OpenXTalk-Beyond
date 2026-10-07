@@ -1787,6 +1787,11 @@ The workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-win
 runners. It runs on every push and pull request to `main` and when
 started by hand from the Actions tab; for a release,
 [`release.yml`](#10-making-a-release) calls it (not on tags of its own).
+A push or pull request that only changes documentation (the Markdown
+files at the top of the repository, the issue forms and the pull request
+template) starts no build; the macOS and Linux workflows skip it the
+same way. The dictionary and guides in `docs/` are built into the IDE,
+so changing them still starts the builds.
 
 It follows this guide:
 

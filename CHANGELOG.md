@@ -20,6 +20,7 @@ words, is in the [README](README.md#the-ide) and on the
 - macOS: Tom Perry's macOS engine work (#68)
 - macOS: link again, with Tom Perry's redraw on an appearance change (#68)
 - macOS: Tom Perry's dark menus, and the respring guard on every platform (#68)
+- CI: no build for a change to the documentation alone (#68)
 - Version 0.2.4-rc.4, with its changelog (#68)
 
 ## 0.2.4-rc.3 (2026-10-07, pre-release)

@@ -90,8 +90,18 @@ on:
   # No tags here: release.yml builds them (see the header)
   push:
     branches: [ main ]
+    paths-ignore:
+      # Documentation alone needs no build: the Markdown files at the
+      # top of the repository and GitHub's issue and pull request forms
+      - '*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
   workflow_dispatch:
   workflow_call:
     inputs:
