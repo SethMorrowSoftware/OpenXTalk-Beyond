@@ -1624,6 +1624,15 @@ void MCPlatformCreateMenu(MCPlatformMenuRef& r_menu)
 	t_menu -> references = 1;
 	
 	t_menu -> menu = [[MCMenuHandlingKeys alloc] initWithTitle: @""];
+	
+	// tperry 7-12-2025 -- add dark mode support for ComboBox background
+	// Set appearance for dark mode support
+	extern bool MCPlatformGetSystemAppearanceIsDark(void);
+	if (MCPlatformGetSystemAppearanceIsDark())
+		[t_menu -> menu setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]];
+	else
+		[t_menu -> menu setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+	
 	t_menu -> menu_delegate = [[MCMenuDelegate alloc] initWithPlatformMenuRef: t_menu];
 	[t_menu -> menu setDelegate: t_menu -> menu_delegate];
     t_menu -> is_menubar = false;
@@ -1986,7 +1995,31 @@ bool MCPlatformPopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_window,
     // released outside of the menu list.
     // We will set s_menu_item_selected in menuItemSelected if selection occurs.
     s_menu_item_selected = false;
+	
+	// tperry 7-12-2025 -- Set appearance at popup time to ensure dark mode support
+	// We need to set appearance on both the menu and temporarily on the view
+	extern bool MCPlatformGetSystemAppearanceIsDark(void);
+	NSAppearance *t_appearance = MCPlatformGetSystemAppearanceIsDark() ?
+		[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua] :
+		[NSAppearance appearanceNamed:NSAppearanceNameAqua];
+	
+	[t_menu setAppearance:t_appearance];
+	
+	// Save and temporarily set view appearance if we have a view
+	NSAppearance *t_saved_appearance = nil;
+	if (t_view != nil)
+	{
+		t_saved_appearance = [t_view appearance];
+		[t_view setAppearance:t_appearance];
+	}
+	
 	[t_menu popUpMenuPositioningItem: p_item == UINDEX_MAX ? nil : [t_menu itemAtIndex: p_item] atLocation: t_location inView: t_view];
+	
+	// Restore view appearance
+	if (t_view != nil && t_saved_appearance != nil)
+	{
+		[t_view setAppearance:t_saved_appearance];
+	}
 	
 	MCMacPlatformSyncMouseAfterTracking();
 	
