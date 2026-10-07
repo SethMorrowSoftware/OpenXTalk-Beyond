@@ -50,9 +50,10 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.2 is a test release (a pre-release) of the fixes
-made since 0.2.3, and the first with a package for 64-bit ARM Linux;
-0.2.3 stays the main download until it has held up.
+download it. 0.2.4-rc.3 is a test release (a pre-release) of the fixes
+made since 0.2.3, with a package for 64-bit ARM Linux (new in
+0.2.4-rc.2) and fixes to how the IDE looks, light and dark; 0.2.3
+stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -68,7 +69,7 @@ made since 0.2.3, and the first with a package for 64-bit ARM Linux;
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.4-rc.1.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.4-rc.3.zip`)
   brings each platform's runtimes into the other packages. The Android
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
@@ -197,7 +198,7 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15` and `runtimes-0.2.4-rc.1`, are not programs. They hold
+`runtimes-1.15` and `runtimes-0.2.4-rc.3`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -826,6 +827,46 @@ server), experimental and without the browser widget (see
 extensions carry 64-bit ARM Linux libraries for it, and the standalone
 builder offers "Linux arm64" in that package. Everything else is
 0.2.4-rc.1's.
+
+OXT-Beyond 0.2.4-rc.3, a third test release, fixes how the IDE looks,
+in the light and the dark appearance, on Windows, macOS and Linux:
+
+- Tooltips over anything drawn dark are dark grey with white text; they
+  were white, or pale yellow on Linux, behind white text.
+- A stack opened in the dark appearance keeps all its controls. Any
+  stack with a tree view widget in a group lost some (the Script Editor
+  opened with 62 of its 101), and saving it then would have lost them
+  for good.
+- The dark Tools palette, Project Browser, Inspector, Standalone
+  Settings, icon chooser and the Script Editor's search results no
+  longer have dark shapes, icons or text on their dark background, and
+  on macOS the default and pressed buttons of dark dialogs have white
+  labels.
+- The dictionary shows the bullets and accented characters of its
+  entries (each showed as two or three wrong characters), links each of
+  its links whole (about 1,700 of its 5,900 were underlined on the
+  wrong letters or missing), and draws them in a light blue in the dark
+  appearance.
+- Linux: fields and scrollbars no longer have red frames and troughs
+  under the Adwaita theme on X servers with a DirectColor visual (Xvfb
+  and many Xorg setups).
+- Windows: a focused list field no longer draws a stray line where the
+  last text cursor was (for example in Preferences); standalones get
+  this fix too.
+- Script errors in the Inspector, Preferences and Standalone Settings
+  are gone, and so are smaller faults: the names in *Preferences >
+  Debug Properties* were black on dark blue, the Standalone Settings
+  title kept the previous card's name on its Mac and Android cards, and
+  the Message Box showed "97,97,97" in its results.
+- iOS standalones cannot be built with the open source version, so the
+  Standalone Settings have no iOS card any more, and a stack set to
+  build for iOS builds for its other platforms.
+
+These fixes were checked in CI (the builds, their tests and screenshots
+of the IDE's windows in both appearances on every platform), not yet by
+people using the IDE, so please report anything that looks or works
+wrong (see
+[Getting help and reporting problems](#getting-help-and-reporting-problems)).
 
 ### xTalk Suite extensions
 
