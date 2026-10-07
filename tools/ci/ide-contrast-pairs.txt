@@ -85,3 +85,8 @@ text_muted                          se_gutter                            4.5
 # (1.8:1, inside the window's own frame) and pale splitters
 palette_frame_border                palette_background                   3 dark
 se_splitter                         palette_background                   1.3 dark
+
+# The dictionary, the About window and the User Guides: their links
+# (revIDEHelpLinkColor, while the "hypertext color" of Preferences is its
+# default) on their fields, white in light and dark grey in dark, as a row
+help_link                           dataView_rowColor                    4.5

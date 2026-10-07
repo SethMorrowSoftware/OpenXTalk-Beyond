@@ -3451,6 +3451,12 @@ function revIDEColor pTag
          case "start_center_label"
             return "160,160,160"
             break
+         case "help_link"
+            -- Links in the dictionary, the About window and the User Guides
+            -- (<revIDEHelpLinkColor>): 6.2:1 or more on the dark fields
+            -- (30 to 44 grey), where the light table's blue is 2.5 to 3:1
+            return "102,178,255"
+            break
       end switch
    end if
 
@@ -3564,10 +3570,37 @@ function revIDEColor pTag
       case "start_center_label"
          return "128,128,128"
          break
+      case "help_link"
+         -- The default "hypertext color" of Preferences: 5.6:1 on white
+         return "0,102,204"
+         break
    end switch
 
    return ideColorGet(pTag)
 end revIDEColor
+
+/**
+The colour of the links in the dictionary, the About window and the User
+Guides.
+
+Returns (string): The colour as r,g,b (or a colour name).
+
+Description:
+The "hypertext color" of Preferences > Appearance. While it is the default
+(0,102,204), the colour of the IDE's appearance (<revIDEColor> "help_link")
+instead: the default dark blue reads on white but hardly on the dark
+appearance's fields.
+
+References: revIDEColor (function), revIDEIsDark (function)
+**/
+function revIDEHelpLinkColor
+   local tColor
+   put the cREVHelpHiliteColor of stack "revPreferences" into tColor
+   if tColor is empty or tColor is "0,102,204" then
+      return revIDEColor("help_link")
+   end if
+   return tColor
+end revIDEHelpLinkColor
 
 function revIDETextSize
    return 12
