@@ -21,7 +21,8 @@
 #   - reads ide/.version and makes the tag v<version> (annotated,
 #     "OXT-Beyond <version>") on the commit main points at, after checking
 #     that the tag does not exist yet (tags are never moved) and that the
-#     three build workflows passed on that commit's push to main;
+#     three build workflows passed on that commit on main (its push, or a
+#     run by hand on main, which this starts when the push built nothing);
 #   - starts release.yml on the new tag without "dry-run", which publishes
 #     the release as a pushed tag would. (A tag pushed with this run's token
 #     starts no workflow by itself, so it is started here; there is never a
@@ -75,12 +76,25 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
             fail "The tag $tag exists already; tags are never moved. Set ide/.version to a new version first."
           fi
+          # The newest run of each build on main for this commit: its push,
+          # or a run by hand on main (a push that changed nothing the build
+          # uses, such as documentation alone, starts no build, so one is
+          # started here, and this workflow is run again once it passed)
+          started=()
           for wf in build-windows.yml build-linux.yml build-macos.yml; do
-            conclusion=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$GITHUB_SHA&event=push&per_page=1" \
-              --jq '.workflow_runs[0] | if . == null then "not run" else (.conclusion // .status) end')
+            conclusion=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$GITHUB_SHA&branch=main&per_page=30" \
+              --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")][0] | if . == null then "not run" else (.conclusion // .status) end')
+            if [ "$conclusion" = "not run" ]; then
+              gh workflow run "$wf" --ref main
+              started+=("$wf")
+              continue
+            fi
             [ "$conclusion" = success ] ||
-              fail "$wf on the push of $GITHUB_SHA to main: $conclusion. Tag only a commit whose builds passed (run this again once they have)."
+              fail "$wf on main for $GITHUB_SHA: $conclusion. Tag only a commit whose builds passed (run this again once they have)."
           done
+          if [ "${#started[@]}" -gt 0 ]; then
+            fail "Nothing built $GITHUB_SHA on main yet (no change the builds use), so this started ${started[*]} on main; run this again once they have passed."
+          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 

@@ -1,0 +1,86 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# The quick checks of the workflows and of the CI scripts that need no build,
+# on every pull request and push to main, in a minute or two on one Linux
+# runner, so that a mistake in them shows before (or instead of) the hour of
+# building:
+#
+#   - actionlint checks every workflow: syntax, expressions, job and step
+#     references, the inputs of reusable workflows and actions (the shell
+#     scripts in the steps are not checked: -shellcheck= turns that off);
+#   - tools/ci/tests runs the unit tests of the CI scripts: the build
+#     workflows' paths-ignore lists (a change to a file a build uses starts
+#     that build), and the checks release.yml makes on the packages before
+#     it publishes them (tools/ci/release_assets.py, release_notes.py).
+#
+# A change to this workflow or to the tests alone starts no build (the build
+# workflows' paths-ignore lists have them).
+
+name: CI checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    name: Workflows and CI scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # A pinned release, checked against its published SHA-256
+      - name: Lint the workflows (actionlint)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -version
+          "$RUNNER_TEMP/actionlint" -color -shellcheck= -pyflakes=
+
+      - name: Test the CI scripts
+        run: |
+          python3 --version
+          # PyYAML reads the workflows (the runner image has it; installed
+          # only where it does not)
+          python3 -c 'import yaml' 2>/dev/null ||
+            python3 -m pip install --user --break-system-packages pyyaml
+          python3 -m unittest discover -s tools/ci/tests -v

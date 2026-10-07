@@ -1787,20 +1787,33 @@ The workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-win
 runners. It runs on every push and pull request to `main` and when
 started by hand from the Actions tab; for a release,
 [`release.yml`](#10-making-a-release) calls it (not on tags of its own).
-A push or pull request that only changes documentation (the Markdown
-files at the top of the repository, the issue forms and the pull request
-template) starts no build; the macOS and Linux workflows skip it the
-same way. The dictionary and guides in `docs/` are built into the IDE,
-so changing them still starts the builds.
+A push or pull request that changes nothing a platform's build uses
+starts no build of that platform: documentation (the Markdown files at
+the top of the repository, the issue forms and the pull request
+template), the workflows and scripts that build nothing (`release.yml`,
+`runtimes.yml`, `tag-release.yml`, the screenshot and check-by-hand
+workflows, `ci-checks.yml` and `tools/ci/tests`), and what only the
+other platforms use (their build workflows, the `.ps1` scripts for
+Windows, and so on). Each build workflow lists these in its
+`paths-ignore`; a file that is not listed starts the build, and
+`tools/ci/tests` checks that no list has a file its own workflow uses.
+The dictionary and guides in `docs/` are built into the IDE, so changing
+them still starts the builds.
+
+"CI checks" ([`.github/workflows/ci-checks.yml`](.github/workflows/ci-checks.yml))
+runs on every pull request and push to `main` in a minute or two:
+[actionlint](https://github.com/rhysd/actionlint) on every workflow, and
+the unit tests of the CI scripts in `tools/ci/tests`
+(`python3 -m unittest discover -s tools/ci/tests`, which needs PyYAML).
 
 It follows this guide:
 
 1. It reads the product version from `ide/.version` (a tag build fails
    straight away if the tag is not `v` followed by that version) and
-   sets `OXT_BUILD_NUMBER` to the UTC time at which the job started
-   (`YYYYMMDDHHMM`), so every file of the run has the same build number;
-   in a release, to the build number `release.yml` gives all three
-   platforms.
+   sets `OXT_BUILD_NUMBER` to the UTC time of the commit
+   (`YYYYMMDDHHMM`), so every file of every platform's build of the
+   commit has the same build number, the one `release.yml` gives a
+   release of it.
 2. Before the long build, it runs `tools/ci/check_ide_stacks.py` with
    the runner's Python 3.8 or later: every script patch of
    `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks (see
@@ -1995,21 +2008,35 @@ it.
    on `main` instead: it tags that commit `v<ide/.version>`, refuses a
    tag that exists already or a commit whose builds did not pass, and
    starts `release.yml` on the new tag, which then does what step 6 says.
+   (When the commit's push started no build, because it changed nothing
+   a build uses, it starts the builds on `main` instead; run it again once
+   they have passed.)
 
 6. The tag starts `release.yml`:
    - **Prepare the release** checks `ide/.version` and that the tag is
      `v` followed by it exactly (a tag that is not stops the run before
      anything is built), stops if a release of the tag is published
-     already, and chooses one build number (the UTC time,
-     `YYYYMMDDHHMM`) for every platform.
-   - **Windows**, **Linux** and **macOS** run `build-windows.yml`,
+     already, and chooses one build number (the UTC time of the commit,
+     `YYYYMMDDHHMM`) for every platform. It then looks for `main`'s
+     builds of the commit: for each platform, a run of its build workflow
+     on `main` for this very commit (its push, or a run by hand there)
+     that passed, left nothing out of its packages, and still has them
+     (artifacts are kept 30 days), waiting for one that is still running.
+     Such a build made the same packages a release build would (same
+     workflow, same build number, every asset and extension, and the
+     xTalk sources zip), so that platform is **not built again**: publish
+     takes its packages from that run. "Tag a release" tags only a commit
+     whose three builds passed, so its releases normally build nothing.
+   - **Windows**, **Linux** and **macOS**, for each platform with no such
+     build of `main`, run `build-windows.yml`,
      `build-linux.yml` and `build-macos.yml` as reusable workflows, with
      every build, package and test job they run for a pull request (the
      jobs show as "Windows / Build win-x86_64" and so on), as release
      builds: the external assets and xTalk Suite extensions are always
      included, and the Windows job writes the xTalk sources zip.
    - **Publish GitHub Release** runs only when every one of those jobs
-     passed. It downloads the three package artifacts
+     passed (or was not needed). It downloads the package artifacts, from
+     this run or from `main`'s build,
      (`OXT-Beyond-win-x86_64`, `OXT-Beyond-mac-universal`,
      `OXT-Beyond-linux-x86_64`), checks each against its own
      `SHA256SUMS` and against the release's list of files
@@ -2084,7 +2111,9 @@ ticked), or with the GitHub CLI:
 gh workflow run release.yml --ref main -f dry-run=true --repo SethMorrowSoftware/OpenXTalk-Beyond
 ```
 
-The files are named after `ide/.version` of that branch. A run started
+The files are named after `ide/.version` of that branch. A dry run of
+`main` takes `main`'s builds of the commit, as a release does; tick
+*Rebuild* (`-f rebuild=true`) to build every platform anyway. A run started
 by hand without *Dry run* must be started on the tag `v<version>` (it
 then publishes as a push of the tag does); on a branch it stops at once.
 

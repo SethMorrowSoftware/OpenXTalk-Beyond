@@ -4,11 +4,14 @@
 #   prepare   reads ide/.version, checks the tag against it as the build
 #             workflows do (the tag must be "v" followed by it exactly),
 #             stops early when a release of the tag is published already,
-#             and chooses one build number (OXT_BUILD_NUMBER, the UTC time
-#             now as YYYYMMDDHHMM) for every platform;
+#             chooses one build number (OXT_BUILD_NUMBER, the UTC time of
+#             the commit as YYYYMMDDHHMM, which main's builds of the commit
+#             use too) for every platform, and looks for main's builds of
+#             the commit (see "Builds of main" below);
 #   windows,  build-windows.yml, build-linux.yml and build-macos.yml, called
 #   linux,    as reusable workflows with that build number and the input
-#   macos     release (build as for a release); each builds, packages and
+#   macos     release (build as for a release), for each platform that has
+#             no build of main to take; each builds, packages and
 #             tests its platform exactly as on a push to main, and uploads
 #             its packages as an artifact of this run:
 #               OXT-Beyond-win-x86_64     installer, portable, binaries and
@@ -19,8 +22,9 @@
 #                                         symbols tar.xz
 #               OXT-Beyond-linux-arm64    the same, for 64-bit ARM Linux
 #             each with its own SHA256SUMS;
-#   publish   runs only when every job of the three builds has passed. It
-#             downloads those four artifacts (not the logs or the
+#   publish   runs only when every job of the three builds has passed (or
+#             was not needed). It downloads those four artifacts, from
+#             this run or from main's build (not the logs or the
 #             per-architecture build outputs), checks each against its
 #             SHA256SUMS and the release's file list, writes one combined
 #             SHA256SUMS (tools/ci/release_assets.py) and the release notes
@@ -47,6 +51,19 @@
 # 0.1.0-beta.1), which is also how the IDE's update check orders versions
 # and decides whom to offer pre-releases.
 #
+# Builds of main: a push to main builds, packages and tests every platform
+# just as this workflow would (the same workflows, the same build number,
+# every external asset and extension, and the Windows job writes the xTalk
+# sources zip there too), and "Tag a release" tags only a commit whose three
+# builds passed. So, for each platform, prepare looks for a run of its build
+# workflow on main for this very commit (a push, or a run by hand there)
+# that passed, left nothing out (no "left out" warning of the Package step)
+# and still has its packages (artifacts are kept for 30 days); while one is
+# still running it waits for it. That platform is then not built again: the
+# publish job downloads its packages from that run, and checks them as it
+# checks its own. A platform with no such run is built here. Start this
+# workflow by hand with "rebuild" ticked to build every platform anyway.
+#
 # Dry run: start this workflow by hand (Actions > Release > Run workflow) on
 # any branch or tag with "dry-run" ticked (the default). It builds, packages,
 # tests, assembles and checks everything as a release would, and uploads the
@@ -55,7 +72,8 @@
 # release API are left out. A run by hand without "dry-run" must be started
 # on the tag v<version>, and publishes like a push of that tag.
 #
-# Permissions: every job reads only (contents: read), and called workflows
+# Permissions: every job reads only (contents: read, and actions: read and
+# checks: read for main's builds and their packages), and called workflows
 # can only lower that; the publish job alone may write (contents: write),
 # for the release. It checks out the repository without keeping the token
 # (as every job does), and gives the token to the gh commands only.
@@ -82,6 +100,12 @@ on:
           release and no tag. Without it, run this on the tag v<version>.
         type: boolean
         default: true
+      rebuild:
+        description: >-
+          Build every platform again, even when main's builds of this
+          commit passed and could be published as they are
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -100,15 +124,21 @@ jobs:
   prepare:
     name: Prepare the release
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # (it may wait for main's builds of the commit)
+    timeout-minutes: 120
     permissions:
       contents: read
+      actions: read
+      checks: read
     outputs:
       version: ${{ steps.product.outputs.version }}
       tag: ${{ steps.product.outputs.tag }}
       build-number: ${{ steps.product.outputs.build-number }}
       prerelease: ${{ steps.product.outputs.prerelease }}
       dry-run: ${{ steps.product.outputs.dry-run }}
+      windows-run: ${{ steps.main-builds.outputs.windows-run }}
+      linux-run: ${{ steps.main-builds.outputs.linux-run }}
+      macos-run: ${{ steps.main-builds.outputs.macos-run }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -155,7 +185,9 @@ jobs:
             *-*) prerelease=true ;;
             *) prerelease=false ;;
           esac
-          build_number=$(date -u +%Y%m%d%H%M)
+          # The commit's UTC time, as main's builds of the commit take it
+          ct=$(git log -1 --format=%ct HEAD)
+          build_number=$(date -u -d "@$ct" +%Y%m%d%H%M)
 
           # A published release is final (BUILDING.md forbids moving tags).
           # With this job's read-only token the API shows published releases
@@ -193,12 +225,103 @@ jobs:
             echo "| Dry run | ${DRY_RUN} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # See "Builds of main" in the header. Each output is the id of the
+      # run whose packages publish takes, or empty to build the platform.
+      - name: Find main's builds of this commit
+        id: main-builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild }}
+        run: |
+          # <workflow file> <artifact>...: the id of a run to take, or nothing
+          find_run() {
+            local wf=$1 runs busy id job
+            shift
+            # The runs of the workflow on main for this commit, newest first
+            # ("<id> <status> <conclusion>"); waits while one has not
+            # finished, until the deadline (for all three platforms)
+            local first=true
+            while :; do
+              runs=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$GITHUB_SHA&branch=main&per_page=30" \
+                --jq '.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch") | "\(.id) \(.status) \(.conclusion // "-")"') ||
+                { echo "$wf: could not list its runs; building here" >&2; return 0; }
+              busy=$(awk '$2 != "completed" { print $1 }' <<< "$runs")
+              [ -n "$busy" ] || break
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "$wf: run $busy has not finished; building here instead" >&2
+                return 0
+              fi
+              if [ "$first" = true ]; then
+                echo "$wf: waiting for run $busy of this commit to finish" >&2
+                first=false
+              fi
+              sleep 60
+            done
+            id=$(awk '$3 == "success" { print $1; exit }' <<< "$runs")
+            if [ -z "$id" ]; then
+              echo "$wf: no passed run on main for this commit; building here" >&2
+              return 0
+            fi
+            local have
+            have=$(gh api "repos/$GH_REPO/actions/runs/$id/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired | not) | .name')
+            for artifact in "$@"; do
+              if ! grep -qxF "$artifact" <<< "$have"; then
+                echo "$wf: run $id no longer has the artifact $artifact; building here" >&2
+                return 0
+              fi
+            done
+            # A run that packaged without the external assets or the xTalk
+            # extensions (an input or variable for testing) says so in a
+            # warning of its Package step
+            # (an API call that fails builds the platform here; grep reads
+            # a here-string, not a pipe, as in the step above)
+            local jobs notes
+            jobs=$(gh api --paginate "repos/$GH_REPO/actions/runs/$id/jobs?per_page=100" --jq '.jobs[].id') &&
+              [ -n "$jobs" ] || { echo "$wf: could not list the jobs of run $id; building here" >&2; return 0; }
+            for job in $jobs; do
+              notes=$(gh api "repos/$GH_REPO/check-runs/$job/annotations?per_page=100" --jq '.[].message') ||
+                { echo "$wf: could not read the annotations of job $job; building here" >&2; return 0; }
+              if grep -q 'left out (no_' <<< "$notes"; then
+                echo "$wf: run $id left something out of its packages; building here" >&2
+                return 0
+              fi
+            done
+            echo "$wf: taking the packages of run $id" >&2
+            echo "$id"
+          }
+          # main's builds take about 40 minutes; prepare may run 120
+          deadline=$(( $(date +%s) + 90 * 60 ))
+          if [ "$REBUILD" = true ]; then
+            echo "rebuild is ticked: building every platform"
+            windows='' linux='' macos=''
+          else
+            windows=$(find_run build-windows.yml OXT-Beyond-win-x86_64)
+            linux=$(find_run build-linux.yml OXT-Beyond-linux-x86_64 OXT-Beyond-linux-arm64)
+            macos=$(find_run build-macos.yml OXT-Beyond-mac-universal)
+          fi
+          {
+            echo "windows-run=$windows"
+            echo "linux-run=$linux"
+            echo "macos-run=$macos"
+          } >> "$GITHUB_OUTPUT"
+          run_url="$GITHUB_SERVER_URL/$GH_REPO/actions/runs"
+          row() { if [ -n "$2" ]; then echo "| $1 | packages of main's build [$2]($run_url/$2) |"; else echo "| $1 | built here |"; fi; }
+          {
+            row Windows "$windows"
+            row Linux "$linux"
+            row macOS "$macos"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # The three builds, as on a push to main, with this run's build number;
   # release: true makes them build as for a release in a dry run as well.
-  # Each needs only prepare, so they run side by side.
+  # Each needs only prepare, so they run side by side, and each is skipped
+  # when publish takes main's build of the platform instead.
   windows:
     name: Windows
     needs: prepare
+    if: needs.prepare.outputs.windows-run == ''
     permissions:
       contents: read
     uses: ./.github/workflows/build-windows.yml
@@ -209,6 +332,7 @@ jobs:
   linux:
     name: Linux
     needs: prepare
+    if: needs.prepare.outputs.linux-run == ''
     permissions:
       contents: read
     uses: ./.github/workflows/build-linux.yml
@@ -219,6 +343,7 @@ jobs:
   macos:
     name: macOS
     needs: prepare
+    if: needs.prepare.outputs.macos-run == ''
     permissions:
       contents: read
     uses: ./.github/workflows/build-macos.yml
@@ -228,14 +353,22 @@ jobs:
 
   # Runs only when every job of the three builds passed (the called
   # workflows' results cover all their jobs: the macOS tests after its
-  # package, both Linux packages). The only job that may write.
+  # package, both Linux packages), or was skipped because main's build of
+  # the platform passed. The only job that may write.
   publish:
     name: ${{ needs.prepare.outputs.dry-run == 'true' && 'Assemble the release (dry run)' || 'Publish GitHub Release' }}
     needs: [prepare, windows, linux, macos]
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.windows.result == 'success' || (needs.windows.result == 'skipped' && needs.prepare.outputs.windows-run != '')) &&
+      (needs.linux.result == 'success' || (needs.linux.result == 'skipped' && needs.prepare.outputs.linux-run != '')) &&
+      (needs.macos.result == 'success' || (needs.macos.result == 'skipped' && needs.prepare.outputs.macos-run != ''))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: write
+      # main's builds' packages
+      actions: read
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ needs.prepare.outputs.tag }}
@@ -250,30 +383,40 @@ jobs:
 
       # The packages of the platforms, each into a folder named after
       # its artifact (what release_assets.py expects). Artifacts of the
-      # called workflows belong to this run, so they are found by name.
+      # called workflows belong to this run, so they are found by name;
+      # those of main's builds are downloaded from that run, which takes
+      # the token (an empty one means this run).
       - name: Download the Windows packages
         uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-win-x86_64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-win-x86_64
+          run-id: ${{ needs.prepare.outputs.windows-run || github.run_id }}
+          github-token: ${{ needs.prepare.outputs.windows-run != '' && github.token || '' }}
 
       - name: Download the macOS packages
         uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-mac-universal
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-mac-universal
+          run-id: ${{ needs.prepare.outputs.macos-run || github.run_id }}
+          github-token: ${{ needs.prepare.outputs.macos-run != '' && github.token || '' }}
 
       - name: Download the Linux packages
         uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-x86_64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-linux-x86_64
+          run-id: ${{ needs.prepare.outputs.linux-run || github.run_id }}
+          github-token: ${{ needs.prepare.outputs.linux-run != '' && github.token || '' }}
 
       - name: Download the Linux arm64 packages
         uses: actions/download-artifact@v8
         with:
           name: OXT-Beyond-linux-arm64
           path: ${{ runner.temp }}/artifacts/OXT-Beyond-linux-arm64
+          run-id: ${{ needs.prepare.outputs.linux-run || github.run_id }}
+          github-token: ${{ needs.prepare.outputs.linux-run != '' && github.token || '' }}
 
       # Each artifact against its own SHA256SUMS and the release's file
       # list (none missing, none extra, the xTalk sources zip once), then

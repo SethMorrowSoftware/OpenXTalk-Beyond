@@ -81,8 +81,9 @@
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
 # build-windows.yml. OXT_BUILD_NUMBER is the input build-number when
 # release.yml gives one (the same for every job and platform of a
-# release); otherwise each job takes the UTC time at which it starts, as
-# YYYYMMDDHHMM.
+# release); otherwise it is the UTC time of the commit, as YYYYMMDDHHMM,
+# which every job and platform that builds the commit shares (see
+# build-windows.yml).
 
 name: Build (macOS)
 
@@ -90,18 +91,46 @@ on:
   # No tags here: release.yml builds them (see the header)
   push:
     branches: [ main ]
-    paths-ignore:
-      # Documentation alone needs no build: the Markdown files at the
-      # top of the repository and GitHub's issue and pull request forms
+    paths-ignore: &build-paths-ignore
+      # Nothing that goes into this platform's build, packages or checks:
+      # the Markdown files at the top of the repository, GitHub's issue
+      # and pull request forms, the workflows and scripts that build
+      # nothing (screenshots branch, release, runtimes, tagging, checks by
+      # hand, the CI checks), and what only the other platforms' builds
+      # use. A file that is not listed builds; tools/ci/tests checks that
+      # no file a build workflow names is listed in its own list.
       - '*.md'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
+      - '.github/workflows/ci-checks.yml'
+      - '.github/workflows/field-speed.yml'
+      - '.github/workflows/ide-screenshots.yml'
+      - '.github/workflows/media-check.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/runtimes.yml'
+      - '.github/workflows/tag-release.yml'
+      - '.github/workflows/ui-tour.yml'
+      - 'tools/ci/ide_screenshots_branch.py'
+      - 'tools/ci/release_assets.py'
+      - 'tools/ci/release_notes.py'
+      - 'tools/ci/tests/**'
+      - '.github/workflows/build-linux.yml'
+      - '.github/workflows/build-windows.yml'
+      - 'tools/ci/*.ps1'
+      - 'tools/ci/browser-wm-check.livecodescript'
+      - 'tools/ci/browser_wm_check.py'
+      - 'tools/ci/check_elf_floor.py'
+      - 'tools/ci/check_linux_libraries.py'
+      - 'tools/ci/engine-tests-baseline-linux*.txt'
+      - 'tools/ci/engine-tests-baseline-windows*.txt'
+      - 'tools/ci/i386-container.sh'
+      - 'tools/ci/ide-compile-baseline-linux.txt'
+      - 'tools/ci/linux_ide_start.sh'
+      - 'tools/ci/test_linux_package.py'
+      - 'tools/ci/win_crashtrace.py'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
+    paths-ignore: *build-paths-ignore
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -174,8 +203,8 @@ jobs:
       # (Called by release.yml, github.ref_type and github.ref_name are the
       # caller's: the tag of the release.) One build number for every file
       # of this job, OXT_BUILD_NUMBER: release.yml's input, else the UTC
-      # time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes into
-      # .buildnumber). Written for the bash 3.2 of macOS too.
+      # time of the commit, as YYYYMMDDHHMM (what tools/oxt/package.py
+      # writes into .buildnumber). Written for the bash 3.2 of macOS too.
       - name: Read the product version
         id: product
         env:
@@ -206,7 +235,8 @@ jobs:
             fi
             build_number=$BUILD_NUMBER_INPUT
           else
-            build_number=$(date -u +%Y%m%d%H%M)
+            ct=$(git log -1 --format=%ct HEAD)
+            build_number=$(date -u -r "$ct" +%Y%m%d%H%M)
           fi
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -510,7 +540,8 @@ jobs:
       # The build jobs have checked the tag against ide/.version already,
       # and the input build-number. This job's build number
       # (OXT_BUILD_NUMBER, the packaged .buildnumber and CFBundleVersion) is
-      # release.yml's input, else the UTC time now. MAC and LOGS are set
+      # release.yml's input, else the UTC time of the commit, as in the
+      # build jobs. MAC and LOGS are set
       # here because a job's env cannot use the runner context.
       - name: Read the product version
         id: product
@@ -521,7 +552,11 @@ jobs:
           version="${version#"${version%%[![:space:]]*}"}"
           version="${version%"${version##*[![:space:]]}"}"
           if [ -z "$version" ]; then echo "::error::ide/.version is empty"; exit 1; fi
-          build_number=${BUILD_NUMBER_INPUT:-$(date -u +%Y%m%d%H%M)}
+          build_number=$BUILD_NUMBER_INPUT
+          if [ -z "$build_number" ]; then
+            ct=$(git log -1 --format=%ct HEAD)
+            build_number=$(date -u -r "$ct" +%Y%m%d%H%M)
+          fi
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           {
