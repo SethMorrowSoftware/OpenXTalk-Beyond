@@ -60,8 +60,7 @@ Commits do not need a `Signed-off-by` line.
   "Test mac-universal (x86_64)". If one fails, the log artifacts of its
   run help: `build-logs-win-x86_64` (`msbuild.log` and the logs of
   packaging, the smoke test, the IDE compile check, the engine tests,
-  the IDE contrast check, the render test and the installer test),
-  `render-test` (the render test's images), `build-logs-linux-<arch>`
+  and the installer test), `build-logs-linux-<arch>`
   and `build-logs-mac-<arch>` (uploaded when a build fails),
   `package-logs-linux-x86_64`, `package-logs-mac-universal` and
   `test-logs-mac-universal-<arch>`.

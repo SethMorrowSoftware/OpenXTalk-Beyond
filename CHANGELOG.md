@@ -14,6 +14,12 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4-rc.4 (2026-10-07, pre-release)
+
+- Take out OXT-Beyond's own dark mode and go back to Tom Perry's
+- macOS: Tom Perry's macOS engine work
+- Version 0.2.4-rc.4, with its changelog
+
 ## 0.2.4-rc.3 (2026-10-07, pre-release)
 
 - Engine: a stack opened dark keeps the controls its widgets' cards hold (#62)

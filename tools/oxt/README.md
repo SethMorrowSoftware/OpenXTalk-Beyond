@@ -18,9 +18,6 @@ development engine without a user interface.
 | `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
 | `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property and image patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
-| `dark_disabled_icons.py` | makes the dark-appearance twins (`*-disabled-dark*.png`) of the toolbar's disabled icons from the enabled icons; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
-| `dark_tool_icons.py` | makes the outline icons of the dark Tools palette (the theme folders' `dark` sets) light where they had too little contrast; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
-| `dark_pb_icons.py` | makes the light grey twins of the Project Browser's grey row icons (the object types, the visible and cantSelect toggles) in `ide/Toolset/resources/supporting_files/images/dark`, which the browser shows in the dark appearance; `--check` verifies them (run in CI by `tools/ci/check_ide_icons.py`) |
 
 ## layout.py
 
@@ -1043,7 +1040,7 @@ tool can run again at any time.
 
 A property patch file names a stack file and, for one or more objects, a
 property with the value the file has and the new one, for example a colour
-saved into a dialog that the dark appearance cannot change:
+saved into a dialog by mistake:
 
 ```
 file: Toolset/palettes/revsearch.rev
@@ -1088,5 +1085,5 @@ OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
 `tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
 every script and image patch is applied, from the stack files' bytes,
 without an engine. Property patches cannot be seen in the bytes that way, so
-`tools/ci/ide-contrast-check.ps1` checks every patch with the engine of the
-build (`OXT_PATCH_CHECK=1`, on the staged installed layout).
+the Linux build checks every patch with the engine it built
+(`tools/oxt/ide-stack-patch.sh <engine> --check`).

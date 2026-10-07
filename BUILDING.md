@@ -873,15 +873,6 @@ python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
 `standalone_check.py` builds a Mac standalone from the packaged runtime
 with the engine's deploy command, signs it as the IDE does and runs it
 (see [Standalone check](#standalone-check)).
-Last, `tools/ci/mac_appearance_test.py --app <folder>/OXT-Beyond.app
---out <folder>` runs the app's engine with a user interface on a Mac set
-to dark and to light, and checks that the `systemAppearance` follows the
-Mac's setting, that a stack is drawn dark only when the Mac is dark and
-the `appAppearance` is `"system"`, that the native controls of a dark
-stack (which the engine draws itself) pass `render_check.py`'s checks,
-and that a light-designed stack keeps its black input text readable. It
-also prints the cards of the dark and light runs into the log as base64
-lines, which `tools/ci/print_images.py` turns back into PNG files.
 
 ### External assets
 
@@ -1805,20 +1796,10 @@ It follows this guide:
    (`YYYYMMDDHHMM`), so every file of the run has the same build number;
    in a release, to the build number `release.yml` gives all three
    platforms.
-2. Before the long build, it lints the IDE sources with the runner's
-   Python 3.8 or later: `tools/ci/check_ide_colour_literals.py` (no new
-   colours set as literals instead of `revIDEColor` tags, against
-   `tools/ci/ide-colour-literals-baseline.txt`),
-   `check_ide_stacks.py` (every script patch of
-   `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks; see
-   [Working on the IDE](#11-working-on-the-ide)), `check_ide_icons.py`
-   (the toolbar's disabled icons have dark twins, the dark Tools
-   palette's outline icons read on it, and the Project Browser's dark row
-   icons on its dark rows),
-   `check_se_schemes.py` (the script editor's colour schemes against
-   their backgrounds, against `tools/ci/se-schemes-baseline.txt`) and
-   `check_ide_prefs.py` (the first-install preferences). Every check
-   runs; the step fails if any of them did.
+2. Before the long build, it runs `tools/ci/check_ide_stacks.py` with
+   the runner's Python 3.8 or later: every script patch of
+   `tools/oxt/ide-stack-patches` is applied to the binary IDE stacks (see
+   [Working on the IDE](#11-working-on-the-ide)).
 3. It adds the v141 components to the runner's Visual Studio 2022 with
    `tools/ci/install-vs-components.ps1` and installs Python 2.7 and
    Cygwin. It takes the prebuilt libraries (section 6) from its cache, or,
@@ -1857,29 +1838,12 @@ It follows this guide:
    [standalone check](#standalone-check) on it (a Windows x86-64
    standalone built and run), the
    [IDE compile check](#ide-compile-check) on the staged layout, the
-   [engine tests](#engine-tests) on the build output, the IDE contrast
-   check and the render test (below), builds
+   [engine tests](#engine-tests) on the build output, builds
    the [installer](#installer) and [tests it](#test-the-installer):
    install for the current user, smoke test of the installed program,
    uninstall.
 
-The IDE contrast check (`tools/ci/ide-contrast-check.ps1`) evaluates the
-colour pairs of `tools/ci/ide-contrast-pairs.txt` (`revIDEColor` tags,
-in the light and the dark appearance) with the staged engine, and fails
-on pairs below their WCAG minimum that are not in
-`tools/ci/ide-contrast-baseline.txt`; it also checks the property patches
-of `tools/oxt/ide-stack-patches`, which cannot be seen in the stacks'
-bytes. The render test (`tools/ci/render-test.ps1`) runs the staged
-engine with a user interface on `tools/ci/render-test.livecodescript`,
-with the runner's Windows in dark and in light mode and each
-`appAppearance`, measures the images with `tools/ci/render_check.py`,
-and compares the light appearance with the engine of the release
-`v0.1.0`, whose portable zip it downloads from the repository the
-workflow runs in. That release is not copied into forks, so in a fork
-the render test fails until the fork has a release `v0.1.0` with that
-zip (pull requests into this repository run it here).
-
-It uploads four artifacts:
+It uploads three artifacts:
 
 - `OXT-Beyond-win-x86_64`: when every step succeeds, the files in
   `dist\` (the installer, the three zips, in release builds the xTalk
@@ -1887,11 +1851,8 @@ It uploads four artifacts:
   days;
 - `build-logs-win-x86_64`: `msbuild.log` and the logs of packaging, the
   smoke test, the standalone check, the IDE compile check, the engine
-  tests, the IDE contrast
-  check, the render test and building and testing the installer, kept
+  tests and building and testing the installer, kept
   for 14 days and uploaded even when the build fails;
-- `render-test`: the images of the render test and what the engine
-  printed, kept for 14 days;
 - `prebuilt-libraries-win-x86_64`: the prebuilt library archives the
   build used (OpenSSL, curl, ICU, CEF and Thirdparty, Release x86_64;
   see [Prebuilt libraries](#6-prebuilt-libraries)), kept for 30 days.
@@ -1944,8 +1905,8 @@ job "Package mac-universal" joins the two into one universal
 `OXT-Beyond-mac-universal`; "Test mac-universal (arm64)" and "(x86_64)"
 then install it from the disk image on each architecture and test it
 (the signature, the smoke test, the IDE compile check, a standalone,
-the IDE started as a user starts it, the light and dark appearance and
-the [IDE screenshots](#ide-screenshots); see [macOS app](#macos-app)). The IDE start
+the IDE started as a user starts it, the field speed check with the Mac
+light and dark, and the [IDE screenshots](#ide-screenshots); see [macOS app](#macos-app)). The IDE start
 ([`tools/ci/mac_ide_start.sh`](tools/ci/mac_ide_start.sh)) runs the app
 with its home stack, menu bar and palettes and fails if it is not still
 running after 90 seconds, printing the faulting thread of the crash
@@ -2186,7 +2147,8 @@ change is reviewable text that CI checks:
   changed; patches that are applied already are left alone;
 - commit each patch file together with the stack it changes. CI checks
   that every script patch is applied (`tools/ci/check_ide_stacks.py`)
-  and every property patch (the IDE contrast check);
+  and the Linux build that every property and image patch is
+  (`tools/oxt/ide-stack-patch.sh --check` with the engine it built);
 - run the IDE compile check, which also compiles the object scripts
   inside binary stacks, and try the change in the installed layout
   (`dist\stage\OXT-Beyond-<ver>\OXT-Beyond.exe`) as well.
