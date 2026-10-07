@@ -40,7 +40,16 @@ static MCWidgetScrollBarInfo themesbinfo;
 
 // MW-2011-09-06: [[ Redraw ]] Added 'sprite' option - if true, ink and opacity are not set.
 void MCScrollbar::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p_sprite)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 {
+	// Skip drawing entirely if scrollbar is disabled (content doesn't need scrolling)
+	// This prevents any track or thumb from being drawn
+	if (issbdisabled())
+		return;
+	
+#else /* OXT-TOM: Windows */
+{
+#endif /* OXT-TOM */
 	MCRectangle dirty;
 	dirty = p_dirty;
 

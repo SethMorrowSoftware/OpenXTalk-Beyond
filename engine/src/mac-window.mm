@@ -1682,6 +1682,7 @@ MCMacPlatformWindow::MCMacPlatformWindow(void)
 	m_frame_locked = false;
 	
 	m_waiting_for_draw = false;
+	m_has_pending_draw = false;
 	
 	m_parent = nil;
 }
@@ -1930,6 +1931,24 @@ void MCMacPlatformWindow::DoRealize(void)
     t_cocoa_frame = [m_window_handle frameRectForContentRect: t_cocoa_content];
     
     [m_window_handle setFrame: t_cocoa_frame display: YES];
+    
+	//-- tperry 11th October 2025
+	// Apply system appearance to window on creation
+	if (@available(macOS 10.14, *)) {
+		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+		
+		NSAppearanceName t_appearance_name;
+		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+			t_appearance_name = NSAppearanceNameDarkAqua;
+		} else {
+			t_appearance_name = NSAppearanceNameAqua;
+		}
+		
+		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
+		// Use m_handle (the union base) which works for both NSWindow and NSPanel
+		[(NSWindow *)m_handle setAppearance:t_appearance];
+	}
     
     if (m_delegate == nil)
         m_delegate = [[com_runrev_livecode_MCWindowDelegate alloc] initWithPlatformWindow: this];
@@ -2227,8 +2246,44 @@ void MCMacPlatformWindow::DrawSync()
 		return;
 	
 	m_waiting_for_draw = false;
-	// Send event to break wait in NSApp::nextEventMatchingMask in MCMacPlatformWindow::DoUpdate
+	m_has_pending_draw = false;
+	// Send event to break wait in NSApp::nextEventMatchingMask (if FlushPendingDraws is waiting)
 	MCMacPlatformSyncUpdateAfterDraw(m_window_handle.windowNumber);
+}
+
+void MCMacPlatformWindow::FlushPendingDraws(void)
+{
+	// Only flush if we're on Big Sur+ and have a pending draw
+	if (MCmajorosversion < MCOSVersionMake(10,16,0))
+		return;
+		
+	if (!m_has_pending_draw || !m_waiting_for_draw)
+		return;
+	
+	// Wait for the pending draw to complete (same logic as old DoUpdate)
+	if (MCMacPlatformIsEventCheckingEnabled() && !s_inside_focus_event)
+	{
+		NSMutableArray *t_popped_events = [[NSMutableArray alloc] init];
+		while (m_waiting_for_draw)
+		{
+			NSEvent *t_event;
+			t_event = [NSApp nextEventMatchingMask: NSApplicationDefinedMask
+										 untilDate: [NSDate dateWithTimeIntervalSinceNow: 0.02]
+											inMode: NSEventTrackingRunLoopMode
+										   dequeue: YES];
+			if (t_event != nil && !MCMacPlatformIsDrawSyncEvent(t_event))
+				[t_popped_events addObject:t_event];
+			t_event = nil;
+		}
+		while (t_popped_events.count > 0)
+		{
+			[NSApp postEvent:t_popped_events.lastObject atStart:YES];
+			[t_popped_events removeLastObject];
+		}
+		[t_popped_events release];
+	}
+	
+	m_has_pending_draw = false;
 }
 
 void MCMacPlatformWindow::DoUpdate(void)
@@ -2250,35 +2305,23 @@ void MCMacPlatformWindow::DoUpdate(void)
 	
 	if (MCmajorosversion >= MCOSVersionMake(10,16,0))
 	{
-		// Frequent redraws with displayIfNeeded causes graphical glitches on Macos Big Sur, so instead
-		// we enter the runloop to trigger a redraw. This will cause drawRect to be invoked on our view
-		// which in turn will result in a redraw window callback being sent.
-		// The timeout value of 0.02ms is specified to avoid hitting the 60hz redraw limit.
+		// PERFORMANCE FIX: Don't wait synchronously for the draw to complete.
+		// Instead, just trigger the redraw and continue execution.
+		// The OS will handle the actual screen update asynchronously.
+		// This avoids the 60 FPS throttling that was causing slowdowns.
+		
+		// Mark that we have a pending draw
+		m_has_pending_draw = true;
+		
+		// Trigger the runloop briefly to start the draw process, but don't wait for completion
 		if (MCMacPlatformIsEventCheckingEnabled() && !s_inside_focus_event)
 		{
-			// Since we remove all ApplicationDefined events from the queue we need to
-			// re-queue the events we're not interested in once the redraw has occured.
-			// This array is used to hold the popped events until they can be pushed back
-			// onto the queue.
-			NSMutableArray *t_popped_events = [[NSMutableArray alloc] init];
-			while (m_waiting_for_draw)
-			{
-				NSEvent *t_event;
-				t_event = [NSApp nextEventMatchingMask: NSApplicationDefinedMask
-											 untilDate: [NSDate dateWithTimeIntervalSinceNow: 0.02]
-												inMode: NSEventTrackingRunLoopMode
-											   dequeue: YES];
-				if (t_event != nil && !MCMacPlatformIsDrawSyncEvent(t_event))
-					[t_popped_events addObject:t_event];
-				t_event = nil;
-			}
-			while (t_popped_events.count > 0)
-			{
-				[NSApp postEvent:t_popped_events.lastObject atStart:YES];
-				[t_popped_events removeLastObject];
-			}
-			[t_popped_events release];
+			[[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode 
+									 beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.001]];
 		}
+		
+		// Don't set m_waiting_for_draw = false here
+		// Let DrawSync() handle it when the draw actually completes
 	}
 	else
 	{
@@ -2695,6 +2738,73 @@ bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction
 void MCMacPlatformCreateWindow(MCPlatformWindowRef& r_window)
 {
 	r_window = new MCMacPlatformWindow;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//-- tperry 11th October 2025
+// Update a single window's appearance based on current system setting
+void MCMacPlatformWindowUpdateAppearance(MCMacPlatformWindow *p_window)
+{
+	if (p_window == nil)
+		return;
+	
+	NSWindow *t_window = (NSWindow *)p_window->GetHandle();
+	if (t_window == nil)
+		return;
+		
+	if (@available(macOS 10.14, *)) {
+		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+		
+		NSAppearanceName t_appearance_name;
+		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+			t_appearance_name = NSAppearanceNameDarkAqua;
+		} else {
+			t_appearance_name = NSAppearanceNameAqua;
+		}
+		
+		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
+		[t_window setAppearance:t_appearance];
+	}
+}
+
+//-- tperry 11th October 2025
+// Update all open windows' appearances when system theme changes
+void MCMacPlatformUpdateAllWindowAppearances(void)
+{
+	// Iterate through all NSWindows in the application
+	if (@available(macOS 10.14, *)) {
+		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+		
+		NSAppearanceName t_appearance_name;
+		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+			t_appearance_name = NSAppearanceNameDarkAqua;
+		} else {
+			t_appearance_name = NSAppearanceNameAqua;
+		}
+		
+		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
+		
+		//-- tperry 11th October 2025
+		// Set application-wide appearance for system dialogs (Save, Open, Print, etc.)
+		[NSApp setAppearance:t_appearance];
+		
+		// Update all application windows
+		for (NSWindow *t_window in [NSApp windows]) {
+			[t_window setAppearance:t_appearance];
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Platform wrapper for flushing pending asynchronous draws
+void MCPlatformFlushWindowPendingDraws(MCPlatformWindowRef p_window)
+{
+	// On Mac, flush any pending asynchronous draws
+	static_cast<MCMacPlatformWindow*>(p_window) -> FlushPendingDraws();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

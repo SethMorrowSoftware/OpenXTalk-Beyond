@@ -752,6 +752,7 @@ void MCPlatformReleaseWindow(MCPlatformWindowRef window);
 
 void MCPlatformInvalidateWindow(MCPlatformWindowRef window, MCRegionRef region);
 void MCPlatformUpdateWindow(MCPlatformWindowRef window);
+void MCPlatformFlushWindowPendingDraws(MCPlatformWindowRef window);
 
 void MCPlatformShowWindow(MCPlatformWindowRef window);
 void MCPlatformShowWindowAsSheet(MCPlatformWindowRef window, MCPlatformWindowRef parent_window);

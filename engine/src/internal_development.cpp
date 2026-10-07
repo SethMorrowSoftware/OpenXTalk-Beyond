@@ -78,7 +78,13 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "globals.h"
 #include "internal.h"
 #include "ide.h"
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 #include "bsdiff.h"
+#include "build_macarm.h"
+#include "dump_stack.h"
+#else /* OXT-TOM: Windows */
+#include "bsdiff.h"
+#endif /* OXT-TOM */
 #include "respring.h"
 
 
@@ -838,9 +844,20 @@ MCInternalVerbInfo MCinternalverbs[] =
 	{ "syntax", "tokenize", class_factory<MCIdeSyntaxTokenize> },
 	{ "syntax", "recognize", class_factory<MCIdeSyntaxRecognize> },
 	{ "filter", "controls", class_factory<MCIdeFilterControls> },
+#if defined(_MACOSX) /* OXT-TOM: macOS */
     { "list", "browsers", class_factory<MCInternalListBrowsers> },
+
+	{ "build", "MacARM", class_factory<MCInternalBuildMacARM> },
+	{ "dump", "stack", class_factory<MCInternalDumpStack> },
+#else /* OXT-TOM: Windows */
+    { "list", "browsers", class_factory<MCInternalListBrowsers> },
+#endif /* OXT-TOM */
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+	{ "respring", nil, class_factory<MCInternalRespring> },
+#else /* OXT-TOM: Windows */
 	{ "respring", nil, class_factory<MCInternalRespring> },
 
+#endif /* OXT-TOM */
 	{ nil, nil, nil }
 };
 

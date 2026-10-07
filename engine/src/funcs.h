@@ -1682,6 +1682,20 @@ public:
 
 // platform specific functions in funcs.cpp
 
+class MCMacSetIcon : public MCFunction
+{
+	MCExpression *m_icon_path;
+	MCExpression *m_file_path;
+public:
+	MCMacSetIcon()
+	{
+		m_icon_path = m_file_path = NULL;
+	}
+	virtual ~MCMacSetIcon();
+	virtual Parse_stat parse(MCScriptPoint &, Boolean the);
+	virtual void eval_ctxt(MCExecContext &, MCExecValue &);
+};
+
 class MCMCISendString : public MCFunction
 {
 	MCExpression *string;

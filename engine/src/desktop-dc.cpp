@@ -94,41 +94,15 @@ bool MCScreenDC::hasfeature(MCPlatformFeature p_feature)
 	return false;
 }
 
-// --tperry 11th October 2025
-// Update system colors based on dark/light mode
-// (OXT-Beyond: a static helper taking the screen, like the Windows engine's
-// MCWin32UpdateSystemColors(); as a free function it could not reach the
-// screen's colours and did not compile)
-static void UpdateSystemColorsForAppearance(MCScreenDC *p_screen)
-{
-	MCSystemAppearance t_appearance;
-	p_screen->getsystemappearance(t_appearance);
-	
-	if (t_appearance == kMCSystemAppearanceDark)
-	{
-		// Dark mode: background = RGB(32,32,32), foreground = white
-		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0x2020; // 32/255 * 65535 ≈ 0x2020
-		MCzerocolor = MCbrushcolor = p_screen->background_pixel;
-		MCselectioncolor = MCpencolor = p_screen->white_pixel;
-	}
-	else
-	{
-		// Light mode: background = white, foreground = black
-		p_screen->background_pixel.red = p_screen->background_pixel.green = p_screen->background_pixel.blue = 0xffff;
-		MCzerocolor = MCbrushcolor = p_screen->white_pixel;
-		MCselectioncolor = MCpencolor = p_screen->black_pixel;
-	}
-}
-
 Boolean MCScreenDC::open()
 {
 	black_pixel.red = black_pixel.green = black_pixel.blue = 0; //black pixel
 	white_pixel.red = white_pixel.green = white_pixel.blue = 0xFFFF; //white pixel
 	
+	MCzerocolor = MCbrushcolor = white_pixel;
+	MCselectioncolor = MCpencolor = black_pixel;
 	gray_pixel.red = gray_pixel.green = gray_pixel.blue = 0x8888;
-	
-	// Set initial colors based on system appearance
-	UpdateSystemColorsForAppearance(this);
+	background_pixel.red = background_pixel.green = background_pixel.blue = 0xffff;
 
 	MCPlatformGetSystemProperty(kMCPlatformSystemPropertyHiliteColor, kMCPlatformPropertyTypeColor, &MChilitecolor);
 	MCPlatformGetSystemProperty(kMCPlatformSystemPropertyAccentColor, kMCPlatformPropertyTypeColor, &MCaccentcolor);
@@ -812,6 +786,22 @@ Boolean MCScreenDC::wait(real8 duration, Boolean dispatch, Boolean anyevent)
 {
     MCDeletedObjectsEnterWait(dispatch);
     
+	// PERFORMANCE FIX: Flush any pending asynchronous screen updates before waiting
+	// This ensures visual consistency when scripts use 'wait'
+	MCStacknode *t_stacks = MCstacks->topnode();
+	if (t_stacks != nil)
+	{
+		MCStacknode *tptr = t_stacks->prev();
+		do
+		{
+			MCStack *sptr = tptr->getstack();
+			if (sptr->getwindow() != nil)
+				MCPlatformFlushWindowPendingDraws(sptr->getwindow());
+			tptr = tptr->prev();
+		}
+		while (tptr != t_stacks->prev());
+	}
+    
 	real8 curtime = MCS_time();
 	
 	if (duration < 0.0)
@@ -974,15 +964,6 @@ void MCScreenDC::closeIME()
 void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 {
 	MCPlatformGetSystemProperty(kMCPlatformSystemPropertySystemAppearance, kMCPlatformPropertyTypeInt32, &r_appearance);
-}
-
-void MCScreenDC::updatesystemappearance(void)
-{
-	// Update system colors based on new appearance
-	UpdateSystemColorsForAppearance(this);
-	
-	// Redraw all stacks to reflect new colors
-	MCstacks -> redrawall(False);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

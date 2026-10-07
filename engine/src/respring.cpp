@@ -61,6 +61,9 @@ Software Foundation. */
 #include "image.h"
 #include "osspec.h"
 
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+#include "respring.h"
+#else /* OXT-TOM: Windows */
 #include "respring.h"
 #include "license.h"
 #if defined(_WINDOWS)
@@ -70,6 +73,7 @@ Software Foundation. */
 extern uint4 MCstartupstack_length;
 extern uint1 MCstartupstack[];
 extern bool MCFiltersDecompress(MCDataRef p_source, MCDataRef& r_result);
+#endif /* OXT-TOM */
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -81,6 +85,9 @@ Boolean MCRespringIsPending(void)
     return s_respring_pending;
 }
 
+// OXT-Beyond: every platform's main loop calls the respring through these
+// pointers (desktop.cpp on macOS), so that the standalone and installer
+// engines, which do not link this file, need no respring code
 // Function pointers in dskmain.cpp — register ourselves at startup
 extern Boolean (*MCRespringIsPendingPtr)(void);
 extern Boolean (*MCRespringDoRespringPtr)(void);
@@ -113,10 +120,29 @@ Parse_stat MCInternalRespring::parse(MCScriptPoint& sp)
 }
 
 void MCInternalRespring::exec_ctxt(MCExecContext &ctxt)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+{
+    // Set the respring flag. The actual work happens in
+    // MCRespringDoRespring() after the handler chain has unwound.
+#else /* OXT-TOM: Windows */
 {
     // Just set the flag. The main loop checks it before each iteration.
     // Do NOT set MCquit or MCexitall — the unwind path crashes on Windows.
+#endif /* OXT-TOM */
+#if defined(_MACOSX) /* OXT-TOM: macOS */
     s_respring_pending = True;
+
+    // Trigger the same quit/exitall mechanism the engine uses for
+    // the "quit" command. This causes MCHandler::exec to break out
+    // of its statement loop and unwind cleanly back to X_main_loop.
+    MCquit = True;
+    MCexitall = True;
+    MCtracestackptr = nil;
+    MCtraceabort = True;
+    MCtracereturn = True;
+#else /* OXT-TOM: Windows */
+    s_respring_pending = True;
+#endif /* OXT-TOM */
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -146,17 +172,25 @@ Boolean MCRespringDoRespring(void)
     // Close all open stack windows (MCstacks is the open-window list)
     if (MCstacks != nil)
         MCstacks->closeall();
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+#else /* OXT-TOM: Windows */
 
     // Closing the home stack sets MCquit — force it back to False
     MCquit = False;
     MCexitall = False;
 
+#endif /* OXT-TOM */
     // Drain the pending-destroy list
     if (MCtodestroy != nil && !MCtodestroy->isempty())
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+        MCtodestroy->destroy();
+#else /* OXT-TOM: Windows */
         MCtodestroy->destroy();
 
     // Force MCquit off again in case destroy triggered it
     MCquit = False;
+#endif /* OXT-TOM */
 
     // Clear selection and undo state
     if (MCselected != nil)
@@ -209,7 +243,14 @@ Boolean MCRespringDoRespring(void)
     // This deletes all mainstack and substack objects but keeps the
     // dispatcher itself alive.
     MCdispatcher->clearstacks();
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 
+    // Reset image cache
+    MCCachedImageRep::init();
+
+#else /* OXT-TOM: Windows */
+
+#endif /* OXT-TOM */
     //
     // Phase 2: Reload
     //
@@ -225,6 +266,15 @@ Boolean MCRespringDoRespring(void)
 
     // Clear the result
     MCresult->clear();
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+    // Re-run the dispatcher's startup sequence.
+    // In development mode this decompresses and loads the embedded
+    // startup stack (the IDE environment stack).
+    IO_stat t_stat;
+    t_stat = MCdispatcher->startup();
+    if (t_stat != IO_NORMAL)
+#else /* OXT-TOM: Windows */
 
     // Re-load the environment following the same sequence as
     // MCDispatch::startup() in mode_development.cpp, but without
@@ -284,6 +334,10 @@ Boolean MCRespringDoRespring(void)
     if (MCquit)
     {
         MCquit = False;
+#endif /* OXT-TOM */
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+        return False;
+#else /* OXT-TOM: Windows */
         return False;
     }
 
@@ -336,6 +390,7 @@ Boolean MCRespringDoRespring(void)
         if (!MCquit)
             sptr -> open();
     }
+#endif /* OXT-TOM */
 
     return True;
 }

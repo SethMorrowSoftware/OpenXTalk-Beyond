@@ -71,11 +71,13 @@ static bool MCPlatformRunPendingRespring(void)
 
 void X_main_loop(void)
 {
-	while (!MCquit || MCRespringInProgress)
+	// A pending respring runs first: Tom Perry's macOS respring sets MCquit
+	// to unwind the handlers before it runs
+	for (;;)
 	{
 		if (MCPlatformRunPendingRespring())
 			continue;
-		if (MCquit)
+		if (MCquit && !MCRespringInProgress)
 			break;
 		X_main_loop_iteration();
 	}
@@ -163,7 +165,12 @@ void MCPlatformHandleApplicationResume(void)
 void MCPlatformHandleApplicationRun(bool& r_continue)
 {
 	if (!MCPlatformRunPendingRespring())
+	{
 		X_main_loop_iteration();
+		// Tom Perry's macOS respring sets MCquit to unwind the handlers:
+		// run it now rather than quit
+		MCPlatformRunPendingRespring();
+	}
     r_continue = !MCquit;
 }
 

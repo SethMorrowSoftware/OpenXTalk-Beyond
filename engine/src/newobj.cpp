@@ -165,7 +165,13 @@ MCStatement *MCN_new_statement(int2 which)
 	case S_LOCK:
 		return new MCLock;
     case S_LOG:
+#if defined(_MACOSX) /* OXT-TOM: macOS */
         return new MCLogCmd;
+    case S_MAC_SET_ICON:
+        return new MCMacSetIconCmd;
+#else /* OXT-TOM: Windows */
+        return new MCLogCmd;
+#endif /* OXT-TOM */
     case S_MARK:
 		return new MCMarkCommand;
 	case S_MODAL:
@@ -571,7 +577,13 @@ MCExpression *MCN_new_function(int2 which)
 	case F_LOG2:
 		return new MCLog2;
 	case F_MACHINE:
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 		return new MCMachine;
+	case F_MAC_SET_ICON:
+		return new MCMacSetIcon;
+#else /* OXT-TOM: Windows */
+		return new MCMachine;
+#endif /* OXT-TOM */
 	case F_MAC_TO_ISO:
 		return new MCMacToIso;
 	case F_MAIN_STACKS:

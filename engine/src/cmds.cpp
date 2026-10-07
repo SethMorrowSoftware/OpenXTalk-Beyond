@@ -1627,4 +1627,68 @@ void MCAssertCmd::exec_ctxt(MCExecContext& ctxt)
         ctxt . IgnoreLastError();
     
     MCDebuggingExecAssert(ctxt, m_type, t_success, t_result);
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 }
+
+MCMacSetIconCmd::~MCMacSetIconCmd()
+{
+	delete m_icon_path;
+	delete m_file_path;
+}
+
+Parse_stat MCMacSetIconCmd::parse(MCScriptPoint &sp)
+{
+	initpoint(sp);
+	
+	// Check for optional opening parenthesis (function-style syntax)
+	bool t_has_paren = (sp.skip_token(SP_FACTOR, TT_LPAREN) == PS_NORMAL);
+	
+	// Parse first expression
+	if (sp.parseexp(False, False, &m_icon_path) != PS_NORMAL)
+	{
+		MCperror->add(PE_MACSETICON_BADPARAM, sp);
+		return PS_ERROR;
+	}
+	
+	// Expect comma separator
+	Symbol_type type;
+	if (sp.next(type) != PS_NORMAL || type != ST_SEP)
+	{
+		MCperror->add(PE_MACSETICON_BADPARAM, sp);
+		return PS_ERROR;
+	}
+	
+	// Parse second expression
+	if (sp.parseexp(False, False, &m_file_path) != PS_NORMAL)
+	{
+		MCperror->add(PE_MACSETICON_BADPARAM, sp);
+		return PS_ERROR;
+	}
+	
+	// Check for optional closing parenthesis
+	if (t_has_paren && sp.skip_token(SP_FACTOR, TT_RPAREN) != PS_NORMAL)
+	{
+		MCperror->add(PE_MACSETICON_BADPARAM, sp);
+		return PS_ERROR;
+	}
+	
+	return PS_NORMAL;
+}
+
+void MCMacSetIconCmd::exec_ctxt(MCExecContext &ctxt)
+{
+	MCAutoStringRef t_icon_path;
+	if (!ctxt . EvalExprAsStringRef(m_icon_path, EE_MACSETICON_BADPARAM, &t_icon_path))
+		return;
+	
+	MCAutoStringRef t_file_path;
+	if (!ctxt . EvalExprAsStringRef(m_file_path, EE_MACSETICON_BADPARAM, &t_file_path))
+		return;
+	
+	MCStringRef t_result;
+	MCFilesEvalMacSetIcon(ctxt, *t_icon_path, *t_file_path, t_result);
+	MCValueRelease(t_result);
+}
+#else /* OXT-TOM: Windows */
+}
+#endif /* OXT-TOM */

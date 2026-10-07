@@ -47,6 +47,7 @@ struct MCThemeDrawInfo
 		{
 			HIRect bounds;
 			HIThemeButtonDrawInfo info;
+			Widget_Type widget_type;  // tperry 3rd December 2025: Store original widget type to distinguish BEVELBUTTON from PULLDOWN
 		} button;
 		
 		struct

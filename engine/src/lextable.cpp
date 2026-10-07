@@ -372,7 +372,12 @@ const LT command_table[] =
         {"load", TT_STATEMENT, S_LOAD},
         {"local", TT_STATEMENT, S_LOCAL},
         {"lock", TT_STATEMENT, S_LOCK},
+#if defined(_MACOSX) /* OXT-TOM: macOS */
         {"log", TT_STATEMENT, S_LOG},
+        {"macSetIcon", TT_STATEMENT, S_MAC_SET_ICON},
+#else /* OXT-TOM: Windows */
+        {"log", TT_STATEMENT, S_LOG},
+#endif /* OXT-TOM */
         {"mark", TT_STATEMENT, S_MARK},
         {"modal", TT_STATEMENT, S_MODAL},
         {"modeless", TT_STATEMENT, S_MODELESS},
@@ -1194,7 +1199,12 @@ const LT factor_table[] =
         {"lower", TT_FUNCTION, F_TO_LOWER},
         {"lowresolutiontimers", TT_PROPERTY, P_LOW_RESOLUTION_TIMERS},
         {"lzwkey", TT_PROPERTY, P_LZW_KEY},
+#if defined(_MACOSX) /* OXT-TOM: macOS */
         {"machine", TT_FUNCTION, F_MACHINE},
+        {"macSetIcon", TT_FUNCTION, F_MAC_SET_ICON},
+#else /* OXT-TOM: Windows */
+        {"machine", TT_FUNCTION, F_MACHINE},
+#endif /* OXT-TOM */
         {"mactoiso", TT_FUNCTION, F_MAC_TO_ISO},
         {"magnifier", TT_CHUNK, CT_MAGNIFY},
         {"magnify", TT_PROPERTY, P_MAGNIFY},

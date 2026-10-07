@@ -3185,6 +3185,7 @@ void MCFilesEvalGetResource(MCExecContext& ctxt, MCStringRef p_source, MCStringR
 void MCFilesEvalGetResourcesWithType(MCExecContext& ctxt, MCStringRef p_source, MCStringRef p_type, MCStringRef& r_string);
 void MCFilesEvalGetResources(MCExecContext& ctxt, MCStringRef p_source, MCStringRef& r_string);
 void MCFilesEvalSetResource(MCExecContext& ctxt, MCStringRef p_source, MCStringRef p_type, MCStringRef p_id, MCStringRef p_name, MCStringRef p_flags, MCStringRef p_value, MCStringRef& r_result);
+void MCFilesEvalMacSetIcon(MCExecContext& ctxt, MCStringRef p_icon_path, MCStringRef p_file_path, MCStringRef& r_result);
 void MCFilesEvalAliasReference(MCExecContext& ctxt, MCStringRef p_path, MCStringRef& r_reference);
 
 void MCFilesEvalThereIsAFile(MCExecContext& ctxt, MCStringRef p_path, bool& r_result);

@@ -2508,8 +2508,14 @@ void MCField::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p
 		trect = MCU_reduce_rect(trect, -borderwidth);
 		int2 offset = MClook == LF_MOTIF ? 0 : -1;
 		if (flags & F_HSCROLLBAR && trect.height > scrollbarwidth)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+			trect.height += scrollbarwidth + offset;
+		// tperry 17-1-2026: Only expand border for scrollbar area when scrollbar is visible
+		if (flags & F_VSCROLLBAR && trect.width > scrollbarwidth && !vscrollbar->issbdisabled())
+#else /* OXT-TOM: Windows */
 			trect.height += scrollbarwidth + offset;
 		if (flags & F_VSCROLLBAR && trect.width > scrollbarwidth)
+#endif /* OXT-TOM */
 			trect.width += scrollbarwidth + offset;
 		if (flags & F_3D)
 		{

@@ -1798,6 +1798,9 @@ enum Parse_errors
     
     // {PE-0584} out of memory
     PE_OUTOFMEMORY,
+    
+    // {PE-0585} macSetIcon: bad parameters
+    PE_MACSETICON_BADPARAM,
 };
 
 extern const char *MCparsingerrors;

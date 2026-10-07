@@ -102,6 +102,7 @@
 			'src/externalv0.cpp',
 			'src/externalv1.cpp',
 			'src/externalv1.mm',
+			'src/macicon.mm',
 			'src/funcs.cpp',
 			'src/funcsm.cpp',
 			'src/handler.cpp',

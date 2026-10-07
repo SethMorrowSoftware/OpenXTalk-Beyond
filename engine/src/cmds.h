@@ -2127,4 +2127,18 @@ private:
 	MCExpression *m_verify_host_name;
 };
 
+class MCMacSetIconCmd : public MCStatement
+{
+	MCExpression *m_icon_path;
+	MCExpression *m_file_path;
+public:
+	MCMacSetIconCmd()
+	{
+		m_icon_path = m_file_path = NULL;
+	}
+	virtual ~MCMacSetIconCmd();
+	virtual Parse_stat parse(MCScriptPoint &);
+	virtual void exec_ctxt(MCExecContext&);
+};
+
 #endif

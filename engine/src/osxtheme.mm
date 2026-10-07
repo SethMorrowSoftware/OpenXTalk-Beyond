@@ -36,6 +36,24 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define CGFloat float
 #endif
 
+//-- tperry 18th October 2025
+// Import modern AppKit controls to replace deprecated HITheme
+#import <AppKit/NSAppearance.h>
+#import <AppKit/NSGraphicsContext.h>
+#import <AppKit/NSButton.h>
+#import <AppKit/NSPopUpButton.h>
+#import <AppKit/NSButtonCell.h>
+#import <AppKit/NSScroller.h>
+#import <AppKit/NSScrollView.h>
+#import <AppKit/NSComboBox.h>
+#import <AppKit/NSProgressIndicator.h>
+#import <AppKit/NSSegmentedControl.h>
+#import <AppKit/NSBox.h>
+#import <AppKit/NSTabView.h>
+#import <AppKit/NSSlider.h>
+#import <AppKit/NSBezierPath.h>
+#import <AppKit/NSColor.h>
+
 extern double MCMacGetAnimationStartTime(void);
 extern double MCMacGetAnimationCurrentTime(void);
 
@@ -520,6 +538,8 @@ static void drawthemebutton(MCDC *dc, const MCWidgetInfo &widgetinfo, const MCRe
 	MCThemeDrawInfo t_info;
 	t_info . dest = drect;
 	getthemebuttonpartandstate(widgetinfo, t_info . button . info, drect, t_info . button . bounds);
+	// tperry 3rd December 2025: Store original widget type to distinguish BEVELBUTTON from PULLDOWN
+	t_info . button . widget_type = widgetinfo.type;
 	if (t_info . button . info . kind == kThemePushButton && t_info . button . info . adornment == kThemeAdornmentDefault)
 	{
 		t_info . button . info . animation . time . start = MCMacGetAnimationStartTime();
@@ -634,8 +654,19 @@ static void DrawMacAMScrollControls(MCDC *dc, const MCWidgetInfo &winfo, const M
 	t_info . dest = drect;
 	if (winfo.datatype != WTHEME_DATA_SCROLLBAR && winfo.type != WTHEME_TYPE_SMALLSCROLLBAR)
 		return;
-	fillTrackDrawInfo(winfo, t_info . slider . info, drect);
+	
+	// Check if scrollbar should be hidden (content doesn't need scrolling)
+	// This is for regular scrollbars, not sliders or progress bars
 	MCWidgetScrollBarInfo *sbinfo = (MCWidgetScrollBarInfo *)winfo.data;
+	if (winfo.type == WTHEME_TYPE_SCROLLBAR || winfo.type == WTHEME_TYPE_SMALLSCROLLBAR)
+	{
+		// Content doesn't need scrolling when range <= thumbsize
+		real8 range = fabs(sbinfo->endvalue - sbinfo->startvalue);
+		if (range <= sbinfo->thumbsize + 0.5)
+			return;
+	}
+	
+	fillTrackDrawInfo(winfo, t_info . slider . info, drect);
 	
 	// MW-2007-08-30: [[ Bug 4155 ]] Ensure the case of endvalue < startvalue is handled correctly.
 	if (t_info . slider . info . kind == kThemeSlider)
@@ -834,8 +865,13 @@ static void fillTrackDrawInfo(const MCWidgetInfo &winfo, HIThemeTrackDrawInfo &d
 		drawInfo.enableState = kThemeTrackInactive;
 	switch (drawInfo.kind)
 	{
-	case kThemeProgressBar: //progress bar is always horizontal
-		drawInfo.attributes = kThemeTrackHorizontal;
+	case kThemeProgressBar:
+		// Set orientation based on dimensions: vertical if height > width
+		// Note: Vertical is indicated by absence of kThemeTrackHorizontal flag
+		if (drect.height > drect.width)
+			drawInfo.attributes = 0;  // Vertical (no horizontal flag)
+		else
+			drawInfo.attributes = kThemeTrackHorizontal;
 		drawInfo.trackInfo.progress.phase = 0;
 		break;
 	case kThemeSlider:
@@ -877,6 +913,16 @@ static inline void assign(HIRect& d, Rect s)
 	d . size . height = s . bottom - s . top;
 }
 
+static inline CGRect CGRectFromRect(Rect s)
+{
+	CGRect t_rect;
+	t_rect . origin . x = s . left;
+	t_rect . origin . y = s . top;
+	t_rect . size . width = s . right - s . left;
+	t_rect . size . height = s . bottom - s . top;
+	return t_rect;
+}
+
 void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRef p_context, bool p_hidpi)
 {
 	CGContextRef t_context = p_context;
@@ -885,194 +931,1009 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 	{
 		case THEME_DRAW_TYPE_SLIDER:
 		{
-			HIThemeTrackDrawInfo t_info;
+			//-- tperry 29th May 2026
+			// Use a real NSSlider control and pass it as its own inView:.
+			// NSSliderCell requires a valid control view to resolve thumb
+			// position, track geometry and enabled/pressed state.
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				NSRect t_frame = NSRectFromCGRect(p_info.slider.info.bounds);
+				
+				// Create slider with origin at (0,0) so the draw rect and
+				// view bounds match exactly inside the off-screen image.
+				NSSlider *t_slider = [[NSSlider alloc] initWithFrame:
+				    NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height)];
+				
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				if (MCPlatformGetSystemAppearanceIsDark())
+					[t_slider setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]];
+				else
+					[t_slider setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+				
+				[t_slider setMinValue:p_info.slider.info.min];
+				[t_slider setMaxValue:p_info.slider.info.max];
+				[t_slider setDoubleValue:p_info.slider.info.value];
+				[t_slider setEnabled:(p_info.slider.info.enableState != kThemeTrackDisabled)];
+				
+				bool t_is_vertical = t_frame.size.height > t_frame.size.width;
+				if (@available(macOS 10.10, *))
+					[t_slider setVertical:t_is_vertical];
+				
+				// Draw into image then flip
+				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+				[t_image lockFocus];
+				
+				NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
+				[[t_slider cell] drawWithFrame:t_draw_rect inView:t_slider];
+				
+				[t_image unlockFocus];
+				
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				CGContextSaveGState(p_context);
+				CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(p_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
+				            fromRect:NSZeroRect
+				           operation:NSCompositingOperationSourceOver
+				            fraction:1.0];
+				
+				CGContextRestoreGState(p_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+				[t_slider release];
+			}
 			
-			t_info . version = 0;
-			t_info . kind = p_info . slider . info . kind;
-			t_info . bounds = p_info . slider . info . bounds;
-			t_info . min = p_info . slider . info . min;
-			t_info . max = p_info . slider . info . max;
-			t_info . value = p_info . slider . info . value;
-			t_info . reserved = 0;
-			t_info . attributes = p_info . slider . info . attributes;
-			t_info . enableState = p_info . slider . info . enableState;
-			t_info . filler1 = 0;
-			t_info . trackInfo . slider . thumbDir = p_info . slider . info . trackInfo . slider . thumbDir;
-			t_info . trackInfo . slider . pressState = p_info . slider . info . trackInfo . slider . pressState;
-			if (p_info . slider . count > 0)
-				HIThemeDrawTrackTickMarks(&t_info, p_info . slider . count, t_context, kHIThemeOrientationNormal);
-            t_info . bounds . origin . y += 1;
-            
-			HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIThemeTrackDrawInfo t_info;
+				
+				t_info . version = 0;
+				t_info . kind = p_info . slider . info . kind;
+				t_info . bounds = p_info . slider . info . bounds;
+				t_info . min = p_info . slider . info . min;
+				t_info . max = p_info . slider . info . max;
+				t_info . value = p_info . slider . info . value;
+				t_info . reserved = 0;
+				t_info . attributes = p_info . slider . info . attributes;
+				t_info . enableState = p_info . slider . info . enableState;
+				t_info . filler1 = 0;
+				t_info . trackInfo . slider . thumbDir = p_info . slider . info . trackInfo . slider . thumbDir;
+				t_info . trackInfo . slider . pressState = p_info . slider . info . trackInfo . slider . pressState;
+				t_info . bounds . origin . y += 1;
+				
+				HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_SCROLLBAR:
 		{
-			HIThemeTrackDrawInfo t_info;
+			// Skip drawing entirely if scrollbar is disabled (content doesn't need scrolling)
+			if (p_info.scrollbar.info.enableState == kThemeTrackDisabled)
+				break;
 			
-			t_info . version = 0;
-			t_info . kind = p_info . scrollbar . info . kind;
-			t_info . bounds = p_info . slider . info . bounds;
-			t_info . min = p_info . scrollbar . info . min;
-			t_info . max = p_info . scrollbar . info . max;
-			t_info . value = p_info . scrollbar . info . value;
-			t_info . reserved = 0;
-			t_info . attributes = p_info . scrollbar . info . attributes;
-			t_info . enableState = p_info . scrollbar . info . enableState;
-			t_info . filler1 = 0;
-			t_info . trackInfo . scrollbar . viewsize = p_info . scrollbar . info . trackInfo . scrollbar . viewsize;
-			t_info . trackInfo . scrollbar . pressState = p_info . scrollbar . info . trackInfo . scrollbar . pressState;
-            
-            // MW-2014-04-11: [[ Bug 12027 ]] It seems that the minimum size of a scrollbar thumb is 18px. However
-            //   when rendering at Retina resolution the HITheme API will render them smaller, even though the
-            //   hit-test rect is still 18px. We account for this here.
-            if (p_hidpi && t_info . trackInfo . scrollbar . viewsize < 18)
-            {
-                t_info . trackInfo . scrollbar . viewsize = 18;
-            }
-            
-			HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			//-- tperry 18th October 2025
+			// Use modern NSScroller for proper dark mode and system appearance
+			bool t_use_nsscroller = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_nsscroller = true;
+				
+				NSRect t_frame = NSRectFromCGRect(p_info.scrollbar.info.bounds);
+				
+				NSScroller *t_scroller = [[NSScroller alloc] initWithFrame:t_frame];
+				
+				// Set appearance
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				if (MCPlatformGetSystemAppearanceIsDark())
+					[t_scroller setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]];
+				else
+					[t_scroller setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+				
+				// Set scroller style (legacy or overlay)
+				[t_scroller setScrollerStyle:NSScrollerStyleLegacy];
+				
+				// Set enabled state
+				[t_scroller setEnabled:(p_info.scrollbar.info.enableState != kThemeTrackDisabled)];
+				
+				// Calculate knob proportion (thumb size)
+				// Note: viewsize is in pixels, range is the scroll range
+				// We need to convert viewsize from pixels to a proportion of the track
+				CGFloat t_range = p_info.scrollbar.info.max - p_info.scrollbar.info.min;
+				CGFloat t_viewsize_pixels = p_info.scrollbar.info.trackInfo.scrollbar.viewsize;
+				CGFloat t_knob_proportion = 0.0;
+				
+				// Get the track size in pixels
+				CGFloat t_track_size = (t_frame.size.height > t_frame.size.width) ? 
+					t_frame.size.height : t_frame.size.width;
+				
+				// Check if content needs scrolling
+				// When max <= min, there's no scrollable range - hide the thumb
+				if (t_range <= 0 || t_viewsize_pixels <= 0)
+				{
+					// No scrolling needed - hide thumb by setting proportion to 0
+					t_knob_proportion = 0.0;
+				}
+				else if (t_track_size > 0)
+				{
+					// Content needs scrolling - calculate knob proportion
+					t_knob_proportion = t_viewsize_pixels / t_track_size;
+					
+					// Clamp to valid range [0.01, 1.0]
+					if (t_knob_proportion < 0.01)
+						t_knob_proportion = 0.01;
+					else if (t_knob_proportion > 1.0)
+						t_knob_proportion = 1.0;
+				}
+				else
+				{
+					// Invalid track size - hide thumb
+					t_knob_proportion = 0.0;
+				}
+				
+				// Set knob proportion
+				[t_scroller setKnobProportion:t_knob_proportion];
+				
+				// Calculate and set double value (position)
+				CGFloat t_double_value = 0.0;
+				
+				if (t_range > 0)
+				{
+					// Calculate the normalized position (0.0 to 1.0)
+					CGFloat t_normalized = (p_info.scrollbar.info.value - p_info.scrollbar.info.min) / t_range;
+					
+					// The drawing context is flipped (line 1015), so we need to invert
+					// vertical scrollbar positions: top (0.0) becomes bottom (1.0)
+					bool t_is_vertical = t_frame.size.height > t_frame.size.width;
+					if (t_is_vertical)
+						t_double_value = 1.0 - t_normalized;
+					else
+						t_double_value = t_normalized;
+				}
+				// else: t_range <= 0 means no scrolling, thumb is hidden, position doesn't matter
+				
+				[t_scroller setDoubleValue:t_double_value];
+				
+				// Only draw scrollbar if content needs scrolling
+				// When t_range <= 0 or viewsize <= 0, skip drawing entirely
+				if (t_range > 0 && t_viewsize_pixels > 0)
+				{
+					// Draw scroller into an image first, then flip it
+					NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+					[t_image lockFocus];
+					
+					// Draw both track and knob
+					NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
+					[t_scroller drawKnobSlotInRect:t_draw_rect highlight:NO];
+					[t_scroller drawKnob];
+					
+					[t_image unlockFocus];
+				
+				// Now draw the image into the context (flipped)
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:t_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				// Flip and draw
+				CGContextSaveGState(t_context);
+				CGContextTranslateCTM(t_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(t_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0) 
+				            fromRect:NSZeroRect 
+				           operation:NSCompositingOperationSourceOver 
+				            fraction:1.0];
+				
+				CGContextRestoreGState(t_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+				}
+				
+				[t_scroller release];
+			}
+			
+			if (!t_use_nsscroller)
+			{
+				// Fallback to HITheme for older macOS
+				HIThemeTrackDrawInfo t_info;
+				
+				t_info . version = 0;
+				t_info . kind = p_info . scrollbar . info . kind;
+				t_info . bounds = p_info . slider . info . bounds;
+				t_info . min = p_info . scrollbar . info . min;
+				t_info . max = p_info . scrollbar . info . max;
+				t_info . value = p_info . scrollbar . info . value;
+				t_info . reserved = 0;
+				t_info . attributes = p_info . scrollbar . info . attributes;
+				t_info . enableState = p_info . scrollbar . info . enableState;
+				t_info . filler1 = 0;
+				t_info . trackInfo . scrollbar . viewsize = p_info . scrollbar . info . trackInfo . scrollbar . viewsize;
+				t_info . trackInfo . scrollbar . pressState = p_info . scrollbar . info . trackInfo . scrollbar . pressState;
+				
+				if (p_hidpi && t_info . trackInfo . scrollbar . viewsize < 18)
+				{
+					t_info . trackInfo . scrollbar . viewsize = 18;
+				}
+				
+				HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_PROGRESS:
 		{
-			HIThemeTrackDrawInfo t_info;
+			//-- tperry 18th October 2025
+			// Use modern NSProgressIndicator for proper dark mode and system appearance
+			bool t_use_nsprogress = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_nsprogress = true;
+				
+				NSRect t_frame = NSRectFromCGRect(p_info.progress.info.bounds);
+				NSProgressIndicator *t_progress = [[NSProgressIndicator alloc] initWithFrame:t_frame];
+				
+				// Set appearance
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				if (MCPlatformGetSystemAppearanceIsDark())
+					[t_progress setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]];
+				else
+					[t_progress setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+				
+				// Set style (bar or spinning)
+				[t_progress setStyle:NSProgressIndicatorStyleBar];
+				[t_progress setIndeterminate:NO];
+				
+				// Set min/max/value
+				[t_progress setMinValue:p_info.progress.info.min];
+				[t_progress setMaxValue:p_info.progress.info.max];
+				[t_progress setDoubleValue:p_info.progress.info.value];
+				
+				// Draw progress bar into an image first, then flip it
+				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+				[t_image lockFocus];
+				
+				// Draw into the image
+				NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
+				[t_progress drawRect:t_draw_rect];
+				
+				[t_image unlockFocus];
+				
+				// Now draw the image into the context (flipped)
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:t_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				// Flip and draw
+				CGContextSaveGState(t_context);
+				CGContextTranslateCTM(t_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(t_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0) 
+				            fromRect:NSZeroRect 
+				           operation:NSCompositingOperationSourceOver 
+				            fraction:1.0];
+				
+				CGContextRestoreGState(t_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+				[t_progress release];
+			}
 			
-			t_info . version = 0;
-			t_info . kind = p_info . progress . info . kind;
-			t_info . bounds = p_info . slider . info . bounds;
-			t_info . min = p_info . progress . info . min;
-			t_info . max = p_info . progress . info . max;
-			t_info . value = p_info . progress . info . value;
-			t_info . reserved = 0;
-			t_info . attributes = p_info . progress . info . attributes;
-			t_info . enableState = p_info . progress . info . enableState;
-			t_info . filler1 = 0;
-			t_info . trackInfo . progress . phase = p_info . progress . info . trackInfo . progress . phase;
-            
-			HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			if (!t_use_nsprogress)
+			{
+				// Fallback to HITheme for older macOS
+				HIThemeTrackDrawInfo t_info;
+				
+				t_info . version = 0;
+				t_info . kind = p_info . progress . info . kind;
+				t_info . bounds = p_info . slider . info . bounds;
+				t_info . min = p_info . progress . info . min;
+				t_info . max = p_info . progress . info . max;
+				t_info . value = p_info . progress . info . value;
+				t_info . reserved = 0;
+				t_info . attributes = p_info . progress . info . attributes;
+				t_info . enableState = p_info . progress . info . enableState;
+				t_info . filler1 = 0;
+				t_info . trackInfo . progress . phase = p_info . progress . info . trackInfo . progress . phase;
+				
+				HIThemeDrawTrack(&t_info, NULL, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_BUTTON:
 		{
-			HIThemeDrawButton(&p_info.button.bounds, &p_info.button.info, t_context, kHIThemeOrientationNormal, NULL);
+			//-- tperry 18th October 2025
+			// Use modern NSButton/NSPopUpButton for proper dark mode and system appearance
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				// tperry 2nd November 2025
+				// For push buttons, use the original destination rect (p_info.dest) instead of
+				// HITheme-adjusted bounds. NSButton handles its own sizing, antialiasing, and shadows.
+				// HITheme adjustments (insets/offsets) were causing incorrect sizing.
+				NSRect t_frame;
+				bool t_is_push_button = (p_info.button.info.kind == kThemePushButton);
+				if (t_is_push_button)
+				{
+					CGRect t_dest_rect;
+					convertmctocgrect(p_info.dest, t_dest_rect);
+					t_frame = NSRectFromCGRect(t_dest_rect);
+					
+					// Adjust frame width to fill container properly:
+					// - Expand width by 5px on each side (10px total)
+					t_frame.origin.x -= 5;
+					t_frame.size.width += 10;
+				}
+				else
+				{
+					// For other button types (checkboxes, radio, popups), use adjusted bounds
+					t_frame = NSRectFromCGRect(p_info.button.bounds);
+				}
+				
+				// Set appearance
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				NSAppearance *t_appearance = MCPlatformGetSystemAppearanceIsDark() ?
+					[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua] :
+					[NSAppearance appearanceNamed:NSAppearanceNameAqua];
+				
+				NSControl *t_control = nil;
+				
+				// Create appropriate control based on button kind
+				if (p_info.button.info.kind == kThemeComboBox)
+				{
+					// Combo box
+					NSComboBox *t_combo = [[NSComboBox alloc] initWithFrame:t_frame];
+					[t_combo setStringValue:@""];
+					t_control = t_combo;
+				}
+				else if (p_info.button.info.kind == kThemePopupButton)
+				{
+					// Option/Popup menu (shows popup arrow)
+					NSPopUpButton *t_popup = [[NSPopUpButton alloc] initWithFrame:t_frame pullsDown:NO];
+					[t_popup addItemWithTitle:@""];
+					t_control = t_popup;
+				}
+				else if (p_info.button.info.kind == kThemeBevelButton && p_info.button.widget_type == WTHEME_TYPE_PULLDOWN)
+				{
+					// Pulldown menu (shows pulldown arrow)
+					// Only WTHEME_TYPE_PULLDOWN should show the arrow, not WTHEME_TYPE_BEVELBUTTON (rectangle buttons)
+					NSPopUpButton *t_popup = [[NSPopUpButton alloc] initWithFrame:t_frame pullsDown:YES];
+					[t_popup addItemWithTitle:@""];
+					t_control = t_popup;
+				}
+				else if (p_info.button.info.kind == kThemeBevelButton && p_info.button.widget_type == WTHEME_TYPE_BEVELBUTTON)
+				{
+					// Rectangle button (no arrow)
+					// Use a regular NSButton with textured square bezel style
+					NSButton *t_button = [[NSButton alloc] initWithFrame:t_frame];
+					[t_button setButtonType:NSMomentaryPushInButton];
+					[t_button setBezelStyle:NSBezelStyleTexturedSquare];
+					[t_button setTitle:@""];
+					t_control = t_button;
+				}
+				else if (p_info.button.info.kind == kThemeCheckBox || p_info.button.info.kind == kThemeSmallCheckBox)
+				{
+					// Checkbox
+					NSButton *t_button = [[NSButton alloc] initWithFrame:t_frame];
+					[t_button setButtonType:NSSwitchButton];
+					[t_button setTitle:@""];  // No title, just the checkbox
+					
+					// Set state
+					if (p_info.button.info.value == kThemeButtonOn)
+						[t_button setState:NSOnState];
+					else if (p_info.button.info.value == kThemeButtonMixed)
+						[t_button setState:NSMixedState];
+					else
+						[t_button setState:NSOffState];
+					
+					t_control = t_button;
+				}
+				else if (p_info.button.info.kind == kThemeRadioButton || p_info.button.info.kind == kThemeSmallRadioButton)
+				{
+					// Radio button
+					NSButton *t_button = [[NSButton alloc] initWithFrame:t_frame];
+					[t_button setButtonType:NSRadioButton];
+					[t_button setTitle:@""];  // No title, just the radio
+					
+					// tperry 7-12-2025 -- Set state based on value (ON/OFF), not pressed state
+					// The pressed state (mouse down) should be handled by highlighted property
+					if (p_info.button.info.value == kThemeButtonOn)
+						[t_button setState:NSOnState];
+					else
+						[t_button setState:NSOffState];
+					
+					// tperry 7-12-2025 -- Handle pressed state (mouse down) separately from selected state
+					// This fixes autohilite radio buttons showing as always hilited
+					if (p_info.button.info.state == kThemeStatePressed)
+						[t_button setHighlighted:YES];
+					
+					t_control = t_button;
+				}
+				else if (p_info.button.info.kind == kThemePushButton)
+				{
+					// Push button
+					NSButton *t_button = [[NSButton alloc] initWithFrame:t_frame];
+					[t_button setButtonType:NSMomentaryPushInButton];
+					[t_button setBezelStyle:NSRoundedBezelStyle];
+					[t_button setTitle:@""];
+					
+					// Check if this is a default button (has default adornment)
+					if (p_info.button.info.adornment == kThemeAdornmentDefault)
+					{
+						[t_button setKeyEquivalent:@"\r"];  // Makes it the default button
+					}
+					
+					// tperry 17-01-2026 -- Handle hilite/pressed state for standard buttons
+					// When hilite is true (kThemeButtonOn) or button is pressed, show highlighted state
+					// This makes the button slightly lighter (RGB 116,119,121 vs 93,96,96)
+					if (p_info.button.info.value == kThemeButtonOn || 
+					    p_info.button.info.state == kThemeStatePressed)
+					{
+						[t_button setHighlighted:YES];
+					}
+					
+					t_control = t_button;
+				}
+				else
+				{
+					// Fallback to HITheme for unknown types
+					t_use_modern = false;
+				}
+				
+				if (t_use_modern && t_control != nil)
+				{
+					// Set common properties
+					[t_control setAppearance:t_appearance];
+					[t_control setEnabled:(p_info.button.info.state != kThemeStateInactive)];
+					
+					// Create a flipped image to draw the control correctly
+					NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+					[t_image lockFocus];
+					
+					// Draw into the image with correct orientation
+					NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
+					[[t_control cell] drawWithFrame:t_draw_rect inView:nil];
+					
+					[t_image unlockFocus];
+					
+					// Now draw the image into the context (flipped)
+					NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:t_context flipped:NO];
+					[NSGraphicsContext saveGraphicsState];
+					[NSGraphicsContext setCurrentContext:t_ns_context];
+					
+					// Flip and draw
+					CGContextSaveGState(t_context);
+					CGContextTranslateCTM(t_context, 0, t_frame.origin.y + t_frame.size.height);
+					CGContextScaleCTM(t_context, 1.0, -1.0);
+					
+					[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0) 
+					            fromRect:NSZeroRect 
+					           operation:NSCompositingOperationSourceOver 
+					            fraction:1.0];
+					
+					CGContextRestoreGState(t_context);
+					[NSGraphicsContext restoreGraphicsState];
+					[t_image release];
+					[t_control release];
+				}
+			}
+			
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme
+				HIThemeDrawButton(&p_info.button.bounds, &p_info.button.info, t_context, kHIThemeOrientationNormal, NULL);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_GROUP:
 		{
-			HIRect t_rect;
-			HIThemeGroupBoxDrawInfo t_info;
+			//-- tperry 27th May 2026
+			// Use modern NSBox for proper dark mode and system appearance
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				NSRect t_frame = NSRectFromCGRect(CGRectFromRect(p_info.group.bounds));
+				
+				// Draw into image then flip
+				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+				[t_image lockFocus];
+				
+				NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
+				
+				// tperry 28-5-2026
+				// Only fill background when is_filled is true (GROUP_FILL).
+				// When is_filled is false (GROUP_FRAME), we must NOT fill
+				// because this is drawn on top of already-rendered child controls.
+				if (p_info.group.is_filled)
+				{
+					NSBezierPath *t_fill_path = [NSBezierPath bezierPathWithRect:t_draw_rect];
+					[[NSColor controlBackgroundColor] setFill];
+					[t_fill_path fill];
+				}
+				
+				// tperry 29-5-2026
+				// Draw 3D bevel border: dark top/right, light bottom/left
+				// (matching classic HITheme recessed group box appearance)
+				NSBezierPath *t_shadow_path = [NSBezierPath bezierPath];
+				[t_shadow_path moveToPoint:NSMakePoint(0.5, 0.5)];
+				[t_shadow_path lineToPoint:NSMakePoint(t_draw_rect.size.width - 0.5, 0.5)];
+				[t_shadow_path moveToPoint:NSMakePoint(t_draw_rect.size.width - 0.5, 0.5)];
+				[t_shadow_path lineToPoint:NSMakePoint(t_draw_rect.size.width - 0.5, t_draw_rect.size.height - 0.5)];
+				[t_shadow_path setLineWidth:1.0];
+				[[NSColor controlShadowColor] setStroke];
+				[t_shadow_path stroke];
+				
+				NSBezierPath *t_highlight_path = [NSBezierPath bezierPath];
+				[t_highlight_path moveToPoint:NSMakePoint(0.5, t_draw_rect.size.height - 0.5)];
+				[t_highlight_path lineToPoint:NSMakePoint(t_draw_rect.size.width - 0.5, t_draw_rect.size.height - 0.5)];
+				[t_highlight_path moveToPoint:NSMakePoint(0.5, 0.5)];
+				[t_highlight_path lineToPoint:NSMakePoint(0.5, t_draw_rect.size.height - 0.5)];
+				[t_highlight_path setLineWidth:1.0];
+				[[NSColor controlHighlightColor] setStroke];
+				[t_highlight_path stroke];
+				
+				[t_image unlockFocus];
+				
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				CGContextSaveGState(p_context);
+				CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(p_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
+				            fromRect:NSZeroRect
+				           operation:NSCompositingOperationSourceOver
+				            fraction:1.0];
+				
+				CGContextRestoreGState(p_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+			}
 			
-			assign(t_rect, p_info . group . bounds);
-			
-			t_info . version = 0;
-			t_info . state = p_info . group . state;
-			t_info . kind = p_info . group . is_secondary ? kHIThemeGroupBoxKindSecondary : kHIThemeGroupBoxKindPrimary;
-            
-			HIThemeDrawGroupBox(&t_rect, &t_info, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIRect t_rect;
+				HIThemeGroupBoxDrawInfo t_info;
+				
+				assign(t_rect, p_info . group . bounds);
+				
+				t_info . version = 0;
+				t_info . state = p_info . group . state;
+				t_info . kind = p_info . group . is_secondary ? kHIThemeGroupBoxKindSecondary : kHIThemeGroupBoxKindPrimary;
+				
+				HIThemeDrawGroupBox(&t_rect, &t_info, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_FRAME:
 		{
-			HIRect t_bounds;
-			HIThemeFrameDrawInfo t_info;
+			//-- tperry 27th May 2026
+			// Use modern NSBox / NSBezierPath for proper dark mode frame rendering
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				NSRect t_frame = NSRectFromCGRect(CGRectFromRect(p_info.frame.bounds));
+				
+				// Draw frame using NSBezierPath for consistent appearance
+				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+				[t_image lockFocus];
+				
+				NSBezierPath *t_path = [NSBezierPath bezierPathWithRect:NSMakeRect(0.5, 0.5,
+					t_frame.size.width - 1.0, t_frame.size.height - 1.0)];
+				[t_path setLineWidth:1.0];
+				
+				// Use system colors for dark/light mode
+				if (p_info.frame.is_list)
+					[[NSColor separatorColor] setStroke];
+				else
+					[[NSColor controlColor] setStroke];
+				
+				[t_path stroke];
+				
+				[t_image unlockFocus];
+				
+				// Draw into context (flipped)
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				CGContextSaveGState(p_context);
+				CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(p_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
+				            fromRect:NSZeroRect
+				           operation:NSCompositingOperationSourceOver
+				            fraction:1.0];
+				
+				CGContextRestoreGState(p_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+			}
 			
-			assign(t_bounds, p_info . frame . bounds);
-			
-			t_info . version = 0;
-			t_info . kind = p_info . frame . is_list ? kHIThemeFrameListBox : kHIThemeFrameTextFieldSquare;
-			t_info . state = p_info . frame . state;
-			t_info . isFocused = false;
-            
-			HIThemeDrawFrame(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIRect t_bounds;
+				HIThemeFrameDrawInfo t_info;
+				
+				assign(t_bounds, p_info . frame . bounds);
+				
+				t_info . version = 0;
+				t_info . kind = p_info . frame . is_list ? kHIThemeFrameListBox : kHIThemeFrameTextFieldSquare;
+				t_info . state = p_info . frame . state;
+				t_info . isFocused = false;
+				
+				HIThemeDrawFrame(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_TAB:
 		{
-			HIRect t_bounds;
-			HIThemeTabDrawInfo t_info;
-			
-			assign(t_bounds, p_info . tab . bounds);
-			
-			t_info . version = 1;
-			t_info . direction = kThemeTabNorth;
-			t_info . size = kHIThemeTabSizeNormal;
-			if (p_info . tab . is_hilited)
-				t_info . style = (p_info . tab . is_disabled ? kThemeTabFrontInactive : kThemeTabFront);
-			else if (p_info . tab . is_disabled)
-				t_info . style = kThemeTabNonFrontInactive;
-			else
-				t_info . style = (p_info . tab . is_pressed ? kThemeTabNonFrontPressed : kThemeTabNonFront);
-			t_info . adornment = kHIThemeTabAdornmentNone;
-			t_info . kind = kHIThemeTabKindNormal;
-			if (p_info . tab . is_first && p_info . tab . is_last)
-				t_info . position = kHIThemeTabPositionOnly;
-			else if (p_info . tab . is_first)
+			//-- tperry 29th May 2026
+			// Direct NSBezierPath drawing for tab buttons.
+			// NSSegmentedControl cannot render correctly in a headless
+			// NSImage context because it requires a window/view hierarchy
+			// for its layer-backed cell rendering. NSImage lockFocus also
+			// conflicts with the bitmap context that MCThemeDraw creates,
+			// so we draw NSBezierPath directly via NSGraphicsContext.
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
 			{
-				t_info . adornment = kHIThemeTabAdornmentTrailingSeparator;
-				t_info . position = kHIThemeTabPositionFirst;
+				t_use_modern = true;
+				
+				CGRect t_cgrect = CGRectMake(p_info.tab.bounds.left, p_info.tab.bounds.top,
+					p_info.tab.bounds.right - p_info.tab.bounds.left,
+					p_info.tab.bounds.bottom - p_info.tab.bounds.top);
+				NSRect t_frame = NSRectFromCGRect(t_cgrect);
+				
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				bool t_is_dark = MCPlatformGetSystemAppearanceIsDark();
+				
+				bool t_is_selected = p_info.tab.is_hilited;
+				bool t_is_disabled = p_info.tab.is_disabled;
+				bool t_is_pressed = p_info.tab.is_pressed;
+				bool t_is_first = p_info.tab.is_first;
+				bool t_is_last = p_info.tab.is_last;
+				
+				// Draw directly into the bitmap context via NSGraphicsContext.
+				// NSImage lockFocus produces black/transparent output for tabs,
+				// likely because the nested bitmap context conflicts with the
+				// temporary image context. Drawing directly avoids NSImage.
+				[NSGraphicsContext saveGraphicsState];
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:t_context flipped:YES];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				NSRect t_draw_rect = NSMakeRect(t_frame.origin.x, t_frame.origin.y, t_frame.size.width, t_frame.size.height);
+				
+				// Button background path — rounded rect, position-aware corners
+				CGFloat t_radius = 4.0;
+				NSBezierPath *t_bg;
+				
+				if (t_is_first && t_is_last)
+				{
+					// Single tab — round all corners
+					t_bg = [NSBezierPath bezierPathWithRoundedRect:t_draw_rect xRadius:t_radius yRadius:t_radius];
+				}
+				else if (t_is_first)
+				{
+					// First tab — round left corners, square right edge
+					t_bg = [NSBezierPath bezierPath];
+					[t_bg moveToPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y)];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y)];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height)];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y + t_draw_rect.size.height)];
+					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height)
+					                             toPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height - t_radius)
+					                              radius:t_radius];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_radius)];
+					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y)
+					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y)
+					                              radius:t_radius];
+					[t_bg closePath];
+				}
+				else if (t_is_last)
+				{
+					// Last tab — round right corners, square left edge
+					t_bg = [NSBezierPath bezierPath];
+					[t_bg moveToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y)];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - t_radius, t_draw_rect.origin.y)];
+					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y)
+					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_radius)
+					                              radius:t_radius];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height - t_radius)];
+					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height)
+					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - t_radius, t_draw_rect.origin.y + t_draw_rect.size.height)
+					                              radius:t_radius];
+					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height)];
+					[t_bg closePath];
+				}
+				else
+				{
+					// Middle tab — square left/right edges, rounded top/bottom
+					t_bg = [NSBezierPath bezierPathWithRoundedRect:t_draw_rect xRadius:1.0 yRadius:1.0];
+				}
+				
+				// Fill background based on state
+				if (t_is_disabled)
+				{
+					if (t_is_dark)
+						[[NSColor colorWithWhite:0.22 alpha:1.0] setFill];
+					else
+						[[NSColor colorWithWhite:0.90 alpha:1.0] setFill];
+				}
+				else if (t_is_selected)
+				{
+					if (t_is_dark)
+						[[NSColor colorWithWhite:0.30 alpha:1.0] setFill];
+					else
+						[[NSColor controlBackgroundColor] setFill];
+				}
+				else if (t_is_pressed)
+				{
+					if (t_is_dark)
+						[[NSColor colorWithWhite:0.28 alpha:1.0] setFill];
+					else
+						[[NSColor colorWithWhite:0.82 alpha:1.0] setFill];
+				}
+				else
+				{
+					// Unselected, not pressed
+					if (t_is_dark)
+						[[NSColor colorWithWhite:0.25 alpha:1.0] setFill];
+					else
+						[[NSColor colorWithWhite:0.88 alpha:1.0] setFill];
+				}
+				[t_bg fill];
+				
+				// Border stroke
+				if (t_is_dark)
+					[[NSColor colorWithWhite:0.35 alpha:1.0] setStroke];
+				else
+					[[NSColor separatorColor] setStroke];
+				[t_bg setLineWidth:1.0];
+				[t_bg stroke];
+				
+				// Selected tab accent bottom border (modern macOS look)
+				if (t_is_selected && !t_is_disabled)
+				{
+					NSBezierPath *t_accent = [NSBezierPath bezierPath];
+					[t_accent moveToPoint:NSMakePoint(t_draw_rect.origin.x + 2.0, t_draw_rect.origin.y + 1.0)];
+					[t_accent lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - 2.0, t_draw_rect.origin.y + 1.0)];
+					[t_accent setLineWidth:2.5];
+					[t_accent setLineCapStyle:NSLineCapStyleRound];
+					if (@available(macOS 10.14, *))
+						[[NSColor controlAccentColor] setStroke];
+					else
+						[[NSColor systemBlueColor] setStroke];
+					[t_accent stroke];
+				}
+				
+				[NSGraphicsContext restoreGraphicsState];
 			}
-			else if (p_info . tab . is_last)
-				t_info . position = kHIThemeTabPositionLast;
-			else
+			
+			if (!t_use_modern)
 			{
-				t_info . adornment = kHIThemeTabAdornmentTrailingSeparator;
-				t_info . position = kHIThemeTabPositionMiddle;
+				// Fallback to HITheme for older macOS
+				HIRect t_bounds;
+				HIThemeTabDrawInfo t_info;
+				
+				assign(t_bounds, p_info . tab . bounds);
+				
+				t_info . version = 1;
+				t_info . direction = kThemeTabNorth;
+				t_info . size = kHIThemeTabSizeNormal;
+				if (p_info . tab . is_hilited)
+					t_info . style = (p_info . tab . is_disabled ? kThemeTabFrontInactive : kThemeTabFront);
+				else if (p_info . tab . is_disabled)
+					t_info . style = kThemeTabNonFrontInactive;
+				else
+					t_info . style = (p_info . tab . is_pressed ? kThemeTabNonFrontPressed : kThemeTabNonFront);
+				t_info . adornment = kHIThemeTabAdornmentNone;
+				t_info . kind = kHIThemeTabKindNormal;
+				if (p_info . tab . is_first && p_info . tab . is_last)
+					t_info . position = kHIThemeTabPositionOnly;
+				else if (p_info . tab . is_first)
+				{
+					t_info . adornment = kHIThemeTabAdornmentTrailingSeparator;
+					t_info . position = kHIThemeTabPositionFirst;
+				}
+				else if (p_info . tab . is_last)
+					t_info . position = kHIThemeTabPositionLast;
+				else
+				{
+					t_info . adornment = kHIThemeTabAdornmentTrailingSeparator;
+					t_info . position = kHIThemeTabPositionMiddle;
+				}
+				
+				HIThemeDrawTab(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal, NULL);
 			}
-            
-			HIThemeDrawTab(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal, NULL);
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_TAB_PANE:
 		{
-			HIRect t_bounds;
-			HIThemeTabPaneDrawInfo t_info;
+			//-- tperry 27th May 2026
+			// Use modern NSBox for proper dark mode tab pane rendering
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				CGRect t_cgrect = CGRectFromRect(p_info.tab_pane.bounds);
+				t_cgrect.origin.y += 1;
+				NSRect t_frame = NSRectFromCGRect(t_cgrect);
+				
+				extern bool MCPlatformGetSystemAppearanceIsDark(void);
+				bool t_is_dark = MCPlatformGetSystemAppearanceIsDark();
+				
+				// Draw directly to the bitmap context (already in screen coords
+				// thanks to MCThemeDraw's TranslateCTM + ScaleCTM setup).
+				if (t_is_dark)
+					CGContextSetFillColorWithColor(p_context, [NSColor colorWithWhite:0.20 alpha:1.0].CGColor);
+				else
+					CGContextSetFillColorWithColor(p_context, [NSColor controlBackgroundColor].CGColor);
+				CGContextFillRect(p_context, NSRectToCGRect(t_frame));
+				
+				if (t_is_dark)
+					CGContextSetStrokeColorWithColor(p_context, [NSColor colorWithWhite:0.35 alpha:1.0].CGColor);
+				else
+					CGContextSetStrokeColorWithColor(p_context, [NSColor separatorColor].CGColor);
+				CGContextSetLineWidth(p_context, 1.0);
+				CGContextStrokeRect(p_context, NSRectToCGRect(t_frame));
+			}
 			
-			// MW-2009-04-26: [[ Bug ]] Incrementing right hand bound is no longer necessary, 
-			//   as we've fixed the call sites.
-			
-			p_info . tab_pane . bounds . top += 1;
-			assign(t_bounds, p_info . tab_pane . bounds);
-			
-			t_info . version = 1;
-			t_info . state = p_info . tab_pane . state;
-			t_info . direction = kThemeTabNorth;
-			t_info . size = kHIThemeTabSizeNormal;
-			t_info . kind = kHIThemeTabKindNormal;
-			t_info . adornment = kHIThemeTabPaneAdornmentNormal;
-            
-			HIThemeDrawTabPane(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIRect t_bounds;
+				HIThemeTabPaneDrawInfo t_info;
+				
+				p_info . tab_pane . bounds . top += 1;
+				assign(t_bounds, p_info . tab_pane . bounds);
+				
+				t_info . version = 1;
+				t_info . state = p_info . tab_pane . state;
+				t_info . direction = kThemeTabNorth;
+				t_info . size = kHIThemeTabSizeNormal;
+				t_info . kind = kHIThemeTabKindNormal;
+				t_info . adornment = kHIThemeTabPaneAdornmentNormal;
+				
+				HIThemeDrawTabPane(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_BACKGROUND:
 		{
-			HIRect t_bounds;
-			HIThemeBackgroundDrawInfo t_info;
+			//-- tperry 27th May 2026
+			// Use modern NSColor fill for proper dark mode background
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				NSRect t_frame = NSRectFromCGRect(CGRectFromRect(p_info.background.bounds));
+				
+				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+				[t_image lockFocus];
+				
+				// Fill with system background color (approximates metal look)
+				[[NSColor windowBackgroundColor] setFill];
+				NSRectFill(NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height));
+				
+				[t_image unlockFocus];
+				
+				// Draw into context (flipped)
+				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
+				[NSGraphicsContext saveGraphicsState];
+				[NSGraphicsContext setCurrentContext:t_ns_context];
+				
+				CGContextSaveGState(p_context);
+				CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
+				CGContextScaleCTM(p_context, 1.0, -1.0);
+				
+				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
+				            fromRect:NSZeroRect
+				           operation:NSCompositingOperationSourceOver
+				            fraction:1.0];
+				
+				CGContextRestoreGState(p_context);
+				[NSGraphicsContext restoreGraphicsState];
+				[t_image release];
+			}
 			
-			assign(t_bounds, p_info . background . bounds);
-			
-			t_info . version = 0;
-			t_info . state = p_info . background . state;
-			t_info . kind = kThemeBackgroundMetal;
-            
-			HIThemeDrawBackground(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIRect t_bounds;
+				HIThemeBackgroundDrawInfo t_info;
+				
+				assign(t_bounds, p_info . background . bounds);
+				
+				t_info . version = 0;
+				t_info . state = p_info . background . state;
+				t_info . kind = kThemeBackgroundMetal;
+				
+				HIThemeDrawBackground(&t_bounds, &t_info, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			
 		case THEME_DRAW_TYPE_FOCUS_RECT:
 		{
-			HIRect t_bounds;
-			assign(t_bounds, p_info . focus_rect . bounds);
+			//-- tperry 27th May 2026
+			// Use modern NSBezierPath for proper dark mode focus ring
+			bool t_use_modern = false;
+			if (@available(macOS 10.14, *))
+			{
+				t_use_modern = true;
+				
+				NSRect t_frame = NSRectFromCGRect(CGRectFromRect(p_info.focus_rect.bounds));
+				
+				if (p_info.focus_rect.focused)
+				{
+					NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
+					[t_image lockFocus];
+					
+					// Draw focus ring using system accent color
+					NSBezierPath *t_path = [NSBezierPath bezierPathWithRect:NSMakeRect(1.5, 1.5,
+						t_frame.size.width - 3.0, t_frame.size.height - 3.0)];
+					[t_path setLineWidth:2.0];
+					[[NSColor keyboardFocusIndicatorColor] setStroke];
+					[t_path stroke];
+					
+					[t_image unlockFocus];
+					
+					// Draw into context (flipped)
+					NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
+					[NSGraphicsContext saveGraphicsState];
+					[NSGraphicsContext setCurrentContext:t_ns_context];
+					
+					CGContextSaveGState(p_context);
+					CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
+					CGContextScaleCTM(p_context, 1.0, -1.0);
+					
+					[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
+					            fromRect:NSZeroRect
+					           operation:NSCompositingOperationSourceOver
+					            fraction:1.0];
+					
+					CGContextRestoreGState(p_context);
+					[NSGraphicsContext restoreGraphicsState];
+					[t_image release];
+				}
+			}
 			
-			HIThemeDrawFocusRect(&t_bounds, p_info . focus_rect . focused, t_context, kHIThemeOrientationNormal);
+			if (!t_use_modern)
+			{
+				// Fallback to HITheme for older macOS
+				HIRect t_bounds;
+				assign(t_bounds, p_info . focus_rect . bounds);
+				
+				HIThemeDrawFocusRect(&t_bounds, p_info . focus_rect . focused, t_context, kHIThemeOrientationNormal);
+			}
 		}
 			break;
 			

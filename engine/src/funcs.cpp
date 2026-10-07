@@ -965,8 +965,13 @@ Parse_stat MCMatch::parse(MCScriptPoint &sp, Boolean the)
 }
 
 bool MCStringsGetCachedPattern(MCStringRef p_pattern, regexp*& r_compiled);
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+bool MCStringsCachePattern(MCStringRef p_pattern, regexp* p_compiled);
+bool MCStringsCompilePattern(MCStringRef p_pattern, regexp*& r_compiled, bool casesensitive);
+#else /* OXT-TOM: Windows */
 bool MCStringsCachePattern(MCStringRef p_pattern, regexp* p_compiled);
 bool MCStringsCompilePattern(MCStringRef p_pattern, regexp*& r_compiled);
+#endif /* OXT-TOM */
 
 void MCMatch::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 {
@@ -1853,7 +1858,42 @@ void MCWithin::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
     }
 }
 
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 // platform specific functions
+
+MCMacSetIcon::~MCMacSetIcon()
+{
+	delete m_icon_path;
+	delete m_file_path;
+}
+
+Parse_stat MCMacSetIcon::parse(MCScriptPoint &sp, Boolean the)
+{
+	if (get2params(sp, &m_icon_path, &m_file_path) != PS_NORMAL)
+	{
+		MCperror->add(PE_MACSETICON_BADPARAM, sp);
+		return PS_ERROR;
+	}
+	return PS_NORMAL;
+}
+
+void MCMacSetIcon::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
+{
+	MCAutoStringRef t_icon_path;
+	if (!ctxt . EvalExprAsStringRef(m_icon_path, EE_RESOURCES_BADPARAM, &t_icon_path))
+		return;
+	
+	MCAutoStringRef t_file_path;
+	if (!ctxt . EvalExprAsStringRef(m_file_path, EE_RESOURCES_BADPARAM, &t_file_path))
+		return;
+	
+	MCFilesEvalMacSetIcon(ctxt, *t_icon_path, *t_file_path, r_value . stringref_value);
+	r_value . type = kMCExecValueTypeStringRef;
+}
+
+#else /* OXT-TOM: Windows */
+// platform specific functions
+#endif /* OXT-TOM */
 MCMCISendString::~MCMCISendString()
 {
 	delete string;

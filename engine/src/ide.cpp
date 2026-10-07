@@ -82,12 +82,16 @@ private:
 
 	uint4 f_line_count;
 	int1 *f_line_properties;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+#else /* OXT-TOM: Windows */
 
 	// Cache for GetCommentNesting: stores the last queried line and its
 	// computed nesting value. f_sum_cache_line == 0 means invalid.
 	mutable uint4 f_sum_cache_line;
 	mutable uint4 f_sum_cache_value;
 
+#endif /* OXT-TOM */
 	static MCIdeState *s_states;
 	static MCIdeState *s_cache;
 };
@@ -95,9 +99,14 @@ private:
 MCIdeState *MCIdeState::s_states = NULL;
 MCIdeState *MCIdeState::s_cache = NULL;
 
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+MCIdeState::MCIdeState(void)
+	: f_next(NULL), f_field(nullptr), f_line_count(0), f_line_properties(0)
+#else /* OXT-TOM: Windows */
 MCIdeState::MCIdeState(void)
 	: f_next(NULL), f_field(nullptr), f_line_count(0), f_line_properties(0),
 	  f_sum_cache_line(0), f_sum_cache_value(0)
+#endif /* OXT-TOM */
 {
 }
 
@@ -160,6 +169,10 @@ void MCIdeState::SetCommentDelta(uint4 p_line, int1 p_delta)
 		f_line_properties = (int1 *)realloc(f_line_properties, sizeof(int1) * p_line);
 		memset(f_line_properties + f_line_count, 0, p_line - f_line_count);
 		f_line_count = p_line;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+	}
+	f_line_properties[p_line - 1] = p_delta; 
+#else /* OXT-TOM: Windows */
 	}
 	f_line_properties[p_line - 1] = p_delta;
 	// Invalidate the nesting cache if the modified line falls within the
@@ -169,6 +182,7 @@ void MCIdeState::SetCommentDelta(uint4 p_line, int1 p_delta)
 		f_sum_cache_line = 0;
 		f_sum_cache_value = 0;
 	}
+#endif /* OXT-TOM */
 }
 
 int1 MCIdeState::GetCommentDelta(uint4 p_line) const
@@ -179,15 +193,23 @@ int1 MCIdeState::GetCommentDelta(uint4 p_line) const
 }
 
 uint4 MCIdeState::GetCommentNesting(uint4 p_line) const
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+{
+#else /* OXT-TOM: Windows */
 {
 	if (f_sum_cache_line == p_line)
 		return f_sum_cache_value;
+#endif /* OXT-TOM */
 	uint4 t_nesting;
 	t_nesting = 0;
 	for(uint4 t_line = 1; t_line < p_line; t_line++)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+		t_nesting += GetCommentDelta(t_line);
+#else /* OXT-TOM: Windows */
 		t_nesting += GetCommentDelta(t_line);
 	f_sum_cache_line = p_line;
 	f_sum_cache_value = t_nesting;
+#endif /* OXT-TOM */
 	return t_nesting;
 }
 
@@ -361,12 +383,16 @@ static MCColourizeStyle *s_script_styles = NULL;
 static uint4 s_script_style_count = 0;
 
 static uint1 *s_script_class_styles = NULL;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+static uint1 *s_script_keyword_styles = NULL;
+#else /* OXT-TOM: Windows */
 static uint1 *s_script_keyword_styles = NULL;
 
 // True if any currently-configured style class carries non-plain text attributes
 // (bold, italic, etc.). When false every token style is plain, so the
 // SetTextStyleOfCharChunk call in colourize_paragraph can be skipped entirely.
 static bool s_any_script_style_has_attributes = false;
+#endif /* OXT-TOM */
 
 #define SCRIPT_STYLE_ATTRIBUTE_COUNT 7
 static const char *s_script_style_attribute_names[] =
@@ -596,6 +622,9 @@ void MCIdeScriptConfigure::exec_ctxt(MCExecContext &ctxt)
 
     case TYPE_OPERATORS:
         break;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+    }
+#else /* OXT-TOM: Windows */
     }
 
     // Recompute whether any active style uses non-plain text attributes.
@@ -606,6 +635,7 @@ void MCIdeScriptConfigure::exec_ctxt(MCExecContext &ctxt)
             s_any_script_style_has_attributes = true;
             break;
         }
+#endif /* OXT-TOM */
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -660,6 +690,11 @@ static void colourize_paragraph(void *p_context, MCColourizeClass p_class, uint4
 
         get_interface_color(t_style -> colour, nil, t_color);
         t_textstyle . style = t_style -> attributes;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+        t_paragraph -> SetForeColorOfCharChunk(ctxt, t_start, t_end, t_color);
+        t_paragraph -> SetTextStyleOfCharChunk(ctxt, t_start, t_end, t_textstyle);
+#else /* OXT-TOM: Windows */
 
         // Single-pass combined setter: sets colour and style in one block
         // traversal.  When all styles are plain (s_any_script_style_has_attributes
@@ -669,6 +704,7 @@ static void colourize_paragraph(void *p_context, MCColourizeClass p_class, uint4
             t_paragraph -> SetForeColorAndTextStyleOfCharChunk(ctxt, t_start, t_end, t_color, t_textstyle);
         else
             t_paragraph -> SetForeColorOfCharChunk(ctxt, t_start, t_end, t_color);
+#endif /* OXT-TOM */
     }
 }
 

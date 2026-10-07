@@ -3126,6 +3126,9 @@ void MCParagraph::SetTextStyleOfCharChunk(MCExecContext &ctxt, findex_t si, find
 {
     SetCharPropOfCharChunkOfParagraph<PodFieldPropType<MCInterfaceTextStyle> >(ctxt, this, si, ei, &MCBlock::SetTextStyle, p_text);
 }
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+#else /* OXT-TOM: Windows */
 
 // Combined IDE setter: sets both foreground colour and text style in a single
 // defrag + indextoblock + block-traversal pass, avoiding the overhead of two
@@ -3192,6 +3195,7 @@ void MCParagraph::SetForeColorAndTextStyleOfCharChunk(MCExecContext &ctxt, finde
     layoutchanged();
 }
 
+#endif /* OXT-TOM */
 void MCParagraph::SetTextFontOfCharChunk(MCExecContext &ctxt, findex_t si, findex_t ei, MCStringRef p_fontname)
 {
     SetCharPropOfCharChunkOfParagraph<PodFieldPropType<MCStringRef> >(ctxt, this, si, ei, &MCBlock::SetTextFont, p_fontname);

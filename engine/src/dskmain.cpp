@@ -358,9 +358,14 @@ bool X_main_loop_iteration()
     MCstackbottom = (char *)&t_bottom;
 
 	////
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+	if (MCiconicstacks == 0 && !MCscreen->hasmessages() && MCstacks->isempty() && MCnsockets == 0)
+#else /* OXT-TOM: Windows */
 
 	// Respring support — don't quit when stacks are empty during respring
 	if (MCiconicstacks == 0 && !MCscreen->hasmessages() && MCstacks->isempty() && MCnsockets == 0 && !MCRespringInProgress)
+#endif /* OXT-TOM */
 	{
 		// MW-2005-11-01: We want to keep the result here so we call with send=True
 		//   (the result is used by the development environment bootstrap code)

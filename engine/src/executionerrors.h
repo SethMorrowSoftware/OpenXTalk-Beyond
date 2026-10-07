@@ -2778,7 +2778,10 @@ enum Exec_errors
     EE_BAD_PERMISSION_NAME,
     
     // {EE-0910} Property: value is not a data
-    EE_PROPERTY_NOTADATA
+    EE_PROPERTY_NOTADATA,
+    
+    // {EE-0911} macSetIcon: error in parameter expression
+    EE_MACSETICON_BADPARAM
     
 };
 

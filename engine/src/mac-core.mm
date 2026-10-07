@@ -364,6 +364,28 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:self
 									 selector:@selector(interfaceThemeChangedNotification:)
 								     name:@"AppleInterfaceThemeChangedNotification" object:nil];
+	
+	//-- tperry 11th October 2025
+	// Also listen for the modern appearance change notification
+	if (@available(macOS 10.14, *)) {
+		[[NSNotificationCenter defaultCenter] addObserver:self
+										 selector:@selector(interfaceThemeChangedNotification:)
+										     name:NSSystemColorsDidChangeNotification object:nil];
+		
+		// Set initial application appearance for system dialogs
+		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+		
+		NSAppearanceName t_appearance_name;
+		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+			t_appearance_name = NSAppearanceNameDarkAqua;
+		} else {
+			t_appearance_name = NSAppearanceNameAqua;
+		}
+		
+		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
+		[NSApp setAppearance:t_appearance];
+	}
     
 	if ([NSWindow respondsToSelector:@selector(allowsAutomaticWindowTabbing)])
 		[NSWindow setAllowsAutomaticWindowTabbing: NO];
@@ -375,6 +397,11 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)interfaceThemeChangedNotification:(NSNotification *)notification
 {
+	//-- tperry 11th October 2025
+	// Update all window appearances when system theme changes
+	extern void MCMacPlatformUpdateAllWindowAppearances(void);
+	MCMacPlatformUpdateAllWindowAppearances();
+	
 	MCPlatformCallbackSendSystemAppearanceChanged();
 }
 
@@ -588,7 +615,6 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef _WINDOWS
 void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	switch(p_property)
@@ -623,9 +649,36 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 		break;
 			
 		case kMCPlatformSystemPropertyAccentColor:
-			((MCColor *)r_value) -> red = 0x0000;
-			((MCColor *)r_value) -> green = 0x0000;
-			((MCColor *)r_value) -> blue = 0x8080;
+		{
+			//-- tperry 18th October 2025
+			// Get the actual system accent color from NSColor
+			if (@available(macOS 10.14, *))
+			{
+				NSColor *t_accent = [NSColor controlAccentColor];
+				// Convert to RGB color space
+				NSColor *t_rgb = [t_accent colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+				if (t_rgb != nil)
+				{
+					((MCColor *)r_value) -> red = [t_rgb redComponent] * 65535;
+					((MCColor *)r_value) -> green = [t_rgb greenComponent] * 65535;
+					((MCColor *)r_value) -> blue = [t_rgb blueComponent] * 65535;
+				}
+				else
+				{
+					// Fallback to blue if conversion fails
+					((MCColor *)r_value) -> red = 0x0000;
+					((MCColor *)r_value) -> green = 0x0000;
+					((MCColor *)r_value) -> blue = 0x8080;
+				}
+			}
+			else
+			{
+				// Pre-Mojave: always blue
+				((MCColor *)r_value) -> red = 0x0000;
+				((MCColor *)r_value) -> green = 0x0000;
+				((MCColor *)r_value) -> blue = 0x8080;
+			}
+		}
 			break;
 			
 		case kMCPlatformSystemPropertyMaximumCursorSize:
@@ -673,7 +726,25 @@ void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
             break;
     }
 }
-#endif // !_WINDOWS
+
+//-- tperry 11th October 2025
+// Helper function to check if system is in dark mode
+// tperry 7-12-2025 -- Fixed to use effectiveAppearance instead of NSUserDefaults
+// NSUserDefaults is cached and doesn't update when appearance changes at runtime
+bool MCPlatformGetSystemAppearanceIsDark(void)
+{
+	if (@available(macOS 10.14, *))
+	{
+		NSAppearance *t_appearance = [NSApp effectiveAppearance];
+		NSString *t_name = [t_appearance bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+		return [t_name isEqualToString:NSAppearanceNameDarkAqua];
+	}
+	
+	// Fallback for older macOS versions
+	NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+	NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+	return (t_appearance != nil && [t_appearance isEqualToString:@"Dark"]);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
