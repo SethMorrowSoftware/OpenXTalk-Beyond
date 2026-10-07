@@ -739,7 +739,7 @@ void MCStringsEvalMatchText(MCExecContext& ctxt, MCStringRef p_string, MCStringR
 {
     regexp* t_compiled = nil;
 
-    if (!MCStringsCompilePattern(p_pattern, t_compiled, true /* casesensitive */))
+    if (!MCStringsCompilePattern(p_pattern, t_compiled, ctxt.GetCaseSensitive()))
     {
         ctxt.LegacyThrow(EE_MATCH_BADPATTERN);
         return;
@@ -782,7 +782,7 @@ void MCStringsEvalMatchChunk(MCExecContext& ctxt, MCStringRef p_string, MCString
 {
     regexp* t_compiled = nil;
     
-    if (!MCStringsCompilePattern(p_pattern, t_compiled, true /* casesensitive */))
+    if (!MCStringsCompilePattern(p_pattern, t_compiled, ctxt.GetCaseSensitive()))
     {
         ctxt.LegacyThrow(EE_MATCH_BADPATTERN);
         return;
@@ -839,7 +839,7 @@ void MCStringsEvalReplaceText(MCExecContext& ctxt, MCStringRef p_string, MCStrin
 {
     regexp* t_compiled = nil;
 
-    if (!MCStringsCompilePattern(p_pattern, t_compiled, true /* casesensitive */))
+    if (!MCStringsCompilePattern(p_pattern, t_compiled, ctxt.GetCaseSensitive()))
     {
         ctxt.LegacyThrow(EE_REPLACETEXT_BADPATTERN);
         return;

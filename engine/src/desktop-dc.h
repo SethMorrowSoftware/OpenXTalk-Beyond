@@ -144,8 +144,6 @@ public:
     virtual void hidecursoruntilmousemoves(void);
 	
 	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
-	virtual void updatesystemappearance(void);
-	virtual void getdefaultcolors(bool p_dark, MCColor& r_background, MCColor& r_gray);
 	
 	//////////
 	

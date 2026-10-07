@@ -427,6 +427,7 @@ enum Functions {
     F_LONG_FILE_PATH,
     F_MAC_TO_ISO,
     F_MACHINE,
+    F_MAC_SET_ICON,
     F_MAIN_STACKS,
     F_MATCH_CHUNK,
     F_MATCH_TEXT,
@@ -1760,10 +1761,7 @@ enum Properties {
     P_LAYER_CLIP_RECT,
 	
 	P_SYSTEM_APPEARANCE,
-	// The global appAppearance and the stackAppearance of stacks
-	P_APP_APPEARANCE,
-	P_STACK_APPEARANCE,
-
+    
     __P_LAST,
 };
 
@@ -2071,6 +2069,7 @@ enum Statements {
     S_LOAD,
     S_LOCK,
     S_LOG,
+    S_MAC_SET_ICON,
     S_MARK,
     S_MODAL,
     S_MODELESS,

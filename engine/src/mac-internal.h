@@ -527,6 +527,9 @@ protected:
 	virtual void DoResetTextInput(void);
 	
 public:
+	// Flush any pending asynchronous screen updates (wait for completion)
+	void FlushPendingDraws(void);
+	
 	virtual void DoMapContentRectToFrameRect(MCRectangle content, MCRectangle& r_frame);
 	virtual void DoMapFrameRectToContentRect(MCRectangle frame, MCRectangle& r_content);
 	
@@ -565,6 +568,9 @@ private:
 		// This is used to signal to DoUpdate that a redraw has been performed
 		// in response to an update request.
 		bool m_waiting_for_draw : 1;
+		
+		// Track if we have a pending asynchronous draw that hasn't completed yet
+		bool m_has_pending_draw : 1;
 	};
 	
 	// A window might map to one of several different classes, so we use a

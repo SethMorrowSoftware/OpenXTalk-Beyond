@@ -1042,10 +1042,31 @@ void MCScrollbar::redrawarrow(uint2 oldmode)
 }
 
 bool MCScrollbar::issbdisabled(void) const
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+{
+	// Scrollbar is disabled if:
+	// 1. Explicitly disabled via F_DISABLED flag, OR
+	// 2. Content doesn't need scrolling (range <= thumbsize)
+	// Note: For scales and progress bars (F_SB_STYLE), only check F_DISABLED
+	if (getflag(F_DISABLED))
+		return true;
+	
+	// For regular scrollbars (not scales/progress bars), check if content fits
+	if (!(flags & F_SB_STYLE))
+	{
+		// Content fits when the scrollable range equals or is less than the visible area
+		real8 range = fabs(endvalue - startvalue);
+		if (range <= thumbsize + 0.5)
+			return true;
+	}
+	
+	return false;
+#else /* OXT-TOM: Windows */
 {
 	bool ret; 
 	ret = getflag(F_DISABLED) || (MClook != LF_MOTIF && !(flags & F_SB_STYLE) && fabs(endvalue - startvalue) == thumbsize);
 	return ret;
+#endif /* OXT-TOM */
 }
 
 void MCScrollbar::link(MCControl *p_control)

@@ -5,10 +5,7 @@ constant kFieldWidth = 100
 constant SLIDER_MAX_WIDTH = 130
 constant SLIDER_MIN_WIDTH = 80
 constant CONTROL_PADDING = 5
--- OXT-Beyond: a value that differs between the selected objects is on the
--- multi-value background, revIDEColor("propertyInspector_multiValueBackground"),
--- which reads in the light and the dark appearance (the constant 193,201,215
--- was the light one only)
+constant kConflictedFieldColor = "193,201,215"
 
 on editorInitialize
    lock screen
@@ -60,8 +57,8 @@ on editorUpdate
          put item 1 of tValue + 0 into field "x" of me
          put item 2 of tValue + 0 into field "y" of me
       end if
-      set the textcolor of field "x" of me to revIDEColor("text_muted")
-      set the textcolor of field "y" of me to revIDEColor("text_muted")
+      set the textcolor of field "x" of me to "150,150,150"
+      set the textcolor of field "y" of me to "150,150,150"
    else
       set the textcolor of field "x" of me to empty
       set the textcolor of field "y" of me to empty
@@ -69,8 +66,8 @@ on editorUpdate
       put item 2 of tValue + 0 into field "y" of me
    end if
    if tConflicted then
-      set the backcolor of field "x" of me to revIDEColor("propertyInspector_multiValueBackground")
-      set the backcolor of field "y" of me to revIDEColor("propertyInspector_multiValueBackground")
+      set the backcolor of field "x" of me to kConflictedFieldColor
+      set the backcolor of field "y" of me to kConflictedFieldColor
       put empty into field "x" of me
       put empty into field "y" of me
    else

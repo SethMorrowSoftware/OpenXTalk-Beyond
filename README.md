@@ -50,9 +50,11 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.3 is a test release (a pre-release) of the fixes
+download it. 0.2.4-rc.4 is a test release (a pre-release) of the fixes
 made since 0.2.3, with a package for 64-bit ARM Linux (new in
-0.2.4-rc.2) and fixes to how the IDE looks, light and dark; 0.2.3
+0.2.4-rc.2). It takes out OXT-Beyond's own dark mode work and goes back
+to Tom Perry's, with his macOS work added (see
+[0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)); 0.2.3
 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -142,13 +144,11 @@ stays the main download until it has held up.
   LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
   the script parser)
   and compares the failures with a list of known ones (see
-  [BUILDING.md](BUILDING.md#engine-tests)). On Windows, CI also lints the
-  IDE sources, checks the contrast of the IDE's colours in the light and
-  dark appearance, and renders test stacks in the light and dark
-  appearance on a dark and a light Windows; on macOS it checks the
-  appearance on a dark and a light Mac (see
+  [BUILDING.md](BUILDING.md#engine-tests)). CI also checks that the
+  patches of the IDE's binary stacks are applied (see
   [Continuous integration](BUILDING.md#9-continuous-integration)). Every
-  build also opens the IDE's own windows one by one, light and dark, and
+  build also opens the IDE's own windows one by one, with the system
+  light and dark, and
   takes screenshots of them; a step that fails, or a script error, fails
   the build (see [IDE screenshots](BUILDING.md#ide-screenshots)). The
   newest of each platform from `main` are on the
@@ -520,7 +520,7 @@ locations; macOS and Linux use their own equivalents:
 | What | Where | Shared with |
 | --- | --- | --- |
 | Dictionary favourites and notes | `%APPDATA%\xtalk\xTalkDictionary` | OpenXTalk Lite |
-| Custom script editor colours | `%APPDATA%\xtalk\Preferences\customScriptColours.dat`; the dark appearance's in `customScriptColours-dark.dat` next to it, once you customize them | OpenXTalk Lite (the light appearance's file) |
+| Custom script editor colours | `%APPDATA%\xtalk\Preferences\customScriptColours.dat`, once you customize them | OpenXTalk Lite |
 | Thumbnails of recent stacks | `Documents\OXTRecentStacks` | OpenXTalk Lite |
 | The engine's Community licence file, written by the engine when it starts | `%APPDATA%\RunRev\Licenses\livecode-community-9_7_1-OXT-25923.lclk` | LiveCode's folder; OpenXTalk Lite 1.15 writes the same file (same engine version) |
 
@@ -868,6 +868,54 @@ people using the IDE, so please report anything that looks or works
 wrong (see
 [Getting help and reporting problems](#getting-help-and-reporting-problems)).
 
+#### 0.2.4-rc.4: Tom Perry's dark mode and macOS work
+
+OXT-Beyond 0.2.4-rc.4, a fourth test release, takes out OXT-Beyond's own
+dark mode work and goes back to Tom Perry's, so that Beyond builds on his
+OpenXTalk Lite 1.15 as he left it. Our dark mode carries on in a
+separate, experimental repository.
+
+Taken out (all added from 0.1.0 to 0.2.4-rc.3):
+
+- the `appAppearance` and `stackAppearance` properties, *View >
+  Appearance* and *Preferences > Appearance*. The IDE and your stacks
+  follow the system's appearance again, as in OpenXTalk Lite 1.15. A
+  stack that sets either property now gets a script error there;
+- the dark controls the engine drew itself on Windows and macOS, the
+  dark colours it fitted to a stack's own, dark tooltips, the dark GTK
+  theme on Linux, and the dark colours, icons and script editor schemes
+  added to the IDE.
+
+What you get instead:
+
+- Windows: Tom Perry's dark mode, as in OpenXTalk Lite 1.15 (dark title
+  bars and system colours, dark checkmarks and arrows). Its readability
+  problems that 0.1.0 fixed (engraved disabled labels, light scrollbars)
+  are back.
+- macOS: Tom Perry's macOS engine work, new in OXT-Beyond: dark mode
+  that follows the Mac, with buttons, menus, scrollbars, progress bars,
+  sliders, tabs and group boxes drawn by AppKit; the `macSetIcon` command
+  and function, which set a file's Finder icon; screen updates that no
+  longer wait for the Mac to draw each one; and his changes to how some
+  controls behave on the Mac: a radio button with autoHilite turns off on
+  a second click, a scrollbar is hidden when the content fits and the
+  field wraps into the space, and button labels are drawn 2 pixels
+  higher. His developer commands `_internal dump stack` and
+  `_internal build MacARM` are in the macOS IDE too.
+- Every platform: `matchText`, `matchChunk` and `replaceText` follow the
+  `caseSensitive` (false by default), as Tom Perry's shipped 1.15 engines
+  do. LiveCode always matched case.
+- Linux: light only, until Tom Perry's Linux 1.15 source is merged.
+
+Kept: every fix that is not dark mode, among them the Windows snapshot
+crash fix (in Tom Perry's dark mode code), the light colours OpenXTalk
+Lite 1.15 had saved into some IDE stacks, the macOS freeze and crash
+fixes, the dictionary fixes and the Linux packages.
+
+None of Tom Perry's macOS work has been tried on a Mac by the people
+working on OXT-Beyond yet, only built and tested in CI. Please report
+what looks or works wrong.
+
 ### xTalk Suite extensions
 
 OXT-Beyond ships the extensions of the
@@ -931,12 +979,14 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 The engine is the LiveCode Community **9.7 development tree** (the
 upstream `develop` branch as it was left in July 2021, version
 9.7.0-dp-1), not the 9.6.3 release, plus Tom Perry's OpenXTalk Lite
-engine changes for Windows (commit `38d5712b2`):
+engine changes for Windows (commit `38d5712b2`) and, from 0.2.4-rc.4,
+for macOS (his Apple Silicon working copy, as merged in
+[OpenXTalk-Lite-1.15](https://github.com/SethMorrowSoftware/OpenXTalk-Lite-1.15)):
 
 - **Windows dark mode.** Dark window title bars, dark system colours
   that update when the theme changes (with a `systemAppearanceChanged`
   message and a redraw of open stacks), and dark-mode aware checkmarks
-  and cascade arrows. OXT-Beyond makes it a choice (below).
+  and cascade arrows.
 - **Windows 11 detection.** The engine reports Windows 11 correctly.
 - **`_internal respring`.** A development-engine command that restarts
   the IDE in place: it closes all stacks and reloads the home stack.
@@ -950,25 +1000,21 @@ engine changes for Windows (commit `38d5712b2`):
   engine version is separate from the OXT-Beyond product version in
   `ide/.version`.
 
-**Light by default, dark mode by choice.** The engine draws in the light
-appearance unless a script chooses otherwise, on every platform and in
-standalones too: `the appAppearance` is `"light"` by default, `"dark"`,
-or `"system"` to follow Windows or macOS, and `the stackAppearance of
-<stack>` sets it for one stack (empty inherits). The IDE uses them for
-its Light, Dark and Follow the System preferences. Where a stack is drawn
-dark, the engine fits each object's unset colours to the colours its
-author set around it, so a stack designed light (a white field with no
-text colour, a checkbox on a light card) still looks as designed, and a
-stack that sets no colours goes dark; the light appearance is drawn
-exactly as before. `the systemAppearance` still reports the operating
-system's setting. See
-[docs/notes/feature-appearance.md](docs/notes/feature-appearance.md).
+**macOS dark mode and more.** On macOS the engine follows the Mac's
+appearance and draws buttons, menus, scrollbars, progress bars, segmented
+controls, sliders, group boxes and tab panes with AppKit
+(`engine/src/osxtheme.mm`); window updates no longer wait for the Mac to
+draw each one, and a `wait` or the end of a handler shows the latest
+state; `macSetIcon` sets a file's Finder icon; and a few controls behave
+as in his macOS release (radio buttons, scrollbars that hide when the
+content fits, button labels 2 pixels higher). Where his two working
+copies change the same engine file differently, the file holds both, in
+`OXT-TOM` regions: macOS compiles his macOS lines, Windows and Linux his
+Windows lines.
 
-Standalones built with OpenXTalk Lite 1.14 or later, or with OXT-Beyond
-0.1.0 or earlier, followed the dark mode of Windows (and of macOS). Built
-again with this version they are light, unless the mainstack's startup
-or preOpenStack handler opts in with one line:
-`set the appAppearance to "system"`.
+**Regular expressions** (`matchText`, `matchChunk`, `replaceText`)
+follow the `caseSensitive` on every platform, as his shipped 1.15 engines
+do.
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
@@ -1067,17 +1113,12 @@ Known limitations, in rough order of importance:
    [Where OXT-Beyond keeps your files](#where-oxt-beyond-keeps-your-files)).
    Plan: move them to OXT-Beyond's folders when the binary stacks are
    changed, and in the engine.
-9. The dark appearance has limits. A transparent label or checkbox with
-   a dark text colour of its own, on a card with no colour, stays dark on
-   the dark card. On Linux the native controls are drawn by the GTK
-   theme, so every stack follows it and the appearance properties change
-   nothing there (since 0.2.4-rc.1 the engine reports a dark GTK theme as
-   the `systemAppearance`, so the IDE's palettes follow it too); a light-designed stack under a dark GTK theme can still
-   show white text on white. On macOS the classic native theme only
-   draws light controls, so the engine draws the controls of a dark stack
-   itself, in the shapes and colours of macOS's dark controls but not
-   their exact pixels (new in 0.2.3, experimental). Plan: a fixed
-   light palette for the Linux theme's light-designed objects.
+9. Dark mode is Tom Perry's. On Windows it has the readability problems
+   OpenXTalk Lite 1.15 had (disabled labels drawn engraved, light
+   scrollbars, light native controls on dark windows). Linux is drawn
+   light. His macOS dark mode has been built and tested in CI but not yet
+   tried on a Mac. OXT-Beyond's own dark mode work continues in a
+   separate, experimental repository.
 10. The player depends on what the system can play. On Windows it uses
    DirectShow, which cannot open MP4 (H.264 and AAC) files without a
    third-party DirectShow filter such as LAV Filters; AVI files play.
@@ -1137,7 +1178,8 @@ contributions are accepted under the same licence as the project. See
   Linux and Windows, and the 9.7.1-OXT engine work this repository is
   built on (for Windows: dark mode, `_internal respring`, the
   colourisation speed-ups, OneCore voices, Windows 11 detection and the
-  SQLite update). The OXT-Beyond icon up to 0.2.1-rc.6 was adapted from
+  SQLite update; for macOS: AppKit dark mode, `macSetIcon`, faster window
+  updates and the arm64 work). The OXT-Beyond icon up to 0.2.1-rc.6 was adapted from
   his OpenXTalk Lite icon.
 - **Paul McClernan** (OpenXTalkPaul) contributed `.oxtstack` support, the
   dark-mode hook, the alignment guides integration, the macOS Native
@@ -1149,8 +1191,7 @@ contributions are accepted under the same licence as the project. See
 - **HyperXTalk** ([emily-elizabeth/HyperXTalk](https://github.com/emily-elizabeth/HyperXTalk)),
   Emily-Elizabeth Howard's GPL-3.0 fork of the same LiveCode Community
   code, with docmeth02, Mark Wieder, Brian Milby, Paul McClernan, BerndN
-  and other contributors. OXT-Beyond's dark colour table for the IDE
-  (`revIDEColor`) is adapted from docmeth02's; code taken from HyperXTalk
+  and other contributors. Code taken from HyperXTalk
   names the HyperXTalk commit and its author in the commit message.
 - **SethMorrowSoftware** maintains OXT-Beyond.
 - **LiveCode Ltd and the LiveCode Community contributors** wrote LiveCode

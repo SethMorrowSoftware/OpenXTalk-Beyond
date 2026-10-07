@@ -60,6 +60,21 @@
 			
 			'conditions':
 			[
+				# Tom Perry's macOS developer commands _internal build MacARM and
+				# _internal dump stack (internal_development.cpp), which his macOS
+				# Xcode project compiled into the development engine
+				[
+					'OS == "mac"',
+					{
+						'sources':
+						[
+							'src/build_macarm.h',
+							'src/build_macarm.cpp',
+							'src/dump_stack.h',
+							'src/dump_stack.cpp',
+						],
+					},
+				],
 				[
 					'mobile != 0',
 					{

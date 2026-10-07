@@ -114,8 +114,7 @@ on preOpenStack
    revIDESubscribe "idePreferenceChanged:pb_textSize"
    
    revIDESubscribe "ideShowInProjectBrowser"
-   revIDESubscribe "ideAppearanceChanged"
-
+   
    local tTextSize
    put revIDEGetPreference("pb_textSize") into tTextSize
    if tTextSize is "default" then
@@ -400,8 +399,11 @@ command setUpProjectView
    set the behavior of theStylesA["group"] to tStackID
    
    set the viewProp["row style templates"] of group "objectList" of me to theStylesA
-   __pbApplyColors
-
+   set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
+   
+   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
+   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")     
+   
    set the viewProp["fixed row height"] of group "objectList" of me to "true"
    set the viewProp["row height"] of group "objectList" of me to the effective textSize of me + 14
    set the viewProp["cache"] of group "objectList" of me to "none"
@@ -409,28 +411,6 @@ command setUpProjectView
    set the viewProp["drop indicator template"] of group "objectList" of me to the long id of group "pbDragIndicator" of card "templates" of this stack
    set the foregroundColor of graphic "indicator" of group "pbDragIndicator" of card "templates" of this stack to revIDEColor("edition_color")
 end setUpProjectView
-
--- The list's colours in the IDE's appearance (revIDEColor)
-private command __pbApplyColors
-   set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
-   -- The selection while the list is not focused (the dataView's own
-   -- default is a light grey, also in the dark appearance)
-   set the viewProp["dimmed hilite color"] of group "objectList" of me to revIDEColor("dataView_dimmedHiliteColor")
-
-   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")
-end __pbApplyColors
-
--- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): new list
--- colours and icons, and the rows drawn again (their behaviours take their
--- colours from revIDEColor)
-on ideAppearanceChanged
-   lock screen
-   __pbApplyColors
-   loadImages
-   refreshProjectView
-   unlock screen
-end ideAppearanceChanged
 
 command buildProjectView pRememberExpansion
    local tStacks, tFrontScripts, tBackScripts,tRow, tVisibleROws, tChildren
@@ -2424,43 +2404,23 @@ end controlsOfGroup
    //unlock messages
 //end propertyChanged
 
--- OXT-Beyond: in the dark appearance (revIDEIsDark) an icon of the dark
--- folder replaces the one of the same name: light grey for the dark rows
--- (tools/oxt/dark_pb_icons.py)
 on loadImages
-   local tImage, tFolder, tDark, tFile
-
-   put revIDESpecialFolderPath("Toolset") & "/resources/supporting_files/images/" into tFolder
-   put revIDEIsDark() into tDark
+   local tImage, tFile
+   
    lock screen
    lock messages
    repeat with x = 1 to the number of images of card "templates" of this stack
       put the short name of image x of card "templates" of this stack into tImage
-      put empty into tFile
-      if tDark then
-         put __pbImageFile(tFolder & "dark/" & tImage) into tFile
-      end if
-      if tFile is empty then
-         put __pbImageFile(tFolder & tImage) into tFile
-      end if
-      if tFile is not empty then
+      put revIDESpecialFolderPath("Toolset") & "/resources/supporting_files/images/" & tImage into tFile
+      if there is a file tFile then
          set the filename of image  x of card "templates" of this stack to tFile
+      else if there is a file (tFile & ".png") then
+         set the filename of image  x of card "templates" of this stack to (tFile & ".png")
       end if
    end repeat
    unlock messages
    unlock screen
 end loadImages
-
--- The file of an image of card "templates": its name, or its name and
--- ".png", empty if neither is a file
-private function __pbImageFile pFile
-   if there is a file pFile then
-      return pFile
-   else if there is a file (pFile & ".png") then
-      return pFile & ".png"
-   end if
-   return empty
-end __pbImageFile
 
 on revUpdatePalette
    ## Do nothing
@@ -2472,8 +2432,7 @@ on updateSelection pRows
    set the style of the templateGraphic to "rectangle"
    set the opaque of the templateGraphic to false
    set the dashes of the templateGraphic to 4
-   -- OXT-Beyond: the IDE's text colour, so the outline shows in dark too
-   set the foreColor of the templateGraphic to revIDEColor("text_1")
+   set the foreColor of the templateGraphic to "black"
    
    local tNumSelected
    put the number of items in pRows into tNumSelected

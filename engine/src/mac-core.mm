@@ -189,59 +189,6 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// The Mac's Appearance setting, read afresh from the preferences every time
-// (the systemAppearance, and the observers below). NSApp.effectiveAppearance
-// cannot tell it: once the appAppearance sets the application's appearance
-// (MCMacPlatformSetApplicationAppearance), it reports the forced one. And
-// NSUserDefaults may still hold the value it read before a change.
-// "Dark" is dark; no value, as on a light Mac, is light.
-static bool MCMacPlatformReadSystemAppearanceIsDark(void)
-{
-	CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
-	CFPropertyListRef t_value;
-	t_value = CFPreferencesCopyAppValue(CFSTR("AppleInterfaceStyle"), kCFPreferencesAnyApplication);
-	if (t_value == NULL)
-		return false;
-	bool t_dark;
-	t_dark = CFGetTypeID(t_value) == CFStringGetTypeID() &&
-		CFStringCompare((CFStringRef)t_value, CFSTR("Dark"), kCFCompareCaseInsensitive) == kCFCompareEqualTo;
-	CFRelease(t_value);
-	return t_dark;
-}
-
-// Watching the Mac's appearance, from the end of applicationDidFinishLaunching
-// to applicationWillTerminate.
-//
-// systemAppearanceChanged is sent when the value above is not the one it was
-// last sent for (s_system_appearance_dark): AppleInterfaceThemeChangedNotification
-// can come more than once for one change, and for other changes of the theme,
-// and HyperXTalk found that it can miss the return to light. So the
-// notification, the KVO below and the application becoming active all check.
-//
-// The KVO on NSApp.effectiveAppearance is Emily-Elizabeth Howard's, from
-// HyperXTalk (0457ce517, "Switch macOS systemAppearanceChanged detection to
-// KVO"). Here it only draws again (MCPlatformHandleApplicationAppearanceChanged)
-// once AppKit has applied a new appearance: the value the engine reports is
-// never taken from it (see above). The engine's own changes of NSApp.appearance
-// (s_setting_application_appearance) are drawn by the engine anyway.
-//
-// The accent and highlight colours are not part of the appearance: changing
-// them sends none of the above, but NSSystemColorsDidChangeNotification (and
-// before macOS 10.14 NSControlTintDidChangeNotification, for the control
-// tint). The theme colours that follow them (the selected text background,
-// list and menu hilites, focus rings) are kept in mac-theme.mm's cache, so
-// systemColorsChanged: clears it and draws every stack again.
-static void *kMCAppearanceKVOContext = &kMCAppearanceKVOContext;
-static bool s_appearance_observer_registered = false;
-static bool s_system_colors_observer_registered = false;
-static NSString *s_last_appearance_name = nil;
-static bool s_system_appearance_dark = false;
-static bool s_setting_application_appearance = false;
-
-extern void MCMacThemeClearColorCache(void);
-
-////////////////////////////////////////////////////////////////////////////////
-
 @implementation com_runrev_livecode_MCApplicationDelegate
 
 //////////
@@ -414,39 +361,31 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
         [t_event release];
     }
 	
-	// The Mac's appearance now, which the first change is compared with
-	s_system_appearance_dark = MCMacPlatformReadSystemAppearanceIsDark();
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:self
 									 selector:@selector(interfaceThemeChangedNotification:)
 								     name:@"AppleInterfaceThemeChangedNotification" object:nil];
-	if (@available(macOS 10.14, *))
-	{
-		s_last_appearance_name = [[[NSApp effectiveAppearance] name] copy];
-		[NSApp addObserver: self
-				forKeyPath: @"effectiveAppearance"
-				   options: NSKeyValueObservingOptionNew
-				   context: kMCAppearanceKVOContext];
-		s_appearance_observer_registered = true;
+	
+	//-- tperry 11th October 2025
+	// Also listen for the modern appearance change notification
+	if (@available(macOS 10.14, *)) {
+		[[NSNotificationCenter defaultCenter] addObserver:self
+										 selector:@selector(interfaceThemeChangedNotification:)
+										     name:NSSystemColorsDidChangeNotification object:nil];
+		
+		// Set initial application appearance for system dialogs
+		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+		
+		NSAppearanceName t_appearance_name;
+		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+			t_appearance_name = NSAppearanceNameDarkAqua;
+		} else {
+			t_appearance_name = NSAppearanceNameAqua;
+		}
+		
+		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
+		[NSApp setAppearance:t_appearance];
 	}
-
-	// The accent and highlight colours (see systemColorsChanged:)
-	[[NSNotificationCenter defaultCenter] addObserver: self
-											 selector: @selector(systemColorsChanged:)
-												 name: NSSystemColorsDidChangeNotification
-											   object: nil];
-	if (@available(macOS 10.14, *))
-	{
-		// The accent colour replaced the control tint, and changing it posts
-		// NSSystemColorsDidChangeNotification
-	}
-	else
-	{
-		[[NSNotificationCenter defaultCenter] addObserver: self
-												 selector: @selector(systemColorsChanged:)
-													 name: NSControlTintDidChangeNotification
-												   object: nil];
-	}
-	s_system_colors_observer_registered = true;
     
 	if ([NSWindow respondsToSelector:@selector(allowsAutomaticWindowTabbing)])
 		[NSWindow setAllowsAutomaticWindowTabbing: NO];
@@ -458,84 +397,12 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)interfaceThemeChangedNotification:(NSNotification *)notification
 {
-	[self checkSystemAppearance];
-}
-
-// Sends systemAppearanceChanged if the Mac's setting is not the one it was
-// last sent for (see s_system_appearance_dark)
-- (void)checkSystemAppearance
-{
-	if (!m_running)
-		return;
-	bool t_dark;
-	t_dark = MCMacPlatformReadSystemAppearanceIsDark();
-	if (t_dark == s_system_appearance_dark)
-		return;
-	s_system_appearance_dark = t_dark;
+	//-- tperry 11th October 2025
+	// Update all window appearances when system theme changes
+	extern void MCMacPlatformUpdateAllWindowAppearances(void);
+	MCMacPlatformUpdateAllWindowAppearances();
+	
 	MCPlatformCallbackSendSystemAppearanceChanged();
-}
-
-- (void)observeValueForKeyPath:(NSString *)p_key_path
-                      ofObject:(id)p_object
-                        change:(NSDictionary *)p_change
-                       context:(void *)p_context
-{
-	if (p_context != kMCAppearanceKVOContext)
-	{
-		[super observeValueForKeyPath: p_key_path ofObject: p_object change: p_change context: p_context];
-		return;
-	}
-
-	if (@available(macOS 10.14, *))
-	{
-		// Repeats of the same appearance are ignored
-		NSString *t_name;
-		t_name = [[NSApp effectiveAppearance] name];
-		if (t_name != nil && s_last_appearance_name != nil &&
-			[t_name isEqualToString: s_last_appearance_name])
-			return;
-		[s_last_appearance_name release];
-		s_last_appearance_name = [t_name copy];
-	}
-
-	if (s_setting_application_appearance || !m_running)
-		return;
-
-	MCPlatformCallbackSendApplicationAppearanceChanged();
-	[self checkSystemAppearance];
-}
-
-// The accent or highlight colour changed (see s_system_colors_observer_registered):
-// the theme colours are resolved again and every stack is drawn again
-- (void)systemColorsChanged:(NSNotification *)notification
-{
-	if (!m_running)
-		return;
-	MCMacThemeClearColorCache();
-	MCPlatformCallbackSendApplicationAppearanceChanged();
-}
-
-- (void)stopObservingAppearance
-{
-	if (s_system_colors_observer_registered)
-	{
-		[[NSNotificationCenter defaultCenter] removeObserver: self
-														name: NSSystemColorsDidChangeNotification
-													  object: nil];
-		[[NSNotificationCenter defaultCenter] removeObserver: self
-														name: NSControlTintDidChangeNotification
-													  object: nil];
-		s_system_colors_observer_registered = false;
-	}
-
-	if (!s_appearance_observer_registered)
-		return;
-	[NSApp removeObserver: self
-			   forKeyPath: @"effectiveAppearance"
-				  context: kMCAppearanceKVOContext];
-	s_appearance_observer_registered = false;
-	[s_last_appearance_name release];
-	s_last_appearance_name = nil;
 }
 
 - (void)runMainLoop
@@ -596,9 +463,6 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
-	// No appearance callbacks while the engine shuts down
-	[self stopObservingAppearance];
-
 	// Dispatch the shutdown callback.
 	int t_exit_code;
 	MCPlatformCallbackSendApplicationShutdown(t_exit_code);
@@ -657,10 +521,6 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
 	MCPlatformCallbackSendApplicationResume();
-
-	// The appearance may have been changed in System Settings while another
-	// application was active (see s_system_appearance_dark)
-	[self checkSystemAppearance];
 }
 
 - (void)applicationWillResignActive:(NSNotification *)notification
@@ -755,7 +615,6 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef _WINDOWS
 void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	switch(p_property)
@@ -790,9 +649,36 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 		break;
 			
 		case kMCPlatformSystemPropertyAccentColor:
-			((MCColor *)r_value) -> red = 0x0000;
-			((MCColor *)r_value) -> green = 0x0000;
-			((MCColor *)r_value) -> blue = 0x8080;
+		{
+			//-- tperry 18th October 2025
+			// Get the actual system accent color from NSColor
+			if (@available(macOS 10.14, *))
+			{
+				NSColor *t_accent = [NSColor controlAccentColor];
+				// Convert to RGB color space
+				NSColor *t_rgb = [t_accent colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+				if (t_rgb != nil)
+				{
+					((MCColor *)r_value) -> red = [t_rgb redComponent] * 65535;
+					((MCColor *)r_value) -> green = [t_rgb greenComponent] * 65535;
+					((MCColor *)r_value) -> blue = [t_rgb blueComponent] * 65535;
+				}
+				else
+				{
+					// Fallback to blue if conversion fails
+					((MCColor *)r_value) -> red = 0x0000;
+					((MCColor *)r_value) -> green = 0x0000;
+					((MCColor *)r_value) -> blue = 0x8080;
+				}
+			}
+			else
+			{
+				// Pre-Mojave: always blue
+				((MCColor *)r_value) -> red = 0x0000;
+				((MCColor *)r_value) -> green = 0x0000;
+				((MCColor *)r_value) -> blue = 0x8080;
+			}
+		}
 			break;
 			
 		case kMCPlatformSystemPropertyMaximumCursorSize:
@@ -808,10 +694,18 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
             break;
 		
 		case kMCPlatformSystemPropertySystemAppearance:
-			// The value is an int32_t (kMCPlatformPropertyTypeInt32): writing
-			// 16 bits left the upper half of the caller's variable as it was.
-			// Read afresh, whatever the appAppearance forces.
-			*(int32_t *)r_value = MCMacPlatformReadSystemAppearanceIsDark() ? kMCPlatformSystemAppearanceDark : kMCPlatformSystemAppearanceLight;
+		{
+			NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+			NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+			if (t_appearance == nil || ![t_appearance isEqualToString:@"Dark"])
+			{
+				*(int16_t *)r_value = kMCPlatformSystemAppearanceLight;
+			}
+			else
+			{
+				*(int16_t *)r_value = kMCPlatformSystemAppearanceDark;
+			}
+		}
 			break;
 		default:
 			assert(false);
@@ -826,42 +720,30 @@ void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
         case kMCPlatformSystemPropertyVolume:
             MCMacPlatformSetGlobalVolume(*(double *)p_value);
             break;
-
+        
         default:
             assert(false);
             break;
     }
 }
-#endif // !_WINDOWS
 
-////////////////////////////////////////////////////////////////////////////////
-
-// The appAppearance, for AppKit: menus, dialogs, panels and the windows that
-// do not set their own appearance use the application's. "light" is Aqua and
-// "dark" DarkAqua whatever the Mac is set to; "system" (nil) follows the Mac.
-// The engine's default is light, so an application is Aqua on a dark Mac
-// until it opts in (desktop-dc.cpp, UpdateSystemColorsForAppearance).
-void MCMacPlatformSetApplicationAppearance(bool p_follow_system, bool p_dark)
+//-- tperry 11th October 2025
+// Helper function to check if system is in dark mode
+// tperry 7-12-2025 -- Fixed to use effectiveAppearance instead of NSUserDefaults
+// NSUserDefaults is cached and doesn't update when appearance changes at runtime
+bool MCPlatformGetSystemAppearanceIsDark(void)
 {
 	if (@available(macOS 10.14, *))
 	{
-		NSAppearance *t_appearance = nil;
-		if (!p_follow_system)
-			t_appearance = [NSAppearance appearanceNamed: p_dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
-
-		// Only a change: every change makes AppKit apply the appearance to
-		// every window and menu again
-		NSAppearance *t_current = [NSApp appearance];
-		if (t_current == t_appearance ||
-			(t_current != nil && t_appearance != nil && [[t_current name] isEqualToString: [t_appearance name]]))
-			return;
-
-		// The engine draws everything again after this (updatesystemappearance),
-		// so the KVO in the application delegate does not
-		s_setting_application_appearance = true;
-		[NSApp setAppearance: t_appearance];
-		s_setting_application_appearance = false;
+		NSAppearance *t_appearance = [NSApp effectiveAppearance];
+		NSString *t_name = [t_appearance bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+		return [t_name isEqualToString:NSAppearanceNameDarkAqua];
 	}
+	
+	// Fallback for older macOS versions
+	NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
+	NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
+	return (t_appearance != nil && [t_appearance isEqualToString:@"Dark"]);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

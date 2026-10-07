@@ -103,18 +103,7 @@ on registerForMessages
    revIDESubscribe "idePreferenceOfSetChanged"
    revIDESubscribe "ideToolChanged"
    -- revIDESubscribe "ideExtensionsChanged"
-   revIDESubscribe "ideAppearanceChanged"
 end registerForMessages
-
--- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the icon set,
--- the widget icons' colour and the separators are chosen when the palette
--- is generated
-on ideAppearanceChanged
-   lock screen
-   generatePalette
-   layoutPalette
-   unlock screen
-end ideAppearanceChanged
 
 on findMoreWidgets
    lock screen
@@ -229,14 +218,26 @@ on generatePalette
    local tThemePath
    put revIDEThemePath() into tThemePath
    -- tperry 19-1-24 (add in support for variable dark themes)
-   -- Each theme has a "dark" folder of icons for the dark appearance: Tom
-   -- Perry's sets for macOS, Linux and (since OXT Lite 1.07) Windows.
-   -- revIDEIsDark() decides on every platform; on Linux it applies the rule
-   -- this palette used, the brightness of the window background.
    put "" into tThemeClarify
-   if revIDEIsDark() and there is a folder (tThemePath & slash & "dark") then
-      put "dark" into tThemeClarify
+   if the platform contains "mac" then 
+      if the systemAppearance is "dark" then put "dark" into tThemeClarify
    end if
+   --
+   if the platform contains "linux" then
+      -- we assess linux dark mode a bit differently
+      put the effective Backgroundcolor of this stack into tColourDecision
+      put the itemDelimiter into tOldDelim
+      set the itemDelimiter to ","
+      put item 1 of tColourDecision + item 2 of tColourDecision + item 3 of tColourDecision into tMaxColValues
+      -- put tMaxColValues -- debug
+      if tMaxColValues <234 then
+         -- dark in dark mode
+         put "dark" into tThemeClarify
+      else
+         -- linux in light mode
+         put "" into tThemeClarify
+      end if
+   end  if
    --
    if tThemeClarify is "dark" then
       set the cUsingTheme of stack "revTools" to "dark"
@@ -308,8 +309,11 @@ on generatePalette
    set the visible of the templategraphic to true
    set the height of the templategraphic to 1
    -- this is the dividing line between sections in the tools palette (tperry)
-   -- (Tom's greys, 175 in light and 60 in dark, are revIDEColor's)
-   set the backgroundcolor of the templategraphic to revIDEColor("palette_separator")
+   if the cUsingTheme of stack "revTools" is "dark" then
+      set the backgroundcolor of the templategraphic to "60,60,60" -- dark grey
+   else
+      set the backgroundcolor of the templategraphic to "175,175,175" -- was "200,200,200" which was light grey
+   end if
    
    set the itemdel to "."
    create group "images" in group "contents"
@@ -454,8 +458,12 @@ on generatePalette
             set the width of widget tControlTypeID to BLOCK_SIZE * 2
             set the height of widget tControlTypeID to BLOCK_SIZE
             -- widget icons should be easier to see in dark mode
-            set the foregroundColor of widget tControlTypeID to revIDEColor("palette_icon")
-
+            if the systemAppearance is "dark" then
+               set the foregroundColor of widget tControlTypeID to 210,210,210
+            else
+               set the foregroundColor of widget tControlTypeID to 100,100,100
+            end if
+            
             set the iconpath of widget tControlTypeID to sViewsData[tView][tControlTypeID]["svgicon"]
             set the cType of widget tControlTypeID to tView
             set the cStyle of widget tControlTypeID to sViewsData[tView][tControlTypeID]["properties"]["style"]["default"]
@@ -630,8 +638,7 @@ on layoutPalette
          set the height of fld tFldName to 23
          set the left of fld tFldName to 0
          set the textSize of fld tFldName to 11
-         -- OXT-Beyond: the IDE's muted text (127 was 3.4:1 on the dark palette)
-         set the foregroundColor of fld tFldName to revIDEColor("text_muted")
+         set the foregroundColor of fld tFldName to "127,127,127"
          set the traversalOn of fld tFldName to false
          set the showFocusBorder of fld tFldName to false
          -- conditional positioning
@@ -1037,9 +1044,7 @@ on mouseEnter
       # We are hovering over a draggable item
       revIDESetCursor "com.livecode.cursor.grab"
       set the coloroverlay["opacity"] of the target to "100" -- was 50 (tperry)
-      -- black in light, white in dark (black darkened the icon into the
-      -- dark palette)
-      set the coloroverlay["color"] of the target to revIDEColor("palette_icon_hover")
+      set the coloroverlay["color"] of the target to "0,0,0"
    else if the cStatus of the target is "error" then
       # Not working on windows.. get the egg timer so disabling for now
       --revIDESetCursor "help"
@@ -1055,7 +1060,11 @@ on mouseLeave
    try
       if word 1 of the target is "widget" then
          -- widget icons should be easier to see in dark mode
-         set the foregroundColor of the target to revIDEColor("palette_icon")
+         if the systemAppearance is "dark" then
+            set the foregroundColor of the target to 210,210,210
+         else
+            set the foregroundColor of the target to 100,100,100
+         end if
       else
          hide graphic "tool_hover" of group "contents" 
          if the cTool of the target is empty then
@@ -1193,7 +1202,7 @@ on toolDisable pWhich
       disable button pWhich of me
    else
       set the cDisabled of widget pWhich of me to true
-      set the foregroundColor of widget pWhich of me to revIDEColor("palette_icon_disabled")
+      set the foregroundColor of widget pWhich of me to 200,200,200
    end if
 end toolDisable
 
@@ -1212,7 +1221,7 @@ on toolEnable pWhich
       enable button pWhich of me
    else
       set the cDisabled of widget pWhich of me to false
-      set the foregroundColor of widget pWhich of me to revIDEColor("palette_icon")
+      set the foregroundColor of widget pWhich of me to 100,100,100
    end if
 end toolEnable
 

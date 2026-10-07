@@ -111,16 +111,6 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 	bool t_themed_menu = false;
 	bool t_use_alpha_layer = false;
 
-	// The native Windows and GTK themes draw disabled labels flat in grey, as
-	// the native controls do. The Win95 look they belong to engraves them
-	// instead: a copy in the top edge colour one pixel down and right, under
-	// the label in the bottom edge colour. Those edge colours are the light
-	// 3D system colours, so on a dark background the copy is the brightest
-	// thing in the control, and at fractional scale factors the one pixel
-	// becomes two or three and the label reads as a smear. The emulated
-	// "Windows 95" look (no native theme) keeps the engraving.
-	bool t_flat_disabled = (flags & F_DISABLED) != 0 && (IsNativeWin() || IsNativeGTK());
-
 	if (entry != NULL)
 	{
 		drawcombo(dc, shadowrect);
@@ -161,8 +151,19 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
             setforeground(dc, DI_PSEUDO_BUTTON_TEXT, False);
         }
 		else
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+		{
+		// tperry 2nd November 2025: Don't fill background for menu buttons when theme rendering is available
+		bool t_skip_background_fill = (style == F_MENU && MCcurtheme != NULL && 
+		                               (MCcurtheme->iswidgetsupported(WTHEME_TYPE_OPTIONBUTTON) ||
+		                                MCcurtheme->iswidgetsupported(WTHEME_TYPE_PULLDOWN) ||
+		                                MCcurtheme->iswidgetsupported(WTHEME_TYPE_COMBOBUTTON)));
+		
+		if (!t_skip_background_fill && flags & F_OPAQUE && (MCcurtheme == NULL || !noback
+#else /* OXT-TOM: Windows */
 		{
 		if (flags & F_OPAQUE && (MCcurtheme == NULL || !noback
+#endif /* OXT-TOM */
 		                         || ((style == F_STANDARD && (MCcurtheme != NULL &&
 		                                                     !MCcurtheme->iswidgetsupported(WTHEME_TYPE_PUSHBUTTON))) ||
 		                             (style == F_RECTANGLE && (MCcurtheme != NULL &&
@@ -367,11 +368,9 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 				dc->begin(false);
 				t_use_alpha_layer = true;
 			}
-			else if (IsMacLF() || t_flat_disabled)
+			else if (IsMacLF())
 			{
-				// The disabled grey of the appearance the button is drawn
-				// in: 137 on the dark background, 128 on the light one
-				dc->setforeground(getappearancegray(dc->gettype()));
+				dc->setforeground(dc->getgray());
 				dc->setfillstyle(FillSolid, nil, 0, 0);
 			}
 			else
@@ -445,15 +444,25 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
             if (nlines == 1)
             {
                 // Centre things on the middle of the ascent
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+                sx = shadowrect.x + leftmargin + borderwidth - DEFAULT_BORDER;
+                sy = roundf(centery + (fascent-fdescent)/2) - 2;  // Shift text up 2px
+#else /* OXT-TOM: Windows */
                 sx = shadowrect.x + leftmargin + borderwidth - DEFAULT_BORDER;
                 sy = roundf(centery + (fascent-fdescent)/2);
+#endif /* OXT-TOM */
                 theight = fascent;
             }
             else
             {
                 // Centre things by centring the bounding box of the text
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+                sx = shadowrect.x + leftmargin + borderwidth - DEFAULT_BORDER;
+                sy = centery - (nlines * fheight / 2) + fleading/2 + fascent - 2;  // Shift text up 2px
+#else /* OXT-TOM: Windows */
                 sx = shadowrect.x + leftmargin + borderwidth - DEFAULT_BORDER;
                 sy = centery - (nlines * fheight / 2) + fleading/2 + fascent;
+#endif /* OXT-TOM */
                 theight = nlines * fheight;
             }
             
@@ -549,7 +558,7 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 				}
 				uint2 fontstyle;
 				fontstyle = gettextstyle();
-				if ((flags & F_DISABLED) != 0 && !t_themed_menu && MClook == LF_WIN95 && !t_flat_disabled)
+				if ((flags & F_DISABLED) != 0 && !t_themed_menu && MClook == LF_WIN95)
 				{
 					drawlabel(dc, sx + 1 + loff, sy + 1 + loff, twidth, shadowrect, line, fontstyle, t_mnemonic);
 					if (getstyleint(flags) == F_MENU && menumode == WM_CASCADE)
@@ -562,35 +571,54 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 					}
 					setforeground(dc, DI_BOTTOM, False);
 				}
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+#ifdef _MACOSX
+                // FG-2014-10-29: [[ Bugfix 13842 ]] On Yosemite, glowing buttons
+                // should draw with white text.
+                // tperry 18th October 2025: Extended to handle default buttons with accent color
+                bool t_should_use_white_text = false;
+                if (IsMacLFAM() && MCmajorosversion >= MCOSVersionMake(10,10,0) && MCaqua
+                    && !(flags & F_DISABLED) && isstdbtn && getstyleint(flags) == F_STANDARD
+                    && ((state & CS_HILITED) || (state & CS_SHOW_DEFAULT))
+                    && rect.height <= 24 && MCappisactive)
+                    t_should_use_white_text = true;
+                
+                // tperry 18th October 2025: Default button with accent color needs white text
+                uint2 t_index;
+                if ((state & CS_SHOW_DEFAULT) && !(flags & F_DISABLED) && isstdbtn 
+                    && getstyleint(flags) == F_STANDARD
+                    && !getcindex(DI_FORE, t_index) && !getpindex(DI_FORE, t_index))
+                {
+                    t_should_use_white_text = true;
+                }
+                
+                if (t_should_use_white_text)
+                {
+                    MCColor t_white;
+                    t_white.red = t_white.green = t_white.blue = 0xFFFF;
+                    dc->setforeground(t_white);
+                }
+                // PM-2014-11-26: [[ Bug 14070 ]] [Removed code] Make sure text color in menuButton inverts when hilited
+        
+#endif
+#else /* OXT-TOM: Windows */
 #ifdef _MACOSX
                 // FG-2014-10-29: [[ Bugfix 13842 ]] On Yosemite, glowing buttons
                 // should draw with white text.
                 if (IsMacLFAM() && MCmajorosversion >= MCOSVersionMake(10,10,0) && MCaqua
                     && !(flags & F_DISABLED) && isstdbtn && getstyleint(flags) == F_STANDARD
                     && ((state & CS_HILITED) || (state & CS_SHOW_DEFAULT))
-                    && MCappisactive)
-                {
-                    // Drawn dark (osxtheme.mm), the default button is the
-                    // accent colour and a pressed one a lighter grey, at any
-                    // height: white text, as macOS has it. The button's
-                    // themed background, which the light ones take, is the
-                    // dark control colour there, near invisible on the accent.
-                    if (isdarkappearance(dc -> gettype()))
-                    {
-                        dc -> setforeground(MCscreen -> getwhite());
-                        dc -> setfillstyle(FillSolid, nil, 0, 0);
-                    }
-                    else if (rect.height <= 24)
-                        setforeground(dc, DI_BACK, False, True);
-                }
+                    && rect.height <= 24 && MCappisactive)
+                    setforeground(dc, DI_BACK, False, True);
                 // PM-2014-11-26: [[ Bug 14070 ]] [Removed code] Make sure text color in menuButton inverts when hilited
         
 #endif
+#endif /* OXT-TOM */
 				drawlabel(dc, sx + loff, sy + loff, twidth, shadowrect, line, fontstyle, t_mnemonic);
 
 				if (getstyleint(flags) == F_MENU && menumode == WM_CASCADE && !t_themed_menu)
 					drawcascade(dc, shadowrect); // draw arrow in text color
-				if ((flags & F_DISABLED && MClook == LF_WIN95 && !t_flat_disabled) || t_themed_menu)
+				if ((flags & F_DISABLED && MClook == LF_WIN95) || t_themed_menu)
 					setforeground(dc, DI_TOP, False);
 				sy += fheight;
 				
@@ -865,18 +893,28 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 			p[3].y = p[2].y + 3;
 			p[4].y = p[1].y + 3;
 			p[5].y = p[0].y + 3;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+
+#else /* OXT-TOM: Windows */
 
 			//-- tperry 21st January 2026: Make checkmark dark mode aware
-			// (OXT-Beyond: in the appearance this button is drawn in)
+#endif /* OXT-TOM */
 			if (white && state & CS_ARMED)
 				dc->setforeground(dc->getwhite());
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+			else
+				dc->setforeground(dc->getblack());
+#else /* OXT-TOM: Windows */
 			else
 			{
-				if (isdarkappearance(dc->gettype()))
+				MCSystemAppearance t_appearance;
+				MCscreen->getsystemappearance(t_appearance);
+				if (t_appearance == kMCSystemAppearanceDark)
 					dc->setforeground(dc->getwhite());
 				else
 					dc->setforeground(dc->getblack());
 			}
+#endif /* OXT-TOM */
 			dc->setfillstyle(FillSolid, nil, 0, 0);
 			dc->fillpolygon(p, 6);
 		}
@@ -1155,6 +1193,19 @@ void MCButton::drawpulldown(MCDC *dc, MCRectangle &srect)
 				MCWidgetInfo widgetinfo;
 				widgetinfo.type = WTHEME_TYPE_PULLDOWN;
 				getwidgetthemeinfo(widgetinfo);
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+#ifdef _MACOSX
+				uint2 i;
+				if (!getcindex(DI_BACK, i) && !getpindex(DI_BACK, i))
+					//-- tperry 18th October 2025
+					// Dark background is drawn in osxtheme.mm before HITheme draws
+					MCcurtheme->drawwidget(dc, widgetinfo, srect);
+				else
+					draw3d(dc, srect, ETCH_RAISED, borderwidth);
+#else
+				MCcurtheme->drawwidget(dc, widgetinfo, srect);
+#endif
+#else /* OXT-TOM: Windows */
 #ifdef _MACOSX
 				uint2 i;
 				if (!getcindex(DI_BACK, i) && !getpindex(DI_BACK, i))
@@ -1164,6 +1215,7 @@ void MCButton::drawpulldown(MCDC *dc, MCRectangle &srect)
 #else
 				MCcurtheme->drawwidget(dc, widgetinfo, srect);
 #endif
+#endif /* OXT-TOM */
 
 			}
 			else
@@ -1183,7 +1235,13 @@ void MCButton::drawoption(MCDC *dc, MCRectangle &srect, MCRectangle& r_content_r
 		getwidgetthemeinfo(widgetinfo);
 		
 		r_content_rect . width -= MCcurtheme -> getmetric(WTHEME_METRIC_OPTIONBUTTONARROWSIZE);
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 
+		//-- tperry 18th October 2025
+		// Dark background is drawn in osxtheme.mm before HITheme draws
+#else /* OXT-TOM: Windows */
+
+#endif /* OXT-TOM */
 		MCcurtheme->drawwidget(dc, widgetinfo, rect);
 		return;
 	}
@@ -1268,15 +1326,20 @@ void MCButton::drawcascade(MCDC *dc, MCRectangle &srect)
 		arrow[1].x = arrow[2].x = arrow[0].x - 4;
 		arrow[0].y = srect.y + (srect.height >> 1);
 		arrow[1].y = arrow[0].y + 4;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+		arrow[2].y = arrow[0].y - 4;
+#else /* OXT-TOM: Windows */
 		arrow[2].y = arrow[0].y - 4;
 		
 		//-- tperry 21st January 2026: Make cascade arrow dark mode aware
-		// (OXT-Beyond: in the appearance this button is drawn in)
-		if (isdarkappearance(dc->gettype()))
+		MCSystemAppearance t_appearance;
+		MCscreen->getsystemappearance(t_appearance);
+		if (t_appearance == kMCSystemAppearanceDark)
 			dc->setforeground(dc->getwhite());
 		else
 			dc->setforeground(dc->getblack());
 		
+#endif /* OXT-TOM */
 		dc->fillpolygon(arrow, 3);
 		break;
 	}
@@ -1664,14 +1727,6 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 				dc->setfillstyle(FillSolid, nil, 0, 0);
 				break;
 			default:
-				// Flat grey on the native themes, like button labels (see
-				// MCButton::draw); the emulated Win95 look engraves.
-				if (IsNativeWin() || IsNativeGTK())
-				{
-					dc->setforeground(getappearancegray(dc->gettype()));
-					dc->setfillstyle(FillSolid, nil, 0, 0);
-					break;
-				}
 				setforeground(dc, DI_TOP, False);
                 dc -> drawtext_substring(textx, cury + yoffset + 1, t_tab, t_range, m_font, false, kMCDrawTextNoBreak);
 				setforeground(dc, DI_BOTTOM, False);
@@ -1801,7 +1856,15 @@ void MCButton::drawmacdefault(MCDC *dc, const MCRectangle &srect)
 
 
 void MCButton::drawstandardbutton(MCDC *dc, MCRectangle &srect)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 {
+	//-- tperry 2nd November 2025
+	// Let native NSButton rendering handle standard 3D buttons for proper antialiasing and shadows
+	// The theme rendering path (MCcurtheme->drawwidget) will use NSButton on macOS 10.14+
+	
+#else /* OXT-TOM: Windows */
+{
+#endif /* OXT-TOM */
 	if (MCcurtheme)
 	{
 		MCWidgetInfo winfo;

@@ -54,8 +54,6 @@ MCPlatformWindow::MCPlatformWindow(void)
     m_hides_on_suspend = false;
     // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Default ignoreMouseEvents to false
     m_ignore_mouse_events = false;
-    // Light until the stack says otherwise
-    m_dark_appearance = false;
 	
     // MW-2014-05-02: [[ Bug 12348 ]] Make sure we initialize this value appropriately.
     m_use_text_input = false;
@@ -402,11 +400,6 @@ void MCPlatformWindow::SetProperty(MCPlatformWindowProperty p_property, MCPlatfo
             MCValueAssign(m_document_filename, *(MCStringRef*)p_value);
             m_changes . document_filename_changed = true;
             break;
-		case kMCPlatformWindowPropertyDarkAppearance:
-			assert(p_type == kMCPlatformPropertyTypeBool);
-			m_dark_appearance = *(bool *)p_value;
-			m_changes . dark_appearance_changed = true;
-			break;
 		default:
 			assert(false);
 			break;
@@ -652,7 +645,19 @@ void MCPlatformUpdateWindow(MCPlatformWindowRef p_window)
 {
 	p_window -> Update();
 }
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 
+#ifndef _MAC_DESKTOP
+// On non-Mac platforms, this is a no-op (Mac implementation is in platform-window-mac.mm)
+void MCPlatformFlushWindowPendingDraws(MCPlatformWindowRef p_window)
+{
+	// No-op on platforms without async draws
+}
+#endif
+
+#else /* OXT-TOM: Windows */
+
+#endif /* OXT-TOM */
 void MCPlatformInvalidateWindow(MCPlatformWindowRef p_window, MCRegionRef p_region)
 {
 	p_window -> Invalidate(p_region);

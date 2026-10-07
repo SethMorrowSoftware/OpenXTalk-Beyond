@@ -24,10 +24,6 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 struct MCThemeDrawInfo
 {
 	MCRectangle dest;
-	// OXT-Beyond: drawn in the dark appearance (that of the object it is
-	// drawn for): HITheme only draws Aqua, so MCMacDrawThemeDark draws it
-	// (osxtheme.mm)
-	bool dark;
 	union
 	{
 		struct
@@ -51,6 +47,7 @@ struct MCThemeDrawInfo
 		{
 			HIRect bounds;
 			HIThemeButtonDrawInfo info;
+			Widget_Type widget_type;  // tperry 3rd December 2025: Store original widget type to distinguish BEVELBUTTON from PULLDOWN
 		} button;
 		
 		struct

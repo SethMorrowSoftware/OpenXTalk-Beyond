@@ -41,8 +41,8 @@ and restored at the end:
            dark colours; the engine runs under xvfb-run when there is no
            DISPLAY
 
-With --appearance dark the script also sets the IDE to follow the system
-(View > Appearance), so the IDE is dark wherever the system is.
+The IDE follows the system's appearance (OpenXTalk Lite 1.15's dark mode on
+Windows and macOS; Linux is drawn light).
 
 Everything is printed, for the CI log: the script's lines (INFO, ERROR,
 SHOT, STEP and DONE) and every snapshot as lines tools/ci/print_images.py

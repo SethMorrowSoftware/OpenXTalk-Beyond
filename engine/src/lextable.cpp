@@ -372,7 +372,12 @@ const LT command_table[] =
         {"load", TT_STATEMENT, S_LOAD},
         {"local", TT_STATEMENT, S_LOCAL},
         {"lock", TT_STATEMENT, S_LOCK},
+#if defined(_MACOSX) /* OXT-TOM: macOS */
         {"log", TT_STATEMENT, S_LOG},
+        {"macSetIcon", TT_STATEMENT, S_MAC_SET_ICON},
+#else /* OXT-TOM: Windows */
+        {"log", TT_STATEMENT, S_LOG},
+#endif /* OXT-TOM */
         {"mark", TT_STATEMENT, S_MARK},
         {"modal", TT_STATEMENT, S_MODAL},
         {"modeless", TT_STATEMENT, S_MODELESS},
@@ -595,7 +600,6 @@ const LT factor_table[] =
         {"annuity", TT_FUNCTION, F_ANNUITY},
 		{"antialiased", TT_PROPERTY, P_ANTI_ALIASED},
         {"any", TT_CHUNK, CT_ANY},
-		{"appappearance", TT_PROPERTY, P_APP_APPEARANCE},
         {"arcangle", TT_PROPERTY, P_ARC_ANGLE},
 		// JS-2013-06-19: [[ StatsFunctions ]] Token for 'arithmeticMean' (aka mean / average / avg)
         {"arithmeticmean", TT_FUNCTION, F_ARI_MEAN},
@@ -1195,7 +1199,12 @@ const LT factor_table[] =
         {"lower", TT_FUNCTION, F_TO_LOWER},
         {"lowresolutiontimers", TT_PROPERTY, P_LOW_RESOLUTION_TIMERS},
         {"lzwkey", TT_PROPERTY, P_LZW_KEY},
+#if defined(_MACOSX) /* OXT-TOM: macOS */
         {"machine", TT_FUNCTION, F_MACHINE},
+        {"macSetIcon", TT_FUNCTION, F_MAC_SET_ICON},
+#else /* OXT-TOM: Windows */
+        {"machine", TT_FUNCTION, F_MACHINE},
+#endif /* OXT-TOM */
         {"mactoiso", TT_FUNCTION, F_MAC_TO_ISO},
         {"magnifier", TT_CHUNK, CT_MAGNIFY},
         {"magnify", TT_PROPERTY, P_MAGNIFY},
@@ -1659,7 +1668,6 @@ const LT factor_table[] =
         {"sqrt", TT_FUNCTION, F_SQRT},
         {"sslcertificates",TT_PROPERTY,P_SSL_CERTIFICATES},
         {"stack", TT_CHUNK, CT_STACK},
-		{"stackappearance", TT_PROPERTY, P_STACK_APPEARANCE},
         {"stackfiles", TT_PROPERTY, P_STACK_FILES},
         {"stackfiletype", TT_PROPERTY, P_STACK_FILE_TYPE},
 		{"stackfileversion", TT_PROPERTY, P_STACK_FILE_VERSION},

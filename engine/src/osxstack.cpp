@@ -176,7 +176,9 @@ void MCStack::clearscroll(void)
 void MCStack::platform_openwindow(Boolean p_override)
 {
 	if (MCModeMakeLocalWindows() && window != NULL)
+	{
 		MCscreen -> openwindow(window, p_override);
+	}
 }
 
 void MCStack::redrawicon()

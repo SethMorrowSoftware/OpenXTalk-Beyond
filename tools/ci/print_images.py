@@ -19,7 +19,7 @@
 
   python3 tools/ci/print_images.py <log> <folder>
 
-tools/ci/mac_appearance_test.py prints images as lines
+The checks (ui_tour.py, field_speed_test.py) print images as lines
 "IMAGE <run>/<file> <part>/<parts> <base64>" (a log line of the Actions
 runner may have a time stamp before it). Each complete image is written to
 <folder>/<run>-<file>, and its name printed.

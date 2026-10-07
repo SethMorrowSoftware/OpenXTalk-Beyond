@@ -3,11 +3,8 @@ local sMax, sMin
 
 constant kFieldWidth = 100
 constant CONTROL_PADDING = 5
--- OXT-Beyond: an inherited ("effective") value is drawn in the IDE's muted
--- text colour and a value that differs between the selected objects on the
--- multi-value background, both from revIDEColor, so that they read in the
--- light and the dark appearance (the constants 100,100,100 and 193,201,215
--- were light-only: 2.8:1 in dark, and white on the pale blue)
+constant kEffectiveTextColor = "100,100,100"
+constant kConflictedFieldColor = "193,201,215"
 
 on editorInitialize
    lock screen
@@ -53,14 +50,14 @@ on editorUpdate
          put tValue + 0 into field 1 of me
       end if
       set the textstyle["italic"] of field 1 of me to true
-      set the textcolor of field 1 of me to revIDEColor("text_muted")
+      set the textcolor of field 1 of me to kEffectiveTextColor
    else
       set the textstyle of field 1 of me to empty
       set the textcolor of field 1 of me to empty
       put tValue + 0 into field 1 of me
    end if
    if tConflicted then
-      set the backcolor of field 1 of me to revIDEColor("propertyInspector_multiValueBackground")
+      set the backcolor of field 1 of me to kConflictedFieldColor
       put empty into field 1 of me
    else
       set the backcolor of field 1 of me to empty

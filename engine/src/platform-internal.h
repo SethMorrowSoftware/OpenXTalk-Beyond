@@ -191,9 +191,6 @@ protected:
         
         // MERG-2015-10-11: [[ DocumentFilename ]] Changed flag for docuent filename
         bool document_filename_changed : 1;
-
-        // Changed flag for the dark appearance
-        bool dark_appearance_changed : 1;
 	} m_changes;
 	MCPlatformWindowStyle m_style;
 	MCStringRef m_title;
@@ -217,8 +214,6 @@ protected:
         bool m_hides_on_suspend : 1;
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] ignoreMouseEvents property
         bool m_ignore_mouse_events : 1;
-        // Whether the window is drawn in the dark appearance
-        bool m_dark_appearance : 1;
 	};
 	
 	// Universal state.
@@ -331,7 +326,6 @@ void MCPlatformCallbackSendApplicationResume(void);
 
 void MCPlatformCallbackSendScreenParametersChanged(void);
 void MCPlatformCallbackSendSystemAppearanceChanged(void);
-void MCPlatformCallbackSendApplicationAppearanceChanged(void);
 
 void MCPlatformCallbackSendWindowCloseRequest(MCPlatformWindowRef window);
 void MCPlatformCallbackSendWindowClose(MCPlatformWindowRef window);

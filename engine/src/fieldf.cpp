@@ -531,14 +531,31 @@ bool MCField::getshowlines(void) const
 }
 
 uint2 MCField::getfwidth() const
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 {
+	// tperry 17-1-2026: Experimental - adjust word wrap width when scrollbar hidden
+	const int kWrapWidthExpandWhenHidden = 0;  // Added to wrap width when scrollbar hidden
+	
+#else /* OXT-TOM: Windows */
+{
+#endif /* OXT-TOM */
 	int4 width = rect.width;
 	if (borderwidth != 0)
 		width -= (borderwidth - DEFAULT_BORDER) << 1;
 	if (flags & F_SHADOW)
 		width -= shadowoffset;
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+	if (flags & F_VSCROLLBAR)
+	{
+		if (!vscrollbar->issbdisabled())
+			width -= vscrollbar->getrect().width;
+		else
+			width += kWrapWidthExpandWhenHidden;
+	}
+#else /* OXT-TOM: Windows */
 	if (flags & F_VSCROLLBAR)
 		width -= vscrollbar->getrect().width;
+#endif /* OXT-TOM */
 	if (width > 0 && width < (int4) MAXUINT2)
 		return (uint2)width;
 	else
@@ -572,9 +589,35 @@ MCRectangle MCField::getfrect() const
 		trect.height -= soffset;
 	}
 	if (flags & F_HSCROLLBAR && trect.height > scrollbarwidth)
+#if defined(_MACOSX) /* OXT-TOM: macOS */
 		trect.height -= hscrollbar->getrect().height - 1;
+	// tperry 17-1-2026: Only reserve space for vertical scrollbar if content needs scrolling
+	// Experimental adjustments - tweak these to control clipping when track is hidden
+	// Positive = expand (move edge outward), Negative = shrink (move edge inward)
+	const int kVisibleInnerAdjust = 1;       // Inner edge adjust when scrollbar visible (was 1 originally)
+	const int kHiddenClipLeft = 0;           // Left edge: + moves left (wider), - moves right (narrower)
+	const int kHiddenClipRight = 0;          // Right edge: + moves right (wider), - moves left (narrower)
+#else /* OXT-TOM: Windows */
+		trect.height -= hscrollbar->getrect().height - 1;
+#endif /* OXT-TOM */
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+	if (flags & F_VSCROLLBAR && trect.width > scrollbarwidth)
+	{
+		if (!vscrollbar->issbdisabled())
+		{
+			trect.width -= vscrollbar->getrect().width - kVisibleInnerAdjust;
+		}
+		else
+		{
+			// Scrollbar hidden - adjust content area clipping
+			trect.x -= kHiddenClipLeft;                          // Adjust left edge
+			trect.width += kHiddenClipLeft + kHiddenClipRight;   // Adjust total width
+		}
+	}
+#else /* OXT-TOM: Windows */
 	if (flags & F_VSCROLLBAR && trect.width > scrollbarwidth)
 		trect.width -= vscrollbar->getrect().width - 1;
+#endif /* OXT-TOM */
 	return trect;
 }
 
@@ -1186,8 +1229,14 @@ void MCField::drawrect(MCDC *dc, const MCRectangle &dirty)
 			
 			dc->restore();
 		}
+#if defined(_MACOSX) /* OXT-TOM: macOS */
+	}
+	// tperry 17-1-2026: Only draw scrollbar if it's not disabled (track visible)
+	if (flags & F_VSCROLLBAR && !vscrollbar->issbdisabled())
+#else /* OXT-TOM: Windows */
 	}
 	if (flags & F_VSCROLLBAR)
+#endif /* OXT-TOM */
 	{
 		MCRectangle vrect = MCU_intersect_rect(vscrollbar->getrect(), trect);
 		if (vrect.width != 0 && vrect.height != 0)

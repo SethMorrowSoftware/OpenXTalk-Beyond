@@ -93,9 +93,10 @@ on editorUpdate
    end if
    set the enabled of me to tEnabled
    if tEffective is true then
-      set the textcolor of button "pulldown" of me to revIDEColor("text_muted")
+      set the textcolor of button "pulldown" of me to "150,150,150"
    else
       set the textcolor of button "pulldown" of me to empty
+      if the platform contains "mac" then set the textcolor of button "pulldown" of me to black
    end if
    unlock messages
    unlock screen

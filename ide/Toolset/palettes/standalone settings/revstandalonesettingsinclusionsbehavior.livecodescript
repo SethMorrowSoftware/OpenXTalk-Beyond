@@ -13,7 +13,6 @@ on preOpenCard
    end if
    
    put revSBAvailableInclusions() into sExtensionData
-   revIDESubscribe "ideAppearanceChanged"
    setUpExtensionList
    
    send "renderView" to group "extensionList" of me
@@ -35,19 +34,6 @@ on preOpenCard
    pass preOpenCard
 end preOpenCard
 
--- OXT-Beyond: the IDE's appearance changed (revIDEIsDark): the list's
--- colours again while the card is shown (they are set when it opens)
-on ideAppearanceChanged
-   if the mode of this stack is 0 or the long id of this card of this stack is not the long id of me then
-      exit ideAppearanceChanged
-   end if
-   lock screen
-   setUpExtensionList
-   send "renderView" to group "extensionList" of me
-   setExtensionList
-   unlock screen
-end ideAppearanceChanged
-
 on resizeStack
    local tRect
    put the rect of this card of this stack into tRect
@@ -65,15 +51,22 @@ on setUpExtensionList
    put the long id of group "extensionRow" of card "inclusions" of this stack into theStylesA["extension"]
    
    set the viewProp["row style templates"] of tGroupLongID to theStylesA
-   -- The colours of the Extension Manager's list, from revIDEColor in both
-   -- appearances (OXT Lite 1.15 set fixed greys here)
-   set the viewProp["hilite color"] of tGroupLongID to revIDEColor("pb_line_selected")
-   set the viewProp["dimmed hilite color"] of tGroupLongID to revIDEColor("dataView_dimmedHiliteColor")
+   set the viewProp["hilite color"] of tGroupLongID to ideColorGet("pb_line_selected")
    set the viewProp["background color"] of tGroupLongID to empty
-
-   set the viewProp["row color"] of tGroupLongID to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of tGroupLongID to revIDEColor("dataView_rowAlternateColor")
-
+   
+   --set the viewProp["row color"] of tGroupLongID to revIDEColor("dataView_rowColor")
+   --set the viewProp["alternate row color"] of tGroupLongID to revIDEColor("dataView_rowAlternateColor")  
+   
+   -- other place to set conditional datagrid colours, based on system appearance
+   -- tperry 8/5/2026
+   if the systemAppearance is "dark" then
+      set the viewProp["row color"] of tGroupLongID to 126,126,126
+      set the viewProp["alternate row color"] of tGroupLongID to 97,97,97
+   else
+      set the viewProp["row color"] of tGroupLongID to  216,216,216
+      set the viewProp["alternate row color"] of tGroupLongID to 255,255,255
+   end if     
+   
    set the viewProp["fixed row height"] of tGroupLongID to "true"
    set the viewProp["row height"] of tGroupLongID to kLineHeight
    set the viewProp["cache"] of tGroupLongID to "none"

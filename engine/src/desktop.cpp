@@ -71,11 +71,13 @@ static bool MCPlatformRunPendingRespring(void)
 
 void X_main_loop(void)
 {
-	while (!MCquit || MCRespringInProgress)
+	// A pending respring runs first: Tom Perry's macOS respring sets MCquit
+	// to unwind the handlers before it runs
+	for (;;)
 	{
 		if (MCPlatformRunPendingRespring())
 			continue;
-		if (MCquit)
+		if (MCquit && !MCRespringInProgress)
 			break;
 		X_main_loop_iteration();
 	}
@@ -163,7 +165,12 @@ void MCPlatformHandleApplicationResume(void)
 void MCPlatformHandleApplicationRun(bool& r_continue)
 {
 	if (!MCPlatformRunPendingRespring())
+	{
 		X_main_loop_iteration();
+		// Tom Perry's macOS respring sets MCquit to unwind the handlers:
+		// run it now rather than quit
+		MCPlatformRunPendingRespring();
+	}
     r_continue = !MCquit;
 }
 
@@ -196,24 +203,25 @@ void MCPlatformHandleSystemAppearanceChanged(void)
 	if (MCscreen == nil)
 		return;
 	
-	// Update system colors and redraw all stacks
-	MCscreen -> updatesystemappearance();
+	//-- tperry 11th October 2025
+	// Redraw all stacks to reflect new appearance colors
+	// (Colors are now applied at render time in MCObject::getforecolor)
+	MCStacknode *t_node = MCstacks->topnode();
+	if (t_node != nil)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node->getstack();
+			if (t_stack != NULL)
+				t_stack->dirtyall();
+			
+			t_node = t_node->next();
+		} while (t_node != nil && t_node != t_start);
+	}
 	
-	// Send message to scripts
+	// Also send the message so scripts can handle it if needed
 	MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
-}
-
-// AppKit has applied another appearance to the application (macOS: the KVO
-// on NSApp.effectiveAppearance in mac-core.mm), for example when the Mac
-// changes while the appAppearance is "system": the windows are drawn again,
-// for what AppKit draws in them. Nothing else changes and no message is
-// sent; systemAppearanceChanged comes from MCPlatformHandleSystemAppearanceChanged.
-void MCPlatformHandleApplicationAppearanceChanged(void)
-{
-	if (MCscreen == nil)
-		return;
-
-	MCstacks -> redrawall(False);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
