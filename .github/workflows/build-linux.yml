@@ -70,9 +70,9 @@
 # that starts with "v" fails straight away unless the tag is v<ver>, as in
 # build-windows.yml. OXT_BUILD_NUMBER is the input build-number when
 # release.yml gives one (the same for every job and platform of a
-# release); otherwise it is the UTC time at which the version step ran, as
-# YYYYMMDDHHMM, and the package job takes its own, when it starts
-# packaging.
+# release); otherwise it is the UTC time of the commit, as YYYYMMDDHHMM,
+# which every job and platform that builds the commit shares (see
+# build-windows.yml).
 #
 # Releases: .github/workflows/release.yml calls this workflow (workflow_call)
 # for a tag that starts with "v" and for its dry runs, and publishes the
@@ -88,18 +88,42 @@ on:
   # No tags here: release.yml builds them (see the header)
   push:
     branches: [ main ]
-    paths-ignore:
-      # Documentation alone needs no build: the Markdown files at the
-      # top of the repository and GitHub's issue and pull request forms
+    paths-ignore: &build-paths-ignore
+      # Nothing that goes into this platform's build, packages or checks:
+      # the Markdown files at the top of the repository, GitHub's issue
+      # and pull request forms, the workflows and scripts that build
+      # nothing (screenshots branch, release, runtimes, tagging, checks by
+      # hand, the CI checks), and what only the other platforms' builds
+      # use. A file that is not listed builds; tools/ci/tests checks that
+      # no file a build workflow names is listed in its own list.
       - '*.md'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
+      - '.github/workflows/ci-checks.yml'
+      - '.github/workflows/field-speed.yml'
+      - '.github/workflows/ide-screenshots.yml'
+      - '.github/workflows/media-check.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/runtimes.yml'
+      - '.github/workflows/tag-release.yml'
+      - '.github/workflows/ui-tour.yml'
+      - 'tools/ci/ide_screenshots_branch.py'
+      - 'tools/ci/release_assets.py'
+      - 'tools/ci/release_notes.py'
+      - 'tools/ci/tests/**'
+      - '.github/workflows/build-macos.yml'
+      - '.github/workflows/build-windows.yml'
+      - 'tools/ci/*.ps1'
+      - 'tools/ci/check_macho_floor.py'
+      - 'tools/ci/engine-tests-baseline-mac.txt'
+      - 'tools/ci/engine-tests-baseline-windows*.txt'
+      - 'tools/ci/mac_ide_start.sh'
+      - 'tools/ci/merge_universal.py'
+      - 'tools/ci/sign_mac_app.py'
+      - 'tools/ci/win_crashtrace.py'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
+    paths-ignore: *build-paths-ignore
   workflow_dispatch:
     inputs:
       no_external_assets:
@@ -199,15 +223,19 @@ jobs:
           # No step pushes or fetches, so the token need not stay in .git/config
           persist-credentials: false
 
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       # The version gate of build-windows.yml: a tag build fails straight
       # away when the tag is not "v" followed by ide/.version, so that no
       # platform builds (and none publishes) files under another version.
       # (Called by release.yml, github.ref_type and github.ref_name are the
       # caller's: the tag of the release.) One build number for every file
       # of this job, OXT_BUILD_NUMBER: release.yml's input, else the UTC
-      # time now, as YYYYMMDDHHMM (what tools/oxt/package.py writes into
-      # .buildnumber). The step runs after the tool install because the
-      # checkout needs the container's git.
+      # time of the commit, as YYYYMMDDHHMM (what tools/oxt/package.py
+      # writes into .buildnumber). The step runs after the tool install
+      # because the checkout needs the container's git, and after marking
+      # the workspace safe, for git log.
       - name: Read the product version
         id: product
         env:
@@ -238,15 +266,13 @@ jobs:
             fi
             build_number=$BUILD_NUMBER_INPUT
           else
-            build_number=$(date -u +%Y%m%d%H%M)
+            ct=$(git log -1 --format=%ct HEAD)
+            build_number=$(date -u -d "@$ct" +%Y%m%d%H%M)
           fi
           echo "OXT-Beyond $version, build number $build_number"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build-number=$build_number" >> "$GITHUB_OUTPUT"
           echo "OXT_BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
-
-      - name: Mark the workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       # The key covers everything the prebuilt tarballs are made from: library
       # versions, the prebuilt scripts, the vendored thirdparty/ tree and the
@@ -833,7 +859,14 @@ jobs:
           for f in "$BIN_TAR" "$SYMBOLS_TAR"; do
             if [ ! -f "$f" ]; then echo "::error::$f is not in the downloaded artifact"; ls -laR "$RUNNER_TEMP"/ci-*; exit 1; fi
           done
-          OXT_BUILD_NUMBER=${BUILD_NUMBER_INPUT:-$(date -u +%Y%m%d%H%M)}
+          # release.yml's build number, else the commit's time (see the
+          # version step of the build job)
+          if [ -n "$BUILD_NUMBER_INPUT" ]; then
+            OXT_BUILD_NUMBER=$BUILD_NUMBER_INPUT
+          else
+            ct=$(git log -1 --format=%ct HEAD)
+            OXT_BUILD_NUMBER=$(date -u -d "@$ct" +%Y%m%d%H%M)
+          fi
           export OXT_BUILD_NUMBER
           args=()
           if [ "$NO_EXTERNAL_ASSETS" = true ]; then
