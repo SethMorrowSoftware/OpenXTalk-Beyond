@@ -1607,7 +1607,13 @@ What the installer does:
 - It has a fixed `AppId`, so a newer version replaces an installed one.
   Before installing over an older version it deletes the `Toolset`,
   `Extensions`, `Externals`, `Toolchain` and `Runtime` folders, so no
-  file that the new version no longer ships is left behind.
+  file that the new version no longer ships is left behind. It deletes
+  the dictionaries' data too (in
+  `Documentation\html_viewer\resources\data`, the `api_livecode_script`
+  and `api_livecode_builder` folders and the text dictionary's
+  `api\exports\<xtalk|builder|datagrid>\resaved` folders), so an older
+  version's entries do not show up next to the new ones. The entries a
+  user adds to the text dictionary, in `api\exports\<...>\plugins`, stay.
 - It installs for all users into `C:\Program Files\OXT-Beyond` (with
   administrator rights) or, if chosen on its first page or with
   `/CURRENTUSER`, for the current user into
@@ -1649,7 +1655,11 @@ powershell -ExecutionPolicy Bypass -File tools\ci\test-installer.ps1 -Setup dist
 [`tools/ci/test-installer.ps1`](tools/ci/test-installer.ps1) installs
 the setup program silently for the current user into a new temporary
 folder (`/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=...`,
-with the desktop shortcut), checks the exit code, the key files, that
+with the desktop shortcut) and checks the exit code. Then it puts
+dictionary entries of an older version and text dictionary entries of
+a user in the folder, installs again over them, as a newer version is
+installed over an older one, and checks that the older version's
+entries are gone and the user's are kept. It checks the key files, that
 every staged file was installed with the same size, `.version`, the
 uninstall registration, the shortcuts, the file associations and the
 Modify permissions, runs the smoke test on the installed

@@ -10,13 +10,19 @@
          /CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOCANCEL
          /DIR=<new temporary folder> /LOG=<file> /MERGETASKS="desktopicon"
        The folder is under RUNNER_TEMP on GitHub Actions, otherwise under the
-       user's temporary folder.
-    3. Checks the exit code, the key files, that every file of the staged
-       layout was installed with the same size (when the staged layout is
-       found), .version, the uninstall registration in HKCU, the Start menu
-       and desktop shortcuts, the .oxtstack and .oxtscript associations, and
-       that the Users group has Modify on the folders and files the IDE
-       writes to at run time.
+       user's temporary folder. Then it writes into the folder the files
+       that an older version and a user leave in the dictionaries' data,
+       and runs the setup program again, as a newer version is installed
+       over an older one: the older version's entries must be gone
+       afterwards, and the entries the user added to the text dictionary
+       must still be there.
+    3. Checks the exit codes, the older version's and the user's entries,
+       the key files, that every file of the staged layout was installed
+       with the same size (when the staged layout is found), .version, the
+       uninstall registration in HKCU, the Start menu and desktop
+       shortcuts, the .oxtstack and .oxtscript associations, and that the
+       Users group has Modify on the folders and files the IDE writes to
+       at run time.
     4. Runs tools/ci/smoke-test.ps1 -InstallDir on the installed folder.
     5. Runs the uninstaller silently and checks that the registration, the
        installed files, the shortcuts and the associations are gone. Files
@@ -116,6 +122,7 @@ if (-not $LogDir) {
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $LogDir = (Resolve-Path -LiteralPath $LogDir).ProviderPath.TrimEnd('\')
 $installLog = Join-Path $LogDir 'setup-install.log'
+$reinstallLog = Join-Path $LogDir 'setup-install-again.log'
 $uninstallLog = Join-Path $LogDir 'setup-uninstall.log'
 
 if (-not $Stage) {
@@ -260,6 +267,47 @@ try {
     Write-Host ('Setup finished in {0:N0} s with exit code {1}' -f $timer.Elapsed.TotalSeconds, $code)
     Add-Check 'Setup exit code is 0' ($code -eq 0) "$code"
     if ($code -ne 0) { throw "Setup failed with exit code $code; see $installLog" }
+
+    # --- Install again, over an older version's dictionary data ---
+    # Setup deletes the dictionaries' data before it installs ([InstallDelete]
+    # in the .iss), so that the entries an older version installed do not
+    # show up next to the new ones, and leaves the entries a user added to
+    # the text dictionary (exports\<...>\plugins).
+    Write-Host ''
+    $data = 'Documentation\html_viewer\resources\data'
+    $oldFiles = @(
+        "$data\api_livecode_script\old.js",
+        "$data\api_livecode_builder\old.js",
+        "$data\api_script\script.js",
+        "$data\api_builder\builder.js",
+        "$data\api\exports\xtalk\resaved\old entry.txt",
+        "$data\api\exports\builder\resaved\old entry.txt",
+        "$data\api\exports\datagrid\resaved\old entry.txt"
+    )
+    $userFiles = @(
+        "$data\api\exports\xtalk\plugins\my entry.txt",
+        "$data\api\exports\builder\plugins\my entry.txt"
+    )
+    foreach ($rel in ($oldFiles + $userFiles)) {
+        $path = Join-Path $InstallDir $rel
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $path) | Out-Null
+        [System.IO.File]::WriteAllText($path, "written by test-installer.ps1`n", $utf8)
+    }
+    Write-Host "Installing again, over $($oldFiles.Count) entries of an older version and $($userFiles.Count) of a user ..."
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    $arguments = "/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOCANCEL /DIR=`"$InstallDir`" /LOG=`"$reinstallLog`" /MERGETASKS=`"$tasks`""
+    $code = Invoke-Program $Setup $arguments
+    Write-Host ('Setup finished in {0:N0} s with exit code {1}' -f $timer.Elapsed.TotalSeconds, $code)
+    Add-Check 'Setup over the installed copy exit code is 0' ($code -eq 0) "$code"
+    if ($code -ne 0) { throw "Setup failed with exit code $code; see $reinstallLog" }
+    $left = @($oldFiles | Where-Object { Test-Path -LiteralPath (Join-Path $InstallDir $_) })
+    Add-Check "Older version's dictionary entries removed ($($oldFiles.Count))" ($left.Count -eq 0) ($left -join ', ')
+    $lost = @($userFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $InstallDir $_) -PathType Leaf) })
+    Add-Check "Text dictionary entries the user added kept ($($userFiles.Count))" ($lost.Count -eq 0) ($lost -join ', ')
+    # Setup did not install these, so they are not among the installed files
+    foreach ($rel in ($left + $userFiles)) {
+        Remove-Item -LiteralPath (Join-Path $InstallDir $rel) -Force -ErrorAction SilentlyContinue
+    }
 
     Write-Host ''
     Write-Host 'Installed files:'

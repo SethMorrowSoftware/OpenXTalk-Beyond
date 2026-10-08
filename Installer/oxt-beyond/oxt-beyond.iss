@@ -166,6 +166,21 @@ Type: filesandordirs; Name: "{app}\Extensions"
 Type: filesandordirs; Name: "{app}\Externals"
 Type: filesandordirs; Name: "{app}\Toolchain"
 Type: filesandordirs; Name: "{app}\Runtime"
+; The same for the dictionaries' data, which the build generates
+; (tools/ci/build_docs.sh): LiveCode's Dictionary reads every .js file in
+; api_livecode_script and api_livecode_builder, and the text dictionary
+; lists every entry in exports\<xtalk|builder|datagrid>\resaved, so the
+; entries of an older version would show up next to the new ones.
+; Versions up to 0.2.4-rc.4 installed the data in api_script and
+; api_builder, which nothing reads now. The entries a user adds to the
+; text dictionary, in exports\<...>\plugins, stay.
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api_livecode_script"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api_livecode_builder"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api_script"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api_builder"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api\exports\xtalk\resaved"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api\exports\builder\resaved"
+Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api\exports\datagrid\resaved"
 
 [Dirs]
 ; The IDE writes to these places inside the program folder at run time.
