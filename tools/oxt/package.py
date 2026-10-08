@@ -93,7 +93,10 @@ stage folder itself except on macOS):
                Runtime/Windows/<arch>/Support (and, on macOS only,
                Resources/Mobile Examples: package.txt Mobile.MacOSX). Text
                files get LF line endings (--eol) so that the result does
-               not depend on git's core.autocrlf.
+               not depend on git's core.autocrlf. Documentation includes
+               the documentation data that tools/ci/build_docs.sh
+               generates into the checkout, which git does not keep
+               (DOCS_FILES): packaging stops when it is missing.
   build        the files of --bin that Installer/package.txt installs on the
                platform, at its installed paths (see Platform and plan_build);
                the development engine becomes OXT-Beyond.exe, OXT-Beyond or
@@ -203,6 +206,21 @@ EMPTY_DIRS = (
     'Documentation/html_viewer/resources/data/api/exports/builder/plugins',
     'Documentation/html_viewer/resources/data/api/exports/datagrid/plugins',
 )
+
+# What tools/ci/build_docs.sh generates into the checkout and git does not
+# keep, in DOCS_DATA (an installed path): LiveCode's Dictionary, the guides
+# and the text dictionary. Without them the IDE's dictionaries and guides
+# would be empty.
+DOCS_DATA = 'Documentation/html_viewer/resources/data/'
+DOCS_FILES = (
+    'api/api.sqlite',
+    'api_livecode_script/script.js',
+    'api_livecode_script/dg.js',
+    'api_livecode_builder/builder.js',
+    'guide/distributed_guide.js',
+) + tuple('api/exports/%s/%s' % (section, name)
+          for section in ('xtalk', 'builder', 'datagrid')
+          for name in ('index.txt', 'substitutions.txt'))
 
 # components Extensions and TimeZone: the same 42 ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
@@ -1217,6 +1235,11 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
     # IDE
     pairs, ide_problems = layout.plan_assemble(repo, p.ide_include)
     pl.problems.extend('IDE: ' + x for x in ide_problems)
+    planned = set(target for target, _ in pairs)
+    missing = [f for f in DOCS_FILES if DOCS_DATA + f not in planned]
+    if missing:
+        pl.problems.append('IDE: the documentation data in ide/%s is missing (%s): generate it '
+                           'with tools/ci/build_docs.sh' % (DOCS_DATA, ', '.join(missing)))
     for target, repo_path in pairs:
         if target == '.buildnumber':
             continue

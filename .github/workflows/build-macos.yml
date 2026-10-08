@@ -6,8 +6,10 @@
 #   "Package mac-universal" (macos-15) joins the two builds into one
 #   universal build output with lipo (tools/ci/merge_universal.py, dSYM
 #   bundles included), stages OXT-Beyond.app from it with the external
-#   assets and the xTalk Suite extensions (tools/oxt/package.py --platform
-#   mac-universal), signs it ad hoc from the inside out
+#   assets, the xTalk Suite extensions and the documentation data that the
+#   job Docs generates meanwhile (.github/workflows/docs.yml;
+#   tools/oxt/package.py --platform mac-universal), signs it ad hoc from
+#   the inside out
 #   (tools/ci/sign_mac_app.py), checks that every Mach-O file of macOS code
 #   in it holds arm64 and x86_64, and writes
 #
@@ -517,6 +519,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The documentation data of the package (docs.yml), made while the
+  # engines build
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yml
+    with:
+      artifact: OXT-Beyond-docs-macos
+
   # One universal OXT-Beyond.app from the two builds, signed ad hoc, as a
   # disk image, a zip and the merged build output with its symbols. Every
   # path below is under $RUNNER_TEMP (/Users/runner/work/_temp): no folder
@@ -524,7 +534,8 @@ jobs:
   # repository mode (tools/oxt/package.py repository_mode_trap).
   package:
     name: Package mac-universal
-    needs: build
+    needs: [build, docs]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -532,6 +543,16 @@ jobs:
     outputs:
       version: ${{ steps.product.outputs.version }}
     steps:
+      # A failed Docs job fails this job, which pull requests need: had
+      # this job been skipped instead, its check would pass
+      - name: Check the documentation job
+        if: ${{ needs.docs.result != 'success' }}
+        env:
+          DOCS_RESULT: ${{ needs.docs.result }}
+        run: |
+          echo "::error::The job Docs did not succeed ($DOCS_RESULT): there is no documentation to package"
+          exit 1
+
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -592,6 +613,13 @@ jobs:
         with:
           name: OXT-Beyond-mac-x86_64-symbols
           path: ${{ runner.temp }}/artifacts/x86_64
+
+      # Into the checkout, where package.py takes the IDE from
+      - name: Download the documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-docs-macos
+          path: ide/Documentation/html_viewer/resources/data
 
       # Both tarballs of a build unpack as Release/: the symbols go over the
       # build products, which puts every dSYM next to its binary. The two

@@ -1,0 +1,100 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# Generates the documentation data of the IDE for the packages: LiveCode's
+# Dictionary, the guides and the text dictionary, from the .lcdoc and
+# Markdown sources of the checkout (tools/ci/build_docs.sh, which says
+# what it writes and how). Git keeps none of it (ide/.gitignore), so every
+# build workflow calls this one and puts the artifact into its checkout
+# before it packages (tools/oxt/package.py refuses to package without it).
+#
+# It runs on the Linux x86_64 engine of an OXT-Beyond release, which
+# build_docs.sh pins and checks against its SHA-256, so that it needs no
+# build of its own and runs while the engines build: in a few minutes, on
+# one runner, with no screen. Every platform's package gets the same data.
+#
+# The input artifact names the artifact, which holds the generated files
+# with their paths below ide/Documentation/html_viewer/resources/data.
+# It must be unique in the run: release.yml calls the three build
+# workflows in one run, so each of them names its own.
+
+name: Docs
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: The name of the artifact, unique in the run
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  docs:
+    name: Dictionary and guides
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The engine's "core" libraries (Installer/linux/libraries.txt), with
+      # the Ubuntu 24.04 package names that have "t64", as in
+      # build-linux.yml; zip for the docs builder's archive
+      - name: Install the engine's libraries
+        run: |
+          pkgs=(zip xz-utils)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            [ "$use" = core ] || continue
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          echo "Installing: ${pkgs[*]}"
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          python3 --version
+
+      - name: Generate the documentation
+        run: tools/ci/build_docs.sh "$RUNNER_TEMP/docs"
+
+      - name: Upload the documentation
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact }}
+          path: |
+            ide/Documentation/html_viewer/resources/data/api/api.sqlite
+            ide/Documentation/html_viewer/resources/data/api/exports/*/resaved/
+            ide/Documentation/html_viewer/resources/data/api/exports/*/index.txt
+            ide/Documentation/html_viewer/resources/data/api/exports/*/substitutions.txt
+            ide/Documentation/html_viewer/resources/data/api_livecode_script/
+            ide/Documentation/html_viewer/resources/data/api_livecode_builder/
+            ide/Documentation/html_viewer/resources/data/guide/
+          if-no-files-found: error
+          # As long as the build artifacts it is packaged with, for a
+          # package job run again later
+          retention-days: 30
