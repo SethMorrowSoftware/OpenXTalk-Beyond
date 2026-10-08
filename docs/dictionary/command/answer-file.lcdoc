@@ -61,14 +61,14 @@ empty, and the result function returns "Cancel".
 Description:
 Use the answer file command to open a file chooser dialog.
 
-The dialog box displayed is the same one most programs use for the 
+The dialog box displayed is the same one most programs use for the
 "Open" command in the File menu.
 
->*Important:*  The answer file command does not open the file. It only 
-> displays the dialog box and retrieves the path to the file the user 
+>*Important:*  The answer file command does not open the file. It only
+> displays the dialog box and retrieves the path to the file the user
 > specifies.
 
-If the as sheet form is used, the dialog box appears as a sheet on OS X 
+If the as sheet form is used, the dialog box appears as a sheet on OS X
 systems. On other systems, the as sheet form has no effect and the
 dialog box appears normally. Attempting to open a sheet from within
 another sheet displays the second stack as a modal dialog box instead.
@@ -76,11 +76,11 @@ To give a dialog box a prompt when using the as sheet form a non-empty
 title must be provided.  This will cause the prompt to appear in the
 same place it would if as sheet was not being used.
 
-If the <systemFileSelector> property is set to false, LiveCode's 
-built-in dialog box is used instead of the operating system's 
+If the <systemFileSelector> property is set to false, the app engine's 
+built-in dialog box is used instead of the operating system's
 standard file dialog.
 
->*Note:*  If you wish to filter the list of the files presented to 
+>*Note:*  If you wish to filter the list of the files presented to
 > the user, use the <answer file with type> command.
 
 References: ask file with type (command), revCopyFile (command),

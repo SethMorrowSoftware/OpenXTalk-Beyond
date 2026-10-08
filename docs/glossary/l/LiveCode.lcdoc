@@ -1,11 +1,13 @@
 Name: LiveCode
 
-Synonyms: livecode, livecode script
+Synonyms: livecode
 
 Type: glossary
 
 Description:
-The language in which LiveCode <script|scripts> are written.
+The xTalk development environment from LiveCode Ltd. that <OpenXTalk>
+is based on. In 2021 LiveCode Ltd. stopped making its open-source
+Community Edition, and OpenXTalk carries on from that code. OpenXTalk is
+not affiliated with LiveCode Ltd.
 
-References: script (glossary)
-
+References: OpenXTalk (glossary), xTalk (glossary)

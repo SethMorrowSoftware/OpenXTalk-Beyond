@@ -8,7 +8,7 @@ Syntax: disable menuItem <itemNumber> of <button>
 
 Summary:
 Dims a <menu> or <menu item> so that it no longer responds to user
-actions. 
+actions.
 
 Introduced: 1.0
 
@@ -57,11 +57,11 @@ On Mac OS systems, the Apple menu does not have a number and cannot be
 enabled or disabled. Menu numbering starts with the menu to the right of
 the Apple menu.
 
-Since a LiveCode menu bar is implemented as a group of buttons (one
+Since a menu bar is implemented as a group of buttons (one
 button per menu, with the menu items as lines in the button's text
 <property>), you can indicate a <menu> by specifying its <button>.
-<disabled|Disabled> <menu item|menu items> have an open parenthesis `(` 
-before the name of that menu item, so when used to <disable> a <menu item>, 
+<disabled|Disabled> <menu item|menu items> have an open parenthesis `(`
+before the name of that menu item, so when used to <disable> a <menu item>,
 the <disable menu> <command> adds an open parenthesis at the beginning of
 the specified line.
 
@@ -82,4 +82,3 @@ command (glossary), menu item (glossary), menu bar (glossary),
 prepend (glossary), menu (keyword), button (keyword), disabled (property)
 
 Tags: menus
-

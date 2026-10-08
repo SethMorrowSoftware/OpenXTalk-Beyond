@@ -47,11 +47,10 @@ Description:
 Use the <answer color> <command> to select a custom color.
 
 The <answer color> <command> displays a <dialog box> where the user can
-select a color. (This <dialog box> is displayed by the operating system,
-not by LiveCode.)
+select a color. (This <dialog box> is displayed by the operating system.)
 
 If you specify a <startingColor>, the <dialog box> displays that color by
-default. 
+default.
 
 The color is returned in the form of three comma-separated integers
 between zero and 255, specifying the level of each of red, green, and
@@ -68,4 +67,3 @@ color reference (glossary), it (keyword), systemColorSelector (property),
 backgroundColor (property), colors (property), foregroundColor (property)
 
 Tags: ui
-

@@ -6,7 +6,7 @@ Syntax: set the topPattern of <object> to {<patternNumber> | <imageID> | empty}
 
 Summary:
 Specifies the pattern used to draw a three-D <object|object's> raised
-edge. 
+edge.
 
 Associations: stack, card, field, button, graphic, scrollbar, player,
 image, group
@@ -27,11 +27,11 @@ Value:
 The <topPattern> of an <object(glossary)> is a pattern specifier.
 A <patternNumber> is a built-in pattern number between 1 and 164. These
 patterns are provided for compatibility with patterns available in
-MetaCard and correspond to LiveCode's built in image id 137 to 300. As
-with MetaCard pattern numbers 105 to 114 and 146 and above are 
+MetaCard and correspond to xTalk's built in image id 137 to 300. As
+with MetaCard pattern numbers 105 to 114 and 146 and above are
 unavailable.
 
-An <imageID> is the ID of an <image> to use for a pattern. LiveCode
+An <imageID> is the ID of an <image> to use for a pattern. The engine
 looks for the specified <image> first in the <current stack>, then in
 other open <stacks>.
 
@@ -44,11 +44,11 @@ pattern used to draw the raised edge of the <object(glossary)>.
 
 Pattern images can be color or black-and-white.
 
->*Cross-platform note:*  To be used as a pattern on 
-> <Mac OS|Mac OS systems>, an <image> must be 128x128 <pixels> or less, 
+>*Cross-platform note:*  To be used as a pattern on
+> <Mac OS|Mac OS systems>, an <image> must be 128x128 <pixels> or less,
 > and both its <height> and <width> must be a power of 2. To be used on
-> <Windows> and <Unix|Unix systems>, <height> and <width> must be 
-> divisible by 8. To be used as a fully cross-platform pattern, both an 
+> <Windows> and <Unix|Unix systems>, <height> and <width> must be
+> divisible by 8. To be used as a fully cross-platform pattern, both an
 > image's dimensions should be one of 8, 16, 32, 64, or 128.
 
 The <topPattern> of <control(object)|controls> is drawn starting at the
@@ -61,14 +61,14 @@ Setting the <topPattern> of an <object(glossary)> to empty allows the
 <object(glossary)>, even if its own <topPattern> is empty.
 
 If the object's showBorder <property> is false, the <topPattern> has no
-effect. 
+effect.
 
 The setting of the <topPattern> <property> has different effects,
 depending on the <object type>:
 
 * The <topPattern> of a <stack> determines the <topPattern> of each
   <object(glossary)> in the <stack> that does not have its own
-  <topPattern>. 
+  <topPattern>.
 
 
 * The <topPattern> of a <card> determines the pattern of the border on
@@ -104,7 +104,7 @@ depending on the <object type>:
   bottom and right edges of the scroll area.
 
 
-* The <topPattern> of a <graphic>, <image>, <audio clip>, or 
+* The <topPattern> of a <graphic>, <image>, <audio clip>, or
   <video clip> has no effect.
 
 
@@ -120,14 +120,13 @@ References: group (command), stacks (function), object (glossary),
 property (glossary), EPS (glossary), audio clip (glossary),
 Windows (glossary), object type (glossary), Mac OS (glossary),
 keyword (glossary), Unix (glossary), video clip (glossary),
-current stack (glossary), control (glossary), effective (keyword), 
-field (keyword), image (keyword), button (keyword), card (keyword), 
-scrollbar (keyword), player (keyword), graphic (keyword), 
-control (keyword), button (object), field (object), stack (object), 
-pixels (property), textStyle (property), owner (property), 
-height (property), width (property), topColor (property), 
+current stack (glossary), control (glossary), effective (keyword),
+field (keyword), image (keyword), button (keyword), card (keyword),
+scrollbar (keyword), player (keyword), graphic (keyword),
+control (keyword), button (object), field (object), stack (object),
+pixels (property), textStyle (property), owner (property),
+height (property), width (property), topColor (property),
 bottom (property), hiliteBorder (property), bottomPattern (property),
 threeDHilite (property), threeD (property)
 
 Tags: ui
-

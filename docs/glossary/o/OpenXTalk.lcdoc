@@ -1,0 +1,13 @@
+Name: OpenXTalk
+
+Synonyms: openxtalk, openxtalk script, livecode script
+
+Type: glossary
+
+Description:
+The language in which OpenXTalk <script|scripts> are written, and the
+open-source <development environment> for it, which carries on from the
+Community Edition of <LiveCode>.
+
+References: script (glossary), development environment (glossary),
+LiveCode (glossary), xTalk (glossary)

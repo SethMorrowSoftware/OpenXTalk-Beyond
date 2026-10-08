@@ -42,8 +42,8 @@ and appears only on that <card>.
 
 card:
 A reference or an expression that evaluates to a reference to a card.
-If you specify a card, the new <widget> is a member of the <card>. 
-If you specify neither a <group> nor a <card>, the <widget> 
+If you specify a card, the new <widget> is a member of the <card>.
+If you specify neither a <group> nor a <card>, the <widget>
 is created on the current <card> and appears only on that <card>.
 
 It:
@@ -60,16 +60,15 @@ create a hidden <widget>, change its appearance or position, then make
 it visible.
 
 When the new <widget> is created, the pointer tool is automatically
-chosen. 
+chosen.
 
 >*Note:* The <LCB extension|extension> of the specified <kind> must have
 > been loaded using the <load extension> command. To see a list of the
-> currently loaded <LiveCode Builder extension|extensions>, use the
+> currently loaded <Builder extension|extensions>, use the
 > <loadedExtensions> <function>.
 
 References: load extension (command), loadedExtensions (function),
-LiveCode Builder extension (glossary), it (keyword), widget (object),
+Builder extension (glossary), it (keyword), widget (object),
 card (object), group (object), kind (property), visible (property)
 
 Tags: objects, extensions
-

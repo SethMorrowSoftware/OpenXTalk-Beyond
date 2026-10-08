@@ -61,8 +61,8 @@ To give a <dialog box> a prompt when using the as sheet form a non-empty
 title must be provided. This will cause the prompt to appear in the same
 place it would if as sheet was not being used.
 
-If the systemFileSelector <property> is set to false, LiveCode's
-built-in <dialog box> is used instead of the operating system's 
+If the systemFileSelector <property> is set to false, the app engine's
+built-in <dialog box> is used instead of the operating system's
 <file dialog box|standard file dialog>.
 
 Changes:
@@ -75,4 +75,3 @@ export (glossary), file dialog box (glossary), folder (glossary),
 command (glossary), dialog box (glossary), it (keyword)
 
 Tags: file system
-

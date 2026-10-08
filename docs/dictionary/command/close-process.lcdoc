@@ -23,35 +23,39 @@ close process tOpenProgram
 
 Parameters:
 processName:
-The file path to the process you opened with the open process command.
+The file path / parameters that were used to run the process with the open process command.
 
 Description:
 Use the <close process> <command> to tell a <process> to <exit> after
 you've finished using it.
 
-On Unix and Windows systems, <close process> closes the
-<process|process's> <standard input>. The <process> then finishes
-processing whatever data remains, and exits when done. On <Mac OS|Mac OS
-systems>, the <close process> <command> has no effect; you can use the
-<kill> <command> instead to quit an application that LiveCode launched.
+On desktop systems, <close process> tells a
+<process|process's> <standard input> to end running. The <process> then finishes
+processing whatever data remains, and then exits.
 
-The process takes a short time to exit after you issue the 
+Once opened a <process> may remain in the openProcesses list but its ID number
+in the the openProcessIDs list will be 0 (zero) if the process is not actually
+running. If a process was opened with the access mode neither, it exits
+automatically when it finishes running, and does not need to be closed.
+
+You can use the <kill> <command> instead to quit a process.
+
+The process may take a short time to exit after you issue the
 <close process> <command>. Since two <process|processes> cannot have the
 same name, you need to wait for a <process> to exit before opening a new
-<process> with the same name. To reopen the same <process> after closing
+<process> with the same name.
+
+To reopen the same <process> after closing
 it, use the <wait> <command> to delay until the <process> has finished
-exiting: 
+exiting:
 
     close process myProcess
     wait until myProcess is not among the lines of the openProcesses
     open process myProcess
 
-
-If a process was opened with the access mode neither, it exits
-automatically when it finishes running, and does not need to be closed.
+>*Note:* Child process related syntax may behave differently on various platforms.
 
 References: wait (command), kill (command), read from process (command),
 quit (command), open process (command), exit (control structure),
 openProcesses (function), command (glossary), standard input (glossary),
 Mac OS (glossary), process (glossary)
-

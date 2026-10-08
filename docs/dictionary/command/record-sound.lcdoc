@@ -24,14 +24,14 @@ record sound file it
 Parameters:
 filePath:
 The name and location of the file that will hold the recorded sound
-data. 
+data.
 
 The result:
 >*Important:*  If the <recordFormat> is set to "movie", the resulting
 > <file> is in the <QuickTime> file format. <QuickTime> files cannot be
 > played as <audio clip|audio clips>. To play such a sound, either
-> create a <player> and set its <filename> <property> to the 
-> <file path|path> of the <file> you recorded, or use the play videoclip 
+> create a <player> and set its <filename> <property> to the
+> <file path|path> of the <file> you recorded, or use the play videoclip
 > form of the <play> <command>.
 
 Description:
@@ -60,15 +60,15 @@ previous versions, specification of sample rate, compression format, and
 whether to display a settings dialog box was included in the syntax for
 the record sound command. These capabilities are now available using the
 answer record command and the recordRate and recordCompression
-properties. 
+properties.
 
-The use of <QuickTime> was deprecated in version 8.1 of LiveCode with
+The use of <QuickTime> was deprecated in version 8.1 with
 new defaults for <dontUseQT> and <dontUseQTEffects> as true on all
-systems apart from pre OS X 10.8. The Windows build of LiveCode no
+systems apart from pre OS X 10.8. The Windows build no
 longer supports any <QuickTime> features and setting the <dontUseQT> and
-<dontUseQTEffects> will have no effect. Additionally <QuickTime> does 
+<dontUseQTEffects> will have no effect. Additionally <QuickTime> does
 not include 64 bit support and therefore can not be supported on OS X 64
-bit builds of LiveCode.
+bit builds.
 
 References: play (command), stop recording (command), recordLoudness (function),
 format (function), recordCompressionTypes (function), property (glossary),
@@ -81,4 +81,3 @@ recordChannels (property), recordFormat (property),
 recordInput (property), recordRate (property)
 
 Tags: multimedia
-

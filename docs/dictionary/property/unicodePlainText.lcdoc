@@ -14,7 +14,7 @@ Associations: field
 Introduced: 4.6
 
 Deprecated:
-In LiveCode 7.0 the language was changed to handle unicode
+In version 7.0 the language was changed to handle unicode
 transparently. This means that language functionality which previously
 aided unicode text manipulation is no longer required.
 
@@ -44,7 +44,7 @@ Any paragraphs with listStyle set are prefixed by an appropriate
 plain-text form of the bullet or index. The property returns text
 encoded in UTF-16 in host byte-order.
 
-> Important: As this property is deprecated, it should not be used in new 
+> Important: As this property is deprecated, it should not be used in new
 > code; simply get the plainText as normal. The following are now equivalent:
 
     get the unicodePlainText of field 1
@@ -54,4 +54,3 @@ References: plainText (property), dontWrap (property),
 unicodeFormattedText (property), formattedText (property)
 
 Tags: text processing
-

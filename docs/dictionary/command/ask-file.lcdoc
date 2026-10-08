@@ -46,9 +46,9 @@ The types parameter specifies which extensions are available at the
 bottom of the dialog box. A file type consists of an optional
 description, a line feed or comma, and a file extension specification:
 
-  [description],*.extension 
+  [description],*.extension
 
-You can include more than one file type by separating the file types 
+You can include more than one file type by separating the file types
 with commas.
 
 >*Cross-platform note:*  The <types> <parameter> applies only to
@@ -58,25 +58,25 @@ with commas.
 
 It:
 The absolute file path of the file the user chose is placed in the it
-<variable>. 
+<variable>.
 
 The result:
 If the user cancels the <dialog box|dialog>, the <it> <variable> is set
 to empty, and the <result> <function> <return|returns> cancel.
 
 Description:
-Use the <ask file> <command> to let the user provide the 
+Use the <ask file> <command> to let the user provide the
 <file path|name and location> of a new <file>.
 
 The dialog box is the same one most applications use for the "Save"
 command in the File menu. (If the systemFileSelector <property> is set
 to true on <Mac OS> and <Windows|Windows systems>, and always on
-<Unix|Unix systems>, the <application> displays its own built-in 
+<Unix|Unix systems>, the <application> displays its own built-in
 <dialog box>, instead of the one provided by the operating system.)
 
 >*Important:*  The ask file command does not create the file. It only
 > displays the dialog box and retrieves the path to the file the user
-> specifies. 
+> specifies.
 
 >*Note:* On Windows, it is imperative not to name a file with one of the
 > reserved device names: CON, PRN, AUX, NUL, COM1, COM2, COM3, COM4,
@@ -88,15 +88,15 @@ systems. On other systems, the as sheet form has no effect and the
 dialog box appears normally. Attempting to open a sheet from within
 another sheet displays the second stack as a <modal dialog box> instead.
 
-If the systemFileSelector <property> is set to false, LiveCode's
-built-in <dialog box> is used instead of the operating system's 
+If the systemFileSelector <property> is set to false, the engine's
+built-in <dialog box> is used instead of the operating system's
 <file dialog box|standard file dialog>.
 
 >*Cross-platform note:*  On <Mac OS|Mac OS systems> where Navigation
 > Services is in use, if you don't specify a default file name, the file
 > name box contains "untitled". On Unix and Windows systems, the file
 > name box is empty when the <dialog box> appears. Unix systems
-> currently use LiveCode's built-in dialog box.
+> currently use the engine's built-in dialog box.
 
 Changes:
 The ask file...as sheet form was introduced in version 2.0.
@@ -110,4 +110,3 @@ Mac OS (glossary), Unix (glossary), parameter (glossary), file (keyword),
 it (keyword)
 
 Tags: file system
-

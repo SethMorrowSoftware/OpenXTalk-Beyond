@@ -7,8 +7,8 @@ Syntax: set the systemFileSelector to {true | false}
 Summary:
 Specifies whether the <ask file>, <answer file>, and <answer folder>
 <command|commands> use the standard <file dialog box|file dialog boxes>
-built in to the current operating system, or a built-in 
-<file dialog box>. 
+built in to the current operating system, or a built-in
+<file dialog box>.
 
 Introduced: 1.0
 
@@ -29,19 +29,19 @@ Use the <systemFileSelector> <property> to control the <appearance> of
 <Windows|Windows systems>, or to make a <cross-platform> application use
 the same <file dialog box|file dialog boxes> on all
 <platform(glossary)|platforms> instead of using the <platform(function)>
-standard. 
+standard.
 
 If the <systemFileSelector> <property> is set to true, the operating
 system's own <file dialog box|standard file dialogs> are used for
 selecting or naming a <file> or <folder>. If the <systemFileSelector> is
 false, the <application> uses its own <file dialog box|file dialog
-boxes>. 
+boxes>.
 
-The setting of this property affects all file dialog boxes used in
-LiveCode, including dialogs displayed by the <ask file>, <answer file>,
+The setting of this property affects all file dialog boxes used,
+including dialogs displayed by the <ask file>, <answer file>,
 and <answer folder> <command|commands>, as well as <dialog box|dialog
 boxes> displayed by <menu item|menu items> such as "Save" and
-"Open Stack". 
+"Open Stack".
 
 The setting of this property has no effect on Unix systems, where the
 application's built-in dialog box is always used even if the
@@ -56,4 +56,3 @@ file dialog box (glossary), Mac OS (glossary), folder (glossary),
 file (keyword)
 
 Tags: file system
-

@@ -5,7 +5,7 @@ Type: property
 Syntax: systemColorSelector
 
 Summary:
-The <systemColorSelector> <property> is not implemented and is 
+The <systemColorSelector> <property> is no longer implemented and is
 <reserved word|reserved>.
 
 Introduced: 1.1
@@ -13,7 +13,11 @@ Introduced: 1.1
 Platforms: desktop, server
 
 Description:
-<reserved word|Reserved> for internal use.
+The <systemColorSelector> <property> is not currently implemented and is
+<reserved word|Reserved> for internal use. Changing this global property to
+false will result in the engine using a MetaCard era IDE Color Chooser stack
+for the Answer Color dialog which is incompatible with current
+versions of the IDE but may be updated or modified at some point in the future.
 
 References: answer color (command), property (glossary),
 reserved word (glossary)

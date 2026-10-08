@@ -20,13 +20,13 @@ set the videoClipPlayer to "/usr/bin/xanim.new"
 
 Value:
 The <videoClipPlayer> is a <string> consisting of the <file path> of a
-program. 
+program.
 
 Description:
 Use the <videoClipPlayer> <property> to specify the video player used on
 <Unix|Unix systems>.
 
-LiveCode uses the program specified by the <videoClipPlayer> when you
+The engine uses the program specified by the <videoClipPlayer> when you
 use the <play> <command>.
 
 By default, on Unix systems, audio clips and video clips are played with
@@ -38,4 +38,3 @@ string (keyword), videoClip (object), shellCommand (property),
 dontRefresh (property)
 
 Tags: multimedia
-

@@ -7,8 +7,8 @@ Syntax: set the systemPrintSelector to {true | false}
 Syntax: get the systemPrintSelector
 
 Summary:
-Reports whether to use LiveCode stacks or system dialogs for printer
-settings. 
+Reports whether to use the engine's stacks or system dialogs for printer
+settings.
 
 Introduced: 2.9
 
@@ -29,11 +29,10 @@ otherwise. If the <systemPrintSelector> is set to false, then the
 <answer page setup> command will use a stack called "Page Setup Dialog".
 
 Description:
-Use the <systemPrintSelector> property to specify whether LiveCode's
+Use the <systemPrintSelector> property to specify whether xTalk's
 print dialogs or the system default dialogs should be used by the
 <answer printer> and <answer page setup> commands.
 
 References: answer page setup (command), answer printer (command)
 
 Tags: printing
-

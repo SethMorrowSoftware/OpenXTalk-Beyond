@@ -5,10 +5,10 @@ Synonyms: video library, video libraries
 Type: library
 
 Description:
-The <LiveCode custom library|LiveCode custom library> that supports
+The <custom library> that supports
 <video capture> from a camera or other video input device.
 
-References: video capture (glossary), LiveCode custom library (glossary)
+References: video capture (glossary), custom library (glossary)
 
 Tags: multimedia
 
