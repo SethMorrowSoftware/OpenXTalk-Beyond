@@ -59,9 +59,10 @@ win-x86_64-bin\LiveCode-Community.exe
 ```
 
 and, to make the packages and the installer (section 7; this needs
-Python 3 and Inno Setup 6):
+Python 3, Inno Setup 6 and, for the documentation, WSL):
 
 ```bat
+wsl bash tools/ci/build_docs.sh /tmp/oxt-docs
 powershell -ExecutionPolicy Bypass -File tools\ci\package-windows.ps1
 powershell -ExecutionPolicy Bypass -File tools\ci\build-installer.ps1
 ```
@@ -576,16 +577,13 @@ the placeholder `0` from `ide/.buildnumber`. The IDE uses the same
 preference, cache and log folders as an installed OXT-Beyond
 (`%APPDATA%\OXT-Beyond`, `%LOCALAPPDATA%\OXT-Beyond`).
 
-Running the IDE from your clone can change files in it. The dictionary
-deletes and rewrites its index files
-(`ide/Documentation/html_viewer/resources/data/api/exports/*/index.txt`,
-tracked by Git) each time it opens, and the IDE writes
-`ide/environment_log.txt` (ignored). If you switch the dictionary to
-LiveCode's HTML dictionary in the preferences, the IDE in this layout
-may also regenerate the dictionary data in
-`ide/Documentation/html_viewer/resources/data` from `docs/`, replacing
-tracked files. Check `git status` before you commit, and restore what
-you did not mean to change with `git checkout -- <path>`.
+Running the IDE from your clone writes files in it that Git ignores:
+`ide/environment_log.txt` and, in
+`ide/Documentation/html_viewer/resources/data`, LiveCode's Dictionary
+and the guides, which the IDE in this layout generates from `docs/`
+and `ide/Documentation/guides` when they are missing or out of date, as
+LiveCode's did. The text dictionary (*Preferences > Dictionary*) has no
+entries until you [generate the documentation](#documentation).
 
 ### Check the build
 
@@ -661,6 +659,45 @@ keeping modes and symbolic links; an installed layout in a folder named
 the checkout (repository mode). No X display is needed: `-ui` starts no
 user interface.
 
+### Documentation
+
+LiveCode's Dictionary, the guides and Tom Perry's text dictionary
+(*Preferences > Dictionary*) are generated from their sources, the only
+copies Git keeps: the `.lcdoc` files of `docs/dictionary` and
+`docs/glossary`, the documentation comments of the LiveCode Builder
+modules in `libscript/src` and `engine/src`, the guides in `docs/guides`
+and `ide/Documentation/guides`, and the documentation of the extensions
+that OXT-Beyond installs and of the IDE library.
+[`tools/ci/build_docs.sh`](tools/ci/build_docs.sh) generates them into
+`ide/Documentation/html_viewer/resources/data`, which Git ignores and
+where `package.py` takes them from; packaging stops when they are
+missing. Every CI build runs it (the Docs job, see
+[Continuous integration](#9-continuous-integration)).
+
+The script runs on Linux x86-64, and so in WSL on Windows. Install what
+it needs once (in WSL with Ubuntu):
+
+```sh
+sudo apt-get install curl xz-utils zip python3 libglib2.0-0 libfontconfig1 libfreetype6
+```
+
+and run it from the checkout before you package, with a work folder on
+the Linux side:
+
+```bat
+wsl bash tools/ci/build_docs.sh /tmp/oxt-docs
+```
+
+It downloads the Linux x86-64 engine of an OXT-Beyond release (about
+110 MB; the version and its SHA-256 are at the top of the script),
+keeps it in the work folder for the next run, and writes the
+documentation in a minute or so. On Linux or macOS it can use
+your own build instead, named as a second argument: a Linux build's
+`linux-<arch>-bin`, or a macOS build's `_build/mac/Release` (not tried
+yet). The engine's `modules/lci` decides which LiveCode Builder modules
+are documented, so the docs of a new module of `libscript/src` or
+`engine/src` need a newer pinned engine.
+
 ### Package
 
 ```bat
@@ -668,7 +705,7 @@ powershell -ExecutionPolicy Bypass -File tools\ci\package-windows.ps1
 ```
 
 [`tools/ci/package-windows.ps1`](tools/ci/package-windows.ps1) needs
-Python 3 (section 2.6). It runs
+Python 3 (section 2.6) and the [documentation](#documentation). It runs
 [`tools/oxt/package.py`](tools/oxt/package.py), which writes the
 *installed layout*, the program folder that the portable zip contains
 and the installer installs, to `dist\stage\OXT-Beyond-<ver>\`. Then it
@@ -695,7 +732,8 @@ are left alone.
 `package.py` puts the staged folder together from:
 
 - **the IDE**, assembled by `tools/oxt/layout.py` from `ide/Toolset`,
-  `ide/Plugins`, `ide/Resources`, `ide/Documentation`, `ide/Extensions`,
+  `ide/Plugins`, `ide/Resources`, `ide/Documentation` (with the
+  [documentation](#documentation) generated there), `ide/Extensions`,
   the files at the root of `ide/` (`about.dat`, `.version`, the licence
   texts and so on) and the eleven `ide-support` libraries, with LF line
   endings in text files whatever Git's `core.autocrlf` is;
@@ -796,7 +834,8 @@ such as `/tmp`, never `/mnt/c`: the tree needs Unix modes and links)
 from the two tarballs the Linux workflow uploads,
 `OXT-Beyond-linux-x86_64-bin.tar.xz` and
 `OXT-Beyond-linux-x86_64-symbols.tar.xz` (see
-[tools/oxt/README.md](tools/oxt/README.md) for the layout):
+[tools/oxt/README.md](tools/oxt/README.md) for the layout), once the
+[documentation](#documentation) is generated:
 
 ```sh
 python3 tools/oxt/package.py --platform linux-x86_64 \
@@ -840,8 +879,8 @@ uploads, `OXT-Beyond-mac-arm64-bin.tar.xz` and
 `OXT-Beyond-mac-x86_64-bin.tar.xz`, each with its `-symbols.tar.xz`
 extracted over it (all four unpack as `Release/`, so each architecture
 goes into a folder of its own). Keep every path free of folders named
-`_build` or `*-bin`, which put the engine into repository mode. The
-steps, as the job runs them (see
+`_build` or `*-bin`, which put the engine into repository mode. With the
+[documentation](#documentation) generated, the steps, as the job runs them (see
 [tools/oxt/README.md](tools/oxt/README.md#universal-build-signing-and-disk-image-macos)):
 
 ```sh
@@ -1470,10 +1509,13 @@ installed IDE as a user does with
 [`tools/ci/ui-tour.livecodescript`](tools/ci/ui-tour.livecodescript)
 named on the command line. The script opens the palettes, each section
 of the Inspector, the script editor, the message box, each pane of
-Preferences and each card of the Standalone Settings, the dictionary
-(on its entry for `try`, whose bullets must show, as they did not while
-the entries were read as native text instead of UTF-8, and whose links of
-one word and of two must be linked whole),
+Preferences and each card of the Standalone Settings, LiveCode's
+Dictionary (whose page must report the entries of both languages and
+of the extensions' widgets and show the entry for `try`), its guides
+(each once, and the Printing guide with its images), the text
+dictionary (on its entry for `try`, whose bullets must show, as they
+did not while the entries were read as native text instead of UTF-8,
+and whose links of one word and of two must be linked whole),
 the other editors and some dialogs one by one, shows two tooltips and a
 shape of the Tools palette under the pointer, and snapshots the screen
 around each. The snapshots stay in `<out>/shots`
@@ -1830,7 +1872,8 @@ It follows this guide:
 4. It configures and builds Release x64 with `tools/ci/build-windows.ps1`
    and Windows SDK 10.0.17763.0, and checks the result with
    `tools/ci/verify-build.ps1`.
-5. It packages with `tools/ci/package-windows.ps1`: the installed layout
+5. It packages with `tools/ci/package-windows.ps1`, with the
+   documentation of the job Docs: the installed layout
    in `dist\stage\OXT-Beyond-<ver>` and the portable, binaries and
    symbols zips. The external assets' archives are cached from
    `prebuilt\fetched-assets\*.zip` between runs, keyed on the manifest. They
@@ -1932,6 +1975,15 @@ report macOS wrote; every other step runs the engine with `-ui` or with a
 test stack of its own.
 The repository variables `OXT_NO_EXTERNAL_ASSETS` and
 `OXT_NO_XTALK_EXTENSIONS` work there too.
+
+Each build workflow also runs the job "Docs"
+([`.github/workflows/docs.yml`](.github/workflows/docs.yml)): on one
+`ubuntu-24.04` runner, in a few minutes, it generates the
+[documentation](#documentation) with `tools/ci/build_docs.sh` and
+uploads it as the artifact `OXT-Beyond-docs-<windows|linux|macos>`
+(30 days), which the jobs that package put into their checkout. The
+Windows build waits for it before it starts; the Linux and macOS
+package jobs need it. When it fails, they fail too.
 
 The Linux and macOS builds also upload their build outputs, without the
 build's own tools (GENTLE among them, which may not be redistributed;

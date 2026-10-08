@@ -232,12 +232,14 @@ already ignored by Git.
 Never commit hand-edited files from `build-win-x86_64`; change the
 `*.gyp` or `*.gypi` files and run `config.py` again.
 
-Files the IDE writes when you run it from your clone: for example
-`ide/environment_log.txt` (ignored) and the dictionary's index files in
-`ide/Documentation/html_viewer/resources/data/api/exports/*/index.txt`,
-which are tracked. If the latter show up as modified after running the
-IDE, restore them with `git checkout -- <path>` unless you meant to
-change them.
+Generated documentation, which Git ignores: LiveCode's Dictionary, the
+guides and the text dictionary in
+`ide/Documentation/html_viewer/resources/data`, written by
+`tools/ci/build_docs.sh` and by the IDE when you run it from your
+clone. Change their sources instead: the `.lcdoc` files in
+`docs/`, the documentation comments of the code, and the guides in
+`docs/guides` and `ide/Documentation/guides` (see BUILDING.md,
+[Documentation](BUILDING.md#documentation)).
 
 `debug_syms_inputs.txt` in the repository root is different: configuring
 rewrites it, but it is tracked by Git (it came with Tom Perry's
