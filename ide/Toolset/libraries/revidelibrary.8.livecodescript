@@ -2341,7 +2341,7 @@ command revIDEDeletePreferenceSet pSetName
    end if
 end revIDEDeletePreferenceSet
 
-/*
+/**
 Gets a preference.
 
 pPreferenceName (String): The name of the preference
@@ -6690,6 +6690,18 @@ on revIDETogglePaletteView
    unlock screen
 end revIDETogglePaletteView
 
+/**
+Lists the plugin stacks of the IDE.
+
+Example:
+put revIDEGetAllPlugins() -- the plugin stacks, one per line
+
+Returns: The full paths of the stacks in the plugins folders of the IDE and
+of the user, and in the development plugins folder when there is one, one
+per line.
+
+References: revIDEPlugins (function)
+*/
 function revIDEGetAllPlugins
    local tUserPlugins
    put revAbsoluteFolderListing(revEnvironmentUserPluginsPath()) into tUserPlugins
@@ -6765,6 +6777,22 @@ on revIDEUpdatePlugins
    end if
 end revIDEUpdatePlugins
 
+/**
+Information about the plugins of the IDE.
+
+Example:
+put the keys of revIDEPlugins() -- the names of the plugins
+
+Returns: An array with an element for each plugin
+
+Description:
+The array that <revIDEPlugins> returns is keyed by the names of the
+plugin stacks. The element of a plugin has the "path" of its stack, and
+true in "menu" when it is in the Plugins menu, in "startup" when it opens
+when the IDE starts and in "shutdown" when it opens when the IDE quits.
+
+References: revIDEGetAllPlugins (function)
+*/
 function revIDEPlugins
    return sPluginsA
 end revIDEPlugins
