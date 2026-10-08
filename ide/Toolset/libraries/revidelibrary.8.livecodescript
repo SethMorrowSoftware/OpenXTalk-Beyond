@@ -4743,8 +4743,16 @@ private function revIDEPaletteBarHeight pStackID
    return the effective height of pStackID - the height of pStackID
 end revIDEPaletteBarHeight
 
+-- OXT-Beyond: the browser widget works unless Preferences > Compatibility
+-- turns it off (cDisableBrowserWidget, which also keeps it from loading) or,
+-- on Linux, the launcher turned CEF off (LIVECODE_USE_CEF=0: the package has
+-- no CEF, or a library CEF needs is missing; Installer/linux/oxt-beyond).
+-- LiveCode's test, ($LIVECODE_USE_CEF is 0), is also true when the variable
+-- is not set, so that the dictionary and the guides opened in the system's
+-- browser on Linux even with the browser widget working.
 function revIDEBrowserWidgetUnavailable
-   return (the platform is "Linux") and ($LIVECODE_USE_CEF is 0)
+   if the cDisableBrowserWidget of stack "revPreferences" is true then return true
+   return (the platform is "Linux") and ($LIVECODE_USE_CEF is not empty) and ($LIVECODE_USE_CEF is 0)
 end revIDEBrowserWidgetUnavailable
 
 /*
@@ -11352,7 +11360,9 @@ on revIDERegenerateBuiltGuides
    revIDESetUTF8FileContents tDocsCache & slash & "built_guide.js", tData
 end revIDERegenerateBuiltGuides
 
-constant kAPIs = "LiveCode Script,livecode_script|LiveCode Builder,livecode_builder|LiveCode IDE,livecode_ide"
+-- (OXT-Beyond: the names the dictionary's API menu shows, as the text
+-- dictionary and the guides name the languages)
+constant kAPIs = "xTalk Script,livecode_script|xTalk Builder,livecode_builder|IDE,livecode_ide"
 on revIDERegenerateBuiltAPIs
    -- do not generate if this is turned off
    if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)
