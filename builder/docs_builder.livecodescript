@@ -28,9 +28,13 @@ end pathEnsure
 
 command docsBuilderRun pEdition, pVersion
    start using stack (builderRepoFolder() & slash & "ide-support/revdocsparser.livecodescript")
-   
-   builderExtUnpack "Business"
-   
+
+   -- OXT-Beyond: LiveCode's builds unpacked the mergExt and tsNet bundles of
+   -- the Business edition here (builderExtUnpack "Business", downloaded from
+   -- downloads.livecode.com) to document those externals, which OXT-Beyond
+   -- does not ship; the extensions it does ship document themselves when the
+   -- IDE loads them
+
    builderLog "report", "Building guide into" && builderGuideFolder(pEdition) & slash & "distributed_guide.js"
    pathEnsure (builderGuideFolder(pEdition))
    docsBuilderGenerateDistributedGuide pEdition
@@ -248,10 +252,12 @@ command docsBuilderGenerateDistributedAPI pEdition
    set the itemdelimiter to "."
    repeat for each line tLine in tModuleList
       docsBuilderProgressUpdate "", "Adding docs from" && tLine
+      -- OXT-Beyond: the files are UTF-8 (url "file:" read them as native
+      -- text, which garbled the non-ASCII characters in their docs)
       if item -1 of tLine is "lcdoc" then
-         get url("file:" & tLine)
+         get docsFileGetUTF8Contents(tLine, true)
       else
-         get revDocsGenerateDocsFileFromModular(url ("file:" & tLine))
+         get revDocsGenerateDocsFileFromModular(docsFileGetUTF8Contents(tLine, true))
       end if
       if it is not empty then
          put it into tModularA[tModularCount]
