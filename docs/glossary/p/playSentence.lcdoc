@@ -1,0 +1,15 @@
+Name: playSentence
+
+Synonyms: playsentence, playpmd
+
+Type: glossary
+
+Description:
+An xTalk playSentence is a text-based musical notation that translates to
+<MIDI> data for musical performance playback using hardware or software
+instruments such as drum machines, synthesizer keyboards, or sample
+players.
+
+References: MIDI (glossary), soundFont (glossary)
+
+Tags: multimedia
