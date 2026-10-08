@@ -119,7 +119,7 @@ and line endings). For new code, the upstream guides still apply:
   engine is built with the Visual Studio 2017 (v141) compiler, so do not
   use language features it does not support.
 - LiveCode Builder:
-  [LiveCode Builder Style Guide](docs/guides/LiveCode%20Builder%20Style%20Guide.md).
+  [Builder Style Guide](docs/guides/Builder%20Style%20Guide.md).
 - LiveCode script in the IDE: keep the style of the surrounding script.
   Mark changes to inherited scripts with a comment that starts with
   `-- OXT-Beyond:` and says why. Keep the existing dated comments, such

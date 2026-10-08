@@ -17,7 +17,7 @@ currently explained? Please consider submitting your proposed changes
 directly to the LiveCode repo on GitHub.
 
 Please consult the [documentation style guide](development/docs_style_guide.md)
-and the [documentation format specification](guides/LiveCode%20Documentation%20Format%20Reference.md)
+and the [documentation format specification](guides/Documentation%20Format%20Reference.md)
 for information on the standards and structure we aim to maintain in our
 documentation.
 
@@ -35,7 +35,7 @@ documentation of all LiveCode syntax. The most basic form of
 incompleteness is a completely missing dictionary entry. If you intend 
 to write a missing dictionary entry, please bear these documentation 
 objectives in mind and consult the 
-[documentation format specification](guides/LiveCode%20Documentation%20Format%20Reference.md).
+[documentation format specification](guides/Documentation%20Format%20Reference.md).
 
 The dictionary ought to contain *all* the relevant information about a
 particular piece of LiveCode syntax. Every syntax variant should be 
@@ -56,7 +56,7 @@ prior to major developments in both our software and the hardware it
 runs on.
 
 Secondly, dictionary Syntax elements must be correct. The
-[documentation format specification](guides/LiveCode%20Documentation%20Format%20Reference.md)
+[documentation format specification](guides/Documentation%20Format%20Reference.md)
 contains a description of the Syntax element.
 
 Thirdly, the dictionary files must be formatted correctly. This means 
