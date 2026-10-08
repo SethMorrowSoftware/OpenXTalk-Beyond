@@ -417,7 +417,8 @@ UPSTREAM_DIFFERENCES = (
      'package.txt also copies repo:docs/guides and docs:guides (docs '
      'builder output) into Documentation/guides'),
     ('install', 'Documentation/html_viewer/resources/data/**',
-     'docs builder output (api.sqlite, *.js); ignored by ide/.gitignore upstream'),
+     'docs builder output (api.sqlite, *.js); ignored by ide/.gitignore '
+     '(here written by tools/ci/build_docs.sh)'),
     ('install', 'Documentation/pdf/**',
      'generated user guide (repo:LiveCodeUserGuide-<version>.pdf)'),
     ('repo', 'Plugins/livecodeTestInterface.livecode',

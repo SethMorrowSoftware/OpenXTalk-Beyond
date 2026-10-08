@@ -30,7 +30,7 @@ The ID of the QuickTime VR hot spot that was clicked.
 Description:
 Handle the <hotspotClicked> <message> if you want to perform some
 additional action when the user clicks a hot spot in a <QuickTime VR>
-movie. 
+movie.
 
 Each hot spot of a QuickTime VR movie is a clickable link, usually from
 one node to another. The movie author sets the hot spots during
@@ -42,17 +42,16 @@ QuickTime VR movie, a <nodeChanged> <message> is sent after the
 <hotspotClicked> <message>.
 
 Changes:
-The use of <QuickTime> was deprecated in version 8.1 of LiveCode with
+The use of <QuickTime> was deprecated in version 8.1 with
 new defaults for <dontUseQT> and <dontUseQTEffects> as true on all
-systems apart from pre OS X 10.8. The Windows build of LiveCode no
+systems apart from pre OS X 10.8. The Windows build no
 longer supports any <QuickTime> features and setting the <dontUseQT> and
-<dontUseQTEffects> will have no effect. Additionally <QuickTime> does 
+<dontUseQTEffects> will have no effect. Additionally <QuickTime> does
 not include 64 bit support and therefore can not be supported on OS X 64
-bit builds of LiveCode.
+bit builds.
 
 References: QuickTime VR (glossary), message (glossary),
 nodeChanged (message), QTDebugStr (message), hotspots (property),
 dontUseQT (property), dontUseQTEffects (property)
 
 Tags: multimedia
-

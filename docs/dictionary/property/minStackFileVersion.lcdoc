@@ -20,7 +20,7 @@ Example:
 save this stack with format (the minStackFileVersion of this stack)
 
 Value (string):
-The <minStackFileVersion> <property> of a <stack> is a LiveCode version
+The <minStackFileVersion> <property> of a <stack> is a version
 string. The <minStackFileVersion> <property> is read only and determined
 by the content of the stack file.
 
@@ -31,7 +31,7 @@ may not support <save|saving> some newer features. For example, stacks
 with widgets must be saved with at least a stack file version of 8.0.
 The minimum <stack version> reported by the property is 7.0.
 
-References: property (glossary), stack version (glossary), 
+References: property (glossary), stack version (glossary),
 save (command)
 
 Tags: windowing

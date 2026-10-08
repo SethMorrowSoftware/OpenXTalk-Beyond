@@ -41,9 +41,9 @@ specify a name, the object is created with a default name.
 
 group:
 A reference or and expression that evaluates to a reference to a
-group on the current card. If you specify a group, the new object is a 
-member of the group, and exists on each card that has the group. If you 
-specify neither a group nor a card, the object is created on the 
+group on the current card. If you specify a group, the new object is a
+member of the group, and exists on each card that has the group. If you
+specify neither a group nor a card, the object is created on the
 current card and appears only on that card.
 
 card:
@@ -62,20 +62,20 @@ The new object takes its properties from the corresponding template;
 for example, newly created buttons match the properties of the
 <templateButton>.
 
-If you use the invisible form, the object is created with its visible 
-property set to false, so it cannot be seen. Use this form to create a 
+If you use the invisible form, the object is created with its visible
+property set to false, so it cannot be seen. Use this form to create a
 hidden object, change its appearance or position, then make it visible.
 
-When the new control is created, the Pointer tool is automatically 
-chosen. If you use the create command in a handler, you can use the 
-following statement after the create command to resume using the Browse 
+When the new control is created, the Pointer tool is automatically
+chosen. If you use the create command in a handler, you can use the
+following statement after the create command to resume using the Browse
 tool:	send "choose browse tool" to me in 1 tick
 
->*Note:*  In the development environment, after an object is created, 
-LiveCode automatically resets the corresponding template to its default 
+>*Note:*  In the development environment, after an object is created,
+the engine automatically resets the corresponding template to its default
 values. This means that if you change an object template and then
 create several objects of that type, only the first object will reflect
-your settings. To prevent LiveCode from automatically setting the
+your settings. To prevent the engine from automatically setting the
 template back to its defaults, set the <lockMessages> property to true
 before creating the objects:
 
@@ -87,10 +87,10 @@ before creating the objects:
     unlock messages
 
 
-LiveCode resets the template only when in the development environment, 
+The engine resets the template only when in the development environment,
 not in standalone applications.
 
->*Tip:*  To create a control in a specific stack, first set the 
+>*Tip:*  To create a control in a specific stack, first set the
 <defaultStack> to the stack where you want to create the new control:
 
     set the defaultStack to "My Stack"
@@ -107,4 +107,3 @@ templateButton (keyword), lockMessages (property),
 defaultStack (property)
 
 Tags: objects
-

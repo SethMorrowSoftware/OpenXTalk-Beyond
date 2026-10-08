@@ -45,7 +45,7 @@ types:
 Use the types parameter to specify which files should appear and to
 prompt the user for the desired format to save in. Each set of types is
 a return-delimited list of values of the form
-"tag|extensions|filetypes". 
+"tag|extensions|filetypes".
 
 It:
 The absolute file path of the file the user chose is placed in the it
@@ -57,18 +57,18 @@ If <types> are specified, the result function will return the tag of the
 corresponding type selected from the supplied drop-down list.
 
 Description:
-Use the ask file <command> to let the user provide the 
+Use the ask file <command> to let the user provide the
 <file path|name and location> of a new <file>.
 
 The dialog box is the same one most applications use for the "Save"
 command in the File menu. (If the systemFileSelector <property> is set
 to true on <Mac OS> and <Windows|Windows systems>, and always on
-<Unix|Unix systems>, the <application> displays its own built-in 
+<Unix|Unix systems>, the <application> displays its own built-in
 <dialog box>, instead of the one provided by the operating system.)
 
 >*Important:*  The ask file command does not create the file. It only
 > displays the dialog box and retrieves the path to the file the user
-> specifies. 
+> specifies.
 
 >*Note:* On Windows, it is imperative not to name a file with one of the
 > reserved device names: CON, PRN, AUX, NUL, COM1, COM2, COM3, COM4,
@@ -83,8 +83,8 @@ On other systems, the as sheet form has no effect and the dialog box
 appears normally. Attempting to open a sheet from within another sheet
 displays the second stack as a <modal dialog box> instead.
 
-If the systemFileSelector <property> is set to false, LiveCode's
-built-in <dialog box> is used instead of the operating system's 
+If the systemFileSelector <property> is set to false, the engine's
+built-in <dialog box> is used instead of the operating system's
 <file dialog box|standard file dialog>.
 
 Changes:
@@ -98,4 +98,3 @@ dialog box (glossary), command (glossary), file (keyword), it (keyword),
 dontUseNS (property)
 
 Tags: file system
-

@@ -21,7 +21,7 @@ Value:
 The <stackFileType> is an eight- <character> string. The first four
 <characters> are the <creator signature>, and the last four are the
 <type signature|file type>. By default, the <stackFileType> is set to
-"RevoRSTK". 
+"RevoRSTK".
 
 Description:
 Use the <stackFileType> <property> to ensure that <stacks> that a
@@ -32,10 +32,10 @@ When a file is saved on a Mac OS system, a 4-character file type and
 4-character creator signature are saved with it. The creator signature
 specifies which application owns the file, and the file type is used to
 determine which applications (other than the owner) can work with the
-file. 
+file.
 
->*Note:* LiveCode's <creator signature> is 'Revo'. The file type for a
-> <stack file> created by LiveCode is 'RSTK'.
+>*Note:* The engine's <creator signature> is 'Revo'. The file type for a
+> <stack file> it creates is 'RSTK'.
 
 The <stackFileType> <property> is used to set the <type signature|file
 type> and <creator signature|creator> for <stack file|stack files> your
@@ -61,4 +61,3 @@ characters (keyword), character (keyword), resfile (keyword),
 stack (object), fileType (property)
 
 Tags: file system
-

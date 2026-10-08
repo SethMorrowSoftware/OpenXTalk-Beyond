@@ -50,12 +50,13 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.4 is a test release (a pre-release) of the fixes
+download it. 0.2.4-rc.5 is a test release (a pre-release) of the fixes
 made since 0.2.3, with a package for 64-bit ARM Linux (new in
-0.2.4-rc.2). It takes out OXT-Beyond's own dark mode work and goes back
-to Tom Perry's, with his macOS work added (see
-[0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)); 0.2.3
-stays the main download until it has held up.
+0.2.4-rc.2). It goes back to Tom Perry's dark mode, with his macOS work
+added (see [0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)),
+and brings back LiveCode's Dictionary (see
+[0.2.4-rc.5](#024-rc5-livecodes-dictionary)); 0.2.3 stays the main
+download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -916,6 +917,32 @@ None of Tom Perry's macOS work has been tried on a Mac by the people
 working on OXT-Beyond yet, only built and tested in CI. Please report
 what looks or works wrong.
 
+#### 0.2.4-rc.5: LiveCode's Dictionary
+
+OXT-Beyond 0.2.4-rc.5, a fifth test release, brings back LiveCode's
+Dictionary as *Help > Dictionary*: every entry of the language, up to
+the newest syntax, and the entries of the extensions and widgets that
+OXT-Beyond installs (the tree view, header bar, calendar and pie chart
+widgets among them), with its guides beside it. Tom Perry's text
+dictionary is still there: choose it in *Preferences > Dictionary*
+("Use Dictionary stack instead of a browser instance"). The first start
+of 0.2.4-rc.5 switches *Help > Dictionary* to LiveCode's Dictionary
+once, whichever one you used before.
+
+- The dictionary, its guides and the text dictionary are made from
+  their sources in every build, as LiveCode's were, instead of from
+  copies kept by hand, so they say the same, and a fix to an entry
+  reaches all three.
+- The guides list each guide once (eight were listed twice), without
+  LiveCode's build instructions and its 9.0 release notes.
+- Linux: the dictionary and the guides open in the IDE, as on Windows
+  and macOS; they opened in your web browser even where the browser
+  widget works. The 64-bit ARM package, which has no browser widget,
+  still opens them in your web browser.
+- The dictionary names its languages xTalk Script and xTalk Builder,
+  and five glossary entries that only the text dictionary had (MIDI,
+  OpenXION, playSentence, soundFont, soundbank) are in both.
+
 ### xTalk Suite extensions
 
 OXT-Beyond ships the extensions of the
@@ -1066,11 +1093,11 @@ release is made from a tag in
 | `thirdparty/` | Third-party library sources, vendored from `livecode/livecode-thirdparty`. |
 | `prebuilt/` | Scripts that build the prebuilt third-party libraries from source (`build-libraries-windows.ps1` on Windows, `build-libraries.sh` on Linux and macOS) and fetch them for the build, with their versions and checksums; Windows' CEF 74 archive comes from the `prebuilts-v1` release. |
 | `config/`, `gyp/`, `config.py`, `make.cmd` | Build configuration: gyp generates the Visual Studio projects. |
-| `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, and pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
+| `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`), and write the text dictionary's entries (`text_dictionary.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
-| `tools/ci/` | PowerShell and Python scripts used by CI to install components, build, check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
-| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `release.yml` builds all three from a `v` tag and publishes the release; `tag-release.yml` tags `main` and starts it; `runtimes.yml` makes the standalone runtimes asset; `media-check.yml` checks the browser and player in a published release. |
-| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's installer builder (not used). |
+| `tools/ci/` | PowerShell, Python and shell scripts used by CI to install components, build, generate the dictionary and the guides (`build_docs.sh`), check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `docs.yml`, which each of them calls, generates the dictionary and the guides; `release.yml` builds all three from a `v` tag and publishes the release; `tag-release.yml` tags `main` and starts it; `runtimes.yml` makes the standalone runtimes asset; `media-check.yml` checks the browser and player in a published release. |
+| `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's build tools, whose docs builder makes the dictionary and the guides (its installer builder is not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 
 For a compatibility-first proposal to make the engine easier to test and

@@ -34,10 +34,12 @@
 # (tools/ci/run_livecode_check.py compile --repo-layout).
 #
 # The jobs "Package linux-<arch>" then make the Linux package of each
-# architecture from its build's two artifacts, on a plain ubuntu-24.04
-# runner of that architecture (whose glibc and OpenSSL 3 load every bundled
-# xTalk extension, which the build's Ubuntu 20.04 container cannot), and
-# upload, as the artifact OXT-Beyond-linux-<arch> (x86_64 shown):
+# architecture from its build's two artifacts and the documentation data
+# that the job Docs generates meanwhile (.github/workflows/docs.yml), on a
+# plain ubuntu-24.04 runner of that architecture (whose glibc and OpenSSL 3
+# load every bundled xTalk extension, which the build's Ubuntu 20.04
+# container cannot), and upload, as the artifact OXT-Beyond-linux-<arch>
+# (x86_64 shown):
 #
 #   OXT-Beyond-<ver>-linux-x86_64.tar.xz           the program folder
 #                                                  OXT-Beyond-<ver>, with
@@ -739,21 +741,29 @@ jobs:
         if: always()
         run: tools/ci/i386-container.sh stop
 
+  # The documentation data of the packages (docs.yml), made while the
+  # engines build
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yml
+    with:
+      artifact: OXT-Beyond-docs-linux
+
   # The Linux packages, x86_64 and arm64, each from its build's artifacts
-  # (see the header) on a runner of its own architecture. It waits for
-  # both build legs (a job cannot need one leg of a matrix) but runs
-  # whenever one of them passed, so that a failed build of one
-  # architecture does not hide the other's package (a leg whose build
-  # failed fails at its download). On the runner itself, not in the
-  # build's container: tests need the ubuntu-24.04 system, the user a
-  # package would find there, and sudo for apt.
+  # (see the header) and the documentation data, on a runner of its own
+  # architecture. It waits for both build legs (a job cannot need one leg
+  # of a matrix) but runs whenever one of them passed, so that a failed
+  # build of one architecture does not hide the other's package (a leg
+  # whose build failed fails at its download). On the runner itself, not
+  # in the build's container: tests need the ubuntu-24.04 system, the user
+  # a package would find there, and sudo for apt.
   #
   # The arm64 package (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers) is
   # published beside the x86_64 one since 0.2.4-rc.2. It has no browser (CEF 74 has no Linux ARM build), so the
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
-    needs: build
+    needs: [build, docs]
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true') }}
     strategy:
       fail-fast: false
@@ -769,6 +779,16 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       ARCH: ${{ matrix.arch }}
     steps:
+      # A failed Docs job fails this job, which pull requests need: had
+      # this job been skipped instead, its check would pass
+      - name: Check the documentation job
+        if: ${{ needs.docs.result != 'success' }}
+        env:
+          DOCS_RESULT: ${{ needs.docs.result }}
+        run: |
+          echo "::error::The job Docs did not succeed ($DOCS_RESULT): there is no documentation to package"
+          exit 1
+
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -787,6 +807,13 @@ jobs:
         with:
           name: OXT-Beyond-linux-${{ matrix.arch }}-symbols
           path: ${{ runner.temp }}/ci-symbols
+
+      # Into the checkout, where package.py takes the IDE from
+      - name: Download the documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-docs-linux
+          path: ide/Documentation/html_viewer/resources/data
 
       # The runtime libraries the package needs, from the list the launcher
       # checks (Installer/linux/libraries.txt: every "core", "gui" and

@@ -14,6 +14,23 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4-rc.5 (2026-10-08, pre-release)
+
+- CI: build each platform only when it needs building (#70)
+- Docs builder: Brian Milby's fixes for building the docs without a screen (#71)
+- Docs builder: read the module docs as UTF-8, and no Business externals (#71)
+- Dictionary: debranded entries, from Paul McClernan's and Tom Perry's edits (#71)
+- Glossary: Tom Perry's entries for MIDI, OpenXION and the music terms (#71)
+- Docs: debranded Builder library summaries, and three IDE library entries (#71)
+- Text dictionary: generate its entries from the dictionary data (#71)
+- CI: generate the dictionary and the guides in every build (#71)
+- IDE: LiveCode's Dictionary is the default again (#71)
+- CI: the IDE tour checks LiveCode's Dictionary, its guides and the text dictionary (#71)
+- Guides: one copy of each (#71)
+- Untrack the generated dictionary and guide data (#71)
+- Docs: how the documentation is generated (#71)
+- Version 0.2.4-rc.5, with its changelog (#71)
+
 ## 0.2.4-rc.4 (2026-10-07, pre-release)
 
 - Take out OXT-Beyond's own dark mode and go back to Tom Perry's (#68)

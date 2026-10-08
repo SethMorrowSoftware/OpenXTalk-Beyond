@@ -118,9 +118,16 @@ Notes on the choices:
   `guides/Release Notes.md`) and a generated PDF. OpenXTalk Lite replaced this
   with its own tree (dictionary stack `oxt_dictionary.oxtstack`, its own
   `api.sqlite`, plain-text exports, PDFs, debranded guides, `linked_files`), so
-  the whole installed `Documentation/` maps to `ide/Documentation/` and is
-  tracked. Several guides are debranded copies of files under `docs/`
-  (`docs/development`, `docs/specs`, `docs/guides`); they are kept as shipped.
+  the whole installed `Documentation/` maps to `ide/Documentation/`.
+  OXT-Beyond generates the data again, as upstream did: `api.sqlite`, the
+  `*.js` files and the plain-text exports in `html_viewer/resources/data`
+  are written by `tools/ci/build_docs.sh` before packaging and ignored by
+  Git (`ide/.gitignore`), and `package.py` refuses to package without them
+  (`DOCS_FILES`); an import writes them too, and Git ignores them. Of
+  OpenXTalk Lite's guides, those that were debranded copies of
+  `docs/guides` replaced them there, and the copies of `docs/development`
+  and `docs/specs` were removed (an import from OpenXTalk Lite would bring
+  the copies back).
 * **ide/Extensions/** holds extensions the IDE ships but this repository does
   not build (their `.lcb` sources are included; the compiled `module.2.lcm`
   and `.lci` files are shipped as they are). In the repository layout the IDE

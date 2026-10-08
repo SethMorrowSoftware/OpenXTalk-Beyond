@@ -26,7 +26,9 @@
 #
 # After the build and its verification, the job
 #   1. writes the installed layout to dist/stage/OXT-Beyond-<ver> and the zips
-#      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py;
+#      to dist (tools/ci/package-windows.ps1, which runs tools/oxt/package.py,
+#      with the documentation data that the job Docs generated before the
+#      build, .github/workflows/docs.yml;
 #      the archives of the external assets listed in
 #      tools/oxt/external-assets.json are cached from
 #      prebuilt/fetched-assets/*.zip, the files of the xTalk Suite
@@ -167,8 +169,18 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
+  # The documentation data of the packages (docs.yml), which the build job
+  # packages: it takes a few minutes, before the build starts
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yml
+    with:
+      artifact: OXT-Beyond-docs-windows
+
   build:
     name: Build win-x86_64
+    needs: docs
+    if: ${{ !cancelled() }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:
@@ -194,6 +206,16 @@ jobs:
       version: ${{ steps.product.outputs.version }}
 
     steps:
+      # A failed Docs job fails this job, which pull requests need: had
+      # this job been skipped instead, its check would pass
+      - name: Check the documentation job
+        if: ${{ needs.docs.result != 'success' }}
+        env:
+          DOCS_RESULT: ${{ needs.docs.result }}
+        run: |
+          Write-Output "::error::The job Docs did not succeed ($env:DOCS_RESULT): there is no documentation to package"
+          exit 1
+
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -470,6 +492,13 @@ jobs:
         with:
           path: prebuilt/fetched-assets/xtalk
           key: oxt-xtalk-extensions-${{ hashFiles('tools/oxt/xtalk-extensions.json') }}
+
+      # Into the checkout, where package.py takes the IDE from
+      - name: Download the documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-docs-windows
+          path: ide/Documentation/html_viewer/resources/data
 
       # Writes dist/stage/OXT-Beyond-<ver> (the installed layout), the
       # portable, binaries and symbols zips and SHA256SUMS.

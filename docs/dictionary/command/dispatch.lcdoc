@@ -19,7 +19,7 @@ dispatch "updateWidget"
 Example:
 on mouseUp
   local tWidth, tHeight
-   
+
   put 200 into tWidth
   put 100 into tHeight
   dispatch "setSize" with tWidth, tHeight
@@ -35,10 +35,10 @@ Example:
 
 on mouseUp
   local tDataArray
-  
+
   put "Mickey" into tDataArray["firstName"]
   put "Mouse" into tDataArray["lastName"]
-  
+
   dispatch "updateUI" to card "myCard" with "Hello World", tDataArray
 end mouseUp
 
@@ -53,7 +53,7 @@ message:
 Is an expression that evaluates to the name of a handler.
 
 target:
-A reference to any LiveCode object.
+A reference to any script object.
 
 argumentList:
 A comma separated list of expressions containing the arguments to send.
@@ -87,4 +87,4 @@ References: send (command), on (control structure), me (keyword),
 it (keyword), closeControl (message), preOpenControl (message),
 behavior (property)
 
-Tags: messages 
+Tags: messages

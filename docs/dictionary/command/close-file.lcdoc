@@ -30,8 +30,8 @@ close file (specialFolderPath("desktop") & "/text.txt")
 Parameters:
 filePath:
 The name and location of the file you want to close. If you specify a
-name but not a location, LiveCode assumes the file is in the
-defaultFolder. 
+name but not a location, the engine assumes the file is in the
+defaultFolder.
 
 The result:
 If you try to close a file that is not already open, the result function
@@ -43,7 +43,7 @@ or writing to it. (A <file> that is open for writing can't be used by
 any other application until you've closed the <file>.)
 
 Any files you have opened are closed automatically when you quit the
-application. 
+application.
 
 References: write to file (command), close driver (command),
 open file (command), close (command), seek (command),
@@ -53,4 +53,3 @@ printer: (keyword), COMn: (keyword), LPT1: (keyword),
 serialControlString (property)
 
 Tags: file system
-

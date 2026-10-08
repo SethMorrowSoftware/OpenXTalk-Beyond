@@ -15,7 +15,7 @@ git grep -n -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetched' 
 | --- | --- |
 | [FIXME](#fixme) | 81 |
 | [HACK](#hack) | 33 |
-| [TODO](#todo) | 482 |
+| [TODO](#todo) | 481 |
 
 ## FIXME
 
@@ -235,9 +235,9 @@ Workarounds their authors were not happy with. 33 notes, by part of the reposito
 
 ## TODO
 
-Work left for later. 482 notes, by part of the repository:
+Work left for later. 481 notes, by part of the repository:
 
-[engine](#todo-engine) (281), [libfoundation](#todo-libfoundation) (50), [tests](#todo-tests) (20), [ide](#todo-ide) (19), [revbrowser](#todo-revbrowser) (19), [extensions](#todo-extensions) (14), [toolchain](#todo-toolchain) (14), [libgraphics](#todo-libgraphics) (12), [libscript](#todo-libscript) (12), [libbrowser](#todo-libbrowser) (10), [builder](#todo-builder) (5), [tools](#todo-tools) (4), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [revpdfprinter](#todo-revpdfprinter) (2), [config](#todo-config) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
+[engine](#todo-engine) (281), [libfoundation](#todo-libfoundation) (50), [tests](#todo-tests) (20), [revbrowser](#todo-revbrowser) (19), [ide](#todo-ide) (18), [extensions](#todo-extensions) (14), [toolchain](#todo-toolchain) (14), [libgraphics](#todo-libgraphics) (12), [libscript](#todo-libscript) (12), [libbrowser](#todo-libbrowser) (10), [builder](#todo-builder) (5), [tools](#todo-tools) (4), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [revpdfprinter](#todo-revpdfprinter) (2), [config](#todo-config) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
 
 <a id="todo-engine"></a>
 
@@ -607,10 +607,9 @@ Work left for later. 482 notes, by part of the repository:
 
 <a id="todo-ide"></a>
 
-### TODO: ide (19)
+### TODO: ide (18)
 
 - [ide/Documentation/html_viewer/js/bootstrap.js:1576](ide/Documentation/html_viewer/js/bootstrap.js#L1576) if (that.$element) { // TODO: Check whether guarding this code with this 'if' is really necessary.
-- [ide/Documentation/html_viewer/resources/data/guide/distributed_guide.js:126](ide/Documentation/html_viewer/resources/data/guide/distributed_guide.js#L126) "data":"\n# C++ Feature Guidelines\n\nThis file documents the usage of C++ language and library features within the\nengine and ancillary projects (externals...
 - [ide/Toolset/libraries/revidelibrary.8.livecodescript:374](ide/Toolset/libraries/revidelibrary.8.livecodescript#L374) TODO: there should be a more transparent way of ordering these
 - [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:34](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L34) TODO: Remove legacy message name
 - [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:65](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L65) TODO: Remove legacy message name

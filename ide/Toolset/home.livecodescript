@@ -272,7 +272,7 @@ on revInternal__openStack
       set the cReplaceSECol of stack "revPreferences" to false
    end if
    if the cReplaceSECol of stack "revPreferences" is empty then set the cReplaceSECol of stack "revPreferences" to false
-   if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to true
+   -- (cDictionaryDisplayMethod: revInternal__InitialiseDictionary)
    -- OXT-Beyond: the automatic update check (oxtBeyondUpdater library) is off
    -- unless the user turns it on in Preferences > Automatic Updates.
    if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
@@ -926,7 +926,7 @@ command revInternal__ResetPreferences
    put "don't remove" into tPropsArray["cASKDestroy"]
    put "Gray50" into tPropsArray["cSelectionHandle"]
    put "255,140,0" into tPropsArray["cToolSelectorColor"] -- tperry
-   put "True" into tPropsArray["cDictionaryDisplayMethod"] -- tperry
+   put "False" into tPropsArray["cDictionaryDisplayMethod"] -- tperry (OXT-Beyond: LiveCode's Dictionary)
    put "False" into tPropsArray["MakeRevToolBarDraggable"] -- tperry (default, should revMenuBar be draggable?)
    put "128,103" into tPropsArray["cREVMaximizedScriptEditorTopLeft"]
    put "true" into tPropsArray["suppressIDE"]
@@ -1315,6 +1315,7 @@ command revInternal__InstallFileAssociations
       end if
       
       revInternal__InitialiseMediaTools
+      revInternal__InitialiseDictionary
       
       revInternal__Log "Leave", "System Initialisation"
       
@@ -1342,6 +1343,22 @@ command revInternal__InstallFileAssociations
       if the cDisableBrowserWidget of stack "revPreferences" is empty then set the cDisableBrowserWidget of stack "revPreferences" to false
       if the cDisablePlayerTool of stack "revPreferences" is empty then set the cDisablePlayerTool of stack "revPreferences" to false
    end revInternal__InitialiseMediaTools
+   
+   -- OXT-Beyond: Help > Dictionary opens LiveCode's Dictionary
+   -- (cDictionaryDisplayMethod false) again, as in LiveCode, and Tom Perry's
+   -- text dictionary (true) when Preferences > Dictionary chooses it.
+   -- Profiles that have OpenXTalk Lite's default (true) get the new one once
+   -- (cLiveCodeDictionaryDefault), since the old default cannot be told
+   -- apart from a choice. This runs before the libraries load the
+   -- extensions, whose docs go into LiveCode's Dictionary only when it is
+   -- the one chosen (revIDEGetExtensionDocsData in revidelibrary).
+   command revInternal__InitialiseDictionary
+      if the cLiveCodeDictionaryDefault of stack "revPreferences" is empty then
+         set the cDictionaryDisplayMethod of stack "revPreferences" to false
+         set the cLiveCodeDictionaryDefault of stack "revPreferences" to true
+      end if
+      if the cDictionaryDisplayMethod of stack "revPreferences" is empty then set the cDictionaryDisplayMethod of stack "revPreferences" to false
+   end revInternal__InitialiseDictionary
    
    command revInternal__InitialiseGlobals
       revInternal__Log "Enter", "Globals Initialisation"

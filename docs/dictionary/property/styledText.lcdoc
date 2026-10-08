@@ -6,7 +6,7 @@ Syntax: set the styledText of <field> to <styledArray>
 
 Summary:
 Specifies the contents of a field, with its text formatting represented
-as LiveCode styled text array.
+as a styled text array.
 
 Associations: field
 
@@ -28,7 +28,7 @@ The reference to the field.
 
 styledArray (array):
 An array containing the styled text. (Must be correctly constructed as a
-LiveCode styledText array, see comments)
+styledText array, see comments)
 
 
 The result:
@@ -43,7 +43,7 @@ across the break.
 
 Value:
 The <styledText> property returns a numerically-indexed array of
-paragraphs. 
+paragraphs.
 
 Description:
 Use the <styledText> property to access and programatically manipulate
@@ -59,15 +59,15 @@ is array-based.
 
 The <styledText> property returns a numerically-indexed array of
 paragraphs, each index representing each paragraph in the field in
-order: 
+order:
 
    tStyledTextArray[1] = &lt;first paragraph array&gt;
    ...
-   tStyledTextArray[&lt;n&gt;] = &lt;last paragraph array&gt; 
+   tStyledTextArray[&lt;n&gt;] = &lt;last paragraph array&gt;
 
 Each paragraph array has up to two keys:
 
-- "style" : array containing paragraph-level styles 
+- "style" : array containing paragraph-level styles
 - "runs" : paragraph content array
 
 The style array contains the values for each of the paragraph styles set
@@ -93,12 +93,12 @@ run
 The style array contains the values for each of the characters styles
 set on that run. The list of styles that are supported are: textFont,
 textSize, textStyle, textShift, textColor, backgroundColor, linkText,
-imageSource. 
+imageSource.
 
 If a run has Unicode text in it then the run array has a "unicodeText"
 key containing its content encoded as UTF-16. Otherwise, the run array
 has a "text" key containing its content encoded in the native text
-encoding. 
+encoding.
 
 For example, take the following content consisting of two paragraphs:
 

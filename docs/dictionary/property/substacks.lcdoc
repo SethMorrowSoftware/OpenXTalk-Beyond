@@ -31,7 +31,7 @@ The <substacks> of a <stack> is a list of <stacks>, one per <line>.
 Description:
 Use the <substacks> <property> to organize <stacks> in <files>.
 
-Each LiveCode file contains either a single main stack, or a main stack
+Each stack file contains either a single main stack, or a main stack
 and one or more substacks. The <substacks> <property> reports on the
 <substacks> of a <main stack>.
 
@@ -47,7 +47,7 @@ Setting the <substacks> of a <main stack> to empty removes all the
 > However, since this may cause a conflict if more than one <substack>
 > with the same name is open or in memory, it is safer to move a
 > <substack> by setting the <substack|substack's> <mainStack>
-> <property>. 
+> <property>.
 
 References: revert (command), files (function), stacks (function),
 mainStacks (function), property (glossary), substack (glossary),
@@ -56,4 +56,3 @@ line (keyword), stack (object), substacks (property),
 mainStack (property)
 
 Tags: objects
-

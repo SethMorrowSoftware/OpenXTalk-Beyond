@@ -2341,7 +2341,7 @@ command revIDEDeletePreferenceSet pSetName
    end if
 end revIDEDeletePreferenceSet
 
-/*
+/**
 Gets a preference.
 
 pPreferenceName (String): The name of the preference
@@ -4743,8 +4743,16 @@ private function revIDEPaletteBarHeight pStackID
    return the effective height of pStackID - the height of pStackID
 end revIDEPaletteBarHeight
 
+-- OXT-Beyond: the browser widget works unless Preferences > Compatibility
+-- turns it off (cDisableBrowserWidget, which also keeps it from loading) or,
+-- on Linux, the launcher turned CEF off (LIVECODE_USE_CEF=0: the package has
+-- no CEF, or a library CEF needs is missing; Installer/linux/oxt-beyond).
+-- LiveCode's test, ($LIVECODE_USE_CEF is 0), is also true when the variable
+-- is not set, so that the dictionary and the guides opened in the system's
+-- browser on Linux even with the browser widget working.
 function revIDEBrowserWidgetUnavailable
-   return (the platform is "Linux") and ($LIVECODE_USE_CEF is 0)
+   if the cDisableBrowserWidget of stack "revPreferences" is true then return true
+   return (the platform is "Linux") and ($LIVECODE_USE_CEF is not empty) and ($LIVECODE_USE_CEF is 0)
 end revIDEBrowserWidgetUnavailable
 
 /*
@@ -6690,6 +6698,18 @@ on revIDETogglePaletteView
    unlock screen
 end revIDETogglePaletteView
 
+/**
+Lists the plugin stacks of the IDE.
+
+Example:
+put revIDEGetAllPlugins() -- the plugin stacks, one per line
+
+Returns: The full paths of the stacks in the plugins folders of the IDE and
+of the user, and in the development plugins folder when there is one, one
+per line.
+
+References: revIDEPlugins (function)
+*/
 function revIDEGetAllPlugins
    local tUserPlugins
    put revAbsoluteFolderListing(revEnvironmentUserPluginsPath()) into tUserPlugins
@@ -6765,6 +6785,22 @@ on revIDEUpdatePlugins
    end if
 end revIDEUpdatePlugins
 
+/**
+Information about the plugins of the IDE.
+
+Example:
+put the keys of revIDEPlugins() -- the names of the plugins
+
+Returns: An array with an element for each plugin
+
+Description:
+The array that <revIDEPlugins> returns is keyed by the names of the
+plugin stacks. The element of a plugin has the "path" of its stack, and
+true in "menu" when it is in the Plugins menu, in "startup" when it opens
+when the IDE starts and in "shutdown" when it opens when the IDE quits.
+
+References: revIDEGetAllPlugins (function)
+*/
 function revIDEPlugins
    return sPluginsA
 end revIDEPlugins
@@ -11324,7 +11360,9 @@ on revIDERegenerateBuiltGuides
    revIDESetUTF8FileContents tDocsCache & slash & "built_guide.js", tData
 end revIDERegenerateBuiltGuides
 
-constant kAPIs = "LiveCode Script,livecode_script|LiveCode Builder,livecode_builder|LiveCode IDE,livecode_ide"
+-- (OXT-Beyond: the names the dictionary's API menu shows, as the text
+-- dictionary and the guides name the languages)
+constant kAPIs = "xTalk Script,livecode_script|xTalk Builder,livecode_builder|IDE,livecode_ide"
 on revIDERegenerateBuiltAPIs
    -- do not generate if this is turned off
    if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)

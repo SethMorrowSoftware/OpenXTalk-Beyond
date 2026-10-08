@@ -26,29 +26,25 @@ kill QUIT process it
 
 Parameters:
 signalNumber:
-The number of the Unix signal to send to the process. 
->*Note:* The <signalNumber> parameter is ignored on Mac OS and Windows systems.
+The number of the Unix signal to send to the process.
+>*Note:* The <signalNumber> parameter is ignored on Windows systems.
 
 signalName:
 The name of a Unix signal, minus the leading "SIG". (For example, to
 send SIGHUP to a process, use HUP as the <signalName>.)
->*Note:* The <signalName> parameter is ignored on Mac OS and Windows systems.
+>*Note:* The <signalName> parameter is ignored on Windows systems.
 
 processName:
-The name of a currently executing process.
+The name and parameters, if any, for the running sub-process.
 
 Description:
-Use the <kill> command to send a signal to a <process> (on <Unix|Unix
-systems>), or to terminate a <process> with extreme prejudice.
+Use the <kill> command to send a signal to a <process> telling it
+to terminate processing with extreme prejudice.
 
-On Mac OS systems, the <kill> <command> sends a "Quit Application"
-<Apple Event|Apple event> to the specified application.
-
-On Unix systems, the <kill> command sends the specified signal to the
-<process>. If no signal is specified, the <kill> command sends SIGTERM.
-Check the <Unix> documentation for information about available signals.
-The <file> /usr/include/sys/signal.h lists signals and their
-corresponding signal numbers.
+On Unix based systems Mac and Linux systems, the <kill> command sends the
+specified signal to a <process>. If no signal is specified, the <kill> command
+sends SIGTERM. Check the systems 'kill' command documentation for information
+about available signals.
 
 If possible, use the <close process> command instead of the <kill>
 <command> to terminate a <process>. The <kill> <command> causes an
@@ -61,4 +57,3 @@ openProcessIDs (function), sysError (function), files (function),
 processID (function), openProcesses (function), Unix (glossary),
 Apple Event (glossary), command (glossary), process (glossary),
 file (keyword), signal (message)
-

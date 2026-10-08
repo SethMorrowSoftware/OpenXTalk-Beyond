@@ -26,7 +26,7 @@ Example:
 answer file "Input:" with "/Macintosh HD/"
 
 Example:
-answer file (field "Prompt") with type "LiveCode Stacks|rev|RSTK"
+answer file (field "Prompt") with type "Stacks|stk|STAK"
 
 Example:
 answer files "Select the images you wish to view:" with type "JPEG Images|jpg|JPEG"
@@ -54,7 +54,7 @@ have a title bar.)
 It:
 The absolute file path of the file the user chose is placed in the it
 <variable>. If the answer files form is used, a return-delimited list of
-such paths is placed in the it variable. If the user cancels the 
+such paths is placed in the it variable. If the user cancels the
 <dialog box|dialog>, the <it> <variable> is set to empty.
 
 The result:
@@ -84,8 +84,8 @@ To give a <dialog box> a prompt when using the as sheet form a non-empty
 title must be provided. This will cause the prompt to appear in the same
 place it would if as sheet was not being used.
 
-If the systemFileSelector <property> is set to false, LiveCode's
-built-in <dialog box> is used instead of the operating system's 
+If the systemFileSelector <property> is set to false, the app engine's
+built-in <dialog box> is used instead of the operating system's
 <file dialog box|standard file dialog>.
 
 Changes:
@@ -98,4 +98,3 @@ modal dialog box (glossary), dialog box (glossary), file (keyword),
 it (keyword)
 
 Tags: file system
-

@@ -45,13 +45,13 @@ put the effective filename of me into tStackFile
 set the itemDelimiter to "/"
 put item 1 to -2 of tStackFile into tStackFolder
 set the defaultFolder to tStackFolder
-go stack "somethingElse.livecode"
+go stack "somethingElse.oxtstack"
 -- "somethingElse" being the name of a stack file in the same folder
 
 Parameters:
 card:
 Any card reference. Cards can be described by their name, number, or ID
-properties. 
+properties.
 
 stack:
 Any stack reference, or any file path or http URL reference that
@@ -63,10 +63,10 @@ mode (enum):
 -   editable window
 -   palette
 -   modal dialog box
--   modeless dialog box 
+-   modeless dialog box
 -   sheet dialog box - appears in <defaultStack(property)>
--   drawer - appears in <defaultStack(property)>, centered at left 
-    side if there's room 
+-   drawer - appears in <defaultStack(property)>, centered at left
+    side if there's room
 
 
 window:
@@ -134,7 +134,7 @@ abbreviated name, until the stack is saved on a local disk. The
 downloaded stack is a copy: changes you make to the stack are not
 automatically made on the server the stack came from. To change the
 stack on the server, you must save the stack file locally and re-upload
-it. 
+it.
 
 You can <go> to the first, previous, next, or last card of the current
 stack. The form go any card goes to a random card in the current stack.
@@ -151,10 +151,10 @@ among the previously-visited cards:
 * The <go> home form goes to the first card in the application's main
   stack. (This form is included mainly for HyperCard compatibility; the
   statement go home does not do anything useful in the development
-  environment.) 
+  environment.)
 * The <go> back number form backs up number cards. The go forward number
   form moves forward in the recent cards list. "forward" and "forth" are
-  synonyms. 
+  synonyms.
 
 If you use the <go> visible form, the stack is made visible after being
 opened. (When going to a stack, this form sets the stack's <visible>
@@ -174,7 +174,7 @@ of the <go> visible and <go> invisible forms.
 
 Any visual effects that have been queued with the visual effect command
 are displayed when the <go> command is executed (unless the screen is
-locked). 
+locked).
 
 >*Tip:*   To test whether a stack or card exists before trying to go to
 > it, use the there is a operator:
@@ -194,4 +194,3 @@ HCImportStat (property), visible (property),
 defaultStack (property), defaultFolder (property)
 
 Tags: navigation
-

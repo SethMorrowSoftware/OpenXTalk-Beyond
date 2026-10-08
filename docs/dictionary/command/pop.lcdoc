@@ -36,7 +36,7 @@ If you specify a container, the long <ID> of the <card> is placed in the
 <container> and removed from the list. The <current card> doe not
 change. 
 
-If the list is empty when you use the <pop> <command>, LiveCode goes to
+If the list is empty when you use the <pop> <command>, OpenXTalk goes to
 the Home <card> (or, with a container, puts its long <ID> there): the
 <current card> of the home <stack>. In a <standalone application>, the
 home <stack> is the <standalone application|standalone's> <main stack>.

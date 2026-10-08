@@ -25,7 +25,7 @@ if the altKey is down then answer effect
 It:
 An encoded description of the visual effect the user chooses is placed
 in the it <variable>. You can either use the encoded description
-immediately, or store it (for example, in a <variable> or in a 
+immediately, or store it (for example, in a <variable> or in a
 <custom property>) for later use. To display the effect, use the encoded
 description with the <visual effect> <command>, with the <unlock screen>
 <command>, or with the hide with visual effect or show with visual
@@ -43,17 +43,16 @@ up an effect with complex options for later use.
 
 The <answer effect> <command> displays a <dialog box> where the user can
 select a visual effect and (for some effects) set parameters such as
-speed and direction. (This <dialog box> is displayed by <QuickTime>, not
-by LiveCode.)
+speed and direction. (This <dialog box> is displayed by <QuickTime>.)
 
 Changes:
-The use of <QuickTime> was deprecated in version 8.1 of LiveCode with
+The use of <QuickTime> was deprecated in version 8.1 with
 new defaults for <dontUseQT> and <dontUseQTEffects> as true on all
-systems apart from pre OS X 10.8. The Windows build of LiveCode no
+systems apart from pre OS X 10.8. The Windows build no
 longer supports any <QuickTime> features and setting the <dontUseQT> and
-<dontUseQTEffects> will have no effect. Additionally <QuickTime> does 
+<dontUseQTEffects> will have no effect. Additionally <QuickTime> does
 not include 64 bit support and therefore can not be supported on OS X 64
-bit builds of LiveCode.
+bit builds.
 
 References: answer (command), visual effect (command),
 answer record (command), show (command), hide (command),
@@ -63,4 +62,3 @@ variable (glossary), command (glossary), QuickTime (glossary),
 return (glossary), dontUseQTEffects (property), dontUseQT (property)
 
 Tags: multimedia
-

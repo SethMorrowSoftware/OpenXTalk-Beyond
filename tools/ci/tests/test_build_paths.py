@@ -20,9 +20,11 @@ that a platform's build uses must start that build.
 Each build workflow skips a push or pull request that changes only files of
 its paths-ignore list (what only the other platforms use, and what builds
 nothing). This checks every list against what the workflow names: the
-workflow file itself, every file of tools/ci it names, and every file of
-tools/ci that those name in turn (an import, a script it runs, a baseline
-it reads), none of which may be in the list. It also checks that push and
+workflow file itself, the workflows of the repository it calls (a job's
+"uses: ./.github/workflows/<file>", such as docs.yml) and those they call,
+every file of tools/ci that any of them names, and every file of tools/ci
+that those name in turn (an import, a script it runs, a baseline it
+reads), none of which may be in the list. It also checks that push and
 pull_request share the list, and that every entry of the list matches a
 file, so that a renamed file does not leave a stale entry behind.
 
@@ -139,11 +141,27 @@ def without_paths_ignore(workflow_text):
     return re.sub(r'(?m)^( *)paths-ignore:.*\n(?:\1 .*\n|\s*\n)*', '', workflow_text)
 
 
+def called_workflows(workflow_text):
+    """The workflows of the repository that the workflow calls, and those
+    that they call, to the end (file names in .github/workflows)."""
+    found = []
+    todo = [workflow_text]
+    while todo:
+        text = without_comments(todo.pop())
+        for name in re.findall(r'(?m)^\s*uses:\s*[\'"]?\./\.github/workflows/([\w.-]+)[\'"]?\s*$', text):
+            if name not in found:
+                found.append(name)
+                todo.append(read(os.path.join(WORKFLOWS, name)))
+    return found
+
+
 def used_ci_files(workflow_text):
-    """The files of tools/ci that the workflow's steps name, and what those
-    use in turn, to the end."""
+    """The files of tools/ci that the workflow's steps and the workflows it
+    calls name, and what those use in turn, to the end."""
     names = ci_files()
-    used = named(without_comments(without_paths_ignore(workflow_text)), names)
+    used = set()
+    for text in [workflow_text] + [read(os.path.join(WORKFLOWS, w)) for w in called_workflows(workflow_text)]:
+        used |= named(without_comments(without_paths_ignore(text)), names)
     todo = list(used)
     while todo:
         name = todo.pop()
@@ -177,9 +195,21 @@ class BuildPathsTest(unittest.TestCase):
         for wf in BUILDS:
             patterns = paths_ignore(wf)[0]
             self.assertFalse(ignored(patterns, '.github/workflows/' + wf), '%s ignores itself' % wf)
+            for called in called_workflows(read(os.path.join(WORKFLOWS, wf))):
+                hits = ignored(patterns, '.github/workflows/' + called)
+                self.assertFalse(hits, '%s calls %s but its paths-ignore has %s' % (wf, called, hits))
             for name in sorted(used_ci_files(read(os.path.join(WORKFLOWS, wf)))):
                 hits = ignored(patterns, 'tools/ci/' + name)
                 self.assertFalse(hits, '%s uses tools/ci/%s but its paths-ignore has %s' % (wf, name, hits))
+
+    def test_every_build_generates_the_docs(self):
+        # (which packaging needs, and which makes the docs scripts used
+        # files of every build)
+        for wf in BUILDS:
+            self.assertIn('docs.yml', called_workflows(read(os.path.join(WORKFLOWS, wf))), wf)
+            used = used_ci_files(read(os.path.join(WORKFLOWS, wf)))
+            self.assertIn('build_docs.sh', used, wf)
+            self.assertIn('extension_docs.livecodescript', used, wf)
 
     def test_the_glob(self):
         self.assertTrue(glob_regex('*.md').match('README.md'))

@@ -25,8 +25,9 @@
 #     scripts in the steps are not checked: -shellcheck= turns that off);
 #   - tools/ci/tests runs the unit tests of the CI scripts: the build
 #     workflows' paths-ignore lists (a change to a file a build uses starts
-#     that build), and the checks release.yml makes on the packages before
-#     it publishes them (tools/ci/release_assets.py, release_notes.py).
+#     that build), the checks release.yml makes on the packages before it
+#     publishes them (tools/ci/release_assets.py, release_notes.py), and
+#     the text dictionary's generator (tools/oxt/text_dictionary.py).
 #
 # A change to this workflow or to the tests alone starts no build (the build
 # workflows' paths-ignore lists have them).
