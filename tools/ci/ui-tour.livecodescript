@@ -10,8 +10,10 @@ script "oxt_ui_tour"
 -- usual controls, the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects), the Script Editor (and its results of a Find All), the
--- Message Box, the Project Browser, the Dictionary, each pane of
--- Preferences, each card of the Standalone Settings, the Menu Builder, the
+-- Message Box, the Project Browser, LiveCode's Dictionary (with the
+-- entries of both languages and of the extensions, which its page
+-- reports) and its guides, the text dictionary, each pane of Preferences, each card
+-- of the Standalone Settings, the Menu Builder, the
 -- Extension Manager and Builder, the Message Watcher, Search, the Object
 -- Library, the Card Navigator, the About window, the answer and ask
 -- dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
@@ -42,13 +44,13 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
 constant kButtonSections = "Basic,Icons,Colors,Text,Position,Effects,Custom,Advanced"
 
-local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount
+local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport
 
 on openStack
    if sStarted is not true then
@@ -302,12 +304,18 @@ on tour_project_browser
    close stack tStack
 end tour_project_browser
 
+-- As Help > Dictionary does: LiveCode's Dictionary, the default, in a
+-- palette with a browser widget, or in the system's browser where there is
+-- no browser widget (revIDEBrowserWidgetUnavailable); the text dictionary
+-- when Preferences > Dictionary chooses it (cDictionaryDisplayMethod)
 on tour_dictionary
    local tBefore, tNew
    put the openStacks into tBefore
-   -- as Help > Dictionary does: the dictionary stack, or the documentation
-   -- in a browser widget (cDictionaryDisplayMethod)
    send "tNewDictionaryDisplay" to stack "revMenuBar"
+   if the cDictionaryDisplayMethod of stack "revPreferences" is not true and revIDEBrowserWidgetUnavailable() then
+      tourDictionaryPage
+      exit tour_dictionary
+   end if
    repeat 40 times
       put tourNewStack(tBefore) into tNew
       if tNew is not empty then exit repeat
@@ -315,10 +323,184 @@ on tour_dictionary
    end repeat
    if tNew is empty then throw "no dictionary window opened"
    tourWait 4000
-   tourDictionaryEntry tNew, "try control structure.txt"
+   if tNew is revIDEPaletteToStackName("dictionary") then
+      tourDictionaryData tNew
+   else
+      tourDictionaryEntry tNew, "try control structure.txt"
+   end if
    tourShotStack tNew, "13-dictionary"
    close stack tNew
 end tour_dictionary
+
+-- Tom Perry's text dictionary, as Help > Dictionary opens it when
+-- Preferences > Dictionary chooses it, on an entry that
+-- tools/oxt/text_dictionary.py wrote; the preferences are restored after
+on tour_text_dictionary
+   local tMethod, tQuick, tBefore, tNew, tError
+   put the cDictionaryDisplayMethod of stack "revPreferences" into tMethod
+   put the cQuickDictionary of stack "revPreferences" into tQuick
+   set the cDictionaryDisplayMethod of stack "revPreferences" to true
+   set the cQuickDictionary of stack "revPreferences" to false
+   try
+      put the openStacks into tBefore
+      send "tNewDictionaryDisplay" to stack "revMenuBar"
+      repeat 40 times
+         put tourNewStack(tBefore) into tNew
+         if tNew is not empty then exit repeat
+         tourWait 500
+      end repeat
+      if tNew is empty then throw "no text dictionary window opened"
+      if there is not a field "styledTextField" of card 1 of stack tNew then
+         throw tNew && "opened, not the text dictionary"
+      end if
+      tourWait 2000
+      tourDictionaryEntry tNew, "try control structure.txt"
+      tourShotStack tNew, "13-dictionary-text"
+      close stack tNew
+   catch tError
+   end try
+   set the cDictionaryDisplayMethod of stack "revPreferences" to tMethod
+   set the cQuickDictionary of stack "revPreferences" to tQuick
+   if tError is not empty then throw tError
+end tour_text_dictionary
+
+-- LiveCode's Dictionary in the palette pStack: its page must list the
+-- entries of both languages, with the docs of the extensions that the IDE
+-- loaded (each a library of its own; the widgets' among them)
+command tourDictionaryData pStack
+   local tError, tData, tEntry, tLine, tScript, tBuilder
+   try
+      -- one line per API: its name, entries, libraries and widget libraries
+      put tourPageReport(pStack, "liveCode.oxtTourReport(dictionary_data.docs.map(function(d){" & \
+            "var n={};d.doc.forEach(function(e){n[e.library||'']=1;});var l=Object.keys(n);" & \
+            "return [d.name,d.doc.length,l.length,l.filter(function(k){return k.indexOf('com.livecode.widget.')==0;}).length].join(' ');" & \
+            "}).join('\n'))") into tData
+      -- then the entry of the text dictionary's snapshot, as a click on it
+      -- in the list shows it, so that each build's snapshot shows the
+      -- same one: the page must show its text
+      put tourPageReport(pStack, "goEntryName('livecode_script','try','control structure');" & \
+            "setTimeout(function(){liveCode.oxtTourReport(document.body.innerText.indexOf(" & \
+            "'series of statements and handle any error messages')>=0?'shown':'not shown');},1000);") into tEntry
+   catch tError
+      throw "LiveCode's Dictionary: " & tourJoin(tError)
+   end try
+   if tData is empty then throw "LiveCode's Dictionary did not report its data"
+   if tEntry is not "shown" then throw "LiveCode's Dictionary does not show the entry try (" & tEntry & ")"
+   tourRecord "INFO LiveCode's Dictionary shows the entry try"
+   repeat for each line tLine in tData
+      tourRecord "INFO LiveCode's Dictionary" && word 1 of tLine & ":" && word 2 of tLine && "entries," && \
+            word 3 of tLine && "libraries (" & word 4 of tLine && "widgets)"
+      if word 1 of tLine is "livecode_script" then put tLine into tScript
+      if word 1 of tLine is "livecode_builder" then put tLine into tBuilder
+   end repeat
+   -- (OXT-Beyond 0.2.4: 3162 and 609 entries, 18 widgets)
+   if not (word 2 of tScript >= 2500) then throw "LiveCode's Dictionary has too few xTalk Script entries:" && word 2 of tScript
+   if not (word 4 of tScript >= 10) then throw "LiveCode's Dictionary has too few widgets:" && word 4 of tScript
+   if not (word 2 of tBuilder >= 500) then throw "LiveCode's Dictionary has too few xTalk Builder entries:" && word 2 of tBuilder
+end tourDictionaryData
+
+-- The guides, in the Guide tab of LiveCode's Dictionary: each once (the
+-- docs builder makes them from docs/guides and ide/Documentation/guides,
+-- which had copies of the same guides), and the Printing guide with its
+-- images, which are in Documentation/guides/images
+on tour_guides
+   local tBefore, tNew, tData, tError
+   if the cDictionaryDisplayMethod of stack "revPreferences" is true or revIDEBrowserWidgetUnavailable() then
+      tourRecord "INFO the guides are not checked: no browser widget shows LiveCode's Dictionary"
+      exit tour_guides
+   end if
+   put the openStacks into tBefore
+   send "tNewDictionaryDisplay" to stack "revMenuBar"
+   repeat 40 times
+      put tourNewStack(tBefore) into tNew
+      if tNew is not empty then exit repeat
+      tourWait 500
+   end repeat
+   if tNew is empty then throw "no dictionary window opened"
+   if tNew is not revIDEPaletteToStackName("dictionary") then throw tNew && "opened, not LiveCode's Dictionary"
+   tourWait 4000
+   dispatch "showGuides" to stack tNew
+   tourWait 4000
+   -- the guides (but those of extensions), the guides named twice, and the
+   -- images of the Printing guide and how many of them loaded
+   try
+      put tourPageReport(tNew, "var g=tUserGuideData.guides,n={},t=[],d=[],p=-1;" & \
+            "g.forEach(function(v,i){if(v.name=='printing')p=i;if(v.group=='Extensions')return;" & \
+            "t.push(v['display name']);if(n[v['display name']])d.push(v['display name']);n[v['display name']]=1;});" & \
+            "if(p<0){liveCode.oxtTourReport(t.length+' 0 0 '+(d.join(',')||'-'));}else{loadGuide(p);" & \
+            "setTimeout(function(){var m=document.querySelectorAll('#documentation img'),k=0;" & \
+            "for(var i=0;i<m.length;i++){if(m[i].complete&&m[i].naturalWidth>0)k++;}" & \
+            "liveCode.oxtTourReport(t.length+' '+m.length+' '+k+' '+(d.join(',')||'-'));},2000);}") into tData
+   catch tError
+      throw "the guides: " & tourJoin(tError)
+   end try
+   if tData is empty then throw "the guides: the page did not report them"
+   tourRecord "INFO the guides:" && word 1 of tData && "guides; Printing shows" && word 3 of tData && "of its" && \
+         word 2 of tData && "images"
+   if word 4 to -1 of tData is not "-" then throw "the guides: named twice:" && word 4 to -1 of tData
+   -- (OXT-Beyond 0.2.4: 16 guides; Printing has 11 images)
+   if not (word 1 of tData >= 12) then throw "the guides: too few:" && word 1 of tData
+   if not (word 2 of tData > 0) then throw "the guides: no Printing guide, or it shows no images"
+   if word 3 of tData is not word 2 of tData then
+      throw "the guides: the Printing guide shows" && word 3 of tData && "of its" && word 2 of tData && "images"
+   end if
+   tourShotStack tNew, "13-guides"
+   close stack tNew
+end tour_guides
+
+-- Runs the JavaScript pJS in the page of the browser widget "Dictionary"
+-- of pStack and returns the data it gives liveCode.oxtTourReport (empty
+-- after 10 seconds without it): a JavaScript handler of the widget, which
+-- a frontscript of this stack handles (do ... in widget returns nothing)
+function tourPageReport pStack, pJS
+   local tDefault, tHandlers, tError, tData
+   if there is not a widget "Dictionary" of stack pStack then
+      throw pStack && "has no browser widget"
+   end if
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   if there is not a button "oxt_ui_tour_report" then create invisible button "oxt_ui_tour_report"
+   set the script of button "oxt_ui_tour_report" to "on oxtTourReport pData" & return & \
+         "   dispatch " & quote & "tourReported" & quote & " to stack " & quote & "oxt_ui_tour" & quote & " with pData" & return & \
+         "end oxtTourReport"
+   insert the script of button "oxt_ui_tour_report" into front
+   unlock messages
+   set the defaultStack to tDefault
+   put the javascriptHandlers of widget "Dictionary" of stack pStack into tHandlers
+   set the javascriptHandlers of widget "Dictionary" of stack pStack to tHandlers & return & "oxtTourReport"
+   put empty into sReport
+   try
+      do pJS in widget "Dictionary" of stack pStack
+      repeat 40 times
+         if sReport is not empty then exit repeat
+         tourWait 250
+      end repeat
+      put sReport into tData
+   catch tError
+   end try
+   set the javascriptHandlers of widget "Dictionary" of stack pStack to tHandlers
+   remove the script of button "oxt_ui_tour_report" of stack "oxt_ui_tour" from front
+   if tError is not empty then throw tError
+   return tData
+end tourPageReport
+
+on tourReported pData
+   put pData into sReport
+end tourReported
+
+-- LiveCode's Dictionary in the system's browser, where there is no browser
+-- widget: the page the IDE wrote for it, and its data
+command tourDictionaryPage
+   local tPage, tData, tBytes
+   put revIDEGetDictionaryUrl("api") into tPage
+   put revIDESpecialFolderPath("documentation cache") & "/built_api.js" into tData
+   if there is not a file tPage then throw "LiveCode's Dictionary: no page" && tPage
+   if there is a file tData then put the number of bytes of URL ("binfile:" & tData) into tBytes
+   -- (OXT-Beyond 0.2.4: about 6 MB)
+   if not (tBytes > 1000000) then throw "LiveCode's Dictionary: no data in" && tData
+   tourRecord "INFO LiveCode's Dictionary opens in the system's browser:" && tPage && "(data" && tBytes && "bytes)"
+end tourDictionaryPage
 
 -- The dictionary stack opens on an entry picked at random: it shows the
 -- entry pFile instead, as a click on it in the list does, so that each

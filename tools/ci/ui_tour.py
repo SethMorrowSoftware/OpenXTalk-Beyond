@@ -284,6 +284,14 @@ def main(argv=None):
             restore = set_windows(args.appearance)
         else:
             env['GTK2_RC_FILES'] = linux_gtkrc(args.appearance, out)
+            # as the launcher does (Installer/linux/oxt-beyond), which this
+            # does not run: a package without CEF (arm64) has no browser
+            # widget, and the IDE then opens the dictionary in the system's
+            # browser
+            if 'LIVECODE_USE_CEF' not in env and \
+                    not os.path.isfile(os.path.join(lay.externals, 'CEF', 'libcef.so')):
+                env['LIVECODE_USE_CEF'] = '0'
+                log('Browser    : none (no Externals/CEF/libcef.so): LIVECODE_USE_CEF=0')
             if not env.get('DISPLAY'):
                 xvfb = shutil.which('xvfb-run')
                 if not xvfb:
