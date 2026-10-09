@@ -1503,10 +1503,22 @@ void MCAVFoundationPlayer::GetProperty(MCPlatformPlayerProperty p_property, MCPl
 			break;
         case kMCPlatformPlayerPropertyMovieRect:
 		{
-            // TODO: the 'naturalSize' method of AVAsset is deprecated, but we use for the moment.
+            // AVAsset's 'naturalSize' is deprecated: use the size of the first
+            // video track, turned as the track says it should be shown (as the
+            // player layer shows it). An asset with no video has no size.
             CGSize t_size;
             if (m_player != nil)
-                t_size = [[[m_player currentItem] asset] naturalSize];
+            {
+                t_size = CGSizeZero;
+                NSArray *t_video_tracks = [[[m_player currentItem] asset] tracksWithMediaType:AVMediaTypeVideo];
+                if ([t_video_tracks count] != 0)
+                {
+                    AVAssetTrack *t_track = [t_video_tracks objectAtIndex:0];
+                    t_size = CGSizeApplyAffineTransform([t_track naturalSize], [t_track preferredTransform]);
+                    t_size . width = fabs(t_size . width);
+                    t_size . height = fabs(t_size . height);
+                }
+            }
             else
             {
                 // This is in case a player is created by script, where the filename is nil (thus m_player is nil as well)
