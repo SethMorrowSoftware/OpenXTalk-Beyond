@@ -467,11 +467,14 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
         
         // SN-2015-06-15: [[ Bug 15457 ]] If this is a numerical array, do
         //  it in order - even if it does not start at 1
-        if (each == FU_ELEMENT && MCArrayIsNumericSequence(*t_array, t_sequenced_iterator))
+        // The keys of a numerical array go in order too, as its elements do
+        //  (anomaly 16449).
+        if (MCArrayIsNumericSequence(*t_array, t_sequenced_iterator))
         {
             t_sequence_array = true;
             if (!MCArrayFetchValueAtIndex(*t_array, t_sequenced_iterator, t_value))
                 return;
+            t_key = MCNameLookupIndex(t_sequenced_iterator);
         }
         else
         {
@@ -547,8 +550,18 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             case FU_KEY:
             {
                 loopvar -> set(ctxt, t_key);
-                if (!MCArrayIterate(*t_array, t_iterator, t_key, t_value))
-                    endnext = true;
+                if (t_sequence_array)
+                {
+                    if (MCArrayFetchValueAtIndex(*t_array, ++t_sequenced_iterator, t_value))
+                        t_key = MCNameLookupIndex(t_sequenced_iterator);
+                    else
+                        endnext = true;
+                }
+                else
+                {
+                    if (!MCArrayIterate(*t_array, t_iterator, t_key, t_value))
+                        endnext = true;
+                }
             }
             break;
                 
@@ -613,7 +626,10 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             if (!done)
                 loopvar -> set(ctxt, *t_byte);
         }
-        else if (each != FU_ELEMENT && each != FU_KEY)
+        // When the text has no such chunk (it is empty, or it is the words of
+        //  "   "), the loop variable is left as it was, as it is for keys,
+        //  elements and bytes (anomaly 16454).
+        else if (each != FU_ELEMENT && each != FU_KEY && t_found)
             loopvar -> set(ctxt, *t_unit);
         
         if (!done)
@@ -626,7 +642,7 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             {
                 if (each == FU_BYTE)
                     loopvar -> set(ctxt, *t_byte);
-                else if (each != FU_ELEMENT && each != FU_KEY)
+                else if (each != FU_ELEMENT && each != FU_KEY && t_found)
                     loopvar -> set(ctxt, *t_unit);
             }
         }
@@ -748,6 +764,14 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
 	Exec_stat stat;
 	Exec_stat retcode = ES_NORMAL;
 	MCtrylock++;
+
+	// A try part with no statements (all commented out, say) still runs the
+	// finally part (Bug 19811).
+	if (tspr == NULL)
+	{
+		tspr = finallystatements;
+		state = TS_FINALLY;
+	}
 	while (tspr != NULL)
 	{
 		if (MCtrace || MCnbreakpoints)
@@ -861,8 +885,11 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
             default:
                 if (state == TS_FINALLY)
                 {
+                    // An exit, pass, return, exit repeat or next repeat in the
+                    // finally part takes effect, in place of any the try or
+                    // catch part made (Bug 11773).
                     MCeerror->clear();
-                    retcode = ES_NORMAL;
+                    retcode = stat;
                     tspr = NULL;
                 }
                 else

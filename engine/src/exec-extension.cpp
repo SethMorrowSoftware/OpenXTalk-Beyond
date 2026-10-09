@@ -570,9 +570,16 @@ Exec_stat MCEngineHandleLibraryMessage(MCNameRef p_message, MCParameter *p_param
     if (t_success)
         return ES_NORMAL;
 	
-	// If the exec context is already in error, use that.
+	// If the exec context is already in error, use that. An LCB error may
+	// be pending as well (a parameter that couldn't be converted throws one
+	// before the type error): drop it, or the next LCB call would find it
+	// and fail with it.
 	if (MCECptr -> HasError())
+	{
+		MCAutoErrorRef t_pending_error;
+		MCErrorCatch(&t_pending_error);
 		return ES_ERROR;
+	}
 	
     return MCExtensionCatchError(*MCECptr);
 }
@@ -1278,9 +1285,14 @@ static bool __script_try_to_convert_to_list(MCExecContext& ctxt, MCValueRef& x_v
         
         for(uindex_t i = 0; i < MCArrayGetCount((MCArrayRef)x_value); i++)
         {
-            // We know this will succeed as we have a sequence.
+            // The keys are 1 to N, so this finds every element; if it
+            // ever does not, the array is not a list.
             MCValueRef t_element;
-            MCArrayFetchValueAtIndex((MCArrayRef)x_value, i + 1, t_element);
+            if (!MCArrayFetchValueAtIndex((MCArrayRef)x_value, i + 1, t_element))
+            {
+                r_converted = false;
+                return true;
+            }
             
             // Deal with the name/string issue.
             MCAutoValueRef t_revised_element;

@@ -77,7 +77,10 @@ or not there is an <error>. Since the <finally> section is always
 <execute|executed> even if the <statementList> contains an <exit> or
 <pass> <statement>, it can be used for final cleanup actions such as
 deleting <variable|variables>. The <finally> section is an optional part
-of the <try> <control structure|structure>.
+of the <try> <control structure|structure>. It runs even when the
+<statementList> is empty. An <exit>, <pass> or return <statement> in the
+<finally> section takes effect, in place of any in the <statementList> or
+the catch section.
 
 >*Note:* The <try> <control structure> is implemented internally as a
 > <command> and appears in the <commandNames>.

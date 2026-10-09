@@ -1077,7 +1077,9 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 			if (!hIMC)
 				break;
 			t_cursorpos = LOWORD(ImmGetCompositionStringW(hIMC, GCS_CURSORPOS, NULL, 0));
-			MCactivefield->setcompositioncursoroffset(t_cursorpos << 1);
+			// The position is in UTF-16 code units, as field indices are (it
+			// was doubled when they counted bytes), as on macOS and Linux.
+			MCactivefield->setcompositioncursoroffset(t_cursorpos);
 
 			if (lParam & GCS_RESULTSTR)
 			{

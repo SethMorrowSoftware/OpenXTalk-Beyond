@@ -1068,37 +1068,46 @@ static bool get_name_as_index(MCNameRef p_name, index_t& r_index)
     MCStringRef t_key;
     t_key = MCNameGetString(p_name);
     
-    // AL-2015-01-05: [[ Bug 14303 ]] Don't treat keys of the form "01" as indices,
-    //  since for example "01" and "1" are distinct array keys.
-    if (MCStringGetLength(t_key) != 1 && MCStringGetCodepointAtIndex(t_key, 0) == '0')
+    // A key is an index only when it is an integer written the way
+    // MCArrayFetchValueAtIndex looks it up: digits, after a '-' for a
+    // negative number, with no leading zero. Other keys are keys of their
+    // own, even when they have the same numeric value: "01" (AL-2015-01-05:
+    // [[ Bug 14303 ]]), "1.5", "2.00", "+1" or " 1". (The number the engine
+    // may have stored for the key isn't used, as it can come from such text:
+    // a "1.5" written as a number in a script, or "2.00" used in arithmetic.)
+    uindex_t t_length;
+    t_length = MCStringGetLength(t_key);
+
+    uindex_t t_start;
+    t_start = 0;
+    if (t_length > 1 && MCStringGetCodepointAtIndex(t_key, 0) == '-')
+        t_start = 1;
+
+    if (t_length == t_start || t_length - t_start > 18)
+        return false;
+
+    if (t_length > 1 && MCStringGetCodepointAtIndex(t_key, t_start) == '0')
         return false;
     
-    // SN-2015-05-15: [[ Bug 15457 ]] Store the string-to-number conversion.
-    double t_double_index;
-    if (MCStringGetNumericValue(t_key, t_double_index))
+    int64_t t_value;
+    t_value = 0;
+    for (uindex_t i = t_start; i < t_length; i++)
     {
-        r_index = (index_t)t_double_index;
-        return true;
+        codepoint_t t_char;
+        t_char = MCStringGetCodepointAtIndex(t_key, i);
+        if (t_char < '0' || t_char > '9')
+            return false;
+        t_value = t_value * 10 + (t_char - '0');
     }
     
-	char *t_end;
-	index_t t_index;
+    if (t_start == 1)
+        t_value = -t_value;
     
-    // AL-2014-05-15: [[ Bug 12203 ]] Don't nativize array name when checking
-    //  for a sequential array.
-    MCAutoStringRefAsCString t_cstring;
-    t_cstring . Lock(t_key);
+    if (t_value < INDEX_MIN || t_value > INDEX_MAX)
+        return false;
     
-	t_index = strtol(*t_cstring, &t_end, 10);
-	if (*t_end == '\0')
-	{
-        // SN-2015-06-15: [[ Bug 15457 ]] Store the converted value - improve
-        //  speed if repeating several times over the elements of a array.
-        MCStringSetNumericValue(t_key, t_index);
-		r_index = t_index;
-		return true;
-	}
-	return false;
+    r_index = (index_t)t_value;
+    return true;
 }
 
 static bool get_array_extent(void *context, MCArrayRef p_array, MCNameRef p_key, MCValueRef p_value)

@@ -336,7 +336,11 @@ Operand:    An expression that evaluates to a number.
 
 Example:
 	variable tVar as Number
-	put the log of 10000 into tVar -- tVar contains 5
+	put the log of 10000 into tVar -- tVar contains 4
+
+Description:
+The <Operand> must be greater than 0: the log of 0 or of a negative number
+throws an error.
 
 Tags: Math
 */
@@ -365,6 +369,10 @@ Operand:    An expression that evaluates to a number.
 Example:
 	variable tVar as Number
 	put ln(exp(3)) into tVar -- tVar contains approximately 3
+
+Description:
+The <Operand> must be greater than 0: the natural log of 0 or of a negative
+number throws an error.
 
 Tags: Math
 

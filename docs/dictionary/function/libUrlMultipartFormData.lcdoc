@@ -68,6 +68,14 @@ if it couldn't open a file).
 > httpHeaders of the url request. Lines 2 to the end of the data is the
 > data that must be posted to the url.
 
+The form is made as RFC 7578 describes, so that web servers with strict
+multipart checks accept it: the boundaries and the part headers end with
+a carriage return and line feed, the boundary in the Content-Type header
+is not quoted, and no part has a Content-Transfer-Encoding header.
+The values themselves are sent as they are, line endings included. Text
+with characters outside the native character set should be encoded
+first, for example with `textEncode(tText, "UTF-8")`.
+
 The standard way to call the function is with pairs of name/value
 <parameter|parameters>. 
 
@@ -108,7 +116,8 @@ no use by itself, but it can be used with
 > <Standalone Application Settings> window, make sure the "Internet" 
 > script library is selected.
 
-See also [RFC 1867](https://tools.ietf.org/html/rfc1867).
+See also [RFC 7578](https://www.rfc-editor.org/rfc/rfc7578), which replaced
+[RFC 1867](https://tools.ietf.org/html/rfc1867).
 
 References: $_POST (keyword), $_POST_BINARY (keyword), 
 $_POST_RAW (keyword), argument (glossary), function (glossary), 

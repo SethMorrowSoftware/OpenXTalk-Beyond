@@ -69,7 +69,7 @@ on TestRepeatForEachKeyInSequence
       put tArray[tKey] & comma after tComputedString
    end repeat
    
-   TestAssertBroken "repeat for each key in sequence", tComputedString is tExpectedString, "anomaly 16449"
+   TestAssert "repeat for each key in sequence", tComputedString is tExpectedString
 end TestRepeatForEachKeyInSequence
 
 on TestRepeatForEachElementInArray
@@ -106,6 +106,64 @@ on TestRepeatForEachElementInSequence
    TestAssert "repeat for each element in sequence", tComputedString is tExpectedString
    TestAssert "repeat for each element in sequence preserves last value", tElement is 10000
 end TestRepeatForEachElementInSequence
+
+private function __ElementsOf pArray
+   local tElements
+   repeat for each element tElement in pArray
+      put tElement & comma after tElements
+   end repeat
+   delete the last char of tElements
+   sort items of tElements
+   return tElements
+end __ElementsOf
+
+on TestRepeatForEachElementWithDecimalKeys
+   -- Keys that are numbers but not whole numbers don't make an array a
+   -- numbered list, even once they have been used as numbers.
+   local tArray, tTotal
+   put "a" into tArray[1]
+   put "b" into tArray[2.5]
+   put "c" into tArray[3]
+   TestAssert "each element of keys 1, 2.5 and 3", __ElementsOf(tArray) is "a,b,c"
+   repeat for each key tKey in tArray
+      add tKey to tTotal
+   end repeat
+   TestAssert "each element of keys 1, 2.5 and 3 used as numbers", __ElementsOf(tArray) is "a,b,c"
+
+   local tArray2
+   put "a" into tArray2[0.5]
+   put "b" into tArray2[1]
+   put "c" into tArray2[2]
+   TestAssert "each element of keys 0.5, 1 and 2", __ElementsOf(tArray2) is "a,b,c"
+   repeat for each key tKey in tArray2
+      add tKey to tTotal
+   end repeat
+   TestAssert "each element of keys 0.5, 1 and 2 used as numbers", __ElementsOf(tArray2) is "a,b,c"
+
+   -- Nor do keys with the value of a whole number but other text
+   local tArray3
+   put "a" into tArray3["1"]
+   put "b" into tArray3["2.00"]
+   put "c" into tArray3["3"]
+   repeat for each key tKey in tArray3
+      add tKey to tTotal
+   end repeat
+   TestAssert "each element of keys 1, 2.00 and 3 used as numbers", __ElementsOf(tArray3) is "a,b,c"
+end TestRepeatForEachElementWithDecimalKeys
+
+on TestRepeatForEachKeyInSequenceFromZero
+   -- A numbered list that starts at another number goes in order too
+   local tArray, tKeys
+   repeat with i = 0 to 20
+      put i into tArray[i]
+   end repeat
+   repeat for each key tKey in tArray
+      put tKey & comma after tKeys
+   end repeat
+   TestAssert "repeat for each key in sequence from 0", \
+         tKeys is "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,"
+   TestAssert "repeat for each key in sequence preserves last value", tKey is 20
+end TestRepeatForEachKeyInSequenceFromZero
 
 on TestRepeatForEachByte
    local tBytes, tExpectedString
@@ -192,17 +250,17 @@ on TestRepeatForEachChar
    put "something" into tChar
    repeat for each character tChar in empty
    end repeat
-   TestAssertBroken "repeat for each character in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each character in empty preserves initial value", tChar is "something"
    
    put "something" into tChar
    repeat for each codepoint tChar in empty
    end repeat
-   TestAssertBroken "repeat for each codepoint in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each codepoint in empty preserves initial value", tChar is "something"
    
    put "something" into tChar
    repeat for each codeunit tChar in empty
    end repeat
-   TestAssertBroken "repeat for each codeunit in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each codeunit in empty preserves initial value", tChar is "something"
 end TestRepeatForEachChar
 
 on TestRepeatForEachDelimitedChunk
@@ -226,7 +284,7 @@ on TestRepeatForEachDelimitedChunk
    put "something" into tChunk
    repeat for each item tChunk in empty
    end repeat
-   TestAssertBroken "repeat for each item in empty preserves initial value", tChunk is "something", "anomaly 16454"
+   TestAssert "repeat for each item in empty preserves initial value", tChunk is "something"
    
    replace comma with return in tChunks
    
@@ -247,7 +305,7 @@ on TestRepeatForEachDelimitedChunk
    put "something" into tChunk
    repeat for each line tChunk in empty
    end repeat
-   TestAssertBroken "repeat for each line in empty preserves initial value", tChunk is "something", "anomaly 16454"
+   TestAssert "repeat for each line in empty preserves initial value", tChunk is "something"
 end TestRepeatForEachDelimitedChunk
 
 on TestRepeatForEachSegment
@@ -265,7 +323,7 @@ on TestRepeatForEachSegment
    put "something" into tSegment
    repeat for each segment tSegment in empty
    end repeat
-   TestAssertBroken "repeat for each segment in empty preserves initial value", tSegment is "something", "anomaly 16454"
+   TestAssert "repeat for each segment in empty preserves initial value", tSegment is "something"
 end TestRepeatForEachSegment
 
 on TestRepeatForEachTrueWord
@@ -283,5 +341,5 @@ on TestRepeatForEachTrueWord
    put "something" into tTrueWord
    repeat for each trueWord tTrueWord in empty
    end repeat
-   TestAssertBroken "repeat for each true word in empty preserves initial value", tTrueWord is "something", "anomaly 16454"
+   TestAssert "repeat for each true word in empty preserves initial value", tTrueWord is "something"
 end TestRepeatForEachTrueWord

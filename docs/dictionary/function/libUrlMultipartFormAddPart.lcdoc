@@ -59,7 +59,12 @@ value(string): The value to be associated with the <partName> of the <formData>.
 
 MIMEtype(enum): The MIME type to use for the <value>.
 
-encoding(enum): The encoding type to use for the <value>.
+encoding(enum): The transfer encoding of the <value>. "binary", "8bit"
+and "7bit" mean the <value> is sent as it is, and add no header. Any
+other encoding, such as "base64" for a <value> you have encoded, is
+named in a Content-Transfer-Encoding header of the part. RFC 7578
+retired that header for forms, and web servers with strict checks (such
+as the OWASP Core Rule Set) reject a form that has one.
 
 
 Description:

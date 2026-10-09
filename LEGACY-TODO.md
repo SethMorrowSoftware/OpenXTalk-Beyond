@@ -285,7 +285,7 @@ Work left for later. 459 notes, by part of the repository:
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
 - [engine/src/em-util.js:332](engine/src/em-util.js#L332) TODO - for now, treat functions as objects but we may wish to differentiate them later
 - [engine/src/exec-engine.cpp:519](engine/src/exec-engine.cpp#L519) TODO - create as list?
-- [engine/src/exec-extension.cpp:762](engine/src/exec-extension.cpp#L762) TODO: Augment error
+- [engine/src/exec-extension.cpp:769](engine/src/exec-extension.cpp#L769) TODO: Augment error
 - [engine/src/exec-interface-stack.cpp:121](engine/src/exec-interface-stack.cpp#L121) TODO
 - [engine/src/exec-network.cpp:165](engine/src/exec-network.cpp#L165) TODO - I.M. this is a bit odd, checking if we have permission to resolve a hostname AFTER we've
 - [engine/src/exec-pasteboard.cpp:556](engine/src/exec-pasteboard.cpp#L556) TODO: support multiple items
@@ -478,7 +478,7 @@ Work left for later. 459 notes, by part of the repository:
 - [engine/src/w32dce.cpp:213](engine/src/w32dce.cpp#L213) TODO - This section needs to be revised as using a hardcoded titlebar size will give the wrong results
 - [engine/src/w32dcw32.cpp:849](engine/src/w32dcw32.cpp#L849) TODO: surrogate pairs?
 - [engine/src/w32dcw32.cpp:1076](engine/src/w32dcw32.cpp#L1076) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
-- [engine/src/w32dcw32.cpp:1456](engine/src/w32dcw32.cpp#L1456) TODO - look in to this further:
+- [engine/src/w32dcw32.cpp:1458](engine/src/w32dcw32.cpp#L1458) TODO - look in to this further:
 - [engine/src/w32printer.cpp:539](engine/src/w32printer.cpp#L539) TODO - fix half pixels lost when insetting by odd integers
 - [engine/src/w32stack.cpp:471](engine/src/w32stack.cpp#L471) TODO - Windows 8 implementation will require getting the appropriate per-window value
 - [engine/src/w32stack.cpp:1152](engine/src/w32stack.cpp#L1152) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords

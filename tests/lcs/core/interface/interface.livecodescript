@@ -68,10 +68,10 @@ on TestFoundLine
    __createFieldWithText "abcd" & return & "efgh"
    
    find "efgh" in field kCreatedField
-   TestAssertBroken "foundLine for found chunk", false /*the foundLine is "line 2 of field 1" or the foundLine is "line 2 of field 2"*/, "16178"
+   TestAssert "foundLine for found chunk", the foundLine is "line 2 of field 1" or the foundLine is "line 2 of field 2"
    
    find characters "x" in field kCreatedField
-   TestAssertBroken "foundLine for non-found chunk", false /*the foundLine is empty*/, "16178"
+   TestAssert "foundLine for non-found chunk", the foundLine is empty
 end TestFoundLine
 
 
@@ -191,7 +191,7 @@ on TestImageIntersect
    __testIntersect tImage1, tImage2, "bounds", true
    __testIntersect tImage1, tImage2, "pixels", true
    __testIntersect tImage1, tImage2, "opaque pixels", false
-   __testIntersect tImage1, tImage2, 127, true, true // Broken
+   __testIntersect tImage1, tImage2, 127, true
    __testIntersect tImage1, tImage2, 128, false
    
    set the alphadata of tImage1 to tFullAlpha
@@ -199,7 +199,7 @@ on TestImageIntersect
    __testIntersect tImage1, tImage2, "bounds", true
    __testIntersect tImage1, tImage2, "pixels", true
    __testIntersect tImage1, tImage2, "opaque pixels", false
-   __testIntersect tImage1, tImage2, 127, true, true // Broken
+   __testIntersect tImage1, tImage2, 127, true
    __testIntersect tImage1, tImage2, 128, false
    
    set the alphadata of tImage1 to tFullAlpha
@@ -212,6 +212,60 @@ on TestImageIntersect
    set the topleft of tImage2 to the topright of tImage1
    TestAssert "Images no overlapping", not intersect(tImage1, tImage2, "bounds")
 end TestImageIntersect
+
+
+on TestIntersectWithRectangle
+   -- An image with no transparency, like a card or an icon-only button, is
+   -- tested as a plain rectangle.
+   local tPart, tSolid, tOval
+   create image
+   put the long id of the last image into tPart
+   create image
+   put the long id of the last image into tSolid
+   set the rect of tPart to 0,0,10,10
+   set the rect of tSolid to 0,0,10,10
+
+   local tBlackImage, tPartAlpha, tFullAlpha
+   repeat with i = 1 to 100
+      put numToByte(0)&numToByte(0)&numToByte(0)&numToByte(0) after tBlackImage
+      put numToByte(255) after tFullAlpha
+      if i <= 50 then
+         put numToByte(255) after tPartAlpha
+      else
+         put numToByte(0) after tPartAlpha
+      end if
+   end repeat
+   set the imagedata of tPart to tBlackImage
+   set the imagedata of tSolid to tBlackImage
+   set the alphadata of tPart to tPartAlpha
+   set the alphadata of tSolid to tFullAlpha
+
+   -- Half of the image is opaque, and opaque pixels count
+   TestAssert "Opaque pixels of an image against a rectangle", \
+         intersect(tPart, tSolid, "opaque pixels")
+   TestAssert "Opaque pixels of a rectangle against an image", \
+         intersect(tSolid, tPart, "opaque pixels")
+
+   -- An oval graphic, with the rectangle in the empty corner of its box and
+   -- then over its middle, in both orders
+   create graphic
+   put the long id of the last graphic into tOval
+   set the style of tOval to "oval"
+   set the filled of tOval to true
+   set the rect of tOval to 0,0,100,100
+
+   set the rect of tSolid to 0,0,10,10
+   TestAssert "Oval against a rectangle in its corner", \
+         not intersect(tOval, tSolid, "pixels")
+   TestAssert "Rectangle in its corner against an oval", \
+         not intersect(tSolid, tOval, "pixels")
+
+   set the rect of tSolid to 45,45,55,55
+   TestAssert "Oval against a rectangle in its middle", \
+         intersect(tOval, tSolid, "pixels")
+   TestAssert "Rectangle in its middle against an oval", \
+         intersect(tSolid, tOval, "pixels")
+end TestIntersectWithRectangle
 
 
 on TestLocalLoc

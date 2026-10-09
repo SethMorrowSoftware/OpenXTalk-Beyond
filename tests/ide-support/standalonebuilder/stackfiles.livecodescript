@@ -167,13 +167,13 @@ private command _TestStandaloneStackPath pWhich
          && "when not under stack path", there is a file (tResources & \ 
          "/relativeOutside.livecode")
    else
-      TestAssertBroken "preserve folder structure of absolute file in" && pWhich \
+      TestAssert "preserve folder structure of absolute file in" && pWhich \
          && "when under stack path", there is a file (tResources & \ 
-         "/stackfiles/absoluteInside.livecode"), "Bug 19002"
+         "/stackfiles/absoluteInside.livecode")
 
-      TestAssertBroken "discard folder structure of relative file in" && pWhich \
+      TestAssert "discard folder structure of relative file in" && pWhich \
          && "when not under stack path", there is a file (tResources & \ 
-         "/relativeOutside.livecode"), "Bug 19002"
+         "/relativeOutside.livecode")
    end if 
 
    TestAssert "discard folder structure of absolute file in" && pWhich \

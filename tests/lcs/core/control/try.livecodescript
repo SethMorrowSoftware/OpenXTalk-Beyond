@@ -46,7 +46,7 @@ on TestTryFinallyNoStatements
   finally
      put true into tTest
   end try
-  TestAssertBroken "Finally executes regardless of try statements", tTest, "Bug 19811"
+  TestAssert "Finally executes regardless of try statements", tTest
 end TestTryFinallyNoStatements
 
 on TestTryNoCatchWithError
@@ -190,7 +190,7 @@ on TestTryFinallyPassHandlerToTop
    finally
       pass TestTryFinallyPassHandlerToTop to top
    end try
-   TestAssertBroken "Handler passed to top from finally", false, "Bug 11773"
+   TestAssert "Handler passed to top from finally", false
 end TestTryFinallyPassHandlerToTop
 
 on TestTryExitHandler
@@ -219,7 +219,7 @@ on TestTryFinallyExitHandler
    finally
       exit TestTryFinallyExitHandler
    end try
-   TestAssertBroken "Handler exit from finally", false, "Bug 11773"
+   TestAssert "Handler exit from finally", false
 end TestTryFinallyExitHandler
 
 on TestTryReturn
@@ -248,5 +248,31 @@ on TestTryFinallyReturn
    finally
       return empty
    end try
-   TestAssertBroken "Return from finally", false, "Bug 11773"
+   TestAssert "Return from finally", false
 end TestTryFinallyReturn
+
+on TestTryFinallyRepeatControl
+   local tCount = 0
+   repeat 3 times
+      add 1 to tCount
+      try
+         get tCount
+      finally
+         exit repeat
+      end try
+   end repeat
+   TestAssert "Exit repeat from finally", tCount is 1
+
+   local tAfter = 0
+   put 0 into tCount
+   repeat 3 times
+      add 1 to tCount
+      try
+         get tCount
+      finally
+         next repeat
+      end try
+      add 1 to tAfter
+   end repeat
+   TestAssert "Next repeat from finally", tCount is 3 and tAfter is 0
+end TestTryFinallyRepeatControl
