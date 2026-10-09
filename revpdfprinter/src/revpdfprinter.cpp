@@ -114,6 +114,7 @@ MCPDFPrintingDevice::MCPDFPrintingDevice()
 	m_context = nil;
 	m_status = CAIRO_STATUS_SUCCESS;
 	m_filename = nil;
+	m_file_created = false;
 	
 	// MW-2009-12-23: Font cache list
 	m_fonts = nil;
@@ -156,10 +157,14 @@ void MCPDFPrintingDevice::Destroy(void)
 
 	if (m_surface != nil)
 	{
+		// The document didn't end (it failed or was cancelled), so destroying
+		// the surface writes an incomplete PDF. Remove it.
 		cairo_surface_destroy(m_surface);
-		// TODO: Remove the file that could have been created - will need to
-		//   keep the filename around in 'BeginDocument' to do that.
+		m_surface = nil;
+		if (m_file_created && m_filename != nil)
+			remove(m_filename);
 	}
+	m_file_created = false;
 
 	if (m_filename != nil)
 	{
@@ -252,6 +257,8 @@ bool MCPDFPrintingDevice::BeginDocument(const MCCustomPrinterDocument& p_documen
 		m_status = cairo_surface_status(m_surface);
 		if (m_status != CAIRO_STATUS_SUCCESS)
 			t_success = false;
+		else
+			m_file_created = true;
 	}
 
 	if (t_success)
@@ -334,6 +341,7 @@ bool MCPDFPrintingDevice::EndDocument(void)
 	// behavior in 'Destroy' of deleting the file.
 	cairo_surface_destroy(m_surface);
 	m_surface = nil;
+	m_file_created = false;
 
 	return t_success;
 }
@@ -799,8 +807,26 @@ bool MCPDFPrintingDevice::draw_path(const MCCustomPrinterPath &p_path)
 			cairo_close_path(m_context);
 			break;
 		case kMCCustomPrinterPathQuadraticTo:
-			//TODO implement this
-			t_success = false;
+			{
+				// Cairo has no quadratic curves, so draw the cubic curve that
+				// is the same shape: its control points lie two thirds of the
+				// way from each end point to the quadratic's control point.
+				double t_x0, t_y0;
+				if (cairo_has_current_point(m_context))
+					cairo_get_current_point(m_context, &t_x0, &t_y0);
+				else
+				{
+					t_x0 = t_points[0].x;
+					t_y0 = t_points[0].y;
+				}
+				cairo_curve_to(m_context,
+					t_x0 + 2.0 / 3.0 * (t_points[0].x - t_x0),
+					t_y0 + 2.0 / 3.0 * (t_points[0].y - t_y0),
+					t_points[1].x + 2.0 / 3.0 * (t_points[0].x - t_points[1].x),
+					t_points[1].y + 2.0 / 3.0 * (t_points[0].y - t_points[1].y),
+					t_points[1].x, t_points[1].y);
+				t_points += 2;
+			}
 			break;
 		case kMCCustomPrinterPathCubicTo:
 			{
