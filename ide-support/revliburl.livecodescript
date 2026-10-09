@@ -3654,7 +3654,9 @@ function libUrlMultipartFormData @pFormData, pParam
   put "__Part__" into tBoundary
   put ulFormBoundary() after tBoundary
   
-  put "Content-type: multipart/form-data; boundary=" & quote & tBoundary & quote & return into pFormData
+  -- The boundary is not quoted: it needs no quotes, and strict multipart
+  -- checks on web servers (such as ModSecurity's) reject a quoted one.
+  put "Content-type: multipart/form-data; boundary=" & tBoundary & return into pFormData
   
   if tNumParams < 2 then
     ## do nothing for now, this will create empty shell for use with libUrlMultipartFormAddPart
@@ -3749,15 +3751,16 @@ function libUrlMultipartFormAddPart @pFormData,pName,pValue,pMimeType,pEncoding
     if the result <> empty then return "error" && the result
     
     if pMimeType is empty then put "application/octet-stream" into pMimeType
-    if pEncoding is empty then
-      put "Binary" into pEncoding
-    end if
     
   end if
   if pMimeType <> empty then
     put CRLF & "Content-Type:" && pMimeType after tPartData
   end if
-  if pEncoding <> empty then
+  -- RFC 7578 retired Content-Transfer-Encoding in form data, and servers
+  -- with strict checks (such as the OWASP Core Rule Set) reject a part
+  -- that has one. Binary, 8bit and 7bit only say the value is sent as it
+  -- is, so they add no header; another encoding still does.
+  if pEncoding <> empty and pEncoding is not among the items of "binary,8bit,7bit" then
     put CRLF & "Content-transfer-encoding:" && pEncoding after tPartData
   end if
   put CRLF & CRLF after tPartData
