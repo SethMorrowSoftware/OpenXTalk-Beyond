@@ -32,15 +32,6 @@ MCDateGetTimeInfo(bool t_is_local,
                   struct tm & r_timeinfo,
                   long & r_timezone)
 {
-	if (t_is_local)
-	{
-		_get_timezone(&r_timezone);
-	}
-	else
-	{
-		r_timezone = 0;
-	}
-
 	time_t t_now;
 	time(&t_now);
 
@@ -51,6 +42,25 @@ MCDateGetTimeInfo(bool t_is_local,
 	          : gmtime_s(&r_timeinfo, &t_now)))
 	{
 		return false;
+	}
+
+	if (t_is_local)
+	{
+		/* The offset east of UTC now, summer time included, as tm_gmtoff
+		 * gives it elsewhere: the local time read as if it were UTC, less
+		 * the actual time. (_get_timezone() gives the standard-time
+		 * offset, west of UTC.) */
+		struct tm t_local = r_timeinfo;
+		time_t t_local_as_utc = _mkgmtime(&t_local);
+		if (t_local_as_utc == (time_t)-1)
+		{
+			return false;
+		}
+		r_timezone = (long)(t_local_as_utc - t_now);
+	}
+	else
+	{
+		r_timezone = 0;
 	}
 
 	return true;
@@ -93,18 +103,9 @@ MCDateGetTimeInfo(bool t_is_local,
 		return false;
 	}
 
-	if (t_is_local)
-	{
-		/* FIXME This may be expensive, but is probably required if
-		 * MCDateGetTimeInfo() is to behave properly over summer time
-		 * changes. */
-		tzset();
-		r_timezone = timezone;
-	}
-	else
-	{
-		r_timezone = 0;
-	}
+	/* The offset east of UTC, summer time included, as on macOS. (The
+	 * global 'timezone' is the standard-time offset, west of UTC.) */
+	r_timezone = t_is_local ? r_timeinfo.tm_gmtoff : 0;
 
 	return true;
 }
