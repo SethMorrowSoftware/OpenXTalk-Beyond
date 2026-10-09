@@ -1278,9 +1278,14 @@ static bool __script_try_to_convert_to_list(MCExecContext& ctxt, MCValueRef& x_v
         
         for(uindex_t i = 0; i < MCArrayGetCount((MCArrayRef)x_value); i++)
         {
-            // We know this will succeed as we have a sequence.
+            // The keys are 1 to N, so this finds every element; if it
+            // ever does not, the array is not a list.
             MCValueRef t_element;
-            MCArrayFetchValueAtIndex((MCArrayRef)x_value, i + 1, t_element);
+            if (!MCArrayFetchValueAtIndex((MCArrayRef)x_value, i + 1, t_element))
+            {
+                r_converted = false;
+                return true;
+            }
             
             // Deal with the name/string issue.
             MCAutoValueRef t_revised_element;
