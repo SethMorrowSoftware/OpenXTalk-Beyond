@@ -2050,6 +2050,9 @@ it.
    the lines (with the previous release's tag), and
    `git log --first-parent --merges --format="%h %s" v0.1.0..main` the
    pull requests.
+   Run `python3 tools/oxt/legacy_todo.py` so that
+   [LEGACY-TODO.md](LEGACY-TODO.md) lists the notes, and their lines, of
+   the code being released.
 3. Merge that change into `main` through a pull request and wait for the
    checks of all three build workflows to pass.
 4. Do a [dry run](#dry-run) on `main` and look at its release files and

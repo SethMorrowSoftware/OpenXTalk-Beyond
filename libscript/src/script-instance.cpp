@@ -739,8 +739,12 @@ __MCScriptResolveForeignFunctionBindingForC(MCScriptInstanceRef p_instance,
     {
         if (r_bound == nil)
         {
-            return MCScriptThrowUnableToLoadForiegnLibraryError();
+            return MCScriptThrowUnableToLoadForiegnLibraryError(p_info->c.library);
         }
+        
+        /* An optional binding fails silently, so drop the loader's
+         * reason. */
+        MCErrorReset();
         
         *r_bound = false;
         
@@ -806,8 +810,12 @@ __MCScriptResolveForeignFunctionBindingForObjC(MCScriptInstanceRef p_instance,
     {
         if (r_bound == nil)
         {
-            return MCScriptThrowUnableToLoadForiegnLibraryError();
+            return MCScriptThrowUnableToLoadForiegnLibraryError(p_info->objc.library);
         }
+        
+        /* An optional binding fails silently, so drop the loader's
+         * reason. */
+        MCErrorReset();
         
         *r_bound = false;
         
@@ -1547,12 +1555,16 @@ __MCScriptResolveForeignFunctionBinding(MCScriptInstanceRef p_instance,
             break;
     }
     
-    if (t_status)
+    /* A handler that an optional binding could not bind stays unbound, so
+     * that calling it later tries again and throws, rather than calling a
+     * function it never found. */
+    if (t_status &&
+        (r_bound == nullptr || *r_bound))
     {
         p_handler->language = t_info->language;
         p_handler->thread_affinity = t_info->thread_affinity;
     }
-    
+
     return t_status;
 }
 

@@ -107,7 +107,8 @@ MCSLibraryAndroidSetNativeLibPath(MCStringRef p_path);
 #ifdef __MCS_INTERNAL_API__
 
 bool
-__MCSLibraryThrowCreateWithNativePathFailed(MCStringRef p_native_path);
+__MCSLibraryThrowCreateWithNativePathFailed(MCStringRef p_native_path,
+                                            MCStringRef p_reason);
 bool
 __MCSLibraryThrowCreateWithAddressFailed(void *p_address);
 bool

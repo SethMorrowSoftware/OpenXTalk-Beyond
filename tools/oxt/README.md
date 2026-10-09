@@ -18,6 +18,7 @@ development engine without a user interface.
 | `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
 | `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property and image patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
+| `legacy_todo.py` | writes [LEGACY-TODO.md](../../LEGACY-TODO.md), the FIXME, TODO and HACK notes in the inherited code, linked to their lines; `--check` tells whether it is up to date |
 
 ## layout.py
 

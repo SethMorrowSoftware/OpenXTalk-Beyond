@@ -77,7 +77,13 @@ array describing the request. The array has the following keys:
 - "parameters": For GET requests with parameters or application/x-www-form-urlencoded encoded
 this key will be an array of parameters
 - "headers": An array of request headers
-- "content": The request body (empty for application/x-www-form-urlencoded)
+- "content": The request body (empty for application/x-www-form-urlencoded).
+Other bodies are given as they are, including multipart/form-data (file
+uploads), which the library doesn't split into its parts.
+
+If the callback throws an error, the client gets a 500 response with a
+generic message. In the development environment the error is then thrown
+again, so that it is reported in the IDE.
 
 Parameters:
 
@@ -233,7 +239,7 @@ command httpdResponse pSocketID, pResponseCode, pContent, pHeaders
          pHeaders & \
          "Content-Length: " & the length of pContent & crlf & crlf before pContent
    
-   write pContent & crlf to socket pSocketID with message "__ResponseWritten"
+   write pContent to socket pSocketID with message "__ResponseWritten"
 end httpdResponse
 
 private function __GetCaller
@@ -251,7 +257,7 @@ on __NewRequest pSocketID, pLocalPort
 end __NewRequest
 
 on __ExpectContinueWritten pSocketID
-   read from socket pSocketID with message "__ReadContinuedRequest"
+   read from socket pSocketID with message "__ReadBody"
 end __ExpectContinueWritten
 
 private function __ParamsToArray pParams
@@ -274,6 +280,16 @@ on __ReadRequest pSocketID, pData
       exit __ReadRequest
    end if
    
+   -- The request line and headers can arrive over several reads, so
+   -- keep reading until the blank line that ends them
+   put pData after sRequests[pSocketID]["buffer"]
+   if byteOffset(crlf & crlf, sRequests[pSocketID]["buffer"]) is 0 then
+      read from socket pSocketID with message "__ReadRequest"
+      exit __ReadRequest
+   end if
+   put sRequests[pSocketID]["buffer"] into pData
+   delete variable sRequests[pSocketID]["buffer"]
+   
    if there is not a sServers[tPort]["target"] then
       -- respond as server error
       httpdResponse pSocketID, 500, "Target" && sServers[tPort]["target"] && "does not exist!"
@@ -292,27 +308,49 @@ on __ReadRequest pSocketID, pData
    
    __ParseHeaders pData, sRequests[pSocketID]["headers"]
    
-   if sRequests[pSocketID]["headers"]["Expect"] is "100-continue" then
-      write "100 Continue" to socket pSocketID with message "__ExpectContinueWritten"
+   -- What follows the headers is the start of the body
+   put pData into sRequests[pSocketID]["body"]
+   
+   if sRequests[pSocketID]["headers"]["Expect"] is "100-continue" and \
+         the number of bytes of pData < sRequests[pSocketID]["headers"]["Content-Length"] then
+      write "HTTP/1.1 100 Continue" & crlf & crlf to socket pSocketID with message "__ExpectContinueWritten"
       exit __ReadRequest
    end if
    
-   __ReadContinuedRequest pSocketID, pData
+   __ReadBody pSocketID, empty
 end __ReadRequest
 
-on __ReadContinuedRequest pSocketID, pData
-   if sRequests[pSocketID]["content"] is empty then
-      set the itemDelimiter to ";"
-      switch item 1 of sRequests[pSocketID]["headers"]["Content-Type"]
-         case "application/x-www-form-urlencoded"
-            put __ParamsToArray(word 1 to -1 of pData) into sRequests[pSocketID]["parameters"]
-            break
-         case "multipart/form-data"
-            -- todo
-         default
-            put pData into sRequests[pSocketID]["content"]
-      end switch
+on __ReadBody pSocketID, pData
+   if sRequests[pSocketID]["port"] is empty then
+      exit __ReadBody
    end if
+   
+   -- A body larger than one network read arrives over several, so keep
+   -- reading until Content-Length bytes are here
+   put pData after sRequests[pSocketID]["body"]
+   
+   local tLength
+   put sRequests[pSocketID]["headers"]["Content-Length"] into tLength
+   if tLength is an integer and \
+         the number of bytes of sRequests[pSocketID]["body"] < tLength then
+      read from socket pSocketID with message "__ReadBody"
+      exit __ReadBody
+   end if
+   
+   local tBody
+   put sRequests[pSocketID]["body"] into tBody
+   delete variable sRequests[pSocketID]["body"]
+   
+   set the itemDelimiter to ";"
+   switch item 1 of sRequests[pSocketID]["headers"]["Content-Type"]
+      case "application/x-www-form-urlencoded"
+         put __ParamsToArray(word 1 to -1 of tBody) into sRequests[pSocketID]["parameters"]
+         break
+      default
+         -- Any other body, multipart/form-data included, is given as it is
+         put tBody into sRequests[pSocketID]["content"]
+   end switch
+   set the itemDelimiter to comma
    
    local tPort
    put sRequests[pSocketID]["port"] into tPort
@@ -320,11 +358,15 @@ on __ReadContinuedRequest pSocketID, pData
    try
       dispatch sServers[tPort]["callback"] to sServers[tPort]["target"] with pSocketID, sRequests[pSocketID]
    catch tError
-      httpResponse pSocketID, 500, tError
+      -- The client gets a generic error, not the engine's error text
+      httpdResponse pSocketID, 500, "Internal Server Error"
       
-      --!TODO pass error in development mode
+      -- In the IDE, report the error as usual
+      if the environment contains "development" then
+         throw tError
+      end if
    end try
-end __ReadContinuedRequest
+end __ReadBody
 
 private command __ParseHeaders @xData, @rHeaders
    local tHeaders

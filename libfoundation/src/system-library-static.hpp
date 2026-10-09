@@ -67,7 +67,8 @@ public:
             }
         }
         
-        return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path);
+        return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path,
+                                                           nullptr);
     }
     
     bool CreateWithAddress(void *p_address)
@@ -222,7 +223,8 @@ class __MCSLibraryHandleStatic
             }
         }
         
-        return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path);
+        return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path,
+                                                           nullptr);
     }
     
     bool CreateWithAddress(void *p_address)

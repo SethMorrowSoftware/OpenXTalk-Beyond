@@ -44,6 +44,8 @@
 #include "libscript/script.h"
 #include "filepath.h"
 #include "osspec.h"
+#include "mcerror.h"
+#include "util.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -86,9 +88,91 @@ bool MCEngineScriptObjectCreate(MCObject *p_object, uint32_t p_part_id, MCScript
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MCEngineThrowScriptError(void)
+/* Describes the first error in an engine error list, whose lines read
+ * "code,line,column,token", using the error's text where the engine has it
+ * (the IDE carries the texts, standalones don't). A line that isn't in that
+ * form, such as the value of a "throw", is used as it is. The line number is
+ * reduced by p_line_offset, for a script run inside a wrapper handler, and
+ * left out if p_line_offset is -1. */
+static bool MCEngineDescribeFirstScriptError(MCStringRef p_errors, const char *p_texts, int32_t p_line_offset, MCStringRef& r_description)
 {
-    // TODO: Process MCeerror and such.
+    MCAutoStringRef t_first, t_rest;
+    if (!MCStringDivideAtChar(p_errors, '\n', kMCStringOptionCompareExact, &t_first, &t_rest))
+        return false;
+    
+    MCAutoStringRef t_code_string, t_after_code, t_line_string, t_after_line, t_column_string, t_token;
+    if (!MCStringDivideAtChar(*t_first, ',', kMCStringOptionCompareExact, &t_code_string, &t_after_code) ||
+        !MCStringDivideAtChar(*t_after_code, ',', kMCStringOptionCompareExact, &t_line_string, &t_after_line) ||
+        !MCStringDivideAtChar(*t_after_line, ',', kMCStringOptionCompareExact, &t_column_string, &t_token))
+        return false;
+    
+    int4 t_code, t_line, t_column;
+    if (!MCU_stoi4(*t_code_string, t_code) || t_code <= 0 ||
+        !MCU_stoi4(*t_line_string, t_line) ||
+        !MCU_stoi4(*t_column_string, t_column))
+        return MCStringCopy(*t_first, r_description);
+    
+    /* The texts are one line per error code, starting with code 1. */
+    const char *t_text = p_texts;
+    for (int4 i = 1; i < t_code && t_text != nil; i++)
+    {
+        t_text = strchr(t_text, '\n');
+        if (t_text != nil)
+            t_text += 1;
+    }
+    
+    MCAutoStringRef t_description;
+    if (t_text != nil && *t_text != '\0' && *t_text != '\n')
+    {
+        const char *t_text_end = strchr(t_text, '\n');
+        size_t t_text_length = t_text_end != nil ? size_t(t_text_end - t_text) : strlen(t_text);
+        if (!MCStringCreateWithNativeChars((const char_t *)t_text, uindex_t(t_text_length), &t_description))
+            return false;
+    }
+    else if (!MCStringFormat(&t_description, "error %d", t_code))
+        return false;
+    
+    if (p_line_offset >= 0 && t_line > p_line_offset &&
+        !MCStringAppendFormat(*t_description, " at line %d", t_line - p_line_offset))
+        return false;
+    
+    if (!MCStringIsEmpty(*t_token) &&
+        !MCStringAppendFormat(*t_description, " near \"%@\"", *t_token))
+        return false;
+    
+    return MCStringCopy(*t_description, r_description);
+}
+
+/* Throws "script error", adding the first parse error if there are any
+ * (from a script that domess ran as the body of an "on message" handler, so
+ * its line 1 is line 2 there), otherwise the first execution error. That
+ * one's line may be in any script, so it is left out. The engine's list of
+ * execution errors is left as it is. */
+bool MCEngineThrowScriptError(MCStringRef p_parse_errors = nil)
+{
+    MCAutoStringRef t_execution_errors;
+    MCStringRef t_errors;
+    const char *t_texts;
+    int32_t t_line_offset;
+    if (p_parse_errors != nil && !MCStringIsEmpty(p_parse_errors))
+    {
+        t_errors = p_parse_errors;
+        t_texts = MCparsingerrors;
+        t_line_offset = 1;
+    }
+    else
+    {
+        /* UNCHECKED */ MCeerror->copyasstringref(&t_execution_errors);
+        t_errors = *t_execution_errors;
+        t_texts = MCexecutionerrors;
+        t_line_offset = -1;
+    }
+    
+    MCAutoStringRef t_description;
+    if (t_errors != nil && !MCStringIsEmpty(t_errors) &&
+        MCEngineDescribeFirstScriptError(t_errors, t_texts, t_line_offset, &t_description))
+        return MCErrorThrowGenericWithMessage(MCSTR("script error: %{description}"), "description", *t_description, nil);
+    
     MCErrorCreateAndThrow(kMCGenericErrorTypeInfo, "reason", MCSTR("script error"), nil);
     return false;
 }
@@ -681,15 +765,25 @@ MCEngineDoExecuteScriptInObjectWithArguments(MCStringRef p_script, MCObject *p_o
 	
 	MCRedrawLockScreen();
 	
+	/* Keep the script's errors (domess discards them by default), so that
+	 * the LCB error can say what went wrong. */
+	MCAutoStringRef t_parse_errors;
 	Exec_stat t_stat;
 	t_stat = p_object -> domess(p_script,
-								*t_params);
+								*t_params,
+								false,
+								&(&t_parse_errors));
 	
 	MCRedrawUnlockScreen();
 	
 	if (t_stat == ES_ERROR)
 	{
-        MCEngineThrowScriptError();
+        /* The LCB error now carries the script's first error, and is
+         * located at the LCB statement. The engine's list is cleared, as
+         * domess would have done: its lines are about the wrapped script,
+         * not about any object's script. */
+        MCEngineThrowScriptError(*t_parse_errors);
+        MCeerror->clear();
         return nullptr;
 	}
 	

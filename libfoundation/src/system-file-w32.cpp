@@ -213,6 +213,57 @@ __MCSFileGetContents (MCStringRef p_native_path,
 	return false;
 }
 
+/* Writes p_data into the file at p_path_w32, then flushes it to disk and
+ * closes it.  Each step is checked (a write, the flush and the close can
+ * all fail, for example on a full disk or a network share that drops), so
+ * that a truncated file never replaces the one being saved. */
+static bool
+__MCSFileWriteAndFlush (MCStringRef p_native_path,
+                        const unichar_t *p_path_w32,
+                        MCDataRef p_data)
+{
+	HANDLE t_handle;
+	t_handle = CreateFileW (p_path_w32,            /* filename */
+	                        GENERIC_WRITE,         /* desired access */
+	                        0,                     /* share mode */
+	                        NULL,                  /* security attr. */
+	                        CREATE_ALWAYS,         /* creation disp. */
+	                        FILE_ATTRIBUTE_NORMAL, /* flags & attrs. */
+	                        NULL);                 /* template file */
+	if (t_handle == INVALID_HANDLE_VALUE)
+		return __MCSFileThrowOpenErrorWithErrorCode (p_native_path,
+		                                             GetLastError());
+
+	const byte_t *t_bytes = MCDataGetBytePtr (p_data);
+	uindex_t t_remaining = MCDataGetLength (p_data);
+	DWORD t_error = ERROR_SUCCESS;
+	while (t_remaining > 0 && t_error == ERROR_SUCCESS)
+	{
+		DWORD t_written = 0;
+		if (!WriteFile (t_handle, t_bytes, t_remaining, &t_written, NULL))
+			t_error = GetLastError();
+		else if (t_written == 0)
+			t_error = ERROR_WRITE_FAULT;
+		else
+		{
+			t_bytes += t_written;
+			t_remaining -= t_written;
+		}
+	}
+
+	if (t_error == ERROR_SUCCESS && !FlushFileBuffers (t_handle))
+		t_error = GetLastError();
+
+	if (!CloseHandle (t_handle) && t_error == ERROR_SUCCESS)
+		t_error = GetLastError();
+
+	if (t_error != ERROR_SUCCESS)
+		return __MCSFileThrowWriteErrorWithErrorCode (p_native_path,
+		                                              t_error);
+
+	return true;
+}
+
 /* Creates (or replaces) the file at p_native_path with a new file
  * containing p_data. */
 bool
@@ -300,19 +351,9 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	/* ---------- 2) Populate the temporary file */
 
-	/* FIXME Possibly inefficient */
-	MCStreamRef t_stream = NULL;
-	if (!__MCSFileCreateStream (*t_temp_native_path, kMCSFileOpenModeWrite,
-	                            t_stream))
+	if (!__MCSFileWriteAndFlush (*t_temp_native_path, t_temp_path_w32,
+	                             p_data))
 		goto error_cleanup;
-
-	if (!MCStreamWrite (t_stream, MCDataGetBytePtr (p_data),
-	                    MCDataGetLength (p_data)))
-		goto error_cleanup;
-
-	/* FIXME explicitly finish stream */
-	MCValueRelease (t_stream);
-	t_stream = NULL;
 
 	/* ---------- 3) Move the temporary file into place */
 
@@ -343,8 +384,6 @@ __MCSFileSetContents (MCStringRef p_native_path,
 	return true;
 
  error_cleanup:
-	/* FIXME explicitly finish stream */
-	MCValueRelease (t_stream);
 	/* UNCHECKED */ DeleteFileW (t_temp_path_w32);
 	return false;
 }

@@ -72,9 +72,20 @@ public:
                           RTLD_LAZY);
         if (m_handle == nullptr)
         {
-            MCLog("dlopen failed %s",dlerror());
-            /* TODO: dlerror message */
-            return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path);
+            /* dlerror() says why: the file is missing, is for another
+             * architecture, or needs a library or symbol that isn't there.
+             * (It clears the message, so it is read once.) */
+            const char *t_dlerror = dlerror();
+            MCAutoStringRef t_reason;
+            if (t_dlerror != nullptr &&
+                !MCStringCreateWithSysString(t_dlerror,
+                                             &t_reason))
+            {
+                return false;
+            }
+            
+            return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path,
+                                                               *t_reason);
         }
         
         return true;

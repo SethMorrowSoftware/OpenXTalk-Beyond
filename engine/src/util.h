@@ -268,8 +268,12 @@ extern bool MCU_is_token(MCStringRef p_string);
 // Otherwise, the path is passed through to the system to use its search
 // order.
 //
+// If the library doesn't load and r_reason is given, it receives the
+// system's reason (or nullptr if there is none).
+//
 MCSLibraryRef
-MCU_library_load(MCStringRef p_library);
+MCU_library_load(MCStringRef p_library,
+                 MCStringRef *r_reason = nullptr);
 
 void
 MCU_library_unload(MCSLibraryRef handle);

@@ -1,27 +1,27 @@
 # FIXME, TODO and HACK notes in the legacy code
 
-Every FIXME, TODO and HACK comment in the code OXT-Beyond inherited: LiveCode Community's engine, libraries, toolchain, externals, extensions and IDE scripts, and Tom Perry's OpenXTalk Lite changes to them. It is a map of known loose ends, kept as a starting point for work; most notes were written by LiveCode's developers years ago, and some may no longer be true.
+Every FIXME, TODO and HACK comment in the code OXT-Beyond inherited: LiveCode Community's engine, libraries, toolchain, externals, extensions and IDE scripts, and Tom Perry's OpenXTalk Lite changes to them. It is a map of known loose ends, kept as a starting point for work; most notes were written by LiveCode's developers years ago, and some may no longer be true. When a fix removes or rewords a note, this list is made again in the same pull request.
 
-Not covered: the third-party libraries in `thirdparty/` (each has its own upstream), the bundled copy of GYP in `gyp/`, the dictionary and guides in `docs/`, and the scripts inside the IDE's binary stacks (`.livecode`, `.rev` and `.oxtstack` files), which a text search cannot read.
+Not covered: the third-party libraries in `thirdparty/` (each has its own upstream), the bundled copy of GYP in `gyp/`, the dictionary and guides in `docs/`, OXT-Beyond's own build and CI tools in `tools/ci/` and `tools/oxt/`, and the scripts inside the IDE's binary stacks (`.livecode`, `.rev` and `.oxtstack` files), which a text search cannot read.
 
-How it was made: a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence) at commit `ff0263ca8` (0.2.4-rc.4). A line with more than one marker is listed under each. Line numbers drift as the code changes; to list the notes again:
+How it is made: `tools/oxt/legacy_todo.py` writes this file from a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence). A line with more than one marker is listed under each. Run `python3 tools/oxt/legacy_todo.py` after a change that adds, removes or moves notes; `--check` tells whether this file is up to date. The search is:
 
 ```sh
-git grep -n -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetched' ':!gyp' ':!docs' \
-    ':!*.md' ':!*.txt' ':!*.json' ':!*.map' ':!*.strings'
+git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetched' ':!gyp' ':!docs' \
+    ':!tools/ci' ':!tools/oxt' ':!*.md' ':!*.txt' ':!*.json' ':!*.map' ':!*.strings'
 ```
 
 | Marker | Notes |
 | --- | --- |
-| [FIXME](#fixme) | 81 |
+| [FIXME](#fixme) | 74 |
 | [HACK](#hack) | 33 |
-| [TODO](#todo) | 481 |
+| [TODO](#todo) | 459 |
 
 ## FIXME
 
-Code its authors knew to be wrong or incomplete. 81 notes, by part of the repository:
+Code its authors knew to be wrong or incomplete. 74 notes, by part of the repository:
 
-[engine](#fixme-engine) (40), [libfoundation](#fixme-libfoundation) (15), [tests](#fixme-tests) (8), [toolchain](#fixme-toolchain) (7), [libscript](#fixme-libscript) (3), [extensions](#fixme-extensions) (2), [ide](#fixme-ide) (2), [ide-support](#fixme-ide-support) (2), [builder](#fixme-builder) (1), [util](#fixme-util) (1)
+[engine](#fixme-engine) (40), [libfoundation](#fixme-libfoundation) (10), [tests](#fixme-tests) (8), [toolchain](#fixme-toolchain) (6), [extensions](#fixme-extensions) (2), [ide](#fixme-ide) (2), [ide-support](#fixme-ide-support) (2), [libscript](#fixme-libscript) (2), [builder](#fixme-builder) (1), [util](#fixme-util) (1)
 
 <a id="fixme-engine"></a>
 
@@ -70,20 +70,15 @@ Code its authors knew to be wrong or incomplete. 81 notes, by part of the reposi
 
 <a id="fixme-libfoundation"></a>
 
-### FIXME: libfoundation (15)
+### FIXME: libfoundation (10)
 
 - [libfoundation/include/system-commandline.h:81](libfoundation/include/system-commandline.h#L81) FIXME support for getting the command filename isn't implemented
 - [libfoundation/src/foundation-handler.cpp:503](libfoundation/src/foundation-handler.cpp#L503) FIXME Should include information about arguments and return
 - [libfoundation/src/foundation-private.h:710](libfoundation/src/foundation-private.h#L710) define __MCAssertIsLocale(x)   MCAssert(nil != (x)) /* FIXME
 - [libfoundation/src/system-commandline.cpp:280](libfoundation/src/system-commandline.cpp#L280) return false; /* FIXME proper error
-- [libfoundation/src/system-file-posix.cpp:360](libfoundation/src/system-file-posix.cpp#L360) return false; /* FIXME Should we throw an error here?
-- [libfoundation/src/system-file-posix.cpp:588](libfoundation/src/system-file-posix.cpp#L588) return false; /* FIXME proper error
-- [libfoundation/src/system-file-w32.cpp:229](libfoundation/src/system-file-w32.cpp#L229) FIXME Bad/insecure implementation:
-- [libfoundation/src/system-file-w32.cpp:268](libfoundation/src/system-file-w32.cpp#L268) FIXME Possibly inefficient
-- [libfoundation/src/system-file-w32.cpp:278](libfoundation/src/system-file-w32.cpp#L278) FIXME explicitly finish stream
-- [libfoundation/src/system-file-w32.cpp:311](libfoundation/src/system-file-w32.cpp#L311) FIXME explicitly finish stream
-- [libfoundation/src/system-file-w32.cpp:410](libfoundation/src/system-file-w32.cpp#L410) FIXME[2017-04-20] there should be a "basename" function
-- [libfoundation/src/system-file-w32.cpp:466](libfoundation/src/system-file-w32.cpp#L466) FIXME Currently, this function -- and thus the files API on Windows
+- [libfoundation/src/system-file-w32.cpp:286](libfoundation/src/system-file-w32.cpp#L286) FIXME Remaining weaknesses:
+- [libfoundation/src/system-file-w32.cpp:484](libfoundation/src/system-file-w32.cpp#L484) FIXME[2017-04-20] there should be a "basename" function
+- [libfoundation/src/system-file-w32.cpp:540](libfoundation/src/system-file-w32.cpp#L540) FIXME Currently, this function -- and thus the files API on Windows
 - [libfoundation/src/system-stream.cpp:51](libfoundation/src/system-stream.cpp#L51) FIXME known issues:
 - [libfoundation/src/system-stream.cpp:221](libfoundation/src/system-stream.cpp#L221) FIXME see the "known issues" at the top of this file.
 - [libfoundation/src/system-stream.cpp:280](libfoundation/src/system-stream.cpp#L280) FIXME see the "known issues" at the top of this file.
@@ -103,7 +98,7 @@ Code its authors knew to be wrong or incomplete. 81 notes, by part of the reposi
 
 <a id="fixme-toolchain"></a>
 
-### FIXME: toolchain (7)
+### FIXME: toolchain (6)
 
 - [toolchain/lc-compile-ffi-java/src/main.c:65](toolchain/lc-compile-ffi-java/src/main.c#L65) FIXME maybe we should use getopt?
 - [toolchain/lc-compile-ffi-java/src/main.c:87](toolchain/lc-compile-ffi-java/src/main.c#L87) FIXME This should be expanded to support "-W error",
@@ -111,15 +106,6 @@ Code its authors knew to be wrong or incomplete. 81 notes, by part of the reposi
 - [toolchain/lc-compile/src/lc-run.cpp:239](toolchain/lc-compile/src/lc-run.cpp#L239) FIXME Once we have "real" command line arguments, process them
 - [toolchain/lc-compile/src/main.c:163](toolchain/lc-compile/src/main.c#L163) FIXME maybe we should use getopt?
 - [toolchain/lc-compile/src/main.c:236](toolchain/lc-compile/src/main.c#L236) FIXME This should be expanded to support "-W error",
-- [toolchain/lc-compile/src/outputfile.c:166](toolchain/lc-compile/src/outputfile.c#L166) r_filename = strdup(t_path); /* FIXME should be strndup
-
-<a id="fixme-libscript"></a>
-
-### FIXME: libscript (3)
-
-- [libscript/src/module-date.cpp:98](libscript/src/module-date.cpp#L98) FIXME This may be expensive, but is probably required if
-- [libscript/src/module-stream.cpp:27](libscript/src/module-stream.cpp#L27) FIXME This check should be handled by MCStreamWrite
-- [libscript/src/unittest-impl.lcb:97](libscript/src/unittest-impl.lcb#L97) FIXME this should use LCB encoding library rather than directly
 
 <a id="fixme-extensions"></a>
 
@@ -132,7 +118,7 @@ Code its authors knew to be wrong or incomplete. 81 notes, by part of the reposi
 
 ### FIXME: ide (2)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11294](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11294) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11330](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11330) FIXME There is some inconsistency in the guide's files that we
 - [ide/Toolset/palettes/script editor/behaviors/revseleftbarbehavior.livecodescript:20](ide/Toolset/palettes/script%20editor/behaviors/revseleftbarbehavior.livecodescript#L20) FIXME What happens when the space is to short to show the filter field?
 
 <a id="fixme-ide-support"></a>
@@ -142,11 +128,18 @@ Code its authors knew to be wrong or incomplete. 81 notes, by part of the reposi
 - [ide-support/revsaveasemscriptenstandalone.livecodescript:33](ide-support/revsaveasemscriptenstandalone.livecodescript#L33) FIXME
 - [ide-support/revsaveasemscriptenstandalone.livecodescript:147](ide-support/revsaveasemscriptenstandalone.livecodescript#L147) FIXME just copies the Emscripten-generated page into place
 
+<a id="fixme-libscript"></a>
+
+### FIXME: libscript (2)
+
+- [libscript/src/module-stream.cpp:27](libscript/src/module-stream.cpp#L27) FIXME This check should be handled by MCStreamWrite
+- [libscript/src/unittest-impl.lcb:97](libscript/src/unittest-impl.lcb#L97) FIXME this should use LCB encoding library rather than directly
+
 <a id="fixme-builder"></a>
 
 ### FIXME: builder (1)
 
-- [builder/docs_builder.livecodescript:376](builder/docs_builder.livecodescript#L376) FIXME This has to be kept in sync with the installer manifest, probably
+- [builder/docs_builder.livecodescript:382](builder/docs_builder.livecodescript#L382) FIXME This has to be kept in sync with the installer manifest, probably
 
 <a id="fixme-util"></a>
 
@@ -235,13 +228,13 @@ Workarounds their authors were not happy with. 33 notes, by part of the reposito
 
 ## TODO
 
-Work left for later. 481 notes, by part of the repository:
+Work left for later. 459 notes, by part of the repository:
 
-[engine](#todo-engine) (281), [libfoundation](#todo-libfoundation) (50), [tests](#todo-tests) (20), [revbrowser](#todo-revbrowser) (19), [ide](#todo-ide) (18), [extensions](#todo-extensions) (14), [toolchain](#todo-toolchain) (14), [libgraphics](#todo-libgraphics) (12), [libscript](#todo-libscript) (12), [libbrowser](#todo-libbrowser) (10), [builder](#todo-builder) (5), [tools](#todo-tools) (4), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [revpdfprinter](#todo-revpdfprinter) (2), [config](#todo-config) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
+[engine](#todo-engine) (269), [libfoundation](#todo-libfoundation) (47), [tests](#todo-tests) (20), [revbrowser](#todo-revbrowser) (19), [ide](#todo-ide) (18), [toolchain](#todo-toolchain) (14), [extensions](#todo-extensions) (12), [libgraphics](#todo-libgraphics) (12), [libscript](#todo-libscript) (12), [libbrowser](#todo-libbrowser) (10), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1), [tools](#todo-tools) (1)
 
 <a id="todo-engine"></a>
 
-### TODO: engine (281)
+### TODO: engine (269)
 
 - [engine/exec-tests/filters/EvalUniDecode.test:35](engine/exec-tests/filters/EvalUniDecode.test#L35) TODO - add this platform :)
 - [engine/exec-tests/filters/EvalUniEncode.test:35](engine/exec-tests/filters/EvalUniEncode.test#L35) TODO - add this platform :)
@@ -276,27 +269,24 @@ Work left for later. 481 notes, by part of the repository:
 - [engine/src/dispatch.cpp:305](engine/src/dispatch.cpp#L305) TODO[19681]: This can be removed when all engine messages are sent with
 - [engine/src/dispatch.cpp:1571](engine/src/dispatch.cpp#L1571) PLATFORM-TODO: This is needed at the moment to make sure that we don't
 - [engine/src/dispatch.cpp:1909](engine/src/dispatch.cpp#L1909) TODO: what about other 'special' chars added by unicode?
-- [engine/src/dskmac.cpp:685](engine/src/dskmac.cpp#L685) TODO: handle error appropriately
-- [engine/src/dskmac.cpp:706](engine/src/dskmac.cpp#L706) TODO: handle error appropriately
-- [engine/src/dskmac.cpp:773](engine/src/dskmac.cpp#L773) TODO Check whether the double path resolution is an issue
-- [engine/src/dskmac.cpp:1169](engine/src/dskmac.cpp#L1169) TODO assign relevant error code
-- [engine/src/dskmac.cpp:1191](engine/src/dskmac.cpp#L1191) TODO assign relevant error code
-- [engine/src/dskmac.cpp:1236](engine/src/dskmac.cpp#L1236) void MCS_mac_closeresourcefile(ResFileRefNum p_ref) // TODO: remove?
-- [engine/src/dskmac.cpp:1656](engine/src/dskmac.cpp#L1656) TODO Add MCSystemFileHandle::SetStream(char *newptr) ?
-- [engine/src/dskmac.cpp:3463](engine/src/dskmac.cpp#L3463) TODO: Report errno appropriately.
+- [engine/src/dskmac.cpp:790](engine/src/dskmac.cpp#L790) TODO Check whether the double path resolution is an issue
+- [engine/src/dskmac.cpp:1186](engine/src/dskmac.cpp#L1186) TODO assign relevant error code
+- [engine/src/dskmac.cpp:1208](engine/src/dskmac.cpp#L1208) TODO assign relevant error code
+- [engine/src/dskmac.cpp:1253](engine/src/dskmac.cpp#L1253) void MCS_mac_closeresourcefile(ResFileRefNum p_ref) // TODO: remove?
+- [engine/src/dskmac.cpp:1673](engine/src/dskmac.cpp#L1673) TODO Add MCSystemFileHandle::SetStream(char *newptr) ?
+- [engine/src/dskmac.cpp:3484](engine/src/dskmac.cpp#L3484) TODO: Report errno appropriately.
 - [engine/src/dskmain.cpp:222](engine/src/dskmain.cpp#L222) TODO Remove -g,-geometry flag because it's not used any more
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
-- [engine/src/dskw32.cpp:3018](engine/src/dskw32.cpp#L3018) TODO: set end of file...
+- [engine/src/dskw32.cpp:3020](engine/src/dskw32.cpp#L3020) TODO: set end of file...
 - [engine/src/em-dc.js:146](engine/src/em-dc.js#L146) TODO - handle cleanup of embedded canvas
 - [engine/src/em-dc.js:297](engine/src/em-dc.js#L297) TODO - implement
 - [engine/src/em-event.js:598](engine/src/em-event.js#L598) TODO - reenable alt key detection
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
 - [engine/src/em-util.js:332](engine/src/em-util.js#L332) TODO - for now, treat functions as objects but we may wish to differentiate them later
 - [engine/src/exec-engine.cpp:519](engine/src/exec-engine.cpp#L519) TODO - create as list?
-- [engine/src/exec-extension.cpp:750](engine/src/exec-extension.cpp#L750) TODO: Augment error
+- [engine/src/exec-extension.cpp:762](engine/src/exec-extension.cpp#L762) TODO: Augment error
 - [engine/src/exec-interface-stack.cpp:121](engine/src/exec-interface-stack.cpp#L121) TODO
-- [engine/src/exec-multimedia.cpp:599](engine/src/exec-multimedia.cpp#L599) TODO: The code around here looks quite wrong - it needs to be compared to the original.
 - [engine/src/exec-network.cpp:165](engine/src/exec-network.cpp#L165) TODO - I.M. this is a bit odd, checking if we have permission to resolve a hostname AFTER we've
 - [engine/src/exec-pasteboard.cpp:556](engine/src/exec-pasteboard.cpp#L556) TODO: support multiple items
 - [engine/src/exec-pasteboard.cpp:691](engine/src/exec-pasteboard.cpp#L691) TODO: support multiple items
@@ -333,20 +323,17 @@ Work left for later. 481 notes, by part of the repository:
 - [engine/src/java/com/sec/android/iap/sample/helper/SamsungIapHelper.java:1150](engine/src/java/com/sec/android/iap/sample/helper/SamsungIapHelper.java#L1150) TODO 삭제 대상
 - [engine/src/java/com/sec/android/iap/sample/helper/SamsungIapHelper.java:1439](engine/src/java/com/sec/android/iap/sample/helper/SamsungIapHelper.java#L1439) TODO  삭제 대상
 - [engine/src/line.cpp:402](engine/src/line.cpp#L402) TODO: when cx > line width, return the last block in visual order
-- [engine/src/lnxans.cpp:121](engine/src/lnxans.cpp#L121) TODO
-- [engine/src/lnxans.cpp:336](engine/src/lnxans.cpp#L336) TODO : This needs to be changed to a proper callback function : gdk_event_handler_set()
-- [engine/src/lnxans.cpp:633](engine/src/lnxans.cpp#L633) TODO : This still needs to pass over the p_filter.
+- [engine/src/lnxans.cpp:337](engine/src/lnxans.cpp#L337) TODO : This needs to be changed to a proper callback function : gdk_event_handler_set()
 - [engine/src/lnxcursor.cpp:104](engine/src/lnxcursor.cpp#L104) TODO: do we need to do this?
 - [engine/src/lnxdcs.cpp:279](engine/src/lnxdcs.cpp#L279) TODO: equivalent in GDK?
 - [engine/src/lnxdcs.cpp:573](engine/src/lnxdcs.cpp#L573) TODO - We may need to do clipboard persistance here
 - [engine/src/lnxflst.cpp:43](engine/src/lnxflst.cpp#L43) TODO: We need to revise the situation periodically and implement
-- [engine/src/lnxstack.cpp:288](engine/src/lnxstack.cpp#L288) TODO: initial input focus and initial window state
+- [engine/src/lnxstack.cpp:288](engine/src/lnxstack.cpp#L288) TODO: initial input focus
 - [engine/src/lnxstack.cpp:340](engine/src/lnxstack.cpp#L340) TODO: is this just another way of ensuring on-top-ness?
 - [engine/src/lnxstack.cpp:362](engine/src/lnxstack.cpp#L362) TODO: input modality hints
 - [engine/src/lnxstack.cpp:440](engine/src/lnxstack.cpp#L440) TODO: test if this comment is still true
-- [engine/src/mac-av-player.mm:1506](engine/src/mac-av-player.mm#L1506) TODO: the 'naturalSize' method of AVAsset is deprecated, but we use for the moment.
-- [engine/src/mac-av-player.mm:1540](engine/src/mac-av-player.mm#L1540) TODO: Add more types??
-- [engine/src/mac-av-player.mm:1589](engine/src/mac-av-player.mm#L1589) TODO
+- [engine/src/mac-av-player.mm:1552](engine/src/mac-av-player.mm#L1552) TODO: Add more types??
+- [engine/src/mac-av-player.mm:1601](engine/src/mac-av-player.mm#L1601) TODO
 - [engine/src/mac-core.mm:1578](engine/src/mac-core.mm#L1578) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
 - [engine/src/mac-core.mm:1645](engine/src/mac-core.mm#L1645) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
 - [engine/src/mac-core.mm:1718](engine/src/mac-core.mm#L1718) COCOA-TODO: Clean up this external dependency.
@@ -391,7 +378,6 @@ Work left for later. 481 notes, by part of the repository:
 - [engine/src/mbliphonesensor.mm:145](engine/src/mbliphonesensor.mm#L145) TODO: Determine difference between location and heading error properly
 - [engine/src/mcio.cpp:77](engine/src/mcio.cpp#L77) TODO - update processes to use MCNameRef
 - [engine/src/mcio.cpp:449](engine/src/mcio.cpp#L449) TODO[2017-02-06] Refactor so that this doesn't allocate any
-- [engine/src/mcmessagedigest.cpp:170](engine/src/mcmessagedigest.cpp#L170) TODO[2017-02-28] Failing to find a matching algorithm should
 - [engine/src/mixin-refcounted.h:54](engine/src/mixin-refcounted.h#L54) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:62](engine/src/mixin-refcounted.h#L62) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:70](engine/src/mixin-refcounted.h#L70) TODO: atomic ops
@@ -425,19 +411,16 @@ Work left for later. 481 notes, by part of the repository:
 - [engine/src/module-canvas.h:78](engine/src/module-canvas.h#L78) TODO - move to foundation library ?
 - [engine/src/module-canvas.h:320](engine/src/module-canvas.h#L320) TODO - Implement image operations
 - [engine/src/module-canvas.h:363](engine/src/module-canvas.h#L363) TODO - add skew?"
-- [engine/src/module-engine.cpp:91](engine/src/module-engine.cpp#L91) TODO: Process MCeerror and such.
-- [engine/src/module-engine.cpp:443](engine/src/module-engine.cpp#L443) TODO[C++11] This should be "static" but MSVC2010 doesn't support
+- [engine/src/module-engine.cpp:527](engine/src/module-engine.cpp#L527) TODO[C++11] This should be "static" but MSVC2010 doesn't support
 - [engine/src/object.cpp:661](engine/src/object.cpp#L661) TODO: filter out the C1 control codes too
 - [engine/src/object.cpp:1083](engine/src/object.cpp#L1083) TODO[19681]: This can be removed when all engine messages are sent with
-- [engine/src/object.h:1732](engine/src/object.h#L1732) TODO[C++11] uint32_t m_part_id = 0;
-- [engine/src/object.h:1735](engine/src/object.h#L1735) TODO[2017-04-27] These constructors should be constexpr
-- [engine/src/object.h:1736](engine/src/object.h#L1736) TODO[C++11] constexpr MCObjectPartHandle() = default;
-- [engine/src/object.h:1741](engine/src/object.h#L1741) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1744](engine/src/object.h#L1744) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
-- [engine/src/object.h:1755](engine/src/object.h#L1755) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1762](engine/src/object.h#L1762) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
-- [engine/src/opensslsocket.cpp:2213](engine/src/opensslsocket.cpp#L2213) TODO: verify certs
-- [engine/src/opensslsocket.cpp:2414](engine/src/opensslsocket.cpp#L2414) TODO: verify certs
+- [engine/src/object.h:1734](engine/src/object.h#L1734) TODO[C++11] uint32_t m_part_id = 0;
+- [engine/src/object.h:1737](engine/src/object.h#L1737) TODO[2017-04-27] These constructors should be constexpr
+- [engine/src/object.h:1738](engine/src/object.h#L1738) TODO[C++11] constexpr MCObjectPartHandle() = default;
+- [engine/src/object.h:1743](engine/src/object.h#L1743) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1746](engine/src/object.h#L1746) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
+- [engine/src/object.h:1757](engine/src/object.h#L1757) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
 - [engine/src/paragraf.cpp:168](engine/src/paragraf.cpp#L168) TODO: trunctation
 - [engine/src/paragraf.cpp:2235](engine/src/paragraf.cpp#L2235) TODO: truncation if the paragraph would be too long
 - [engine/src/paragraf.cpp:2393](engine/src/paragraf.cpp#L2393) TODO: find out if ICU break iterator makes this redundant
@@ -474,8 +457,6 @@ Work left for later. 481 notes, by part of the repository:
 - [engine/src/sysdefs.h:1391](engine/src/sysdefs.h#L1391) TODO[C++11] constexpr MCObjectPtr() = default;
 - [engine/src/sysdefs.h:1393](engine/src/sysdefs.h#L1393) TODO[C++11] constexpr
 - [engine/src/sysspec.cpp:1734](engine/src/sysspec.cpp#L1734) TODO Change to MCDataRef or change Shell to MCStringRef
-- [engine/src/sysspec.cpp:1836](engine/src/sysspec.cpp#L1836) TODO: move somewhere better
-- [engine/src/sysspec.cpp:1840](engine/src/sysspec.cpp#L1840) TODO: implement properly
 - [engine/src/text-line.cpp:322](engine/src/text-line.cpp#L322) TODO: implement
 - [engine/src/text-pane.cpp:190](engine/src/text-pane.cpp#L190) TODO: examine the list of blocks in the paragraph for paragraph breaks
 - [engine/src/text-paragraph.cpp:547](engine/src/text-paragraph.cpp#L547) TODO: margins, padding, etc
@@ -527,7 +508,7 @@ Work left for later. 481 notes, by part of the repository:
 
 <a id="todo-libfoundation"></a>
 
-### TODO: libfoundation (50)
+### TODO: libfoundation (47)
 
 - [libfoundation/include/foundation-locale.h:138](libfoundation/include/foundation-locale.h#L138) TODO: explain the pattern syntax for number formatting
 - [libfoundation/include/foundation-span.h:47](libfoundation/include/foundation-span.h#L47) TODO[C++14] Some of the constexpr methods in MCSpan use assertions,
@@ -550,7 +531,6 @@ Work left for later. 481 notes, by part of the repository:
 - [libfoundation/src/foundation-locale.cpp:114](libfoundation/src/foundation-locale.cpp#L114) TODO: ability to cache multiple if it turns out these change frequently
 - [libfoundation/src/foundation-locale.cpp:118](libfoundation/src/foundation-locale.cpp#L118) TODO: maybe a smarter way of caching pattern-based formatters to allow
 - [libfoundation/src/foundation-locale.cpp:540](libfoundation/src/foundation-locale.cpp#L540) TODO: implement
-- [libfoundation/src/foundation-number.cpp:149](libfoundation/src/foundation-number.cpp#L149) TODO: Handle nan / infinity / etc.
 - [libfoundation/src/foundation-objc.mm:959](libfoundation/src/foundation-objc.mm#L959) TODO: Check how things work with protocol class methods
 - [libfoundation/src/foundation-pickle.cpp:183](libfoundation/src/foundation-pickle.cpp#L183) TODO: Implement record typeinfo reader.
 - [libfoundation/src/foundation-pickle.cpp:225](libfoundation/src/foundation-pickle.cpp#L225) TODO: Implement error typeinfo reader.
@@ -572,12 +552,10 @@ Work left for later. 481 notes, by part of the repository:
 - [libfoundation/src/foundation-value.cpp:882](libfoundation/src/foundation-value.cpp#L882) if defined(__ARM__) && 0 // TODO
 - [libfoundation/src/foundation-value.cpp:1051](libfoundation/src/foundation-value.cpp#L1051) TODO: Shrink the table if necessary (?)
 - [libfoundation/src/system-library-linux.hpp:78](libfoundation/src/system-library-linux.hpp#L78) TODO: Use dlerror
-- [libfoundation/src/system-library-posix.hpp:76](libfoundation/src/system-library-posix.hpp#L76) TODO: dlerror message
-- [libfoundation/src/system-library-posix.hpp:95](libfoundation/src/system-library-posix.hpp#L95) TODO: Use dlerror
-- [libfoundation/src/system-library-w32.hpp:76](libfoundation/src/system-library-w32.hpp#L76) TODO: Use GetLastError()
-- [libfoundation/src/system-library-w32.hpp:89](libfoundation/src/system-library-w32.hpp#L89) TODO: Use GetLastError()
-- [libfoundation/src/system-library-w32.hpp:134](libfoundation/src/system-library-w32.hpp#L134) TODO[2017-02-21]: Use last error
-- [libfoundation/src/system-library-w32.hpp:148](libfoundation/src/system-library-w32.hpp#L148) TODO[20170221] Oh dear, the path is too long to fit into a UINDEX_MAX!?!
+- [libfoundation/src/system-library-posix.hpp:106](libfoundation/src/system-library-posix.hpp#L106) TODO: Use dlerror
+- [libfoundation/src/system-library-w32.hpp:100](libfoundation/src/system-library-w32.hpp#L100) TODO: Use GetLastError()
+- [libfoundation/src/system-library-w32.hpp:145](libfoundation/src/system-library-w32.hpp#L145) TODO[2017-02-21]: Use last error
+- [libfoundation/src/system-library-w32.hpp:159](libfoundation/src/system-library-w32.hpp#L159) TODO[20170221] Oh dear, the path is too long to fit into a UINDEX_MAX!?!
 - [libfoundation/test/test_system-library.cpp:144](libfoundation/test/test_system-library.cpp#L144) TODO: Test error
 
 <a id="todo-tests"></a>
@@ -605,29 +583,6 @@ Work left for later. 481 notes, by part of the repository:
 - [tests/lcs/docs/validate-dictionary.livecodescript:330](tests/lcs/docs/validate-dictionary.livecodescript#L330) !TODO parse all summaries and descriptions etc
 - [tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb:27](tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb#L27) TODO: once we have 'the contents of resource file' or similar,
 
-<a id="todo-ide"></a>
-
-### TODO: ide (18)
-
-- [ide/Documentation/html_viewer/js/bootstrap.js:1576](ide/Documentation/html_viewer/js/bootstrap.js#L1576) if (that.$element) { // TODO: Check whether guarding this code with this 'if' is really necessary.
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:374](ide/Toolset/libraries/revidelibrary.8.livecodescript#L374) TODO: there should be a more transparent way of ordering these
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:34](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L34) TODO: Remove legacy message name
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:65](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L65) TODO: Remove legacy message name
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:93](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L93) TODO: Remove legacy message name
-- [ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript:3](ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript#L3) *TODO* Tweak the CSS to rearrange things appropriately
-- [ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript:121](ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript#L121) TODO: Use 'combine tValueArray with tDelimiter' once we add sorting option to combine
-- [ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript:167](ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript#L167) TODO : Property profiles
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:63](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L63) local sLockDrawing -- todo: add set/get. When locked we don't redraw when data is created, deleted, reordered or updated.
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:2565](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L2565) todo: can we only perform actions if visible of scrollbar is different than pBoolean?
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:6638](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L6638) todo: optimize so we don't toggle unless we need to
-- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:716](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L716) TODO remove use of revAvailableHandlers here (quite invasive)
-- [ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsrowbehavior.livecodescript:101](ide/Toolset/palettes/standalone%20settings/revstandalonesettingsinclusionsrowbehavior.livecodescript#L101) TODO: Fetch existing value!
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:300](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L300) put "lc-todo-list" into tArray[2]["icon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:301](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L301) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:312](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L312) put "lc-todo-list" into tArray[2]["icon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:313](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L313) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
-- [ide/tests/_testrunner.livecodescript:307](ide/tests/_testrunner.livecodescript#L307) TODO Can't get exit status from open process
-
 <a id="todo-revbrowser"></a>
 
 ### TODO: revbrowser (19)
@@ -652,24 +607,28 @@ Work left for later. 481 notes, by part of the repository:
 - [revbrowser/src/cefbrowser_lnx.cpp:190](revbrowser/src/cefbrowser_lnx.cpp#L190) TODO - implement
 - [revbrowser/src/cefprocess.cpp:130](revbrowser/src/cefprocess.cpp#L130) TODO - IMPLEMENT
 
-<a id="todo-extensions"></a>
+<a id="todo-ide"></a>
 
-### TODO: extensions (14)
+### TODO: ide (18)
 
-- [extensions/libraries/iconsvg/iconsvg.lcb:1375](extensions/libraries/iconsvg/iconsvg.lcb#L1375) put the empty array into tArray["lc-todo-list"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1376](extensions/libraries/iconsvg/iconsvg.lcb#L1376) put "M12.24,10.36A.5.5,0,0,1,12,11c-1.85.76-4.07,5.33-4.77,7a.5.5,0,0,1-.46.31h0A.5.5,0,0,1,6.26,18h0s-.39-.76-2.69-2.29a.5.5,0,1,1,.55-.83,14.73,14.73,0,0,1...
-- [extensions/libraries/iconsvg/iconsvg.lcb:1377](extensions/libraries/iconsvg/iconsvg.lcb#L1377) put "0" into tArray["lc-todo-list"]["codepoint"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1379](extensions/libraries/iconsvg/iconsvg.lcb#L1379) put the empty array into tArray["lc-todo-list-filled"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1380](extensions/libraries/iconsvg/iconsvg.lcb#L1380) put "M11.13,3.95V3a.69.69,0,0,0-.69-.69H9.59A2.27,2.27,0,1,0,5,2.27H4.2A.69.69,0,0,0,3.51,3v1h-3A.52.52,0,0,0,0,4.46V20.68a.52.52,0,0,0,.52.52h13.6a.52.52,0,...
-- [extensions/libraries/iconsvg/iconsvg.lcb:1381](extensions/libraries/iconsvg/iconsvg.lcb#L1381) put "0" into tArray["lc-todo-list-filled"]["codepoint"]
-- [extensions/libraries/timezone/tz/zic.c:2040](extensions/libraries/timezone/tz/zic.c#L2040) register zic_t	todo;
-- [extensions/libraries/timezone/tz/zic.c:2057](extensions/libraries/timezone/tz/zic.c#L2057) todo = tadd(trans[i], -gmtoffs[j]);
-- [extensions/libraries/timezone/tz/zic.c:2058](extensions/libraries/timezone/tz/zic.c#L2058) } else	todo = trans[i];
-- [extensions/libraries/timezone/tz/zic.c:2060](extensions/libraries/timezone/tz/zic.c#L2060) puttzcode(todo, fp);
-- [extensions/libraries/timezone/tz/zic.c:2061](extensions/libraries/timezone/tz/zic.c#L2061) else	puttzcode64(todo, fp);
-- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
-- [extensions/script-libraries/httpd/httpd.livecodescript:311](extensions/script-libraries/httpd/httpd.livecodescript#L311) todo
-- [extensions/script-libraries/httpd/httpd.livecodescript:325](extensions/script-libraries/httpd/httpd.livecodescript#L325) TODO pass error in development mode
+- [ide/Documentation/html_viewer/js/bootstrap.js:1576](ide/Documentation/html_viewer/js/bootstrap.js#L1576) if (that.$element) { // TODO: Check whether guarding this code with this `if` is really necessary.
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:374](ide/Toolset/libraries/revidelibrary.8.livecodescript#L374) TODO: there should be a more transparent way of ordering these
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:34](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L34) TODO: Remove legacy message name
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:65](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L65) TODO: Remove legacy message name
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:93](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L93) TODO: Remove legacy message name
+- [ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript:3](ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript#L3) *TODO* Tweak the CSS to rearrange things appropriately
+- [ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript:121](ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript#L121) TODO: Use 'combine tValueArray with tDelimiter' once we add sorting option to combine
+- [ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript:167](ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript#L167) TODO : Property profiles
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:63](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L63) local sLockDrawing -- todo: add set/get. When locked we don't redraw when data is created, deleted, reordered or updated.
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:2565](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L2565) todo: can we only perform actions if visible of scrollbar is different than pBoolean?
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:6638](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L6638) todo: optimize so we don't toggle unless we need to
+- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:716](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L716) TODO remove use of revAvailableHandlers here (quite invasive)
+- [ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsrowbehavior.livecodescript:101](ide/Toolset/palettes/standalone%20settings/revstandalonesettingsinclusionsrowbehavior.livecodescript#L101) TODO: Fetch existing value!
+- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:300](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L300) put "lc-todo-list" into tArray[2]["icon"]
+- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:301](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L301) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
+- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:312](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L312) put "lc-todo-list" into tArray[2]["icon"]
+- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:313](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L313) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
+- [ide/tests/_testrunner.livecodescript:307](ide/tests/_testrunner.livecodescript#L307) TODO Can't get exit status from open process
 
 <a id="todo-toolchain"></a>
 
@@ -689,6 +648,23 @@ Work left for later. 481 notes, by part of the repository:
 - [toolchain/lc-compile/src/emit.cpp:1491](toolchain/lc-compile/src/emit.cpp#L1491) TODO: Real / Integer types.
 - [toolchain/lc-compile/src/generate.g:1839](toolchain/lc-compile/src/generate.g#L1839) TODO
 - [toolchain/lc-compile/src/syntax-gen.c:523](toolchain/lc-compile/src/syntax-gen.c#L523) TODO: Check whether node is already a child of target.
+
+<a id="todo-extensions"></a>
+
+### TODO: extensions (12)
+
+- [extensions/libraries/iconsvg/iconsvg.lcb:1375](extensions/libraries/iconsvg/iconsvg.lcb#L1375) put the empty array into tArray["lc-todo-list"]
+- [extensions/libraries/iconsvg/iconsvg.lcb:1376](extensions/libraries/iconsvg/iconsvg.lcb#L1376) put "M12.24,10.36A.5.5,0,0,1,12,11c-1.85.76-4.07,5.33-4.77,7a.5.5,0,0,1-.46.31h0A.5.5,0,0,1,6.26,18h0s-.39-.76-2.69-2.29a.5.5,0,1,1,.55-.83,14.73,14.73,0,0,1...
+- [extensions/libraries/iconsvg/iconsvg.lcb:1377](extensions/libraries/iconsvg/iconsvg.lcb#L1377) put "0" into tArray["lc-todo-list"]["codepoint"]
+- [extensions/libraries/iconsvg/iconsvg.lcb:1379](extensions/libraries/iconsvg/iconsvg.lcb#L1379) put the empty array into tArray["lc-todo-list-filled"]
+- [extensions/libraries/iconsvg/iconsvg.lcb:1380](extensions/libraries/iconsvg/iconsvg.lcb#L1380) put "M11.13,3.95V3a.69.69,0,0,0-.69-.69H9.59A2.27,2.27,0,1,0,5,2.27H4.2A.69.69,0,0,0,3.51,3v1h-3A.52.52,0,0,0,0,4.46V20.68a.52.52,0,0,0,.52.52h13.6a.52.52,0,...
+- [extensions/libraries/iconsvg/iconsvg.lcb:1381](extensions/libraries/iconsvg/iconsvg.lcb#L1381) put "0" into tArray["lc-todo-list-filled"]["codepoint"]
+- [extensions/libraries/timezone/tz/zic.c:2040](extensions/libraries/timezone/tz/zic.c#L2040) register zic_t	todo;
+- [extensions/libraries/timezone/tz/zic.c:2057](extensions/libraries/timezone/tz/zic.c#L2057) todo = tadd(trans[i], -gmtoffs[j]);
+- [extensions/libraries/timezone/tz/zic.c:2058](extensions/libraries/timezone/tz/zic.c#L2058) } else	todo = trans[i];
+- [extensions/libraries/timezone/tz/zic.c:2060](extensions/libraries/timezone/tz/zic.c#L2060) puttzcode(todo, fp);
+- [extensions/libraries/timezone/tz/zic.c:2061](extensions/libraries/timezone/tz/zic.c#L2061) else	puttzcode64(todo, fp);
+- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
 
 <a id="todo-libgraphics"></a>
 
@@ -744,19 +720,10 @@ Work left for later. 481 notes, by part of the repository:
 ### TODO: builder (5)
 
 - [builder/builder_utilities.livecodescript:758](builder/builder_utilities.livecodescript#L758) TODO Add YAMLToArray script-library so we can have more
-- [builder/docs_builder.livecodescript:150](builder/docs_builder.livecodescript#L150) TODO: Work out why something empty is returned
+- [builder/docs_builder.livecodescript:154](builder/docs_builder.livecodescript#L154) TODO: Work out why something empty is returned
 - [builder/package_compiler.livecodescript:127](builder/package_compiler.livecodescript#L127) TODO: Normalize manifest by adding missing folders
 - [builder/package_compiler.livecodescript:168](builder/package_compiler.livecodescript#L168) TODO: Make sure this resolves to the final 'base' file since we don't support
 - [builder/tools_builder.livecodescript:410](builder/tools_builder.livecodescript#L410) TODO: Add the initialisation library and init libs in same way as normal standalone building
-
-<a id="todo-tools"></a>
-
-### TODO: tools (4)
-
-- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
-- [tools/ci/run_engine_tests.py:313](tools/ci/run_engine_tests.py#L313) todo, skip = directive == 'TODO', directive == 'SKIP'
-- [tools/ci/run_engine_tests.py:315](tools/ci/run_engine_tests.py#L315) counts['xpass' if todo else 'skip' if skip else 'pass'] += 1
-- [tools/ci/run_engine_tests.py:316](tools/ci/run_engine_tests.py#L316) elif todo:
 
 <a id="todo-top-level"></a>
 
@@ -804,13 +771,6 @@ Work left for later. 481 notes, by part of the repository:
 - [revdb/src/odbc_connection.cpp:471](revdb/src/odbc_connection.cpp#L471) TODO: adjust this for putting data-at-execution into action.
 - [revdb/src/sqlite_cursor.cpp:308](revdb/src/sqlite_cursor.cpp#L308) TODO: get column characteristics
 
-<a id="todo-revpdfprinter"></a>
-
-### TODO: revpdfprinter (2)
-
-- [revpdfprinter/src/revpdfprinter.cpp:160](revpdfprinter/src/revpdfprinter.cpp#L160) TODO: Remove the file that could have been created - will need to
-- [revpdfprinter/src/revpdfprinter.cpp:802](revpdfprinter/src/revpdfprinter.cpp#L802) TODO implement this
-
 <a id="todo-config"></a>
 
 ### TODO: config (1)
@@ -834,3 +794,9 @@ Work left for later. 481 notes, by part of the repository:
 ### TODO: revvideograbber (1)
 
 - [revvideograbber/src/qtxcapture.mm:318](revvideograbber/src/qtxcapture.mm#L318) TODO: Query for audio outputs!
+
+<a id="todo-tools"></a>
+
+### TODO: tools (1)
+
+- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password

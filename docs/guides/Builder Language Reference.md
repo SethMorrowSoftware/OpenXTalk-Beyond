@@ -534,7 +534,10 @@ The binding string for foreign handlers is language-specific and currently
 supported forms are explained in the following sections.
 
 Foreign handlers' bound symbols are resolved on first use and an error
-is thrown if the symbol cannot be found.
+is thrown if the symbol cannot be found. If the library cannot be loaded,
+the error says which library and why, as the system reported it: for
+example, that the file was not found, is for another architecture, or
+needs another library that is missing.
 
 Foreign handlers are always considered unsafe, and thus may only be called
 from unsafe context - i.e. from within an unsafe handler, or unsafe statement

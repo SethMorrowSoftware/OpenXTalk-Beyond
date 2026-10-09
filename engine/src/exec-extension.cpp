@@ -250,6 +250,16 @@ void MCEngineLoadExtensionFromData(MCExecContext& ctxt, MCDataRef p_extension_da
     }
 }
 
+// Throws the reason a library didn't load, if there is one, for libscript to
+// add to its "unable to load foreign library" error.
+static bool MCEngineThrowLoadLibraryFailed(MCStringRef p_reason)
+{
+    if (p_reason == nullptr)
+        return false;
+    
+    return MCErrorThrowGeneric(p_reason);
+}
+
 // This is the callback given to libscript so that it can resolve the absolute
 // path of native code libraries used by foreign handlers in the module.
 
@@ -282,12 +292,14 @@ static bool MCEngineLoadLibrary(MCScriptModuleRef p_module, MCStringRef p_name, 
         t_map_name = p_name;
     }
     
-    MCSLibraryRef t_library = MCU_library_load(*t_map_name);
+    MCAutoStringRef t_reason;
+    MCSLibraryRef t_library = MCU_library_load(*t_map_name,
+                                               &(&t_reason));
         
     // there was a mapping and it failed to load
     if (t_has_mapping && t_library == nullptr)
     {
-        return false;
+        return MCEngineThrowLoadLibraryFailed(*t_reason);
     }
     
 #if defined(__IOS__)
@@ -301,7 +313,7 @@ static bool MCEngineLoadLibrary(MCScriptModuleRef p_module, MCStringRef p_name, 
 
     if (t_library == nullptr)
     {
-        return false;
+        return MCEngineThrowLoadLibraryFailed(*t_reason);
     }
     
     r_library = t_library;

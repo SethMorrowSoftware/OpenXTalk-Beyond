@@ -40,4 +40,38 @@ public handler TestUniversalDate()
 	test "utc date no gmt offset" when tDate[7] is 0
 end handler
 
+private handler SecondsOfDay(in pDate as List) returns Number
+	return pDate[4] * 3600 + pDate[5] * 60 + pDate[6]
+end handler
+
+-- -1, 0 or 1 as the day of pLeft is before, the same as or after pRight's
+private handler CompareDays(in pLeft as List, in pRight as List) returns Number
+	variable tIndex
+	repeat with tIndex from 1 up to 3
+		if pLeft[tIndex] < pRight[tIndex] then
+			return -1
+		end if
+		if pLeft[tIndex] > pRight[tIndex] then
+			return 1
+		end if
+	end repeat
+	return 0
+end handler
+
+public handler TestLocalDateOffset()
+	variable tLocal as List
+	variable tUniversal as List
+	put the local date into tLocal
+	put the universal date into tUniversal
+
+	-- The 7th element is the offset east of UTC, summer time included:
+	-- the local time less the universal time (to within the moment
+	-- between the two reads)
+	variable tDifference as Number
+	put SecondsOfDay(tLocal) - SecondsOfDay(tUniversal) into tDifference
+	add CompareDays(tLocal, tUniversal) * 86400 to tDifference
+	test "local date offset is local less universal time" when \
+		tDifference - tLocal[7] >= -2 and tDifference - tLocal[7] <= 2
+end handler
+
 end module

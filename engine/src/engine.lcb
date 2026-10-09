@@ -461,6 +461,12 @@ instance script object if in a widget handler.
 The list of arguments is accessible from the script fragment using the
 `paramCount()` and `param()` functions.
 
+If the script can't be compiled, or an error occurs while it runs, an error
+is thrown with a message that starts with "script error: " and describes the
+first error. A compile error also gives the line of the fragment it is on, and
+the word it is near. A standalone gives the error's number instead of its
+description.
+
 >*Note:* An error is thrown if this syntax is used in a context where access
 to script objects is not allowed.
 

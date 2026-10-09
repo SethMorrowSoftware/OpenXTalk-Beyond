@@ -74,6 +74,28 @@ on TestExtensionExecuteScript
     delete stack "TempStack2"
 end TestExtensionExecuteScript
 
+on TestExtensionExecuteScriptErrors
+    -- The LCB error says what went wrong in the script (line 2 of the
+    -- error is its description), not just "script error".
+    local tError
+    try
+        TestExtensionExecuteScript_Do "get 1 + " & quote & "abc" & quote, empty, empty
+    catch tError
+    end try
+    TestDiagnostic tError
+    TestAssert "execute script execution error is described", \
+            "script error: " is in line 2 of tError
+
+    put empty into tError
+    try
+        TestExtensionExecuteScript_Do "get 1 +", empty, empty
+    catch tError
+    end try
+    TestDiagnostic tError
+    TestAssert "execute script parse error is described", \
+            "script error: " is in line 2 of tError
+end TestExtensionExecuteScriptErrors
+
 /////////
 
 /*

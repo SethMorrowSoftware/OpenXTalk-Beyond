@@ -1044,7 +1044,9 @@ public:
     // SN-2014-04-16 [[ Bug 12078 ]] Buttons and tooltip label are not drawn in the text direction
     void drawdirectionaltext(MCDC *dc, int2 sx, int2 sy, MCStringRef p_string, MCFontRef font);
 
-	Exec_stat domess(MCStringRef sptr, MCParameter *args = nil, bool p_ignore_errors = true);
+	// If r_parse_errors is given and the script doesn't parse, it receives
+	// the parse errors, which are otherwise suppressed.
+	Exec_stat domess(MCStringRef sptr, MCParameter *args = nil, bool p_ignore_errors = true, MCStringRef *r_parse_errors = nil);
     
 	void eval(MCExecContext& ctxt, MCStringRef p_script, MCValueRef& r_value);
 	// MERG 2013-9-13: [[ EditScriptChunk ]] Added at expression that's passed through as a second parameter to editScript
