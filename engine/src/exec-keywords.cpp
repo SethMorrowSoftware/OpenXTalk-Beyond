@@ -830,9 +830,21 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
                         tspr = NULL;
                     }
                     else
-                        if (state != TS_TRY)
+                        if (state == TS_CATCH && finallystatements != NULL)
                         {
+                            // An error in the catch part still runs the
+                            // finally part, and is then thrown (Bug 19812).
+                            // This is what pass in the catch part does.
+                            retcode = ES_ERROR;
+                            tspr = finallystatements;
+                            state = TS_FINALLY;
+                        }
+                        else if (state != TS_TRY)
+                        {
+                            // An error in the catch or finally part is
+                            // thrown, not dropped (Bug 19812).
                             MCtrylock--;
+                            ctxt . SetExecStat(ES_ERROR);
                             return;
                         }
                         else
