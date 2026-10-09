@@ -52,7 +52,9 @@ You can include more than one file type by separating the file types
 with commas.
 
 >*Cross-platform note:*  The <types> <parameter> applies only to
-> <Windows|Windows systems>. On <Mac OS> and <Unix|Unix systems>, this
+> <Windows|Windows systems> and Linux. On Linux, each file type becomes a
+> filter in the dialog box, a pattern such as "*.jpg" also matches
+> "PHOTO.JPG", and "*.*" matches every file. On <Mac OS>, this
 > <parameter> has no effect.
 
 

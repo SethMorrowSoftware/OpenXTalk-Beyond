@@ -100,6 +100,8 @@ private:
 	cairo_t *			m_context;
 	cairo_status_t		m_status;
 	char *				m_filename;
+	// True once cairo has created the PDF file, until the document ends
+	bool				m_file_created;
 	
 	FontCache *m_fonts;
 

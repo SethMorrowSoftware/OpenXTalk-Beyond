@@ -451,6 +451,99 @@ void add_dialog_filters(GtkWidget *dialog, MCStringRef *p_types, uint4 p_type_co
 
 
 
+extern bool MCStringsSplit(MCStringRef p_string, codepoint_t p_separator, MCStringRef*&r_strings, uindex_t& r_count);
+
+// Add the filters of an 'answer file' or 'ask file' "with filter" clause.
+// The filter has the form the Windows dialog takes: either a single pattern
+// ("*.txt"), or descriptions and patterns separated by commas or line feeds
+// ("Text files,*.txt,JPEG images,*.jpg;*.jpeg"), several patterns for one
+// description being separated by semicolons.
+static void add_dialog_filter_string(GtkWidget *dialog, MCStringRef p_filter)
+{
+    if (p_filter == nil || MCStringIsEmpty(p_filter))
+        return;
+
+    MCAutoStringRef t_filter;
+    if (!MCStringMutableCopy(p_filter, &t_filter) ||
+        !MCStringFindAndReplaceChar(*t_filter, '\n', ',', kMCStringOptionCompareExact))
+        return;
+
+    MCAutoStringRefArray t_parts;
+    if (!MCStringsSplit(*t_filter, ',', t_parts.PtrRef(), t_parts.CountRef()))
+        return;
+
+    uindex_t t_count = t_parts.Count();
+    for (uindex_t i = 0; i < t_count; i += 2)
+    {
+        // A single item is both the description and the pattern
+        MCStringRef t_patterns;
+        if (t_count == 1)
+            t_patterns = t_parts[0];
+        else if (i + 1 < t_count)
+            t_patterns = t_parts[i + 1];
+        else
+            break;
+
+        MCStringRef t_name = t_parts[i];
+        if (MCStringIsEmpty(t_name))
+            t_name = t_patterns;
+
+        MCAutoStringRefAsSysString t_name_sys, t_patterns_sys;
+        if (MCStringIsEmpty(t_patterns) ||
+            !t_name_sys.Lock(t_name) || !t_patterns_sys.Lock(t_patterns))
+            continue;
+
+        char *t_list = strdup(*t_patterns_sys);
+        if (t_list == nil)
+            continue;
+
+        GtkFileFilter *t_gtk_filter = gtk_file_filter_new();
+        gtk_file_filter_set_name(t_gtk_filter, *t_name_sys);
+
+        char *t_state = nil;
+        for (char *t_pattern = strtok_r(t_list, ";", &t_state); t_pattern != nil;
+             t_pattern = strtok_r(nil, ";", &t_state))
+        {
+            while (*t_pattern == ' ')
+                t_pattern++;
+            size_t t_length = strlen(t_pattern);
+            while (t_length > 0 && t_pattern[t_length - 1] == ' ')
+                t_pattern[--t_length] = '\0';
+            if (t_length == 0)
+                continue;
+
+            // On Windows "*.*" means every file; in GTK it needs a dot
+            if (strcmp(t_pattern, "*.*") == 0)
+            {
+                gtk_file_filter_add_pattern(t_gtk_filter, "*");
+                continue;
+            }
+
+            gtk_file_filter_add_pattern(t_gtk_filter, t_pattern);
+
+            // GTK matches patterns case-sensitively, and Windows does not, so
+            // "*.jpg" should find "PHOTO.JPG" too. (In ASCII only: glib's
+            // case functions aren't among the engine's weakly-linked symbols.)
+            bool t_changed = false;
+            for (size_t t_char = 0; t_char < t_length; t_char++)
+            {
+                if (t_pattern[t_char] >= 'a' && t_pattern[t_char] <= 'z')
+                {
+                    t_pattern[t_char] = t_pattern[t_char] - 'a' + 'A';
+                    t_changed = true;
+                }
+            }
+            if (t_changed)
+                gtk_file_filter_add_pattern(t_gtk_filter, t_pattern);
+        }
+        free(t_list);
+
+        gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), t_gtk_filter);
+    }
+}
+
+
+
 const char * get_current_filter_name ( GtkWidget * dialog ) 
 {
 	GtkFileFilter *filter ;
@@ -555,17 +648,22 @@ static bool types_to_remote_types(MCStringRef *p_types, uint4 p_type_count, MCSt
 	return true;
 }
 
+static int do_answer_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result);
+
 int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
 {	
-    MCA_file_with_types(p_title, p_prompt, NULL, 0, p_initial, p_options, r_value, r_result);
-    return(1);
+    return do_answer_file(p_title, p_prompt, NULL, 0, p_filter, p_initial, p_options, r_value, r_result);
 }
 
 
 
 
 int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+{
+    return do_answer_file(p_title, p_prompt, p_types, p_type_count, nil, p_initial, p_options, r_value, r_result);
+}
 
+static int do_answer_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
 {
 	if (!MCModeMakeLocalWindows())
 	{
@@ -598,6 +696,8 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 	// If we have any filters, add them.
 	if ( p_type_count > 0 ) 
         add_dialog_filters ( dialog, p_types , p_type_count );
+    else
+        add_dialog_filter_string(dialog, p_filter);
 
 	
 	if ( p_options & MCA_OPTION_PLURAL ) 
@@ -628,15 +728,20 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 
 
 
+static int do_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result);
+
 int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
 {
-	//TODO : This still needs to pass over the p_filter.
-    MCA_ask_file_with_types ( p_title, p_prompt, NULL, 0, p_initial, p_options, r_value, r_result);
-	return(1);
+    return do_ask_file(p_title, p_prompt, NULL, 0, p_filter, p_initial, p_options, r_value, r_result);
 }
 
 
 int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+{
+    return do_ask_file(p_title, p_prompt, p_types, p_type_count, nil, p_initial, p_options, r_value, r_result);
+}
+
+static int do_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
 {
     if (!MCModeMakeLocalWindows())
     {
@@ -663,6 +768,8 @@ int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringR
 
 	if ( p_type_count > 0 ) 
 		add_dialog_filters ( dialog, p_types , p_type_count );
+	else
+		add_dialog_filter_string(dialog, p_filter);
 
 	// If we are given an initial
     if (p_initial != nil)

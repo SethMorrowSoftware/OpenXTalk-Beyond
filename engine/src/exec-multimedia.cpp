@@ -596,8 +596,12 @@ void MCMultimediaExecLoadVideoClip(MCExecContext& ctxt, MCStack *p_target, int p
 				ctxt . SetTheResultToStaticCString("error opening temp file");
 				return;
 			}
-			// TODO: The code around here looks quite wrong - it needs to be compared to the original.
-			IO_stat stat = IO_ERROR; //IO_write_stringref_utf8(*t_file, t_stream);
+			// Write the downloaded (or passed) clip data to the temp file as
+			// raw bytes, so the player can open it.
+			IO_stat stat = IO_ERROR;
+			MCAutoDataRef t_data;
+			if (ctxt . ConvertToData(*t_file, &t_data))
+				stat = IO_write(MCDataGetBytePtr(*t_data), 1, MCDataGetLength(*t_data), t_stream);
 			MCS_close(t_stream);
 			if (stat != IO_NORMAL)
 			{

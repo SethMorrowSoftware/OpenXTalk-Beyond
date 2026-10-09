@@ -289,7 +289,7 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	if (0 > t_temp_fd)
 	{
-		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to create temporary file '%{path}': %s"), t_save_errno);
+		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to create temporary file '%{path}': %{description}"), t_save_errno);
 	}
 
 	/* Write the data into the temporary file */
@@ -322,7 +322,7 @@ __MCSFileSetContents (MCStringRef p_native_path,
 	{
 		if (0 != fchmod (t_temp_fd, t_mode))
 		{
-			t_success = __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to set permissions of file '%{path}': %s"), errno);
+			t_success = __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to set permissions of file '%{path}': %{description}"), errno);
 		}
 	}
 
@@ -356,8 +356,11 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	if (0 != close (t_temp_fd))
 	{
+		/* Data may not have reached the disk (for example on a network
+		 * filesystem), so this is a write error. */
+		t_save_errno = errno;
 		/* UNCHECKED */ unlink (*t_temp_path_sys);
-		return false; /* FIXME Should we throw an error here? */
+		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to write to file %{path}; close() failed: %{description}"), t_save_errno);
 	}
 
 	/* Rename the new file into place */
@@ -583,9 +586,10 @@ __MCSFileCreateStream (MCStringRef p_native_path,
 
 	if (!t_success)
 	{
+		int t_save_errno = errno;
 		if (t_fd >= 0)
 			close (t_fd);
-		return false; /* FIXME proper error */
+		return __MCSFileThrowOpenErrorWithErrno (p_native_path, t_save_errno);
 	}
 
 	/* Store the newly created cstdio stream in a new MCStream instance. */

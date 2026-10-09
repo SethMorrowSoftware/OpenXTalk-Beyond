@@ -22,4 +22,25 @@ public handler TestCanvas_ImageFromFile(in pPath as String) returns Boolean
 	return true
 end handler
 
+public handler CanvasTestFillRule(in pRule as String) returns String
+	variable tCanvas as Canvas
+	put a new canvas with size [10,10] into tCanvas
+	set the fill rule of tCanvas to pRule
+	return the fill rule of tCanvas
+end handler
+
+public handler CanvasTestJoinStyle(in pStyle as String) returns String
+	variable tCanvas as Canvas
+	put a new canvas with size [10,10] into tCanvas
+	set the join style of tCanvas to pStyle
+	return the join style of tCanvas
+end handler
+
+public handler CanvasTestCapStyle(in pStyle as String) returns String
+	variable tCanvas as Canvas
+	put a new canvas with size [10,10] into tCanvas
+	set the cap style of tCanvas to pStyle
+	return the cap style of tCanvas
+end handler
+
 end library

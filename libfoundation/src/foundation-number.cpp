@@ -138,16 +138,33 @@ compare_t MCNumberCompareTo(MCNumberRef self, MCNumberRef p_other_self)
 	t_other_self_is_integer = MCNumberIsInteger(p_other_self);
 	
 	// If both are stored as integers then compare.
+	// (Not by subtracting them, which overflows for numbers far apart.)
 	if (t_self_is_integer && t_other_self_is_integer)
-		return self -> integer - p_other_self -> integer;
+	{
+		if (self -> integer < p_other_self -> integer)
+			return -1;
+		if (self -> integer > p_other_self -> integer)
+			return 1;
+		return 0;
+	}
 
 	// Otherwise fetch both as reals.
 	double x, y;
 	x = t_self_is_integer ? (double)self -> integer : self -> real;
 	y = t_other_self_is_integer ? (double)p_other_self -> integer : p_other_self -> real;
 
-	// TODO: Handle nan / infinity / etc.
-		
+	// A NaN is equal only to a NaN, and comes after every other number, so
+	// that ordering stays consistent. Infinities compare as they should.
+	// (A NaN is the only value not equal to itself.)
+	bool t_x_is_nan = x != x;
+	bool t_y_is_nan = y != y;
+	if (t_x_is_nan || t_y_is_nan)
+	{
+		if (t_x_is_nan && t_y_is_nan)
+			return 0;
+		return t_x_is_nan ? 1 : -1;
+	}
+
 	if (x < y)
 		return -1;
 		

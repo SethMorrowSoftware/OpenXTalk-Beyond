@@ -84,7 +84,7 @@ int AddImportedModuleFile(const char *p_name)
         int i;
         for(i = 0; i < ImportedModuleDirCount; i++)
         {
-            /* OVERFLOW */ sprintf(t_path, "%s/%s.lci", ImportedModuleDir[i], p_name);
+            snprintf(t_path, sizeof(t_path), "%s/%s.lci", ImportedModuleDir[i], p_name);
             t_file = fopen(t_path, "r");
             if (t_file != NULL)
                 break;
@@ -92,7 +92,7 @@ int AddImportedModuleFile(const char *p_name)
     }
     else
     {
-        /* OVERFLOW */ sprintf(t_path, "%s.lci", p_name);
+        snprintf(t_path, sizeof(t_path), "%s.lci", p_name);
         t_file = fopen(t_path, "r");
     }
     
@@ -117,7 +117,7 @@ void FindImportedModuleFile(const char *p_name, char** r_module_file)
         int i;
         for(i = 0; i < ImportedModuleDirCount; i++)
         {
-            /* OVERFLOW */ sprintf(t_path, "%s/%s.lci", ImportedModuleDir[i], p_name);
+            snprintf(t_path, sizeof(t_path), "%s/%s.lci", ImportedModuleDir[i], p_name);
             t_file = fopen(t_path, "r");
             if (t_file != NULL)
                 break;
@@ -125,14 +125,14 @@ void FindImportedModuleFile(const char *p_name, char** r_module_file)
     }
     else
     {
-        /* OVERFLOW */ sprintf(t_path, "%s.lci", p_name);
+        snprintf(t_path, sizeof(t_path), "%s.lci", p_name);
         t_file = fopen(t_path, "r");
     }
     
     if (t_file == NULL)
     {
         if (ImportedModuleDirCount > 0)
-        /* OVERFLOW */ sprintf(t_path, "%s/%s.lci", ImportedModuleDir[0], p_name);
+        snprintf(t_path, sizeof(t_path), "%s/%s.lci", ImportedModuleDir[0], p_name);
     }
     else
         fclose(t_file);
@@ -154,16 +154,16 @@ OpenImportedModuleFile (const char *p_name,
     if (NULL == s_interface_output_file)
     {
         // Use the first modulepath to write the interface file into.
-        /* OVERFLOW */ sprintf(t_path, "%s/%s.lci", ImportedModuleDir[0], p_name);
+        snprintf(t_path, sizeof(t_path), "%s/%s.lci", ImportedModuleDir[0], p_name);
     }
     else
     {
-        /* OVERFLOW */ sprintf(t_path, "%s", s_interface_output_file);
+        snprintf(t_path, sizeof(t_path), "%s", s_interface_output_file);
     }
     
     if (NULL != r_filename)
     {
-        *r_filename = strdup(t_path); /* FIXME should be strndup */
+        *r_filename = strdup(t_path);
     }
     
     t_file = fopen(t_path, "w");

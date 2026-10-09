@@ -6617,7 +6617,7 @@ bool MCCanvasStringsInitialize()
 	s_gradient_type_map[kMCGLegacyGradientSqrtXY] = MCNAME("sqrtxy");
 	
 	s_canvas_fillrule_map[kMCGFillRuleEvenOdd] = MCNAME("even odd");
-	s_canvas_fillrule_map[kMCGFillRuleNonZero] = MCNAME("non zero");
+	s_canvas_fillrule_map[kMCGFillRuleNonZero] = MCNAME("non-zero");
 	
 	s_image_filter_map[kMCGImageFilterNone] = MCNAME("none");
 	s_image_filter_map[kMCGImageFilterLow] = MCNAME("low");
@@ -6754,6 +6754,14 @@ bool MCCanvasFillRuleToString(MCGFillRule p_fill_rule, MCStringRef &r_string)
 
 bool MCCanvasFillRuleFromString(MCStringRef p_string, MCGFillRule &r_fill_rule)
 {
+	// "non-zero" is the documented name (and the one the SVG icon widget
+	// sets), but only "non zero" was accepted before, so keep both.
+	if (MCStringIsEqualToCString(p_string, "non zero", kMCStringOptionCompareCaseless))
+	{
+		r_fill_rule = kMCGFillRuleNonZero;
+		return true;
+	}
+	
 	return _mcenumfromstring<MCGFillRule, kMCGFillRuleCount>(s_canvas_fillrule_map, p_string, r_fill_rule);
 }
 

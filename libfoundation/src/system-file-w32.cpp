@@ -226,36 +226,71 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	/* ---------- 1) Create a temporary file */
 
-	/* FIXME Bad/insecure implementation:
+	/* Create the temporary file in the target file's own folder, so that
+	 * both are on the same volume.  MoveFileEx() can then rename it into
+	 * place (atomically, on NTFS) instead of failing, as it does across
+	 * volumes unless it is allowed to copy.  If that folder can't be used,
+	 * fall back to the temporary folder and allow the copy.
 	 *
-	 * 1) The generated filename isn't guaranteed to be on the same
-	 *    filesystem as the target file, which means that MoveFileEx()
-	 *    is less likely to be atomic.
+	 * FIXME Remaining weaknesses:
 	 *
-	 * 2) GetTempFileName() suffers from a temporary file race
+	 * 1) GetTempFileName() suffers from a temporary file race
 	 *    condition, in that it's possible for an attacker to mess
 	 *    with the file it generates in between GetTempFileName()
 	 *    returning and our call to CreateFileW().
 	 *
-	 * 3) Path length limitations, fixed size buffers, etc.
+	 * 2) Path length limitations, fixed size buffers, etc.
 	 */
-	uinteger_t t_temp_result;
-
-	unichar_t t_tempdir_path_w32[MAX_PATH];
-	DWORD t_tempdir_path_w32_len;
-	t_tempdir_path_w32_len = GetTempPathW (MAX_PATH,
-	                                       t_tempdir_path_w32);
-	if (0 == t_tempdir_path_w32_len ||
-	    (MAX_PATH - 14) < t_tempdir_path_w32_len)
-		return __MCSFileThrowIOErrorWithErrorCode (kMCEmptyString, MCSTR("Failed to create temporary file; GetTempPath() failed: %{description}"), GetLastError());
-
+	uinteger_t t_temp_result = 0;
+	DWORD t_move_flags = MOVEFILE_REPLACE_EXISTING;
 	unichar_t t_temp_path_w32[MAX_PATH];
-	t_temp_result = GetTempFileNameW (t_tempdir_path_w32, /* path name */
-	                                  NULL,               /* prefix */
-	                                  0,                  /* unique */
-	                                  t_temp_path_w32);   /* temp file name */
+
+	{
+		const unichar_t *t_target_w32 = *t_path_w32;
+		size_t t_separator = 0;
+		bool t_has_separator = false;
+		for (size_t i = 0; t_target_w32[i] != 0; ++i)
+		{
+			if (t_target_w32[i] == '\\' || t_target_w32[i] == '/')
+			{
+				t_separator = i;
+				t_has_separator = true;
+			}
+		}
+
+		/* GetTempFileName() needs room for the file name it adds */
+		if (t_has_separator && t_separator + 1 <= MAX_PATH - 14)
+		{
+			unichar_t t_dir_w32[MAX_PATH];
+			memcpy (t_dir_w32, t_target_w32,
+			        (t_separator + 1) * sizeof(unichar_t));
+			t_dir_w32[t_separator + 1] = 0;
+			t_temp_result = GetTempFileNameW (t_dir_w32,    /* path name */
+			                                  L"oxt",       /* prefix */
+			                                  0,            /* unique */
+			                                  t_temp_path_w32); /* temp file name */
+		}
+	}
+
 	if (0 == t_temp_result)
-		return __MCSFileThrowIOErrorWithErrorCode (kMCEmptyString, MCSTR("Failed to create temporary file; GetTempFileNameW() failed: %{description}"), GetLastError());
+	{
+		unichar_t t_tempdir_path_w32[MAX_PATH];
+		DWORD t_tempdir_path_w32_len;
+		t_tempdir_path_w32_len = GetTempPathW (MAX_PATH,
+		                                       t_tempdir_path_w32);
+		if (0 == t_tempdir_path_w32_len ||
+		    (MAX_PATH - 14) < t_tempdir_path_w32_len)
+			return __MCSFileThrowIOErrorWithErrorCode (kMCEmptyString, MCSTR("Failed to create temporary file; GetTempPath() failed: %{description}"), GetLastError());
+
+		t_temp_result = GetTempFileNameW (t_tempdir_path_w32, /* path name */
+		                                  NULL,               /* prefix */
+		                                  0,                  /* unique */
+		                                  t_temp_path_w32);   /* temp file name */
+		if (0 == t_temp_result)
+			return __MCSFileThrowIOErrorWithErrorCode (kMCEmptyString, MCSTR("Failed to create temporary file; GetTempFileNameW() failed: %{description}"), GetLastError());
+
+		t_move_flags |= MOVEFILE_COPY_ALLOWED;
+	}
 
 	MCAutoStringRef t_temp_native_path;
 	if (!MCStringCreateWithWString (t_temp_path_w32, &t_temp_native_path))
@@ -281,7 +316,7 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	/* ---------- 3) Move the temporary file into place */
 
-	if (!MoveFileExW(t_temp_path_w32, *t_path_w32, MOVEFILE_REPLACE_EXISTING))
+	if (!MoveFileExW(t_temp_path_w32, *t_path_w32, t_move_flags))
 	{
 		/* Report rename error */
 		DWORD t_error = GetLastError();
