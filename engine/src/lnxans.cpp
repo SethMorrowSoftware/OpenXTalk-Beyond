@@ -522,11 +522,19 @@ static void add_dialog_filter_string(GtkWidget *dialog, MCStringRef p_filter)
             gtk_file_filter_add_pattern(t_gtk_filter, t_pattern);
 
             // GTK matches patterns case-sensitively, and Windows does not, so
-            // "*.jpg" should find "PHOTO.JPG" too.
-            char *t_upper = g_ascii_strup(t_pattern, -1);
-            if (strcmp(t_upper, t_pattern) != 0)
-                gtk_file_filter_add_pattern(t_gtk_filter, t_upper);
-            g_free(t_upper);
+            // "*.jpg" should find "PHOTO.JPG" too. (In ASCII only: glib's
+            // case functions aren't among the engine's weakly-linked symbols.)
+            bool t_changed = false;
+            for (size_t t_char = 0; t_char < t_length; t_char++)
+            {
+                if (t_pattern[t_char] >= 'a' && t_pattern[t_char] <= 'z')
+                {
+                    t_pattern[t_char] = t_pattern[t_char] - 'a' + 'A';
+                    t_changed = true;
+                }
+            }
+            if (t_changed)
+                gtk_file_filter_add_pattern(t_gtk_filter, t_pattern);
         }
         free(t_list);
 
