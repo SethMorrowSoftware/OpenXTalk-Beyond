@@ -74,8 +74,10 @@ a <file> with the <open file> <command> --it doesn't <trigger> the
 
 An <error> in the catch section, or in the <finally> section, is not
 caught by the same <try>: it goes on to the <handler> that contains it,
-as an <error> outside the <try> would. After an <error> in the catch
-section, the <finally> section still runs first.
+as an <error> outside the <try> would. This includes an <error> made
+with <throw>, so the catch section can pass an <error> on
+after cleaning up. After an <error> in the catch section, the <finally>
+section still runs first.
 
 The statements in the <finally> section are <execute|executed> whether
 or not there is an <error>. Since the <finally> section is always
