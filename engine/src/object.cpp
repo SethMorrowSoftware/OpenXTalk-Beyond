@@ -3080,21 +3080,36 @@ void MCObject::drawdirectionaltext(MCDC *dc, int2 sx, int2 sy, MCStringRef p_str
 #endif
 }
 
-Exec_stat MCObject::domess(MCStringRef sptr, MCParameter* p_args, bool p_ignore_errors)
+Exec_stat MCObject::domess(MCStringRef sptr, MCParameter* p_args, bool p_ignore_errors, MCStringRef *r_parse_errors)
 {
 	MCAutoStringRef t_temp_script;
 	/* UNCHECKED */ MCStringFormat(&t_temp_script, "on message\n%@\nend message\n", sptr);
 	
 	MCHandlerlist *handlist = new (nothrow) MCHandlerlist;
-	// SMR 1947, suppress parsing errors
-	MCerrorlock++;
-	if (handlist->parse(this, *t_temp_script) != PS_NORMAL)
+	// SMR 1947, suppress parsing errors, unless the caller wants them; then
+	// they are collected on their own and the parse error list is restored.
+	MCAutoStringRef t_old_parse_errors;
+	if (r_parse_errors != nil)
 	{
+		/* UNCHECKED */ MCperror->copyasstringref(&t_old_parse_errors);
+		MCperror->clear();
+	}
+	else
+		MCerrorlock++;
+	Parse_stat t_parse_stat = handlist->parse(this, *t_temp_script);
+	if (r_parse_errors != nil)
+	{
+		if (t_parse_stat != PS_NORMAL)
+			/* UNCHECKED */ MCperror->copyasstringref(*r_parse_errors);
+		MCperror->copystringref(*t_old_parse_errors, False);
+	}
+	else
 		MCerrorlock--;
+	if (t_parse_stat != PS_NORMAL)
+	{
 		delete handlist;
 		return ES_ERROR;
 	}
-	MCerrorlock--;
     MCObjectPartHandle oldtargetptr(this);
     swap(oldtargetptr, MCtargetptr);
 	MCHandler *hptr;
