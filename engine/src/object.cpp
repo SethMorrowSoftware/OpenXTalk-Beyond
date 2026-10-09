@@ -4598,7 +4598,8 @@ static void compute_objectshape_mask(MCObject *p_object, const MCObjectShape& p_
 	return;
 }
 
-// Returns true if any pixels within the given area have opacity above the threshold level
+// Returns true if any pixels within the given area have opacity at or above
+// the threshold level, as the mask against mask test does.
 static bool mask_intersects_with_rect(const MCRectangle &p_rect, const object_mask_info &p_mask, uint8_t p_threshold)
 {
 	MCRectangle t_scaled_rect;
@@ -4624,7 +4625,7 @@ static bool mask_intersects_with_rect(const MCRectangle &p_rect, const object_ma
 		t_src_row = (uint32_t*)t_src_ptr;
 		
 		for (uint32_t x = 0; x < t_rect.width; x++)
-			if (MCGPixelGetNativeAlpha(*t_src_row++) > p_threshold)
+			if (MCGPixelGetNativeAlpha(*t_src_row++) >= p_threshold)
 				return true;
 		
 		t_src_ptr += p_mask.image->stride;
@@ -4788,8 +4789,10 @@ bool MCObject::intersects(MCObject *p_other, uint32_t p_threshold)
 		MCRectangle t_int_rect;
 		t_int_rect = MCGRectangleGetIntegerInterior(t_this_rect);
 		
+		// The mask is this object's, so a complex shape (a graphic, say) is
+		// drawn from this object, not from the rectangle it is tested against.
 		object_mask_info t_this_mask;
-		compute_objectshape_mask(p_other, t_this_shape, t_int_rect, p_threshold, t_this_mask);
+		compute_objectshape_mask(this, t_this_shape, t_int_rect, p_threshold, t_this_mask);
 		
 		t_intersects = mask_intersects_with_rect(t_int_rect, t_this_mask, p_threshold);
 		
