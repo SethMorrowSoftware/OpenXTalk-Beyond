@@ -56,6 +56,13 @@
 				'<@(engine_installer_mode_source_files)',
 			],
 			
+			# Installers do *not* contain error message strings: mode_installer.cpp
+			# defines them as empty, as standalones do
+			'sources!':
+			[
+				'<(INTERMEDIATE_DIR)/src/encodederrors.cpp',
+			],
+			
 			'conditions':
 			[
 				[
