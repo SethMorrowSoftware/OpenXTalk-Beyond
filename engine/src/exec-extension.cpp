@@ -570,9 +570,16 @@ Exec_stat MCEngineHandleLibraryMessage(MCNameRef p_message, MCParameter *p_param
     if (t_success)
         return ES_NORMAL;
 	
-	// If the exec context is already in error, use that.
+	// If the exec context is already in error, use that. An LCB error may
+	// be pending as well (a parameter that couldn't be converted throws one
+	// before the type error): drop it, or the next LCB call would find it
+	// and fail with it.
 	if (MCECptr -> HasError())
+	{
+		MCAutoErrorRef t_pending_error;
+		MCErrorCatch(&t_pending_error);
 		return ES_ERROR;
+	}
 	
     return MCExtensionCatchError(*MCECptr);
 }

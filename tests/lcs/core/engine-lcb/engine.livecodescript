@@ -111,6 +111,7 @@ on TestExtensionListFromArrayWithDecimalKeys
     TestDiagnostic tError
     TestAssert "array with a decimal key is not a list", tError is not empty
 
+    -- The failed call above must leave no error behind for this one.
     put empty into tError
     delete variable tArgs
     put "a" into tArgs[1]
