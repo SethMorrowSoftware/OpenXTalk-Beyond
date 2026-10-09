@@ -2209,8 +2209,9 @@ Boolean MCSocket::sslconnect()
 	if (!initsslcontext())
 		return False;
 
-	// Setup for SSL
-	// TODO: verify certs
+	// Setup for SSL. The peer's certificate is verified during the handshake
+	// when sslverify is set (initsslcontext() sets SSL_VERIFY_PEER), and its
+	// host name is checked after it (post_connection_check()).
 
 	if (!_ssl_conn)
 	{
@@ -2410,8 +2411,8 @@ Boolean MCSocket::sslaccept()
 	if (!initsslcontext())
 		return False;
 
-	// Setup for SSL
-	// TODO: verify certs
+	// Setup for SSL. As in sslconnect(), the peer's certificate is verified
+	// when sslverify is set.
 
 	if (!_ssl_conn)
 	{
