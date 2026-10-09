@@ -779,7 +779,7 @@ jobs:
             ${{ runner.temp }}/dist/*.dmg
             ${{ runner.temp }}/dist/SHA256SUMS
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
           compression-level: 0
 
       # The zip must give the same, still valid, app as the one staged and
