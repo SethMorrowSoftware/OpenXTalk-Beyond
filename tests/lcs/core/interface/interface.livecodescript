@@ -68,10 +68,10 @@ on TestFoundLine
    __createFieldWithText "abcd" & return & "efgh"
    
    find "efgh" in field kCreatedField
-   TestAssertBroken "foundLine for found chunk", false /*the foundLine is "line 2 of field 1" or the foundLine is "line 2 of field 2"*/, "16178"
+   TestAssert "foundLine for found chunk", the foundLine is "line 2 of field 1" or the foundLine is "line 2 of field 2"
    
    find characters "x" in field kCreatedField
-   TestAssertBroken "foundLine for non-found chunk", false /*the foundLine is empty*/, "16178"
+   TestAssert "foundLine for non-found chunk", the foundLine is empty
 end TestFoundLine
 
 
