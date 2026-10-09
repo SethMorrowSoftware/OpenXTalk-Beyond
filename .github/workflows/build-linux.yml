@@ -205,23 +205,65 @@ jobs:
       ARCH: ${{ matrix.arch }}
       MODE: release
       BUILDTYPE: Release
+      # The packages the first step installs (part of its cache key)
+      BUILD_PKGS: >-
+        build-essential gcc g++ make perl bison flex gawk pkg-config
+        python2 python-is-python2 python3 openjdk-11-jdk-headless
+        git curl ca-certificates bzip2 xz-utils zip unzip file binutils
+        libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev
+        libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev
+        libexpat1-dev libgtk2.0-dev libpopt-dev liblcms2-dev
     steps:
-      - name: Install build tools and headers
+      # The build tools' packages (about 0.4 GB) come from a cache that
+      # main's builds write once a month (a new month, image or package list
+      # is a new key), with apt's package lists, so that a hit downloads
+      # nothing. Only main writes it, so what pull requests and releases
+      # install is what main installed. (Before the checkout, so the key
+      # cannot use hashFiles.)
+      - name: Compute the build tools cache key
+        id: apt-key
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            build-essential gcc g++ make perl bison flex gawk pkg-config \
-            python2 python-is-python2 python3 openjdk-11-jdk-headless \
-            git curl ca-certificates bzip2 xz-utils zip unzip file binutils \
-            libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev \
-            libxv-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev \
-            libexpat1-dev libgtk2.0-dev libpopt-dev liblcms2-dev
+          hash=$(printf '%s\n' 'mirror.gcr.io/library/ubuntu:20.04' "$BUILD_PKGS" | sha256sum | cut -c1-16)
+          echo "key=apt-focal-${ARCH}-$(date -u +%Y-%m)-${hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build tools' packages
+        id: apt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
+
+      - name: Install build tools and headers
+        env:
+          CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
+        run: |
+          # The image deletes the downloaded packages after each install;
+          # keep them for the cache. On a hit the cached package lists are
+          # the ones the cached packages came with.
+          rm -f /etc/apt/apt.conf.d/docker-clean
+          if [ "$CACHE_HIT" != true ]; then
+            apt-get -o Acquire::Retries=3 update
+          fi
+          # shellcheck disable=SC2086 # BUILD_PKGS is a list
+          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
           # (sed rather than head: GitHub's bash uses pipefail, and head
           # closing the pipe early would fail the step with SIGPIPE)
           gcc --version | sed -n 1p
           python --version
           ldd --version | sed -n 1p
           echo "Processors: $(nproc)"
+
+      - name: Save the build tools' packages to the cache
+        if: steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
 
       - name: Check out
         uses: actions/checkout@v7
@@ -844,9 +886,45 @@ jobs:
       # (libasound2t64, which apt does not find by its old name), so the
       # name with "t64" is used where there is such a package, as the
       # launcher's hint does.
-      - name: Install the runtime libraries and desktop tools
+      #
+      # The packages come from a cache that main's builds write, one per
+      # runner image. apt still updates its lists and checks every cached
+      # package against them, so an outdated one is downloaded again, never
+      # installed. A slow mirror once held this step for 22 minutes, so the
+      # downloads (not the install, which must not be stopped half-way)
+      # have a time limit and are tried up to three times.
+      - name: Compute the runtime libraries cache key
+        id: apt-key
         run: |
-          sudo apt-get update
+          img=${ImageVersion:-$(date -u +%G-W%V)}
+          hash=$(sha256sum Installer/linux/libraries.txt | cut -c1-16)
+          echo "key=apt-noble-${ARCH}-${img}-${hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the runtime libraries' packages
+        id: apt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/apt-debs
+          key: ${{ steps.apt-key.outputs.key }}
+          restore-keys: apt-noble-${{ matrix.arch }}-
+
+      - name: Install the runtime libraries and desktop tools
+        id: apt-install
+        timeout-minutes: 30
+        env:
+          SAVE: ${{ steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          retry() {
+            for i in 1 2 3; do
+              timeout 300 "$@" && return 0
+              echo "::warning::attempt $i failed: $*"
+              sleep 15
+            done
+            return 1
+          }
+          # (sudo does not pass the job's environment on)
+          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+          retry "${apt[@]}" update
           # mplayer, Xvfb and xauth: the browser and player check; the
           # window managers, xdotool, xwininfo (x11-utils) and ImageMagick:
           # the browser window manager check; the Adwaita GTK 2 themes, light
@@ -862,10 +940,31 @@ jobs:
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
           echo "Installing: ${pkgs[*]}"
-          # (sudo does not pass the job's environment on)
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          if compgen -G "$HOME/apt-debs/*.deb" > /dev/null; then
+            sudo cp "$HOME"/apt-debs/*.deb /var/cache/apt/archives/
+          fi
+          retry "${apt[@]}" install -y --no-install-recommends --download-only "${pkgs[@]}"
+          if [ "$SAVE" = true ]; then
+            # Only what the current lists still offer
+            sudo apt-get autoclean
+            rm -rf "$HOME/apt-debs"
+            mkdir -p "$HOME/apt-debs"
+            if compgen -G "/var/cache/apt/archives/*.deb" > /dev/null; then
+              cp /var/cache/apt/archives/*.deb "$HOME/apt-debs/"
+              echo "debs=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          "${apt[@]}" install -y --no-install-recommends "${pkgs[@]}"
           python3 --version
           ldd --version | sed -n 1p
+
+      - name: Save the runtime libraries' packages to the cache
+        if: steps.apt-install.outputs.debs == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: ~/apt-debs
+          key: ${{ steps.apt-key.outputs.key }}
 
       # The same caches as build-windows.yml (see there): the external
       # assets' archives and the xTalk extensions' files. The cache version

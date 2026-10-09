@@ -898,7 +898,9 @@ This joins the two builds with `lipo`, signs the result ad hoc, stages
 Mach-O file of macOS code in it holds arm64 and x86_64, and writes
 `OXT-Beyond-<ver>-mac-universal.dmg`, `-mac-universal.zip`,
 `-mac-universal-binaries.tar.xz`, `-mac-universal-symbols.zip` and
-`SHA256SUMS`. The test jobs install the app from the disk image into a
+`SHA256SUMS`, and checks that the zip holds the same signed app. The
+test jobs download only the disk image (the artifact
+`OXT-Beyond-mac-universal-dmg`), install the app from it into a
 neutral folder on an Apple Silicon and an Intel runner and run:
 
 ```sh
@@ -1872,7 +1874,11 @@ It follows this guide:
    [Working on the IDE](#11-working-on-the-ide)).
 3. It adds the v141 components to the runner's Visual Studio 2022 with
    `tools/ci/install-vs-components.ps1` and installs Python 2.7 and
-   Cygwin. It takes the prebuilt libraries (section 6) from its cache, or,
+   Cygwin. The files the Visual Studio installer adds are cached
+   (`tools/ci/vs-toolset-cache.ps1`), keyed on the runner image, which
+   saves the installer's five minutes: the job "Build win-x86" of main's
+   builds saves them, and every job restores them first, so the script
+   finds the toolset complete. It takes the prebuilt libraries (section 6) from its cache, or,
    when their versions, build script or sources changed, installs NASM
    and builds them with `prebuilt/build-libraries-windows.ps1` (OpenSSL,
    curl, ICU and CEF, then Thirdparty, Release x86_64, about 40 minutes)
@@ -2282,7 +2288,9 @@ in an `ubuntu:20.04` container, for x86_64 on `ubuntu-24.04` runners and
 for arm64 on `ubuntu-24.04-arm`. CI takes the image (and the 32-bit
 build's `debian:bullseye`) through Google's mirror of Docker Hub,
 `mirror.gcr.io/library/...`: the same images, without Docker Hub's pull
-limit for GitHub's shared runners. Ubuntu 20.04 is the newest Ubuntu that
+limit for GitHub's shared runners. It caches the packages of step 1
+(main's builds save them once a month) and, in the package jobs, the
+runtime libraries' packages (one entry per runner image). Ubuntu 20.04 is the newest Ubuntu that
 still ships Python 2.7, which gyp and `config.py` need, and its glibc
 2.31 is the oldest the binaries need. These are the workflow's steps,
 written for x86_64 (use `arm64` instead of `x86_64` for the other

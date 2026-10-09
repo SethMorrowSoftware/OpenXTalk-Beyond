@@ -769,6 +769,33 @@ jobs:
           # The files are compressed already
           compression-level: 0
 
+      # The test jobs need only the disk image (about 0.6 GB of the 1.4 GB
+      # above), so they download it from an artifact of its own
+      - name: Upload the disk image for the tests
+        uses: actions/upload-artifact@v7
+        with:
+          name: OXT-Beyond-mac-universal-dmg
+          path: |
+            ${{ runner.temp }}/dist/*.dmg
+            ${{ runner.temp }}/dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      # The zip must give the same, still valid, app as the one staged and
+      # signed above, which the disk image holds too (the test jobs install
+      # and check that). After the uploads, so that a failed check still
+      # leaves the files to look at.
+      - name: Check the zip
+        run: |
+          dest="$RUNNER_TEMP/oxt-zip"
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          ditto -x -k "$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.zip" "$dest"
+          codesign --verify --deep --strict "$dest/OXT-Beyond.app"
+          diff -rq "$APP" "$dest/OXT-Beyond.app"
+          echo "The zip holds the same app as the one staged."
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v7
@@ -799,15 +826,34 @@ jobs:
       ARCH: ${{ matrix.arch }}
       VERSION: ${{ needs.package.outputs.version }}
     steps:
+      # Only what the steps below read: the scripts and their files in
+      # tools/ (tools/ci, and the tools/oxt modules they import), the
+      # root's version file and sqlite3.h (the versions the checks
+      # expect, run_livecode_check.read_expectations)
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          sparse-checkout: |
+            tools
+            thirdparty/libsqlite/include
 
-      - name: Download the packages
+      # A download stalled for 22 minutes once: a time limit, and one more try
+      - name: Download the disk image
+        id: download
+        continue-on-error: true
+        timeout-minutes: 8
         uses: actions/download-artifact@v8
         with:
-          name: OXT-Beyond-mac-universal
+          name: OXT-Beyond-mac-universal-dmg
+          path: ${{ runner.temp }}/dist
+
+      - name: Download the disk image (second try)
+        if: steps.download.outcome != 'success'
+        timeout-minutes: 8
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-mac-universal-dmg
           path: ${{ runner.temp }}/dist
 
       - name: Check the download
@@ -819,7 +865,10 @@ jobs:
           if [ "$(uname -m)" != "$ARCH" ]; then echo "::error::this runner is $(uname -m), not $ARCH"; exit 1; fi
           cd "$RUNNER_TEMP/dist"
           ls -l
-          shasum -a 256 -c SHA256SUMS
+          dmg="OXT-Beyond-$VERSION-mac-universal.dmg"
+          awk -v f="$dmg" '$2 == f' SHA256SUMS > dmg.sha256
+          if [ ! -s dmg.sha256 ]; then echo "::error::SHA256SUMS has no line for $dmg"; exit 1; fi
+          shasum -a 256 -c dmg.sha256
 
       # hdiutil attach -readonly, as a user's double-click mounts it; the
       # volume must hold the app and the link to drag it onto. The attach
@@ -883,16 +932,6 @@ jobs:
         run: |
           python3 tools/ci/standalone_check.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal --targets all \
             --log "$LOGS/standalone-check.log"
-
-      # The zip must give the same, still valid, app
-      - name: Check the zip
-        run: |
-          dest="$RUNNER_TEMP/oxt-zip"
-          mkdir -p "$dest"
-          ditto -x -k "$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.zip" "$dest"
-          codesign --verify --deep --strict "$dest/OXT-Beyond.app"
-          diff -rq "$APP" "$dest/OXT-Beyond.app"
-          echo "The zip holds the same app as the disk image."
 
       # The IDE as a user starts it, with its home stack, menu bar and
       # palettes, still running after 90 seconds; the other steps run the
