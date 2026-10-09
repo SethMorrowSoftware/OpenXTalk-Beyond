@@ -344,12 +344,23 @@ MCScriptThrowMissingFunctionInForeignBindingError(void)
 }
 
 bool
-MCScriptThrowUnableToLoadForiegnLibraryError(void)
+MCScriptThrowUnableToLoadForiegnLibraryError(MCStringRef p_library)
 {
-	return MCErrorCreateAndThrow(kMCGenericErrorTypeInfo,
-								 "reason",
-								 MCSTR("unable to load foreign library"),
-								 nil);
+	/* The loader (the engine, or libfoundation) throws the system's reason
+	 * when it has one, so that it can be added here. */
+	MCAutoErrorRef t_cause;
+	if (MCErrorCatch(&t_cause) &&
+		!MCStringIsEmpty(MCErrorGetMessage(*t_cause)))
+	{
+		return MCErrorThrowGenericWithMessage(MCSTR("unable to load foreign library '%{library}': %{reason}"),
+											  "library", p_library,
+											  "reason", MCErrorGetMessage(*t_cause),
+											  nil);
+	}
+	
+	return MCErrorThrowGenericWithMessage(MCSTR("unable to load foreign library '%{library}'"),
+										  "library", p_library,
+										  nil);
 }
 
 bool

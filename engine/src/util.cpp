@@ -3085,9 +3085,19 @@ bool MCU_path_split_win32(MCStringRef p_path,
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/* Why a library didn't load. When several extensions are tried, the reason
+ * from a file that is there but didn't load (a missing dependency, the wrong
+ * architecture) says more than the others not being there, so it is kept. */
+struct MCULibraryLoadFailure
+{
+    MCAutoStringRef reason;
+    bool file_exists = false;
+};
+
 static bool
 __MCU_library_load_verbatim(MCStringRef p_path,
-                            MCSLibraryRef& r_library)
+                            MCSLibraryRef& r_library,
+                            MCULibraryLoadFailure& x_failure)
 {
     if (!MCSLibraryCreateWithPath(p_path,
                                   r_library))
@@ -3095,6 +3105,16 @@ __MCU_library_load_verbatim(MCStringRef p_path,
         MCAutoErrorRef t_error;
         MCErrorCatch(&t_error);
         MCLog("MCU_library_load failed for %@", p_path);
+        
+        if (!x_failure.file_exists)
+        {
+            x_failure.file_exists = MCS_exists(p_path, true) ||
+                                    MCS_exists(p_path, false);
+            x_failure.reason.Reset(t_error.IsSet() ?
+                                   MCErrorGetMessage(*t_error) :
+                                   nullptr);
+        }
+        
         return false;
     }
     
@@ -3104,7 +3124,8 @@ __MCU_library_load_verbatim(MCStringRef p_path,
 static bool
 __MCU_library_load_adding_extension(MCStringRef p_path,
                                     const char *p_extension,
-                                    MCSLibraryRef& r_library)
+                                    MCSLibraryRef& r_library,
+                                    MCULibraryLoadFailure& x_failure)
 {
     MCAutoStringRef t_library_path;
     if (!MCStringFormat(&t_library_path,
@@ -3115,7 +3136,8 @@ __MCU_library_load_adding_extension(MCStringRef p_path,
         return false;
     }
     return __MCU_library_load_verbatim(*t_library_path,
-                                       r_library);
+                                       r_library,
+                                       x_failure);
 }
 
 static bool
@@ -3184,8 +3206,12 @@ __MCU_library_map_path(MCStringRef p_path,
     return true;
 }
 
-MCSLibraryRef MCU_library_load(MCStringRef p_path)
+MCSLibraryRef MCU_library_load(MCStringRef p_path,
+                              MCStringRef *r_reason)
 {
+    if (r_reason != nullptr)
+        *r_reason = nullptr;
+    
     // If the path is not absolute, apply the internal mapping to the name.
     // This uses any mapping section in the standalone capsule, and ensures
     // that revsecurity and revpdfprinter map correctly.
@@ -3205,36 +3231,49 @@ MCSLibraryRef MCU_library_load(MCStringRef p_path)
     // If the path already has an extension, we don't need to add one. Otherwise
     // we try the various appropriate extensions per-platform.
     MCSAutoLibraryRef t_library;
+    MCULibraryLoadFailure t_failure;
     if (MCU_path_has_extension(*t_library_path))
     {
         __MCU_library_load_verbatim(*t_library_path,
-                                    &t_library);
+                                    &t_library,
+                                    t_failure);
     }
     else
     {
 #if defined(__MAC__) || defined(__IOS__)
         __MCU_library_load_adding_extension(*t_library_path,
                                             "framework",
-                                            &t_library);
+                                            &t_library,
+                                            t_failure);
         if (!t_library.IsSet())
             __MCU_library_load_adding_extension(*t_library_path,
                                                 "bundle",
-                                                &t_library);
+                                                &t_library,
+                                                t_failure);
         if (!t_library.IsSet())
             __MCU_library_load_adding_extension(*t_library_path,
                                                 "dylib",
-                                                &t_library);
+                                                &t_library,
+                                                t_failure);
 #elif defined(__WINDOWS__)
         __MCU_library_load_adding_extension(*t_library_path,
                                             "dll",
-                                            &t_library);
+                                            &t_library,
+                                            t_failure);
 #elif defined(__LINUX__) || defined(__ANDROID__) || defined(__EMSCRIPTEN__)
         __MCU_library_load_adding_extension(*t_library_path,
                                             "so",
-                                            &t_library);
+                                            &t_library,
+                                            t_failure);
 #else
 #       error MCU_library_load not implemented for this platform
 #endif
+    }
+    
+    if (!t_library.IsSet() &&
+        r_reason != nullptr)
+    {
+        *r_reason = t_failure.reason.Take();
     }
     
     return t_library.Take();

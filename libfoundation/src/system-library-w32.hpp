@@ -73,8 +73,19 @@ public:
         
         if (m_handle == NULL)
         {
-            /* TODO: Use GetLastError() */
-            return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path);
+            /* The system's description of the failure says why: the file
+             * is missing, is for another architecture, or needs a DLL that
+             * isn't there. */
+            DWORD t_error_code = GetLastError();
+            MCAutoStringRef t_reason;
+            if (!CopyErrorDescription(t_error_code,
+                                      &t_reason))
+            {
+                return false;
+            }
+            
+            return __MCSLibraryThrowCreateWithNativePathFailed(p_native_path,
+                                                               *t_reason);
         }
 
         return true;
@@ -164,6 +175,56 @@ public:
     
 protected:
     HMODULE m_handle;
+
+private:
+    /* Copies the system's text for a GetLastError() code, without the line
+     * break FormatMessage ends it with. */
+    static bool
+    CopyErrorDescription(DWORD p_error_code,
+                         MCStringRef& r_description)
+    {
+        LPWSTR t_message = nullptr;
+        DWORD t_length =
+                FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                               FORMAT_MESSAGE_FROM_SYSTEM |
+                               FORMAT_MESSAGE_IGNORE_INSERTS,
+                               nullptr,
+                               p_error_code,
+                               0,
+                               reinterpret_cast<LPWSTR>(&t_message),
+                               0,
+                               nullptr);
+
+        while (t_length > 0 &&
+               (t_message[t_length - 1] == L'\r' ||
+                t_message[t_length - 1] == L'\n' ||
+                t_message[t_length - 1] == L' ' ||
+                t_message[t_length - 1] == L'.'))
+        {
+            t_length -= 1;
+        }
+
+        bool t_success;
+        if (t_length > 0)
+        {
+            t_success = MCStringCreateWithChars(reinterpret_cast<const unichar_t *>(t_message),
+                                                t_length,
+                                                r_description);
+        }
+        else
+        {
+            t_success = MCStringFormat(r_description,
+                                       "error %u",
+                                       static_cast<unsigned int>(p_error_code));
+        }
+
+        if (t_message != nullptr)
+        {
+            LocalFree(t_message);
+        }
+
+        return t_success;
+    }
 };
 
 typedef class __MCSLibraryHandleWin32 __MCSLibraryHandle;

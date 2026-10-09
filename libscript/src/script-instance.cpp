@@ -739,8 +739,12 @@ __MCScriptResolveForeignFunctionBindingForC(MCScriptInstanceRef p_instance,
     {
         if (r_bound == nil)
         {
-            return MCScriptThrowUnableToLoadForiegnLibraryError();
+            return MCScriptThrowUnableToLoadForiegnLibraryError(p_info->c.library);
         }
+        
+        /* An optional binding fails silently, so drop the loader's
+         * reason. */
+        MCErrorReset();
         
         *r_bound = false;
         
@@ -806,8 +810,12 @@ __MCScriptResolveForeignFunctionBindingForObjC(MCScriptInstanceRef p_instance,
     {
         if (r_bound == nil)
         {
-            return MCScriptThrowUnableToLoadForiegnLibraryError();
+            return MCScriptThrowUnableToLoadForiegnLibraryError(p_info->objc.library);
         }
+        
+        /* An optional binding fails silently, so drop the loader's
+         * reason. */
+        MCErrorReset();
         
         *r_bound = false;
         

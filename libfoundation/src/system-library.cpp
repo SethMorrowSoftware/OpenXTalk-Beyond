@@ -223,11 +223,33 @@ __MCSLibraryCreate(MCSLibraryRef& r_library)
  * Errors
  * ================================================================ */
 
-/* Thrown if the attempt to load the library on the given path failed. */
+/* Thrown if the attempt to load the library on the given path failed. The
+ * reason is the system's description of the failure (from dlerror() or
+ * GetLastError()), or nullptr if there is none. */
 bool
-__MCSLibraryThrowCreateWithNativePathFailed(MCStringRef p_native_path)
+__MCSLibraryThrowCreateWithNativePathFailed(MCStringRef p_native_path,
+                                            MCStringRef p_reason)
 {
-    return false;
+    if (p_reason == nullptr ||
+        MCStringIsEmpty(p_reason))
+    {
+        return MCErrorThrowGenericWithMessage(MCSTR("%{path}: not found"),
+                                              "path", p_native_path,
+                                              nullptr);
+    }
+    
+    /* dlerror() names the file itself, GetLastError() doesn't. */
+    if (MCStringContains(p_reason,
+                         p_native_path,
+                         kMCStringOptionCompareExact))
+    {
+        return MCErrorThrowGeneric(p_reason);
+    }
+    
+    return MCErrorThrowGenericWithMessage(MCSTR("%{path}: %{reason}"),
+                                          "path", p_native_path,
+                                          "reason", p_reason,
+                                          nullptr);
 }
 
 /* Thrown if the attempt to load the library at the given address failed. */

@@ -170,4 +170,47 @@ public handler TestForeignIntRanges()
     MCUnitTestHandlerThrows(TestUIntSizeRange_Max, "UIntSize maximum value")
 end handler
 
+----------
+
+private foreign handler MissingLibraryFunction() returns nothing binds to "c:oxt_no_such_library>oxt_missing_function"
+
+foreign handler MCErrorGetMessage(in pError as any) returns Pointer binds to "<builtin>"
+foreign handler MCValueRetain(in pValue as Pointer) returns any binds to "<builtin>"
+
+handler TestMissingLibrary_Call()
+    unsafe
+        MissingLibraryFunction()
+    end unsafe
+end handler
+
+public handler TestMissingLibrary()
+    -- Used as a value, a handler whose library doesn't load is nothing,
+    -- and no error is left behind.
+    variable tHandler as optional any
+    unsafe
+        put MissingLibraryFunction into tHandler
+    end unsafe
+    test "missing library (optional binding)" when tHandler is nothing
+
+    -- Called, it throws an error that names the library and says why.
+    variable tResult as optional any
+    variable tArguments as optional List
+    variable tError as optional any
+    put [] into tArguments
+    unsafe
+        put MCHandlerTryToInvokeWithList(TestMissingLibrary_Call, tArguments, tResult) into tError
+    end unsafe
+    test "missing library (throws)" when tError is not nothing
+    if tError is nothing then
+        return
+    end if
+
+    variable tMessage as String
+    unsafe
+        put MCValueRetain(MCErrorGetMessage(tError)) into tMessage
+    end unsafe
+    test diagnostic tMessage
+    test "missing library (error names it)" when tMessage contains "'oxt_no_such_library': "
+end handler
+
 end module

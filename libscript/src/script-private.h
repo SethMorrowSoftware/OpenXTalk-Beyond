@@ -635,7 +635,7 @@ bool
 MCScriptThrowMissingFunctionInForeignBindingError(void);
 
 bool
-MCScriptThrowUnableToLoadForiegnLibraryError(void);
+MCScriptThrowUnableToLoadForiegnLibraryError(MCStringRef library);
 
 bool
 MCScriptThrowForeignExceptionError(MCStringRef p_reason);
