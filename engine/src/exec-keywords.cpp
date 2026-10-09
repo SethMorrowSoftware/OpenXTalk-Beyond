@@ -626,7 +626,10 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             if (!done)
                 loopvar -> set(ctxt, *t_byte);
         }
-        else if (each != FU_ELEMENT && each != FU_KEY)
+        // When the text has no such chunk (it is empty, or it is the words of
+        //  "   "), the loop variable is left as it was, as it is for keys,
+        //  elements and bytes (anomaly 16454).
+        else if (each != FU_ELEMENT && each != FU_KEY && t_found)
             loopvar -> set(ctxt, *t_unit);
         
         if (!done)
@@ -639,7 +642,7 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             {
                 if (each == FU_BYTE)
                     loopvar -> set(ctxt, *t_byte);
-                else if (each != FU_ELEMENT && each != FU_KEY)
+                else if (each != FU_ELEMENT && each != FU_KEY && t_found)
                     loopvar -> set(ctxt, *t_unit);
             }
         }

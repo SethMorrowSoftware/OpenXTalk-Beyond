@@ -250,17 +250,17 @@ on TestRepeatForEachChar
    put "something" into tChar
    repeat for each character tChar in empty
    end repeat
-   TestAssertBroken "repeat for each character in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each character in empty preserves initial value", tChar is "something"
    
    put "something" into tChar
    repeat for each codepoint tChar in empty
    end repeat
-   TestAssertBroken "repeat for each codepoint in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each codepoint in empty preserves initial value", tChar is "something"
    
    put "something" into tChar
    repeat for each codeunit tChar in empty
    end repeat
-   TestAssertBroken "repeat for each codeunit in empty preserves initial value", tChar is "something", "anomaly 16454"
+   TestAssert "repeat for each codeunit in empty preserves initial value", tChar is "something"
 end TestRepeatForEachChar
 
 on TestRepeatForEachDelimitedChunk
@@ -284,7 +284,7 @@ on TestRepeatForEachDelimitedChunk
    put "something" into tChunk
    repeat for each item tChunk in empty
    end repeat
-   TestAssertBroken "repeat for each item in empty preserves initial value", tChunk is "something", "anomaly 16454"
+   TestAssert "repeat for each item in empty preserves initial value", tChunk is "something"
    
    replace comma with return in tChunks
    
@@ -305,7 +305,7 @@ on TestRepeatForEachDelimitedChunk
    put "something" into tChunk
    repeat for each line tChunk in empty
    end repeat
-   TestAssertBroken "repeat for each line in empty preserves initial value", tChunk is "something", "anomaly 16454"
+   TestAssert "repeat for each line in empty preserves initial value", tChunk is "something"
 end TestRepeatForEachDelimitedChunk
 
 on TestRepeatForEachSegment
@@ -323,7 +323,7 @@ on TestRepeatForEachSegment
    put "something" into tSegment
    repeat for each segment tSegment in empty
    end repeat
-   TestAssertBroken "repeat for each segment in empty preserves initial value", tSegment is "something", "anomaly 16454"
+   TestAssert "repeat for each segment in empty preserves initial value", tSegment is "something"
 end TestRepeatForEachSegment
 
 on TestRepeatForEachTrueWord
@@ -341,5 +341,5 @@ on TestRepeatForEachTrueWord
    put "something" into tTrueWord
    repeat for each trueWord tTrueWord in empty
    end repeat
-   TestAssertBroken "repeat for each true word in empty preserves initial value", tTrueWord is "something", "anomaly 16454"
+   TestAssert "repeat for each true word in empty preserves initial value", tTrueWord is "something"
 end TestRepeatForEachTrueWord
