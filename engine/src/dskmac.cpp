@@ -635,28 +635,38 @@ static void parseSerialControlStr(MCStringRef setting, struct termios *theTermio
 			else if (first == 'O' || first == 'o')
 				theTermios->c_cflag |= PARENB | PARODD;
 			else if (first == 'E' || first == 'e')
+			{
 				theTermios->c_cflag |= PARENB;
+				theTermios->c_cflag &= ~PARODD;
+			}
         }
         
         else if (MCStringIsEqualToCString(*t_property, "data", kMCCompareCaseless))
         {
             integer_t data;
+            tcflag_t t_size;
             /* UNCHECKED */ MCStringToInteger(*t_value, data);
 			switch (data)
 			{
                 case 5:
-                    theTermios->c_cflag |= CS5;
+                    t_size = CS5;
                     break;
                 case 6:
-                    theTermios->c_cflag |= CS6;
+                    t_size = CS6;
                     break;
                 case 7:
-                    theTermios->c_cflag |= CS7;
+                    t_size = CS7;
                     break;
                 case 8:
-                    theTermios->c_cflag |= CS8;
+                    t_size = CS8;
+                    break;
+                default:
+                    t_size = theTermios->c_cflag & CSIZE;
                     break;
 			}
+            // The size is a field, so clear it before setting it: ORing CS7
+            // onto CS8 leaves CS8.
+            theTermios->c_cflag = (theTermios->c_cflag & ~CSIZE) | t_size;
         }
         
         else if (MCStringIsEqualToCString(*t_property, "stop", kMCCompareCaseless))
@@ -673,7 +683,7 @@ static void parseSerialControlStr(MCStringRef setting, struct termios *theTermio
     }
 }
 
-static void configureSerialPort(int sRefNum)
+static bool configureSerialPort(int sRefNum)
 {/****************************************************************************
   *parse MCserialcontrolstring and set the serial output port to the settings*
   *defined by MCserialcontrolstring accordingly                              *
@@ -682,10 +692,21 @@ static void configureSerialPort(int sRefNum)
 	struct termios	theTermios;
 	if (tcgetattr(sRefNum, &theTermios) < 0)
 	{
-		// TODO: handle error appropriately
+		// A device that isn't a terminal has nothing to configure. Any other
+		// failure fails the open.
+		return errno == ENOTTY;
 	}
+	
+	// Raw mode: no echo, no line buffering, no CR and LF translation and no
+	// XON/XOFF, so that bytes pass through as they are. The receiver is on
+	// and the modem control lines are ignored. The default is 9600 8N1.
+	cfmakeraw(&theTermios);
+	theTermios.c_cflag &= ~(CSIZE | PARENB | PARODD | CSTOPB | CRTSCTS | HUPCL);
+	theTermios.c_cflag |= CS8 | CLOCAL | CREAD;
+	theTermios.c_cc[VMIN] = 1;
+	theTermios.c_cc[VTIME] = 0;
 	cfsetispeed(&theTermios,  B9600);
-	theTermios.c_cflag = CS8;
+	cfsetospeed(&theTermios,  B9600);
  
     // Split the string on the spaces
     MCAutoArrayRef t_settings;
@@ -701,11 +722,7 @@ static void configureSerialPort(int sRefNum)
         parseSerialControlStr(t_setting, &theTermios);
     }
     //configure the serial output device
-	if (tcsetattr(sRefNum, TCSANOW, &theTermios) < 0)
-	{
-		// TODO: handle error appropriately
-	}
-	return;
+	return tcsetattr(sRefNum, TCSANOW, &theTermios) == 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -854,7 +871,7 @@ extern "C"
 	typedef UInt32 (*SwapQDTextFlagsPtr)(UInt32 newFlags);
 }
 
-static void configureSerialPort(int sRefNum);
+static bool configureSerialPort(int sRefNum);
 static bool getResourceInfo(MCListRef p_list, ResType p_type);
 static void parseSerialControlStr(MCStringRef set, struct termios *theTermios);
 
@@ -4130,7 +4147,12 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
             val = fcntl(t_serial_in, F_GETFL);
             val |= O_NONBLOCK |  O_NOCTTY;
             fcntl(t_serial_in, F_SETFL, val);
-            configureSerialPort((short)t_serial_in);
+            // If the port can't be set up as asked, the open fails.
+            if (!configureSerialPort(t_serial_in))
+            {
+                fclose(fptr);
+                return NULL;
+            }
             
             // SN-2014-05-02 [[ Bug 12246 ]] Serial I/O fails on write
             // The serial port number is never used in the 6.X engine... and switching to an STDIO file

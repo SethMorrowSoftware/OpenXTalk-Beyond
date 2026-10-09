@@ -172,26 +172,36 @@ static void parseSerialControlStr(char *setting, struct termios *theTermios)
             else if (value[0] == 'O' || value[0] == 'o')
                 theTermios->c_cflag |= PARENB | PARODD;
             else if (value[0] == 'E' || value[0] == 'e')
+            {
                 theTermios->c_cflag |= PARENB;
+                theTermios->c_cflag &= ~PARODD;
+            }
         }
         else if (MCU_strncasecmp(type, "data", strlen(type)) == 0)
         {
             short data = atoi(value);
+            tcflag_t t_size;
             switch (data)
             {
             case 5:
-                theTermios->c_cflag |= CS5;
+                t_size = CS5;
                 break;
             case 6:
-                theTermios->c_cflag |= CS6;
+                t_size = CS6;
                 break;
             case 7:
-                theTermios->c_cflag |= CS7;
+                t_size = CS7;
                 break;
             case 8:
-                theTermios->c_cflag |= CS8;
+                t_size = CS8;
+                break;
+            default:
+                t_size = theTermios->c_cflag & CSIZE;
                 break;
             }
+            // The size is a field, so clear it before setting it: ORing CS7
+            // onto CS8 leaves CS8.
+            theTermios->c_cflag = (theTermios->c_cflag & ~CSIZE) | t_size;
         }
         else if (MCU_strncasecmp(type, "stop", strlen(type)) == 0)
         {
@@ -206,7 +216,7 @@ static void parseSerialControlStr(char *setting, struct termios *theTermios)
     }
 }
 
-static void configureSerialPort(int sRefNum)
+static bool configureSerialPort(int sRefNum)
 {/****************************************************************************
      *parse MCserialcontrolstring and set the serial output port to the settings*
      *defined by MCserialcontrolstring accordingly                              *
@@ -215,10 +225,21 @@ static void configureSerialPort(int sRefNum)
     struct termios	theTermios;
     if (tcgetattr(sRefNum, &theTermios) < 0)
     {
-        MCLog("Error getting terminous attributes");
+        // A device that isn't a terminal (a printer, say) has nothing to
+        // configure. Any other failure fails the open.
+        return errno == ENOTTY;
     }
+    
+    // Raw mode: no echo, no line buffering, no CR and LF translation and no
+    // XON/XOFF, so that bytes pass through as they are. The receiver is on
+    // and the modem control lines are ignored. The default is 9600 8N1.
+    cfmakeraw(&theTermios);
+    theTermios.c_cflag &= ~(CSIZE | PARENB | PARODD | CSTOPB | CRTSCTS | HUPCL);
+    theTermios.c_cflag |= CS8 | CLOCAL | CREAD;
+    theTermios.c_cc[VMIN] = 1;
+    theTermios.c_cc[VTIME] = 0;
     cfsetispeed(&theTermios,  B9600);
-    theTermios.c_cflag = CS8;
+    cfsetospeed(&theTermios,  B9600);
 
     MCAutoStringRefAsSysString t_serial_settings;
     /* UNCHECKED */ t_serial_settings.Lock(MCserialcontrolsettings);
@@ -235,13 +256,9 @@ static void configureSerialPort(int sRefNum)
 
     //configure the serial output device
     parseSerialControlStr(str,&theTermios);
-    if (tcsetattr(sRefNum, TCSANOW, &theTermios) < 0)
-    {
-        MCLog("Error setting terminous attributes");
-    }
-
     delete[] controlptr;
-    return;
+    
+    return tcsetattr(sRefNum, TCSANOW, &theTermios) == 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1307,7 +1324,12 @@ public:
         if (t_fptr != NULL)
         {
             setbuf(t_fptr, nullptr);
-            configureSerialPort((short)fileno(t_fptr));
+            // If the port can't be set up as asked, the open fails.
+            if (!configureSerialPort(fileno(t_fptr)))
+            {
+                fclose(t_fptr);
+                return NULL;
+            }
 
             t_handle = new (nothrow) MCStdioFileHandle(t_fptr);
         }
