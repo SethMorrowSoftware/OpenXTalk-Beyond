@@ -30,6 +30,21 @@ public handler TestForeignBinding_C()
    test "Existent C function gives non-nothing as handler value" when MCValueCopyDescription is not nothing
 end handler
 
+foreign handler OxtCFunctionWhichDoesNotExist() returns nothing binds to "c:oxt_no_such_function"
+
+private handler TestForeignBinding_NonExistentCAfterValue()
+   unsafe
+      OxtCFunctionWhichDoesNotExist()
+   end unsafe
+end handler
+
+-- Used as a value first, then called: the call still throws (it used to
+-- call a function that was never found).
+public handler TestForeignBinding_ValueThenCall()
+   test "Non-existent C function used as a value first is nothing" when OxtCFunctionWhichDoesNotExist is nothing
+   MCUnitTestHandlerThrowsNamed(TestForeignBinding_NonExistentCAfterValue, "livecode.lang.ForeignHandlerBindingError", "Calling it afterwards throws error")
+end handler
+
 ---------
 
 foreign handler CreateJavaObject() returns JObject binds to "java:java.lang.Object>new()"
