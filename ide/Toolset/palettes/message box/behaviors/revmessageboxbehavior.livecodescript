@@ -643,7 +643,9 @@ command ideMessageBoxExecuteScript pScript
    try
       do "put the long id of the" && tIntelligencePref && "into tIntelligenceObject"
    catch tError
-      put the long id of stack tDefaultStack into tIntelligenceObject
+      if there is a stack tDefaultStack then
+         put the long id of stack tDefaultStack into tIntelligenceObject
+      end if
    end try
    
    local tValidScript

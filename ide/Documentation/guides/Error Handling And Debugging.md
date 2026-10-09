@@ -303,6 +303,10 @@ This will only work in the IDE.
 If you want to include statements that will be run regardless of whether there has been an
 error or not, include the statements as part of a **finally** clause.
 
+An error in the **catch** or **finally** clause is not caught by the same **try**: it is
+passed on, like an error outside the **try**. After an error in the **catch** clause, the
+**finally** clause still runs first.
+
 To create readable error messages for cases where you anticipate there may be an error,
 use the **throw** keyword. For example, if we want to display an error message when the
 result for opening a file returns something:

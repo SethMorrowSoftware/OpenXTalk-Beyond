@@ -2385,8 +2385,19 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
         MCAutoStringRef t_stdpath;
         MCAutoStringRef t_long_path;
         MCAutoPointer<char> t_fname;
-        
-        t_fname = _tempnam("\\tmp", "tmp");
+
+        // _tempnam numbers its names from the same start in every process,
+        // and only checks that the file isn't there yet, so two processes
+        // asking at the same time got the same name. The process id in the
+        // prefix keeps the names of processes running together apart.
+        char t_prefix[32];
+        snprintf(t_prefix, sizeof(t_prefix), "tmp%lx_", (unsigned long)GetCurrentProcessId());
+        t_fname = _tempnam("\\tmp", t_prefix);
+        if (*t_fname == nil)
+        {
+            r_tmp_name = MCValueRetain(kMCEmptyString);
+            return true;
+        }
         uindex_t t_length;
         
         const char *t_ptr = strrchr(*t_fname, '\\');

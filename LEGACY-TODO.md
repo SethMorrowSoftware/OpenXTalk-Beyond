@@ -278,7 +278,7 @@ Work left for later. 459 notes, by part of the repository:
 - [engine/src/dskmain.cpp:222](engine/src/dskmain.cpp#L222) TODO Remove -g,-geometry flag because it's not used any more
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
-- [engine/src/dskw32.cpp:3020](engine/src/dskw32.cpp#L3020) TODO: set end of file...
+- [engine/src/dskw32.cpp:3031](engine/src/dskw32.cpp#L3031) TODO: set end of file...
 - [engine/src/em-dc.js:146](engine/src/em-dc.js#L146) TODO - handle cleanup of embedded canvas
 - [engine/src/em-dc.js:297](engine/src/em-dc.js#L297) TODO - implement
 - [engine/src/em-event.js:598](engine/src/em-event.js#L598) TODO - reenable alt key detection

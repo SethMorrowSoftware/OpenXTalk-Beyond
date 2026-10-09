@@ -77,7 +77,9 @@ on editorValueChanged pProperty, pValue, pLockUpdates
    try
       dispatch "valueChanged" to sTarget with pProperty, pValue
    catch tError
-      send "popupDismissed" to sTarget in 0 millisecs
+      if exists(sTarget) then
+         send "popupDismissed" to sTarget in 0 millisecs
+      end if
    end try
 end editorValueChanged
 

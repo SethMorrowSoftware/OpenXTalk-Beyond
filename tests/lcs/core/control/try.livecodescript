@@ -81,15 +81,63 @@ on TestTryMultipleEvents
    TestAssert "Errors from other events don't pollute caught error", line 1 of tError2 contains "NonExistantHandler2"
 end TestTryMultipleEvents
 
+local sFinallyRan
+
+on __TestTryErrorInCatchWithFinally
+   put false into sFinallyRan
+   try
+      NonExistantHandler1
+   catch tError
+      NonExistantHandler2
+   finally
+      put true into sFinallyRan
+   end try
+end __TestTryErrorInCatchWithFinally
+
 on TestTryErrorInCatch
-   TestAssertBroken "Error in catch is thrown", false, "Bug 19812"
-   /*TestAssertThrow "Error in catch is thrown", "__TestTryErrorInCatch", the long id of me, "EE_STATEMENT_BADCOMMAND"
+   TestAssertThrow "Error in catch is thrown", "__TestTryErrorInCatch", the long id of me, "EE_STATEMENT_BADCOMMAND"
    try
       NonExistantHandler3
    catch tError
       TestAssert "Unthrown errors in catch are cleared", line 1 of tError contains "NonExistantHandler3"
-   end try*/
+   end try
+
+   TestAssertThrow "Error in catch is thrown after finally", "__TestTryErrorInCatchWithFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
+   TestAssert "Finally runs after an error in catch", sFinallyRan
+
+   TestAssertThrow "Error in catch is thrown after a try in finally", "__TestTryErrorInCatchWithTryInFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
+
+   local tThrown
+   try
+      __TestTryThrowInCatchWithTryInFinally
+   catch tThrown
+   end try
+   TestAssert "Throw in catch reaches the caller after a try in finally", tThrown is "x"
 end TestTryErrorInCatch
+
+on __TestTryErrorInCatchWithTryInFinally
+   try
+      NonExistantHandler1
+   catch tError
+      NonExistantHandler2
+   finally
+      try
+         get 1
+      end try
+   end try
+end __TestTryErrorInCatchWithTryInFinally
+
+on __TestTryThrowInCatchWithTryInFinally
+   try
+      NonExistantHandler1
+   catch tError
+      throw "x"
+   finally
+      try
+         get 1
+      end try
+   end try
+end __TestTryThrowInCatchWithTryInFinally
 
 on __TestTryErrorInCatch
    try
@@ -100,14 +148,13 @@ on __TestTryErrorInCatch
 end __TestTryErrorInCatch
 
 on TestTryErrorInFinally
-   TestAssertBroken "Error in finally is thrown", false, "Bug 19812"
-   /*TestAssertThrow "Error in finally is thrown", "__TestTryErrorInFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
+   TestAssertThrow "Error in finally is thrown", "__TestTryErrorInFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
    try
       NonExistantHandler3
    catch tError
       TestAssert "Unthrown errors in finally are cleared", line 1 of tError contains "NonExistantHandler3"
    end try
-   TestAssertThrow "Error in finally is thrown", "__TestTryErrorInFinallyNoTryStatements", the long id of me, "EE_STATEMENT_BADCOMMAND"*/
+   TestAssertThrow "Error in finally is thrown", "__TestTryErrorInFinallyNoTryStatements", the long id of me, "EE_STATEMENT_BADCOMMAND"
 end TestTryErrorInFinally
 
 on __TestTryErrorInFinally

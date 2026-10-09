@@ -231,6 +231,30 @@ on TestTempName
    TestAssert "tempName does not return an existing filename", there is not a file tPath
 end TestTempName
 
+on TestTempNameOtherProcess
+   -- Another process gets other names. On Windows each process numbered
+   -- its names from the same start, so two processes got the same ones.
+   TestSkipIfNot "platform", "MacOS,Win32,Linux"
+   TestSkipIf "environment", "server"
+   TestSkipIf "standalone"
+
+   local tPath, tStackToRun, tOptions, tOther
+   put tempname() into tPath
+
+   put the effective filename of me into tStackToRun
+   set the itemDelimiter to slash
+   put "_tempname.livecodescript" into item -1 of tStackToRun
+   if the environment contains "command line" then
+      put "-ui" into tOptions
+   end if
+   TestRunStack tOptions, tStackToRun
+   put it into tOther
+   TestDiagnostic "this process:" && tPath & ", the other:" && tOther
+
+   TestAssert "the other process gave a tempName", tOther is not empty
+   TestAssert "another process gets a different tempName", tOther is not tPath
+end TestTempNameOtherProcess
+
 
 on TestThereIsAFile
    set the defaultFolder to specialFolderPath("temporary")

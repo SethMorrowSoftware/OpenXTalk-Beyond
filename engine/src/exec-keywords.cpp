@@ -757,12 +757,45 @@ void MCKeywordsExecRepeatWhile(MCExecContext& ctxt, MCStatement *statements, MCE
     }
 }
 
+// An error from the catch part (or a pass there) waits here while the
+// finally part runs: a try in the finally part, or in a handler it calls,
+// would otherwise clear it or take it for its own. Restore puts it back,
+// with the place where it happened.
+struct MCKeywordsTryPendingError
+{
+	MCAutoStringRef m_error;
+	Boolean m_thrown = False;
+	uint2 m_line = 0;
+	uint2 m_pos = 0;
+	MCObjectHandle m_object;
+
+	void Hold(void)
+	{
+		m_error.Reset();
+		/* UNCHECKED */ MCeerror -> copyasstringref(&m_error);
+		m_thrown = MCeerror -> isthrown();
+		MCeerror -> geterrorloc(m_line, m_pos);
+		m_object = MCerrorptr;
+		MCeerror -> clear();
+	}
+
+	void Restore(void)
+	{
+		if (*m_error == nil)
+			return;
+		MCeerror -> copystringref(*m_error, m_thrown);
+		MCeerror -> seterrorloc(m_line, m_pos);
+		MCerrorptr = m_object;
+	}
+};
+
 void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatement *catchstatements, MCStatement *finallystatements, MCVarref *errorvar, uint2 line, uint2 pos)
 {
 	Try_state state = TS_TRY;
 	MCStatement *tspr = trystatements;
 	Exec_stat stat;
 	Exec_stat retcode = ES_NORMAL;
+	MCKeywordsTryPendingError t_pending_error;
 	MCtrylock++;
 
 	// A try part with no statements (all commented out, say) still runs the
@@ -778,7 +811,10 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
 		{
 			MCB_trace(ctxt, tspr->getline(), tspr->getpos());
 			if (MCexitall)
+			{
+				retcode = ES_NORMAL;
 				break;
+			}
 		}
 		ctxt . SetLineAndPos(tspr->getline(), tspr->getpos());
         
@@ -812,7 +848,11 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
                 }
                 break;
             case ES_ERROR:
-                if ((MCtrace || MCnbreakpoints) && state != TS_TRY)
+                // The debugger stops on an error in the catch or finally
+                // part only when no enclosing try will catch it, as for
+                // errors elsewhere.
+                if ((MCtrace || MCnbreakpoints) && state != TS_TRY &&
+                    int(MCtrylock) == 1 && !MClockerrors)
                     do
                     {
                         if (MCB_error(ctxt, tspr->getline(), tspr->getpos(), EE_TRY_BADSTATEMENT))
@@ -830,9 +870,22 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
                         tspr = NULL;
                     }
                     else
-                        if (state != TS_TRY)
+                        if (state == TS_CATCH && finallystatements != NULL)
                         {
+                            // An error in the catch part still runs the
+                            // finally part, and is then thrown (Bug 19812).
+                            // This is what pass in the catch part does.
+                            t_pending_error . Hold();
+                            retcode = ES_ERROR;
+                            tspr = finallystatements;
+                            state = TS_FINALLY;
+                        }
+                        else if (state != TS_TRY)
+                        {
+                            // An error in the catch or finally part is
+                            // thrown, not dropped (Bug 19812).
                             MCtrylock--;
+                            ctxt . SetExecStat(ES_ERROR);
                             return;
                         }
                         else
@@ -880,6 +933,7 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
                     }
                     
                     MCeerror->add(EE_TRY_BADSTATEMENT, line, pos);
+                    t_pending_error . Hold();
                     stat = ES_ERROR;
                 }
             default:
@@ -902,6 +956,10 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
 	}
 	if (state == TS_CATCH)
 		MCeerror->clear();
+	// The error from the catch part is thrown now, unless the finally part
+	// ended the handler or the loop another way.
+	if (retcode == ES_ERROR)
+		t_pending_error . Restore();
 	MCtrylock--;
 	ctxt . SetExecStat(retcode);
 }

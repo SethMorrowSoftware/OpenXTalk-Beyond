@@ -534,7 +534,12 @@ command actionInstall pPath, pRecord, pOptions
          actionUninstall pPath, pRecord, true
       else
          log "Install: Execution error - " & tError
-         reportError "Internal error."
+         -- In the installer, reportError reports the error and then throws.
+         -- An error in a catch part is thrown, so catch this one here and
+         -- still close the payload below.
+         try
+            reportError "Internal error."
+         end try
          put "internal" into tError
       end if
    end try

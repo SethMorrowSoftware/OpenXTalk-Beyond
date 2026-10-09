@@ -53,6 +53,11 @@ public:
 		return MCStringIsEmpty(*buffer);
 	}
 	void geterrorloc(uint2 &line, uint2 &pos);
+	void seterrorloc(uint2 line, uint2 pos)
+	{
+		errorline = line;
+		errorpos = pos;
+	}
 
 private:
 	void doadd(uint2 id, uint2 line, uint2 pos, MCStringRef token);

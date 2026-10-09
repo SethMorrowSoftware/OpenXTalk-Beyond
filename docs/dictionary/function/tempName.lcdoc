@@ -41,6 +41,8 @@ suggested file name. Use the <open file> <command> to create the <file>.
 The file name returned by the <tempName> <function> is one that doesn't
 exist, so you can use it safely. If you need to create another <file>,
 use the <tempName> function again to obtain a new <file> name.
+Two applications that ask for a <tempName> at the same time, or two
+copies of the same one, get different names.
 
 The location of the temporary files depends on the operating system.
 Each operating system provides its own location for temporary files.
