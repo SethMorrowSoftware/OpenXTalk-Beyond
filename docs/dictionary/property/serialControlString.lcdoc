@@ -58,6 +58,13 @@ serial <peripheral device|device> returned by the <driverNames> function.
 The format of the <serialControlString> is compatible with the extended
 MS-DOS "mode" command.
 
+On <OS X|macOS> and Linux, the BAUD, PARITY, DATA and STOP settings are
+used and the other settings have no effect. The port is opened in raw
+mode: bytes pass through unchanged, with no echo, no line editing, no
+change to line endings and no software handshaking, and the modem
+control lines are ignored. If the port can't be given the settings, it
+is not opened, and the result is set to "can't open that file".
+
 References: close file (command), open driver (command),
 open file (command), driverNames (function), property (glossary),
 OS X (glossary), sign (glossary), Windows (glossary), port (glossary),

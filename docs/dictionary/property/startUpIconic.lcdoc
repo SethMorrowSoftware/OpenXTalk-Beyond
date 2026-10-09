@@ -29,10 +29,13 @@ Use the <startUpIconic> <property> to control a <stack|stack's>
 appearance when it first opens.
 
 If a stack's <startUpIconic> <property> is set to true, the <stack> is
-opened as a <desktop> icon rather than a window.
+opened minimized (<iconify|iconified>) rather than as a window: on
+Linux, the window manager shows it in the taskbar or as a <desktop>
+icon, and the <unIconifyStack> message is sent when the user restores
+it. A window manager without minimized windows shows the window as
+usual.
 
-The setting of this property has no effect on Mac OS or Windows systems,
-nor on some Unix systems.
+The setting of this property has no effect on macOS or Windows.
 
 References: stacks (function), iconify (glossary), property (glossary),
 desktop (glossary), unIconifyStack (message), stack (object)

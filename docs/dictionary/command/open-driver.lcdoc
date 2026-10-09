@@ -48,8 +48,9 @@ The encoding to be used.
 
 
 The result:
-If the driver does not exist, the result <function> is set to
-"Can't open that file." On <OS X> and <Unix|Unix systems>, you can
+If the driver does not exist, or is a serial port that can't be given
+the settings in the <serialControlString>, the result <function> is set
+to "can't open that file". On <OS X> and <Unix|Unix systems>, you can
 obtain a list of available <peripheral device|devices> by reading the
 file "/dev/tty".
 

@@ -48,7 +48,8 @@ elements of the list are:
 * The hour (0-23)
 * The minute (0-59)
 * The second (0-59)
-* The offset from UTC in seconds
+* The offset from UTC in seconds, positive east of UTC and with summer
+  time included (7200 in Berlin in July)
 
 References: UniversalDate (expression)
 
