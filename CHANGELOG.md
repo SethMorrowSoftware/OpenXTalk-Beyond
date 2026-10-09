@@ -14,6 +14,28 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4-rc.6 (2026-10-09, pre-release)
+
+- Installer: remove an older version's dictionary data before installing (#72)
+- Engine: play videoClip from a URL or from clip data again (#73)
+- Engine: use the user's locale on Linux (#73)
+- Engine: name the bad type when messageDigest doesn't know it (#73)
+- Engine: honor 'with filter' in Linux file dialogs (#73)
+- Engine: replace the stale 'verify certs' notes in the TLS socket code (#73)
+- revPDFPrinter: draw quadratic curves, remove the file of a failed print (#73)
+- Engine (Windows): keep checking processes past one with unread output (#73)
+- Engine (macOS): size players from the video track, not AVAsset.naturalSize (#73)
+- libfoundation (Windows): save a file through a temp file beside it (#73)
+- libfoundation: compare numbers without overflow, and NaN consistently (#73)
+- lc-compile: bound the module paths it builds (#73)
+- libfoundation (macOS, Linux): report file errors instead of failing silently (#73)
+- Linux ask/answer file filters: uppercase patterns without glib (#73)
+- libfoundation (POSIX): fix -Wshadow in SetContents, one more %s (#73)
+- Mac player: declare the video track list before using it (#73)
+- Canvas: accept the documented "non-zero" fill rule (#73)
+- Version 0.2.4-rc.6, with its changelog (#74)
+- Runtimes: oxt-runtimes-0.2.4-rc.6, built from the merge of #73 (#74)
+
 ## 0.2.4-rc.5 (2026-10-08, pre-release)
 
 - CI: build each platform only when it needs building (#70)

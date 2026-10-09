@@ -50,13 +50,15 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.5 is a test release (a pre-release) of the fixes
+download it. 0.2.4-rc.6 is a test release (a pre-release) of the fixes
 made since 0.2.3, with a package for 64-bit ARM Linux (new in
 0.2.4-rc.2). It goes back to Tom Perry's dark mode, with his macOS work
 added (see [0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)),
-and brings back LiveCode's Dictionary (see
-[0.2.4-rc.5](#024-rc5-livecodes-dictionary)); 0.2.3 stays the main
-download until it has held up.
+brings back LiveCode's Dictionary (see
+[0.2.4-rc.5](#024-rc5-livecodes-dictionary)), and fixes bugs that notes
+in the inherited code pointed to (see
+[0.2.4-rc.6](#024-rc6-fixes-from-the-inherited-notes)); 0.2.3 stays the
+main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -942,6 +944,38 @@ once, whichever one you used before.
 - The dictionary names its languages xTalk Script and xTalk Builder,
   and five glossary entries that only the text dictionary had (MIDI,
   OpenXION, playSentence, soundFont, soundbank) are in both.
+
+#### 0.2.4-rc.6: fixes from the inherited notes
+
+OXT-Beyond 0.2.4-rc.6, a sixth test release, fixes bugs that FIXME and
+TODO notes in the code inherited from LiveCode pointed to (the notes
+are listed in [LEGACY-TODO.md](LEGACY-TODO.md)):
+
+- `play videoClip` with a URL, or with the clip's data, plays again; it
+  always failed with "error writing videoClip".
+- Linux: `toUpper`, `toLower` and `sort ... international` use your
+  locale (from LC_ALL, LC_COLLATE or LANG), as on Windows and macOS;
+  they always used US English.
+- Linux: `ask file` and `answer file` honor `with filter`, written as on
+  Windows. `*.jpg` also finds `PHOTO.JPG`, and `*.*` shows every file.
+- macOS: a player sizes its movie from the video track as the track is
+  meant to be shown, so a portrait phone video is portrait.
+- Windows: `open process` no longer stops checking the other processes
+  when one that has ended still has output to read.
+- `messageDigest` with a type it doesn't know is an error that names
+  that type.
+- revPDFPrinter draws quadratic curves, and a print that fails or is
+  cancelled no longer leaves a partial PDF behind.
+- Widgets and libraries: the canvas takes its documented fill rule
+  "non-zero" (only "non zero" worked); file saves from xTalk Builder
+  work across drives on Windows and report errors on macOS and Linux;
+  comparing numbers no longer overflows.
+- Windows: the installer removes an older version's dictionary data
+  before it installs, so an update shows no stale entries.
+
+The standalone runtimes for the other platforms in each package are
+built again for this release, so standalones for Windows and Linux get
+these fixes too.
 
 ### xTalk Suite extensions
 
