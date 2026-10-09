@@ -2837,6 +2837,10 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
 		setlocale(LC_ALL, "");
 		setlocale(LC_CTYPE, t_internal_locale);
 		setlocale(LC_COLLATE, t_internal_locale);
+		// Numbers are always written and read with a ".", but LANG (set
+		// when the engine is started from a terminal) can ask for a ",":
+		// strtod() would then read "1.5" as 1.
+		setlocale(LC_NUMERIC, "C");
         
         _CurrentRuneLocale->__runetype[202] = _CurrentRuneLocale->__runetype[201];
         

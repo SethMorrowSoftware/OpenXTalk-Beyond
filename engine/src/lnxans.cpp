@@ -117,13 +117,14 @@ void gtk_init(void)
 		// TS 2007-31-10 Bug  5408 
 		// We need to reset the locale to the C portable one here, as GTK
 		// breaks numbers for French systems.
-		
-		/* TODO */
-		// Revisit this as it is not ideal in a Unicode world...
 		setlocale(LC_ALL, "C");
-		//NOTE: Should this be :
-		//		setlocale(LC_NUMERIC, "C")
-		// 	so that only the numeric part of the locale is set to C?
+		
+		// gtk_init() set the whole locale to the user's. Keep "C" for
+		// everything the engine relies on, but give the messages back, so
+		// that GTK's dialogs (which look up their text with gettext when
+		// they are built) are in the user's language. LC_MESSAGES only
+		// affects gettext and the text of strerror().
+		setlocale(LC_MESSAGES, "");
 	}
 }	
 

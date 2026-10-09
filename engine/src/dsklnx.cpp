@@ -720,6 +720,11 @@ public:
         const char *t_internal_locale = "en_US.ISO-8859-1";
         setlocale(LC_CTYPE, t_internal_locale);
         setlocale(LC_COLLATE, t_internal_locale);
+        // Numbers are always written and read with a ".", but the locale
+        // the engine started with (the user's) can use a ",": strtod()
+        // would then read "1.5" as 1. GTK resets this when it starts, but
+        // with no UI it never does.
+        setlocale(LC_NUMERIC, "C");
 
         MCinfinity = HUGE_VAL;
 
