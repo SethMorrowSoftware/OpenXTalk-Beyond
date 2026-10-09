@@ -467,11 +467,14 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
         
         // SN-2015-06-15: [[ Bug 15457 ]] If this is a numerical array, do
         //  it in order - even if it does not start at 1
-        if (each == FU_ELEMENT && MCArrayIsNumericSequence(*t_array, t_sequenced_iterator))
+        // The keys of a numerical array go in order too, as its elements do
+        //  (anomaly 16449).
+        if (MCArrayIsNumericSequence(*t_array, t_sequenced_iterator))
         {
             t_sequence_array = true;
             if (!MCArrayFetchValueAtIndex(*t_array, t_sequenced_iterator, t_value))
                 return;
+            t_key = MCNameLookupIndex(t_sequenced_iterator);
         }
         else
         {
@@ -547,8 +550,18 @@ void MCKeywordsExecRepeatFor(MCExecContext& ctxt, MCStatement *statements, MCExp
             case FU_KEY:
             {
                 loopvar -> set(ctxt, t_key);
-                if (!MCArrayIterate(*t_array, t_iterator, t_key, t_value))
-                    endnext = true;
+                if (t_sequence_array)
+                {
+                    if (MCArrayFetchValueAtIndex(*t_array, ++t_sequenced_iterator, t_value))
+                        t_key = MCNameLookupIndex(t_sequenced_iterator);
+                    else
+                        endnext = true;
+                }
+                else
+                {
+                    if (!MCArrayIterate(*t_array, t_iterator, t_key, t_value))
+                        endnext = true;
+                }
             }
             break;
                 

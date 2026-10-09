@@ -96,6 +96,32 @@ on TestExtensionExecuteScriptErrors
             "script error: " is in line 2 of tError
 end TestExtensionExecuteScriptErrors
 
+on TestExtensionListFromArrayWithDecimalKeys
+    -- An array is passed as a List only when its keys are 1 to N. Keys 1, 2.5
+    -- and 3 used to pass for 1 to 3, and the missing element 2 was read from
+    -- memory that was never set.
+    local tArgs, tError
+    put "a" into tArgs[1]
+    put "b" into tArgs[2.5]
+    put "c" into tArgs[3]
+    try
+        TestExtensionExecuteScript_Do "return param(1)", empty, tArgs
+    catch tError
+    end try
+    TestDiagnostic tError
+    TestAssert "array with a decimal key is not a list", tError is not empty
+
+    put empty into tError
+    delete variable tArgs
+    put "a" into tArgs[1]
+    put "b" into tArgs[2]
+    try
+        TestExtensionExecuteScript_Do "return param(1) & param(2)", empty, tArgs
+    catch tError
+    end try
+    TestAssert "array with keys 1 and 2 is a list", tError is empty and the result is "ab"
+end TestExtensionListFromArrayWithDecimalKeys
+
 /////////
 
 /*
