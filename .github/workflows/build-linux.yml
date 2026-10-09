@@ -186,8 +186,12 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    # Docker Hub's ubuntu:20.04 through Google's mirror of Docker Hub: the
+    # same image (the same digest), without the pull limit Docker Hub sets
+    # for GitHub's shared runners, which refused every Linux job's pull on
+    # main once (run 37990260756)
     container:
-      image: ubuntu:20.04
+      image: mirror.gcr.io/library/ubuntu:20.04
     timeout-minutes: 330
     # built-<arch> is "true" once that leg has passed every step (the last
     # step sets it). The package job needs it because a matrix job fails as
@@ -567,6 +571,22 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      # The image that i386-container.sh runs, debian:bullseye, from
+      # Google's mirror of Docker Hub, as the legs above take theirs, and
+      # tagged with that name so that docker run finds it and pulls
+      # nothing from Docker Hub. (Done here, not in the script: the
+      # script is part of this leg's prebuilt libraries cache key.)
+      - name: Pull the i386 image
+        timeout-minutes: 10
+        run: |
+          image=mirror.gcr.io/library/debian:bullseye
+          for i in 1 2 3; do
+            if docker pull --platform linux/386 "$image"; then break; fi
+            if [ "$i" = 3 ]; then echo "::error::could not pull $image"; exit 1; fi
+            sleep 20
+          done
+          docker tag "$image" debian:bullseye
 
       - name: Start the i386 container
         timeout-minutes: 20

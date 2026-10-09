@@ -2279,7 +2279,10 @@ rules for new imports.
 The Linux engine is built by the workflow
 [`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml)
 in an `ubuntu:20.04` container, for x86_64 on `ubuntu-24.04` runners and
-for arm64 on `ubuntu-24.04-arm`. Ubuntu 20.04 is the newest Ubuntu that
+for arm64 on `ubuntu-24.04-arm`. CI takes the image (and the 32-bit
+build's `debian:bullseye`) through Google's mirror of Docker Hub,
+`mirror.gcr.io/library/...`: the same images, without Docker Hub's pull
+limit for GitHub's shared runners. Ubuntu 20.04 is the newest Ubuntu that
 still ships Python 2.7, which gyp and `config.py` need, and its glibc
 2.31 is the oldest the binaries need. These are the workflow's steps,
 written for x86_64 (use `arm64` instead of `x86_64` for the other
