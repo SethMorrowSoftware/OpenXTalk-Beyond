@@ -140,24 +140,23 @@ normalize_digest_name(MCNameRef p_digest_name)
     MCAutoStringRef t_string;
     if (!MCStringMutableCopy(MCNameGetString(p_digest_name), &t_string))
         return {};
-    if (!MCStringLowercase(*t_string, kMCSystemLocale))
+    /* Use the basic (en_US) locale, so that e.g. "SHA-1" names the same
+     * digest for a user whose system locale lowercases "I" differently. */
+    if (!MCStringLowercase(*t_string, kMCBasicLocale))
         return {};
     return t_string;
 }
 
-/* Generalized message digest
- *
- * Given a named digest function and a block of input data, computes
- * and returns the message digest of the input data as binary data. */
-static MCAutoDataRef
-MCFiltersMessageDigest(MCDataRef p_data,
-                       MCNameRef p_digest_name)
+/* Find the digest function with the given name, or nullptr if no
+ * digest has that name. */
+static const digest_mapping_t *
+find_digest(MCNameRef p_digest_name)
 {
     MCAutoStringRef t_digest_normalized = normalize_digest_name(p_digest_name);
-    if (!t_digest_normalized.IsSet()) return {};
+    if (!t_digest_normalized.IsSet()) return nullptr;
 
     MCAutoStringRefAsCString t_digest_chars;
-    if (!t_digest_chars.Lock(*t_digest_normalized)) return {};
+    if (!t_digest_chars.Lock(*t_digest_normalized)) return nullptr;
 
     auto t_mapping =
         std::find_if(std::begin(k_digest_map), std::end(k_digest_map),
@@ -165,14 +164,9 @@ MCFiltersMessageDigest(MCDataRef p_data,
                          return 0 == strcmp(p_mapping.m_name, *t_digest_chars);
                      });
     if (t_mapping == std::end(k_digest_map))
-    {
-        /* No known message digest algorithm of this name */
-        /* TODO[2017-02-28] Failing to find a matching algorithm should
-         * throw a helpful error. */
-        return {};
-    }
+        return nullptr;
 
-    return t_mapping->m_digest_func(p_data);
+    return t_mapping;
 }
 
 /* ----------------------------------------------------------------
@@ -196,7 +190,15 @@ MCFiltersEvalMessageDigest(MCExecContext& ctxt,
                            MCNameRef p_digest_name,
                            MCDataRef& r_digest)
 {
-    filters_result(ctxt, MCFiltersMessageDigest(p_src, p_digest_name), r_digest);
+    /* An unknown digest name is an error in the digest type parameter */
+    const digest_mapping_t *t_mapping = find_digest(p_digest_name);
+    if (t_mapping == nullptr)
+    {
+        ctxt.LegacyThrow(EE_MESSAGEDIGEST_BADTYPE, MCNameGetString(p_digest_name));
+        return;
+    }
+
+    filters_result(ctxt, t_mapping->m_digest_func(p_src), r_digest);
 }
 
 void

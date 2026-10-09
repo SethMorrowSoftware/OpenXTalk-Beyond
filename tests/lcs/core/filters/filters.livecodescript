@@ -210,6 +210,16 @@ on TestFiltersMessageDigest
 
 end TestFiltersMessageDigest
 
+command MessageDigest_UnknownType pType
+   get messageDigest("abc", pType)
+end MessageDigest_UnknownType
+
+on TestFiltersMessageDigestUnknownType
+   TestAssertThrow "unknown digest type is an error in the type parameter", \
+         "MessageDigest_UnknownType", the long id of me, \
+         "EE_MESSAGEDIGEST_BADTYPE", "sha-265"
+end TestFiltersMessageDigestUnknownType
+
 on TestFiltersUrldecode
 
 TestAssert "test", urldecode("+") is " "
