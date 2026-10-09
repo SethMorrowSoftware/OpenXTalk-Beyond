@@ -764,6 +764,14 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
 	Exec_stat stat;
 	Exec_stat retcode = ES_NORMAL;
 	MCtrylock++;
+
+	// A try part with no statements (all commented out, say) still runs the
+	// finally part (Bug 19811).
+	if (tspr == NULL)
+	{
+		tspr = finallystatements;
+		state = TS_FINALLY;
+	}
 	while (tspr != NULL)
 	{
 		if (MCtrace || MCnbreakpoints)
@@ -877,8 +885,11 @@ void MCKeywordsExecTry(MCExecContext& ctxt, MCStatement *trystatements, MCStatem
             default:
                 if (state == TS_FINALLY)
                 {
+                    // An exit, pass, return, exit repeat or next repeat in the
+                    // finally part takes effect, in place of any the try or
+                    // catch part made (Bug 11773).
                     MCeerror->clear();
-                    retcode = ES_NORMAL;
+                    retcode = stat;
                     tspr = NULL;
                 }
                 else
