@@ -289,7 +289,7 @@ __MCSFileSetContents (MCStringRef p_native_path,
 
 	if (0 > t_temp_fd)
 	{
-		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to create temporary file '%{path}': %s"), t_save_errno);
+		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to create temporary file '%{path}': %{description}"), t_save_errno);
 	}
 
 	/* Write the data into the temporary file */
@@ -358,7 +358,7 @@ __MCSFileSetContents (MCStringRef p_native_path,
 	{
 		/* Data may not have reached the disk (for example on a network
 		 * filesystem), so this is a write error. */
-		int t_save_errno = errno;
+		t_save_errno = errno;
 		/* UNCHECKED */ unlink (*t_temp_path_sys);
 		return __MCSFileThrowIOErrorWithErrno (*t_temp_native_path, MCSTR("Failed to write to file %{path}; close() failed: %{description}"), t_save_errno);
 	}
