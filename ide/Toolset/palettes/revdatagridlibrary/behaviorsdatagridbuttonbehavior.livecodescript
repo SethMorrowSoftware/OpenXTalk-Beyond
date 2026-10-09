@@ -9470,7 +9470,7 @@ command EditFieldText pField, pIndex, pKey
       put e into theError
       
       lock messages
-      delete sFieldEditor
+      if exists(sFieldEditor) then delete sFieldEditor
       unlock messages
    end try
    
