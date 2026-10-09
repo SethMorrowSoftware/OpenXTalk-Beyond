@@ -59,3 +59,19 @@ on TestCanvasImageFromFile
 
 	set the defaultStack to tDefaultStack
 end TestCanvasImageFromFile
+
+on TestCanvasFillRule
+	TestAssert "documented fill rule non-zero is accepted", \
+		CanvasTestFillRule("non-zero") is "non-zero"
+	TestAssert "older spelling non zero is still accepted", \
+		CanvasTestFillRule("non zero") is "non-zero"
+	TestAssert "fill rule even odd is accepted", \
+		CanvasTestFillRule("even odd") is "even odd"
+end TestCanvasFillRule
+
+on TestCanvasStrokeStyles
+	TestAssert "join style round is accepted", \
+		CanvasTestJoinStyle("round") is "round"
+	TestAssert "cap style square is accepted", \
+		CanvasTestCapStyle("square") is "square"
+end TestCanvasStrokeStyles
