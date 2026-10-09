@@ -3012,8 +3012,10 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
                 uint32_t t_available;
                 if (MCprocesses[i].ihandle == NULL || !PeekNamedPipe(MCprocesses[i].ihandle->GetFilePointer(), NULL, 0, NULL, (DWORD *)&t_available, NULL))
                     t_available = 0;
+                // Check the other processes, though: one finished process with
+                // unread output shouldn't stop the others being marked finished.
                 if (t_available != 0)
-                    return;
+                    continue;
                 
 				/* TODO: set end of file...
                 // MW-2010-10-25: [[ Bug 9134 ]] Make sure the we mark the stream as 'ATEOF'
