@@ -50,15 +50,16 @@ clone at the new one.
 OXT-Beyond 0.2.3 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes and
 what 0.2.3 adds, under [The IDE](#the-ide)). Please read this before you
-download it. 0.2.4-rc.6 is a test release (a pre-release) of the fixes
+download it. 0.2.4-rc.7 is a test release (a pre-release) of the fixes
 made since 0.2.3, with a package for 64-bit ARM Linux (new in
 0.2.4-rc.2). It goes back to Tom Perry's dark mode, with his macOS work
 added (see [0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)),
 brings back LiveCode's Dictionary (see
 [0.2.4-rc.5](#024-rc5-livecodes-dictionary)), and fixes bugs that notes
 in the inherited code pointed to (see
-[0.2.4-rc.6](#024-rc6-fixes-from-the-inherited-notes)); 0.2.3 stays the
-main download until it has held up.
+[0.2.4-rc.6](#024-rc6-fixes-from-the-inherited-notes)) and more found
+since (see [0.2.4-rc.7](#024-rc7-more-engine-and-library-fixes)); 0.2.3
+stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -74,7 +75,7 @@ main download until it has held up.
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.4-rc.6.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.4-rc.7.zip`)
   brings each platform's runtimes into the other packages. The Android
   runtime, though, is still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3
   builds as Tom Perry shipped them), carried over unchanged in that
@@ -201,7 +202,7 @@ OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15` and `runtimes-0.2.4-rc.6`, are not programs. They hold
+`runtimes-1.15` and `runtimes-0.2.4-rc.7`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -972,6 +973,57 @@ are listed in [LEGACY-TODO.md](LEGACY-TODO.md)):
   comparing numbers no longer overflows.
 - Windows: the installer removes an older version's dictionary data
   before it installs, so an update shows no stale entries.
+
+The standalone runtimes for the other platforms in each package are
+built again for this release, so standalones for Windows and Linux get
+these fixes too.
+
+#### 0.2.4-rc.7: more engine and library fixes
+
+OXT-Beyond 0.2.4-rc.7, a seventh test release, fixes more bugs found in
+the code inherited from LiveCode. Two of them change what existing
+scripts see, so they come first:
+
+- `try`: an error in the `catch` part, or in the `finally` part, is
+  thrown to the caller instead of being dropped, and `finally` still
+  runs after an error in `catch`. A script with a failing statement in
+  a `catch` part used to carry on silently and will now report the
+  error. A `try` whose try part is empty still runs `finally`, and
+  `exit`, `return`, `pass`, `exit repeat` and `next repeat` inside
+  `finally` work; they were ignored.
+- macOS and Linux: serial ports (`open driver`) are set to raw mode, so
+  data arrives as the device sends it. Scripts that relied on the old
+  CR to LF translation will see the raw bytes. Data bits other than 8
+  and even parity after an odd setting work, Linux ports can receive,
+  and a port that can't take its settings fails to open.
+- `repeat for each element` over a numbered array visits every element
+  (keys like 1, 2.5 and 3 no longer pass for a list), and `repeat for
+  each key` over a list goes in number order. `repeat for each line`
+  (or item, word...) over empty text leaves the loop variable as it was.
+- `intersect` with a threshold counts pixels exactly at the threshold,
+  so "opaque pixels" finds hits against a solid object, and the answer
+  no longer depends on the order of the two objects.
+- Multipart form posts (`libURLMultipartFormData`) pass the strict
+  checks of web servers that use the OWASP rules: the boundary is no
+  longer quoted, and file parts carry no Content-Transfer-Encoding
+  header.
+- The httpd library reads large POSTs in full, answers "Expect:
+  100-continue", adds no stray bytes, and sends a 500 when the request
+  handler fails.
+- Linux: file, folder and colour dialogs are in your language, numbers
+  always use "." whatever your locale, and `startUpIconic` opens the
+  stack minimised.
+- Windows: while you compose Chinese, Japanese or Korean text, the
+  caret and the candidate window sit where they should, and two
+  programs asking for `the tempName` at the same time get different
+  names.
+- Standalone builder: a copied file inside the stack's folder keeps its
+  subfolders in the standalone.
+- Widgets and libraries: `the local date` has the right UTC offset on
+  Windows and Linux; a foreign library that fails to load is named,
+  with the reason; `execute script` says what went wrong; file saves on
+  Windows check the write; the log of 0 throws a domain error; and a
+  handler that couldn't be bound throws instead of crashing.
 
 The standalone runtimes for the other platforms in each package are
 built again for this release, so standalones for Windows and Linux get

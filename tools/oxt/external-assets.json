@@ -1,15 +1,15 @@
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.4-rc.6",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.4-rc.6/oxt-runtimes-0.2.4-rc.6.zip",
-      "sha256": "27bc1b48443f43104ae82db4bdad9dc4ecbde5c9f4f4ce8935f2ea7bcde2a7cf",
-      "size": 316108155,
+      "id": "oxt-runtimes-0.2.4-rc.7",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.4-rc.7/oxt-runtimes-0.2.4-rc.7.zip",
+      "sha256": "b2be86a9c30a3a28469da6f6331338193da107aec1eb4e606e399290fd3b4b7a",
+      "size": 316113053,
       "kind": "zip",
       "strip": 1,
       "dest": "",
       "rename": {
-        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.4-rc.6.md"
+        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.4-rc.7.md"
       },
       "exclude": {
         "win-x86_64": [
@@ -29,9 +29,9 @@
         ]
       },
       "exclude_note": "What each package's own build makes: Windows x86-64 its runtime and the timezone library's code for it; Linux x86-64 the same and the zoneinfo data (tz.gyp target tzdata, which the Windows builds do not make); Linux arm64 and macOS the zoneinfo data (their own runtimes are not in this asset).",
-      "description": "Standalone runtimes for the platforms other than the package's own, built from this repository (commit be99450d5217): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with their externals, the timezone library's code for them and its zoneinfo data; and the Android runtime with the timezone library's Android code, carried over unchanged from oxt-runtimes-1.15 (OpenXTalk Lite 1.15). See PROVENANCE.md in the archive.",
+      "description": "Standalone runtimes for the platforms other than the package's own, built from this repository (commit 91430365bd86): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with their externals, the timezone library's code for them and its zoneinfo data; and the Android runtime with the timezone library's Android code, carried over unchanged from oxt-runtimes-1.15 (OpenXTalk Lite 1.15). See PROVENANCE.md in the archive.",
       "licence": "GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds); GPL-3.0 (the Android runtime from LiveCode Community 9.6.3); CEF: BSD-3-Clause with Chromium's licences; IANA tz data: public domain; see PROVENANCE.md",
-      "source": "OXT-Beyond's CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64 of commit be99450d5217446e6a6d119b3f59c6ad3bd2f71e, made with tools/oxt/make_runtimes_asset.py --builds; the Android parts from oxt-runtimes-1.15"
+      "source": "OXT-Beyond's CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64 of commit 91430365bd8648e852c5bb8d381a006a2392c468, made with tools/oxt/make_runtimes_asset.py --builds; the Android parts from oxt-runtimes-1.15"
     }
   ]
 }
