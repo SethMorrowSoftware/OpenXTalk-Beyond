@@ -104,7 +104,40 @@ on TestTryErrorInCatch
 
    TestAssertThrow "Error in catch is thrown after finally", "__TestTryErrorInCatchWithFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
    TestAssert "Finally runs after an error in catch", sFinallyRan
+
+   TestAssertThrow "Error in catch is thrown after a try in finally", "__TestTryErrorInCatchWithTryInFinally", the long id of me, "EE_STATEMENT_BADCOMMAND"
+
+   local tThrown
+   try
+      __TestTryThrowInCatchWithTryInFinally
+   catch tThrown
+   end try
+   TestAssert "Throw in catch reaches the caller after a try in finally", tThrown is "x"
 end TestTryErrorInCatch
+
+on __TestTryErrorInCatchWithTryInFinally
+   try
+      NonExistantHandler1
+   catch tError
+      NonExistantHandler2
+   finally
+      try
+         get 1
+      end try
+   end try
+end __TestTryErrorInCatchWithTryInFinally
+
+on __TestTryThrowInCatchWithTryInFinally
+   try
+      NonExistantHandler1
+   catch tError
+      throw "x"
+   finally
+      try
+         get 1
+      end try
+   end try
+end __TestTryThrowInCatchWithTryInFinally
 
 on __TestTryErrorInCatch
    try
