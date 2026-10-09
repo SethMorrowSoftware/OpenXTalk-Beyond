@@ -2112,14 +2112,26 @@ command revSBResolveCopyFilesList pBaseFolder, pTarget, pSettings, @rFileData
             delete the last item of tResolvedFile
          end if
          
-         local tIsAbsolute, tName
+         local tIsAbsolute, tName, tRelative
          put tResolvedFile begins with "/" or char 2 to 3 of tResolvedFile is ":/" into tIsAbsolute
          
-         # Flatten structure of external resources
-         if tIsAbsolute or tHasResources then
+         # A file keeps its place relative to the stack's folder when it is
+         # inside that folder, whether its path is relative or absolute (Bug 19002)
+         put empty into tRelative
+         if not tIsAbsolute then
+            put tResolvedFile into tRelative
+         else if tResolvedFile begins with (pBaseFolder & slash) then
+            put char ((the number of chars of pBaseFolder) + 2) to -1 of tResolvedFile into tRelative
+         end if
+
+         # Flatten structure of external resources, and of files outside the
+         # stack's folder (an absolute path elsewhere, or "../shared/data.txt",
+         # which would otherwise be copied outside the standalone)
+         if tHasResources or tRelative is empty or tRelative begins with "../" \
+               or "/../" is in (slash & tRelative) then
             put item -1 of tResolvedFile into tDataA["name"]
          else
-            put tResolvedFile into tDataA["name"]
+            put tRelative into tDataA["name"]
          end if
          
          if not tIsAbsolute then

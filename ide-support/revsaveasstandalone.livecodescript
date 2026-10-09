@@ -1675,7 +1675,7 @@ private command revCopyFiles pTarget, pDirectory, pStackPath
                   "revStandaloneProgressCallback", the long id of me
          end if
       else
-         revStandaloneAddWarning "File to include in standalone not found:" && quote & tFile & quote
+         revStandaloneAddWarning "File to include in standalone not found:" && quote & tFile["resolved"] & quote
       end if
    end repeat
 end revCopyFiles
