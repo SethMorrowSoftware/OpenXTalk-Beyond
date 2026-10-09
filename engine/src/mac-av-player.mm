@@ -1509,8 +1509,8 @@ void MCAVFoundationPlayer::GetProperty(MCPlatformPlayerProperty p_property, MCPl
             CGSize t_size;
             if (m_player != nil)
             {
-                t_size = CGSizeZero;
                 NSArray *t_video_tracks = [[[m_player currentItem] asset] tracksWithMediaType:AVMediaTypeVideo];
+                t_size = CGSizeZero;
                 if ([t_video_tracks count] != 0)
                 {
                     AVAssetTrack *t_track = [t_video_tracks objectAtIndex:0];
