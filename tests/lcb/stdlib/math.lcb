@@ -93,7 +93,7 @@ public handler TestLog10Domain()
 	-- bug 14678
 	MCUnitTestHandlerThrows(TestLog10Domain_Negative, "log10 (syntax, -ve)")
 
-	MCUnitTestHandlerThrowsBroken(TestLog10Domain_Zero, "log10 (syntax, 0)", "bug 14678")
+	MCUnitTestHandlerThrows(TestLog10Domain_Zero, "log10 (syntax, 0)")
 end handler
 
 public handler TestSin()
@@ -168,7 +168,7 @@ end handler
 public handler TestLnDomain()
 	-- bug 14678
 	MCUnitTestHandlerThrows(TestLnDomain_Negative, "ln (syntax, -ve)")
-	MCUnitTestHandlerThrowsBroken(TestLnDomain_Zero, "ln (syntax, 0)", "bug 14678")
+	MCUnitTestHandlerThrows(TestLnDomain_Zero, "ln (syntax, 0)")
 end handler
 
 public handler TestExpLog()

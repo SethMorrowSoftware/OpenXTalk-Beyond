@@ -82,7 +82,10 @@ extern "C" MC_DLLEXPORT_DEF void MCMathEvalBase10LogReal(double p_operand, doubl
 {
     r_output = log10(p_operand);
 
-    if (__MCMathPropagateNanUnary (p_operand, r_output))
+    // The log of 0 is minus infinity: a domain error, as in LiveCode Script
+    // (bug 14678).
+    if (p_operand != 0 &&
+        __MCMathPropagateNanUnary (p_operand, r_output))
         return;
 
     MCErrorCreateAndThrow (kMCMathDomainErrorTypeInfo, nil);
@@ -104,7 +107,10 @@ extern "C" MC_DLLEXPORT_DEF void MCMathEvalNaturalLogReal(double p_operand, doub
 {
     r_output = log(p_operand);
 
-    if (__MCMathPropagateNanUnary (p_operand, r_output))
+    // The log of 0 is minus infinity: a domain error, as in LiveCode Script
+    // (bug 14678).
+    if (p_operand != 0 &&
+        __MCMathPropagateNanUnary (p_operand, r_output))
         return;
 
     MCErrorCreateAndThrow (kMCMathDomainErrorTypeInfo, nil);
