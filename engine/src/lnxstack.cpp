@@ -285,9 +285,9 @@ void MCStack::sethints()
         gdk_window_set_override_redirect(window, FALSE);
     }
     
-    // TODO: initial input focus and initial window state
+    // TODO: initial input focus
 	//whints.input = MCpointerfocus;
-	//whints.initial_state = flags & F_START_UP_ICONIC ? IconicState:NormalState;
+	// (The initial state, for startUpIconic, is set in platform_openwindow.)
 
     gdk_window_set_group(window, ((MCScreenDC*)MCscreen)->GetNullWindow());
     
@@ -638,6 +638,10 @@ void MCStack::platform_openwindow(Boolean override)
 		//   it gets mapped - otherwise we will get upward drift due to StaticGravity
 		//   being used.
 		setgeom();
+		// startUpIconic: open the window minimised. For a window that isn't
+		// mapped yet, GDK makes this its initial state when it is shown.
+		if (getflag(F_START_UP_ICONIC) && !gdk_window_is_visible(window))
+			MCscreen -> iconifywindow(window);
 		MCscreen -> openwindow(window, override);
 		setmodalhints();
 	}
