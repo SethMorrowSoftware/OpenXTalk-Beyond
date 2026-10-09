@@ -301,6 +301,16 @@ the multi-word entries in an <array> of phrases:
         end if
     end repeat
 
+The `for each key` form works the same way with the <array|array's>
+keys. The order of the keys and elements is not defined, except that an
+<array> whose keys are the whole numbers from one number to another (1
+to 10, or 0 to 20) is gone through in the order of its keys. Keys such
+as 2.5 or 01 are not whole numbers in this sense.
+
+If the container has no <chunk|chunks> of the *chunkType*, or the
+<array> is empty, the loop doesn't run and the *labelVariable* keeps the
+value it had.
+
 
 >*Note:* In any of the `for each` loops, you may change the
 *labelVariable* in a statement inside the loop. However, this is not
