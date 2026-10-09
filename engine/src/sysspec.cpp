@@ -1833,13 +1833,58 @@ bool MCS_isfinite(double p_number)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO: move somewhere better
 #if defined(_LINUX_DESKTOP) || defined(_LINUX_SERVER)
+// The system locale is the one the user's environment names for collation,
+// as libc would choose it: LC_ALL, then LC_COLLATE, then LANG. A POSIX
+// name such as "tr_TR.UTF-8" or "de_DE@euro" becomes the ICU name "tr_TR"
+// or "de_DE". When none is set, or the environment names the C or POSIX
+// locale, the system locale is en_US (as it always was on Linux before).
 MCLocaleRef MCS_getsystemlocale()
 {
-    // TODO: implement properly
+    const char *t_env_name = nil;
+    const char *t_vars[] = { "LC_ALL", "LC_COLLATE", "LANG" };
+    for (const char *t_var : t_vars)
+    {
+        const char *t_value = getenv(t_var);
+        if (t_value != nil && *t_value != '\0')
+        {
+            t_env_name = t_value;
+            break;
+        }
+    }
+
+    // Keep the language, script and region; drop the codeset and modifier.
+    char t_name[64];
+    size_t t_length = 0;
+    if (t_env_name != nil)
+    {
+        while (t_env_name[t_length] != '\0' &&
+               t_env_name[t_length] != '.' &&
+               t_env_name[t_length] != '@' &&
+               t_length < sizeof(t_name) - 1)
+        {
+            char t_char = t_env_name[t_length];
+            if (!isalnum((unsigned char)t_char) && t_char != '_' && t_char != '-')
+            {
+                t_length = 0;
+                break;
+            }
+            t_name[t_length] = t_char;
+            t_length++;
+        }
+    }
+    t_name[t_length] = '\0';
+
+    if (t_length == 0 || strcmp(t_name, "C") == 0 || strcmp(t_name, "POSIX") == 0)
+        strcpy(t_name, "en_US");
+
+    MCAutoStringRef t_locale_name;
     MCLocaleRef t_locale;
-    /* UNCHECKED */ MCLocaleCreateWithName(MCSTR("en_US"), t_locale);
+    if (!MCStringCreateWithCString(t_name, &t_locale_name) ||
+        !MCLocaleCreateWithName(*t_locale_name, t_locale))
+    {
+        /* UNCHECKED */ MCLocaleCreateWithName(MCSTR("en_US"), t_locale);
+    }
     return t_locale;
 }
 #endif
