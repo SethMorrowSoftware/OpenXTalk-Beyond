@@ -1701,9 +1701,12 @@
 					[
 						'toolset_os == "win"',
 						{							
+							# libzip 1.12 names its temporary files with
+							# CryptGenRandom (advapi32).
 							'libraries':
 							[
 								'-llibzip',
+								'-ladvapi32',
 							],
 						},
 					],

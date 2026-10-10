@@ -1,3 +1,28 @@
-Files in this folder are based on libzip
+Files in this folder are based on libzip 1.12 (7 October 2026).
 
-Original source archives are available from <http://www.nih.at/libzip/>
+Original source: https://github.com/nih-at/libzip, tag v1.12.
+
+Only the library is kept: lib/*.c and lib/*.h in src/, zip.h in include/,
+and LICENSE in docs/. The tools, regression tests, man pages and CMake
+files are left out, and so are the parts behind options that are off:
+bzip2, xz and zstd compression (zip_algorithm_bzip2.c, _xz.c, _zstd.c), the
+crypto back ends and WinZip AES encryption (zip_crypto*.{c,h},
+zip_winzip_aes.c, zip_source_winzip_aes_*.c) and the UWP random source
+(zip_random_uwp.c). Deflate, stored entries and traditional PKWARE
+encryption remain, as in the old copy.
+
+Three files are written for OXT-Beyond's build, because gyp runs no
+configure step: include/zipconf.h (CMake makes it from zipconf.h.in),
+src/config.h (from config.h.in, with the answers for MSVC, macOS, Linux
+and Android) and src/zip_err_str.c (CMake makes it from zip.h's error
+codes; the messages are libzip's). libzip.gyp builds the Win32 file and
+random sources on Windows and the stdio and /dev/urandom (or arc4random)
+ones elsewhere. Windows links advapi32 for CryptGenRandom.
+
+Nothing in libzip is modified. The old copy (libzip 0.8, about 2008) was
+modified for LiveCode: a progress callback inside zip_fread and zip_close,
+made-by and external-attribute setters, and Windows wide-character paths.
+libzip 1.12 has the last two itself (zip_file_set_external_attributes;
+UTF-8 paths become UTF-16 on Windows), and revzip/src/revzip.cpp now
+reports the same progress messages from its own read loops and from a
+layered source over each item it adds.
