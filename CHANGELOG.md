@@ -14,6 +14,12 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.4 (2026-10-10)
+
+- CI: cache the Visual Studio toolset and the apt packages; smaller macOS test downloads (#80)
+- CI: keep the profiler out of the field speed check's timed steps (#80)
+- Version 0.2.4, with its changelog (#82)
+
 ## 0.2.4-rc.7 (2026-10-09, pre-release)
 
 - LCB dates: the local date's UTC offset on Windows and Linux (#75)
