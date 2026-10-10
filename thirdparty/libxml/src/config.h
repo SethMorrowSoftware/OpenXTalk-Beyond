@@ -43,10 +43,11 @@
 
 #define HAVE_STDINT_H 1
 
-/* Where the default XML catalog is looked for (/etc/xml/catalog). */
-#if !defined(_WIN32)
+/* Where the default XML catalog is looked for (file:///etc/xml/catalog),
+   unless XML_CATALOG_FILES says otherwise. catalog.c needs it on every
+   platform; on Windows the path does not exist, so there is no default
+   catalog, as with the old libxml2. */
 #define XML_SYSCONFDIR "/etc"
-#endif
 
 /* HAVE_DLOPEN, HAVE_SHLLOAD: only for xmlmodule.c, which is not built
    (LIBXML_MODULES_ENABLED is off). HAVE_LIBREADLINE, HAVE_LIBHISTORY: only
