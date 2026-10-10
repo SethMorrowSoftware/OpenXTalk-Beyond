@@ -12,47 +12,33 @@
 #define __XML_XSLTLOCALE_H__
 
 #include <libxml/xmlstring.h>
+#include "xsltexports.h"
 
-#ifdef XSLT_LOCALE_XLOCALE
-
-#include <locale.h>
-#include <xlocale.h>
-
-#ifdef __GLIBC__
-/*locale_t is defined only if _GNU_SOURCE is defined*/
-typedef __locale_t xsltLocale;
-#else
-typedef locale_t xsltLocale;
-#endif
-typedef xmlChar xsltLocaleChar;
-
-#elif defined(XSLT_LOCALE_WINAPI)
-
-#include <windows.h>
-#include <winnls.h>
-
-typedef LCID xsltLocale;
-typedef wchar_t xsltLocaleChar;
-
-#else
-
-/*
- * XSLT_LOCALE_NONE:
- * Macro indicating that locale are not supported
- */
-#ifndef XSLT_LOCALE_NONE
-#define XSLT_LOCALE_NONE
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+XSLTPUBFUN void * XSLTCALL
+	xsltNewLocale			(const xmlChar *langName,
+					 int lowerFirst);
+XSLTPUBFUN void XSLTCALL
+	xsltFreeLocale			(void *locale);
+XSLTPUBFUN xmlChar * XSLTCALL
+	xsltStrxfrm			(void *locale,
+					 const xmlChar *string);
+XSLTPUBFUN void XSLTCALL
+	xsltFreeLocales			(void);
+
+/* Backward compatibility */
 typedef void *xsltLocale;
 typedef xmlChar xsltLocaleChar;
+XSLTPUBFUN int XSLTCALL
+	xsltLocaleStrcmp		(void *locale,
+					 const xmlChar *str1,
+					 const xmlChar *str2);
 
+#ifdef __cplusplus
+}
 #endif
-
-xsltLocale xsltNewLocale(const xmlChar *langName);
-void xsltFreeLocale(xsltLocale locale);
-xsltLocaleChar *xsltStrxfrm(xsltLocale locale, const xmlChar *string);
-int xsltLocaleStrcmp(xsltLocale locale, const xsltLocaleChar *str1, const xsltLocaleChar *str2);
-void xsltFreeLocales(void);
 
 #endif /* __XML_XSLTLOCALE_H__ */

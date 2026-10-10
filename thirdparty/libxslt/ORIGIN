@@ -1,0 +1,10 @@
+Files in this folder are based on libxslt 1.1.45 (30 November 2025).
+
+Original source: https://gitlab.gnome.org/GNOME/libxslt, tag v1.1.45.
+
+Only the libxslt library is kept: libxslt/*.c in src/, its headers in
+include/libxslt/, and Copyright and README.md in docs/. libexslt, xsltproc,
+the Python bindings, the tests and the build files are left out.
+include/libxslt/xsltconfig.h is made from xsltconfig.h.in, and
+include/libxslt/config.h is written for OXT-Beyond's build (gyp runs no
+configure step); include/libxslt/win32config.h is libxslt's own.

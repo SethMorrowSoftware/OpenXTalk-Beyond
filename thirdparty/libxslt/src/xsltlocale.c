@@ -15,15 +15,33 @@
 
 #include <string.h>
 #include <libxml/xmlmemory.h>
+#include <libxml/threads.h>
 
 #include "xsltlocale.h"
 #include "xsltutils.h"
 
-#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ <= 2
-#define newlocale __newlocale
-#define freelocale __freelocale
-#define strxfrm_l __strxfrm_l
-#define LC_COLLATE_MASK (1 << LC_COLLATE)
+#ifdef HAVE_STRXFRM_L
+
+  #define XSLT_LOCALE_POSIX
+
+  #ifdef HAVE_LOCALE_H
+    #include <locale.h>
+  #endif
+  #ifdef HAVE_XLOCALE_H
+    #include <xlocale.h>
+  #endif
+
+#elif defined(_WIN32)
+
+  #define XSLT_LOCALE_WINAPI
+
+  #include <windows.h>
+  #include <winnls.h>
+
+#else
+
+  #define XSLT_LOCALE_NONE
+
 #endif
 
 #define TOUPPER(c) (c & ~0x20)
@@ -44,8 +62,7 @@ xmlRMutexPtr xsltLocaleMutex = NULL;
 struct xsltRFC1766Info_s {
       /*note typedef unsigned char xmlChar !*/
     xmlChar    tag[XSLTMAX_LANGTAGLEN+1];
-      /*note typedef LCID xsltLocale !*/
-    xsltLocale lcid;
+    LCID       lcid;
 };
 typedef struct xsltRFC1766Info_s xsltRFC1766Info;
 
@@ -53,14 +70,15 @@ static int xsltLocaleListSize = 0;
 static xsltRFC1766Info *xsltLocaleList = NULL;
 
 
-static xsltLocale
+static void *
 xslt_locale_WINAPI(const xmlChar *languageTag) {
     int k;
     xsltRFC1766Info *p = xsltLocaleList;
 
     for (k=0; k<xsltLocaleListSize; k++, p++)
-	if (xmlStrcmp(p->tag, languageTag) == 0) return p->lcid;
-    return((xsltLocale)0);
+	if (xmlStrcmp(p->tag, languageTag) == 0)
+            return(&p->lcid);
+    return(NULL);
 }
 
 static void xsltEnumSupportedLocales(void);
@@ -90,17 +108,17 @@ xsltFreeLocales(void) {
  *
  * Returns the locale or NULL on error or if no matching locale was found
  */
-xsltLocale
-xsltNewLocale(const xmlChar *languageTag) {
-#ifdef XSLT_LOCALE_XLOCALE
-    xsltLocale locale;
-    char localeName[XSLTMAX_LANGTAGLEN+6]; /* 6 chars for ".utf8\0" */
+void *
+xsltNewLocale(const xmlChar *languageTag, int lowerFirst ATTRIBUTE_UNUSED) {
+#ifdef XSLT_LOCALE_POSIX
+    locale_t locale;
+    char localeName[XSLTMAX_LANGTAGLEN+7]; /* 7 chars for ".UTF-8\0" */
     const xmlChar *p = languageTag;
     const char *region = NULL;
     char *q = localeName;
     int i, llen;
 
-    /* Convert something like "pt-br" to "pt_BR.utf8" */
+    /* Convert something like "pt-br" to "pt_BR.UTF-8" */
 
     if (languageTag == NULL)
 	return(NULL);
@@ -124,8 +142,8 @@ xsltNewLocale(const xmlChar *languageTag) {
 	if (i == 0 || *p)
 	    return(NULL);
 
-        memcpy(q, ".utf8", 6);
-        locale = newlocale(LC_COLLATE_MASK, localeName, NULL);
+        memcpy(q, ".UTF-8", 7);
+        locale = newlocale(LC_ALL_MASK, localeName, NULL);
         if (locale != NULL)
             return(locale);
 
@@ -136,8 +154,8 @@ xsltNewLocale(const xmlChar *languageTag) {
 
     /* Try locale without territory, e.g. for Esperanto (eo) */
 
-    memcpy(q, ".utf8", 6);
-    locale = newlocale(LC_COLLATE_MASK, localeName, NULL);
+    memcpy(q, ".UTF-8", 7);
+    locale = newlocale(LC_ALL_MASK, localeName, NULL);
     if (locale != NULL)
         return(locale);
 
@@ -154,15 +172,15 @@ xsltNewLocale(const xmlChar *languageTag) {
     *q++ = '_';
     *q++ = region[0];
     *q++ = region[1];
-    memcpy(q, ".utf8", 6);
-    locale = newlocale(LC_COLLATE_MASK, localeName, NULL);
+    memcpy(q, ".UTF-8", 7);
+    locale = newlocale(LC_ALL_MASK, localeName, NULL);
 
     return(locale);
 #endif
 
 #ifdef XSLT_LOCALE_WINAPI
 {
-    xsltLocale    locale = (xsltLocale)0;
+    void          *locale = NULL;
     xmlChar       localeName[XSLTMAX_LANGTAGLEN+1];
     xmlChar       *q = localeName;
     const xmlChar *p = languageTag;
@@ -194,7 +212,7 @@ xsltNewLocale(const xmlChar *languageTag) {
     region = xsltDefaultRegion(localeName);
     if (region == NULL) goto end;
 
-    strcpy(localeName + llen + 1, region);
+    strcpy((char *) localeName + llen + 1, (char *) region);
     locale = xslt_locale_WINAPI(localeName);
 end:
     return(locale);
@@ -351,9 +369,12 @@ xsltDefaultRegion(const xmlChar *localeName) {
  * Frees a locale created with xsltNewLocale
  */
 void
-xsltFreeLocale(xsltLocale locale) {
-#ifdef XSLT_LOCALE_XLOCALE
-    freelocale(locale);
+xsltFreeLocale(void *locale) {
+#ifdef XSLT_LOCALE_POSIX
+    if (locale != NULL)
+        freelocale(locale);
+#else
+    (void) locale;
 #endif
 }
 
@@ -362,57 +383,82 @@ xsltFreeLocale(xsltLocale locale) {
  * @locale: locale created with xsltNewLocale
  * @string: UTF-8 string to transform
  *
- * Transforms a string according to locale. The transformed string must then be
- * compared with xsltLocaleStrcmp and freed with xmlFree.
+ * Transforms a string according to locale. The transformed string must be
+ * freed with xmlFree.
  *
  * Returns the transformed string or NULL on error
  */
-xsltLocaleChar *
-xsltStrxfrm(xsltLocale locale, const xmlChar *string)
+xmlChar *
+xsltStrxfrm(void *vlocale, const xmlChar *string)
 {
 #ifdef XSLT_LOCALE_NONE
     return(NULL);
 #else
-    size_t xstrlen, r;
-    xsltLocaleChar *xstr;
+    xmlChar *xstr;
 
-#ifdef XSLT_LOCALE_XLOCALE
-    xstrlen = strxfrm_l(NULL, (const char *)string, 0, locale) + 1;
-    xstr = (xsltLocaleChar *) xmlMalloc(xstrlen);
+#ifdef XSLT_LOCALE_POSIX
+    size_t xstrlen, r;
+
+    xstrlen = strxfrm_l(NULL, (const char *)string, 0, vlocale) + 1;
+    xstr = (xmlChar *) xmlMalloc(xstrlen);
     if (xstr == NULL) {
 	xsltTransformError(NULL, NULL, NULL,
 	    "xsltStrxfrm : out of memory error\n");
 	return(NULL);
     }
 
-    r = strxfrm_l((char *)xstr, (const char *)string, xstrlen, locale);
-#endif
-
-#ifdef XSLT_LOCALE_WINAPI
-    xstrlen = MultiByteToWideChar(CP_UTF8, 0, string, -1, NULL, 0);
-    if (xstrlen == 0) {
-        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : MultiByteToWideChar check failed\n");
-        return(NULL);
-    }
-    xstr = (xsltLocaleChar*) xmlMalloc(xstrlen * sizeof(xsltLocaleChar));
-    if (xstr == NULL) {
-        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : out of memory\n");
-        return(NULL);
-    }
-    r = MultiByteToWideChar(CP_UTF8, 0, string, -1, xstr, xstrlen);
-    if (r == 0) {
-        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : MultiByteToWideChar failed\n");
-        xmlFree(xstr);
-        return(NULL);
-    }
-    return(xstr);
-#endif /* XSLT_LOCALE_WINAPI */
+    r = strxfrm_l((char *)xstr, (const char *)string, xstrlen, vlocale);
 
     if (r >= xstrlen) {
 	xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : strxfrm failed\n");
         xmlFree(xstr);
         return(NULL);
     }
+#endif
+
+#ifdef XSLT_LOCALE_WINAPI
+    int wstrlen, xstrlen, r;
+    wchar_t *wstr;
+    LCID *lcid = vlocale;
+
+    wstrlen = MultiByteToWideChar(CP_UTF8, 0, (char *) string, -1, NULL, 0);
+    if (wstrlen == 0) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : MultiByteToWideChar check failed\n");
+        return(NULL);
+    }
+    wstr = (wchar_t *) xmlMalloc(wstrlen * sizeof(wchar_t));
+    if (wstr == NULL) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : out of memory\n");
+        return(NULL);
+    }
+    r = MultiByteToWideChar(CP_UTF8, 0, (char *) string, -1, wstr, wstrlen);
+    if (r == 0) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : MultiByteToWideChar failed\n");
+        xmlFree(wstr);
+        return(NULL);
+    }
+    /* This returns the size in bytes. */
+    xstrlen = LCMapStringW(*lcid, LCMAP_SORTKEY, wstr, wstrlen, NULL, 0);
+    if (xstrlen == 0) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : LCMapStringW failed\n");
+        xmlFree(wstr);
+        return(NULL);
+    }
+    xstr = (xmlChar*) xmlMalloc(xstrlen);
+    if (xstr == NULL) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : out of memory\n");
+        xmlFree(wstr);
+        return(NULL);
+    }
+    r = LCMapStringW(*lcid, LCMAP_SORTKEY, wstr, wstrlen, (wchar_t *) xstr,
+                     xstrlen);
+    xmlFree(wstr);
+    if (r == 0) {
+        xsltTransformError(NULL, NULL, NULL, "xsltStrxfrm : LCMapStringW failed\n");
+        xmlFree(xstr);
+        return(NULL);
+    }
+#endif /* XSLT_LOCALE_WINAPI */
 
     return(xstr);
 #endif /* XSLT_LOCALE_NONE */
@@ -420,35 +466,22 @@ xsltStrxfrm(xsltLocale locale, const xmlChar *string)
 
 /**
  * xsltLocaleStrcmp:
- * @locale: a locale identifier
+ * @locale: unused
  * @str1: a string transformed with xsltStrxfrm
  * @str2: a string transformed with xsltStrxfrm
  *
- * Compares two strings transformed with xsltStrxfrm
+ * DEPRECATED: Same as xmlStrcmp.
+ *
+ * Compares two strings transformed with xsltStrxfrm.
  *
  * Returns a value < 0 if str1 sorts before str2,
  *         a value > 0 if str1 sorts after str2,
  *         0 if str1 and str2 are equal wrt sorting
  */
 int
-xsltLocaleStrcmp(xsltLocale locale, const xsltLocaleChar *str1, const xsltLocaleChar *str2) {
+xsltLocaleStrcmp(void *locale, const xmlChar *str1, const xmlChar *str2) {
     (void)locale;
-#ifdef XSLT_LOCALE_WINAPI
-{
-    int ret;
-    if (str1 == str2) return(0);
-    if (str1 == NULL) return(-1);
-    if (str2 == NULL) return(1);
-    ret = CompareStringW(locale, 0, str1, -1, str2, -1);
-    if (ret == 0) {
-        xsltTransformError(NULL, NULL, NULL, "xsltLocaleStrcmp : CompareStringW fail\n");
-        return(0);
-    }
-    return(ret - 2);
-}
-#else
     return(xmlStrcmp(str1, str2));
-#endif
 }
 
 #ifdef XSLT_LOCALE_WINAPI
@@ -460,7 +493,7 @@ xsltLocaleStrcmp(xsltLocale locale, const xsltLocaleChar *str1, const xsltLocale
  *
  * Returns TRUE
  */
-BOOL CALLBACK
+static BOOL CALLBACK
 xsltCountSupportedLocales(LPSTR lcid) {
     (void) lcid;
     ++xsltLocaleListSize;
@@ -475,7 +508,7 @@ xsltCountSupportedLocales(LPSTR lcid) {
  *
  * Returns TRUE if not at the end of the array
  */
-BOOL CALLBACK
+static BOOL CALLBACK
 xsltIterateSupportedLocales(LPSTR lcid) {
     static int count = 0;
     xmlChar    iso639lang [XSLTMAX_ISO639LANGLEN  +1];
@@ -483,12 +516,14 @@ xsltIterateSupportedLocales(LPSTR lcid) {
     int        k, l;
     xsltRFC1766Info *p = xsltLocaleList + count;
 
-    k = sscanf(lcid, "%lx", (long*)&p->lcid);
+    k = sscanf(lcid, "%lx", (unsigned long*)&p->lcid);
     if (k < 1) goto end;
     /*don't count terminating null character*/
-    k = GetLocaleInfoA(p->lcid, LOCALE_SISO639LANGNAME , iso639lang , sizeof(iso639lang ));
+    k = GetLocaleInfoA(p->lcid, LOCALE_SISO639LANGNAME,
+                       (char *) iso639lang, sizeof(iso639lang));
     if (--k < 1) goto end;
-    l = GetLocaleInfoA(p->lcid, LOCALE_SISO3166CTRYNAME, iso3136ctry, sizeof(iso3136ctry));
+    l = GetLocaleInfoA(p->lcid, LOCALE_SISO3166CTRYNAME,
+                       (char *) iso3136ctry, sizeof(iso3136ctry));
     if (--l < 1) goto end;
 
     {  /*fill results*/

@@ -34,6 +34,13 @@
 							'src',
 						],
 						
+						'defines':
+						[
+							# A static library: no dllexport or dllimport
+							# on Windows.
+							'LIBXSLT_STATIC=1',
+						],
+						
 						'sources':
 						[
 							'include/libxslt/attributes.h',
@@ -52,6 +59,7 @@
 							'include/libxslt/security.h',
 							'include/libxslt/templates.h',
 							'include/libxslt/transform.h',
+							'include/libxslt/transformInternals.h',
 							'include/libxslt/trio.h',
 							'include/libxslt/triodef.h',
 							'include/libxslt/variables.h',
@@ -62,7 +70,6 @@
 							'include/libxslt/xsltInternals.h',
 							'include/libxslt/xsltlocale.h',
 							'include/libxslt/xsltutils.h',
-							'include/libxslt/xsltwin32config.h',
 							
 							'src/attributes.c',
 							'src/attrvt.c',
@@ -90,6 +97,11 @@
 							'include_dirs':
 							[
 								'include',
+							],
+							
+							'defines':
+							[
+								'LIBXSLT_STATIC=1',
 							],
 						},
 					},
