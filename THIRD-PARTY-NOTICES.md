@@ -93,7 +93,7 @@ licence text are in `thirdparty/`.
 | libjpeg (IJG) | 9f | engines, libgraphics | IJG licence | "LEGAL ISSUES" in [`thirdparty/libjpeg/docs/README`](thirdparty/libjpeg/docs/README) |
 | libpng | 1.6.59 | engines, libgraphics | libpng licence | [`thirdparty/libpng/docs/LICENSE`](thirdparty/libpng/docs/LICENSE) |
 | zlib | 1.3.2 | engines, revZip, revXML | zlib licence | "Copyright notice" in [`thirdparty/libz/docs/README`](thirdparty/libz/docs/README) |
-| libzip | not recorded | revZip | BSD 3-clause | [`thirdparty/libzip/docs/LICENSE`](thirdparty/libzip/docs/LICENSE) |
+| libzip | 1.12 | revZip | BSD 3-clause | [`thirdparty/libzip/docs/LICENSE`](thirdparty/libzip/docs/LICENSE) |
 | PCRE | 8.45 | engines | BSD | [`thirdparty/libpcre/docs/LICENCE`](thirdparty/libpcre/docs/LICENCE) |
 | Skia | revision `20471894` | engine, libgraphics | BSD 3-clause | [upstream](https://github.com/google/skia/blob/main/LICENSE); file headers in `thirdparty/libskia/` |
 | libxml2 | 2.15.4, with one change (see [`thirdparty/libxml/ORIGIN`](thirdparty/libxml/ORIGIN)) | revXML | MIT | [`thirdparty/libxml/docs/COPYING`](thirdparty/libxml/docs/COPYING) |
