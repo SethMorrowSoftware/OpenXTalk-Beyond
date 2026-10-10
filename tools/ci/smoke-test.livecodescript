@@ -195,6 +195,36 @@ on startup
          check "revXML node contents", revXMLNodeContents(tTree, "/root/item") is "hi", revXMLNodeContents(tTree, "/root/item")
          revXMLDeleteTree tTree
       end if
+      -- Namespaces, both ways: revXMLCreateTree resolves prefixes (the root
+      -- is "root" in namespace a), revXMLCreateTreeWithNamespaces keeps them
+      -- in the names ("a:root"), through the SAX2 handler OXT-Beyond keeps
+      -- in its libxml2 (see thirdparty/libxml/ORIGIN).
+      put "<a:root xmlns:a=" & quote & "urn:a" & quote & " a:n=" & quote & "1" & quote & "><a:item>x</a:item></a:root>" into tXML
+      put revXMLCreateTree(tXML, false, true, false) into tTree
+      check "revXML namespaces resolved", revXMLRootNode(tTree) is "root", revXMLRootNode(tTree)
+      if tTree is an integer then revXMLDeleteTree tTree
+      put revXMLCreateTreeWithNamespaces(tXML, false, true, false) into tTree
+      check "revXML namespace prefixes kept", revXMLRootNode(tTree) is "a:root" and revXMLAttribute(tTree, "/a:root", "a:n") is "1", revXMLRootNode(tTree) && revXMLAttribute(tTree, "/a:root", "a:n")
+      if tTree is an integer then revXMLDeleteTree tTree
+      -- A document that is not well formed is refused, with libxml2's message
+      put revXMLCreateTree("<root><item></root>", false, true, false) into tTree
+      check "revXML refuses bad XML", tTree begins with "xmlerr", tTree
+      -- DTD validation, XPath and XSLT (libxslt)
+      put revXMLCreateTree("<list><n>b</n><n>a</n><n>c</n></list>", false, true, false) into tTree
+      check "revXML DTD validation", revXMLValidateDTD(tTree, "<!ELEMENT list (n*)><!ELEMENT n (#PCDATA)>") is empty, revXMLValidateDTD(tTree, "<!ELEMENT list (n*)><!ELEMENT n (#PCDATA)>")
+      check "revXML DTD validation fails", revXMLValidateDTD(tTree, "<!ELEMENT list (m*)><!ELEMENT m EMPTY>") is not empty, "(empty)"
+      put revXMLEvaluateXPath(tTree, "/list/n[2]") into tPath
+      check "revXML XPath", tPath is "/list/n[2]", tPath
+      put "<xsl:stylesheet version=" & quote & "1.0" & quote & " xmlns:xsl=" & quote & "http://www.w3.org/1999/XSL/Transform" & quote & ">" & \
+            "<xsl:output method=" & quote & "text" & quote & "/><xsl:template match=" & quote & "/" & quote & ">" & \
+            "<xsl:for-each select=" & quote & "//n" & quote & "><xsl:sort select=" & quote & "." & quote & "/><xsl:value-of select=" & quote & "." & quote & "/>" & \
+            "</xsl:for-each></xsl:template></xsl:stylesheet>" into tXSL
+      put revXMLCreateTree(tXSL, false, true, false) into tXSLTree
+      put xsltLoadStylesheet(tXSLTree) into tStylesheet
+      put xsltApplyStylesheet(tTree, tStylesheet) into tResult
+      check "XSLT (libxslt) sorts and transforms", tResult is "abc", tResult
+      if tXSLTree is an integer then revXMLDeleteTree tXSLTree
+      if tTree is an integer then revXMLDeleteTree tTree
    catch tError
       check "no script error (revXML checks)", false, tError
    end try
