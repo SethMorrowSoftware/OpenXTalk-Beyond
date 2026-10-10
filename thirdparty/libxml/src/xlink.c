@@ -4,7 +4,7 @@
  *
  * See Copyright for the status of this software.
  *
- * daniel@veillard.com
+ * Author: Daniel Veillard
  */
 
 
@@ -13,31 +13,13 @@
 
 #ifdef LIBXML_XPTR_ENABLED
 #include <string.h> /* for memset() only */
-#ifdef HAVE_CTYPE_H
 #include <ctype.h>
-#endif
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_ZLIB_H
-#include <zlib.h>
-#endif
 
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/parser.h>
-#include <libxml/valid.h>
 #include <libxml/xlink.h>
-#include <libxml/globals.h>
 
 #define XLINK_NAMESPACE (BAD_CAST "http://www.w3.org/1999/xlink/namespace/")
 #define XHTML_NAMESPACE (BAD_CAST "http://www.w3.org/1999/xhtml/")
@@ -52,35 +34,36 @@ static xlinkHandlerPtr xlinkDefaultHandler = NULL;
 static xlinkNodeDetectFunc	xlinkDefaultDetect = NULL;
 
 /**
- * xlinkGetDefaultHandler:
- *
  * Get the default xlink handler.
  *
- * Returns the current xlinkHandlerPtr value.
+ * @deprecated Don't use.
+ *
+ * @returns the current xlinkHandler value.
  */
-xlinkHandlerPtr
+xlinkHandler *
 xlinkGetDefaultHandler(void) {
     return(xlinkDefaultHandler);
 }
 
 
 /**
- * xlinkSetDefaultHandler:
- * @handler:  the new value for the xlink handler block
- *
  * Set the default xlink handlers
+ *
+ * @deprecated Don't use.
+ *
+ * @param handler  the new value for the xlink handler block
  */
 void
-xlinkSetDefaultHandler(xlinkHandlerPtr handler) {
+xlinkSetDefaultHandler(xlinkHandler *handler) {
     xlinkDefaultHandler = handler;
 }
 
 /**
- * xlinkGetDefaultDetect:
- *
  * Get the default xlink detection routine
  *
- * Returns the current function or NULL;
+ * @deprecated Don't use.
+ *
+ * @returns the current function or NULL;
  */
 xlinkNodeDetectFunc
 xlinkGetDefaultDetect	(void) {
@@ -88,10 +71,11 @@ xlinkGetDefaultDetect	(void) {
 }
 
 /**
- * xlinkSetDefaultDetect:
- * @func: pointer to the new detection routine.
- *
  * Set the default xlink detection routine
+ *
+ * @deprecated Don't use.
+ *
+ * @param func  pointer to the new detection routine.
  */
 void
 xlinkSetDefaultDetect	(xlinkNodeDetectFunc func) {
@@ -106,21 +90,21 @@ xlinkSetDefaultDetect	(xlinkNodeDetectFunc func) {
 
 
 /**
- * xlinkIsLink:
- * @doc:  the document containing the node
- * @node:  the node pointer itself
- *
  * Check whether the given node carries the attributes needed
  * to be a link element (or is one of the linking elements issued
  * from the (X)HTML DtDs).
  * This routine don't try to do full checking of the link validity
  * but tries to detect and return the appropriate link type.
  *
- * Returns the xlinkType of the node (XLINK_TYPE_NONE if there is no
+ * @deprecated The XLink code was never finished.
+ *
+ * @param doc  the document containing the node
+ * @param node  the node pointer itself
+ * @returns the xlinkType of the node (XLINK_TYPE_NONE if there is no
  *         link detected.
  */
 xlinkType
-xlinkIsLink	(xmlDocPtr doc, xmlNodePtr node) {
+xlinkIsLink	(xmlDoc *doc, xmlNode *node) {
     xmlChar *type = NULL, *role = NULL;
     xlinkType ret = XLINK_TYPE_NONE;
 
@@ -179,5 +163,3 @@ xlinkIsLink	(xmlDocPtr doc, xmlNodePtr node) {
     return(ret);
 }
 #endif /* LIBXML_XPTR_ENABLED */
-#define bottom_xlink
-#include "elfgcchack.h"

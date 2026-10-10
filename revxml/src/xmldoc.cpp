@@ -98,34 +98,38 @@ Bool CXMLDocument::allowcallbacks = False;
 char CXMLDocument::errorbuf[256] = "";
 
 //lists of callbacks - used to establish custom callbacks for parse errors, other callbacks in future
+// A SAX1 handler (initialized is 1, not XML_SAX2_MAGIC), so that libxml2
+// calls startElement and endElement with whole names. libxml2 2.14 removed
+// the old unprefixed names of its default handlers (internalSubset,
+// startElement...); these are the same handlers under their xmlSAX2 names.
 xmlSAXHandler CXMLDocument::SAXHandlerTable = {
-    internalSubset,
-    isStandalone,
-    hasInternalSubset,
-    hasExternalSubset,
-    resolveEntity,
-    getEntity,
-    entityDecl,
-    notationDecl,
-    attributeDecl,
-    elementDecl,
-    unparsedEntityDecl,
-    setDocumentLocator,
+    xmlSAX2InternalSubset,
+    xmlSAX2IsStandalone,
+    xmlSAX2HasInternalSubset,
+    xmlSAX2HasExternalSubset,
+    xmlSAX2ResolveEntity,
+    xmlSAX2GetEntity,
+    xmlSAX2EntityDecl,
+    xmlSAX2NotationDecl,
+    xmlSAX2AttributeDecl,
+    xmlSAX2ElementDecl,
+    xmlSAX2UnparsedEntityDecl,
+    xmlSAX2SetDocumentLocator,
     startDocumentCallback,//startDocument
     endDocumentCallback,//endDocument
     startElementCallback,//startElement
     endElementCallback,//endElement
-    reference,
+    xmlSAX2Reference,
 	elementDataCallback, //characters,
-    ignorableWhitespace,
-    processingInstruction,
-    comment,
+    xmlSAX2IgnorableWhitespace,
+    xmlSAX2ProcessingInstruction,
+    xmlSAX2Comment,
     warningCallback,
     errorCallback,
     fatalCallback,
-    getParameterEntity,
+    xmlSAX2GetParameterEntity,
     elementCDataCallback,//cdataBlock,
-    externalSubset,
+    xmlSAX2ExternalSubset,
 	1,
     NULL,
     NULL,
@@ -137,14 +141,14 @@ void CXMLDocument::startDocumentCallback(void *ctx)
 {
 	if (allowcallbacks)
 		CB_startDocument();
-	startDocument(ctx);
+	xmlSAX2StartDocument(ctx);
 }
 
 void CXMLDocument::endDocumentCallback(void *ctx)
 {
 	if (allowcallbacks)
 		CB_endDocument();
-	endDocument(ctx);
+	xmlSAX2EndDocument(ctx);
 }
 
 void CXMLDocument::startElementCallback(void *ctx,
@@ -159,7 +163,7 @@ void CXMLDocument::startElementCallback(void *ctx,
         //HS-2010-10-11: [[ Bug 7586 ]] Reinstate libxml2 to create name spaces. Implement new liveCode commands to suppress name space creation.
         if (XML_ProcessNameSpaces)
         {
-		    startElement(ctx,fullname,atts);
+		    xmlSAX2StartElement(ctx,fullname,atts);
         }
         else
         {
@@ -174,7 +178,7 @@ void CXMLDocument::endElementCallback(void *ctx,
 	if (allowcallbacks)
 		CB_endElement((const char *)name);
 	if (buildtree)
-		endElement(ctx,name);
+		xmlSAX2EndElement(ctx,name);
 }
 
 
@@ -183,7 +187,7 @@ void CXMLDocument::elementCDataCallback(void *ctx,const xmlChar *ch,int len)
 	if (allowcallbacks)
 		CB_elementData((const char *)ch,len);
 	if (buildtree)
-		cdataBlock(ctx,ch,len);
+		xmlSAX2CDataBlock(ctx,ch,len);
 }
 
 
@@ -192,7 +196,7 @@ void CXMLDocument::elementDataCallback(void *ctx,const xmlChar *ch,int len)
 	if (allowcallbacks)
 		CB_elementData((const char *)ch,len);
 	if (buildtree)
-		characters(ctx,ch,len);
+		xmlSAX2Characters(ctx,ch,len);
 }
  
 
@@ -235,19 +239,43 @@ data - points to xml data to parse
 tlength - length of xml data to parse
 returns false on parse error
 */
+/*Parse - parses xml data, or the file filename if data is NULL, with
+the SAX handlers above, and returns the document or NULL
+*/
+xmlDocPtr CXMLDocument::Parse(const char *data, unsigned long tlength, const char *filename, Bool wellformed)
+{
+	// MW-2014-03-10: [[ Bug 11903 ]] Pass XML_PARSE_HUGE, so that the limits
+	//   libxml2 2.9 introduced don't apply. LiveCode added its own functions
+	//   to libxml2 for this; a parser context made with the SAX handlers
+	//   does it with libxml2's own API. XML_PARSE_NOBLANKS keeps what
+	//   xmlKeepBlanksDefault(0) did before: the options of a context
+	//   replace libxml2's global defaults.
+	int options;
+	options = XML_PARSE_HUGE | XML_PARSE_NOBLANKS;
+	if (!wellformed)
+		options |= XML_PARSE_RECOVER;
+
+	xmlParserCtxtPtr ctxt;
+	ctxt = xmlNewSAXParserCtxt(&SAXHandlerTable, NULL);
+	if (ctxt == NULL)
+		return NULL;
+
+	xmlDocPtr result;
+	if (data != NULL)
+		result = xmlCtxtReadMemory(ctxt, data, (int)tlength, NULL, NULL, options);
+	else
+		result = xmlCtxtReadFile(ctxt, filename, NULL, options);
+
+	xmlFreeParserCtxt(ctxt);
+	return result;
+}
+
 Bool CXMLDocument::Read(char *data, unsigned long tlength, Bool wellformed)
 {
 	xmlKeepBlanksDefault(0);
 	Free(); //free document	
 	
-	// MW-2014-03-10: [[ Bug 11903 ]] Use modified libXML functions that allow us to
-	//   pass through XML_PARSE_HUGE (so the new 2.9 limits don't apply!).
-	int options;
-	options = XML_PARSE_HUGE;
-	if (!wellformed)
-		options |= XML_PARSE_RECOVER;
-	
-	doc =  xmlSAXParseMemoryWithDataAndOptions(&SAXHandlerTable, data, tlength, options, NULL);
+	doc = Parse(data, tlength, NULL, wellformed);
 
 	// OK-2007-12-17 : Bug 5632. If Validate() is called in this context it crashes
 	// For now we just remove the validation step from here as it proved difficult to
@@ -264,14 +292,7 @@ Bool CXMLDocument::ReadFile(char *filename,  Bool wellformed)
 	xmlKeepBlanksDefault(0);
 	Free(); //free document	
 	
-	// MW-2014-03-10: [[ Bug 11903 ]] Use modified libXML functions that allow us to
-	//   pass through XML_PARSE_HUGE (so the new 2.9 limits don't apply!).
-	int options;
-	options = XML_PARSE_HUGE;
-	if (!wellformed)
-		options |= XML_PARSE_RECOVER;
-		
-	doc =  xmlSAXParseFileWithDataAndOptions(&SAXHandlerTable, filename, options, NULL);
+	doc = Parse(NULL, 0, filename, wellformed);
 
 	// OK-2007-12-17 : Bug 5632. If Validate() is called in this context it crashes
 	// For now we just remove the validation step from here as it proved difficult to
@@ -285,15 +306,20 @@ Bool CXMLDocument::ReadFile(char *filename,  Bool wellformed)
 Bool CXMLDocument::Validate()
 {
 if (!isinited()) return False;
-		xmlValidCtxt ctxt;
-		ctxt.doc = doc;
-		ctxt.userData = NULL;
-		//point to dtd error handling function
-		ctxt.error = errorCallback; 
-		ctxt.warning = warningCallback;
 		if ((doc->intSubset == NULL) && (doc->extSubset == NULL))
 			return True;
-		return xmlValidateDocument(&ctxt, doc) == 1;
+		// A validation context from libxml2, not one on the stack: libxml2
+		// reads (and allocates) fields of it that this code never set.
+		xmlValidCtxtPtr ctxt = xmlNewValidCtxt();
+		if (ctxt == NULL)
+			return False;
+		//point to dtd error handling function
+		ctxt->userData = NULL;
+		ctxt->error = errorCallback; 
+		ctxt->warning = warningCallback;
+		Bool isvalid = xmlValidateDocument(ctxt, doc) == 1;
+		xmlFreeValidCtxt(ctxt);
+		return isvalid;
 }
 
 Bool CXMLDocument::AddDTD(char *data, unsigned long tlength)
@@ -333,13 +359,18 @@ Bool CXMLDocument::ValidateDTD(char *data, unsigned long tlength)
 	dtdInputBufferPtr = xmlParserInputBufferCreateMem(data, tlength, XML_CHAR_ENCODING_UTF8); 
 	dtd = xmlIOParseDTD(NULL, dtdInputBufferPtr, XML_CHAR_ENCODING_UTF8); 
 	if (!dtd) return False;
-	xmlValidCtxt ctxt;
-	ctxt.doc = doc;
-	ctxt.userData = NULL;
+	xmlValidCtxtPtr ctxt = xmlNewValidCtxt();
+	if (ctxt == NULL)
+	{
+		xmlFreeDtd(dtd);
+		return False;
+	}
 	//point to dtd error handling function
-	ctxt.error = errorCallback; 
-	ctxt.warning = warningCallback;
-	Bool isvalid = xmlValidateDtd(&ctxt,doc,dtd);
+	ctxt->userData = NULL;
+	ctxt->error = errorCallback; 
+	ctxt->warning = warningCallback;
+	Bool isvalid = xmlValidateDtd(ctxt,doc,dtd);
+	xmlFreeValidCtxt(ctxt);
 	xmlFreeDtd(dtd);
 	return isvalid;
 }
