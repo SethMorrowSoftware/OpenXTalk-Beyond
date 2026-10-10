@@ -243,6 +243,50 @@ on startup
       revZipCloseArchive tZip
       check "revZip round trip", line 1 of tItems is "hello.txt" and tUnzipped is "zip content 123", line 1 of tItems & ": " & tUnzipped
       if there is a file tZip then delete file tZip
+      -- libzip 1.12 under revZip (see thirdparty/libzip/ORIGIN): files and
+      -- stored items, a UTF-8 name, then update in place
+      put tTemp & "/oxt_smoke_test_in.txt" into tFile
+      -- compressible, so libzip keeps it deflated rather than storing it
+      put empty into tFileData
+      repeat 50 times
+         put "file content " after tFileData
+      end repeat
+      put tFileData into URL ("binfile:" & tFile)
+      put "stored" into tZipData
+      revZipOpenArchive tZip, "write"
+      revZipAddItemWithFile tZip, "dir/file.txt", tFile
+      revZipAddUncompressedItemWithData tZip, "stored.txt", "tZipData"
+      revZipAddItemWithData tZip, textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8"), "tZipData"
+      revZipAddItemWithFile tZip, "missing.txt", tTemp & "/oxt_smoke_test_no_such_file"
+      check "revZip refuses a missing file", the result begins with "ziperr", the result
+      revZipCloseArchive tZip
+      check "revZip writes an archive", the result is empty, the result
+      revZipOpenArchive tZip, "update"
+      put revZipEnumerateItems(tZip) into tItems
+      check "revZip lists three items", the number of lines of tItems is 3 and line 3 of tItems is textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8"), tItems
+      check "revZip stores uncompressed items", item 6 of revZipDescribeItem(tZip, "stored.txt") is "none", revZipDescribeItem(tZip, "stored.txt")
+      check "revZip deflates", item 6 of revZipDescribeItem(tZip, "dir/file.txt") is "deflate", revZipDescribeItem(tZip, "dir/file.txt")
+      revZipSetItemAttributes tZip, "stored.txt", 3, 1234
+      revZipRenameItem tZip, "dir/file.txt", "renamed.txt"
+      revZipDeleteItem tZip, textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8")
+      put "replaced" into tZipData
+      revZipReplaceItemWithData tZip, "stored.txt", "tZipData"
+      put revZipEnumerateItems(tZip) into tItems
+      check "revZip lists pending changes", tItems is ("renamed.txt" & return & "stored.txt" & return), tItems
+      revZipCloseArchive tZip
+      check "revZip updates an archive", the result is empty, the result
+      revZipOpenArchive tZip, "read"
+      revZipExtractItemToVariable tZip, "stored.txt", "tUnzipped"
+      check "revZip replaced item", tUnzipped is "replaced", tUnzipped
+      check "revZip attributes", revZipGetItemAttributes(tZip, "stored.txt") is "3,1234", revZipGetItemAttributes(tZip, "stored.txt")
+      put tTemp & "/oxt_smoke_test_out.txt" into tOutFile
+      revZipExtractItemToFile tZip, "renamed.txt", tOutFile
+      check "revZip extracts to a file", URL ("binfile:" & tOutFile) is URL ("binfile:" & tFile), the result
+      revZipCloseArchive tZip
+      check "revZip has no archives open", revZipOpenArchives() is empty, revZipOpenArchives()
+      if there is a file tOutFile then delete file tOutFile
+      if there is a file tFile then delete file tFile
+      if there is a file tZip then delete file tZip
    catch tError
       check "no script error (revZip checks)", false, tError
    end try
