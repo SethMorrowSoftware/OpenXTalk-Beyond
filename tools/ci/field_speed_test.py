@@ -21,11 +21,14 @@ field work) in an engine with a user interface, and on macOS profiles it.
 The script runs as the development engine's home stack (copied to
 <out>/tools/Startup.rev, REV_TOOLS_PATH pointing there), or with --ide in
 the real IDE, which is started first and then sent the script as a
-document to open. While the script fills the cells with the screen
-unlocked and while it solves the puzzle (it writes <out>/speed/filling and
-<out>/speed/solving), `sample` records the engine for a few seconds; the
-same happens, with the machine's busiest processes and a screenshot, if
-the run does not end in time or the engine's memory passes --max-rss-mb.
+document to open. When the script starts to solve the puzzle (it writes
+<out>/speed/solving), and when its unlocked filling of the cells is still
+running --fill-sample-after seconds after it started (<out>/speed/filling),
+`sample` records the engine for a few seconds; the same happens, with the
+machine's busiest processes and a screenshot, if the run does not end in
+time or the engine's memory passes --max-rss-mb. A fill that is over by
+then is not sampled, so that the profiler does not run while the steps
+after it are timed: it slowed them on Intel Macs.
 The engine's frames are named with atos and the dSYM given with --dsym, as
 release binaries carry no symbols. A line every 15 seconds says how far
 the run is. Everything is printed, for the CI log; screenshots as lines
@@ -258,9 +261,14 @@ def run(args):
         print('The Mac: AppleInterfaceStyle %s' % (read_mac_setting() or '(not set: light)'))
 
     results = os.path.join(speed, 'speed.txt')
-    # the profiles: (marker file, report), each taken once
-    markers = [(os.path.join(speed, name), os.path.join(out, 'sample-%s.txt' % name))
-               for name in ('filling', 'solving')]
+    # the profiles, each taken once: (marker file, report, the step that
+    # ends it, seconds to wait after the marker appears for that step)
+    markers = [(os.path.join(speed, 'filling'), os.path.join(out, 'sample-filling.txt'),
+                'fill-and-prune', args.fill_sample_after),
+               (os.path.join(speed, 'solving'), os.path.join(out, 'sample-solving.txt'), None, 0)]
+    # when each marker appeared; the profiles taken or passed over
+    seen = {}
+    done = []
     sampled = []
     screens = []
     status = 'did not finish in %d s' % args.timeout
@@ -295,17 +303,25 @@ def run(args):
                         status = 'used %.0f MB after %.0f s' % (rss, checked - started)
                         break
                 if sys.platform == 'darwin':
-                    for marker, report in markers:
-                        if os.path.isfile(marker) and report not in sampled and proc.poll() is None:
-                            sampled.append(report)
-                            if marker.endswith('solving'):
-                                # the screen is locked while it solves: the
-                                # window shows what the unlocked steps left
-                                screen = os.path.join(out, 'screen-solving.png')
-                                if screenshot(screen):
-                                    screens.append(screen)
-                            if not sample(proc.pid, args.sample_seconds, report):
-                                print('(sample failed: %s)' % os.path.basename(report))
+                    for marker, report, step, wait in markers:
+                        if report in done or not os.path.isfile(marker) or proc.poll() is not None:
+                            continue
+                        seen.setdefault(marker, time.time())
+                        if time.time() - seen[marker] < wait:
+                            continue
+                        done.append(report)
+                        if step and step in results_of(results):
+                            print('(%s took less than %d s: not sampled)' % (step, wait))
+                            continue
+                        sampled.append(report)
+                        if marker.endswith('solving'):
+                            # the screen is locked while it solves: the
+                            # window shows what the unlocked steps left
+                            screen = os.path.join(out, 'screen-solving.png')
+                            if screenshot(screen):
+                                screens.append(screen)
+                        if not sample(proc.pid, args.sample_seconds, report):
+                            print('(sample failed: %s)' % os.path.basename(report))
                 if time.time() - progress >= 15:
                     progress = time.time()
                     last = '(no results yet)'
@@ -366,14 +382,34 @@ def run(args):
     return check_limits(text, args.limit)
 
 
-def check_limits(text, limits):
-    """0 when every step named in limits ("step=ms") took at most that many
-    milliseconds per count, else 1."""
+def per_count(text):
+    """{step: milliseconds per count} from speed.txt's RESULT lines (a line
+    cut short, read while the script writes the file, is left out)."""
     per = {}
     for line in text.splitlines():
         fields = line.split('\t')
         if len(fields) == 5 and fields[0] == 'RESULT':
-            per[fields[1]] = float(fields[4])
+            try:
+                per[fields[1]] = float(fields[4])
+            except ValueError:
+                pass
+    return per
+
+
+def results_of(path):
+    """per_count() of the file, which the script rewrites whole after each
+    line; {} while there is none."""
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            return per_count(f.read())
+    except OSError:
+        return {}
+
+
+def check_limits(text, limits):
+    """0 when every step named in limits ("step=ms") took at most that many
+    milliseconds per count, else 1."""
+    per = per_count(text)
     failed = 0
     for limit in limits:
         step, _, most = limit.partition('=')
@@ -400,6 +436,8 @@ def main(argv=None):
     parser.add_argument('--ide-wait', type=int, default=30, help='seconds for the IDE to start (default %(default)s)')
     parser.add_argument('--solve-ms', type=int, default=20000, help='how long the solve may run (default %(default)s)')
     parser.add_argument('--sample-seconds', type=int, default=5)
+    parser.add_argument('--fill-sample-after', type=int, default=1,
+                        help='sample the fill only when it runs this many seconds (default %(default)s)')
     parser.add_argument('--timeout', type=int, default=180, help='seconds for the run (default %(default)s)')
     parser.add_argument('--max-rss-mb', type=int, default=3000,
                         help="the engine's memory at which the run is stopped (default %(default)s)")

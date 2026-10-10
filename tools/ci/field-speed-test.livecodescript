@@ -29,6 +29,7 @@ script "oxt_field_speed_test"
 --    INFO    name  value
 --    RESULT  step  milliseconds  count  milliseconds per count
 --    INFO    write-unlocked-ms  the milliseconds each unlocked write took
+--    INFO    try-digit-unlocked-ms  the milliseconds each unlocked try took
 -- Before the unlocked filling and before the solve the script writes
 -- <OXT_SPEED_OUT>/filling and <OXT_SPEED_OUT>/solving, for a profiler to
 -- start. Exit code 0 when every step ran, 3 on a script error.
@@ -284,11 +285,18 @@ private command timeSteps
    addResult "try-digit-locked", the milliseconds - t0, 100
    unlock screen
 
+   -- The same with the screen unlocked, each try timed
+   put empty into tTimes
    put the milliseconds into t0
+   put t0 into t1
    repeat with i = 1 to 30
       get tryDigit(tCell, (i mod 9) + 1)
+      put the milliseconds into t2
+      put t2 - t1 & space after tTimes
+      put t2 into t1
    end repeat
    addResult "try-digit-unlocked", the milliseconds - t0, 30
+   addRecord "INFO", "try-digit-unlocked-ms", word 1 to -1 of tTimes
    put the milliseconds into t0
    wait 0 milliseconds with messages
    addResult "draw-after-tries", the milliseconds - t0, 1

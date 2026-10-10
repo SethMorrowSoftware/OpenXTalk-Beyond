@@ -310,6 +310,38 @@ jobs:
           }
           if ($failed.Count -gt 0) { throw "Failed: $($failed -join ', ')" }
 
+      # The v141 toolset: about five minutes of the Visual Studio installer,
+      # cached instead (tools/ci/vs-toolset-cache.ps1). The win-x86 job of
+      # main's builds saves the files the installer added; every job
+      # restores them before the step below, which then finds the toolset
+      # complete and skips the installer. The key holds the runner image's
+      # name and version (environment variables of the runner, which the
+      # env context does not have), so a new image, with a new Visual
+      # Studio, starts afresh.
+      - name: Compute the Visual Studio toolset cache key
+        id: vs-key
+        env:
+          SCRIPTS_HASH: ${{ hashFiles('tools/ci/install-vs-components.ps1', 'tools/ci/vs-toolset-cache.ps1') }}
+        run: |
+          if (-not $env:ImageOS -or -not $env:ImageVersion) {
+            Write-Host '::warning::ImageOS or ImageVersion is not set: the Visual Studio toolset is not cached'
+            exit 0
+          }
+          "key=vs-v141-$env:ImageOS-$env:ImageVersion-$env:WINSDK_VERSION-$($env:SCRIPTS_HASH.Substring(0, 16))-v1" |
+            Add-Content $env:GITHUB_OUTPUT
+
+      - name: Restore the Visual Studio toolset
+        id: vs-cache
+        if: steps.vs-key.outputs.key != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}\vs-v141.7z
+          key: ${{ steps.vs-key.outputs.key }}
+
+      - name: Unpack the Visual Studio toolset
+        if: steps.vs-cache.outputs.cache-hit == 'true'
+        run: ./tools/ci/vs-toolset-cache.ps1 -Unpack "$env:RUNNER_TEMP\vs-v141.7z"
+
       - name: Install MSVC v141 toolset into Visual Studio 2022
         id: vs
         timeout-minutes: 45
@@ -913,10 +945,61 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      # As in the job above. This job also saves the toolset: it is not on
+      # the critical path (it packages nothing). Only main's builds save
+      # (and runs started by hand on a branch, which only that branch's
+      # runs can read), so pull requests and releases restore what main
+      # installed.
+      - name: Compute the Visual Studio toolset cache key
+        id: vs-key
+        env:
+          SCRIPTS_HASH: ${{ hashFiles('tools/ci/install-vs-components.ps1', 'tools/ci/vs-toolset-cache.ps1') }}
+        run: |
+          if (-not $env:ImageOS -or -not $env:ImageVersion) {
+            Write-Host '::warning::ImageOS or ImageVersion is not set: the Visual Studio toolset is not cached'
+            exit 0
+          }
+          "key=vs-v141-$env:ImageOS-$env:ImageVersion-$env:WINSDK_VERSION-$($env:SCRIPTS_HASH.Substring(0, 16))-v1" |
+            Add-Content $env:GITHUB_OUTPUT
+
+      - name: Restore the Visual Studio toolset
+        id: vs-cache
+        if: steps.vs-key.outputs.key != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}\vs-v141.7z
+          key: ${{ steps.vs-key.outputs.key }}
+
+      - name: Unpack the Visual Studio toolset
+        if: steps.vs-cache.outputs.cache-hit == 'true'
+        run: ./tools/ci/vs-toolset-cache.ps1 -Unpack "$env:RUNNER_TEMP\vs-v141.7z"
+
+      - name: List the Visual Studio files before the installer
+        id: vs-before
+        if: >-
+          steps.vs-key.outputs.key != '' && steps.vs-cache.outputs.cache-hit != 'true' &&
+          (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/')))
+        continue-on-error: true
+        run: ./tools/ci/vs-toolset-cache.ps1 -List "$env:RUNNER_TEMP\vs-before.tsv"
+
       - name: Install MSVC v141 toolset into Visual Studio 2022
         id: vs
         timeout-minutes: 45
         run: ./tools/ci/install-vs-components.ps1 -WindowsSdkVersion $env:WINSDK_VERSION -WindowsSdkComponent $env:WINSDK_COMPONENT -LogDir "$env:RUNNER_TEMP\build-logs\vs-installer"
+
+      - name: Pack the Visual Studio toolset
+        id: vs-pack
+        if: steps.vs-before.outcome == 'success'
+        continue-on-error: true
+        run: ./tools/ci/vs-toolset-cache.ps1 -Pack "$env:RUNNER_TEMP\vs-before.tsv" -Archive "$env:RUNNER_TEMP\vs-v141.7z"
+
+      - name: Save the Visual Studio toolset to the cache
+        if: steps.vs-pack.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}\vs-v141.7z
+          key: ${{ steps.vs-key.outputs.key }}
 
       - name: Install Python 2.7
         timeout-minutes: 15
