@@ -41,6 +41,11 @@
 							# A static library: no dllexport or dllimport
 							# on Windows.
 							'LIBXML_STATIC=1',
+							# ...linked into a DLL (revXML), whose DllMain
+							# calls xmlDllMain to free libxml2's per-thread
+							# state; without it libxml2 registers a wait
+							# function per thread instead.
+							'LIBXML_STATIC_FOR_DLL=1',
 						],
 						
 						'sources':
