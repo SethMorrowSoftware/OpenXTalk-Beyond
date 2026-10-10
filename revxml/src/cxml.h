@@ -89,6 +89,7 @@ static Bool buildtree;
 static Bool allowcallbacks;
 protected:
 void Free();
+static xmlDocPtr Parse(const char *data, unsigned long tlength, const char *filename, Bool wellformed);
 static void warningCallback(void *ctx, const char *msg, ...);
 static void errorCallback(void *ctx, const char *msg, ...);
 static void fatalCallback(void *ctx, const char *msg, ...);

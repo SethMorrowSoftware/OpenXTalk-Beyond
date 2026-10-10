@@ -87,9 +87,11 @@ xsltDocDefaultLoaderFunc(const xmlChar * URI, xmlDictPtr dict, int options,
         xmlFreeParserCtxt(pctxt);
 	return(NULL);
     }
+
+#if LIBXML_VERSION >= 21300
+    doc = xmlCtxtParseDocument(pctxt, inputStream);
+#else
     inputPush(pctxt, inputStream);
-    if (pctxt->directory == NULL)
-        pctxt->directory = xmlParserGetDirectory((const char *) URI);
 
     xmlParseDocument(pctxt);
 
@@ -101,6 +103,8 @@ xsltDocDefaultLoaderFunc(const xmlChar * URI, xmlDictPtr dict, int options,
         xmlFreeDoc(pctxt->myDoc);
         pctxt->myDoc = NULL;
     }
+#endif
+
     xmlFreeParserCtxt(pctxt);
 
     return(doc);
@@ -296,10 +300,11 @@ xsltLoadDocument(xsltTransformContextPtr ctxt, const xmlChar *URI) {
 	int res;
 
 	res = xsltCheckRead(ctxt->sec, ctxt, URI);
-	if (res == 0) {
-	    xsltTransformError(ctxt, NULL, NULL,
-		 "xsltLoadDocument: read rights for %s denied\n",
-			     URI);
+	if (res <= 0) {
+            if (res == 0)
+                xsltTransformError(ctxt, NULL, NULL,
+                     "xsltLoadDocument: read rights for %s denied\n",
+                                 URI);
 	    return(NULL);
 	}
     }
@@ -372,10 +377,11 @@ xsltLoadStyleDocument(xsltStylesheetPtr style, const xmlChar *URI) {
 	int res;
 
 	res = xsltCheckRead(sec, NULL, URI);
-	if (res == 0) {
-	    xsltTransformError(NULL, NULL, NULL,
-		 "xsltLoadStyleDocument: read rights for %s denied\n",
-			     URI);
+	if (res <= 0) {
+            if (res == 0)
+                xsltTransformError(NULL, NULL, NULL,
+                     "xsltLoadStyleDocument: read rights for %s denied\n",
+                                 URI);
 	    return(NULL);
 	}
     }
@@ -397,6 +403,8 @@ xsltLoadStyleDocument(xsltStylesheetPtr style, const xmlChar *URI) {
 	return(NULL);
 
     ret = xsltNewStyleDocument(style, doc);
+    if (ret == NULL)
+        xmlFreeDoc(doc);
     return(ret);
 }
 

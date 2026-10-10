@@ -92,10 +92,11 @@ stays the main download until it has held up.
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
   the engine compiles in (zlib 1.3.2, libpng 1.6.59, giflib 5.2.2,
-  libjpeg 9f, and PCRE 8.45, the last release of PCRE 1). The browser
+  libjpeg 9f, and PCRE 8.45, the last release of PCRE 1), and revXML's
+  libxml2 2.15.4 and libxslt 1.1.45, and revZip's libzip 1.12. The browser
   widget and revBrowser still use
   CEF 74 (Chromium 74, from 2019), and several libraries in
-  `thirdparty/` (libxml2, libxslt, libzip, cairo and the database client
+  `thirdparty/` (cairo and the database client
   libraries among them) are years old; they
   have known vulnerabilities, and upgrading them is planned. See
   [SECURITY.md](SECURITY.md).

@@ -195,6 +195,36 @@ on startup
          check "revXML node contents", revXMLNodeContents(tTree, "/root/item") is "hi", revXMLNodeContents(tTree, "/root/item")
          revXMLDeleteTree tTree
       end if
+      -- Namespaces, both ways: revXMLCreateTree resolves prefixes (the root
+      -- is "root" in namespace a), revXMLCreateTreeWithNamespaces keeps them
+      -- in the names ("a:root"), through the SAX2 handler OXT-Beyond keeps
+      -- in its libxml2 (see thirdparty/libxml/ORIGIN).
+      put "<a:root xmlns:a=" & quote & "urn:a" & quote & " a:n=" & quote & "1" & quote & "><a:item>x</a:item></a:root>" into tXML
+      put revXMLCreateTree(tXML, false, true, false) into tTree
+      check "revXML namespaces resolved", revXMLRootNode(tTree) is "root", revXMLRootNode(tTree)
+      if tTree is an integer then revXMLDeleteTree tTree
+      put revXMLCreateTreeWithNamespaces(tXML, false, true, false) into tTree
+      check "revXML namespace prefixes kept", revXMLRootNode(tTree) is "a:root" and revXMLAttribute(tTree, "/a:root", "a:n") is "1", revXMLRootNode(tTree) && revXMLAttribute(tTree, "/a:root", "a:n")
+      if tTree is an integer then revXMLDeleteTree tTree
+      -- A document that is not well formed is refused, with libxml2's message
+      put revXMLCreateTree("<root><item></root>", false, true, false) into tTree
+      check "revXML refuses bad XML", tTree begins with "xmlerr", tTree
+      -- DTD validation, XPath and XSLT (libxslt)
+      put revXMLCreateTree("<list><n>b</n><n>a</n><n>c</n></list>", false, true, false) into tTree
+      check "revXML DTD validation", revXMLValidateDTD(tTree, "<!ELEMENT list (n*)><!ELEMENT n (#PCDATA)>") is empty, revXMLValidateDTD(tTree, "<!ELEMENT list (n*)><!ELEMENT n (#PCDATA)>")
+      check "revXML DTD validation fails", revXMLValidateDTD(tTree, "<!ELEMENT list (m*)><!ELEMENT m EMPTY>") is not empty, "(empty)"
+      put revXMLEvaluateXPath(tTree, "/list/n[2]") into tPath
+      check "revXML XPath", tPath is "/list/n[2]", tPath
+      put "<xsl:stylesheet version=" & quote & "1.0" & quote & " xmlns:xsl=" & quote & "http://www.w3.org/1999/XSL/Transform" & quote & ">" & \
+            "<xsl:output method=" & quote & "text" & quote & "/><xsl:template match=" & quote & "/" & quote & ">" & \
+            "<xsl:for-each select=" & quote & "//n" & quote & "><xsl:sort select=" & quote & "." & quote & "/><xsl:value-of select=" & quote & "." & quote & "/>" & \
+            "</xsl:for-each></xsl:template></xsl:stylesheet>" into tXSL
+      put revXMLCreateTree(tXSL, false, true, false) into tXSLTree
+      put xsltLoadStylesheet(tXSLTree) into tStylesheet
+      put xsltApplyStylesheet(tTree, tStylesheet) into tResult
+      check "XSLT (libxslt) sorts and transforms", tResult is "abc", tResult
+      if tXSLTree is an integer then revXMLDeleteTree tXSLTree
+      if tTree is an integer then revXMLDeleteTree tTree
    catch tError
       check "no script error (revXML checks)", false, tError
    end try
@@ -212,6 +242,50 @@ on startup
       revZipExtractItemToVariable tZip, "hello.txt", "tUnzipped"
       revZipCloseArchive tZip
       check "revZip round trip", line 1 of tItems is "hello.txt" and tUnzipped is "zip content 123", line 1 of tItems & ": " & tUnzipped
+      if there is a file tZip then delete file tZip
+      -- libzip 1.12 under revZip (see thirdparty/libzip/ORIGIN): files and
+      -- stored items, a UTF-8 name, then update in place
+      put tTemp & "/oxt_smoke_test_in.txt" into tFile
+      -- compressible, so libzip keeps it deflated rather than storing it
+      put empty into tFileData
+      repeat 50 times
+         put "file content " after tFileData
+      end repeat
+      put tFileData into URL ("binfile:" & tFile)
+      put "stored" into tZipData
+      revZipOpenArchive tZip, "write"
+      revZipAddItemWithFile tZip, "dir/file.txt", tFile
+      revZipAddUncompressedItemWithData tZip, "stored.txt", "tZipData"
+      revZipAddItemWithData tZip, textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8"), "tZipData"
+      revZipAddItemWithFile tZip, "missing.txt", tTemp & "/oxt_smoke_test_no_such_file"
+      check "revZip refuses a missing file", the result begins with "ziperr", the result
+      revZipCloseArchive tZip
+      check "revZip writes an archive", the result is empty, the result
+      revZipOpenArchive tZip, "update"
+      put revZipEnumerateItems(tZip) into tItems
+      check "revZip lists three items", the number of lines of tItems is 3 and line 3 of tItems is textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8"), tItems
+      check "revZip stores uncompressed items", item 6 of revZipDescribeItem(tZip, "stored.txt") is "none", revZipDescribeItem(tZip, "stored.txt")
+      check "revZip deflates", item 6 of revZipDescribeItem(tZip, "dir/file.txt") is "deflate", revZipDescribeItem(tZip, "dir/file.txt")
+      revZipSetItemAttributes tZip, "stored.txt", 3, 1234
+      revZipRenameItem tZip, "dir/file.txt", "renamed.txt"
+      revZipDeleteItem tZip, textDecode("caf" & numToByte(195) & numToByte(169) & ".txt", "UTF-8")
+      put "replaced" into tZipData
+      revZipReplaceItemWithData tZip, "stored.txt", "tZipData"
+      put revZipEnumerateItems(tZip) into tItems
+      check "revZip lists pending changes", tItems is ("renamed.txt" & return & "stored.txt" & return), tItems
+      revZipCloseArchive tZip
+      check "revZip updates an archive", the result is empty, the result
+      revZipOpenArchive tZip, "read"
+      revZipExtractItemToVariable tZip, "stored.txt", "tUnzipped"
+      check "revZip replaced item", tUnzipped is "replaced", tUnzipped
+      check "revZip attributes", revZipGetItemAttributes(tZip, "stored.txt") is "3,1234", revZipGetItemAttributes(tZip, "stored.txt")
+      put tTemp & "/oxt_smoke_test_out.txt" into tOutFile
+      revZipExtractItemToFile tZip, "renamed.txt", tOutFile
+      check "revZip extracts to a file", URL ("binfile:" & tOutFile) is URL ("binfile:" & tFile), the result
+      revZipCloseArchive tZip
+      check "revZip has no archives open", revZipOpenArchives() is empty, revZipOpenArchives()
+      if there is a file tOutFile then delete file tOutFile
+      if there is a file tFile then delete file tFile
       if there is a file tZip then delete file tZip
    catch tError
       check "no script error (revZip checks)", false, tError

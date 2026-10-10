@@ -1,11 +1,9 @@
 /*
-  $NiH: zip_add.c,v 1.14 2004/11/18 15:04:04 wiz Exp $
-
   zip_add.c -- add file via callback function
-  Copyright (C) 1999, 2003, 2004 Dieter Baron and Thomas Klausner
+  Copyright (C) 1999-2025 Dieter Baron and Thomas Klausner
 
   This file is part of libzip, a library to manipulate ZIP archives.
-  The authors can be contacted at <nih@giga.or.at>
+  The authors can be contacted at <info@libzip.org>
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -19,7 +17,7 @@
   3. The names of the authors may not be used to endorse or promote
      products derived from this software without specific prior
      written permission.
- 
+
   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,20 +31,19 @@
   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-
-#include "zip.h"
+/* LCOV_EXCL_START */
+#define _ZIP_COMPILING_DEPRECATED
 #include "zipint.h"
 
-
 
-int
-zip_add(struct zip *za, const char *name, struct zip_source *source)
-{
-    if (name == NULL || source == NULL) {
-	_zip_error_set(&za->error, ZIP_ER_INVAL, 0);
-	return -1;
-    }
-	
-    return _zip_replace(za, -1, name, source);
+/*
+  NOTE: Return type is signed so we can return -1 on error.
+        The index can not be larger than ZIP_INT64_MAX since the size
+        of the central directory cannot be larger than
+        ZIP_UINT64_MAX, and each entry is larger than 2 bytes.
+*/
+
+ZIP_EXTERN zip_int64_t zip_add(zip_t *za, const char *name, zip_source_t *source) {
+    return zip_file_add(za, name, source, 0);
 }
+/* LCOV_EXCL_STOP */

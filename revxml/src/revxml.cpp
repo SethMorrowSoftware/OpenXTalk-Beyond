@@ -2747,7 +2747,17 @@ void XML_xsltLoadStylesheet(char *args[], int nargs, char **retstring, Bool *pas
 			xmlDocPtr xmlDoc = xsltDocument->GetDocPtr();
 			if (NULL != xmlDoc)
 			{
-				cur = xsltParseStylesheetDoc(xmlDoc);
+				// The stylesheet owns the document it is made from and frees it
+				//   with itself, so give it a copy: the tree stays the caller's,
+				//   and deleting both (or revXMLDeleteAllTrees, or quitting) no
+				//   longer frees the same document twice.
+				xmlDocPtr t_copy = xmlCopyDoc(xmlDoc, 1);
+				if (NULL != t_copy)
+				{
+					cur = xsltParseStylesheetDoc(t_copy);
+					if (NULL == cur)
+						xmlFreeDoc(t_copy);
+				}
 				if (NULL != cur)
 				{
 					CXMLDocument *newdoc = new (nothrow) CXMLDocument(cur);

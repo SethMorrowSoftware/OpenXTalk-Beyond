@@ -140,6 +140,9 @@ versions LiveCode Community last shipped):
 | libpng | 1.6.59 (September 2026) | Current. Earlier releases had 1.6.26 (2016). |
 | giflib | 5.2.2 (February 2024) | The current release of the 5.x series, whose interface the engine uses. Earlier releases had 5.1.4 (2016). |
 | libjpeg (IJG) | 9f (January 2024) | Current. Earlier releases had 9b (2016). |
+| libxml2 | 2.15.4 | Current. Used by revXML. Earlier releases had 2.9.4 (2016). |
+| libxslt | 1.1.45 (November 2025) | Current. Used by revXML for XSLT. Earlier releases had 1.1.28 (2012). |
+| libzip | 1.12 (October 2026) | Current. Used by revZip. Earlier releases had a modified libzip 0.8 (about 2008). |
 | PCRE | 8.45 (June 2021) | The last release of PCRE 1, which is no longer maintained (its successor, PCRE2, has another interface); it has the fixes for the published vulnerabilities of PCRE 1. Earlier releases had 8.39 (2016). |
 
 These are still old and have publicly known vulnerabilities:
@@ -150,8 +153,8 @@ These are still old and have publicly known vulnerabilities:
 | MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. It speaks TLS 1.0 only, which OpenSSL 3 refuses, so its encrypted connections fail. |
 | libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
-Other libraries in `thirdparty/` (libxml2 2.9.4, libxslt, libzip,
-cairo 1.9.4 and others) are also several years old. SQLite was updated
+Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
+also several years old. SQLite was updated
 to 3.51.1.
 
 Upgrading these libraries is planned. Until then, treat the browser

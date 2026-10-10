@@ -1,11 +1,9 @@
 /*
-  $NiH: zip_error_get_sys_type.c,v 1.1 2004/12/22 15:49:18 wiz Exp $
-
   zip_error_get_sys_type.c -- return type of system error code
-  Copyright (C) 1999, 2003 Dieter Baron and Thomas Klausner
+  Copyright (C) 1999-2025 Dieter Baron and Thomas Klausner
 
   This file is part of libzip, a library to manipulate ZIP archives.
-  The authors can be contacted at <nih@giga.or.at>
+  The authors can be contacted at <info@libzip.org>
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -19,7 +17,7 @@
   3. The names of the authors may not be used to endorse or promote
      products derived from this software without specific prior
      written permission.
- 
+
   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,18 +31,16 @@
   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-
-#include "zip.h"
+/* LCOV_EXCL_START */
+#define _ZIP_COMPILING_DEPRECATED
 #include "zipint.h"
 
-
 
-int
-zip_error_get_sys_type(int ze)
-{
-    if (ze < 0 || ze >= _zip_nerr_str)
-	return 0;
+ZIP_EXTERN int zip_error_get_sys_type(int ze) {
+    if (ze < 0 || ze >= _zip_err_str_count) {
+        return 0;
+    }
 
-    return _zip_err_type[ze];
+    return _zip_err_str[ze].type;
 }
+/* LCOV_EXCL_STOP */

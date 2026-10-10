@@ -14,24 +14,6 @@
 
 #include <string.h>
 
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_MATH_H
-#include <math.h>
-#endif
-#ifdef HAVE_FLOAT_H
-#include <float.h>
-#endif
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-#ifdef HAVE_NAN_H
-#include <nan.h>
-#endif
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
-#endif
 #ifndef	XSLT_NEED_TRIO
 #include <stdio.h>
 #else
@@ -790,8 +772,10 @@ xsltCopyNamespaceList(xsltTransformContextPtr ctxt, xmlNodePtr node,
 	    /* TODO apply cascading */
 	    URI = (const xmlChar *) xmlHashLookup(ctxt->style->nsAliases,
 		                                  cur->href);
-	    if (URI == UNDEFINED_DEFAULT_NS)
+	    if (URI == UNDEFINED_DEFAULT_NS) {
+		cur = cur->next;
 	        continue;
+	    }
 	    if (URI != NULL) {
 		q = xmlNewNs(node, URI, cur->prefix);
 	    } else {

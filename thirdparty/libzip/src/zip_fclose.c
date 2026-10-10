@@ -1,11 +1,9 @@
 /*
-  $NiH: zip_fclose.c,v 1.14 2005/06/09 19:57:09 dillo Exp $
-
   zip_fclose.c -- close file in zip archive
-  Copyright (C) 1999, 2004, 2005 Dieter Baron and Thomas Klausner
+  Copyright (C) 1999-2025 Dieter Baron and Thomas Klausner
 
   This file is part of libzip, a library to manipulate ZIP archives.
-  The authors can be contacted at <nih@giga.or.at>
+  The authors can be contacted at <info@libzip.org>
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -19,7 +17,7 @@
   3. The names of the authors may not be used to endorse or promote
      products derived from this software without specific prior
      written permission.
- 
+
   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,42 +31,37 @@
   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 
 #include <stdlib.h>
 
-#include "zip.h"
 #include "zipint.h"
 
-
 
-int
-zip_fclose(struct zip_file *zf)
-{
-    int i, ret;
-    
-    if (zf->zstr)
-	inflateEnd(zf->zstr);
-    free(zf->buffer);
-    free(zf->zstr);
+ZIP_EXTERN int zip_fclose(zip_file_t *zf) {
+    int ret;
 
-    for (i=0; i<zf->za->nfile; i++) {
-	if (zf->za->file[i] == zf) {
-	    zf->za->file[i] = zf->za->file[zf->za->nfile-1];
-	    zf->za->nfile--;
-	    break;
-	}
+    if (zf == NULL) {
+        return ZIP_ER_INVAL;
+    }
+
+    if (zf->src) {
+        if (ZIP_SOURCE_IS_OPEN_READING(zf->src)) {
+            if (zip_source_close(zf->src) < 0) {
+                zip_error_set_from_source(&zf->error, zf->src);
+            }
+        }
+        zip_source_free(zf->src);
     }
 
     ret = 0;
-    if (zf->error.zip_err)
-	ret = zf->error.zip_err;
-    else if ((zf->flags & ZIP_ZF_CRC) && (zf->flags & ZIP_ZF_EOF)) {
-	/* if EOF, compare CRC */
-	if (zf->crc_orig != zf->crc)
-	    ret = ZIP_ER_CRC;
+    if (zf->error.zip_err) {
+        ret = zf->error.zip_err;
+        if (zip_error_system_type(&zf->error) == ZIP_ET_SYS) {
+            errno = zf->error.sys_err;
+        }
     }
 
+    zip_error_fini(&zf->error);
     free(zf);
     return ret;
 }

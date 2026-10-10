@@ -1126,6 +1126,12 @@
 				[
 					'../thirdparty/libxml/include',
 				],
+
+				# The archive holds a static library: no dllimport on Windows.
+				'defines':
+				[
+					'LIBXML_STATIC=1',
+				],
 			},
 
 			'link_settings':
@@ -1192,10 +1198,13 @@
 					],
 					[
 						'toolset_os == "win"',
-						{							
+						{
+							# libxml2 seeds its hash tables with
+							# BCryptGenRandom (since 2.12)
 							'libraries':
 							[
 								'-llibxml',
+								'-lbcrypt',
 							],
 						},
 					],
@@ -1227,6 +1236,14 @@
 				'include_dirs':
 				[
 					'../thirdparty/libxslt/include',
+				],
+
+				# The archive holds a static library: no dllimport on Windows.
+				'defines':
+				[
+					'LIBXML_STATIC=1',
+					'LIBXSLT_STATIC=1',
+					'LIBEXSLT_STATIC=1',
 				],
 			},
 
@@ -1684,9 +1701,12 @@
 					[
 						'toolset_os == "win"',
 						{							
+							# libzip 1.12 names its temporary files with
+							# CryptGenRandom (advapi32).
 							'libraries':
 							[
 								'-llibzip',
+								'-ladvapi32',
 							],
 						},
 					],

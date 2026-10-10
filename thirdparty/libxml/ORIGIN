@@ -1,3 +1,24 @@
-Files in this folder are based on libxml2-2.9.4
+Files in this folder are based on libxml2 2.15.4.
 
-Original source archives are available from <http://www.xmlsoft.org/>
+Original source: https://gitlab.gnome.org/GNOME/libxml2, tag v2.15.4.
+
+Only the library is kept: its sources (and libxml.h and timsort.h) in src/,
+the generated tables they include in src/codegen/, the private headers in
+src/include/private/ (where they find src/libxml.h), the public headers in
+include/libxml/, and Copyright and README.md in docs/. xmllint, xmlcatalog,
+the tests, the Python bindings and the build files are left out, and so
+are nanohttp.c (HTTP support was removed in 2.15) and xmlmodule.c (module
+loading is off).
+
+include/libxml/xmlversion.h is made from xmlversion.h.in with the features
+LiveCode's 2.9.4 build had, less HTTP, FTP and modules (removed or off);
+src/config.h is written for OXT-Beyond's build (gyp runs no configure
+step).
+
+One local change, from LiveCode (bug 7586): xmlSAX2StartElementNoNS in
+src/SAX2.c (declared in include/libxml/SAX2.h), used by revXML when
+namespace processing is off. It is xmlSAX2StartElement without splitting
+element and attribute names at their prefix. LiveCode's other changes to
+2.9.4 are not needed: revXML now parses through a SAX parser context with
+xmlCtxtReadMemory and xmlCtxtReadFile instead of the two parse functions
+LiveCode added, and the rest were fixes for old compilers.
