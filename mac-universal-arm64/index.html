@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDE screenshots: macOS arm64 (Apple silicon)</title>
+<style>
+:root { color-scheme: light dark; --bg: #f2f2f2; --fg: #1a1a1a; --muted: #5c5c5c;
+  --card: #ffffff; --line: #d0d0d0; --bad: #b3261e; --shot: #8a8a8a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1c1c1e; --fg: #ececec; --muted: #a8a8a8; --card: #2a2a2c;
+    --line: #444; --bad: #ff8a80; --shot: #5a5a5a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif; }
+header { position: sticky; top: 0; z-index: 1; background: var(--card);
+  border-bottom: 1px solid var(--line); padding: 10px 16px; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+.meta { color: var(--muted); font-size: 13px; }
+.bar { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bar button { font: inherit; padding: 3px 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); border-radius: 6px; cursor: pointer; }
+.bar button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.bar select { font: inherit; padding: 3px 6px; max-width: 100%; }
+main { padding: 12px 16px 40px; }
+.status { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 14px; }
+.status p { margin: 4px 0; }
+.bad { color: var(--bad); }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  margin: 0 0 14px; padding: 10px 12px; }
+section h2 { font-size: 15px; margin: 0 0 8px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+section h2 a { color: inherit; text-decoration: none; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+body.only-light .pair, body.only-dark .pair { grid-template-columns: 1fr; }
+body.only-light .dark, body.only-dark .light { display: none; }
+figure { margin: 0; min-width: 0; }
+figcaption { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.frame { background: var(--shot); padding: 6px; border-radius: 4px; text-align: center; }
+.frame img { max-width: 100%; height: auto; image-rendering: auto; vertical-align: middle; }
+.missing { color: var(--muted); font-style: italic; padding: 24px 6px; }
+@media (max-width: 700px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+<h1>IDE screenshots: macOS arm64 (Apple silicon)</h1>
+<div class="meta">2026-10-10 02:49 UTC · main · commit 8a7740e6 · <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/runs/38016316052">the run</a></div>
+<div class="bar">
+<button type="button" data-view="both" aria-pressed="true">Light and dark</button>
+<button type="button" data-view="light" aria-pressed="false">Light</button>
+<button type="button" data-view="dark" aria-pressed="false">Dark</button>
+<select id="jump" aria-label="Go to a snapshot"><option value="">Go to…</option><option value="#00-screen-start">00-screen-start</option><option value="#01-tools">01-tools</option><option value="#02-hover-tools">02-hover-tools</option><option value="#02-tooltip-tools">02-tooltip-tools</option><option value="#03-menubar">03-menubar</option><option value="#04-sample-stack">04-sample-stack</option><option value="#05-inspector-button-1-basic">05-inspector-button-1-basic</option><option value="#05-inspector-button-2-icons">05-inspector-button-2-icons</option><option value="#05-inspector-button-3-colors">05-inspector-button-3-colors</option><option value="#05-inspector-button-4-text">05-inspector-button-4-text</option><option value="#05-inspector-button-5-position">05-inspector-button-5-position</option><option value="#05-inspector-button-6-effects">05-inspector-button-6-effects</option><option value="#05-inspector-button-7-custom">05-inspector-button-7-custom</option><option value="#05-inspector-button-8-advanced">05-inspector-button-8-advanced</option><option value="#06-inspector-field-text">06-inspector-field-text</option><option value="#07-inspector-graphic-colors">07-inspector-graphic-colors</option><option value="#08-inspector-multiple-colors">08-inspector-multiple-colors</option><option value="#09-tooltip-inspector">09-tooltip-inspector</option><option value="#10-script-editor-search">10-script-editor-search</option><option value="#10-script-editor">10-script-editor</option><option value="#11-message-box">11-message-box</option><option value="#12-project-browser">12-project-browser</option><option value="#13-dictionary-text">13-dictionary-text</option><option value="#13-dictionary">13-dictionary</option><option value="#13-guides">13-guides</option><option value="#14-preferences-01-general">14-preferences-01-general</option><option value="#14-preferences-02-files-memory">14-preferences-02-files-memory</option><option value="#14-preferences-03-appearance">14-preferences-03-appearance</option><option value="#14-preferences-04-ui-tweaks">14-preferences-04-ui-tweaks</option><option value="#14-preferences-05-extras">14-preferences-05-extras</option><option value="#14-preferences-06-object-sizes">14-preferences-06-object-sizes</option><option value="#14-preferences-07-script-editor">14-preferences-07-script-editor</option><option value="#14-preferences-08-property-profiles">14-preferences-08-property-profiles</option><option value="#14-preferences-09-app-browser">14-preferences-09-app-browser</option><option value="#14-preferences-10-dictionary">14-preferences-10-dictionary</option><option value="#14-preferences-11-mobile-support">14-preferences-11-mobile-support</option><option value="#14-preferences-12-project-browser">14-preferences-12-project-browser</option><option value="#14-preferences-13-compatibility">14-preferences-13-compatibility</option><option value="#14-preferences-14-automatic-updates">14-preferences-14-automatic-updates</option><option value="#14-preferences-15-troubleshooting">14-preferences-15-troubleshooting</option><option value="#14-preferences-16-debug-properties">14-preferences-16-debug-properties</option><option value="#15-standalone-01-general">15-standalone-01-general</option><option value="#15-standalone-02-stacks">15-standalone-02-stacks</option><option value="#15-standalone-03-os-x">15-standalone-03-os-x</option><option value="#15-standalone-04-unix">15-standalone-04-unix</option><option value="#15-standalone-05-copy-files">15-standalone-05-copy-files</option><option value="#15-standalone-06-windows">15-standalone-06-windows</option><option value="#15-standalone-07-android">15-standalone-07-android</option><option value="#15-standalone-08-bug-reports">15-standalone-08-bug-reports</option><option value="#15-standalone-09-emscripten">15-standalone-09-emscripten</option><option value="#15-standalone-10-inclusions">15-standalone-10-inclusions</option><option value="#16-menu-builder">16-menu-builder</option><option value="#17-extension-manager">17-extension-manager</option><option value="#18-extension-builder">18-extension-builder</option><option value="#19-message-watcher">19-message-watcher</option><option value="#20-search">20-search</option><option value="#22-object-library">22-object-library</option><option value="#23-navigator">23-navigator</option><option value="#24-about">24-about</option><option value="#25-answer">25-answer</option><option value="#26-ask">26-ask</option><option value="#27-icon-chooser">27-icon-chooser</option><option value="#99-screen-end">99-screen-end</option></select>
+</div>
+</header>
+<main>
+<div class="status">
+<p>light: 63 snapshot(s), 33 step(s), every step done</p>
+<p>dark: 63 snapshot(s), 33 step(s), every step done</p>
+</div>
+<section id="00-screen-start">
+<h2><a href="#00-screen-start">00-screen-start</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/00-screen-start.png"><img src="light/shots/00-screen-start.png" alt="00-screen-start, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/00-screen-start.png"><img src="dark/shots/00-screen-start.png" alt="00-screen-start, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="01-tools">
+<h2><a href="#01-tools">01-tools</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/01-tools.png"><img src="light/shots/01-tools.png" alt="01-tools, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/01-tools.png"><img src="dark/shots/01-tools.png" alt="01-tools, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="02-hover-tools">
+<h2><a href="#02-hover-tools">02-hover-tools</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/02-hover-tools.png"><img src="light/shots/02-hover-tools.png" alt="02-hover-tools, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/02-hover-tools.png"><img src="dark/shots/02-hover-tools.png" alt="02-hover-tools, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="02-tooltip-tools">
+<h2><a href="#02-tooltip-tools">02-tooltip-tools</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/02-tooltip-tools.png"><img src="light/shots/02-tooltip-tools.png" alt="02-tooltip-tools, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/02-tooltip-tools.png"><img src="dark/shots/02-tooltip-tools.png" alt="02-tooltip-tools, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="03-menubar">
+<h2><a href="#03-menubar">03-menubar</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/03-menubar.png"><img src="light/shots/03-menubar.png" alt="03-menubar, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/03-menubar.png"><img src="dark/shots/03-menubar.png" alt="03-menubar, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="04-sample-stack">
+<h2><a href="#04-sample-stack">04-sample-stack</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/04-sample-stack.png"><img src="light/shots/04-sample-stack.png" alt="04-sample-stack, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/04-sample-stack.png"><img src="dark/shots/04-sample-stack.png" alt="04-sample-stack, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-1-basic">
+<h2><a href="#05-inspector-button-1-basic">05-inspector-button-1-basic</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-1-basic.png"><img src="light/shots/05-inspector-button-1-basic.png" alt="05-inspector-button-1-basic, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-1-basic.png"><img src="dark/shots/05-inspector-button-1-basic.png" alt="05-inspector-button-1-basic, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-2-icons">
+<h2><a href="#05-inspector-button-2-icons">05-inspector-button-2-icons</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-2-icons.png"><img src="light/shots/05-inspector-button-2-icons.png" alt="05-inspector-button-2-icons, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-2-icons.png"><img src="dark/shots/05-inspector-button-2-icons.png" alt="05-inspector-button-2-icons, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-3-colors">
+<h2><a href="#05-inspector-button-3-colors">05-inspector-button-3-colors</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-3-colors.png"><img src="light/shots/05-inspector-button-3-colors.png" alt="05-inspector-button-3-colors, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-3-colors.png"><img src="dark/shots/05-inspector-button-3-colors.png" alt="05-inspector-button-3-colors, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-4-text">
+<h2><a href="#05-inspector-button-4-text">05-inspector-button-4-text</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-4-text.png"><img src="light/shots/05-inspector-button-4-text.png" alt="05-inspector-button-4-text, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-4-text.png"><img src="dark/shots/05-inspector-button-4-text.png" alt="05-inspector-button-4-text, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-5-position">
+<h2><a href="#05-inspector-button-5-position">05-inspector-button-5-position</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-5-position.png"><img src="light/shots/05-inspector-button-5-position.png" alt="05-inspector-button-5-position, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-5-position.png"><img src="dark/shots/05-inspector-button-5-position.png" alt="05-inspector-button-5-position, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-6-effects">
+<h2><a href="#05-inspector-button-6-effects">05-inspector-button-6-effects</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-6-effects.png"><img src="light/shots/05-inspector-button-6-effects.png" alt="05-inspector-button-6-effects, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-6-effects.png"><img src="dark/shots/05-inspector-button-6-effects.png" alt="05-inspector-button-6-effects, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-7-custom">
+<h2><a href="#05-inspector-button-7-custom">05-inspector-button-7-custom</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-7-custom.png"><img src="light/shots/05-inspector-button-7-custom.png" alt="05-inspector-button-7-custom, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-7-custom.png"><img src="dark/shots/05-inspector-button-7-custom.png" alt="05-inspector-button-7-custom, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="05-inspector-button-8-advanced">
+<h2><a href="#05-inspector-button-8-advanced">05-inspector-button-8-advanced</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/05-inspector-button-8-advanced.png"><img src="light/shots/05-inspector-button-8-advanced.png" alt="05-inspector-button-8-advanced, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/05-inspector-button-8-advanced.png"><img src="dark/shots/05-inspector-button-8-advanced.png" alt="05-inspector-button-8-advanced, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="06-inspector-field-text">
+<h2><a href="#06-inspector-field-text">06-inspector-field-text</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/06-inspector-field-text.png"><img src="light/shots/06-inspector-field-text.png" alt="06-inspector-field-text, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/06-inspector-field-text.png"><img src="dark/shots/06-inspector-field-text.png" alt="06-inspector-field-text, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="07-inspector-graphic-colors">
+<h2><a href="#07-inspector-graphic-colors">07-inspector-graphic-colors</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/07-inspector-graphic-colors.png"><img src="light/shots/07-inspector-graphic-colors.png" alt="07-inspector-graphic-colors, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/07-inspector-graphic-colors.png"><img src="dark/shots/07-inspector-graphic-colors.png" alt="07-inspector-graphic-colors, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="08-inspector-multiple-colors">
+<h2><a href="#08-inspector-multiple-colors">08-inspector-multiple-colors</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/08-inspector-multiple-colors.png"><img src="light/shots/08-inspector-multiple-colors.png" alt="08-inspector-multiple-colors, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/08-inspector-multiple-colors.png"><img src="dark/shots/08-inspector-multiple-colors.png" alt="08-inspector-multiple-colors, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="09-tooltip-inspector">
+<h2><a href="#09-tooltip-inspector">09-tooltip-inspector</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/09-tooltip-inspector.png"><img src="light/shots/09-tooltip-inspector.png" alt="09-tooltip-inspector, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/09-tooltip-inspector.png"><img src="dark/shots/09-tooltip-inspector.png" alt="09-tooltip-inspector, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="10-script-editor-search">
+<h2><a href="#10-script-editor-search">10-script-editor-search</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/10-script-editor-search.png"><img src="light/shots/10-script-editor-search.png" alt="10-script-editor-search, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/10-script-editor-search.png"><img src="dark/shots/10-script-editor-search.png" alt="10-script-editor-search, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="10-script-editor">
+<h2><a href="#10-script-editor">10-script-editor</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/10-script-editor.png"><img src="light/shots/10-script-editor.png" alt="10-script-editor, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/10-script-editor.png"><img src="dark/shots/10-script-editor.png" alt="10-script-editor, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="11-message-box">
+<h2><a href="#11-message-box">11-message-box</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/11-message-box.png"><img src="light/shots/11-message-box.png" alt="11-message-box, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/11-message-box.png"><img src="dark/shots/11-message-box.png" alt="11-message-box, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="12-project-browser">
+<h2><a href="#12-project-browser">12-project-browser</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/12-project-browser.png"><img src="light/shots/12-project-browser.png" alt="12-project-browser, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/12-project-browser.png"><img src="dark/shots/12-project-browser.png" alt="12-project-browser, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="13-dictionary-text">
+<h2><a href="#13-dictionary-text">13-dictionary-text</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/13-dictionary-text.png"><img src="light/shots/13-dictionary-text.png" alt="13-dictionary-text, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/13-dictionary-text.png"><img src="dark/shots/13-dictionary-text.png" alt="13-dictionary-text, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="13-dictionary">
+<h2><a href="#13-dictionary">13-dictionary</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/13-dictionary.png"><img src="light/shots/13-dictionary.png" alt="13-dictionary, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/13-dictionary.png"><img src="dark/shots/13-dictionary.png" alt="13-dictionary, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="13-guides">
+<h2><a href="#13-guides">13-guides</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/13-guides.png"><img src="light/shots/13-guides.png" alt="13-guides, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/13-guides.png"><img src="dark/shots/13-guides.png" alt="13-guides, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-01-general">
+<h2><a href="#14-preferences-01-general">14-preferences-01-general</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-01-general.png"><img src="light/shots/14-preferences-01-general.png" alt="14-preferences-01-general, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-01-general.png"><img src="dark/shots/14-preferences-01-general.png" alt="14-preferences-01-general, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-02-files-memory">
+<h2><a href="#14-preferences-02-files-memory">14-preferences-02-files-memory</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-02-files-memory.png"><img src="light/shots/14-preferences-02-files-memory.png" alt="14-preferences-02-files-memory, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-02-files-memory.png"><img src="dark/shots/14-preferences-02-files-memory.png" alt="14-preferences-02-files-memory, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-03-appearance">
+<h2><a href="#14-preferences-03-appearance">14-preferences-03-appearance</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-03-appearance.png"><img src="light/shots/14-preferences-03-appearance.png" alt="14-preferences-03-appearance, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-03-appearance.png"><img src="dark/shots/14-preferences-03-appearance.png" alt="14-preferences-03-appearance, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-04-ui-tweaks">
+<h2><a href="#14-preferences-04-ui-tweaks">14-preferences-04-ui-tweaks</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-04-ui-tweaks.png"><img src="light/shots/14-preferences-04-ui-tweaks.png" alt="14-preferences-04-ui-tweaks, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-04-ui-tweaks.png"><img src="dark/shots/14-preferences-04-ui-tweaks.png" alt="14-preferences-04-ui-tweaks, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-05-extras">
+<h2><a href="#14-preferences-05-extras">14-preferences-05-extras</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-05-extras.png"><img src="light/shots/14-preferences-05-extras.png" alt="14-preferences-05-extras, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-05-extras.png"><img src="dark/shots/14-preferences-05-extras.png" alt="14-preferences-05-extras, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-06-object-sizes">
+<h2><a href="#14-preferences-06-object-sizes">14-preferences-06-object-sizes</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-06-object-sizes.png"><img src="light/shots/14-preferences-06-object-sizes.png" alt="14-preferences-06-object-sizes, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-06-object-sizes.png"><img src="dark/shots/14-preferences-06-object-sizes.png" alt="14-preferences-06-object-sizes, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-07-script-editor">
+<h2><a href="#14-preferences-07-script-editor">14-preferences-07-script-editor</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-07-script-editor.png"><img src="light/shots/14-preferences-07-script-editor.png" alt="14-preferences-07-script-editor, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-07-script-editor.png"><img src="dark/shots/14-preferences-07-script-editor.png" alt="14-preferences-07-script-editor, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-08-property-profiles">
+<h2><a href="#14-preferences-08-property-profiles">14-preferences-08-property-profiles</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-08-property-profiles.png"><img src="light/shots/14-preferences-08-property-profiles.png" alt="14-preferences-08-property-profiles, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-08-property-profiles.png"><img src="dark/shots/14-preferences-08-property-profiles.png" alt="14-preferences-08-property-profiles, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-09-app-browser">
+<h2><a href="#14-preferences-09-app-browser">14-preferences-09-app-browser</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-09-app-browser.png"><img src="light/shots/14-preferences-09-app-browser.png" alt="14-preferences-09-app-browser, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-09-app-browser.png"><img src="dark/shots/14-preferences-09-app-browser.png" alt="14-preferences-09-app-browser, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-10-dictionary">
+<h2><a href="#14-preferences-10-dictionary">14-preferences-10-dictionary</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-10-dictionary.png"><img src="light/shots/14-preferences-10-dictionary.png" alt="14-preferences-10-dictionary, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-10-dictionary.png"><img src="dark/shots/14-preferences-10-dictionary.png" alt="14-preferences-10-dictionary, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-11-mobile-support">
+<h2><a href="#14-preferences-11-mobile-support">14-preferences-11-mobile-support</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-11-mobile-support.png"><img src="light/shots/14-preferences-11-mobile-support.png" alt="14-preferences-11-mobile-support, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-11-mobile-support.png"><img src="dark/shots/14-preferences-11-mobile-support.png" alt="14-preferences-11-mobile-support, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-12-project-browser">
+<h2><a href="#14-preferences-12-project-browser">14-preferences-12-project-browser</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-12-project-browser.png"><img src="light/shots/14-preferences-12-project-browser.png" alt="14-preferences-12-project-browser, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-12-project-browser.png"><img src="dark/shots/14-preferences-12-project-browser.png" alt="14-preferences-12-project-browser, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-13-compatibility">
+<h2><a href="#14-preferences-13-compatibility">14-preferences-13-compatibility</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-13-compatibility.png"><img src="light/shots/14-preferences-13-compatibility.png" alt="14-preferences-13-compatibility, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-13-compatibility.png"><img src="dark/shots/14-preferences-13-compatibility.png" alt="14-preferences-13-compatibility, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-14-automatic-updates">
+<h2><a href="#14-preferences-14-automatic-updates">14-preferences-14-automatic-updates</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-14-automatic-updates.png"><img src="light/shots/14-preferences-14-automatic-updates.png" alt="14-preferences-14-automatic-updates, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-14-automatic-updates.png"><img src="dark/shots/14-preferences-14-automatic-updates.png" alt="14-preferences-14-automatic-updates, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-15-troubleshooting">
+<h2><a href="#14-preferences-15-troubleshooting">14-preferences-15-troubleshooting</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-15-troubleshooting.png"><img src="light/shots/14-preferences-15-troubleshooting.png" alt="14-preferences-15-troubleshooting, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-15-troubleshooting.png"><img src="dark/shots/14-preferences-15-troubleshooting.png" alt="14-preferences-15-troubleshooting, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="14-preferences-16-debug-properties">
+<h2><a href="#14-preferences-16-debug-properties">14-preferences-16-debug-properties</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/14-preferences-16-debug-properties.png"><img src="light/shots/14-preferences-16-debug-properties.png" alt="14-preferences-16-debug-properties, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/14-preferences-16-debug-properties.png"><img src="dark/shots/14-preferences-16-debug-properties.png" alt="14-preferences-16-debug-properties, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-01-general">
+<h2><a href="#15-standalone-01-general">15-standalone-01-general</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-01-general.png"><img src="light/shots/15-standalone-01-general.png" alt="15-standalone-01-general, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-01-general.png"><img src="dark/shots/15-standalone-01-general.png" alt="15-standalone-01-general, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-02-stacks">
+<h2><a href="#15-standalone-02-stacks">15-standalone-02-stacks</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-02-stacks.png"><img src="light/shots/15-standalone-02-stacks.png" alt="15-standalone-02-stacks, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-02-stacks.png"><img src="dark/shots/15-standalone-02-stacks.png" alt="15-standalone-02-stacks, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-03-os-x">
+<h2><a href="#15-standalone-03-os-x">15-standalone-03-os-x</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-03-os-x.png"><img src="light/shots/15-standalone-03-os-x.png" alt="15-standalone-03-os-x, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-03-os-x.png"><img src="dark/shots/15-standalone-03-os-x.png" alt="15-standalone-03-os-x, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-04-unix">
+<h2><a href="#15-standalone-04-unix">15-standalone-04-unix</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-04-unix.png"><img src="light/shots/15-standalone-04-unix.png" alt="15-standalone-04-unix, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-04-unix.png"><img src="dark/shots/15-standalone-04-unix.png" alt="15-standalone-04-unix, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-05-copy-files">
+<h2><a href="#15-standalone-05-copy-files">15-standalone-05-copy-files</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-05-copy-files.png"><img src="light/shots/15-standalone-05-copy-files.png" alt="15-standalone-05-copy-files, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-05-copy-files.png"><img src="dark/shots/15-standalone-05-copy-files.png" alt="15-standalone-05-copy-files, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-06-windows">
+<h2><a href="#15-standalone-06-windows">15-standalone-06-windows</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-06-windows.png"><img src="light/shots/15-standalone-06-windows.png" alt="15-standalone-06-windows, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-06-windows.png"><img src="dark/shots/15-standalone-06-windows.png" alt="15-standalone-06-windows, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-07-android">
+<h2><a href="#15-standalone-07-android">15-standalone-07-android</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-07-android.png"><img src="light/shots/15-standalone-07-android.png" alt="15-standalone-07-android, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-07-android.png"><img src="dark/shots/15-standalone-07-android.png" alt="15-standalone-07-android, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-08-bug-reports">
+<h2><a href="#15-standalone-08-bug-reports">15-standalone-08-bug-reports</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-08-bug-reports.png"><img src="light/shots/15-standalone-08-bug-reports.png" alt="15-standalone-08-bug-reports, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-08-bug-reports.png"><img src="dark/shots/15-standalone-08-bug-reports.png" alt="15-standalone-08-bug-reports, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-09-emscripten">
+<h2><a href="#15-standalone-09-emscripten">15-standalone-09-emscripten</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-09-emscripten.png"><img src="light/shots/15-standalone-09-emscripten.png" alt="15-standalone-09-emscripten, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-09-emscripten.png"><img src="dark/shots/15-standalone-09-emscripten.png" alt="15-standalone-09-emscripten, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="15-standalone-10-inclusions">
+<h2><a href="#15-standalone-10-inclusions">15-standalone-10-inclusions</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/15-standalone-10-inclusions.png"><img src="light/shots/15-standalone-10-inclusions.png" alt="15-standalone-10-inclusions, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/15-standalone-10-inclusions.png"><img src="dark/shots/15-standalone-10-inclusions.png" alt="15-standalone-10-inclusions, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="16-menu-builder">
+<h2><a href="#16-menu-builder">16-menu-builder</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/16-menu-builder.png"><img src="light/shots/16-menu-builder.png" alt="16-menu-builder, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/16-menu-builder.png"><img src="dark/shots/16-menu-builder.png" alt="16-menu-builder, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="17-extension-manager">
+<h2><a href="#17-extension-manager">17-extension-manager</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/17-extension-manager.png"><img src="light/shots/17-extension-manager.png" alt="17-extension-manager, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/17-extension-manager.png"><img src="dark/shots/17-extension-manager.png" alt="17-extension-manager, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="18-extension-builder">
+<h2><a href="#18-extension-builder">18-extension-builder</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/18-extension-builder.png"><img src="light/shots/18-extension-builder.png" alt="18-extension-builder, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/18-extension-builder.png"><img src="dark/shots/18-extension-builder.png" alt="18-extension-builder, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="19-message-watcher">
+<h2><a href="#19-message-watcher">19-message-watcher</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/19-message-watcher.png"><img src="light/shots/19-message-watcher.png" alt="19-message-watcher, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/19-message-watcher.png"><img src="dark/shots/19-message-watcher.png" alt="19-message-watcher, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="20-search">
+<h2><a href="#20-search">20-search</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/20-search.png"><img src="light/shots/20-search.png" alt="20-search, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/20-search.png"><img src="dark/shots/20-search.png" alt="20-search, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="22-object-library">
+<h2><a href="#22-object-library">22-object-library</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/22-object-library.png"><img src="light/shots/22-object-library.png" alt="22-object-library, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/22-object-library.png"><img src="dark/shots/22-object-library.png" alt="22-object-library, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="23-navigator">
+<h2><a href="#23-navigator">23-navigator</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/23-navigator.png"><img src="light/shots/23-navigator.png" alt="23-navigator, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/23-navigator.png"><img src="dark/shots/23-navigator.png" alt="23-navigator, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="24-about">
+<h2><a href="#24-about">24-about</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/24-about.png"><img src="light/shots/24-about.png" alt="24-about, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/24-about.png"><img src="dark/shots/24-about.png" alt="24-about, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="25-answer">
+<h2><a href="#25-answer">25-answer</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/25-answer.png"><img src="light/shots/25-answer.png" alt="25-answer, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/25-answer.png"><img src="dark/shots/25-answer.png" alt="25-answer, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="26-ask">
+<h2><a href="#26-ask">26-ask</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/26-ask.png"><img src="light/shots/26-ask.png" alt="26-ask, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/26-ask.png"><img src="dark/shots/26-ask.png" alt="26-ask, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="27-icon-chooser">
+<h2><a href="#27-icon-chooser">27-icon-chooser</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/27-icon-chooser.png"><img src="light/shots/27-icon-chooser.png" alt="27-icon-chooser, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/27-icon-chooser.png"><img src="dark/shots/27-icon-chooser.png" alt="27-icon-chooser, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+<section id="99-screen-end">
+<h2><a href="#99-screen-end">99-screen-end</a></h2>
+<div class="pair">
+<figure class="light"><figcaption>light</figcaption>
+<div class="frame"><a href="light/shots/99-screen-end.png"><img src="light/shots/99-screen-end.png" alt="99-screen-end, light" loading="lazy"></a></div>
+</figure>
+<figure class="dark"><figcaption>dark</figcaption>
+<div class="frame"><a href="dark/shots/99-screen-end.png"><img src="dark/shots/99-screen-end.png" alt="99-screen-end, dark" loading="lazy"></a></div>
+</figure>
+</div>
+</section>
+</main>
+<script>
+(function () {
+  var buttons = document.querySelectorAll('.bar button[data-view]');
+  function show(view) {
+    document.body.className = view === 'both' ? '' : 'only-' + view;
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
+    try { localStorage.setItem('oxt-shots-view', view); } catch (e) {}
+  }
+  buttons.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.view); }); });
+  var saved = null;
+  try { saved = localStorage.getItem('oxt-shots-view'); } catch (e) {}
+  show(saved === 'light' || saved === 'dark' ? saved : 'both');
+  var jump = document.getElementById('jump');
+  if (jump) jump.addEventListener('change', function () { if (jump.value) location.hash = jump.value; });
+})();
+</script>
+</body>
+</html>
