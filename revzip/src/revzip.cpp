@@ -49,9 +49,40 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <unistd.h>
 #endif
 
+#include <new>
+#include <set>
+
 #define REVZIP_READ_BUFFER_SIZE 8192
 
-typedef std::map<std::string, struct zip *> zipmap_t;
+// libzip 1.12 has no per-item progress callback (LiveCode's old modified copy
+// of libzip 0.8 had one, called from inside zip_fread and zip_close). revZip
+// now reports the same messages itself: unpacking from its own read loops, and
+// packing from a layer over every source it adds, which sees each block that
+// zip_close reads.
+struct RevZipArchive;
+
+struct RevZipProgressSource
+{
+	RevZipArchive *archive;
+	zip_source_t *source;
+	zip_int64_t index;
+	zip_uint64_t progress;
+	bool cancelled;
+};
+
+struct RevZipArchive
+{
+	zip_t *archive;
+	std::string path;
+	// The layers over the sources this archive will write at close: each
+	// removes itself when libzip frees it (on delete, a later replace, or
+	// close), so the set is exactly the items still to be packed.
+	std::set<RevZipProgressSource *> sources;
+	zip_uint64_t global_progress;
+	zip_uint64_t global_total;
+};
+
+typedef std::map<std::string, RevZipArchive *> zipmap_t;
 typedef zipmap_t::iterator zipmap_iterator_t;
 typedef zipmap_t::const_iterator zipmap_const_iterator_t;
 
@@ -74,65 +105,277 @@ char *utilityProcessPath(const char *p_path)
     return t_resolved_path;
 }
 
+static RevZipArchive *find_archive_by_name(const char *p_name)
+{
+	zipmap_const_iterator_t t_it = s_zip_container.find(p_name);
+	if (t_it == s_zip_container.end())
+		return NULL;
+
+	return t_it->second;
+}
+
 /*
  Searches for zip* in the container.
  Returns the pointer if successfully, the NULL - if not has found.
 */
 struct zip *find_zip_by_name(const char* p_name)
 {
-	struct zip *t_result;
-	t_result = NULL;
-
-	zipmap_const_iterator_t t_it = s_zip_container.find(p_name);
-	if( t_it != s_zip_container.end() )
-		t_result = t_it->second;
-
-	return t_result;
+	RevZipArchive *t_archive;
+	t_archive = find_archive_by_name(p_name);
+	return t_archive != NULL ? t_archive->archive : NULL;
 }
 
 void* imemdup(const void *p_sptr, size_t p_size)
 {
   void *t_dptr;
-  t_dptr = malloc(p_size);
-  memcpy(t_dptr, p_sptr, p_size);
+  // malloc(0) may return NULL, which zip_source_buffer would then refuse.
+  t_dptr = malloc(p_size != 0 ? p_size : 1);
+  if (t_dptr != NULL)
+	  memcpy(t_dptr, p_sptr, p_size);
   return t_dptr;
 }
 
+// The libzip message for an error code from zip_open (zip_error_to_str is
+// deprecated in libzip 1.x).
+static std::string zip_open_error_string(int p_error)
+{
+	zip_error_t t_error;
+	zip_error_init_with_code(&t_error, p_error);
+	std::string t_string(zip_error_strerror(&t_error));
+	zip_error_fini(&t_error);
+	return t_string;
+}
 
-int zip_progress_callback(void *p_context, struct zip *p_archive, const char *p_item, 
-						   int p_type, unsigned long p_item_progress, unsigned long p_item_total, 
-						   unsigned long p_global_progress, unsigned long p_global_total)
+// Sends the progress callback message, if one is set. p_type is 0 for
+// unpacking and 1 for packing. Returns false if the operation was cancelled.
+static bool revzip_progress_message(const char *p_archive_path, const char *p_item,
+								  int p_type, zip_uint64_t p_item_progress, zip_uint64_t p_item_total,
+								  zip_uint64_t p_global_progress, zip_uint64_t p_global_total)
 {
 	if (s_progress_callback == NULL)
-		return 0;
+		return true;
 
 	if (s_operation_cancelled)
-		return 1;
+		return false;
 
-	char t_message[1024];
+	// SN-2014-11-17: [[ Bug 14032 ]] The path is kept in UTF-8
+	std::ostringstream t_message;
+	t_message << s_progress_callback << " \"" << p_archive_path << "\", \""
+			  << (p_item != NULL ? p_item : "") << "\", \""
+			  << (p_type == 0 ? "unpacking" : "packing") << "\", "
+			  << p_item_progress << ", " << p_item_total << ", "
+			  << p_global_progress << ", " << p_global_total;
+
+	// SN-2014-11-17: [[ Bug 14032 ]] The name of the callback, and the path, are UTF-8 encoded
 	int t_return_value;
+	SendCardMessageUTF8(t_message.str().c_str(), &t_return_value);
 
-    // SN-2014-11-17: [[ Bug 14032 ]] The path is kept in UTF-8
-    char *t_path;
-	t_path = strdup(zip_get_path(p_archive));
-	
-	sprintf(t_message, "%s \"%s\", \"%s\", \"%s\", %lu, %lu, %lu, %lu",
-			  	s_progress_callback,
-					t_path, p_item,
-					p_type == 0 ? "unpacking" : "packing",
-					p_item_progress, p_item_total, 
-					p_global_progress, p_global_total);
-	
-	if (t_path != NULL)
-		free(t_path);
-	
-    // SN-2014-11-17: [[ Bug 14032 ]] The name of the callback, and the path, are UTF-8 encoded
-	SendCardMessageUTF8(t_message, &t_return_value);
-	
-	if (s_operation_cancelled)
-		return 1;
-	
-	return 0;
+	return !s_operation_cancelled;
+}
+
+static zip_uint64_t revzip_source_size(zip_source_t *p_source)
+{
+	zip_stat_t t_stat;
+	zip_stat_init(&t_stat);
+	if (zip_source_stat(p_source, &t_stat) != 0 || (t_stat.valid & ZIP_STAT_SIZE) == 0)
+		return 0;
+	return t_stat.size;
+}
+
+// Reports the packing progress of one item, as the old libzip did from
+// zip_close: once with no progress when the item is opened, then after every
+// block read from it.
+static bool revzip_report_packing(RevZipProgressSource *p_context)
+{
+	RevZipArchive *t_archive;
+	t_archive = p_context->archive;
+
+	const char *t_name;
+	t_name = zip_get_name(t_archive->archive, p_context->index, 0);
+
+	return revzip_progress_message(t_archive->path.c_str(), t_name, 1,
+								 p_context->progress, revzip_source_size(p_context->source),
+								 t_archive->global_progress, t_archive->global_total);
+}
+
+static zip_int64_t revzip_progress_layer(zip_source_t *p_lower, void *p_context, void *p_data, zip_uint64_t p_length, zip_source_cmd_t p_command)
+{
+	RevZipProgressSource *t_context;
+	t_context = (RevZipProgressSource *)p_context;
+
+	switch (p_command)
+	{
+		case ZIP_SOURCE_OPEN:
+			t_context->progress = 0;
+			t_context->cancelled = false;
+			if (t_context->archive != NULL && !revzip_report_packing(t_context))
+			{
+				t_context->cancelled = true;
+				return -1;
+			}
+			return 0;
+
+		case ZIP_SOURCE_READ:
+		{
+			zip_int64_t t_read;
+			t_read = zip_source_pass_to_lower_layer(p_lower, p_data, p_length, p_command);
+			if (t_read > 0 && t_context->archive != NULL)
+			{
+				t_context->progress += t_read;
+				t_context->archive->global_progress += t_read;
+				if (!revzip_report_packing(t_context))
+				{
+					t_context->cancelled = true;
+					return -1;
+				}
+			}
+			return t_read;
+		}
+
+		case ZIP_SOURCE_ERROR:
+			if (t_context->cancelled)
+			{
+				zip_error_t t_error;
+				zip_error_init_with_code(&t_error, ZIP_ER_CANCELLED);
+				zip_int64_t t_result;
+				t_result = zip_error_to_data(&t_error, p_data, p_length);
+				zip_error_fini(&t_error);
+				return t_result;
+			}
+			return zip_source_pass_to_lower_layer(p_lower, p_data, p_length, p_command);
+
+		case ZIP_SOURCE_FREE:
+			if (t_context->archive != NULL)
+				t_context->archive->sources.erase(t_context);
+			delete t_context;
+			return 0;
+
+		default:
+			return zip_source_pass_to_lower_layer(p_lower, p_data, p_length, p_command);
+	}
+}
+
+// Puts the progress layer over p_source. On success the layer owns p_source;
+// on failure p_source is freed. The layer reports nothing until
+// revzip_attach_source gives it its archive and index.
+static zip_source_t *revzip_progress_source(RevZipArchive *p_archive, zip_source_t *p_source, RevZipProgressSource **r_context)
+{
+	if (p_source == NULL)
+		return NULL;
+
+	RevZipProgressSource *t_context;
+	t_context = new (std::nothrow) RevZipProgressSource;
+	if (t_context == NULL)
+	{
+		zip_source_free(p_source);
+		return NULL;
+	}
+
+	t_context->archive = NULL;
+	t_context->source = NULL;
+	t_context->index = -1;
+	t_context->progress = 0;
+	t_context->cancelled = false;
+
+	zip_source_t *t_layer;
+	t_layer = zip_source_layered(p_archive->archive, p_source, revzip_progress_layer, t_context);
+	if (t_layer == NULL)
+	{
+		delete t_context;
+		zip_source_free(p_source);
+		return NULL;
+	}
+
+	t_context->source = t_layer;
+	*r_context = t_context;
+	return t_layer;
+}
+
+// Once the item has an index, the layer reports its progress at close.
+static void revzip_attach_source(RevZipArchive *p_archive, RevZipProgressSource *p_context, zip_int64_t p_index)
+{
+	p_context->archive = p_archive;
+	p_context->index = p_index;
+	p_archive->sources.insert(p_context);
+}
+
+// A source that reads the file at p_path when the archive is closed. libzip
+// 1.x accepts a file that does not exist (it is how a new archive is made),
+// so a missing file is refused here, as the old libzip did when the item was
+// added rather than failing the whole close.
+static zip_source_t *revzip_file_source(zip_t *p_archive, const char *p_path)
+{
+	zip_source_t *t_source;
+	t_source = zip_source_file(p_archive, p_path, 0, ZIP_LENGTH_TO_END);
+	if (t_source == NULL)
+		return NULL;
+
+	zip_stat_t t_stat;
+	zip_stat_init(&t_stat);
+	if (zip_source_stat(t_source, &t_stat) != 0 || (t_stat.valid & ZIP_STAT_SIZE) == 0)
+	{
+		zip_source_free(t_source);
+		zip_error_set(zip_get_error(p_archive), ZIP_ER_NOENT, 0);
+		return NULL;
+	}
+
+	return t_source;
+}
+
+// Adds an item from p_source (which may be NULL, when making it failed),
+// wrapped in the progress layer. Sets r_result to the error on failure.
+static void revzip_add_source(RevZipArchive *p_archive, const char *p_name, zip_source_t *p_source, bool p_compressed, char *&r_result)
+{
+	RevZipProgressSource *t_context;
+	t_context = NULL;
+
+	zip_source_t *t_layer;
+	t_layer = revzip_progress_source(p_archive, p_source, &t_context);
+
+	zip_int64_t t_index;
+	t_index = -1;
+	if (t_layer != NULL)
+	{
+		// The name is UTF-8, as the old copy of libzip always marked it.
+		t_index = zip_file_add(p_archive->archive, p_name, t_layer, ZIP_FL_ENC_GUESS);
+		if (t_index < 0)
+			zip_source_free(t_layer);
+	}
+
+	if (t_index < 0)
+	{
+		std::string t_outerr = "ziperr," + std::string((zip_strerror(p_archive->archive)));
+		r_result = strdup(t_outerr.c_str());
+		return;
+	}
+
+	revzip_attach_source(p_archive, t_context, t_index);
+
+	if (!p_compressed)
+		zip_set_file_compression(p_archive->archive, t_index, ZIP_CM_STORE, 0);
+}
+
+// Replaces item p_index with p_source (which may be NULL, when making it
+// failed), wrapped in the progress layer. Sets r_result to the error on
+// failure.
+static void revzip_replace_source(RevZipArchive *p_archive, zip_int64_t p_index, zip_source_t *p_source, char *&r_result)
+{
+	RevZipProgressSource *t_context;
+	t_context = NULL;
+
+	zip_source_t *t_layer;
+	t_layer = revzip_progress_source(p_archive, p_source, &t_context);
+
+	if (t_layer == NULL || zip_file_replace(p_archive->archive, p_index, t_layer, 0) < 0)
+	{
+		if (t_layer != NULL)
+			zip_source_free(t_layer);
+		std::string t_outerr = "ziperr," + std::string((zip_strerror(p_archive->archive)));
+		r_result = strdup(t_outerr.c_str());
+		return;
+	}
+
+	revzip_attach_source(p_archive, t_context, p_index);
 }
 
 void revZipOpenArchive(char *p_arguments[], int p_argument_count, char **r_result, Bool *r_pass, Bool *r_err)
@@ -169,7 +412,6 @@ void revZipOpenArchive(char *p_arguments[], int p_argument_count, char **r_resul
 
 	struct zip *t_archive = NULL;
 	int t_err;
-	char t_errstr[1024]; 
 
 	if (t_result == NULL)
 	{
@@ -187,16 +429,37 @@ void revZipOpenArchive(char *p_arguments[], int p_argument_count, char **r_resul
 		}
 		else
 		{
+			RevZipArchive *t_record;
+			t_record = NULL;
 			if((t_archive = zip_open(t_path, t_openflag, &t_err)) == NULL) 
 			{
-				zip_error_to_str(t_errstr, sizeof(t_errstr), t_err, errno);
-				std::string t_outerr = "ziperr," + std::string(t_errstr);
+				std::string t_outerr = "ziperr," + zip_open_error_string(t_err);
 				t_result = strdup(t_outerr.c_str());
+			}
+			else if ((t_record = new (std::nothrow) RevZipArchive) == NULL)
+			{
+				zip_discard(t_archive);
+				t_result = strdup("ziperr,out of memory");
 			}
 			else
 			{
-				s_zip_container[t_path] = t_archive;
-				zip_set_progress_callback(t_archive, zip_progress_callback, 0);
+				t_record->archive = t_archive;
+				t_record->path = t_path;
+				t_record->global_progress = 0;
+				t_record->global_total = 0;
+
+				// Opening an archive that is already open replaces the first
+				// handle, as before; its unsaved changes are discarded rather
+				// than leaked.
+				RevZipArchive *t_previous;
+				t_previous = find_archive_by_name(t_path);
+				if (t_previous != NULL)
+				{
+					zip_discard(t_previous->archive);
+					delete t_previous;
+				}
+
+				s_zip_container[t_path] = t_record;
 			}
 		}
 	}
@@ -235,11 +498,11 @@ void revZipCloseArchive(char *p_arguments[], int p_argument_count, char **r_resu
 		}
 	}
 
-	struct zip *t_archive;
+	RevZipArchive *t_archive;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
-		t_archive = find_zip_by_name( t_path );
+		t_archive = find_archive_by_name( t_path );
 		if( !t_archive )
 		{
 			t_result = strdup("ziperr,archive not open");
@@ -250,27 +513,42 @@ void revZipCloseArchive(char *p_arguments[], int p_argument_count, char **r_resu
 	if (t_result == NULL)
 	{
 		int t_err;
-		char t_errstr[1024]; 
+
+		// The global total is every byte still to be packed, as the old
+		// libzip counted it at the start of zip_close.
+		t_archive->global_progress = 0;
+		t_archive->global_total = 0;
+		for (std::set<RevZipProgressSource *>::const_iterator t_it = t_archive->sources.begin(); t_it != t_archive->sources.end(); ++t_it)
+			t_archive->global_total += revzip_source_size((*t_it)->source);
 
 		s_operation_in_progress = true;
 		s_operation_cancelled = false;
-		t_err = zip_close(t_archive);
+		t_err = zip_close(t_archive->archive);
 		s_operation_in_progress = false;
 		
+		if (t_err != 0)
+		{
+			std::string t_outerr = "ziperr," + std::string(zip_strerror(t_archive->archive));
+
+			// A failed close leaves the archive open and the file on disk as
+			// it was; the old libzip forgot the handle anyway, so revZip
+			// still closes it, discarding the changes.
+			zip_discard(t_archive->archive);
+
+			if (!s_operation_cancelled)
+				t_result = strdup(t_outerr.c_str());
+			t_error = False;
+		}
+
 		if (s_operation_cancelled)
 		{
 			s_operation_cancelled = false;
 			t_result = strdup("cancelled");
 			t_error = False;
 		}
-		else if (t_err != 0)
-		{
-			zip_error_to_str(t_errstr, sizeof(t_errstr), t_err, errno);
-			std::string t_outerr = "ziperr," + std::string(t_errstr);
-			t_result = strdup(t_outerr.c_str());
-			t_error = False;
-		}
+
 		s_zip_container.erase(t_path);
+		delete t_archive;
 	}
 
 	if (t_result == NULL)
@@ -345,11 +623,11 @@ static void revZipAddItemWithDataAndCompression(char *p_arguments[], int p_argum
 		}
 	}
 
-	struct zip *t_archive;
+	RevZipArchive *t_archive;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
-		t_archive = find_zip_by_name( t_path );
+		t_archive = find_archive_by_name( t_path );
 		if( !t_archive )
 		{
 			t_result = strdup("ziperr,archive not open");
@@ -359,8 +637,6 @@ static void revZipAddItemWithDataAndCompression(char *p_arguments[], int p_argum
 	
 	if (t_result == NULL)
 	{
-		struct zip_source *t_source = NULL;
-
 		ExternalString mcData;
 		int intRetValue;
         // SN-2014-11-17: [[ Bug 14032 ]] The variable name is UTF-8 encoded - not the data
@@ -374,18 +650,18 @@ static void revZipAddItemWithDataAndCompression(char *p_arguments[], int p_argum
 		{
 			char* t_data = NULL;
 			t_data = (char*) imemdup(mcData.buffer, mcData.length);
-			if (((t_source = zip_source_buffer(t_archive, t_data, mcData.length, 1)) == NULL) ||
-				 (zip_add(t_archive, p_arguments[1], t_source) < 0))
+			if (t_data == NULL)
 			{
-				zip_source_free(t_source);
-				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
-				t_result = strdup(t_outerr.c_str());
+				t_result = strdup("ziperr,out of memory");
 				t_error = False;
 			}
 			else
 			{
-				if (!p_compressed)
-					zip_recompress(t_archive, zip_name_locate(t_archive, p_arguments[1], 0), ZIP_CM_STORE);
+				zip_source_t *t_buffer;
+				t_buffer = zip_source_buffer(t_archive->archive, t_data, mcData.length, 1);
+				if (t_buffer == NULL)
+					free(t_data);
+				revzip_add_source(t_archive, p_arguments[1], t_buffer, p_compressed, t_result);
 			}
 		}
 	}
@@ -436,11 +712,11 @@ static void revZipAddItemWithFileAndCompression(char *p_arguments[], int p_argum
 		}
 	}
 
-	struct zip *t_archive;
+	RevZipArchive *t_archive;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
-		t_archive = find_zip_by_name( t_path );
+		t_archive = find_archive_by_name( t_path );
 		if( !t_archive )
 		{
 			t_result =strdup("ziperr,archive not open");
@@ -448,23 +724,12 @@ static void revZipAddItemWithFileAndCompression(char *p_arguments[], int p_argum
 		}
 	}
 
-	struct zip_source *t_source;
-	t_source = NULL;
 	if (t_result == NULL)
 	{
-		if (((t_source = zip_source_filename(t_archive, t_filepath, 0, 0)) == NULL) ||
-			 (zip_add(t_archive, p_arguments[1], t_source) < 0))
-		{
-			zip_source_free(t_source);
-			std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
-			t_result = strdup(t_outerr.c_str());
-			t_error = False;
-		}
-		else
-		{
-			if (!p_compressed)
-				zip_recompress(t_archive, zip_name_locate(t_archive, p_arguments[1], 0), ZIP_CM_STORE);
-		}
+		// The file is read at close, not now, as before.
+		revzip_add_source(t_archive, p_arguments[1],
+						  revzip_file_source(t_archive->archive, t_filepath),
+						  p_compressed, t_result);
 	}
 
 	if (t_result == NULL)
@@ -525,7 +790,7 @@ void revZipExtractItemToVariable(char *p_arguments[], int p_argument_count, char
 		}
 	}
 	
-	int t_index;
+	zip_int64_t t_index;
 	if (t_result == NULL)
 	{
 		t_index = zip_name_locate(t_archive, p_arguments[1], ZIP_FL_NOCASE);
@@ -539,7 +804,9 @@ void revZipExtractItemToVariable(char *p_arguments[], int p_argument_count, char
 	struct zip_stat t_stat;
 	if (t_result == NULL)
 	{
-		if (zip_stat_index(t_archive, t_index, 0, &t_stat) != 0)
+		// The data is read as it was in the file (ZIP_FL_UNCHANGED, below), so
+		// its size must be too: a replaced item's new size could be smaller.
+		if (zip_stat_index(t_archive, t_index, ZIP_FL_UNCHANGED, &t_stat) != 0)
 		{
 			std::string t_outerr = "ziperr," + std::string(zip_strerror(t_archive));
 			t_result = strdup(t_outerr . c_str());
@@ -550,7 +817,7 @@ void revZipExtractItemToVariable(char *p_arguments[], int p_argument_count, char
 	char *t_data = NULL;
 	if (t_result == NULL)
 	{
-		t_data = (char *)malloc(t_stat . size);
+		t_data = (char *)malloc(t_stat . size != 0 ? t_stat . size : 1);
 		if (t_data == NULL)
 		{
 			t_result = strdup("ziperr,out of memory");
@@ -573,21 +840,27 @@ void revZipExtractItemToVariable(char *p_arguments[], int p_argument_count, char
 
 	if (t_result == NULL)
 	{
-		ssize_t t_read;
+		zip_uint64_t t_read;
 		t_read = 0;
 		
 		s_operation_in_progress = true;
 		s_operation_cancelled = false;
-		do
+		revzip_progress_message(t_path, t_stat . name, 0, 0, t_stat . size, 0, t_stat . size);
+		while(t_read != t_stat . size && !s_operation_cancelled)
 		{
-			ssize_t t_bytes_read;
-			t_bytes_read = zip_fread(t_file, t_data + t_read, REVZIP_READ_BUFFER_SIZE);
+			zip_uint64_t t_wanted;
+			t_wanted = t_stat . size - t_read;
+			if (t_wanted > REVZIP_READ_BUFFER_SIZE)
+				t_wanted = REVZIP_READ_BUFFER_SIZE;
+
+			zip_int64_t t_bytes_read;
+			t_bytes_read = zip_fread(t_file, t_data + t_read, t_wanted);
 			if (t_bytes_read <= 0)
 				break;
 
 			t_read += t_bytes_read;
+			revzip_progress_message(t_path, t_stat . name, 0, t_read, t_stat . size, t_read, t_stat . size);
 		}
-		while(t_read != t_stat . size && !s_operation_cancelled);
 		s_operation_in_progress = false;
 
 		if (s_operation_cancelled)
@@ -676,7 +949,7 @@ void revZipExtractItemToFile(char *p_arguments[], int p_argument_count, char **r
 		}
 	}
 	
-	int t_index;
+	zip_int64_t t_index;
 	t_index = -1;
 	if (t_result == NULL)
 	{
@@ -688,6 +961,17 @@ void revZipExtractItemToFile(char *p_arguments[], int p_argument_count, char **r
 		}
 	}
 	
+	struct zip_stat t_stat;
+	if (t_result == NULL)
+	{
+		if (zip_stat_index(t_archive, t_index, ZIP_FL_UNCHANGED, &t_stat) != 0)
+		{
+			std::string t_outerr = "ziperr," + std::string(zip_strerror(t_archive));
+			t_result = strdup(t_outerr . c_str());
+			t_error = False;
+		}
+	}
+
 	struct zip_file *t_file;
 	t_file = NULL;
 	if (t_result == NULL)
@@ -716,16 +1000,22 @@ void revZipExtractItemToFile(char *p_arguments[], int p_argument_count, char **r
 	if (t_result == NULL)
 	{
 		char t_buffer[REVZIP_READ_BUFFER_SIZE];
-		int t_read;
+		zip_int64_t t_read;
 		t_read = 0;
+		zip_uint64_t t_total_read;
+		t_total_read = 0;
 		
 		s_operation_in_progress = true;
 		s_operation_cancelled = false;
+		revzip_progress_message(t_path, t_stat . name, 0, 0, t_stat . size, 0, t_stat . size);
 		do
 		{
 			t_read = zip_fread(t_file, t_buffer, REVZIP_READ_BUFFER_SIZE);
 			if (t_read > 0)
 			{
+				t_total_read += t_read;
+				revzip_progress_message(t_path, t_stat . name, 0, t_total_read, t_stat . size, t_total_read, t_stat . size);
+
 				int t_written;
 				t_written = fwrite(t_buffer, t_read, 1, t_out_stream);
 				if (t_written != 1)
@@ -734,7 +1024,7 @@ void revZipExtractItemToFile(char *p_arguments[], int p_argument_count, char **r
 					t_error = False;
 				}
 			}
-			else if (t_read == -1)
+			else if (t_read < 0)
 			{
 				t_result = strdup("ziperr,error while reading zipped data");
 				t_error = False;
@@ -802,11 +1092,11 @@ void revZipReplaceItemWithFile(char *p_arguments[], int p_argument_count, char *
 		}
 	}
 
-	struct zip *t_archive;
+	RevZipArchive *t_archive;
 	t_archive = NULL;
 	if(t_result == NULL)
 	{
-		t_archive = find_zip_by_name( t_path );
+		t_archive = find_archive_by_name( t_path );
 		if( !t_archive )
 		{
 			t_result = strdup("ziperr,archive not open");
@@ -814,13 +1104,11 @@ void revZipReplaceItemWithFile(char *p_arguments[], int p_argument_count, char *
 		}
 	}
 
-	struct zip_source *t_source;
-	t_source = NULL;
-	int t_index;
+	zip_int64_t t_index;
 
 	if(t_result == NULL)
 	{
-		t_index = zip_name_locate(t_archive, p_arguments[1], ZIP_FL_NOCASE);
+		t_index = zip_name_locate(t_archive->archive, p_arguments[1], ZIP_FL_NOCASE);
 		if( t_index == -1 )
 		{
 			t_result = strdup("ziperr,file not found");
@@ -828,14 +1116,9 @@ void revZipReplaceItemWithFile(char *p_arguments[], int p_argument_count, char *
 		}
 		else
 		{
-			if (((t_source = zip_source_filename(t_archive, t_filepath, 0, 0)) == NULL) ||
-				 (zip_replace(t_archive, t_index, t_source) < 0))
-			{
-				zip_source_free(t_source);
-				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
-				t_result = strdup(t_outerr.c_str());
-				t_error = False;
-			}
+			revzip_replace_source(t_archive, t_index,
+								  revzip_file_source(t_archive->archive, t_filepath),
+								  t_result);
 		}
 	}
 
@@ -875,12 +1158,12 @@ void revZipReplaceItemWithData(char *p_arguments[], int p_argument_count, char *
 		}
 	}
 
-	struct zip *t_archive;
-	int t_index;
+	RevZipArchive *t_archive;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
-		t_archive = find_zip_by_name( t_path );
+		t_archive = find_archive_by_name( t_path );
 		if( !t_archive )
 		{
 			t_result = strdup("ziperr,archive not open");
@@ -890,7 +1173,7 @@ void revZipReplaceItemWithData(char *p_arguments[], int p_argument_count, char *
 	
 	if (t_result == NULL)
 	{
-		t_index = zip_name_locate(t_archive, p_arguments[1], ZIP_FL_NOCASE);
+		t_index = zip_name_locate(t_archive->archive, p_arguments[1], ZIP_FL_NOCASE);
 		if( t_index == -1 )
 		{
 			t_result = strdup("ziperr,file not found");
@@ -898,8 +1181,6 @@ void revZipReplaceItemWithData(char *p_arguments[], int p_argument_count, char *
 		}
 		else
 		{
-			struct zip_source *t_source = NULL;
-
 			ExternalString mcData;
 			int intRetValue;
             // SN-2014-11-17: [[ Bug 14032 ]] The variable name is UTF-8 encoded - not the data
@@ -913,13 +1194,18 @@ void revZipReplaceItemWithData(char *p_arguments[], int p_argument_count, char *
 			{
 				char* t_data = NULL;
 				t_data = (char*) imemdup(mcData.buffer, mcData.length);
-				if (((t_source = zip_source_buffer(t_archive, t_data, mcData.length, 1)) == NULL) ||
-					 (zip_replace(t_archive, t_index, t_source) < 0))
+				if (t_data == NULL)
 				{
-					zip_source_free(t_source);
-					std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
-					t_result = strdup(t_outerr.c_str());
+					t_result = strdup("ziperr,out of memory");
 					t_error = False;
+				}
+				else
+				{
+					zip_source_t *t_buffer;
+					t_buffer = zip_source_buffer(t_archive->archive, t_data, mcData.length, 1);
+					if (t_buffer == NULL)
+						free(t_data);
+					revzip_replace_source(t_archive, t_index, t_buffer, t_result);
 				}
 			}
 		}
@@ -960,7 +1246,7 @@ void revZipRenameItem(char *p_arguments[], int p_argument_count, char **r_result
 	}
 
 	struct zip *t_archive;
-	int t_index;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if( t_result == NULL )
 	{
@@ -982,7 +1268,7 @@ void revZipRenameItem(char *p_arguments[], int p_argument_count, char **r_result
 		}
 		else
 		{
-			if (zip_rename(t_archive, t_index, p_arguments[2]) != 0)
+			if (zip_file_rename(t_archive, t_index, p_arguments[2], ZIP_FL_ENC_GUESS) != 0)
 			{
 				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
 				t_result = strdup(t_outerr.c_str());
@@ -1026,7 +1312,7 @@ void revZipGetItemAttributes(char *p_arguments[], int p_argument_count, char **r
 	}
 
 	struct zip *t_archive;
-	int t_index;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if( t_result == NULL )
 	{
@@ -1048,10 +1334,11 @@ void revZipGetItemAttributes(char *p_arguments[], int p_argument_count, char **r
 		}
 		else
 		{
-			unsigned char t_madeby;
-			unsigned int t_attributes;
+			// The host system ("made by") and the external attributes.
+			zip_uint8_t t_madeby;
+			zip_uint32_t t_attributes;
 
-			if (zip_get_attributes(t_archive, t_index, &t_madeby, &t_attributes) != 0)
+			if (zip_file_get_external_attributes(t_archive, t_index, 0, &t_madeby, &t_attributes) != 0)
 			{
 				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
 				t_result = strdup(t_outerr.c_str());
@@ -1059,9 +1346,9 @@ void revZipGetItemAttributes(char *p_arguments[], int p_argument_count, char **r
 			}
 			else
 			{
-				// 1 for the madeby, 1 for the separating comma, 10 for the attributes and 1 for a null termination.
-				t_result = (char *)malloc(1 + 1 + 10 + 1);
-				sprintf(t_result, "%u,%u", t_madeby, t_attributes);
+				// 3 for the madeby, 1 for the separating comma, 10 for the attributes and 1 for a null termination.
+				t_result = (char *)malloc(3 + 1 + 10 + 1);
+				sprintf(t_result, "%u,%u", (unsigned int)t_madeby, (unsigned int)t_attributes);
 				t_error = False;
 			}
 		}
@@ -1107,7 +1394,7 @@ void revZipSetItemAttributes(char *p_arguments[], int p_argument_count, char **r
 	}
 
 	struct zip *t_archive;
-	int t_index;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if( t_result == NULL )
 	{
@@ -1132,10 +1419,12 @@ void revZipSetItemAttributes(char *p_arguments[], int p_argument_count, char **r
 			unsigned char t_madeby;
 			t_madeby = (unsigned char)atoi(p_arguments[2]);
 
+			// Attributes with the top bit set (a Unix mode in the high half)
+			// are above INT_MAX, which atoi cannot read.
 			unsigned int t_attributes;
-			t_attributes = (unsigned int)atoi(p_arguments[3]);
+			t_attributes = (unsigned int)strtoul(p_arguments[3], NULL, 10);
 
-			if (zip_set_attributes(t_archive, t_index, t_madeby, t_attributes) != 0)
+			if (zip_file_set_external_attributes(t_archive, t_index, 0, t_madeby, t_attributes) != 0)
 			{
 				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
 				t_result = strdup(t_outerr.c_str());
@@ -1179,7 +1468,7 @@ void revZipDeleteItem(char *p_arguments[], int p_argument_count, char **r_result
 	}
 
 	struct zip *t_archive;
-	int t_index;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
@@ -1260,18 +1549,21 @@ void revZipEnumerateItems(char *p_arguments[], int p_argument_count, char **r_re
 	
 	if (t_result == NULL)
 	{
-		int t_num_files;
-		t_num_files = zip_get_num_files(t_archive);
+		zip_int64_t t_num_files;
+		t_num_files = zip_get_num_entries(t_archive, 0);
 		std::string t_str_names;
 	
-		for( int i = 0; i < t_num_files; ++i )
+		for( zip_int64_t i = 0; i < t_num_files; ++i )
 		{
 			struct zip_stat t_stat;
 
-			// SN-2015-03-11: [[ Bug 14413 ]] We want to get the bitflags
-			//  alongside the name: zip_stat_index provides this.
 			if (zip_stat_index(t_archive, i, 0, &t_stat) != 0)
 			{
+				// An item deleted since the archive was opened keeps its
+				// index until close; it is not listed.
+				if (zip_error_code_zip(zip_get_error(t_archive)) == ZIP_ER_DELETED)
+					continue;
+
 				std::string t_outerr = "ziperr," + std::string((zip_strerror(t_archive)));
 				t_result = strdup(t_outerr.c_str());
                 // SN-2015-06-02: [[ CID 90610 ]] Quit the loop if an error is
@@ -1281,31 +1573,13 @@ void revZipEnumerateItems(char *p_arguments[], int p_argument_count, char **r_re
 			}
 			else
 			{
-				// SN-2015-03-10: [[ Bug 14413 ]] We convert the string to UTF-8
-				//  in case it was natively encoded, as revZipEnumerateItems is
-				//  meant to return a UTF-8 encoded string.
-				const char *t_converted_name;
-                int t_success;
-
-				if (t_stat.bitflags & ZIP_UTF8_FLAG)
-				{
-                    t_success = EXTERNAL_SUCCESS;
-					t_converted_name = t_stat.name;
-				}
-				else
-					t_converted_name = ConvertCStringFromNativeToUTF8(t_stat.name, &t_success);
-
-                if (t_success == EXTERNAL_SUCCESS)
-				{
-					t_str_names += std::string(t_converted_name);
-					t_str_names += "\n";
-				}
-				else
-				{
-					t_result = strdup("");
-					t_error  = True;
-					break;
-				}
+				// SN-2015-03-10: [[ Bug 14413 ]] revZipEnumerateItems returns
+				//  UTF-8. libzip gives every name as UTF-8: as stored when the
+				//  item says it is UTF-8 (as every item revZip writes does),
+				//  or is valid UTF-8, and otherwise converted from code page
+				//  437, the encoding the zip format specifies.
+				t_str_names += std::string(t_stat.name);
+				t_str_names += "\n";
 			}
 		}
 		
@@ -1352,7 +1626,7 @@ void revZipDescribeItem(char *p_arguments[], int p_argument_count, char **r_resu
 	}
 
 	struct zip *t_archive;
-	int t_index;
+	zip_int64_t t_index;
 	t_archive = NULL;
 	if (t_result == NULL)
 	{
@@ -1376,12 +1650,13 @@ void revZipDescribeItem(char *p_arguments[], int p_argument_count, char **r_resu
 		}
 		else
 		{
-			struct zip_stat* t_stat = (struct zip_stat*) malloc(sizeof(struct zip_stat));
-			if((t_stat) && (zip_stat_index(t_archive, t_index, ZIP_FL_NOCASE, t_stat) == 0))
+			struct zip_stat t_stat_data;
+			struct zip_stat* t_stat = &t_stat_data;
+			if (zip_stat_index(t_archive, t_index, 0, t_stat) == 0)
 			{
 				std::stringstream t_strstream;
 				t_strstream << t_stat->index << "," << t_stat->crc << "," << t_stat->size << ",";
-				t_strstream << t_stat->mtime << "," << t_stat->comp_size << ",";
+				t_strstream << (long long)t_stat->mtime << "," << t_stat->comp_size << ",";
 				switch( t_stat->comp_method )
 				{
 				case 0:
@@ -1419,7 +1694,6 @@ void revZipDescribeItem(char *p_arguments[], int p_argument_count, char **r_resu
 				}
 				t_strstream << std::ends;
 				t_result = strdup(t_strstream.str() . c_str());
-				free( t_stat );
 			}
 		}
 	}
