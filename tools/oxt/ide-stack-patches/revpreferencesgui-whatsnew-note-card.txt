@@ -1,0 +1,27 @@
+# Preferences, card "Automatic Updates": preOpenCard sends readLastUpd to the
+# card in 10 milliseconds, and readLastUpd named its field "updNote" "of this
+# card", which is the current card of the defaultStack when the message
+# arrives, not the card it was sent to. When the window had already moved to
+# another card (or another stack had become the defaultStack) by then, the
+# handler stopped with "Chunk: no such object" (the IDE tour hit it on a
+# slow Mac). "me" is the card whose script runs, so the note is filled in or
+# hidden on the Automatic Updates card whichever card is showing.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card "Automatic Updates"
+replace:
+|      put "Summary of last update:" & return & " " & return & tChangesDescription into cd fld "updNote" of this card|
+|      set the textstyle of cd fld "updNote" of this card to plain|
+|      set the textstyle of line 1 of cd fld "updNote" of this card to bold|
+|      show cd fld "updNote" of this card|
+|   else|
+|      put "" into cd fld "updNote" of this card|
+|      hide cd fld "updNote" of this card|
+with:
+|      put "Summary of last update:" & return & " " & return & tChangesDescription into fld "updNote" of me|
+|      set the textstyle of fld "updNote" of me to plain|
+|      set the textstyle of line 1 of fld "updNote" of me to bold|
+|      show fld "updNote" of me|
+|   else|
+|      put "" into fld "updNote" of me|
+|      hide fld "updNote" of me|
