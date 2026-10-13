@@ -47,32 +47,26 @@ clone at the new one.
 
 ## Status
 
-OXT-Beyond 0.2.4 "Frankenstein" is an early release of a young project,
+OXT-Beyond 0.2.5 "Frankenstein" is an early release of a young project,
 for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes,
-what 0.2.3 adds and what 0.2.4 changes, under [The IDE](#the-ide)).
-Please read this before you download it. 0.2.4 adds a package for 64-bit
-ARM Linux (new in 0.2.4-rc.2). It goes back to Tom Perry's dark mode,
-with his macOS work added (see
-[0.2.4-rc.4](#024-rc4-tom-perrys-dark-mode-and-macos-work)), brings back
-LiveCode's Dictionary (see [0.2.4-rc.5](#024-rc5-livecodes-dictionary)),
-and fixes bugs that notes in the inherited code pointed to (see
-[0.2.4-rc.6](#024-rc6-fixes-from-the-inherited-notes)) and more found
-since (see [0.2.4-rc.7](#024-rc7-more-engine-and-library-fixes)). Two of
-those fixes change what existing scripts see: an error in a `try`
-statement's `catch` part is now reported, and serial ports on macOS and
-Linux are in raw mode. 0.2.5-rc.1 to rc.5 are test releases
-(pre-releases) of newer XML and zip libraries for revXML and revZip, of
-regular expressions that match case again (see
-[0.2.5-rc.1](#025-rc1-newer-xml-and-zip-libraries)), of fixes for two
-crashes in `export`, and of the xTalk Assistant, an optional AI helper
-for writing scripts, which builds and runs them in your stack when you
-say yes and stays off until you turn it on (see
+what 0.2.3 adds, what 0.2.4 changes and what 0.2.5 adds, under
+[The IDE](#the-ide)). Please read this before you download it. 0.2.5
+replaces the libraries under revXML and revZip with newer ones, makes
+regular expressions match case again (see
+[0.2.5-rc.1](#025-rc1-newer-xml-and-zip-libraries)), fixes two crashes
+in `export`, and adds the xTalk Assistant, an optional AI helper for
+writing scripts, which builds and runs them in your stack when you say
+yes and stays off until you turn it on (see
 [0.2.5-rc.2](#025-rc2-export-crashes-fixed-and-the-xtalk-assistant),
 [0.2.5-rc.3](#025-rc3-the-xtalk-assistants-window-opens) and
 [0.2.5-rc.4](#025-rc4-the-xtalk-assistant-builds-runs-and-debugs)),
-and of entries for the xTalk Suite's extensions in both dictionaries
-(see [0.2.5-rc.5](#025-rc5-the-xtalk-suite-in-both-dictionaries));
-0.2.4 stays the main download until they have held up.
+and entries for the xTalk Suite's extensions in both dictionaries (see
+[0.2.5-rc.5](#025-rc5-the-xtalk-suite-in-both-dictionaries)). Two of
+those changes can change what existing scripts see: regular expressions
+match case whatever the `caseSensitive`, as they did before 0.2.4-rc.4,
+and revXML and revZip differ in the few ways
+[#81](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/81)
+lists.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -1049,6 +1043,13 @@ scripts see, so they come first:
 The standalone runtimes for the other platforms in each package are
 built again for this release, so standalones for Windows and Linux get
 these fixes too.
+
+OXT-Beyond 0.2.5 is what its five release candidates, 0.2.5-rc.1 to
+0.2.5-rc.5, were, with the xTalk Suite's documentation comments taken
+from the members' latest commits
+([#98](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/98));
+nothing in the engine changed after 0.2.5-rc.2. What each of them
+changed follows, in order.
 
 #### 0.2.5-rc.1: newer XML and zip libraries
 

@@ -14,6 +14,11 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.5 (2026-10-13)
+
+- xTalk Suite extensions: pin the members' fixed doc comments (#98)
+- Version 0.2.5, with its changelog (#100)
+
 ## 0.2.5-rc.5 (2026-10-13, pre-release)
 
 - xTalk Assistant: a clock while it works, answers laid out, new stacks looked at and saved (#95)
