@@ -1315,6 +1315,8 @@ private function revMenubarFileMenu pContext, tFile
       -- we are using gallery mode
       put "Browse Recent Files..." & return after tFile
    end if
+   put "Import Stack" & return after tFile
+   put tab & "HyperCard Stack.../|hypercard" & return after tFile
    put enableMenuItem("&Close/W", the mode of the topStack <= 3 and the short name of the topstack is not "revMenubar") & return after tFile
    put enableMenuItem("Close and Remove From Memor&y", tCanSaveStack) & return after tFile
    put "-" & return after tFile
@@ -2506,6 +2508,9 @@ on revMenubarFileMenuPick pWhich
                   revIDESetPreference "cRecentStackPaths", empty
                   ideMessageSend "ideRecentFilesChanged"
                else revIDEOpenStack tRecentStack
+               break
+            case "Import Stack"
+               if item 2 of pWhich is "hypercard" then revIDEActionImportHyperCardStack
                break
             case "Browse Recent Files..."
                choose browse tool

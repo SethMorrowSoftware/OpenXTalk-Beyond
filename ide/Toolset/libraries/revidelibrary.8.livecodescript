@@ -7151,6 +7151,110 @@ on revIDEActionOpenStack
 end revIDEActionOpenStack
 
 /*
+Asks for a HyperCard stack and imports it (File > Import Stack >
+HyperCard Stack...).
+
+Example:
+revIDEActionImportHyperCardStack
+
+Description:
+HyperCard stacks have no file extension and, outside macOS, no file
+type, so the dialog lists all files; on macOS it lists the files of type
+STAK first. The stack is imported by <revIDEImportHyperCardStack>.
+
+References: revIDEImportHyperCardStack (command), revIDEActionOpenStack (command)
+
+Tags: ide
+*/
+on revIDEActionImportHyperCardStack
+   local tTypesA
+   if the platform is "MacOS" then
+      put revIDELocalise("HyperCard Stacks") & "||STAK|" into tTypesA[1]
+      put __answerGetTypeString("all") into tTypesA[2]
+   else
+      put __answerGetTypeString("all") into tTypesA[1]
+   end if
+   revIDEAnswerFile "", revIDELocalise("Please select a HyperCard stack"), "", tTypesA, true
+
+   local tFilePath
+   put line 1 of the result into tFilePath
+   if tFilePath is empty or there is not a file tFilePath then exit revIDEActionImportHyperCardStack
+   revIDEImportHyperCardStack tFilePath
+end revIDEActionImportHyperCardStack
+
+/*
+Imports a HyperCard stack without running its scripts.
+
+pFilePath (String): The path of a HyperCard stack: the stack itself, or
+a MacBinary or BinHex copy of it.
+
+Example:
+revIDEImportHyperCardStack "/Users/me/Stacks/Home"
+
+Returns: Empty, or an error when the file is not a HyperCard stack or
+the import fails.
+
+Description:
+Open Stack converts a HyperCard stack too, but runs its scripts as it
+opens, the same as any stack's. Many of the HyperCard stacks still
+around carry a HyperTalk virus (MerryXmas and its clones) that runs
+from those scripts, so this command opens the stack with messages
+locked: none of its handlers, openStack and openCard included, run
+while it is imported. They run as usual once you use the stack.
+
+An imported stack has no file name, as with Open Stack, so File > Save
+asks where to save it and the HyperCard file is not overwritten.
+
+References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command)
+
+Tags: ide
+*/
+on revIDEImportHyperCardStack pFilePath
+   local tError, tStack
+
+   if there is not a file pFilePath then return __revIDEError("Specified file does not exist")
+   if not __revIDEIsHyperCardFile(pFilePath) then
+      answer error revIDELocalise("This file is not a HyperCard stack:") && pFilePath
+      return __revIDEError("File is not a HyperCard stack")
+   end if
+
+   set the cursor to watch
+   lock messages
+   go stack pFilePath
+   put the result into tError
+   if tError is empty then put the long id of the defaultStack into tStack
+   unlock messages
+
+   if tError is not empty then
+      answer error revIDELocalise("There was a problem importing the HyperCard stack:") && pFilePath & cr & tError
+      set the cursor to 1
+      return __revIDEError(tError)
+   end if
+
+   ideMessageSend "ideOpenStack", tStack
+   return empty
+end revIDEImportHyperCardStack
+
+# The tests hc_import (engine/src/hc.cpp) makes of the first bytes of a
+# file: a HyperCard data fork (STAK at offset 4), a MacBinary file whose
+# type is STAK, or a BinHex file.
+private function __revIDEIsHyperCardFile pFilePath
+   local tHeader
+   open file pFilePath for binary read
+   if the result is not empty then return false
+   read from file pFilePath for 256
+   put it into tHeader
+   close file pFilePath
+
+   if byte 5 to 8 of tHeader is "STAK" then return true
+   if byteToNum(byte 1 of tHeader) is 0 and byteToNum(byte 75 of tHeader) is 0 \
+         and byteToNum(byte 83 of tHeader) is 0 then
+      return byte 66 to 69 of tHeader is "STAK"
+   end if
+   return "BinHex" is in tHeader
+end __revIDEIsHyperCardFile
+
+/*
 Closes an stack.
 
 Associations: stack
