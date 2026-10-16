@@ -361,6 +361,7 @@ static uint2 convert_style(uint2 istyle)
 // (libfoundation decodes kMCStringEncodingMacRoman only on the Mac, so the
 // importer has its own table: the upper half of MacRoman, as Apple's
 // ROMAN.TXT maps it and libfoundation's MacRoman table does.)
+#ifndef _MACOSX
 static const unichar_t kHcMacRomanUpper[128] =
 {
 	0x00c4, 0x00c5, 0x00c7, 0x00c9, 0x00d1, 0x00d6, 0x00dc, 0x00e1, 0x00e0, 0x00e2, 0x00e4, 0x00e3,
@@ -375,6 +376,7 @@ static const unichar_t kHcMacRomanUpper[128] =
 	0x00cf, 0x00cc, 0x00d3, 0x00d4, 0xf8ff, 0x00d2, 0x00da, 0x00db, 0x00d9, 0x0131, 0x02c6, 0x02dc,
 	0x00af, 0x02d8, 0x02d9, 0x02da, 0x00b8, 0x02dd, 0x02db, 0x02c7
 };
+#endif
 
 static bool hc_string(const char *p_macroman, uindex_t p_length, MCStringRef &r_string)
 {
