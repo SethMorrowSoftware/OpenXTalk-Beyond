@@ -1040,24 +1040,57 @@ mergeInto(LibraryManager.library, {
 				e.stopPropagation();
 			};
 
-			overlay.addEventListener('pointerdown', function(e) {
+			// The mouse's own events too, for a drag that comes with no
+			// pointer events: Firefox driven by Playwright sends only those
+			// (seen 2026-10-16 in Firefox 142). Once a pointer event has
+			// come, the mouse events (which a browser sends after it unless
+			// pointerdown is prevented, as it is here) are left alone.
+			var pointer = false;
+			var down = function(e) {
 				start = [Math.round(e.clientX), Math.round(e.clientY)];
-				overlay.setPointerCapture(e.pointerId);
 				place(e);
 				e.preventDefault();
-			});
-			overlay.addEventListener('pointermove', function(e) {
+			};
+			var move = function(e) {
 				if (start) {
 					place(e);
 				}
 				e.preventDefault();
-			});
-			overlay.addEventListener('pointerup', function(e) {
+			};
+			var up = function(e) {
 				if (start) {
 					place(e);
 					finish('done');
 				}
 				e.preventDefault();
+			};
+			overlay.addEventListener('pointerdown', function(e) {
+				pointer = true;
+				overlay.setPointerCapture(e.pointerId);
+				down(e);
+			});
+			overlay.addEventListener('pointermove', function(e) {
+				pointer = true;
+				move(e);
+			});
+			overlay.addEventListener('pointerup', function(e) {
+				pointer = true;
+				up(e);
+			});
+			overlay.addEventListener('mousedown', function(e) {
+				if (!pointer) {
+					down(e);
+				}
+			});
+			overlay.addEventListener('mousemove', function(e) {
+				if (!pointer) {
+					move(e);
+				}
+			});
+			overlay.addEventListener('mouseup', function(e) {
+				if (!pointer) {
+					up(e);
+				}
 			});
 			overlay.addEventListener('pointercancel', function() {
 				finish('cancelled');
