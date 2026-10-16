@@ -20,7 +20,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Keep the macOS IDE's normal quit at logout (#113)
 - IDE: File > Import Stack > HyperCard Stack... (#114)
 - Version 0.2.7-rc.2, with its changelog (#114)
-- HyperCard import: no extra empty first card when messages are unlocked (#115)
+- HyperCard import: no extra empty first card when messages are unlocked (#116)
 
 ## 0.2.7-rc.1 (2026-10-16, pre-release)
 

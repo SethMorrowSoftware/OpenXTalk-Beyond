@@ -1560,7 +1560,7 @@ requests
 [#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113),
 [#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114)
 and
-[#115](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/115)
+[#116](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/116)
 list every change.
 
 #### 0.2.7-rc.1: a new web font, and Firefox and Safari
