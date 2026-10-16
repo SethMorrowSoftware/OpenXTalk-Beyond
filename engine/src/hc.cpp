@@ -2685,9 +2685,32 @@ MCStack *MCHcstak::build()
 			hcstat_append("Warning: cards that are in no page were left out");
 	}
 	// The cards newStack made: deleted when HyperCard's cards replace them,
-	// kept (as before) on a stack that brought none
+	// kept (as before) on a stack that brought none, and kept in front of
+	// HyperCard's (as before) when newStack put a control on one, since
+	// deleting the card would leave its controls behind in the stack
+	bool t_made_has_controls = false;
+	if (t_made_cards != NULL)
+	{
+		MCCard *t_card = t_made_cards;
+		do
+		{
+			if (t_card->getobjptrs() != NULL)
+				t_made_has_controls = true;
+			t_card = t_card->next();
+		}
+		while (t_card != t_made_cards);
+	}
 	if (sptr->cards == NULL)
 		sptr->cards = t_made_cards;
+	else if (t_made_has_controls)
+	{
+		while (sptr->cards != NULL)
+		{
+			MCCard *t_card = sptr->cards->remove(sptr->cards);
+			t_card->appendto(t_made_cards);
+		}
+		sptr->cards = t_made_cards;
+	}
 	else
 		while (t_made_cards != NULL)
 		{

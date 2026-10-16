@@ -104,6 +104,33 @@ on TestHyperCardImportNewStackCard
    _Close tStack
 end TestHyperCardImportNewStackCard
 
+on TestHyperCardImportNewStackControl
+   -- A newStack handler that puts a control on the new stack keeps its
+   -- card, in front of HyperCard's, as before (deleting the card would
+   -- leave the control behind)
+   local tFront, tStack, tError
+   put "HCNewStackControlFront" into tFront
+   lock messages
+   create stack tFront
+   unlock messages
+   set the script of stack tFront to "on newStack" & return & \
+      "create button " & quote & "Made" & quote & " in card 1 of the target" & return & \
+      "pass newStack" & return & "end newStack"
+   insert the script of stack tFront into front
+   try
+      import stack from file TestGetInputFile("hypercard/TestCardsBackgrounds.stack")
+   catch tError
+   end try
+   remove the script of stack tFront from front
+   _Close tFront
+   put "TestCardsBackgrounds.stack" into tStack
+   TestAssert "imports with a control made by newStack", tError is empty and there is a stack tStack
+   TestAssert "the card made by newStack is kept", the number of cards of stack tStack is 7
+   TestAssert "with its control", there is a button "Made" of card 1 of stack tStack
+   TestAssert "then HyperCard's first card", the id of card 2 of stack tStack is 2842
+   _Close tStack
+end TestHyperCardImportNewStackControl
+
 on TestHyperCardImportMacRomanText
    -- the text is MacRoman, and comes in as the same characters on every
    -- platform (off the Mac it was converted the wrong way: a curly quote
