@@ -881,141 +881,8 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
                 break;
                 
             case GDK_SELECTION_REQUEST:
-            {
-                // Get the clipboard associated with the requested selection
-                // Checking for ownership is unreliable in GDK so don't bother
-                // -- we just fulfil the request anyway.
-                MCLinuxRawClipboard* t_clipboard;
-				if (t_event->selection.selection == GDK_SELECTION_PRIMARY)
-                    t_clipboard = static_cast<MCLinuxRawClipboard*> (MCselection->GetRawClipboard());
-				else if (t_event->selection.selection == GDK_SELECTION_CLIPBOARD)
-                    t_clipboard = static_cast<MCLinuxRawClipboard*> (MCclipboard->GetRawClipboard());
-                else if (t_event->selection.selection == MCdndselectionatom)
-                    t_clipboard = static_cast<MCLinuxRawClipboard*> (MCdragboard->GetRawClipboard());
-                else
-                    t_clipboard = NULL;
-                
-                // Note: we don't use a secondary selection
-                if (t_clipboard != NULL)
-                {
-                    // Convert the requestor window XID into a GdkWindow
-                    GdkWindow *t_requestor;
-                    t_requestor = x11::gdk_x11_window_foreign_new_for_display(dpy, t_event->selection.requestor);
-                    
-                    // There is a backwards-compatibility issue with the way the
-                    // ICCCM deals with selections: older clients can request a
-                    // selection but not supply a property name. In that case,
-                    // the property set should be equal to the target name.
-                    //
-                    // The GDK manual does not say whether it works around this
-                    // wrinkle so we might as well check ourselves.
-                    GdkAtom t_property;
-                    if (t_event->selection.property != GDK_NONE)
-                        t_property = t_event->selection.property;
-                    else
-                        t_property = t_event->selection.target;
-                    
-                    // What type should the selection be converted to?
-                    static GdkAtom s_targets = gdk_atom_intern_static_string("TARGETS");
-                    static GdkAtom s_multiple = gdk_atom_intern_static_string("MULTIPLE");
-                    static GdkAtom s_timestamp = gdk_atom_intern_static_string("TIMESTAMP");
-                    if (t_event->selection.target == s_targets)
-                    {
-                        // Get the list of types we can convert to
-                        MCAutoDataRef t_targets(t_clipboard->CopyTargets());
-                        
-                        if (*t_targets != NULL)
-                        {
-                            // Set a property on the requestor containing the
-                            // list of targets we can convert to.
-                            uindex_t t_atom_count = MCDataGetLength(*t_targets)/sizeof(gulong);
-                            gdk_property_change(t_requestor, t_property,
-                                                GDK_SELECTION_TYPE_ATOM,
-                                                32,
-                                                GDK_PROP_MODE_REPLACE,
-                                                (const guchar*)MCDataGetBytePtr(*t_targets),
-                                                t_atom_count);
-                            
-                            // Notify the requestor that we have replied
-                            gdk_selection_send_notify(t_event->selection.requestor,
-                                                      t_event->selection.selection,
-                                                      t_event->selection.target,
-                                                      t_property,
-                                                      t_event->selection.time);
-                        }
-                        else
-                        {
-                            // We don't actually have anything to supply so
-                            // reject the request without supplying any data
-                            gdk_selection_send_notify(t_event->selection.requestor,
-                                                      t_event->selection.selection,
-                                                      t_event->selection.target,
-                                                      GDK_NONE,
-                                                      t_event->selection.time);
-                        }
-                    }
-                    else if (t_event->selection.target == s_multiple)
-                    {
-                        // This should be handled by GDK
-                        MCAssert(false);
-                    }
-                    else if (t_event->selection.target == s_timestamp)
-                    {
-                        // This should be handled by GDK
-                        MCAssert(false);
-                    }
-                    else
-                    {
-                        // Turn the requested selection into a string
-                        MCAutoStringRef t_atom_string(MCLinuxRawClipboard::CopyTypeForAtom(t_event->selection.target));
-                        
-                        // Get the requested representation of the data
-                        const MCRawClipboardItemRep* t_rep = NULL;
-                        MCAutoRefcounted<const MCLinuxRawClipboardItem> t_item = t_clipboard->GetSelectionItem();
-                        if (t_item != NULL)
-                            t_rep = t_item->FetchRepresentationByType(*t_atom_string);
-                        
-                        // Get the data in the requested form
-                        MCAutoDataRef t_data;
-                        if (t_rep != NULL)
-                            t_data.Give(t_rep->CopyData());
-                        
-                        if (*t_data != NULL)
-                        {
-                            // Transfer the data to the requestor via the
-                            // property that it specified
-                            gdk_property_change(t_requestor, t_property,
-                                                t_event->selection.target,
-                                                8,
-                                                GDK_PROP_MODE_REPLACE,
-                                                (const guchar*)MCDataGetBytePtr(*t_data),
-                                                MCDataGetLength(*t_data));
-                            
-                            // Notify the requestor that we have replied
-                            gdk_selection_send_notify(t_event->selection.requestor,
-                                                      t_event->selection.selection,
-                                                      t_event->selection.target,
-                                                      t_property,
-                                                      t_event->selection.time);
-                        }
-                        else
-                        {
-                            // Could not convert the data to the format that was
-                            // requested - reject the request.
-                            gdk_selection_send_notify(t_event->selection.requestor,
-                                                      t_event->selection.selection,
-                                                      t_event->selection.target,
-                                                      GDK_NONE,
-                                                      t_event->selection.time);
-                        }
-                    }
-                    
-                    // We don't need the requestor window handle any longer
-                    g_object_unref(t_requestor);
-                }
-                
+                HandleSelectionRequest(t_event);
                 break;
-            }
             
             case GDK_DRAG_ENTER:
             case GDK_DRAG_LEAVE:   
@@ -1049,6 +916,169 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
     }
     
     return t_handled;
+}
+
+// Puts the data of p_clipboard's selection in the form p_target into
+// p_property of p_requestor, as a conversion request for that target asks.
+// Returns false, having set nothing, if the selection has no such form.
+static bool ConvertSelectionTarget(MCLinuxRawClipboard *p_clipboard,
+                                   GdkWindow *p_requestor,
+                                   GdkAtom p_target,
+                                   GdkAtom p_property)
+{
+    static GdkAtom s_targets = gdk_atom_intern_static_string("TARGETS");
+    if (p_target == s_targets)
+    {
+        // Get the list of types we can convert to
+        MCAutoDataRef t_targets(p_clipboard->CopyTargets());
+        if (*t_targets == NULL)
+            return false;
+        
+        // Set a property on the requestor containing the list of targets we
+        // can convert to.
+        uindex_t t_atom_count = MCDataGetLength(*t_targets)/sizeof(gulong);
+        gdk_property_change(p_requestor, p_property,
+                            GDK_SELECTION_TYPE_ATOM,
+                            32,
+                            GDK_PROP_MODE_REPLACE,
+                            (const guchar*)MCDataGetBytePtr(*t_targets),
+                            t_atom_count);
+        return true;
+    }
+    
+    // Turn the requested selection into a string
+    MCAutoStringRef t_atom_string(MCLinuxRawClipboard::CopyTypeForAtom(p_target));
+    
+    // Get the requested representation of the data
+    const MCRawClipboardItemRep* t_rep = NULL;
+    MCAutoRefcounted<const MCLinuxRawClipboardItem> t_item = p_clipboard->GetSelectionItem();
+    if (t_item != NULL)
+        t_rep = t_item->FetchRepresentationByType(*t_atom_string);
+    
+    // Get the data in the requested form
+    MCAutoDataRef t_data;
+    if (t_rep != NULL)
+        t_data.Give(t_rep->CopyData());
+    if (*t_data == NULL)
+        return false;
+    
+    // Transfer the data to the requestor via the property that it specified
+    gdk_property_change(p_requestor, p_property,
+                        p_target,
+                        8,
+                        GDK_PROP_MODE_REPLACE,
+                        (const guchar*)MCDataGetBytePtr(*t_data),
+                        MCDataGetLength(*t_data));
+    return true;
+}
+
+void MCScreenDC::HandleSelectionRequest(GdkEvent *p_event)
+{
+    // Get the clipboard associated with the requested selection
+    // Checking for ownership is unreliable in GDK so don't bother
+    // -- we just fulfil the request anyway.
+    MCLinuxRawClipboard* t_clipboard;
+    if (p_event->selection.selection == GDK_SELECTION_PRIMARY)
+        t_clipboard = static_cast<MCLinuxRawClipboard*> (MCselection->GetRawClipboard());
+    else if (p_event->selection.selection == GDK_SELECTION_CLIPBOARD)
+        t_clipboard = static_cast<MCLinuxRawClipboard*> (MCclipboard->GetRawClipboard());
+    else if (p_event->selection.selection == MCdndselectionatom)
+        t_clipboard = static_cast<MCLinuxRawClipboard*> (MCdragboard->GetRawClipboard());
+    else
+        t_clipboard = NULL;
+    
+    // Note: we don't use a secondary selection
+    if (t_clipboard == NULL)
+        return;
+    
+    // Convert the requestor window XID into a GdkWindow
+    GdkWindow *t_requestor;
+    t_requestor = x11::gdk_x11_window_foreign_new_for_display(dpy, p_event->selection.requestor);
+    
+    // There is a backwards-compatibility issue with the way the
+    // ICCCM deals with selections: older clients can request a
+    // selection but not supply a property name. In that case,
+    // the property set should be equal to the target name.
+    //
+    // The GDK manual does not say whether it works around this
+    // wrinkle so we might as well check ourselves.
+    GdkAtom t_property;
+    if (p_event->selection.property != GDK_NONE)
+        t_property = p_event->selection.property;
+    else
+        t_property = p_event->selection.target;
+    
+    // What type should the selection be converted to?
+    static GdkAtom s_multiple = gdk_atom_intern_static_string("MULTIPLE");
+    static GdkAtom s_timestamp = gdk_atom_intern_static_string("TIMESTAMP");
+    static GdkAtom s_atom_pair = gdk_atom_intern_static_string("ATOM_PAIR");
+    bool t_converted = false;
+    if (p_event->selection.target == s_multiple)
+    {
+        // MULTIPLE (ICCCM 2.6.2): the property holds pairs of a target and
+        // the property to put it in. Each one is converted; one that can't
+        // be has its property replaced by None, and the pairs are written
+        // back. The clipboard managers that keep the clipboard when an
+        // application quits (those of GNOME and Xfce among them) read it
+        // this way, and GDK leaves MULTIPLE to the application (GTK answers
+        // it; this engine uses GDK alone). A requestor that names no
+        // property is refused, as ICCCM requires one for MULTIPLE.
+        GdkAtom t_type = GDK_NONE;
+        gint t_format = 0;
+        gint t_length = 0;
+        guchar *t_pairs = NULL;
+        if (p_event->selection.property != GDK_NONE &&
+            gdk_property_get(t_requestor, t_property, s_atom_pair,
+                             0, 0x1FFFFFFF, FALSE,
+                             &t_type, &t_format, &t_length, &t_pairs) &&
+            t_pairs != NULL && t_type == s_atom_pair && t_format == 32)
+        {
+            // GDK hands ATOM_PAIR data over as an array of GdkAtoms, and
+            // t_length counts its bytes
+            GdkAtom *t_atoms = reinterpret_cast<GdkAtom *>(t_pairs);
+            gint t_count = t_length / gint(sizeof(GdkAtom));
+            for (gint i = 0; i + 1 < t_count; i += 2)
+            {
+                if (t_atoms[i + 1] == GDK_NONE ||
+                    t_atoms[i] == s_multiple ||
+                    !ConvertSelectionTarget(t_clipboard, t_requestor,
+                                            t_atoms[i], t_atoms[i + 1]))
+                    t_atoms[i + 1] = GDK_NONE;
+            }
+            gdk_property_change(t_requestor, t_property,
+                                s_atom_pair,
+                                32,
+                                GDK_PROP_MODE_REPLACE,
+                                t_pairs,
+                                t_count);
+            t_converted = true;
+        }
+        if (t_pairs != NULL)
+            g_free(t_pairs);
+    }
+    else if (p_event->selection.target == s_timestamp)
+    {
+        // This should be handled by GDK
+        MCAssert(false);
+        t_converted = false;
+    }
+    else
+    {
+        t_converted = ConvertSelectionTarget(t_clipboard, t_requestor,
+                                             p_event->selection.target,
+                                             t_property);
+    }
+    
+    // Notify the requestor that we have replied or, if the data could not
+    // be converted to the format that was requested, reject the request.
+    gdk_selection_send_notify(p_event->selection.requestor,
+                              p_event->selection.selection,
+                              p_event->selection.target,
+                              t_converted ? t_property : GDK_NONE,
+                              p_event->selection.time);
+    
+    // We don't need the requestor window handle any longer
+    g_object_unref(t_requestor);
 }
 
 void MCScreenDC::waitmessage(GdkWindow* w, int event_type)

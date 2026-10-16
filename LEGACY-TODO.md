@@ -4,7 +4,7 @@ Every FIXME, TODO and HACK comment in the code OXT-Beyond inherited: LiveCode Co
 
 Not covered: the third-party libraries in `thirdparty/` (each has its own upstream), the bundled copy of GYP in `gyp/`, the dictionary and guides in `docs/`, OXT-Beyond's own build and CI tools in `tools/ci/` and `tools/oxt/`, and the scripts inside the IDE's binary stacks (`.livecode`, `.rev` and `.oxtstack` files), which a text search cannot read.
 
-How it is made: `tools/oxt/legacy_todo.py` writes this file from a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence). A line with more than one marker is listed under each. Run `python3 tools/oxt/legacy_todo.py` after a change that adds, removes or moves notes; `--check` tells whether this file is up to date. The search is:
+How it is made: `tools/oxt/legacy_todo.py` writes this file from a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence). A line with more than one marker is listed under each. Lines where the word is not a note are left out, each kind named in the script (`NOT_NOTES`): the start center's `lc-todo-list` icons, a `todo` variable in the time zone compiler, and the TAP `TODO` directive of the test libraries. Run `python3 tools/oxt/legacy_todo.py` after a change that adds, removes or moves notes; `--check` tells whether this file is up to date. The search is:
 
 ```sh
 git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetched' ':!gyp' ':!docs' \
@@ -13,15 +13,15 @@ git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetche
 
 | Marker | Notes |
 | --- | --- |
-| [FIXME](#fixme) | 66 |
+| [FIXME](#fixme) | 65 |
 | [HACK](#hack) | 33 |
-| [TODO](#todo) | 457 |
+| [TODO](#todo) | 429 |
 
 ## FIXME
 
-Code its authors knew to be wrong or incomplete. 66 notes, by part of the repository:
+Code its authors knew to be wrong or incomplete. 65 notes, by part of the repository:
 
-[engine](#fixme-engine) (33), [libfoundation](#fixme-libfoundation) (10), [tests](#fixme-tests) (8), [toolchain](#fixme-toolchain) (6), [extensions](#fixme-extensions) (2), [ide](#fixme-ide) (2), [libscript](#fixme-libscript) (2), [builder](#fixme-builder) (1), [ide-support](#fixme-ide-support) (1), [util](#fixme-util) (1)
+[engine](#fixme-engine) (33), [libfoundation](#fixme-libfoundation) (10), [tests](#fixme-tests) (8), [toolchain](#fixme-toolchain) (6), [extensions](#fixme-extensions) (2), [libscript](#fixme-libscript) (2), [builder](#fixme-builder) (1), [ide](#fixme-ide) (1), [ide-support](#fixme-ide-support) (1), [util](#fixme-util) (1)
 
 <a id="fixme-engine"></a>
 
@@ -107,13 +107,6 @@ Code its authors knew to be wrong or incomplete. 66 notes, by part of the reposi
 - [extensions/libraries/iconsvg/iconsvg.lcb:1622](extensions/libraries/iconsvg/iconsvg.lcb#L1622) FIXME Just subscript by tResolved once that's implemented
 - [extensions/widgets/switchbutton/switchbutton.lcb:388](extensions/widgets/switchbutton/switchbutton.lcb#L388) FIXME This is ugly!
 
-<a id="fixme-ide"></a>
-
-### FIXME: ide (2)
-
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11330](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11330) FIXME There is some inconsistency in the guide's files that we
-- [ide/Toolset/palettes/script editor/behaviors/revseleftbarbehavior.livecodescript:20](ide/Toolset/palettes/script%20editor/behaviors/revseleftbarbehavior.livecodescript#L20) FIXME What happens when the space is to short to show the filter field?
-
 <a id="fixme-libscript"></a>
 
 ### FIXME: libscript (2)
@@ -126,6 +119,12 @@ Code its authors knew to be wrong or incomplete. 66 notes, by part of the reposi
 ### FIXME: builder (1)
 
 - [builder/docs_builder.livecodescript:382](builder/docs_builder.livecodescript#L382) FIXME This has to be kept in sync with the installer manifest, probably
+
+<a id="fixme-ide"></a>
+
+### FIXME: ide (1)
+
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11330](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11330) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -175,7 +174,7 @@ Workarounds their authors were not happy with. 33 notes, by part of the reposito
 
 ### HACK: ide-support (4)
 
-- [ide-support/revdeploylibraryemscripten.livecodescript:227](ide-support/revdeploylibraryemscripten.livecodescript#L227) It will only work if firefox is not already running (or we could try a nasty apple script hack but that susceptible to menu/shortcut changes).
+- [ide-support/revdeploylibraryemscripten.livecodescript:258](ide-support/revdeploylibraryemscripten.livecodescript#L258) It will only work if firefox is not already running (or we could try a nasty apple script hack but that susceptible to menu/shortcut changes).
 - [ide-support/revsaveasiosstandalone.livecodescript:299](ide-support/revsaveasiosstandalone.livecodescript#L299) hack to uniquify modules
 - [ide-support/revsaveasiosstandalone.livecodescript:468](ide-support/revsaveasiosstandalone.livecodescript#L468) .embeddedframework is a hack that some SDKs use for single drag and drop of
 - [ide-support/revsaveasstandalone.livecodescript:1908](ide-support/revsaveasstandalone.livecodescript#L1908) For now however, I've added this hack to allow users to work around the issue themselves.
@@ -220,13 +219,13 @@ Workarounds their authors were not happy with. 33 notes, by part of the reposito
 
 ## TODO
 
-Work left for later. 457 notes, by part of the repository:
+Work left for later. 429 notes, by part of the repository:
 
-[engine](#todo-engine) (267), [libfoundation](#todo-libfoundation) (47), [tests](#todo-tests) (20), [revbrowser](#todo-revbrowser) (19), [ide](#todo-ide) (18), [toolchain](#todo-toolchain) (14), [extensions](#todo-extensions) (12), [libgraphics](#todo-libgraphics) (12), [libscript](#todo-libscript) (12), [libbrowser](#todo-libbrowser) (10), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1), [tools](#todo-tools) (1)
+[engine](#todo-engine) (266), [libfoundation](#todo-libfoundation) (47), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [ide-support](#todo-ide-support) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1), [tools](#todo-tools) (1)
 
 <a id="todo-engine"></a>
 
-### TODO: engine (267)
+### TODO: engine (266)
 
 - [engine/exec-tests/filters/EvalUniDecode.test:35](engine/exec-tests/filters/EvalUniDecode.test#L35) TODO - add this platform :)
 - [engine/exec-tests/filters/EvalUniEncode.test:35](engine/exec-tests/filters/EvalUniEncode.test#L35) TODO - add this platform :)
@@ -269,7 +268,6 @@ Work left for later. 457 notes, by part of the repository:
 - [engine/src/dskmain.cpp:222](engine/src/dskmain.cpp#L222) TODO Remove -g,-geometry flag because it's not used any more
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
-- [engine/src/dskw32.cpp:3031](engine/src/dskw32.cpp#L3031) TODO: set end of file...
 - [engine/src/em-dc.js:169](engine/src/em-dc.js#L169) TODO - handle cleanup of embedded canvas
 - [engine/src/em-event.js:863](engine/src/em-event.js#L863) TODO - reenable alt key detection
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
@@ -548,31 +546,6 @@ Work left for later. 457 notes, by part of the repository:
 - [libfoundation/src/system-library-w32.hpp:159](libfoundation/src/system-library-w32.hpp#L159) TODO[20170221] Oh dear, the path is too long to fit into a UINDEX_MAX!?!
 - [libfoundation/test/test_system-library.cpp:144](libfoundation/test/test_system-library.cpp#L144) TODO: Test error
 
-<a id="todo-tests"></a>
-
-### TODO: tests (20)
-
-- [tests/_compilertestrunner.livecodescript:165](tests/_compilertestrunner.livecodescript#L165) TODO the marker position should come from the position
-- [tests/_compilertestrunnerbehavior.livecodescript:137](tests/_compilertestrunnerbehavior.livecodescript#L137) put " # TODO" after tTestOutput
-- [tests/_testerlib.livecodescript:193](tests/_testerlib.livecodescript#L193) case "TODO"
-- [tests/_testlib.livecodescript:73](tests/_testlib.livecodescript#L73) case "TODO"
-- [tests/_testlib.livecodescript:74](tests/_testlib.livecodescript#L74) return "TODO"
-- [tests/_testlib.livecodescript:310](tests/_testlib.livecodescript#L310) _TestOutput pExpectTrue, pDescription, "TODO", pReasonBroken
-- [tests/_testlib.livecodescript:725](tests/_testlib.livecodescript#L725) TODO: make externals tests work in standalone test builder
-- [tests/_testrunner.lcb:341](tests/_testrunner.lcb#L341) Check for a diagnostic mode (TODO or SKIP)
-- [tests/_testrunner.lcb:350](tests/_testrunner.lcb#L350) if 1 is the first offset of " TODO" in tLineElements[2] then
-- [tests/lcb/stdlib/char.lcb:277](tests/lcb/stdlib/char.lcb#L277) test diagnostic "TODO 'y' is not in 'xyz'"
-- [tests/lcb/stdlib/sort.lcb:42](tests/lcb/stdlib/sort.lcb#L42) TODO allow generation of *any* codepoint
-- [tests/lcb/stdlib/string.lcb:63](tests/lcb/stdlib/string.lcb#L63) test diagnostic "TODO test some Unicode corner cases"
-- [tests/lcb/stdlib/string.lcb:68](tests/lcb/stdlib/string.lcb#L68) test diagnostic "TODO test some Unicode corner cases"
-- [tests/lcb/stdlib/string.lcb:74](tests/lcb/stdlib/string.lcb#L74) test diagnostic "TODO case sensitivity options"
-- [tests/lcb/vm/foreign-invoke.lcb:119](tests/lcb/vm/foreign-invoke.lcb#L119) TODO
-- [tests/lcs/docs/validate-dictionary.livecodescript:189](tests/lcs/docs/validate-dictionary.livecodescript#L189) !TODO test associations are valid
-- [tests/lcs/docs/validate-dictionary.livecodescript:248](tests/lcs/docs/validate-dictionary.livecodescript#L248) TODO this should not be necessary if we fix all these docs but baby steps!!!
-- [tests/lcs/docs/validate-dictionary.livecodescript:257](tests/lcs/docs/validate-dictionary.livecodescript#L257) TODO this should not be necessary if we fix all these docs but baby steps!!!
-- [tests/lcs/docs/validate-dictionary.livecodescript:330](tests/lcs/docs/validate-dictionary.livecodescript#L330) !TODO parse all summaries and descriptions etc
-- [tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb:27](tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb#L27) TODO: once we have 'the contents of resource file' or similar,
-
 <a id="todo-revbrowser"></a>
 
 ### TODO: revbrowser (19)
@@ -597,29 +570,6 @@ Work left for later. 457 notes, by part of the repository:
 - [revbrowser/src/cefbrowser_lnx.cpp:190](revbrowser/src/cefbrowser_lnx.cpp#L190) TODO - implement
 - [revbrowser/src/cefprocess.cpp:130](revbrowser/src/cefprocess.cpp#L130) TODO - IMPLEMENT
 
-<a id="todo-ide"></a>
-
-### TODO: ide (18)
-
-- [ide/Documentation/html_viewer/js/bootstrap.js:1576](ide/Documentation/html_viewer/js/bootstrap.js#L1576) if (that.$element) { // TODO: Check whether guarding this code with this `if` is really necessary.
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:374](ide/Toolset/libraries/revidelibrary.8.livecodescript#L374) TODO: there should be a more transparent way of ordering these
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:34](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L34) TODO: Remove legacy message name
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:65](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L65) TODO: Remove legacy message name
-- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:93](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L93) TODO: Remove legacy message name
-- [ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript:3](ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript#L3) *TODO* Tweak the CSS to rearrange things appropriately
-- [ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript:121](ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript#L121) TODO: Use 'combine tValueArray with tDelimiter' once we add sorting option to combine
-- [ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript:167](ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript#L167) TODO : Property profiles
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:63](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L63) local sLockDrawing -- todo: add set/get. When locked we don't redraw when data is created, deleted, reordered or updated.
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:2565](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L2565) todo: can we only perform actions if visible of scrollbar is different than pBoolean?
-- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:6638](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L6638) todo: optimize so we don't toggle unless we need to
-- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:716](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L716) TODO remove use of revAvailableHandlers here (quite invasive)
-- [ide/Toolset/palettes/standalone settings/revstandalonesettingsinclusionsrowbehavior.livecodescript:101](ide/Toolset/palettes/standalone%20settings/revstandalonesettingsinclusionsrowbehavior.livecodescript#L101) TODO: Fetch existing value!
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:300](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L300) put "lc-todo-list" into tArray[2]["icon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:301](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L301) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:312](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L312) put "lc-todo-list" into tArray[2]["icon"]
-- [ide/Toolset/palettes/start center/revStartCenterBehavior.livecodescript:313](ide/Toolset/palettes/start%20center/revStartCenterBehavior.livecodescript#L313) put "lc-todo-list-filled" into tArray[2]["hoverIcon"]
-- [ide/tests/_testrunner.livecodescript:307](ide/tests/_testrunner.livecodescript#L307) TODO Can't get exit status from open process
-
 <a id="todo-toolchain"></a>
 
 ### TODO: toolchain (14)
@@ -639,22 +589,41 @@ Work left for later. 457 notes, by part of the repository:
 - [toolchain/lc-compile/src/generate.g:1839](toolchain/lc-compile/src/generate.g#L1839) TODO
 - [toolchain/lc-compile/src/syntax-gen.c:523](toolchain/lc-compile/src/syntax-gen.c#L523) TODO: Check whether node is already a child of target.
 
-<a id="todo-extensions"></a>
+<a id="todo-ide"></a>
 
-### TODO: extensions (12)
+### TODO: ide (13)
 
-- [extensions/libraries/iconsvg/iconsvg.lcb:1375](extensions/libraries/iconsvg/iconsvg.lcb#L1375) put the empty array into tArray["lc-todo-list"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1376](extensions/libraries/iconsvg/iconsvg.lcb#L1376) put "M12.24,10.36A.5.5,0,0,1,12,11c-1.85.76-4.07,5.33-4.77,7a.5.5,0,0,1-.46.31h0A.5.5,0,0,1,6.26,18h0s-.39-.76-2.69-2.29a.5.5,0,1,1,.55-.83,14.73,14.73,0,0,1...
-- [extensions/libraries/iconsvg/iconsvg.lcb:1377](extensions/libraries/iconsvg/iconsvg.lcb#L1377) put "0" into tArray["lc-todo-list"]["codepoint"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1379](extensions/libraries/iconsvg/iconsvg.lcb#L1379) put the empty array into tArray["lc-todo-list-filled"]
-- [extensions/libraries/iconsvg/iconsvg.lcb:1380](extensions/libraries/iconsvg/iconsvg.lcb#L1380) put "M11.13,3.95V3a.69.69,0,0,0-.69-.69H9.59A2.27,2.27,0,1,0,5,2.27H4.2A.69.69,0,0,0,3.51,3v1h-3A.52.52,0,0,0,0,4.46V20.68a.52.52,0,0,0,.52.52h13.6a.52.52,0,...
-- [extensions/libraries/iconsvg/iconsvg.lcb:1381](extensions/libraries/iconsvg/iconsvg.lcb#L1381) put "0" into tArray["lc-todo-list-filled"]["codepoint"]
-- [extensions/libraries/timezone/tz/zic.c:2040](extensions/libraries/timezone/tz/zic.c#L2040) register zic_t	todo;
-- [extensions/libraries/timezone/tz/zic.c:2057](extensions/libraries/timezone/tz/zic.c#L2057) todo = tadd(trans[i], -gmtoffs[j]);
-- [extensions/libraries/timezone/tz/zic.c:2058](extensions/libraries/timezone/tz/zic.c#L2058) } else	todo = trans[i];
-- [extensions/libraries/timezone/tz/zic.c:2060](extensions/libraries/timezone/tz/zic.c#L2060) puttzcode(todo, fp);
-- [extensions/libraries/timezone/tz/zic.c:2061](extensions/libraries/timezone/tz/zic.c#L2061) else	puttzcode64(todo, fp);
-- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
+- [ide/Documentation/html_viewer/js/bootstrap.js:1576](ide/Documentation/html_viewer/js/bootstrap.js#L1576) if (that.$element) { // TODO: Check whether guarding this code with this `if` is really necessary.
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:374](ide/Toolset/libraries/revidelibrary.8.livecodescript#L374) TODO: there should be a more transparent way of ordering these
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:34](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L34) TODO: Remove legacy message name
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:65](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L65) TODO: Remove legacy message name
+- [ide/Toolset/libraries/revinitialisationlibrary.livecodescript:93](ide/Toolset/libraries/revinitialisationlibrary.livecodescript#L93) TODO: Remove legacy message name
+- [ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript:3](ide/Toolset/palettes/dictionary/behaviors/revdictionarybehavior.livecodescript#L3) *TODO* Tweak the CSS to rearrange things appropriately
+- [ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript:121](ide/Toolset/palettes/inspector/editors/com.livecode.pi.editorlist.behavior.livecodescript#L121) TODO: Use 'combine tValueArray with tDelimiter' once we add sorting option to combine
+- [ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript:167](ide/Toolset/palettes/inspector/revstandalonesettingsnew.livecodescript#L167) TODO : Property profiles
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:63](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L63) local sLockDrawing -- todo: add set/get. When locked we don't redraw when data is created, deleted, reordered or updated.
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:2565](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L2565) todo: can we only perform actions if visible of scrollbar is different than pBoolean?
+- [ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript:6638](ide/Toolset/palettes/revdatagridlibrary/behaviorsdatagridbuttonbehavior.livecodescript#L6638) todo: optimize so we don't toggle unless we need to
+- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:716](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L716) TODO remove use of revAvailableHandlers here (quite invasive)
+- [ide/tests/_testrunner.livecodescript:307](ide/tests/_testrunner.livecodescript#L307) TODO Can't get exit status from open process
+
+<a id="todo-tests"></a>
+
+### TODO: tests (13)
+
+- [tests/_compilertestrunner.livecodescript:165](tests/_compilertestrunner.livecodescript#L165) TODO the marker position should come from the position
+- [tests/_testlib.livecodescript:725](tests/_testlib.livecodescript#L725) TODO: make externals tests work in standalone test builder
+- [tests/lcb/stdlib/char.lcb:277](tests/lcb/stdlib/char.lcb#L277) test diagnostic "TODO 'y' is not in 'xyz'"
+- [tests/lcb/stdlib/sort.lcb:42](tests/lcb/stdlib/sort.lcb#L42) TODO allow generation of *any* codepoint
+- [tests/lcb/stdlib/string.lcb:63](tests/lcb/stdlib/string.lcb#L63) test diagnostic "TODO test some Unicode corner cases"
+- [tests/lcb/stdlib/string.lcb:68](tests/lcb/stdlib/string.lcb#L68) test diagnostic "TODO test some Unicode corner cases"
+- [tests/lcb/stdlib/string.lcb:74](tests/lcb/stdlib/string.lcb#L74) test diagnostic "TODO case sensitivity options"
+- [tests/lcb/vm/foreign-invoke.lcb:119](tests/lcb/vm/foreign-invoke.lcb#L119) TODO
+- [tests/lcs/docs/validate-dictionary.livecodescript:189](tests/lcs/docs/validate-dictionary.livecodescript#L189) !TODO test associations are valid
+- [tests/lcs/docs/validate-dictionary.livecodescript:248](tests/lcs/docs/validate-dictionary.livecodescript#L248) TODO this should not be necessary if we fix all these docs but baby steps!!!
+- [tests/lcs/docs/validate-dictionary.livecodescript:257](tests/lcs/docs/validate-dictionary.livecodescript#L257) TODO this should not be necessary if we fix all these docs but baby steps!!!
+- [tests/lcs/docs/validate-dictionary.livecodescript:330](tests/lcs/docs/validate-dictionary.livecodescript#L330) !TODO parse all summaries and descriptions etc
+- [tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb:27](tests/lcs/extensions/libraries/resourcestest/resourcestest.lcb#L27) TODO: once we have 'the contents of resource file' or similar,
 
 <a id="todo-libgraphics"></a>
 
@@ -673,23 +642,6 @@ Work left for later. 457 notes, by part of the repository:
 - [libgraphics/src/path.cpp:39](libgraphics/src/path.cpp#L39) TODO: Implement
 - [libgraphics/src/w32text.cpp:480](libgraphics/src/w32text.cpp#L480) TODO: RTL
 
-<a id="todo-libscript"></a>
-
-### TODO: libscript (12)
-
-- [libscript/src/module-encoding.cpp:73](libscript/src/module-encoding.cpp#L73) TODO: Move binary encode/decode to foundation
-- [libscript/src/module-encoding.cpp:80](libscript/src/module-encoding.cpp#L80) TODO: Move binary encode/decode to foundation
-- [libscript/src/script-error.cpp:83](libscript/src/script-error.cpp#L83) TODO: Add expected / provided argument counts.
-- [libscript/src/script-execute.cpp:288](libscript/src/script-execute.cpp#L288) _Complex long double (TODO)
-- [libscript/src/script-execute.cpp:306](libscript/src/script-execute.cpp#L306) TODO: Investigate structs containing long doubles
-- [libscript/src/script-execute.cpp:550](libscript/src/script-execute.cpp#L550) TODO: Split UnboxingConvert so that we don't resolve types twice.
-- [libscript/src/script-private.h:830](libscript/src/script-private.h#L830) TODO: Make this better for negative numbers.
-- [libscript/src/script-validate.hpp:243](libscript/src/script-validate.hpp#L243) TODO: Validate that p_address is the start of an opcode.
-- [libscript/src/unittest.lcb:311](libscript/src/unittest.lcb#L311) MCUnitOutputTest(pCondition, "", "TODO", "")
-- [libscript/src/unittest.lcb:344](libscript/src/unittest.lcb#L344) MCUnitOutputTest(pCondition, pDescription, "TODO", "")
-- [libscript/src/unittest.lcb:378](libscript/src/unittest.lcb#L378) MCUnitOutputTest(pCondition, "", "TODO", pReason)
-- [libscript/src/unittest.lcb:413](libscript/src/unittest.lcb#L413) MCUnitOutputTest(pCondition, pDescription, "TODO", pReason)
-
 <a id="todo-libbrowser"></a>
 
 ### TODO: libbrowser (10)
@@ -704,6 +656,19 @@ Work left for later. 457 notes, by part of the repository:
 - [libbrowser/src/libbrowser_cef_lnx.cpp:236](libbrowser/src/libbrowser_cef_lnx.cpp#L236) TODO - implement
 - [libbrowser/src/libbrowser_cefprocess.cpp:130](libbrowser/src/libbrowser_cefprocess.cpp#L130) TODO - IMPLEMENT
 - [libbrowser/src/libbrowser_osx_webview.mm:480](libbrowser/src/libbrowser_osx_webview.mm#L480) TODO - obtain directly from mainFrame dataSource data
+
+<a id="todo-libscript"></a>
+
+### TODO: libscript (8)
+
+- [libscript/src/module-encoding.cpp:73](libscript/src/module-encoding.cpp#L73) TODO: Move binary encode/decode to foundation
+- [libscript/src/module-encoding.cpp:80](libscript/src/module-encoding.cpp#L80) TODO: Move binary encode/decode to foundation
+- [libscript/src/script-error.cpp:83](libscript/src/script-error.cpp#L83) TODO: Add expected / provided argument counts.
+- [libscript/src/script-execute.cpp:288](libscript/src/script-execute.cpp#L288) _Complex long double (TODO)
+- [libscript/src/script-execute.cpp:306](libscript/src/script-execute.cpp#L306) TODO: Investigate structs containing long doubles
+- [libscript/src/script-execute.cpp:550](libscript/src/script-execute.cpp#L550) TODO: Split UnboxingConvert so that we don't resolve types twice.
+- [libscript/src/script-private.h:830](libscript/src/script-private.h#L830) TODO: Make this better for negative numbers.
+- [libscript/src/script-validate.hpp:243](libscript/src/script-validate.hpp#L243) TODO: Validate that p_address is the start of an opcode.
 
 <a id="todo-builder"></a>
 
@@ -766,6 +731,12 @@ Work left for later. 457 notes, by part of the repository:
 ### TODO: config (1)
 
 - [config/win32.gypi:32](config/win32.gypi#L32) TODO [2017-04-11]: Remove these overrides when we can use
+
+<a id="todo-extensions"></a>
+
+### TODO: extensions (1)
+
+- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
 
 <a id="todo-lcidlc"></a>
 

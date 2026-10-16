@@ -3028,11 +3028,13 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
                 if (t_available != 0)
                     continue;
                 
-				/* TODO: set end of file...
-                // MW-2010-10-25: [[ Bug 9134 ]] Make sure the we mark the stream as 'ATEOF'
-                if (MCprocesses[i] . ihandle != nil)
-                    MCprocesses[i] . ihandle -> flags |= IO_ATEOF;
-                */
+                // MW-2010-10-25: [[ Bug 9134 ]] The stream of a process that has
+                //   ended used to be marked 'ATEOF' here. Its handle needs no
+                //   mark now: the engine closes its copy of the process's end
+                //   of the pipe once the process has started, so the pipe
+                //   breaks when the process exits and MCStdioFileHandle::Read
+                //   takes ERROR_BROKEN_PIPE as the end of file (checked by
+                //   TestReadFromProcessUntilEOF in tests/lcs/core/files).
 
                 DWORD retcode;
                 GetExitCodeProcess(MCprocesses[i].phandle, &retcode);

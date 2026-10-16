@@ -461,6 +461,36 @@ on TestReadFromProcess
    end if
 end TestReadFromProcess
 
+-- A process that has ended gives the rest of its output and then end of
+-- file: on Windows its pipe breaks when it exits (the engine keeps no copy
+-- of the process's end of it), and that is the end of file
+on TestReadFromProcessUntilEOF
+   local tProcess
+   if the platform is "Win32" then
+      put "cmd.exe /c echo foo" into tProcess
+   else if the platform is "macos" or the platform contains "linux" then
+      put "/bin/echo foo" into tProcess
+   else
+      testSkip
+      exit TestReadFromProcessUntilEOF
+   end if
+
+   open process tProcess for text read
+   TestAssert "Process opened", the result is empty
+
+   -- Let it end first, so that the end of file comes after it has gone
+   wait 500 milliseconds with messages
+
+   local tOutput, tResult
+   read from process tProcess until EOF in 10 seconds
+   put it into tOutput
+   put the result into tResult
+   close process tProcess
+
+   TestAssert "Reading from an ended process until EOF gives its output", word 1 of tOutput is "foo"
+   TestAssert "Reading from an ended process until EOF ends with eof", tResult is "eof"
+end TestReadFromProcessUntilEOF
+
 
 on TestRenameFile
    if the platform is "Android" or the platform is "iphone" then set the defaultFolder to specialFolderPath("cache")

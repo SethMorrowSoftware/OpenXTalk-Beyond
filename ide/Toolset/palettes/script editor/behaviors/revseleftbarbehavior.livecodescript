@@ -16,8 +16,13 @@ command resize
    put item 4 of tRect into tBottom
    put tBottom - tTop into tHeight
 
-   -- Aim to put the filter field below the list of handlers.
-   -- FIXME What happens when the space is to short to show the filter field?
+   -- Put the filter field below the list of handlers. When the pane is
+   -- too short for both, the filter field keeps its height and the list
+   -- gets what is left, if anything: the engine shows a negative height
+   -- as 1 pixel, but the list's cMinHeight and cMaxHeight would take the
+   -- negative number as it is.
+   local tListHeight
+   put max(0, tHeight - the height of tFilter) into tListHeight
    lock screen
    set the width of tFilter to tWidth
    set the bottom of tFilter to tBottom
@@ -28,9 +33,9 @@ command resize
    set the width of tList to tWidth
    set the cMaxWidth of tList to tWidth
    set the cMinWidth of tList to tWidth
-   set the height of tList to (tHeight - the height of tFilter)
-   set the cMaxHeight of tList to (tHeight - the height of tFilter)
-   set the cMinHeight of tList to (tHeight - the height of tFilter)
+   set the height of tList to tListHeight
+   set the cMaxHeight of tList to tListHeight
+   set the cMinHeight of tList to tListHeight
 
    send "resize" to group "Left Handler List" of me
    unlock screen
@@ -62,8 +67,8 @@ command update pDontUpdateSelectedHandler, pClearFilter
    
    set the cMaxWidth of tObject to the width of me
    set the cMinWidth of tObject to the width of me
-   set the cMaxHeight of tObject to (the height of me - the height of tFilter)
-   set the cMinHeight of tObject to (the height of me - the height of tFilter)
+   set the cMaxHeight of tObject to max(0, the height of me - the height of tFilter)
+   set the cMinHeight of tObject to max(0, the height of me - the height of tFilter)
    
    call "initializeWithoutGrabbingFocus" to tObject
    

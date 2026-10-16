@@ -29,6 +29,25 @@ PATHSPEC = [
     ":!tools/ci", ":!tools/oxt", ":!*.md", ":!*.txt", ":!*.json", ":!*.map", ":!*.strings",
 ]
 
+# Lines the search finds that hold no note, left out of the list: (marker,
+# path pattern, line pattern), each with why.
+NOT_NOTES = [
+    # The names of the start center's to-do list icons
+    ("TODO", r"", r"lc-todo-list"),
+    # A variable of the time zone compiler, which comes from the tz project
+    ("TODO", r"^extensions/libraries/timezone/tz/zic\.c$", r"\btodo\b"),
+    # The TAP "TODO" directive, which the test libraries write and read
+    ("TODO", r"", r'"\s*(?:#\s*)?TODO"|\(TODO or SKIP\)'),
+]
+
+
+def is_note(p_marker, p_path, p_content):
+    for marker, path, pattern in NOT_NOTES:
+        if marker == p_marker and re.search(path, p_path) and re.search(pattern, p_content):
+            return False
+    return True
+
+
 INTRO = """\
 # FIXME, TODO and HACK notes in the legacy code
 
@@ -36,7 +55,7 @@ Every FIXME, TODO and HACK comment in the code OXT-Beyond inherited: LiveCode Co
 
 Not covered: the third-party libraries in `thirdparty/` (each has its own upstream), the bundled copy of GYP in `gyp/`, the dictionary and guides in `docs/`, OXT-Beyond's own build and CI tools in `tools/ci/` and `tools/oxt/`, and the scripts inside the IDE's binary stacks (`.livecode`, `.rev` and `.oxtstack` files), which a text search cannot read.
 
-How it is made: `tools/oxt/legacy_todo.py` writes this file from a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence). A line with more than one marker is listed under each. Run `python3 tools/oxt/legacy_todo.py` after a change that adds, removes or moves notes; `--check` tells whether this file is up to date. The search is:
+How it is made: `tools/oxt/legacy_todo.py` writes this file from a case-insensitive whole-word search for `FIXME`, `TODO` and `HACK` (so `COCOA-TODO` and `V6-TODO` count, and so does "hack" in a sentence). A line with more than one marker is listed under each. Lines where the word is not a note are left out, each kind named in the script (`NOT_NOTES`): the start center's `lc-todo-list` icons, a `todo` variable in the time zone compiler, and the TAP `TODO` directive of the test libraries. Run `python3 tools/oxt/legacy_todo.py` after a change that adds, removes or moves notes; `--check` tells whether this file is up to date. The search is:
 
 ```sh
 git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetched' ':!gyp' ':!docs' \\
@@ -87,7 +106,8 @@ def find_notes(p_root):
         line = raw.decode("utf-8", "replace")
         path, number, content = line.split(":", 2)
         for marker, _ in MARKERS:
-            if re.search(r"(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % marker, content, re.IGNORECASE):
+            if re.search(r"(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % marker, content, re.IGNORECASE) \
+                    and is_note(marker, path, content):
                 notes[marker].append((path, int(number), note_text(content)))
     return notes
 

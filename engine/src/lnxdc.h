@@ -341,6 +341,10 @@ public:
     // Queues an event as a pending event
     void EnqueueEvent(GdkEvent *);
     
+    // Answers a request for one of the selections (PRIMARY, CLIPBOARD and
+    // the drag-and-drop one) that this application owns
+    void HandleSelectionRequest(GdkEvent *);
+    
     // IME events
     void IME_OnCommit(GtkIMContext*, gchar *p_utf8_string);
     bool IME_OnDeleteSurrounding(GtkIMContext*, gint p_offset, gint p_count);

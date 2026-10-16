@@ -447,10 +447,123 @@ bool MCLinuxRawClipboard::PullUpdates()
 #endif
 }
 
+#ifndef _SERVER
+// The events that matter while the clipboard manager saves the clipboard: its
+// requests for the data, and its answer to the request to save it.
+static bool ClipboardStoreFilter(GdkEvent *p_event, void *)
+{
+    static GdkAtom s_manager = gdk_atom_intern_static_string("CLIPBOARD_MANAGER");
+    static GdkAtom s_save_targets = gdk_atom_intern_static_string("SAVE_TARGETS");
+    if (p_event->type == GDK_SELECTION_REQUEST)
+        return true;
+    return p_event->type == GDK_SELECTION_NOTIFY &&
+           p_event->selection.selection == s_manager &&
+           p_event->selection.target == s_save_targets;
+}
+
+// How long the clipboard manager may take to save the clipboard as the
+// application quits: as long as GTK gives it (gtk_clipboard_store). It is
+// spent only when a manager is running and is slow to answer; the data it
+// reads comes from memory.
+static const uint32_t kClipboardStoreTimeoutMs = 10000;
+
+static bool s_clipboard_store_timeout;
+static gboolean ClipboardStoreTimeout(gpointer)
+{
+    s_clipboard_store_timeout = true;
+    return FALSE;
+}
+#endif
+
 bool MCLinuxRawClipboard::FlushData()
 {
-    // Not supported by the X11 clipboard model
+#ifndef _SERVER
+    // X11 has no system copy of a selection: its data stays with the
+    // application that owns it and goes when the application quits. The
+    // freedesktop.org clipboard manager protocol keeps the CLIPBOARD: the
+    // owner asks the CLIPBOARD_MANAGER selection's owner to SAVE_TARGETS,
+    // and that manager reads the data and takes the CLIPBOARD over. GTK
+    // applications do this as they quit; this engine uses GDK alone, so it
+    // does it here (X_close calls FlushData on every clipboard as the engine
+    // shuts down). PRIMARY and the drag-and-drop selection are not kept,
+    // as no X11 application keeps them.
+    if (!HasGDK() || m_selection != GDK_SELECTION_CLIPBOARD || !m_owned ||
+        m_selected_item == NULL)
+        return false;
+    
+    // Nothing to do without a clipboard manager (most desktops run one; a
+    // bare window manager may not). The manager is another process, so
+    // gdk_selection_owner_get_for_display cannot see it: it answers only
+    // with this process's own windows.
+    if (!gdk_display_supports_clipboard_persistence(GetDisplay()))
+        return false;
+    
+    // The targets the manager is to save: every representation of the data,
+    // but not the special targets (TARGETS, MULTIPLE, TIMESTAMP), which
+    // CopyTargets lists last
+    MCAutoDataRef t_targets(CopyTargets());
+    if (*t_targets == NULL)
+        return false;
+    uindex_t t_count = MCDataGetLength(*t_targets) / sizeof(gulong);
+    if (t_count <= 3)
+        return false;
+    t_count -= 3;
+    
+    // Ask the manager to save them. It answers with SelectionNotify, after it
+    // has read the data through selection requests, which this loop answers
+    // (the engine's event loop no longer runs).
+    // (GTK 2's header takes the list as non-const; it is only read)
+    MCAutoArray<GdkAtom> t_atoms;
+    if (!t_atoms.New(t_count))
+        return false;
+    MCMemoryCopy(t_atoms.Ptr(), MCDataGetBytePtr(*t_targets), t_count * sizeof(GdkAtom));
+    gdk_display_store_clipboard(GetDisplay(), GetClipboardWindow(),
+                                GDK_CURRENT_TIME,
+                                t_atoms.Ptr(), t_count);
+    gdk_display_flush(GetDisplay());
+    
+    s_clipboard_store_timeout = false;
+    guint t_timeout_event = g_timeout_add(kClipboardStoreTimeoutMs, &ClipboardStoreTimeout, NULL);
+    
+    MCScreenDC *dc = (MCScreenDC*)MCscreen;
+    bool t_saved = false;
+    while (!s_clipboard_store_timeout)
+    {
+        GdkEvent *t_event = NULL;
+        if (!dc->GetFilteredEvent(ClipboardStoreFilter, t_event, NULL, true))
+            continue;
+        
+        bool t_done = false;
+        if (t_event->type == GDK_SELECTION_REQUEST)
+        {
+            dc->HandleSelectionRequest(t_event);
+            gdk_display_flush(GetDisplay());
+        }
+        else
+        {
+            // A property of None means the manager could not save it
+            t_saved = t_event->selection.property != GDK_NONE;
+            t_done = true;
+        }
+        gdk_event_free(t_event);
+        
+        if (t_done)
+            break;
+    }
+    
+    if (!s_clipboard_store_timeout)
+        g_source_destroy(g_main_context_find_source_by_id(NULL, t_timeout_event));
+    
+    // The manager owns the CLIPBOARD now. Forget it here, so that the
+    // destructor does not set its owner to None, which would take it from
+    // the manager (X does not check who owns a selection that is cleared).
+    if (t_saved)
+        LostSelection();
+    
+    return t_saved;
+#else
     return false;
+#endif
 }
 
 void MCLinuxRawClipboard::SetDirty()
