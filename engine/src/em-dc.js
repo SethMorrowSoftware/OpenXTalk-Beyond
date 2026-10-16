@@ -596,6 +596,13 @@ mergeInto(LibraryManager.library, {
 			var frame = window.frame;
 			var drag = null;
 
+			// The mouse's own events too, for a drag that comes with no
+			// pointer events: Firefox driven by Playwright sends only those
+			// (seen 2026-10-16 in Firefox 142). Once a pointer event has
+			// come, the mouse events are left alone; a mouse drag follows
+			// the document's events, as a pointer drag follows its capture.
+			var pointer = false;
+			var mouse = 'mouse';
 			var press = function(e, kind) {
 				e.preventDefault();
 				e.stopPropagation();
@@ -603,12 +610,19 @@ mergeInto(LibraryManager.library, {
 					return;
 				}
 				LiveCodeDC._activateWindow(pID);
-				drag = {'kind': kind, 'pointer': e.pointerId, 'x': e.clientX, 'y': e.clientY,
+				var id = e.pointerId === undefined ? mouse : e.pointerId;
+				drag = {'kind': kind, 'pointer': id, 'x': e.clientX, 'y': e.clientY,
 						'rect': window.rect};
-				e.currentTarget.setPointerCapture(e.pointerId);
+				if (id === mouse) {
+					document.addEventListener('mousemove', move, true);
+					document.addEventListener('mouseup', end, true);
+				} else {
+					e.currentTarget.setPointerCapture(e.pointerId);
+				}
 			};
 			var move = function(e) {
-				if (!drag || e.pointerId != drag.pointer) {
+				var id = e.pointerId === undefined ? mouse : e.pointerId;
+				if (!drag || id != drag.pointer) {
 					return;
 				}
 				e.preventDefault();
@@ -624,19 +638,34 @@ mergeInto(LibraryManager.library, {
 				}
 			};
 			var end = function(e) {
-				if (drag && e.pointerId == drag.pointer) {
+				var id = e.pointerId === undefined ? mouse : e.pointerId;
+				if (drag && id == drag.pointer) {
 					drag = null;
+					if (id === mouse) {
+						document.removeEventListener('mousemove', move, true);
+						document.removeEventListener('mouseup', end, true);
+					}
 				}
 			};
 
 			[frame.title].concat(frame.edges).forEach(function(element) {
 				element.addEventListener('pointerdown', function(e) {
+					pointer = true;
 					if (frame.close.contains(e.target)) {
 						return;
 					}
 					press(e, element.oxtEdge || 'move');
 				});
-				element.addEventListener('pointermove', move);
+				element.addEventListener('mousedown', function(e) {
+					if (pointer || frame.close.contains(e.target)) {
+						return;
+					}
+					press(e, element.oxtEdge || 'move');
+				});
+				element.addEventListener('pointermove', function(e) {
+					pointer = true;
+					move(e);
+				});
 				element.addEventListener('pointerup', end);
 				element.addEventListener('pointercancel', end);
 			});
