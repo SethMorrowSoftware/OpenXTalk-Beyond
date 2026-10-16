@@ -104,6 +104,19 @@ on TestHyperCardImportNewStackCard
    _Close tStack
 end TestHyperCardImportNewStackCard
 
+on TestHyperCardImportMacRomanText
+   -- the text is MacRoman, and comes in as the same characters on every
+   -- platform (off the Mac it was converted the wrong way: a curly quote
+   -- came in as a letter with an accent)
+   local tStack
+   put _Import("TestStrangeFlags") into tStack
+   TestAssert "left double quote", \
+      codepointToNum(char 7 of field 12 of card 13 of stack tStack) is 8220
+   TestAssert "apostrophe", \
+      codepointToNum(char 105 of field 4 of card 16 of stack tStack) is 8217
+   _Close tStack
+end TestHyperCardImportMacRomanText
+
 on TestHyperCardImportCardOrder
    -- 200 cards over two PAGE blocks: the order is the LIST's
    local tStack

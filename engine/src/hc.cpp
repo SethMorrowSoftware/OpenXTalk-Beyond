@@ -349,6 +349,10 @@ static uint2 convert_style(uint2 istyle)
 	return ostyle;
 }
 
+// HyperCard's text is MacRoman, which is the native encoding on the Mac. Off
+// the Mac it is converted with MCmactranslations, Mac to native, as the
+// macToISO function does; the importer used MCisotranslations, the other
+// way round, so curly quotes came in as other letters.
 static char *convert_string(const char *string)
 {
 	const uint1 *sptr = (const uint1 *)string;
@@ -362,7 +366,7 @@ static char *convert_string(const char *string)
 #ifdef _MACOSX
 			*dptr = *sptr;
 #else
-			*dptr = MCisotranslations[*sptr];
+			*dptr = MCmactranslations[*sptr];
 #endif
 
 		dptr++;
@@ -425,7 +429,7 @@ static char *convert_script(const char *string)
 #ifdef _MACOSX
 			*dptr = *sptr;
 #else
-			*dptr = MCisotranslations[*sptr];
+			*dptr = MCmactranslations[*sptr];
 #endif
 
 			break;
