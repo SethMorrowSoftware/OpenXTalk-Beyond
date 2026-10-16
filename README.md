@@ -1567,9 +1567,10 @@ stood before. A stack imported earlier and saved keeps its text. Pull
 requests
 [#112](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/112),
 [#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113),
-[#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114)
-and
+[#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114),
 [#116](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/116)
+and
+[#117](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/117)
 list every change.
 
 #### 0.2.7-rc.1: a new web font, and Firefox and Safari
