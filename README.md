@@ -72,8 +72,11 @@ standalones, with a bold face, of their tests in Firefox and WebKit as
 well as Chromium, of the Linux clipboard fix withdrawn with the first
 0.2.6-rc.4, and of xTalk Suite extensions that load on older Linux and
 macOS (see
-[0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)); 0.2.6
-stays the main download until it has held up.
+[0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)), and
+0.2.7-rc.2 adds a File menu item for importing HyperCard stacks and
+de-branded macOS app settings (see
+[0.2.7-rc.2](#027-rc2-importing-hypercard-stacks)); 0.2.6 stays the
+main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -1512,6 +1515,42 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.2: importing HyperCard stacks
+
+OXT-Beyond 0.2.7-rc.2, a test release, has everything in 0.2.7-rc.1,
+and:
+
+- **File > Import Stack > HyperCard Stack...** imports a HyperCard
+  stack: the stack itself, or a MacBinary or BinHex copy of it. Open
+  Stack still converts one too, but runs its scripts as it opens, as
+  for any stack; Import Stack opens it with messages locked, so none of
+  its handlers run while it is imported. Many of the HyperCard stacks
+  still around carry the MerryXmas virus or one of its clones, written
+  in HyperTalk, which run from those handlers. The stack's handlers run
+  as usual once you use it. A file that is not a HyperCard stack is
+  refused with a message saying so, and the imported stack has no file
+  name, so Save asks where to save it. Other importers can join the
+  submenu later.
+- **macOS: the app describes itself as OXT-Beyond.** Its AppleScript
+  dictionary says "xTalk" where it said "LiveCode" (the commands and
+  their codes are the same), its document types name OpenXTalk stacks,
+  and it has the usage descriptions that recent macOS versions show
+  when a stack asks for the microphone, the camera, Bluetooth, speech
+  recognition, notifications, Apple events or a protected folder.
+  Without the microphone's, recording sound on Apple Silicon under
+  macOS 15 crashed. From Paul McClernan,
+  [#112](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/112);
+  [#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113)
+  keeps the IDE's normal quit, with its prompt to save changes, when
+  you log out or restart.
+
+A script sees no difference from 0.2.7-rc.1. Pull requests
+[#112](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/112),
+[#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113)
+and
+[#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114)
+list every change.
 
 #### 0.2.7-rc.1: a new web font, and Firefox and Safari
 
