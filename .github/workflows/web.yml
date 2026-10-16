@@ -370,6 +370,24 @@ jobs:
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
 
+      # The fonts of every HTML5 standalone are what tools/oxt/build_web_fonts.py
+      # makes from the Ubuntu 24.04 packages it names (each file pinned by its
+      # SHA-256 there; the versions here are the ones it was built from)
+      - name: Check the web fonts against their sources
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          mkdir -p "$RUNNER_TEMP/font-sources" && cd "$RUNNER_TEMP/font-sources"
+          apt-get -o Acquire::Retries=3 download \
+            'mythtv-common=2:34.0+fixes.20240210.e3e165a1-0ubuntu6' \
+            'fonts-droid-fallback=1:6.0.1r16-1.1build1' \
+            'fonts-noto-cjk=1:20230817+repack1-3' \
+            'fonts-dejavu-core=2.37-8'
+          for d in *.deb; do dpkg-deb -x "$d" x; done
+          cd "$GITHUB_WORKSPACE"
+          python3 -m venv "$RUNNER_TEMP/fonttools"
+          "$RUNNER_TEMP/fonttools/bin/python" -m pip install --quiet fonttools==4.67.0
+          "$RUNNER_TEMP/fonttools/bin/python" tools/oxt/build_web_fonts.py "$RUNNER_TEMP/font-sources/x" --check
+
       - name: Check the runtime in the browser
         timeout-minutes: 15
         run: |

@@ -645,7 +645,9 @@ stack's `cJavascriptHandlers` property lists, one handler name a line:
 `document.liveCode.findStackWithName("My Stack").myHandler(1, 2)` returns
 what the handler returns. Builder extensions call JavaScript with the
 `com.livecode.emscripten` module.
-* **Fonts.** Text is drawn with Droid Sans, which every standalone has.
+* **Fonts.** Text is drawn with Droid Sans, plain or bold, which every
+standalone has, with the Chinese, Japanese and Korean characters of Droid
+Sans Fallback (bold text in those draws plain, as it has no bold).
 Font files listed one by one on the **Copy Files** pane (not in a folder)
 are loaded when the standalone starts, and their fonts are used by name.
 `start using font file` loads a font file of the engine's file system
@@ -685,8 +687,11 @@ When the engine starts, it unpacks `standalone.zip` into its file system,
 from its root:
 
 * `/boot/__startup.data`: the stacks, extensions and startup script.
-* `/boot/standalone/`: the files of the **Copy Files** pane, and the font
-(`DroidSansCombined.ttf`).
+* `/boot/standalone/`: the files of the **Copy Files** pane, and the fonts
+that text is drawn with (`DroidSansCombined.ttf`, and
+`DroidSansCombined-Bold.ttf` for bold text). Both are the font family
+"Droid Sans"; a font that the standalone has not got draws in it, plain or
+bold as asked.
 
 Files that you add to the archive yourself are unpacked too, at their paths
 in it; put them outside `boot/`.
@@ -783,10 +788,10 @@ Here's a complete page for an HTML5 standalone:
 
 ##### Advanced: Speeding up engine download
 
-The engine's `.wasm` file is about 23 MB, and the archive about 4 MB (the
-font is most of it). Web servers can send them compressed, which browsers
-unpack as they arrive: compressed with gzip, the engine is about 8.3 MB and
-the archive about 2 MB. Most hosting compresses by itself; on a server of
+The engine's `.wasm` file is about 23 MB, and the archive about 8 MB (the
+two fonts are most of it). Web servers can send them compressed, which
+browsers unpack as they arrive: compressed with gzip, the engine is about
+8.3 MB and the archive about 3.9 MB. Most hosting compresses by itself; on a server of
 your own, turn compression on for `.wasm`, `.js` and `.zip` files, or
 compress them once with `gzip` and have the server send those files:
 

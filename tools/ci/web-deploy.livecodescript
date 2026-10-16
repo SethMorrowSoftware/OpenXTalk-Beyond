@@ -174,6 +174,14 @@ private command makeProbeStack
    set the opaque of graphic "Mouse Zone" to true
    set the rect of graphic "Mouse Zone" to 340,150,460,230
    set the script of graphic "Mouse Zone" to "on mouseDown" & return & "   probeMouseLoop" & return & "end mouseDown"
+
+   -- a field of plain and bold text (probeFonts), clear of the points
+   -- that the snapshots and the screenshot take colours at
+   create field "Font Sample"
+   set the rect of field "Font Sample" to 180,290,420,354
+   set the backgroundColor of field "Font Sample" to "#FFFFFF"
+   set the lockText of field "Font Sample" to true
+   set the textSize of field "Font Sample" to 14
 end makeProbeStack
 
 -- The test runner's stack (see the header)

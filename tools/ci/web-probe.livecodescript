@@ -82,7 +82,7 @@ end openStack
 
 on probeRun
    local tCheck, tError
-   repeat for each item tCheck in "probeWaits,probeSends,probeJavaScript,probeFiles,probeUrls,probeDialogs,probeSystem,probeSound,probePlayer,probeBrowser,probeObjects,probeExternals,probeCiphers,probeSpeech,probePrint"
+   repeat for each item tCheck in "probeWaits,probeSends,probeJavaScript,probeFiles,probeFonts,probeUrls,probeDialogs,probeSystem,probeSound,probePlayer,probeBrowser,probeObjects,probeExternals,probeCiphers,probeSpeech,probePrint"
       try
          dispatch tCheck to me
       catch tError
@@ -177,6 +177,42 @@ command probeFiles
          and the result is "can't load font file", \
          "started=" & tStarted && "stopped=" & tStopped && "missing=" & the result
 end probeFiles
+
+-- The standalone's fonts (DroidSansCombined.ttf, and DroidSansCombined-
+-- Bold.ttf for bold): bold text is wider than plain text, with no font
+-- set (the web engine's default), in the standalone's own font, and in a
+-- font the page has not got (Arial), which falls back to it. The plain
+-- widths go to web_check.py, which holds them to the ones the font of
+-- LiveCode's HTML5 standalones gave, so that text wraps where it did.
+-- The field "Font Sample" is then left with a plain line and a bold one,
+-- with Chinese, Japanese and symbols, for the screenshot.
+command probeFonts
+   local tFont, tPlain, tBold, tWider, tWidths
+   put true into tWider
+   put "Hello, World 123" into field "Font Sample"
+   repeat for each item tFont in ",Droid Sans,Arial"
+      set the textFont of field "Font Sample" to tFont
+      set the textStyle of field "Font Sample" to empty
+      put the formattedWidth of line 1 of field "Font Sample" into tPlain
+      set the textStyle of field "Font Sample" to "bold"
+      put the formattedWidth of line 1 of field "Font Sample" into tBold
+      put tPlain & ">" & tBold & comma after tWidths
+      if tBold <= tPlain then
+         put false into tWider
+      end if
+   end repeat
+   delete the last char of tWidths
+   probeInfo "font-widths", tWidths
+   probeInfo "font-styles", replaceText(fontStyles("Droid Sans", 0), return, comma)
+   probeCheck "font-bold", tWider and "bold" is among the lines of fontStyles("Droid Sans", 0), tWidths
+   set the textFont of field "Font Sample" to empty
+   set the textStyle of field "Font Sample" to empty
+   put "Plain: Hello, World" & return & "Bold: Hello, World" & return & \
+         numToCodepoint(0x65E5) & numToCodepoint(0x672C) & numToCodepoint(0x8A9E) && \
+         numToCodepoint(0x4E2D) & numToCodepoint(0x6587) && numToCodepoint(0x2192) && \
+         numToCodepoint(0x2460) && numToCodepoint(0x25B2) into field "Font Sample"
+   set the textStyle of line 2 of field "Font Sample" to "bold"
+end probeFonts
 
 command probeUrls
    local tOrigin, tData, tResult, tDeadline, tLibUrl, tExpected

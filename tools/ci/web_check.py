@@ -35,7 +35,7 @@ installed OXT-Beyond, and the web build's output in CI), which holds
   standalone-community-<version>.js and .wasm   the engine
   standalone-community-<version>.html           the page template
   emscripten-standalone-template/               the files every standalone
-                                                gets (its font)
+                                                gets (its fonts)
   emscripten-startup-template.livecodescript    the startup script template
 
 A development engine (--engine; or --engine-cache, which downloads the
@@ -210,12 +210,18 @@ PROMPT_ANSWER = 'Ada'
 # The checks the probe makes before it is ready, in its order
 PROBE_CHECKS = (
     'platform', 'wait-openstack', 'wait-handler', 'wait-nested', 'wait-until', 'send-in-time',
-    'javascript', 'file-roundtrip', 'standalone-folder', 'font-file', 'url-get', 'url-post', 'url-put',
+    'javascript', 'file-roundtrip', 'standalone-folder', 'font-file', 'font-bold', 'url-get', 'url-post', 'url-put',
     'url-missing', 'url-load', 'answer', 'answer-confirm', 'ask', 'folders', 'download-written',
     'address', 'random-bytes', 'modifiers', 'cursor', 'sound', 'player', 'browser', 'objects',
     'xml', 'xslt', 'zip', 'database', 'database-error',
     'encrypt', 'encrypt-legacy', 'cipher-names', 'speech', 'print',
 )
+
+# The formattedWidth of "Hello, World 123" in 14-point plain text, with no
+# font set, in "Droid Sans" and in "Arial" (probeFonts): what the font of
+# LiveCode's HTML5 standalones gave, which the standalone's font must keep
+# so that text wraps where it did
+PROBE_PLAIN_WIDTHS = ('105', '105', '105')
 
 # The page of the site that the probe's browser widget loads
 PROBE_PAGE = ('<!DOCTYPE html><html><head><title>Probe Page</title></head><body>'
@@ -1534,6 +1540,12 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
         problems.append('the probe\'s URLs were loaded by %s, expected %s' % (info['url-path'], url_path))
     else:
         lines.append('the URLs were loaded by %s' % info['url-path'])
+    plain = tuple(item.split('>')[0] for item in info.get('font-widths', '').split(','))
+    if plain != PROBE_PLAIN_WIDTHS:
+        problems.append('plain text is %r points wide (no font set, Droid Sans, Arial), expected %r, as the old '
+                        'font drew it' % (plain, PROBE_PLAIN_WIDTHS))
+    else:
+        lines.append('plain text kept its width, and bold text is bold (%s)' % info.get('font-widths'))
     if 'wait=refused' not in info.get('js-call', ''):
         problems.append('a wait in a handler called from the page did not fail as it must: %r'
                         % info.get('js-call'))
