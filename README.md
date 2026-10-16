@@ -1532,6 +1532,13 @@ and:
   refused with a message saying so, and the imported stack has no file
   name, so Save asks where to save it. Other importers can join the
   submenu later.
+- **No extra empty first card.** A HyperCard stack opened with
+  messages unlocked (Open Stack, or `go` to its file) got an empty card
+  in front of HyperCard's first one: the IDE's newStack handler refers
+  to a card of the new stack, and the engine made one on the stack
+  before its cards were read. The stack now starts on HyperCard's first
+  card, with HyperCard's number of cards, as it did with messages
+  locked.
 - **macOS: the app describes itself as OXT-Beyond.** Its AppleScript
   dictionary says "xTalk" where it said "LiveCode" (the commands and
   their codes are the same), its document types name OpenXTalk stacks,
@@ -1545,11 +1552,15 @@ and:
   keeps the IDE's normal quit, with its prompt to save changes, when
   you log out or restart.
 
-A script sees no difference from 0.2.7-rc.1. Pull requests
+A script sees one difference from 0.2.7-rc.1: a HyperCard stack
+opened with messages unlocked no longer has the extra empty first card,
+so its number of cards and its card numbers are HyperCard's. Pull
+requests
 [#112](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/112),
-[#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113)
-and
+[#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113),
 [#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114)
+and
+[#115](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/115)
 list every change.
 
 #### 0.2.7-rc.1: a new web font, and Firefox and Safari

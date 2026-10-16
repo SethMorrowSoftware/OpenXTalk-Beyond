@@ -36,6 +36,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "card.h"
 #include "stack.h"
 #include "hndlrlst.h"
+#include "cardlst.h"
 #include "hc.h"
 
 #include "exec-interface.h"
@@ -2488,6 +2489,14 @@ IO_stat MCHcstak::readblocks(const uint1 *p_data, uint4 p_size)
 MCStack *MCHcstak::build()
 {
 	MCStack *sptr = MCtemplatestack->clone();
+	// clone() sends newStack, and a handler that refers to a card of the new
+	// stack (the IDE's do) makes the template card on a stack that has none
+	// (MCStack::getchildbyordinal and the others). Take any such card off
+	// now, so that HyperCard's first card is the stack's first card; it is
+	// deleted once the stack has its own cards.
+	MCCard *t_made_cards = sptr->cards;
+	sptr->cards = NULL;
+	sptr->curcard = NULL;
 	sptr->flags |= F_HC_STACK | F_HC_ADDRESSING | F_DYNAMIC_PATHS;
 	const char *tname = strrchr(name, PATH_SEPARATOR);
 	if (tname != NULL)
@@ -2612,6 +2621,19 @@ MCStack *MCHcstak::build()
 		if (hccards != NULL)
 			hcstat_append("Warning: cards that are in no page were left out");
 	}
+	// The cards newStack made: deleted when HyperCard's cards replace them,
+	// kept (as before) on a stack that brought none
+	if (sptr->cards == NULL)
+		sptr->cards = t_made_cards;
+	else
+		while (t_made_cards != NULL)
+		{
+			MCCard *t_card = t_made_cards->remove(t_made_cards);
+			MCrecent->deletecard(t_card);
+			MCcstack->deletecard(t_card);
+			t_card->scheduledelete();
+		}
+	sptr->curcard = sptr->cards;
 	// The background order: HyperCard's own, the chain from the STAK
 	// block's first background through each one's next, so "bg 1" names the
 	// background it named in HyperCard. Backgrounds the chain misses (a
