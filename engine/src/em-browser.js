@@ -88,6 +88,27 @@ mergeInto(LibraryManager.library, {
 			'allow-pointer-lock allow-popups allow-popups-to-escape-sandbox ' +
 			'allow-presentation allow-same-origin allow-scripts',
 
+		// Those of them that this browser knows: Safari reports each one
+		// it does not (allow-orientation-lock, allow-presentation) as an
+		// error in the console every time the frame gets them, and ignores
+		// it, so leaving them out changes nothing but the console
+		_sandboxFlags: function() {
+			if (LiveCodeBrowser._supportedSandbox === undefined) {
+				var flags = LiveCodeBrowser._sandbox;
+				try {
+					var list = document.createElement('iframe').sandbox;
+					if (list && list.supports) {
+						flags = flags.split(' ').filter(function(flag) {
+							return list.supports(flag);
+						}).join(' ');
+					}
+				} catch (e) {
+				}
+				LiveCodeBrowser._supportedSandbox = flags;
+			}
+			return LiveCodeBrowser._supportedSandbox;
+		},
+
 		// The media types of the files that a frame shows, by extension
 		_types: {
 			'html': 'text/html', 'htm': 'text/html', 'xhtml': 'application/xhtml+xml',
@@ -105,7 +126,7 @@ mergeInto(LibraryManager.library, {
 		// (LiveCodeUtil.storeObject), for the engine's native layer
 		create: function(id) {
 			var frame = document.createElement('iframe');
-			frame.setAttribute('sandbox', LiveCodeBrowser._sandbox);
+			frame.setAttribute('sandbox', LiveCodeBrowser._sandboxFlags());
 			frame.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
 			frame.style.border = 'none';
 			// A page without a background shows white, as on the desktop
@@ -316,7 +337,7 @@ mergeInto(LibraryManager.library, {
 
 		_sandboxed: function(browser, sandboxed) {
 			if (sandboxed) {
-				browser.frame.setAttribute('sandbox', LiveCodeBrowser._sandbox);
+				browser.frame.setAttribute('sandbox', LiveCodeBrowser._sandboxFlags());
 			} else {
 				browser.frame.removeAttribute('sandbox');
 			}

@@ -1746,11 +1746,17 @@ Known limitations, in rough order of importance:
    or use the portable zip, if you need them. Plan: keep that state in
    the user's own folders.
 12. HTML5 standalones are new. They are tested automatically in
-   Chromium only, not yet in Firefox, Safari or a phone's browser (the
-   touch screen's keyboard is checked with a stand-in for a phone's).
-   Their font, which came with LiveCode's HTML5 standalones, has a
-   licence that needs review (see
-   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#still-to-review)).
+   Chromium, Firefox and WebKit (Safari's engine), but not yet on a
+   phone (the touch screen's keyboard is checked with a stand-in for a
+   phone's). A finger dragged across the stack, a file dropped from
+   outside the page and printing to paper are checked in Chromium only.
+   Two things differ between browsers. In Safari, a page of the stack's
+   own site that a browser widget shows gets its `liveCode` object only
+   once it has loaded, so a script that runs while the page loads cannot
+   call the stack's handlers yet. And text that a keyboard sends as an
+   input method's composition, as the tests' stand-in for a touch
+   screen's keyboard does in Firefox, reaches the field with no
+   `keyDown` messages.
 
 Done since 0.0.1: the extensions of the xTalk Suite are built in, taken
 from their own repositories at pinned commits (see

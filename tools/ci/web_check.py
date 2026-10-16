@@ -235,6 +235,19 @@ PROBE_PLAIN_WIDTHS = ('105', '105', '105')
 PROBE_PAGE = ('<!DOCTYPE html><html><head><title>Probe Page</title></head><body>'
               '<script>liveCode.probeBrowserCall("page", document.title)</script></body></html>')
 
+# ... and the same page in WebKit, which calls the handler once the page
+# has its liveCode object. WebKit reads and runs the whole of a small page,
+# its load event included, before the stack's page can do anything (seen
+# 2026-10-16 in WebKit 26.0 and WebKitGTK 2.48): the engine readies a page
+# of the site only after it has loaded, so a script that runs while the
+# page is being read finds no liveCode object there (README, "Known
+# limitations"). This one looks for it until it is there, for 5 seconds.
+PROBE_PAGE_DEFERRED = ('<!DOCTYPE html><html><head><title>Probe Page</title></head><body><script>'
+                       '(function call(n) {'
+                       'if (window.liveCode) { liveCode.probeBrowserCall("page", document.title); }'
+                       'else if (n < 500) { setTimeout(function() { call(n + 1); }, 10); }'
+                       '})(0)</script></body></html>')
+
 # The extensions that a standalone made without the IDE gets, from the
 # development engine's packaged_extensions, each after those it uses: the
 # browser widget, which the probe makes
@@ -741,7 +754,7 @@ def build_with_ide(args, work, timeout):
 # ---------------------------------------------------------------------------
 # 2. The web server
 
-def make_server(site):
+def make_server(site, probe_page=PROBE_PAGE):
     stored = {}
 
     class Handler(http.server.SimpleHTTPRequestHandler):
@@ -774,7 +787,7 @@ def make_server(site):
             if self.path == '/missing':
                 return self.reply(404, 'not found')
             if self.path == '/probe-page.html':
-                return self.reply(200, PROBE_PAGE, 'text/html; charset=utf-8')
+                return self.reply(200, probe_page, 'text/html; charset=utf-8')
             return super().do_GET()
 
         def do_POST(self):
@@ -1237,18 +1250,34 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 typed = page.evaluate(stack_js + '.probeReport()')
                 page.evaluate(stack_js + '.probeUnfocus()')
                 put_away = page.evaluate('window.__oxtKeyboard.slice()')
-                if (unfocused_mode, tapped, tapped_mode, typed, put_away) != ('none', ['show'], 'text', PROBE_SOFT_REPORT,
-                                                                              ['show', 'hide']):
+                # Only Chromium has the VirtualKeyboard API: elsewhere the engine
+                # brings the keyboard up by focusing the input again, so the
+                # page's stand-in for the API hears nothing. And Playwright's
+                # insert_text is an input method's composition in Firefox
+                # (as an Android keyboard's text often is), which the engine
+                # puts into the field through its composition handling (from
+                # LiveCode's HTML5 engine), with no keyDown for it: the text
+                # must arrive either way
+                wanted_keyboard = (['show'], ['show', 'hide']) if devtools else ([], [])
+                composed = 'abc%s|abc|2' % PROBE_SOFT_TEXT
+                if ((unfocused_mode, tapped, tapped_mode, put_away) !=
+                        ('none', wanted_keyboard[0], 'text', wanted_keyboard[1])
+                        or typed not in ((PROBE_SOFT_REPORT,) if devtools else (PROBE_SOFT_REPORT, composed))):
                     problems.append('a touch screen\'s keyboard: with no field focused the input asked for the keyboard '
                                     '%r; a tap on the field asked the keyboard for %r and the input for %r; after the '
                                     'keyboard typed %r and a Backspace the probe reported %r; and when the field lost '
-                                    'the focus the keyboard had been asked for %r; expected \'none\', [\'show\'], '
-                                    '\'text\', %r and [\'show\', \'hide\']'
+                                    'the focus the keyboard had been asked for %r; expected \'none\', %r, '
+                                    '\'text\', %r and %r'
                                     % (unfocused_mode, tapped, tapped_mode, PROBE_SOFT_TEXT + 'x', typed, put_away,
-                                       PROBE_SOFT_REPORT))
-                else:
+                                       wanted_keyboard[0], PROBE_SOFT_REPORT, wanted_keyboard[1]))
+                elif devtools:
                     lines.append('a tap on the field brought up a touch screen\'s keyboard, which typed into it, and '
                                  'it went away when the field lost the focus')
+                else:
+                    lines.append('a tap on the field focused the input for a touch screen\'s keyboard, which typed '
+                                 'into it (%s)'
+                                 % ('as keys' if typed == PROBE_SOFT_REPORT
+                                    else 'as an input method\'s text, with no keyDown for it'))
                 # a loop in mouseDown that asks for the mouse until its button
                 # goes up, then a wait for a click (probeMouseLoop): the page's
                 # events must reach the engine while the loop runs, or it never
@@ -1303,6 +1332,14 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 selector = '.oxt-snapshot-select'
                 graphic = parse_rect(info['graphic-rect'])
                 selected = []
+                # what the page saw of the drag, for the report if it fails
+                page.evaluate('''() => { window.__oxtPointer = [];
+                    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+                                        'gotpointercapture', 'lostpointercapture', 'mousedown', 'mouseup']) {
+                      window.addEventListener(type, (e) => { if (window.__oxtPointer.length < 40)
+                        window.__oxtPointer.push(e.type + (e.pointerType ? ':' + e.pointerType : '') + '@' +
+                          ((e.target && e.target.className) || (e.target && e.target.tagName) || '?')); }, true);
+                    } }''')
                 for cancel in (False, True):
                     page.evaluate(stack_js + '.probeReport("snapshot-select")')
                     if not wait_for(lambda: page.locator(selector).count() > 0,
@@ -1322,8 +1359,10 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 if (len(selected) != 2 or not snapshot_report_ok(selected[0], PROBE_SNAPSHOT_SELECT[0])
                         or selected[1] != PROBE_SNAPSHOT_SELECT[1] or left):
                     problems.append('import snapshot with a rectangle dragged out on the graphic, then with Escape, '
-                                    'reported %r, leaving %d of the page\'s selections, expected %r and none'
-                                    % (selected, left, list(PROBE_SNAPSHOT_SELECT)))
+                                    'reported %r, leaving %d of the page\'s selections, expected %r and none; the '
+                                    'page saw %s'
+                                    % (selected, left, list(PROBE_SNAPSHOT_SELECT),
+                                       ' '.join(page.evaluate('window.__oxtPointer || []')) or 'no pointer events'))
                 else:
                     lines.append('import snapshot took the rectangle dragged out on the page, and Escape cancelled it')
                 # a modal dialog (probeReport("modal")): the stack under it takes
@@ -1642,7 +1681,7 @@ def main(argv=None):
         lines.append('web engine %s: .wasm %.1f MB, .js %.0f kB' % (
             version, os.path.getsize(wasm) / 1e6, os.path.getsize(js) / 1e3))
         lines.append('standalone.zip %.1f kB' % (os.path.getsize(os.path.join(site, 'standalone.zip')) / 1e3))
-        server = make_server(site)
+        server = make_server(site, PROBE_PAGE_DEFERRED if args.browser == 'webkit' else PROBE_PAGE)
         url = 'http://127.0.0.1:%d/%s' % (server.server_address[1], os.path.basename(page))
         log('Opening %s' % url)
         p, l = run_browser(url, version, work, args.timeout, url_path, browser_widget, args.browser)

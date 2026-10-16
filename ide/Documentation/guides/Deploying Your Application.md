@@ -600,6 +600,9 @@ desktop. It shows a page of another web site only if that site lets other
 sites show its pages; the engine then knows only the address it gave the
 widget, `do ... in widget` does nothing, and the page calls a handler with
 `window.parent.postMessage({liveCode: "handlerName", parameters: [1, 2]}, "*")`.
+In Safari, a page of the stack's own site gets its `liveCode` object only
+once it has loaded, so a script that calls a handler as the page loads
+should wait until `window.liveCode` is there.
 * **Builder extensions and widgets** work, including foreign handlers with
 callbacks. A native library built for a desktop system cannot be loaded.
 * **XML, zip archives and databases.** revXML (with XSLT), revZip and
