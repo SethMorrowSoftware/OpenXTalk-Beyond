@@ -1069,12 +1069,21 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         page_errors.append(str(error))
         log('  page error: %s' % error)
 
+    # The browser's process for the page can die under it ("Target
+    # crashed"): WebKit's did twice in CI before the engine had started,
+    # on commits that passed before and after
+    crashed = []
+
+    def on_crash(crashed_page):
+        crashed.append(crashed_page)
+        log('  the page crashed')
+
     def wait_for(predicate, what, seconds):
         deadline = time.time() + seconds
         while time.time() < deadline:
             if predicate():
                 return True
-            if page_errors:
+            if page_errors or crashed:
                 return False
             try:
                 answer_page_dialog()
@@ -1088,19 +1097,44 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         browser = getattr(p, browser_name).launch()
         devtools = browser_name == 'chromium'
         lines.append('browser: %s %s' % (browser_name, browser.version))
-        page = browser.new_page(viewport={'width': 800, 'height': 600}, accept_downloads=True,
-                                has_touch=True)
-        page.on('console', on_console)
-        page.on('dialog', on_dialog)
-        page.on('download', on_download)
-        page.on('pageerror', on_page_error)
-        page.add_init_script(SOUND_HOOK)
-        page.add_init_script(SPEECH_HOOK)
-        page.add_init_script(PRINT_HOOK)
-        page.add_init_script(KEYBOARD_HOOK)
+
+        def open_page():
+            opened = browser.new_page(viewport={'width': 800, 'height': 600}, accept_downloads=True,
+                                      has_touch=True)
+            opened.on('console', on_console)
+            opened.on('dialog', on_dialog)
+            opened.on('download', on_download)
+            opened.on('pageerror', on_page_error)
+            opened.on('crash', on_crash)
+            opened.add_init_script(SOUND_HOOK)
+            opened.add_init_script(SPEECH_HOOK)
+            opened.add_init_script(PRINT_HOOK)
+            opened.add_init_script(KEYBOARD_HOOK)
+            return opened
+
+        page = open_page()
         started = time.time()
         page.goto(url)
-        if not wait_for(lambda: 'version' in info, 'the engine starting (PROBE info version)', timeout):
+        engine_started = wait_for(lambda: 'version' in info, 'the engine starting (PROBE info version)',
+                                  timeout)
+        if not engine_started and crashed and not info and not probes:
+            # A crash before the engine said anything is the browser's, not
+            # the standalone's: the page gets one more try, which the report
+            # names, and a second crash fails the check
+            lines.append('the page crashed before the engine started; it was opened again')
+            log('  the page crashed before the engine started; opening it again')
+            try:
+                page.close()
+            except PlaywrightError:
+                pass
+            del crashed[:]
+            del console[:]
+            page = open_page()
+            started = time.time()
+            page.goto(url)
+            engine_started = wait_for(lambda: 'version' in info,
+                                      'the engine starting (PROBE info version)', timeout)
+        if not engine_started:
             problems.append('the page did not start the engine')
         else:
             lines.append('the engine started in %.1f s' % (time.time() - started))
@@ -1606,6 +1640,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
     if 'wait=refused' not in info.get('js-call', ''):
         problems.append('a wait in a handler called from the page did not fail as it must: %r'
                         % info.get('js-call'))
+    if crashed:
+        problems.append('the page crashed (the browser\'s "Target crashed")')
     for error in page_errors:
         problems.append('page error: %s' % error)
     # The browser may report the probe's request for a missing page
