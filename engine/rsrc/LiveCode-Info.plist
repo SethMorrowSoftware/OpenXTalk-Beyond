@@ -2,6 +2,56 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.9</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIApplicationSupportsPrintCommand</key>
+	<true/>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Needed to access the user&apos;s Downloads folder</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Needed to access files and folders on the user&apos;s desktop</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Needed to access the user&apos;s Documents folder</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Needed to access network volues</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>Needed to access cloud storage domains such as iCloud</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Needed for developming with Blutooth Devices</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Needed to post User Notifications and Change Badge Text for the App Dock Tile</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Needed for AppleEvents and AppleScript</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Needed for Speech Recognition</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Needed to record sound</string>
+	<key>NSMicrophoneInjectionUsageDescription</key>
+	<string>Needed to mix sounds with input from microphone</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Needed for Camera Recording</string>
+	<key>NSCameraPortraitEffectEnabled</key>
+	<true/>
+	<key>NSCameraStudioLightEnabled</key>
+	<true/>
+	<key>NSCameraReactionEffectsEnabled</key>
+	<true/>
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>LSMultipleInstancesProhibited</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<true/>
+	<key>MetalCaptureEnabled</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDocumentTypes</key>
@@ -9,14 +59,17 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>oxtstack</string>
+				<string>oxtscript</string>
 				<string>rev</string>
 				<string>livecode</string>
 				<string>livecodescript</string>
+				<string>hyperxtalk</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
 			<string>LiveCodeDoc.icns</string>
 			<key>CFBundleTypeName</key>
-			<string>LiveCode Stack</string>
+			<string>OpenXTalk Stack</string>
 			<key>CFBundleTypeOSTypes</key>
 			<array>
 				<string>RSTK</string>
@@ -38,7 +91,7 @@
 	<key>CFBundleLongVersionString</key>
 	<string>$(BUILD_LONG_VERSION), Copyright 2000-2020 LiveCode Ltd.</string>
 	<key>CFBundleName</key>
-	<string>LiveCode</string>
+	<string>OpenXTalkBeyond</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -92,7 +145,7 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>LiveCode Stack</string>
+			<string>Runtime Revolution Stack</string>
 			<key>UTTypeIdentifier</key>
 			<string>com.runrev.revolution.stack</string>
 			<key>UTTypeTagSpecification</key>
@@ -130,7 +183,7 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>LiveCode Stack</string>
+			<string>Script-Only Stack</string>
 			<key>UTTypeIdentifier</key>
 			<string>com.runrev.livecode.stack</string>
 			<key>UTTypeTagSpecification</key>
