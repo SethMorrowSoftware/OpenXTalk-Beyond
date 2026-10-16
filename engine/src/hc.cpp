@@ -349,10 +349,29 @@ static uint2 convert_style(uint2 istyle)
 	return ostyle;
 }
 
-// HyperCard's text is MacRoman, which is the native encoding on the Mac. Off
-// the Mac it is converted with MCmactranslations, Mac to native, as the
-// macToISO function does; the importer used MCisotranslations, the other
-// way round, so curly quotes came in as other letters.
+// HyperCard's text, names and scripts are MacRoman. convert_string and
+// convert_script keep them MacRoman (with line ends and HyperTalk's
+// operators changed), and hc_string and hc_name decode them, so each comes
+// in as the character HyperCard showed on every platform. (Off the Mac the
+// importer used to translate the bytes with MCisotranslations, which goes
+// from native to MacRoman, the wrong way, so a curly quote came in as "n"
+// with a tilde; Windows-1252 and ISO 8859-1, the native encodings there,
+// have no place for some MacRoman characters at all.) One MacRoman byte
+// is one character, so the offsets of style runs stay right.
+static bool hc_string(const char *p_macroman, MCStringRef &r_string)
+{
+	return MCStringCreateWithBytes((const byte_t *)p_macroman, strlen(p_macroman),
+	                               kMCStringEncodingMacRoman, false, r_string);
+}
+
+static void hc_setname(MCObject *p_object, const char *p_macroman)
+{
+	MCAutoStringRef t_string;
+	MCNewAutoNameRef t_name;
+	if (hc_string(p_macroman, &t_string) && MCNameCreate(*t_string, &t_name))
+		p_object->setname(*t_name);
+}
+
 static char *convert_string(const char *string)
 {
 	const uint1 *sptr = (const uint1 *)string;
@@ -363,11 +382,7 @@ static char *convert_string(const char *string)
 		if (*sptr == 0x0D)
 			*dptr = '\n';
 		else
-#ifdef _MACOSX
 			*dptr = *sptr;
-#else
-			*dptr = MCmactranslations[*sptr];
-#endif
 
 		dptr++;
 		sptr++;
@@ -426,11 +441,7 @@ static char *convert_script(const char *string)
 			*dptr = '>';
 			break;
 		default:
-#ifdef _MACOSX
 			*dptr = *sptr;
-#else
-			*dptr = MCmactranslations[*sptr];
-#endif
 
 			break;
 		}
@@ -700,7 +711,7 @@ MCCdata *MCHctext::buildf(MCHcstak *hcsptr, MCField *parent)
 		MCParagraph *pgptr = new (nothrow) MCParagraph;
 		pgptr->setparent(parent);
 		MCAutoStringRef t_string;
-		/* UNCHECKED */ MCStringCreateWithNativeChars((const char_t*)sptr, length, &t_string);
+		/* UNCHECKED */ MCStringCreateWithBytes((const byte_t *)sptr, length, kMCStringEncodingMacRoman, false, &t_string);
 		pgptr->settext(*t_string);
 		pgptr->appendto(paragraphs);
 		for (uint2 r = 0 ; r < nruns ; r++)
@@ -798,13 +809,15 @@ MCControl *MCHcfield::build(MCHcstak *hcsptr, MCStack *sptr)
 	MCField *fptr = (MCField *)MCtemplatefield->clone(False, OP_NONE, false);
 	fptr->parent = sptr;
 	if (name != NULL)
-		fptr -> setname_cstring(name);
+		hc_setname(fptr, name);
 	delete[] name;
 	fptr->altid = id;
 	fptr->obj_id = ++maxid;
 	if (script != NULL)
 	{
-		fptr -> setscript_cstring(script);
+		MCAutoStringRef t_script;
+		if (hc_string(script, &t_script))
+			fptr->setscript(*t_script);
 		delete[] script;
 	}
 	name = script = NULL;
@@ -970,14 +983,16 @@ MCControl *MCHcbutton::build(MCHcstak *hcsptr, MCStack *sptr)
 	MCButton *bptr = (MCButton *)MCtemplatebutton->clone(False, OP_NONE, false);
 	bptr->parent = sptr;
 	if (name != NULL)
-		bptr->setname_cstring(name);
+		hc_setname(bptr, name);
 	delete[] name;
 	bptr->altid = id;
 	bptr->obj_id = ++maxid;
 	bptr->rect = rect;
 	if (script != NULL)
 	{
-		bptr -> setscript_cstring(script);
+		MCAutoStringRef t_script;
+		if (hc_string(script, &t_script))
+			bptr->setscript(*t_script);
 		delete[] script;
 	}
 	name = script = NULL;
@@ -1008,7 +1023,7 @@ MCControl *MCHcbutton::build(MCHcstak *hcsptr, MCStack *sptr)
 		{
 			MCStringRef t_menustring = nil;
 			char *t_menu = tptr->buildm();
-			/* UNCHECKED */ MCStringCreateWithCString(t_menu != NULL ? t_menu : "", t_menustring);
+			/* UNCHECKED */ hc_string(t_menu != NULL ? t_menu : "", t_menustring);
 			delete[] t_menu;
 			MCValueAssign(bptr->menustring, t_menustring);
 			MCValueRelease(t_menustring);
@@ -1518,11 +1533,13 @@ MCCard *MCHccard::build(MCHcstak *hcsptr, MCStack *sptr)
 	MCCard *cptr = MCtemplatecard->clone(False, False);
 	cptr->obj_id = id;
 	if (name != NULL)
-		cptr->setname_cstring(name);
+		hc_setname(cptr, name);
 	delete[] name;
 	if (script != NULL)
 	{
-		cptr -> setscript_cstring(script);
+		MCAutoStringRef t_script;
+		if (hc_string(script, &t_script))
+			cptr->setscript(*t_script);
 		delete[] script;
 	}
 	name = script = NULL;
@@ -1679,13 +1696,15 @@ MCGroup *MCHcbkgd::build(MCHcstak *hcsptr, MCStack *sptr)
 	gptr->flags = (gptr -> flags & ~F_GROUP_ONLY) | F_GROUP_SHARED;
 	gptr->obj_id = id;
 	if (name != NULL)
-		gptr->setname_cstring(name);
+		hc_setname(gptr, name);
 	delete[] name;
 	gptr->rect = sptr->getrect();
 	gptr->rect.x = gptr->rect.y = 0;
 	if (script != NULL)
 	{
-		gptr -> setscript_cstring(script);
+		MCAutoStringRef t_script;
+		if (hc_string(script, &t_script))
+			gptr->setscript(*t_script);
 		delete[] script;
 	}
 	name = script = NULL;
@@ -2113,7 +2132,8 @@ void MCHcstak::readresources(const uint1 *p_fork, uint4 p_size)
                 t_raw[t_length] = '\0';
                 char *t_converted = convert_string(t_raw);
                 delete[] t_raw;
-                if (!MCNameCreateWithNativeChars((const char_t *)t_converted, strlen(t_converted), &t_name))
+                MCAutoStringRef t_string;
+                if (!hc_string(t_converted, &t_string) || !MCNameCreate(*t_string, &t_name))
                     t_name = kMCEmptyName;
                 delete[] t_converted;
             }
@@ -2511,7 +2531,9 @@ MCStack *MCHcstak::build()
 	delete[] name;
 	if (script != NULL)
 	{
-		sptr -> setscript_cstring(script);
+		MCAutoStringRef t_script;
+		if (hc_string(script, &t_script))
+			sptr->setscript(*t_script);
 		delete[] script;
 		if (sptr->hlist != NULL)
 		{
