@@ -89,7 +89,7 @@ Download from the release page, under Assets:
 
 The Mac app is not notarized, so macOS blocks it until you allow it (see below).
 
-Some bundled xTalk extensions need macOS 15, or on Linux glibc 2.33 (SodiumXT) or 2.38 and OpenSSL 3 (DataChannelXT).
+The bundled xTalk extensions need macOS 10.15 or later on an Intel Mac.
 
 The notes below list every file, what each platform needs, and how to check downloads.
 '''
@@ -108,7 +108,7 @@ The executables are not code-signed, so Windows SmartScreen may warn when they a
 
 ## macOS (Apple Silicon and Intel)
 
-One universal app, `OXT-Beyond.app`. It needs macOS 11 Big Sur or later on Apple Silicon, or macOS 10.13 High Sierra or later on an Intel Mac. The native libraries of the bundled xTalk Suite extensions SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt and CoinXT need macOS 15 Sequoia or later: on older macOS the IDE starts, but those extensions do not load.
+One universal app, `OXT-Beyond.app`. It needs macOS 11 Big Sur or later on Apple Silicon, or macOS 10.13 High Sierra or later on an Intel Mac. The native libraries of the bundled xTalk Suite extensions SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt and CoinXT need macOS 10.15 Catalina or later on an Intel Mac: on macOS 10.13 and 10.14 the IDE starts, but those extensions do not load.
 
 - `{root}-mac-universal.dmg`: the disk image. Open it and drag OXT-Beyond onto the Applications folder next to it.
 - `{root}-mac-universal.zip`: the same app, for scripted installs (`ditto -x -k {root}-mac-universal.zip /Applications`).
@@ -131,7 +131,7 @@ The same command helps if macOS says the app "is damaged and can't be opened": t
 
 ## Linux (x86-64)
 
-Needs 64-bit x86 Linux with glibc 2.31 or later (Ubuntu 20.04, Debian 11, Fedora 32 or later) and an X11 desktop (on Wayland it runs through XWayland), with GTK 2: on Debian and Ubuntu the package `libgtk2.0-0` (`libgtk2.0-0t64` on Ubuntu 24.04 and Debian 13), on Fedora `gtk2`. The launcher names any library that is missing, with its package. The browser widget and revBrowser also need NSS, ALSA and a few more X11 libraries; without them the launcher turns the browser off. Of the bundled xTalk Suite extensions, SodiumXT needs glibc 2.33 (Ubuntu 21.04, Debian 12, Fedora 34 or later) and DataChannelXT glibc 2.38 and OpenSSL 3 (Ubuntu 24.04, Debian 13, Fedora 39 or later); on an older system these two do not load, and the IDE and the other extensions work.
+Needs 64-bit x86 Linux with glibc 2.31 or later (Ubuntu 20.04, Debian 11, Fedora 32 or later) and an X11 desktop (on Wayland it runs through XWayland), with GTK 2: on Debian and Ubuntu the package `libgtk2.0-0` (`libgtk2.0-0t64` on Ubuntu 24.04 and Debian 13), on Fedora `gtk2`. The launcher names any library that is missing, with its package. The browser widget and revBrowser also need NSS, ALSA and a few more X11 libraries; without them the launcher turns the browser off. The bundled xTalk Suite extensions need nothing more: their libraries need glibc 2.28 at most and carry their own OpenSSL.
 
 - `{root}-linux-x86_64.tar.xz`: the program folder `{root}`. Extract it onto a Linux file system (not FAT, exFAT or a Windows drive) and run `./oxt-beyond` in it, or run `./install.sh` to install it for yourself: under `~/.local/share/oxt-beyond`, with a menu entry, icons, the .oxtstack and .oxtscript file types and the command `oxt-beyond`, without administrator rights.
 - `{root}-linux-x86_64-binaries.tar.xz`: the engine, externals and tools as built (`linux-x86_64-bin`), without debug symbols and the build's own tools, plus the licence files.

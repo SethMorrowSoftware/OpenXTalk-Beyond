@@ -22,6 +22,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Web check in Firefox and WebKit: what they found (#111)
 - Web: a snapshot's rectangle takes mouse events too (#111)
 - Web: a window's title bar and edges take mouse events too (#111)
+- xTalk Suite extensions: pin the libraries rebuilt for glibc 2.28 and macOS 10.15 (#111)
 - Version 0.2.7-rc.1, with its changelog (#111)
 
 ## 0.2.6 (2026-10-16)

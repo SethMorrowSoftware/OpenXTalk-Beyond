@@ -69,8 +69,9 @@ and `do ... in widget` and the other widget commands that crashed the
 engine for a widget whose extension is not loaded now do nothing.
 0.2.7-rc.1 is a test release (a pre-release) of a new font for HTML5
 standalones, with a bold face, of their tests in Firefox and WebKit as
-well as Chromium, and of the Linux clipboard fix withdrawn with the
-first 0.2.6-rc.4 (see
+well as Chromium, of the Linux clipboard fix withdrawn with the first
+0.2.6-rc.4, and of xTalk Suite extensions that load on older Linux and
+macOS (see
 [0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)); 0.2.6
 stays the main download until it has held up.
 
@@ -212,9 +213,11 @@ version, for example `0.1.0`:
 | All | `OXT-Beyond-<version>-xtalk-sources.zip` | Every file of the bundled xTalk Suite extensions as the release took it from their repositories, so that it can be rebuilt without them. |
 | All | `SHA256SUMS` | SHA-256 checksums of all the files above. |
 
-Some bundled xTalk Suite extensions need a newer system than the IDE:
-macOS 15 on a Mac, and on Linux glibc 2.33 (SodiumXT) or glibc 2.38 and
-OpenSSL 3 (DataChannelXT); see [macOS](#macos) and
+The bundled xTalk Suite extensions need macOS 10.15 Catalina on an
+Intel Mac, where the IDE runs from 10.13, and on 64-bit Linux and Apple
+Silicon nothing newer than the IDE (from 0.2.7-rc.1; up to 0.2.6 they
+needed macOS 15, and on Linux glibc 2.33 for SodiumXT or glibc 2.38 and
+OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 [Linux](#linux-x86-64). The release notes list each platform's
 requirements too.
 
@@ -314,9 +317,11 @@ for scripted installs). Releases carry them from 0.1.0 on (see
 **Requirements.** The IDE runs on macOS 10.13 High Sierra or later on an
 Intel Mac and macOS 11 Big Sur or later on Apple Silicon. The bundled
 xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT,
-Box2Dxt and CoinXT, whose native libraries are built for macOS 15) need
-macOS 15 Sequoia or later: on older macOS the IDE starts, but those
-extensions do not load.
+Box2Dxt and CoinXT) have native libraries built for macOS 10.15 Catalina
+on Intel and macOS 11 on Apple Silicon (from 0.2.7-rc.1; up to 0.2.6
+they needed macOS 15 Sequoia): on an Intel Mac with macOS 10.13 or
+10.14 the IDE starts, but those extensions do not load. No Mac older
+than macOS 15 has loaded them yet.
 
 **Install.**
 
@@ -375,7 +380,7 @@ To remove OXT-Beyond, move `OXT-Beyond.app` to the Trash.
   or later on the Mac that builds them. Universal standalones are
   planned. Standalones run on macOS 10.13 or later (Intel) and 11 or
   later (Apple Silicon); one that includes an xTalk Suite extension needs
-  macOS 15.
+  macOS 10.15 on Intel (macOS 15 up to 0.2.6).
 - The macOS package does not include the Visual C++ runtime DLLs that
   the Windows packages put next to enetxt and Box2Dxt: a Windows
   standalone built on a Mac with either of them needs the Visual C++
@@ -411,11 +416,12 @@ What it needs:
   (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
   the dictionary and other web pages in your web browser instead, and
   leaves the browser widget out of the Tools palette.
-- **Some bundled xTalk extensions need a newer system than the IDE.**
-  SodiumXT needs glibc 2.33 (Ubuntu 21.04, Debian 12, Fedora 34 or
-  later); DataChannelXT needs glibc 2.38 and OpenSSL 3 (Ubuntu 24.04,
-  Debian 13, Fedora 39 or later). On an older system these extensions do
-  not load; the IDE and the other extensions work.
+- **The bundled xTalk extensions need nothing newer than the IDE**
+  (from 0.2.7-rc.1): their 64-bit libraries need glibc 2.28 at most and
+  carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
+  DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
+  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt), or
+  2.38 and OpenSSL 3 (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
   `sudo apt install mplayer`. Without it, players open no file, and the
   Tools palette has no Player tool. mplayer draws only the video: the
@@ -1547,8 +1553,19 @@ OXT-Beyond 0.2.7-rc.1, a test release, has everything in 0.2.6, and:
   while a Windows freeze was looked for; the freeze was the
   installer's file dates, fixed in the second 0.2.6-rc.4. A test
   checks it on every Linux build.
+- **The xTalk Suite extensions load on older systems.** Their native
+  libraries are built again from the same sources, for glibc 2.28 on
+  64-bit Linux (with OpenSSL inside DataChannelXT's) and for macOS
+  10.15 on an Intel Mac and 11 on Apple Silicon. Up to 0.2.6, SodiumXT
+  needed glibc 2.33, DataChannelXT glibc 2.38 and OpenSSL 3, and every
+  extension macOS 15, so on Ubuntu 22.04, Debian 12 or a Mac older than
+  macOS 15 they did not load. The Windows libraries are built again
+  too. The suite's own tests passed on each new library; none has yet
+  run in an OXT engine on a Mac older than macOS 15 or a Linux older
+  than Ubuntu 24.04.
 
-On the desktop nothing a script sees differs from 0.2.6. Pull request
+On the desktop, a script sees one difference from 0.2.6: on those older
+systems the extensions now load where they failed to. Pull request
 [#111](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/111)
 lists every difference.
 
