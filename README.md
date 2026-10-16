@@ -67,6 +67,12 @@ changes can be seen by a script: on Linux a period typed while a
 handler runs no longer stops it (Control-period does, as on Windows),
 and `do ... in widget` and the other widget commands that crashed the
 engine for a widget whose extension is not loaded now do nothing.
+0.2.7-rc.1 is a test release (a pre-release) of a new font for HTML5
+standalones, with a bold face, of their tests in Firefox and WebKit as
+well as Chromium, and of the Linux clipboard fix withdrawn with the
+first 0.2.6-rc.4 (see
+[0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)); 0.2.6
+stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -1500,6 +1506,51 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.1: a new web font, and Firefox and Safari
+
+OXT-Beyond 0.2.7-rc.1, a test release, has everything in 0.2.6, and:
+
+- **HTML5 standalones draw text in Droid Sans and Droid Sans Bold**,
+  under free licences: Google's Apache-licensed Droid fonts, with
+  symbols from DejaVu Sans and Noto Sans CJK, which make each file as
+  a whole SIL Open Font License 1.1 (see
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). The font they
+  had, which came with LiveCode's HTML5 standalones, carried a
+  commercial licence and had no bold face, so bold text was drawn
+  plain. Plain text keeps its
+  widths and line height. Bold text is bold and wider,
+  `fontStyles("Droid Sans")` lists bold, and `the fontNames` lists
+  "Droid Sans Bold" too. About 300 symbols the old font also drew
+  (arrows, box drawing, circled numbers, mathematics) come from DejaVu
+  Sans and Noto Sans CJK now and have other widths. A standalone's
+  `standalone.zip` grows from about 4 MB to 8 MB (from 1.8 MB to
+  3.9 MB as a web server sends it compressed), since both faces carry
+  the Chinese, Japanese and Korean characters.
+- **HTML5 standalones are tested in Firefox and WebKit**, Safari's
+  engine, as well as in Chromium, by each package's automatic tests.
+  Firefox found that moving a window or choosing a snapshot's
+  rectangle never ended where a browser sends the mouse's events
+  without pointer events; both now take either. Two differences remain
+  between browsers, and the guide *Deploying Your Application* says
+  what they mean for a script: in Safari a page of the stack's own
+  site in a browser widget gets its `liveCode` object only once it has
+  loaded, and text that an input method composes reaches a field with
+  no `keyDown`. A browser widget's frame is given only the sandbox
+  settings the browser knows, which changes only what Safari writes to
+  its console. Touch dragging, dropping files from outside the page
+  and printing to paper are checked in Chromium only, and no phone has
+  run the tests.
+- **Linux: what you copy stays on the clipboard after OXT-Beyond or a
+  standalone quits**, when a clipboard manager that keeps it is
+  running. This came with the first 0.2.6-rc.4, which was withdrawn
+  while a Windows freeze was looked for; the freeze was the
+  installer's file dates, fixed in the second 0.2.6-rc.4. A test
+  checks it on every Linux build.
+
+On the desktop nothing a script sees differs from 0.2.6. Pull request
+[#111](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/111)
+lists every difference.
 
 ### xTalk Suite extensions
 

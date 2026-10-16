@@ -14,6 +14,16 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.7-rc.1 (2026-10-16, pre-release)
+
+- Web standalones: Apache 2.0 Droid Sans fonts, with bold (#111)
+- Web check: open the page in Firefox and WebKit too (#111)
+- Bring back #105: the Linux clipboard after quitting, and its upkeep (#111)
+- Web check in Firefox and WebKit: what they found (#111)
+- Web: a snapshot's rectangle takes mouse events too (#111)
+- Web: a window's title bar and edges take mouse events too (#111)
+- Version 0.2.7-rc.1, with its changelog (#111)
+
 ## 0.2.6 (2026-10-16)
 
 - Version 0.2.6, with its changelog (#110)

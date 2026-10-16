@@ -560,7 +560,10 @@ unlocked field has the focus, as on a phone: when the touch that put the
 focus there ends (a browser brings it up only for a touch), or the next
 touch after a script did, and it goes away when the field loses the
 focus. What it types reaches the field as keys, with their `keyDown`
-messages, and so does text from dictation or an emoji picker.
+messages, and so does text from dictation or an emoji picker. Text that
+a keyboard composes before it sends it (an input method for Chinese,
+Japanese or Korean, or a phone's keyboard that sends a word at a time)
+reaches the field with no `keyDown` messages.
 * **Drag and drop** between the controls and stacks of the page works as
 on the desktop: `dragStart`, `the dragData`, `dragEnter`, `dragMove`,
 `dragLeave`, `dragDrop` and `dragEnd`, `the dragImage` and the engine's
