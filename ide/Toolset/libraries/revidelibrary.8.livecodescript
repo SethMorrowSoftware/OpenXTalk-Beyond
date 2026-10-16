@@ -7210,7 +7210,7 @@ References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command
 Tags: ide
 */
 on revIDEImportHyperCardStack pFilePath
-   local tError, tStack
+   local tError, tStack, tWasLocked
 
    if there is not a file pFilePath then return __revIDEError("Specified file does not exist")
    if not __revIDEIsHyperCardFile(pFilePath) then
@@ -7219,11 +7219,13 @@ on revIDEImportHyperCardStack pFilePath
    end if
 
    set the cursor to watch
+   -- a caller that locked messages keeps them locked
+   put the lockMessages into tWasLocked
    lock messages
    go stack pFilePath
    put the result into tError
    if tError is empty then put the long id of the defaultStack into tStack
-   unlock messages
+   set the lockMessages to tWasLocked
 
    if tError is not empty then
       answer error revIDELocalise("There was a problem importing the HyperCard stack:") && pFilePath & cr & tError
