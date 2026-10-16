@@ -50,7 +50,7 @@
     {
       "name": "SodiumXT",
       "repository": "SethMorrowSoftware/SodiumXT",
-      "commit": "cca26f94ec9a4fa9f1a702e0e1dd253fe65a5bf6",
+      "commit": "39ee369ac3552bb7337767dd8de88c5bef5f1eaf",
       "version": "0.1.0",
       "version_from": {
         "path": "src/sodium.lcb",
@@ -59,13 +59,13 @@
       "licence": "MIT (Seth Morrow); the libraries statically link libsodium (ISC) and SHA-3 from RHash via trezor-crypto (MIT)",
       "files": [
         {"path": "src/sodium.lcb", "role": "source", "sha256": "cc6a6c10cc5e5c41bb5575490d20256e5a104f6ad024f61f285ddbd13b00de7d", "size": 126083},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "aed590d3935807cafb6e378eb733065a38536b8963db8898e0efae2f3c0fc8c3", "size": 545},
-        {"path": "src/code/x86_64-win32/sodiumxt.dll", "role": "library", "sha256": "a4291c7f4a3cefa8674503be7747879ced644ede0f8e1c72a144c31ae2f22ebb", "size": 464384, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86-win32/sodiumxt.dll", "role": "library", "sha256": "ea536393902719fe8aecd41cd34c345e62d0a04c75c1e86b3de1e1a9678fa047", "size": 420352, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86_64-linux/sodiumxt.so", "role": "library", "sha256": "1c9fa5b176dfd83b0d1d13b5cca4345b418d4c5686840e74fc1838e2fe369e23", "size": 428840},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "cabaf72cc687636dcbc89440826842a23d99eb2c41160b63a8c40245db883753", "size": 545},
+        {"path": "src/code/x86_64-win32/sodiumxt.dll", "role": "library", "sha256": "919039949f28c7794d767bc262853b10eaf937cb40368d4c205664e1fcb8add9", "size": 464384, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86-win32/sodiumxt.dll", "role": "library", "sha256": "b0c6ff1dce1d8e6eb6e18fccb98ee5a5bd168a270c396a6ba854db0d6b37c701", "size": 420352, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86_64-linux/sodiumxt.so", "role": "library", "sha256": "2e4b5177eeeb3898e62daf88deb3b9938b618d2c866aad5b5e8091cad0753287", "size": 453472},
         {"path": "src/code/x86-linux/sodiumxt.so", "role": "library", "sha256": "a2c98971b841278f067626d499b89a1e47d7447889687894c764f1da4ff21385", "size": 1210912},
-        {"path": "src/code/arm64-linux/sodiumxt.so", "role": "library", "sha256": "7513cc60b23cc5d00524498a90ced3a95d5ef4d81d959167f08f6abad386c72e", "size": 381520},
-        {"path": "src/code/universal-mac/sodiumxt.dylib", "role": "library", "sha256": "23464a2916e6ef67db5b851d11e28a4565eeabdf63c9e993efea95c3573064e1", "size": 735552},
+        {"path": "src/code/arm64-linux/sodiumxt.so", "role": "library", "sha256": "d1303aaedab1808057f93d500d09a0e202e4d52bb4e287d2719386233dfb758f", "size": 447432},
+        {"path": "src/code/universal-mac/sodiumxt.dylib", "role": "library", "sha256": "1db2611d9595dfd83ea91f78730cea8214e45219a9b8709909bc9ef4a6991b05", "size": 752192},
         {"path": "LICENSE", "role": "licence", "sha256": "22a6e00611c2fb83ffb09636213fb432d784acdb7e55d2c4f021509b18bd81c3", "size": 2265},
         {"path": "src/vendor/LICENSE", "role": "licence", "name": "trezor-crypto-LICENSE", "sha256": "b53d2eb93806f3d618370726f27eafeb6c279c7a90351297f79e073e49e569be", "size": 1114},
         {"path": "src/vendor/sha3.c", "role": "licence", "name": "RHash-SHA3-NOTICE.txt", "extract": "leading-comment", "comment": "the RHash SHA-3 permission notice is only in this file's header", "sha256": "f877c5f62bb2a63653bc363e0995f0bdfe70206c52f5a508d50d04aa373ce767", "size": 11259}
@@ -77,7 +77,7 @@
     {
       "name": "TorrentXT",
       "repository": "SethMorrowSoftware/TorrentXT",
-      "commit": "2fc152b69677a905fe4a6eef14514462a0789d6f",
+      "commit": "5890768146b3051f9b83c6dd76abf80100d29a0c",
       "version": "0.1.0",
       "version_from": {
         "path": "src/torrent.lcb",
@@ -87,13 +87,13 @@
       "files": [
         {"path": "src/torrent.lcb", "role": "source", "sha256": "a6b73142d9ab5a5b685710c4bc29d7e39ce10cea5bd23418ca311510ede25034", "size": 130874},
         {"path": "examples/torrent-helpers.livecodescript", "role": "source", "sha256": "2111f040a841380867084f65ce82852efcf34141e6e84edd432927808168aafd", "size": 13943},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "3763cbdfc14f58c897d9a79a216625b7d89319d74614d3b3847a829d4bf2b3ef", "size": 551},
-        {"path": "src/code/x86_64-win32/torrentxt.dll", "role": "library", "sha256": "b0082af2842d2a81e77a2ecaa9f11d70b85599114705cf8e542f8ca9c0d28e1e", "size": 12186112, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86-win32/torrentxt.dll", "role": "library", "sha256": "05b9b9e12c1016271f0d3b276c77453ddb1d68b84bf0068001a1c797b6d0dd8e", "size": 9599488, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86_64-linux/torrentxt.so", "role": "library", "sha256": "550bbcf6926cf3d910006817b7ac1fe663cdb7b691ace92b6b831b00c10e2ea5", "size": 12975600},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "27f6f0357a8a75648da9b8145786b9a10254281d93d3e2e37770514fdfdf2f15", "size": 551},
+        {"path": "src/code/x86_64-win32/torrentxt.dll", "role": "library", "sha256": "ad6737fc2c0906a03c82bca83a54b4949d7c01a4b1bd30314c3cd1245b05bba3", "size": 12140544, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86-win32/torrentxt.dll", "role": "library", "sha256": "85face9401b8821df508da7681534a2931fda162e349a22e1c564ac5cbc8be72", "size": 9599488, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86_64-linux/torrentxt.so", "role": "library", "sha256": "db99e525186864f61d57549f5df46d879073f54b42e2308eb7cb17017c5e8d04", "size": 12975360},
         {"path": "src/code/x86-linux/torrentxt.so", "role": "library", "sha256": "65c0a7892b4bb056cc85aadaf9b8fc2ba9f60be12b3912a70ff1f92273190254", "size": 6721400},
-        {"path": "src/code/arm64-linux/torrentxt.so", "role": "library", "sha256": "b04356a1ac6fa5f10255f987ff562f88955a15af93d4246cbc8eeb9183a87d61", "size": 11827264},
-        {"path": "src/code/universal-mac/torrentxt.dylib", "role": "library", "sha256": "877aa4b16a0630510d446a5802516a5692df1775ad404f289785beaf35a5fd55", "size": 26979776},
+        {"path": "src/code/arm64-linux/torrentxt.so", "role": "library", "sha256": "93eaf92fd615a19e33f8e146dd39192df4be1b486c42c8c2d8a2f02f4e8f04cb", "size": 11827040},
+        {"path": "src/code/universal-mac/torrentxt.dylib", "role": "library", "sha256": "3da6fd69e563dbed246049d8e07be2754da4e958cf9da23fa36589168eab96bf", "size": 27060928},
         {"path": "LICENSE", "role": "licence", "sha256": "619cfd2b7774524c93cbef14bd92f4ffb5dedcf41a5e0f82cc97c7994147bea3", "size": 1357},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "73cf3c5bc7ee24125a0e4b63379f7f453bba572967e8069f21a6f657c191af00", "size": 11243},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into torrentxt; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
@@ -106,7 +106,7 @@
     {
       "name": "enetxt",
       "repository": "SethMorrowSoftware/enetxt",
-      "commit": "f0d99eddc9955162ec51be45517d8b56d631b436",
+      "commit": "bb42b51a35065e9e89b07ccde5330dfd9d397317",
       "version": "0.1.0",
       "version_from": {
         "path": "src/enet.lcb",
@@ -116,13 +116,13 @@
       "files": [
         {"path": "src/enet.lcb", "role": "source", "sha256": "5a9287c8a813a325dae3daa62e2c9d98f2a40bdd66bc065e4b1e37eedf8fb576", "size": 46431},
         {"path": "examples/enet-helpers.livecodescript", "role": "source", "sha256": "90df716e4959f15df778153afa2054599f4829954e9ac0cd93a96ee9172ff1ce", "size": 15236},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "59bea82bc4a93614ad532faddece4adca210a417e6c63d7996f6adf48c4a48ae", "size": 533},
-        {"path": "src/code/x86_64-win32/enetxt.dll", "role": "library", "sha256": "a79418631c21349994a1c81785d5f992d09bbea4ab6c9c802a69c71dac2192e1", "size": 67584, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-string-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
-        {"path": "src/code/x86-win32/enetxt.dll", "role": "library", "sha256": "a7e9f2b1f67c51bc6a2aaa7f3eccef024ac6a82ab465c7ca149ee135ec0ed7a4", "size": 60416, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
-        {"path": "src/code/x86_64-linux/enetxt.so", "role": "library", "sha256": "da9392e90e197aafa0d289d7323512881bddc6a48de2e62823e65a6a1a3d12a7", "size": 80440},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "b359474249b0b383b8072f169aca202be65713da171996723264e67c8ddd2620", "size": 533},
+        {"path": "src/code/x86_64-win32/enetxt.dll", "role": "library", "sha256": "cdbc016317a17238e42b0191e82f358c6dca9e92eeffa2a0cc8c9d3a57f03a08", "size": 67584, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-string-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
+        {"path": "src/code/x86-win32/enetxt.dll", "role": "library", "sha256": "d0882e721439acfcf86059e059b806be77085046a462b09c89af88d99b74660a", "size": 60416, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
+        {"path": "src/code/x86_64-linux/enetxt.so", "role": "library", "sha256": "a52ebfa9c753043c87f9dc1e0b2de4c197c8fa3d5bd0ce14f210e055f7c888ce", "size": 76288},
         {"path": "src/code/x86-linux/enetxt.so", "role": "library", "sha256": "df7570705117507126743220001f8753f82cb3d949f6e6232d9401915c7f15da", "size": 87596},
-        {"path": "src/code/arm64-linux/enetxt.so", "role": "library", "sha256": "a51d3ed72890b62825c691c44786ac9c0a66d63a37d78ae6b875b1d0025e04a6", "size": 133496},
-        {"path": "src/code/universal-mac/enetxt.dylib", "role": "library", "sha256": "3b9048260a129fe0d0a83279ce8d6b8a0e26e048d801348216960009aafec5a5", "size": 191824},
+        {"path": "src/code/arm64-linux/enetxt.so", "role": "library", "sha256": "89caaf2e15966b6eee96e751810ea1f1b39307810803739b6a66338b4bb07098", "size": 199200},
+        {"path": "src/code/universal-mac/enetxt.dylib", "role": "library", "sha256": "c7997d1566061424fb96725cd340c1e9bd934c613396c092065057bd9a66d5f2", "size": 192048},
         {"path": "LICENSE", "role": "licence", "sha256": "a1c0330b8856120b497066a07008d6207dec6d324961d522eef5d977c30e83ee", "size": 1277},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "a0b87e6830707fbce98e18fc7a6aed7a1874b60b25aeb36a2966692a5a41fdc8", "size": 1403}
       ],
@@ -134,7 +134,7 @@
     {
       "name": "dataChannelXT",
       "repository": "SethMorrowSoftware/dataChannelXT",
-      "commit": "8878096994764e71a96afe2659d55e0ca97348bd",
+      "commit": "3b57895570305b31504815e91e70a97aa0216de9",
       "version": "0.1.0",
       "version_from": {
         "path": "src/datachannel.lcb",
@@ -144,13 +144,13 @@
       "files": [
         {"path": "src/datachannel.lcb", "role": "source", "sha256": "148d01824aad76b4eaf9cbc4ce6a0cfe0a5224551124614f1ca95e18f161003c", "size": 62089},
         {"path": "examples/datachannel-helpers.livecodescript", "role": "source", "sha256": "a23d906ee282df1e6fbe614a27bc35173c59d5228a819eea963c84b8a1a80916", "size": 20266},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "d5692e066e14e40132d2bf71ecf72992a8e6ec514683e0b110d5a2ee6c6fbd38", "size": 575},
-        {"path": "src/code/x86_64-win32/datachannelxt.dll", "role": "library", "sha256": "05bf16b5861c34c37045f248d428de32a7695f4c497558724036ea67c6f8a22e", "size": 6729728, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86-win32/datachannelxt.dll", "role": "library", "sha256": "58c763971bfdab746e31a82fafe2abd455b6f198ff2da7b775c1264eb5a6b541", "size": 4622848, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
-        {"path": "src/code/x86_64-linux/datachannelxt.so", "role": "library", "sha256": "57c55b4cc9fd304fd940cdd0a1f197b6a614269e2f7f6f093f58c3ebb9f0415c", "size": 3253648},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "4d93411195b25c902ad73cf6df87e6ec91b4ae97c5ed60aa9ffa091807bab3ab", "size": 575},
+        {"path": "src/code/x86_64-win32/datachannelxt.dll", "role": "library", "sha256": "a5987cc9734186787ff48a55cf4256395013df32d100841ba17b891d8c5c7fb7", "size": 6670336, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86-win32/datachannelxt.dll", "role": "library", "sha256": "111df96ff2fb8eed8957095559e37b455abcee8b11ce0c74d010bcbd03bda470", "size": 4614656, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
+        {"path": "src/code/x86_64-linux/datachannelxt.so", "role": "library", "sha256": "86c2e23816d91e4c7da97050c02ed5bbbe964e53e1e0e56775806723cd194bca", "size": 9831936},
         {"path": "src/code/x86-linux/datachannelxt.so", "role": "library", "sha256": "37379a2f405539bb31910b262e9558182ea74225c0cefee2ca665dc4ae0ec3e5", "size": 3393048},
-        {"path": "src/code/arm64-linux/datachannelxt.so", "role": "library", "sha256": "af05d87d0b0a4492858f552a5fa90069dbb264dd31fb0f13e8259abac6a52afa", "size": 3155208},
-        {"path": "src/code/universal-mac/datachannelxt.dylib", "role": "library", "sha256": "cde25d05ae1e64ae57eb14e56e8a1dd07fe544d5408a9d3d23b16b84a0799064", "size": 14733232},
+        {"path": "src/code/arm64-linux/datachannelxt.so", "role": "library", "sha256": "1eaba19042bf50e68b61579b09f5679a471d38a0fb8f9d6393d560d4364c3bac", "size": 9076912},
+        {"path": "src/code/universal-mac/datachannelxt.dylib", "role": "library", "sha256": "897d92ea975a7045475658629a20cef8a423a1f925338ffe920befb8e9920b1f", "size": 14795120},
         {"path": "LICENSE", "role": "licence", "sha256": "2be31fedf1c1dca53566f4370d18311f15c2e621b2b252f56e87a97e7bdc9b35", "size": 1606},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "4214f86f135462463d91e5b86d007e1522494b7960367d52e2aaecb577ac347d", "size": 20454},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into the Windows and macOS datachannelxt libraries; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
@@ -163,7 +163,7 @@
     {
       "name": "Box2Dxt",
       "repository": "SethMorrowSoftware/Box2Dxt",
-      "commit": "ae884459c1d17beda213c3206087c98b89da256f",
+      "commit": "0dd09c675897743380dd51cf787ab549e423beec",
       "version": "0.2.0",
       "version_from": {
         "path": "src/box2dxt.lcb",
@@ -174,13 +174,13 @@
       "files": [
         {"path": "src/box2dxt.lcb", "role": "source", "sha256": "bde77cafb09344922e286e8d1e076527d1fb6be8c9f564f804dba9e54d43f378", "size": 294359},
         {"path": "src/box2dxt-kit.livecodescript", "role": "source", "sha256": "cfa234e3ae0d438cf9d0d252ed662f8e868241e0c838c668831f35acb5d7f6ea", "size": 374025},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "7ac09a53e64fb7e6dbbdae6201d0f91766eb23a175aa24c96d388456cb3e0f1b", "size": 539},
-        {"path": "src/code/x86_64-win32/box2dxt.dll", "role": "library", "sha256": "c4609496ce2b2a585accfd63629cb362a7f912f62aefbf88f5d0aba684f26270", "size": 337408, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
-        {"path": "src/code/x86-win32/box2dxt.dll", "role": "library", "sha256": "5d52eba29ab8e3c3c6945db0d5ed01224ee6a2424863fbcf1f1411a61fa456be", "size": 301056, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "7d1d0ddf8c42e9fe1b57bde44622fe1af15f231103f9b8c8a6fbb104bf0a9518", "size": 539},
+        {"path": "src/code/x86_64-win32/box2dxt.dll", "role": "library", "sha256": "7f33cb3489aa6132b9db4363e3bde0ffe22d68be3d3cbfe83e76b492480643c5", "size": 337408, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
+        {"path": "src/code/x86-win32/box2dxt.dll", "role": "library", "sha256": "2c12770687a553f1674682dbdfbb498a9666612b5ba8bcdf45f934e3d8b75a75", "size": 301056, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
         {"path": "src/code/x86_64-linux/box2dxt.so", "role": "library", "sha256": "a19edb050dc891682658571214746ac55679de163018c9d0b9713e276a8ca7dc", "size": 463576},
         {"path": "src/code/x86-linux/box2dxt.so", "role": "library", "sha256": "9c8cf4d8eb7f859bc375ba257600aea0e2a3169fee1b3a6bf8269d46aa36b8fc", "size": 529196},
         {"path": "src/code/arm64-linux/box2dxt.so", "role": "library", "sha256": "4d887fc8feb7d25b8e4598ba4486ab4f91e91a8376913fb0b42b89c76a39b6ea", "size": 525000},
-        {"path": "src/code/universal-mac/box2dxt.dylib", "role": "library", "sha256": "0079e50ede4a5bfb57869d42130aff50dd85f45d29892bf068cb49e5148e913d", "size": 713488},
+        {"path": "src/code/universal-mac/box2dxt.dylib", "role": "library", "sha256": "1aee527b2a2946de61018dd784fa1766e79c4864c8a6430650c48483182511de", "size": 713568},
         {"path": "LICENSE", "role": "licence", "sha256": "804bb30c3cd381140181882feff4dd10e63ec464f93cf11cb5fce3f102d8f124", "size": 1737}
       ],
       "extensions": [
@@ -191,7 +191,7 @@
     {
       "name": "CoinXT",
       "repository": "SethMorrowSoftware/CoinXT",
-      "commit": "1f279fb5d1c33c6d36474b740d029f2140cf2904",
+      "commit": "57fb911058efc72593524ee27b120dd3c78fd048",
       "version": "0.1.0",
       "version_from": {
         "path": "src/coinxt.lcb",
@@ -201,13 +201,13 @@
       "files": [
         {"path": "src/coinxt.lcb", "role": "source", "sha256": "2b17a3a4ffc7fa07a245dcc1d64ef70e941b09e1448b23abc2f9a37846c77332", "size": 101219},
         {"path": "src/coinxt.livecodescript", "role": "source", "sha256": "fa6a32233255ce65ac4f2c3f79750562ec7d2f0fee89d3d7aef8a675dd2e0657", "size": 198063},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "77c058bfbfa516415b53c79054b0e3ba58dea69bed0af635f6abeaf0e4dc7015", "size": 533},
-        {"path": "src/code/x86_64-win32/coinxt.dll", "role": "library", "sha256": "4dd16d10c03d0cfba07142210f9e0d3dae7c7d61f8205fe48291871c97722bc7", "size": 454297, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
-        {"path": "src/code/x86-win32/coinxt.dll", "role": "library", "sha256": "86a22d64c2bc44e0615e1bfa524d899901db09ba2cb367ac9ddeae59d72ecbc6", "size": 400356, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "5ed4d9f13a127466120d88f014cac7483e20e841f1b41f143ffb3c2ab10b23d8", "size": 533},
+        {"path": "src/code/x86_64-win32/coinxt.dll", "role": "library", "sha256": "5787a2fc21490406e7bf5e4576cebe46cd0feeafc716aaa6a6b065b9791115fe", "size": 454297, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
+        {"path": "src/code/x86-win32/coinxt.dll", "role": "library", "sha256": "769f346e32f5b08a1f118adc51442868568931367c653caa52d4ca87ed542782", "size": 400356, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
         {"path": "src/code/x86_64-linux/coinxt.so", "role": "library", "sha256": "5b5b65561172d8f4c76301535bffc3660298f362b87b3d343865ec2dd0a19946", "size": 485632},
         {"path": "src/code/x86-linux/coinxt.so", "role": "library", "sha256": "37873c9cf406f6662fdce979c8d80f8ad1c82dbb6c45491e1030541c49e50e99", "size": 398744},
         {"path": "src/code/arm64-linux/coinxt.so", "role": "library", "sha256": "015a9cc2bfc54609fc75df887e304e190eccc321b1cebda14a7a30eb77aa115e", "size": 460848},
-        {"path": "src/code/universal-mac/coinxt.dylib", "role": "library", "sha256": "dc501e456d87ee430270103143a89ccae4179bbc56796390db881d85b64145f1", "size": 859184},
+        {"path": "src/code/universal-mac/coinxt.dylib", "role": "library", "sha256": "77575f7f55ed8bd7ca688d790e55b11ddca5ae14b13a766ad4f19eb5de6f7e8d", "size": 875728},
         {"path": "LICENSE", "role": "licence", "sha256": "6124d2badb597d24ed1a0f545446e1d81b3117ee13123cee03fe25dc28213512", "size": 1306},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "e535ff44198d19a51ff3e58166c8c7699be2ef375ebc5591ae3f5d638394511a", "size": 12779},
         {"path": "native/vendor/LICENSE", "role": "licence", "name": "trezor-crypto-LICENSE", "comment": "trezor-crypto's MIT text; the member's LICENSE and THIRD-PARTY-LICENSES.md only point to this file", "sha256": "b53d2eb93806f3d618370726f27eafeb6c279c7a90351297f79e073e49e569be", "size": 1114},
