@@ -19,7 +19,7 @@
 browser.
 
   python3 tools/ci/web_check.py --runtime DIR (--engine FILE | --engine-cache DIR)
-      [--work DIR] [--timeout SECONDS] [--keep-serving]
+      [--browser B] [--work DIR] [--timeout SECONDS] [--keep-serving]
   python3 tools/ci/web_check.py (--install DIR | --package FILE | --bin DIR)
       [--platform P] [--ide-timeout SECONDS] [--work DIR] [--timeout SECONDS]
   python3 tools/ci/web_check.py --built DIR [--work DIR] [--timeout SECONDS]
@@ -167,6 +167,14 @@ info url-path"), and each has results of its own for a missing page and a
 load (see web-probe.livecodescript). A standalone made without the IDE must
 use the engine, and one that the IDE made, libURL.
 
+--browser is the browser that opens the page: chromium (the default),
+firefox or webkit (Safari's engine), each Playwright's own build. Three
+steps drive the browser through Chromium's DevTools protocol, which the
+others have not got, and are left out in them, each with a line that says
+so: the finger dragged across the graphic, the file dropped from outside
+the page, and the paper that the frame which prints is printed on (a PDF
+that only Chromium makes). Everything else is checked in all three.
+
 Every check must pass, and nothing may reach the browser's error console
 or the page's error handler. The screenshot is written to
 <work>/WebProbe.png. --keep-serving keeps the server running after the
@@ -174,8 +182,8 @@ checks (Ctrl-C ends it), to open the page in a browser by hand.
 
 Exit status 0 when everything passes, 1 otherwise. Under GitHub Actions
 it writes annotations and a job summary. Needs Python 3.8 or later and,
-for the browser, the Python package playwright with its Chromium
-(python3 -m playwright install chromium).
+for the browser, the Python package playwright with its browser
+(python3 -m playwright install chromium, firefox or webkit).
 """
 
 import argparse
@@ -984,8 +992,8 @@ def snapshot_report_ok(report, wanted):
     return True
 
 
-def run_browser(url, version, work, timeout, url_path=None, browser_widget=None):
-    """Open the page and check what the probe and the page do; url_path is
+def run_browser(url, version, work, timeout, url_path=None, browser_widget=None, browser_name='chromium'):
+    """Open the page in browser_name and check what the probe and the page do; url_path is
     what must load the probe's URLs, 'engine' or 'libURL' (None: either),
     and browser_widget whether the standalone must have the browser widget
     (None: the probe's check of it may also be left out, when it has none).
@@ -1064,7 +1072,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
         return False
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = getattr(p, browser_name).launch()
+        devtools = browser_name == 'chromium'
+        lines.append('browser: %s %s' % (browser_name, browser.version))
         page = browser.new_page(viewport={'width': 800, 'height': 600}, accept_downloads=True,
                                 has_touch=True)
         page.on('console', on_console)
@@ -1136,16 +1146,21 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
                     problems.append('a tap on the button sent its mouseUp %d times, expected once' % taps)
                 start = at(info['graphic-rect'])
                 points = [(start[0] + 8 * step, start[1]) for step in range(5)]
-                cdp = page.context.new_cdp_session(page)
-                for i, (x, y) in enumerate(points):
-                    cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart' if i == 0 else 'touchMove',
-                                                          'touchPoints': [{'x': x, 'y': y}]})
-                    page.wait_for_timeout(50)
-                cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
-                page.wait_for_timeout(300)
-                cdp.detach()
-                drag = page.evaluate("document.liveCode.findStackWithName('%s').probeReport('drag')" % STACK_NAME)
-                if not touch_drag_ok(drag, [(x - canvas['x'], y - canvas['y']) for x, y in points]):
+                if devtools:
+                    cdp = page.context.new_cdp_session(page)
+                    for i, (x, y) in enumerate(points):
+                        cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart' if i == 0 else 'touchMove',
+                                                              'touchPoints': [{'x': x, 'y': y}]})
+                        page.wait_for_timeout(50)
+                    cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+                    page.wait_for_timeout(300)
+                    cdp.detach()
+                    drag = page.evaluate("document.liveCode.findStackWithName('%s').probeReport('drag')" % STACK_NAME)
+                if not devtools:
+                    if taps == 1:
+                        lines.append('a tap was one click (a finger dragged across the graphic is checked in '
+                                     'Chromium only)')
+                elif not touch_drag_ok(drag, [(x - canvas['x'], y - canvas['y']) for x, y in points]):
                     problems.append('a finger dragged across the graphic from %d,%d to %d,%d sent it %r, expected '
                                     'mouseDown, mouseMove and mouseUp at the finger\'s points' % (
                                         points[0][0] - canvas['x'], points[0][1] - canvas['y'],
@@ -1185,12 +1200,15 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
                     f.write(PROBE_DROP[1])
                 zone = at(info['drop-zone-rect'])
                 drag_data = {'items': [], 'files': [drop_file], 'dragOperationsMask': 1}
-                cdp = page.context.new_cdp_session(page)
-                for kind in ('dragEnter', 'dragOver', 'drop'):
-                    cdp.send('Input.dispatchDragEvent', {'type': kind, 'x': zone[0], 'y': zone[1], 'data': drag_data})
-                    page.wait_for_timeout(50)
+                if devtools:
+                    cdp = page.context.new_cdp_session(page)
+                    for kind in ('dragEnter', 'dragOver', 'drop'):
+                        cdp.send('Input.dispatchDragEvent', {'type': kind, 'x': zone[0], 'y': zone[1], 'data': drag_data})
+                        page.wait_for_timeout(50)
+                else:
+                    lines.append('a file dropped from outside the page is checked in Chromium only')
                 report_drop = "document.liveCode.findStackWithName('%s').probeReport('drop')" % STACK_NAME
-                if wait_for(lambda: page.evaluate(report_drop), 'the drop of %s' % PROBE_DROP[0], 10):
+                if devtools and wait_for(lambda: page.evaluate(report_drop), 'the drop of %s' % PROBE_DROP[0], 10):
                     dropped = page.evaluate(report_drop)
                     if dropped != PROBE_DROP_REPORT:
                         problems.append('a file dropped on the graphic "Drop Zone" from outside the page gave it %r, '
@@ -1465,8 +1483,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
                              for number, (printed, points) in enumerate(zip(prints[0]['pages'], PROBE_PRINT_PAGES), 1)
                              for (name, point, want), got in zip(points, printed['colours'])
                              if any(abs(a - b) > 8 for a, b in zip(got, want))]
-                    paper = printed_paper(browser, prints[0]['html'])
-                    if paper != [list(size) for size in PROBE_BROWSER_SIZES]:
+                    paper = printed_paper(browser, prints[0]['html']) if devtools else None
+                    if devtools and paper != [list(size) for size in PROBE_BROWSER_SIZES]:
                         wrong.append('the browser printed the frame\'s document on paper of %s, expected %s'
                                      % (paper, [list(size) for size in PROBE_BROWSER_SIZES]))
                     if wrong:
@@ -1551,7 +1569,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None)
                         % info.get('js-call'))
     for error in page_errors:
         problems.append('page error: %s' % error)
-    # The browser reports the probe's request for a missing page (url-missing)
+    # The browser may report the probe's request for a missing page
+    # (url-missing): Chromium and WebKit do, in these words; Firefox does not
     expected = ['Failed to load resource: the server responded with a status of 404 (Not Found)']
     for kind, text in console:
         if kind == 'error' and not text.startswith('PROBE '):
@@ -1573,6 +1592,8 @@ def main(argv=None):
                     help='the build output of a repository checkout: build with the checkout\'s IDE')
     ap.add_argument('--platform', help='with --install or --package: the layout (default: this machine\'s)')
     ap.add_argument('--built', metavar='DIR', help='a standalone of the probe stack that is already built')
+    ap.add_argument('--browser', choices=('chromium', 'firefox', 'webkit'), default='chromium',
+                    help='the browser that opens the page (default chromium)')
     ap.add_argument('--work', help='the work folder (default: a temporary folder)')
     ap.add_argument('--timeout', type=int, default=120, help='seconds for each step (default 120)')
     ap.add_argument('--ide-timeout', type=int, default=600,
@@ -1624,7 +1645,7 @@ def main(argv=None):
         server = make_server(site)
         url = 'http://127.0.0.1:%d/%s' % (server.server_address[1], os.path.basename(page))
         log('Opening %s' % url)
-        p, l = run_browser(url, version, work, args.timeout, url_path, browser_widget)
+        p, l = run_browser(url, version, work, args.timeout, url_path, browser_widget, args.browser)
         problems += p
         lines += l
         if args.keep_serving:
@@ -1651,7 +1672,7 @@ def main(argv=None):
     else:
         log('PASSED')
     title = {'runtime': 'without the IDE', 'ide': 'the IDE\'s builder', 'built': 'built before'}[mode]
-    summary('### Web standalone check (%s)\n\n' % title + ''.join('- %s\n' % x for x in lines)
+    summary('### Web standalone check (%s, %s)\n\n' % (title, args.browser) + ''.join('- %s\n' % x for x in lines)
             + ('\n**Failed:**\n\n' + ''.join('- %s\n' % x for x in problems) if problems else '\nAll checks passed.\n')
             + '\n')
     return 1 if problems else 0

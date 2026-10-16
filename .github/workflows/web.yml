@@ -312,17 +312,23 @@ jobs:
           retention-days: 14
 
   # A web standalone of tools/ci/web-probe.livecodescript, made from the
-  # runtime without the IDE, opened in headless Chromium (Playwright) and
-  # checked (tools/ci/web_check.py, which says what it checks). The
+  # runtime without the IDE, opened in headless Chromium, Firefox and WebKit
+  # (Safari's engine), Playwright's builds of each, and checked
+  # (tools/ci/web_check.py, which says what it checks, and what it checks
+  # in Chromium only). The
   # standalone's startup data is written by the Linux x86_64 engine of the
   # OXT-Beyond release that tools/ci/build_docs.sh pins, so that this job
   # needs no desktop build.
   check:
-    name: Web runtime check
+    name: Web runtime check (${{ matrix.browser }})
     needs: build
     if: inputs.check
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -360,20 +366,22 @@ jobs:
             echo "Already installed: ${pkgs[*]}"
           fi
 
-      # Playwright, pinned, in a virtual environment of its own, with its
-      # Chromium and the system libraries that Chromium needs
-      - name: Install Playwright and Chromium
+      # Playwright, pinned, in a virtual environment of its own, with the
+      # browser and the system libraries that it needs
+      - name: Install Playwright and ${{ matrix.browser }}
         env:
           PLAYWRIGHT_VERSION: 1.56.0
+          BROWSER: ${{ matrix.browser }}
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
 
       # The fonts of every HTML5 standalone are what tools/oxt/build_web_fonts.py
       # makes from the Ubuntu 24.04 packages it names (each file pinned by its
       # SHA-256 there; the versions here are the ones it was built from)
       - name: Check the web fonts against their sources
+        if: matrix.browser == 'chromium'
         run: |
           sudo apt-get -o Acquire::Retries=3 update
           mkdir -p "$RUNNER_TEMP/font-sources" && cd "$RUNNER_TEMP/font-sources"
@@ -388,17 +396,19 @@ jobs:
           "$RUNNER_TEMP/fonttools/bin/python" -m pip install --quiet fonttools==4.67.0
           "$RUNNER_TEMP/fonttools/bin/python" tools/oxt/build_web_fonts.py "$RUNNER_TEMP/font-sources/x" --check
 
-      - name: Check the runtime in the browser
+      - name: Check the runtime in ${{ matrix.browser }}
         timeout-minutes: 15
+        env:
+          BROWSER: ${{ matrix.browser }}
         run: |
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_check.py --runtime "$RUNNER_TEMP/web-runtime" \
-            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check"
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check" --browser "$BROWSER"
 
       - name: Upload the check's files
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.artifact }}-check
+          name: ${{ inputs.artifact }}-check-${{ matrix.browser }}
           path: ${{ runner.temp }}/web-check
           if-no-files-found: ignore
           retention-days: 14
