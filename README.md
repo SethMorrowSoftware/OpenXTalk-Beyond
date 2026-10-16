@@ -1560,9 +1560,10 @@ OXT-Beyond 0.2.7-rc.1, a test release, has everything in 0.2.6, and:
   needed glibc 2.33, DataChannelXT glibc 2.38 and OpenSSL 3, and every
   extension macOS 15, so on Ubuntu 22.04, Debian 12 or a Mac older than
   macOS 15 they did not load. The Windows libraries are built again
-  too. The suite's own tests passed on each new library; none has yet
-  run in an OXT engine on a Mac older than macOS 15 or a Linux older
-  than Ubuntu 24.04.
+  too. Each package's automatic tests load every extension and call it
+  in OXT-Beyond's engine, and passed with the new libraries on Linux
+  (Ubuntu 24.04) and macOS 15; none has yet run on a Mac older than
+  macOS 15 or a Linux older than Ubuntu 24.04.
 
 On the desktop, a script sees one difference from 0.2.6: on those older
 systems the extensions now load where they failed to. Pull request
