@@ -8,13 +8,13 @@
 #define synonym_verb__ reply_none__, dp_none__, { }
 #define plural__    "", {"", kAESpecialClassProperties, cType, "", reserved, singleItem, notEnumerated, readOnly, Reserved8, noApostrophe, notFeminine, notMasculine, plural}, {}
 
-resource 'aete' (0, "LiveCode Terminology") {
+resource 'aete' (0, "xTalk Terminology") {
 	0x1,  // major version
 	0x0,  // minor version
 	english,
 	roman,
 	{
-		"LiveCode Miscellaneous Commands",
+		"xTalk Miscellaneous Commands",
 		"Miscellaneous commands",
 		'REVO',
 		1,
@@ -23,7 +23,7 @@ resource 'aete' (0, "LiveCode Terminology") {
 			/* Events */
 
 			"do script",
-			"Execute LiveCode script",
+			"Execute xTalk script",
 			'misc', 'dosc',
 			'TEXT',
 			"Return value",
@@ -37,7 +37,7 @@ resource 'aete' (0, "LiveCode Terminology") {
 			},
 
 			"evaluate",
-			"Evaluate LiveCode expression",
+			"Evaluate xTalk expression",
 			'misc', 'eval',
 			'TEXT',
 			"Value of expression",
