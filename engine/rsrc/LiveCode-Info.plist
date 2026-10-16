@@ -17,11 +17,11 @@
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>Needed to access the user&apos;s Documents folder</string>
 	<key>NSNetworkVolumesUsageDescription</key>
-	<string>Needed to access network volues</string>
+	<string>Needed to access network volumes</string>
 	<key>NSFileProviderDomainUsageDescription</key>
 	<string>Needed to access cloud storage domains such as iCloud</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Needed for developming with Blutooth Devices</string>
+	<string>Needed for developing with Bluetooth devices</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Needed to post User Notifications and Change Badge Text for the App Dock Tile</string>
 	<key>NSAppleEventsUsageDescription</key>
@@ -46,8 +46,6 @@
 	<true/>
 	<key>LSMultipleInstancesProhibited</key>
 	<false/>
-	<key>NSSupportsSuddenTermination</key>
-	<true/>
 	<key>MetalCaptureEnabled</key>
 	<true/>
 	<key>LSApplicationCategoryType</key>
