@@ -2631,7 +2631,9 @@ MCStack *MCHcstak::build()
 			MCCard *t_card = t_made_cards->remove(t_made_cards);
 			MCrecent->deletecard(t_card);
 			MCcstack->deletecard(t_card);
-			t_card->scheduledelete();
+			sptr->uncacheobjectbyid(t_card);
+			t_card->removereferences();
+			t_card->scheduledelete(false);
 		}
 	sptr->curcard = sptr->cards;
 	// The background order: HyperCard's own, the chain from the STAK
