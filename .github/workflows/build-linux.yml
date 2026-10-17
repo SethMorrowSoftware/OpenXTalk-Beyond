@@ -51,6 +51,9 @@
 #                                                  the *.dbg files, plus the
 #                                                  licence files
 #   OXT-Beyond-<ver>-linux-x86_64-symbols.tar.xz   the *.dbg files
+#   OXT-Beyond-<ver>-web-player.zip                the Stack Player
+#                                                  (x86_64 only;
+#                                                  tools/web-player)
 #   SHA256SUMS
 #
 # (tools/oxt/package.py --platform linux-<arch>, tools/oxt/package_dist.py),
@@ -1228,6 +1231,33 @@ jobs:
           mkdir -p "$RUNNER_TEMP/logs/web-check"
           cp "$RUNNER_TEMP"/web-check/*.png "$RUNNER_TEMP"/web-check/*.txt "$RUNNER_TEMP/logs/web-check/" 2> /dev/null || true
           exit "$status"
+
+      # The Stack Player (tools/web-player): the package's IDE builds it
+      # with its web builder, every script library, the web externals and
+      # every web extension; build_player.py then opens its sample stacks
+      # in it in headless Chromium (the Data Grid, a widget, a palette, a
+      # script error, Download copy, revXML, SQLite, a file beside the
+      # stack, the library kept for the next visit) and packs the folder
+      # as <root>-web-player.zip, a release file (tools/ci/release_assets.py)
+      # added to SHA256SUMS. Its files are the same on any platform, so
+      # the x86_64 leg makes it.
+      - name: Web Stack Player
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 20
+        env:
+          PACKAGE_ROOT: ${{ steps.package.outputs.package-root }}
+        run: |
+          status=0
+          zip="$PACKAGE_ROOT-web-player.zip"
+          "$RUNNER_TEMP/playwright/bin/python" tools/web-player/build_player.py --install "$OXT_ROOT" \
+            --platform "linux-$ARCH" --work "$RUNNER_TEMP/web-player" --zip "dist/$zip" --check || status=$?
+          mkdir -p "$RUNNER_TEMP/logs/web-player"
+          cp "$RUNNER_TEMP"/web-player/*.txt "$RUNNER_TEMP"/web-player/check/* "$RUNNER_TEMP/logs/web-player/" 2> /dev/null || true
+          if [ "$status" -ne 0 ]; then
+            rm -f "dist/$zip"
+            exit "$status"
+          fi
+          (cd dist && sha256sum "$zip" >> SHA256SUMS && sha256sum -c SHA256SUMS)
 
       # The LiveCode Script tests of tests/lcs in the web engine
       # (tools/ci/web_tests.py): their LiveCode Builder modules compiled by

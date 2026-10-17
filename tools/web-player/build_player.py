@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+"""Build the Stack Player, a web standalone that opens any stack, with an
+OXT-Beyond's IDE, and optionally check it in a headless browser.
+
+  python3 tools/web-player/build_player.py (--install DIR | --package FILE | --bin DIR)
+      [--platform P] [--work DIR] [--out DIR] [--zip FILE] [--check] [--timeout SECONDS]
+
+The IDE of the layout starts (on an Xvfb screen on Linux without a
+DISPLAY, as tools/ci/web_check.py starts it) with build-player.livecodescript
+named on its command line, which makes the player's stack and builds it
+with the IDE's web builder, with every script library and extension the
+web engine has (see that script). This script then puts the player's own
+page, index.html (this folder's, with the bar above the stack), in place of
+the one the builder wrote, and with --zip packs the folder: the files to
+put on any web server.
+
+With --check, the player is served on 127.0.0.1 and opened in headless
+Chromium (Playwright), and given the sample stacks that the build also
+made, as a user gives them, through the bar's Open button:
+
+  Tour   cards, a widget, a palette substack, and a script error, which
+         the player must report in a dialog; then the bar's Download copy
+         (a download of the stack) and Home
+  Grid   a data grid: the Data Grid library must be in the player
+  Data   revXML, SQLite through revDB, and a file given with the stack,
+         which its relative path must find
+
+A second page then opens the player again, which must list the three in
+its library: the browser keeps them between visits. Screenshots go into
+<work>/check.
+"""
+
+import argparse
+import functools
+import http.server
+import os
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+import zipfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
+CI = os.path.join(REPO, 'tools', 'ci')
+sys.path.insert(0, os.path.join(REPO, 'tools', 'oxt'))
+sys.path.insert(0, CI)
+import ui_tour  # noqa: E402
+
+BUILD_SCRIPT = os.path.join(HERE, 'build-player.livecodescript')
+PLAYER_SCRIPT = os.path.join(HERE, 'stack-player.livecodescript')
+PAGE = os.path.join(HERE, 'index.html')
+BUILT_PAGE = 'StackPlayer.html'
+
+
+def log(msg=''):
+    print(msg, flush=True)
+
+
+class CheckError(Exception):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# 1. The build
+
+def build(args, work):
+    """Builds the player into <out> with the IDE (see the header)."""
+    package, rlc = ui_tour.package, ui_tour.rlc
+    p = package.PLATFORMS[args.platform or rlc.default_platform()]
+    out = os.path.abspath(args.out or os.path.join(work, 'site'))
+    samples = os.path.join(work, 'samples')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.rmtree(samples, ignore_errors=True)
+    results = os.path.join(work, 'build.txt')
+    if os.path.exists(results):
+        os.remove(results)
+    document = os.path.join(work, 'oxt_build_player.livecodescript')
+    shutil.copyfile(BUILD_SCRIPT, document)
+    temp_dirs = []
+    try:
+        args.engine = None
+        try:
+            lay = rlc.find_layout(args, p, temp_dirs)
+        except rlc.CheckError as e:
+            raise CheckError(str(e))
+        log('Layout : %s' % lay.root)
+
+        def path(x):
+            return x.replace('\\', '/')
+        env = dict(os.environ)
+        env.update(OXT_PLAYER_SCRIPT=path(PLAYER_SCRIPT), OXT_PLAYER_OUTPUT=path(out),
+                   OXT_PLAYER_LOG=path(results), OXT_PLAYER_SAMPLES=path(samples) if args.check else '')
+        cmd = [lay.engine, document]
+        if p.family == 'linux':
+            cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
+            if 'LIVECODE_USE_CEF' not in env and not os.path.isfile(os.path.join(cef, 'CEF', 'libcef.so')):
+                env['LIVECODE_USE_CEF'] = '0'
+            if not env.get('DISPLAY'):
+                xvfb = shutil.which('xvfb-run')
+                if not xvfb:
+                    raise CheckError('no DISPLAY and no xvfb-run')
+                cmd = [xvfb, '-a', '-s', '-screen 0 1440x900x24'] + cmd
+        log('Running: %s' % ' '.join(cmd))
+        started = time.time()
+        status = 'did not finish within %d seconds' % args.timeout
+        with open(os.path.join(work, 'ide-output.txt'), 'wb') as engine_log:
+            kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
+                {'start_new_session': True}
+            proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
+            try:
+                while time.time() - started < args.timeout:
+                    if any(x.startswith('DONE') for x in ui_tour.read_lines(results)):
+                        status = None
+                        break
+                    if proc.poll() is not None:
+                        status = 'the IDE ended with exit status %s' % proc.returncode
+                        break
+                    time.sleep(0.5)
+            finally:
+                ui_tour.stop(proc)
+        problems = []
+        for line in ui_tour.read_lines(results):
+            log('  ide: %s' % line)
+            if line.startswith('BUILD FAILED') or line.startswith('ERROR'):
+                problems.append(line)
+        if status:
+            problems.append('the IDE\'s build %s' % status)
+            for line in ui_tour.read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
+                log('  ide output: %s' % line)
+        if problems:
+            raise CheckError('; '.join(problems))
+        log('The IDE built the player in %.0f s' % (time.time() - started))
+    finally:
+        for d in temp_dirs:
+            shutil.rmtree(d, ignore_errors=True)
+    put_page(out)
+    return out, samples
+
+
+def put_page(site):
+    """index.html in place of the builder's page."""
+    engines = [x for x in os.listdir(site) if re.match(r'^standalone-community-.+\.js$', x)]
+    if len(engines) != 1 or 'standalone.zip' not in os.listdir(site):
+        raise CheckError('%s does not hold a web standalone: %s' % (site, ', '.join(sorted(os.listdir(site)))))
+    with open(PAGE, encoding='utf-8') as f:
+        page = f.read()
+    with open(os.path.join(site, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(page.replace('@ENGINE_JS@', engines[0]))
+    built = os.path.join(site, BUILT_PAGE)
+    if os.path.exists(built):
+        os.remove(built)
+
+
+def make_zip(site, target):
+    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as z:
+        for name in sorted(os.listdir(site)):
+            z.write(os.path.join(site, name), 'StackPlayer/' + name)
+    log('Packed %s' % target)
+
+
+# ---------------------------------------------------------------------------
+# 2. The check
+
+def serve(site):
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=site)
+    handler.func.extensions_map['.wasm'] = 'application/wasm'
+    handler.func.log_message = lambda *a: None
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def check(site, samples, work):
+    from playwright.sync_api import sync_playwright
+    shots = os.path.join(work, 'check')
+    shutil.rmtree(shots, ignore_errors=True)
+    os.makedirs(shots)
+    server = serve(site)
+    url = 'http://127.0.0.1:%d/index.html' % server.server_address[1]
+    lines, problems, passed = [], [], []
+
+    def wait_for(page, pred, what, seconds):
+        end = time.time() + seconds
+        while time.time() < end:
+            if pred():
+                return True
+            page.wait_for_timeout(100)
+        problems.append('%s: not within %d s' % (what, seconds))
+        return False
+
+    def seen(prefix):
+        return any(x.startswith(prefix) for x in lines)
+
+    def expect(name, ok, detail=''):
+        (passed if ok else problems).append(name + (': ' + detail if detail else ''))
+        log('  %s %s %s' % ('PASS' if ok else 'FAIL', name, detail))
+
+    def open_files(page, files, what):
+        before = len(lines)
+        for attempt in range(3):
+            try:
+                with page.expect_file_chooser(timeout=10000) as fc:
+                    page.click('#open')
+                fc.value.set_files(files)
+                break
+            except Exception:
+                log('  the file chooser did not open (attempt %d)' % (attempt + 1))
+        wait_for(page, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
+                                   for x in lines[before:]), 'opening ' + what, 60)
+        page.wait_for_timeout(1500)
+        return [x for x in lines[before:]]
+
+    def canvas_click(page, x, y):
+        box = page.locator('#canvas').bounding_box()
+        page.mouse.click(box['x'] + x, box['y'] + y)
+
+    executable = os.environ.get('OXT_CHROMIUM') or None
+    with sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=executable)
+        context = browser.new_context(viewport={'width': 1000, 'height': 700}, accept_downloads=True)
+        page = context.new_page()
+        downloads = []
+        page.on('console', lambda m: lines.append(m.text))
+        page.on('pageerror', lambda e: problems.append('page error: %s' % e))
+        page.on('download', lambda d: downloads.append(d.suggested_filename))
+
+        started = time.time()
+        page.goto(url)
+        if wait_for(page, lambda: seen('PLAYER ready'), 'the player starting', 180):
+            expect('start', True, '%.1f s' % (time.time() - started))
+        page.wait_for_timeout(500)
+        page.screenshot(path=os.path.join(shots, '1-player.png'))
+
+        # Tour: cards, a widget, a palette, a script error
+        got = open_files(page, [os.path.join(samples, 'Tour.livecode')], 'Tour')
+        expect('tour-opens', any(x.startswith('PLAYER opened Tour') for x in got), ' | '.join(got[-3:]))
+        if problems:
+            return passed, problems
+        expect('tour-openStack', any(x == 'SAMPLE tour-openStack' for x in got))
+        page.screenshot(path=os.path.join(shots, '2-tour.png'))
+        before = len(lines)
+        canvas_click(page, 235, 95)
+        wait_for(page, lambda: any(x.startswith('SAMPLE palette') for x in lines[before:]), 'the palette', 10)
+        expect('tour-palette', any(x.startswith('SAMPLE palette ') and x != 'SAMPLE palette 0' for x in lines[before:]),
+               ' | '.join(lines[before:]))
+        page.wait_for_timeout(500)
+        page.screenshot(path=os.path.join(shots, '3-tour-palette.png'))
+        before = len(lines)
+        canvas_click(page, 385, 95)
+        wait_for(page, lambda: any(x.startswith('PLAYER script error') for x in lines[before:]),
+                 'the script error report', 10)
+        page.wait_for_timeout(800)
+        page.screenshot(path=os.path.join(shots, '4-tour-error.png'))
+        dialog = page.locator('[class^="oxt-dialog"]')
+        expect('tour-error-dialog', dialog.count() > 0 and 'script error' in (dialog.first.inner_text() or ''),
+               (dialog.first.inner_text() if dialog.count() else 'no dialog')[:200].replace('\n', ' '))
+        page.keyboard.press('Enter')
+        page.wait_for_timeout(500)
+        canvas_click(page, 85, 95)
+        page.wait_for_timeout(800)
+        page.screenshot(path=os.path.join(shots, '5-tour-card-2.png'))
+        page.click('#download')
+        wait_for(page, lambda: downloads, 'the download', 15)
+        expect('download', downloads == ['Tour.livecode'], ', '.join(downloads))
+        before = len(lines)
+        page.click('#home')
+        wait_for(page, lambda: any(x.startswith('PLAYER library') for x in lines[before:]), 'going home', 15)
+        page.wait_for_timeout(500)
+        page.screenshot(path=os.path.join(shots, '6-home.png'))
+
+        # Grid: the Data Grid library
+        got = open_files(page, [os.path.join(samples, 'Grid.livecode')], 'Grid')
+        grid = [x for x in got if x.startswith('SAMPLE grid')]
+        expect('grid', grid == ['SAMPLE grid 3,Grace,2'], ' | '.join(grid or got[-3:]))
+        page.screenshot(path=os.path.join(shots, '7-grid.png'))
+
+        # Data: revXML, SQLite, and a file given with the stack
+        got = open_files(page, [os.path.join(samples, 'Data.livecode'), os.path.join(samples, 'note.txt')], 'Data')
+        data = [x for x in got if x.startswith('SAMPLE data')]
+        expect('data', data == ['SAMPLE data xml ok,sql ok,beside the stack'], ' | '.join(data or got[-3:]))
+        page.screenshot(path=os.path.join(shots, '8-data.png'))
+
+        # A second visit lists them
+        second = context.new_page()
+        second_lines = []
+        second.on('console', lambda m: second_lines.append(m.text))
+        second.goto(url)
+        wait_for(second, lambda: any(x.startswith('PLAYER library') for x in second_lines), 'the second visit', 120)
+        library = [x for x in second_lines if x.startswith('PLAYER library')]
+        expect('library-kept', bool(library) and all(n in library[-1] for n in ('Tour', 'Grid', 'Data')),
+               library[-1] if library else '')
+        second.wait_for_timeout(500)
+        second.screenshot(path=os.path.join(shots, '9-second-visit.png'))
+        browser.close()
+    server.shutdown()
+    with open(os.path.join(shots, 'console.txt'), 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines) + '\n')
+    return passed, problems
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    ap.add_argument('--bin', dest='bin_dir', metavar='DIR', help='build output (development layout)')
+    ap.add_argument('--install', metavar='DIR', help='staged or installed OXT-Beyond-<version> folder')
+    ap.add_argument('--package', metavar='FILE', help='package to extract and build with')
+    ap.add_argument('--platform', choices=list(ui_tour.package.PLATFORMS))
+    ap.add_argument('--work', metavar='DIR', default='web-player-work')
+    ap.add_argument('--out', metavar='DIR', help='the player\'s folder (default: <work>/site)')
+    ap.add_argument('--zip', metavar='FILE', help='also pack the folder into this zip')
+    ap.add_argument('--check', action='store_true', help='open the player in headless Chromium and check it')
+    ap.add_argument('--timeout', type=int, default=900, help='seconds for the IDE (default: %(default)s)')
+    args = ap.parse_args(argv)
+    work = os.path.abspath(args.work)
+    os.makedirs(work, exist_ok=True)
+    try:
+        site, samples = build(args, work)
+        if args.zip:
+            make_zip(site, os.path.abspath(args.zip))
+        if args.check:
+            passed, problems = check(site, samples, work)
+            log('%d passed, %d failed' % (len(passed), len(problems)))
+            if problems:
+                raise CheckError('; '.join(problems))
+    except CheckError as e:
+        log('FAILED: %s' % e)
+        return 1
+    log('OK: %s' % site)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -110,6 +110,10 @@ ASSETS = (
         '-linux-x86_64.tar.xz',
         '-linux-x86_64-binaries.tar.xz',
         '-linux-x86_64-symbols.tar.xz',
+        # The Stack Player (tools/web-player), a web standalone that opens
+        # any stack: the same files on any platform, built by this job with
+        # the package's IDE (build_player.py --zip) once it has checked it
+        '-web-player.zip',
     )),
     # 64-bit ARM Linux (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers),
     # published since 0.2.4-rc.2; the same three files as x86_64

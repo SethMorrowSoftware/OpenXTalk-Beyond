@@ -1,0 +1,98 @@
+<!doctype html>
+<!--
+Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond, licensed under the GNU General Public
+License v3; see LICENSE in the repository.
+
+The Stack Player's page (tools/web-player): the web engine's own page
+(engine/rsrc/emscripten-html-template.html)
+with a bar above the stack. build_player.py puts the engine's file name in
+place of @ENGINE_JS@. The bar's buttons call the player stack's
+playerFromPage handler (one of its cJavascriptHandlers), and the player
+tells the page what it did through window.oxtPlayer.event().
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OXT-Beyond Stack Player</title>
+<style>
+:root{--bar:#2b2f36;--bar-text:#f3f3f3;--muted:#b8bcc4;--accent:#4a8ef0;--page:#e9e6df}
+body{margin:0;background:var(--page);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#bar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:8px 16px;background:var(--bar);color:var(--bar-text);font-size:14px}
+#bar .brand{font-weight:600;margin-right:8px}
+#bar button{font:inherit;color:var(--bar-text);background:transparent;border:1px solid #5a606b;
+  border-radius:6px;padding:4px 12px;cursor:pointer}
+#bar button:hover:not(:disabled){border-color:var(--accent)}
+#bar button:disabled{opacity:.4;cursor:default}
+#bar .current{color:var(--muted);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
+#stack{margin:16px auto}
+#canvas{display:block;border:0 none;padding:0;outline:0}
+#status{padding:16px;text-align:center;color:#666}
+</style>
+</head>
+<body>
+<div id="bar" role="toolbar" aria-label="Stack Player">
+  <span class="brand">Stack Player</span>
+  <button id="open" disabled>Open...</button>
+  <button id="home" disabled>Home</button>
+  <button id="reload" disabled title="Open the stack again as it was last saved">Reload</button>
+  <button id="download" disabled title="Download the stack as it is now">Download copy</button>
+  <span class="current" id="current"></span>
+</div>
+<div id="status">Loading the engine...</div>
+<noscript><div>This page needs JavaScript.</div></noscript>
+<div id="stack"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
+<script>
+var statusElement = document.getElementById('status');
+var Module = {
+  canvas: document.getElementById('canvas'),
+  print: function(t) { console.log(t); },
+  printErr: function(t) { console.error(t); },
+  setStatus: function(t) {
+    statusElement.textContent = t;
+    statusElement.style.display = t ? 'block' : 'none';
+  }
+};
+window.addEventListener('error', function() {
+  Module.setStatus('Something went wrong. The browser console has the details.');
+});
+
+window.oxtPlayer = {
+  _open: false,
+  // what the player stack tells the page (playerTellPage)
+  event: function(name, detail) {
+    if (name == 'ready') {
+      document.getElementById('open').disabled = false;
+    } else if (name == 'opened') {
+      this._setOpen(detail);
+    } else if (name == 'home') {
+      this._setOpen('');
+    }
+  },
+  _setOpen: function(name) {
+    this._open = name != '';
+    document.getElementById('current').textContent = name;
+    document.title = name ? name + ' - Stack Player' : 'OXT-Beyond Stack Player';
+    ['home', 'reload', 'download'].forEach(function(id) {
+      document.getElementById(id).disabled = !window.oxtPlayer._open;
+    });
+  },
+  // asks the player stack to do something: open, home, reload, download
+  call: function(what) {
+    var stack = document.liveCode && document.liveCode.findStackWithName('Stack Player');
+    if (stack)
+      stack.playerFromPage(what);
+  }
+};
+['open', 'home', 'reload', 'download'].forEach(function(id) {
+  document.getElementById(id).addEventListener('click', function() {
+    window.oxtPlayer.call(id);
+  });
+});
+</script>
+<script async src="@ENGINE_JS@"></script>
+</body>
+</html>
