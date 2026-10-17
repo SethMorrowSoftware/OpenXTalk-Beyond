@@ -22,8 +22,10 @@ The home page offers **Open a stack**, **Open a folder** and a drop zone
 uses), three whole stacks to play (**OXT-Beyond on the Web**, a tour of
 what a stack can do in a page; **Learn xTalk**, a first course in ten
 lessons; and the **xTalk Primer**, a home stack of examples), the stacks
-opened before as cards (the bin on a card removes it), three small
-samples, and **About**, which says in plain English
+opened before as cards (the bin on a card removes it), small samples
+(**Fireworks**, animation by script; **Live Weather**, a forecast fetched
+with `put url`; **Web Audio Piano**, sound made through `do ... as
+"JavaScript"`; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -61,7 +63,7 @@ own that holds nothing else of value.
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
-| `stacks/` | the three stacks the home page features, each with a picture of its first card (`.webp`, 960 wide at most) |
+| `stacks/` | the three stacks the home page features and the three small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); every one carries the colourized Script Viewer as a substack |
 | `assets/` | the page's logo, fonts and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -81,8 +83,9 @@ script error, Download copy, Library), the Data Grid through its sample
 card (the grid fills and reads its rows) and Data through **Open stack**
 with its `note.txt` (revXML, SQLite and a file beside the stack); it also
 opens About, then a second visit must still list all three, and removing
-one must leave two. Last, a fresh browser opens each featured stack from
-its card, and none may report a script error.
+one must leave two. Last, a fresh browser opens each stack in `stacks/`
+from its card, and none may report a script error (Live Weather opens
+offline too: it says it could not reach open-meteo.com).
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.

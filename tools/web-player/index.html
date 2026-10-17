@@ -168,8 +168,15 @@ body.playing .desk{display:none}
 .feature.spot .words{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1.5rem 1.6rem}
 .feature.spot h3{font-size:clamp(1.6rem,3.2vw,2.2rem);font-stretch:90%;letter-spacing:-.02em}
 .feature.spot p{font-size:1.08rem}
+/* the small samples with a picture: three across */
+.showcase.three{grid-template-columns:repeat(3,minmax(0,1fr));gap:1.4rem 1.3rem}
+.showcase.three .feature .shot{padding:1rem 1rem .9rem}
+.showcase.three .feature .shot img{aspect-ratio:16/10;object-position:center top}
+.showcase.three .feature h3{font-size:1.2rem}
+.showcase.three .feature p{font-size:.95rem}
+.showcase.three .feature .play{right:.8rem;bottom:.6rem;padding:.35rem .85rem .35rem .7rem;font-size:.92rem}
 @media (max-width:760px){
-  .showcase{grid-template-columns:minmax(0,1fr)}
+  .showcase,.showcase.three{grid-template-columns:minmax(0,1fr)}
   .feature.spot{flex-direction:column}
   .feature.spot .shot{border-right:0;border-bottom:2px solid var(--line);padding:1.3rem 1.3rem 1.1rem}
 }
@@ -354,7 +361,8 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
 
       <section id="samples-section" data-tone="4" hidden>
         <h2 class="sq">Small samples</h2>
-        <p class="muted" style="margin:0">One feature each: the Data Grid, a widget and a palette, XML and SQLite.</p>
+        <p class="muted" style="margin:0">Short stacks that each show off one thing: animation, live data from the internet, sound made by the browser, and below, the Data Grid, a widget and a palette, XML and SQLite.</p>
+        <div class="showcase three" id="samples-shots"></div>
         <div class="products" id="samples"></div>
       </section>
 
@@ -880,20 +888,20 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
       }).then(function (b) { return { path: f, file: new File([b], f) }; });
     })).then(give, function (e) { busy(null); toast('Could not get the sample: ' + e.message, 'error'); });
   }
-  function makeFeature(s, i) {
+  function makeFeature(s, i, small) {
     var card = document.createElement('div');
-    card.className = 'feature' + (i == 0 ? ' spot' : '');
-    card.dataset.tone = String([1, 2, 4, 3, 5][i % 5]);
+    card.className = 'feature' + (i == 0 && !small ? ' spot' : '');
+    card.dataset.tone = String((small ? [3, 5, 1] : [1, 2, 4, 3, 5])[i % (small ? 3 : 5)]);
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', 'Play ' + s.title);
-    card.innerHTML = (i == 0 ? '<span class="new">Start here</span>' : '') +
+    card.innerHTML = (i == 0 && !small ? '<span class="new">Start here</span>' : '') +
       '<div class="shot"><img alt="" loading="lazy" decoding="async"><span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</span></div>' +
       '<div class="words"><h3></h3><p></p><div class="tags">' +
       (s.tags || []).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div></div>';
     var img = card.querySelector('img');
     img.src = 'samples/' + encodeURIComponent(s.image);
-    img.onload = function () { card.style.setProperty('--ratio', img.naturalWidth + '/' + img.naturalHeight); };
+    if (!small) img.onload = function () { card.style.setProperty('--ratio', img.naturalWidth + '/' + img.naturalHeight); };
     card.querySelector('h3').textContent = s.title;
     card.querySelector('p').textContent = s.description;
     onActivate(card, function () { getSample(s); });
@@ -902,10 +910,13 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
   fetch('samples/samples.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
     if (!list || !list.length) return;
     var featured = list.filter(function (s) { return s.featured && s.image; });
-    var small = list.filter(function (s) { return !(s.featured && s.image); });
+    var shots = list.filter(function (s) { return !s.featured && s.image; });
+    var small = list.filter(function (s) { return !s.image; });
     $('featured-section').hidden = featured.length == 0;
     featured.forEach(function (s, i) { $('featured').appendChild(makeFeature(s, i)); });
-    $('samples-section').hidden = small.length == 0;
+    $('samples-section').hidden = shots.length + small.length == 0;
+    $('samples-shots').hidden = shots.length == 0;
+    shots.forEach(function (s, i) { $('samples-shots').appendChild(makeFeature(s, i, true)); });
     small.forEach(function (s, i) {
       var card = makeCard((i + 3) % 5 + 1, PLAY, s.title, '', s.description, s.tags || []);
       card.setAttribute('aria-label', 'Open the sample ' + s.title);

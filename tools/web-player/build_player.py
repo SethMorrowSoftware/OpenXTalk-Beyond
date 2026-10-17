@@ -177,9 +177,9 @@ def put_page(site):
 
 
 # The stacks the home page offers (index.html reads samples/samples.json).
-# The featured ones are kept in stacks/ beside this script, each with a
-# picture of its first card; the rest are the small samples the build made,
-# which the check opens.
+# The featured ones, and the small samples with a picture, are kept in
+# stacks/ beside this script, each with a picture of its first card; the
+# rest are the small samples the build made. The check opens every one.
 STACKS = os.path.join(HERE, 'stacks')
 SAMPLES = [
     {'title': 'OXT-Beyond on the Web', 'featured': True,
@@ -197,6 +197,21 @@ SAMPLES = [
      'description': 'A home stack of examples: buttons and menus, fields and text, '
                     'graphics and timers, lists and data, each with a short script to read.',
      'tags': ['6 cards', 'Examples', 'Scripts']},
+    {'title': 'Fireworks', 'source': 'stacks',
+     'files': ['Fireworks.oxtstack'], 'image': 'Fireworks.webp',
+     'description': 'Click the sky: hundreds of sparks, each a graphic moved by script, '
+                    'sixty times a second.',
+     'tags': ['Animation', 'Graphics']},
+    {'title': 'Live Weather', 'source': 'stacks',
+     'files': ['Live Weather.oxtstack'], 'image': 'Live Weather.webp',
+     'description': 'Today and the week ahead for any place, fetched from open-meteo.com '
+                    'with put url and drawn as a chart.',
+     'tags': ['Internet', 'JSON', 'Chart']},
+    {'title': 'Web Audio Piano', 'source': 'stacks',
+     'files': ['Web Audio Piano.oxtstack'], 'image': 'Web Audio Piano.webp',
+     'description': 'Two octaves to play with the mouse or the keyboard; each note is made '
+                    'by the browser, through do ... as JavaScript.',
+     'tags': ['JavaScript', 'Sound']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
@@ -213,7 +228,7 @@ def put_samples(site, samples):
     target = os.path.join(site, 'samples')
     os.makedirs(target, exist_ok=True)
     for sample in SAMPLES:
-        source = STACKS if sample.get('featured') else samples
+        source = STACKS if sample.get('featured') or sample.get('source') == 'stacks' else samples
         for name in sample['files'] + ([sample['image']] if 'image' in sample else []):
             shutil.copyfile(os.path.join(source, name), os.path.join(target, name))
     with open(os.path.join(target, 'samples.json'), 'w', encoding='utf-8', newline='\n') as f:
@@ -392,7 +407,8 @@ def check(site, samples, work):
         cards = second.locator('#library .product h3').all_inner_texts()
         expect('remove', sorted(cards) == ['Grid', 'Tour'], ', '.join(cards))
 
-        # The featured stacks, each from its card, in a browser of its own
+        # The stacks with a picture, featured or small, each from its card,
+        # in a browser of its own
         third_context = browser.new_context(viewport={'width': 1280, 'height': 860})
         third = third_context.new_page()
         third_lines = []
@@ -402,15 +418,15 @@ def check(site, samples, work):
         wait_for(third, lambda: any(x.startswith('PLAYER ready') for x in third_lines), 'the third visit', 180)
         third.wait_for_timeout(800)
         third.screenshot(path=os.path.join(shots, '10-featured.png'), full_page=True)
-        for n, sample in enumerate(x for x in SAMPLES if x.get('featured')):
+        for n, sample in enumerate(x for x in SAMPLES if 'image' in x):
             before = len(third_lines)
-            third.locator('#featured .feature', has_text=sample['title']).click()
+            third.locator('.feature', has_text=sample['title']).click()
             wait_for(third, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
                                         for x in third_lines[before:]), 'opening ' + sample['title'], 60)
             third.wait_for_timeout(2500)
             got = third_lines[before:]
             errors = [x for x in got if x.startswith('PLAYER script error') or x.startswith('PLAYER status Could')]
-            expect('featured-' + sample['title'].lower().replace(' ', '-'),
+            expect(('featured-' if sample.get('featured') else 'sample-') + sample['title'].lower().replace(' ', '-'),
                    any(x.startswith('PLAYER opened') for x in got) and not errors, ' | '.join(errors or got[-2:]))
             third.screenshot(path=os.path.join(shots, '11-featured-%d.png' % (n + 1)))
             third.click('#home')
