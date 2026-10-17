@@ -5,93 +5,838 @@ Copyright (C) 2026 OXT-Beyond contributors.
 This file is part of OXT-Beyond, licensed under the GNU General Public
 License v3; see LICENSE in the repository.
 
-The Stack Player's page (tools/web-player): the web engine's own page
-(engine/rsrc/emscripten-html-template.html)
-with a bar above the stack. build_player.py puts the engine's file name in
-place of @ENGINE_JS@. The bar's buttons call the player stack's
-playerFromPage handler (one of its cJavascriptHandlers), and the player
-tells the page what it did through window.oxtPlayer.event().
+The Stack Player's page (tools/web-player). The player's home, its
+library, its bar and the About panel are HTML; the stack the user opens
+is drawn by the web engine in the canvas, as in the engine's own page
+(engine/rsrc/emscripten-html-template.html). build_player.py puts the
+engine's file name in place of @ENGINE_JS@.
+
+The page talks to the player stack (stack-player.livecodescript) in two
+directions: it calls the stack's playerFromPage handler (one of its
+cJavascriptHandlers) with what to do on line 1 and its arguments on the
+lines after it, and the stack calls window.oxtPlayer.event(name, detail)
+to say what happened. Files the user gives the page are written into the
+engine's /uploads folder and handed to the stack by path, as the engine
+itself does for a file picked with answer file.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OXT-Beyond Stack Player</title>
+<meta name="color-scheme" content="light dark">
+<title>Stack Player · OXT-Beyond</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='3' width='20' height='16' rx='3' fill='%2393b4ff'/%3E%3Crect x='4' y='8' width='24' height='17' rx='3' fill='%235b84f5'/%3E%3Crect x='2' y='13' width='28' height='17' rx='3' fill='%233358d4'/%3E%3Cpath d='M13 18.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
-:root{--bar:#2b2f36;--bar-text:#f3f3f3;--muted:#b8bcc4;--accent:#4a8ef0;--page:#e9e6df}
-body{margin:0;background:var(--page);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-#bar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
-  padding:8px 16px;background:var(--bar);color:var(--bar-text);font-size:14px}
-#bar .brand{font-weight:600;margin-right:8px}
-#bar button{font:inherit;color:var(--bar-text);background:transparent;border:1px solid #5a606b;
-  border-radius:6px;padding:4px 12px;cursor:pointer}
-#bar button:hover:not(:disabled){border-color:var(--accent)}
-#bar button:disabled{opacity:.4;cursor:default}
-#bar .current{color:var(--muted);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
-#stack{margin:16px auto}
+:root{
+  --bg:#f6f7fb;--bg-2:#eef0f7;--surface:#ffffff;--surface-2:#f9fafc;--line:#e3e6ef;--line-2:#d3d8e4;
+  --text:#151a2d;--text-2:#4a5168;--text-3:#7a8199;
+  --accent:#3d63e6;--accent-2:#5b84f5;--accent-soft:#e8eeff;--accent-text:#2648c4;
+  --ok:#1f9d63;--ok-soft:#e3f6ec;--warn:#b7791f;--warn-soft:#fdf3e1;--bad:#d03b3b;--bad-soft:#fde8e8;
+  --shadow-1:0 1px 2px rgba(20,28,58,.06),0 1px 3px rgba(20,28,58,.08);
+  --shadow-2:0 4px 12px rgba(20,28,58,.08),0 12px 32px rgba(20,28,58,.10);
+  --shadow-stack:0 2px 6px rgba(20,28,58,.12),0 24px 60px rgba(20,28,58,.22);
+  --radius:14px;--radius-sm:9px;
+  --font:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0e111b;--bg-2:#131726;--surface:#171c2c;--surface-2:#1c2235;--line:#262d44;--line-2:#323a55;
+  --text:#eef0f8;--text-2:#b4bad0;--text-3:#7f87a3;
+  --accent:#6f8fff;--accent-2:#8ea8ff;--accent-soft:#1d2645;--accent-text:#a9bcff;
+  --ok:#43c38a;--ok-soft:#14302a;--warn:#e0a84a;--warn-soft:#33281a;--bad:#ff7a7a;--bad-soft:#3a1d22;
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 8px 28px rgba(0,0,0,.45);
+  --shadow-stack:0 2px 8px rgba(0,0,0,.5),0 30px 70px rgba(0,0,0,.55);
+}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+a{color:var(--accent-text)}
+svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- app bar ---------- */
+.appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;min-height:60px;padding:10px 20px;
+  background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.01em;white-space:nowrap;cursor:pointer;border:0;background:none;padding:4px 6px 4px 0}
+.brand .logo{width:30px;height:30px}
+.brand small{display:block;font-size:11.5px;font-weight:500;color:var(--text-3);letter-spacing:.02em;line-height:1.1}
+.brand span{line-height:1.15}
+.badge{font-size:10.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:2px 8px}
+.crumb{display:none;flex:0 1 auto;align-items:center;gap:8px;min-width:0;overflow:hidden;color:var(--text-2)}
+.crumb .sep{color:var(--line-2);font-size:20px;font-weight:300}
+.crumb b{flex:0 1 auto;min-width:4ch;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28ch}
+.crumb .meta{font-size:12.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:1040px){.crumb .meta{display:none}}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--text);font-weight:550;font-size:14px;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .05s,box-shadow .15s}
+.btn:hover:not(:disabled){border-color:var(--accent-2);background:var(--surface-2)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.card:focus-visible,.brand:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(40,70,200,.25),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 88%,#000);border-color:transparent}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--text-2)}
+.btn.ghost:hover:not(:disabled){background:var(--bg-2);border-color:transparent;color:var(--text)}
+.btn.icon{width:36px;padding:0}
+.playing-only{display:none!important}
+body.playing .playing-only{display:inline-flex!important}
+body.playing .crumb{display:flex}
+body.playing .home-only{display:none!important}
+.label-sm{display:inline}
+@media (max-width:760px){body.playing .open-label{display:none}body.playing #open{width:36px;padding:0}body.playing .brand span{display:none}.label-sm{display:none}.btn{padding:0 10px}.brand small,.badge{display:none}.appbar{padding:8px 12px;gap:6px}.crumb .meta{display:none}}
+
+/* ---------- home ---------- */
+#homeview{max-width:1120px;margin:0 auto;padding:44px 24px 56px}
+body.playing #homeview{display:none}
+.hero{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+@media (max-width:900px){.hero{grid-template-columns:1fr;gap:26px}}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--accent-text);background:var(--accent-soft);padding:5px 11px;border-radius:999px}
+.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+h1{font-size:clamp(32px,4.4vw,48px);line-height:1.08;letter-spacing:-.03em;margin:18px 0 14px;font-weight:750}
+h1 em{font-style:normal;background:linear-gradient(92deg,var(--accent),#8b5cf6 60%,#d946ef);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:17px;color:var(--text-2);margin:0 0 24px;max-width:56ch}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px}
+.hero-actions .btn{height:44px;padding:0 18px;font-size:15px;border-radius:12px}
+.trust{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font-size:13px;color:var(--text-3)}
+.trust span{display:inline-flex;align-items:center;gap:6px}
+.trust svg.i{width:15px;height:15px;color:var(--ok)}
+
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:300px;padding:34px;border-radius:22px;
+  background:radial-gradient(120% 90% at 50% 0%,var(--accent-soft),transparent 70%),var(--surface);border:1.5px dashed var(--line-2);box-shadow:var(--shadow-1);cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s}
+.drop:hover{border-color:var(--accent-2);box-shadow:var(--shadow-2)}
+.drop .stackart{width:120px;height:96px;margin-bottom:18px;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.drop:hover .stackart{transform:translateY(-4px) rotate(-2deg)}
+.drop h2{font-size:19px;margin:0 0 6px;letter-spacing:-.01em}
+.drop p{margin:0;color:var(--text-3);font-size:14px}
+.drop .formats{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:16px}
+.chip{font:12px/1 var(--mono);color:var(--text-2);background:var(--bg-2);border:1px solid var(--line);padding:5px 8px;border-radius:7px}
+
+.section{margin-top:56px}
+.section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.section-head h3{margin:0;font-size:18px;letter-spacing:-.01em}
+.section-head .count{color:var(--text-3);font-size:14px}
+.section-head .spacer{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.card{position:relative;display:flex;gap:14px;align-items:flex-start;text-align:left;padding:16px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-1);cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;width:100%}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-2);border-color:var(--line-2)}
+.card .thumb{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.card .body{min-width:0;flex:1}
+.card .title{font-weight:620;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:28px}
+.card .sub{font-size:13px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .desc{font-size:13.5px;color:var(--text-2);margin-top:3px}
+.card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.tag{font-size:11.5px;font-weight:550;padding:2px 8px;border-radius:999px;background:var(--bg-2);color:var(--text-2)}
+.card .more{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;border:0;background:transparent;color:var(--text-3);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s,background .15s}
+.card:hover .more,.card .more:focus-visible{opacity:1}
+.card .more:hover{background:var(--bad-soft);color:var(--bad)}
+@media (hover:none){.card .more{opacity:1}}
+.empty{display:flex;align-items:center;gap:16px;padding:22px;border-radius:var(--radius);border:1px dashed var(--line-2);color:var(--text-3);background:var(--surface-2)}
+.empty svg.i{width:26px;height:26px;color:var(--text-3)}
+.features{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.feature{padding:18px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line)}
+.feature .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-text);margin-bottom:10px}
+.feature h4{margin:0 0 4px;font-size:15px}
+.feature p{margin:0;font-size:13.5px;color:var(--text-2)}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 22px;font-size:13px;color:var(--text-3)}
+footer button{border:0;background:none;padding:0;color:var(--accent-text);cursor:pointer;font-size:13px}
+
+/* ---------- the stage ---------- */
+#stage{display:flex;justify-content:flex-start;align-items:flex-start;padding:36px 24px 60px;min-height:calc(100vh - 60px);
+  background-color:var(--bg);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;overflow:auto}
+body:not(.playing) #stage{position:absolute;left:0;top:0;width:100%;visibility:hidden;pointer-events:none;overflow:hidden;min-height:0;height:0;padding:0}
+#stack{flex:none;margin:0 auto;box-shadow:var(--shadow-stack);border-radius:3px}
 #canvas{display:block;border:0 none;padding:0;outline:0}
-#status{padding:16px;text-align:center;color:#666}
+#stage:fullscreen{padding:0;align-items:center;background:#000}
+#stage:fullscreen #stack{margin:auto}
+#stage:fullscreen #stack{box-shadow:none}
+
+/* ---------- loading ---------- */
+#loading{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg);transition:opacity .35s}
+#loading.gone{opacity:0;pointer-events:none}
+.loader{width:min(380px,calc(100vw - 48px));text-align:center}
+.loader .logo{width:64px;height:64px;margin:0 auto 18px;animation:float 2.4s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-6px)}}
+.loader h2{margin:0 0 4px;font-size:18px;letter-spacing:-.01em}
+.loader p{margin:0 0 18px;color:var(--text-3);font-size:13.5px;min-height:1.5em}
+.bar{height:6px;border-radius:999px;background:var(--bg-2);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--accent),#8b5cf6);transition:width .25s}
+.bar.indeterminate i{width:35%!important;animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+.loader .error{display:none;margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13.5px;text-align:left}
+
+/* ---------- busy, drag, toasts ---------- */
+#busy{position:fixed;inset:0;z-index:90;display:none;place-items:center;background:color-mix(in srgb,var(--bg) 55%,transparent);backdrop-filter:blur(3px)}
+#busy.on{display:grid}
+.spinner-card{display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-2);font-weight:550}
+.spin{width:20px;height:20px;border-radius:50%;border:2.5px solid var(--accent-soft);border-top-color:var(--accent);animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#dropzone{position:fixed;inset:0;z-index:95;display:none;place-items:center;background:color-mix(in srgb,var(--accent) 14%,transparent);backdrop-filter:blur(2px)}
+#dropzone.on{display:grid}
+#dropzone div{padding:28px 40px;border-radius:20px;border:2px dashed var(--accent);background:var(--surface);font-size:18px;font-weight:650;box-shadow:var(--shadow-2);pointer-events:none}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:120;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 36px))}
+.toast{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-2);font-size:14px;animation:in .25s cubic-bezier(.2,.8,.2,1)}
+.toast.error{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.toast .ti{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--ok-soft);color:var(--ok)}
+.toast.error .ti{background:var(--bad-soft);color:var(--bad)}
+.toast .ti svg.i{width:14px;height:14px;stroke-width:2.4}
+.toast p{margin:1px 0 0;flex:1;overflow-wrap:anywhere}
+.toast button{border:0;background:none;color:var(--text-3);cursor:pointer;padding:0 2px;font-size:18px;line-height:1}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+
+/* ---------- dialogs ---------- */
+dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-2),0 0 0 1px var(--line);max-width:calc(100vw - 32px)}
+dialog::backdrop{background:rgba(10,14,30,.45);backdrop-filter:blur(3px)}
+dialog[open]{animation:pop .2s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.dlg-head{display:flex;align-items:center;gap:12px;padding:18px 20px 12px}
+.dlg-head h2{margin:0;font-size:18px;letter-spacing:-.01em;flex:1}
+.dlg-body{padding:4px 20px 18px}
+.dlg-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px 18px;border-top:1px solid var(--line)}
+.pick{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
+.pick button{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-family:var(--mono);font-size:13px}
+.pick button:hover{border-color:var(--accent-2);background:var(--accent-soft)}
+
+#about{width:min(860px,calc(100vw - 32px))}
+.about{display:grid;grid-template-columns:200px 1fr;min-height:520px;max-height:min(720px,calc(100vh - 64px))}
+.about nav{padding:14px 10px;border-right:1px solid var(--line);background:var(--surface-2);border-radius:18px 0 0 18px;display:flex;flex-direction:column;gap:2px}
+.about nav .navtitle{padding:6px 10px 12px;font-weight:650;display:flex;align-items:center;gap:8px}
+.about nav .navtitle svg{width:24px;height:24px}
+.about nav button{text-align:left;border:0;background:none;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--text-2);font-size:14px;font-weight:500}
+.about nav button:hover{background:var(--bg-2);color:var(--text)}
+.about nav button[aria-selected=true]{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.about .pane{overflow:auto;padding:22px 26px 26px;position:relative}
+.about .pane h2{margin:0 0 6px;font-size:21px;letter-spacing:-.02em}
+.about .pane .intro{color:var(--text-2);margin:0 0 18px}
+.about .close{position:absolute;top:14px;right:14px}
+.about section[hidden]{display:none}
+.list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.list li{display:flex;gap:12px;padding:11px 13px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line)}
+.list li .mark{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;margin-top:1px}
+.list li .mark svg.i{width:13px;height:13px;stroke-width:2.6}
+.list.yes .mark{background:var(--ok-soft);color:var(--ok)}
+.list.diff .mark{background:var(--warn-soft);color:var(--warn)}
+.list.no .mark{background:var(--bad-soft);color:var(--bad)}
+.list b{display:block;font-weight:600;font-size:14px}
+.list span.t{display:block;font-size:13.5px;color:var(--text-2)}
+.kbd{font:12px var(--mono);padding:2px 6px;border-radius:6px;border:1px solid var(--line-2);border-bottom-width:2px;background:var(--surface)}
+.pane table{border-collapse:collapse;width:100%;font-size:14px}
+.pane td{padding:9px 4px;border-bottom:1px solid var(--line)}
+.pane td:first-child{color:var(--text-3);width:40%}
+@media (max-width:720px){.about{grid-template-columns:1fr}.about nav{flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--line);border-radius:18px 18px 0 0}.about nav .navtitle{display:none}.about nav button{white-space:nowrap}}
+
+/* the engine's own dialogs, in the page's type */
+.oxt-dialog{font-family:var(--font)!important;border-radius:16px!important}
+.oxt-dialog-button{border-radius:9px!important}
+[hidden]{display:none!important}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
-<div id="bar" role="toolbar" aria-label="Stack Player">
-  <span class="brand">Stack Player</span>
-  <button id="open" disabled>Open...</button>
-  <button id="home" disabled>Home</button>
-  <button id="reload" disabled title="Open the stack again as it was last saved">Reload</button>
-  <button id="download" disabled title="Download the stack as it is now">Download copy</button>
-  <span class="current" id="current"></span>
-</div>
-<div id="status">Loading the engine...</div>
-<noscript><div>This page needs JavaScript.</div></noscript>
-<div id="stack"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
-<script>
-var statusElement = document.getElementById('status');
-var Module = {
-  canvas: document.getElementById('canvas'),
-  print: function(t) { console.log(t); },
-  printErr: function(t) { console.error(t); },
-  setStatus: function(t) {
-    statusElement.textContent = t;
-    statusElement.style.display = t ? 'block' : 'none';
-  }
-};
-window.addEventListener('error', function() {
-  Module.setStatus('Something went wrong. The browser console has the details.');
-});
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c9bff"/><stop offset="1" stop-color="#3d63e6"/></linearGradient>
+    <linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6d4ee8"/></linearGradient>
+    <symbol id="logo" viewBox="0 0 32 32"><rect x="7" y="2.5" width="18" height="14" rx="3.2" fill="#a8bdff"/><rect x="4.5" y="7.5" width="23" height="16" rx="3.4" fill="#6f8ff8"/><rect x="2" y="12.5" width="28" height="17.5" rx="3.6" fill="url(#lg1)"/><path d="M13.2 17.6v7.8l6.6-3.9z" fill="#fff"/></symbol>
+  </defs>
+</svg>
 
-window.oxtPlayer = {
-  _open: false,
-  // what the player stack tells the page (playerTellPage)
-  event: function(name, detail) {
-    if (name == 'ready') {
-      document.getElementById('open').disabled = false;
-    } else if (name == 'opened') {
-      this._setOpen(detail);
-    } else if (name == 'home') {
-      this._setOpen('');
-    }
-  },
-  _setOpen: function(name) {
-    this._open = name != '';
-    document.getElementById('current').textContent = name;
-    document.title = name ? name + ' - Stack Player' : 'OXT-Beyond Stack Player';
-    ['home', 'reload', 'download'].forEach(function(id) {
-      document.getElementById(id).disabled = !window.oxtPlayer._open;
-    });
-  },
-  // asks the player stack to do something: open, home, reload, download
-  call: function(what) {
-    var stack = document.liveCode && document.liveCode.findStackWithName('Stack Player');
-    if (stack)
-      stack.playerFromPage(what);
+<header class="appbar" role="banner">
+  <button class="brand" id="brand" title="Your stacks" aria-label="Stack Player home">
+    <svg class="logo"><use href="#logo"/></svg>
+    <span>Stack Player<small>OXT-Beyond</small></span>
+  </button>
+  <span class="badge home-only">Beta</span>
+  <div class="crumb" aria-live="polite"><span class="sep">/</span><b id="current"></b><span class="meta" id="current-meta"></span></div>
+  <div class="spacer"></div>
+  <button class="btn ghost playing-only" id="home" disabled title="Back to your stacks">
+    <svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="label-sm">Library</span></button>
+  <button class="btn ghost playing-only" id="reload" disabled title="Open the stack again as it was last saved">
+    <svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg><span class="label-sm">Reload</span></button>
+  <button class="btn ghost playing-only" id="download" disabled title="Download the stack as it is now">
+    <svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg><span class="label-sm">Download copy</span></button>
+  <button class="btn ghost icon playing-only" id="fullscreen" title="Full screen">
+    <svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button class="btn ghost" id="about-open" title="What works on the web">
+    <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg><span class="label-sm">About</span></button>
+  <button class="btn primary" id="open" disabled title="Open a stack (Ctrl+O)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="open-label">Open stack</span></button>
+</header>
+
+<main id="homeview">
+  <section class="hero">
+    <div>
+      <span class="eyebrow"><i></i>Runs entirely in your browser</span>
+      <h1>Run xTalk stacks <em>right here on the web.</em></h1>
+      <p class="lead">Open a LiveCode or OpenXTalk stack and use it in this page: cards, scripts, widgets, the Data Grid, databases and files. Nothing to install, and nothing is uploaded anywhere.</p>
+      <div class="hero-actions">
+        <button class="btn primary" id="hero-open" disabled>
+          <svg class="i" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>Open a stack</button>
+        <button class="btn" id="hero-folder" disabled>
+          <svg class="i" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/></svg>Open a folder</button>
+        <button class="btn ghost" id="hero-about">What works on the web?</button>
+      </div>
+      <div class="trust">
+        <span><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Your files stay on this device</span>
+        <span><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Kept for your next visit</span>
+        <span><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Download your changes</span>
+      </div>
+    </div>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Open a stack: drop files here or press to choose">
+      <svg class="stackart" viewBox="0 0 120 96" aria-hidden="true">
+        <rect x="26" y="6" width="68" height="46" rx="9" fill="url(#lg2)" opacity=".55"/>
+        <rect x="16" y="20" width="88" height="54" rx="10" fill="url(#lg2)" opacity=".8"/>
+        <rect x="6" y="34" width="108" height="58" rx="11" fill="url(#lg1)"/>
+        <rect x="18" y="46" width="44" height="7" rx="3.5" fill="#fff" opacity=".9"/>
+        <rect x="18" y="59" width="64" height="5" rx="2.5" fill="#fff" opacity=".55"/>
+        <rect x="18" y="69" width="30" height="13" rx="4" fill="#fff" opacity=".95"/>
+        <rect x="52" y="69" width="30" height="13" rx="4" fill="#fff" opacity=".45"/>
+      </svg>
+      <h2>Drop a stack here</h2>
+      <p>or a folder, or a .zip with a stack and its files. Click to choose.</p>
+      <div class="formats"><span class="chip">.livecode</span><span class="chip">.oxtstack</span><span class="chip">.livecodescript</span><span class="chip">.rev</span><span class="chip">.zip</span></div>
+    </div>
+  </section>
+
+  <section class="section" id="library-section">
+    <div class="section-head"><h3>Your stacks</h3><span class="count" id="library-count"></span></div>
+    <div class="grid" id="library"></div>
+    <div class="empty" id="library-empty" hidden>
+      <svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16"/></svg>
+      <div>Stacks you open are kept here, in this browser, so you can come back to them. Open one above, or try a sample.</div>
+    </div>
+  </section>
+
+  <section class="section" id="samples-section" hidden>
+    <div class="section-head"><h3>Try a sample</h3><span class="count">Stacks made by OXT-Beyond to show what runs here</span></div>
+    <div class="grid" id="samples"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h3>What you can run</h3><div class="spacer"></div><button class="btn ghost" id="features-more">Everything that works, and what doesn't</button></div>
+    <div class="features">
+      <div class="feature"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h4>Real stacks, real scripts</h4><p>Cards, groups, controls, graphics, behaviors and the full message path, run by the same engine as the desktop.</p></div>
+      <div class="feature"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 10h18M9 5v14"/></svg></div><h4>Data Grid and libraries</h4><p>The Data Grid, Animation, Geometry, Internet, Printing, Table and XML-RPC libraries are all built in.</p></div>
+      <div class="feature"><div class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div><h4>Widgets and extensions</h4><p>Every widget and library that ships with OXT-Beyond for the web, from charts to the clock.</p></div>
+      <div class="feature"><div class="ic"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></div><h4>Files and databases</h4><p>SQLite, XML and zip files work, and what a stack saves is still here next time you visit.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>OXT-Beyond Stack Player <span id="version"></span></span>
+    <span>Everything runs on this device; your stacks are not uploaded.</span>
+    <div class="spacer"></div>
+    <button id="footer-about">About and what works</button>
+  </footer>
+</main>
+
+<section id="stage" aria-label="The open stack">
+  <div id="stack"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
+</section>
+
+<div id="loading" role="status" aria-live="polite">
+  <div class="loader">
+    <svg class="logo"><use href="#logo"/></svg>
+    <h2>Starting the Stack Player</h2>
+    <p id="loading-text">Loading the engine...</p>
+    <div class="bar indeterminate" id="loading-bar"><i></i></div>
+    <div class="error" id="loading-error"></div>
+  </div>
+</div>
+<div id="busy" aria-live="polite"><div class="spinner-card"><div class="spin"></div><span id="busy-text">Opening...</span></div></div>
+<div id="dropzone"><div>Drop to open the stack</div></div>
+<div id="toasts" aria-live="polite"></div>
+
+<input type="file" id="pick-files" multiple hidden>
+<input type="file" id="pick-folder" webkitdirectory hidden>
+
+<dialog id="choose">
+  <div class="dlg-head"><h2>Which stack?</h2></div>
+  <div class="dlg-body"><p style="margin:0 0 12px;color:var(--text-2)">There is more than one stack among these files. Choose the one to open.</p><div class="pick" id="choose-list"></div></div>
+  <div class="dlg-foot"><button class="btn" value="cancel" id="choose-cancel">Cancel</button></div>
+</dialog>
+
+<dialog id="confirm">
+  <div class="dlg-head"><h2 id="confirm-title">Remove this stack?</h2></div>
+  <div class="dlg-body"><p style="margin:0;color:var(--text-2)" id="confirm-text"></p></div>
+  <div class="dlg-foot"><button class="btn" id="confirm-no">Cancel</button><button class="btn primary" id="confirm-yes" style="background:var(--bad);border-color:var(--bad)">Remove</button></div>
+</dialog>
+
+<dialog id="about" aria-labelledby="about-title">
+  <div class="about">
+    <nav role="tablist" aria-label="About">
+      <div class="navtitle"><svg><use href="#logo"/></svg>Stack Player</div>
+      <button role="tab" data-pane="pane-overview" aria-selected="true">Overview</button>
+      <button role="tab" data-pane="pane-works">What works</button>
+      <button role="tab" data-pane="pane-differs">Works differently</button>
+      <button role="tab" data-pane="pane-missing">Doesn't work</button>
+      <button role="tab" data-pane="pane-privacy">Your files and safety</button>
+      <button role="tab" data-pane="pane-tips">Tips</button>
+    </nav>
+    <div class="pane">
+      <button class="btn ghost icon close" id="about-close" aria-label="Close"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+
+      <section id="pane-overview">
+        <h2 id="about-title">About the Stack Player</h2>
+        <p class="intro">The Stack Player lets anyone try an xTalk stack in a web browser, with nothing to install. It is part of OXT-Beyond, a free and open-source xTalk development environment descended from LiveCode Community.</p>
+        <ul class="list yes">
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div><b>The same engine as the desktop</b><span class="t">OXT-Beyond's engine is compiled to WebAssembly, so stacks run their own scripts and behave as they do on a computer.</span></div></li>
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div><b>Open, play, keep</b><span class="t">Open a stack file, a folder or a .zip. It opens in the page, and stays in your library in this browser for next time.</span></div></li>
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div><b>Take your changes with you</b><span class="t">"Download copy" saves the stack as it is now, with any changes it or you made, as a file you can open in OXT-Beyond or LiveCode.</span></div></li>
+        </ul>
+        <p class="intro" style="margin-top:18px">This is a beta. Most modern stacks work, a few things cannot work in any browser, and a few are not done yet. The next pages say which, in plain English.</p>
+        <table><tr><td>Engine</td><td id="about-version">Loading...</td></tr><tr><td>Made with</td><td>OXT-Beyond's web export (HTML5 standalone)</td></tr><tr><td>License</td><td>GNU GPL v3</td></tr></table>
+      </section>
+
+      <section id="pane-works" hidden>
+        <h2>What works</h2>
+        <p class="intro">These work as they do on the desktop.</p>
+        <ul class="list yes" id="works-list"></ul>
+      </section>
+
+      <section id="pane-differs" hidden>
+        <h2>What works differently</h2>
+        <p class="intro">These work, but a browser does them its own way.</p>
+        <ul class="list diff" id="differs-list"></ul>
+      </section>
+
+      <section id="pane-missing" hidden>
+        <h2>What doesn't work</h2>
+        <p class="intro">Some things a browser never lets a web page do. A stack that uses them still opens, and those commands fail as they would on a computer that cannot do them.</p>
+        <ul class="list no" id="missing-list"></ul>
+      </section>
+
+      <section id="pane-privacy" hidden>
+        <h2>Your files and safety</h2>
+        <p class="intro">Everything happens inside this browser tab.</p>
+        <ul class="list yes">
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div><b>Nothing is uploaded</b><span class="t">The stacks you open are copied into this browser's storage for this site, not sent to a server.</span></div></li>
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div><b>Your library stays until you remove it</b><span class="t">Your stacks, and anything they save, are kept for your next visit in this browser. Remove a stack with the bin on its card, or clear this site's data in your browser.</span></div></li>
+        </ul>
+        <ul class="list diff" style="margin-top:8px">
+          <li><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.01"/></svg></span><div><b>A stack is a program</b><span class="t">A stack runs its own scripts. Here it cannot touch your computer's files, but it can do what any web page can: show things, save into this site's storage, read what other stacks saved here, and make web requests. Open stacks you trust, as you would any program.</span></div></li>
+        </ul>
+      </section>
+
+      <section id="pane-tips" hidden>
+        <h2>Tips</h2>
+        <table>
+          <tr><td>Open a stack</td><td><span class="kbd">Ctrl</span> + <span class="kbd">O</span>, or drop files on the page</td></tr>
+          <tr><td>A stack with other files</td><td>Open its folder, or a .zip of it: the stack finds them as it would on disk</td></tr>
+          <tr><td>Back to your stacks</td><td>Library, in the bar at the top</td></tr>
+          <tr><td>Start the stack over</td><td>Reload opens it again as it was last saved</td></tr>
+          <tr><td>Keep your changes</td><td>Download copy</td></tr>
+          <tr><td>More room</td><td>Full screen, in the bar at the top</td></tr>
+          <tr><td>Stacks in their own windows</td><td>Add <code>?mode=window</code> to the address</td></tr>
+          <tr><td>Make your own web app</td><td>In OXT-Beyond: File, Standalone Application Settings, Web</td></tr>
+        </table>
+      </section>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var CHECK = '<svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>';
+  var TILDE = '<svg class="i" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.01"/></svg>';
+  var CROSS = '<svg class="i" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg>';
+
+  // ---------------------------------------------------------------- About
+  var WORKS = [
+    ['Cards, controls and scripts', 'Buttons, fields, images, graphics, groups, scrollbars and players; the message path, behaviors, timers (send ... in) and wait.'],
+    ['Windows, palettes and dialogs', 'Substacks open in windows of their own in the page, palettes float, and answer and ask show their dialogs.'],
+    ['The Data Grid and script libraries', 'The Data Grid, Animation, Geometry, Internet, Printing, Table and XML-RPC libraries are built in.'],
+    ['Widgets and Builder extensions', 'Every widget and library extension that ships with OXT-Beyond for the web, such as charts, the clock, the tree view and JSON.'],
+    ['XML, zip files and SQLite', 'revXML, revZip and revDB with SQLite databases, on the files the stack has here.'],
+    ['Reading and writing files', 'A stack opens, writes and lists files as on a computer. Its own folder holds the files that came with it.'],
+    ['Saving between visits', 'What a stack saves into its folder or its Documents folder is still there next time, in this browser.'],
+    ['The internet', 'Getting and posting URLs, as long as the other site allows web pages to ask (most APIs that are meant for the web do).'],
+    ['Sound, video and speech', 'Audio clips and sound files, MP4, WebM and MP3 in the player, and revSpeech with your system\'s voices.'],
+    ['Printing and PDF', 'print opens the browser\'s print dialog, where you can print or save a PDF; open printing to pdf makes a PDF download.'],
+    ['Keyboard, mouse, touch and clipboard', 'Typing, shortcuts, the mouse wheel, touch screens, copy and paste, and drag and drop inside the page.'],
+    ['Encryption', 'encrypt, decrypt, hashes and random bytes.'],
+    ['JavaScript', 'do ... as "JavaScript" runs JavaScript in the page.']
+  ];
+  var DIFFERS = [
+    ['The look of controls', 'Buttons and fields are drawn by the engine in a classic, light style, the same on every computer, rather than in your system\'s style.'],
+    ['Fonts', 'Text is drawn with Droid Sans unless the stack brings its own font files, so text can wrap a little differently.'],
+    ['Files', 'Files live in this browser, not on your disk. Choosing a file shows your browser\'s picker, and saving to the Downloads folder gives you a download.'],
+    ['Sound and video', 'Browsers play sound only after you have clicked or typed in the page, so a sound at start-up waits for your first click.'],
+    ['Links', 'launch url opens a new tab. Browsers only allow this right after a click, so otherwise the page asks you first.'],
+    ['The screen', 'The screen is the browser window: the screenRect is its size.'],
+    ['Other web sites', 'A web page may read another site only if that site allows it. Other requests fail as if the site were offline.']
+  ];
+  var MISSING = [
+    ['Sockets', 'open socket and accept are not possible in a browser. Stacks talk to servers with URLs instead.'],
+    ['Running other programs', 'shell() and open process cannot start programs on your computer.'],
+    ['Desktop-only externals', 'revBrowser (the browser widget works instead), the video grabber, and most externals, which are native code. revXML, revZip, revDB and revSpeech do work.'],
+    ['MySQL, PostgreSQL and ODBC', 'They need sockets. SQLite works.'],
+    ['Dragging out of the page', 'Something dragged out of a stack cannot be dropped in another application.'],
+    ['Window tricks', 'Shaped windows, minimizing and maximizing.'],
+    ['HyperCard stacks (for now)', 'OXT-Beyond imports HyperCard stacks on the desktop; in the Stack Player they do not open yet. This is being worked on.'],
+    ['Extensions that do not ship with OXT-Beyond (for now)', 'A widget the player does not carry shows as an empty box.'],
+    ['Opening a stack from a web address (for now)', 'Download the stack and open the file instead.']
+  ];
+  function fillList(id, rows, mark) {
+    $(id).innerHTML = rows.map(function (r) {
+      return '<li><span class="mark">' + mark + '</span><div><b>' + r[0] + '</b><span class="t">' + r[1] + '</span></div></li>';
+    }).join('');
   }
-};
-['open', 'home', 'reload', 'download'].forEach(function(id) {
-  document.getElementById(id).addEventListener('click', function() {
-    window.oxtPlayer.call(id);
+  fillList('works-list', WORKS, CHECK);
+  fillList('differs-list', DIFFERS, TILDE);
+  fillList('missing-list', MISSING, CROSS);
+
+  function showPane(id) {
+    document.querySelectorAll('.about nav button').forEach(function (b) {
+      b.setAttribute('aria-selected', b.dataset.pane == id ? 'true' : 'false');
+    });
+    document.querySelectorAll('.about .pane section').forEach(function (s) { s.hidden = s.id != id; });
+  }
+  document.querySelectorAll('.about nav button').forEach(function (b) {
+    b.addEventListener('click', function () { showPane(b.dataset.pane); });
   });
-});
+  function openAbout(pane) { showPane(pane || 'pane-overview'); if (!$('about').open) $('about').showModal(); }
+  $('about-open').addEventListener('click', function () { openAbout(); });
+  $('hero-about').addEventListener('click', function () { openAbout('pane-works'); });
+  $('features-more').addEventListener('click', function () { openAbout('pane-works'); });
+  $('footer-about').addEventListener('click', function () { openAbout(); });
+  $('about-close').addEventListener('click', function () { $('about').close(); });
+  $('about').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+
+  // ---------------------------------------------------------------- toasts
+  function toast(text, kind) {
+    var el = document.createElement('div');
+    el.className = 'toast' + (kind == 'error' ? ' error' : '');
+    el.innerHTML = '<span class="ti">' + (kind == 'error' ? CROSS : CHECK) + '</span><p></p><button aria-label="Dismiss">&times;</button>';
+    el.querySelector('p').textContent = text;
+    el.querySelector('button').onclick = function () { el.remove(); };
+    $('toasts').appendChild(el);
+    if (kind != 'error') setTimeout(function () { el.remove(); }, 4500);
+  }
+
+  // ---------------------------------------------------------------- busy
+  var busyTimer = null;
+  function busy(text) {
+    clearTimeout(busyTimer);
+    if (!text) { $('busy').classList.remove('on'); return; }
+    $('busy-text').textContent = text;
+    // only for what takes a moment
+    busyTimer = setTimeout(function () { $('busy').classList.add('on'); }, 250);
+    // never stuck: the stack may be showing a dialog of its own
+    setTimeout(function () { if ($('busy-text').textContent == text) busy(null); }, 20000);
+  }
+
+  // ---------------------------------------------------------------- the engine
+  var statusElement = $('loading-text');
+  var ready = false;
+  window.Module = {
+    canvas: $('canvas'),
+    print: function (t) { console.log(t); },
+    printErr: function (t) { console.error(t); },
+    setStatus: function (t) {
+      if (ready || !t) return;
+      var m = /\(([\d.]+)\/([\d.]+)\)/.exec(t);
+      if (m && +m[2] > 0) {
+        var pct = Math.min(100, 100 * m[1] / m[2]);
+        $('loading-bar').classList.remove('indeterminate');
+        $('loading-bar').firstElementChild.style.width = pct.toFixed(1) + '%';
+        statusElement.textContent = 'Downloading the engine... ' + (m[1] / 1048576).toFixed(1) + ' of ' + (m[2] / 1048576).toFixed(1) + ' MB';
+      } else {
+        $('loading-bar').classList.add('indeterminate');
+        statusElement.textContent = /download/i.test(t) ? 'Downloading the engine...' : 'Starting the engine...';
+      }
+    }
+  };
+  window.addEventListener('error', function (e) {
+    if (ready) return;
+    $('loading-error').style.display = 'block';
+    $('loading-error').textContent = 'The engine could not start in this browser. ' +
+      (location.protocol == 'file:' ? 'Open this page from a web server, not from a file on disk.' : 'Try an up-to-date Chrome, Edge, Firefox or Safari.');
+  });
+
+  // ---------------------------------------------------------------- the player stack
+  var state = { open: '', file: '', library: [] };
+
+  function call(what) {
+    var stack = document.liveCode && document.liveCode.findStackWithName('Stack Player');
+    if (!stack) { toast('The player is not ready yet.', 'error'); return false; }
+    return stack.playerFromPage(what);
+  }
+
+  function setPlaying(name, detail) {
+    var on = name !== '';
+    document.body.classList.toggle('playing', on);
+    $('current').textContent = name;
+    $('current-meta').textContent = detail || '';
+    document.title = on ? name + ' · Stack Player' : 'Stack Player · OXT-Beyond';
+    ['home', 'reload', 'download'].forEach(function (id) { $(id).disabled = !on; });
+    if (on) { window.scrollTo(0, 0); $('canvas').focus({ preventScroll: true }); }
+  }
+
+  window.oxtPlayer = {
+    // what the player stack tells the page (playerTellPage)
+    event: function (name, detail) {
+      var lines = String(detail || '').split('\n');
+      if (name == 'ready') {
+        ready = true;
+        ['open', 'hero-open', 'hero-folder'].forEach(function (id) { $(id).disabled = false; });
+        $('version').textContent = detail ? 'with engine ' + detail : '';
+        $('about-version').textContent = detail ? 'OXT-Beyond web engine ' + detail : 'OXT-Beyond web engine';
+        $('loading').classList.add('gone');
+        setTimeout(function () { $('loading').style.display = 'none'; }, 400);
+        call('library');
+      } else if (name == 'opened') {
+        busy(null);
+        var meta = [];
+        if (lines[1]) meta.push(lines[1] + (lines[1] == '1' ? ' card' : ' cards'));
+        if (lines[2]) meta.push(lines[2].replace('x', ' × '));
+        setPlaying(lines[0], meta.join(' · '));
+      } else if (name == 'home') {
+        busy(null);
+        setPlaying('');
+      } else if (name == 'library') {
+        showLibrary(String(detail || ''));
+      } else if (name == 'choices') {
+        busy(null);
+        showChoices(lines);
+      } else if (name == 'status') {
+        var kind = lines[0], text = lines.slice(1).join(' ');
+        if (kind == 'error') { busy(null); toast(text.replace(/\/livecode\/Documents\/Stack Player\//g, ''), 'error'); }
+        else if (/^Opening /.test(text)) busy('Opening ' + text.replace(/^Opening /, '').split('/').pop() + '...');
+        else if (/^Removed /.test(text)) toast(text);
+      }
+    },
+    call: function (what) { return call(what); }
+  };
+
+  // ---------------------------------------------------------------- the library
+  var PALETTE = ['#3d63e6', '#8b5cf6', '#0ea5a4', '#e2558a', '#f08a24', '#2f9e63', '#5466d6', '#c2410c'];
+  function colourFor(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    var a = PALETTE[h % PALETTE.length], b = PALETTE[(h >> 3) % PALETTE.length];
+    return 'linear-gradient(135deg,' + a + ',' + (a == b ? '#1f2a5c' : b) + ')';
+  }
+  function sizeText(bytes) {
+    bytes = +bytes || 0;
+    if (bytes < 1024) return bytes + ' bytes';
+    if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+  function whenText(seconds) {
+    seconds = +seconds || 0;
+    if (!seconds) return '';
+    var d = (Date.now() / 1000 - seconds);
+    if (d < 90) return 'just now';
+    if (d < 3600) return Math.round(d / 60) + ' min ago';
+    if (d < 86400) return Math.round(d / 3600) + ' h ago';
+    return new Date(seconds * 1000).toLocaleDateString();
+  }
+  function showLibrary(text) {
+    var rows = text ? text.split('\n').filter(Boolean).map(function (l) {
+      var f = l.split('\t');
+      return { folder: f[0], path: f[1], size: f[2], when: f[3], count: f[4] };
+    }) : [];
+    state.library = rows;
+    var box = $('library');
+    box.innerHTML = '';
+    $('library-empty').hidden = rows.length > 0;
+    $('library-count').textContent = rows.length ? rows.length + (rows.length == 1 ? ' stack' : ' stacks') + ' in this browser' : '';
+    rows.forEach(function (r) {
+      var file = r.path.split('/').pop();
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', 'Open ' + r.folder);
+      card.innerHTML = '<div class="thumb"></div><div class="body"><div class="title"></div><div class="sub"></div><div class="tags"></div></div>' +
+        '<button class="more" title="Remove from this browser" aria-label="Remove"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>';
+      card.querySelector('.thumb').style.background = colourFor(r.folder);
+      card.querySelector('.thumb').textContent = r.folder.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || 'S';
+      card.querySelector('.title').textContent = r.folder;
+      card.querySelector('.sub').textContent = file;
+      var tags = [sizeText(r.size), whenText(r.when)];
+      if (+r.count > 1) tags.push(r.count + ' stacks');
+      card.querySelector('.tags').innerHTML = tags.filter(Boolean).map(function (t) { return '<span class="tag">' + t + '</span>'; }).join('');
+      var open = function () { busy('Opening ' + r.folder + '...'); call('openpath\n' + r.path); };
+      card.addEventListener('click', function (e) { if (!e.target.closest('.more')) open(); });
+      card.addEventListener('keydown', function (e) { if (e.key == 'Enter' || e.key == ' ') { e.preventDefault(); open(); } });
+      card.querySelector('.more').addEventListener('click', function (e) {
+        e.stopPropagation();
+        confirmRemove(r.folder);
+      });
+      box.appendChild(card);
+    });
+  }
+  function confirmRemove(folder) {
+    $('confirm-title').textContent = 'Remove "' + folder + '"?';
+    $('confirm-text').textContent = 'Its files, and anything it saved, are removed from this browser. Your own copy of the stack is not touched.';
+    $('confirm-yes').onclick = function () { $('confirm').close(); call('forget\n' + folder); };
+    $('confirm-no').onclick = function () { $('confirm').close(); };
+    $('confirm').showModal();
+  }
+  function showChoices(lines) {
+    var box = $('choose-list');
+    box.innerHTML = '';
+    lines.filter(Boolean).forEach(function (l) {
+      var f = l.split('\t');
+      var b = document.createElement('button');
+      b.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/></svg><span></span>';
+      b.querySelector('span').textContent = f[0];
+      b.onclick = function () { $('choose').close(); busy('Opening ' + f[0].split('/').pop() + '...'); call('openpath\n' + f[1]); };
+      box.appendChild(b);
+    });
+    $('choose-cancel').onclick = function () { $('choose').close(); call('library'); };
+    $('choose').showModal();
+  }
+
+  // ---------------------------------------------------------------- giving the player files
+  var upload = 0;
+  function engineFS() { return window.FS || (window.Module && window.Module.FS) || null; }
+  function mkdirs(fs, path) {
+    var parts = path.split('/'), at = '';
+    for (var i = 1; i < parts.length; i++) {
+      at += '/' + parts[i];
+      try { fs.mkdir(at); } catch (e) { /* there already */ }
+    }
+  }
+  // items: [{ path: 'relative/path', file: File }]
+  function give(items) {
+    if (!items.length) return;
+    var fs = engineFS();
+    if (!fs) { call('open'); return; }
+    busy('Reading ' + (items.length == 1 ? items[0].file.name : items.length + ' files') + '...');
+    var base = '/uploads/page-' + (++upload) + '-' + Date.now();
+    var tops = [];
+    Promise.all(items.map(function (it) {
+      return it.file.arrayBuffer().then(function (buf) {
+        var path = base + '/' + it.path;
+        mkdirs(fs, path.substring(0, path.lastIndexOf('/')));
+        fs.writeFile(path, new Uint8Array(buf));
+        var top = base + '/' + it.path.split('/')[0];
+        if (tops.indexOf(top) < 0) tops.push(top);
+      });
+    })).then(function () {
+      busy('Opening...');
+      call('take\n' + tops.join('\n'));
+    }, function (e) {
+      busy(null);
+      toast('Could not read the files: ' + e, 'error');
+    });
+  }
+  function fromInput(input, keepFolders) {
+    var items = Array.prototype.map.call(input.files, function (f) {
+      return { path: keepFolders && f.webkitRelativePath ? f.webkitRelativePath : f.name, file: f };
+    });
+    input.value = '';
+    give(items);
+  }
+  $('pick-files').addEventListener('change', function () { fromInput(this, false); });
+  $('pick-folder').addEventListener('change', function () { fromInput(this, true); });
+  function chooseFiles() { if (ready) $('pick-files').click(); }
+  function chooseFolder() { if (ready) $('pick-folder').click(); }
+  $('open').addEventListener('click', chooseFiles);
+  $('hero-open').addEventListener('click', chooseFiles);
+  $('hero-folder').addEventListener('click', chooseFolder);
+  $('drop').addEventListener('click', chooseFiles);
+  $('drop').addEventListener('keydown', function (e) { if (e.key == 'Enter' || e.key == ' ') { e.preventDefault(); chooseFiles(); } });
+
+  // a drop anywhere on the home page (on the open stack, drops are the stack's)
+  function readEntry(entry, prefix, out) {
+    return new Promise(function (resolve) {
+      if (entry.isFile) {
+        entry.file(function (f) { out.push({ path: prefix + f.name, file: f }); resolve(); }, function () { resolve(); });
+      } else if (entry.isDirectory) {
+        var reader = entry.createReader(), all = [];
+        (function more() {
+          reader.readEntries(function (batch) {
+            if (!batch.length) {
+              Promise.all(all.map(function (e) { return readEntry(e, prefix + entry.name + '/', out); })).then(resolve);
+            } else { all = all.concat(Array.prototype.slice.call(batch)); more(); }
+          }, function () { resolve(); });
+        })();
+      } else resolve();
+    });
+  }
+  var dragDepth = 0;
+  function homeDrag(e) { return !document.body.classList.contains('playing') && e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
+  document.addEventListener('dragenter', function (e) { if (homeDrag(e)) { dragDepth++; $('dropzone').classList.add('on'); e.preventDefault(); } });
+  document.addEventListener('dragover', function (e) { if (homeDrag(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  document.addEventListener('dragleave', function (e) { if (homeDrag(e) && --dragDepth <= 0) { dragDepth = 0; $('dropzone').classList.remove('on'); } });
+  document.addEventListener('drop', function (e) {
+    if (!homeDrag(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    $('dropzone').classList.remove('on');
+    if (!ready) return;
+    var entries = Array.prototype.map.call(e.dataTransfer.items || [], function (i) { return i.webkitGetAsEntry && i.webkitGetAsEntry(); }).filter(Boolean);
+    if (entries.length) {
+      var out = [];
+      Promise.all(entries.map(function (en) { return readEntry(en, '', out); })).then(function () { give(out); });
+    } else {
+      give(Array.prototype.map.call(e.dataTransfer.files, function (f) { return { path: f.name, file: f }; }));
+    }
+  });
+
+  // ---------------------------------------------------------------- the bar
+  ['home', 'reload', 'download'].forEach(function (id) {
+    $(id).addEventListener('click', function () {
+      if (id == 'reload') busy('Opening ' + $('current').textContent + ' again...');
+      call(id);
+    });
+  });
+  $('brand').addEventListener('click', function () { if (document.body.classList.contains('playing')) call('home'); else window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  $('fullscreen').addEventListener('click', function () {
+    var s = $('stage');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (s.requestFullscreen) s.requestFullscreen();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() == 'o' && ready) {
+      e.preventDefault();
+      chooseFiles();
+    }
+  }, true);
+
+  // ---------------------------------------------------------------- samples
+  // build_player.py puts samples/samples.json beside the page when it
+  // ships sample stacks: [{ title, description, tags, files }]
+  fetch('samples/samples.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+    if (!list || !list.length) return;
+    $('samples-section').hidden = false;
+    list.forEach(function (s) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.innerHTML = '<div class="thumb"></div><div class="body"><div class="title"></div><div class="desc"></div><div class="tags"></div></div>';
+      card.querySelector('.thumb').style.background = colourFor(s.title + '!');
+      card.querySelector('.thumb').innerHTML = '<svg class="i" viewBox="0 0 24 24" style="width:22px;height:22px;stroke:#fff"><path d="M8 5v14l11-7z"/></svg>';
+      card.querySelector('.title').textContent = s.title;
+      card.querySelector('.desc').textContent = s.description;
+      card.querySelector('.tags').innerHTML = (s.tags || []).map(function (t) { return '<span class="tag">' + t + '</span>'; }).join('');
+      var go = function () {
+        if (!ready) return;
+        busy('Getting ' + s.title + '...');
+        Promise.all(s.files.map(function (f) {
+          return fetch('samples/' + encodeURIComponent(f)).then(function (r) {
+            if (!r.ok) throw new Error(f + ': ' + r.status);
+            return r.blob();
+          }).then(function (b) { return { path: f, file: new File([b], f) }; });
+        })).then(give, function (e) { busy(null); toast('Could not get the sample: ' + e.message, 'error'); });
+      };
+      card.addEventListener('click', go);
+      card.addEventListener('keydown', function (e) { if (e.key == 'Enter' || e.key == ' ') { e.preventDefault(); go(); } });
+      $('samples').appendChild(card);
+    });
+  }).catch(function () { /* no samples */ });
+})();
 </script>
 <script async src="@ENGINE_JS@"></script>
 </body>

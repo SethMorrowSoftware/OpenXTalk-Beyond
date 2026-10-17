@@ -33,9 +33,13 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- with the defaultFolder its own folder, so that its relative paths find
 -- the files that came with it), or a window of its own with ?mode=window.
 --
--- The page (tools/web-player/index.html) has a bar above the stack whose
--- buttons call playerFromPage (one of the cJavascriptHandlers), and the
--- player tells the page what is open through window.oxtPlayer.
+-- The page (tools/web-player/index.html) draws the player's home, its
+-- library and its bar in HTML: its buttons call playerFromPage (one of
+-- the cJavascriptHandlers), files the page is given are written to
+-- /uploads and handed over the same way, and the player tells the page
+-- what happened through window.oxtPlayer.event (the library, what is
+-- open, what went wrong). The player's own card is what a page without
+-- that script, or ?mode=window, shows.
 --
 -- Nothing here changes the engine: everything is script that any web
 -- standalone could run.
@@ -49,6 +53,8 @@ local sMode
 -- The stack files found in the last folder or archive the user gave
 local sChoices
 local sStarted
+-- What the page asked for, for playerDo in the engine's next turn
+local sPageArgs
 
 constant kStackExtensions = "livecode,oxtstack,rev,mc,livecodescript,lc,stack"
 constant kLibraryName = "Stack Player"
@@ -78,7 +84,7 @@ command playerStart
    end if
    playerInstallErrorHandler
    playerLog "ready" && the version && the platform && sMode
-   playerTellPage "ready", empty
+   playerTellPage "ready", the version
 end playerStart
 
 -- The value of pName in a query string (?a=1&b=2)
@@ -103,15 +109,20 @@ command playerLog pText
    write "PLAYER" && pText & return to stdout
 end playerLog
 
-command playerStatus pText
+-- pKind "error" for what went wrong, which the page shows as such
+command playerStatus pText, pKind
    if there is a field "Status" of card 1 of me then
       put pText into field "Status" of card 1 of me
    end if
    playerLog "status" && pText
+   if pText is not empty then
+      playerTellPage "status", pKind & return & pText
+   end if
 end playerStatus
 
 -- Tells the page's script (index.html) what happened: pEvent "ready",
--- "opened" with the stack's name, or "home"
+-- "opened" with the stack's name, "home", "library" and "choices" with
+-- their lists (playerShowLibrary, playerShowChoices), or "status"
 command playerTellPage pEvent, pDetail
    local tError
    replace "\" with "\\" in pDetail
@@ -127,18 +138,31 @@ end playerTellPage
 -- Calls from the page
 ----------------------------------------------------------------
 
--- The page's bar calls this (it is in the cJavascriptHandlers). A handler
--- that the page calls cannot wait, and opening a stack can, so the work
--- runs in the engine's next turn.
+-- The page calls this (it is in the cJavascriptHandlers): line 1 of
+-- pWhat says what to do, and the lines after it are its arguments:
+--
+--   open, home, download, reload, library
+--   take       the paths of files the page wrote into /uploads
+--   openpath   a stack file of the library
+--   forget     a folder of the library
+--
+-- A handler that the page calls cannot wait, and opening a stack can, so
+-- the work runs in the engine's next turn.
 on playerFromPage pWhat
-   if pWhat is among the items of "open,home,download,reload" then
-      send "playerDo" && pWhat to me in 0 milliseconds
+   local tVerb
+   put line 1 of pWhat into tVerb
+   if tVerb is among the items of "open,home,download,reload,library,take,openpath,forget" then
+      put line 2 to -1 of pWhat into sPageArgs
+      send "playerDo" && tVerb to me in 0 milliseconds
       return true
    end if
    return false
 end playerFromPage
 
 on playerDo pWhat
+   local tArgs
+   put sPageArgs into tArgs
+   put empty into sPageArgs
    switch pWhat
       case "open"
          playerChoose
@@ -152,8 +176,42 @@ on playerDo pWhat
       case "reload"
          playerReload
          break
+      case "library"
+         playerShowLibrary
+         break
+      case "take"
+         playerTakeFromPage tArgs
+         break
+      case "openpath"
+         if playerInLibrary(line 1 of tArgs) then
+            playerOpenFile line 1 of tArgs
+         end if
+         break
+      case "forget"
+         playerForgetFolder line 1 of tArgs
+         break
    end switch
 end playerDo
+
+-- Files the page wrote: only those in /uploads
+private command playerTakeFromPage pPaths
+   local tPath, tPaths
+   repeat for each line tPath in pPaths
+      if tPath begins with "/uploads/" and "/../" is not in tPath then
+         put tPath & return after tPaths
+      end if
+   end repeat
+   delete the last char of tPaths
+   if tPaths is not empty then
+      playerTake tPaths
+   end if
+end playerTakeFromPage
+
+-- Whether pPath is a file in the library (and not above it)
+private function playerInLibrary pPath
+   return pPath begins with (playerLibraryFolder() & slash) and "/../" is not in pPath \
+         and there is a file pPath
+end playerInLibrary
 
 ----------------------------------------------------------------
 -- Getting stacks from the user
@@ -212,7 +270,7 @@ command playerTake pPaths
       put kStackExtensions into tExtensions
       replace comma with ", ." in tExtensions
       playerStatus "There is no stack among the files you gave." && \
-            "A stack file ends in ." & tExtensions & "."
+            "A stack file ends in ." & tExtensions & ".", "error"
       playerRemoveFolder tFolder
       exit playerTake
    end if
@@ -242,7 +300,7 @@ private command playerUnzip pZip, pFolder
    local tItems, tItem, tTarget, tParent
    revZipOpenArchive pZip, "read"
    if the result is not empty then
-      playerStatus "Could not open the archive:" && the result
+      playerStatus "Could not open the archive:" && the result, "error"
       exit playerUnzip
    end if
    put revZipEnumerateItems(pZip) into tItems
@@ -318,9 +376,11 @@ private function playerExtension pName
    return item -1 of pName
 end playerExtension
 
--- The library's folders that hold a stack: "name<tab>stack path" lines
-function playerLibraryList
-   local tLibrary, tFolders, tSub, tStacks, tList
+-- The library's folders that hold a stack: "name<tab>stack path" lines,
+-- with pDetails also the stack file's size in bytes, when it last
+-- changed (in seconds) and how many stacks the folder holds
+function playerLibraryList pDetails
+   local tLibrary, tFolders, tSub, tStacks, tList, tInfo
    put playerLibraryFolder() into tLibrary
    put folders(tLibrary) into tFolders
    sort tFolders
@@ -330,12 +390,32 @@ function playerLibraryList
       end if
       put playerStacksIn(tLibrary & slash & tSub) into tStacks
       if tStacks is not empty then
-         put tSub & tab & line 1 of tStacks & return after tList
+         put tSub & tab & line 1 of tStacks after tList
+         if pDetails then
+            put playerFileInfo(line 1 of tStacks) into tInfo
+            put tab & tInfo & tab & the number of lines of tStacks after tList
+         end if
+         put return after tList
       end if
    end repeat
    delete the last char of tList
    return tList
 end playerLibraryList
+
+-- "<size in bytes><tab><last changed, in seconds>" of a file
+private function playerFileInfo pPath
+   local tFolder, tName, tLine
+   set the itemDelimiter to slash
+   put item 1 to -2 of pPath into tFolder
+   put item -1 of pPath into tName
+   repeat for each line tLine in files(tFolder, "detailed")
+      set the itemDelimiter to comma
+      if urlDecode(item 1 of tLine) is tName then
+         return item 2 of tLine & tab & item 5 of tLine
+      end if
+   end repeat
+   return 0 & tab & 0
+end playerFileInfo
 
 command playerShowLibrary
    if there is not a field "Library" of card 1 of me then
@@ -358,6 +438,7 @@ command playerShowLibrary
    end if
    set the hilitedLine of field "Library" of card 1 of me to 0
    playerLog "library" && the number of lines of tList && "stacks:" && line 1 to -1 of field "Library" of card 1 of me
+   playerTellPage "library", playerLibraryList(true)
 end playerShowLibrary
 
 -- Lists the stacks of the last folder or archive, to choose from
@@ -379,6 +460,15 @@ private command playerShowChoices
    delete the last char of tText
    set the cPaths of field "Library" of card 1 of me to tText
    put "Choose a stack" into field "Library Title" of card 1 of me
+   -- "path in the library<tab>full path" lines
+   put empty into tText
+   repeat for each line tLine in sChoices
+      put tLine into tList
+      replace tLibrary with empty in tList
+      put tList & tab & tLine & return after tText
+   end repeat
+   delete the last char of tText
+   playerTellPage "choices", tText
 end playerShowChoices
 
 -- A click on a line of the list (field "Library" sends it)
@@ -411,6 +501,19 @@ command playerForgetHilited
    playerStatus "Forgot" && item 1 of tLine & "."
 end playerForgetHilited
 
+-- Forgets a folder of the library, by name (the page asked the user)
+command playerForgetFolder pFolder
+   if pFolder is empty or slash is in pFolder or pFolder is "." or pFolder is ".." then
+      exit playerForgetFolder
+   end if
+   if there is not a folder (playerLibraryFolder() & slash & pFolder) then
+      exit playerForgetFolder
+   end if
+   playerRemoveFolder playerLibraryFolder() & slash & pFolder
+   playerShowLibrary
+   playerStatus "Removed" && pFolder && "from this browser."
+end playerForgetFolder
+
 ----------------------------------------------------------------
 -- Opening a stack, and going back
 ----------------------------------------------------------------
@@ -436,7 +539,7 @@ command playerOpenFile pPath
       put "it has the player's own name" into tResult
    end if
    if tResult is not empty then
-      playerStatus "Could not open" && pPath & ":" && tResult
+      playerStatus "Could not open" && pPath & ":" && tResult, "error"
       exit playerOpenFile
    end if
    -- its relative paths are relative to its own folder, as in its own
@@ -456,7 +559,7 @@ command playerOpenFile pPath
    end try
    if tResult is not empty then
       put empty into sCurrent
-      playerStatus "Could not open" && pPath & ":" && tResult
+      playerStatus "Could not open" && pPath & ":" && tResult, "error"
       exit playerOpenFile
    end if
    lock screen
@@ -471,7 +574,7 @@ command playerOpenFile pPath
    unlock screen
    playerLog "opened" && tName && "cards=" & the number of cards of stack tName && \
          "rect=" & the rect of stack tName
-   playerTellPage "opened", tName
+   playerTellPage "opened", tName & return & the number of cards of stack tName & return & the width of stack tName & "x" & the height of stack tName
 end playerOpenFile
 
 -- Back to the player: the stack's windows close, and it and the stacks it
@@ -614,6 +717,11 @@ command playerReportError pError, pObject
    put playerErrorText(pError) into tText
    replace the long name of me with "the Stack Player" in pObject
    replace the long name of me with "the Stack Player" in tText
+   -- the stack by its name, not by the path of its copy in the library
+   if sCurrent is not empty and there is a stack sCurrent then
+      replace the long name of stack sCurrent with "stack" && quote & sCurrent & quote in pObject
+      replace the long name of stack sCurrent with "stack" && quote & sCurrent & quote in tText
+   end if
    playerLog "script error in" && pObject & ":" && tText
    answer error "A script error in" && pObject & ":" & return & return & tText
 end playerReportError

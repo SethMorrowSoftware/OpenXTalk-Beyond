@@ -49,6 +49,7 @@ its library: the browser keeps them between visits. Screenshots go into
 import argparse
 import functools
 import http.server
+import json
 import os
 import re
 import shutil
@@ -108,7 +109,7 @@ def build(args, work):
             return x.replace('\\', '/')
         env = dict(os.environ)
         env.update(OXT_PLAYER_SCRIPT=path(PLAYER_SCRIPT), OXT_PLAYER_OUTPUT=path(out),
-                   OXT_PLAYER_LOG=path(results), OXT_PLAYER_SAMPLES=path(samples) if args.check else '')
+                   OXT_PLAYER_LOG=path(results), OXT_PLAYER_SAMPLES=path(samples))
         cmd = [lay.engine, document]
         if p.family == 'linux':
             cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
@@ -153,6 +154,7 @@ def build(args, work):
         for d in temp_dirs:
             shutil.rmtree(d, ignore_errors=True)
     put_page(out)
+    put_samples(out, samples)
     return out, samples
 
 
@@ -170,10 +172,39 @@ def put_page(site):
         os.remove(built)
 
 
+# The sample stacks that the build made, which the page offers under "Try
+# a sample" (index.html reads samples/samples.json)
+SAMPLES = [
+    {'title': 'Tour', 'files': ['Tour.livecode'],
+     'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
+     'tags': ['Cards', 'Widget', 'Palette']},
+    {'title': 'Data Grid', 'files': ['Grid.livecode'],
+     'description': 'A Data Grid that fills itself with rows as it opens.',
+     'tags': ['Data Grid']},
+    {'title': 'Files and data', 'files': ['Data.livecode', 'note.txt'],
+     'description': 'XML, an SQLite database and a text file that came with the stack.',
+     'tags': ['XML', 'SQLite', 'Files']},
+]
+
+
+def put_samples(site, samples):
+    target = os.path.join(site, 'samples')
+    os.makedirs(target, exist_ok=True)
+    for sample in SAMPLES:
+        for name in sample['files']:
+            shutil.copyfile(os.path.join(samples, name), os.path.join(target, name))
+    with open(os.path.join(target, 'samples.json'), 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(SAMPLES, f, indent=1)
+        f.write('\n')
+
+
 def make_zip(site, target):
     with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as z:
-        for name in sorted(os.listdir(site)):
-            z.write(os.path.join(site, name), 'StackPlayer/' + name)
+        for root, dirs, names in os.walk(site):
+            dirs.sort()
+            for name in sorted(names):
+                path = os.path.join(root, name)
+                z.write(path, 'StackPlayer/' + os.path.relpath(path, site).replace(os.sep, '/'))
     log('Packed %s' % target)
 
 
@@ -247,8 +278,17 @@ def check(site, samples, work):
         page.goto(url)
         if wait_for(page, lambda: seen('PLAYER ready'), 'the player starting', 180):
             expect('start', True, '%.1f s' % (time.time() - started))
-        page.wait_for_timeout(500)
-        page.screenshot(path=os.path.join(shots, '1-player.png'))
+        wait_for(page, lambda: page.locator('#library-empty').is_visible(), 'the empty library', 20)
+        page.wait_for_timeout(800)
+        page.screenshot(path=os.path.join(shots, '1-player.png'), full_page=True)
+
+        # The About panel
+        page.click('#about-open')
+        page.click('.about nav button[data-pane="pane-works"]')
+        about = page.locator('#about')
+        expect('about', about.is_visible() and 'Data Grid' in about.inner_text(), '')
+        page.screenshot(path=os.path.join(shots, '1b-about.png'))
+        page.click('#about-close')
 
         # Tour: cards, a widget, a palette, a script error
         got = open_files(page, [os.path.join(samples, 'Tour.livecode')], 'Tour')
@@ -287,8 +327,16 @@ def check(site, samples, work):
         page.wait_for_timeout(500)
         page.screenshot(path=os.path.join(shots, '6-home.png'))
 
-        # Grid: the Data Grid library
-        got = open_files(page, [os.path.join(samples, 'Grid.livecode')], 'Grid')
+        cards = page.locator('#library .card .title').all_inner_texts()
+        expect('library-cards', cards == ['Tour'], ', '.join(cards))
+
+        # Grid: the Data Grid library, from the page's sample card
+        before = len(lines)
+        page.locator('#samples .card', has_text='Data Grid').click()
+        wait_for(page, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
+                                   for x in lines[before:]), 'opening the Data Grid sample', 60)
+        page.wait_for_timeout(1500)
+        got = lines[before:]
         grid = [x for x in got if x.startswith('SAMPLE grid')]
         expect('grid', grid == ['SAMPLE grid 3,Grace,2'], ' | '.join(grid or got[-3:]))
         page.screenshot(path=os.path.join(shots, '7-grid.png'))
@@ -308,8 +356,18 @@ def check(site, samples, work):
         library = [x for x in second_lines if x.startswith('PLAYER library')]
         expect('library-kept', bool(library) and all(n in library[-1] for n in ('Tour', 'Grid', 'Data')),
                library[-1] if library else '')
+        second.wait_for_timeout(800)
+        second.screenshot(path=os.path.join(shots, '9-second-visit.png'), full_page=True)
+
+        # Remove one from the library, through the page's own dialog
+        before = len(second_lines)
+        second.locator('#library .card', has_text='Data').hover()
+        second.locator('#library .card', has_text='Data').locator('.more').click()
+        second.click('#confirm-yes')
+        wait_for(second, lambda: any(x.startswith('PLAYER library') for x in second_lines[before:]), 'removing', 15)
         second.wait_for_timeout(500)
-        second.screenshot(path=os.path.join(shots, '9-second-visit.png'))
+        cards = second.locator('#library .card .title').all_inner_texts()
+        expect('remove', sorted(cards) == ['Grid', 'Tour'], ', '.join(cards))
         browser.close()
     server.shutdown()
     with open(os.path.join(shots, 'console.txt'), 'w', encoding='utf-8') as f:

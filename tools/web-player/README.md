@@ -17,12 +17,16 @@ cd StackPlayer && python3 -m http.server 8000
 # then open http://localhost:8000/index.html
 ```
 
-Then **Open...** (or drop on the page) a stack file, a folder, or a
-`.zip` holding a stack and the files it uses. The stack takes the page
-(`?mode=window` opens it in a window of its own instead). The bar above it
-has **Home** (back to the player's list), **Reload** (the stack again as
-it was saved) and **Download copy** (the stack as it is now, as a
-download).
+The home page offers **Open a stack**, **Open a folder** and a drop zone
+(a stack file, a folder, or a `.zip` holding a stack and the files it
+uses), the stacks opened before as cards (the bin on a card removes it),
+three sample stacks to try, and **About**, which says in plain English
+what works on the web, what works differently and what does not. The
+stack then takes the page (`?mode=window` opens it in a window of its own
+instead), and the bar above it has **Library** (back home), **Reload**
+(the stack again as it was saved), **Download copy** (the stack as it is
+now, as a download) and full screen. It follows the system's light or
+dark theme.
 
 What it carries, so that a stack finds what its own web standalone
 would: every script library (the Data Grid, Animation, Geometry, Internet,
@@ -48,7 +52,7 @@ own that holds nothing else of value.
 |---|---|
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
-| `index.html` | the page: the engine's own page with the bar above the stack |
+| `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
 ## Building and checking it
@@ -60,10 +64,14 @@ python3 tools/web-player/build_player.py --install <OXT-Beyond-<version> folder>
     --work web-player --zip OXT-Beyond-web-player.zip --check
 ```
 
-`--check` opens the sample stacks the build made: Tour (a widget, a
-palette substack, a script error, Download copy, Home), Grid (the Data
-Grid fills and reads its rows) and Data (revXML, SQLite and a file beside
-the stack), then a second visit that must still list all three.
+The build also makes three sample stacks, which go into the folder's
+`samples/` with the `samples.json` that the home page reads. `--check`
+opens them: Tour through **Open stack** (a widget, a palette substack, a
+script error, Download copy, Library), the Data Grid through its sample
+card (the grid fills and reads its rows) and Data through **Open stack**
+with its `note.txt` (revXML, SQLite and a file beside the stack); it also
+opens About, then a second visit must still list all three, and removing
+one must leave two.
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.

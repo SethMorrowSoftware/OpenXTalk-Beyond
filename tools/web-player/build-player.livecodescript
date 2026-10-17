@@ -275,11 +275,8 @@ private command makeTour pFile
          "   write " & quote & "SAMPLE tour-resize " & quote & " & the width of this stack & return to stdout" & return & \
          "   pass resizeStack" & return & \
          "end resizeStack"
-   create field "Greeting"
-   set the rect of field "Greeting" to 20,20,460,56
-   set the textSize of field "Greeting" to 18
-   set the lockText of field "Greeting" to true
-   put "Card 1 of a desktop stack" into field "Greeting"
+   sampleLabel "Greeting", "20,18,460,56", 22, "bold"
+   put "A desktop stack, in your browser" into field "Greeting"
    create button "Next"
    set the rect of button "Next" to 20,80,150,110
    set the script of button "Next" to "on mouseUp" & return & "   go next card" & return & "end mouseUp"
@@ -294,15 +291,23 @@ private command makeTour pFile
    set the script of button "Error" to "on mouseUp" & return & "   put 1 / tNothingHere into tResult" & return & \
          "   put tResult + " & quote & "x" & quote & " into tResult" & return & "end mouseUp"
    -- a widget, from an extension the player carries
+   sampleLabel "Tip", "20,128,320,300", 14, empty
+   put "Next goes to the second card." & return & return & \
+         "Palette opens a substack as a palette window, which you can drag by its title bar." & return & return & \
+         "Error makes a script error on purpose: the player shows which object and line." \
+         into field "Tip"
+   -- a widget, from an extension the player carries
    create widget "Clock" as "com.livecode.widget.clock"
    set the rect of widget "Clock" to 340,150,440,250
    create card
    set the backgroundColor of this card to "#22AA66"
-   create field "Two"
-   set the rect of field "Two" to 20,20,460,56
-   set the textSize of field "Two" to 18
-   set the lockText of field "Two" to true
+   sampleLabel "Two", "20,18,460,56", 22, "bold"
    put "Card 2" into field "Two"
+   sampleLabel "Tip 2", "20,128,460,200", 14, empty
+   put "go next card worked. Back returns to the first card, as it would on the desktop." into field "Tip 2"
+   create button "Back"
+   set the rect of button "Back" to 20,80,150,110
+   set the script of button "Back" to "on mouseUp" & return & "   go previous card" & return & "end mouseUp"
    go card 1 of stack "Tour"
    create stack "Tools"
    set the mainStack of stack "Tools" to "Tour"
@@ -314,6 +319,21 @@ private command makeTour pFile
    save stack "Tour" as pFile
    delete stack "Tour"
 end makeTour
+
+-- A locked, borderless white label of a sample stack
+private command sampleLabel pName, pRect, pSize, pStyle
+   create field pName
+   set the rect of field pName to pRect
+   set the lockText of field pName to true
+   set the opaque of field pName to false
+   set the showBorder of field pName to false
+   set the traversalOn of field pName to false
+   set the textColor of field pName to "#FFFFFF"
+   set the textSize of field pName to pSize
+   if pStyle is not empty then
+      set the textStyle of field pName to pStyle
+   end if
+end sampleLabel
 
 -- A data grid with three rows
 private command makeGrid pFile
@@ -355,22 +375,38 @@ private command makeData pFile
    put item 1 to -2 of pFile into tFolder
    put "beside the stack" into url ("file:" & tFolder & "/note.txt")
    create stack "Data"
-   set the rect of stack "Data" to 0,0,400,200
+   set the rect of stack "Data" to 0,0,440,240
+   set the backgroundColor of stack "Data" to "#1F2A44"
    set the defaultStack to "Data"
+   sampleLabel "Heading", "20,16,420,48", 20, "bold"
+   put "Files and data" into field "Heading"
    create field "Report"
-   set the rect of field "Report" to 10,10,390,190
-   set the script of stack "Data" to \
-         "on openStack" & return & \
-         "   local tTree, tDb, tRows" & return & \
-         "   put revXMLCreateTree(" & quote & "<a><b>xml ok</b></a>" & quote & ", false, true, false) into tTree" & return & \
-         "   put revOpenDatabase(" & quote & "sqlite" & quote & ", specialFolderPath(" & quote & "temporary" & quote & ") & " & quote & "/d.db" & quote & ") into tDb" & return & \
-         "   revExecuteSQL tDb, " & quote & "create table t (v text)" & quote & return & \
-         "   revExecuteSQL tDb, " & quote & "insert into t values ('sql ok')" & quote & return & \
-         "   put revDataFromQuery(,, tDb, " & quote & "select v from t" & quote & ") into tRows" & return & \
+   set the rect of field "Report" to 20,60,420,220
+   set the lockText of field "Report" to true
+   set the textSize of field "Report" to 14
+   set the margins of field "Report" to 12
+   local tScript
+   put "on openStack" & return & \
+         "   local tTree, tDb, tRows, tXml, tNote" & return & \
+         "   put revXMLCreateTree(`<a><b>xml ok</b></a>`, false, true, false) into tTree" & return & \
+         "   put revXMLNodeContents(tTree, `/a/b`) into tXml" & return & \
+         "   put revOpenDatabase(`sqlite`, specialFolderPath(`temporary`) & `/d.db`) into tDb" & return & \
+         "   revExecuteSQL tDb, `create table t (v text)`" & return & \
+         "   revExecuteSQL tDb, `insert into t values ('sql ok')`" & return & \
+         "   put revDataFromQuery(,, tDb, `select v from t`) into tRows" & return & \
          "   revCloseDatabase tDb" & return & \
-         "   put revXMLNodeContents(tTree, " & quote & "/a/b" & quote & ") & comma & tRows & comma & url (" & quote & "file:note.txt" & quote & ") into field " & quote & "Report" & quote & return & \
-         "   write " & quote & "SAMPLE data " & quote & " & field " & quote & "Report" & quote & " & return to stdout" & return & \
-         "end openStack"
+         "   put url `file:note.txt` into tNote" & return & \
+         "   put `revXML read an XML tree:` & tab & tXml & return & \" & return & \
+         "         `SQLite answered a query:` & tab & tRows & return & \" & return & \
+         "         `A file beside the stack says:` & tab & tNote into field `Report`" & return & \
+         "   write `SAMPLE data ` & tXml & comma & tRows & comma & tNote & return to stdout" & return & \
+         "end openStack" into tScript
+   replace "`" with quote in tScript
+   set the script of stack "Data" to tScript
+   if the result is not empty then
+      throw "the Data sample's script: " & the result
+   end if
+   set the tabStops of field "Report" to 230
    save stack "Data" as pFile
    delete stack "Data"
 end makeData
