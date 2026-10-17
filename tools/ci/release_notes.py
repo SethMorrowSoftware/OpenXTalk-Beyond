@@ -152,6 +152,12 @@ The xTalk Assistant and the xTalk MCP Bridge, which are built into OXT-Beyond, a
 - `{root}-xtalk-assistant-plugin.lce`: the xTalk Assistant.
 - `{root}-mcp-bridge-plugin.lce`: the xTalk MCP Bridge, which lets Claude work in the IDE.
 
+## Web
+
+The Stack Player: OXT-Beyond's web engine with a stack that opens any stack you give it, so that people can try stacks in a browser. Put the folder in the zip on any web server (browsers do not run it from a file on disk) and open its `index.html`; then open or drop a stack file, a folder or a `.zip` with a stack and its files. It carries every script library, the web externals (revXML, revZip, revDB with SQLite, revSpeech) and every widget and library extension that run in a browser, and keeps the stacks it opened, and what they save, in the browser for the next visit. New in 0.2.7-rc.3 and experimental; HyperCard stacks do not open in it yet (see `tools/web-player/README.md`).
+
+- `{root}-web-player.zip`: the Stack Player's folder.
+
 ## All platforms
 
 - `{root}-xtalk-sources.zip`: every file of the bundled xTalk Suite extensions as this release took it from their repositories, with the manifest that pins them, so that the release can be rebuilt without those repositories (see BUILDING.md, "xTalk Suite extensions").
