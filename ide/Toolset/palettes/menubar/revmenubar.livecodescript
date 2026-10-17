@@ -881,7 +881,13 @@ end revFullBar
 --pull in graphics for toolbar buttons
 function revMenubarButtonNameToIconPath pName, pStyle
    local tPath, tIcon
-   put revIDEPaletteResourcePath("images/") into tPath
+   -- OXT-Beyond: the web IDE's toolbar has its own flat icons, in every
+   -- state (images-web; its README says how they are made)
+   if revEnvironmentIsWeb() then
+      put revIDEPaletteResourcePath("images-web/") into tPath
+   else
+      put revIDEPaletteResourcePath("images/") into tPath
+   end if
    replace " " with "-" in pName
    put tPath & toLower(pName) into tIcon
    if pStyle is not empty then
