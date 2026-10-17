@@ -1253,7 +1253,13 @@ mergeInto(LibraryManager.library, {
 
 	MCEmscriptenGetWindowRect__deps: ['$LiveCodeDC'],
 	MCEmscriptenGetWindowRect: function(pWindowID, rLeft, rTop, rRight, rBottom) {
-		var rect = LiveCodeDC.getWindowRect(pWindowID);
+		// OXT-Beyond: a rect of nothing for a window that is not there
+		// (its stack's is gone, or it has none yet), as
+		// getWindowFrameRect() answers: reading the rect of none threw,
+		// in the middle of the engine's work, and the page stopped
+		// taking the user's clicks (saving a stack in the web IDE)
+		var rect = LiveCodeDC.getWindowRect(pWindowID) ||
+			{'left': 0, 'top': 0, 'right': 0, 'bottom': 0};
 		{{{ makeSetValue('rLeft', '0', 'rect.left', 'i32') }}};
 		{{{ makeSetValue('rTop', '0', 'rect.top', 'i32') }}};
 		{{{ makeSetValue('rRight', '0', 'rect.right', 'i32') }}};

@@ -328,6 +328,9 @@ MCScreenDC::openwindow(Window p_window,
                        Boolean override)
 {
 	uint32_t t_window = reinterpret_cast<uint32_t>(p_window);
+	/* OXT-Beyond: the engine opens a window that is already on the screen
+	 * too (setting a shown stack's visible, its decorations, ...) */
+	bool t_was_visible = MCEmscriptenGetWindowVisible(t_window);
 	MCLog("set window visible");
 	MCEmscriptenSetWindowVisible(t_window, true);
 
@@ -350,9 +353,13 @@ MCScreenDC::openwindow(Window p_window,
 
 	/* OXT-Beyond: a modal dialog disables the stacks under it, as on the
 	 * desktop (lnxdcs.cpp), and the window that the system would make the
-	 * active one takes the keyboard when the stacks have it */
+	 * active one takes the keyboard when the stacks have it. Only when it
+	 * comes onto the screen: showing a window that is there already does
+	 * not activate it on the desktop, so the palette or window the user
+	 * clicked keeps the keyboard (the IDE's Script Editor reopens its
+	 * window while the user types in the Message Box). */
 	MCstacks->enableformodal(p_window, False);
-	if (MCEmscriptenStackTakesKeyboard(t_stack))
+	if (!t_was_visible && MCEmscriptenStackTakesKeyboard(t_stack))
 		MCEmscriptenPassKeyboard(0, t_window);
 }
 
