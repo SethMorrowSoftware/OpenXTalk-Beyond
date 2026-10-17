@@ -77,8 +77,10 @@ DEFAULT_SOURCE = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 # The folders of the IDE that go into the zip, from the installed layout
 FOLDERS = ('Toolset', 'Plugins', 'Extensions', 'Resources',
            # The Dictionary (Help > Dictionary and the toolbar's button):
-           # its stack, its SQLite database and its entries
-           'Documentation/html_viewer/resources/data/api',
+           # the page's template, styles, scripts and fonts, its SQLite
+           # database and entries, and the dictionary stack that shows
+           # them when the preferences ask for it
+           'Documentation/html_viewer',
            # Help > User Guide PDF and Data Grid Guide PDF
            'Documentation/PDF')
 # Files of the layout's top folder: the IDE reads its version from them,

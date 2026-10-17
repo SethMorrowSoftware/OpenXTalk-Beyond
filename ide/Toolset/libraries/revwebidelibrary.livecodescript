@@ -28,6 +28,11 @@ script "revWebIDELibrary"
 -- The menu bar spans the top of the page, and follows the page's width
 -- (revWebIDEFitMenubar).
 --
+-- Windows. No window manager keeps the IDE's palettes on the screen, so
+-- revIDEEnsureOnscreen keeps them on the page, and a stack the user opens
+-- is kept below the menu bar, as the desktop engine keeps it
+-- (revWebIDEKeepOnPage).
+--
 -- Public handlers:
 --    revWebIDEMenu(pMenuName, pMenu)
 --       The text of one of the IDE's menus as the web IDE shows it.
@@ -43,6 +48,8 @@ script "revWebIDELibrary"
 --       Gives the user a copy of a stack's file as a download.
 --    revWebIDEFitMenubar
 --       Spans the menu bar across the top of the page.
+--    revWebIDEKeepOnPage pStack [, pArea]
+--       Keeps a window on the page, below the menu bar.
 
 on extensionInitialize
    if the target is not me then
@@ -54,6 +61,7 @@ on extensionInitialize
       insert the script of me into back
    end if
    revIDESubscribe "ideDesktopChanged"
+   revIDESubscribe "ideOpenStack"
 end extensionInitialize
 
 on extensionFinalize
@@ -61,6 +69,7 @@ on extensionFinalize
       pass extensionFinalize
    end if
    revIDEUnsubscribe "ideDesktopChanged"
+   revIDEUnsubscribe "ideOpenStack"
    remove the script of me from back
 end extensionFinalize
 
@@ -351,6 +360,96 @@ command revWebIDEFitMenubar
    unlock messages
    unlock screen
 end revWebIDEFitMenubar
+
+################################################################################
+#
+# Windows
+#
+
+/*
+Keeps a window on the page, as a desktop's window manager keeps it on the
+screen: a resizable window wider or taller than the page is made narrower
+or shorter, as far as its minimum size lets it, and then the window is
+moved onto the page. A window that is still too wide keeps its left edge
+on the page, and one too tall its title bar.
+
+pStack (String): The name of the stack, or its long id.
+
+pArea (String): The rect of the page to keep it in; by default the page
+below the menu bar.
+*/
+command revWebIDEKeepOnPage pStack, pArea
+   local tStack
+   if there is a stack pStack then
+      put the long id of stack pStack into tStack
+   else if pStack begins with "stack " and exists(pStack) then
+      put the long id of pStack into tStack
+   else
+      exit revWebIDEKeepOnPage
+   end if
+   if the short name of tStack is "revMenubar" then
+      exit revWebIDEKeepOnPage
+   end if
+
+   local tPage, tTitleBar, tWidth, tHeight, tResizable
+   if pArea is empty then
+      put the screenRect into tPage
+      if there is a stack "revMenubar" and the visible of stack "revMenubar" then
+         put max(item 2 of tPage, the bottom of stack "revMenubar") into item 2 of tPage
+      end if
+   else
+      put pArea into tPage
+   end if
+   -- The title bar: a window has one only once it is open (a palette is
+   -- positioned before it opens, when its effective rect is not yet
+   -- there), and the page draws it 31 pixels high, a palette's 23
+   -- (engine/src/em-dc.js)
+   put the top of tStack - the effective top of tStack into tTitleBar
+   if the mode of tStack is 0 or tTitleBar < 0 or tTitleBar > 40 then
+      if the mode of tStack is 4 or the style of tStack is "palette" then
+         put 23 into tTitleBar
+      else
+         put 31 into tTitleBar
+      end if
+   end if
+   put item 3 of tPage - item 1 of tPage into tWidth
+   put item 4 of tPage - item 2 of tPage - tTitleBar into tHeight
+   put the resizable of tStack into tResizable
+
+   lock screen
+   if tResizable and the width of tStack > tWidth then
+      set the width of tStack to max(tWidth, the minWidth of tStack)
+   end if
+   if tResizable and the height of tStack > tHeight then
+      set the height of tStack to max(tHeight, the minHeight of tStack)
+   end if
+   if the right of tStack > item 3 of tPage then
+      set the right of tStack to item 3 of tPage
+   end if
+   if the left of tStack < item 1 of tPage then
+      set the left of tStack to item 1 of tPage
+   end if
+   if the bottom of tStack > item 4 of tPage then
+      set the bottom of tStack to item 4 of tPage
+   end if
+   if the top of tStack - tTitleBar < item 2 of tPage then
+      set the top of tStack to item 2 of tPage + tTitleBar
+   end if
+   unlock screen
+end revWebIDEKeepOnPage
+
+-- A stack the user opens (not an IDE stack: revFrontScript publishes
+-- ideOpenStack only for theirs) is kept in the windowBoundingRect, below
+-- the menu bar, as the desktop engine keeps a stack it opens there
+-- (MCScreenDC::platform_boundrect, which the web engine does not have)
+on ideOpenStack pCard
+   local tStack
+   put the long id of the owner of pCard into tStack
+   -- (windows, not dialogs or menus: the desktop centres a dialog)
+   if the mode of tStack is among the items of "1,2,3,4" then
+      revWebIDEKeepOnPage tStack, the windowBoundingRect
+   end if
+end ideOpenStack
 
 -- The page changed size
 on ideDesktopChanged

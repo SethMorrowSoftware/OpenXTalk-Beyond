@@ -1063,7 +1063,14 @@ end revInternal__ResetPreferences
    
    command revInternal__SavePreferences
       cancel sSavePreferencesMessage
-      send "__revInternal_SavePreferences" to me in 30 seconds
+      -- OXT-Beyond: a web page can be closed at any moment, and the web
+      -- IDE gets no shutdown then, so it keeps its preferences (the recent
+      -- files, where the palettes are, ...) after 2 seconds, not 30
+      if revEnvironmentIsWeb() then
+         send "__revInternal_SavePreferences" to me in 2 seconds
+      else
+         send "__revInternal_SavePreferences" to me in 30 seconds
+      end if
       put the result into sSavePreferencesMessage
    end revInternal__SavePreferences
    

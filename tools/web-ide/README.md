@@ -12,9 +12,12 @@ What works in it:
   Message Box;
 - the Script Editor, with colouring, compile errors and the handler list;
 - browse mode, which runs the stacks' scripts;
+- the Dictionary, its API entries and its Guide;
 - saving stacks: they are kept in the browser's storage (IndexedDB) between
   visits, in `~/Documents`. File > Download Stack gives the user a copy of
-  the stack's file, and File > Open Stack opens one from their computer;
+  the stack's file, and File > Open Stack opens one from their computer.
+  The IDE's preferences (Open Recent, where the palettes are, ...) are kept
+  there too;
 - the extensions that are scripts or LiveCode Builder modules (widgets and
   libraries);
 - revXML, revZip, revDB with SQLite, and revSpeech, which the web engine
@@ -40,8 +43,11 @@ before it is closed once the IDE has started.
 
 Every change to the engine for the web IDE is in code that only the web
 engine compiles, and every change to the IDE's scripts asks
-`revEnvironmentIsWeb()` first, so the desktop IDE and the web standalone
-engine work as before.
+`revEnvironmentIsWeb()` first, so the desktop engines and the desktop IDE
+work as before. The page is the IDE's screen: no window manager keeps a
+window on it, so `revWebIDELibrary` keeps the palettes on the page and a
+stack the user opens below the menu bar. The bugs of the web engine that
+the web IDE found were fixed for web standalones too.
 
 ## Building it
 
@@ -74,5 +80,5 @@ address. To try it on your own computer:
 cd web-ide-site && python3 -m http.server 8000
 ```
 
-and open `http://localhost:8000/`. The first visit downloads about 57 MB
+and open `http://localhost:8000/`. The first visit downloads about 59 MB
 (the engine and the IDE), which the browser then keeps in its cache.

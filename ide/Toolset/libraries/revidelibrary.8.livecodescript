@@ -4569,6 +4569,15 @@ on revIDEEnsureOnscreen pStackName
    # Ensure the stack exists
    if there is not a stack pStackName then return __revIDEError("No such stack:" && pStackName)
    
+   -- OXT-Beyond: in the web IDE the page is the screen, and no window
+   -- manager keeps a window on it: a palette wider or taller than the page
+   -- is made to fit, below the menu bar (revWebIDELibrary)
+   if revEnvironmentIsWeb() then
+      revWebIDEKeepOnPage pStackName
+      revIDESetPaletteRectPreference pStackName
+      exit revIDEEnsureOnscreen
+   end if
+
    local tScreenRect
    put line (the screen of stack pStackName) of the working screenrects into tScreenRect
    
