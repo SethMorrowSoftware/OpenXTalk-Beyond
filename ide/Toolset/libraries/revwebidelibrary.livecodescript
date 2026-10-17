@@ -400,17 +400,24 @@ command revWebIDEKeepOnPage pStack, pArea
    else
       put pArea into tPage
    end if
-   -- The title bar: a window has one only once it is open (a palette is
-   -- positioned before it opens, when its effective rect is not yet
-   -- there), and the page draws it 31 pixels high, a palette's 23
-   -- (engine/src/em-dc.js)
-   put the top of tStack - the effective top of tStack into tTitleBar
-   if the mode of tStack is 0 or tTitleBar < 0 or tTitleBar > 40 then
-      if the mode of tStack is 4 or the style of tStack is "palette" then
-         put 23 into tTitleBar
-      else
-         put 31 into tTitleBar
-      end if
+   -- The title bar the page draws above the stack, as the web engine
+   -- decides it (MCStack::sethints in engine/src/em-stack.cpp, and
+   -- engine/src/em-dc.js): none when the decorations leave out the title
+   -- (a window shape does) or the stack is fullscreen, 23 pixels high
+   -- with its border for a palette, 31 for the others. (The effective
+   -- rect cannot tell: until the window has opened, as when a palette is
+   -- placed before it opens or in its openStack, it is the stack's rect
+   -- or nothing.)
+   local tDecorations, tMode
+   put the decorations of tStack into tDecorations
+   put the mode of tStack into tMode
+   if the fullscreen of tStack or \
+         (tDecorations is not "default" and "title" is not among the items of tDecorations) then
+      put 0 into tTitleBar
+   else if tMode is 4 or (tMode is 0 and the style of tStack is "palette") then
+      put 23 into tTitleBar
+   else
+      put 31 into tTitleBar
    end if
    put item 3 of tPage - item 1 of tPage into tWidth
    put item 4 of tPage - item 2 of tPage - tTitleBar into tHeight
