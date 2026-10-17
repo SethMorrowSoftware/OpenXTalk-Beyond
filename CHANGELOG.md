@@ -14,6 +14,10 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## Unreleased
+
+- Web: close an open menu when its stack's window moves (#118)
+
 ## 0.2.7-rc.2 (2026-10-16, pre-release)
 
 - De-brand the AppleScript dictionary (#112)
