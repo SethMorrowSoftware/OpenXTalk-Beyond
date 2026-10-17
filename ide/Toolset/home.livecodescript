@@ -1429,6 +1429,11 @@ command revInternal__InstallFileAssociations
       put return & "oxtBeyondUpdater" after tLoadList
       -- OXT-Beyond: HyperCard stacks on Mac disk images (File > Import Stack)
       put return & "revHyperCardDiskImageLibrary" after tLoadList
+      -- OXT-Beyond: what the IDE does differently in a web browser, loaded
+      -- only there
+      if revEnvironmentIsWeb() then
+         put return & "revWebIDELibrary" after tLoadList
+      end if
 
       if revEnvironmentEditionProperty("autocomplete_pro") then
          put return & "autocomplete-pro" after tLoadList
@@ -1509,7 +1514,18 @@ command revInternal__InstallFileAssociations
    
    private command revInternal__SetupExternals
       revInternal__Log "Enter", "Externals Setup"
-      
+
+      -- OXT-Beyond: a browser loads no libraries; the web engine has the
+      -- four externals it can run linked in, found by these names
+      -- (engine/src/em-externals.cpp), and revDB finds its SQLite driver
+      -- the same way
+      if revEnvironmentIsWeb() then
+         set the externals of stack "Home" to "revxml" & return & "revzip" & \
+               return & "revdb" & return & "revspeech"
+         revInternal__Log "Leave", "Externals Setup"
+         exit revInternal__SetupExternals
+      end if
+
       local tExtension
       switch revEnvironmentPlatform()
          case "Linux"
@@ -2575,10 +2591,23 @@ end revEnvironmentEditionProperty
    -- Global Environment Functions - General Support
    --
    
+   -- OXT-Beyond: true when the IDE runs in a web browser, on the web IDE's
+   -- engine (the development engine built for the web, whose platform is
+   -- "HTML5"); never on the desktop. Everything the IDE does differently
+   -- on the web asks this.
+   function revEnvironmentIsWeb
+      return the platform is "HTML5"
+   end revEnvironmentIsWeb
+
    function revEnvironmentPlatform
       local tPlatform
-      
+
       switch the platform
+         -- OXT-Beyond: the web IDE's folders are laid out as on Linux, and
+         -- the web engine's file system has a Linux-like home folder ("~",
+         -- which the browser keeps between visits), so its paths are
+         -- Linux's
+         case "HTML5"
          case "Linux"
             put "Linux" into tPlatform
             break

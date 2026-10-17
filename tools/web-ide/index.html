@@ -1,0 +1,524 @@
+<!doctype html>
+<!--
+  The web IDE's page (tools/web-ide/build_site.py fills in @ENGINE@,
+  @VERSION@ and @SOURCE_URL@).
+
+  The page is the IDE's desktop: it fills the browser's window, and the
+  IDE's windows (the menu bar, the palettes, the stacks) are drawn on it
+  by the engine (engine/src/em-dc.js), which takes the window, without
+  scroll bars, as its screen. Before the engine starts, the page
+  downloads it and the IDE (ide.zip) and shows how far it has got.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>OXT-Beyond Web IDE</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23243447'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='700' fill='%23f39c12' text-anchor='middle'%3EX%3C/text%3E%3C/svg%3E">
+    <style>
+      :root {
+        --desktop-top: #3b4b5e;
+        --desktop-bottom: #1d2733;
+        --accent: #ff8b00;
+        --text: #f4f6f8;
+        --muted: #aeb8c4;
+      }
+
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--desktop-bottom);
+        background: radial-gradient(ellipse at 50% 0%, var(--desktop-top) 0%, var(--desktop-bottom) 75%) fixed;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: var(--text);
+        /* The IDE takes the mouse and the keys; the page selects nothing */
+        user-select: none;
+        -webkit-user-select: none;
+        overscroll-behavior: none;
+      }
+
+      /* The window of the first stack the engine opens (the IDE's home
+         stack, which is never shown) is the page's own element: it stays
+         out of the way, in the top left corner */
+      #stack {
+        position: fixed !important;
+        left: 0;
+        top: 0;
+      }
+
+      /* The canvas must have no border or padding, or the mouse position
+         will be wrong */
+      #canvas {
+        display: block;
+        border: 0 none;
+        padding: 0;
+        outline: none;
+      }
+
+      /* The desktop's name, faint, under every window */
+      #watermark {
+        position: fixed;
+        right: 28px;
+        bottom: 22px;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        color: rgba(255, 255, 255, 0.16);
+        pointer-events: none;
+      }
+      #watermark b {
+        color: rgba(255, 139, 0, 0.35);
+        font-weight: 600;
+      }
+
+      /* The IDE's windows, restyled from the engine's frames (their class
+         names start with "oxt-window"; "html body" outranks the engine's
+         own rules) */
+      html body .oxt-window-border {
+        border: 1px solid rgba(15, 23, 32, 0.55);
+        border-radius: 7px 7px 2px 2px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
+      }
+      html body .oxt-window-title {
+        background: linear-gradient(#e9edf1, #dde2e8);
+        color: #6b7684;
+        border-radius: 6px 6px 0 0;
+        border-bottom: 1px solid #c4cbd3;
+        box-sizing: border-box;
+      }
+      html body .oxt-window-active > .oxt-window-title {
+        background: linear-gradient(#ffffff, #eef1f4);
+        color: #17202a;
+      }
+      html body .oxt-window-close {
+        border-radius: 0 6px 0 0;
+      }
+
+      /* Loading */
+      #loading {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: inherit;
+        transition: opacity 0.4s ease;
+      }
+      #loading.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #card {
+        width: min(440px, calc(100vw - 48px));
+        text-align: center;
+      }
+      #logo {
+        font-size: 40px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      #logo span {
+        color: var(--accent);
+      }
+      #subtitle {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      #bar {
+        margin: 32px 0 12px;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+      #fill {
+        width: 0%;
+        height: 100%;
+        border-radius: 3px;
+        background: var(--accent);
+        transition: width 0.2s ease;
+      }
+      #fill.busy {
+        width: 30%;
+        animation: busy 1.2s ease-in-out infinite;
+      }
+      @keyframes busy {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(340%); }
+      }
+      #status {
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      #error {
+        display: none;
+        margin-top: 20px;
+        color: #ffd1d1;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      #error button {
+        margin-top: 14px;
+        padding: 8px 18px;
+        border: 0;
+        border-radius: 5px;
+        background: var(--accent);
+        color: #1d2733;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      #about {
+        margin-top: 40px;
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      #about a {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      /* The full screen button, at the right end of the menu bar */
+      #fullscreen {
+        position: fixed;
+        right: 14px;
+        top: 20px;
+        z-index: 50000;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 1px solid rgba(0, 0, 0, 0.18);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.6);
+        color: #3b4b5e;
+        cursor: pointer;
+        display: none;
+      }
+      #fullscreen:hover {
+        background: #ffffff;
+        color: #17202a;
+      }
+      #fullscreen svg {
+        display: block;
+        margin: auto;
+      }
+
+      /* A note shown on the first visit */
+      #note {
+        position: fixed;
+        right: 14px;
+        bottom: 54px;
+        z-index: 50000;
+        max-width: min(520px, calc(100vw - 28px));
+        padding: 10px 40px 10px 14px;
+        border-radius: 8px;
+        background: rgba(15, 23, 32, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.45;
+        display: none;
+      }
+      #note b {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      #note button {
+        position: absolute;
+        right: 6px;
+        top: 6px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 5px;
+        background: none;
+        color: var(--muted);
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #note button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript><p style="padding: 24px">The OXT-Beyond web IDE needs JavaScript.</p></noscript>
+
+    <div id="watermark"><b>OXT</b>-Beyond web IDE</div>
+
+    <div id="stack">
+      <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+
+    <div id="loading">
+      <div id="card">
+        <div id="logo"><span>OXT</span>-Beyond</div>
+        <div id="subtitle">Web IDE @VERSION@</div>
+        <div id="bar"><div id="fill"></div></div>
+        <div id="status">Loading...</div>
+        <div id="error"></div>
+        <div id="about">
+          Create and share stacks in your browser, with nothing to install.<br>
+          Free and open source under the GNU GPL v3:
+          <a href="@SOURCE_URL@" target="_blank" rel="noopener">source code</a>
+        </div>
+      </div>
+    </div>
+
+    <button id="fullscreen" title="Full screen" aria-label="Full screen">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path id="fullscreen-icon" d="M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4"/>
+      </svg>
+    </button>
+
+    <div id="note">
+      Your stacks are kept in this browser. Use <b>File &gt; Download Stack</b> to keep
+      a copy on your computer, and <b>File &gt; Open Stack</b> to open one from it.
+      <button title="Close" aria-label="Close">&#x2715;</button>
+    </div>
+
+    <script>
+      (function() {
+        'use strict';
+
+        var ENGINE = '@ENGINE@';
+        var IDE = 'ide.zip';
+
+        var loading = document.getElementById('loading');
+        var fill = document.getElementById('fill');
+        var statusElement = document.getElementById('status');
+        var errorElement = document.getElementById('error');
+
+        function setStatus(text) {
+          statusElement.textContent = text;
+        }
+
+        function megabytes(bytes) {
+          return (bytes / 1048576).toFixed(1);
+        }
+
+        var failed = false;
+        function fail(text) {
+          if (failed) {
+            return;
+          }
+          failed = true;
+          loading.classList.remove('done');
+          fill.classList.remove('busy');
+          setStatus('');
+          errorElement.textContent = text + ' ';
+          var button = document.createElement('button');
+          button.textContent = 'Reload';
+          button.onclick = function() {
+            location.reload();
+          };
+          errorElement.appendChild(document.createElement('br'));
+          errorElement.appendChild(button);
+          errorElement.style.display = 'block';
+        }
+
+        if (typeof WebAssembly !== 'object') {
+          fail('This browser cannot run the web IDE: it has no WebAssembly. ' +
+               'A recent Chrome, Edge, Firefox or Safari can.');
+          return;
+        }
+
+        // The engine and the IDE are downloaded together, and the bar
+        // shows both. The engine's script is added once both are here: the
+        // engine takes the IDE from the request below
+        // (engine/src/em-preamble.js) and its WebAssembly from
+        // instantiateWasm.
+        var parts = {engine: {loaded: 0, total: 0}, ide: {loaded: 0, total: 0}};
+        function progress() {
+          var loaded = parts.engine.loaded + parts.ide.loaded;
+          var total = parts.engine.total + parts.ide.total;
+          if (total > 0) {
+            fill.style.width = Math.min(100, 100 * loaded / total).toFixed(1) + '%';
+            setStatus('Downloading the IDE... ' + megabytes(loaded) + ' of ' + megabytes(total) + ' MB');
+          }
+        }
+
+        function download(url, part) {
+          return new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url);
+            xhr.responseType = 'arraybuffer';
+            xhr.onprogress = function(e) {
+              parts[part].loaded = e.loaded;
+              if (e.lengthComputable) {
+                parts[part].total = e.total;
+              }
+              progress();
+            };
+            xhr.onload = function() {
+              if (xhr.status === 200 || xhr.status === 0) {
+                parts[part].loaded = parts[part].total = xhr.response.byteLength;
+                progress();
+                resolve(xhr);
+              } else {
+                reject(new Error(url + ': ' + xhr.status + ' ' + xhr.statusText));
+              }
+            };
+            xhr.onerror = function() {
+              reject(new Error('could not download ' + url));
+            };
+            xhr.send();
+          });
+        }
+
+        var started = false;
+
+        window.Module = {
+          canvas: document.getElementById('canvas'),
+
+          // The IDE, unpacked by the engine at "/" before it starts
+          livecodeStandalone: IDE,
+
+          // What the IDE writes to stdout and stderr goes to the browser's
+          // console
+          print: function(text) {
+            console.log(text);
+          },
+          printErr: function(text) {
+            console.error(text);
+          },
+
+          setStatus: function(text) {
+            if (text && !started) {
+              setStatus(text);
+            }
+          },
+
+          onRuntimeInitialized: function() {
+            setStatus('Opening the IDE...');
+          },
+
+          onAbort: function(what) {
+            fail('The web IDE stopped (' + what + '). The browser\'s console has the details.');
+          },
+
+          // The engine's WebAssembly, from the download below
+          instantiateWasm: function(imports, receiveInstance) {
+            WebAssembly.instantiate(engineBinary, imports).then(function(result) {
+              engineBinary = null;
+              receiveInstance(result.instance, result.module);
+            }, function(error) {
+              fail('The web IDE\'s engine could not start: ' + error.message + '.');
+            });
+            return {};
+          },
+        };
+        var engineBinary = null;
+
+        Promise.all([download(ENGINE + '.wasm', 'engine'), download(IDE, 'ide')]).then(function(done) {
+          engineBinary = done[0].response;
+          Module.livecodeStandaloneRequest = done[1];
+          fill.style.width = '100%';
+          fill.classList.add('busy');
+          setStatus('Starting the engine...');
+          var script = document.createElement('script');
+          script.src = ENGINE + '.js';
+          script.onerror = function() {
+            fail('The web IDE\'s engine could not be loaded.');
+          };
+          document.body.appendChild(script);
+        }, function(error) {
+          fail('The web IDE could not be downloaded: ' + error.message + '.');
+        });
+
+        // The IDE is open once its first window (the menu bar) shows
+        var watch = setInterval(function() {
+          var windows = document.querySelectorAll('.oxt-window');
+          for (var i = 0; i < windows.length; i++) {
+            if (windows[i].style.display === 'block') {
+              clearInterval(watch);
+              setTimeout(opened, 600);
+              return;
+            }
+          }
+        }, 250);
+
+        function opened() {
+          if (failed) {
+            return;
+          }
+          started = true;
+          loading.classList.add('done');
+          setTimeout(function() {
+            loading.style.display = 'none';
+          }, 500);
+          if (document.fullscreenEnabled) {
+            document.getElementById('fullscreen').style.display = 'block';
+          }
+          showNote();
+          // Ask the browser to keep the stacks the IDE keeps in its storage
+          // (IndexedDB) when it runs short of space
+          if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist().catch(function() {});
+          }
+        }
+
+        window.addEventListener('error', function(e) {
+          if (!started) {
+            fail('Something went wrong (' + (e.message || 'an error') + '). ' +
+                 'The browser\'s console has the details.');
+          }
+        });
+
+        // Leaving the page closes the IDE, and what is not saved is lost
+        window.addEventListener('beforeunload', function(e) {
+          if (started && !failed) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
+        });
+
+        // Full screen
+        var fullscreenButton = document.getElementById('fullscreen');
+        var icon = document.getElementById('fullscreen-icon');
+        fullscreenButton.addEventListener('click', function() {
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            document.documentElement.requestFullscreen().catch(function() {});
+          }
+        });
+        document.addEventListener('fullscreenchange', function() {
+          var full = !!document.fullscreenElement;
+          icon.setAttribute('d', full ? 'M5.5 1.5v4h-4M14.5 5.5h-4v-4M10.5 14.5v-4h4M1.5 10.5h4v4'
+                                      : 'M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4');
+          fullscreenButton.title = full ? 'Leave full screen' : 'Full screen';
+        });
+
+        // The first visit's note about where stacks are kept
+        var noteKey = 'oxt-web-ide-note';
+        function showNote() {
+          var seen = false;
+          try {
+            seen = localStorage.getItem(noteKey) === '1';
+          } catch (e) {
+          }
+          if (seen) {
+            return;
+          }
+          var note = document.getElementById('note');
+          note.style.display = 'block';
+          note.querySelector('button').addEventListener('click', function() {
+            note.style.display = 'none';
+            try {
+              localStorage.setItem(noteKey, '1');
+            } catch (e) {
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

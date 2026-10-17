@@ -2505,6 +2505,9 @@ function revIDEPlatform
    else if the platform begins with "linux" then return "linux"
    else if the platform begins with "iphone" then return "ios"
    else if the platform begins with "android" then return "android"
+   -- OXT-Beyond: the web IDE (whose platform is HTML5) wears the Linux
+   -- theme, as revEnvironmentPlatform calls its platform Linux
+   else if revEnvironmentIsWeb() then return "linux"
    return __revIDEError("Unknown Platform")
 end revIDEPlatform
 
@@ -7168,6 +7171,10 @@ on revIDEActionOpenStack
       # Check the stack exists
       if there is not a file tStackFilePath then exit revIDEActionOpenStack
       
+      -- OXT-Beyond: the web IDE keeps the stack in the browser's storage,
+      -- where saving it keeps it (revWebIDELibrary)
+      if revEnvironmentIsWeb() then put revWebIDEKeepFile(tStackFilePath) into tStackFilePath
+      
       # Open the stack
       -- tperry 21-1-25 -- caution prompt when opening stacks
       if the cDontUseCaution of stack "revPreferences" is true then
@@ -8404,6 +8411,10 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
       revIDESetEdited tShortName
       return "Cancelled"
    end if
+   
+   -- OXT-Beyond: the web IDE keeps the stack in the browser's storage, not
+   -- in the downloads folder that ask file answers (revWebIDELibrary)
+   if revEnvironmentIsWeb() then get revWebIDESavePath(it)
    
    # MacOS Auotmatically appends the filetype to the filename
    local tFilePath

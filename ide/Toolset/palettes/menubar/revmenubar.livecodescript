@@ -38,6 +38,8 @@ on preOpenStack
          set the left of wd "revMenuBar" to the cTweakMenuBarL of stack "revPreferences"
       end if
    end if
+   -- OXT-Beyond: in the web IDE the menu bar spans the top of the page
+   if revEnvironmentIsWeb() then send "revWebIDEFitMenubar" to this stack in 2 ticks
    -----end palette positioning
    
    send "tApplyGridSetting" to this stack in 1 millisecond  --tp 23-12, set grid
@@ -669,6 +671,8 @@ on layoutMenu
    set the topleft of me to tTopLeft
    unlock messages
    updateButtonState
+   -- OXT-Beyond: in the web IDE the menu bar spans the top of the page
+   if revEnvironmentIsWeb() then revWebIDEFitMenubar
    unlock screen
 end layoutMenu
 
@@ -2152,6 +2156,9 @@ end revMenubarPopupContextualMenu
 
 private function modifyMenu pMenuName, pMenu
    if the last char of pMenu is not return then put return after pMenu
+   -- OXT-Beyond: the web IDE leaves out what a browser cannot do
+   -- (revWebIDELibrary)
+   if revEnvironmentIsWeb() then return revWebIDEMenu(pMenuName, pMenu)
    return pMenu
 end modifyMenu
 
@@ -2463,6 +2470,10 @@ on revMenubarFileMenuPick pWhich
          break
       case "Save As..."
          revIDEActionSaveStackAs the long id of the topStack
+         break
+      -- OXT-Beyond: in the web IDE only (revWebIDEMenu)
+      case "Download Stack"
+         revWebIDEDownloadStack the long id of the topStack
          break
       case "Save As Standalone Application..."
          revIDESaveAsStandalone the long id of the topStack
@@ -3154,6 +3165,8 @@ on tMenuBar_AdjustWDSize
    local tRight  --tp 23-12, shorten size of revMenubar, make "Sample Stacks" last button
    put the right of cd btn "Sample Stacks" of cd 1 of wd "revMenuBar" +10 +(the left of wd "revMenuBar") into tRight 
    set the rect of wd "revMenuBar" to the left of wd "revMenubar",the top of wd "revMenuBar",tRight,the bottom of wd "revMenubar"
+   -- OXT-Beyond: in the web IDE the menu bar spans the top of the page
+   if revEnvironmentIsWeb() then revWebIDEFitMenubar
 end tMenuBar_AdjustWDSize
 
 on tApplyGridSetting  --tp 23-12, if grid true then set gridSize

@@ -92,6 +92,14 @@ Returns:
 An integer, the version of the bytecode output by <pLCCompile>
 */
 function extensionLCCompileVersion pLCCompile
+   # OXT-Beyond: a web page runs no programs, so the web IDE (whose
+   # platform is HTML5) cannot ask lc-compile: the version is that of the
+   # bytecode its engine reads, which its modules were compiled to
+   # (kMCScriptCurrentModuleVersion in libscript/include/libscript/script.h)
+   if pLCCompile is empty and the platform is "HTML5" then
+      return 2
+   end if
+   
    if pLCCompile is empty then
       if sDefaultModuleVersion is empty then
          put extensionLCCompileVersion(__extensionCompilerPath()) \
