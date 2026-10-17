@@ -189,6 +189,9 @@ static void restart_livecode(void)
 		usleep(250000);
 		execl(*t_mccmd, *t_mccmd, NULL);
 	}
+#elif defined(__EMSCRIPTEN__)
+	// OXT-Beyond: a web page cannot start itself again; the web IDE quits
+	// (reloading the page starts it)
 #else
 #error restart not defined
 #endif
@@ -255,6 +258,62 @@ extern void send_startup_message(bool p_do_relaunch = true);
 
 extern uint4 MCstartupstack_length;
 extern uint1 MCstartupstack[];
+
+#if defined(__EMSCRIPTEN__)
+
+// OXT-Beyond: the web IDE's engine (engine.gyp's development-web). Before
+// this runs, em-main.cpp has unpacked the page's standalone.zip at "/", and
+// the zip holds the IDE's folders in /boot (tools/web-ide), the web
+// engine's folder (specialFolderPath("engine")), as an installed Linux IDE
+// has them beside its engine. The IDE's home stack is loaded as the home
+// stack and sent startup, then opened, as the desktop's environment stack
+// has the installed IDE's home stack loaded: there is no environment stack
+// (no licensing, no choice of IDE) on the web.
+#define kMCEmscriptenIDEHomeStack "/boot/Toolset/home.livecodescript"
+
+IO_stat MCDispatch::startup(void)
+{
+	// set up image cache before the first stack is opened
+	MCCachedImageRep::init();
+
+	startdir = MCS_getcurdir();
+	/* UNCHECKED */ MCStringConvertToCString(MCcmd, enginedir);
+	char *eptr = strrchr(enginedir, PATH_SEPARATOR);
+	if (eptr != NULL)
+		*eptr = '\0';
+	else
+		*enginedir = '\0';
+
+	// The licence the desktop's environment stack sets (licenseUnlock in
+	// environment/stackbehavior.livecodescript): community, which
+	// MCStackSecurityInit has set, with no limits; of the platforms, only
+	// the web can be built for in a browser
+	MClicenseparameters . license_multiplicity = 1;
+	MClicenseparameters . deploy_targets = kMCLicenseDeployToHTML5;
+
+	// The first stack loaded is the home stack
+	MCStack *sptr;
+	if (loadfile(MCSTR(kMCEmscriptenIDEHomeStack), sptr) != IO_NORMAL)
+	{
+		MCresult -> sets("failed to read the IDE's home stack " kMCEmscriptenIDEHomeStack);
+		return IO_ERROR;
+	}
+
+	MCModeResetCursors();
+	MCImage::init();
+
+	// As the desktop IDE does once its environment stack has run
+	MCallowinterrupts = true;
+	sptr -> setparent(this);
+	MCdefaultstackptr = MCstaticdefaultstackptr = stacks;
+	send_startup_message(false);
+	if (!MCquit)
+		sptr -> open();
+
+	return IO_NORMAL;
+}
+
+#else
 
 IO_stat MCDispatch::startup(void)
 {
@@ -413,6 +472,8 @@ IO_stat MCDispatch::startup(void)
 
 	return IO_NORMAL;
 }
+
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //

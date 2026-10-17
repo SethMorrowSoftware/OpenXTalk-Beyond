@@ -89,8 +89,16 @@ Boolean MCRespringIsPending(void)
 // pointers (desktop.cpp on macOS), so that the standalone and installer
 // engines, which do not link this file, need no respring code
 // Function pointers in dskmain.cpp — register ourselves at startup
+#if defined(__EMSCRIPTEN__)
+// OXT-Beyond: the web IDE's engine has no dskmain.cpp, and its main loop
+// (em-dc-mainloop.cpp) never respins, so the pointers are defined here
+// and nothing calls them: _internal respring does nothing on the web
+Boolean (*MCRespringIsPendingPtr)(void) = nil;
+Boolean (*MCRespringDoRespringPtr)(void) = nil;
+#else
 extern Boolean (*MCRespringIsPendingPtr)(void);
 extern Boolean (*MCRespringDoRespringPtr)(void);
+#endif
 
 // Auto-register via static initializer
 static struct MCRespringRegistrar {

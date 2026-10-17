@@ -49,8 +49,13 @@ __MCEmscriptenStandaloneUnpackWrite(void *context,
 	IO_handle t_handle = static_cast<IO_handle>(context);
 	const char *t_buffer = static_cast<const char *>(p_data);
 
-	/* Write the extracted data */
-	return (IO_NORMAL == MCS_write(t_buffer + p_data_offset,
+	/* Write the extracted data. OXT-Beyond: p_data is already the
+	 * p_data_length bytes that start at p_data_offset in the file
+	 * (MCMiniZipExtractItem), so they are written as they are: adding the
+	 * offset read past the end of the inflate buffer for every chunk after
+	 * the first, which wrote a deflated file over 64 KB wrongly. A stored
+	 * file comes in one chunk at offset 0, so it is written as before. */
+	return (IO_NORMAL == MCS_write(t_buffer,
 	                               p_data_length, 1, t_handle));
 }
 

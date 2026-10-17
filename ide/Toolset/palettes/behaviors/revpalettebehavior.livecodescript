@@ -575,6 +575,11 @@ after preOpenStack
 end preOpenStack
 
 after openStack
+   -- OXT-Beyond: in the web IDE, a palette that sized itself as it opened
+   -- (the Dictionary is 1010 pixels wide at least) is kept on the page
+   if revEnvironmentIsWeb() and sHideFrame is not true then
+      revIDEEnsureOnscreen the short name of me
+   end if
    if the visible of me is false then
       show me
    end if

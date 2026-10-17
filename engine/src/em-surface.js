@@ -23,8 +23,19 @@ mergeInto(LibraryManager.library, {
     // location on the main HTML5 canvas
     MCEmscriptenBlitToWindowCanvas__deps: ['$LiveCodeDC'],
     MCEmscriptenBlitToWindowCanvas: function(p_window_id, p_rgba_buffer, p_x, p_y, p_w, p_h) {
+        // OXT-Beyond: an empty region has nothing to draw, and ImageData
+        // throws for a width or height of 0, which stopped the engine (the
+        // IDE's Message Box opened one); a window that has gone has no
+        // canvas to draw on
+        if (!(p_w > 0 && p_h > 0)) {
+            return;
+        }
+
         // Get the window canvas
         var canvas = LiveCodeDC.getWindowCanvas(p_window_id);
+        if (!canvas) {
+            return;
+        }
 
         // Create and get a 2D rendering context for the canvas
         var context = canvas.getContext('2d');

@@ -2701,3 +2701,23 @@ BUILDTYPE=Release emmake make -C build-emscripten/livecode javascriptify -j"$(np
 ```
 
 The engine and the page are in `build-emscripten/livecode/out/Release`.
+
+### The web IDE
+
+The web IDE is the IDE run in a web page by the development engine built
+for the web ([`tools/web-ide/README.md`](tools/web-ide/README.md) says
+what works in it and how it is put together). It is built from an
+installed Linux OXT-Beyond, whose Extensions, Dictionary and binary stacks
+it takes, with this checkout's script-only stacks over them:
+
+```sh
+tools/ci/build-web-ide.sh <installed OXT-Beyond> web-ide-site
+```
+
+The script runs `tools/ci/build-web.sh --libraries` first, then builds the
+web IDE's engine (the targets `development-web` and
+`javascriptify-development` of [`engine/engine.gyp`](engine/engine.gyp),
+which the web standalone engine's build does not build), then the site
+with [`tools/web-ide/build_site.py`](tools/web-ide/build_site.py). The
+site is static files: serve the folder with any web server (for example
+`python3 -m http.server` in it) and open its `index.html`.
