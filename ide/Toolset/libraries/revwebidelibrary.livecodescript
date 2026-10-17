@@ -30,7 +30,10 @@ script "revWebIDELibrary"
 -- is: one light surface for the menus and the toolbar, whose flat icons
 -- (revMenubar's images-web) show a toggle that is on in the accent colour
 -- of the page. The edition's upgrade button, which the desktop's menu bar
--- (cut off after Sample Stacks) never shows either, is hidden.
+-- (cut off after Sample Stacks) never shows either, is hidden. On a page
+-- too narrow for the toolbar's labels, the toolbar shows its icons only,
+-- each with its label as its tooltip (revWebIDEFitToolbar), rather than
+-- cutting its last buttons off at the page's edge.
 --
 -- Windows. No window manager keeps the IDE's palettes on the screen, so
 -- revIDEEnsureOnscreen keeps them on the page, and a stack the user opens
@@ -54,6 +57,8 @@ script "revWebIDELibrary"
 --       Gives the user a copy of a stack's file as a download.
 --    revWebIDEFitMenubar
 --       Spans the menu bar across the top of the page.
+--    revWebIDEFitToolbar
+--       Shows the toolbar's labels only when the page has room for them.
 --    revWebIDEKeepOnPage pStack [, pArea [, pMoveOnly]]
 --       Keeps a window on the page, below the menu bar.
 --    revWebIDEKeepWindowsOnPage
@@ -349,6 +354,15 @@ constant kHeaderColor = "244,246,248"
 constant kMenuTextColor = "23,32,42"
 constant kToolbarTextColor = "59,69,84"
 
+-- The room the page's full screen button takes at the right end of the
+-- header (index.html's #fullscreen: 34 pixels wide, 14 from the edge)
+constant kFullscreenRoom = 56
+
+-- The right of the toolbar's last button, as laid out with its labels
+local sToolbarRight
+-- True while revWebIDEFitToolbar lays the toolbar out again
+local sFittingToolbar
+
 /*
 Spans the menu bar across the top of the page, as a web application's
 is: from the left edge to the right one, with its toolbar where it is,
@@ -375,8 +389,138 @@ command revWebIDEFitMenubar
    end if
    styleMenubar
    unlock messages
+   -- Once whatever laid the toolbar out has finished (revMenubar's
+   -- preOpenStack moves buttons after its layoutMenu)
+   if sFittingToolbar is not true and \
+         "revWebIDEFitToolbar" is not in the pendingMessages then
+      send "revWebIDEFitToolbar" to me in 0 milliseconds
+   end if
    unlock screen
 end revWebIDEFitMenubar
+
+/*
+Shows the toolbar's labels only when the page has room for them: on a
+page too narrow for the toolbar with its labels (and the page's full
+screen button after it), the toolbar shows its icons only, closer
+together, with each label as its button's tooltip; on a page wide enough
+again, it shows the labels, laid out as before. Only a toolbar that the
+preferences show with icons and labels changes, and the preferences stay
+as they are.
+*/
+command revWebIDEFitToolbar
+   local tStack, tToolbar, tShowNames, tFits, tIndex, tButton
+   if sFittingToolbar is true or there is not a stack "revMenubar" then
+      exit revWebIDEFitToolbar
+   end if
+   if revIDEGetPreference("cToolbarIcons") is false or \
+         revIDEGetPreference("cToolbarText") is false then
+      exit revWebIDEFitToolbar
+   end if
+   put the long id of stack "revMenubar" into tStack
+   if there is not a group "toolbar" of card 1 of tStack then
+      exit revWebIDEFitToolbar
+   end if
+   put the long id of group "toolbar" of card 1 of tStack into tToolbar
+   if there is not a button "Errors" of tToolbar or \
+         there is not a button "Dictionary" of tToolbar then
+      exit revWebIDEFitToolbar
+   end if
+   -- The width it needs is measured while it shows its labels
+   put the showName of button "Errors" of tToolbar into tShowNames
+   if tShowNames then
+      put __webToolbarRight(tToolbar) into sToolbarRight
+   end if
+   put sToolbarRight + kFullscreenRoom <= \
+         item 3 of the screenRect - item 1 of the screenRect into tFits
+   if tFits and tShowNames then
+      exit revWebIDEFitToolbar
+   end if
+   lock screen
+   lock messages
+   if tFits is not tShowNames then
+      repeat with tIndex = 1 to the number of buttons of tToolbar
+         put the long id of button tIndex of tToolbar into tButton
+         set the showName of tButton to tFits
+         if tFits then
+            if the toolTip of tButton is the label of tButton then
+               set the toolTip of tButton to empty
+            end if
+         else if the toolTip of tButton is empty then
+            set the toolTip of tButton to the label of tButton
+         end if
+      end repeat
+   end if
+   if not tFits then
+      -- Packed again whenever it is laid out, as the IDE lays it out for
+      -- its labels (the width of a button is its label's, shown or not)
+      __webPackToolbar tToolbar
+      unlock messages
+      unlock screen
+      exit revWebIDEFitToolbar
+   end if
+   unlock messages
+   -- Laid out for the labels as revMenubar's preOpenStack lays it out:
+   -- Dictionary after Errors, and Sample Stacks after Dictionary
+   -- (tMenuBar_AdjustWDSize)
+   put true into sFittingToolbar
+   dispatch "layoutMenu" to tStack
+   set the topLeft of button "Dictionary" of tToolbar to \
+         the left of button "Errors" of tToolbar + 80, \
+         the top of button "Errors" of tToolbar
+   dispatch "tMenuBar_AdjustWDSize" to tStack
+   put false into sFittingToolbar
+   unlock screen
+end revWebIDEFitToolbar
+
+-- The toolbar's buttons and dividers that are shown, packed from its
+-- left in the order they are in, each button as wide as its icon needs
+-- and each divider in revMenubar's padding (kPadding)
+constant kIconButtonWidth = 44
+constant kToolbarPadding = 10
+
+private command __webPackToolbar pToolbar
+   local tControls, tIndex, tControl, tLine, tLeft, tDividerLeft, tRect
+   set the itemDelimiter to tab
+   repeat with tIndex = 1 to the number of controls of pToolbar
+      put the long id of control tIndex of pToolbar into tControl
+      if the visible of tControl and (word 1 of tControl is "button" or \
+            the short name of tControl begins with "Divide") then
+         put the left of tControl & tab & tControl & return after tControls
+      end if
+   end repeat
+   sort lines of tControls numeric by item 1 of each
+   put item 1 of line 1 of tControls into tLeft
+   repeat for each line tLine in tControls
+      put item 2 of tLine into tControl
+      if word 1 of tControl is "button" then
+         put tLeft & comma & the top of tControl & comma & \
+               (tLeft + kIconButtonWidth) & comma & the bottom of tControl into tRect
+         add kIconButtonWidth to tLeft
+      else
+         -- A divider keeps its width, in the middle of its padding
+         put tLeft + (kToolbarPadding - the width of tControl) div 2 into tDividerLeft
+         put tDividerLeft & comma & the top of tControl & comma & \
+               (tDividerLeft + the width of tControl) & comma & \
+               the bottom of tControl into tRect
+         add kToolbarPadding to tLeft
+      end if
+      if the rect of tControl is not tRect then
+         set the rect of tControl to tRect
+      end if
+   end repeat
+end __webPackToolbar
+
+-- The right of the toolbar's last button shown
+private function __webToolbarRight pToolbar
+   local tRight, tControl
+   put 0 into tRight
+   repeat with tControl = 1 to the number of buttons of pToolbar
+      if the visible of button tControl of pToolbar then
+         put max(tRight, the right of button tControl of pToolbar) into tRight
+      end if
+   end repeat
+   return tRight
+end __webToolbarRight
 
 -- One surface for the menus and the toolbar (the menus otherwise sit on
 -- a white strip of their own), and nothing after the toolbar's last
@@ -404,13 +548,8 @@ private command styleMenubar
    if there is a group "upgrade" of card 1 of tStack then
       hide group "upgrade" of card 1 of tStack
    end if
-   -- The right of the last button shown, then every divider beyond it
-   put 0 into tRight
-   repeat with tControl = 1 to the number of buttons of tToolbar
-      if the visible of button tControl of tToolbar then
-         put max(tRight, the right of button tControl of tToolbar) into tRight
-      end if
-   end repeat
+   -- Every divider beyond the last button shown
+   put __webToolbarRight(tToolbar) into tRight
    repeat with tControl = 1 to the number of images of tToolbar
       if the short name of image tControl of tToolbar begins with "Divide" \
             and the left of image tControl of tToolbar > tRight then
