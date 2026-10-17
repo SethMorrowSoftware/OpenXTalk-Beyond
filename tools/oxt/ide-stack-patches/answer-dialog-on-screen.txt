@@ -1,0 +1,47 @@
+# Answer dialog: always whole on the screen. The engine centres a modal
+# dialog on the stack it was asked from (exec-dialog.cpp) and keeps it on
+# the screen at that size (MCStack::openrect), and only then does the
+# dialog's preOpenStack size it to its text, growing it about its centre.
+# On Windows nothing placed it again, so a long message asked from a window
+# near the top of the screen (the menu bar, the xTalk Assistant, a request
+# from the MCP bridge) opened with its title bar and first lines above the
+# screen. On a Mac it is placed a fifth of the way down the main screen,
+# and on Linux likewise, as before. The new last step moves the dialog only
+# when part of it, title bar included, is outside the working area of its
+# screen (less the taskbar, the Dock and the menu bar); a dialog that fits
+# stays exactly where it was. Standalones that include the Answer dialog
+# get the same dialog.
+file: Toolset/palettes/revanswerdialog.rev
+object: card id 1002
+replace:
+|set the default of button 3 to true|
+|end preOpenStack|
+with:
+|set the default of button 3 to true|
+|-- OXT-Beyond: the whole dialog on the screen|
+|revAnswerDialogOnScreen|
+|end preOpenStack|
+||
+|-- OXT-Beyond: moves the dialog into the working area of its screen when|
+|-- part of it, its title bar included, is outside it; one larger than the|
+|-- area goes to its top left. The engine centred the dialog on the stack|
+|-- it was asked from before preOpenStack sized it to its text, so a long|
+|-- message asked from a window near the top of the screen grew past it.|
+|on revAnswerDialogOnScreen|
+|   local tArea, tRect, tFrame, tTitle, tEdge, tLeft, tTop|
+|   put line (the screen of this stack) of the working screenRects into tArea|
+|   if the number of items of tArea is not 4 then put the working screenRect into tArea|
+|   -- An engine with no screen (no user interface) leaves it alone|
+|   if item 3 of tArea <= item 1 of tArea or item 4 of tArea <= item 2 of tArea then exit revAnswerDialogOnScreen|
+|   put the rect of this stack into tRect|
+|   put the effective rect of this stack into tFrame|
+|   -- The window's frame: its title bar above the card, a border round it|
+|   -- (at least as much as the platforms draw, when the window has none yet)|
+|   put max(32, item 2 of tRect - item 2 of tFrame) into tTitle|
+|   put max(8, item 1 of tRect - item 1 of tFrame) into tEdge|
+|   put max(item 1 of tArea + tEdge, min(item 1 of tRect, item 3 of tArea - tEdge - (item 3 of tRect - item 1 of tRect))) into tLeft|
+|   put max(item 2 of tArea + tTitle, min(item 2 of tRect, item 4 of tArea - tEdge - (item 4 of tRect - item 2 of tRect))) into tTop|
+|   if tLeft is not item 1 of tRect or tTop is not item 2 of tRect then|
+|      set the topLeft of this stack to tLeft, tTop|
+|   end if|
+|end revAnswerDialogOnScreen|

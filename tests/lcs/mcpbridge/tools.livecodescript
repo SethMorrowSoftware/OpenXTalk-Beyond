@@ -202,7 +202,29 @@ on TestChangesAndUndo
    TestAssert "undone", not TestIsError(tReply) and there is not a button "Added" of tStack
    put TestCall("undo_changes") into tReply
    TestAssert "nothing more to undo", TestIsError(tReply)
+   put TestCall("undo_changes", "{`entry`:99}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a change there never was is not called undone already", TestIsError(tReply) \
+         and TestText(tReply) contains "There is no change 99" and not (TestText(tReply) contains "already")
 end TestChangesAndUndo
+
+-- Code longer than the question before a run shows in full does not run:
+-- the user would have allowed code they could not read
+on TestARunTooLongToShowIsRefused
+   local tStack, tReply, tCode
+   TestStart
+   put TestUserStack() into tStack
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put "set the cLong of this stack to 1" into tCode
+   repeat 100
+      put "\nset the cLong of this stack to the cLong of this stack + 1" after tCode
+   end repeat
+   put TestCall("run_code", "{`where`:`stack`,`stack`:`" & kUserStack & "`,`code`:`" & tCode & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "refused, with what to do instead", TestIsError(tReply) and TestText(tReply) contains "too long for the user to read" \
+         and TestText(tReply) contains "make_changes"
+   TestAssert "and nothing ran", the cLong of tStack is empty
+end TestARunTooLongToShowIsRefused
 
 on TestUndoAsksWhenTheUserChangedIt
    local tReply, tStack

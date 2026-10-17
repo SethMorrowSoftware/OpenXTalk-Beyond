@@ -678,3 +678,30 @@ private function TestWhy pWhy
    replace return with "; " in pWhy
    return " (" & pWhy & ")"
 end TestWhy
+
+-- Windows are kept whole on the screen (xtaOnScreenRect): one that fits
+-- stays where it is; one above the top (a new stack's rect 0,0,...) comes
+-- down below the title bar's room; one past an edge comes in; a larger one
+-- is made smaller only when it may be, never below its least size; and an
+-- engine with no screen leaves it alone
+on TestWindowsAreKeptOnScreen
+   local tArea
+   put "0,0,1280,680" into tArea
+   TestAssert "a window that fits stays", \
+         xtaOnScreenRect("300,200,700,500", "292,170,708,508", tArea, empty) is "300,200,700,500"
+   TestAssert "one at the top is moved down by its title bar", \
+         xtaOnScreenRect("0,0,400,300", "0,0,400,300", tArea, empty) is "8,32,408,332"
+   TestAssert "the frame it has decides the room", \
+         xtaOnScreenRect("0,0,400,300", "-10,-40,410,310", tArea, empty) is "10,40,410,340"
+   TestAssert "one past the bottom right comes in", \
+         xtaOnScreenRect("1100,600,1400,800", "1100,600,1400,800", tArea, empty) is "972,472,1272,672"
+   TestAssert "a tall one keeps its size and goes to the top", \
+         xtaOnScreenRect("100,100,660,900", "100,100,660,900", tArea, empty) is "100,32,660,832"
+   TestAssert "a tall resizable one is made shorter", \
+         xtaOnScreenRect("100,100,660,900", "100,100,660,900", tArea, "460,520") is "100,32,660,672"
+   TestAssert "never below its least height", \
+         xtaOnScreenRect("100,100,660,900", "100,100,660,900", "0,0,1280,400", "460,520") is "100,32,660,552"
+   TestAssert "on a second screen", \
+         xtaOnScreenRect("1200,-50,1600,250", "1200,-50,1600,250", "1280,0,2560,1040", empty) is "1288,32,1688,332"
+   TestAssert "no screen, no move", xtaOnScreenRect("0,0,400,300", "0,0,400,300", "0,0,0,0", empty) is empty
+end TestWindowsAreKeptOnScreen

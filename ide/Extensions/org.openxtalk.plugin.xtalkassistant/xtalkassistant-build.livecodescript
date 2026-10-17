@@ -65,6 +65,9 @@ script "org.openxtalk.plugin.xtalkassistant-build"
 --    xtaDebugState()                  a paused script, for the model
 --    xtaStackDump(pStack)             a stack as text, to compare
 --    xtaTargetStack(pName, pDefault)  the stack a tool names, checked
+--    xtaKeepOnScreen pStack, pShrink  a window moved whole onto the screen
+--    xtaOnScreenRect(pRect, pFrame, pArea, pMin)   where it goes
+--    xtaThrownText(pError)           an error thrown, in words
 --    xtaBuildCleanup                  forgets all of it (turning off)
 
 -- The hidden stacks made here; their names begin with "rev", so the IDE
@@ -990,6 +993,11 @@ private function xtbShort pValue
    return pValue
 end xtbShort
 
+-- xtbErrorMessage for the assistant's window
+function xtaThrownText pError
+   return xtbErrorMessage(pError)
+end xtaThrownText
+
 -- The message of the first line of an error the engine threw, or the
 -- error as it was thrown by a script
 private function xtbErrorMessage pError
@@ -1215,6 +1223,62 @@ function xtaBuildApply pPlan
    put true into tResult["ok"]
    return tResult
 end xtaBuildApply
+
+-- Moves the window of pStack (a long id or a name) whole into the working
+-- area of the screen it is most on (the screen less the taskbar, the Dock
+-- and the menu bar), its title bar included, when part of it is outside:
+-- a new stack the model gave the rect 0,0,... opened with its title bar
+-- above the screen, out of reach, and a window centred on another near
+-- the top of the screen grew past it. With pShrink true a resizable
+-- window taller or wider than the area is made smaller to fit, down to its
+-- minHeight and minWidth; one that is still too large goes to the area's
+-- top left. A window that fits is not moved. Returns its new rect, or
+-- empty when it was left where it was (also when the engine has no screen,
+-- as without a user interface).
+command xtaKeepOnScreen pStack, pShrink
+   local tArea, tMin, tRect
+   if pStack is empty or there is not a stack pStack then
+      return empty
+   end if
+   put line (the screen of stack pStack) of the working screenRects into tArea
+   if the number of items of tArea is not 4 then
+      put the working screenRect into tArea
+   end if
+   if pShrink is true and the resizable of stack pStack then
+      put the minWidth of stack pStack, the minHeight of stack pStack into tMin
+   end if
+   put xtaOnScreenRect(the rect of stack pStack, the effective rect of stack pStack, tArea, tMin) into tRect
+   if tRect is empty or tRect is the rect of stack pStack then
+      return empty
+   end if
+   set the rect of stack pStack to tRect
+   return the rect of stack pStack
+end xtaKeepOnScreen
+
+-- Where xtaKeepOnScreen puts a window: pRect is its rect (the card's),
+-- pFrame its effective rect (with the title bar and border, the same as
+-- pRect while it has no window), pArea the working area of its screen,
+-- and pMin empty to keep its size, else the least width and height it may
+-- be made to fit. Empty when pArea is no area (no screen).
+function xtaOnScreenRect pRect, pFrame, pArea, pMin
+   local tTitle, tEdge, tWidth, tHeight, tLeft, tTop
+   if item 3 of pArea <= item 1 of pArea or item 4 of pArea <= item 2 of pArea then
+      return empty
+   end if
+   -- The window's frame, at least what the platforms draw while it has
+   -- none yet
+   put max(32, item 2 of pRect - item 2 of pFrame) into tTitle
+   put max(8, item 1 of pRect - item 1 of pFrame) into tEdge
+   put item 3 of pRect - item 1 of pRect into tWidth
+   put item 4 of pRect - item 2 of pRect into tHeight
+   if pMin is not empty then
+      put max(item 1 of pMin, min(tWidth, item 3 of pArea - item 1 of pArea - 2 * tEdge)) into tWidth
+      put max(item 2 of pMin, min(tHeight, item 4 of pArea - item 2 of pArea - tTitle - tEdge)) into tHeight
+   end if
+   put max(item 1 of pArea + tEdge, min(item 1 of pRect, item 3 of pArea - tEdge - tWidth)) into tLeft
+   put max(item 2 of pArea + tTitle, min(item 2 of pRect, item 4 of pArea - tEdge - tHeight)) into tTop
+   return tLeft & comma & tTop & comma & (tLeft + tWidth) & comma & (tTop + tHeight)
+end xtaOnScreenRect
 
 -- Empty when every object pPlan names is still there, else what is not
 private function xtbStillThere pPlan

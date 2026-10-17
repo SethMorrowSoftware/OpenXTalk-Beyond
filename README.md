@@ -1557,17 +1557,36 @@ and:
   [#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113)
   keeps the IDE's normal quit, with its prompt to save changes, when
   you log out or restart.
+- **Dialogs and windows open whole on the screen.** An `answer` dialog
+  in the IDE, or in a standalone that includes the Answer dialog, and
+  the IDE's own palettes and dialogs are moved inside the screen's
+  working area when they would open partly off it (on Windows a long
+  answer dialog could open with its title bar above the top of the
+  screen). A window that already fits stays where it was and none is
+  resized. User stacks are not moved.
+- **xTalk Assistant and MCP Bridge.** An error in the middle of a
+  question ends it with a message instead of leaving the window busy;
+  the settings are locked while a question is answered; the send keys
+  are named correctly (Ctrl+Enter, or Command-Return on a Mac). The
+  bridge keeps Claude's changes undoable when the assistant is turned
+  off, says what a partial undo did, does nothing when a question is
+  answered after the MCP server stopped waiting, refuses code too long
+  to show in full before a run, and finds Node.js on a Mac when the IDE
+  is opened from the Finder or the Dock.
 
 A script sees two differences from 0.2.7-rc.1, both in a HyperCard
 stack as it is imported: opened with messages unlocked, it no longer
 has the extra empty first card, so its number of cards and its card
 numbers are HyperCard's; and on Windows and Linux its text, names and
 scripts have the characters HyperCard had where letters such as "ñ"
-stood before. A stack imported earlier and saved keeps its text. Pull
+stood before. A stack imported earlier and saved keeps its text. (A
+dialog or IDE window moved onto the screen is a change you see, not one
+a script sees: `it` and the result are the same.) Pull
 requests
 [#112](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/112),
 [#113](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/113),
 [#114](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/114),
+[#115](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/115),
 [#116](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/116)
 and
 [#117](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/117)

@@ -128,8 +128,12 @@ on TestOpenWindow
    -- left it hidden, and turning the assistant on seemed to do nothing)
    TestAssert "the window is shown", the visible of stack kWindow
    TestAssert "the window is a palette", the mode of stack kWindow is 4
-   TestDiagnostic the rect of stack kWindow && "/" && the screenRect
-   TestAssert "the window is in the middle of the screen", the loc of stack kWindow is the screenLoc
+   TestDiagnostic the rect of stack kWindow && "/" && the screenRect && "/" && the working screenRect
+   -- In the middle of the screen, unless that would leave part of it (its
+   -- title bar too) off a small screen: then it is kept whole on the screen
+   TestAssert "the window is in the middle of the screen, or whole on it", \
+         the loc of stack kWindow is the screenLoc \
+         or TestWithin(the rect of stack kWindow, the working screenRect)
    TestAssert "the core is in use", kCore is among the lines of the stacksInUse
    TestAssert "the provider is shown", the label of button "Provider" of stack kWindow is "Anthropic"
    TestAssert "the model is shown", the label of button "Model" of stack kWindow is "test-model"
@@ -304,7 +308,8 @@ on TestTheWelcome
          and the linkText of line tLine + 4 of field "Conversation" of stack kWindow is "example,4"
    TestAssert "and how to send and stop", tText contains "Escape stops the assistant."
    TestAssert "the empty prompt says what to type", the visible of field "PromptHint" of stack kWindow \
-         and field "PromptHint" of stack kWindow is "Ask a question, or say what to build or fix"
+         and line 1 of field "PromptHint" of stack kWindow is "Ask a question, or say what to build or fix" \
+         and line 2 of field "PromptHint" of stack kWindow ends with "sends"
    dispatch "xtaConversationLink" to stack kMain with "example,2"
    TestAssert "a question clicked goes into the prompt", field "Prompt" of stack kWindow is line tLine + 2 of tText
    TestAssert "and the hint goes", not the visible of field "PromptHint" of stack kWindow
@@ -316,7 +321,7 @@ on TestTheWelcome
    TestDiagnostic tText
    TestAssert "without changing stacks, it does not offer to", not (tText contains "new stacks") \
          and "How do I count the words in a field?" is among the lines of tText
-   TestAssert "nor does the hint", field "PromptHint" of stack kWindow is "Ask a question about xTalk Script" \
+   TestAssert "nor does the hint", line 1 of field "PromptHint" of stack kWindow is "Ask a question about xTalk Script" \
          and the visible of field "PromptHint" of stack kWindow
    TestAssert "and neither names LiveCode", tText contains "xTalk Script" and not (tText contains "LiveCode")
 end TestTheWelcome

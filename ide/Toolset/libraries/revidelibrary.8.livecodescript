@@ -6936,6 +6936,49 @@ function revIDEStackScreenLoc pStackName, pWorking
 end revIDEStackScreenLoc
 
 /*
+Summary: Move an IDE stack's window whole onto the screen it is on
+
+Parameters:
+pStackName (string): The name of a stack
+
+Description:
+Moves the window, its title bar included, into the working area of its
+screen (the screen less the taskbar, the Dock and the menu bar) when part of
+it is outside: a palette left where a screen no longer is, or a dialog that
+opened above the top of the screen. A window larger than the area goes to
+its top left. A window that fits is not moved, and its size never changes.
+
+The back script calls it as each IDE stack opens (preOpenStack), and the
+palettes and the error display when the screens change (ideDesktopChanged).
+OXT-Beyond: the handler had gone from this library while those calls stayed,
+so each of them stopped on "can't find handler" and nothing was kept on the
+screen.
+*/
+on revIDEEnsureOnScreen pStackName
+   local tArea, tRect, tFrame, tTitle, tEdge, tLeft, tTop
+   -- A hidden stack is left where it is: some are opened off the screen on
+   -- purpose, to draw in
+   if pStackName is empty or there is not a stack pStackName or not the visible of stack pStackName then
+      exit revIDEEnsureOnScreen
+   end if
+   put revIDEStackScreenRect(pStackName, true) into tArea
+   if item 3 of tArea <= item 1 of tArea or item 4 of tArea <= item 2 of tArea then
+      exit revIDEEnsureOnScreen
+   end if
+   put the rect of stack pStackName into tRect
+   -- The window's frame: its title bar above the card and a border round
+   -- it, at least what the platforms draw while it has no window yet
+   put the effective rect of stack pStackName into tFrame
+   put max(32, item 2 of tRect - item 2 of tFrame) into tTitle
+   put max(8, item 1 of tRect - item 1 of tFrame) into tEdge
+   put max(item 1 of tArea + tEdge, min(item 1 of tRect, item 3 of tArea - tEdge - (item 3 of tRect - item 1 of tRect))) into tLeft
+   put max(item 2 of tArea + tTitle, min(item 2 of tRect, item 4 of tArea - tEdge - (item 4 of tRect - item 2 of tRect))) into tTop
+   if tLeft is not item 1 of tRect or tTop is not item 2 of tRect then
+      set the topLeft of stack pStackName to tLeft, tTop
+   end if
+end revIDEEnsureOnScreen
+
+/*
 Summary: Get the screenRect for a stack based on the screen the stack is on
 
 Parameters:

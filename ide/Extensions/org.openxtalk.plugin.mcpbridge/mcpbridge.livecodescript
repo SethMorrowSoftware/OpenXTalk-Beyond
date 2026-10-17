@@ -40,7 +40,7 @@ script "org.openxtalk.plugin.mcpbridge"
 -- Public handlers (all reached with dispatch):
 --    mcpBridgeMenuPick           Development > Plugins > xTalk MCP Bridge
 --    mcbIsEnabled()
---    mcbConfirm(pTitle, pDetail, pYes), mcbEditorStack(),
+--    mcbConfirm(pTitle, pDetail, pYes), mcbTooLate, mcbEditorStack(),
 --    mcbEditorContext()          (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
@@ -313,9 +313,20 @@ private function mcbNativePath pPath
    return pPath
 end mcbNativePath
 
--- True when a program named node can be found on the PATH
+-- True when a program named node can be found on the PATH, or on a Mac
+-- where its installers put it: an app opened from the Finder or the Dock
+-- has the system's PATH, without /usr/local/bin (nodejs.org's installer)
+-- or /opt/homebrew/bin (Homebrew), and the bridge said Node.js was not
+-- installed when it was
 private function mcbHasNode
-   local tOut, tResult, tHide
+   local tOut, tResult, tHide, tFile
+   if the platform is "MacOS" then
+      repeat for each item tFile in "/usr/local/bin/node,/opt/homebrew/bin/node,/opt/local/bin/node"
+         if there is a file tFile then
+            return true
+         end if
+      end repeat
+   end if
    put the hideConsoleWindows into tHide
    set the hideConsoleWindows to true
    if the platform is "Win32" then
@@ -579,6 +590,12 @@ function mcbConfirm pTitle, pDetail, pYes
 end mcbConfirm
 
 -- The stack of the script open in the Script Editor, or empty
+-- The user said yes to a question after Claude's app stopped waiting for
+-- the answer (mcbAsk): nothing was done
+on mcbTooLate
+   answer information "Claude stopped waiting for this answer, so nothing was done. Ask Claude again if you still want it." titled kTitle
+end mcbTooLate
+
 function mcbEditorStack
    local tEditor, tObject, tError
    try

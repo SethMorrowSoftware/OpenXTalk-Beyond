@@ -525,10 +525,19 @@ class Bridge {
         if (this.pending && this.pending.id === id) {
           this.pending = null;
           reject(new BridgeError(timeoutText || ('OXT-Beyond did not answer in ' + Math.round(timeoutMs / 1000) + ' seconds. ' +
-            'It may be waiting for the user, or running code that does not end (Control-period stops it).')));
+            'It may be waiting for the user, or running code that does not end (Control-period stops it). A question it was ' +
+            'asking the user does nothing now, even if they answer it; code that was running may still finish: check ' +
+            'list_changes before sending it again.')));
           this.close();
         }
       }, timeoutMs);
+      // The connection can close between the hello and the call (onClose
+      // empties it): say so, not "Cannot read properties of null"
+      if (!this.socket) {
+        clearTimeout(timer);
+        reject(new BridgeError(NOT_RUNNING));
+        return;
+      }
       this.pending = { id, resolve, reject, timer };
       this.socket.write(JSON.stringify(Object.assign({ id, token: this.token }, request)) + '\n');
     });

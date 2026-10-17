@@ -114,6 +114,10 @@ local sPort, sClients, sInfoFile, sAssistantFolder, sAsker
 local sLoadedCore, sLoadedBuild
 -- True while a tool runs
 local sBusy
+-- The socket of the request being answered: a question to the user is
+-- answered after the server gave up waiting (and closed it) only with
+-- nothing done (mcbAsk)
+local sRequestSocket
 -- The Dictionary's entry names, read once (lookup_dictionary's suggestions)
 local sDictionaryNames
 
@@ -202,15 +206,18 @@ command mcbServerStop
    mcbStopErrorHook
    put empty into sInfoFile
    put empty into sAsker
+   -- The assistant's libraries go with the bridge unless the assistant is
+   -- on: whichever loaded them, as a turned-off assistant leaves them, and
+   -- its journal, to the bridge
    if not mcbAssistantOn() then
-      if sLoadedBuild is true and there is a stack kBuild and mcbInUse(kBuild) then
+      if there is a stack kBuild and mcbInUse(kBuild) then
          try
             xtaBuildCleanup
          catch tError
          end try
          stop using stack kBuild
       end if
-      if sLoadedCore is true and there is a stack kCore and mcbInUse(kCore) then
+      if there is a stack kCore and mcbInUse(kCore) then
          try
             xtaCheckCleanup
          catch tError
@@ -392,11 +399,13 @@ on mcbLineRead pSocket, pData
       mcbDropClient pSocket
       exit mcbLineRead
    end if
+   put pSocket into sRequestSocket
    try
       put mcbHandleLine(textDecode(pData, "UTF-8")) into tReply
    catch tError
       put mcbRefusal("null", "The bridge failed:" && line 1 of tError) into tReply
    end try
+   put empty into sRequestSocket
    -- The server may have been stopped while the tool ran (or asked)
    if pSocket is not among the lines of sClients then
       exit mcbLineRead
@@ -807,6 +816,17 @@ private function mcbAsk pTitle, pDetail, pYes
    catch tError
       put false into tAnswer
    end try
+   -- The server gives up on a call after a while (server.js, 10 minutes)
+   -- and closes the connection; Claude was told so and may send it again.
+   -- A yes after that would run (or save, or undo) what nobody is waiting
+   -- for, maybe twice: it does nothing, and the user is told why.
+   if tAnswer is true and sRequestSocket is not empty and sRequestSocket is not among the lines of sClients then
+      try
+         dispatch "mcbTooLate" to sAsker
+      catch tError
+      end try
+      return false
+   end if
    return tAnswer is true
 end mcbAsk
 
@@ -1993,7 +2013,7 @@ end mcbTrimEnd
 -- A batch of changes, checked (a mistake goes back with nothing changed),
 -- then made whole or not at all, and journaled for undo_changes
 private function mcbToolMakeChanges pArguments
-   local tPlan, tApplied, tText, tChange
+   local tPlan, tApplied, tText, tChange, tMoved
    -- A script copied from a cut read would put the cut one in place of the
    -- whole
    repeat for each element tChange in mcbChangesOf(pArguments)
@@ -2010,7 +2030,17 @@ private function mcbToolMakeChanges pArguments
    if tApplied["ok"] is not true then
       return mcbResult(tApplied["error"], true)
    end if
-   put tApplied["text"] & return & "This is change" && tApplied["entry"] & "; undo_changes takes it back." into tText
+   put tApplied["text"] into tText
+   -- A new stack whose rect put part of its window off the screen (0,0,...
+   -- hides its title bar above it) is moved whole onto the screen
+   if tPlan["newStack"] is true and there is a stack tPlan["name"] then
+      xtaKeepOnScreen the long id of stack tPlan["name"], false
+      put the result into tMoved
+      if tMoved is not empty then
+         put return & "Its window was moved to" && tMoved & ", so that all of it, its title bar too, is on the screen." after tText
+      end if
+   end if
+   put return & "This is change" && tApplied["entry"] & "; undo_changes takes it back." after tText
    return mcbResult(tText, false)
 end mcbToolMakeChanges
 
@@ -2053,6 +2083,14 @@ private function mcbToolRunCode pArguments
    put tRun["code"] after tDetail
    if tRun["handlers"] is not empty then
       put return & return & "With these handlers:" & return & tRun["handlers"] after tDetail
+   end if
+   -- The question shows the user the whole of what would run, or nothing
+   -- runs: mcbAsk cuts a longer text, and Run then ran code the user could
+   -- not read
+   if the number of chars of tDetail > kMaxAskChars then
+      return mcbResult("Nothing ran: the code and its handlers are too long for the user to read in the question " & mcbHostName() & \
+            " asks before a run (" & the number of chars of tDetail && "characters with the question; at most" && kMaxAskChars & "). " & \
+            "Run shorter code: put long handlers into the stack's script with make_changes first, then run a short call to them.", true)
    end if
    if not mcbAsk(tTitle, tDetail, "Run") then
       return mcbResult("Nothing ran: the user did not allow the run. Ask them what they would like instead; do not send the same code again.", true)
@@ -2130,19 +2168,21 @@ end mcbToolListChanges
 -- they are asked in OXT-Beyond first.
 private function mcbToolUndo pEntry
    local tUndone
-   put mcbUndo(pEntry, true) into tUndone
+   put mcbUndo(pEntry, true, false) into tUndone
    return mcbResult(tUndone["text"], tUndone["ok"] is not true)
 end mcbToolUndo
 
 -- The newest change still applied, undone (the plugin's menu); the
--- user is asked only when they changed something since
+-- user is asked only when they changed something since. Its text is for
+-- the user, not the model.
 function mcbUndoLast
    local tUndone
-   put mcbUndo(empty, true) into tUndone
+   put mcbUndo(empty, true, true) into tUndone
    return tUndone
 end mcbUndoLast
 
-private function mcbUndo pEntry, pAsk
+-- pForUser: the text is for the user (the plugin's menu), not the model
+private function mcbUndo pEntry, pAsk, pForUser
    local tEntries, tIndex, tUndone, tResult
    put xtaBuildEntries() into tEntries
    if pEntry is empty then
@@ -2163,24 +2203,55 @@ private function mcbUndo pEntry, pAsk
       put "An entry is a whole number, as list_changes gives it." into tResult["text"]
       return tResult
    end if
+   -- A number list_changes never gave was answered "That was undone
+   -- already."
+   if pEntry < 1 or pEntry > the number of elements of tEntries then
+      put false into tResult["ok"]
+      put "There is no change" && pEntry & ": list_changes gives the numbers of the changes there are." into tResult["text"]
+      return tResult
+   end if
    put xtaBuildUndo(pEntry, false) into tUndone
    if tUndone["ok"] is not true and tUndone["changed"] is not empty then
       if not pAsk or not mcbAsk("Undo what Claude changed?", "Since then, this was changed:" & return & tUndone["changed"] & return & return & \
             "Undoing puts it back as it was before Claude's change.", "Undo") then
          put false into tResult["ok"]
-         put "Nothing was undone: the user changed what it would take back since (" & tUndone["changed"] & "), and did not let it be undone." \
-               into tResult["text"]
+         if pForUser then
+            put "Nothing was undone." into tResult["text"]
+         else
+            put "Nothing was undone: the user changed what it would take back since (" & tUndone["changed"] & "), and did not let it be undone." \
+                  into tResult["text"]
+         end if
          return tResult
       end if
       put xtaBuildUndo(pEntry, true) into tUndone
    end if
+   -- Undone, but some of it could not be put back: the entries are undone
+   -- (a second try is refused), so this is not "Nothing was undone"
+   if tUndone["ok"] is not true and tUndone["undone"] is not empty then
+      put false into tResult["ok"]
+      if pForUser then
+         put tUndone["summary"] & ", but some of it could not be put back:" & return & tUndone["error"] into tResult["text"]
+      else
+         put tUndone["summary"] & ", but some of it could not be put back:" && tUndone["error"] & \
+               " Read the stack again: it may be only partly as it was before. The change cannot be undone again." into tResult["text"]
+      end if
+      return tResult
+   end if
    if tUndone["ok"] is not true then
       put false into tResult["ok"]
-      put "Nothing was undone:" && tUndone["error"] into tResult["text"]
+      if pForUser then
+         put "It could not be undone:" && tUndone["error"] into tResult["text"]
+      else
+         put "Nothing was undone:" && tUndone["error"] into tResult["text"]
+      end if
       return tResult
    end if
    put true into tResult["ok"]
-   put tUndone["summary"] & ". The stack is as it was before: read it again before changing it." into tResult["text"]
+   if pForUser then
+      put tUndone["summary"] & ": the stack is as it was before Claude changed it." into tResult["text"]
+   else
+      put tUndone["summary"] & ". The stack is as it was before: read it again before changing it." into tResult["text"]
+   end if
    return tResult
 end mcbUndo
 
