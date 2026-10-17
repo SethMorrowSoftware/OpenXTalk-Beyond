@@ -29,6 +29,7 @@ words, is in the [README](README.md#the-ide) and on the
 - IDE: bring back revIDEEnsureOnScreen, so IDE windows open on the screen (#115)
 - Assistant test: a window kept whole on a small screen need not be centred (#115)
 - The 0.2.7-rc.2 changelog: the assistant and MCP bridge changes (#115)
+- README: the 0.2.7-rc.2 notes include #115 (#120)
 
 ## 0.2.7-rc.1 (2026-10-16, pre-release)
 
