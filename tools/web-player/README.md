@@ -19,14 +19,18 @@ cd StackPlayer && python3 -m http.server 8000
 
 The home page offers **Open a stack**, **Open a folder** and a drop zone
 (a stack file, a folder, or a `.zip` holding a stack and the files it
-uses), the stacks opened before as cards (the bin on a card removes it),
-three sample stacks to try, and **About**, which says in plain English
+uses), three whole stacks to play (**OXT-Beyond on the Web**, a tour of
+what a stack can do in a page; **Learn xTalk**, a first course in ten
+lessons; and the **xTalk Primer**, a home stack of examples), the stacks
+opened before as cards (the bin on a card removes it), three small
+samples, and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
 (the stack again as it was saved), **Download copy** (the stack as it is
 now, as a download) and full screen. It follows the system's light or
-dark theme.
+dark theme. The page wears openxtalk.org's look: its fonts (SIL Open Font
+License) and pictures are in `assets/`.
 
 What it carries, so that a stack finds what its own web standalone
 would: every script library (the Data Grid, Animation, Geometry, Internet,
@@ -37,7 +41,11 @@ browser's storage for the site (`/livecode/Documents/Stack Player`), so
 the list, and whatever the stacks saved, are still there on the next
 visit. A script error shows in a dialog with the object and the line.
 
-Not yet: HyperCard stacks (they import and draw, but `go` never returns
+Not yet: extensions that are a layer over a native library (box2dxt's
+Box2D, so the platformer and the Box2D games; sodiumxt, coinxt, torrents,
+ENet, WebRTC data channels). They have no web build, so such a stack opens
+and stops where it first calls one, and the player names the extension
+instead of showing its error trace. Also HyperCard stacks (they import and draw, but `go` never returns
 on the web, an engine bug still to fix), opening a stack from a URL, and
 extensions that are not installed with OXT-Beyond.
 
@@ -53,6 +61,8 @@ own that holds nothing else of value.
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
+| `stacks/` | the three stacks the home page features, each with a picture of its first card (`.webp`, 960 wide at most) |
+| `assets/` | the page's logo, fonts and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
 ## Building and checking it
@@ -71,7 +81,8 @@ script error, Download copy, Library), the Data Grid through its sample
 card (the grid fills and reads its rows) and Data through **Open stack**
 with its `note.txt` (revXML, SQLite and a file beside the stack); it also
 opens About, then a second visit must still list all three, and removing
-one must leave two.
+one must leave two. Last, a fresh browser opens each featured stack from
+its card, and none may report a script error.
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.

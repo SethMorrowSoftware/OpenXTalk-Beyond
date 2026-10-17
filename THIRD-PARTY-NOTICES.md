@@ -284,6 +284,7 @@ These are in `ide/Plugins/` and are installed in `Plugins/`.
 | `lcideicons.ttf` (icon font generated with Fontello) | `ide/Toolset/resources/supporting_files/fonts/` | not recorded; see [Still to review](#still-to-review) |
 | Droid Sans Mono (`DroidSansMono.ttf`, "Digitized data copyright 2007, Google Corporation", made by Ascender Corporation) | `ide/Documentation/html_viewer/resources/data/api/` (used by the dictionary) | Apache License 2.0, according to the font's own licence field ([licence text](https://www.apache.org/licenses/LICENSE-2.0)). "Droid" is a trademark of Google. |
 | Glyphicons Halflings (part of Bootstrap 3.3.7) | `ide/Documentation/html_viewer/fonts/` | MIT, with Bootstrap (below) |
+| Bricolage Grotesque, Atkinson Hyperlegible Next and Martian Mono (variable `.woff2` files, as openxtalk.org uses them) | `tools/web-player/assets/fonts/` (the Stack Player's page) | SIL Open Font License 1.1, one `*-OFL.txt` beside each font |
 
 ### Documentation viewer
 

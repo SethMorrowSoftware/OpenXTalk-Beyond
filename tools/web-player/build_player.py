@@ -170,11 +170,33 @@ def put_page(site):
     built = os.path.join(site, BUILT_PAGE)
     if os.path.exists(built):
         os.remove(built)
+    # the page's logo, fonts and pictures
+    assets = os.path.join(site, 'assets')
+    shutil.rmtree(assets, ignore_errors=True)
+    shutil.copytree(os.path.join(HERE, 'assets'), assets)
 
 
-# The sample stacks that the build made, which the page offers under "Try
-# a sample" (index.html reads samples/samples.json)
+# The stacks the home page offers (index.html reads samples/samples.json).
+# The featured ones are kept in stacks/ beside this script, each with a
+# picture of its first card; the rest are the small samples the build made,
+# which the check opens.
+STACKS = os.path.join(HERE, 'stacks')
 SAMPLES = [
+    {'title': 'OXT-Beyond on the Web', 'featured': True,
+     'files': ['OXT-Beyond on the Web.oxtstack'], 'image': 'OXT-Beyond on the Web.webp',
+     'description': 'A live tour of what a stack can do in a web page: dialogs, files, '
+                    'the internet, JavaScript, sound and speech, drawing, SQLite and encryption.',
+     'tags': ['10 cards', 'Tour', 'Web']},
+    {'title': 'Learn xTalk', 'featured': True,
+     'files': ['Learn xTalk.oxtstack'], 'image': 'Learn xTalk.webp',
+     'description': 'A playful first course: ten lessons with code you run and change, '
+                    'a challenge on each, and stars kept in your browser.',
+     'tags': ['11 cards', 'Lessons', 'Beginners']},
+    {'title': 'xTalk Primer', 'featured': True,
+     'files': ['xTalk Primer.oxtstack'], 'image': 'xTalk Primer.webp',
+     'description': 'A home stack of examples: buttons and menus, fields and text, '
+                    'graphics and timers, lists and data, each with a short script to read.',
+     'tags': ['6 cards', 'Examples', 'Scripts']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
@@ -191,8 +213,9 @@ def put_samples(site, samples):
     target = os.path.join(site, 'samples')
     os.makedirs(target, exist_ok=True)
     for sample in SAMPLES:
-        for name in sample['files']:
-            shutil.copyfile(os.path.join(samples, name), os.path.join(target, name))
+        source = STACKS if sample.get('featured') else samples
+        for name in sample['files'] + ([sample['image']] if 'image' in sample else []):
+            shutil.copyfile(os.path.join(source, name), os.path.join(target, name))
     with open(os.path.join(target, 'samples.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(SAMPLES, f, indent=1)
         f.write('\n')
@@ -284,7 +307,7 @@ def check(site, samples, work):
 
         # The About panel
         page.click('#about-open')
-        page.click('.about nav button[data-pane="pane-works"]')
+        page.click('#about button[data-pane="pane-works"]')
         about = page.locator('#about')
         expect('about', about.is_visible() and 'Data Grid' in about.inner_text(), '')
         page.screenshot(path=os.path.join(shots, '1b-about.png'))
@@ -327,12 +350,12 @@ def check(site, samples, work):
         page.wait_for_timeout(500)
         page.screenshot(path=os.path.join(shots, '6-home.png'))
 
-        cards = page.locator('#library .card .title').all_inner_texts()
+        cards = page.locator('#library .product h3').all_inner_texts()
         expect('library-cards', cards == ['Tour'], ', '.join(cards))
 
         # Grid: the Data Grid library, from the page's sample card
         before = len(lines)
-        page.locator('#samples .card', has_text='Data Grid').click()
+        page.locator('#samples .product', has_text='Data Grid').click()
         wait_for(page, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
                                    for x in lines[before:]), 'opening the Data Grid sample', 60)
         page.wait_for_timeout(1500)
@@ -361,13 +384,38 @@ def check(site, samples, work):
 
         # Remove one from the library, through the page's own dialog
         before = len(second_lines)
-        second.locator('#library .card', has_text='Data').hover()
-        second.locator('#library .card', has_text='Data').locator('.more').click()
+        second.locator('#library .product', has_text='Data').hover()
+        second.locator('#library .product', has_text='Data').locator('.more').click()
         second.click('#confirm-yes')
         wait_for(second, lambda: any(x.startswith('PLAYER library') for x in second_lines[before:]), 'removing', 15)
         second.wait_for_timeout(500)
-        cards = second.locator('#library .card .title').all_inner_texts()
+        cards = second.locator('#library .product h3').all_inner_texts()
         expect('remove', sorted(cards) == ['Grid', 'Tour'], ', '.join(cards))
+
+        # The featured stacks, each from its card, in a browser of its own
+        third_context = browser.new_context(viewport={'width': 1280, 'height': 860})
+        third = third_context.new_page()
+        third_lines = []
+        third.on('console', lambda m: third_lines.append(m.text))
+        third.on('pageerror', lambda e: problems.append('page error: %s' % e))
+        third.goto(url)
+        wait_for(third, lambda: any(x.startswith('PLAYER ready') for x in third_lines), 'the third visit', 180)
+        third.wait_for_timeout(800)
+        third.screenshot(path=os.path.join(shots, '10-featured.png'), full_page=True)
+        for n, sample in enumerate(x for x in SAMPLES if x.get('featured')):
+            before = len(third_lines)
+            third.locator('#featured .feature', has_text=sample['title']).click()
+            wait_for(third, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
+                                        for x in third_lines[before:]), 'opening ' + sample['title'], 60)
+            third.wait_for_timeout(2500)
+            got = third_lines[before:]
+            errors = [x for x in got if x.startswith('PLAYER script error') or x.startswith('PLAYER status Could')]
+            expect('featured-' + sample['title'].lower().replace(' ', '-'),
+                   any(x.startswith('PLAYER opened') for x in got) and not errors, ' | '.join(errors or got[-2:]))
+            third.screenshot(path=os.path.join(shots, '11-featured-%d.png' % (n + 1)))
+            third.click('#home')
+            wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+        third_context.close()
         browser.close()
     server.shutdown()
     with open(os.path.join(shots, 'console.txt'), 'w', encoding='utf-8') as f:

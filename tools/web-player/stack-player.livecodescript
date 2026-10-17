@@ -559,6 +559,9 @@ command playerOpenFile pPath
    end try
    if tResult is not empty then
       put empty into sCurrent
+      if playerNativeLibrary(tResult) is not empty then
+         put playerNativeText(playerNativeLibrary(tResult)) into tResult
+      end if
       playerStatus "Could not open" && pPath & ":" && tResult, "error"
       exit playerOpenFile
    end if
@@ -712,9 +715,30 @@ function playerErrorText pError
    return tText
 end playerErrorText
 
+-- An extension whose code is a native library (box2dxt's Box2D, sodiumxt,
+-- coinxt...) has no build for the web: its first call fails with "unable to
+-- load foreign library". That is said in plain words, with the library's
+-- name, rather than as the extension's error trace.
+function playerNativeLibrary pError
+   local tOffset, tName
+   put offset("unable to load foreign library '", pError) into tOffset
+   if tOffset is 0 then
+      return empty
+   end if
+   put char tOffset + 32 to -1 of pError into tName
+   put char 1 to offset("'", tName) - 1 of tName into tName
+   return tName
+end playerNativeLibrary
+
+function playerNativeText pLibrary
+   return "it uses" && pLibrary & ", an extension built from native code for" && \
+         "desktop computers. Native extensions do not run on the web yet."
+end playerNativeText
+
 command playerReportError pError, pObject
-   local tText
+   local tText, tLibrary
    put playerErrorText(pError) into tText
+   put playerNativeLibrary(pError) into tLibrary
    replace the long name of me with "the Stack Player" in pObject
    replace the long name of me with "the Stack Player" in tText
    -- the stack by its name, not by the path of its copy in the library
@@ -723,7 +747,12 @@ command playerReportError pError, pObject
       replace the long name of stack sCurrent with "stack" && quote & sCurrent & quote in tText
    end if
    playerLog "script error in" && pObject & ":" && tText
-   answer error "A script error in" && pObject & ":" & return & return & tText
+   if tLibrary is not empty then
+      answer error "This part of" && quote & sCurrent & quote && "can't run here:" && \
+            playerNativeText(tLibrary)
+   else
+      answer error "A script error in" && pObject & ":" & return & return & tText
+   end if
 end playerReportError
 
 ----------------------------------------------------------------
