@@ -604,7 +604,9 @@ command playerGoHome
       put the mode of stack sCurrent > 0 into tInPage
    end if
    if tInPage then
-      go stack tPlayer in window (sCurrent)
+      -- by long id: a stack named with a number ("2048") would otherwise be
+      -- read as a window number
+      go stack tPlayer in window (the long id of stack sCurrent)
    else
       go stack tPlayer
    end if

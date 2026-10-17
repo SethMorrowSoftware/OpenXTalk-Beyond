@@ -361,7 +361,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
 
       <section id="samples-section" data-tone="4" hidden>
         <h2 class="sq">Small samples</h2>
-        <p class="muted" style="margin:0">Short stacks that each show off one thing: animation, live data from the internet, sound and speech from the browser, a game that remembers your scores, QR codes to download, and below, the Data Grid, a widget and a palette, XML and SQLite.</p>
+        <p class="muted" style="margin:0">Short stacks that each show off one thing: animation, live data from the internet, sound and speech from the browser, games that remember your scores, QR codes to download, a drum machine, and below, the Data Grid, a widget and a palette, XML and SQLite.</p>
         <div class="showcase three" id="samples-shots"></div>
         <div class="products" id="samples"></div>
       </section>
@@ -780,14 +780,18 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     if (!fs) { call('open'); return; }
     busy('Reading ' + (items.length == 1 ? items[0].file.name : items.length + ' files') + '...');
     var base = '/uploads/page-' + (++upload) + '-' + Date.now();
+    // the files' order, not the order their reads finish in: the player
+    // names the library entry after the first
     var tops = [];
+    items.forEach(function (it) {
+      var top = base + '/' + it.path.split('/')[0];
+      if (tops.indexOf(top) < 0) tops.push(top);
+    });
     Promise.all(items.map(function (it) {
       return it.file.arrayBuffer().then(function (buf) {
         var path = base + '/' + it.path;
         mkdirs(fs, path.substring(0, path.lastIndexOf('/')));
         fs.writeFile(path, new Uint8Array(buf));
-        var top = base + '/' + it.path.split('/')[0];
-        if (tops.indexOf(top) < 0) tops.push(top);
       });
     })).then(function () {
       busy('Opening...');

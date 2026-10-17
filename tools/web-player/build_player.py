@@ -227,6 +227,21 @@ SAMPLES = [
      'description': 'A robot that says what you type in the browser\'s own voices, lights '
                     'up each word as it speaks, and watches your mouse.',
      'tags': ['Speech', 'JavaScript']},
+    {'title': '2048', 'source': 'stacks',
+     'files': ['2048.oxtstack'], 'image': '2048.webp',
+     'description': 'Slide and join the tiles to reach 2048, with animated moves, an undo, '
+                    'and your best score kept in the browser.',
+     'tags': ['Game', 'Animation']},
+    {'title': 'Quake Map', 'source': 'stacks',
+     'files': ['Quake Map.oxtstack'], 'image': 'Quake Map.webp',
+     'description': 'The world\'s earthquakes, live from the USGS: fetched with put url, '
+                    'read by the browser and drawn on a map you can explore.',
+     'tags': ['Live data', 'Map', 'JSON']},
+    {'title': 'Beat Box', 'source': 'stacks',
+     'files': ['Beat Box.oxtstack'], 'image': 'Beat Box.webp',
+     'description': 'A 16-step drum machine: drums made by Web Audio, kept in time by the '
+                    'browser, and your beat saved for next time.',
+     'tags': ['Music', 'Web Audio']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},

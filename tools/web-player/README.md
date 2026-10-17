@@ -27,8 +27,10 @@ opened before as cards (the bin on a card removes it), small samples
 with `put url`; **Web Audio Piano**, sound made through `do ... as
 "JavaScript"`; **Neon Snake**, a game whose best scores the browser keeps;
 **QR Studio**, QR codes from the QR library, downloaded as PNG files;
-**Talking Robot**, the browser's speech voices; and three that the build
-makes), and **About**, which says in plain English
+**Talking Robot**, the browser's speech voices; **2048**, a game of
+sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
+**Beat Box**, a drum machine timed by Web Audio; and three that the
+build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -89,7 +91,8 @@ opens About, then a second visit must still list all three, and removing
 one must leave two. Last, a fresh browser opens each stack in `stacks/`
 from its card, and none may report a script error (Live Weather opens
 offline too: it says it could not reach open-meteo.com; Talking Robot
-mimes the words in a browser with no voices).
+mimes the words in a browser with no voices, and Quake Map says it could
+not reach earthquake.usgs.gov).
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.
