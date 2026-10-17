@@ -1825,6 +1825,28 @@ mergeInto(LibraryManager.library, {
 			});
 			LiveCodeAsync.resume();
 		},
+
+		// OXT-Beyond: the window moved on the screen (the page moved its
+		// canvas, as a centred page does when the browser's window is
+		// resized, or the user dragged it by its title bar). A menu is a
+		// window of its own, fixed where it opened, so it would stay
+		// behind: the engine closes it, as a browser closes a <select>'s
+		// list when the page moves under it (MCEmscriptenHandleWindowMoved())
+		postWindowMoved: function(window)
+		{
+			LiveCodeAsync.delay(function () {
+				var stack = LiveCodeEvents._getStackForWindow(window);
+				if (stack == 0)
+				{
+					return
+				}
+				Module.ccall('MCEmscriptenHandleWindowMoved',
+							 'number', /* bool */
+							 ['number'], /* MCStack *stack */
+							 [stack]);
+			});
+			LiveCodeAsync.resume();
+		},
 	},
 
 	MCEmscriptenEventInitializeJS__deps: ['$LiveCodeEvents'],

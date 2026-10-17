@@ -150,7 +150,19 @@ mergeInto(LibraryManager.library, {
 				LiveCodeDC._attachFrame(tWindowID);
 			canvas.dataset.lcWindowId = tWindowID;
 			LiveCodeEvents.addEventListeners(canvas);
+			// OXT-Beyond: the engine also hears when a window that was on
+			// the screen moves (postWindowMoved()): a window that opens or
+			// closes comes from or goes to a rect of nothing
+			var tLastRect = canvas.getBoundingClientRect();
 			LiveCodeDC._monitorResize(canvas, function() {
+				var tRect = canvas.getBoundingClientRect();
+				var tWasShown = tLastRect.width > 0 && tLastRect.height > 0;
+				var tIsShown = tRect.width > 0 && tRect.height > 0;
+				var tMoved = tWasShown && tIsShown &&
+					(tRect.left != tLastRect.left || tRect.top != tLastRect.top);
+				tLastRect = tRect;
+				if (tMoved)
+					LiveCodeEvents.postWindowMoved(tWindowID);
 				LiveCodeEvents.postWindowReshape(tWindowID);
 			});
 			
