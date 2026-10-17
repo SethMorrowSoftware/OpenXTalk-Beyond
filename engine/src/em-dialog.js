@@ -285,6 +285,18 @@ mergeInto(LibraryManager.library, {
                     e.stopPropagation();
                 });
             });
+            // OXT-Beyond: a Return pressed before the dialog opened (the
+            // one that ran the handler that opened it, such as a
+            // returnInField handler or the Message Box) has its keypress
+            // after the dialog has taken the focus, and the browser
+            // clicked the focused default button with it, closing the
+            // dialog before it was seen. A Return pressed in the dialog
+            // has no keypress (its keydown is prevented above).
+            backdrop.addEventListener('keypress', function(e) {
+                if (e.key == 'Enter') {
+                    e.preventDefault();
+                }
+            });
 
             document.body.appendChild(backdrop);
             var focus = input && input.type != 'color' ? input : elements[elements.length - 1];

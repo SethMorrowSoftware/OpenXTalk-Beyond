@@ -413,8 +413,11 @@ mergeInto(LibraryManager.library, {
 		// An object URL of the file at <path>, or null if it cannot be
 		// read. In the page (<page>) of an HTML file, the relative URLs of
 		// files (its images, scripts, style sheets, ...) become theirs, and
-		// its links to files are followed (_watch).
-		_fileURL: function(browser, path, page) {
+		// its links to files are followed (_watch). So do the files of its
+		// style sheets (their fonts, images and imports), which an object
+		// URL would otherwise look for beside itself, where nothing is;
+		// <depth> counts the style sheets that imported this one.
+		_fileURL: function(browser, path, page, depth) {
 			var data;
 			try {
 				if (!FS.isFile(FS.stat(path).mode)) {
@@ -426,13 +429,7 @@ mergeInto(LibraryManager.library, {
 			}
 			var type = LiveCodeBrowser._typeOf(path);
 			if (page && type == 'text/html') {
-				var text;
-				try {
-					text = new TextDecoder('utf-8', {'fatal': true}).decode(data);
-				} catch (e) {
-					text = new TextDecoder('windows-1252').decode(data);
-				}
-				var doc = new DOMParser().parseFromString(text, 'text/html');
+				var doc = new DOMParser().parseFromString(LiveCodeBrowser._decode(data), 'text/html');
 				LiveCodeBrowser._localise(browser, doc, path.substring(0, path.lastIndexOf('/') + 1));
 				var script = doc.createElement('script');
 				script.textContent = LiveCodeBrowser._readyScript;
@@ -440,11 +437,29 @@ mergeInto(LibraryManager.library, {
 				data = (doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) + '\n' : '') +
 					doc.documentElement.outerHTML;
 				type = 'text/html;charset=utf-8';
+			} else if (type == 'text/css' && (depth || 0) < LiveCodeBrowser._cssDepth) {
+				var css = LiveCodeBrowser._decode(data);
+				data = LiveCodeBrowser._localiseCSS(browser, css,
+					path.substring(0, path.lastIndexOf('/') + 1), (depth || 0) + 1);
+				type = 'text/css;charset=utf-8';
 			}
 			var url = URL.createObjectURL(new Blob([data], {'type': type}));
 			browser.blobs.push(url);
 			return url;
 		},
+
+		// The text of a file: UTF-8, or else Windows-1252 (which every
+		// byte is)
+		_decode: function(data) {
+			try {
+				return new TextDecoder('utf-8', {'fatal': true}).decode(data);
+			} catch (e) {
+				return new TextDecoder('windows-1252').decode(data);
+			}
+		},
+
+		// How deep style sheets that import style sheets are followed
+		_cssDepth: 4,
 
 		_localise: function(browser, doc, folder) {
 			[['[src]', 'src'], ['link[href]', 'href'], ['video[poster]', 'poster'], ['object[data]', 'data']].forEach(function(which) {
@@ -456,6 +471,14 @@ mergeInto(LibraryManager.library, {
 					}
 				});
 			});
+			// The page's own styles name files relative to the page
+			Array.prototype.forEach.call(doc.querySelectorAll('style'), function(element) {
+				element.textContent = LiveCodeBrowser._localiseCSS(browser, element.textContent, folder, 1);
+			});
+			Array.prototype.forEach.call(doc.querySelectorAll('[style]'), function(element) {
+				element.setAttribute('style',
+					LiveCodeBrowser._localiseCSS(browser, element.getAttribute('style'), folder, 1));
+			});
 			Array.prototype.forEach.call(doc.querySelectorAll('a[href], area[href]'), function(element) {
 				var href = element.getAttribute('href');
 				var file = LiveCodeBrowser._localFile(folder, href);
@@ -464,6 +487,29 @@ mergeInto(LibraryManager.library, {
 					element.setAttribute('data-oxt-file', 'file://' + encodeURI(file) + (hash < 0 ? '' : href.substring(hash)));
 				}
 			});
+		},
+
+		// The style sheet text <css> of a file in <folder>, with the files
+		// it names (url(...) and @import "...") as object URLs; <depth> is
+		// passed on to their _fileURL
+		_localiseCSS: function(browser, css, folder, depth) {
+			function local(match, ref) {
+				var name = ref.trim();
+				var file = LiveCodeBrowser._localFile(folder, name);
+				var url = file === null ? null : LiveCodeBrowser._fileURL(browser, file, false, depth);
+				if (url === null) {
+					return match;
+				}
+				// (the font of an SVG font file, as in "font.svg#name")
+				var hash = name.indexOf('#');
+				return match.replace(ref, function() {
+					return hash < 0 ? url : url + name.substring(hash);
+				});
+			}
+			return css.replace(/url\(\s*(['"]?)([^'"()]*)\1\s*\)|@import\s+(['"])([^'"]*)\3/gi,
+				function(match, quote, ref, importQuote, importRef) {
+					return local(match, ref !== undefined ? ref : importRef);
+				});
 		},
 
 		// The file that the relative URL <ref> of a file in <folder> names,
