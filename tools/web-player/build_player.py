@@ -212,6 +212,21 @@ SAMPLES = [
      'description': 'Two octaves to play with the mouse or the keyboard; each note is made '
                     'by the browser, through do ... as JavaScript.',
      'tags': ['JavaScript', 'Sound']},
+    {'title': 'Neon Snake', 'source': 'stacks',
+     'files': ['Neon Snake.oxtstack'], 'image': 'Neon Snake.webp',
+     'description': 'The classic game on a timer loop: steer with the keys or a swipe, '
+                    'and your best scores are kept in the browser.',
+     'tags': ['Game', 'Keyboard', 'Storage']},
+    {'title': 'QR Studio', 'source': 'stacks',
+     'files': ['QR Studio.oxtstack'], 'image': 'QR Studio.webp',
+     'description': 'Type a link, a Wi-Fi network or a contact and get a QR code your phone '
+                    'can scan, then download it as a PNG.',
+     'tags': ['QR code', 'Download']},
+    {'title': 'Talking Robot', 'source': 'stacks',
+     'files': ['Talking Robot.oxtstack'], 'image': 'Talking Robot.webp',
+     'description': 'A robot that says what you type in the browser\'s own voices, lights '
+                    'up each word as it speaks, and watches your mouse.',
+     'tags': ['Speech', 'JavaScript']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},

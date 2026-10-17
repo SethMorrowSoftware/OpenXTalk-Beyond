@@ -25,7 +25,10 @@ lessons; and the **xTalk Primer**, a home stack of examples), the stacks
 opened before as cards (the bin on a card removes it), small samples
 (**Fireworks**, animation by script; **Live Weather**, a forecast fetched
 with `put url`; **Web Audio Piano**, sound made through `do ... as
-"JavaScript"`; and three that the build makes), and **About**, which says in plain English
+"JavaScript"`; **Neon Snake**, a game whose best scores the browser keeps;
+**QR Studio**, QR codes from the QR library, downloaded as PNG files;
+**Talking Robot**, the browser's speech voices; and three that the build
+makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -85,7 +88,8 @@ with its `note.txt` (revXML, SQLite and a file beside the stack); it also
 opens About, then a second visit must still list all three, and removing
 one must leave two. Last, a fresh browser opens each stack in `stacks/`
 from its card, and none may report a script error (Live Weather opens
-offline too: it says it could not reach open-meteo.com).
+offline too: it says it could not reach open-meteo.com; Talking Robot
+mimes the words in a browser with no voices).
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.
