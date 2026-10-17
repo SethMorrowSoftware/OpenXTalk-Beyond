@@ -975,6 +975,142 @@
 							},
 						],
 					},
+
+					# OXT-Beyond: the web IDE's engine, the development
+					# engine built for the web, which the IDE needs (the home
+					# stack in every stack's message path, the Script
+					# Editor's _internal script verbs, property listeners,
+					# _internal deploy). It is a separate engine with a name
+					# of its own: the web standalone engine above is built as
+					# before, and no web standalone contains this one.
+					# tools/ci/build-web-ide.sh builds it.
+					{
+						'target_name': 'development-web',
+						'product_name': 'development-community',
+
+						'includes':
+						[
+							'app-bundle-template.gypi',
+						],
+
+						'variables':
+						{
+							'app_plist': 'rsrc/LiveCode-Info.plist',
+						},
+
+						'dependencies':
+						[
+							'kernel-development.gyp:kernel-development',
+							'engine-common.gyp:security-community',
+							'lcb-modules.gyp:engine_lcb_modules',
+							# The externals that the web engine links into
+							# itself (src/em-externals.cpp), as standalone
+							'../revxml/revxml.gyp:external-revxml-static',
+							'../revzip/revzip.gyp:external-revzip-static',
+							'../revdb/revdb.gyp:external-revdb-static',
+							'../revdb/revdb.gyp:dbsqlite-static',
+							'../revspeech/revspeech.gyp:external-revspeech-static',
+						],
+
+						'sources':
+						[
+							'>@(builtin_lcb_modules)',
+							# The desktop's environment stack (MCstartupstack),
+							# which the web IDE does not use
+							'src/dummystartupstack.cpp',
+							'src/main.cpp',
+						],
+
+						'include_dirs':
+						[
+							'../libfoundation/include',
+						],
+					},
+
+					{
+						'target_name': 'javascriptify-development',
+						'type': 'none',
+
+						'dependencies':
+						[
+							'development-web',
+						],
+
+						'variables':
+						{
+							'version_suffix': '<(version_string)',
+						},
+
+						'actions':
+						[
+							{
+								# As javascriptify, for the development
+								# engine: keep the two lists of JavaScript
+								# libraries the same
+								'action_name': 'javascriptify-development',
+								'message': 'Linking the web IDE engine into JavaScript and WebAssembly',
+
+								'inputs':
+								[
+									'../util/emscripten-javascriptify.py',
+									'<(PRODUCT_DIR)/development-community.o',
+									'rsrc/emscripten-html-template.html',
+									'src/em-preamble.js',
+									'src/em-util.js',
+									'src/em-async.js',
+									'src/em-clipboard.js',
+									'src/em-dialog.js',
+									'src/em-event.js',
+									'src/em-sound.js',
+									'src/em-player.js',
+									'src/em-printer.js',
+									'src/em-browser.js',
+									'src/em-surface.js',
+									'src/em-system.js',
+									'src/em-url.js',
+									'src/em-standalone.js',
+									'src/em-liburl.js',
+									'src/em-dc.js',
+								],
+
+								'outputs':
+								[
+									'<(PRODUCT_DIR)/development-community-<(version_suffix).js',
+									'<(PRODUCT_DIR)/development-community-<(version_suffix).wasm',
+									'<(PRODUCT_DIR)/development-community-<(version_suffix).html',
+								],
+
+								'action':
+								[
+									'../util/emscripten-javascriptify.py',
+									'--input',
+									'<(PRODUCT_DIR)/development-community.o',
+									'--output',
+									'<(PRODUCT_DIR)/development-community-<(version_suffix).html',
+									'--shell-file',
+									'rsrc/emscripten-html-template.html',
+									'--pre-js',
+									'src/em-preamble.js',
+									'--js-library',
+									'src/em-util.js',
+									'src/em-async.js',
+									'src/em-clipboard.js',
+									'src/em-dialog.js',
+									'src/em-event.js',
+									'src/em-sound.js',
+									'src/em-player.js',
+									'src/em-printer.js',
+									'src/em-browser.js',
+									'src/em-surface.js',
+									'src/em-system.js',
+									'src/em-url.js',
+									'src/em-standalone.js',
+									'src/em-liburl.js',
+									'src/em-dc.js',
+								],
+							},
+						],
+					},
 				],
 			},
 		],

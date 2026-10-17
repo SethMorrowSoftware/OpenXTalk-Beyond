@@ -60,6 +60,19 @@
 			
 			'conditions':
 			[
+				# OXT-Beyond: the web engine links OpenSSL into itself
+				# (kernel.gyp), so the web IDE's engine does too, without
+				# the stubs that load it, which would define its functions
+				# a second time
+				[
+					'OS == "emscripten"',
+					{
+						'dependencies!':
+						[
+							'../thirdparty/libopenssl/libopenssl.gyp:libopenssl_stubs',
+						],
+					},
+				],
 				# Tom Perry's macOS developer commands _internal build MacARM and
 				# _internal dump stack (internal_development.cpp), which his macOS
 				# Xcode project compiled into the development engine
@@ -75,8 +88,11 @@
 						],
 					},
 				],
+				# OXT-Beyond: the web (whose 'mobile' is 1) builds it too, for
+				# the web IDE's engine (engine.gyp's development-web); iOS and
+				# Android still build none
 				[
-					'mobile != 0',
+					'mobile != 0 and OS != "emscripten"',
 					{
 						'type': 'none',
 					},

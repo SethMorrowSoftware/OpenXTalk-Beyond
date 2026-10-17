@@ -790,7 +790,16 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(__EMSCRIPTEN__)
+// OXT-Beyond: the web IDE's engine; a web page cannot list the browsers
+// installed on the computer, so _internal list browsers answers empty
+static bool MCS_get_browsers(MCStringRef &r_browsers)
+{
+	return false;
+}
+#else
 extern bool MCS_get_browsers(MCStringRef &r_browsers);
+#endif
 
 class MCInternalListBrowsers: public MCStatement
 {
