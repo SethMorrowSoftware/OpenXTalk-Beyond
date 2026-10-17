@@ -26,12 +26,18 @@ script "revWebIDELibrary"
 -- page does not carry.
 --
 -- The menu bar spans the top of the page, and follows the page's width
--- (revWebIDEFitMenubar).
+-- (revWebIDEFitMenubar). It is the page's header, as a web application's
+-- is: one light surface for the menus and the toolbar, whose flat icons
+-- (revMenubar's images-web) show a toggle that is on in the accent colour
+-- of the page. The edition's upgrade button, which the desktop's menu bar
+-- (cut off after Sample Stacks) never shows either, is hidden.
 --
 -- Windows. No window manager keeps the IDE's palettes on the screen, so
 -- revIDEEnsureOnscreen keeps them on the page, and a stack the user opens
 -- is kept below the menu bar, as the desktop engine keeps it
--- (revWebIDEKeepOnPage).
+-- (revWebIDEKeepOnPage). When the page changes size (full screen and
+-- back), every window is brought back onto it (revWebIDEKeepWindowsOnPage):
+-- the user's stacks are only moved, never resized.
 --
 -- Public handlers:
 --    revWebIDEMenu(pMenuName, pMenu)
@@ -48,8 +54,10 @@ script "revWebIDELibrary"
 --       Gives the user a copy of a stack's file as a download.
 --    revWebIDEFitMenubar
 --       Spans the menu bar across the top of the page.
---    revWebIDEKeepOnPage pStack [, pArea]
+--    revWebIDEKeepOnPage pStack [, pArea [, pMoveOnly]]
 --       Keeps a window on the page, below the menu bar.
+--    revWebIDEKeepWindowsOnPage
+--       Keeps every open window on the page.
 
 on extensionInitialize
    if the target is not me then
@@ -334,9 +342,17 @@ end revWebIDEDownloadStack
 # The menu bar
 #
 
+-- The header's colours: its surface (the page's light text colour, which
+-- the active window's title bar fades to), the menus' text, and the
+-- toolbar's labels, the ink of its icons
+constant kHeaderColor = "244,246,248"
+constant kMenuTextColor = "23,32,42"
+constant kToolbarTextColor = "59,69,84"
+
 /*
 Spans the menu bar across the top of the page, as a web application's
-is: from the left edge to the right one, with its toolbar where it is.
+is: from the left edge to the right one, with its toolbar where it is,
+and gives it the look of the page's header.
 */
 command revWebIDEFitMenubar
    if there is not a stack "revMenubar" then
@@ -357,9 +373,51 @@ command revWebIDEFitMenubar
       set the width of button "Divider" of tMenus to the width of stack "revMenubar"
       set the left of button "Divider" of tMenus to 0
    end if
+   styleMenubar
    unlock messages
    unlock screen
 end revWebIDEFitMenubar
+
+-- One surface for the menus and the toolbar (the menus otherwise sit on
+-- a white strip of their own), and nothing after the toolbar's last
+-- button: revMenubar's layoutMenu lays out the edition's upgrade button
+-- and the dividers around the buttons it hides (Tutorials, Resources,
+-- Test) there, which the desktop never shows because it cuts the menu
+-- bar off after Sample Stacks (tMenuBar_AdjustWDSize). Each property is
+-- set only when it differs, as this runs on every layout.
+private command styleMenubar
+   local tStack, tToolbar, tRight
+   put the long id of stack "revMenubar" into tStack
+   if the backColor of tStack is not kHeaderColor then
+      set the backColor of tStack to kHeaderColor
+   end if
+   if the textColor of group "revMenuBar" of card 1 of tStack is not kMenuTextColor then
+      set the textColor of group "revMenuBar" of card 1 of tStack to kMenuTextColor
+   end if
+   if there is not a group "toolbar" of card 1 of tStack then
+      exit styleMenubar
+   end if
+   put the long id of group "toolbar" of card 1 of tStack into tToolbar
+   if the textColor of tToolbar is not kToolbarTextColor then
+      set the textColor of tToolbar to kToolbarTextColor
+   end if
+   if there is a group "upgrade" of card 1 of tStack then
+      hide group "upgrade" of card 1 of tStack
+   end if
+   -- The right of the last button shown, then every divider beyond it
+   put 0 into tRight
+   repeat with tControl = 1 to the number of buttons of tToolbar
+      if the visible of button tControl of tToolbar then
+         put max(tRight, the right of button tControl of tToolbar) into tRight
+      end if
+   end repeat
+   repeat with tControl = 1 to the number of images of tToolbar
+      if the short name of image tControl of tToolbar begins with "Divide" \
+            and the left of image tControl of tToolbar > tRight then
+         hide image tControl of tToolbar
+      end if
+   end repeat
+end styleMenubar
 
 ################################################################################
 #
@@ -377,8 +435,10 @@ pStack (String): The name of the stack, or its long id.
 
 pArea (String): The rect of the page to keep it in; by default the page
 below the menu bar.
+
+pMoveOnly (Boolean): True to move the window and never resize it.
 */
-command revWebIDEKeepOnPage pStack, pArea
+command revWebIDEKeepOnPage pStack, pArea, pMoveOnly
    local tStack
    if there is a stack pStack then
       put the long id of stack pStack into tStack
@@ -424,6 +484,9 @@ command revWebIDEKeepOnPage pStack, pArea
    put the resizable of tStack into tResizable
 
    lock screen
+   if pMoveOnly is true then
+      put false into tResizable
+   end if
    if tResizable and the width of tStack > tWidth then
       set the width of tStack to max(tWidth, the minWidth of tStack)
    end if
@@ -458,8 +521,39 @@ on ideOpenStack pCard
    end if
 end ideOpenStack
 
--- The page changed size
+/*
+Keeps every open window on the page, as a desktop's window manager keeps
+them on the screen when it changes: the IDE's windows as
+revIDEEnsureOnscreen keeps a palette, and the user's stacks in the
+windowBoundingRect, as they open (ideOpenStack), but only moved, so that
+leaving full screen does not change a stack's size.
+*/
+command revWebIDEKeepWindowsOnPage
+   local tName, tStack
+   repeat for each line tName in the openStacks
+      if tName is "revMenubar" or there is not a stack tName then
+         next repeat
+      end if
+      put the long id of stack tName into tStack
+      -- (windows and dialogs, not menus, nor a stack that fills the page)
+      if not the visible of tStack or the fullscreen of tStack or \
+            the mode of tStack is not among the items of "1,2,3,4,5" then
+         next repeat
+      end if
+      if revIDEStackIsIDEStack(tStack) then
+         revWebIDEKeepOnPage tStack
+      else
+         revWebIDEKeepOnPage tStack, the windowBoundingRect, true
+      end if
+   end repeat
+end revWebIDEKeepWindowsOnPage
+
+-- The page changed size (the engine tells once it has settled). The
+-- palettes keep themselves on it (revPaletteBehavior); the windows that do
+-- not, a stack of the user's or a dialog, are kept once they have, and
+-- once the windowBoundingRect follows the menu bar (revIDELibrary).
 on ideDesktopChanged
    revWebIDEFitMenubar
+   send "revWebIDEKeepWindowsOnPage" to me in 0 milliseconds
    pass ideDesktopChanged
 end ideDesktopChanged
