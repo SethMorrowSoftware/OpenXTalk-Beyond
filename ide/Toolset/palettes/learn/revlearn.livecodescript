@@ -64,9 +64,8 @@ local sNavY, sNavTarget
 local sHero, sToastUntil
 -- The examples: their table, and the top of each one's card in the
 -- gallery at vScroll 0, and the gallery's search, pending; and the files
--- of the examples Learn opened, and the words on each one's card as it
--- opened (lePrint)
-local sExamples, sCardTop, sSearchDue, sOpened, sPrints
+-- of the examples Learn opened
+local sExamples, sCardTop, sSearchDue, sOpened
 -- A relayout after a resize, pending; and where lePlace put the window
 local sRelayout, sPlaced
 
@@ -118,34 +117,6 @@ on leKeepPlace
       set the rect of me to sPlaced
    end if
 end leKeepPlace
-
--- An example that Learn opened, as it was when it opened (leOpenExample),
--- and once more a little later, for a window slow to take the focus; but
--- not once the words on its card have changed since it opened, or it is
--- on another card: the user typed in it, or is using it
-on leUnchanged pStack, pLater
-   if there is no stack pStack or there is no stack "revIDELibrary" then
-      exit leUnchanged
-   end if
-   if lePrint(pStack) is not sPrints[pStack] then
-      exit leUnchanged
-   end if
-   dispatch "revIDESetUnedited" to stack "revIDELibrary" with pStack
-   if pLater is empty then
-      send "leUnchanged" && quote & pStack & quote & ",later" to me in 2 seconds
-   end if
-end leUnchanged
-
--- The card a stack is on and the words of the fields on it, in short
-private function lePrint pStack
-   local tText, tIndex, tHex
-   put the long id of this card of stack pStack into tText
-   repeat with tIndex = 1 to the number of fields of this card of stack pStack
-      put return & the text of field tIndex of this card of stack pStack after tText
-   end repeat
-   get binaryDecode("H*", md5Digest(textEncode(tText, "UTF-8")), tHex)
-   return tHex
-end lePrint
 
 -- Whether the IDE counts a stack, or one of its substacks, as changed
 -- since it was saved. Learn takes no such stack out of memory: the IDE
@@ -2587,13 +2558,10 @@ private command leOpenExample pKey, pOriginal
          put tFile & return after sOpened
       end if
       -- (the IDE counts the field that a window gives the focus to as a
-      -- change, so closing an example that was only looked at would ask
-      -- to save it: once its window has the focus, it is unchanged again.
-      -- A remaster gives the focus to no field, tools/examples/README.md)
-      if tFresh and tFile is not leExample(pKey, "remaster") then
-         put lePrint(the short name of stack tFile) into sPrints[the short name of stack tFile]
-         send "leUnchanged" && quote & the short name of stack tFile & quote to me in 1 second
-      end if
+      -- change, so closing an original that was only looked at asks to
+      -- save it, as it always has: Learn leaves that to the IDE, since it
+      -- cannot tell that change from one the user made. A remaster gives
+      -- the focus to no field, tools/examples/README.md)
    catch tError
       -- (named as the card names the stack that failed: the original's
       -- own title, when it was the original)

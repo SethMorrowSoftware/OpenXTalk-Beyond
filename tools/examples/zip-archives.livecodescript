@@ -1358,8 +1358,10 @@ end folderMake
 
 -- (remaster) False for an item whose name would put it outside the folder
 -- it is taken out into: one that begins with a slash, or climbs out with ..
+-- (Windows reads a backslash in a path as a slash)
 function itemSafe pItem
    local tPart
+   replace backslash with slash in pItem
    if char 1 of pItem is slash then return false
    set the itemDelimiter to slash
    repeat for each item tPart in pItem
