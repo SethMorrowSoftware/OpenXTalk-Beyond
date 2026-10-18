@@ -530,7 +530,7 @@ end __webToolbarRight
 -- bar off after Sample Stacks (tMenuBar_AdjustWDSize). Each property is
 -- set only when it differs, as this runs on every layout.
 private command styleMenubar
-   local tStack, tToolbar, tRight
+   local tStack, tToolbar, tRight, tControl
    put the long id of stack "revMenubar" into tStack
    if the backColor of tStack is not kHeaderColor then
       set the backColor of tStack to kHeaderColor
