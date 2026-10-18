@@ -1792,6 +1792,12 @@ private function revMenubarDevelopmentMenu pContext
    if there is a stack "org.openxtalk.plugin.mcpbridge" then
       put tab & "xTalk MCP Bridge" & return after tDevelopment
    end if
+   -- OXT-Beyond: xTalk Chat, an extension too, the same way: its window
+   -- opens from this entry, and it connects to nothing until the user
+   -- presses Go online in it
+   if there is a stack "org.openxtalk.plugin.xtalkchat" then
+      put tab & "xTalk Chat" & return after tDevelopment
+   end if
    put tab & "-" & return after tDevelopment
    put tab & "Plugin Settings" & return after tDevelopment
    put "-" & return after tDevelopment
@@ -2897,6 +2903,12 @@ on revMenubarDevelopmentMenuPick pWhich
                -- OXT-Beyond: see revMenubarDevelopmentMenu
                if there is a stack "org.openxtalk.plugin.mcpbridge" then
                   dispatch "mcpBridgeMenuPick" to stack "org.openxtalk.plugin.mcpbridge"
+               end if
+               break
+            case "xTalk Chat"
+               -- OXT-Beyond: see revMenubarDevelopmentMenu
+               if there is a stack "org.openxtalk.plugin.xtalkchat" then
+                  dispatch "xtalkChatMenuPick" to stack "org.openxtalk.plugin.xtalkchat"
                end if
                break
             default  --plugin selected

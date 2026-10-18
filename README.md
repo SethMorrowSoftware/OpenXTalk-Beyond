@@ -551,6 +551,12 @@ On Linux:
 The xTalk Assistant keeps the notes you ask it to remember in
 `xTalk Assistant Memory.txt`, in the preferences folder.
 
+xTalk Chat (*Development > Plugins > xTalk Chat*) keeps your chat key
+and the name you chose in `identity.txt`, in `.oxt-beyond/xtalk-chat`
+in your home folder (on Windows your user folder), readable only by
+you. The key is who you are in the chat: keep a copy (the chat's
+settings can copy it) to be the same person on another computer.
+
 Installed and portable copies of OXT-Beyond on the same computer share
 these folders. LiveCode and OpenXTalk Lite keep their preferences
 elsewhere (on Windows `%APPDATA%\RunRev` and `%APPDATA%\xtalk`), so
