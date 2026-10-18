@@ -24,7 +24,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Extension Manager stack Fixups (#143)
 - Extension Manager: fix the install paths of the new Repo tab (#143)
 - Extension Manager: open a sample stack through the sample launcher (#143)
-- 0.2.7-rc.4's notes: the web IDE's MCP Bridge, web menus and the Extension Manager (#PR)
+- 0.2.7-rc.4's notes: the web IDE's MCP Bridge, web menus and the Extension Manager (#145)
 
 ## 0.2.7-rc.3 (2026-10-18, pre-release)
 
