@@ -1554,7 +1554,11 @@ private command hmBuildHome
    put hmBox("heroPillBg", "246,40,472,66", "255,255,255", 26, "hero") into tObj
    set the blendLevel of tObj to 78
    get hmIcon("heroPillIcon", "sparkles", "255,255,255", "257,46,271,60", "hero")
-   get hmLabel("heroPill", "278,46,470,64", "The IDE, now in your browser", 12, "255,255,255", "hero")
+   put hmLabel("heroPill", "278,46,470,64", "The IDE, now in your browser", 12, "255,255,255", "hero") into tObj
+   -- (its words centred on the pill, and the pill as wide as they are,
+   -- in whichever font the engine has)
+   set the top of tObj to 53 - (the formattedHeight of tObj + kTextInset) div 2
+   set the rect of graphic "heroPillBg" to 246, 40, 278 + the formattedWidth of tObj + 14, 66
    put hmLabel("heroTitle", "244,70,740,136", "OXT-Beyond", 54, "255,255,255", "hero") into tObj
    set the textStyle of tObj to "bold"
    get hmLabel("heroSub", "246,138,730,184", \
@@ -1623,7 +1627,7 @@ end hmBuildHome
 
 private command hmHeroSparkles
    local tIndex, tSpots
-   put "742 64,972 96,956 236,760 214,870 34,990 170,724 140" into tSpots
+   put "742 64,972 96,956 236,760 214,870 34,990 170,650 92" into tSpots
    repeat with tIndex = 1 to 7
       set the points of graphic ("heroSpark" & tIndex) to \
             hmSparklePoints(word 1 of item tIndex of tSpots, word 2 of item tIndex of tSpots, 4 + tIndex mod 3 * 2)
@@ -2548,7 +2552,9 @@ private command hmBuildDraw
    get hmDrawing("drArtImg", tSvg, "205,78,623,386", "drArt")
    put hmBox("drArtShade", "224,312,604,372", "15,23,42", 0, "drArt") into tObj
    set the fillGradient["type"] of tObj to "linear"
-   set the fillGradient["ramp"] of tObj to "0.000,15,23,42,0" & return & "1.000,15,23,42,210"
+   -- (dark enough under the caption that the sea's lines do not run
+   -- through its letters)
+   set the fillGradient["ramp"] of tObj to "0.000,15,23,42,0" & return & "0.450,15,23,42,170" & return & "1.000,15,23,42,235"
    hmGradientPoints tObj, "224,312", "224,372"
    get hmLabel("drArtCap", "240,344,600,360", "An SVG scene, made into a drawing by drawingSvgCompile", 12, "255,255,255", "drArt")
    hmCorners "drCorner", "224,92,604,372", 22, hmColor("bg"), "drArt"
@@ -2883,7 +2889,8 @@ private command hmBuildWeb
 end hmBuildWeb
 
 private function hmWebClipLine
-   return "answer " & quote & "Hello from the web IDE!" & quote
+   -- (short enough to fit the box on one line)
+   return "answer " & quote & "Hello, web IDE!" & quote
 end hmWebClipLine
 
 private command hmWebCard pName, pX, pY, pAccent, pIcon, pTitle, pTag, pText
@@ -2991,8 +2998,10 @@ private command hmWebCountStacks
    else
       put "stacks saved here" into field "webCountLabel"
    end if
+   -- (the words follow the number, however wide it is)
+   set the left of field "webCountLabel" to the left of field "webCount" + the formattedWidth of field "webCount" + 6
    if tCount is 0 then
-      put "None yet: Your first app makes one in a click." into field "webStackNames"
+      put "None yet: your first app makes one in a click." into field "webStackNames"
    else
       replace return with ", " in tNames
       put char 1 to -3 of tNames into field "webStackNames"
@@ -3088,7 +3097,8 @@ private command hmBuildApp
       get hmIcon("apIcon" & tIndex, item 2 of tStep, "255,255,255", hmR(tCx - 13, 139, tCx + 13, 165), "pg_app")
       put hmOval("apBadge" & tIndex, hmR(tCx + 16, 118, tCx + 38, 140), "255,255,255", "pg_app") into tObj
       hmBorder tObj, hmColor("emerald")
-      get hmLabel("apBadgeNum" & tIndex, hmR(tCx + 16, 122, tCx + 38, 138), tIndex, 11, hmColor("emerald"), "pg_app", "center")
+      put hmLabel("apBadgeNum" & tIndex, hmR(tCx + 16, 124, tCx + 38, 140), tIndex, 11, hmColor("emerald"), "pg_app", "center") into tObj
+      set the textStyle of tObj to "bold"
       get hmLabel("apTitle" & tIndex, hmR(tCx - 92, 194, tCx + 92, 214), item 1 of tStep, 15, hmColor("ink"), "pg_app", "center")
       get hmLabel("apText" & tIndex, hmR(tCx - 88, 218, tCx + 88, 262), item 3 of tStep, 12, hmColor("soft"), "pg_app", "center")
    end repeat
