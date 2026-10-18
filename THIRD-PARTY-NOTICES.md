@@ -328,6 +328,17 @@ introduced in OpenXTalk Lite 1.04), which is still distributed as part
 of the IDE, on the same basis as the rest of OpenXTalk Lite's changes
 (above).
 
+### The web IDE's toolbar icons
+
+The icons of the web IDE's toolbar
+(`ide/Toolset/palettes/menubar/images-web/`) are drawn from
+[Lucide](https://lucide.dev) icons (lucide-static 0.469.0), under the ISC
+License: "Copyright (c) for portions of Lucide are held by Cole Bemis
+2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide
+are held by Lucide Contributors 2022." The licence's full text is in that
+folder's [`README.md`](ide/Toolset/palettes/menubar/images-web/README.md),
+which lists the icons used.
+
 ## xTalk Suite extensions
 
 The packages include fifteen extensions of the xTalk Suite by Seth

@@ -1692,6 +1692,41 @@ GH_REPO=<owner>/<repo> python3 tools/ci/ide_screenshots_branch.py download <fold
 python3 tools/ci/ide_screenshots_branch.py pages <folder> <out>
 ```
 
+#### The web IDE's screenshots
+
+[`tools/ci/web_ide_tour.py`](tools/ci/web_ide_tour.py) does the same for
+the web IDE (below, "The web IDE"): it opens a site that
+`build_site.py` made in headless Chromium, at 1400 by 900, and walks
+through the IDE as a user does on the web: the IDE as a first visit
+shows it, a stack of the user, the Inspector, the Script Editor, the
+Message Box, the Project Browser, a click in browse mode that opens the
+page's answer dialog, the Dictionary, Preferences, the File menu and
+the page made narrow. The tour is
+[`tools/ci/web-ide-tour.livecodescript`](tools/ci/web-ide-tour.livecodescript),
+which the script puts into a copy of the site's `ide.zip` as a script
+library extension, so that the IDE loads it as it starts (the site
+itself is not changed); the two talk through the page, which takes the
+screenshots, clicks and keys the tour asks for. A step that fails, a
+script error in the IDE, an error of the page or a page that does not
+open fails the check. The screenshots go to `<out>/shots`, with
+`<out>/index.html` to look through them, the tour's lines (`tour.txt`)
+and what the browser's console said (`console.txt`). `--only` runs some
+of the steps, as the script's `kSteps` names them.
+
+```sh
+python3 -m pip install playwright && python3 -m playwright install chromium
+python3 tools/ci/web_ide_tour.py --site web-ide-site --out <folder>
+```
+
+[`web-ide.yml`](.github/workflows/web-ide.yml) runs it on a pull request
+or a push to `main` that changes the IDE, the web IDE or the web engine's
+own files, and by hand. It builds the web IDE's engine from the checkout
+(kept in a cache keyed by the trees it is built from, so a change to the
+IDE's scripts alone builds nothing), makes the site from the Linux
+x86_64 package of the newest release (or the tag it is given) with the
+checkout's script-only IDE stacks over it, and uploads the screenshots
+as the artifact `web-ide-screenshots`, which its job summary links.
+
 ### Installer
 
 ```bat
