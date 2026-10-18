@@ -24,7 +24,7 @@
 // is not open yet, or quit), the page tries again every few seconds.
 //
 // No script runs from here. Each request the server sends is queued, and
-// the IDE's script takes it on a timer (oxtMcpLink.next), runs the tool,
+// the IDE's script takes it on a timer (oxtMcpLink.poll), runs the tool,
 // and gives the answer back (oxtMcpLink.reply), so that a tool can ask the
 // user or wait, as it does on the desktop. Each connection made or lost
 // counts one more in generation: a request is queued with the generation
