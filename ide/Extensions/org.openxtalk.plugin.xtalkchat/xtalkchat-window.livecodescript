@@ -481,6 +481,7 @@ private command xtcwPlaceMe pH
 end xtcwPlaceMe
 
 private command xtcwPlacePeople pLeft, pTop, pRight, pBottom
+   local tNoteTop
    set the rect of group "ppl" to pLeft - 20, pTop - 10, pRight + 20, pBottom + 30
    set the rect of graphic "ppl_bg" to pLeft, pTop, pRight, pBottom
    set the rect of image "ppl_icon" to pLeft + 18, pTop + 20, pLeft + 36, pTop + 38
@@ -492,7 +493,14 @@ private command xtcwPlacePeople pLeft, pTop, pRight, pBottom
    set the rect of field "ppl_count" to the left of graphic "ppl_countBg", pTop + 20 - kTextInset + 1, the right of graphic "ppl_countBg", pTop + 38
    xtcwCenterV "ppl_count", pTop + 29
    set the rect of field "ppl_list" to pLeft + 10, pTop + 52, pRight - 10, pBottom - 12
-   set the rect of field "ppl_note" to pLeft + 18, pTop + 52, pRight - 18, pTop + 140
+   -- The note goes under whoever is listed (only the user, when it shows
+   -- while online), so the two never overlap
+   if field "ppl_list" is empty then
+      put pTop + 52 into tNoteTop
+   else
+      put the top of field "ppl_list" + the formattedHeight of field "ppl_list" + 8 into tNoteTop
+   end if
+   set the rect of field "ppl_note" to pLeft + 18, tNoteTop, pRight - 18, tNoteTop + 88
    lkScrollSync "pplThumb"
 end xtcwPlacePeople
 
@@ -686,16 +694,12 @@ private command xtcwSyncPeople
       show field "ppl_note"
    else if tCount <= 1 then
       put "No one else is online right now. Rooms keep their messages, so what you write is read later." into field "ppl_note"
-      set the top of field "ppl_note" to the top of field "ppl_list" + 52
       show field "ppl_note"
    else
       hide field "ppl_note"
    end if
    if the visible of group "ppl" then
       xtcwPlacePeople the left of graphic "ppl_bg", the top of graphic "ppl_bg", the right of graphic "ppl_bg", the bottom of graphic "ppl_bg"
-      if tCount <= 1 and xtcIsOnline() then
-         set the top of field "ppl_note" to the top of field "ppl_list" + 50
-      end if
    end if
 end xtcwSyncPeople
 
