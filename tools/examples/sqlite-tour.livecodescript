@@ -153,6 +153,9 @@ private command setLooks
    set the cOnBack of this stack to lkMix("255,255,255", tGood, 0.1)
    set the cOnEdge of this stack to lkMix("255,255,255", tGood, 0.4)
    set the cOff of this stack to lkColor("muted")
+   -- (words in the off state are in the body grey: the paler one, right
+   -- for the dot and the dashed line, was hard to read as words on white)
+   set the cOffInk of this stack to lkColor("soft")
    set the cOffBack of this stack to "255,255,255"
    set the cOffEdge of this stack to lkColor("line")
    set the cVennOn of this stack to tSky
@@ -406,6 +409,19 @@ private function tableBox pName, pRect, pColumns, pSelect, pRow
    return tObj
 end tableBox
 
+-- Words in the middle of an empty table (the field pTable, from tableBox), which say how to
+-- fill it: the stack script's showEmpty shows them while the table has no rows
+private command emptyHint pTable, pText
+   local tObj, tRect, tRows
+   put the rect of graphic (pTable & "Frame") into tRect
+   put lkLabel(pTable & "Empty", lkR(item 1 of tRect + 16, 0, item 3 of tRect - 16, 18), pText, 13, lkColor("soft"), empty, "center") into tObj
+   -- (in the middle of the middle row, between two of the table's lines, which the empty
+   -- table still draws, a row of 22 each under its band of 32)
+   put (item 4 of tRect - item 2 of tRect - 32) div 22 into tRows
+   exMiddle tObj, item 2 of tRect + 32 + 22 * ((tRows - 1) div 2) + 11
+   set the cEmptyHint of field pTable to pTable & "Empty"
+end emptyHint
+
 -- Tab stops that share pWidth among the columns of pColumns
 private function evenStops pWidth, pColumns
    local tCount, tIndex, tStops
@@ -558,7 +574,7 @@ private command buildPrimer
    end repeat
    -- a command at work on the table USERS
    put tTop + 5 * 44 + 34 + 14 into tY
-   get lkLabel("ExampleCaption", lkR(652, tY, 980, tY + 18), "For instance, on the table USERS:", 12, lkColor("muted"), empty)
+   get lkLabel("ExampleCaption", lkR(652, tY, 980, tY + 18), "For instance, on the table USERS:", 12, lkColor("soft"), empty)
    get snippet("Example", 652, tY + 22, 980, exScript("SQL Primer/example"))
    get exButton("Learn SQL", 652, kBottom - 56, kButton, "Learn more SQL", "external-link", "ghost", tSky, empty, empty, 0)
    set the script of group "Learn SQL" to exScript("SQL Primer/Learn SQL")
@@ -591,7 +607,9 @@ private command buildPlan
    get exPanel("LinkPanel", lkR(kLeft, tTop, 640, kBottom), empty)
    put wordsBox("LinkWords", kLeft + 20, tTop + 18, 620, markup(exScript("The Plan/link")), 13, lkColor("soft")) into tObj
    put the bottom of tObj + 10 into tY
-   get tableBox("Example", lkR(kLeft + 20, tY, 620, tY + 32 + 4 * 22 + 1), \
+   -- (8 more than its four rows, so that the last one is not against the
+   -- box's foot)
+   get tableBox("Example", lkR(kLeft + 20, tY, 620, tY + 32 + 4 * 22 + 9), \
          "appName" & tab & "appRegCode" & tab & "appUserID" & tab & "user", false, 22)
    set the text of field "Example" to exScript("The Plan/example")
    set the cHead of field "Example" to empty
@@ -603,7 +621,7 @@ private command buildPlan
    repeat with tIndex = 1 to 4
       set the textColor of item 4 of line tIndex of field "Example" to codeInk()
    end repeat
-   get wordsBox("ExampleNote", kLeft + 20, tY + 32 + 4 * 22 + 11, 620, markup(exScript("The Plan/note")), 12, lkColor("muted"))
+   get wordsBox("ExampleNote", kLeft + 20, tY + 32 + 4 * 22 + 19, 620, markup(exScript("The Plan/note")), 12, lkColor("soft"))
    -- The data types
    get exPanel("TypesPanel", lkR(652, tTop, kRight, kBottom), empty)
    put wordsBox("TypesWords", 672, tTop + 18, 980, markup(exScript("The Plan/types")), 13, lkColor("soft")) into tObj
@@ -617,7 +635,7 @@ private command buildPlan
       end if
       put pill("Type" & tObj, tX, tTop, tObj, tSky) + 8 into tX
    end repeat
-   get wordsBox("TypesNote", 672, tTop + 40, 980, markup(exScript("The Plan/storage")), 12, lkColor("muted"))
+   get wordsBox("TypesNote", 672, tTop + 40, 980, markup(exScript("The Plan/storage")), 12, lkColor("soft"))
 end buildPlan
 
 -- A table of the plan, on a white panel: its name, and a row for each of its columns (the
@@ -631,7 +649,7 @@ private command schemaCard pTable, pRect, pColumns
    get exPanel(pTable & "Panel", pRect, empty)
    get exIcon(pTable & "Icon", "table", tSky, lkR(tLeft + 18, tTop + 16, tLeft + 38, tTop + 36), empty)
    get heading(pTable & "Name", tLeft + 48, tTop + 23, tLeft + 200, pTable)
-   put lkLabel(pTable & "Kind", lkR(tRight - 160, tTop + 23, tRight - 18, tTop + 41), "table, 4 columns", 12, lkColor("muted"), empty, "right") into tObj
+   put lkLabel(pTable & "Kind", lkR(tRight - 160, tTop + 23, tRight - 18, tTop + 41), "table, 4 columns", 12, lkColor("soft"), empty, "right") into tObj
    get lkBox(pTable & "Rule", lkR(tLeft + 1, tTop + 47, tRight - 1, tTop + 48), lkColor("line"), 0, empty)
    set the itemDelimiter to "|"
    put 0 into tIndex
@@ -687,7 +705,7 @@ private command buildConnect
    lkBorder it, lkColor("line")
    put lkLabel("LinkLabel", lkR(538, tMid - 3, 718, tMid + 14), "not connected", 12, lkColor("soft"), empty, "center") into tObj
    set the textStyle of tObj to "bold"
-   put lkLabel("LinkFile", lkR(kInLeft + 20, tMid + 82, kInRight - 20, tMid + 100), empty, 12, lkColor("muted"), empty, "center") into tObj
+   put lkLabel("LinkFile", lkR(kInLeft + 20, tMid + 82, kInRight - 20, tMid + 100), empty, 12, lkColor("soft"), empty, "center") into tObj
    set the dontWrap of tObj to true
    set the cCode of tObj to true
 end buildConnect
@@ -734,7 +752,7 @@ private command tableCard pTable, pRect, pColumns, pSQL
    get heading(pTable & "Title", tLeft + 48, tTop + 23, tLeft + 200, pTable)
    put lkBox(pTable & "StateBg", lkR(tRight - 136, tTop + 14, tRight - 16, tTop + 38), "255,255,255", 12, empty) into tObj
    lkBorder tObj, lkColor("line")
-   put lkLabel(pTable & "State", lkR(tRight - 136, tTop + 23, tRight - 16, tTop + 40), "not created yet", 12, lkColor("muted"), empty, "center") into tObj
+   put lkLabel(pTable & "State", lkR(tRight - 136, tTop + 23, tRight - 16, tTop + 40), "not created yet", 12, lkColor("soft"), empty, "center") into tObj
    set the textStyle of tObj to "bold"
    set the itemDelimiter to "|"
    repeat for each line tLine in pColumns
@@ -768,6 +786,7 @@ private command buildAdd
    put statusBar(tTop + 16 + kButton + 12, "Click Add Data To Users, as often as you like: the table shows each new row.") into tTop
    put tableBox("Users", lkR(kInLeft, tTop + 12, kInRight, kInBottom), "userID" & tab & "name" & tab & "email" & tab & "emailList", false, 22) into tObj
    set the cQuery of tObj to "SELECT * FROM users"
+   emptyHint "Users", "No rows yet: click Add Data To Users"
 end buildAdd
 
 -- View and Delete: SELECT and DELETE, and the table they fill
@@ -783,6 +802,7 @@ private command buildView
          "Delete Row|Delete Row|trash-2|ghost")
    put statusBar(tTop + 16 + kButton + 12, "Click Refresh Table to show the users table, then choose a row and click Delete Row.") into tTop
    get tableBox("Users", lkR(kInLeft, tTop + 12, kInRight, kInBottom), "userID" & tab & "name" & tab & "email" & tab & "emailList", true, 22)
+   emptyHint "Users", "No rows yet: click Refresh Table"
 end buildView
 
 -- Update Data: UPDATE, and the table whose cells a click changes
@@ -799,6 +819,7 @@ private command buildUpdate
    put statusBar(tTop + 14 + kButton + 12, "Click Refresh Table, then click any cell of the table to change it.") into tTop
    put tableBox("Users", lkR(kInLeft, tTop + 12, kInRight, kInBottom), "userID" & tab & "name" & tab & "email" & tab & "emailList", true, 22) into tObj
    set the script of tObj to exScript("Update Data/Users")
+   emptyHint "Users", "No rows yet: click Refresh Table"
 end buildUpdate
 
 -- Both Tables: both tables, each with its own buttons, and the ready-made rows
@@ -837,6 +858,7 @@ private command tableSide pName, pTable, pLeft, pRight, pTop, pColumns, pNoun
    set the script of group ("Add " & pNoun) to exScript("Both Tables/Add " & pNoun)
    set the script of group ("Delete " & pNoun) to exScript("Both Tables/Delete " & pNoun)
    get tableBox(pName, lkR(pLeft, pTop + 44, pRight, kInBottom - 56), pColumns, true, 22)
+   emptyHint pName, "No rows yet: click Refresh, or Default Data"
 end tableSide
 
 -- Reports: five reports, the join each makes drawn as two circles, the SQL it ran and the
@@ -863,6 +885,7 @@ private command buildReports
    set the cCode of tObj to true
    set the cSQL of tObj to true
    get tableBox("Report", lkR(632, tTop, kInRight, kInBottom), "name" & tab & "app", false, 22)
+   emptyHint "Report", "No rows yet: click a report"
 end buildReports
 
 -- Two circles, users and apps, and where they meet: the stack script's showReport fills
@@ -909,12 +932,12 @@ private command buildSchema pUsers, pApps
    put lesson("The Schema", "Words", kInTop, kInLeft, kInRight) into tTop
    put snippet("Snippet", kInLeft, tTop + 10, kInRight, exScript("The Schema/code")) into tTop
    get buttonRow("The Schema", kInLeft, tTop + 16, \
-         "Show Schema|Show SQLite_Master Schema|file-code|primary" & return & \
+         "Show Schema|Show the Schema|file-code|primary" & return & \
          "Delete Users|Delete Users Table|trash-2|ghost" & return & \
          "Default Data|Default Data|database|ghost")
    set the altDefaultUsersData of group "Default Data" to pUsers
    set the altDefaultAppsData of group "Default Data" to pApps
-   put statusBar(tTop + 16 + kButton + 12, "Click Show SQLite_Master Schema. Click Delete Users Table twice, to see the error the second time.") into tTop
+   put statusBar(tTop + 16 + kButton + 12, "Click Show the Schema. Click Delete Users Table twice, to see the error the second time.") into tTop
    add 12 to tTop
    get lkBox("SchemaBox", lkR(kInLeft, tTop, kInRight, kInBottom), lkColor("code"), 12, empty)
    put lkLabel("Schema", lkR(kInLeft + 14, tTop + 12, kInRight - 8, kInBottom - 8), empty, 12, lkColor("codeInk"), empty) into tObj
@@ -946,7 +969,7 @@ private command buildColumns pUsers, pApps
       get lkLabel("Step" & tIndex, lkR(kInLeft + 30, tTop + 17 + (tIndex - 1) * 24, 610, tTop + 35 + (tIndex - 1) * 24), tLine, 13, lkColor("soft"), empty)
    end repeat
    -- the example, at the right
-   put lkLabel("ExampleCaption", lkR(624, kInTop, kInRight, kInTop + 18), "To delete column c from a table t1(a,b,c):", 12, lkColor("muted"), empty) into tObj
+   put lkLabel("ExampleCaption", lkR(624, kInTop, kInRight, kInTop + 18), "To delete column c from a table t1(a,b,c):", 12, lkColor("soft"), empty) into tObj
    put snippet("Snippet", 624, kInTop + 24, kInRight, exScript("Columns/code")) into tCode
    put max(tTop + 10 + 6 * 24, tCode) into tTop
    put lesson("Columns", "Words2", tTop + 12, kInLeft, kInRight) into tTop
@@ -969,6 +992,7 @@ private command buildColumns pUsers, pApps
    put tableBox("Users", lkR(572, tTop, kInRight, kInBottom), "userID" & tab & "name" & tab & "email" & tab & "emailList", false, 22) into tObj
    set the cQuery of tObj to "SELECT * FROM users"
    set the cTable of tObj to "users"
+   emptyHint "Users", "No rows yet: click Default Data"
 end buildColumns
 
 -- Binary Data: a BLOB column, the picture that goes in (Icon1, from the original), the row
@@ -1098,7 +1122,7 @@ table-properties|<path d='M15 3v18'/><rect width='18' height='18' x='3' y='3' rx
 zap|No setup|Nothing to install
 rocket|Fast and compact|Up to terabytes of data
 hard-drive|One file|Copy it anywhere
-database|Room to grow|Moves to MySQL easily
+database|Room to grow|Can move to MySQL
 @*/
 
 /*@ About revDB/words
@@ -1301,7 +1325,7 @@ revExecuteSQL <connectionID>,tSQL
 @*/
 
 /*@ The Schema/schema
---Show SQLite_Master Schema lists the CREATE TABLE commands here, such as the apps table's:
+--Show the Schema lists the CREATE TABLE commands here, such as the apps table's:
 CREATE TABLE apps(appID integer primary key,appName text,appRegCode text,appUserID integer)
 @*/
 
@@ -1488,6 +1512,7 @@ command showCard
    showReport
    showSQL
    fitTables
+   showEmpty
 end showCard
 
 ################################################################################
@@ -1566,7 +1591,7 @@ private command drawLink pOn, pFile
       set the dashes of graphic "LinkLine" to "6,6"
       set the foregroundColor of graphic "LinkLine" to the cOff of this stack
       set the text of field "LinkLabel" to "not connected"
-      set the textColor of field "LinkLabel" to the cOff of this stack
+      set the textColor of field "LinkLabel" to the cOffInk of this stack
       set the backgroundColor of graphic "LinkPill" to the cOffBack of this stack
       set the foregroundColor of graphic "LinkPill" to the cOffEdge of this stack
       put specialFolderPath("temporary") & "/AppRegister.sqlite" into tPath  --where the buttons make it
@@ -1603,7 +1628,7 @@ command showTables
          set the blendLevel of field (tTable & "Columns") to 0
       else
          set the text of field (tTable & "State") to "not created yet"
-         set the textColor of field (tTable & "State") to the cOff of this stack
+         set the textColor of field (tTable & "State") to the cOffInk of this stack
          set the backgroundColor of graphic (tTable & "StateBg") to the cOffBack of this stack
          set the foregroundColor of graphic (tTable & "StateBg") to the cOffEdge of this stack
          set the blendLevel of field (tTable & "Columns") to 50
@@ -1705,6 +1730,18 @@ private command fitTable pField, pHead
    set the tabStops of pField to tStops
    set the tabStops of pHead to tStops
 end fitTable
+
+-- Each table with words for when it is empty (its custom property cEmptyHint names them):
+-- they show while it has no rows
+command showEmpty
+   local tIndex, tObj
+   repeat with tIndex = 1 to the number of controls of this card
+      put the long id of control tIndex of this card into tObj
+      if word 1 of tObj is "field" and the cEmptyHint of tObj is not empty then
+         set the visible of field (the cEmptyHint of tObj) to (word 1 to -1 of the text of tObj is empty)
+      end if
+   end repeat
+end showEmpty
 
 -- The names of a table's columns, tab-delimited, from PRAGMA table_info
 function columnsOf pTable
@@ -2592,7 +2629,7 @@ end mouseUp
 @*/
 
 /*@ The Schema/Show Schema
---(the original's "Show SQLite_Master Schema")
+--(the original's "Show SQLite_Master Schema": the table is sqlite_master)
 on mouseUp
    global gConID
    local tSQL, tList

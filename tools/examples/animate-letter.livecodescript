@@ -90,7 +90,7 @@ end letters
 private command score pCard
    local tObj
    go card pCard
-   put lkLabel("ScoreLabel", "880,16,1000,30", "SCORE", 11, lkColor("muted"), empty, "right") into tObj
+   put lkLabel("ScoreLabel", "880,16,1000,30", "SCORE", 11, lkColor("soft"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("Score", "860,28,1000,66", "0", 30, lkColor("pink"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
@@ -218,7 +218,9 @@ private command buildArrowKeys
    local tObj
    go card "Arrow Keys"
    set the script of this card to exScript("Arrow Keys/card")
-   put lkBox("Boundry", lkR(kStageLeft + 16, kStageTop + 16, kStageRight - 16, kStageBottom - 16), empty, 0, empty) into tObj
+   -- (the original spells it "Boundry": the remaster spells it right, in
+   -- the graphic's name and in every script that names it)
+   put lkBox("Boundary", lkR(kStageLeft + 16, kStageTop + 16, kStageRight - 16, kStageBottom - 16), empty, 0, empty) into tObj
    hide tObj
    letters "Arrow Keys", "O"
    put ball("Ball", 415, 347) into tObj
@@ -230,7 +232,7 @@ private command buildJumpBall
    local tObj
    go card "Jump Ball"
    set the script of this card to exScript("Jump Ball/card")
-   put lkBox("Boundry", lkR(kStageLeft + 16, 200, kStageRight - 16, 440), empty, 0, empty) into tObj
+   put lkBox("Boundary", lkR(kStageLeft + 16, 200, kStageRight - 16, 440), empty, 0, empty) into tObj
    hide tObj
    -- the ground the letter stands on and the ball rolls along
    get lkBox("Ground", lkR(kStageLeft + 16, 441, kStageRight - 16, 445), lkColor("line"), 2, empty)
@@ -537,7 +539,7 @@ on mouseMove x,y  --better than mouseStillDown
       hide me  --release mouseDown grab
       set the loc of me to the cStartLoc of me  --start over, cStartLoc is a custom property of field "Letter"
       show me
-      set the loc of graphic "Ball" to random(240)+300 , random(400)+170  --random x,y on the stage
+      set the loc of graphic "Ball" to random(240)+300, random(400)+170  --random x,y on the stage
       beep
       add 10 to field "Score"  --win
       get the text of field "Score"  --put in temp container "it"
@@ -569,28 +571,28 @@ end mouseUp
 on arrowKey pKey  --in cd script, move field "Letter" and graphic "Ball"
    lock screen
    if pKey = "up" then
-      if the top of fld "Letter" > the top of graphic "Boundry" then  --hidden graphic
+      if the top of fld "Letter" > the top of graphic "Boundary" then  --hidden graphic
          set the top of fld "Letter" to the top of fld "Letter" -10  --move up
       end if
    else if pKey = "down" then
-      if the bottom of fld "Letter" < the bottom of graphic "Boundry" then
+      if the bottom of fld "Letter" < the bottom of graphic "Boundary" then
          set the bottom of fld "Letter" to the bottom of fld "Letter" +10  --move down
       end if
    else if pKey = "left" then
-      if the left of fld "Letter" > the left of graphic "Boundry" then
+      if the left of fld "Letter" > the left of graphic "Boundary" then
          set the left of fld "Letter" to the left of fld "Letter" -10  --move left
       end if
    else if pKey = "right" then
-      if the right of fld "Letter" < the right of graphic "Boundry" then
+      if the right of fld "Letter" < the right of graphic "Boundary" then
          set the right of fld "Letter" to the right of fld "Letter" +10  --move right
       end if
    end if
    if random(10) = "10" then  --random reposition graphic "Ball"
-      set the loc of grc "Ball" to (the left of graphic "Boundry" + random(the width of graphic "Boundry" -150)+75 &","& \
-            the top of graphic "Boundry" + random(the height of graphic "Boundry" -150)+75)
+      set the loc of grc "Ball" to (the left of graphic "Boundary" + random(the width of graphic "Boundary" -150)+75 &","& \
+            the top of graphic "Boundary" + random(the height of graphic "Boundary" -150)+75)
       repeat while intersect(fld "Letter",grc "Ball")  --try again
-         set the loc of grc "Ball" to (the left of graphic "Boundry" + random(the width of graphic "Boundry" -150)+75 &","& \
-               the top of graphic "Boundry" + random(the height of graphic "Boundry" -150)+75)
+         set the loc of grc "Ball" to (the left of graphic "Boundary" + random(the width of graphic "Boundary" -150)+75 &","& \
+               the top of graphic "Boundary" + random(the height of graphic "Boundary" -150)+75)
       end repeat
    end if
    unlock screen
@@ -606,7 +608,7 @@ end arrowKey
 
 /*@ Arrow Keys/O
 --in msg box: set the cStartLoc of field "Letter" to the loc of field "Letter"  --created custom property of the object, cStartLoc, to store x,y location.
---card script has arrowKey message handler, hidden graphic "Boundry" provides restraint dimensions.
+--card script has arrowKey message handler, hidden graphic "Boundary" provides restraint dimensions.
 
 on mouseUp  --reset
    lock screen
@@ -631,7 +633,7 @@ on arrowKey pKey  --in cd script, make field "Letter" jump over graphic "Ball"
    local i
    if pKey = "up" then  --start game or jump
       if the loc of graphic "Ball" = the cStartLoc of graphic "Ball" then  --start game  (move left with -x,y in 4 to 7 seconds)
-         move grc "Ball" relative -(the left of grc "Ball" - the left of graphic "Boundry"),0 in random(4)+3 secs without waiting  --don't wait while moving
+         move grc "Ball" relative -(the left of grc "Ball" - the left of graphic "Boundary"),0 in random(4)+3 secs without waiting  --don't wait while moving
       else  --jump
          if the right of grc "Ball" < the left of fld "Letter" then exit to top  --jump after ball passes
          repeat with i = 1 to 16
@@ -657,7 +659,7 @@ end moveStopped
 
 /*@ Jump Ball/P
 --in msg box: set the cStartLoc of field "Letter" to the loc of field "Letter"  --created custom property of the object, cStartLoc, to store x,y location.
---card script has arrowKey message handler, hidden graphic "Boundry" provides restraint dimensions.
+--card script has arrowKey message handler, hidden graphic "Boundary" provides restraint dimensions.
 @*/
 
 /*@ Jump Ball/Ball

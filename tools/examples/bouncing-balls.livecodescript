@@ -281,6 +281,8 @@ private function codeBox pName, pRect, pCaption, pCode
    get lkOval(pName & "_dot3", lkR(tL + 46, tT + 15, tL + 55, tT + 24), "52,211,153", empty)
    put lkLabel(pName & "_caption", lkR(tL + 66, tT + 12, tR - 14, tT + 28), pCaption, 11, "100,116,139", empty) into tObj
    set the dontWrap of tObj to true
+   -- (its letters level with the dots, as the scripts panel's are)
+   exMiddle tObj, tT + 20
    put lkLabel(pName & "_code", lkR(tL + 6, tT + 36, tR - 8, tB - 8), empty, 12, lkColor("codeInk"), empty) into tObj
    set the textFont of tObj to "Source Code Pro"
    set the fixedLineHeight of tObj to true
@@ -389,6 +391,9 @@ private command buildFront
    -- (and a sparkle of the banner's that would be on its words, in a
    -- wider font than the build's, moved)
    set the loc of graphic "hero_star2" to 806, 128
+   -- (and two that would be on the dotted arc, moved in under it)
+   set the loc of graphic "hero_star3" to 914, 158
+   set the loc of graphic "hero_star5" to 952, 172
    exProgramTiles 288, 5, 60, 10
    -- What to try, and what it teaches
    rowsPanel "Try", lkR(kLeft, 364, 620, kBottom), "Try it", \
@@ -424,7 +429,7 @@ private command buildMain
    put lkBox("Court", tCourt, lkColor("side"), 14, empty) into tObj
    lkGradient tObj, "30,41,59|20,24,54|15,23,42", item 1 of tCourt & "," & item 2 of tCourt, item 1 of tCourt & "," & item 4 of tCourt
    put lkLabel("Hint", lkR(item 1 of tCourt + 18, item 4 of tCourt - 32, item 3 of tCourt - 18, item 4 of tCourt - 12), \
-         "Click for a ball  " & numToCodepoint(183) & "  drag a ball and let go to throw it", 12, "100,116,139", empty) into tObj
+         "Click for a ball  " & numToCodepoint(183) & "  drag a ball and let go to throw it", 12, lkColor("muted"), empty) into tObj
    set the dontWrap of tObj to true
    -- The buttons, restyled, above the court
    put kLeft + 14 into tLeft
@@ -462,7 +467,7 @@ private command buildMain
    set the cOff of tObj to "203,213,225"
    set the script of tObj to exScript("Main/toggleGraphics")
    -- How many balls there are, in the header
-   put lkLabel("CountLabel", "740,16,872,30", "BALLS", 11, lkColor("muted"), empty, "right") into tObj
+   put lkLabel("CountLabel", "740,16,872,30", "BALLS", 11, lkColor("soft"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("Count", "720,28,872,66", "0", 30, lkColor("orange"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
@@ -475,7 +480,7 @@ private command buildBehavior
    go card "Behavior"
    -- The words
    get exPanel("Words", lkR(kLeft, kTop, 696, 424), empty)
-   get heading("WordsTitle", kLeft + 22, kTop + 20, 680, "One script, many balls", 18, empty)
+   get heading("WordsTitle", kLeft + 22, kTop + 18, 680, "One script, many balls", 15, empty)
    put textBlock("Words1", kLeft + 22, kTop + 60, 674, \
          "A ball has no script of its own: its behavior is the button " & quote & "bounce" & quote & \
          ", the Bounce Behavior. Messages sent to the ball (init, bounceBall, a click) run that " & \
@@ -507,9 +512,9 @@ private command buildBehavior
       get ball("Ball" & tIndex, tX - tSize div 2, 296 - tSize div 2, tSize, tIndex * 2 + 1, empty)
       lkShadow it, 10, 3, 25
       put lkLabel("Vector" & tIndex, lkR(tX - 30, 324, tX + 30, 340), item 3 of tBall & "," & item 4 of tBall, \
-            11, lkColor("muted"), empty, "center") into tObj
+            11, lkColor("soft"), empty, "center") into tObj
    end repeat
-   put lkLabel("PictureNote", lkR(724, 360, 988, 376), "five balls, one script, five vectors", 11, lkColor("muted"), empty, "center") into tObj
+   put lkLabel("PictureNote", lkR(724, 360, 988, 376), "five balls, one script, five vectors", 11, lkColor("soft"), empty, "center") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("PictureCaption", lkR(724, 384, 988, 402), "behavior: the long id of button " & quote & "bounce" & quote, \
          12, lkColor("soft"), empty, "center") into tObj
@@ -608,7 +613,7 @@ private command buildVectors
    end repeat
    -- The words
    get exPanel("Words", lkR(kLeft, 372, 556, kBottom), empty)
-   get heading("WordsTitle", kLeft + 20, 390, 540, "Two numbers a step", 16, empty)
+   get heading("WordsTitle", kLeft + 20, 390, 540, "Two numbers a step", 15, empty)
    put textBlock("Words1", kLeft + 20, 424, 536, \
          "A ball's motion is its vector: how far it moves across and down in one step of the loop. " & \
          "9,-15 is 9 to the right and 15 up." & return & \
@@ -649,6 +654,7 @@ private function vectorTag pName, pX, pY, pText, pAlign
    end if
    set the width of tLabel to tWidth - 8
    set the left of tLabel to tLeft + 4
+   exMiddle tLabel, pY
    put lkBox(pName, lkR(tLeft, pY - 12, tLeft + tWidth, pY + 12), "255,255,255", 12, empty) into tObj
    set the blendLevel of tObj to 84
    relayer tObj before tLabel
@@ -726,9 +732,9 @@ private command buildLoop
    set the itemDelimiter to comma
    -- The words
    get exPanel("Words", lkR(kLeft, 360, 576, kBottom), empty)
-   get heading("WordsTitle", kLeft + 20, 378, 560, "One loop for every ball", 16, empty)
+   get heading("WordsTitle", kLeft + 20, 378, 560, "One loop for every ball", 15, empty)
    put textBlock("Words1", kLeft + 20, 410, 556, \
-         "bounceBalls makes the balls that clicks and Create Balls asked for, sends bounceBall to " & \
+         "bounceBalls makes the balls your clicks and Create Balls ask for, sends bounceBall to " & \
          "every ball, and sends itself again. It works between lock screen and unlock screen, so " & \
          "the window is drawn once a step, not once a ball." & return & \
          "It keeps time: a step that took 6 milliseconds waits 19. After a slow step it moves the " & \
@@ -815,7 +821,7 @@ private command buildRender
    put lkLabel("KeyOldLabel", lkR(tL + 198, tR, tL + 330, tR + 16), "kept as it was", 12, lkColor("soft"), empty) into tObj
    -- The words
    get exPanel("Words", lkR(636, kTop, kRight, 392), empty)
-   get heading("WordsTitle", 658, kTop + 20, 984, "Draw only what moves", 16, empty)
+   get heading("WordsTitle", 658, kTop + 18, 984, "Draw only what moves", 15, empty)
    put textBlock("Words1", 658, kTop + 54, 980, \
          "With accelerated rendering on, the window keeps its picture of the card in tiles. Each step, " & \
          "it draws again only the tiles that a ball has left or entered, and keeps the rest." & return & \

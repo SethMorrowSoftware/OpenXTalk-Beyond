@@ -157,6 +157,8 @@ private function useChip pWord, pRight, pTop
    codeFont tLabel
    set the rect of tObj to pRight - tWidth, pTop, pRight, pTop + 24
    set the rect of tLabel to pRight - tWidth + 10, item 2 of the rect of tLabel, pRight - 6, item 4 of the rect of tLabel
+   -- (in the middle of its chip, up and down)
+   exMiddle tLabel, pTop + 12
    set the rect of group tName to the rect of tObj
    return tWidth
 end useChip
@@ -196,6 +198,9 @@ private command buildLibrary
    set the script of tObj to exScript("Library/Search Term")
    put exButton("+/- Record", 0, tTop + 20, 34, "+/- Record", "book-plus", "ghost", lkColor("amber"), empty, empty, 0) into tWidth
    set the right of group "+/- Record" to tRight
+   -- (the search box ends 8 short of the button)
+   set the rect of graphic "SearchBox" to tLeft, tTop + 20, the left of group "+/- Record" - 8, tTop + 54
+   set the right of field "Search Term" to the left of group "+/- Record" - 16
    set the script of group "+/- Record" to exScript("Library/+/- Record")
    -- The button that copies the list into the grid
    put kStageTop + 252 into tTop
@@ -272,16 +277,29 @@ private command buildHowItWorks
    put lkLabel("Outro", lkR(kStageLeft, tTop + 6, 1000, kStageBottom), \
          "The :1 and :2 are placeholders: revDB puts the words you typed in their place, so that " & \
          "a quote in a title cannot break the statement. The database is a file named after the " & \
-         "stack, SQLite Books.sqlite, in your documents folder.", 12, lkColor("muted"), empty) into tObj
+         "stack, SQLite Books.sqlite, in your documents folder.", 12, lkColor("soft"), empty) into tObj
 end buildHowItWorks
 
 -- A line of SQL in colour: its words in capitals as the language's own,
 -- its strings and placeholders as values
 private function sqlHtml pText
-   local tOut, tWord, tColor, tLine
+   local tOut, tWord, tColor, tLine, tEnd
    repeat for each line tLine in pText
       put "<p>" after tOut
       repeat for each word tWord in tLine
+         -- (a placeholder, its colon and its number, as a value: the
+         -- bracket or comma beside it, "(:1," or ":2)", in the words'
+         -- colour, so that the two of VALUES (:1, :2) look alike)
+         if char 1 to 2 of tWord is "(:" or char 1 of tWord is ":" then
+            put offset(":", tWord) + 1 into tEnd
+            repeat while char tEnd + 1 of tWord is a number
+               add 1 to tEnd
+            end repeat
+            put "<font color=" & quote & "#e2e8f0" & quote & ">" & lkEscape(char 1 to offset(":", tWord) - 1 of tWord) & "</font>" & \
+                  "<font color=" & quote & "#fcd34d" & quote & ">" & lkEscape(char offset(":", tWord) to tEnd of tWord) & "</font>" & \
+                  "<font color=" & quote & "#e2e8f0" & quote & ">" & lkEscape(char tEnd + 1 to -1 of tWord) & "</font> " after tOut
+            next repeat
+         end if
          put "#e2e8f0" into tColor
          if toUpper(tWord) is tWord and tWord is not a number and the number of chars of tWord > 1 \
                and char 1 of tWord is not ":" and char 1 of tWord is not "'" then
@@ -453,7 +471,9 @@ private command gridLook pGrid, pAccent
    set the dgProps["border color"] of pGrid to lkColor("line")
    set the dgProps["background color"] of pGrid to "255,255,255"
    set the dgProps["corner color"] of pGrid to "241,245,249"
-   set the dgProps["header margins"] of pGrid to "8,9,8,0"
+   -- (a top margin of 12 puts the bold 12 in the middle of the header's
+   -- 30, as in Data Grid Tables)
+   set the dgProps["header margins"] of pGrid to "8,12,8,0"
    set the dgProps["show hscrollbar"] of pGrid to false
    -- (no scrollbar, as the window's panels have none: the wheel scrolls)
    set the dgProps["show vscrollbar"] of pGrid to false

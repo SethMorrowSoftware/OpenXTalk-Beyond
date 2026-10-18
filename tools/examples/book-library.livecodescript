@@ -18,7 +18,8 @@ script "OXTExampleBookLibrary"
 --
 --    - bookAdd, bookUpdate and booksSearch hand the words to SQLite with
 --      placeholders (:1, :2), so that a quote in a title (Charlotte's Web,
---      or the word "Title" in double quotes) no longer breaks the SQL;
+--      or the word "Title" in double quotes) no longer breaks the SQL, and
+--      bookDelete its book's number; the SQL's words are in capitals;
 --    - the database file is where the original put it, bookLibrary.sqlite
 --      in the documents folder, which is writable (the stack's own folder
 --      may not be), or the temporary folder if there is no documents
@@ -30,7 +31,7 @@ script "OXTExampleBookLibrary"
 --      drawn as the window draws its controls;
 --    - Save asks for a title, Edit and Delete ask for a book, and the
 --      search finds as you type; each book has a cover in a colour of its
---      own.
+--      own, and with no book chosen there is no status.
 --
 -- build-examples.livecodescript runs exBuild with the builder in use.
 
@@ -211,6 +212,7 @@ private command stepsPanel pName, pRect, pTitle, pIcon, pSteps, pColor, pCode, p
       put lkOval(pName & "_n" & tIndex, lkR(tL + 22, tTop + 1, tL + 44, tTop + 23), lkMix("255,255,255", pColor, 0.14), pName) into tObj
       put lkLabel(pName & "_nl" & tIndex, lkR(tL + 22, tTop + 4, tL + 44, tTop + 20), tIndex, 11, pColor, pName, "center") into tObj
       set the textStyle of tObj to "bold"
+      exMiddle tObj, tTop + 12
       if pCode then
          put lkLabel(pName & "_head" & tIndex, lkR(tL + 56, tTop + 2, tR - 10, tTop + 20), item 1 of tStep, 11, \
                lkMix(pColor, lkColor("ink"), 0.25), pName) into tObj
@@ -290,10 +292,13 @@ private function pathChip pName, pLeft, pTop, pText, pColor, pGroup
       set the textFont of tObj to "DejaVu Sans Mono"
       put max(tWidth, measureText(pText, tObj)) into tWidth
    end if
-   put max(tWidth, round(the number of chars of pText * 12 * 0.61)) + 8 into tWidth
+   put max(tWidth, round(the number of chars of pText * 12 * 0.61)) into tWidth
    set the textFont of tObj to "Source Code Pro"
    set the cCode of tObj to true
+   -- (the chip as wide as the words and 12 more on each side, and the
+   -- words in its middle, up and down)
    set the rect of tObj to pLeft + 12, the top of tObj, pLeft + 12 + tWidth, the bottom of tObj
+   exMiddle tObj, pTop + 15
    set the rect of tBox to pLeft, pTop, pLeft + tWidth + 24, pTop + 30
    return pTop + 30
 end pathChip
@@ -359,14 +364,15 @@ private command buildFront
    -- (the sparkles, around the shelf: off the words, and off the books)
    repeat with tIndex = 1 to 6
       set the loc of graphic ("hero_star" & tIndex) of group "hero" to \
-            item tIndex of "808,792,826,948,963,836", item tIndex of "134,233,192,282,143,273"
+            item tIndex of "788,772,806,928,943,816", item tIndex of "134,233,192,282,143,273"
       show graphic ("hero_star" & tIndex) of group "hero"
    end repeat
-   -- A shelf of books, at the banner's right
-   put lkBox("hero_shelf", lkR(842, 254, 986, 260), "255,255,255", 3, "hero") into tObj
+   -- A shelf of books, at the banner's right (in from its rounded corner,
+   -- so that the book that leans is not cut off)
+   put lkBox("hero_shelf", lkR(822, 254, 966, 260), "255,255,255", 3, "hero") into tObj
    set the blendLevel of tObj to 20
    lkShadow tObj, 8, 3, 25
-   put 850 into tX
+   put 830 into tX
    repeat with tIndex = 1 to 6
       put item tIndex of "17,13,19,14,20,15" into tW
       put item tIndex of "88,70,100,80,94,74" into tH
@@ -421,7 +427,7 @@ private command buildHow
    put pathChip("File_path", kLeft + 22, tTop + 10, "Documents/bookLibrary.sqlite", lkColor("indigo"), "File") into tTop
    put textBlock("File_note", kLeft + 22, tTop + 12, 600, \
          "In a browser, the web engine keeps it for the page. Delete the file, and the stack makes a new one.", \
-         12, lkColor("muted"), "File") into tTop
+         12, "100,116,139", "File") into tTop
    -- When the stack opens
    stepsPanel "Opens", lkR(636, kTop, kRight, 330), "When the stack opens", "rocket", \
          "Look for the file|bookLibrary.sqlite, in the documents folder." & return & \
@@ -439,7 +445,7 @@ private command buildHow
          lkColor("indigo")
    put textBlock("StackCode_note", kLeft + 22, 568, 600, \
          "With a server, such as MySQL or PostgreSQL, revOpenDatabase would open it instead of a file.", \
-         12, lkColor("muted"), "StackCode") into tTop
+         12, "100,116,139", "StackCode") into tTop
    handlersPanel "CardCode", lkR(636, 346, kRight, kBottom), "The card's script: the window", "layout-grid", \
          "listBooks|fills the list with every book" & return & \
          "searchBooks|fills it with what a search finds" & return & \
@@ -669,12 +675,12 @@ private command buildSQL
    set the dontWrap of tObj to true
    -- (in the middle of the dots, up and down, as the scripts panel's is)
    set the top of tObj to kTop + 20 - (the formattedHeight of tObj + 4) div 2
-   put "preOpenStack|CREATE TABLE books(BookID INTEGER PRIMARY KEY AUTOINCREMENT, Title varchar(255),Author varchar(255),Status varchar(50),Comments varchar(500))" & return & \
-         "booksListAll|SELECT Title,Author,Status,Comments, BookID from books" & return & \
-         "booksSearch|SELECT Title,Author,Status,Comments,BookID from books WHERE title LIKE :1 OR author LIKE :1" & return & \
-         "bookAdd|INSERT into books(Title,Author,Status,Comments) VALUES (:1, :2, :3, :4)" & return & \
+   put "preOpenStack|CREATE TABLE books(BookID INTEGER PRIMARY KEY AUTOINCREMENT, Title VARCHAR(255),Author VARCHAR(255),Status VARCHAR(50),Comments VARCHAR(500))" & return & \
+         "booksListAll|SELECT Title,Author,Status,Comments, BookID FROM books" & return & \
+         "booksSearch|SELECT Title,Author,Status,Comments,BookID FROM books WHERE title LIKE :1 OR author LIKE :1" & return & \
+         "bookAdd|INSERT INTO books(Title,Author,Status,Comments) VALUES (:1, :2, :3, :4)" & return & \
          "bookUpdate|UPDATE books SET status=:1, title=:2, author=:3, comments=:4 WHERE BookID = :5" & return & \
-         "bookDelete|DELETE from books WHERE BookID = '3'" into tLine
+         "bookDelete|DELETE FROM books WHERE BookID = :1" into tLine
    set the itemDelimiter to "|"
    put 0 into tCount
    repeat for each line tIndex in tLine
@@ -760,18 +766,18 @@ on preOpenStack
 
       ## Add a books table
       put revOpenDatabase("sqlite",tDatabaseFile) into sDatabaseID
-      put "CREATE TABLE books(BookID INTEGER PRIMARY KEY AUTOINCREMENT, Title varchar(255),Author varchar(255),Status varchar(50),Comments varchar(500))" into tTableSQL
+      put "CREATE TABLE books(BookID INTEGER PRIMARY KEY AUTOINCREMENT, Title VARCHAR(255),Author VARCHAR(255),Status VARCHAR(50),Comments VARCHAR(500))" into tTableSQL
       revExecuteSQL sDatabaseID,tTableSQL
 
       ## Add some inital entries
-      put "INSERT into books(Title,Author,Status) VALUES ('The Lord of the Rings','JRR Tolkien','On Shelf')" into tSQLStatement
+      put "INSERT INTO books(Title,Author,Status) VALUES ('The Lord of the Rings','JRR Tolkien','On Shelf')" into tSQLStatement
       revExecuteSQL sDatabaseID,tSQLStatement
       -- put the result -- (remaster) a line left from testing: it put the result in the Message Box
 
-      put "INSERT into books(Title,Author,Status) VALUES ('Pride and Prejudice','Jane Austen','On Shelf')" into tSQLStatement
+      put "INSERT INTO books(Title,Author,Status) VALUES ('Pride and Prejudice','Jane Austen','On Shelf')" into tSQLStatement
       revExecuteSQL sDatabaseID,tSQLStatement
 
-      put "INSERT into books(Title,Author,Status) VALUES ('His Dark Materials','Philip Pullman','On Shelf')" into tSQLStatement
+      put "INSERT INTO books(Title,Author,Status) VALUES ('His Dark Materials','Philip Pullman','On Shelf')" into tSQLStatement
       revExecuteSQL sDatabaseID,tSQLStatement
    else
       ## The database exists so simply connect to it
@@ -816,7 +822,7 @@ command bookAdd pTitle, pAuthor, pStatus, pComments
    -- that is a column's name, such as Title, for that column. :1 to :4
    -- stand for the variables named after the SQL, whose words go to
    -- SQLite as they are
-   put "INSERT into books(Title,Author,Status,Comments) VALUES (:1, :2, :3, :4)" into tSQLStatement
+   put "INSERT INTO books(Title,Author,Status,Comments) VALUES (:1, :2, :3, :4)" into tSQLStatement
    revExecuteSQL sDatabaseID,tSQLStatement, "pTitle", "pAuthor", "pStatus", "pComments"
 
    ## Give some feedback to the user
@@ -853,8 +859,11 @@ command bookDelete pBookID
    if sDatabaseID is empty then exit bookDelete -- (remaster) no database: see preOpenStack
 
    ## Construct the SQL statement and execute it on the database
-   put "DELETE from books WHERE BookID = '" & pBookID & "'" into tSQLStatement
-   revExecuteSQL sDatabaseID,tSQLStatement
+   -- (remaster) with :1, as bookAdd does. The original's
+   --    put "DELETE from books WHERE BookID = '" & pBookID & "'" into tSQLStatement
+   -- put the number itself into the SQL
+   put "DELETE FROM books WHERE BookID = :1" into tSQLStatement
+   revExecuteSQL sDatabaseID,tSQLStatement, "pBookID"
 
    ## Give some feedback to the user
    if the result is an integer then
@@ -870,7 +879,7 @@ function booksListAll
    if sDatabaseID is empty then return empty -- (remaster) no database: see preOpenStack
 
    ## Construct the SQL statement and query the database
-   put "SELECT Title,Author,Status,Comments, BookID from books" into tSQLStatement
+   put "SELECT Title,Author,Status,Comments, BookID FROM books" into tSQLStatement
    put revDataFromQuery(tab,return,sDatabaseID,tSQLStatement) into tList
    return tList
 end booksListAll
@@ -886,7 +895,7 @@ function booksSearch pSearchTerm
    --    put "SELECT Title,Author,Status,Comments,BookID from books WHERE title LIKE '%" & pSearchTerm & "%' OR author LIKE '%" & pSearchTerm & "%'" into tSQLStatement
    -- broke on a word with an apostrophe in it
    put "%" & pSearchTerm & "%" into tPattern
-   put "SELECT Title,Author,Status,Comments,BookID from books WHERE title LIKE :1 OR author LIKE :1" into tSQLStatement
+   put "SELECT Title,Author,Status,Comments,BookID FROM books WHERE title LIKE :1 OR author LIKE :1" into tSQLStatement
    put revDataFromQuery(tab,return,sDatabaseID,tSQLStatement,"tPattern") into tList
    return tList
 end booksSearch
@@ -1266,6 +1275,9 @@ command detailsLook
    set the fillGradient["via"] of graphic "CoverArt" to item 1 of tRect - (item 4 of tRect - item 2 of tRect) & comma & \
          item 2 of tRect + (item 3 of tRect - item 1 of tRect)
    set the vScrollbar of field "Comments" to the formattedHeight of field "Comments" > the height of field "Comments"
+   -- (no book chosen, no status: "On Shelf", what a new book starts
+   -- with, shows once there is a book, or one being made)
+   set the visible of button "Status" to not (the lockText of field "Title" and field "BookID" is empty)
 end detailsLook
 
 -- (remaster) A colour between two: pAmount of the way from pFrom to pTo

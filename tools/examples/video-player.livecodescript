@@ -120,6 +120,19 @@ private command roundButton pName, pIcon, pLeft, pTop, pSize, pBack, pInk, pLine
    end if
 end roundButton
 
+-- Makes the button pName (an exButton) pBy narrower, its icon and label
+-- staying in its middle. (Its left stays where it is: a group whose rect
+-- is set to a new left moves what is in it as well)
+private command narrowButton pName, pBy
+   local tRect
+   put the rect of graphic (pName & "_bg") of group pName into tRect
+   subtract pBy from item 3 of tRect
+   set the rect of graphic (pName & "_bg") of group pName to tRect
+   set the left of control (pName & "_icon") of group pName to the left of control (pName & "_icon") of group pName - pBy div 2
+   set the left of field (pName & "_label") of group pName to the left of field (pName & "_label") of group pName - pBy div 2
+   set the rect of group pName to tRect
+end narrowButton
+
 -- A field of code: its text in colour (the kit's colours, for a dark panel),
 -- a fixed line height. The code font is chosen when the card opens
 private function codeField pName, pRect, pText, pSize, pLineHeight, pGroup
@@ -172,26 +185,36 @@ private command buildFront
          "button being made in xTalk. Neither says who made it."
    put lkLabel("Origin_note", lkR(712, 500, 980, 600), \
          "A player needs help to show a video: on Linux, OXT-Beyond plays it with mplayer, and in a browser, " & \
-         "with the browser's own player.", 12, lkColor("muted"), "Origin") into tObj
+         "with the browser's own player.", 12, lkColor("soft"), "Origin") into tObj
 end buildFront
 
 -- The original program, on a program card: the three buttons and the
 -- player. The names are the original's: player "a", buttons "set
 -- filename", "play" and "stop"
 private command buildThreeButtons
-   local tObj, tAccent, tTop, tRows, tIndex
+   local tObj, tAccent, tTop, tRows, tIndex, tWidth, tOver
    go card "Three Buttons"
    put lkColor("rose") into tAccent
    -- The buttons, where the original has them: "set filename" at the
    -- left, "play" and "stop" at the right
-   get exButton("set filename", kLeft + 16, 120, 36, "Set filename", "folder-open", "ghost", tAccent, empty, empty, 0)
+   put exButton("set filename", kLeft + 16, 120, 36, "Set filename", "folder-open", "ghost", tAccent, empty, empty, 0) into tWidth
    set the script of group "set filename" to exScript("Three Buttons/set filename")
-   get exButton("play", kLeft + 160, 120, 36, "Play", "play-solid", "primary", tAccent, empty, empty, 84)
+   add exButton("play", kLeft + 160, 120, 36, "Play", "play-solid", "primary", tAccent, empty, empty, 0) to tWidth
    set the script of group "play" to exScript("Three Buttons/play")
-   get exButton("stop", kLeft + 252, 120, 36, "Stop", "stop-solid", "ghost", tAccent, empty, empty, 84)
+   add exButton("stop", kLeft + 252, 120, 36, "Stop", "stop-solid", "ghost", tAccent, empty, empty, 0) to tWidth
    set the script of group "stop" to exScript("Three Buttons/stop")
-   set the right of group "stop" to kNarrowRight - 16
-   set the right of group "play" to the left of group "stop" - 8
+   -- (at the kit's padding the three are a few points wider than the row
+   -- with 8 between them: each gives up the same part of its padding, so
+   -- that they fit with the same 8 between each two)
+   put tWidth + 2 * 8 - (kNarrowRight - kLeft - 2 * 16) into tOver
+   if tOver > 0 then
+      repeat for each item tObj in "set filename,play,stop"
+         narrowButton tObj, 2 * ((tOver + 5) div 6)
+      end repeat
+   end if
+   set the left of group "set filename" to kLeft + 16
+   set the left of group "play" to the right of group "set filename" + 8
+   set the left of group "stop" to the right of group "play" + 8
    -- The player, with its controller as the original has it, on a dark
    -- bezel. (Its video is 1028 by 582, as the original's player was: here
    -- it is 300 wide, and the controller is 26 high under it)
@@ -361,6 +384,8 @@ private command buildProperties
    get lkOval("Code_dot2", lkR(kLeft + 34, 489, kLeft + 44, 499), "251,191,36", empty)
    get lkOval("Code_dot3", lkR(kLeft + 50, 489, kLeft + 60, 499), "52,211,153", empty)
    put lkLabel("Code_caption", lkR(kLeft + 72, 487, 980, 503), "how a script uses them", 11, "100,116,139", empty) into tObj
+   -- (its letters level with the dots)
+   exMiddle tObj, 494
    put codeField("Code", lkR(kLeft + 20, 512, kRight - 16, 608), exScript("properties-code"), 12, 19, empty) into tObj
 end buildProperties
 

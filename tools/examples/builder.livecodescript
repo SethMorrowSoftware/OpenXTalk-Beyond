@@ -299,7 +299,7 @@ private command exBuildScripts
    get lkOval("codeDot3", lkR(tLeft + 50, tTop + 17, tLeft + 60, tTop + 27), "52,211,153", "Scripts")
    put lkLabel("codeCaption", lkR(tLeft + 72, tTop + 15, tRight - 16, tTop + 31), "Scripts on this card", 11, "100,116,139", "Scripts") into tObj
    -- (in the middle of the dots, up and down, as a button's label is)
-   set the top of tObj to tTop + 22 - (the formattedHeight of tObj + kTextInset) div 2
+   exMiddle tObj, tTop + 22
    repeat with tIndex = 1 to 5
       exChip "codeChip" & tIndex, tLeft + 16 + (tIndex - 1) * 70, tTop + 42
    end repeat
@@ -322,6 +322,15 @@ private command exBuildScripts
    set the left of group "codeCopy" to the right of group "codeEdit" + 8
    exShareText "Scripts", empty
 end exBuildScripts
+
+-- Moves the label pObj (an lkLabel of one line) up or down so that its
+-- letters are in the middle of pMiddle, as a button's label is: for a
+-- number in a circle, a caption beside a window's dots, a word in a pill.
+-- (An lkLabel's text sits at the top of its rect, so a rect centred on a
+-- shape puts the letters above its middle.)
+command exMiddle pObj, pMiddle
+   set the top of pObj to pMiddle - (the formattedHeight of pObj + kTextInset) div 2
+end exMiddle
 
 -- A field made in a group has text of its own on each card: these are
 -- the same on every card, but for those named in pPerCard

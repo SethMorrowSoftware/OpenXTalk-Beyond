@@ -200,6 +200,8 @@ private function codeBox pName, pRect, pCaption, pCode
    get lkOval(pName & "_dot3", lkR(tL + 46, tT + 15, tL + 55, tT + 24), "52,211,153", empty)
    put lkLabel(pName & "_caption", lkR(tL + 66, tT + 12, tR - 14, tT + 28), pCaption, 11, "100,116,139", empty) into tObj
    set the dontWrap of tObj to true
+   -- (its letters level with the dots)
+   exMiddle tObj, tT + 20
    put lkLabel(pName & "_code", lkR(tL + 6, tT + 36, tR - 8, tB - 8), empty, 12, lkColor("codeInk"), empty) into tObj
    set the textFont of tObj to "Source Code Pro"
    set the cCode of tObj to true
@@ -258,6 +260,7 @@ private command stepsPanel pName, pRect, pTitle, pIcon, pSteps, pColor
       put lkOval(pName & "_n" & tIndex, lkR(tL + 20, tTop + 1, tL + 42, tTop + 23), lkMix("255,255,255", pColor, 0.14), pName) into tObj
       put lkLabel(pName & "_nl" & tIndex, lkR(tL + 20, tTop + 4, tL + 42, tTop + 20), tIndex, 11, pColor, pName, "center") into tObj
       set the textStyle of tObj to "bold"
+      exMiddle tObj, tTop + 12
       -- (a command in a monospaced font is wide: it may come near the
       -- panel's right)
       put lkLabel(pName & "_code" & tIndex, lkR(tL + 52, tTop + 2, tR - 6, tTop + 20), item 1 of tStep, 11, \
@@ -478,10 +481,13 @@ private command buildLook
    put caption("ArchiveName", lkR(kInLeft + 2, 122, 440, 138), "NO ARCHIVE OPEN", "left", empty) into tObj
    put lkLabel("ArchiveSummary", lkR(400, 121, kInRight - 2, 139), empty, 12, lkColor("soft"), empty, "right") into tObj
    set the dontWrap of tObj to true
-   listBox 418, "Drag an archive to view its contents", "or choose one with the button below", "package-open", true
+   -- (the box as tall as Make an Archive's, so that the two cards match:
+   -- the list stops short of its foot, where what the item chosen is goes)
+   listBox 446, "Drag an archive to view its contents", "or choose one with the button below", "package-open", true
+   set the rect of field "Files" to kInLeft + 2, kListTop + 2, kInRight - 2, 416
    set the script of field "Files" to exScript("Look Inside/Files")
    -- What the item chosen is
-   put lkLabel("Details", lkR(kInLeft + 4, 428, kInRight - 4, 446), empty, 12, lkColor("soft"), empty) into tObj
+   put lkLabel("Details", lkR(kInLeft + 12, 422, kInRight - 12, 440), empty, 12, lkColor("soft"), empty) into tObj
    set the dontWrap of tObj to true
    -- The buttons: the demo's Clear, Open, which asks for an archive, and
    -- Extract, which takes its files out
@@ -504,7 +510,7 @@ private command buildAbout
          "revZipOpenArchive tZip, " & quote & "write" & quote & "|Starts a new zip, if no file has its name yet." & return & \
          "revZipAddItemWithFile tZip, tName, tFile|Puts a file in, under the name it has inside." & return & \
          "revZipCloseArchive tZip|Writes the zip to disk: the work is done here." & return & \
-         "the result|Empty if all went well, or ziperr and why." & return & \
+         "the result|Empty if all went well, or an error (ziperr...) and why." & return & \
          "revZipAddItemWithData tZip, tName, tData|Puts in what a variable holds, not a file.", \
          lkColor("emerald")
    stepsPanel "ReadSteps", lkR(636, kTop, kRight, 400), "Reading a zip", "package-open", \

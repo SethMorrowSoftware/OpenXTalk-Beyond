@@ -50,6 +50,9 @@ constant kLessons = "Orientation,Buttons & Fields,Commands & Functions,Script Ed
 -- Terry's texts, read from his stack: each lesson's notes and narration,
 -- by its number, and the texts of a few fields
 local sTexts
+-- The id of the image of the line that stands for his "====" rules in
+-- the notes (buildNotes makes it)
+local sRuleImage
 
 command exBuild pFolder
    local tInfo, tStack, tErrors, tPath, tIndex
@@ -125,6 +128,11 @@ private command readOriginal
       put the text of field "Lesson" of card tIndex of stack tOriginal into sTexts[tIndex]["Lesson"]
    end repeat
    put the text of field "Display" of card 3 of stack tOriginal into sTexts["Display"]
+   -- (his list began with the engine's own "_internal", a name a beginner
+   -- has no use for: it is left out, as his button now leaves it out, and
+   -- the count says so)
+   filter sTexts["Display"] without "_*"
+   put the number of lines of sTexts["Display"] - 1 into word 1 of line 1 of sTexts["Display"]
    put the text of field "Field Test" of card 2 of stack tOriginal into sTexts["Field Test"]
    put the text of field "Forecast" of card 5 of stack tOriginal into sTexts["Forecast"]
    delete stack tOriginal
@@ -165,7 +173,7 @@ end textChange
 -- What the lessons are, who they are for, a tile for each, and how a
 -- lesson works
 private command buildFront
-   local tObj, tIndex, tLeft, tTop, tWidth, tSteps, tName
+   local tObj, tIndex, tLeft, tTop, tWidth, tSteps, tName, tSmaller
    go card "Start"
    exHero lkR(kStageLeft, kStageTop, kStageRight, 272), lkColor("flame") & "|" & lkColor("orange") & "|" & lkColor("rose"), \
          "TERRY LITTLE, 2024  " & numToCodepoint(183) & "  REMASTERED FOR OXT-BEYOND, 2026", \
@@ -173,10 +181,22 @@ private command buildFront
          "Terry Little's quick start for first-time coders: a tour of the IDE and of the language, from the Tools " & \
          "palette and the Message Box to the Script Editor, the Dictionary and background groups."
    exProgramTiles 288, 3, 60, 12
-   -- (a title too long for its tile, smaller, before it loses letters)
+   -- (a title that comes near its tile's right, or is too long for it:
+   -- every title a size smaller, so that the six match, and each keeps
+   -- 20 points of the tile at its right before it loses letters)
+   put false into tSmaller
    repeat with tIndex = 1 to 6
       put "tile" & tIndex & "_title" into tName
-      if there is a field tName and the last char of field tName is numToCodepoint(8230) then
+      if there is a field tName then
+         if the last char of field tName is numToCodepoint(8230) or \
+               the left of field tName + the formattedWidth of field tName > the right of field tName - 12 then
+            put true into tSmaller
+         end if
+      end if
+   end repeat
+   repeat with tIndex = 1 to 6
+      put "tile" & tIndex & "_title" into tName
+      if tSmaller and there is a field tName then
          set the text of field tName to item tIndex of kLessons
          set the textSize of field tName to 13
          lkEllipsize the long id of field tName
@@ -243,6 +263,13 @@ private command buildNotes
    set the cThumb of tObj to "notesThumb"
    put lkBox("notesThumb", lkR(kStageRight - 9, 156, kStageRight - 5, 200), "203,213,225", 2, "Notes") into tObj
    hide tObj
+   -- (his "====" rules, as a thin line: the notes show this image in
+   -- their place, so each is still a line of the field)
+   put lkDrawing("notesDivider", "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 12'>" & \
+         "<rect x='0' y='5.5' width='120' height='1' fill='" & lkHex(lkColor("line")) & "'/></svg>", \
+         lkR(kSplit + 24, 160, kSplit + 144, 172), "Notes") into tObj
+   hide tObj
+   put the short id of tObj into sRuleImage
    shareText "Notes", "Info"
    placeOnLessons "Notes"
 end buildNotes
@@ -274,7 +301,7 @@ private command buildNarration
    -- (what it says, in a balloon)
    put lkBox("narrationBalloon", lkR(kPlayLeft + 12, kNarratorTop + 62, kPlayRight - 12, kNarratorTop + 186), \
          lkMix("255,255,255", lkColor("orange"), 0.07), 12, "Narration") into tObj
-   put lkLabel("Said", lkR(kPlayLeft + 22, kNarratorTop + 72, kPlayRight - 24, kNarratorTop + 180), empty, 12, lkColor("muted"), "Narration") into tObj
+   put lkLabel("Said", lkR(kPlayLeft + 22, kNarratorTop + 72, kPlayRight - 24, kNarratorTop + 180), empty, 12, lkColor("soft"), "Narration") into tObj
    set the fixedLineHeight of tObj to true
    set the textHeight of tObj to 16
    set the cThumb of tObj to "saidThumb"
@@ -350,7 +377,7 @@ end lessonTexts
 
 -- His notes as htmlText: the lesson's name large, his "o" headings with a
 -- bullet in the accent, "Try It." in the accent, numbered steps hanging,
--- code in the code font on a tinted band, and his "====" rules faint. The
+-- code in the code font on a tinted band, and his "====" rules thin lines. The
 -- words are his, and each line stays a line, so that a script that counts
 -- the lines of field "Info" (lesson 3 has you do it) counts his. The code
 -- is in Source Code Pro, which the IDE has; the stack script puts it in
@@ -368,7 +395,7 @@ private function notesHtml pText
       else if matchText(tLine, "^Lesson [0-9]+:") then
          put "<p>" & htmlFont(lkEscape(tLine), 18, tInk, true) & "</p>" after tHtml
       else if char 1 to 3 of tLine is "===" then
-         put "<p align=" & quote & "center" & quote & ">" & htmlFont(lkEscape(tLine), 10, "203,213,225", false) & "</p>" after tHtml
+         put "<p align=" & quote & "center" & quote & " spaceabove=" & quote & "4" & quote & "><img src=" & quote & sRuleImage & quote & "></p>" after tHtml
       else if char 1 to 2 of tLine is "o " then
          -- (his "o" was a bullet: it is one here)
          put "<p>" & htmlFont(numToCodepoint(8226), 15, tAccent, true) & \
@@ -470,9 +497,10 @@ end htmlFont
 -- what it is for, and a hint at its foot
 private command buildCanvas pWord, pHint, pDots
    local tObj, tBottom
-   put kCanvasBottom - kCanvasTop - 20 into tBottom
+   put kCanvasBottom - kCanvasTop - 10 into tBottom
    if pHint is not empty then
-      subtract 16 from tBottom
+      -- (the hint's row has no dots: they would run through its words)
+      subtract 32 from tBottom
    end if
    if not pDots then
       put 0 into tBottom
@@ -495,6 +523,8 @@ private function canvasSvg pWidth, pHeight, pDotsBottom
          "<rect x='0.5' y='0.5' width='" & (pWidth - 1) & "' height='" & (pHeight - 1) & "' rx='14' fill='#f8fafc' stroke='" & \
          lkHex(lkColor("line")) & "'/>" into tSvg
    repeat with tY = 42 to pDotsBottom step 16
+      -- (a repeat with a step can go one step past its end: no dot below it)
+      if tY > pDotsBottom then exit repeat
       repeat with tX = 18 to pWidth - 10 step 16
          put "<circle cx='" & tX & "' cy='" & tY & "' r='1.2' fill='#d5dde7'/>" after tSvg
       end repeat
@@ -663,23 +693,26 @@ private command buildScriptEditor
    put lessonButton("Answer Command", lkR(kPlayLeft + 16, kCanvasTop + 40, kPlayLeft + 216, kCanvasTop + 84)) into tObj
    set the script of tObj to exScript("Script Editor/Answer Command")
    -- (where the button the lesson has you make can go)
-   slotBox "Slot", lkR(kPlayLeft + 16, kCanvasTop + 100, kPlayRight - 16, kCanvasBottom - 16), "message-square-text"
-   put lkLabel("SlotText", lkR(kPlayLeft + 24, kCanvasTop + 146, kPlayRight - 24, kCanvasTop + 194), \
-         "Your Ask Command button" & return & "Make it with the notes, then click it.", 12, lkColor("muted"), empty, "center") into tObj
-   set the textStyle of line 1 of tObj to "bold"
-   set the textSize of line 1 of tObj to 14
+   slotBox "Slot", "message-square-text", "Your Ask Command button", "Make it with the notes, then click it."
 end buildScriptEditor
 
--- A place on the canvas for something to come: a dashed box, with an icon
--- at its top in the middle
-private command slotBox pName, pRect, pIcon
-   local tObj, tMid
-   put lkBox(pName, pRect, "255,255,255", 12, empty) into tObj
+-- A place on the canvas for something to come, under the lesson's button:
+-- a dashed box, with an icon at its top in the middle, and under it what
+-- will be there (pTitle) and a line on it (pText). The same box and words
+-- on each lesson that has one
+private command slotBox pName, pIcon, pTitle, pText
+   local tObj, tMid, tRect
+   put lkR(kPlayLeft + 16, kCanvasTop + 100, kPlayRight - 16, kCanvasBottom - 16) into tRect
+   put lkBox(pName, tRect, "255,255,255", 12, empty) into tObj
    lkBorder tObj, "203,213,225"
    set the lineSize of tObj to 2
    set the dashes of tObj to "7,6"
-   put (item 1 of pRect + item 3 of pRect) div 2 into tMid
-   get exIcon(pName & "Icon", pIcon, lkColor("muted"), lkR(tMid - 12, item 2 of pRect + 12, tMid + 12, item 2 of pRect + 36), empty)
+   put (item 1 of tRect + item 3 of tRect) div 2 into tMid
+   get exIcon(pName & "Icon", pIcon, lkColor("muted"), lkR(tMid - 12, item 2 of tRect + 12, tMid + 12, item 2 of tRect + 36), empty)
+   put lkLabel(pName & "Text", lkR(item 1 of tRect + 8, item 2 of tRect + 46, item 3 of tRect - 8, item 2 of tRect + 94), \
+         pTitle & return & pText, 12, lkColor("muted"), empty, "center") into tObj
+   set the textStyle of line 1 of tObj to "bold"
+   set the textSize of line 1 of tObj to 13
 end slotBox
 
 -- 5. Dictionary & User Guide: If-Then-Else, and the forecast it writes
@@ -690,10 +723,7 @@ private command buildDictionary
    put lessonButton("If-Then-Else", lkR(kPlayLeft + 16, kCanvasTop + 40, kPlayLeft + 216, kCanvasTop + 84)) into tObj
    set the script of tObj to exScript("Dictionary & User Guide/If-Then-Else")
    -- (where the forecast shows, while it is hidden)
-   slotBox "ForecastSlot", lkR(kPlayLeft + 18, kCanvasTop + 98, kPlayRight - 18, kCanvasBottom - 14), "cloud-sun"
-   put lkLabel("ForecastSlotText", lkR(kPlayLeft + 24, kCanvasTop + 144, kPlayRight - 24, kCanvasTop + 182), \
-         "Your forecast shows here" & return & "Click it, and it hides again.", 12, lkColor("muted"), empty, "center") into tObj
-   set the textStyle of line 1 of tObj to "bold"
+   slotBox "ForecastSlot", "cloud-sun", "Your forecast shows here", "Click it, and it hides again."
    -- (as wide as the canvas, and tall enough for four lines: a long date
    -- in a wide font takes two)
    put lessonField("Forecast", lkR(kPlayLeft + 16, kCanvasTop + 96, kPlayRight - 16, kCanvasBottom - 12), \
@@ -803,7 +833,7 @@ command narratorReset
    catch tError  --no voice here, so nothing to stop
    end try
    if there is no fld "Said" or there is no fld "Lesson" then exit narratorReset
-   set the textColor of fld "Said" to "100,116,139"
+   set the textColor of fld "Said" to "71,85,105"  --(dark enough to read on the balloon's tint)
    put "Press Read it to me, and I will read this lesson to you, a paragraph at each click. " & \
          "Try each thing as I go." into fld "Said"
    set the vScroll of fld "Said" to 0
@@ -1085,9 +1115,11 @@ on mouseUp  --display all commands or functions
    if it = "Cancel" then exit to top  --stop executing code
    if it = "Commands" then
       put the commandNames into tNames
+      filter tNames without "_*"  --(remaster) the engine's own names begin with "_": they are not for you
       put the number of lines in tNames && "Commands:" &cr& tNames into fld "Display"  --cr = carriage return
    else if it = "Functions" then
       put the functionNames into tNames
+      filter tNames without "_*"  --(remaster) the same for functions
       put the number of lines in tNames && "Functions:" &cr& tNames into fld "Display"
    end if
 end mouseUp

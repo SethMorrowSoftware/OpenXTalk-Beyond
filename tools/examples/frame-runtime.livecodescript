@@ -52,12 +52,21 @@ command frameSync
          put offset(tab, line tIndex of field "frameList") into tTab
          if tIndex = tLine then
             set the textColor of char tTab + 1 to -1 of line tIndex of field "frameList" to "255,255,255"
+            -- (its number too, which is too dim to read on the pill)
+            if tTab > 1 then
+               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "203,213,225"
+            end if
          else
             set the textColor of char tTab + 1 to -1 of line tIndex of field "frameList" to empty
+            if tTab > 1 then
+               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "100,116,139"
+            end if
          end if
       end repeat
       put the formattedRect of line tLine of field "frameList" into tRect
-      put (item 2 of tRect + item 4 of tRect) div 2 into tMid
+      -- (a line's letters sit below the middle of its rect, by 5 pixels on
+      -- Linux and in a browser alike: the pill goes round the letters)
+      put (item 2 of tRect + item 4 of tRect) div 2 + 5 into tMid
       set the rect of graphic "frameHi" to item 1 of the rect of graphic "frameHi", tMid - 14, \
             item 3 of the rect of graphic "frameHi", tMid + 14
       set the loc of graphic "frameBar" to item 1 of the loc of graphic "frameBar", tMid

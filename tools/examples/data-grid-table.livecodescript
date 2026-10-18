@@ -319,7 +319,7 @@ end codeChip
 -- has a text of its own on each card). The stack script scrolls it with
 -- the wheel, and moves its thumb
 private command buildNotes
-   local tObj, tIndex
+   local tObj, tIndex, tBreak, tWord
    go card (item 1 of kLessons)
    get lkGroup("Notes", lkR(kSplit, kStageTop, kStageRight, kStageBottom), empty)
    set the backgroundBehavior of group "Notes" to true
@@ -339,13 +339,31 @@ private command buildNotes
    -- (its text can be selected, to copy a line of code)
    set the traversalOn of tObj to true
    set the autoHilite of tObj to true
+   -- (where its foot may go: the stack script's notesFit stops it short of
+   -- there, at the foot of the last line that shows whole)
+   set the cNotesBottom of tObj to kStageBottom - 12
    put lkBox("notesThumb", lkR(kStageRight - 9, 156, kStageRight - 5, 200), "203,213,225", 2, "Notes") into tObj
    hide tObj
    repeat with tIndex = 2 to the number of items of kLessons
       place group "Notes" of card (item 1 of kLessons) onto card (item tIndex of kLessons)
    end repeat
    repeat with tIndex = 1 to the number of items of kLessons
-      set the htmlText of field "Info" of card (item tIndex of kLessons) to notesHtml(lessonText(tIndex))
+      set the htmlText of field "Info" of card (item tIndex of kLessons) to notesHtml(lessonText(tIndex), 0)
+      -- (a lesson's name too long for one line is made again as two, with
+      -- room between them: its lines are as far apart as the notes' own,
+      -- which the field fixes for all its lines. Measured on its card,
+      -- where the field is laid out)
+      go card (item tIndex of kLessons)
+      put 0 into tBreak
+      repeat with tWord = 2 to the number of words of line 1 of field "Info"
+         if item 2 of the formattedRect of word tWord of line 1 of field "Info" > item 2 of the formattedRect of word 1 of line 1 of field "Info" then
+            put tWord - 1 into tBreak
+            exit repeat
+         end if
+      end repeat
+      if tBreak > 0 then
+         set the htmlText of field "Info" of card (item tIndex of kLessons) to notesHtml(lessonText(tIndex), tBreak)
+      end if
       -- (the font of the code in them, which the stack script changes to
       -- the scripts panel's when the card opens: see codeFont)
       set the cNotesFace of card (item tIndex of kLessons) to codeFace()
@@ -574,8 +592,8 @@ private function tryPanel pTop, pKey, pMessageLines
    set the dontWrap of tObj to true
    repeat for each line tLine in exScript(pKey)
       put "<p bgcolor=" & quote & "#f1f5f9" & quote & " spaceabove=" & quote & "4" & quote & \
-            " firstindent=" & quote & "-14" & quote & " leftindent=" & quote & "20" & quote & ">" & \
-            codeHtml(tLine) & "</p>" after tHtml
+            " firstindent=" & quote & "-14" & quote & " leftindent=" & quote & "20" & quote & \
+            " rightindent=" & quote & "8" & quote & ">" & codeHtml(tLine) & "</p>" after tHtml
    end repeat
    put lkLabel("Try It", lkR(kPlayLeft + 10, pTop + 40, kPlayRight - 10, pTop + 300), empty, 12, lkColor("ink"), empty) into tObj
    set the margins of tObj to "6,0,6,4"
@@ -599,8 +617,10 @@ end tryPanel
 -- His notes as htmlText: the lesson's name large, his bold headings bold,
 -- "Try It" in the accent, his lists hanging, and code (and the data he
 -- has you write) in the code font on a tinted band. The words are his,
--- and each line stays a line
-private function notesHtml pText
+-- and each line stays a line, but for the lesson's name when it is too
+-- long for one: pBreak, if not 0, is how many of its words fit on its
+-- first
+private function notesHtml pText, pBreak
    local tHtml, tLine, tFirst, tData, tSpaces, tIndent, tAccent
    put lkMix(lkColor("emerald"), lkColor("ink"), 0.25) into tAccent
    put true into tFirst
@@ -610,7 +630,16 @@ private function notesHtml pText
       if char 1 to 2 of tLine is "@@" then
          delete char 1 to 2 of tLine
          if tFirst then
-            put "<p>" & htmlFont(lkEscape(tLine), 18, lkColor("ink"), true) & "</p>" after tHtml
+            -- (8 under it, as Learn's pages have; a name of two lines, 4
+            -- between them, which the field's fixed line height, made for
+            -- the 13 of the notes, did not leave the 18 of the name)
+            if pBreak > 0 then
+               put "<p>" & htmlFont(lkEscape(word 1 to pBreak of tLine), 18, lkColor("ink"), true) & "</p>" & \
+                     "<p spaceabove=" & quote & "4" & quote & " spacebelow=" & quote & "8" & quote & ">" & \
+                     htmlFont(lkEscape(word pBreak + 1 to -1 of tLine), 18, lkColor("ink"), true) & "</p>" after tHtml
+            else
+               put "<p spacebelow=" & quote & "8" & quote & ">" & htmlFont(lkEscape(tLine), 18, lkColor("ink"), true) & "</p>" after tHtml
+            end if
          else if tLine begins with "Try It" then
             put "<p>" & htmlFont(lkEscape(tLine), 14, tAccent, true) & "</p>" after tHtml
          else
@@ -975,6 +1004,7 @@ on preOpenCard  --was in Terry's < Prev and Next > buttons, which the window's B
    put empty into sGlideGoal  --(remaster) a glide of the last card's notes stops
    codeFontMatch  --(remaster) the code on the card in the scripts panel's font
    if there is a fld "Info" then set the vScroll of fld "Info" to "0"  --top
+   notesFit  --(remaster) the notes end at the foot of a line, not halfway down one
    notesThumb  --(remaster) the thumb that shows how far down the notes are
    pass preOpenCard
 end preOpenCard
@@ -1011,6 +1041,34 @@ function codeFontHere
    end repeat
    return empty
 end codeFontHere
+
+--(remaster) The notes as tall as the lines of this card's notes that show whole: their foot as
+--far down as cNotesBottom lets it, at the foot of the last such line (a line of a paragraph, as
+--its words show where it ends), so that the card does not open on a line cut in half.
+
+command notesFit
+   local tBottom, tLimit, tLine, tWord, tRect, tFoot, tCount
+   if there is no fld "Info" or the cNotesBottom of fld "Info" is empty then exit notesFit
+   put the cNotesBottom of fld "Info" into tLimit
+   set the rect of fld "Info" to item 1 of the rect of fld "Info", item 2 of the rect of fld "Info", item 3 of the rect of fld "Info", tLimit
+   put empty into tFoot
+   put the number of lines of fld "Info" into tCount
+   repeat with tLine = 1 to tCount
+      put item 4 of the formattedRect of line tLine of fld "Info" into tBottom
+      if tBottom > tLimit then exit repeat
+      put tBottom into tFoot
+   end repeat
+   if tLine <= tCount then  --a paragraph runs past the foot: as far as its whole lines go
+      repeat with tWord = 1 to the number of words of line tLine of fld "Info"
+         put the formattedRect of word tWord of line tLine of fld "Info" into tRect
+         if item 4 of tRect > tLimit then exit repeat
+         put max(tFoot, item 4 of tRect) into tFoot
+      end repeat
+   end if
+   if tFoot is not empty then
+      set the rect of fld "Info" to item 1 of the rect of fld "Info", item 2 of the rect of fld "Info", item 3 of the rect of fld "Info", tFoot + 2
+   end if
+end notesFit
 
 --(remaster) The notes scroll with the wheel, without a scrollbar, as the scripts panel does: the slim
 --thumb at their right shows how far down they are, and can be dragged.

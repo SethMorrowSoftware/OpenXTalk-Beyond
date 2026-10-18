@@ -290,6 +290,9 @@ private command mendTexts
    -- (a slip of the keys)
    fixText "formText", "more freedon", "more freedom"
    -- (the pane is drawn here, not a screenshot of it)
+   -- (a space before the colon, which no other heading has)
+   fixText "handler1Head", "Handler 1 :", "Handler 1:"
+   fixText "handler2Head", "Handler 2 :", "Handler 2:"
    fixText "prop1", "This screenshot shows a 'form' style selection. When", "With the form style chosen, it offers both. When"
 end mendTexts
 
@@ -639,6 +642,7 @@ private command buildTable
    gridProp tGrid, "alternate row color", "248,250,252"
    gridProp tGrid, "header text style", "normal"
    countryColumn
+   gridHint lkR(tLeft, kStageTop + 38, tLeft + 282, 548), "Click a step, 1 to 5, to build the grid"
    viewButton tLeft + 282, 564
 end buildTable
 
@@ -667,6 +671,7 @@ private command buildForm
    gridLook tGrid, lkColor("indigo")
    gridProp tGrid, "row height", kRowHeight
    gridProp tGrid, "alternate row color", "248,250,252"
+   gridHint lkR(kSideLeft, kStageTop + 38, kSideRight, 548), "Click step 1 or 2 to fill the grid"
    viewButton kSideRight, 564
 end buildForm
 
@@ -775,11 +780,18 @@ private command buildBehaviors
    get lkOval("CodeDot1", lkR(602, 121, 612, 131), "248,113,113", empty)
    get lkOval("CodeDot2", lkR(618, 121, 628, 131), "251,191,36", empty)
    get lkOval("CodeDot3", lkR(634, 121, 644, 131), "52,211,153", empty)
-   caption "CodeCaption", "the script of button " & quote & "Behavior Script" & quote, 656, 119
-   set the textColor of field "CodeCaption" to "100,116,139"
+   -- (in the window's font, as the other remasters' code windows have it,
+   -- and in the middle of the dots, up and down)
+   put lkLabel("CodeCaption", lkR(656, 119, 984, 135), "the script of button " & quote & "Behavior Script" & quote, 11, "100,116,139", empty) into tObj
+   set the dontWrap of tObj to true
+   exMiddle tObj, 126
    put lkCodeField("BehaviorCode", lkR(596, 148, 984, kStageBottom - 14), 12, 18, empty) into tObj
    codeFont tObj
    set the margins of tObj to "8,4,14,4"
+   -- (its foot at the foot of a line: the field clips the line after
+   -- the last whole one at its own edge, not at its bottom margin, and
+   -- showed that line's top half)
+   set the rect of tObj to the left of tObj, the top of tObj, the right of tObj, the top of tObj + 4 + 18 * ((the height of tObj - 4) div 18)
    -- (a letter of the code font, Source Code Pro or Droid Sans Mono, is 0.6
    -- of its size wide, whatever font this build has to measure with)
    put 12 * 0.6 into tWidth
@@ -795,7 +807,7 @@ private command buildBehaviors
          put " bgcolor=" & quote & tBand & quote after tHtml
          add 1 to tCount
       end if
-      put ">" & codeLineHtml(char tSpaces + 1 to -1 of tLine) & "</p>" after tHtml
+      put ">" & codeLineHtml(char tSpaces + 1 to -1 of shownLine(tLine)) & "</p>" after tHtml
    end repeat
    if tCount is not 2 then
       throw "the template's behavior no longer has FillInData and LayoutControl"
@@ -804,6 +816,23 @@ private command buildBehaviors
    wheelThumb tObj, "BehaviorCodeThumb", empty
    set the backgroundColor of graphic "BehaviorCodeThumb" to "100,116,139"
 end buildBehaviors
+
+-- A line of the behavior as the card shows it: without the mark the
+-- remaster put on a line it changed for strict compilation (the scripts
+-- panel shows the script itself, mark and all), which, wrapped, read as a
+-- line of the code
+private function shownLine pLine
+   local tAt
+   put offset("--(remaster)", pLine) into tAt
+   if tAt is 0 then
+      return pLine
+   end if
+   put char 1 to tAt - 1 of pLine into pLine
+   repeat while the last char of pLine is space
+      delete the last char of pLine
+   end repeat
+   return pLine
+end shownLine
 
 -- Properties: a grid to try properties on at the left, with the message
 -- box and the three panes' buttons; the panes at the right, their words
@@ -1077,10 +1106,21 @@ end codeChip
 -- A small caption above a control: its name, as a script names it
 private command caption pName, pText, pLeft, pTop
    local tObj
-   put lkLabel(pName, lkR(pLeft, pTop, pLeft + 340, pTop + 16), pText, 11, lkColor("muted"), empty) into tObj
+   -- (in the body's grey: the paler one was hard to read in so small a
+   -- monospaced font)
+   put lkLabel(pName, lkR(pLeft, pTop, pLeft + 340, pTop + 16), pText, 11, lkColor("soft"), empty) into tObj
    codeFont tObj
    set the dontWrap of tObj to true
 end caption
+
+-- Words in the middle of a demonstration's grid, pRect, while it is empty
+-- (the card opens on step 0, which empties it): the card script's stepSet
+-- hides them when a step fills it
+private command gridHint pRect, pText
+   local tObj
+   put lkLabel("GridHint", lkR(item 1 of pRect + 16, 0, item 3 of pRect - 16, 18), pText, 13, lkColor("soft"), empty, "center") into tObj
+   exMiddle tObj, (item 2 of pRect + item 4 of pRect) div 2
+end gridHint
 
 -- The rule between a wide card's two sides
 private command splitRule
@@ -1843,6 +1883,7 @@ on stepSet pStep
       if x <= pStep then set the blendlevel of button ("Step" & x) to 0
       else set the blendlevel of button ("Step" & x) to 50
    end repeat
+   set the visible of field "GridHint" to (pStep is 0)  --(remaster) the words in the empty grid, until a step fills it
 end stepSet
 
 on preopencard
@@ -2068,6 +2109,7 @@ on stepSet pStep
       if x <= pStep then set the blendlevel of button ("Step" & x) to 0
       else set the blendlevel of button ("Step" & x) to 50
    end repeat
+   set the visible of field "GridHint" to (pStep is 0)  --(remaster) the words in the empty grid, until a step fills it
 end stepSet
 
 on preopencard

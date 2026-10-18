@@ -181,7 +181,7 @@ private command buildFront
          "changes today's web needs, each one marked in the script."
    put lkLabel("Origin_note", lkR(712, 548, 980, 600), \
          "The feeds come from the web, so you need to be online. The web IDE can read only some of them.", \
-         12, lkColor("muted"), "Origin") into tObj
+         12, lkColor("soft"), "Origin") into tObj
 end buildFront
 
 -- The original program, on a program card: the address, Import and Clear,
@@ -213,6 +213,9 @@ private command buildImport
    set the autoHilite of tObj to true
    set the cWheel of tObj to true
    set the cThumb of tObj to "content_thumb"
+   -- (until a feed is read, a word on what to do: Import puts the titles
+   -- in its place, in the field's own colour, and Clear empties it)
+   set the htmlText of tObj to "<p><font color=" & quote & lkHex(lkColor("soft")) & quote & ">Press Import to fetch the feed's titles.</font></p>"
    put lkBox("content_thumb", lkR(kNarrowRight - 23, 282, kNarrowRight - 19, 320), lkColor("muted"), 2, empty) into tObj
    set the blendLevel of tObj to 30
    hide tObj
@@ -254,7 +257,8 @@ private command buildReader
    put lkLabel("ListHead", lkR(kLeft + 16, 222, kNarrowRight, 240), "Stories", 13, lkColor("ink"), empty) into tObj
    set the textStyle of tObj to "bold"
    set the dontWrap of tObj to true
-   -- (while the list is empty, faint lines where the stories will be)
+   -- (while a feed is on its way, faint lines where its stories will be;
+   -- before one is read, or when none came, a line that says so)
    get lkGroup("Placeholder", lkR(kLeft + 16, 246, kNarrowRight, 600), empty)
    get lkBox("Placeholder_anchor", lkR(kLeft + 16, 246, kLeft + 17, 247), empty, 0, "Placeholder")
    repeat with tIndex = 1 to 6
@@ -265,6 +269,9 @@ private command buildReader
       put lkBox("Placeholder_date" & tIndex, lkR(kLeft + 28, tTop + 19, kLeft + 100, tTop + 27), lkColor("line"), 4, "Placeholder") into tObj
       set the blendLevel of tObj to 40 + (tIndex - 1) * 10
    end repeat
+   hide group "Placeholder"
+   put lkLabel("ListEmpty", lkR(kLeft + 28, 258, kNarrowRight - 12, 276), "No feed loaded yet", 13, lkColor("soft"), empty) into tObj
+   set the dontWrap of tObj to true
    get lkGroup("List", lkR(kLeft + 16, 246, kNarrowRight, 600), empty)
    get lkBox("List_anchor", lkR(kLeft + 16, 246, kLeft + 17, 247), empty, 0, "List")
    put lkBox("Pick", lkR(kLeft + 18, 250, kNarrowRight - 10, 300), lkMix("255,255,255", tAccent, 0.12), 12, "List") into tObj
@@ -323,6 +330,8 @@ private command buildInside
    get lkOval("Xml_dot2", lkR(kLeft + 34, kTop + 17, kLeft + 44, kTop + 27), "251,191,36", empty)
    get lkOval("Xml_dot3", lkR(kLeft + 50, kTop + 17, kLeft + 60, kTop + 27), "52,211,153", empty)
    put lkLabel("Xml_caption", lkR(kLeft + 72, kTop + 15, 648, kTop + 31), "a feed, as its site keeps it", 11, "100,116,139", empty) into tObj
+   -- (its letters level with the dots)
+   exMiddle tObj, kTop + 22
    put lkBox("Xml_pick", lkR(kLeft + 10, kTop + 46, 654, kTop + 66), lkMix(lkColor("code"), lkColor("orange"), 0.3), 6, empty) into tObj
    put lkBox("Xml_mark", lkR(kLeft + 10, kTop + 46, kLeft + 13, kTop + 66), lkColor("orange"), 0, empty) into tObj
    put codeField("Xml", lkR(kLeft + 12, kTop + 46, 656, 520), empty, 11, 19, empty) into tObj
@@ -369,8 +378,10 @@ private command buildInside
       put lkLabel("Lines_text" & tIndex, lkR(698, tTop, 982, tTop + 16), empty, 12, lkColor("soft"), "Lines") into tObj
       set the htmlText of tObj to "<p><font color=" & quote & lkHex(lkColor("orange")) & quote & "><b>" & tIndex & "</b></font>   " & tText[tIndex] & "</p>"
       put 10 + 17 * the number of lines of tCode[tIndex] into tHeight
-      put lkBox("Lines_codeBg" & tIndex, lkR(694, tTop + 20, 986, tTop + 20 + tHeight), lkColor("code"), 8, "Lines") into tObj
-      put codeField("Lines_code" & tIndex, lkR(702, tTop + 26, 984, tTop + 20 + tHeight - 2), tCode[tIndex], 11, 17, "Lines") into tObj
+      -- (as wide as the path's above, under the numbers; the longest line
+      -- has as much room at its right as at its left)
+      put lkBox("Lines_codeBg" & tIndex, lkR(698, tTop + 20, 982, tTop + 20 + tHeight), lkColor("code"), 8, "Lines") into tObj
+      put codeField("Lines_code" & tIndex, lkR(704, tTop + 26, 981, tTop + 20 + tHeight - 2), tCode[tIndex], 11, 17, "Lines") into tObj
       set the dontWrap of tObj to true
       add 20 + tHeight + 12 to tTop
    end repeat
@@ -779,6 +790,7 @@ command listStories
    end repeat
    set the htmlText of field "Stories" to tHtml
    set the visible of group "Placeholder" to (tCount is 0)
+   hide field "ListEmpty"
    repeat with tIndex = 1 to tCount
       set the spaceAbove of line (2 * tIndex - 1) of field "Stories" to 6
       set the spaceBelow of line (2 * tIndex) of field "Stories" to 8
@@ -893,6 +905,11 @@ command showNote pIcon, pTitle, pText
    set the top of field "Note_text" to the bottom of field "Note_title" + 6
    hide group "Story"
    show group "Note"
+   -- (with no stories, the list has faint lines while a feed is on its way, and else a line that says it is empty)
+   if the number of lines of field "Stories" is 0 then
+      set the visible of group "Placeholder" to (pIcon is "wait")
+      set the visible of field "ListEmpty" to (pIcon is not "wait")
+   end if
 end showNote
 
 -- No stories: an empty list, before a feed is read

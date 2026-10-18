@@ -160,11 +160,11 @@ end siMiddle
 -- score is in Animate a Letter
 private command siReadouts
    local tObj
-   put lkLabel("HLabel", lkR(846, 16, 920, 30), "HSCROLL", 11, lkColor("muted"), empty, "right") into tObj
+   put lkLabel("HLabel", lkR(846, 16, 920, 30), "HSCROLL", 11, lkColor("soft"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("HValue", lkR(846, 28, 920, 66), "0", 28, sAccent, empty, "right") into tObj
    set the textStyle of tObj to "bold"
-   put lkLabel("VLabel", lkR(926, 16, 1000, 30), "VSCROLL", 11, lkColor("muted"), empty, "right") into tObj
+   put lkLabel("VLabel", lkR(926, 16, 1000, 30), "VSCROLL", 11, lkColor("soft"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("VValue", lkR(926, 28, 1000, 66), "0", 28, sAccent, empty, "right") into tObj
    set the textStyle of tObj to "bold"
@@ -206,7 +206,7 @@ end siChoice
 -- The front page: what this is, a tile for each program, what you will
 -- learn and how the original was made
 private command buildFront
-   local tObj, tTop, tIndex
+   local tObj, tTop, tIndex, tRow, tOneLine, tSteps
    go card "Start"
    exHero lkR(kStageLeft, kStageTop, 1000, 272), lkColor("teal") & "|" & lkColor("sky"), \
          "FROM OPENXTALK LITE'S DEMOS  " & numToCodepoint(183) & "  REMASTERED FOR OXT-BEYOND, 2026", \
@@ -223,15 +223,26 @@ private command buildFront
    put 364 into tTop
    siPanel "Learn", lkR(kStageLeft, tTop, 620, 616), "What you will learn", "graduation-cap"
    siPanelRow "Learn", "Learn1", kStageLeft + 22, tTop + 72, 600, "check", "Scrollbars: hScrollbar and vScrollbar"
-   siPanelRow "Learn", "Learn2", kStageLeft + 22, tTop + 116, 600, "check", "How far it scrolled: hScroll and vScroll"
-   siPanelRow "Learn", "Learn3", kStageLeft + 22, tTop + 160, 600, "check", "The message scrollbarDrag, as it scrolls"
-   siPanelRow "Learn", "Learn4", kStageLeft + 22, tTop + 204, 600, "check", "Scrolling by script, a little at a time"
+   siPanelRow "Learn", "Learn2", kStageLeft + 22, tTop + 114, 600, "check", "How far it scrolled: hScroll and vScroll"
+   siPanelRow "Learn", "Learn3", kStageLeft + 22, tTop + 156, 600, "check", "The message scrollbarDrag, as it scrolls"
+   siPanelRow "Learn", "Learn4", kStageLeft + 22, tTop + 198, 600, "check", "Scrolling by script, a little at a time"
 
    siPanel "Steps", lkR(636, tTop, 1000, 616), "How the original was made", "notebook-pen"
-   siPanelRow "Steps", "Step1", 658, tTop + 72, 980, 1, "File > Import As Control > Image File."
-   siPanelRow "Steps", "Step2", 658, tTop + 116, 980, 2, "Select the image, then Object > Group Selected."
-   siPanelRow "Steps", "Step3", 658, tTop + 160, 980, 3, "Object > Object Inspector: check hScrollbar and vScrollbar."
-   siPanelRow "Steps", "Step4", 658, tTop + 204, 980, 4, "Resize the group as you like: that is its window."
+   put "File > Import As Control > Image File." & return & \
+         "Select the image, then Object > Group Selected." & return & \
+         "Object > Object Inspector: check hScrollbar and vScrollbar." & return & \
+         "Resize the group as you like: that is its window." into tSteps
+   -- (a row as far below the last as the last one's words reach: one of
+   -- two lines pushes the next down by a line, so the gaps stay the same;
+   -- one line a row, they are level with the rows beside them)
+   put tTop + 72 into tRow
+   repeat with tIndex = 1 to 4
+      siPanelRow "Steps", "Step" & tIndex, 658, tRow, 980, tIndex, line tIndex of tSteps
+      if tIndex is 1 then
+         put the formattedHeight of field "Step1_text" into tOneLine
+      end if
+      add 42 + the formattedHeight of field ("Step" & tIndex & "_text") - tOneLine to tRow
+   end repeat
 end buildFront
 
 -- The painting in its group "Display", as the original's first card has

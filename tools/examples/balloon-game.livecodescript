@@ -462,6 +462,8 @@ private function codeBox pName, pRect, pCaption, pCode
    get lkOval(pName & "_dot3", lkR(tL + 46, tT + 15, tL + 55, tT + 24), "52,211,153", empty)
    put lkLabel(pName & "_caption", lkR(tL + 66, tT + 12, tR - 14, tT + 28), pCaption, 11, "100,116,139", empty) into tObj
    set the dontWrap of tObj to true
+   -- (its letters level with the dots, as the scripts panel's are)
+   exMiddle tObj, tT + 20
    put lkLabel(pName & "_code", lkR(tL + 6, tT + 36, tR - 8, tB - 8), empty, 12, lkColor("codeInk"), empty) into tObj
    set the textFont of tObj to "Source Code Pro"
    set the fixedLineHeight of tObj to true
@@ -556,6 +558,9 @@ private command buildHome
    set the blendLevel of it to 40
    -- (and a sparkle of the banner's that would be on its words, moved)
    set the loc of graphic "hero_star2" to 978, 240
+   -- (and one that would be on the top bird, moved between the title and
+   -- the birds)
+   set the loc of graphic "hero_star3" to 808, 124
    put picture("hero_balloon", "balloon", 904, 118, "hero") into tObj
    lkShadow tObj, 16, 6, 30
    get picture("hero_bird1", "birdSmall", 866, 128, "hero")
@@ -637,7 +642,8 @@ private command buildPage2
    set the loc of tObj to gameX(512), gameY(694)
    put picture("foreground2", "foreground", 0, 0, "Scene") into tObj
    set the topLeft of tObj to the topRight of image "foreground1"
-   get picture("balloon", "balloon", kLeft, gameY(254), "Scene")
+   -- (a step in from the stage's left, stageSize(16), as the card's script puts it)
+   get picture("balloon", "balloon", kLeft + round(16 * kScale), gameY(254), "Scene")
    gameTitle
    get gameText("story", lkR(gameX(53), gameY(129) + 8, gameX(975), gameY(240) + 8), \
          "Hi again, pilot. For this task you have to collect 3000 points to move on to the next level. " & \
@@ -648,7 +654,7 @@ private command buildPage2
    sceneEnd
    -- The score, in the header (the original's was at the top right of
    -- its card)
-   put lkLabel("ScoreLabel", "720,16,872,30", "POINTS", 11, lkColor("muted"), empty, "right") into tObj
+   put lkLabel("ScoreLabel", "720,16,872,30", "POINTS", 11, lkColor("soft"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
    put lkLabel("score", "700,28,872,66", "0", 30, lkColor("amber"), empty, "right") into tObj
    set the textStyle of tObj to "bold"
@@ -669,7 +675,7 @@ private command buildPage3
    gameTitle
    get gameText("story", lkR(gameX(53), gameY(129) + 8, gameX(975), gameY(240) + 8), \
          "Hi again, pilot. For this task you have to move across the screen without colliding with any birds.", 18, "Scene")
-   get picture("balloon", "balloon", kLeft, gameY(254), "Scene")
+   get picture("balloon", "balloon", kLeft + round(16 * kScale), gameY(254), "Scene")
    put picture("bird1", "bird", 0, 0, "Scene") into tObj
    set the loc of tObj to gameX(1024), gameY(380)
    put picture("bird2", "bird", 0, 0, "Scene") into tObj
@@ -687,7 +693,7 @@ private command buildPage4
    sceneBegin
    get picture("intro_background.png", "intro", kLeft, kTop, "Scene")
    get gameText("story", lkR(gameX(46), introY(319), gameX(978), introY(589)), \
-         "Congratulations pilot. You have reached the end of your balloon adventure.", 36, "Scene")
+         "Congratulations, pilot. You have reached the end of your balloon adventure.", 36, "Scene")
    sceneEnd
    put exButton("Play Again", 0, 548, 40, "Play again", "rotate-cw", "primary", lkColor("amber"), empty, empty, 0) into tWidth
    set the left of group "Play Again" to (kLeft + kRight - tWidth) div 2
@@ -753,7 +759,7 @@ private command buildMoving
          "The card moves the balloon a step that way, if it is not at the edge.", \
          12, lkColor("soft"), empty) into tBottom
    get codeBox("MoveCode", lkR(kLeft, 368, kRight, kBottom), \
-         "move and arrowKey, in the scripts of the cards " & quote & "page1" & quote & " and " & quote & "page2" & quote, \
+         "move and arrowKey, in the scripts of the Take Off and Points cards", \
          exScript("snippet/move"))
 end buildMoving
 
@@ -831,8 +837,8 @@ private command buildLoop
    get drawLine("Turn", (tX0 + round(-988 * kTiny)) & "," & (tBottom + 26) & return & (tX0 + round(-988 * kTiny)) & "," & tTop & \
          return & (tX0 + round(5012 * kTiny)) & "," & tTop & return & (tX0 + round(5012 * kTiny)) & "," & (tBottom + 26), \
          lkColor("muted"), 2, true, "4,4", empty)
-   get pill("TurnPill", tX0 + round(2012 * kTiny), tTop, "off the left of the stage? Then to the right of the other", "center", empty)
-   get codeBox("LoopCode", lkR(kLeft, 350, kRight, kBottom), "moveForeground, in the script of the card " & quote & "page2" & quote, \
+   get pill("TurnPill", tX0 + round(2012 * kTiny), tTop, "Off the left edge? It jumps to the right of the other", "center", empty)
+   get codeBox("LoopCode", lkR(kLeft, 350, kRight, kBottom), "moveForeground, in the script of the Points card", \
          exScript("snippet/loop"))
 end buildLoop
 
@@ -882,8 +888,8 @@ private command buildCollisions
    put lkLabel("HitText", lkR(item 1 of tScene, item 4 of tScene + 8, item 3 of tScene, item 4 of tScene + 24), \
          "The pixels touch: true, and the game is over", 12, lkColor("ink"), empty, "center") into tObj
    set the textStyle of tObj to "bold"
-   get codeBox("CollideCode", lkR(kLeft, 378, kRight, kBottom), "intersect, in the scripts of the cards " & \
-         quote & "page2" & quote & " and " & quote & "page3" & quote, exScript("snippet/collide"))
+   get codeBox("CollideCode", lkR(kLeft, 378, kRight, kBottom), "intersect, in the scripts of the Points and Birds cards", \
+         exScript("snippet/collide"))
 end buildCollisions
 
 -- A small sky for the collisions: the game's own, from its middle
@@ -1129,8 +1135,9 @@ on moveStopped
    ## Balloon has been piloted off the right side of the screen
    ## Position the balloon on the next card so it follows
    set the top of image "balloon" of card "page2" to the top of image "balloon" of this card
-   ## (remaster) at the left of the stage, as the original's was at the left of its card, 0
-   set the left of image "balloon" of card "page2" to the left of graphic "Stage"
+   ## (remaster) at the left of the stage, as the original's was at the left of its card, 0, and a
+   ## step in, so that the stage's edge does not cut off its side
+   set the left of image "balloon" of card "page2" to the left of graphic "Stage" + stageSize(16)
    ## Go to the next card
    go next card
 end moveStopped
@@ -1152,9 +1159,9 @@ on preOpenCard
    set the loc of image "foreground1" to stageLoc(512,694)
    set the topLeft of image "foreground2" to the topRight of image "foreground1"
    ## (remaster) The window's list can bring you straight here: a balloon that is not on the stage
-   ## (it flew off to the right last time) starts again at the left
+   ## (it flew off to the right last time) starts again at the left, a step in
    if the left of image "balloon" >= the right of graphic "Stage" or the right of image "balloon" <= the left of graphic "Stage" then
-      set the left of image "balloon" to the left of graphic "Stage"
+      set the left of image "balloon" to the left of graphic "Stage" + stageSize(16)
    end if
 
    ## Set the score to 0
@@ -1213,7 +1220,8 @@ on arrowKey pDirection
       if the left of image "balloon" > the right of graphic "Stage" then
          put false into sMoving
          set the top of image "balloon" of card "page3" to the top of image "balloon" of this card
-         set the left of image "balloon" of card "page3" to the left of graphic "Stage"
+         ## (remaster) a step in from the left of the stage, as on this card
+         set the left of image "balloon" of card "page3" to the left of graphic "Stage" + stageSize(16)
          go to next card
       end if
    end if
@@ -1308,9 +1316,9 @@ on preOpenCard
    set the loc of image "bird2" to stageLoc(1250,270)
    set the loc of image "bird3" to stageLoc(1490,500)
    ## (remaster) The window's list can bring you straight here: a balloon that is not on the stage
-   ## starts again at the left
+   ## starts again at the left, a step in
    if the left of image "balloon" >= the right of graphic "Stage" or the right of image "balloon" <= the left of graphic "Stage" then
-      set the left of image "balloon" to the left of graphic "Stage"
+      set the left of image "balloon" to the left of graphic "Stage" + stageSize(16)
    end if
 
    ## Put text into the field, using the gName variable to personalise the message
@@ -1423,7 +1431,8 @@ end moveForeground
 /*@ page4/card
 on preOpenCard
    global gName
-   put "Congratulations" && gName & ". You have reached the end of your balloon adventure." into field "story"
+   ## (remaster) "Congratulations," with a comma, which the original's left out
+   put "Congratulations," && gName & ". You have reached the end of your balloon adventure." into field "story"
    ## (remaster) The window lays the card out after this handler: it passes the message on
    pass preOpenCard
 end preOpenCard
@@ -1475,12 +1484,12 @@ end mouseUp
 @*/
 
 /*@ snippet/move
--- the balloon's script, on the card "page1"
+-- the balloon's script, on the Take Off card
 on mouseUp
    move image "balloon" to the points of graphic "path" in 3 seconds without waiting
 end mouseUp
 
--- in arrowKey, in the script of the card "page2": the up key
+-- in arrowKey, in the script of the Points card: the up key
 else if pDirection is "up" then
    if the top of image "balloon" > the top of graphic "Stage" + stageSize(5) then
       set the top of image "balloon" to the top of image "balloon" - stageSize(25)
@@ -1503,12 +1512,12 @@ end moveForeground
 @*/
 
 /*@ snippet/collide
--- checkForScore, in the script of the card "page2"
+-- checkForScore, in the script of the Points card
 if intersect(image "balloon",image "points","pixels") then
    add 1000 to field "score"
    play audioclip "hiscore.wav"
 end if
--- checkForCollision, in the script of the card "page3"
+-- checkForCollision, in the script of the Birds card
 if intersect(image "balloon",image "bird1","pixels") or ... then
    answer "Game Over"
    go to card "introduction"
