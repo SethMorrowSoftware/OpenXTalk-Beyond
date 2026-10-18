@@ -1376,11 +1376,12 @@ private function _revEnvironmentPlatform
          put "Linux" into tPlatform
          break
       case "MacOS"
-         if char 1 of the systemVersion is 1 then
-            put "MacOS X" into tPlatform
-         else
-            put "MacOS Classic" into tPlatform
-         end if
+         -- OXT-Beyond: always macOS. This read a systemVersion that does
+         -- not begin with 1 as Classic Mac OS, which the engine never runs
+         -- on; macOS 26's begins with 2, so there the system font was
+         -- empty and setting it threw (the Standalone Settings' Web card
+         -- stopped after its heading)
+         put "MacOS X" into tPlatform
          break
       case "Win32"
          put "Windows" into tPlatform
