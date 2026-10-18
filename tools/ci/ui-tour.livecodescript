@@ -570,6 +570,16 @@ on tour_standalone_settings
    put "revStandaloneSettings" into tStack
    tourWait 2000
    if there is not a stack tStack or not the visible of stack tStack then throw "the Standalone Settings did not open"
+   -- the HTML5 option shows when the IDE finds the web runtime
+   -- (revEngineCheck in revsblibrary): what it looked at, for the log
+   tourRecord "INFO web runtime check" && revEngineCheck("Emscripten") && \
+         "installed" && revEnvironmentIsInstalled() && "runtime" && revEnvironmentRuntimePath() && \
+         "user runtime" && revEnvironmentUserRuntimePath() && "folder" && \
+         (there is a folder (revEnvironmentRuntimePath() & "/Emscripten/js"))
+   if not revEngineCheck("Emscripten") then
+      throw "the web runtime is not found (revEngineCheck), so the Web card has no HTML5 option; runtime" && \
+            revEnvironmentRuntimePath() & ", user runtime" && revEnvironmentUserRuntimePath()
+   end if
    -- each card, as a click on its button at the top does
    repeat with i = 1 to the number of buttons of group "cards" of stack tStack
       if the visible of button i of group "cards" of stack tStack then
