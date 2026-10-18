@@ -29,8 +29,11 @@ with `put url`; **Web Audio Piano**, sound made through `do ... as
 **QR Studio**, QR codes from the QR library, downloaded as PNG files;
 **Talking Robot**, the browser's speech voices; **2048**, a game of
 sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
-**Beat Box**, a drum machine timed by Web Audio; and three that the
-build makes), and **About**, which says in plain English
+**Beat Box**, a drum machine timed by Web Audio; **Kanban Board**,
+cards dragged between columns; **Markdown Notes**, Markdown styled as you
+type; **UI Gallery**, modern controls in a light and a dark theme;
+**Photo Lab**, a photo of your own with looks and adjustments, downloaded
+at full size; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -68,7 +71,7 @@ own that holds nothing else of value.
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
-| `stacks/` | the three stacks the home page features and the three small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); every one carries the colourized Script Viewer as a substack |
+| `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); every one carries the colourized Script Viewer as a substack |
 | `assets/` | the page's logo, fonts and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 

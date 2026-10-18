@@ -242,6 +242,26 @@ SAMPLES = [
      'description': 'A 16-step drum machine: drums made by Web Audio, kept in time by the '
                     'browser, and your beat saved for next time.',
      'tags': ['Music', 'Web Audio']},
+    {'title': 'Kanban Board', 'source': 'stacks',
+     'files': ['Kanban Board.oxtstack'], 'image': 'Kanban Board.webp',
+     'description': 'Drag cards between three columns while the others slide out of the way; '
+                    'add, tag, edit and bin them, and the board is kept in the browser.',
+     'tags': ['Drag and drop', 'Animation', 'Storage']},
+    {'title': 'Markdown Notes', 'source': 'stacks',
+     'files': ['Markdown Notes.oxtstack'], 'image': 'Markdown Notes.webp',
+     'description': 'Write Markdown on the left and see it styled on the right as you type, '
+                    'tick boxes in the preview, and download a note as Markdown or a web page.',
+     'tags': ['Text', 'htmlText', 'Download']},
+    {'title': 'UI Gallery', 'source': 'stacks',
+     'files': ['UI Gallery.oxtstack'], 'image': 'UI Gallery.webp',
+     'description': 'Modern controls drawn with graphics and a little script: switches, sliders, '
+                    'a segmented control, a progress ring, toasts, a sheet and a dark theme.',
+     'tags': ['Modern UI', 'Animation', 'Themes']},
+    {'title': 'Photo Lab', 'source': 'stacks',
+     'files': ['Photo Lab.oxtstack'], 'image': 'Photo Lab.webp',
+     'description': 'Open a photo of your own, pick a look, adjust it and download it at full '
+                    'size; the browser does the pixel work and the photo never leaves your computer.',
+     'tags': ['Images', 'JavaScript', 'Files']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
