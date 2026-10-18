@@ -14,6 +14,10 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## Unreleased
+
+- Web: close an open menu when the page outside every window is clicked (#144)
+
 ## 0.2.7-rc.4 (2026-10-18, pre-release)
 
 - Web Stack Player: specialFolderPath("resources") finds a stack's files, and a polish pass over the new stacks (#140)
