@@ -14,6 +14,12 @@ What works in it:
   stack, the lessons, the examples and the Dictionary. Its "Show Home at
   startup" switch turns that off, and Help > Welcome to OXT-Beyond opens
   it again;
+- Learn, the IDE's window for the lessons and the examples
+  ([palettes/learn](../../ide/Toolset/palettes/learn/revlearn.livecodescript)),
+  in Home's look: Help > Lessons, Help > Demos and Sample Stacks open it,
+  and with the Option (Alt) key down they open the classic stacks. The
+  page does not carry the guides' stack, so its Guides tab offers the
+  User Guide PDF;
 - making stacks, with the Tools palette, the Property Inspector and the
   Message Box;
 - the Script Editor, with colouring, compile errors and the handler list;

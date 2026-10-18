@@ -3246,6 +3246,10 @@ end hConditionalDataGrid
 
 on tOpenNewGuides  --tp 24-12, open user submitted guides
    local tFilePath
+   -- OXT-Beyond: the lessons open in Learn (see revMenubarOpenLearn)
+   if revMenubarOpenLearn("lessons") then
+      exit tOpenNewGuides
+   end if
    set the itemdelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/userguides.oxtstack" into tFilePath
    open stack tFilePath
@@ -3253,6 +3257,10 @@ end tOpenNewGuides
 
 on tOpenAllGuides  --tp 24-12, open 'All Guides' stack
    local tFilePath
+   -- OXT-Beyond: the guides open in Learn (see revMenubarOpenLearn)
+   if revMenubarOpenLearn("guides") then
+      exit tOpenAllGuides
+   end if
    set the itemdelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & "/userguides/allguides.oxtstack" into tFilePath
    open stack tFilePath
@@ -3296,11 +3304,39 @@ on tOpenUnlock  --tp 07-06-2026, 'Unlock and Remove FX'
 end tOpenUnlock
 
 on tOpenDemos  --tp 26-1, open 'Demos' stack
+   -- OXT-Beyond: the examples open in Learn (see revMenubarOpenLearn)
+   if revMenubarOpenLearn("examples") then
+      exit tOpenDemos
+   end if
    set the itemdelimiter to slash
    put item 1 to -5 of the filename of stack "revMenubar" & slash & "Resources" & slash & "Examples" & slash & "demos.oxtstack" into tFilePath
    set the itemdelimiter to ","
    open stack tFilePath
 end tOpenDemos
+
+-- OXT-Beyond: Learn (palettes/learn) shows the lessons, the guides and the
+-- examples in one window, in the look of the web tour, and reads the
+-- classic stacks without changing them. It opens at pSection ("lessons",
+-- "guides" or "examples") and returns true; with the Option (Alt) key
+-- down, or when Learn is missing or fails, it returns false and the
+-- classic stack opens as it always did.
+private function revMenubarOpenLearn pSection
+   local tPath, tError
+   if the optionKey is down then
+      return false
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & "/learn/revlearn.livecodescript" into tPath
+   if there is no file tPath then
+      return false
+   end if
+   try
+      dispatch "revLearnShow" to stack tPath with pSection
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end revMenubarOpenLearn
 
 on tMenuBar_WDdecorations  --tp 24-1, show revmenubar as standard window
    local tOldTop, tOldLeft, tCorrectMacOS

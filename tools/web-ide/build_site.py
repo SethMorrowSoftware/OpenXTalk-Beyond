@@ -52,7 +52,9 @@ Resource Center, the tutorials and the 23 MB "All Guides" stack.
 
 --repo DIR copies a source checkout's script-only IDE stacks
 (ide/**/*.livecodescript, and ide-support's into Toolset/libraries) over
-the installed ones, to try IDE script changes without packaging them.
+the installed ones, to try IDE script changes without packaging them, and
+puts the Stack Player's stacks (tools/web-player/stacks) where packaging
+does (Resources/Examples/Showcase), for Learn's examples gallery.
 
 --source-url is the address of the source the site was built from, for
 the page's "Source" link (GPL); by default the repository's.
@@ -174,6 +176,14 @@ def repo_scripts(repo, install):
         if os.path.isfile(os.path.join(install, *rel.split('/'))):
             scripts[rel] = path
     log('  %d script-only stacks from %s' % (len(scripts), repo))
+    # The Stack Player's stacks, for Learn's examples gallery, where
+    # tools/oxt/package.py installs them (SHOWCASE)
+    showcase = os.path.join(repo, 'tools', 'web-player', 'stacks')
+    stacks = sorted(glob.glob(os.path.join(showcase, '*.oxtstack')))
+    for path in stacks:
+        scripts['Resources/Examples/Showcase/' + os.path.basename(path)] = path
+    if stacks:
+        log('  %d Stack Player stacks from %s' % (len(stacks), showcase))
     return scripts
 
 

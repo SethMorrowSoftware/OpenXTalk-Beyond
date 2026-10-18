@@ -344,6 +344,12 @@ Home, the web IDE's welcome stack
 draws 25 Lucide icons of the same version, under the same licence, from
 their SVG text, which its script carries with the licence's full text.
 
+Learn, the IDE's window for the lessons, the guides and the examples
+([`ide/Toolset/palettes/learn/`](ide/Toolset/palettes/learn/)), draws 72
+Lucide icons of the same version, under the same licence, from their SVG
+text, which its kit (`revlearnkit.livecodescript`) carries with the
+licence's full text.
+
 ## xTalk Suite extensions
 
 The packages include fifteen extensions of the xTalk Suite by Seth

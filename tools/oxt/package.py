@@ -96,7 +96,10 @@ stage folder itself except on macOS):
                not depend on git's core.autocrlf. Documentation includes
                the documentation data that tools/ci/build_docs.sh
                generates into the checkout, which git does not keep
-               (DOCS_FILES): packaging stops when it is missing.
+               (DOCS_FILES): packaging stops when it is missing. Learn's
+               examples gallery also gets the Stack Player's stacks
+               (tools/web-player/stacks) in Resources/Examples/Showcase
+               (SHOWCASE): the repository keeps one copy, the player's.
   build        the files of --bin that Installer/package.txt installs on the
                platform, at its installed paths (see Platform and plan_build);
                the development engine becomes OXT-Beyond.exe, OXT-Beyond or
@@ -233,6 +236,14 @@ DOCS_FILES = (
 ) + tuple('api/exports/%s/%s' % (section, name)
           for section in ('xtalk', 'builder', 'datagrid')
           for name in ('index.txt', 'substitutions.txt'))
+
+# The Stack Player's stacks, which Learn's examples gallery shows under
+# "Made for the web" and "Small samples" (ide/Toolset/palettes/learn/
+# revlearn.livecodescript, leShowcaseTable): from the player's folder in
+# the repository, into this folder of the IDE. tools/web-ide/build_site.py
+# --repo does the same for the web IDE.
+SHOWCASE_SOURCE = 'tools/web-player/stacks'
+SHOWCASE = 'Resources/Examples/Showcase/'
 
 # components Extensions and TimeZone: the same 42 ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
@@ -1289,6 +1300,16 @@ def unused_build_outputs(p, bin_dir, used):
     return out
 
 
+def showcase_stacks(repo):
+    """[(file name, path)] of the Stack Player's stacks (SHOWCASE_SOURCE),
+    or [] in a checkout without them."""
+    folder = os.path.join(repo, *SHOWCASE_SOURCE.split('/'))
+    if not os.path.isdir(folder):
+        return []
+    return [(name, os.path.join(folder, name)) for name in sorted(os.listdir(folder))
+            if name.endswith('.oxtstack') and os.path.isfile(os.path.join(folder, name))]
+
+
 def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=None, web=None):
     """Return (items, folders, problems); folders are installed paths of
     folders to create even if empty. xtalk is what xtalk_extensions.build
@@ -1314,6 +1335,9 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
         pl.add(Item(tools + target, 'ide', source=layout.native(repo, repo_path), note=repo_path))
     pl.generated(tools + '.buildnumber', (build_number + '\n').encode('ascii'),
                  'build number (ide/.buildnumber is a placeholder)')
+    for name, source in showcase_stacks(repo):
+        pl.add(Item(tools + SHOWCASE + name, 'ide', source=source,
+                    note='%s/%s (Learn\'s examples)' % (SHOWCASE_SOURCE, name)))
 
     # Build outputs
     plan_build(pl)
