@@ -1099,3 +1099,56 @@ jobs:
           path: ${{ runner.temp }}/logs
           if-no-files-found: ignore
           retention-days: 14
+
+  # The IDE on the newest macOS, which the test job's runners are not: on
+  # macOS 26 the systemVersion (26.x) once read as Classic Mac OS in
+  # revcommonlibrary, the IDE's system font came out empty and the
+  # Standalone Settings' Web card stopped after its heading. The tour of
+  # the sample stack, Preferences and the Standalone Settings, whose step
+  # fails when the Web card has no HTML5 option or no page settings
+  # (tools/ci/ui-tour.livecodescript), and a script error in the IDE fails
+  # it too.
+  tour-macos-26:
+    name: IDE tour on macOS 26 (arm64)
+    needs: package
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+
+      - name: Download the disk image
+        timeout-minutes: 10
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-mac-universal-dmg
+          path: ${{ runner.temp }}/dist
+
+      # As the test job installs it (see there for the four tries)
+      - name: Install from the disk image
+        run: |
+          echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
+          if [ -z "$VERSION" ]; then echo "::error::the package job gave no version"; exit 1; fi
+          dmg="$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal.dmg"
+          mnt="$RUNNER_TEMP/oxt-dmg"
+          mkdir -p "$mnt" "$RUNNER_TEMP/oxt-test"
+          for i in 1 2 3 4; do
+            if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg"; then break; fi
+            if [ "$i" = 4 ]; then echo "::error::hdiutil attach $dmg failed 4 times (see above)"; exit 1; fi
+            echo "hdiutil attach failed (attempt $i of 4); trying again in $((10*i)) s"
+            sleep $((10*i))
+          done
+          ditto "$mnt/OXT-Beyond.app" "$RUNNER_TEMP/oxt-test/OXT-Beyond.app"
+          hdiutil detach "$mnt" || hdiutil detach -force "$mnt"
+
+      - name: IDE tour
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --appearance light --only sample,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
