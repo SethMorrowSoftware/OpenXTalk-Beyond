@@ -21,10 +21,13 @@ script "org.openxtalk.plugin.xtalkchat-window"
 -- The things that light up and do something are the kit's (lkLive, lkButton,
 -- lkNavItem): a click sends "lkAction pAction" here. The messages are one
 -- field of htmlText, drawn anew when they change: a name a line, in a
--- colour of its own (from the person's key), the time, and the text, with
--- code between ``` lines in a dark panel with Copy, and links that ask
--- before they open a browser. A click on a name (sLineWho) offers a
--- private message, or muting them.
+-- colour of its own (from the person's key), the time, and the text in
+-- the marks chat apps use (**bold**, *italic*, ~~struck~~, `code`, quotes,
+-- lists, @names), with code between ``` lines in a panel with Copy,
+-- coloured as the user's own Script Editor colours xTalk, and links that
+-- ask before they open a browser. A click on a name (sLineWho) offers a
+-- private message, or muting them. Under the box to write in, a button
+-- for each mark puts it round the selection.
 
 constant kSide = 248
 constant kHeaderHeight = 92
@@ -52,10 +55,13 @@ local sNavKey, sPrivateKeys, sNavY, sNavTarget
 -- The messages field: the person each line names (a click on a name),
 -- each code block's text (Copy), each link's address
 local sLineWho, sCode, sLinks
+-- xTalk the Script Editor coloured, by its background and the code
+local sColored
 -- The people panel: the person each of its lines names
 local sPeopleWho
--- What the user was writing in each conversation, kept when they switch
-local sDrafts
+-- What the user was writing in each conversation, kept when they switch,
+-- and the selection in the box, as "first,last"
+local sDrafts, sComposeSel
 -- The toast's time to go, and the height the composer has now
 local sToastUntil, sComposeHeight
 -- A redraw of the messages, pending
@@ -279,13 +285,20 @@ private command xtcwFitTag
    end if
 end xtcwFitTag
 
--- A round button with only an icon: the kit's dark button, made as wide as
--- it is high (the kit leaves room for a label beside the icon)
-private command xtcwIconButton pName, pIcon, pAction, pGroup
-   get lkButton(pName, 0, 0, 30, empty, pIcon, "dark", empty, pGroup, pAction, 30)
-   set the rect of group pName to 0, 0, 30, 30
-   set the rect of graphic (pName & "_bg") to 0, 0, 30, 30
-   set the loc of image (pName & "_icon") to 15, 15
+-- A button with only an icon, made as wide as it is high (the kit leaves
+-- room for a label beside the icon): round and dark unless pStyle says
+-- otherwise, 30 points unless pSize does
+private command xtcwIconButton pName, pIcon, pAction, pGroup, pSize, pStyle, pAccent
+   if pSize is empty then
+      put 30 into pSize
+   end if
+   if pStyle is empty then
+      put "dark" into pStyle
+   end if
+   get lkButton(pName, 0, 0, pSize, empty, pIcon, pStyle, pAccent, pGroup, pAction, pSize)
+   set the rect of group pName to 0, 0, pSize, pSize
+   set the rect of graphic (pName & "_bg") to 0, 0, pSize, pSize
+   set the loc of image (pName & "_icon") to pSize div 2, pSize div 2
    hide field (pName & "_label")
 end xtcwIconButton
 
@@ -348,6 +361,9 @@ private command xtcwBuildBody
    lkScroller "msgsThumb", the long id of field "msgs", "100,116,139", 45, empty
    put lkLabel("msgsEmpty", lkR(kSide + 24, 300, kWidth - kPeopleWidth - 32, 360), empty, 14, lkColor("muted"), empty, "center") into tObj
    hide tObj
+   -- Where the Script Editor colours code for the messages, never seen
+   put lkLabel("codeWork", lkR(0, 0, 400, 40), empty, 13, lkColor("ink"), empty) into tObj
+   hide tObj
 end xtcwBuildBody
 
 private command xtcwBuildPeople
@@ -372,7 +388,7 @@ private command xtcwBuildPeople
 end xtcwBuildPeople
 
 private command xtcwBuildComposer
-   local tObj
+   local tObj, tLine
    get lkGroup("cmp", lkR(kSide + 40, kHeight - 80, kWidth - kPeopleWidth - 48, kHeight - 34), empty)
    put lkBox("cmp_bg", lkR(kSide + 40, kHeight - 80, kWidth - kPeopleWidth - 48, kHeight - 34), lkColor("panel"), 16, "cmp") into tObj
    lkBorder tObj, lkColor("line")
@@ -384,7 +400,15 @@ private command xtcwBuildComposer
    set the vScrollbar of tObj to false
    set the hiliteColor of tObj to lkMix("255,255,255", lkColor("teal"), 0.25)
    get lkButton("cmp_send", 0, 0, 34, "Send", "send", "primary", lkColor("teal"), "cmp", "send", 92)
-   put lkLabel("cmp_keys", lkR(0, 0, 100, 16), "Return sends, Shift-Return starts a new line. Put code between lines of three backticks (```).", 11, lkColor("muted"), empty) into tObj
+   -- Under the box, the marks a message can carry, a button each
+   repeat for each line tLine in xtcwFormats()
+      set the itemDelimiter to tab
+      xtcwIconButton "fmt_" & item 1 of tLine, item 2 of tLine, "format" && item 1 of tLine, "cmp", 24, "chip", "100,116,139"
+      set the roundRadius of graphic ("fmt_" & item 1 of tLine & "_bg") to 7
+      set the tooltip of group ("fmt_" & item 1 of tLine) to item 3 of tLine
+      set the itemDelimiter to comma
+   end repeat
+   put lkLabel("cmp_keys", lkR(0, 0, 100, 16), "Return sends, Shift-Return starts a new line.", 11, lkColor("muted"), "cmp") into tObj
    set the dontWrap of tObj to true
 end xtcwBuildComposer
 
@@ -449,9 +473,8 @@ private command xtcwLayout
    xtcwFitTag
    xtcwPlaceLock tRight - 24
    -- The composer and the messages above it
-   put tH - 32 - sComposeHeight into tTop
-   xtcwPlaceComposer kSide + 40, tTop, tRight - 24, tH - 32
-   set the rect of field "cmp_keys" to kSide + 44, tH - 26 - kTextInset, tRight - 24, tH - 4
+   put tH - 36 - sComposeHeight into tTop
+   xtcwPlaceComposer kSide + 40, tTop, tRight - 24, tH - 36
    set the rect of field "msgs" to kSide + 24, kHeaderHeight + 4, tRight - 8, tTop - 10
    set the rect of field "msgsEmpty" to kSide + 24, (kHeaderHeight + tTop) div 2 - 30, tRight - 8, (kHeaderHeight + tTop) div 2 + 30
    lkScrollSync "msgsThumb"
@@ -514,8 +537,22 @@ private command xtcwPlaceLock pRight
    xtcwCenterV "hdrLock_label", 43
 end xtcwPlaceLock
 
+-- The formatting buttons under the box, a line each: a name, the icon
+-- and the tooltip, between tabs
+private function xtcwFormats
+   local tList
+   put "bold" & tab & "bold" & tab & "Bold: **text** (Ctrl-B)" & return into tList
+   put "italic" & tab & "italic" & tab & "Italic: *text* (Ctrl-I)" & return after tList
+   put "strike" & tab & "strikethrough" & tab & "Struck through: ~~text~~" & return after tList
+   put "code" & tab & "code" & tab & "Code in a line: `text`" & return after tList
+   put "block" & tab & "square-code" & tab & "A block of xTalk, coloured as the Script Editor colours it: ```" & return after tList
+   put "quote" & tab & "text-quote" & tab & "A quote: > text" & return after tList
+   put "list" & tab & "list" & tab & "A list: - text" after tList
+   return tList
+end xtcwFormats
+
 private command xtcwPlaceComposer pLeft, pTop, pRight, pBottom
-   local tSendWidth, tMid
+   local tSendWidth, tMid, tLeft, tLine, tName
    set the rect of group "cmp" to pLeft - 20, pTop - 10, pRight + 20, pBottom + 30
    set the rect of graphic "cmp_bg" to pLeft, pTop, pRight, pBottom
    put the width of group "cmp_send" into tSendWidth
@@ -528,6 +565,18 @@ private command xtcwPlaceComposer pLeft, pTop, pRight, pBottom
    lkRestAt "cmp_send"
    set the rect of field "compose" to pLeft + 14, pTop + 11, pRight - tSendWidth - 16, pBottom - 8
    set the rect of field "cmp_hint" to pLeft + 18, pTop + 11, pRight - tSendWidth - 16, pTop + 33
+   -- The formatting bar under it, and what Return does after the bar
+   put pLeft + 2 into tLeft
+   repeat for each line tLine in xtcwFormats()
+      set the itemDelimiter to tab
+      put "fmt_" & item 1 of tLine into tName
+      set the itemDelimiter to comma
+      set the topLeft of group tName to tLeft, pBottom + 6
+      lkRestAt tName
+      add 28 to tLeft
+   end repeat
+   set the rect of field "cmp_keys" to tLeft + 10, pBottom + 6, pRight, pBottom + 30
+   xtcwCenterV "cmp_keys", pBottom + 18
 end xtcwPlaceComposer
 
 ################################################################################
@@ -966,7 +1015,6 @@ command xtcwShow pKey
       hide graphic "msgsThumb"
       hide field "msgsEmpty"
       hide group "cmp"
-      hide field "cmp_keys"
       hide group "ppl"
    else
       if there is a group "welcome" then
@@ -977,7 +1025,6 @@ command xtcwShow pKey
       show group "hdr"
       show field "msgs"
       show group "cmp"
-      show field "cmp_keys"
       if pKey begins with "room:" then
          set the itemDelimiter to tab
          repeat for each line tLine in xtcRooms()
@@ -1009,6 +1056,7 @@ command xtcwShow pKey
       xtcwFitTag
       xtcwFitTitle
       put sDrafts[pKey] into field "compose"
+      put empty into sComposeSel
       xtcwComposeChanged
       xtcwRenderMessages true
    end if
@@ -1156,11 +1204,11 @@ private function xtcwNameIsShared pPk, pName
    return pName begins with "npub..." or pName is xtcMyName()
 end xtcwNameIsShared
 
--- A message's text as paragraphs: plain lines, with links; code between
--- ``` lines in a dark panel, coloured, with Copy
+-- A message's text as paragraphs. Between lines of three backticks is
+-- code (xtcwCodeHtml); "> " starts a quote, "- " or "* " a bullet and
+-- "1. " a numbered line; within a line, xtcwInlineHtml does the rest
 private function xtcwBodyHtml pMsg, pLineBefore
-   local tOut, tLine, tInCode, tCode, tLines, tColor, tIndex, tCodeIndex
-   put 0 into tLines
+   local tOut, tLine, tInCode, tCode, tColor, tLang, tTrim, tText, tAttrs
    switch pMsg["state"]
       case "pending"
          put lkHex(lkColor("muted")) into tColor
@@ -1173,136 +1221,332 @@ private function xtcwBodyHtml pMsg, pLineBefore
    end switch
    put false into tInCode
    repeat for each line tLine in pMsg["text"]
-      if word 1 of tLine begins with "```" and the number of words of tLine <= 1 then
+      put word 1 to -1 of tLine into tTrim
+      if tTrim begins with "```" and (not tInCode or tTrim is "```") then
          if tInCode then
-            put xtcwCodeHtml(tCode, pLineBefore + tLines) after tOut
-            add the result to tLines
-            put empty into tCode
+            put xtcwCodeHtml(tCode, tLang) after tOut
             put false into tInCode
          else
-            put true into tInCode
+            -- (a word after the backticks names the language)
+            put char 4 to -1 of tTrim into tLang
+            put word 1 of tLang into tLang
             put empty into tCode
+            put true into tInCode
          end if
          next repeat
       end if
       if tInCode then
          put tLine & return after tCode
-      else
-         put "<p><font color=" & quote & tColor & quote & ">" & xtcwInlineHtml(tLine) & "</font></p>" after tOut
-         add 1 to tLines
+         next repeat
       end if
+      put empty into tAttrs
+      put tLine into tText
+      if tTrim is ">" or tTrim begins with "> " then
+         -- A quote: on white, in the softer ink, behind a bar in the
+         -- accent (a space with the accent behind it); the lines of one
+         -- quote run together as one panel
+         put char 2 to -1 of tTrim into tText
+         put word 1 to -1 of tText into tText
+         put " rightindent=" & quote & "40" & quote & " padding=" & quote & "2" & quote & " bgcolor=" & quote & lkHex(lkColor("panel")) & quote into tAttrs
+         put "<p" & tAttrs & "><font bgcolor=" & quote & lkHex(lkColor("teal")) & quote & "> </font>   <font color=" & quote & lkHex(lkColor("soft")) & quote & ">" & xtcwInlineHtml(tText) & "</font></p>" after tOut
+         next repeat
+      else if (char 1 to 2 of tTrim is among the items of "- ,* ,+ ") and the number of chars of tTrim > 2 then
+         -- A bullet
+         put char 3 to -1 of tTrim into tText
+         put word 1 to -1 of tText into tText
+         put "<ul type=" & quote & "disc" & quote & "><li><p><font color=" & quote & tColor & quote & ">" & xtcwInlineHtml(tText) & "</font></p></li></ul>" after tOut
+         next repeat
+      else if word 1 of tTrim is not empty and char -1 of word 1 of tTrim is "." and char 1 to -2 of word 1 of tTrim is an integer and the number of words of tTrim > 1 then
+         -- A numbered line keeps the number its writer gave it
+         put "<p leftindent=" & quote & "8" & quote & "><font color=" & quote & lkHex(lkColor("soft")) & quote & "><b>" & lkEscape(word 1 of tTrim) & "</b></font> <font color=" & quote & tColor & quote & ">" & xtcwInlineHtml(word 2 to -1 of tTrim) & "</font></p>" after tOut
+         next repeat
+      end if
+      put "<p><font color=" & quote & tColor & quote & ">" & xtcwInlineHtml(tText) & "</font></p>" after tOut
    end repeat
+   -- (a block left open runs to the end of the message)
    if tInCode and tCode is not empty then
-      put xtcwCodeHtml(tCode, pLineBefore + tLines) after tOut
-      add the result to tLines
+      put xtcwCodeHtml(tCode, tLang) after tOut
    end if
    if pMsg["state"] is "failed" then
       put "<p><font size=" & quote & "11" & quote & " color=" & quote & lkHex(lkColor("rose")) & quote & ">Not sent: no relay took it.</font></p>" after tOut
-      add 1 to tLines
    else if pMsg["state"] is "pending" then
       put "<p><font size=" & quote & "11" & quote & " color=" & quote & lkHex(lkColor("muted")) & quote & ">Sending...</font></p>" after tOut
-      add 1 to tLines
    end if
-   return tOut for value
+   return tOut
 end xtcwBodyHtml
 
--- A block of code: dark, in the code font, coloured as Learn colours it,
--- and a Copy link under it
-private function xtcwCodeHtml pCode, pLineBefore
-   local tOut, tLine, tIndex, tFont, tCount
+-- Whether a block's language is xTalk: none given, or one of its names
+private function xtcwIsXTalk pLang
+   return pLang is empty or pLang is among the items of "xtalk,livecode,lc,lcs,livecodescript,hypertalk,oxt,openxtalk,transcript,revtalk,script"
+end xtcwIsXTalk
+
+-- A block of code: a panel with the language and Copy along its top, and
+-- the code under them in the code font. xTalk is coloured as the user's
+-- own Script Editor colours it, on its background, so a script reads here
+-- as it does there; where the Script Editor cannot colour it, in Learn's
+-- colours on Learn's dark panel. Another language is left uncoloured.
+private function xtcwCodeHtml pCode, pLang
+   local tOut, tLine, tIndex, tFont, tLines, tBg, tInk, tSoft, tLabel, tFontTag, tCount, tAttrs
    if char -1 of pCode is return then
       delete char -1 of pCode
    end if
    put the number of elements of sCode + 1 into tIndex
    put pCode into sCode[tIndex]
    put lkCodeFont() into tFont
-   put 0 into tCount
-   repeat for each line tLine in pCode
-      put "<p bgcolor=" & quote & lkHex(lkColor("code")) & quote & " leftindent=" & quote & "4" & quote & " rightindent=" & quote & "40" & quote & " padding=" & quote & "2" & quote & ">" after tOut
-      if tFont is not empty then
-         put "<font face=" & quote & tFont & quote & " size=" & quote & "13" & quote & ">" & lkCodeLineHtml(tLine) & "</font>" after tOut
+   put empty into tLines
+   if xtcwIsXTalk(pLang) then
+      put "xTalk" into tLabel
+      put xtcwEditorColored(pCode) into tLines
+   else
+      put pLang into tLabel
+   end if
+   if tLines is not empty then
+      -- The Script Editor's colours, on its background
+      put xtcwEditorBackground() into tBg
+      if xtcwIsDark(tBg) then
+         put lkColor("codeInk") into tInk
       else
-         put "<font size=" & quote & "13" & quote & ">" & lkCodeLineHtml(tLine) & "</font>" after tOut
+         put lkColor("ink") into tInk
       end if
-      put "</p>" after tOut
+   else
+      put lkColor("code") into tBg
+      put lkColor("codeInk") into tInk
+      repeat for each line tLine in pCode
+         if xtcwIsXTalk(pLang) then
+            put lkCodeLineHtml(tLine) & return after tLines
+         else
+            put lkEscape(tLine) & return after tLines
+         end if
+      end repeat
+      delete char -1 of tLines
+   end if
+   put lkMix(tBg, tInk, 0.45) into tSoft
+   put " bgcolor=" & quote & lkHex(tBg) & quote & " leftindent=" & quote & "4" & quote & " rightindent=" & quote & "40" & quote into tAttrs
+   put "<font size=" & quote & "13" & quote & " color=" & quote & lkHex(tInk) & quote into tFontTag
+   if tFont is not empty then
+      put " face=" & quote & tFont & quote after tFontTag
+   end if
+   put ">" after tFontTag
+   -- The top: the language, and Copy
+   put "<p" & tAttrs & " padding=" & quote & "5" & quote & " spaceabove=" & quote & "4" & quote & "><font size=" & quote & "10" & quote & " color=" & quote & lkHex(tSoft) & quote & "><b>" & lkEscape(toUpper(tLabel)) & "</b>     <a href=" & quote & "copy:" & tIndex & quote & ">Copy</a></font></p>" after tOut
+   put 0 into tCount
+   repeat for each line tLine in tLines
       add 1 to tCount
+      put "<p" & tAttrs & " padding=" & quote & "2" & quote after tOut
+      if tCount is the number of lines of tLines then
+         put " spacebelow=" & quote & "6" & quote after tOut
+      end if
+      put ">" & tFontTag & tLine & "</font></p>" after tOut
    end repeat
-   put "<p spacebelow=" & quote & "4" & quote & "><font size=" & quote & "11" & quote & "><a href=" & quote & "copy:" & tIndex & quote & ">Copy code</a></font></p>" after tOut
-   add 1 to tCount
-   return tOut for value
+   return tOut
 end xtcwCodeHtml
 
--- A line of text: escaped, `code` in the code font, and web addresses as
--- links
-private function xtcwInlineHtml pLine
-   local tOut, tWord, tIndex, tCount, tInCode, tFont, tChar, tRun, tPos
-   put lkCodeFont() into tFont
-   -- Backticks first: what is between two of them is code
-   put false into tInCode
-   repeat for each char tChar in pLine
-      if tChar is "`" then
-         if tInCode then
-            put xtcwCodeSpan(tRun, tFont) after tOut
-         else
-            put xtcwLinks(tRun) after tOut
-         end if
-         put empty into tRun
-         put not tInCode into tInCode
-      else
-         put tChar after tRun
+-- xTalk coloured by the Script Editor, as the Message Box colours what is
+-- typed in it: a line of htmlText for each line of the code, or empty when
+-- the Script Editor is not there to do it. Kept, so that the messages are
+-- not coloured anew each time they are drawn.
+private function xtcwEditorColored pCode
+   local tKey, tHtml, tOut, tPara, tError, tField
+   if there is not a stack "revSEUtilities" or there is not a field "codeWork" of me then
+      return empty
+   end if
+   put xtcwEditorBackground() & return & pCode into tKey
+   if sColored[tKey] is not empty then
+      return sColored[tKey]
+   end if
+   put the long id of field "codeWork" of me into tField
+   try
+      set the text of tField to pCode
+      dispatch "revSEColorizeField" to stack "revSEUtilities" with tField
+      if it is not "handled" then
+         return empty
       end if
+      put the htmlText of tField into tHtml
+      set the text of tField to empty
+   catch tError
+      return empty
+   end try
+   -- One line for each paragraph, without its <p> and </p>
+   replace "</p>" & return with "</p>" in tHtml
+   replace "</p>" & linefeed with "</p>" in tHtml
+   set the lineDelimiter to "</p>"
+   repeat for each line tPara in tHtml
+      if tPara begins with "<p" then
+         put char offset(">", tPara) + 1 to -1 of tPara into tPara
+      end if
+      put tPara & return after tOut
    end repeat
-   if tInCode then
-      put xtcwLinks("`" & tRun) after tOut
-   else
-      put xtcwLinks(tRun) after tOut
+   set the lineDelimiter to return
+   delete char -1 of tOut
+   if the number of lines of tOut is not the number of lines of pCode then
+      return empty
    end if
+   put tOut into sColored[tKey]
    return tOut
-end xtcwInlineHtml
+end xtcwEditorColored
 
-private function xtcwCodeSpan pText, pFont
-   local tOut
-   put "<font color=" & quote & lkHex(lkColor("violet")) & quote into tOut
-   if pFont is not empty then
-      put " face=" & quote & pFont & quote after tOut
+-- The Script Editor's background (white unless the user chose another)
+private function xtcwEditorBackground
+   local tColor, tError
+   try
+      put revIDEGetPreference("cScriptEditor,editor,backgroundcolor") into tColor
+   catch tError
+   end try
+   if the number of items of tColor is not 3 then
+      return "255,255,255"
    end if
-   put ">" & lkEscape(pText) & "</font>" after tOut
-   return tOut
-end xtcwCodeSpan
+   return tColor
+end xtcwEditorBackground
 
--- Text with its web addresses (http:// and https://) as links
-private function xtcwLinks pText
-   local tOut, tIndex, tWord, tWords, tSpace, tTail
-   put empty into tOut
-   set the itemDelimiter to space
-   put the number of items of pText into tWords
-   repeat with tIndex = 1 to tWords
-      put item tIndex of pText into tWord
-      if tIndex > 1 then
-         put space after tOut
-      end if
-      if tWord begins with "http://" or tWord begins with "https://" then
-         -- (a full stop or a bracket after an address ends the sentence,
-         -- not the address)
+private function xtcwIsDark pColor
+   return (item 1 of pColor * 299 + item 2 of pColor * 587 + item 3 of pColor * 114) div 1000 < 128
+end xtcwIsDark
+
+-- A line of text as htmlText: `code`, **bold**, *italic* (or _italic_),
+-- ~~struck through~~, web addresses as links, and @names, the user's own
+-- picked out. A mark counts only when it closes on the same line, and a
+-- single * or _ only at the edges of words, so snake_case and 2*3*4 stay
+-- as they are.
+private function xtcwInlineHtml pLine
+   local tOut, tPos, tLen, tChar, tEnd, tPlain, tWord, tTail, tMine, tSpace
+   put the number of chars of pLine into tLen
+   put 1 into tPos
+   repeat while tPos <= tLen
+      put char tPos of pLine into tChar
+      put 0 into tEnd
+      if tChar is "`" then
+         put xtcwCloses(pLine, "`", tPos + 1, false) into tEnd
+         if tEnd > 0 then
+            put lkEscape(tPlain) after tOut
+            put empty into tPlain
+            put xtcwCodeSpan(char tPos + 1 to tEnd - 1 of pLine) after tOut
+            put tEnd + 1 into tPos
+            next repeat
+         end if
+      else if char tPos to tPos + 1 of pLine is "**" or char tPos to tPos + 1 of pLine is "~~" then
+         put xtcwCloses(pLine, char tPos to tPos + 1 of pLine, tPos + 2, true) into tEnd
+         if tEnd > 0 then
+            put lkEscape(tPlain) after tOut
+            put empty into tPlain
+            if tChar is "*" then
+               put "<b>" & xtcwInlineHtml(char tPos + 2 to tEnd - 1 of pLine) & "</b>" after tOut
+            else
+               put "<strike>" & xtcwInlineHtml(char tPos + 2 to tEnd - 1 of pLine) & "</strike>" after tOut
+            end if
+            put tEnd + 2 into tPos
+            next repeat
+         end if
+      else if (tChar is "*" or tChar is "_") and xtcwAtWordStart(pLine, tPos) then
+         put xtcwCloses(pLine, tChar, tPos + 1, true) into tEnd
+         if tEnd > 0 and not xtcwIsWordChar(char tEnd + 1 of pLine) then
+            put lkEscape(tPlain) after tOut
+            put empty into tPlain
+            put "<i>" & xtcwInlineHtml(char tPos + 1 to tEnd - 1 of pLine) & "</i>" after tOut
+            put tEnd + 1 into tPos
+            next repeat
+         end if
+      else if (tChar is "h" or tChar is "H") and xtcwAtWordStart(pLine, tPos) and (char tPos to tPos + 7 of pLine is "https://" or char tPos to tPos + 6 of pLine is "http://") then
+         -- A web address, to the next space; a full stop or a bracket
+         -- after it ends the sentence, not the address
+         put tPos into tEnd
+         repeat while tEnd < tLen and char tEnd + 1 of pLine is not space and char tEnd + 1 of pLine is not tab
+            add 1 to tEnd
+         end repeat
+         put char tPos to tEnd of pLine into tWord
          put empty into tTail
          repeat while the number of chars of tWord > 8 and char -1 of tWord is among the chars of ".,;:!?)'" & quote
             put char -1 of tWord before tTail
             delete char -1 of tWord
          end repeat
+         put lkEscape(tPlain) after tOut
+         put empty into tPlain
          put the number of elements of sLinks + 1 into tSpace
          put tWord into sLinks[tSpace]
          put "<a href=" & quote & "link:" & tSpace & quote & ">" & lkEscape(tWord) & "</a>" & lkEscape(tTail) after tOut
-      else
-         put lkEscape(tWord) after tOut
+         put tEnd + 1 into tPos
+         next repeat
+      else if tChar is "@" and xtcwAtWordStart(pLine, tPos) and xtcwIsWordChar(char tPos + 1 of pLine) then
+         -- @name: the user's own name lit up, anyone else's in the accent
+         put tPos + 1 into tEnd
+         repeat while tEnd < tLen and xtcwIsWordChar(char tEnd + 1 of pLine)
+            add 1 to tEnd
+         end repeat
+         put xtcwMentionsMe(pLine, tPos) into tMine
+         if tMine > 0 then
+            put tPos + tMine into tEnd
+         end if
+         put lkEscape(tPlain) after tOut
+         put empty into tPlain
+         if tMine > 0 then
+            put "<font color=" & quote & lkHex(lkColor("amber")) & quote & " bgcolor=" & quote & lkHex(lkMix("255,255,255", lkColor("amber"), 0.16)) & quote & "><b>" & lkEscape(char tPos to tEnd of pLine) & "</b></font>" after tOut
+         else
+            put "<font color=" & quote & lkHex(lkColor("teal")) & quote & "><b>" & lkEscape(char tPos to tEnd of pLine) & "</b></font>" after tOut
+         end if
+         put tEnd + 1 into tPos
+         next repeat
       end if
+      put tChar after tPlain
+      add 1 to tPos
    end repeat
-   -- (items lose a trailing space)
-   if char -1 of pText is space then
-      put space after tOut
-   end if
-   set the itemDelimiter to comma
+   put lkEscape(tPlain) after tOut
    return tOut
-end xtcwLinks
+end xtcwInlineHtml
+
+-- Where pMark closes, at or after pFrom, on pLine (0 when it does not).
+-- For emphasis (pTight) the text it holds must not start or end with a
+-- space, as **this** but not ** this **.
+private function xtcwCloses pLine, pMark, pFrom, pTight
+   local tSkip, tFound, tAt
+   if pTight and char pFrom of pLine is space then
+      return 0
+   end if
+   put pFrom - 1 into tSkip
+   repeat
+      put offset(pMark, pLine, tSkip) into tFound
+      if tFound is 0 then
+         return 0
+      end if
+      put tSkip + tFound into tAt
+      if tAt > pFrom and (not pTight or char tAt - 1 of pLine is not space) then
+         return tAt
+      end if
+      put tAt into tSkip
+   end repeat
+end xtcwCloses
+
+private function xtcwAtWordStart pLine, pPos
+   return pPos is 1 or not xtcwIsWordChar(char pPos - 1 of pLine)
+end xtcwAtWordStart
+
+private function xtcwIsWordChar pChar
+   return pChar is not empty and (pChar is in "abcdefghijklmnopqrstuvwxyz0123456789_-" or codepointToNum(pChar) > 127)
+end xtcwIsWordChar
+
+-- How long the user's own name is after the @ at pPos, or 0 when what
+-- follows it is not their name. (Names may hold spaces.)
+private function xtcwMentionsMe pLine, pPos
+   local tName, tLen
+   put xtcMyName() into tName
+   if tName is empty then
+      return 0
+   end if
+   put the number of chars of tName into tLen
+   if char pPos + 1 to pPos + tLen of pLine is tName and not xtcwIsWordChar(char pPos + tLen + 1 of pLine) then
+      return tLen
+   end if
+   return 0
+end xtcwMentionsMe
+
+private function xtcwCodeSpan pText
+   local tOut, tFont
+   put lkCodeFont() into tFont
+   put "<font color=" & quote & lkHex(lkColor("violet")) & quote & " bgcolor=" & quote & lkHex(lkMix("255,255,255", lkColor("violet"), 0.08)) & quote into tOut
+   if tFont is not empty then
+      put " face=" & quote & tFont & quote after tOut
+   end if
+   put ">" & lkEscape(pText) & "</font>" after tOut
+   return tOut
+end xtcwCodeSpan
 
 ################################################################################
 #
@@ -1480,13 +1724,16 @@ on lkAction pAction
       case "gear"
          xtcwGearMenu
          break
+      case "format"
+         xtcwFormat word 2 of pAction
+         break
    end switch
 end lkAction
 
 -- Return sends, Shift-Return starts a new line
 on returnInField
    if the short name of the target is "compose" then
-      if the shiftKey is down then
+      if the shiftKey is down or xtcwInOpenBlock() then
          pass returnInField
       end if
       xtcwSend
@@ -1543,10 +1790,170 @@ private command xtcwSend
    end if
    put empty into field "compose"
    put empty into sDrafts[sView]
+   put empty into sComposeSel
    xtcwComposeChanged
    xtcwRenderMessages true
    focus on field "compose"
 end xtcwSend
+
+-- A formatting button, or its key: the selection in the box gets the
+-- mark (a caret, a pair of them with the caret between); a block of code
+-- goes on lines of its own; a quote or a list marks every line selected,
+-- and a second press takes the mark off
+private command xtcwFormat pKind
+   local tText, tFrom, tTo, tSel, tMark, tPre, tPost, tNew, tStart, tEnd, tLine, tOut, tCaret
+   if sView is empty or sView is "welcome" then
+      exit xtcwFormat
+   end if
+   put field "compose" into tText
+   xtcwComposeSelection tFrom, tTo
+   put char tFrom to tTo of tText into tSel
+   switch pKind
+      case "bold"
+      case "italic"
+      case "strike"
+      case "code"
+         if pKind is "bold" then
+            put "**" into tMark
+         else if pKind is "italic" then
+            put "*" into tMark
+         else if pKind is "strike" then
+            put "~~" into tMark
+         else
+            put "`" into tMark
+         end if
+         xtcwComposeReplace tFrom, tTo, tMark & tSel & tMark
+         if tSel is empty then
+            xtcwComposeSelect tFrom + the number of chars of tMark, 0
+         else
+            xtcwComposeSelect tFrom + the number of chars of tMark, the number of chars of tSel
+         end if
+         break
+      case "block"
+         if tFrom > 1 and char tFrom - 1 of tText is not return then
+            put return into tPre
+         end if
+         if tTo < the number of chars of tText and char tTo + 1 of tText is not return then
+            put return into tPost
+         end if
+         put tPre & "```" & return & tSel & return & "```" & tPost into tNew
+         xtcwComposeReplace tFrom, tTo, tNew
+         if tSel is empty then
+            xtcwComposeSelect tFrom + the number of chars of tPre + 4, 0
+         else
+            xtcwComposeSelect tFrom + the number of chars of tPre + 4, the number of chars of tSel
+         end if
+         break
+      case "quote"
+      case "list"
+         if pKind is "quote" then
+            put "> " into tMark
+         else
+            put "- " into tMark
+         end if
+         -- From the start of the first line selected to the end of the last
+         put tFrom into tStart
+         repeat while tStart > 1 and char tStart - 1 of tText is not return
+            subtract 1 from tStart
+         end repeat
+         put max(tTo, tFrom - 1) into tEnd
+         repeat while tEnd < the number of chars of tText and char tEnd + 1 of tText is not return
+            add 1 to tEnd
+         end repeat
+         put empty into tOut
+         repeat for each line tLine in (char tStart to tEnd of tText)
+            if tLine begins with tMark then
+               put char 3 to -1 of tLine & return after tOut
+            else
+               put tMark & tLine & return after tOut
+            end if
+         end repeat
+         if tOut is empty then
+            put tMark into tOut
+         else
+            delete char -1 of tOut
+         end if
+         xtcwComposeReplace tStart, tEnd, tOut
+         xtcwComposeSelect tStart + the number of chars of tOut, 0
+         break
+   end switch
+   xtcwComposeChanged
+end xtcwFormat
+
+-- The selection in the box, as its first character and its last (the
+-- last one less than the first for a caret): from the box when it has the
+-- focus, else as it was left
+private command xtcwComposeSelection @rFrom, @rTo
+   local tChunk
+   if the selectedField is not empty and the short name of the selectedField is "compose" then
+      put the selectedChunk into tChunk
+      put word 2 of tChunk & comma & word 4 of tChunk into sComposeSel
+   end if
+   put item 1 of sComposeSel into rFrom
+   put item 2 of sComposeSel into rTo
+   if rFrom is not an integer or rTo is not an integer or rFrom > the number of chars of field "compose" + 1 then
+      put the number of chars of field "compose" + 1 into rFrom
+      put rFrom - 1 into rTo
+   end if
+   put min(rTo, the number of chars of field "compose") into rTo
+end xtcwComposeSelection
+
+private command xtcwComposeReplace pFrom, pTo, pNew
+   local tText
+   put field "compose" into tText
+   put char 1 to pFrom - 1 of tText & pNew & char pTo + 1 to -1 of tText into field "compose"
+end xtcwComposeReplace
+
+-- pLength characters selected from pFrom, or the caret before pFrom
+private command xtcwComposeSelect pFrom, pLength
+   focus on field "compose"
+   if pLength > 0 then
+      select char pFrom to pFrom + pLength - 1 of field "compose"
+   else if pFrom > the number of chars of field "compose" then
+      select after text of field "compose"
+   else
+      select before char pFrom of field "compose"
+   end if
+   put pFrom & comma & (pFrom + pLength - 1) into sComposeSel
+end xtcwComposeSelect
+
+-- Whether the caret is inside a block of code the user has opened and not
+-- yet closed (where Return starts a new line rather than sending)
+private function xtcwInOpenBlock
+   local tTo, tLine, tOpen
+   put word 2 of the selectedChunk into tTo
+   if tTo is not an integer then
+      return false
+   end if
+   put false into tOpen
+   repeat for each line tLine in char 1 to tTo - 1 of field "compose"
+      if word 1 of tLine begins with "```" then
+         put not tOpen into tOpen
+      end if
+   end repeat
+   return tOpen
+end xtcwInOpenBlock
+
+on selectionChanged
+   if the short name of the target is "compose" then
+      put word 2 of the selectedChunk & comma & word 4 of the selectedChunk into sComposeSel
+   end if
+   pass selectionChanged
+end selectionChanged
+
+-- Ctrl-B and Ctrl-I (Command on a Mac) in the box
+on commandKeyDown pKey
+   if the short name of the target is "compose" then
+      if pKey is "b" then
+         xtcwFormat "bold"
+         exit commandKeyDown
+      else if pKey is "i" then
+         xtcwFormat "italic"
+         exit commandKeyDown
+      end if
+   end if
+   pass commandKeyDown
+end commandKeyDown
 
 -- A link in the messages or the people: copy code, open a web page (after
 -- asking), or a person

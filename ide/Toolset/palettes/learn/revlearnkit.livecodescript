@@ -1586,6 +1586,20 @@ function lkIconPaths pName
          return "<path d='M12 2v10'/><path d='M18.4 6.6a9 9 0 1 1-12.77.04'/>"
       case "user"
          return "<path d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'/><circle cx='12' cy='7' r='4'/>"
+      case "bold"
+         return "<path d='M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8'/>"
+      case "italic"
+         return "<line x1='19' x2='10' y1='4' y2='4'/><line x1='14' x2='5' y1='20' y2='20'/><line x1='15' x2='9' y1='4' y2='20'/>"
+      case "strikethrough"
+         return "<path d='M16 4H9a3 3 0 0 0-2.83 4'/><path d='M14 12a4 4 0 0 1 0 8H6'/><line x1='4' x2='20' y1='12' y2='12'/>"
+      case "code"
+         return "<polyline points='16 18 22 12 16 6'/><polyline points='8 6 2 12 8 18'/>"
+      case "square-code"
+         return "<path d='M10 9.5 8 12l2 2.5'/><path d='m14 9.5 2 2.5-2 2.5'/><rect width='18' height='18' x='3' y='3' rx='2'/>"
+      case "list"
+         return "<path d='M3 12h.01'/><path d='M3 18h.01'/><path d='M3 6h.01'/><path d='M8 12h13'/><path d='M8 18h13'/><path d='M8 6h13'/>"
+      case "text-quote"
+         return "<path d='M17 6H3'/><path d='M21 12H8'/><path d='M21 18H8'/><path d='M3 12v6'/>"
    end switch
    return empty
 end lkIconPaths
