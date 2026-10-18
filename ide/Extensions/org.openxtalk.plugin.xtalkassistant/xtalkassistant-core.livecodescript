@@ -616,11 +616,23 @@ function xtaRequestHeaders pProvider, pKey
       throw "xTalk Assistant: the API key has a line break in it."
    end if
    put "Content-Type: application/json" & return & "Accept: application/json" into tHeaders
-   -- libURL can stall on a kept-alive connection (oxtbeyondupdater.livecodescript)
-   put return & "Connection: close" after tHeaders
+   -- libURL can stall on a kept-alive connection (oxtbeyondupdater.livecodescript).
+   -- OXT-Beyond: in the web IDE the browser makes the request, and a page
+   -- may not set Connection (the browser refuses it, and says so in its
+   -- console), so it is left out there
+   if the platform is not "HTML5" then
+      put return & "Connection: close" after tHeaders
+   end if
    switch pProvider
       case "anthropic"
          put return & "anthropic-version:" && kAnthropicVersion after tHeaders
+         -- OXT-Beyond: in the web IDE the request comes from a web page,
+         -- which Anthropic's API answers only when it says it means to
+         -- (without this the browser is given no CORS header and blocks
+         -- the answer). The key is the user's own, typed into this page.
+         if the platform is "HTML5" then
+            put return & "anthropic-dangerous-direct-browser-access: true" after tHeaders
+         end if
          if tKey is not empty then
             put return & "x-api-key:" && tKey after tHeaders
          end if
