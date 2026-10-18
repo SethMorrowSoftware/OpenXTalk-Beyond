@@ -40,6 +40,8 @@ Skipped where Node.js is not installed.
 """
 
 import base64
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -135,17 +137,32 @@ def free_port():
         return s.getsockname()[1]
 
 
-class FakeTab:
-    """The web IDE's page: a WebSocket client that answers each request
-    with handler(request), as the page and the IDE's script do together."""
+# The key the web tests give the server (OXT_MCP_WEB_KEY) and the page
+WEB_KEY = 'ab' * 32
 
-    def __init__(self, port, handler, origin='http://localhost:8000', tools=None):
+
+def web_proof(key, side, page_nonce, server_nonce):
+    """server.js's and web-link.js's proof of holding the key."""
+    return hmac.new(key.encode('utf-8'), ('%s\n%s\n%s' % (side, page_nonce, server_nonce)).encode('utf-8'),
+                    hashlib.sha256).hexdigest()
+
+
+class FakeTab:
+    """The web IDE's page: a WebSocket client that proves it holds key,
+    then answers each request with handler(request), as the page and the
+    IDE's script do together. server_ok is whether the server's proof was
+    right, accepted whether the server then took this tab as the page."""
+
+    def __init__(self, port, handler, origin='http://localhost:8000', tools=None, key=WEB_KEY):
         self.handler = handler
         self.tools = ide_tools() if tools is None else tools
         self.requests = []
         self.status = None
         self.closed = False
         self.sock = None
+        self.server_ok = None
+        self.accepted = None
+        self.key = key
         deadline = time.time() + 10
         while True:
             try:
@@ -156,9 +173,10 @@ class FakeTab:
                     raise
                 time.sleep(0.05)
         key = base64.b64encode(os.urandom(16)).decode('ascii')
-        self.sock.sendall(('GET / HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+        self.nonce = os.urandom(32).hex()
+        self.sock.sendall(('GET /?n=%s HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
                            'Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\nOrigin: %s\r\n\r\n'
-                           % (port, key, origin)).encode('ascii'))
+                           % (self.nonce, port, key, origin)).encode('ascii'))
         head = b''
         while b'\r\n\r\n' not in head:
             chunk = self.sock.recv(1)
@@ -167,7 +185,29 @@ class FakeTab:
             head += chunk
         self.status = int(head.split(b' ')[1]) if head else None
         if self.status == 101:
-            threading.Thread(target=self.serve, daemon=True).start()
+            hello = json.loads(self.read_frame()[1].decode('utf-8'))
+            self.server_ok = hello['proof'] == web_proof(self.key, 'server', self.nonce, hello['nonce'])
+            self.send(json.dumps({'oxtMcpWeb': 1, 'proof': web_proof(self.key, 'page', self.nonce, hello['nonce'])}))
+            # The server says it took the page, or closes the connection
+            try:
+                opcode, data = self.read_frame()
+                self.accepted = opcode == 0x1 and json.loads(data.decode('utf-8')).get('connected') is True
+            except OSError:
+                self.accepted = False
+            if self.accepted:
+                threading.Thread(target=self.serve, daemon=True).start()
+            else:
+                self.closed = True
+                self.close()
+
+    def read_frame(self):
+        b0, b1 = self.recv_exact(2)
+        length = b1 & 0x7f
+        if length == 126:
+            length = int.from_bytes(self.recv_exact(2), 'big')
+        elif length == 127:
+            length = int.from_bytes(self.recv_exact(8), 'big')
+        return b0 & 0x0f, self.recv_exact(length)
 
     def recv_exact(self, n):
         data = b''
@@ -181,14 +221,8 @@ class FakeTab:
     def serve(self):
         try:
             while True:
-                b0, b1 = self.recv_exact(2)
-                length = b1 & 0x7f
-                if length == 126:
-                    length = int.from_bytes(self.recv_exact(2), 'big')
-                elif length == 127:
-                    length = int.from_bytes(self.recv_exact(8), 'big')
-                data = self.recv_exact(length)
-                if b0 & 0x0f == 0x8:
+                opcode, data = self.read_frame()
+                if opcode == 0x8:
                     break
                 request = json.loads(data.decode('utf-8'))
                 self.requests.append(request)
@@ -223,6 +257,59 @@ class FakeTab:
             self.sock.close()
         except OSError:
             pass
+
+
+# The web IDE's page for run_page: web-link.js in a context like a page's,
+# whose WebSocket sends the page's origin, then the IDE's part (read the
+# queue, answer each request) until it has answered the calls asked for
+PAGE_HARNESS = r'''
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const [file, port, key, calls] = process.argv.slice(2);
+class PageSocket extends WebSocket {
+  constructor(url) {
+    super(url, { headers: { origin: 'http://localhost:8000' } });
+  }
+}
+const page = { WebSocket: PageSocket, crypto: globalThis.crypto, TextEncoder, setTimeout, clearTimeout, JSON, Number, String };
+page.window = page;
+vm.createContext(page);
+vm.runInContext(fs.readFileSync(file, 'utf8'), page);
+const link = page.oxtMcpLink;
+link.start(Number(port), key);
+const queued = [];
+let answered = 0;
+let state = '';
+const started = Date.now();
+const timer = setInterval(() => {
+  const text = link.poll();
+  const nl = text.indexOf('\n');
+  state = text.slice(0, nl).split('\t')[0];
+  const item = text.slice(nl + 1);
+  if (item) {
+    const tab = item.indexOf('\t');
+    const request = JSON.parse(item.slice(tab + 1));
+    queued.push(request);
+    const reply = request.method === 'hello'
+      ? { id: request.id, ok: true, protocol: 1, tools: 'list_stacks' }
+      : { id: request.id, ok: true, isError: false, text: 'from the page' };
+    link.reply(Number(item.slice(0, tab)), JSON.stringify(reply));
+    if (request.method !== 'hello') {
+      answered++;
+    }
+  }
+  if ((Number(calls) > 0 && answered >= Number(calls)) || Date.now() - started > 8000 ||
+      (Number(calls) === 0 && state === 'refused' && Date.now() - started > 1500)) {
+    clearInterval(timer);
+    setTimeout(() => {
+      link.stop();
+      process.stdout.write(JSON.stringify({ state, queued: queued.filter((r) => r.method !== 'hello') }));
+      process.exit(0);
+    }, 300);
+  }
+}, 20);
+'''
 
 
 class McpBridgeServerBase(unittest.TestCase):
@@ -523,6 +610,7 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         super().tearDown()
 
     def start_web(self, **settings):
+        settings.setdefault('OXT_MCP_WEB_KEY', WEB_KEY)
         self.start_server(args=['--web'], OXT_MCP_WEB_PORT=str(self.port), **settings)
 
     def tab(self, handler, **kwargs):
@@ -550,6 +638,7 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         self.initialize()
         tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'read ' + json.dumps(r['arguments'])})
         self.assertEqual(tab.status, 101)
+        self.assertTrue(tab.server_ok)
         result = self.call('read_stack', {'stack': 'Héllo'})
         self.assertFalse(result['isError'])
         self.assertEqual(result['content'][0]['text'], 'read {"stack": "H\\u00e9llo"}')
@@ -600,6 +689,121 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
             time.sleep(0.05)
         self.assertTrue(first.closed)
         self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'second')
+
+    def test_web_a_tab_without_the_key_is_refused(self):
+        self.start_web()
+        self.initialize()
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'should not run'}, key='cd' * 32)
+        self.assertEqual(tab.status, 101)
+        self.assertFalse(tab.server_ok)
+        self.assertFalse(tab.accepted)
+        self.assertTrue(tab.closed)
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('web IDE is not connected', result['content'][0]['text'])
+        self.assertEqual(tab.requests, [])
+
+    def test_web_a_tab_without_the_key_does_not_take_over(self):
+        self.start_web()
+        self.initialize()
+        self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'the page'})
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'the page')
+        intruder = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'not the page'}, key='cd' * 32)
+        self.assertFalse(intruder.accepted)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'the page')
+
+    def test_web_a_connection_without_a_nonce_is_refused(self):
+        self.start_web()
+        self.initialize()
+        with socket.create_connection(('127.0.0.1', self.port), timeout=10) as sock:
+            deadline = time.time() + 10
+            sock.sendall(('GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+                          'Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\nOrigin: http://localhost:8000\r\n\r\n'
+                          % base64.b64encode(os.urandom(16)).decode('ascii')).encode('ascii'))
+            self.assertIn(b' 403 ', sock.recv(100))
+            self.assertLess(time.time(), deadline)
+
+    def test_web_without_a_key_says_to_set_up_again(self):
+        self.start_web(OXT_MCP_WEB_KEY='')
+        self.initialize()
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('no key for the web IDE', result['content'][0]['text'])
+        self.assertIn('Claude Setup', result['content'][0]['text'])
+
+    def run_page(self, port, key, calls=0):
+        """Runs the page's own script (mcp/web-link.js) under Node, which has
+        WebSocket and the browser's crypto, until it is connected and has
+        answered calls requests, or 8 seconds pass; its last state, and the
+        requests it queued."""
+        harness = os.path.join(self.folder, 'page.js')
+        with open(harness, 'w') as f:
+            f.write(PAGE_HARNESS)
+        return subprocess.Popen([NODE, harness, os.path.join(PLUGIN, 'mcp', 'web-link.js'), str(port), key, str(calls)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def test_web_the_page_script_connects_to_its_server(self):
+        self.start_web()
+        self.initialize()
+        page = self.run_page(self.port, WEB_KEY, calls=1)
+        deadline = time.time() + 8
+        result = None
+        while time.time() < deadline:
+            result = self.call('list_stacks')
+            if not result['isError']:
+                break
+            time.sleep(0.2)
+        out = json.loads(page.communicate(timeout=15)[0])
+        self.assertTrue(result['content'][0]['text'].startswith('from the page'))
+        self.assertEqual(out['state'], 'connected')
+
+    def test_web_the_page_script_refuses_a_server_with_another_key(self):
+        self.start_web(OXT_MCP_WEB_KEY='cd' * 32)
+        self.initialize()
+        out = json.loads(self.run_page(self.port, WEB_KEY).communicate(timeout=15)[0])
+        self.assertEqual(out['state'], 'refused')
+        self.assertEqual(out['queued'], [])
+        self.assertTrue(self.call('list_stacks')['isError'])
+
+    def test_web_the_page_script_refuses_another_program_on_the_port(self):
+        # A program that took the port: it accepts the WebSocket, sends a
+        # proof it cannot make, then a request, which must not reach the IDE
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(('127.0.0.1', self.port))
+        listener.listen(4)
+
+        def frame(text):
+            data = text.encode('utf-8')
+            return bytes([0x81, len(data)]) + data if len(data) < 126 else \
+                bytes([0x81, 126]) + len(data).to_bytes(2, 'big') + data
+
+        def impostor():
+            while True:
+                try:
+                    conn, _ = listener.accept()
+                except OSError:
+                    return
+                head = b''
+                while b'\r\n\r\n' not in head:
+                    chunk = conn.recv(1)
+                    if not chunk:
+                        break
+                    head += chunk
+                key = re.search(rb'Sec-WebSocket-Key: (\S+)', head, re.I).group(1)
+                accept = base64.b64encode(hashlib.sha1(key + b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest())
+                conn.sendall(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+                             b'Sec-WebSocket-Accept: ' + accept + b'\r\n\r\n')
+                conn.sendall(frame(json.dumps({'oxtMcpWeb': 1, 'nonce': 'ef' * 32, 'proof': '00' * 32})))
+                conn.sendall(frame(json.dumps({'id': 1, 'method': 'call', 'tool': 'read_stack', 'arguments': {}})))
+
+        threading.Thread(target=impostor, daemon=True).start()
+        try:
+            out = json.loads(self.run_page(self.port, WEB_KEY).communicate(timeout=15)[0])
+        finally:
+            listener.close()
+        self.assertEqual(out['state'], 'refused')
+        self.assertEqual(out['queued'], [])
 
     def test_web_a_taken_port_is_said(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as taken:

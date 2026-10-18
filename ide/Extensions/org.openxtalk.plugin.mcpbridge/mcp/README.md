@@ -71,12 +71,23 @@ starts the same server with `--web`, the server listens on
    at your next visit, until you choose **Disconnect** in the same menu
    item.
 
-The server lets only pages from the hosted web IDE
+The extension and the command carry a key that the page made and keeps
+with your preferences (`OXT_MCP_WEB_KEY`), so keep them to yourself. When
+the page connects, the server proves that it holds the key before the
+page takes any request from it, and the page proves the same back, so a
+program that took the port first gets nothing, and neither does a
+program posing as the page. Set Claude up again if you use the web IDE
+from another browser, since that browser has its own key.
+
+The server also lets only pages from the hosted web IDE
 (`https://sethmorrow.com`) and from this computer (`http://localhost` or
 `http://127.0.0.1`, as `serve.py` in the downloadable web IDE serves it)
 connect; set `OXT_MCP_WEB_ORIGINS` to a comma list of other origins to
-let them in too, and `OXT_MCP_WEB_PORT` to use another port (the web IDE
-connects to 47861). Only one Claude app at a time can hold the port. In
+let them in too. Only one Claude app at a time can hold the port. For
+another port than 47861, set the web IDE's `cMcpBridge,webPort`
+preference (for example `revIDESetPreference "cMcpBridge,webPort", 47900`
+in the Message Box), connect again, and set Claude up again: the setup
+gives the server that port (`OXT_MCP_WEB_PORT`). In
 the web IDE, code Claude runs stays inside the browser's sandbox, and you
 are asked before each run and save as on the desktop. Without `--web`,
 the server does exactly what it does for the desktop IDE.

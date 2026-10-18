@@ -34,7 +34,11 @@ script "org.openxtalk.plugin.mcpbridge"
 -- (mcbWebPoll) hands each request to the tools (mcbLinkHandle) and the
 -- answer back. The setup window gives a desktop extension and a Claude Code
 -- command for that server, named oxt-beyond-web so that it sits beside a
--- desktop OXT-Beyond's. Once connected, the page connects again at the
+-- desktop OXT-Beyond's. Both carry a key this page made (mcbWebKey, kept
+-- with the preferences) and the port (mcbWebPort): the server proves to
+-- the page that it holds the key before the page takes a request from it,
+-- and the page proves the same back (mcp/web-link.js, server.js), so a
+-- program that took the port first gets nothing. Once connected, the page connects again at the
 -- next visit until the user disconnects. Every branch for the web asks
 -- mcbOnWeb() first, so the desktop IDE does what it did before.
 --
@@ -75,10 +79,15 @@ constant kCompat = "org.openxtalk.plugin.mcpbridge-compat"
 -- MCP server that Claude runs (mcbServerPath)
 constant kStableServerFile = "mcp/server.js"
 -- The web IDE: the preference that it connects at the next visit, the
--- port of this computer the MCP server listens on for it (server.js's
--- WEB_PORT), the name Claude's apps show for that server, the name the
--- server's file is downloaded as, and how often the page's queue is read
+-- preferences for the key it shares with the MCP server and for the port
+-- of this computer that server listens on (set by script only; the setup
+-- gives both to the server), the port unless that preference says another
+-- (server.js's WEB_PORT), the name Claude's apps show for that server, the
+-- name the server's file is downloaded as, and how often the page's queue
+-- is read
 constant kPrefWebEnabled = "cMcpBridge,web"
+constant kPrefWebKey = "cMcpBridge,webKey"
+constant kPrefWebPort = "cMcpBridge,webPort"
 constant kWebPort = 47861
 constant kWebServerName = "oxt-beyond-web"
 constant kWebServerFile = "oxt-beyond-mcp-server.js"
@@ -659,6 +668,10 @@ command mcbWebMenuPick
    end if
    if sWebState is "connected" then
       put "The xTalk MCP Bridge is on, and Claude's app is connected to this page." into tText
+   else if sWebState is "refused" then
+      put "The xTalk MCP Bridge is on, but what answers on port" && mcbWebPort() && "of this computer did not prove that Claude was set up from this page, so this page takes nothing from it. Set Claude up again (Claude Setup...), and use the extension or the command it gives now: it holds this page's key." into tText
+   else if sWebState is "insecure" then
+      put "The xTalk MCP Bridge is on, but this page cannot connect: the browser gives the cryptography the link needs only to a page over https, or on this computer (localhost)." into tText
    else
       put "The xTalk MCP Bridge is on, and waiting for Claude's app: open the Claude desktop app, or start Claude Code, with the OXT-Beyond web IDE set up in it (Claude Setup... shows how). This page connects to it as soon as it is there." into tText
    end if
@@ -682,10 +695,39 @@ command mcbWebMenuPick
    end switch
 end mcbWebMenuPick
 
+-- The key this page shares with the MCP server (64 hexadecimal digits),
+-- made the first time from the browser's random numbers and kept with the
+-- preferences, so that the setup given once stays good
+private function mcbWebKey
+   local tKey
+   put revIDEGetPreference(kPrefWebKey) into tKey
+   if length(tKey) is 64 and matchText(tKey, "^[0-9a-f]+$") then
+      return tKey
+   end if
+   do "(function () { var b = crypto.getRandomValues(new Uint8Array(32)), s = ''; " & \
+         "for (var i = 0; i < b.length; i++) { s += (b[i] + 256).toString(16).slice(1); } return s; })()" as "JavaScript"
+   put the result into tKey
+   if length(tKey) is not 64 or not matchText(tKey, "^[0-9a-f]+$") then
+      throw "the browser gave no random numbers for the bridge's key"
+   end if
+   revIDESetPreference kPrefWebKey, tKey
+   return tKey
+end mcbWebKey
+
+-- The port of this computer the MCP server listens on for this page
+private function mcbWebPort
+   local tPort
+   put revIDEGetPreference(kPrefWebPort) into tPort
+   if tPort is an integer and tPort >= 1024 and tPort <= 65535 then
+      return tPort
+   end if
+   return kWebPort
+end mcbWebPort
+
 -- Readies the tools without a socket, puts the link into the page and
 -- starts reading its queue; empty, or why it could not
 private function mcbWebStart
-   local tFolder, tScript, tError
+   local tFolder, tScript, tKey, tError
    if sWebOn is true then
       return empty
    end if
@@ -703,8 +745,9 @@ private function mcbWebStart
       if tScript is empty then
          throw "the bridge's file mcp/web-link.js is missing"
       end if
+      put mcbWebKey() into tKey
       do tScript as "JavaScript"
-      do "window.oxtMcpLink.start(" & kWebPort & ")" as "JavaScript"
+      do "window.oxtMcpLink.start(" & mcbWebPort() & "," & mcbJsString(tKey) & ")" as "JavaScript"
    catch tError
       mcbWebStop
       return line 1 of tError
@@ -805,6 +848,7 @@ private command mcbWebSetupDialog
    put "Add the web IDE to Claude once, on this computer, in the app you use:" & return & return & \
          "Claude desktop app: press Download Desktop Extension, then in Claude choose Settings > Extensions > Advanced settings > Install Extension... and choose the file you downloaded. Claude's app runs it with its own Node.js; you install nothing else." & return & return & \
          "Claude Code: press Download Server, then Copy Claude Code Command, and paste the command into a terminal. It runs the server from your Downloads folder (change the path in it if you saved the file somewhere else), and needs Node.js 16 or later." & return & return & \
+         "Both hold a key that only this browser has, so that this page connects to that server and nothing else: keep them to yourself, and set Claude up again if you use the web IDE from another browser." & return & return & \
          "Then keep Claude's app open with this page open, sign in to Claude with your own account, as usual, and ask it to work on your stack." into tText
    answer information tText with "Download Desktop Extension" or "Download Server" or "Copy Claude Code Command" or "Close" titled kTitle
    switch it
@@ -836,7 +880,10 @@ private function mcbWebClaudeCodeCommand
    else
       put "$HOME/Downloads/" & kWebServerFile into tPath
    end if
-   return "claude mcp add --scope user" && kWebServerName && "-- node" && quote & tPath & quote && "--web"
+   -- The name before the options: --env takes several values, and would
+   -- take the name as one
+   return "claude mcp add" && kWebServerName && "--scope user --env OXT_MCP_WEB_KEY=" & mcbWebKey() && \
+         "--env OXT_MCP_WEB_PORT=" & mcbWebPort() && "-- node" && quote & tPath & quote && "--web"
 end mcbWebClaudeCodeCommand
 
 -- Gives the user a copy of pFile, named pName, as a download: a file
@@ -862,7 +909,7 @@ private command mcbWebDownload pFile, pName
 end mcbWebDownload
 
 -- The web IDE's desktop extension (.mcpb): the bridge's manifest with the
--- web server's name and --web, and the server
+-- web server's name, --web, and this page's key and port, and the server
 private command mcbWebDownloadExtension
    local tText, tTemp, tManifest, tArchive, tProblem, tError
    put textDecode(url ("binfile:" & mcbPluginFolder() & "/mcp/manifest.json"), "UTF-8") into tText
@@ -876,7 +923,9 @@ private command mcbWebDownloadExtension
    put empty into tProblem
    replace mcbManifestLine("name") with quote & "name" & quote & ": " & quote & kWebServerName & quote in tText
    replace mcbManifestLine("display_name") with quote & "display_name" & quote & ": " & quote & mcbHostName() & " (web IDE)" & quote in tText
-   replace mcbManifestLine("args") with quote & "args" & quote & ": [" & quote & "${__dirname}/server.js" & quote & ", " & quote & "--web" & quote & "]" in tText
+   replace mcbManifestLine("args") with quote & "args" & quote & ": [" & quote & "${__dirname}/server.js" & quote & ", " & quote & "--web" & quote & "]," & \
+         return & "      " & quote & "env" & quote & ": {" & quote & "OXT_MCP_WEB_KEY" & quote & ": " & quote & mcbWebKey() & quote & ", " & \
+         quote & "OXT_MCP_WEB_PORT" & quote & ": " & quote & mcbWebPort() & quote & "}" in tText
    put specialFolderPath("temporary") into tTemp
    if tTemp is empty or there is not a folder tTemp then
       put "/tmp" into tTemp
