@@ -14,6 +14,11 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.7-rc.4 (2026-10-18, pre-release)
+
+- Web Stack Player: specialFolderPath("resources") finds a stack's files, and a polish pass over the new stacks (#140)
+- Version 0.2.7-rc.4, with its changelog (#PR)
+
 ## 0.2.7-rc.3 (2026-10-18, pre-release)
 
 - HyperCard import: find the resource fork beside a bare stack, read AppleSingle (#121)

@@ -80,7 +80,11 @@ adds the Stack Player, a web page that opens any stack, the IDE itself
 in a web page, Learn, one window for the lessons, guides and examples,
 and a HyperCard import that brings in pictures, palettes, colour and
 sound and reads Mac disk images (see
-[0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard));
+[0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard)),
+and 0.2.7-rc.4 lets a stack in the Stack Player find its files through
+`specialFolderPath("resources")` and polishes the stacks new in 0.2.7
+(see
+[0.2.7-rc.4](#027-rc4-a-stacks-own-files-in-the-stack-player-and-polish));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1520,6 +1524,42 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.4: a stack's own files in the Stack Player, and polish
+
+OXT-Beyond 0.2.7-rc.4, a test release, has everything in 0.2.7-rc.3,
+and:
+
+- **The Stack Player finds a stack's own files through
+  `specialFolderPath("resources")`.** A stack opened with its folder
+  (or its `.zip`) already found the files beside it by relative paths;
+  now a path built from `specialFolderPath("resources")`, as a stack
+  builds one in the IDE and in its own standalone, finds them too. A
+  field of links to pictures in a `resources` folder, which a user
+  reported showing nothing, shows them.
+- **Polish.** Home and Learn in the web IDE, the remastered examples
+  and the Stack Player's sample stacks had a look-and-wording pass:
+  words centred in their pills, chips, badges and circles, greys dark
+  enough to read, a note in each empty grid, table and box until it
+  fills, Learn's page titles on the body's column and its long index
+  lines ending in an ellipsis, and small text fixes. xTalk Primer's
+  checkbox and radio buttons draw their own marks, as a browser drew
+  the engine's as broken arcs.
+
+A script sees these differences from 0.2.7-rc.3, all in the Stack
+Player or in stacks new in 0.2.7. In the Stack Player,
+`specialFolderPath("resources")` still returns `/boot/standalone`, but
+while a stack is open `files()` and `folders()` of that folder also
+list the entries beside the stack (except names the player's own files
+have there), and writing through one of them writes into the stack's
+own folder, which the browser keeps, where before the write went to the
+player's folder, which a reload loses. In the remastered Animate a
+Letter the graphic "Boundry" is named "Boundary"; Quick Start Guide's
+lists of commands and functions leave out the engine's names that start
+with `_`; and the xTalk Primer sample has a label. Desktop engines, the
+IDE's libraries and other web standalones are unchanged. Pull request
+[#140](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/140)
+lists every change.
 
 #### 0.2.7-rc.3: stacks and the IDE on the web, Learn, and more of HyperCard
 
