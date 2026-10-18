@@ -10,14 +10,13 @@ script "TestXTalkChatCore"
 -- installed OXT-Beyond's Extensions folder) they also check the rooms'
 -- signed events, the identity file, and reading keys and names.
 
-constant kCoreFile = "/Extensions/org.openxtalk.plugin.xtalkchat/xtalkchat-core.livecodescript"
 
 -- The folder the identity goes in for the tests, and whether the suite
 -- could be loaded
 local sHome, sSuite
 
 on TestSetup
-   start using stack (TestGetIDERepositoryPath() & kCoreFile)
+   start using stack (TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.xtalkchat/xtalkchat-core.livecodescript")
    put the tempName into sHome
    create folder sHome
    put sHome into $XTALK_CHAT_HOME
