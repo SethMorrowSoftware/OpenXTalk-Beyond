@@ -129,6 +129,12 @@ mergeInto(LibraryManager.library, {
 			document.addEventListener("mouseup", LiveCodeEvents._handleDocumentMouseEvent);
 			document.addEventListener("mousemove", LiveCodeEvents._handleDocumentMouseEvent);
 			window.addEventListener("blur", LiveCodeEvents._handleWindowBlur);
+			// OXT-Beyond: a press on the page outside every stack's canvas
+			// (_handlePressOutside()). In the capture phase, as a window's
+			// frame stops its own presses; the mouse's too, for a browser
+			// that sends no pointer events (_attachFrame(), em-dc.js).
+			window.addEventListener("pointerdown", LiveCodeEvents._handlePressOutside, true);
+			window.addEventListener("mousedown", LiveCodeEvents._handlePressOutside, true);
 
 			// OXT-Beyond: drops from outside the page on the stacks'
 			// windows (_handleDrop())
@@ -235,8 +241,12 @@ mergeInto(LibraryManager.library, {
 
 		// The page lost the keyboard: the keys that are down go up for it.
 		// OXT-Beyond: a drag ends there too, as the page may not hear its
-		// button go up.
+		// button go up; and a menu that is open closes, as on the desktop
+		// when another window is clicked: a click in a browser widget's
+		// page or outside the page reaches no handler of this page, which
+		// only loses the focus (_cancelMenu()).
 		_handleWindowBlur: function() {
+			LiveCodeEvents._cancelMenu();
 			LiveCodeEvents._modifierKeys &= 16;
 			LiveCodeEvents._keysDown = {};
 			if (LiveCodeEvents._drag && !LiveCodeEvents._drag.cancel) {
@@ -1400,6 +1410,31 @@ mergeInto(LibraryManager.library, {
 			return false;
 		},
 		
+		// OXT-Beyond: the mouse went down outside every stack's canvas:
+		// on the page around the windows, on a window's frame or on a
+		// native layer. A canvas's own press goes to the engine
+		// (_handleMouseEvent()), which gives it to the menu that is open;
+		// this one reaches no stack, so a menu that is open closes, as a
+		// click outside a menu closes it on the desktop (_cancelMenu()).
+		_handlePressOutside: function(e) {
+			if (LiveCodeDC.getWindowIDForCanvas(e.target) != 0) {
+				return;
+			}
+			LiveCodeEvents._cancelMenu();
+		},
+
+		// OXT-Beyond: the menu that is open, if one is, closes with no
+		// menuPick (MCEmscriptenHandleMenuCancel()). Both a pointer's press
+		// and the mouse's may come for one click: the second finds no menu.
+		_cancelMenu: function() {
+			LiveCodeAsync.delay(function() {
+				Module.ccall('MCEmscriptenHandleMenuCancel',
+							 'number', /* bool */
+							 [], []);
+			});
+			LiveCodeAsync.resume();
+		},
+
 		// Document mouse event handler - redirects to target element when capturing mouse events
 		_handleDocumentMouseEvent: function(e) {
 			if (LiveCodeEvents._captureTarget) {

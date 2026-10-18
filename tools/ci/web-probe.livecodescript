@@ -897,6 +897,31 @@ command probeWindowSaw pWhat, pRect
    probeInfo "window-" & pWhat, pRect
 end probeWindowSaw
 
+-- web_check.py has an option menu (probeReport("menu")), opens it with
+-- a click on its button, and clicks the page outside every window, which
+-- must close it with no menuPick, as a click outside a menu closes it on
+-- the desktop; then it opens it again and closes it the same way, and
+-- the button goes (probeReport("menu-done")). Its menuPick would say
+-- "PROBE info menu-pick" with the line picked (probeMenuSaw).
+command probeMenu
+   if there is not a button "Probe Menu" then
+      create button "Probe Menu"
+      set the style of button "Probe Menu" to "menu"
+      set the menuMode of button "Probe Menu" to "option"
+      set the text of button "Probe Menu" to "One" & return & "Two" & return & "Three"
+      set the rect of button "Probe Menu" to 170,20,290,44
+      set the script of button "Probe Menu" to "on menuPick pItem" & return \
+            & "   dispatch" && quote & "probeMenuSaw" & quote && "to stack" && quote & "WebProbe" & quote \
+            && "with pItem" & return \
+            & "end menuPick"
+   end if
+   probeInfo "menu-rect", the rect of button "Probe Menu"
+end probeMenu
+
+command probeMenuSaw pItem
+   probeInfo "menu-pick", pItem
+end probeMenuSaw
+
 -- Once the dialog is open where the engine put it: where its field and
 -- its OK button are on the screen
 command probeDialogOpened
@@ -949,6 +974,8 @@ end probeUnfocus
 -- probeModal, which wait for the user: a handler that the page calls
 -- cannot. With "window" it opens the palette (probeWindow), and with
 -- "window-ignore" and "window-heed" sets the palette's ignoreMouseEvents.
+-- With "menu" it makes the option menu (probeMenu), and with "menu-done"
+-- deletes it.
 function probeReport pWhat
    if pWhat is "snapshot" then
       return probeSnapshots()
@@ -956,6 +983,16 @@ function probeReport pWhat
    if pWhat is "window" then
       send "probeWindow" to me in 0 milliseconds
       return "started"
+   end if
+   if pWhat is "menu" then
+      send "probeMenu" to me in 0 milliseconds
+      return "started"
+   end if
+   if pWhat is "menu-done" then
+      if there is a button "Probe Menu" then
+         delete button "Probe Menu"
+      end if
+      return "done"
    end if
    if pWhat is "window-ignore" or pWhat is "window-heed" then
       set the ignoreMouseEvents of stack "Probe Palette" to (pWhat is "window-ignore")

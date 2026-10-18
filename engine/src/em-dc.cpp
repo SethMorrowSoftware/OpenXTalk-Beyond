@@ -129,6 +129,24 @@ MCEmscriptenHandleWindowMoved(MCStack *p_stack)
 	return true;
 }
 
+/* OXT-Beyond: the mouse went down on the page outside every stack's
+ * window, or the page lost the focus (em-event.js): a click on the page
+ * around the windows, on a window's frame or on a native layer, or in
+ * another window. On the desktop a menu that is open takes every click
+ * until it closes, and a click outside it cancels it
+ * (MCPlatformHandleWindowCancel()); on the web such a click reached no
+ * stack, so the menu stayed open until its button was clicked again. It
+ * closes, with no menuPick, as a click outside it on a stack closes it. */
+extern "C" MC_DLLEXPORT_DEF bool
+MCEmscriptenHandleMenuCancel()
+{
+	if (MCnoui || MCdispatcher->getmenu() == nil)
+		return false;
+
+	MCdispatcher->closemenus();
+	return true;
+}
+
 /* ================================================================
  * Initialization / Finalization
  * ================================================================ */

@@ -156,7 +156,10 @@ Then:
    its blendLevel says, a click on its close box must go through it while
    its ignoreMouseEvents is true, a drag by the title bar must move it
    (moveStack), and a click on the title bar's close box must close it
-   (closeStackRequest, closeStack).
+   (closeStackRequest, closeStack). It has an option menu
+   (probeReport("menu")): a click on its button must open its list, and a
+   click on the page outside every window must close it with no menuPick,
+   twice.
    Then it takes a screenshot of the stack and checks the colours of the
    card, the graphic and the image in it.
 
@@ -316,6 +319,26 @@ WINDOW_FRAME_JS = '''(title) => {
             close: rect(window.querySelector('.oxt-window-close')),
             classes: window.className, shown: window.style.display != 'none',
             opacity: window.style.opacity};
+}'''
+
+# How many windows the page shows: a menu's list is a window of its own
+SHOWN_WINDOWS_JS = '''() => Array.from(document.querySelectorAll('canvas')).filter(function(canvas) {
+    const r = canvas.getBoundingClientRect();
+    return canvas.dataset.lcWindowId && r.width > 0 && r.height > 0;
+}).length'''
+
+# A point of the page, near a corner of the viewport, that no window or
+# other element of the page covers ([x, y]), or null if every corner is
+PAGE_OUTSIDE_JS = '''() => {
+    const w = window.innerWidth, h = window.innerHeight;
+    const corners = [[w - 10, h - 10], [10, h - 10], [w - 10, 10], [10, 10]];
+    for (const point of corners) {
+        const element = document.elementFromPoint(point[0], point[1]);
+        if (!element || element == document.body || element == document.documentElement) {
+            return point;
+        }
+    }
+    return null;
 }'''
 
 # The samples of the audio clip the probe plays, as the browser has them:
@@ -1498,6 +1521,43 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                     lines.append('a palette\'s title bar showed its title, moved it when dragged, and closed it '
                                  'with its close box; its blendLevel made it see-through, and a click went through '
                                  'it while its ignoreMouseEvents was true')
+                # an option menu (probeReport("menu")): a click on its button
+                # opens its list, a window of its own, and a click on the page
+                # outside every window closes it with no menuPick, as a click
+                # outside a menu closes it on the desktop; it opens again, and
+                # closes again the same way
+                page.evaluate(stack_js + '.probeReport("menu")')
+                menu_problem = None
+                if wait_for(lambda: 'menu-rect' in info, 'the option menu', 10):
+                    outside = page.evaluate(PAGE_OUTSIDE_JS)
+                    if not outside:
+                        menu_problem = 'the page has no point outside every window to click'
+                    for attempt in range(2):
+                        if menu_problem:
+                            break
+                        shown = page.evaluate(SHOWN_WINDOWS_JS)
+                        page.mouse.click(*at(info['menu-rect']))
+                        if not wait_for(lambda: page.evaluate(SHOWN_WINDOWS_JS) > shown,
+                                        'the option menu\'s list opening', 10):
+                            menu_problem = 'a click on the option menu\'s button showed no list'
+                            break
+                        page.wait_for_timeout(300)
+                        page.mouse.click(*outside)
+                        if not wait_for(lambda: page.evaluate(SHOWN_WINDOWS_JS) == shown,
+                                        'the option menu\'s list closing', 10):
+                            menu_problem = ('a click on the page outside every window, at %d,%d, left the option '
+                                            'menu\'s list open' % tuple(outside))
+                        elif 'menu-pick' in info:
+                            menu_problem = ('a click on the page outside the option menu\'s list sent menuPick %r'
+                                            % info['menu-pick'])
+                else:
+                    menu_problem = 'the option menu was not made'
+                page.evaluate(stack_js + '.probeReport("menu-done")')
+                if menu_problem:
+                    problems.append(menu_problem)
+                else:
+                    lines.append('an option menu\'s list closed with no menuPick when the page outside every window '
+                                 'was clicked, and opened again')
                 # the files the probe wrote to /downloads: a text file, and the
                 # PDF that it printed
                 names = lambda: [name for name, _ in downloads]
