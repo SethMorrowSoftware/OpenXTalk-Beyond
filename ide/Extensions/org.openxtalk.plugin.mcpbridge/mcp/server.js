@@ -920,11 +920,19 @@ class WebBridge extends Bridge {
   }
 }
 
+// Whether this file runs as the server, which it does however it was
+// started: under the Node.js built into Claude's desktop app, a server
+// that ran only when require.main was this module never read its first
+// message (the app gave up on it: "Request timed out"), as when a script
+// of its own loads this file. Only a
+// program that loads it to read TOOLS sets OXT_MCP_LIBRARY=1.
+const SERVES = process.env.OXT_MCP_LIBRARY !== '1';
+
 let bridge;
 if (WEB) {
   const link = new WebLink(WEB_PORT, WEB_ORIGINS, WEB_KEY);
   bridge = new WebBridge(link);
-  if (require.main === module) {
+  if (SERVES) {
     link.listen();
   }
 } else {
@@ -1051,7 +1059,7 @@ function main() {
   });
 }
 
-if (require.main === module) {
+if (SERVES) {
   main();
 }
 

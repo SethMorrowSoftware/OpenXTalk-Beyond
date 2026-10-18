@@ -344,9 +344,12 @@ class McpBridgeServerBase(unittest.TestCase):
         with open(self.info, 'w') as f:
             json.dump(info, f)
 
-    def start_server(self, args=(), **settings):
+    def start_server(self, args=(), loaded=False, **settings):
         env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000', **settings)
-        self.proc = subprocess.Popen([NODE, SERVER] + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        # loaded: started by a script that loads server.js, as the Node.js
+        # built into Claude's desktop app may, so require.main is not it
+        command = [NODE, '-e', 'require(process.argv[1])', SERVER] if loaded else [NODE, SERVER]
+        self.proc = subprocess.Popen(command + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, env=env)
 
     def send(self, method, params=None, notify=False):
@@ -406,6 +409,11 @@ class McpBridgeServerTest(McpBridgeServerBase):
         names = [t['name'] for t in tools]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(self.request('nothing/here').get('error', {}).get('code'), -32601)
+
+    def test_a_server_loaded_by_another_script_still_serves(self):
+        self.start_server(loaded=True)
+        self.assertEqual(self.initialize()['result']['serverInfo']['name'], 'oxt-beyond')
+        self.assertTrue(self.request('tools/list')['result']['tools'])
 
     def test_an_unknown_version_gets_the_newest(self):
         self.start_server()
@@ -609,9 +617,9 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
             tab.close()
         super().tearDown()
 
-    def start_web(self, **settings):
+    def start_web(self, loaded=False, **settings):
         settings.setdefault('OXT_MCP_WEB_KEY', WEB_KEY)
-        self.start_server(args=['--web'], OXT_MCP_WEB_PORT=str(self.port), **settings)
+        self.start_server(args=['--web'], loaded=loaded, OXT_MCP_WEB_PORT=str(self.port), **settings)
 
     def tab(self, handler, **kwargs):
         tab = FakeTab(self.port, handler, **kwargs)
@@ -624,6 +632,14 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         self.assertEqual(result['serverInfo']['name'], 'oxt-beyond-web')
         names = [t['name'] for t in self.request('tools/list')['result']['tools']]
         self.assertEqual(names, ide_tools().split(','))
+
+    def test_web_a_server_loaded_by_another_script_still_serves(self):
+        self.start_web(loaded=True)
+        self.assertEqual(self.initialize()['result']['serverInfo']['name'], 'oxt-beyond-web')
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'stacks'})
+        self.assertEqual(tab.status, 101)
+        self.assertTrue(tab.server_ok)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'stacks')
 
     def test_web_a_call_without_the_page_says_how_to_connect(self):
         self.start_web()
