@@ -64,8 +64,9 @@ local sNavY, sNavTarget
 local sHero, sToastUntil
 -- The examples: their table, and the top of each one's card in the
 -- gallery at vScroll 0, and the gallery's search, pending; and the files
--- of the examples Learn opened
-local sExamples, sCardTop, sSearchDue, sOpened
+-- of the examples Learn opened, and the words on each one's card as it
+-- opened (lePrint)
+local sExamples, sCardTop, sSearchDue, sOpened, sPrints
 -- A relayout after a resize, pending; and where lePlace put the window
 local sRelayout, sPlaced
 
@@ -117,6 +118,55 @@ on leKeepPlace
       set the rect of me to sPlaced
    end if
 end leKeepPlace
+
+-- An example that Learn opened, as it was when it opened (leOpenExample),
+-- and once more a little later, for a window slow to take the focus; but
+-- not once the words on its card have changed since it opened, or it is
+-- on another card: the user typed in it, or is using it
+on leUnchanged pStack, pLater
+   if there is no stack pStack or there is no stack "revIDELibrary" then
+      exit leUnchanged
+   end if
+   if lePrint(pStack) is not sPrints[pStack] then
+      exit leUnchanged
+   end if
+   dispatch "revIDESetUnedited" to stack "revIDELibrary" with pStack
+   if pLater is empty then
+      send "leUnchanged" && quote & pStack & quote & ",later" to me in 2 seconds
+   end if
+end leUnchanged
+
+-- The card a stack is on and the words of the fields on it, in short
+private function lePrint pStack
+   local tText, tIndex, tHex
+   put the long id of this card of stack pStack into tText
+   repeat with tIndex = 1 to the number of fields of this card of stack pStack
+      put return & the text of field tIndex of this card of stack pStack after tText
+   end repeat
+   get binaryDecode("H*", md5Digest(textEncode(tText, "UTF-8")), tHex)
+   return tHex
+end lePrint
+
+-- Whether the IDE counts a stack, or one of its substacks, as changed
+-- since it was saved. Learn takes no such stack out of memory: the IDE
+-- asks about its changes when it quits, as File > Close and Remove From
+-- Memory would ask before it took the stack out
+private function leEdited pStack
+   local tName
+   if there is no stack "revIDELibrary" then
+      return false
+   end if
+   repeat for each line tName in (the short name of pStack) & return & (the substacks of pStack)
+      if tName is empty then
+         next repeat
+      end if
+      dispatch function "revIDEStackIsEdited" to stack "revIDELibrary" with tName
+      if the result is true then
+         return true
+      end if
+   end repeat
+   return false
+end leEdited
 
 on closeStack
    lkStopTicking
@@ -209,7 +259,8 @@ private command lePlace
    leLayout
 end lePlace
 
--- Takes out of memory the stacks Learn loaded, unless they are open
+-- Takes out of memory the stacks Learn loaded, unless they are open or
+-- hold changes not saved (leEdited)
 private command leUnload
    local tSection, tName, tError
    repeat for each item tSection in "lessons,guides"
@@ -218,7 +269,8 @@ private command leUnload
       end if
       put false into sLoaded[tSection]
       put leSectionInfo(tSection, "stack") into tName
-      if tName is among the lines of the mainStacks and tName is not among the lines of the openStacks then
+      if tName is among the lines of the mainStacks and tName is not among the lines of the openStacks \
+            and not leEdited(the long id of stack tName) then
          try
             -- (deleting a main stack takes it out of memory: its file
             -- stays as it is)
@@ -949,7 +1001,11 @@ end leClassic
 
 -- A word at the foot of the page for a moment: ok, warn or bad
 private command leToast pText, pKind
-   local tColor, tIcon, tWidth, tLeft, tTop
+   local tColor, tIcon, tWidth, tLeft, tTop, tSaved
+   -- (an example that stops on an error as it opens leaves its own stack
+   -- the default one, where the toast's controls are not)
+   put the defaultStack into tSaved
+   set the defaultStack to the short name of me
    switch pKind
       case "warn"
          put lkColor("amber") into tColor
@@ -976,6 +1032,9 @@ private command leToast pText, pKind
    show group "toast"
    unlock screen
    put lkNow() + 2600 into sToastUntil
+   if tSaved is not empty and there is a stack tSaved then
+      set the defaultStack to tSaved
+   end if
 end leToast
 
 ################################################################################
@@ -1995,48 +2054,58 @@ end leChapterIcon
 -- title, what it shows, who made it, its group, icon, accent, and a few
 -- words to find it by. Who made each is what the stack itself says (its
 -- script's first lines) and THIRD-PARTY-NOTICES.md; where neither names
--- anyone, the card says so.
+-- anyone, the card says so. Then, for an example remade in Learn's look
+-- (tools/examples), the remaster's file and its title: the gallery opens
+-- the remaster, and lists the original under Classic. Two originals remade
+-- as one remaster both name it, and after its title say what it does.
 private function leExampleTable
    local tTable
    put "Resources/Examples/Quick Start.oxtstack|Quick Start|Six first lessons, read aloud by a narrator: the Tools palette, " & \
          "buttons and fields, commands, the Script Editor, the Dictionary and groups.|Terry Little, 2024|start|rocket|violet|" & \
-         "beginner tour speech narrator" & return after tTable
+         "beginner tour speech narrator|Resources/Examples/Remastered/Quick Start Guide.oxtstack|Quick Start Guide" & return after tTable
    put "Resources/Examples/Animate Letter.oxtstack|Animate Letter|One letter, a dozen small programs: change its colour, " & \
          "move it, spin it, make it jump and dance, keep score and tell a story.|Terry Little, 2022|start|type|pink|" & \
-         "animation move spin game" & return after tTable
+         "animation move spin game|Resources/Examples/Remastered/Animate a Letter.oxtstack|Animate a Letter" & return after tTable
    put "Resources/Examples/Data Grid Tour.oxtstack|Data Grid Tour|A guided tour of the Data Grid: tables and forms, built " & \
          "step by step, with the template and behavior that draw each row.|LiveCode Ltd, debranded for OpenXTalk at LiveCode's request|tours|table|sky|" & \
-         "datagrid table form" & return after tTable
-   put "Resources/Examples/SQLite Tour.oxtstack|SQLite Tour|Eighteen cards on databases: connect to SQLite, make tables, " & \
-         "add, view, update and delete rows, and store binary data.|LiveCode Ltd, debranded for OpenXTalk at LiveCode's request|tours|database|indigo|" & \
-         "sqlite database sql revdb" & return after tTable
-   put "Resources/Examples/DataGrid Table.oxtstack|DataGrid Table|Four short lessons on the Data Grid table: fill it from " & \
-         "text, change it, read it back, and when a table field is enough.|Terry Little, 2022|tours|sheet|teal|" & \
-         "datagrid table field" & return after tTable
+         "datagrid table form|Resources/Examples/Remastered/A Data Grid Tour.oxtstack|A Data Grid Tour" & return after tTable
+   put "Resources/Examples/SQLite Tour.oxtstack|SQLite Tour|A tour of databases: connect to SQLite, make tables, " & \
+         "add, view, update and delete rows, join tables, and store binary data.|LiveCode Ltd, debranded for OpenXTalk at LiveCode's request|tours|database|indigo|" & \
+         "sqlite database sql revdb|Resources/Examples/Remastered/A Tour of SQLite.oxtstack|A Tour of SQLite" & return after tTable
+   put "Resources/Examples/DataGrid Table.oxtstack|DataGrid Table|Five short lessons on the Data Grid table: edit one by " & \
+         "hand and with code, add a column, make your own, paste one, and compare a field made into a table.|Terry Little, 2022|tours|sheet|teal|" & \
+         "datagrid table field|Resources/Examples/Remastered/Data Grid Tables.oxtstack|Data Grid Tables" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
-         "sqlite datagrid books database" & return after tTable
+         "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable
    put "Resources/Examples/RSS Demo.oxtstack|RSS Demo|Reads a news feed from the web and shows what it holds.|" & \
-         "In OpenXTalk Lite's demo set; its author is not recorded|apps|rss|orange|internet url xml feed" & return after tTable
+         "Via theotherbassist, 2016, in OpenXTalk Lite's demo set|apps|rss|orange|internet url xml feed|" & \
+         "Resources/Examples/Remastered/RSS Reader.oxtstack|RSS Reader" & return after tTable
    put "Resources/Examples/Text To Image.oxtstack|Text To Image|Turns typed words into an image, with a reflection.|" & \
          "Terry Little, 2013, after an idea of Jacqueline Landman Gay's|apps|wand-sparkles|violet|image text snapshot" & return after tTable
    put "Resources/Examples/Scroll Image.oxtstack|Scroll Image|A picture larger than its window, in a group that scrolls.|" & \
-         "In OpenXTalk Lite's demo set; its author is not recorded|apps|image|sky|image group scroll" & return after tTable
+         "In OpenXTalk Lite's demo set; its author is not recorded|apps|image|sky|image group scroll|" & \
+         "Resources/Examples/Remastered/Scroll an Image.oxtstack|Scroll an Image" & return after tTable
    put "Resources/Examples/Video Player.oxtstack|Video Player|Chooses a video file and plays it in a player.|" & \
-         "Added in OpenXTalk Lite 1.15; its author is not recorded|apps|film|rose|video player media" & return after tTable
+         "Added in OpenXTalk Lite 1.15; its author is not recorded|apps|film|rose|video player media|" & \
+         "Resources/Examples/Remastered/Play a Video.oxtstack|Play a Video" & return after tTable
    put "Resources/Examples/Zip Build Demo.oxtstack|Zip Build|Packs files into a zip archive with revZip.|" & \
-         "In OpenXTalk Lite's demo set; its author is not recorded|apps|archive|amber|zip revzip archive files" & return after tTable
+         "In OpenXTalk Lite's demo set; its author is not recorded|apps|archive|amber|zip revzip archive files|" & \
+         "Resources/Examples/Remastered/Zip Archives.oxtstack|Zip Archives|" & \
+         "Packs files into a zip archive, and looks inside one: what it holds, and taking its files out." & return after tTable
    put "Resources/Examples/Zip Extract Demo.oxtstack|Zip Extract|Lists what a zip archive holds and takes its files out.|" & \
-         "In OpenXTalk Lite's demo set; its author is not recorded|apps|folder-archive|amber|zip revzip archive files" & return after tTable
+         "In OpenXTalk Lite's demo set; its author is not recorded|apps|folder-archive|amber|zip revzip archive files|" & \
+         "Resources/Examples/Remastered/Zip Archives.oxtstack|Zip Archives|" & \
+         "Packs files into a zip archive, and looks inside one: what it holds, and taking its files out." & return after tTable
    put "Resources/Start Center/samples/sample_1/Balls.livecode|Bouncing Balls|Balls that bounce, with gravity and friction, " & \
          "each moved by one shared behavior.|LiveCode Ltd, from LiveCode Community's Start Center|samples|orbit|orange|" & \
-         "animation behavior graphics physics" & return after tTable
+         "animation behavior graphics physics|Resources/Examples/Remastered/Bouncing Balls.oxtstack|Bouncing Balls" & return after tTable
    put "Resources/Start Center/samples/sample_2/BookLibrary.livecode|Book Library|Make, fill, search and update an " & \
          "SQLite database of books.|LiveCode Ltd, from LiveCode Community's Start Center|samples|book-open|emerald|" & \
-         "sqlite database books" & return after tTable
+         "sqlite database books|Resources/Examples/Remastered/Bookshelf.oxtstack|Bookshelf" & return after tTable
    put "Resources/Start Center/samples/sample_4/balloon.livecode|Balloon Game|A small game, and a book about how it is " & \
          "made: animation, sound, a game loop and collisions.|LiveCode Ltd, from LiveCode Community's Start Center|samples|gamepad-2|rose|" & \
-         "game animation sound loop" & return after tTable
+         "game animation sound loop|Resources/Examples/Remastered/Balloon Game.oxtstack|Balloon Game" & return after tTable
    put "Resources/Start Center/samples/sample_3/mobileTemplate.livecode|Mobile Template|A starting point for a phone app: " & \
          "a header, pages, icons and colours to change.|LiveCode Ltd, from LiveCode Community's Start Center|samples|smartphone|teal|" & \
          "mobile template phone" & return after tTable
@@ -2175,9 +2244,10 @@ private function leExampleGroups
 end leExampleGroups
 
 -- The numbers (in leExampleTable) of the examples that are here, and that
--- the search finds
-private function leExampleKeys
-   local tLine, tIndex, tKeys, tTerm, tFile
+-- the search finds. Two originals remade as one remaster are one example,
+-- the first of them, unless pAll is true: Classic lists every original
+private function leExampleKeys pAll
+   local tLine, tIndex, tKeys, tTerm, tFile, tListed
    if sExamples is empty then
       put leExampleTable() into sExamples
    end if
@@ -2187,11 +2257,17 @@ private function leExampleKeys
    repeat for each line tLine in sExamples
       add 1 to tIndex
       put leRoot() & "/" & item 1 of tLine into tFile
-      if there is no file tFile then
+      if there is no file tFile and (item 9 of tLine is empty or there is no file (leRoot() & "/" & item 9 of tLine)) then
          next repeat
       end if
       if tTerm is not empty and not (tLine contains tTerm) then
          next repeat
+      end if
+      if pAll is not true and item 9 of tLine is not empty and there is a file (leRoot() & "/" & item 9 of tLine) then
+         if tListed[item 9 of tLine] is true then
+            next repeat
+         end if
+         put true into tListed[item 9 of tLine]
       end if
       put tIndex & return after tKeys
    end repeat
@@ -2210,9 +2286,24 @@ private function leExample pIndex, pWhat
    switch pWhat
       case "file"
          return leRoot() & "/" & item 1 of tLine
+      case "remaster"
+         if item 9 of tLine is empty or there is no file (leRoot() & "/" & item 9 of tLine) then
+            return empty
+         end if
+         return leRoot() & "/" & item 9 of tLine
       case "title"
+         -- (a remaster's own title, when this copy of the IDE has it)
+         if item 10 of tLine is not empty and there is a file (leRoot() & "/" & item 9 of tLine) then
+            return item 10 of tLine
+         end if
+         return item 2 of tLine
+      case "classicTitle"
          return item 2 of tLine
       case "text"
+         -- (a remaster of two originals says what it does itself)
+         if item 11 of tLine is not empty and there is a file (leRoot() & "/" & item 9 of tLine) then
+            return item 11 of tLine
+         end if
          return item 3 of tLine
       case "credit"
          return item 4 of tLine
@@ -2255,6 +2346,12 @@ private command leFillExamplesIndex pTerm
       end repeat
    end repeat
    set the itemDelimiter to comma
+   -- the originals of the remasters: a heading, which goes to them
+   if leClassicKeys(leExampleKeys(true)) is not empty then
+      add 1 to tCount
+      put "group classic" into sIndexMap[tCount]
+      put "<p><font color=" & quote & "#ffffff" & quote & "><b>Classic</b></font></p>" after tHtml["all"]
+   end if
    lock screen
    set the htmlText of field "idx" to tHtml["all"]
    repeat with tCount = 1 to the number of lines of field "idx"
@@ -2280,7 +2377,7 @@ private command leRenderGallery
    put leExampleKeys() into tKeys
    leHero "EXAMPLES", "Open it, run it, take it apart", \
          "Stacks to learn from: first lessons, guided tours, small apps that each do one thing, and what a stack can do in a browser. Every one is yours to open, run and change.", \
-         "Each card says who made the stack. Open one, then choose Object > Stack Script, or any control's script, to read how it works.", \
+         "Each card says who made the stack. A remastered one shows its scripts beside it, in colour; in the others, choose Object > Stack Script, or any control's script, to read how it works.", \
          "234,88,12|219,39,119|124,58,237", empty, empty
    if tKeys is empty then
       put leHtmlField("p_none", sX, sColW, "<p>No example has" && quote & lkEscape(sSearch["examples"]) & quote && "in it.</p>", 15, lkColor("soft")) into tObj
@@ -2327,8 +2424,72 @@ private command leRenderGallery
       add 16 to sY
    end repeat
    set the itemDelimiter to comma
+   -- Classic: the originals of the remasters, as their authors made them
+   put leClassicKeys(leExampleKeys(true)) into tItems
+   if tItems is not empty then
+      put sY into sCardTop["group classic"]
+      leSectionHeading "p_head_classic", "Classic", \
+            "The examples above that were remade in Learn's look, as their authors made them. Each opens as it always has."
+      put tCols + 1 into tCols
+      put (sColW - (tCols - 1) * tGap) div tCols into tWidth
+      put 0 into tCol
+      repeat for each line tKey in tItems
+         put sX + tCol * (tWidth + tGap) into tX
+         put sY into sCardTop["classic" && tKey]
+         leClassicCard tKey, tX, sY, tWidth, 128
+         add 1 to tCol
+         if tCol is tCols then
+            put 0 into tCol
+            add 128 + tGap to sY
+         end if
+      end repeat
+      if tCol > 0 then
+         add 128 + tGap to sY
+      end if
+      add 16 to sY
+   end if
    leEndPage
 end leRenderGallery
+
+-- The examples (of pKeys) that this copy of the IDE has both remade and
+-- as they were
+private function leClassicKeys pKeys
+   local tKey, tKeys
+   repeat for each line tKey in pKeys
+      if leExample(tKey, "remaster") is not empty and there is a file leExample(tKey, "file") then
+         put tKey & return after tKeys
+      end if
+   end repeat
+   delete the last char of tKeys
+   return tKeys
+end leClassicKeys
+
+-- An original's card, under Classic: its icon, its title, who made it, and
+-- Open, which opens the stack as its author made it
+private command leClassicCard pKey, pLeft, pTop, pWidth, pHeight
+   local tName, tAccent, tObj, tRight, tBottom, tLook, tWidth
+   put "p_cl" & pKey into tName
+   put leExample(pKey, "accent") into tAccent
+   put pLeft + pWidth into tRight
+   put pTop + pHeight into tBottom
+   get lkGroup(tName, lkR(pLeft - 12, pTop - 12, tRight + 12, tBottom + 18), "page")
+   put lkBox(tName & "_bg", lkR(pLeft, pTop, tRight, tBottom), "255,255,255", 14, tName) into tObj
+   lkBorder tObj, lkColor("line")
+   lkShadow tObj, 6, 2, 18
+   put lkBox(tName & "_tile", lkR(pLeft + 16, pTop + 16, pLeft + 56, pTop + 56), lkMix("255,255,255", tAccent, 0.14), 12, tName) into tObj
+   get lkIcon(tName & "_icon", leExample(pKey, "icon"), tAccent, lkR(pLeft + 26, pTop + 26, pLeft + 46, pTop + 46), tName)
+   put lkLabel(tName & "_title", lkR(pLeft + 68, pTop + 16, tRight - 16, pTop + 36), leExample(pKey, "classicTitle"), 15, lkColor("ink"), tName) into tObj
+   set the textStyle of tObj to "bold"
+   lkEllipsize tObj
+   put lkLabel(tName & "_credit", lkR(pLeft + 68, pTop + 38, tRight - 16, pTop + 54), leExample(pKey, "credit"), 12, lkColor("soft"), tName) into tObj
+   lkEllipsize tObj
+   put lkButton(tName & "_open", pLeft + 16, tBottom - 46, 30, "Open the original", "play", "ghost", tAccent, tName, "original" && pKey, 0, "page") into tWidth
+   put tName & "_bg" into tLook["bg"]
+   put lkColor("line") into tLook["line0"]
+   put tAccent into tLook["line1"]
+   put true into tLook["shadow"]
+   lkLive tName, "page", "original" && pKey, tLook
+end leClassicCard
 
 -- An example's card: a banner in its colour with its icon, its title, who
 -- made it, what it shows, and Open
@@ -2358,9 +2519,12 @@ private command leExampleCard pKey, pLeft, pTop, pWidth, pHeight
    put lkLabel(tName & "_credit", lkR(pLeft + 20, pTop + 134, tRight - 20, pTop + 150), leExample(pKey, "credit"), 12, lkMix(tAccent, lkColor("ink"), 0.35), tName) into tObj
    leFit tObj
    put lkLabel(tName & "_text", lkR(pLeft + 20, the bottom of tObj + 6, tRight - 20, tBottom - 52), leExample(pKey, "text"), 13, lkColor("soft"), tName) into tObj
-   -- its first two tags, as chips
+   -- its first two tags, as chips (a remaster's first says so)
    put pLeft + 20 into tX
    put leExample(pKey, "tags") into tTags
+   if leExample(pKey, "remaster") is not empty then
+      put "remastered" & space before tTags
+   end if
    repeat with tTag = 1 to min(2, the number of words of tTags)
       put lkBox(tName & "_chip" & tTag, lkR(tX, tBottom - 38, tX + 10, tBottom - 16), lkMix("255,255,255", tAccent, 0.1), 11, tName) into tObj
       put lkLabel(tName & "_chipText" & tTag, lkR(tX + 10, tBottom - 36, tX + 200, tBottom - 18), word tTag of tTags, 11, lkMix(tAccent, lkColor("ink"), 0.3), tName) into tObj
@@ -2391,30 +2555,63 @@ private command leOpenGuidePdf
    end try
 end leOpenGuidePdf
 
--- Opens an example, as the user would
+-- Opens an example, as the user would: its remaster when there is one,
+-- or (pOriginal) the stack as its author made it
 private command leOpenExample pKey, pOriginal
-   local tFile, tError
-   put leExample(pKey, "file") into tFile
+   local tFile, tError, tFresh, tOpen, tTitle
+   put leExample(pKey, "remaster") into tFile
+   if pOriginal or tFile is empty then
+      put leExample(pKey, "file") into tFile
+   end if
    if there is no file tFile then
       leToast "That stack is not in this copy of the IDE.", "warn"
       exit leOpenExample
    end if
    lePutAway
+   -- (an example that is in memory already, open or not, may hold changes
+   -- of the user's own: Learn neither counts it unchanged nor takes it
+   -- out of memory, unless Learn opened it before)
+   put true into tFresh
+   repeat for each line tOpen in the mainStacks
+      if the effective filename of stack tOpen is tFile then
+         put false into tFresh
+         exit repeat
+      end if
+   end repeat
    try
+      -- (an example is opened to be run: with the Pointer tool, which the
+      -- IDE starts with, its buttons would not answer a click)
+      choose browse tool
       go stack tFile
-      if tFile is not among the lines of sOpened then
+      if tFresh and tFile is not among the lines of sOpened then
          put tFile & return after sOpened
       end if
+      -- (the IDE counts the field that a window gives the focus to as a
+      -- change, so closing an example that was only looked at would ask
+      -- to save it: once its window has the focus, it is unchanged again.
+      -- A remaster gives the focus to no field, tools/examples/README.md)
+      if tFresh and tFile is not leExample(pKey, "remaster") then
+         put lePrint(the short name of stack tFile) into sPrints[the short name of stack tFile]
+         send "leUnchanged" && quote & the short name of stack tFile & quote to me in 1 second
+      end if
    catch tError
-      leToast leExample(pKey, "title") && "could not open:" && lkErrorText(tError), "bad"
+      -- (named as the card names the stack that failed: the original's
+      -- own title, when it was the original)
+      if pOriginal then
+         put leExample(pKey, "classicTitle") into tTitle
+      else
+         put leExample(pKey, "title") into tTitle
+      end if
+      leToast tTitle && "could not open:" && lkErrorText(tError), "bad"
    end try
 end leOpenExample
 
 -- The examples Learn opened that are closed now, their windows and their
 -- substacks', are taken out of memory, as File > Close and Remove From
--- Memory would. A closed stack stays in memory, and the IDE stops on a
--- warning when a stack loads with the name of one there, a substack's
--- too: two examples that share the name of a substack would stop on it
+-- Memory would, unless they hold changes not saved (leEdited). A closed
+-- stack stays in memory, and the IDE stops on a warning when a stack
+-- loads with the name of one there, a substack's too: two examples that
+-- share the name of a substack would stop on it
 private command lePutAway
    local tFile, tOpen, tStack, tBusy, tSub, tKeep, tError
    repeat for each line tFile in sOpened
@@ -2434,7 +2631,7 @@ private command lePutAway
             put true into tBusy
          end if
       end repeat
-      if tBusy then
+      if tBusy or leEdited(tStack) then
          put tFile & return after tKeep
          next repeat
       end if

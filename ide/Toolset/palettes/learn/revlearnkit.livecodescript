@@ -1549,6 +1549,17 @@ function lkIconPaths pName
                "l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6." & \
                "618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z'/><path d='M15 5.764v15'/><path d='M9 3.2" & \
                "36v15'/>"
+      case "move"
+         return "<path d='M12 2v20'/><path d='m15 19-3 3-3-3'/><path d='m19 9 3 3-3 3'/><path d='M2 12h20'/>" & \
+               "<path d='m5 9-3 3 3 3'/><path d='m9 5 3-3 3 3'/>"
+      case "arrow-big-up"
+         return "<path d='M9 18v-6H5l7-7 7 7h-4v6H9z'/>"
+      case "rotate-cw"
+         return "<path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/><path d='M21 3v5h-5'/>"
+      case "keyboard"
+         return "<path d='M10 8h.01'/><path d='M12 12h.01'/><path d='M14 8h.01'/><path d='M16 12h.01'/>" & \
+               "<path d='M18 8h.01'/><path d='M6 8h.01'/><path d='M7 16h10'/><path d='M8 12h.01'/>" & \
+               "<rect width='20' height='16' x='2' y='4' rx='2'/>"
    end switch
    return empty
 end lkIconPaths
