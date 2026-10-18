@@ -8,6 +8,12 @@ toolbar across the top. A button at the top right makes it full screen.
 
 What works in it:
 
+- Home, the welcome stack the IDE opens with
+  ([palettes/web home](../../ide/Toolset/palettes/web%20home/revwebhome.livecodescript)):
+  live demos of what a stack can do in a browser, and the way to a new
+  stack, the lessons, the examples and the Dictionary. Its "Show Home at
+  startup" switch turns that off, and Help > Welcome to OXT-Beyond opens
+  it again;
 - making stacks, with the Tools palette, the Property Inspector and the
   Message Box;
 - the Script Editor, with colouring, compile errors and the handler list;

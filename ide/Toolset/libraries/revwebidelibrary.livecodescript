@@ -42,6 +42,13 @@ script "revWebIDELibrary"
 -- back), every window is brought back onto it (revWebIDEKeepWindowsOnPage):
 -- the user's stacks are only moved, never resized.
 --
+-- Home. The web IDE opens with Home (palettes/web home), a welcome stack
+-- in the spirit of HyperCard's, which shows what a stack can do in a
+-- browser and leads to the lessons, the examples and the Dictionary. Its
+-- "Show Home at startup" switch keeps the preference cWebHomeAtStartup
+-- (empty, as in a new profile, means show it), and Help > Welcome to
+-- OXT-Beyond opens it again.
+--
 -- Public handlers:
 --    revWebIDEMenu(pMenuName, pMenu)
 --       The text of one of the IDE's menus as the web IDE shows it.
@@ -63,6 +70,10 @@ script "revWebIDELibrary"
 --       Keeps a window on the page, below the menu bar.
 --    revWebIDEKeepWindowsOnPage
 --       Keeps every open window on the page.
+--    revWebIDEShowHome
+--       Opens Home, or brings it to the front.
+--    revWebIDEStartupHome
+--       Opens Home when the IDE has started, unless the user said not to.
 
 on extensionInitialize
    if the target is not me then
@@ -93,8 +104,8 @@ end extensionFinalize
 
 /*
 The text of one of the IDE's menus as the web IDE shows it: the items of
-what a browser cannot do left out, with their submenus, and File's
-Download Stack added after Save As.
+what a browser cannot do left out, with their submenus, File's Download
+Stack added after Save As, and Help's Welcome to OXT-Beyond added first.
 
 pMenuName (String): The name of the menu (File, Edit, Tools, ...).
 
@@ -124,6 +135,10 @@ function revWebIDEMenu pMenuName, pMenu
    end if
    if pMenuName is "File" then
       put __webMenuAddDownload(pMenu) into pMenu
+   end if
+   if pMenuName is "Help" then
+      -- (revMenubarHelpMenuPick picks it)
+      put "Welcome to OXT-Beyond" & return & "-" & return before pMenu
    end if
    return pMenu
 end revWebIDEMenu
@@ -696,3 +711,40 @@ on ideDesktopChanged
    send "revWebIDEKeepWindowsOnPage" to me in 0 milliseconds
    pass ideDesktopChanged
 end ideDesktopChanged
+
+################################################################################
+#
+# Home
+#
+
+/*
+Opens Home, the web IDE's welcome stack, or brings it to the front: what
+Help > Welcome to OXT-Beyond does.
+*/
+command revWebIDEShowHome
+   local tPath
+   if "revWebHome" is among the lines of the openStacks then
+      go stack "revWebHome"
+      exit revWebIDEShowHome
+   end if
+   if there is a stack "revWebHome" then
+      modeless stack "revWebHome"
+      exit revWebIDEShowHome
+   end if
+   put revIDESpecialFolderPath("Toolset") & "/palettes/web home/revwebhome.livecodescript" into tPath
+   if there is a file tPath then
+      modeless stack tPath
+   end if
+end revWebIDEShowHome
+
+/*
+Opens Home once the IDE has started (tCloseSplashFully, in the IDE's own
+home.livecodescript, sends it), unless the user turned Home's "Show Home
+at startup" switch off.
+*/
+command revWebIDEStartupHome
+   if revIDEGetPreference("cWebHomeAtStartup") is false then
+      exit revWebIDEStartupHome
+   end if
+   revWebIDEShowHome
+end revWebIDEStartupHome

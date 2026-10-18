@@ -400,6 +400,11 @@ on tCloseSplashFully
    if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
    if there is a stack "Message Box" then set the blendlevel of stack "Message Box" to 0
    
+   -- OXT-Beyond: the web IDE opens Home, its welcome stack, unless the
+   -- user turned that off there (revWebIDELibrary)
+   if revEnvironmentIsWeb() and there is a stack "revWebIDELibrary" then
+      send "revWebIDEStartupHome" to stack "revWebIDELibrary" in 200 milliseconds
+   end if
    
 end tCloseSplashFully
 

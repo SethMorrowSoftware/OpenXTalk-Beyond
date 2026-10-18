@@ -2986,6 +2986,11 @@ on revMenubarHelpMenuPick pWhich
    local tPick
    put item 1 of pWhich into tPick
    switch tPick
+      -- OXT-Beyond: in the web IDE only (revWebIDEMenu): Home, its welcome
+      -- stack
+      case "Welcome to OXT-Beyond"
+         revWebIDEShowHome
+         break
       case "Dictionary"
          if the shiftkey is down then revIDEDocumentationLoad "API", "Script"
          else if the shiftkey is up then send tNewDictionaryDisplay to this stack 

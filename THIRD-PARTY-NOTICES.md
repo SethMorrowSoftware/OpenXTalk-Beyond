@@ -327,7 +327,7 @@ introduced in OpenXTalk Lite 1.04), which is still distributed as part
 of the IDE, on the same basis as the rest of OpenXTalk Lite's changes
 (above).
 
-### The web IDE's toolbar icons
+### The web IDE's icons
 
 The icons of the web IDE's toolbar
 (`ide/Toolset/palettes/menubar/images-web/`) are drawn from
@@ -337,6 +337,11 @@ License: "Copyright (c) for portions of Lucide are held by Cole Bemis
 are held by Lucide Contributors 2022." The licence's full text is in that
 folder's [`README.md`](ide/Toolset/palettes/menubar/images-web/README.md),
 which lists the icons used.
+
+Home, the web IDE's welcome stack
+([`ide/Toolset/palettes/web home/revwebhome.livecodescript`](ide/Toolset/palettes/web%20home/revwebhome.livecodescript)),
+draws 25 Lucide icons of the same version, under the same licence, from
+their SVG text, which its script carries with the licence's full text.
 
 ## xTalk Suite extensions
 
