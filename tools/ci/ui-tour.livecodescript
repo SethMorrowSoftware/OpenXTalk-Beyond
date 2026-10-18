@@ -595,6 +595,16 @@ on tour_standalone_settings
       set the defaultStack to tDefault
       tourWait 700
       tourShotStack tStack, "15-standalone-" & format("%02d", tIndex) & "-" & tourFileName(tCard)
+      -- the Web card makes its page's settings when it first opens: the
+      -- HTML5 option and those settings are there
+      if tCard is "Emscripten" then
+         if not the visible of button "Emscripten" of group "platforms" of card "Emscripten" of stack tStack then
+            throw "the Web card shows no HTML5 option"
+         end if
+         if there is not a field "emscriptenTitle" of card "Emscripten" of stack tStack then
+            throw "the Web card has no settings for its page"
+         end if
+      end if
    end repeat
    close stack tStack
 end tour_standalone_settings

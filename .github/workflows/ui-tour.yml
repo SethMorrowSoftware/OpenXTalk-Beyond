@@ -16,7 +16,7 @@
 
 # Screenshots of the IDE's own windows (palettes, inspector, editors,
 # dialogs, a tooltip) in a published release, with the system light and
-# dark, on Windows, Linux and both kinds of Mac: tools/ci/ui_tour.py starts
+# dark, on Windows, Linux and both kinds of Mac (and macOS 26): tools/ci/ui_tour.py starts
 # the release's IDE with tools/ci/ui-tour.livecodescript, which opens the
 # windows one by one and snapshots the screen around each. The snapshots
 # are printed into the log (tools/ci/print_images.py puts them back
@@ -69,6 +69,9 @@ jobs:
             asset: mac-universal.zip
           - platform: mac-universal
             runner: macos-15-intel
+            asset: mac-universal.zip
+          - platform: mac-universal
+            runner: macos-26
             asset: mac-universal.zip
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
