@@ -32,6 +32,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- the next time. The stack then takes the page's window (go ... in window,
 -- with the defaultFolder its own folder, so that its relative paths find
 -- the files that came with it), or a window of its own with ?mode=window.
+-- specialFolderPath("resources") finds them too: see
+-- playerLinkResources.
 --
 -- The page (tools/web-player/index.html) draws the player's home, its
 -- library and its bar in HTML: its buttons call playerFromPage (one of
@@ -55,6 +57,9 @@ local sChoices
 local sStarted
 -- What the page asked for, for playerDo in the engine's next turn
 local sPageArgs
+-- The names playerLinkResources linked into the resources folder for the
+-- open stack, one a line
+local sLinked
 
 constant kStackExtensions = "livecode,oxtstack,rev,mc,livecodescript,lc,stack"
 constant kLibraryName = "Stack Player"
@@ -125,14 +130,19 @@ end playerStatus
 -- their lists (playerShowLibrary, playerShowChoices), or "status"
 command playerTellPage pEvent, pDetail
    local tError
-   replace "\" with "\\" in pDetail
-   replace quote with "\" & quote in pDetail
-   replace return with "\n" in pDetail
    try
-      do "if (window.oxtPlayer) window.oxtPlayer.event('" & pEvent & "'," & quote & pDetail & quote & ");" as "JavaScript"
+      do "if (window.oxtPlayer) window.oxtPlayer.event('" & pEvent & "'," & playerJSString(pDetail) & ");" as "JavaScript"
    catch tError
    end try
 end playerTellPage
+
+-- pText as a JavaScript string literal
+private function playerJSString pText
+   replace "\" with "\\" in pText
+   replace quote with "\" & quote in pText
+   replace return with "\n" in pText
+   return quote & pText & quote
+end playerJSString
 
 ----------------------------------------------------------------
 -- Calls from the page
@@ -545,6 +555,7 @@ command playerOpenFile pPath
    -- its relative paths are relative to its own folder, as in its own
    -- standalone
    set the defaultFolder to tFolder
+   playerLinkResources tFolder
    put tName into sCurrent
    put pPath into sCurrentFile
    try
@@ -559,6 +570,7 @@ command playerOpenFile pPath
    end try
    if tResult is not empty then
       put empty into sCurrent
+      playerUnlinkResources
       if playerNativeLibrary(tResult) is not empty then
          put playerNativeText(playerNativeLibrary(tResult)) into tResult
       end if
@@ -613,10 +625,62 @@ command playerGoHome
    send "playerForget" && quote & sCurrent & quote to me in 0 milliseconds
    put empty into sCurrent
    put empty into sCurrentFile
+   playerUnlinkResources
    playerShowLibrary
    playerStatus empty
    playerTellPage "home", empty
 end playerGoHome
+
+-- specialFolderPath("resources") is the player's own folder in the
+-- browser (/boot/standalone), but a stack's scripts expect the files that
+-- came with it there: in the IDE it is the folder of the stack's file,
+-- and in the stack's own standalone the folder its Copy Files went to.
+-- So while the stack is open, each file and folder beside it is linked
+-- into the player's folder under its own name, through the engine's file
+-- system in the page (script cannot make a link), and
+-- specialFolderPath("resources") & "/images/a.png" reads its
+-- images/a.png. A name the player's own files have is left as it is
+-- (DroidSansCombined.ttf and the extensionNN folders). The function still
+-- returns /boot/standalone, as in any web standalone.
+private command playerLinkResources pFolder
+   local tError
+   playerUnlinkResources
+   try
+      do "(function (from, to) {" & \
+            "var fs = window.FS || (window.Module && window.Module.FS), made = [];" & \
+            "if (!fs) return '';" & \
+            "fs.readdir(from).forEach(function (n) {" & \
+            "if (n == '.' || n == '..') return;" & \
+            "try { fs.lstat(to + '/' + n); return; } catch (e) {}" & \
+            "try { fs.symlink(from + '/' + n, to + '/' + n); made.push(n); } catch (e) {}" & \
+            "});" & \
+            "return made.join('\n');" & \
+            "})(" & playerJSString(pFolder) & "," & playerJSString(specialFolderPath("resources")) & ")" as "JavaScript"
+      put the result into sLinked
+   catch tError
+      put empty into sLinked
+   end try
+end playerLinkResources
+
+-- Removes the links playerLinkResources made (only links: a file of the
+-- same name the stack wrote there since stays)
+private command playerUnlinkResources
+   local tError
+   if sLinked is empty then
+      exit playerUnlinkResources
+   end if
+   try
+      do "(function (to, names) {" & \
+            "var fs = window.FS || (window.Module && window.Module.FS);" & \
+            "if (!fs) return;" & \
+            "names.split('\n').forEach(function (n) {" & \
+            "try { if (fs.isLink(fs.lstat(to + '/' + n).mode)) fs.unlink(to + '/' + n); } catch (e) {}" & \
+            "});" & \
+            "})(" & playerJSString(specialFolderPath("resources")) & "," & playerJSString(sLinked) & ")" as "JavaScript"
+   catch tError
+   end try
+   put empty into sLinked
+end playerUnlinkResources
 
 -- Removes from memory the main stacks that were not there before the
 -- stack opened

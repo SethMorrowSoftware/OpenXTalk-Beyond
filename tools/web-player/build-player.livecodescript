@@ -387,7 +387,7 @@ private command makeData pFile
    set the margins of field "Report" to 12
    local tScript
    put "on openStack" & return & \
-         "   local tTree, tDb, tRows, tXml, tNote" & return & \
+         "   local tTree, tDb, tRows, tXml, tNote, tResource" & return & \
          "   put revXMLCreateTree(`<a><b>xml ok</b></a>`, false, true, false) into tTree" & return & \
          "   put revXMLNodeContents(tTree, `/a/b`) into tXml" & return & \
          "   put revOpenDatabase(`sqlite`, specialFolderPath(`temporary`) & `/d.db`) into tDb" & return & \
@@ -396,10 +396,12 @@ private command makeData pFile
          "   put revDataFromQuery(,, tDb, `select v from t`) into tRows" & return & \
          "   revCloseDatabase tDb" & return & \
          "   put url `file:note.txt` into tNote" & return & \
+         "   put url (`file:` & specialFolderPath(`resources`) & `/note.txt`) into tResource" & return & \
          "   put `revXML read an XML tree:` & tab & tXml & return & \" & return & \
          "         `SQLite answered a query:` & tab & tRows & return & \" & return & \
-         "         `A file beside the stack says:` & tab & tNote into field `Report`" & return & \
-         "   write `SAMPLE data ` & tXml & comma & tRows & comma & tNote & return to stdout" & return & \
+         "         `A file beside the stack says:` & tab & tNote & return & \" & return & \
+         "         `And from the resources folder:` & tab & tResource into field `Report`" & return & \
+         "   write `SAMPLE data ` & tXml & comma & tRows & comma & tNote & comma & tResource & return to stdout" & return & \
          "end openStack" into tScript
    replace "`" with quote in tScript
    set the script of stack "Data" to tScript

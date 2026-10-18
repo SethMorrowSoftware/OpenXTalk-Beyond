@@ -429,10 +429,11 @@ def check(site, samples, work):
         expect('grid', grid == ['SAMPLE grid 3,Grace,2'], ' | '.join(grid or got[-3:]))
         page.screenshot(path=os.path.join(shots, '7-grid.png'))
 
-        # Data: revXML, SQLite, and a file given with the stack
+        # Data: revXML, SQLite, and a file given with the stack, read by a
+        # relative path and from specialFolderPath("resources")
         got = open_files(page, [os.path.join(samples, 'Data.livecode'), os.path.join(samples, 'note.txt')], 'Data')
         data = [x for x in got if x.startswith('SAMPLE data')]
-        expect('data', data == ['SAMPLE data xml ok,sql ok,beside the stack'], ' | '.join(data or got[-3:]))
+        expect('data', data == ['SAMPLE data xml ok,sql ok,beside the stack,beside the stack'], ' | '.join(data or got[-3:]))
         page.screenshot(path=os.path.join(shots, '8-data.png'))
 
         # A second visit lists them

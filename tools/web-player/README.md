@@ -49,7 +49,13 @@ revZip, revDB with SQLite, revSpeech) and every widget and library
 extension whose platforms include the web. A stack's files go into the
 browser's storage for the site (`/livecode/Documents/Stack Player`), so
 the list, and whatever the stacks saved, are still there on the next
-visit. A script error shows in a dialog with the object and the line.
+visit. A stack finds the files that came with it (opened with it, in its
+folder, or in its `.zip`) as it would on the desktop: by paths relative to
+its own folder, which is the `defaultFolder` while it is open, and through
+`specialFolderPath("resources")`, which is still `/boot/standalone`, the
+player's own folder, but has a link to each file and folder beside the
+stack while it is open (a name the player's own files have there,
+`DroidSansCombined.ttf` or an `extensionNN` folder, is not linked). A script error shows in a dialog with the object and the line.
 
 Not yet: extensions that are a layer over a native library (box2dxt's
 Box2D, so the platformer and the Box2D games; sodiumxt, coinxt, torrents,
