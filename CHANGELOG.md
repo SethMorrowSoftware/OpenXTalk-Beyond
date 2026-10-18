@@ -17,7 +17,7 @@ words, is in the [README](README.md#the-ide) and on the
 ## 0.2.7-rc.4 (2026-10-18, pre-release)
 
 - Web Stack Player: specialFolderPath("resources") finds a stack's files, and a polish pass over the new stacks (#140)
-- Version 0.2.7-rc.4, with its changelog (#PR)
+- Version 0.2.7-rc.4, with its changelog (#141)
 
 ## 0.2.7-rc.3 (2026-10-18, pre-release)
 
