@@ -75,8 +75,13 @@ macOS (see
 [0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)), and
 0.2.7-rc.2 adds a File menu item for importing HyperCard stacks and
 de-branded macOS app settings (see
-[0.2.7-rc.2](#027-rc2-importing-hypercard-stacks)); 0.2.6 stays the
-main download until it has held up.
+[0.2.7-rc.2](#027-rc2-importing-hypercard-stacks)), and 0.2.7-rc.3
+adds the Stack Player, a web page that opens any stack, the IDE itself
+in a web page, Learn, one window for the lessons, guides and examples,
+and a HyperCard import that brings in pictures, palettes, colour and
+sound and reads Mac disk images (see
+[0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard));
+0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -1515,6 +1520,93 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.3: stacks and the IDE on the web, Learn, and more of HyperCard
+
+OXT-Beyond 0.2.7-rc.3, a test release, has everything in 0.2.7-rc.2,
+and:
+
+- **The Stack Player**, a new file of the release
+  (`OXT-Beyond-<version>-web-player.zip`): a web page that opens any
+  stack. Put its folder on a web server, open its `index.html`, then
+  open or drop a stack file, a folder or a `.zip` with a stack and its
+  files, and the stack takes the page. It carries every script library
+  (the Data Grid among them), the web externals (revXML, revZip, revDB
+  with SQLite, revSpeech) and the widgets and library extensions that
+  run in a browser, keeps the stacks it opened in the browser for the
+  next visit, and shows a script error with its object and line. Its
+  home page has three whole stacks (a tour of what a stack can do in a
+  page, Learn xTalk, a first course in ten lessons, and the xTalk
+  Primer) and thirteen small ones, from Fireworks and Live Weather to
+  Kanban Board, Markdown Notes, UI Gallery and Photo Lab, each with a
+  button that shows its scripts in colour. Experimental: HyperCard
+  stacks do not open in it yet (see
+  [tools/web-player](tools/web-player/README.md)).
+- **The IDE in a web page.** The real IDE, its scripts and stacks run
+  by its own engine built for the web, with nothing to install: the
+  Tools palette, the Property Inspector, the Message Box, the Script
+  Editor, browse mode and the Dictionary, with stacks kept in the
+  browser and downloaded or opened from your computer. It opens with
+  Home, a welcome stack of live demos. It is not a file of the release
+  yet: [tools/web-ide](tools/web-ide/README.md) says how to build one
+  from a package and serve it.
+- **Learn.** Help > Lessons, Help > Guides, Help > Demos and the
+  toolbar's Sample Stacks open one window for the lessons, the guides
+  and the examples, with real headings, code blocks with a Copy button,
+  a search box and an index. Its gallery has a card for each example,
+  saying what it shows and who made it, the Stack Player's stacks among
+  them. Fourteen of the IDE's examples have a remaster in Learn's look
+  (Zip Build and Zip Extract share one), each program on a stage with
+  its scripts beside it; the originals
+  are under Classic and open as before. Hold Option (Alt on Windows
+  and Linux) to open the classic Lessons, Guides and Demos stacks,
+  which have not changed.
+- **More of a HyperCard stack comes in.** PICT pictures become images
+  (in a hidden background group "HC Pictures"), HyperCard 2 palettes
+  become substacks whose buttons send their messages, AddColor colours
+  become a colour layer on each coloured card and background, and
+  sounds with extended or IMA-compressed headers become audio clips.
+  A stack copied off a Mac without its resource fork finds the fork
+  beside it (`._Name`, `__MACOSX`, `Name.rsrc` and the other usual
+  places), AppleSingle files import, and a stack whose scripts play
+  HyperCard's own boing, harpsichord or flute gets a synthesised
+  sound of that name, with `play`'s notes and tempo. File > Import
+  Stack > HyperCard Stack... also takes a Mac disk image (a floppy or
+  CD image with an HFS volume) and lists the stacks on it. The import
+  log names what it still cannot convert, and warns when an icon and
+  an object have the same id.
+- **Web standalones.** An open menu closes when its stack's window
+  moves, as a browser closes a list when the page moves under it. A
+  standalone's zip unpacks deflated files over 64 KB correctly, a
+  browser widget showing a local page finds the fonts and pictures its
+  style sheets name, and drawing an empty region or asking for the
+  rect of a closed window no longer stops the engine.
+- **macOS.** The AppleScript dictionary's remaining "LiveCode" names
+  say "xTalk" (from Paul McClernan,
+  [#119](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/119)).
+
+A script sees these differences from 0.2.7-rc.2. In a HyperCard stack
+as it is imported (a stack imported earlier and saved is unchanged):
+it can have the images, background group, substacks and audio clips
+above, so `the number of bgs`, `the substacks` and `the number of
+audioClips` can be higher, the new objects come after every other
+object and take ids above theirs, and its next id can be higher; it has
+a custom property set `uHyperCard` (its resources, its XCMDs and XFCNs,
+and where the fork came from) when it had a resource fork; and `play`
+with notes and one of its HyperCard sounds plays the melody, so a tempo
+that is not a number throws "play: bad movie location" there. With any
+other sound `play` is unchanged. The IDE loads one more library,
+`revHyperCardDiskImageLibrary`, whose handlers start with
+`revHyperCard`. In a web standalone, a menu closed because its window
+moved sends no `menuPick`, as a click outside it does not; an `answer`
+or `ask` opened by a Return (a `returnInField` handler) waits for the
+user where it closed at once with its default button; and showing a
+window that is already on the screen no longer takes the keyboard from
+the window the user clicked. Pull requests
+[#118](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/118)
+to
+[#137](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/137)
+list every change.
 
 #### 0.2.7-rc.2: importing HyperCard stacks
 

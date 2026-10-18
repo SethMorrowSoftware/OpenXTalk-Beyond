@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 65 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11330](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11330) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11575](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11575) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -268,7 +268,7 @@ Work left for later. 429 notes, by part of the repository:
 - [engine/src/dskmain.cpp:222](engine/src/dskmain.cpp#L222) TODO Remove -g,-geometry flag because it's not used any more
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
-- [engine/src/em-dc.js:169](engine/src/em-dc.js#L169) TODO - handle cleanup of embedded canvas
+- [engine/src/em-dc.js:181](engine/src/em-dc.js#L181) TODO - handle cleanup of embedded canvas
 - [engine/src/em-event.js:863](engine/src/em-event.js#L863) TODO - reenable alt key detection
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
 - [engine/src/em-util.js:332](engine/src/em-util.js#L332) TODO - for now, treat functions as objects but we may wish to differentiate them later
@@ -369,7 +369,7 @@ Work left for later. 429 notes, by part of the repository:
 - [engine/src/mixin-refcounted.h:54](engine/src/mixin-refcounted.h#L54) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:62](engine/src/mixin-refcounted.h#L62) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:70](engine/src/mixin-refcounted.h#L70) TODO: atomic ops
-- [engine/src/mode_development.cpp:374](engine/src/mode_development.cpp#L374) TODO: Script Wiping
+- [engine/src/mode_development.cpp:433](engine/src/mode_development.cpp#L433) TODO: Script Wiping
 - [engine/src/module-canvas.cpp:153](engine/src/module-canvas.cpp#L153) TODO - throw error on failure
 - [engine/src/module-canvas.cpp:1278](engine/src/module-canvas.cpp#L1278) TODO - implement describe
 - [engine/src/module-canvas.cpp:2003](engine/src/module-canvas.cpp#L2003) TODO - handle case of missing normal density image
