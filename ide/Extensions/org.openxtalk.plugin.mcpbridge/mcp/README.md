@@ -44,6 +44,43 @@ off.
 3. Ask Claude to work on your stack. OXT-Beyond must be open with the
    bridge on.
 
+## In the web IDE
+
+The bridge works in the web IDE too (the IDE in a browser tab), with
+Claude's app on the same computer. A web page cannot listen for a
+connection, so it is the other way round from the desktop: Claude's app
+starts the same server with `--web`, the server listens on
+`ws://127.0.0.1:47861`, and the page connects to it:
+
+    Claude app  --stdio-->  server.js --web  <--WebSocket 127.0.0.1--  web IDE tab
+
+1. In the web IDE, choose *Development > Plugins > xTalk MCP Bridge* and
+   press **Connect**. Your browser may ask whether the page may reach
+   apps on this device; allow it.
+2. In the window that follows:
+   - For the **Claude desktop app**, press **Download Desktop
+     Extension** and install the file it downloads, as above. It is
+     named "OXT-Beyond (web IDE)" (`oxt-beyond-web`), so it sits beside
+     the desktop IDE's extension.
+   - For **Claude Code**, press **Download Server**, then **Copy Claude
+     Code Command**, and paste the command into a terminal. It runs the
+     server from your Downloads folder; change the path in it if you
+     saved the file somewhere else.
+3. Keep Claude's app and the page open, and ask Claude to work on your
+   stack. The page connects as soon as Claude's app is there, and again
+   at your next visit, until you choose **Disconnect** in the same menu
+   item.
+
+The server lets only pages from the hosted web IDE
+(`https://sethmorrow.com`) and from this computer (`http://localhost` or
+`http://127.0.0.1`, as `serve.py` in the downloadable web IDE serves it)
+connect; set `OXT_MCP_WEB_ORIGINS` to a comma list of other origins to
+let them in too, and `OXT_MCP_WEB_PORT` to use another port (the web IDE
+connects to 47861). Only one Claude app at a time can hold the port. In
+the web IDE, code Claude runs stays inside the browser's sandbox, and you
+are asked before each run and save as on the desktop. Without `--web`,
+the server does exactly what it does for the desktop IDE.
+
 ## What Claude can do
 
 Claude can do the same things the xTalk Assistant's tools do:
@@ -84,4 +121,5 @@ variable `OXTBEYOND_MCP_BRIDGE` to `off`.
 ## Tests
 
 - `tests/lcs/mcpbridge/tools.livecodescript` tests the IDE's side.
-- `tools/ci/tests/test_mcp_bridge_server.py` tests this server.
+- `tools/ci/tests/test_mcp_bridge_server.py` tests this server, for
+  the desktop IDE and with `--web`.

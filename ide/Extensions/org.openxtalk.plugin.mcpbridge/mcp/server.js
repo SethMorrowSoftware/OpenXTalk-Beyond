@@ -37,10 +37,25 @@
 //
 // Node 16 or later, its standard library only: the Claude desktop app runs
 // this with the Node it carries, so the user installs nothing.
+//
+// The web IDE. OXT-Beyond's IDE also runs in a browser tab (tools/web-ide),
+// where nothing can listen for a connection and no file is shared with
+// other programs. Started with --web (or OXT_MCP_WEB=1), this server turns
+// it around once more: it listens on 127.0.0.1 itself, on OXT_MCP_WEB_PORT
+// (47861 unless set), for a WebSocket from the tab, which connects when
+// the user chooses Connect in the web IDE's xTalk MCP Bridge item. The
+// lines are the same as over the desktop socket, without a token: the tab
+// is the user's own browser, and only a page from an origin this allows
+// (the hosted web IDE, OXT-Beyond's own pages on localhost, and those in
+// OXT_MCP_WEB_ORIGINS, a comma list) can connect, since a browser always
+// sends a page's true origin. Without --web, none of this runs, and the
+// server does exactly what it does for the desktop IDE.
 
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
+const http = require('http');
 const net = require('net');
 const os = require('os');
 const path = require('path');
@@ -64,6 +79,15 @@ const HELLO_TIMEOUT_MS = Number(process.env.OXT_MCP_HELLO_TIMEOUT_MS) || 15000;
 // that OXT-Beyond is busy (the earlier one may be waiting for the user to
 // answer a question there)
 const BUSY_WAIT_MS = Number(process.env.OXT_MCP_BUSY_WAIT_MS) || 20000;
+// For the web IDE (see the top of this file): whether this server is for
+// it, the port it listens on for the tab, the origins it lets connect, and
+// the largest message it reads from the tab (a picture of a card, or a
+// long script, is a few megabytes at most)
+const WEB = process.argv.includes('--web') || process.env.OXT_MCP_WEB === '1';
+const WEB_PORT = Number(process.env.OXT_MCP_WEB_PORT) || 47861;
+const WEB_ORIGINS = ['https://sethmorrow.com'].concat((process.env.OXT_MCP_WEB_ORIGINS || '').split(',')
+  .map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean));
+const WEB_MAX_MESSAGE = 64 * 1024 * 1024;
 
 const INSTRUCTIONS = [
   'These tools work in OXT-Beyond, a free IDE for xTalk Script (the language of LiveCode Community 9 and',
@@ -378,6 +402,9 @@ const STALE = 'OXT-Beyond is not running: the bridge\'s file was left by an OXT-
 const BUSY = 'OXT-Beyond is still busy with an earlier request: it may be waiting for the user to answer a question there, ' +
   'or running code. Ask the user to look at OXT-Beyond, then try again.';
 
+const WEB_NOT_CONNECTED = 'The OXT-Beyond web IDE is not connected. Ask the user to open the web IDE in their browser, ' +
+  'on this computer, and choose Development > Plugins > xTalk MCP Bridge, then Connect; then try again.';
+
 class BridgeError extends Error {}
 
 // True when a process with this id runs (one the user may not signal still
@@ -404,6 +431,7 @@ class Bridge {
     this.queue = Promise.resolve();
     this.waiting = 0;      // calls queued or running
     this.toolsNote = '';   // said once after connecting, when the tools differ
+    this.notRunning = NOT_RUNNING;   // what a call is told when nothing answers
   }
 
   readInfo() {
@@ -507,7 +535,7 @@ class Bridge {
         'busy (waiting for the user to answer a question there, or running code); ask the user to look at OXT-Beyond, then try again.');
       if (!hello.ok) {
         this.close();
-        throw new BridgeError(hello.error || NOT_RUNNING);
+        throw new BridgeError(hello.error || this.notRunning);
       }
       if (hello.protocol !== BRIDGE_PROTOCOL) {
         this.close();
@@ -535,7 +563,7 @@ class Bridge {
       // empties it): say so, not "Cannot read properties of null"
       if (!this.socket) {
         clearTimeout(timer);
-        reject(new BridgeError(NOT_RUNNING));
+        reject(new BridgeError(this.notRunning));
         return;
       }
       this.pending = { id, resolve, reject, timer };
@@ -614,7 +642,233 @@ function toolsDifference(ideTools) {
   return note + '. Tell the user to set Claude up again from OXT-Beyond: Development > Plugins > xTalk MCP Bridge > Claude Setup.';
 }
 
-const bridge = new Bridge();
+// The web IDE's tab, over a WebSocket (RFC 6455, text messages only), for
+// a server started with --web. It keeps the one tab connected (the newest:
+// a reload, or the IDE opened again, takes over) and hands its messages to
+// the bridge (WebBridge).
+class WebLink {
+  constructor(port, origins) {
+    this.port = port;
+    this.origins = origins;
+    this.tab = null;        // the tab's socket
+    this.problem = '';      // why it is not listening, when it is not
+    this.onMessage = () => {};
+    this.onClose = () => {};
+  }
+
+  // Pages the link lets connect: the hosted web IDE, the origins given,
+  // and pages on this computer (python serve.py, the downloadable web IDE)
+  allows(origin) {
+    if (this.origins.includes(origin)) {
+      return true;
+    }
+    return /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+  }
+
+  listen() {
+    const server = http.createServer((req, res) => {
+      res.writeHead(426, { 'Content-Type': 'text/plain' });
+      res.end('The OXT-Beyond MCP server: the web IDE connects here with a WebSocket.\n');
+    });
+    server.on('upgrade', (req, socket) => this.upgrade(req, socket));
+    server.on('error', (e) => {
+      this.problem = e.code === 'EADDRINUSE'
+        ? 'Port ' + this.port + ' of this computer is taken, maybe by another Claude app set up for the OXT-Beyond web IDE ' +
+          '(one at a time can be). Ask the user to quit the other one, or to set OXT_MCP_WEB_PORT for both this server and the web IDE.'
+        : 'This MCP server could not listen for the web IDE on port ' + this.port + ': ' + e.message;
+      log(this.problem);
+    });
+    server.listen(this.port, '127.0.0.1', () => log('waiting for the web IDE on ws://127.0.0.1:' + this.port));
+  }
+
+  upgrade(req, socket) {
+    const origin = String(req.headers.origin || '');
+    const key = req.headers['sec-websocket-key'];
+    const upgrade = String(req.headers.upgrade || '').toLowerCase();
+    if (!this.allows(origin) || !key || upgrade !== 'websocket') {
+      log('refused a connection from ' + (origin || 'a program that is not a web page'));
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+      return;
+    }
+    const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+    socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' +
+      'Sec-WebSocket-Accept: ' + accept + '\r\n\r\n');
+    socket.setNoDelay(true);
+    if (this.tab) {
+      log('a newer web IDE tab takes over');
+      const older = this.tab;
+      this.tab = null;
+      this.onClose();
+      this.drop(older);
+    }
+    this.tab = socket;
+    log('the web IDE connected from ' + origin);
+    let buffer = Buffer.alloc(0);
+    let parts = [];
+    let size = 0;
+    socket.on('data', (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      for (;;) {
+        if (buffer.length < 2) {
+          return;
+        }
+        const fin = (buffer[0] & 0x80) !== 0;
+        const opcode = buffer[0] & 0x0f;
+        const masked = (buffer[1] & 0x80) !== 0;
+        let length = buffer[1] & 0x7f;
+        let at = 2;
+        if (length === 126) {
+          if (buffer.length < 4) {
+            return;
+          }
+          length = buffer.readUInt16BE(2);
+          at = 4;
+        } else if (length === 127) {
+          if (buffer.length < 10) {
+            return;
+          }
+          length = Number(buffer.readBigUInt64BE(2));
+          at = 10;
+        }
+        // A browser masks every frame it sends; one too long to read is
+        // not one of the IDE's
+        if (!masked || size + length > WEB_MAX_MESSAGE) {
+          log('the web IDE sent a frame this does not read; the connection is closed');
+          this.drop(socket);
+          return;
+        }
+        if (buffer.length < at + 4 + length) {
+          return;
+        }
+        const mask = buffer.subarray(at, at + 4);
+        const data = Buffer.from(buffer.subarray(at + 4, at + 4 + length));
+        for (let i = 0; i < data.length; i++) {
+          data[i] ^= mask[i & 3];
+        }
+        buffer = buffer.subarray(at + 4 + length);
+        if (opcode === 0x8) {
+          this.drop(socket);
+          return;
+        }
+        if (opcode === 0x9) {
+          this.frame(socket, 0xA, data);
+        } else if (opcode === 0x1 || opcode === 0x0) {
+          parts.push(data);
+          size += data.length;
+          if (fin) {
+            const text = Buffer.concat(parts).toString('utf8');
+            parts = [];
+            size = 0;
+            if (socket === this.tab) {
+              this.onMessage(text);
+            }
+          }
+        }
+      }
+    });
+    const closed = () => {
+      if (socket === this.tab) {
+        this.tab = null;
+        log('the web IDE disconnected');
+        this.onClose();
+      }
+    };
+    socket.on('end', () => {
+      closed();
+      socket.destroy();
+    });
+    socket.on('close', closed);
+    socket.on('error', (e) => log('web IDE socket: ' + e.message));
+  }
+
+  frame(socket, opcode, data) {
+    const length = data.length;
+    let head;
+    if (length < 126) {
+      head = Buffer.from([0x80 | opcode, length]);
+    } else if (length < 65536) {
+      head = Buffer.from([0x80 | opcode, 126, length >> 8, length & 0xff]);
+    } else {
+      head = Buffer.alloc(10);
+      head[0] = 0x80 | opcode;
+      head[1] = 127;
+      head.writeBigUInt64BE(BigInt(length), 2);
+    }
+    socket.write(Buffer.concat([head, data]));
+  }
+
+  send(text) {
+    if (this.tab) {
+      this.frame(this.tab, 0x1, Buffer.from(text, 'utf8'));
+    }
+  }
+
+  // Closes a tab's connection; a closed socket's 'close' tells the bridge
+  drop(socket) {
+    try {
+      this.frame(socket, 0x8, Buffer.alloc(0));
+    } catch (e) {
+      // already closed
+    }
+    socket.destroy();
+  }
+}
+
+// The bridge to the web IDE: the desktop's Bridge, with the tab's
+// WebSocket in place of the TCP socket and no file or token
+class WebBridge extends Bridge {
+  constructor(link) {
+    super();
+    this.link = link;
+    this.notRunning = WEB_NOT_CONNECTED;
+    link.onMessage = (text) => {
+      if (this.socket) {
+        this.onData(text.replace(/\n+$/, '') + '\n');
+      }
+    };
+    link.onClose = () => {
+      if (this.socket) {
+        this.onClose();
+      }
+    };
+  }
+
+  connect() {
+    if (this.link.problem) {
+      return Promise.reject(new BridgeError(this.link.problem));
+    }
+    if (!this.link.tab) {
+      return Promise.reject(new BridgeError(WEB_NOT_CONNECTED));
+    }
+    const tab = this.link.tab;
+    this.token = null;
+    this.buffer = '';
+    this.socket = {
+      write: (line) => {
+        if (this.link.tab === tab) {
+          this.link.send(line.replace(/\n+$/, ''));
+        }
+      },
+      destroy: () => {
+        if (this.link.tab === tab) {
+          this.link.drop(tab);
+        }
+      }
+    };
+    return Promise.resolve();
+  }
+}
+
+let bridge;
+if (WEB) {
+  const link = new WebLink(WEB_PORT, WEB_ORIGINS);
+  bridge = new WebBridge(link);
+  if (require.main === module) {
+    link.listen();
+  }
+} else {
+  bridge = new Bridge();
+}
 // The state of each tools/call not yet answered, by its request id
 const inFlight = new Map();
 
@@ -677,7 +931,8 @@ async function handle(message) {
       respond(id, {
         protocolVersion: MCP_VERSIONS.includes(asked) ? asked : MCP_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'oxt-beyond', title: 'OXT-Beyond', version: SERVER_VERSION },
+        serverInfo: WEB ? { name: 'oxt-beyond-web', title: 'OXT-Beyond (web IDE)', version: SERVER_VERSION }
+          : { name: 'oxt-beyond', title: 'OXT-Beyond', version: SERVER_VERSION },
         instructions: INSTRUCTIONS
       });
       return;

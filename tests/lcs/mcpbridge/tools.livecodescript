@@ -9,7 +9,9 @@ script "TestMcpBridgeTools"
 -- run and undo through the requests the MCP server sends, that code runs
 -- only when the user says yes (every run), that a long script is read in
 -- parts and edited by handler or by lines, and that a real socket gets its
--- answer.
+-- answer. And the web IDE's link (mcbLinkStart): the same tools without a
+-- socket or token, never on with the server, asking before a run, and a
+-- yes given after its connection was lost doing nothing.
 
 constant kTools = "org.openxtalk.plugin.mcpbridge-tools"
 constant kUserStack = "mcbTestUserStack"
@@ -30,7 +32,9 @@ on TestSetup
          "on revIDESetEdited pStack" & return & "end revIDESetEdited" & return & \
          "on mcbTestSetAnswer pAnswer" & return & "put pAnswer into sAnswer" & return & "end mcbTestSetAnswer" & return & \
          "function mcbConfirm pTitle, pDetail, pYes" & return & "put pTitle & return after sAsked" & return & \
+         "if sAnswer is " & quote & "lose" & quote & " then" & return & "mcbLinkLost" & return & "return true" & return & "end if" & return & \
          "return sAnswer" & return & "end mcbConfirm" & return & \
+         "on mcbTooLate" & return & "put " & quote & "too late" & quote & " & return after sAsked" & return & "end mcbTooLate" & return & \
          "function mcbEditorStack" & return & "return empty" & return & "end mcbEditorStack" & return & \
          "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return into tStub
    create invisible stack "mcbTestIDE"
@@ -49,6 +53,7 @@ end TestSetup
 on TestTeardown
    if the long id of stack kTools is among the lines of TestStacksInUse() then
       mcbServerStop
+      mcbLinkStop
    end if
 end TestTeardown
 
@@ -569,3 +574,92 @@ end TestOverASocket
 on TestReplyRead pSocket, pData
    put pData into sReply
 end TestReplyRead
+
+--------------------------------------------------------------------------------
+-- The web IDE's link
+
+private command TestStartLink
+   get mcbLinkStart(TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.xtalkassistant", \
+         the long id of stack "mcbTestIDE")
+end TestStartLink
+
+-- A call as the web IDE's page hands it on: no token
+private function TestLinkCall pTool, pArgumentsJson
+   if pArgumentsJson is empty then
+      put "{}" into pArgumentsJson
+   end if
+   replace "`" with quote in pArgumentsJson
+   return xtaJsonParse(mcbLinkHandle("{" & quote & "id" & quote & ":9," & quote & "method" & quote & ":" & quote & "call" & quote & "," & \
+         quote & "tool" & quote & ":" & quote & pTool & quote & "," & quote & "arguments" & quote & ":" & pArgumentsJson & "}"))
+end TestLinkCall
+
+on TestTheLinkAnswersWithoutAToken
+   local tReply, tStack
+   TestStartLink
+   TestAssert "it is on", mcbLinkIsOn()
+   TestAssert "no port, no file", mcbServerPort() is empty and there is not a file sInfoFile
+   put xtaJsonParse(mcbLinkHandle("{" & quote & "id" & quote & ":1," & quote & "method" & quote & ":" & quote & "hello" & quote & "}")) into tReply
+   TestAssert "hello, with no token", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true" \
+         and xtaJsonText(xtaJsonMember(tReply, "protocol")) is 1 and xtaJsonText(xtaJsonMember(tReply, "id")) is 1
+   put TestUserStack() into tStack
+   put TestLinkCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`create`,`kind`:`button`,`name`:`Added`}]}") into tReply
+   TestDiagnostic xtaJsonText(xtaJsonMember(tReply, "text"))
+   TestAssert "a change is made", not TestIsError(tReply) and there is a button "Added" of tStack
+   put TestLinkCall("list_stacks") into tReply
+   TestAssert "a reading tool", not TestIsError(tReply) and TestText(tReply) contains kUserStack
+   put xtaJsonParse(mcbHandleLine("{" & quote & "id" & quote & ":2," & quote & "method" & quote & ":" & quote & "hello" & quote & "}")) into tReply
+   TestAssert "a line from a socket still needs a token", xtaJsonText(xtaJsonMember(tReply, "ok")) is "false"
+   put xtaJsonParse(mcbLinkHandle("not json")) into tReply
+   TestAssert "not JSON", xtaJsonText(xtaJsonMember(tReply, "ok")) is "false"
+   mcbLinkStop
+   TestAssert "it is off", not mcbLinkIsOn()
+   put mcbLinkHandle("{" & quote & "id" & quote & ":3," & quote & "method" & quote & ":" & quote & "hello" & quote & "}") into tReply
+   TestAssert "nothing is answered once stopped", tReply contains (quote & "ok" & quote & ":false") and tReply contains "turned off"
+end TestTheLinkAnswersWithoutAToken
+
+on TestTheLinkAndTheServerAreNeverOnTogether
+   local tError
+   TestStartLink
+   try
+      TestStart
+   catch tError
+   end try
+   TestAssert "the server does not start while the link is on", tError is not empty and mcbServerPort() is empty
+   mcbLinkStop
+   put empty into tError
+   TestStart
+   try
+      TestStartLink
+   catch tError
+   end try
+   TestAssert "the link does not start while the server is on", tError is not empty and not mcbLinkIsOn()
+   TestAssert "the server is still on", mcbServerPort() is not empty
+end TestTheLinkAndTheServerAreNeverOnTogether
+
+on TestTheLinkAsksBeforeARun
+   local tReply
+   TestStartLink
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "asked, refused, it does not run", TestIsError(tReply) and not (TestText(tReply) contains "42") \
+         and mcbTestAsked() contains "run code"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "allowed, it runs", not TestIsError(tReply) and TestText(tReply) contains "42"
+end TestTheLinkAsksBeforeARun
+
+-- The page's connection closed (or was made again) while the user was
+-- asked: their yes reaches no one, so nothing runs and they are told
+on TestAYesAfterTheLinkWasLostDoesNothing
+   local tReply
+   TestStartLink
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with "lose"
+   put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "nothing ran", TestIsError(tReply) and not (TestText(tReply) contains "42")
+   TestAssert "the user was told", mcbTestAsked() contains "too late"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "the next request, on the new connection, runs", not TestIsError(tReply) and TestText(tReply) contains "42"
+end TestAYesAfterTheLinkWasLostDoesNothing

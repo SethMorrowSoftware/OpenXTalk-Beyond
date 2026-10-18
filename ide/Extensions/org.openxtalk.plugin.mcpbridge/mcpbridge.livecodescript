@@ -25,20 +25,34 @@ script "org.openxtalk.plugin.mcpbridge"
 -- the same item. Set the environment variable OXTBEYOND_MCP_BRIDGE to "off"
 -- to keep it off for good.
 --
+-- In the web IDE (the IDE in a browser tab, tools/web-ide) the same item
+-- connects instead (mcbWebMenuPick). A page cannot listen for a
+-- connection, so the MCP server, started by Claude's app on the user's
+-- computer with --web, listens on 127.0.0.1, and the page connects out to
+-- it: mcp/web-link.js, put into the page when the user chooses Connect,
+-- keeps that connection and queues what the server asks, and a timer here
+-- (mcbWebPoll) hands each request to the tools (mcbLinkHandle) and the
+-- answer back. The setup window gives a desktop extension and a Claude Code
+-- command for that server, named oxt-beyond-web so that it sits beside a
+-- desktop OXT-Beyond's. Once connected, the page connects again at the
+-- next visit until the user disconnects. Every branch for the web asks
+-- mcbOnWeb() first, so the desktop IDE does what it did before.
+--
 -- Files: this stack (the plugin's lifecycle, its dialogs, and the
 -- functions the bridge asks: mcbConfirm, mcbEditorStack and
 -- mcbEditorContext), mcpbridge-errors.livecodescript (notes the errors the
 -- IDE shows the user, for ide_context),
 -- mcpbridge-tools.livecodescript (the socket and the tools, tested by
 -- tests/lcs/mcpbridge), mcp/server.js (the MCP server, tested by
--- tools/ci/tests/test_mcp_bridge_server.py) and mcp/manifest.json (what
+-- tools/ci/tests/test_mcp_bridge_server.py), mcp/manifest.json (what
 -- makes it a Claude desktop extension, a .mcpb file the setup dialog
--- saves). The tools come from the xTalk Assistant's folder
+-- saves) and mcp/web-link.js (the web IDE page's end of the link). The tools come from the xTalk Assistant's folder
 -- (org.openxtalk.plugin.xtalkassistant), its core and build library and
 -- its guide.
 --
 -- Public handlers (all reached with dispatch):
 --    mcpBridgeMenuPick           Development > Plugins > xTalk MCP Bridge
+--    mcbWebMenuPick              the same in the web IDE
 --    mcbIsEnabled()
 --    mcbConfirm(pTitle, pDetail, pYes), mcbTooLate, mcbEditorStack(),
 --    mcbEditorContext()          (the bridge's)
@@ -60,9 +74,22 @@ constant kCompat = "org.openxtalk.plugin.mcpbridge-compat"
 -- Where in the user's ~/.oxt-beyond folder a package keeps the copy of the
 -- MCP server that Claude runs (mcbServerPath)
 constant kStableServerFile = "mcp/server.js"
+-- The web IDE: the preference that it connects at the next visit, the
+-- port of this computer the MCP server listens on for it (server.js's
+-- WEB_PORT), the name Claude's apps show for that server, the name the
+-- server's file is downloaded as, and how often the page's queue is read
+constant kPrefWebEnabled = "cMcpBridge,web"
+constant kWebPort = 47861
+constant kWebServerName = "oxt-beyond-web"
+constant kWebServerFile = "oxt-beyond-mcp-server.js"
+constant kWebPollMilliseconds = 100
 
 -- Why the bridge could not start when it last tried, for the menu item
 local sStartProblem
+-- The web IDE: true while connected or connecting; the link's state and
+-- generation, as the page last gave them (mcp/web-link.js); and the count
+-- of times it was started, which ends the timer of an earlier start
+local sWebOn, sWebState, sWebGeneration, sWebRun
 
 on extensionInitialize
    if the target is not me then
@@ -76,7 +103,11 @@ on extensionInitialize
    -- OXT-Beyond's own copy has no such file, so this does nothing here.
    mcbStartCompat
    -- Turned on in an earlier session: started once the IDE is up
-   if mcbIsEnabled() then
+   if mcbOnWeb() then
+      if mcbWebIsEnabled() then
+         send "mcbWebAutoStart" to me in 2 seconds
+      end if
+   else if mcbIsEnabled() then
       send "mcbAutoStart" to me in 2 seconds
    end if
 end extensionInitialize
@@ -85,7 +116,11 @@ on extensionFinalize
    if the target is not me then
       pass extensionFinalize
    end if
-   mcbStop
+   if mcbOnWeb() then
+      mcbWebStop
+   else
+      mcbStop
+   end if
    mcbStopCompat
 end extensionFinalize
 
@@ -114,6 +149,10 @@ command mcpBridgeMenuPick
    local tProblem, tPort, tClients, tText
    if mcbIsLockedOff() then
       answer information "The xTalk MCP Bridge is turned off on this computer (by the environment variable OXTBEYOND_MCP_BRIDGE)." titled kTitle
+      exit mcpBridgeMenuPick
+   end if
+   if mcbOnWeb() then
+      mcbWebMenuPick
       exit mcpBridgeMenuPick
    end if
    if not mcbIsEnabled() then
@@ -579,6 +618,303 @@ private function mcbManifestLine pKey
    end switch
    return empty
 end mcbManifestLine
+
+--------------------------------------------------------------------------------
+-- The web IDE
+
+-- True in the web IDE (the engine built for the web)
+private function mcbOnWeb
+   return the platform is "HTML5"
+end mcbOnWeb
+
+private function mcbWebIsEnabled
+   return revIDEGetPreference(kPrefWebEnabled) is true
+end mcbWebIsEnabled
+
+on mcbWebAutoStart
+   if not mcbWebIsEnabled() or sWebOn is true then
+      exit mcbWebAutoStart
+   end if
+   put mcbWebStart() into sStartProblem
+end mcbWebAutoStart
+
+command mcbWebMenuPick
+   local tProblem, tText
+   if sWebOn is not true then
+      answer question "The xTalk MCP Bridge lets Claude, in the Claude desktop app or in Claude Code on this computer, work on the stacks you have open in this web IDE: read them, build cards, controls, scripts and new stacks, and try code. It uses your own Claude plan (Free, Pro, Max, Team or Enterprise): you sign in to Claude's app as usual, and this IDE needs no API key." & return & return & \
+            "Connecting links this page to Claude's app on your computer, directly: nothing goes through a server of ours. Your browser may ask whether this page may reach apps on this device; allow it. Then you add the web IDE to Claude once (the next window shows how)." & return & return & \
+            "Claude's app asks you before it uses each tool. Here you are asked before any code Claude sends runs (you see the code), and before a stack is saved; everything else Claude changes can be undone from this menu item." \
+            with "Cancel" or "Connect" titled kTitle
+      if it is not "Connect" then
+         exit mcbWebMenuPick
+      end if
+      put mcbWebStart() into tProblem
+      if tProblem is not empty then
+         answer error "The bridge could not start:" && tProblem titled kTitle
+         exit mcbWebMenuPick
+      end if
+      revIDESetPreference kPrefWebEnabled, true
+      mcbWebSetupDialog
+      exit mcbWebMenuPick
+   end if
+   if sWebState is "connected" then
+      put "The xTalk MCP Bridge is on, and Claude's app is connected to this page." into tText
+   else
+      put "The xTalk MCP Bridge is on, and waiting for Claude's app: open the Claude desktop app, or start Claude Code, with the OXT-Beyond web IDE set up in it (Claude Setup... shows how). This page connects to it as soon as it is there." into tText
+   end if
+   put return & return & "Undo Last Change takes back the newest change Claude made to a stack, or the newest run of its code on one." after tText
+   answer information tText with "Disconnect" or "Undo Last Change" or "Claude Setup..." or "Close" titled kTitle
+   switch it
+      case "Disconnect"
+         answer question "Disconnect Claude from this page? What it changed can no longer be undone from here (it stays as it is). You can connect again from Development > Plugins." \
+               with "Cancel" or "Disconnect" titled kTitle
+         if it is "Disconnect" then
+            revIDESetPreference kPrefWebEnabled, false
+            mcbWebStop
+         end if
+         break
+      case "Undo Last Change"
+         mcbUndoLastChange
+         break
+      case "Claude Setup..."
+         mcbWebSetupDialog
+         break
+   end switch
+end mcbWebMenuPick
+
+-- Readies the tools without a socket, puts the link into the page and
+-- starts reading its queue; empty, or why it could not
+private function mcbWebStart
+   local tFolder, tScript, tError
+   if sWebOn is true then
+      return empty
+   end if
+   put mcbPluginFolder() into tFolder
+   try
+      if there is not a stack kTools then
+         get the short name of stack (tFolder & "/mcpbridge-tools.livecodescript")
+      end if
+      if not mcbToolsInUse() then
+         start using stack kTools
+      end if
+      set the _ideoverride of stack kTools to true
+      get mcbLinkStart(mcbAssistantFolder(), the long id of me)
+      put textDecode(url ("binfile:" & tFolder & "/mcp/web-link.js"), "UTF-8") into tScript
+      if tScript is empty then
+         throw "the bridge's file mcp/web-link.js is missing"
+      end if
+      do tScript as "JavaScript"
+      do "window.oxtMcpLink.start(" & kWebPort & ")" as "JavaScript"
+   catch tError
+      mcbWebStop
+      return line 1 of tError
+   end try
+   put true into sWebOn
+   put empty into sWebGeneration
+   put "connecting" into sWebState
+   add 1 to sWebRun
+   send "mcbWebPoll" && sWebRun to me in kWebPollMilliseconds milliseconds
+   return empty
+end mcbWebStart
+
+private command mcbWebStop
+   local tError
+   put false into sWebOn
+   add 1 to sWebRun
+   put empty into sWebState
+   put empty into sWebGeneration
+   try
+      do "if (window.oxtMcpLink) { window.oxtMcpLink.stop(); }" as "JavaScript"
+   catch tError
+   end try
+   if mcbToolsInUse() then
+      try
+         mcbLinkStop
+      catch tError
+      end try
+      stop using stack kTools
+   end if
+   put empty into sStartProblem
+end mcbWebStop
+
+-- Reads the page's link (mcp/web-link.js): its state, and the oldest
+-- request queued, which goes to the tools, its answer back to the page.
+-- The next read is set before a request is handled, so that while a tool
+-- asks the user, a lost connection is still noticed (mcbLinkLost: a yes
+-- given after it does nothing) and a second request is told the bridge is
+-- busy, as on the desktop.
+on mcbWebPoll pRun
+   local tText, tGeneration, tLine, tReply, tError
+   if sWebOn is not true or pRun is not sWebRun then
+      exit mcbWebPoll
+   end if
+   try
+      do "window.oxtMcpLink ? window.oxtMcpLink.poll() : ''" as "JavaScript"
+      put the result into tText
+   catch tError
+      put empty into tText
+   end try
+   set the itemDelimiter to tab
+   put item 1 of line 1 of tText into sWebState
+   put item 2 of line 1 of tText into tGeneration
+   if tGeneration is an integer then
+      if sWebGeneration is an integer and tGeneration is not sWebGeneration then
+         mcbLinkLost
+      end if
+      put tGeneration into sWebGeneration
+   end if
+   put line 2 to -1 of tText into tLine
+   if tLine is empty then
+      send "mcbWebPoll" && pRun to me in kWebPollMilliseconds milliseconds
+      exit mcbWebPoll
+   end if
+   send "mcbWebPoll" && pRun to me in 0 milliseconds
+   put item 1 of tLine into tGeneration
+   delete item 1 of tLine
+   try
+      put mcbLinkHandle(tLine) into tReply
+   catch tError
+      put "{" & quote & "id" & quote & ":null," & quote & "ok" & quote & ":false," & quote & "error" & quote & ":" & \
+            quote & "The bridge failed." & quote & "}" into tReply
+   end try
+   if sWebOn is true and pRun is sWebRun and tGeneration is an integer then
+      try
+         do "window.oxtMcpLink.reply(" & tGeneration & "," & mcbJsString(tReply) & ")" as "JavaScript"
+      catch tError
+      end try
+   end if
+end mcbWebPoll
+
+-- pText as a JavaScript string, with its quotes. The answers are JSON,
+-- whose own strings have no line breaks or other control characters left
+-- in them; these are escaped anyway.
+private function mcbJsString pText
+   replace backslash with backslash & backslash in pText
+   replace quote with backslash & quote in pText
+   replace numToChar(10) with backslash & "n" in pText
+   replace numToChar(13) with backslash & "r" in pText
+   replace numToCodepoint(8232) with backslash & "u2028" in pText
+   replace numToCodepoint(8233) with backslash & "u2029" in pText
+   return quote & pText & quote
+end mcbJsString
+
+-- Setting Claude up for the web IDE: the MCP server runs on the user's
+-- computer, started by Claude's app, with --web
+private command mcbWebSetupDialog
+   local tText
+   put "Add the web IDE to Claude once, on this computer, in the app you use:" & return & return & \
+         "Claude desktop app: press Download Desktop Extension, then in Claude choose Settings > Extensions > Advanced settings > Install Extension... and choose the file you downloaded. Claude's app runs it with its own Node.js; you install nothing else." & return & return & \
+         "Claude Code: press Download Server, then Copy Claude Code Command, and paste the command into a terminal. It runs the server from your Downloads folder (change the path in it if you saved the file somewhere else), and needs Node.js 16 or later." & return & return & \
+         "Then keep Claude's app open with this page open, sign in to Claude with your own account, as usual, and ask it to work on your stack." into tText
+   answer information tText with "Download Desktop Extension" or "Download Server" or "Copy Claude Code Command" or "Close" titled kTitle
+   switch it
+      case "Download Desktop Extension"
+         mcbWebDownloadExtension
+         break
+      case "Download Server"
+         mcbWebDownload mcbPluginFolder() & "/mcp/server.js", kWebServerFile
+         break
+      case "Copy Claude Code Command"
+         set the clipboardData["text"] to mcbWebClaudeCodeCommand()
+         answer information "The command is on the clipboard: paste it into a terminal, then start Claude Code (claude) and ask it to work on your stack. It reads:" & return & return & mcbWebClaudeCodeCommand() titled kTitle
+         break
+   end switch
+end mcbWebSetupDialog
+
+-- The command that adds the web IDE's server to Claude Code, run from the
+-- Downloads folder of the computer the browser runs on
+private function mcbWebClaudeCodeCommand
+   local tPlatform, tPath, tError
+   try
+      do "navigator.platform" as "JavaScript"
+      put the result into tPlatform
+   catch tError
+      put empty into tPlatform
+   end try
+   if tPlatform begins with "Win" then
+      put "$env:USERPROFILE\Downloads\" & kWebServerFile into tPath
+   else
+      put "$HOME/Downloads/" & kWebServerFile into tPath
+   end if
+   return "claude mcp add --scope user" && kWebServerName && "-- node" && quote & tPath & quote && "--web"
+end mcbWebClaudeCodeCommand
+
+-- Gives the user a copy of pFile, named pName, as a download: a file
+-- written into the downloads folder goes to the user (revWebIDELibrary)
+private command mcbWebDownload pFile, pName
+   local tDownloads, tData
+   put specialFolderPath("downloads") into tDownloads
+   if tDownloads is empty then
+      put "/downloads" into tDownloads
+   end if
+   if there is not a folder tDownloads then
+      create folder tDownloads
+   end if
+   put url ("binfile:" & pFile) into tData
+   if tData is empty then
+      answer error "The file could not be downloaded: " & pFile & " is missing." titled kTitle
+      exit mcbWebDownload
+   end if
+   put tData into url ("binfile:" & tDownloads & slash & pName)
+   if the result is not empty then
+      answer error "The file could not be downloaded:" && the result titled kTitle
+   end if
+end mcbWebDownload
+
+-- The web IDE's desktop extension (.mcpb): the bridge's manifest with the
+-- web server's name and --web, and the server
+private command mcbWebDownloadExtension
+   local tText, tTemp, tManifest, tArchive, tProblem, tError
+   put textDecode(url ("binfile:" & mcbPluginFolder() & "/mcp/manifest.json"), "UTF-8") into tText
+   set the caseSensitive to true
+   repeat for each item tProblem in "name,display_name,args"
+      if not (tText contains mcbManifestLine(tProblem)) then
+         answer error "The extension could not be made: its manifest has no" && mcbManifestLine(tProblem) titled kTitle
+         exit mcbWebDownloadExtension
+      end if
+   end repeat
+   put empty into tProblem
+   replace mcbManifestLine("name") with quote & "name" & quote & ": " & quote & kWebServerName & quote in tText
+   replace mcbManifestLine("display_name") with quote & "display_name" & quote & ": " & quote & mcbHostName() & " (web IDE)" & quote in tText
+   replace mcbManifestLine("args") with quote & "args" & quote & ": [" & quote & "${__dirname}/server.js" & quote & ", " & quote & "--web" & quote & "]" in tText
+   put specialFolderPath("temporary") into tTemp
+   if tTemp is empty or there is not a folder tTemp then
+      put "/tmp" into tTemp
+      if there is not a folder tTemp then
+         create folder tTemp
+      end if
+   end if
+   put tTemp & "/mcpbridge-web-manifest-" & the milliseconds & ".json" into tManifest
+   put tTemp & "/mcpbridge-web-" & the milliseconds & ".mcpb" into tArchive
+   put textEncode(tText, "UTF-8") into url ("binfile:" & tManifest)
+   try
+      revZipOpenArchive tArchive, "write"
+      put the result into tProblem
+      if tProblem is empty then
+         revZipAddItemWithFile tArchive, "manifest.json", tManifest
+         put the result into tProblem
+      end if
+      if tProblem is empty then
+         revZipAddItemWithFile tArchive, "server.js", mcbPluginFolder() & "/mcp/server.js"
+         put the result into tProblem
+      end if
+      revZipCloseArchive tArchive
+      if tProblem is empty then
+         put the result into tProblem
+      end if
+   catch tError
+      put "the zip library is not available (" & line 1 of tError & ")" into tProblem
+   end try
+   if there is a file tManifest then
+      delete file tManifest
+   end if
+   if tProblem is not empty then
+      answer error "The extension could not be made:" && tProblem titled kTitle
+      exit mcbWebDownloadExtension
+   end if
+   mcbWebDownload tArchive, mcbHostName() & " web IDE.mcpb"
+   delete file tArchive
+end mcbWebDownloadExtension
 
 --------------------------------------------------------------------------------
 -- What the bridge asks

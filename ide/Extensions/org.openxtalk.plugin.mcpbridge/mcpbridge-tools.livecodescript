@@ -25,6 +25,20 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 -- A request without the token is refused without being read further.
 -- mcbServerStop closes the sockets and deletes the file.
 --
+-- The web IDE's link. In a browser tab (the web IDE, tools/web-ide) the
+-- engine has no sockets and the home folder is the browser's storage, so
+-- the MCP server cannot find this IDE or dial it. There the server, started
+-- with --web, listens on the user's computer instead, and the tab connects
+-- out to it (the plugin's main stack and its mcp/web-link.js). mcbLinkStart
+-- readies the same tools with no socket, port, file or token, and the
+-- plugin hands each request line that comes from the tab to mcbLinkHandle,
+-- which answers it as mcbHandleLine does, without the token: only the
+-- user's own browser, on a page the server allows, reaches it.
+-- mcbLinkLost says the tab's connection closed or was made again, so that
+-- a question still open from before it is answered with nothing done, as
+-- after the server gave up on a socket. mcbLinkStop ends it as
+-- mcbServerStop does. The server and the link are never on together.
+--
 -- The tools are the xTalk Assistant's (ide/Extensions/
 -- org.openxtalk.plugin.xtalkassistant), taken from its core and its build
 -- library, which this loads from that folder without turning the assistant
@@ -57,6 +71,12 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 --    mcbServerPort(), mcbServerClients() while it runs
 --    mcbInfoFilePath()                   where the MCP server looks for the file
 --    mcbHandleLine(pLine)                one request, its answer (a line of JSON)
+--    mcbLinkStart(pAssistantFolder, pAsker)   the web IDE's link: the tools
+--                                        without a socket (true), or throws
+--    mcbLinkHandle(pLine)                one request from the link, its answer
+--    mcbLinkLost                         the link's connection closed or changed
+--    mcbLinkStop                         ends the link
+--    mcbLinkIsOn()                       true while the link is on
 --    mcbCallTool(pTool, pArguments)      one tool, as an array ("text",
 --                                        "error", "image", "imageType")
 --    mcbToolNames()                      the tools, one per line
@@ -120,6 +140,12 @@ local sBusy
 local sRequestSocket
 -- The Dictionary's entry names, read once (lookup_dictionary's suggestions)
 local sDictionaryNames
+-- True while the web IDE's link is on (mcbLinkStart); the count of its
+-- connections closed or made again (mcbLinkLost); and that count when the
+-- request being answered came, empty while none from the link is: a
+-- question to the user answered after the connection it came on has gone
+-- is answered only with nothing done (mcbAsk)
+local sLink, sLinkGeneration, sLinkRequest
 
 --------------------------------------------------------------------------------
 -- The server
@@ -133,6 +159,9 @@ function mcbServerStart pAssistantFolder, pAsker, pInfoFile
    local tOldInterface, tPort, tError, tProblem, tHex
    if sPort is not empty then
       return sPort
+   end if
+   if sLink is true then
+      throw "The bridge's web link is on; it and the server are never on together."
    end if
    put pAssistantFolder into sAssistantFolder
    put pAsker into sAsker
@@ -202,13 +231,19 @@ command mcbServerStop
       end if
    end if
    put empty into sToken
+   put empty into sInfoFile
+   mcbStopParts
+end mcbServerStop
+
+-- What stopping the server and stopping the link share: the error hook,
+-- the asker and the assistant's libraries go. The assistant's libraries go
+-- with the bridge unless the assistant is on: whichever loaded them, as a
+-- turned-off assistant leaves them, and its journal, to the bridge.
+private command mcbStopParts
+   local tError
    put false into sBusy
    mcbStopErrorHook
-   put empty into sInfoFile
    put empty into sAsker
-   -- The assistant's libraries go with the bridge unless the assistant is
-   -- on: whichever loaded them, as a turned-off assistant leaves them, and
-   -- its journal, to the bridge
    if not mcbAssistantOn() then
       if there is a stack kBuild and mcbInUse(kBuild) then
          try
@@ -227,7 +262,91 @@ command mcbServerStop
    end if
    put false into sLoadedBuild
    put false into sLoadedCore
-end mcbServerStop
+end mcbStopParts
+
+--------------------------------------------------------------------------------
+-- The web IDE's link
+
+-- Readies the tools for the web IDE's link (see the top of this script):
+-- the assistant's libraries, the error hook and the asker, as
+-- mcbServerStart does, with no socket, file or token. Returns true; throws
+-- when the assistant's files cannot be loaded or the server is on.
+function mcbLinkStart pAssistantFolder, pAsker
+   local tError
+   if sLink is true then
+      return true
+   end if
+   if sPort is not empty then
+      throw "The bridge's server is on; it and the web link are never on together."
+   end if
+   put pAssistantFolder into sAssistantFolder
+   put pAsker into sAsker
+   put false into sBusy
+   try
+      mcbEnsureParts
+   catch tError
+      put empty into sAsker
+      throw tError
+   end try
+   mcbDeleteOldCheckpoints
+   mcbStartErrorHook
+   put true into sLink
+   if sLinkGeneration is not an integer then
+      put 0 into sLinkGeneration
+   end if
+   put empty into sLinkRequest
+   return true
+end mcbLinkStart
+
+-- Ends the link: what was applied can no longer be undone, as after
+-- mcbServerStop
+command mcbLinkStop
+   if sLink is not true then
+      exit mcbLinkStop
+   end if
+   put false into sLink
+   mcbLinkLost
+   put empty into sLinkRequest
+   mcbStopParts
+end mcbLinkStop
+
+function mcbLinkIsOn
+   return sLink is true
+end mcbLinkIsOn
+
+-- The link's connection closed, or a new one was made (the tab
+-- reconnected, or the server was started again): an answer to a request
+-- that came before reaches no one
+command mcbLinkLost
+   if sLinkGeneration is not an integer then
+      put 0 into sLinkGeneration
+   end if
+   add 1 to sLinkGeneration
+end mcbLinkLost
+
+-- One request line from the link, answered as mcbHandleLine answers one
+-- from a socket, without the token. The plugin keeps taking requests from
+-- the tab while a tool asks the user, so this can be called again before
+-- an earlier call returns (the later one is then told the bridge is busy);
+-- each puts back the request it found.
+function mcbLinkHandle pLine
+   local tReply, tError, tOuter
+   if sLink is not true then
+      return mcbRefusal("null", "The bridge is turned off in " & mcbHostName() & ".")
+   end if
+   if the number of bytes of textEncode(pLine, "UTF-8") > kMaxRequestBytes then
+      return mcbRefusal("null", "The request is too long.")
+   end if
+   put sLinkRequest into tOuter
+   put sLinkGeneration into sLinkRequest
+   try
+      put mcbAnswerLine(pLine, true) into tReply
+   catch tError
+      put mcbRefusal("null", "The bridge failed:" && line 1 of tError) into tReply
+   end try
+   put tOuter into sLinkRequest
+   return tReply
+end mcbLinkHandle
 
 -- Puts the error hook in the front of the message path, where it notes
 -- each error the IDE shows the user (for ide_context) and passes it on
@@ -474,10 +593,21 @@ end socketTimeout
 
 -- One request line, answered: a line of JSON (without its line feed)
 function mcbHandleLine pLine
+   return mcbAnswerLine(pLine, false)
+end mcbHandleLine
+
+-- One request line, answered. pFromLink is true for a line from the web
+-- IDE's link (mcbLinkHandle), which carries no token; false for one from
+-- a socket, which must carry the server's.
+private function mcbAnswerLine pLine, pFromLink
    local tRequest, tError, tId, tMethod, tArguments, tResult, tReply
    -- Stopped: nothing is read, and the assistant's libraries, which read
    -- JSON, may be gone
-   if sToken is empty then
+   if pFromLink is true then
+      if sLink is not true then
+         return mcbRefusal("null", "The bridge is turned off in " & mcbHostName() & ".")
+      end if
+   else if sToken is empty then
       return mcbRefusal("null", "The bridge is turned off in " & mcbHostName() & ".")
    end if
    try
@@ -493,8 +623,8 @@ function mcbHandleLine pLine
    if tId is empty then
       put "null" into tId
    end if
-   if sToken is empty or xtaJsonType(xtaJsonMember(tRequest, "token")) is not "string" \
-         or not mcbIsToken(xtaJsonText(xtaJsonMember(tRequest, "token"))) then
+   if pFromLink is not true and (sToken is empty or xtaJsonType(xtaJsonMember(tRequest, "token")) is not "string" \
+         or not mcbIsToken(xtaJsonText(xtaJsonMember(tRequest, "token")))) then
       return mcbRefusal(tId, "The token is not the bridge's. Turn the bridge off and on again in " & mcbHostName() & ", then try again.")
    end if
    put xtaJsonText(xtaJsonMember(tRequest, "method")) into tMethod
@@ -538,7 +668,7 @@ function mcbHandleLine pLine
             mcbJsonString("imageType") & ":" & mcbJsonString(tResult["imageType"]) after tReply
    end if
    return tReply & "}"
-end mcbHandleLine
+end mcbAnswerLine
 
 -- True when pText is the token. "is" compares two numbers as numbers
 -- ("2e999" is "2E999", and two long runs of digits can be equal as
@@ -820,7 +950,10 @@ private function mcbAsk pTitle, pDetail, pYes
    -- and closes the connection; Claude was told so and may send it again.
    -- A yes after that would run (or save, or undo) what nobody is waiting
    -- for, maybe twice: it does nothing, and the user is told why.
-   if tAnswer is true and sRequestSocket is not empty and sRequestSocket is not among the lines of sClients then
+   -- The same for the web IDE's link, whose connection closed or was made
+   -- again while the user was asked (mcbLinkLost)
+   if tAnswer is true and ((sRequestSocket is not empty and sRequestSocket is not among the lines of sClients) \
+         or (sLinkRequest is not empty and sLinkRequest is not sLinkGeneration)) then
       try
          dispatch "mcbTooLate" to sAsker
       catch tError
@@ -890,6 +1023,12 @@ private function mcbIsIDEStack pStack
       return true
    end if
    if the _ideoverride of pStack is true then
+      return true
+   end if
+   -- In the web IDE, the IDE's files are under /boot (its bundle, which
+   -- the engine unpacks there) and the user's never are: a plugin there
+   -- that does not set _ideoverride is the IDE's too
+   if the platform is "HTML5" and the owner of pStack is empty and the effective filename of pStack begins with "/boot/" then
       return true
    end if
    if the owner of pStack is not empty then
