@@ -30,8 +30,8 @@ Code its authors knew to be wrong or incomplete. 65 notes, by part of the reposi
 - [engine/installer-armv6-hf.link:187](engine/installer-armv6-hf.link#L187) FIXME: Why do we need it? When there is no .bss section, we don't
 - [engine/src/dispatch.cpp:1574](engine/src/dispatch.cpp#L1574) FIXME This is horrible
 - [engine/src/em-dc-mainloop.cpp:46](engine/src/em-dc-mainloop.cpp#L46) FIXME these functions are pretty much the same for every X_init()
-- [engine/src/em-event.js:492](engine/src/em-event.js#L492) FIXME Maybe this should be done in the engine?
-- [engine/src/em-event.js:691](engine/src/em-event.js#L691) FIXME not supported
+- [engine/src/em-event.js:502](engine/src/em-event.js#L502) FIXME Maybe this should be done in the engine?
+- [engine/src/em-event.js:701](engine/src/em-event.js#L701) FIXME not supported
 - [engine/src/em-filehandle.cpp:126](engine/src/em-filehandle.cpp#L126) FIXME Figure out why this is needed
 - [engine/src/em-filehandle.cpp:151](engine/src/em-filehandle.cpp#L151) FIXME Figure out why this is a success
 - [engine/src/em-filehandle.cpp:210](engine/src/em-filehandle.cpp#L210) FIXME figure out why this is a success
@@ -164,7 +164,7 @@ Workarounds their authors were not happy with. 33 notes, by part of the reposito
 - [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:1438](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L1438) For now we have to hack this without access to the parser
 - [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:2241](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L2241) calls IDE code, e.g get url. For now we hack around this.
 - [ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript:41](ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript#L41) HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
-- [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:21](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L21) Hack to get round bug 18946
+- [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:24](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L24) Hack to get round bug 18946
 - [ide/Toolset/palettes/reverrordisplay.livecodescript:550](ide/Toolset/palettes/reverrordisplay.livecodescript#L550) attempting to highlight the appropriate line number. This is a total hack, but there doensn't seem
 - [ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript:3578](ide/Toolset/palettes/script%20editor/behaviors/revsecommoneditorbehavior.livecodescript#L3578) First wrap the script to the required width, this is a total hack as doing it properly would take quite a while.
 - [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:2222](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L2222) this is clearly a bit of a hack, but hopefully doing is this way will minimize the risk.
@@ -269,7 +269,7 @@ Work left for later. 429 notes, by part of the repository:
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/em-dc.js:181](engine/src/em-dc.js#L181) TODO - handle cleanup of embedded canvas
-- [engine/src/em-event.js:863](engine/src/em-event.js#L863) TODO - reenable alt key detection
+- [engine/src/em-event.js:873](engine/src/em-event.js#L873) TODO - reenable alt key detection
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
 - [engine/src/em-util.js:332](engine/src/em-util.js#L332) TODO - for now, treat functions as objects but we may wish to differentiate them later
 - [engine/src/exec-engine.cpp:519](engine/src/exec-engine.cpp#L519) TODO - create as list?

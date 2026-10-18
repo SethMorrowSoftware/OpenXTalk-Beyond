@@ -14,14 +14,17 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## Unreleased
-
-- Web: close an open menu when the page outside every window is clicked (#144)
-
 ## 0.2.7-rc.4 (2026-10-18, pre-release)
 
 - Web Stack Player: specialFolderPath("resources") finds a stack's files, and a polish pass over the new stacks (#140)
 - Version 0.2.7-rc.4, with its changelog (#141)
+- Web IDE: connect Claude through the xTalk MCP Bridge, and let the xTalk Assistant reach Anthropic (#142)
+- Web: close an open menu when the page outside every window is clicked (#144)
+- Rename LiveCode terminology to xTalk terminology (#143)
+- Extension Manager stack Fixups (#143)
+- Extension Manager: fix the install paths of the new Repo tab (#143)
+- Extension Manager: open a sample stack through the sample launcher (#143)
+- 0.2.7-rc.4's notes: the web IDE's MCP Bridge, web menus and the Extension Manager (#PR)
 
 ## 0.2.7-rc.3 (2026-10-18, pre-release)
 

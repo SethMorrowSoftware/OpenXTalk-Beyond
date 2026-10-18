@@ -81,10 +81,12 @@ in a web page, Learn, one window for the lessons, guides and examples,
 and a HyperCard import that brings in pictures, palettes, colour and
 sound and reads Mac disk images (see
 [0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard)),
-and 0.2.7-rc.4 lets a stack in the Stack Player find its files through
-`specialFolderPath("resources")` and polishes the stacks new in 0.2.7
-(see
-[0.2.7-rc.4](#027-rc4-a-stacks-own-files-in-the-stack-player-and-polish));
+and 0.2.7-rc.4 connects the web IDE to Claude through the xTalk MCP
+Bridge, closes a web menu when the page around it is clicked, brings
+over OXT DPE's Extension Manager, lets a stack in the Stack Player find
+its files through `specialFolderPath("resources")` and polishes the
+stacks new in 0.2.7 (see
+[0.2.7-rc.4](#027-rc4-claude-in-the-web-ide-the-extension-manager-and-polish));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1525,11 +1527,34 @@ them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
 
-#### 0.2.7-rc.4: a stack's own files in the Stack Player, and polish
+#### 0.2.7-rc.4: Claude in the web IDE, the Extension Manager, and polish
 
 OXT-Beyond 0.2.7-rc.4, a test release, has everything in 0.2.7-rc.3,
 and:
 
+- **Claude in the web IDE.** Development > Plugins > xTalk MCP Bridge
+  has a **Connect** choice on the web: Claude's app runs the bridge's
+  MCP server in a web mode on the same computer, the page connects out
+  to it, and every tool the desktop bridge has works, with running code
+  and saving a stack still asked in the page first. **Claude Setup...**
+  downloads a ready Claude Desktop extension or gives the command for
+  Claude Code; the page and the server prove a shared key to each other
+  before either takes a request. The xTalk Assistant can use Anthropic
+  from the browser (see the bridge's
+  [README](ide/Extensions/org.openxtalk.plugin.mcpbridge/mcp/README.md)).
+- **Web menus close when the page is clicked.** In the web IDE and
+  web standalones, a menu from the menu bar, or an option or popup
+  menu, closes when the page around the windows, a window's title bar or
+  a browser widget's page is clicked, or the page loses the focus, as a
+  click outside a menu does on the desktop. Before, it stayed open until
+  its own button was clicked again.
+- **The Extension Manager from OXT DPE** (from Paul McClernan,
+  [#139](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/139)):
+  a **Repo** tab on the OpenXTalk Resource Depot in place of LiveCode
+  Ltd's old store page, a **Playground** tab, colours that follow the
+  light or dark appearance, sample stacks opened from a row's menu, and
+  installs of base64-encoded `.lce.b64` packages. The Sample Stacks and
+  Snippets tabs show when an extension of that kind is installed.
 - **The Stack Player finds a stack's own files through
   `specialFolderPath("resources")`.** A stack opened with its folder
   (or its `.zip`) already found the files beside it by relative paths;
@@ -1546,8 +1571,16 @@ and:
   checkbox and radio buttons draw their own marks, as a browser drew
   the engine's as broken arcs.
 
-A script sees these differences from 0.2.7-rc.3, all in the Stack
-Player or in stacks new in 0.2.7. In the Stack Player,
+A script sees these differences from 0.2.7-rc.3. In the web IDE and
+web standalones, a click on the page outside every window, or the page
+losing the focus, closes an open menu with no `menuPick`, as a click
+outside it on a stack already did. On the web, the xTalk Assistant's
+requests leave out `Connection: close`, which browsers refuse, and its
+requests to Anthropic carry `anthropic-dangerous-direct-browser-access`;
+the MCP Bridge's library has four more handlers, `mcbLinkStart`,
+`mcbLinkStop`, `mcbLinkHandle` and `mcbLinkLost`, and hides the IDE's
+own stacks from Claude. The Extension Manager's stack is OXT DPE's
+(its card "search" is now "web"). In the Stack Player,
 `specialFolderPath("resources")` still returns `/boot/standalone`, but
 while a stack is open `files()` and `folders()` of that folder also
 list the entries beside the stack (except names the player's own files
@@ -1557,9 +1590,12 @@ player's folder, which a reload loses. In the remastered Animate a
 Letter the graphic "Boundry" is named "Boundary"; Quick Start Guide's
 lists of commands and functions leave out the engine's names that start
 with `_`; and the xTalk Primer sample has a label. Desktop engines, the
-IDE's libraries and other web standalones are unchanged. Pull request
+desktop MCP Bridge and the desktop assistant are unchanged. Pull
+requests
 [#140](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/140)
-lists every change.
+to
+[#144](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/pull/144)
+list every change.
 
 #### 0.2.7-rc.3: stacks and the IDE on the web, Learn, and more of HyperCard
 
