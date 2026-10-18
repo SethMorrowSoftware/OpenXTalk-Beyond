@@ -399,6 +399,8 @@ private command xtcwBuildComposer
    set the dontWrap of tObj to false
    set the vScrollbar of tObj to false
    set the hiliteColor of tObj to lkMix("255,255,255", lkColor("teal"), 0.25)
+   -- A long message scrolls under the kit's slim thumb, as the messages do
+   lkScroller "cmpThumb", the long id of tObj, "100,116,139", 50, "cmp"
    get lkButton("cmp_send", 0, 0, 34, "Send", "send", "primary", lkColor("teal"), "cmp", "send", 92)
    -- Under the box, the marks a message can carry, a button each
    repeat for each line tLine in xtcwFormats()
@@ -577,6 +579,7 @@ private command xtcwPlaceComposer pLeft, pTop, pRight, pBottom
    end repeat
    set the rect of field "cmp_keys" to tLeft + 10, pBottom + 6, pRight, pBottom + 30
    xtcwCenterV "cmp_keys", pBottom + 18
+   lkScrollSync "cmpThumb"
 end xtcwPlaceComposer
 
 ################################################################################
@@ -1772,7 +1775,6 @@ private command xtcwComposeChanged
    put max(kComposeMin, min(kComposeMax, the formattedHeight of field "compose" + 22)) into tWanted
    if tWanted is not sComposeHeight then
       put tWanted into sComposeHeight
-      set the vScrollbar of field "compose" to the formattedHeight of field "compose" + 22 > kComposeMax
       xtcwLayout
    end if
 end xtcwComposeChanged
