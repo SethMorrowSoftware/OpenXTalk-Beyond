@@ -1440,6 +1440,8 @@ private function revMenubarToolsMenu pContext
    put "-" & return after tTools
    put toggleMenuItem("&Tools Palette/T", revIDEPaletteIsVisible("tools")) & return after tTools
    put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of revIDEGetPreference("revTools_show")) & return after tTools
+   -- OXT-Beyond: the Tools palette in the look of Learn (revtools.livecodescript)
+   put toggleMenuItem("Modern Tools Palette", revIDEGetPreference("revTools_look") is "modern") & return after tTools
    put "-" & return after tTools
    put toggleMenuItem("Project Browser/^@P", revIDEPaletteIsVisible("project browser")) & return after tTools -- tperry, 21-12-23 added shortcut for project browser
    put toggleMenuItem("&Message Box/M", revIDEPaletteIsVisible("message box")) & return after tTools
@@ -2670,6 +2672,14 @@ on revMenubarToolsMenuPick pWhich
          break
       case "paint and draw tools"
          revIDETogglePaintAndDrawTools
+         break
+      case "Modern Tools Palette"
+         -- the palette follows the preference (idePreferenceChanged)
+         if revIDEGetPreference("revTools_look") is "modern" then
+            revIDESetPreference "revTools_look", "classic"
+         else
+            revIDESetPreference "revTools_look", "modern"
+         end if
          break
       case "Menu Builder"
       case "Message Box"

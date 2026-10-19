@@ -18,6 +18,7 @@ words, is in the [README](README.md#the-ide) and on the
 
 - Learn: the xTalk Suite demos open built, in the middle of the screen (#157)
 - Branding: 0.2.7 "Bug Hunt" splash screens, installer art, banner and release name (#161)
+- Tools palette: a modern look, sizeable, with names, a filter and sections that fold (Tools > Modern Tools Palette; the classic look stays the default)
 
 ## 0.2.7-rc.5 (2026-10-19, pre-release)
 

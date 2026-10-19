@@ -354,6 +354,12 @@ licence's full text. xTalk Chat
 ([`ide/Extensions/org.openxtalk.plugin.xtalkchat/`](ide/Extensions/org.openxtalk.plugin.xtalkchat/))
 draws its icons with the same kit.
 
+The Tools palette's modern look
+([`ide/Toolset/palettes/tools/revtools.livecodescript`](ide/Toolset/palettes/tools/revtools.livecodescript))
+draws seven Lucide icons of the same version, under the same licence,
+from their SVG text, which its script carries with the licence's full
+text.
+
 The remastered examples
 ([`ide/Resources/Examples/Remastered/`](ide/Resources/Examples/Remastered/))
 draw Learn's icons and 56 more of the same version, under the same

@@ -3,6 +3,39 @@
 constant BLOCK_SIZE = 20
 
 constant kToolsColumnCountDefault = 2
+
+-- OXT-Beyond: the modern look's measures and state (see "the modern look",
+-- at the end of this script)
+constant kTmHeadHeight = 40
+constant kTmSearchHeight = 28
+constant kTmPad = 8
+constant kTmGap = 4
+constant kTmCaptionHeight = 24
+constant kTmWideCell = 48
+constant kTmSmallCell = 30
+constant kTmCellHeight = 30
+constant kTmNameCell = 150
+constant kTmNameHeight = 28
+constant kTmIconBox = 44
+constant kTmMinWidth = 96
+constant kTmMinHeight = 160
+constant kTmDefaultWidth = 120
+constant kTmWheel = 36
+-- The sections, top to bottom: a section's key, its title, and the
+-- groups of group "contents" it shows, one after the other
+constant kTmSections = "widget|Widgets|widget\nclassic|Controls|classic\ngraphic|Shapes|graphic\nvector|Vector Tools|graphictools,graphictoolscontrols\npaint|Paint Tools|paint,paintcontrols"
+
+-- Dark or light, as the classic look decides it, for this generation
+local sTmDark
+-- What the filter holds, and the section keys that are folded
+local sTmFilter, sTmFolded
+-- The height of what group "contents" holds, as tmLayout last laid it out
+local sTmContentHeight
+-- Whether the window still has to take its kept or its first size
+local sTmNeedSize
+-- The pending save of the window's size
+local sTmSaveMsg
+
 on preOpenStack
    if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99 -- tperry 1/5/24
    
@@ -102,6 +135,8 @@ on registerForMessages
    revIDESubscribe "idePreferenceChanged:revTools_show"
    revIDESubscribe "idePreferenceOfSetChanged"
    revIDESubscribe "ideToolChanged"
+   -- OXT-Beyond: Tools > Modern Tools Palette
+   revIDESubscribe "idePreferenceChanged:revTools_look"
    -- revIDESubscribe "ideExtensionsChanged"
 end registerForMessages
 
@@ -131,6 +166,10 @@ on idePreferenceChanged pPreference
          resizeStack
          unlock screen
          break
+      case "revTools_look"
+         -- OXT-Beyond: the classic look or the modern one (below)
+         tmSwitchLook
+         break
    end switch
 end idePreferenceChanged
 
@@ -153,6 +192,12 @@ on ideToolChanged
       put "paint polygon shape tool" into tTool
       put hCreateSuitableImage (tTool) into tImgCmd
       send tDoImgCmd to me in 1 ticks
+   end if
+   
+   -- OXT-Beyond: the modern look lights its own tiles
+   if tmIsModern() then
+      tmToolChanged tTool
+      exit ideToolChanged
    end if
    
    local tControlID
@@ -203,6 +248,11 @@ end resizeStack
 
 constant kNoSeparatorSections = "runedit,graphictoolscontrols,paintcontrols"
 on generatePalette
+   -- OXT-Beyond: the modern look (below) makes its own
+   if tmIsModern() then
+      tmGenerate
+      exit generatePalette
+   end if
    lock screen
    # Clean up existing UI
    repeat while there is a group "contents"
@@ -488,6 +538,11 @@ on generatePalette
 end generatePalette
 
 on layoutPalette
+   -- OXT-Beyond: the modern look (below) lays out its own
+   if tmIsModern() then
+      tmLayout
+      exit layoutPalette
+   end if
    lock screen
    
    if there is not a group "contents" of me then generatePalette  
@@ -810,6 +865,10 @@ on mouseDoubleUp
 end mouseDoubleUp
 
 on mouseDown pButton
+   -- OXT-Beyond: the modern look's header, corner, thumb, captions and menu
+   if tmIsModern() then
+      if tmMouseDown(pButton, the long id of the target) then exit mouseDown
+   end if
    if the cType of the target is empty then exit mouseDown
    if the target is disabled then exit mouseDown
    if the cStatus of the target is "error" then
@@ -1034,6 +1093,11 @@ on mouseEnter
       end if
    end if
    --
+   -- OXT-Beyond: the modern look shows a tile under the pointer instead
+   if tmIsModern() then
+      tmMouseEnter the long id of the target
+      exit mouseEnter
+   end if
    if the cType of the target is empty then exit mouseEnter
    if the cDisabled of the target is true then exit mouseEnter
    if word 1 of the target is "widget" then
@@ -1056,6 +1120,11 @@ on mouseEnter
 end mouseEnter
 
 on mouseLeave
+   -- OXT-Beyond: the modern look hides its tile
+   if tmIsModern() then
+      tmMouseLeave the long id of the target
+      exit mouseLeave
+   end if
    if the cDisabled of the target is true then exit mouseLeave
    try
       if word 1 of the target is "widget" then
@@ -1462,7 +1531,48 @@ end reAffirmBrushChoice
 local sPicksA
 on menuPick pWhich
    -- don't need this, so deleted. (tperry 25-4-24)
+   -- OXT-Beyond: the modern look's options menu
+   if the short name of the target is "tmMenu" and tmIsModern() then
+      tmMenuPick pWhich
+   end if
 end menuPick
+
+-- OXT-Beyond: the modern look scrolls with the wheel, and its filter
+-- clears with Escape; the classic look passes every key
+on rawKeyDown pKey
+   if tmIsModern() then
+      switch pKey
+         case 65308
+            tmScrollBy kTmWheel
+            exit rawKeyDown
+         case 65309
+            tmScrollBy -kTmWheel
+            exit rawKeyDown
+         case 65307
+            if the short name of the target is "tmFilter" then
+               tmSetFilter empty
+               exit rawKeyDown
+            end if
+            break
+      end switch
+   end if
+   pass rawKeyDown
+end rawKeyDown
+
+-- OXT-Beyond: the modern look's filter follows what is typed in it
+on rawKeyUp pKey
+   if tmIsModern() and the short name of the target is "tmFilter" then
+      tmSetFilter the text of the target
+   end if
+   pass rawKeyUp
+end rawKeyUp
+
+on textChanged
+   if tmIsModern() and the short name of the target is "tmFilter" then
+      tmSetFilter the text of the target
+   end if
+   pass textChanged
+end textChanged
 
 private command setChecked pTarget, pChecked
    
@@ -2097,3 +2207,1104 @@ on hPositionAccentsInTools
 end hPositionAccentsInTools
 
 
+
+################################################################################
+#
+# OXT-Beyond: the modern look
+#
+-- Tools > Modern Tools Palette (the preference revTools_look, "modern")
+-- draws this palette in the look of Learn and the About window: a dark
+-- header with Run and Edit and a menu, a filter, and the objects and
+-- tools in sections that fold, as rounded tiles, with or without their
+-- names. The window can be made any size: the tiles fill its width in as
+-- many columns as fit, and what does not fit its height scrolls, with the
+-- wheel or the slim thumb at its right. A drag on the header moves it and
+-- a drag on the corner at its foot sizes it, also where the window has
+-- no frame of its own (tToolsFixup), and its size is kept
+-- (revTools_modernSize).
+--
+-- It is the same stack, "revTools", and every control another script can
+-- reach keeps its name and its properties: each object or tool is a
+-- button named for its type, as "com.livecode.tool.Pointer" or
+-- "com.livecode.interface.classic.Button", with the same cType, cTool,
+-- cToolName, cStyle, cName and cStatus, in a group of group "contents"
+-- named for its section, so the classic mouseDown, mouseDoubleUp,
+-- revToolsOptionClicked, isolateTool, toolObjectName and the rest work on
+-- it unchanged; group "images" holds the same icons by the same names
+-- (Home reads the Browse tool's for a cursor). A widget's SVG icon and a
+-- name are drawn below its button, which is transparent, so a click
+-- anywhere on a tile is a click on the button. What the classic look
+-- adds of its own (the "*" button, the section titles, the macOS accent
+-- dots) is taken away while this look is on, and made again by the
+-- classic code when it is off. Off is the default, and then nothing of
+-- this runs: each classic handler that leads here does so on its first
+-- line, only when tmIsModern() is true.
+--
+-- Run and Edit, the menu, the filter and the folds are drawn with Lucide's
+-- icons (lucide-static 0.469.0), the inside of each icon's <svg>, under
+-- Lucide's licence:
+--
+-- ISC License
+--
+-- Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as
+-- part of Feather (MIT). All other copyright (c) for Lucide are held by
+-- Lucide Contributors 2022.
+--
+-- Permission to use, copy, modify, and/or distribute this software for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+--
+-- The corner's grip (two short strokes) is not Lucide's.
+
+-- kTmSections as an array, 1 to n, of ["key"], ["title"] and ["views"]
+private function tmSections
+   local tOut, tLine, tN, tText
+   -- (a backslash and n in a constant is two characters, not a return)
+   put kTmSections into tText
+   replace "\n" with return in tText
+   set the itemDelimiter to "|"
+   repeat for each line tLine in tText
+      add 1 to tN
+      put item 1 of tLine into tOut[tN]["key"]
+      put item 2 of tLine into tOut[tN]["title"]
+      put item 3 of tLine into tOut[tN]["views"]
+   end repeat
+   set the itemDelimiter to comma
+   return tOut
+end tmSections
+
+function tmIsModern
+   return revIDEGetPreference("revTools_look") is "modern"
+end tmIsModern
+
+-- The colours: Learn's (revLearnKit's lkColor), light or dark
+private function tmColor pName
+   if sTmDark then
+      switch pName
+         case "bg"
+            return "15,23,42"
+         case "head"
+            return "2,6,23"
+         case "seg"
+            return "30,41,59"
+         case "headInk"
+            return "203,213,225"
+         case "panel"
+            return "30,41,59"
+         case "line"
+            return "51,65,85"
+         case "ink"
+            return "226,232,240"
+         case "muted"
+            return "148,163,184"
+         case "hover"
+            return "30,41,59"
+         case "hilite"
+            return "46,16,101"
+         case "hiliteLine"
+            return "167,139,250"
+         case "icon"
+            return "203,213,225"
+         case "accent"
+            return "124,58,237"
+      end switch
+   else
+      switch pName
+         case "bg"
+            return "241,245,249"
+         case "head"
+            return "15,23,42"
+         case "seg"
+            return "30,41,59"
+         case "headInk"
+            return "203,213,225"
+         case "panel"
+            return "255,255,255"
+         case "line"
+            return "226,232,240"
+         case "ink"
+            return "15,23,42"
+         case "muted"
+            return "100,116,139"
+         case "hover"
+            return "226,232,240"
+         case "hilite"
+            return "237,233,254"
+         case "hiliteLine"
+            return "124,58,237"
+         case "icon"
+            return "71,85,105"
+         case "accent"
+            return "124,58,237"
+      end switch
+   end if
+   return "15,23,42"
+end tmColor
+
+private function tmIconPaths pName
+   switch pName
+      case "play"
+         return "<polygon points='6 3 20 12 6 21 6 3'/>"
+      case "mouse-pointer-2"
+         return "<path d='M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1" & \
+               ".438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z'/>"
+      case "ellipsis"
+         return "<circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/><circle cx='5' cy='12' r='1'/>"
+      case "search"
+         return "<circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/>"
+      case "x"
+         return "<path d='M18 6 6 18'/><path d='m6 6 12 12'/>"
+      case "chevron-down"
+         return "<path d='m6 9 6 6 6-6'/>"
+      case "chevron-right"
+         return "<path d='m9 18 6-6-6-6'/>"
+      case "grip"
+         -- not Lucide's: two strokes across the corner
+         return "<path d='M21 11 11 21'/><path d='M21 17 17 21'/>"
+   end switch
+   return empty
+end tmIconPaths
+
+-- An icon image in the hidden group "tmIcons", with an ID in the IDE's
+-- reserved range (revIDENewIconID), as the classic icons have, so that no
+-- user's image of the same ID is drawn in its place; returns its ID
+private function tmIcon pName, pIcon, pColor, pSize
+   local tHex, tSvg, tObj, tID
+   put "#" & format("%02x%02x%02x", item 1 of pColor, item 2 of pColor, item 3 of pColor) into tHex
+   put "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='" & tHex & \
+         "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" & \
+         tmIconPaths(pIcon) & "</svg>" into tSvg
+   create image pName in group "tmIcons" of me
+   put it into tObj
+   set the text of tObj to drawingSvgCompile(tSvg)
+   -- (a new ID makes the long id in tObj name nothing)
+   put revIDENewIconID() into tID
+   set the id of tObj to tID
+   set the lockLoc of image id tID of me to true
+   set the rect of image id tID of me to 0, 0, pSize, pSize
+   return tID
+end tmIcon
+
+private function tmField pName, pText, pSize, pColor, pGroup
+   local tObj
+   if pGroup is empty then
+      create field pName
+   else
+      create field pName in group pGroup of me
+   end if
+   put it into tObj
+   set the lockText of tObj to true
+   set the traversalOn of tObj to false
+   set the opaque of tObj to false
+   set the showBorder of tObj to false
+   set the threeD of tObj to false
+   set the showFocusBorder of tObj to false
+   set the dontWrap of tObj to true
+   set the margins of tObj to 0
+   set the textSize of tObj to pSize
+   set the textColor of tObj to pColor
+   set the text of tObj to pText
+   set the height of tObj to the formattedHeight of tObj
+   return tObj
+end tmField
+
+private function tmBox pName, pColor, pRadius, pGroup
+   local tObj
+   if pGroup is empty then
+      create graphic pName
+   else
+      create graphic pName in group pGroup of me
+   end if
+   put it into tObj
+   if pRadius > 0 then
+      set the style of tObj to "roundrect"
+      set the roundRadius of tObj to pRadius
+   else
+      set the style of tObj to "rectangle"
+   end if
+   set the lineSize of tObj to 0
+   set the antialiased of tObj to true
+   set the opaque of tObj to true
+   set the backgroundColor of tObj to pColor
+   return tObj
+end tmBox
+
+-- A transparent button: the thing a click lands on
+private function tmHitButton pName, pGroup
+   local tObj
+   if pGroup is empty then
+      create button pName
+   else
+      create button pName in group pGroup of me
+   end if
+   put it into tObj
+   set the style of tObj to "transparent"
+   set the showName of tObj to false
+   set the showBorder of tObj to false
+   set the threeD of tObj to false
+   set the borderWidth of tObj to 0
+   set the autoHilite of tObj to false
+   set the traversalOn of tObj to false
+   set the hiliteBorder of tObj to false
+   set the iconGravity of tObj to "center"
+   return tObj
+end tmHitButton
+
+-- The data the classic generatePalette reads, read the same way
+private function tmViewsData
+   local tViews, tData
+   put revIDEGetPreference("revTools_show") into tViews
+   put revIDERunEditTools() into tData["runedit"]
+   repeat for each item tView in tViews
+      switch tView
+         case "widget"
+            put revIDEWidgets() into tData["widget"]
+            break
+         case "classic"
+            put revIDEClassicControls() into tData["classic"]
+            break
+         case "graphic"
+            put revIDEGraphics() into tData["graphic"]
+            break
+         case "graphictools"
+            put revIDEGraphicTools() into tData["graphictools"]
+            put revIDEGraphicToolControllers() into tData["graphictoolscontrols"]
+            break
+         case "paint"
+            put revIDEPaintTools() into tData["paint"]
+            put revIDEPaintToolControllers() into tData["paintcontrols"]
+            break
+      end switch
+   end repeat
+   return tData
+end tmViewsData
+
+-- The keys of a view's data in the classic order
+private function tmViewOrder pView, @pData
+   local tOrder
+   put the keys of pData into tOrder
+   if pView is "widget" then
+      sort tOrder by pData[each]["title"]
+   else
+      sort lines tOrder numeric ascending by pData[each]["order"]
+      if tOrder contains "datagrid" and the cDisableDataGrid of stack "revPreferences" is true then
+         replace "com.livecode.interface.classic.DataGrid" with "" in tOrder
+         filter lines of tOrder without empty
+      end if
+   end if
+   return tOrder
+end tmViewOrder
+
+-- Takes away what either look made, and puts the window back as the
+-- classic look opens it
+command tmTeardown
+   local tCard, i, tName
+   lock screen
+   lock messages
+   repeat while there is a group "contents" of me
+      delete group "contents" of me
+   end repeat
+   repeat for each item tName in "tmHeader,tmSearch,tmIcons"
+      if there is a group tName of me then delete group tName of me
+   end repeat
+   repeat for each item tName in "tmThumb,tmGrip,tmEmpty"
+      if there is a control tName of me then delete control tName of me
+   end repeat
+   if there is a group "errors" of me then delete group "errors" of me
+   -- the classic look's own: its section titles, its "*" button and the
+   -- macOS accent dots (graphics on the card named for a classic object)
+   repeat for each item tName in "divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools"
+      if there is a field tName of me then delete field tName of me
+   end repeat
+   if there is a button "toolsOVERRIDEmenu" of me then delete button "toolsOVERRIDEmenu" of me
+   put the long id of card 1 of me into tCard
+   repeat with i = the number of graphics of tCard down to 1
+      if the short name of graphic i of tCard contains "com.livecode.interface.classic" and \
+            word 1 of the long name of the owner of graphic i of tCard is "card" then
+         delete graphic i of tCard
+      end if
+   end repeat
+   set the backgroundColor of me to empty
+   set the resizable of me to false
+   set the minHeight of me to 32
+   set the maxHeight of me to 65535
+   set the minWidth of me to 32
+   set the maxWidth of me to 65535
+   unlock messages
+   unlock screen
+end tmTeardown
+
+-- Tools > Modern Tools Palette, or the menu's Classic Look
+command tmSwitchLook
+   lock screen
+   tmTeardown
+   put true into sTmNeedSize
+   generatePalette
+   layoutPalette
+   unlock screen
+end tmSwitchLook
+
+command tmGenerate
+   local tThemePath, tData, tView, tOrder, tTypeID, tImageID, tSection
+   local tTooltip, tSum, tName, tSections
+   lock screen
+   tmTeardown
+   lock messages
+
+   -- Dark or light as the classic look decides it (its generatePalette):
+   -- macOS's appearance, or on Linux how dark the window's own colour is
+   put false into sTmDark
+   if the platform contains "mac" then
+      put the systemAppearance is "dark" into sTmDark
+   else if the platform contains "linux" then
+      put the effective backgroundColor of me into tSum
+      put item 1 of tSum + item 2 of tSum + item 3 of tSum < 234 into sTmDark
+   else
+      put the systemAppearance is "dark" into sTmDark
+   end if
+   if sTmDark then
+      set the cUsingTheme of me to "dark"
+   else
+      set the cUsingTheme of me to "light"
+   end if
+   put revIDEThemePath() into tThemePath
+   if sTmDark and there is a folder (tThemePath & "/dark") then put tThemePath & "/dark" into tThemePath
+
+   set the backgroundColor of me to tmColor("bg")
+   if sTmFolded is empty then put revIDEGetPreference("revTools_modernFolded") into sTmFolded
+
+   reset the templateButton
+   reset the templateGraphic
+   reset the templateImage
+   reset the templateField
+   reset the templateGroup
+
+   create group "tmIcons"
+   hide group "tmIcons" of me
+   create group "contents"
+   set the lockLoc of group "contents" of me to true
+   set the margins of group "contents" of me to 0
+   set the showBorder of group "contents" of me to false
+   set the opaque of group "contents" of me to false
+   set the vScrollbar of group "contents" of me to false
+   set the hScrollbar of group "contents" of me to false
+   create group "images" in group "contents" of me
+   hide group "images" of me
+
+   -- the tiles behind: under the pointer, and the tool chosen
+   get tmBox("tool_hover", tmColor("hover"), 8, "contents")
+   hide it
+   get tmBox("tool_hilite", tmColor("hilite"), 8, "contents")
+   set the lineSize of it to 1
+   set the foregroundColor of it to tmColor("hiliteLine")
+   hide it
+
+   put tmViewsData() into tData
+
+   -- the sections' captions: a fold mark and a title
+   put tmIcon("tm.chevDown", "chevron-down", tmColor("muted"), 12) into tImageID
+   put tmIcon("tm.chevRight", "chevron-right", tmColor("muted"), 12) into tImageID
+   put tmSections() into tSections
+   repeat with tSection = 1 to the number of elements of tSections
+      put tSections[tSection]["key"] into tName
+      create group ("tmCap:" & tName) in group "contents" of me
+      get tmField("tmCapLabel:" & tName, toUpper(tSections[tSection]["title"]), 10, tmColor("muted"), "tmCap:" & tName)
+      set the textStyle of it to "bold"
+      set the cTmSection of it to tName
+      get tmHitButton("tmCapHit:" & tName, "tmCap:" & tName)
+      set the iconGravity of it to "left"
+      set the cTmSection of it to tName
+      set the tooltip of it to "Show or hide" && tSections[tSection]["title"]
+   end repeat
+
+   -- the objects and tools, a section's groups in the classic order
+   repeat for each item tView in "widget,classic,graphic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      if the number of elements of tData[tView] is 0 then next repeat
+      create group tView in group "contents" of me
+      put tmViewOrder(tView, tData[tView]) into tOrder
+      repeat for each line tTypeID in tOrder
+         put item 1 of tTypeID into tTypeID
+         tmMakeItem tView, tTypeID, tData[tView][tTypeID], tThemePath
+      end repeat
+   end repeat
+
+   -- the header: Run and Edit, and the menu
+   create group "tmHeader"
+   get tmBox("tmHeadBg", tmColor("head"), 0, "tmHeader")
+   get tmBox("tmSegBg", tmColor("seg"), 8, "tmHeader")
+   get tmBox("tmSegHilite", tmColor("accent"), 6, "tmHeader")
+   hide it
+   create group "runedit" in group "tmHeader" of me
+   put tmOrderRunEdit(tData["runedit"]) into tOrder
+   repeat for each line tTypeID in tOrder
+      tmMakeItem "runedit", tTypeID, tData["runedit"][tTypeID], tThemePath
+   end repeat
+   get tmHitButton("tmMenuBtn", "tmHeader")
+   set the icon of it to tmIcon("tm.menu", "ellipsis", tmColor("headInk"), 18)
+   set the tooltip of it to "Tools palette options"
+   create button "tmMenu" in group "tmHeader" of me
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the visible of it to false
+
+   -- the filter
+   create group "tmSearch"
+   get tmBox("tmSearchBg", tmColor("panel"), 8, "tmSearch")
+   set the lineSize of it to 1
+   set the foregroundColor of it to tmColor("line")
+   get tmHitButton("tmSearchIcon", "tmSearch")
+   set the icon of it to tmIcon("tm.search", "search", tmColor("muted"), 14)
+   get tmField("tmFilterHint", "Filter", 12, tmColor("muted"), "tmSearch")
+   get tmField("tmFilter", sTmFilter, 12, tmColor("ink"), "tmSearch")
+   set the lockText of it to false
+   set the traversalOn of it to true
+   set the tooltip of it to "Show only the objects and tools whose names have this in them"
+   get tmHitButton("tmFilterClear", "tmSearch")
+   set the icon of it to tmIcon("tm.clear", "x", tmColor("muted"), 14)
+   set the tooltip of it to "Clear the filter"
+
+   -- the scroll thumb, the corner's grip and the note when nothing matches
+   get tmBox("tmThumb", tmColor("muted"), 2, empty)
+   set the blendLevel of it to 40
+   hide it
+   get tmHitButton("tmGrip", empty)
+   set the icon of it to tmIcon("tm.grip", "grip", tmColor("muted"), 12)
+   set the tooltip of it to "Drag to size the palette"
+   get tmField("tmEmpty", "Nothing matches", 11, tmColor("muted"), empty)
+   hide it
+
+   reset the templateButton
+   reset the templateGraphic
+   reset the templateImage
+   reset the templateField
+   reset the templateGroup
+
+   -- the paint colours, as the classic look starts them
+   initPaintCol
+
+   unlock messages
+   unlock screen
+end tmGenerate
+
+-- Run before Edit, as the classic look shows them
+private function tmOrderRunEdit @pData
+   local tOrder
+   put the keys of pData into tOrder
+   sort lines tOrder numeric ascending by pData[each]["order"]
+   return tOrder
+end tmOrderRunEdit
+
+-- One object or tool: its icon in group "images", as the classic look
+-- makes it, and its button, named for its type with the classic
+-- properties; a widget's SVG icon and a name below the button
+private command tmMakeItem pView, pTypeID, @pItem, pThemePath
+   local tFilename, tImage, tObj, tTooltip, tToolType, tGroup
+   if pItem["userVisible"] is false then exit tmMakeItem
+
+   -- the icon, as the classic look makes it (Home reads the Browse tool's)
+   if pItem["icon"] is not empty then
+      put pItem["icon"] into tFilename
+   else
+      put pThemePath & slash & pTypeID & ".icon.png" into tFilename
+   end if
+   create image (pTypeID & ".icon.png") in group "images" of group "contents" of me
+   put it into tImage
+   set the visible of tImage to false
+   set the filename of tImage to tFilename
+   set the id of tImage to revIDENewIconID()
+   put the long id of image (pTypeID & ".icon.png") of group "images" of group "contents" of me into tImage
+   revIDEResizeImageInBounds tImage, BLOCK_SIZE * 2, BLOCK_SIZE
+
+   put pItem["tooltip"] into tTooltip
+   if tTooltip is empty then put pItem["title"] into tTooltip
+   if tTooltip is empty then
+      set the itemDelimiter to "."
+      put item -1 of pTypeID into tTooltip
+      set the itemDelimiter to comma
+   end if
+
+   if pView is "runedit" then
+      put "runedit" into tGroup
+   else
+      put pView into tGroup
+   end if
+
+   -- the name, shown when Show Names is on
+   get tmField("tmLabel:" & pTypeID, tmItemTitle(pTypeID, pItem, tTooltip), 12, tmColor("ink"), tGroup)
+   set the cTmLabelFor of it to pTypeID
+   if pView is "runedit" then
+      set the textColor of it to tmColor("headInk")
+      set the textStyle of it to "bold"
+   end if
+   if pItem["status"] is "error" then set the textColor of it to tmColor("muted")
+
+   -- a widget's SVG icon
+   if pItem["svgicon"] is not empty and pView is not "runedit" then
+      create widget ("tmIcon:" & pTypeID) as "com.livecode.widget.svgpath" in group tGroup of me
+      put it into tObj
+      set the width of tObj to BLOCK_SIZE
+      set the height of tObj to BLOCK_SIZE
+      set the iconPath of tObj to pItem["svgicon"]
+      set the foregroundColor of tObj to tmColor("icon")
+      if pItem["status"] is "error" then set the blendLevel of tObj to 50
+   end if
+
+   put tmHitButton(pTypeID, tGroup) into tObj
+   set the cType of tObj to pView
+   set the cStyle of tObj to pItem["properties"]["style"]["default"]
+   set the cName of tObj to pItem["properties"]["name"]["default"]
+   set the cStatus of tObj to pItem["status"]
+   if pView is "runedit" then
+      if pItem["tool"] is "browse tool" then
+         set the icon of tObj to tmIcon("tm.run", "play", tmColor("headInk"), 16)
+      else
+         set the icon of tObj to tmIcon("tm.edit", "mouse-pointer-2", tmColor("headInk"), 16)
+      end if
+   else if pItem["svgicon"] is empty then
+      set the icon of tObj to the id of tImage
+   end if
+
+   put pItem["type"] into tToolType
+   switch tToolType
+      case "tool"
+      case "option"
+      case "paint tool"
+         set the cTool of tObj to tToolType
+         set the cToolName of tObj to pItem["tool"]
+         break
+      case "graphic tool"
+         set the cTool of tObj to tToolType
+         set the cToolName of tObj to "graphic tool"
+         break
+      default
+         set the cTool of tObj to empty
+         set the cToolName of tObj to empty
+         break
+   end switch
+
+   set the tooltip of tObj to tTooltip
+   if pItem["status"] is "error" then
+      set the tooltip of tObj to "There was an error while loading widget:" & return & pTypeID
+      set the blendLevel of tObj to 50
+   end if
+end tmMakeItem
+
+-- A short name for a tile: the title, else the tooltip
+private function tmItemTitle pTypeID, @pItem, pTooltip
+   if pTypeID is "com.livecode.tool.Browse" then return "Run"
+   if pTypeID is "com.livecode.tool.Pointer" then return "Edit"
+   if pItem["title"] is not empty then return pItem["title"]
+   return pTooltip
+end tmItemTitle
+
+private function tmShowNames
+   return revIDEGetPreference("revTools_modernNames") is true
+end tmShowNames
+
+-- Whether a tile's button matches the filter
+private function tmMatches pObj
+   if sTmFilter is empty then return true
+   if the tooltip of pObj contains sTmFilter then return true
+   if the short name of pObj contains sTmFilter then return true
+   if there is a field ("tmLabel:" & the short name of pObj) of the owner of pObj then
+      if the text of field ("tmLabel:" & the short name of pObj) of the owner of pObj contains sTmFilter then return true
+   end if
+   return false
+end tmMatches
+
+command tmLayout
+   local tW, tH, tTop, tObj, tNames, tSegW, tX, tY, tContentTop, tScroll
+   local tSection, tKey, tViews, tView, tAvail, tCols, tCellW, tCellH, tCol, tRow, tShown
+   local tAny, tGroupObj, tI, tTypeID, tWide, tLabel, tIcon, tIconBox, tCount, tSections, tFolded
+   if there is not a group "tmHeader" of me or there is not a group "contents" of me then
+      tmGenerate
+   end if
+   lock screen
+   lock messages
+
+   set the resizable of me to true
+   set the minWidth of me to kTmMinWidth
+   set the minHeight of me to kTmMinHeight
+   set the maxWidth of me to 4000
+   set the maxHeight of me to 4000
+   put the width of me into tW
+   put the height of me into tH
+   put tmShowNames() into tNames
+
+   -- the header
+   set the rect of graphic "tmHeadBg" of me to 0, 0, tW, kTmHeadHeight
+   if tW >= 170 then
+      put 60 into tSegW
+   else
+      put 28 into tSegW
+   end if
+   set the rect of graphic "tmSegBg" of me to kTmPad, 7, kTmPad + tSegW * 2 + 4, kTmHeadHeight - 7
+   put kTmPad + 2 into tX
+   repeat with tI = 1 to the number of buttons of group "runedit" of me
+      put the long id of button tI of group "runedit" of me into tObj
+      set the rect of tObj to tX, 9, tX + tSegW, kTmHeadHeight - 9
+      put the long id of field ("tmLabel:" & the short name of tObj) of group "runedit" of me into tLabel
+      if tSegW > 28 then
+         set the iconGravity of tObj to "left"
+         set the leftMargin of tObj to 8
+         -- (the width first: setting it keeps the centre)
+         set the width of tLabel to tSegW - 30
+         set the topLeft of tLabel to tX + 28, (kTmHeadHeight - the height of tLabel) div 2
+         show tLabel
+      else
+         set the iconGravity of tObj to "center"
+         set the leftMargin of tObj to 0
+         hide tLabel
+      end if
+      add tSegW to tX
+   end repeat
+   set the rect of button "tmMenuBtn" of me to tW - kTmPad - 24, 8, tW - kTmPad, kTmHeadHeight - 8
+
+   -- the filter
+   put kTmHeadHeight + kTmPad into tTop
+   set the rect of graphic "tmSearchBg" of me to kTmPad, tTop, tW - kTmPad, tTop + kTmSearchHeight
+   set the rect of button "tmSearchIcon" of me to kTmPad + 4, tTop, kTmPad + 24, tTop + kTmSearchHeight
+   set the rect of field "tmFilter" of me to kTmPad + 26, tTop + (kTmSearchHeight - the height of field "tmFilter" of me) div 2, \
+         tW - kTmPad - 24, tTop + (kTmSearchHeight - the height of field "tmFilter" of me) div 2 + the height of field "tmFilter" of me
+   set the rect of field "tmFilterHint" of me to the rect of field "tmFilter" of me
+   set the visible of field "tmFilterHint" of me to field "tmFilter" of me is empty
+   set the rect of button "tmFilterClear" of me to tW - kTmPad - 22, tTop, tW - kTmPad - 4, tTop + kTmSearchHeight
+   set the visible of button "tmFilterClear" of me to field "tmFilter" of me is not empty
+   put tTop + kTmSearchHeight + kTmPad div 2 into tContentTop
+
+   -- the sections, laid out from the top with the group scrolled back
+   put the vScroll of group "contents" of me into tScroll
+   set the vScroll of group "contents" of me to 0
+   set the rect of group "contents" of me to 0, tContentTop, tW, tH
+   set the rect of group "images" of me to 0, tContentTop, 1, tContentTop + 1
+   hide graphic "tool_hover" of me
+   put tW - kTmPad * 2 - 4 into tAvail
+   put tContentTop + 2 into tY
+   put false into tAny
+   put tmSections() into tSections
+   repeat with tSection = 1 to the number of elements of tSections
+      put tSections[tSection]["key"] into tKey
+      put tSections[tSection]["views"] into tViews
+      -- what of the section is there and matches
+      put 0 into tShown
+      repeat for each item tView in tViews
+         if there is not a group tView of group "contents" of me then next repeat
+         repeat with tI = 1 to the number of buttons of group tView of group "contents" of me
+            if tmMatches(the long id of button tI of group tView of group "contents" of me) then add 1 to tShown
+         end repeat
+      end repeat
+      put the long id of group ("tmCap:" & tKey) of me into tGroupObj
+      if tShown is 0 then
+         hide tGroupObj
+         repeat for each item tView in tViews
+            if there is a group tView of group "contents" of me then hide group tView of group "contents" of me
+         end repeat
+         next repeat
+      end if
+      put true into tAny
+      put tKey is among the items of sTmFolded into tFolded
+
+      -- the caption
+      show tGroupObj
+      set the rect of button ("tmCapHit:" & tKey) of me to kTmPad, tY, tW - kTmPad, tY + kTmCaptionHeight
+      if tFolded then
+         set the icon of button ("tmCapHit:" & tKey) of me to the id of image "tm.chevRight" of me
+      else
+         set the icon of button ("tmCapHit:" & tKey) of me to the id of image "tm.chevDown" of me
+      end if
+      put the long id of field ("tmCapLabel:" & tKey) of me into tLabel
+      set the width of tLabel to max(10, tW - kTmPad * 2 - 18)
+      set the topLeft of tLabel to kTmPad + 16, tY + (kTmCaptionHeight - the height of tLabel) div 2
+      add kTmCaptionHeight to tY
+
+      if tFolded then
+         repeat for each item tView in tViews
+            if there is a group tView of group "contents" of me then hide group tView of group "contents" of me
+         end repeat
+         add kTmGap to tY
+         next repeat
+      end if
+
+      -- the tiles, in as many columns as fit
+      put tKey is among the items of "widget,classic" into tWide
+      if tNames then
+         put kTmNameCell into tCellW
+         put kTmNameHeight into tCellH
+      else if tWide then
+         put kTmWideCell into tCellW
+         put kTmCellHeight into tCellH
+      else
+         put kTmSmallCell into tCellW
+         put kTmCellHeight into tCellH
+      end if
+      put max(1, (tAvail + kTmGap) div (tCellW + kTmGap)) into tCols
+      put max(tCellW div 2, (tAvail - (tCols - 1) * kTmGap) / tCols) into tCellW
+      if tNames and tCols is 1 then put tAvail into tCellW
+      put 0 into tCount
+      repeat for each item tView in tViews
+         if there is not a group tView of group "contents" of me then next repeat
+         show group tView of group "contents" of me
+         repeat with tI = 1 to the number of buttons of group tView of group "contents" of me
+            put the long id of button tI of group tView of group "contents" of me into tObj
+            put the short name of tObj into tTypeID
+            put the long id of field ("tmLabel:" & tTypeID) of group tView of group "contents" of me into tLabel
+            put empty into tIcon
+            if there is a widget ("tmIcon:" & tTypeID) of group tView of group "contents" of me then
+               put the long id of widget ("tmIcon:" & tTypeID) of group tView of group "contents" of me into tIcon
+            end if
+            if not tmMatches(tObj) then
+               hide tObj
+               hide tLabel
+               if tIcon is not empty then hide tIcon
+               next repeat
+            end if
+            put tCount mod tCols into tCol
+            put tCount div tCols into tRow
+            add 1 to tCount
+            put round(kTmPad + 2 + tCol * (tCellW + kTmGap)) into tX
+            set the rect of tObj to tX, tY + tRow * (tCellH + kTmGap), round(tX + tCellW), tY + tRow * (tCellH + kTmGap) + tCellH
+            show tObj
+            if tNames then
+               if tWide then
+                  put kTmIconBox into tIconBox
+                  set the leftMargin of tObj to 4
+               else
+                  put 28 into tIconBox
+                  set the leftMargin of tObj to 4
+               end if
+               set the iconGravity of tObj to "left"
+               set the width of tLabel to max(10, round(tCellW) - tIconBox - 6)
+               set the topLeft of tLabel to tX + tIconBox + 4, the top of tObj + (tCellH - the height of tLabel) div 2
+               show tLabel
+               if tIcon is not empty then
+                  set the loc of tIcon to tX + 4 + (tIconBox - 8) div 2, item 2 of the loc of tObj
+               end if
+            else
+               set the iconGravity of tObj to "center"
+               set the leftMargin of tObj to 0
+               hide tLabel
+               if tIcon is not empty then
+                  set the loc of tIcon to the loc of tObj
+               end if
+            end if
+            if tIcon is not empty then show tIcon
+         end repeat
+      end repeat
+      if tCount > 0 then
+         add ((tCount - 1) div tCols + 1) * (tCellH + kTmGap) to tY
+      end if
+      add kTmGap to tY
+   end repeat
+
+   -- nothing matches the filter
+   if tAny then
+      hide field "tmEmpty" of me
+   else
+      set the topLeft of field "tmEmpty" of me to kTmPad + 4, tContentTop + 8
+      show field "tmEmpty" of me
+   end if
+
+   -- how far it scrolls
+   put tY - tContentTop + kTmPad into sTmContentHeight
+   put max(0, min(tScroll, sTmContentHeight - (tH - tContentTop))) into tScroll
+   set the vScroll of group "contents" of me to tScroll
+   tmSyncThumb
+
+   set the rect of button "tmGrip" of me to tW - 14, tH - 14, tW - 1, tH - 1
+   set the layer of button "tmGrip" of me to top
+
+   unlock messages
+   unlock screen
+
+   tmToolChanged the tool
+
+   -- the window's first size, or the one it was given before
+   if sTmNeedSize is not false then
+      put false into sTmNeedSize
+      tmApplySize
+   else
+      tmKeepSize
+   end if
+end tmLayout
+
+-- The size the window opens at: the one kept, else as wide as two
+-- columns and as tall as what it shows, on the screen
+private command tmApplySize
+   local tSize, tW, tH, tRect, tScreen
+   put revIDEGetPreference("revTools_modernSize") into tSize
+   if item 1 of tSize is a number and item 2 of tSize is a number then
+      put max(kTmMinWidth, item 1 of tSize) into tW
+      put max(kTmMinHeight, item 2 of tSize) into tH
+   else
+      put kTmDefaultWidth into tW
+      put kTmHeadHeight + kTmSearchHeight + kTmPad * 2 + sTmContentHeight into tH
+   end if
+   put line (the screen of me) of the working screenRects into tScreen
+   if tScreen is empty then put the working screenRect into tScreen
+   put min(tH, item 4 of tScreen - max(item 2 of tScreen, the top of me) - 8) into tH
+   put max(kTmMinHeight, tH) into tH
+   put the rect of me into tRect
+   if item 3 of tRect - item 1 of tRect is tW and item 4 of tRect - item 2 of tRect is tH then exit tmApplySize
+   lock messages
+   set the rect of me to item 1 of tRect, item 2 of tRect, item 1 of tRect + tW, item 2 of tRect + tH
+   unlock messages
+   tmLayout
+end tmApplySize
+
+-- Keeps the window's size for the next time, once the user stops sizing
+private command tmKeepSize
+   if the width of me & comma & the height of me is revIDEGetPreference("revTools_modernSize") then exit tmKeepSize
+   if sTmSaveMsg is not empty then cancel sTmSaveMsg
+   send "tmSaveSize" to me in 600 milliseconds
+   put the result into sTmSaveMsg
+end tmKeepSize
+
+on tmSaveSize
+   put empty into sTmSaveMsg
+   if not tmIsModern() then exit tmSaveSize
+   revIDESetPreference "revTools_modernSize", the width of me & comma & the height of me
+end tmSaveSize
+
+-- The slim thumb at the right, when what the palette shows is taller than
+-- the window
+private command tmSyncThumb
+   local tView, tTop, tH, tThumbH, tMax, tY
+   if there is not a graphic "tmThumb" of me then exit tmSyncThumb
+   put the top of group "contents" of me into tTop
+   put the height of group "contents" of me into tView
+   if sTmContentHeight <= tView or tView <= 0 then
+      hide graphic "tmThumb" of me
+      exit tmSyncThumb
+   end if
+   put max(24, round(tView * tView / sTmContentHeight)) into tThumbH
+   put sTmContentHeight - tView into tMax
+   put tTop + 2 + round((tView - tThumbH - 18) * the vScroll of group "contents" of me / tMax) into tY
+   set the rect of graphic "tmThumb" of me to the width of me - 6, tY, the width of me - 2, tY + tThumbH
+   set the layer of graphic "tmThumb" of me to top
+   show graphic "tmThumb" of me
+end tmSyncThumb
+
+private command tmScrollBy pDelta
+   local tMax, tScroll
+   put max(0, sTmContentHeight - the height of group "contents" of me) into tMax
+   put max(0, min(tMax, the vScroll of group "contents" of me + pDelta)) into tScroll
+   lock screen
+   set the vScroll of group "contents" of me to tScroll
+   hide graphic "tool_hover" of me
+   tmSyncThumb
+   unlock screen
+end tmScrollBy
+
+-- The tool chosen: Run or Edit lit in the header, a tool's tile lit
+command tmToolChanged pTool
+   local tView, tI, tObj, tFound
+   if there is not a group "tmHeader" of me then exit tmToolChanged
+   lock screen
+   hide graphic "tmSegHilite" of me
+   repeat with tI = 1 to the number of buttons of group "runedit" of me
+      put the long id of button tI of group "runedit" of me into tObj
+      if the cToolName of tObj is pTool then
+         set the rect of graphic "tmSegHilite" of me to the rect of tObj
+         show graphic "tmSegHilite" of me
+      end if
+   end repeat
+   put false into tFound
+   repeat for each item tView in "graphictools,paint"
+      if there is not a group tView of group "contents" of me then next repeat
+      repeat with tI = 1 to the number of buttons of group tView of group "contents" of me
+         put the long id of button tI of group tView of group "contents" of me into tObj
+         if the cToolName of tObj is not pTool or not the visible of tObj then next repeat
+         if pTool is "graphic tool" and the style of the templategraphic is not the cStyle of tObj then next repeat
+         set the rect of graphic "tool_hilite" of me to the rect of tObj
+         put true into tFound
+         exit repeat
+      end repeat
+      if tFound then exit repeat
+   end repeat
+   set the visible of graphic "tool_hilite" of me to tFound
+   unlock screen
+end tmToolChanged
+
+-- The pointer over a tile: its tile shows, and the hand for a thing to
+-- drag
+command tmMouseEnter pTarget
+   if the cType of pTarget is empty or the cDisabled of pTarget is true then exit tmMouseEnter
+   if the cType of pTarget is not "runedit" then
+      set the rect of graphic "tool_hover" of me to the rect of pTarget
+      show graphic "tool_hover" of me
+   end if
+   if the cTool of pTarget is empty and the cStatus of pTarget is not "error" then
+      revIDESetCursor "com.livecode.cursor.grab"
+   end if
+end tmMouseEnter
+
+command tmMouseLeave pTarget
+   if there is a graphic "tool_hover" of me then hide graphic "tool_hover" of me
+   revIDEResetCursor
+end tmMouseLeave
+
+-- A click on the look's own controls (the header, the corner, the thumb,
+-- a caption, the menu, the filter's clear button); false for the rest,
+-- which the classic mouseDown handles
+function tmMouseDown pButton, pTarget
+   local tName
+   put the short name of pTarget into tName
+   if pButton is not 1 then
+      return tName begins with "tm" and tName is not "tmFilter"
+   end if
+   switch
+      case tName is "tmHeadBg" or tName is "tmSegBg"
+         tmDragWindow
+         return true
+      case tName is "tmGrip"
+         tmDragSize
+         return true
+      case tName is "tmThumb"
+         tmDragThumb
+         return true
+      case tName begins with "tmCap"
+         tmFold the cTmSection of pTarget
+         return true
+      case tName is "tmMenuBtn"
+         tmPopupMenu
+         return true
+      case tName is "tmFilterClear"
+         tmSetFilter empty
+         return true
+      case tName is "tmSearchIcon" or tName is "tmFilterHint" or tName is "tmSearchBg"
+         focus on field "tmFilter" of me
+         return true
+      case tName is "tmEmpty"
+         return true
+   end switch
+   return false
+end tmMouseDown
+
+private command tmDragWindow
+   local tStart, tTopLeft, tNow
+   put the screenMouseLoc into tStart
+   put the topLeft of me into tTopLeft
+   repeat while the mouse is down
+      put the screenMouseLoc into tNow
+      set the topLeft of me to item 1 of tTopLeft + item 1 of tNow - item 1 of tStart, \
+            item 2 of tTopLeft + item 2 of tNow - item 2 of tStart
+      wait 10 milliseconds with messages
+   end repeat
+end tmDragWindow
+
+private command tmDragSize
+   local tStart, tRect, tNow, tW, tH
+   put the screenMouseLoc into tStart
+   put the rect of me into tRect
+   repeat while the mouse is down
+      put the screenMouseLoc into tNow
+      put max(kTmMinWidth, item 3 of tRect - item 1 of tRect + item 1 of tNow - item 1 of tStart) into tW
+      put max(kTmMinHeight, item 4 of tRect - item 2 of tRect + item 2 of tNow - item 2 of tStart) into tH
+      if tW is not the width of me or tH is not the height of me then
+         -- resizeStack lays it out
+         set the rect of me to item 1 of tRect, item 2 of tRect, item 1 of tRect + tW, item 2 of tRect + tH
+      end if
+      wait 10 milliseconds with messages
+   end repeat
+end tmDragSize
+
+private command tmDragThumb
+   local tStart, tScroll, tNow, tView, tRatio
+   put item 2 of the screenMouseLoc into tStart
+   put the vScroll of group "contents" of me into tScroll
+   put the height of group "contents" of me into tView
+   if tView <= 0 then exit tmDragThumb
+   put sTmContentHeight / tView into tRatio
+   repeat while the mouse is down
+      put item 2 of the screenMouseLoc into tNow
+      tmScrollBy tScroll + round((tNow - tStart) * tRatio) - the vScroll of group "contents" of me
+      wait 10 milliseconds with messages
+   end repeat
+end tmDragThumb
+
+-- A caption folds its section, or unfolds it
+private command tmFold pKey
+   local tOffset
+   if pKey is empty then exit tmFold
+   put itemOffset(pKey, sTmFolded) into tOffset
+   if tOffset > 0 then
+      delete item tOffset of sTmFolded
+   else if sTmFolded is empty then
+      put pKey into sTmFolded
+   else
+      put comma & pKey after sTmFolded
+   end if
+   revIDESetPreference "revTools_modernFolded", sTmFolded
+   tmLayout
+end tmFold
+
+command tmSetFilter pText
+   if pText is sTmFilter then exit tmSetFilter
+   put pText into sTmFilter
+   lock messages
+   if field "tmFilter" of me is not pText then put pText into field "tmFilter" of me
+   unlock messages
+   tmLayout
+end tmSetFilter
+
+-- The options: names, sections, more widgets and the classic look
+private command tmPopupMenu
+   local tText, tShow
+   put revIDEGetPreference("revTools_show") into tShow
+   put tmCheck("Show Names", tmShowNames()) & return after tText
+   put "-" & return after tText
+   put tmCheck("Widgets", "widget" is among the items of tShow) & return after tText
+   put tmCheck("Controls", "classic" is among the items of tShow) & return after tText
+   put tmCheck("Shapes", "graphic" is among the items of tShow) & return after tText
+   put tmCheck("Vector Tools", "graphictools" is among the items of tShow) & return after tText
+   put tmCheck("Paint Tools", "paint" is among the items of tShow) & return after tText
+   put "-" & return after tText
+   put "Find More Widgets..." & return after tText
+   put "-" & return after tText
+   put "Classic Look" after tText
+   set the text of button "tmMenu" of me to tText
+   popup button "tmMenu" of me
+end tmPopupMenu
+
+private function tmCheck pLabel, pChecked
+   if pChecked then return "!c" & pLabel
+   return pLabel
+end tmCheck
+
+command tmMenuPick pWhich
+   switch pWhich
+      case "Show Names"
+         revIDESetPreference "revTools_modernNames", not tmShowNames()
+         tmLayout
+         break
+      case "Widgets"
+         framePreferenceSelected "revTools_show", "widget"
+         break
+      case "Controls"
+         framePreferenceSelected "revTools_show", "classic"
+         break
+      case "Shapes"
+         framePreferenceSelected "revTools_show", "graphic"
+         break
+      case "Vector Tools"
+         framePreferenceSelected "revTools_show", "graphictools"
+         break
+      case "Paint Tools"
+         framePreferenceSelected "revTools_show", "paint"
+         break
+      case "Find More Widgets..."
+         findMoreWidgets
+         break
+      case "Classic Look"
+         revIDESetPreference "revTools_look", "classic"
+         break
+   end switch
+end tmMenuPick
