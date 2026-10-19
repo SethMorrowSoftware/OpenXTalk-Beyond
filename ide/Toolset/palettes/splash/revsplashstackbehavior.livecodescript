@@ -24,7 +24,7 @@ on preOpenStack
    set the location of me to the screenLoc
    set the htmlText of field "License" to revEnvironmentEditionProperty("splash_strap")
    -- OXT-Beyond: the splash art carries the product and release name; under
-   -- its stitches goes "<version> · It's alive!" in grey, as the artwork
+   -- its trail goes "<version> · Happy hunting!" in grey, as the artwork
    -- was drawn (Installer/oxt-beyond/branding/draw_branding.py). Field
    -- "Info", which the stack script fills with the product and version,
    -- and OpenXTalk Lite's line in "moreinfo" are not shown.
@@ -51,7 +51,7 @@ on preOpenStack
    else
       set the foregroundColor of field "moreinfo" of me to 74,82,92
    end if
-   put tVersion & "It" & numToCodepoint(0x2019) & "s alive!" into field "moreinfo" of me
+   put tVersion & "Happy hunting!" into field "moreinfo" of me
    -- The field's text keeps the size and style it was saved with
    set the textSize of char 1 to -1 of field "moreinfo" of me to 20
    set the textStyle of char 1 to -1 of field "moreinfo" of me to "plain"

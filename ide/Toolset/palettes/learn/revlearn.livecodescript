@@ -2123,6 +2123,20 @@ private function leExampleTable
          "native scroller.|LiveCode Ltd, from LiveCode Community|mobile|monitor-play|teal|mobile scroller phone" & return after tTable
    put "Resources/Mobile Examples/Sound Example.livecode|Mobile Sound|Plays sounds in a phone app.|" & \
          "LiveCode Ltd, from LiveCode Community|mobile|volume-2|pink|mobile sound audio phone" & return after tTable
+   -- OXT-Beyond: whole apps on the xTalk Suite extensions the IDE ships
+   -- built in (tools/examples/README.md, "xTalk Suite demos"). The web IDE
+   -- has no such extensions and leaves the files out, so it lists none
+   put "Resources/Examples/xTalk Suite/No Cloud Quick Share.oxtstack|No Cloud Quick Share|Share a file of any size " & \
+         "with a short code and no server: it goes straight from your computer to your friend's, over BitTorrent, " & \
+         "or Tor when you choose.|Seth Morrow, 2026, from the xTalk Suite|suite|zap|sky|" & \
+         "torrent share files peer-to-peer tor torrentxt sodiumxt onionxt" & return after tTable
+   put "Resources/Examples/xTalk Suite/Torrent Client.oxtstack|Torrent Client|A whole BitTorrent client: add magnets " & \
+         "and .torrent files, make and seed your own, and watch files, peers and trackers.|" & \
+         "Seth Morrow, 2026, from the xTalk Suite|suite|package|indigo|torrent download magnet seed torrentxt" & return after tTable
+   put "Resources/Examples/xTalk Suite/Box2D Platformer.oxtstack|Box2D Platformer|Seven levels of running, " & \
+         "jumping and coin collecting, with real physics: rope bridges, boulders, crushers and a bestiary of " & \
+         "enemies.|Seth Morrow, 2026, from the xTalk Suite; art by Kenney (CC0)|suite|gamepad-2|emerald|" & \
+         "game physics platformer box2d box2dxt" & return after tTable
    -- The Stack Player's stacks, when this copy of the IDE has them
    put leShowcaseTable() after tTable
    return tTable
@@ -2245,6 +2259,8 @@ private function leExampleGroups
          "controls, each small enough to read in one sitting." & return & \
          "tours|Tours|Guided tours of the Data Grid and of SQLite, a card at a time." & return & \
          "apps|Small apps to take apart|Each does one thing, in a few short scripts: open one, then read its scripts." & return & \
+         "suite|xTalk Suite demos|Whole apps on the xTalk Suite extensions built into OXT-Beyond: share files " & \
+         "with no server, download torrents, and play a physics platformer." & return & \
          "samples|Start Center samples|LiveCode Community's samples: a game, a database and a template." & return & \
          "mobile|For phones and tablets|These use the mobile engine's commands: they open here, but do their work on a phone."
 end leExampleGroups

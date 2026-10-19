@@ -1441,6 +1441,8 @@ command revInternal__InstallFileAssociations
       put return & "oxtBeyondUpdater" after tLoadList
       -- OXT-Beyond: HyperCard stacks on Mac disk images (File > Import Stack)
       put return & "revHyperCardDiskImageLibrary" after tLoadList
+      -- OXT-Beyond: HyperTalk that compiles after File > Import Stack
+      put return & "revHyperCardScriptLibrary" after tLoadList
       -- OXT-Beyond: what the IDE does differently in a web browser, loaded
       -- only there
       if revEnvironmentIsWeb() then

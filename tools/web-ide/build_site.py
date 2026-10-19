@@ -56,7 +56,9 @@ the installed ones, to try IDE script changes without packaging them, and
 puts the examples of Learn's gallery that are not in the install yet
 where packaging does: the remastered examples (ide/Resources/Examples/
 Remastered, which tools/examples builds) and the Stack Player's stacks
-(tools/web-player/stacks, in Resources/Examples/Showcase).
+(tools/web-player/stacks, in Resources/Examples/Showcase); and the
+checkout's CHANGELOG.md, HISTORY.md and README.md, which the Release Notes
+window shows, in Toolset/palettes/updates/notes.
 
 --source-url is the address of the source the site was built from, for
 the page's "Source" link (GPL); by default the repository's.
@@ -193,6 +195,13 @@ def repo_scripts(repo, install):
         scripts['Resources/Examples/Showcase/' + os.path.basename(path)] = path
     if stacks:
         log('  %d Stack Player stacks from %s' % (len(stacks), showcase))
+    # The changelog, history and README the Release Notes window shows,
+    # where tools/oxt/package.py installs them (RELEASE_NOTES), so that
+    # they match the checkout's scripts
+    for name in ('CHANGELOG.md', 'HISTORY.md', 'README.md'):
+        path = os.path.join(repo, name)
+        if os.path.isfile(path):
+            scripts['Toolset/palettes/updates/notes/' + name] = path
     return scripts
 
 

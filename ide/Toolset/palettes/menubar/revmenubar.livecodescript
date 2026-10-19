@@ -1327,6 +1327,9 @@ private function revMenubarFileMenu pContext, tFile
    end if
    put "Import Stack" & return after tFile
    put tab & "HyperCard Stack.../|hypercard" & return after tFile
+   -- OXT-Beyond: whether the import rewrites HyperTalk that does not compile
+   -- here (revHyperCardScriptLibrary); on unless turned off
+   put tab & toggleMenuItem("Make HyperTalk Scripts Compile/|hypercardscripts", revIDEGetPreference("cHyperCardFixScripts") is not false) & return after tFile
    put enableMenuItem("&Close/W", the mode of the topStack <= 3 and the short name of the topstack is not "revMenubar") & return after tFile
    put enableMenuItem("Close and Remove From Memor&y", tCanSaveStack) & return after tFile
    put "-" & return after tFile
@@ -1791,6 +1794,12 @@ private function revMenubarDevelopmentMenu pContext
    -- stays off until the user turns it on from this entry
    if there is a stack "org.openxtalk.plugin.mcpbridge" then
       put tab & "xTalk MCP Bridge" & return after tDevelopment
+   end if
+   -- OXT-Beyond: xTalk Chat, an extension too, the same way: its window
+   -- opens from this entry, and it connects to nothing until the user
+   -- presses Go online in it
+   if there is a stack "org.openxtalk.plugin.xtalkchat" then
+      put tab & "xTalk Chat" & return after tDevelopment
    end if
    put tab & "-" & return after tDevelopment
    put tab & "Plugin Settings" & return after tDevelopment
@@ -2528,6 +2537,9 @@ on revMenubarFileMenuPick pWhich
                break
             case "Import Stack"
                if item 2 of pWhich is "hypercard" then revIDEActionImportHyperCardStack
+               if item 2 of pWhich is "hypercardscripts" then
+                  revIDESetPreference "cHyperCardFixScripts", (revIDEGetPreference("cHyperCardFixScripts") is false)
+               end if
                break
             case "Browse Recent Files..."
                choose browse tool
@@ -2897,6 +2909,12 @@ on revMenubarDevelopmentMenuPick pWhich
                -- OXT-Beyond: see revMenubarDevelopmentMenu
                if there is a stack "org.openxtalk.plugin.mcpbridge" then
                   dispatch "mcpBridgeMenuPick" to stack "org.openxtalk.plugin.mcpbridge"
+               end if
+               break
+            case "xTalk Chat"
+               -- OXT-Beyond: see revMenubarDevelopmentMenu
+               if there is a stack "org.openxtalk.plugin.xtalkchat" then
+                  dispatch "xtalkChatMenuPick" to stack "org.openxtalk.plugin.xtalkchat"
                end if
                break
             default  --plugin selected
@@ -3287,11 +3305,36 @@ end tNavigatorPick
 
 on tOpenAbout  --tp 24-1, open 'About' stack
    local tFilePath
+   -- OXT-Beyond: the About window in the look of Home and Learn
+   -- (palettes/about); with the Option (Alt) key down, or when it is
+   -- missing or fails, the classic window opens as it always did
+   if revMenubarOpenAbout() then
+      exit tOpenAbout
+   end if
    set the itemdelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & slash & "about.oxtstack" into tFilePath
    set the itemdelimiter to ","
    open stack tFilePath
 end tOpenAbout
+
+private function revMenubarOpenAbout
+   local tPath, tError
+   if the optionKey is down then
+      return false
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & "/about/revabout.livecodescript" into tPath
+   set the itemDelimiter to comma
+   if there is no file tPath then
+      return false
+   end if
+   try
+      dispatch "revAboutShow" to stack tPath
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end revMenubarOpenAbout
 
 on tOpenOnlineDict  --tp 24-1, open online dictionary in default browser
    -- revGoURL "https://openxtalk-org.github.io/OpenXTalk_Syntax_Dictionary/" -- relocated to not use github.io

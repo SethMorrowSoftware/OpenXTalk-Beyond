@@ -189,8 +189,10 @@ on LayoutControl pControlRect
    set the loc of field "description" of me to the loc of me
    set the left of field "description" of me to the right of widget "svgicon" of me + tPadding
 
-   -- set the textColor of line 1 of field "description" of me to revIDEColor("text_1")
-   -- set the textColor of line 2 of field "description" of me to revIDEColor("text_2")
+   -- OXT-Beyond: dark text on the light rows in either appearance
+   -- (revIDEColor("text_1") is white in the dark one)
+   set the textColor of line 1 of field "description" of me to "0,0,0"
+   set the textColor of line 2 of field "description" of me to "125,125,125"
 
    ## Action Icon
    set the loc of widget "ActionIcon" of me to the loc of me
@@ -314,9 +316,8 @@ on menuPick pAction
 end menuPick
 
 on mouseDoubleUp
-   if not the cIDE of me then
-      dispatch "browserGoToExtensionPage" to card "web" of this stack with the cTypeID of me
-   end if
+   -- OXT-Beyond: a double-click went to the extension's page in the Repo
+   -- tab, which the Extension Manager no longer has
 end mouseDoubleUp
 
 getProp dvRowControl

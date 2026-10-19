@@ -22,8 +22,9 @@ on preOpenStack
    if revIDEExtensions("snippet") is an array then
       addFrameItem "snippet","header", "navigation", "Snippets", "", "","showList", the long id of me,"snippet"
    end if
-   addFrameItem "repo","header", "navigation", "Repo", "", "","showExtensionStore", the long id of card "web" of me,"repo"
-   addFrameItem "playground","header", "navigation", "Playground", "", "","showWebPlaygound", the long id of card "web" of me,"playground"
+   -- OXT-Beyond: no Repo or Playground tab. Both showed a web stack from
+   -- GitHub Pages in a browser widget, slow to load and dark; extensions
+   -- are installed from a file with Install extension.
    addFrameItem "install", "header", "action", "Install extension", "plus", "","installNew", the long id of me
    
    set the hilitedTabColor of me to "255,255,255"
@@ -44,6 +45,15 @@ command refreshList
 end refreshList
 
 on showExtensionStore
+   -- OXT-Beyond: with no Repo tab, a request for the store (the Tools
+   -- palette's "more widgets" button) shows the installed widgets
+   showList "widget"
+   hiliteFrameItem "widget"
+   go card "list" of this stack
+end showExtensionStore
+
+-- The Repo tab's page, no longer shown (see preOpenStack)
+on showExtensionRepoPage
    hiliteFrameItem "repo"
    -- browserHide
    lock screen
@@ -60,7 +70,7 @@ on showExtensionStore
    end if
    unlock screen
    go card "web" of this stack
-end showExtensionStore
+end showExtensionRepoPage
 
 on showWebPlaygound
    hiliteFrameItem "playground"

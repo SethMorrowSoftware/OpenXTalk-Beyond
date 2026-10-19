@@ -22,15 +22,21 @@ use com.livecode.engine
 use com.livecode.library.widgetutils
 
 metadata title is "Pie Chart"
-metadata author is "LiveCode"
-metadata version is "1.0.0"
+metadata author is "LiveCode, OpenXTalk.org"
+metadata version is "1.0.1"
 metadata preferredSize is "200,150"
-metadata svgicon is "M115 386 c-44 -19 -103 -89 -111 -131 -31 -164 87 -282 251 -251 43 8 113 68 132 113 26 62 24 63 -97 63 l-110 0 0 110 c0 122 -2 124 -65 96z M200 301 l0 -101 101 0 102 0 -6 41 c-10 77 -79 146 -156 156 l-41 6 0 -102z" 
+metadata svgicon is "M115 386 c-44 -19 -103 -89 -111 -131 -31 -164 87 -282 251 -251 43 8 113 68 132 113 26 62 24 63 -97 63 l-110 0 0 110 c0 122 -2 124 -65 96z M200 301 l0 -101 101 0 102 0 -6 41 c-10 77 -79 146 -156 156 l-41 6 0 -102z"
 
 private variable mValues as List
 private variable mLabels as List
 private variable mColors as List
 private variable mShowLabels as Boolean
+-- true once sectorColors has set the colours: only then are they saved
+-- with the stack, so a chart without them keeps following its values
+private variable mCustomColors as Boolean
+-- false for a chart saved before 1.0.1, which keeps its black labels
+-- in the canvas's own font (see themedLabels)
+private variable mThemedLabels as Boolean
 private variable mChartOrigin as Point
 private variable mRadius as Number
 private variable mSectorAngles as List
@@ -48,7 +54,7 @@ Description:
 Use the <sectorValues> property to set the values to be displayed in the pie chart.
 **/
 property "sectorValues" get getValues set setValues
-metadata sectorValues.default is "1,2,3,5,8,13"
+metadata sectorValues.default is "1,2,3,4,5,6,7,8,9,10,11,12"
 metadata sectorValues.label is "Values"
 
 /**
@@ -64,7 +70,7 @@ Description:
 Use the <sectorLabels> property to set the labels to be displayed in the pie chart.
 **/
 property "sectorLabels" get getLabels set setLabels
-metadata sectorLabels.default is "Jan,Feb,Mar,Apr,May,Jun"
+metadata sectorLabels.default is "Jan,Feb,Mar,Apr,May,June,July,Aug,Sept,Oct,Nov,Dec"
 metadata sectorLabels.label is "Labels"
 
 /**
@@ -82,15 +88,48 @@ metadata showLabels.label is "Show sector labels"
 
 constant kPadding is 10
 
+/**
+Syntax: set the themedLabels of <widget> to { true | false }
+Syntax: get the themedLabels of <widget>
+
+Summary: Whether the sector labels follow the widget's text colour and font.
+
+Description:
+When <themedLabels> is true, the sector labels are drawn in the widget's
+foreground colour and text font, so they stay readable in dark mode. When
+it is false, they are drawn in black in the default font, as pie charts
+were before version 1.0.1. A new pie chart starts with true; a pie chart
+saved before version 1.0.1 opens with false, so it looks as it did.
+**/
+property "themedLabels" get mThemedLabels set setThemedLabels
+metadata themedLabels.default is "true"
+metadata themedLabels.label is "Themed labels"
+
+constant kDefaultValues is "1,2,3,4,5,6,7,8,9,10,11,12"
+constant kDefaultLabels is "Jan,Feb,Mar,Apr,May,June,July,Aug,Sept,Oct,Nov,Dec"
+
 public handler OnCreate()
    variable tSectors
 
-   setValues("1,2,3,5,8,13")
-   setLabels("Jan,Feb,Mar,Apr,May,Jun")
+   setValues(kDefaultValues)
+   setLabels(kDefaultLabels)
    put true into mShowLabels
+   put true into mThemedLabels
+   put false into mCustomColors
 
    put the number of elements in mValues into tSectors
    put colorList(tSectors) into mColors
+end handler
+
+-- The colour of sector pNumber: a custom list shorter than the sectors
+-- starts again from its first colour
+private handler sectorColor(in pNumber as Number) returns Color
+   variable tCount as Number
+   put the number of elements in mColors into tCount
+   if tCount is 0 then
+      return color [0,0,0]
+   end if
+   return element (((pNumber - 1) mod tCount) + 1) of mColors
 end handler
 
 public handler OnPaint()
@@ -114,6 +153,9 @@ public handler OnPaint()
       variable tLabelBounds as Rectangle
       variable tLabelWidth as Number
       variable tLabelHeight as Number
+      if mThemedLabels then
+         set the font of this canvas to my font
+      end if
 
       repeat for each element tLabelText in mLabels
          measure tLabelText on this canvas
@@ -161,6 +203,8 @@ public handler OnPaint()
 
    put tDiameter / 2 into mRadius
    put point [the width of tChartRect/2,the height of tChartRect/2] into mChartOrigin
+   -- the angles of this paint only, for OnMouseUp
+   put the empty list into mSectorAngles
 
    repeat for each element tElement in mValues
       add 1 to tSectorNumber
@@ -168,7 +212,7 @@ public handler OnPaint()
 
       put the empty path into tPath
       put sector path centered at mChartOrigin with radii [mRadius,mRadius] from tStartAngle to (tStartAngle + tAngle) into tPath
-      set the paint of this canvas to solid paint with element tSectorNumber of mColors
+      set the paint of this canvas to solid paint with sectorColor(tSectorNumber)
       fill tPath on this canvas
 
       push [tStartAngle,(tStartAngle + tAngle)] onto mSectorAngles
@@ -192,15 +236,27 @@ public handler OnPaint()
       repeat for each element tElement in mLabels
          add 1 to tSectorNumber
 
-         put rectangle path of rectangle [the left of tLabelRect + tColorIndicatorPadding,tLineTop + tColorIndicatorPadding,the left of tLabelRect + tColorIndicatorDimension + tColorIndicatorPadding,tLineTop + tColorIndicatorDimension + tColorIndicatorPadding] into tColorIndicatorPath
+         if mThemedLabels then
+            put rectangle path of rectangle [the left of tLabelRect, tLineTop, the left of tLabelRect + tColorIndicatorDimension , tLineTop + tColorIndicatorDimension] into tColorIndicatorPath
+         else
+            put rectangle path of rectangle [the left of tLabelRect + tColorIndicatorPadding,tLineTop + tColorIndicatorPadding,the left of tLabelRect + tColorIndicatorDimension + tColorIndicatorPadding,tLineTop + tColorIndicatorDimension + tColorIndicatorPadding] into tColorIndicatorPath
+         end if
 
-         set the paint of this canvas to solid paint with element tSectorNumber of mColors
+         set the paint of this canvas to solid paint with sectorColor(tSectorNumber)
          fill tColorIndicatorPath on this canvas
 
          put rectangle [the left of tLabelRect + tLabelLineHeight,tLineTop,tWidth,tLineTop + tLabelLineHeight] into tLineRect
 
-         set the paint of this canvas to solid paint with color [0,0,0,1]
-         fill text tElement at top left of tLineRect on this canvas
+         if mThemedLabels then
+            -- the foreground colour the widget inherits (the OS's text
+            -- colour by default), so the labels show in dark mode -- Paul
+            set the paint of this canvas to my foreground paint
+            fill text tElement at bottom left of tLineRect on this canvas
+         else
+            set the paint of this canvas to solid paint with color [0,0,0,1]
+            fill text tElement at top left of tLineRect on this canvas
+         end if
+         -- the measured height the legend was sized by
          add tLabelLineHeight to tLineTop
       end repeat
    end if
@@ -270,12 +326,30 @@ public handler OnSave(out rProperties as Array)
 	put mValues into rProperties["values"]
 	put mLabels into rProperties["labels"]
    put mShowLabels into rProperties["showLabels"]
+   put mThemedLabels into rProperties["themedLabels"]
+   if mCustomColors then
+      put getColorList() into rProperties["colors"]
+   end if
 end handler
 
 public handler OnLoad(in pProperties as Array)
 	put pProperties["values"] into mValues
 	put pProperties["labels"] into mLabels
    put pProperties["showLabels"] into mShowLabels
+
+   -- A chart saved before 1.0.1 has no themedLabels: it keeps its look
+   if "themedLabels" is among the keys of pProperties then
+      put pProperties["themedLabels"] into mThemedLabels
+   else
+      put false into mThemedLabels
+   end if
+
+   if "colors" is among the keys of pProperties then
+      setColorList(pProperties["colors"])
+   else
+      put false into mCustomColors
+      put colorList(the number of elements in mValues) into mColors
+   end if
 end handler
 
 public handler colorList(in pNumber) returns List
@@ -304,6 +378,11 @@ end handler
 
 public handler setValues(in pValues as String) returns nothing
    split pValues by "," into mValues
+   -- the default colours grow with the sectors
+   if (not mCustomColors) and \
+         (the number of elements in mColors < the number of elements in mValues) then
+      put colorList(the number of elements in mValues) into mColors
+   end if
 	redraw all
 end handler
 
@@ -318,6 +397,62 @@ public handler setLabels(in pLabels as String) returns nothing
 	redraw all
 end handler
 
+
+/**
+Syntax: set the sectorColors of <widget> to <pColorList>
+Syntax: get the sectorColors of <widget>
+
+Parameters:
+pColorList (String): A return-delimited list of colors, one for each sector, each as red,green,blue (0 to 255).
+
+Summary: The colors of the pie chart sectors.
+
+Description:
+Use the <sectorColors> property to set the colors of the sectors, in the
+order of <sectorValues>. When there are more sectors than colors, the
+colors start again from the first. Set it to empty to go back to the
+default colors.
+**/
+property "sectorColors" get getColorList set setColorList
+metadata sectorColors.default is ""
+metadata sectorColors.label is "Colors"
+
+public handler setColorList(in pColors as String) returns nothing
+   variable tLines as List
+   variable tColorLine as String
+   variable tNewColorList as List
+
+   put the empty list into tNewColorList
+   split pColors by "\n" into tLines
+   repeat for each element tColorLine in tLines
+      if tColorLine is not the empty string then
+         push StringToColor(tColorLine) onto tNewColorList
+      end if
+   end repeat
+
+   if the number of elements in tNewColorList is 0 then
+      put false into mCustomColors
+      put colorList(the number of elements in mValues) into mColors
+   else
+      put true into mCustomColors
+      put tNewColorList into mColors
+   end if
+   redraw all
+end handler
+
+private handler getColorList() returns String
+   variable tColor
+   variable tColorListStr as String
+   put the empty string into tColorListStr
+   repeat for each element tColor in mColors
+      if tColorListStr is not the empty string then
+         put "\n" after tColorListStr
+      end if
+      put colorToString(tColor, false) after tColorListStr
+   end repeat
+   return tColorListStr
+end handler
+
 private handler getLabels() returns String
    variable tLabels
    combine mLabels with "," into tLabels
@@ -329,5 +464,9 @@ public handler setShowLabels(in pShow as Boolean) returns nothing
    redraw all
 end handler
 
+public handler setThemedLabels(in pThemed as Boolean) returns nothing
+   put pThemed into mThemedLabels
+   redraw all
+end handler
 
 end widget

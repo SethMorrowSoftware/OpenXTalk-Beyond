@@ -72,3 +72,33 @@ Description: Use the <showLabels> property to control whether the sector labels 
 
 
 
+Name: sectorColors
+
+Type: property
+
+Syntax: get the sectorColors of <widget>
+
+Syntax: set the sectorColors of <widget> to <pColorList>
+
+Parameters: 
+
+pColorList: A return-delimited list of colors, one for each sector, each as red,green,blue (0 to 255).
+
+Summary: The colors of the pie chart sectors.
+
+Description: Use the <sectorColors> property to set the colors of the sectors, in the order of <sectorValues>. When there are more sectors than colors, the colors start again from the first. Set it to empty to go back to the default colors.
+
+
+
+
+Name: themedLabels
+
+Type: property
+
+Syntax: get the themedLabels of <widget>
+
+Syntax: set the themedLabels of <widget> to { true | false }
+
+Summary: Whether the sector labels follow the widget's text colour and font.
+
+Description: When <themedLabels> is true, the sector labels are drawn in the widget's foreground colour and text font, so they stay readable in dark mode. When it is false, they are drawn in black in the default font, as pie charts were before version 1.0.1. A new pie chart starts with true; a pie chart saved before version 1.0.1 opens with false, so it looks as it did.

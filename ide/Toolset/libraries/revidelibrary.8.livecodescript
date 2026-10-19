@@ -5111,6 +5111,7 @@ end revIDEGoToLCSDictionaryEntry
 
 on revIDEGoToDictionaryEntry pLibrary, pTag, pType
    if revIDEBrowserWidgetUnavailable() then
+      revIDEEnsureBrowserDictionary "api"
       revIDEGenerateDictionaryHTML "api", pLibrary, pTag, pType
       launch url ("file:" & revIDEGetDictionaryUrl("api"))
    else
@@ -7335,7 +7336,16 @@ while it is imported. They run as usual once you use the stack.
 An imported stack has no file name, as with Open Stack, so File > Save
 asks where to save it and the HyperCard file is not overwritten.
 
-References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command)
+Unless File > Import Stack > Make HyperTalk Scripts Compile is turned off
+(the preference cHyperCardFixScripts set to false), the stack's scripts
+that do not compile here are then rewritten by
+<revHyperCardFixScripts>: HyperTalk let a variable be called "group" or a
+handler "doMenu", and took forms this engine's parser refuses. The
+HyperTalk of each script that changes is kept in the custom property
+uHyperCard["script"] of its object, and the import log (the
+hcImportStat) says how many changed. Open Stack does not do this.
+
+References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command), revHyperCardFixScripts (function)
 
 Tags: ide
 */
@@ -7355,6 +7365,10 @@ on revIDEImportHyperCardStack pFilePath
    go stack pFilePath
    put the result into tError
    if tError is empty then put the long id of the defaultStack into tStack
+   -- OXT-Beyond: HyperTalk that compiles here, unless turned off
+   if tError is empty and revIDEGetPreference("cHyperCardFixScripts") is not false then
+      get revHyperCardFixScripts(tStack)
+   end if
    set the lockMessages to tWasLocked
 
    if tError is not empty then
@@ -11326,9 +11340,38 @@ end revIDETutorialSkipToNextSkipPoint
 -- this if you aren't generating the dictionary using the old method.
 -- commenting ends at line 11481 something (tperry)
 
+-- OXT-Beyond: the handlers below make LiveCode's Dictionary (the browser
+-- one) and do nothing while Preferences > Dictionary chooses the text
+-- dictionary, so a start-up spends no time on them. The browser
+-- Dictionary still opens with that choice (Help > Dictionary with Shift,
+-- the Script Editor's and the inspector's links to an entry), and it was
+-- blank: its page and data had never been made. revIDEEnsureBrowserDictionary,
+-- which the Dictionary palette calls, turns them on for the rest of the
+-- session and makes what is missing.
+local sBrowserDictionaryWanted
+
+private function __browserDictionaryOff
+   return the cDictionaryDisplayMethod of stack "revPreferences" is true \
+         and sBrowserDictionaryWanted is not true
+end __browserDictionaryOff
+
+command revIDEEnsureBrowserDictionary pWhich
+   local tCache
+   put revIDESpecialFolderPath("documentation cache") into tCache
+   if __browserDictionaryOff() then
+      -- the start-up skipped the data: make it now
+      put true into sBrowserDictionaryWanted
+      revIDERegenerateBuiltDictionaryData
+   else if there is not a file (tCache & slash & "built_api.js") \
+         or there is not a file (tCache & slash & "built_guide.js") then
+      revIDERegenerateBuiltDictionaryData
+   end if
+   revIDEEnsureDictionaryUrl pWhich
+end revIDEEnsureBrowserDictionary
+
 private function escape pString, pConvertLineEndings
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit escape -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit escape -- we exit this handler if not using it (tperry 24-7-24)
    --
    replace "\" with "\\" in pString
    replace quote with ("\" & quote) in pString
@@ -11347,7 +11390,7 @@ end escape
 
 private function __getLCBSourceFile pFolder
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit __getLCBSourceFile -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit __getLCBSourceFile -- we exit this handler if not using it (tperry 24-7-24)
    --
    revIDEPushDefaultFolder pFolder
    # Isolate the source file
@@ -11360,7 +11403,7 @@ end __getLCBSourceFile
 
 private function revIDEGetBaseDocsData pWhich
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetBaseDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetBaseDocsData -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tData
    
@@ -11383,7 +11426,7 @@ end revIDEGetBaseDocsData
 
 private function revIDEGetExtensionDocsData pAPI
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetExtensionDocsData -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetExtensionDocsData -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tExtensionDocsDataA
    put revIDEExtensionDocsData(pAPI) into tExtensionDocsDataA
@@ -11507,7 +11550,7 @@ end revIDEGetExtensionDocsData
 
 private function revIDEGetDocsAPIData pWhich
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsAPIData -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetDocsAPIData -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tData, tExtensions
    put revIDEGetBaseDocsData(pWhich) into tData
@@ -11520,7 +11563,7 @@ end revIDEGetDocsAPIData
 
 private function revIDEGetDocsGuideData
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDocsGuideData -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetDocsGuideData -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tData
    
@@ -11586,7 +11629,7 @@ end revIDEGetDocsGuideData
 
 on revIDERegenerateBuiltGuides
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltGuides -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDERegenerateBuiltGuides -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tData
    
@@ -11610,7 +11653,7 @@ end revIDERegenerateBuiltGuides
 constant kAPIs = "xTalk Script,livecode_script|xTalk Builder,livecode_builder|IDE,livecode_ide"
 on revIDERegenerateBuiltAPIs
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDERegenerateBuiltAPIs -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tData, tAPIData
    set the lineDelimiter to "|"
@@ -11643,7 +11686,7 @@ end revIDERegenerateBuiltAPIs
 
 on revIDERegenerateBuiltDictionaryData
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDERegenerateBuiltDictionaryData -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDERegenerateBuiltDictionaryData -- we exit this handler if not using it (tperry 24-7-24)
    --
    revIDERegenerateBuiltAPIs
    revIDERegenerateBuiltGuides
@@ -11651,7 +11694,7 @@ end revIDERegenerateBuiltDictionaryData
 
 on revIDEGenerateDistributedDocs
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedDocs -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGenerateDistributedDocs -- we exit this handler if not using it (tperry 24-7-24)
    --
    start using stack (revEnvironmentRepositoryPath() & slash & "ide-support" & slash & "revdocsparser.livecodescript")
    revIDEGenerateDistributedGuide
@@ -11661,7 +11704,7 @@ end revIDEGenerateDistributedDocs
 
 private on revIDEGenerateDistributedGuide
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedGuide -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGenerateDistributedGuide -- we exit this handler if not using it (tperry 24-7-24)
    --
    # Set the default folder to where the guide markdown files are stored in the IDE
    local tGuideFoldersWithLocationA
@@ -11709,7 +11752,7 @@ end revIDEGenerateDistributedGuide
 
 private command revIDEGenerateDistributedAPI
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDistributedAPI -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGenerateDistributedAPI -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tRepoPath
    put revEnvironmentRepositoryPath() into tRepoPath
@@ -11911,7 +11954,7 @@ end revIDEGenerateDistributedAPI
 
 on revIDEEnsureDictionaryUrl pWhich
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEEnsureDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEEnsureDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tInput, tOutput
    put revIDEGetDictionaryHTMLTemplate(pWhich) into tInput
@@ -11928,21 +11971,21 @@ end revIDEEnsureDictionaryUrl
 
 function revIDEGetDictionaryUrl pWhich
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetDictionaryUrl -- we exit this handler if not using it (tperry 24-7-24)
    --
    return revEnvironmentUserDocsPath() & slash & pWhich & ".html"
 end revIDEGetDictionaryUrl
 
 function revIDEGetDictionaryHTMLTemplate pWhich
    -- do not generate if this is turned off
-   if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGetDictionaryHTMLTemplate -- we exit this handler if not using it (tperry 24-7-24)
+   if __browserDictionaryOff() then exit revIDEGetDictionaryHTMLTemplate -- we exit this handler if not using it (tperry 24-7-24)
    --
    return revIDESpecialFolderPath("documentation") & slash & "html_viewer" & slash & pWhich & ".html.template"
 end revIDEGetDictionaryHTMLTemplate
 
 on revIDEGenerateDictionaryHTML pWhich, pInitialLibrary, pInitialEntryName, pInitialEntryType
    -- do not generate if this is turned off
-  if the cDictionaryDisplayMethod of stack "revPreferences" is true then exit revIDEGenerateDictionaryHTML -- we exit this handler if not using it (tperry 24-7-24)
+  if __browserDictionaryOff() then exit revIDEGenerateDictionaryHTML -- we exit this handler if not using it (tperry 24-7-24)
    --
    local tGeneratedHTMLFile
    put revIDEGetDictionaryUrl(pWhich) into tGeneratedHTMLFile

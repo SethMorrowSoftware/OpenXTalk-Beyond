@@ -52,7 +52,9 @@ end showGuides
 on showTab pTab
    hiliteFrameItem pTab
    put pTab into sTab
-   revIDEEnsureDictionaryUrl pTab
+   -- OXT-Beyond: makes the page and its data first if they are missing
+   -- (with the text dictionary chosen in Preferences they never were)
+   revIDEEnsureBrowserDictionary pTab
    local tUrl
    put "file://" & revIDEGetDictionaryUrl(pTab) into tUrl
    replace " " with "%20" in tUrl

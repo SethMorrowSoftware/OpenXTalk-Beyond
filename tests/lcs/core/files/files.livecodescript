@@ -469,7 +469,11 @@ on TestReadFromProcessUntilEOF
    if the platform is "Win32" then
       put "cmd.exe /c echo foo" into tProcess
    else if the platform is "macos" or the platform contains "linux" then
-      put "/bin/echo foo" into tProcess
+      -- not /bin/echo: the engine reaps its children right after the
+      -- fork, so one that has already exited by then is "not opened"
+      -- (seen on the macOS arm64 runners); a moment's sleep first keeps
+      -- it running until open process has returned
+      put "/bin/sh -c" && quote & "sleep 0.2; echo foo" & quote into tProcess
    else
       testSkip
       exit TestReadFromProcessUntilEOF
