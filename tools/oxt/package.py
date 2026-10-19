@@ -100,6 +100,9 @@ stage folder itself except on macOS):
                examples gallery also gets the Stack Player's stacks
                (tools/web-player/stacks) in Resources/Examples/Showcase
                (SHOWCASE): the repository keeps one copy, the player's.
+               The Release Notes window gets CHANGELOG.md, HISTORY.md and
+               README.md from the repository root in
+               Toolset/palettes/updates/notes (RELEASE_NOTES).
   build        the files of --bin that Installer/package.txt installs on the
                platform, at its installed paths (see Platform and plan_build);
                the development engine becomes OXT-Beyond.exe, OXT-Beyond or
@@ -244,6 +247,14 @@ DOCS_FILES = (
 # --repo does the same for the web IDE.
 SHOWCASE_SOURCE = 'tools/web-player/stacks'
 SHOWCASE = 'Resources/Examples/Showcase/'
+
+# The repository's changelog, history and README, which the Release Notes
+# window shows (ide/Toolset/palettes/updates/revreleasenotes.livecodescript,
+# which reads them from the repository root in a source tree): from the
+# repository root, into this folder of the IDE, so the web IDE (built from
+# a staged layout by tools/web-ide/build_site.py) has them too
+RELEASE_NOTES = ('CHANGELOG.md', 'HISTORY.md', 'README.md')
+RELEASE_NOTES_DIR = 'Toolset/palettes/updates/notes/'
 
 # components Extensions and TimeZone: the same 42 ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
@@ -1338,6 +1349,13 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
     for name, source in showcase_stacks(repo):
         pl.add(Item(tools + SHOWCASE + name, 'ide', source=source,
                     note='%s/%s (Learn\'s examples)' % (SHOWCASE_SOURCE, name)))
+    for name in RELEASE_NOTES:
+        path = os.path.join(repo, name)
+        if not os.path.isfile(path):
+            pl.problems.append('release notes file missing: %s' % path)
+            continue
+        pl.add(Item(tools + RELEASE_NOTES_DIR + name, 'ide', source=path,
+                    note='%s (the Release Notes window)' % name))
 
     # Build outputs
     plan_build(pl)

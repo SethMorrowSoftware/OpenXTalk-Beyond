@@ -1,0 +1,55 @@
+# Preferences, card "Automatic Updates": tOpenReleaseNotes is where every
+# Release Notes in the IDE goes (Help > Release Notes, the About windows'
+# buttons, this card's button and the guides' link). It opened OpenXTalk
+# Lite's update history (updates/ReleaseNotes.oxtstack), which stopped at
+# OXT Lite 1.14. It now opens the Release Notes window in the look of
+# Home, Learn and the About window (updates/revreleasenotes.livecodescript),
+# which shows CHANGELOG.md, the README's notes for each release and
+# HISTORY.md. With the Option (Alt) key down, or when that window is
+# missing or cannot open, the classic stack opens exactly as before. The
+# new window's path is taken from this stack's own file, not from "this
+# stack", which is the defaultStack when the message arrives.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card "Automatic Updates"
+replace:
+|   on tOpenReleaseNotes|
+|   -- opens the release notes stack (tperry 17-8-24)|
+|   put the effective filename of this stack into tUpdHistoryFolder|
+|   if tUpdHistoryFolder contains "revpreferencesgui.rev" then replace "revpreferencesgui.rev" with "" in tUpdHistoryFolder|
+|   put tUpdHistoryFolder & "updates" & slash into tUpdHistoryFolder|
+|   put tUpdHistoryFolder & "ReleaseNotes.oxtstack" into tReleaseNotesStack|
+|   --put tReleaseNotesStack -- debug|
+|   open stack (tReleaseNotesStack)|
+|end tOpenReleaseNotes|
+with:
+|   on tOpenReleaseNotes|
+|   -- opens the release notes stack (tperry 17-8-24)|
+|   -- OXT-Beyond: the Release Notes window, with the changelog; the classic|
+|   -- stack with the Option (Alt) key down, or when the window cannot open|
+|   if tOpenBeyondReleaseNotes() then exit tOpenReleaseNotes|
+|   put the effective filename of this stack into tUpdHistoryFolder|
+|   if tUpdHistoryFolder contains "revpreferencesgui.rev" then replace "revpreferencesgui.rev" with "" in tUpdHistoryFolder|
+|   put tUpdHistoryFolder & "updates" & slash into tUpdHistoryFolder|
+|   put tUpdHistoryFolder & "ReleaseNotes.oxtstack" into tReleaseNotesStack|
+|   --put tReleaseNotesStack -- debug|
+|   open stack (tReleaseNotesStack)|
+|end tOpenReleaseNotes|
+||
+|-- OXT-Beyond: opens updates/revreleasenotes.livecodescript, beside this|
+|-- stack; false when it is not there or cannot open|
+|private function tOpenBeyondReleaseNotes|
+|   local tPath, tHow, tError|
+|   if the optionKey is down then return false|
+|   set the itemDelimiter to slash|
+|   put item 1 to -2 of the effective filename of stack "revPreferencesGUI" & "/updates/revreleasenotes.livecodescript" into tPath|
+|   set the itemDelimiter to comma|
+|   if there is no file tPath then return false|
+|   try|
+|      dispatch "revReleaseNotesShow" to stack tPath|
+|      put it into tHow|
+|   catch tError|
+|      return false|
+|   end try|
+|   return tHow is "handled"|
+|end tOpenBeyondReleaseNotes|

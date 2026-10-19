@@ -1,19 +1,20 @@
 <package version="0.0">
   <name>com.livecode.widget.piechart</name>
   <title>Pie Chart</title>
-  <author>LiveCode</author>
-  <version>1.0.0</version>
+  <author>LiveCode, OpenXTalk.org</author>
+  <version>1.0.1</version>
   <license>community</license>
   <type>widget</type>
   <requires name="com.livecode.canvas"/>
+  <requires name="com.livecode.library.widgetutils"/>
   <requires name="com.livecode.array"/>
   <requires name="com.livecode.list"/>
-  <requires name="com.livecode.widget"/>
   <requires name="com.livecode.arithmetic"/>
   <requires name="com.livecode.binary"/>
   <requires name="com.livecode.logic"/>
   <requires name="com.livecode.string"/>
   <requires name="com.livecode.type"/>
+  <requires name="com.livecode.widget"/>
   <requires name="com.livecode.math"/>
   <requires name="com.livecode.mathfoundation"/>
   <requires name="com.livecode.engine"/>
@@ -21,14 +22,17 @@
   <metadata key="preferredSize">200,150</metadata>
   <metadata key="svgicon">M115 386 c-44 -19 -103 -89 -111 -131 -31 -164 87 -282 251 -251 43 8 113 68 132 113 26 62 24 63 -97 63 l-110 0 0 110 c0 122 -2 124 -65 96z M200 301 l0 -101 101 0 102 0 -6 41 c-10 77 -79 146 -156 156 l-41 6 0 -102z</metadata>
   <property name="sectorValues" get="string" set="string"/>
-  <metadata key="sectorValues.default">1,2,3,5,8,13</metadata>
+  <metadata key="sectorValues.default">1,2,3,4,5,6,7,8,9,10,11,12</metadata>
   <metadata key="sectorValues.label">Values</metadata>
   <property name="sectorLabels" get="string" set="string"/>
-  <metadata key="sectorLabels.default">Jan,Feb,Mar,Apr,May,Jun</metadata>
+  <metadata key="sectorLabels.default">Jan,Feb,Mar,Apr,May,June,July,Aug,Sept,Oct,Nov,Dec</metadata>
   <metadata key="sectorLabels.label">Labels</metadata>
   <property name="showLabels" get="boolean" set="boolean"/>
   <metadata key="showLabels.default">true</metadata>
   <metadata key="showLabels.label">Show sector labels</metadata>
+  <property name="themedLabels" get="boolean" set="boolean"/>
+  <metadata key="themedLabels.default">true</metadata>
+  <metadata key="themedLabels.label">Themed labels</metadata>
   <handler name="OnCreate" parameters="" return="any"/>
   <handler name="OnPaint" parameters="" return="any"/>
   <handler name="OnMouseUp" parameters="" return="any"/>
@@ -37,5 +41,10 @@
   <handler name="colorList" parameters="in any" return="list"/>
   <handler name="setValues" parameters="in string" return="nothing"/>
   <handler name="setLabels" parameters="in string" return="nothing"/>
+  <property name="sectorColors" get="string" set="string"/>
+  <metadata key="sectorColors.default"></metadata>
+  <metadata key="sectorColors.label">Colors</metadata>
+  <handler name="setColorList" parameters="in string" return="nothing"/>
   <handler name="setShowLabels" parameters="in boolean" return="nothing"/>
+  <handler name="setThemedLabels" parameters="in boolean" return="nothing"/>
 </package>

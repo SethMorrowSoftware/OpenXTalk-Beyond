@@ -1,0 +1,16 @@
+import module com.livecode.widget.calendar.support
+  use com.livecode.arithmetic
+  use com.livecode.binary
+  use com.livecode.list
+  use com.livecode.logic
+  use com.livecode.string
+  use com.livecode.type
+  use com.livecode.array
+  use com.livecode.math
+  use com.livecode.mathfoundation
+  handler monthLength(in pYear as Number, in pMonth as Number) returns Number
+  handler previousMonth(in pYear as Number, in pMonth as Number) returns Array
+  handler nextMonth(in pYear as Number, in pMonth as Number) returns Array
+  handler leapYear(in pYear as Number) returns Boolean
+  handler DayOfDate(in pYear as Number, in pMonth as Number, in pDay as Number) returns Number
+end module

@@ -15,9 +15,9 @@ script "oxt_ui_tour"
 -- reports) and its guides, the text dictionary, each pane of Preferences, each card
 -- of the Standalone Settings, the Menu Builder, the
 -- Extension Manager and Builder, the Message Watcher, Search, the Object
--- Library, the Card Navigator, the About window, the IDE's own dialog in
--- the look of Learn (revIDEKitDialog), the answer and ask dialogs and the
--- icon chooser. Not the Start Center: OpenXTalk Lite 1.15
+-- Library, the Card Navigator, the About window, the Release Notes
+-- window, the IDE's own dialog in the look of Learn (revIDEKitDialog),
+-- the answer and ask dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
 -- turned it off (no menu opens it and its Preferences are greyed out),
 -- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
@@ -45,7 +45,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,kit-dialog,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,kit-dialog,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -663,6 +663,18 @@ on tour_about
    close stack tNew
 end tour_about
 
+on tour_release_notes
+   local tBefore, tNew
+   put the openStacks into tBefore
+   -- as Help > Release Notes does
+   send "tOpenReleaseNotes" to card "Automatic Updates" of stack "revPreferencesGUI"
+   tourWait 2000
+   put tourNewStack(tBefore) into tNew
+   if tNew is empty then throw "no Release Notes window opened"
+   tourShotStack tNew, "24b-release-notes"
+   close stack tNew
+end tour_release_notes
+
 -- The IDE's own dialog in the look of Learn (palettes/kitdialog), as the
 -- update check and the warning before a stack opens show it: modal, so it
 -- is snapshot and closed by a message sent before it opens
@@ -687,9 +699,9 @@ end tour_kit_dialog
 on tourShotKitDialog
    local tError
    try
-      tourShotStack "revKitDialog", "24b-kit-dialog"
+      tourShotStack "revKitDialog", "24c-kit-dialog"
    catch tError
-      tourRecord "INFO 24b-kit-dialog FAILED" && tourJoin(tError)
+      tourRecord "INFO 24c-kit-dialog FAILED" && tourJoin(tError)
    end try
    if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
       close stack "revKitDialog"
