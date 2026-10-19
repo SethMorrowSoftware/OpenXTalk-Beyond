@@ -87,7 +87,7 @@ end extensionFinalize
 
 command oxtBeyondCheckForUpdates pInteractive
    if pInteractive is empty then put true into pInteractive
-   local tInfo
+   local tInfo, tChoice
    if pInteractive then set the cursor to watch
    put oxtBeyondLatestRelease() into tInfo
    oxtbRecordCheck tInfo
@@ -98,29 +98,44 @@ command oxtBeyondCheckForUpdates pInteractive
          break
       case "current"
          if pInteractive then
-            answer information "You have the latest release of" && kProductName && "(" & tInfo["current"] & ")." titled kDialogTitle
+            if not oxtbKitSay("You have the latest release", kProductName && tInfo["current"], empty, "check", "emerald") then
+               answer information "You have the latest release of" && kProductName && "(" & tInfo["current"] & ")." titled kDialogTitle
+            end if
          end if
          break
       case "newer"
          if pInteractive then
-            answer information "This copy of" && kProductName && "(" & tInfo["current"] & ") is newer than the latest release (" & tInfo["latest"] & ")." titled kDialogTitle
+            if not oxtbKitSay("This copy is newer than the latest release", \
+                  "You have" && tInfo["current"] & "; the latest release is" && tInfo["latest"], empty, "info", "sky") then
+               answer information "This copy of" && kProductName && "(" & tInfo["current"] & ") is newer than the latest release (" & tInfo["latest"] & ")." titled kDialogTitle
+            end if
          end if
          break
       case "norelease"
          if pInteractive then
-            answer information "No" && kProductName && "release has been published yet." with "Open Releases Page" or "OK" titled kDialogTitle
-            if it is "Open Releases Page" then launch url kReleasesPageUrl
+            if not oxtbKitAsk("No release yet", "No" && kProductName && "release has been published yet.", empty, \
+                  "Open Releases Page" & return & "OK", "info", "sky", tChoice) then
+               answer information "No" && kProductName && "release has been published yet." with "Open Releases Page" or "OK" titled kDialogTitle
+               put it into tChoice
+            end if
+            if tChoice is "Open Releases Page" then launch url kReleasesPageUrl
          end if
          break
       case "busy"
          if pInteractive then
-            answer information "A check for updates is already running. Please try again in a moment." titled kDialogTitle
+            if not oxtbKitSay("A check is already running", "Please try again in a moment.", empty, "rotate-cw", "sky") then
+               answer information "A check for updates is already running. Please try again in a moment." titled kDialogTitle
+            end if
          end if
          break
       default
          if pInteractive then
-            answer warning "Could not check for updates." & return & return & tInfo["error"] with "Open Releases Page" or "OK" titled kDialogTitle
-            if it is "Open Releases Page" then launch url kReleasesPageUrl
+            if not oxtbKitAsk("Could not check for updates", empty, tInfo["error"], \
+                  "Open Releases Page" & return & "OK", "triangle-alert", "rose", tChoice) then
+               answer warning "Could not check for updates." & return & return & tInfo["error"] with "Open Releases Page" or "OK" titled kDialogTitle
+               put it into tChoice
+            end if
+            if tChoice is "Open Releases Page" then launch url kReleasesPageUrl
          end if
          break
    end switch
@@ -269,7 +284,7 @@ private function oxtbUnreadable
 end oxtbUnreadable
 
 private command oxtbShowUpdate pInfo
-   local tPrompt, tExcerpt, tName
+   local tPrompt, tExcerpt, tName, tKitText, tChoice
    put kProductName && pInfo["latest"] && "is available. You have" && pInfo["current"] & "." into tPrompt
    -- The release job titles releases "OXT-Beyond <version>", which the first
    -- line already says; only show a name that says more than that.
@@ -284,11 +299,61 @@ private command oxtbShowUpdate pInfo
       put return & return & tExcerpt after tPrompt
    end if
    put return & return & "The release page has the downloads and the full notes." after tPrompt
-   answer information tPrompt with "Open Release Page" or "Later" titled kDialogTitle
-   if it is "Open Release Page" then
+   -- OXT-Beyond: the same, in the look of Learn (oxtbKitAsk)
+   put tName into tKitText
+   if tKitText is empty or oxtbStripV(tName) is pInfo["latest"] or tName is (kProductName && pInfo["latest"]) \
+         or tName is (kProductName && "v" & pInfo["latest"]) then
+      put empty into tKitText
+   end if
+   if tExcerpt is not empty then
+      if tKitText is not empty then put return & return after tKitText
+      put "What's new:" & return & tExcerpt after tKitText
+   end if
+   if tKitText is not empty then put return & return after tKitText
+   put "The release page has the downloads and the full notes." after tKitText
+   if not oxtbKitAsk(kProductName && pInfo["latest"] && "is available", "You have" && pInfo["current"], tKitText, \
+         "Later" & return & "Open Release Page", "rocket", "violet", tChoice) then
+      answer information tPrompt with "Open Release Page" or "Later" titled kDialogTitle
+      put it into tChoice
+   end if
+   if tChoice is "Open Release Page" then
       launch url pInfo["url"]
    end if
 end oxtbShowUpdate
+
+-- OXT-Beyond: the update check's messages in the look of Learn, Home and
+-- the About window (the IDE's revIDEKitDialog). Each returns false when
+-- that dialog is not shown (with the Option (Alt) key down, in the web
+-- IDE, when the IDE has no such dialog), and the caller shows its answer
+-- dialog as before. rChoice gets the button pressed, as answer's it.
+private function oxtbKitAsk pHeading, pSubheading, pText, pButtons, pIcon, pTone, @rChoice
+   local tSpec, tShown, tError
+   if the optionKey is down then
+      return false
+   end if
+   put kDialogTitle into tSpec["title"]
+   put pHeading into tSpec["heading"]
+   put pSubheading into tSpec["subheading"]
+   put pText into tSpec["text"]
+   put pButtons into tSpec["buttons"]
+   put line 1 of pButtons into tSpec["cancel"]
+   if the number of lines of pButtons > 1 and line -1 of pButtons is "OK" then
+      put "OK" into tSpec["cancel"]
+   end if
+   put pIcon into tSpec["icon"]
+   put pTone into tSpec["tone"]
+   try
+      put revIDEKitDialog(tSpec, rChoice) into tShown
+   catch tError
+      put false into tShown
+   end try
+   return tShown is true
+end oxtbKitAsk
+
+private function oxtbKitSay pHeading, pSubheading, pText, pIcon, pTone
+   local tChoice
+   return oxtbKitAsk(pHeading, pSubheading, pText, "OK", pIcon, pTone, tChoice)
+end oxtbKitSay
 
 private command oxtbRecordCheck pInfo
    if pInfo["status"] is among the items of "error,busy" then exit oxtbRecordCheck
