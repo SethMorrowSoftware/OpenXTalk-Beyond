@@ -87,6 +87,26 @@ local sLeftOut
 -- The pieces of the last _Match
 local sMatch
 
+-- The IDE loads this library at startup (revInternal__LoadLibrary, which
+-- sends extensionInitialize); without these handlers it was loaded but
+-- never put in the message path, so File > Import Stack could not call it
+-- and stopped without a word
+on extensionInitialize
+   if the target is not me then
+      pass extensionInitialize
+   end if
+   if the long id of me is not among the lines of the backScripts then
+      insert the script of me into back
+   end if
+end extensionInitialize
+
+on extensionFinalize
+   if the target is not me then
+      pass extensionFinalize
+   end if
+   remove the script of me from back
+end extensionFinalize
+
 /*
 Rewrites the HyperTalk scripts of a stack the engine has just imported
 so that they compile here.
@@ -311,10 +331,18 @@ private function _AddLibrary pStack
       put kLibraryName && tCount into tName
    end repeat
    if tName is not among the lines of the substacks of pStack then
-      create invisible stack tName
-      set the mainStack of it to the short name of pStack
+      -- made under a name no other stack has, as the library of a stack
+      -- imported before would otherwise be the one "it" names
+      local tTemp
+      put "revHyperCardLibrary" & the milliseconds into tTemp
+      create invisible stack tTemp
+      set the mainStack of stack tTemp to the short name of pStack
+      set the name of stack tTemp of pStack to tName
       set the script of stack tName of pStack to revHyperCardLibraryScript()
       set the uHyperCard["library"] of stack tName of pStack to true
+      -- create opens it: closed, it is not the topStack the IDE's
+      -- palettes and menus act on, and it stays a substack
+      close stack tName of pStack
    end if
    set the behavior of pStack to the long id of stack tName of pStack
    return "Added: the substack" && quote & tName & quote && "as the stack's behavior"

@@ -50,6 +50,18 @@ private function _Image pName
    return TestGetInputFile("hypercard/forks/" & pName)
 end _Image
 
+on TestHyperCardImageLoadedByIDE
+   -- the IDE loads its libraries by sending extensionInitialize
+   -- (revInternal__LoadLibrary); the library must then be in the message
+   -- path, or File > Import Stack cannot call it
+   local tLib
+   put the long id of stack "revHyperCardDiskImageLibrary" into tLib
+   send "extensionInitialize" to stack "revHyperCardDiskImageLibrary"
+   TestAssert "extensionInitialize puts the library in the backScripts", tLib is among the lines of the backScripts
+   send "extensionFinalize" to stack "revHyperCardDiskImageLibrary"
+   TestAssert "extensionFinalize takes it out", tLib is not among the lines of the backScripts
+end TestHyperCardImageLoadedByIDE
+
 on TestHyperCardImageList
    local tImage, tList
    repeat for each item tImage in "Stacks.hfs,Stacks.dc42,Stacks.apm"

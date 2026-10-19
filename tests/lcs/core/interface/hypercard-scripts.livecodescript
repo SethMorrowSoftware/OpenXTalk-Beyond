@@ -214,6 +214,38 @@ on TestHyperCardScriptsLibrary
    _Close tStack
 end TestHyperCardScriptsLibrary
 
+on TestHyperCardScriptsLoadedByIDE
+   -- the IDE loads its libraries by sending extensionInitialize
+   -- (revInternal__LoadLibrary); the library must then be in the message
+   -- path, or File > Import Stack cannot call it
+   local tLib
+   put the long id of stack "revHyperCardScriptLibrary" into tLib
+   send "extensionInitialize" to stack "revHyperCardScriptLibrary"
+   TestAssert "extensionInitialize puts the library in the backScripts", tLib is among the lines of the backScripts
+   send "extensionFinalize" to stack "revHyperCardScriptLibrary"
+   TestAssert "extensionFinalize takes it out", tLib is not among the lines of the backScripts
+end TestHyperCardScriptsLoadedByIDE
+
+on TestHyperCardScriptsTwoImports
+   -- each imported stack gets its own library, closed, whatever library
+   -- of a stack imported before is in memory
+   local tFirst, tSecond
+   put "HCFirst" & the milliseconds into tFirst
+   put "HCSecond" & the milliseconds into tSecond
+   lock messages
+   create invisible stack tFirst
+   create invisible stack tSecond
+   unlock messages
+   get revHyperCardFixScripts(the long id of stack tFirst)
+   get revHyperCardFixScripts(the long id of stack tSecond)
+   TestAssert "the first stack has its library", "HyperCard Library" is among the lines of the substacks of stack tFirst
+   TestAssert "the second stack has its own library", "HyperCard Library" is among the lines of the substacks of stack tSecond
+   TestAssert "the second library is marked as the library", the uHyperCard["library"] of stack "HyperCard Library" of stack tSecond is true
+   TestAssert "the libraries are not left open", "HyperCard Library" is not among the lines of the openStacks
+   _Close tFirst
+   _Close tSecond
+end TestHyperCardScriptsTwoImports
+
 on TestHyperCardScriptsStandIns
    -- calls to the externals stacks call most reach the library's
    -- stand-ins (those that need no dialog)
