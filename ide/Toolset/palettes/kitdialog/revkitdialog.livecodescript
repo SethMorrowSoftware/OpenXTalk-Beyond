@@ -52,6 +52,7 @@ script "revKitDialog"
 -- them each time it opens. Its name begins with "rev", so the IDE treats it
 -- as one of its own windows.
 
+-- The width it opens at, and the narrowest it can be made
 constant kWidth = 600
 constant kHeroHeight = 104
 constant kPad = 24
@@ -77,6 +78,12 @@ local sButtons, sChoices
 local sPeeking
 -- The text each code panel's Copy copies, by the panel's name
 local sCopy
+-- The window can be made bigger: wider, everything is laid out again to
+-- its width; taller, the height it gains (sExtra) goes to the first panel
+-- that scrolls, the text or the code, so that more of it shows. sNatural
+-- is its height with nothing gained, and sBuilding stops a rebuild from
+-- answering the resize it makes
+local sWidth, sExtra, sNatural, sBuilding
 
 ################################################################################
 #
@@ -93,13 +100,16 @@ command revKitDialogAsk pSpec
    put sSpec["cancel"] into sChoice
    put false into sPeeking
    put empty into sCopy
+   put kWidth into sWidth
+   put 0 into sExtra
+   put false into sBuilding
    kdUseKit
    modal me
    return sChoice
 end revKitDialogAsk
 
 on preOpenStack
-   kdBuild
+   kdBuild true
    kdPlace
    -- (a script-only stack is made invisible when it is loaded)
    show me
@@ -113,6 +123,40 @@ end openStack
 on closeStack
    lkStopTicking
 end closeStack
+
+-- Laid out again for its new size (see sWidth), in place: what the panel
+-- showed, the text or the peeked file, and where it was scrolled to stay
+on resizeStack pWidth, pHeight
+   local tPeeking, tScroll, tField
+   if sBuilding or sSpec is empty then
+      pass resizeStack
+   end if
+   put sPeeking into tPeeking
+   if tPeeking then
+      put "peekFile_code" into tField
+   else
+      put "panel" into tField
+   end if
+   if there is a field tField of me then
+      put the vScroll of field tField of me into tScroll
+   end if
+   put max(kWidth, pWidth) into sWidth
+   put max(0, pHeight - sNatural) into sExtra
+   put false into sPeeking
+   kdBuild false
+   if tPeeking then
+      kdPeek
+   end if
+   if tScroll is not empty and there is a field tField of me then
+      set the vScroll of field tField of me to tScroll
+      if tPeeking then
+         lkScrollSync "peekFile_thumb"
+      else
+         lkScrollSync "panelThumb"
+      end if
+   end if
+   pass resizeStack
+end resizeStack
 
 on returnKey
    kdPress the number of lines of sButtons
@@ -169,8 +213,13 @@ end kdPlace
 # Building
 #
 
-private command kdBuild
-   local tSaved, tTone, tObj, tTop, tHeight, tIndex, tTitle, tX, tRect
+-- pSize is true when the window takes the size of what it shows (when it
+-- opens), false when it keeps the size the user made it
+private command kdBuild pSize
+   local tSaved, tTone, tObj, tTop, tHeight, tIndex, tTitle, tX, tRect, tGrow
+   put true into sBuilding
+   -- (the first panel that scrolls takes the height gained)
+   put sExtra into tGrow
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
    lock screen
@@ -195,9 +244,10 @@ private command kdBuild
       put sSpec["heading"] into tTitle
    end if
    set the label of me to tTitle
-   set the resizable of me to false
    set the destroyStack of me to true
-   set the rect of me to 0, 0, kWidth, 400
+   if pSize then
+      set the rect of me to 0, 0, sWidth, 400
+   end if
    set the backgroundColor of me to lkColor("bg")
    set the linkColor of me to lkColor("violet")
    set the linkHiliteColor of me to lkColor("pink")
@@ -205,8 +255,8 @@ private command kdBuild
    set the underlineLinks of me to false
 
    -- The header
-   put lkBox("heroBg", lkR(0, 0, kWidth, kHeroHeight), lkColor("side"), 0, empty) into tObj
-   lkGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", kWidth & "," & kHeroHeight
+   put lkBox("heroBg", lkR(0, 0, sWidth, kHeroHeight), lkColor("side"), 0, empty) into tObj
+   lkGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", sWidth & "," & kHeroHeight
    put lkBox("heroMark", lkR(kPad, 26, kPad + 52, 78), lkColor(tTone), 26, empty) into tObj
    lkGradient tObj, lkMix(lkColor(tTone), "255,255,255", 0.2) & "|" & lkMix(lkColor(tTone), lkColor("ink"), 0.15), \
          kPad & ",26", (kPad + 52) & ",78"
@@ -216,10 +266,10 @@ private command kdBuild
    end if
    put kPad + 72 into tX
    if sSpec["subheading"] is empty then
-      put lkLabel("heroTitle", lkR(tX, 38, kWidth - kPad, 66), sSpec["heading"], 21, "255,255,255", empty) into tObj
+      put lkLabel("heroTitle", lkR(tX, 38, sWidth - kPad, 66), sSpec["heading"], 21, "255,255,255", empty) into tObj
    else
-      put lkLabel("heroTitle", lkR(tX, 26, kWidth - kPad, 54), sSpec["heading"], 21, "255,255,255", empty) into tObj
-      put lkLabel("heroSub", lkR(tX, 58, kWidth - kPad, 78), sSpec["subheading"], 13, lkColor("sideInk"), empty) into tObj
+      put lkLabel("heroTitle", lkR(tX, 26, sWidth - kPad, 54), sSpec["heading"], 21, "255,255,255", empty) into tObj
+      put lkLabel("heroSub", lkR(tX, 58, sWidth - kPad, 78), sSpec["subheading"], 13, lkColor("sideInk"), empty) into tObj
       lkEllipsize tObj
    end if
    lkEllipsize the long id of field "heroTitle"
@@ -233,9 +283,9 @@ private command kdBuild
 
    -- The panel of text, as tall as its text up to kMaxPanel
    if sSpec["text"] is not empty or sSpec["peek"] is not empty then
-      put lkBox("panelBg", lkR(kPad - 6, tTop, kWidth - kPad + 6, tTop + 100), lkColor("panel"), 14, empty) into tObj
+      put lkBox("panelBg", lkR(kPad - 6, tTop, sWidth - kPad + 6, tTop + 100), lkColor("panel"), 14, empty) into tObj
       lkBorder tObj, lkColor("line")
-      put lkLabel("panel", lkR(kPad + 8, tTop + 12, kWidth - kPad - 18, tTop + 88), empty, 13, lkColor("soft"), empty) into tObj
+      put lkLabel("panel", lkR(kPad + 8, tTop + 12, sWidth - kPad - 18, tTop + 88), empty, 13, lkColor("soft"), empty) into tObj
       set the textHeight of tObj to 19
       set the htmlText of tObj to kdTextHtml(sSpec["text"])
       put max(kMinPanel, min(kMaxPanel, the formattedHeight of tObj + 5)) into tHeight
@@ -243,8 +293,10 @@ private command kdBuild
          -- (room for the file, without the window growing when it shows)
          put max(tHeight, kPeekHeight - 24) into tHeight
       end if
+      add tGrow to tHeight
+      put 0 into tGrow
       set the rect of tObj to item 1 of the rect of tObj, tTop + 8, item 3 of the rect of tObj, tTop + 8 + tHeight
-      set the rect of graphic "panelBg" to kPad - 6, tTop, kWidth - kPad + 6, tTop + tHeight + 20
+      set the rect of graphic "panelBg" to kPad - 6, tTop, sWidth - kPad + 6, tTop + tHeight + 20
       set the vScrollbar of tObj to true
       lkScroller "panelThumb", tObj, "100,116,139", 45, empty
       put tTop + tHeight + 20 + 14 into tTop
@@ -252,15 +304,16 @@ private command kdBuild
 
    -- xTalk, in Learn's colours
    if sSpec["code"] is not empty then
-      put kdCodeBlock("code", tTop, "xTalk", lkCodeHtml(sSpec["code"]), sSpec["code"], kMaxPanel) + 14 into tTop
+      put kdCodeBlock("code", tTop, "xTalk", lkCodeHtml(sSpec["code"]), sSpec["code"], kMaxPanel, tGrow) + 14 into tTop
+      put 0 into tGrow
    end if
    if sSpec["moreCode"] is not empty then
       if sSpec["moreCodeLabel"] is not empty then
-         put lkLabel("moreLabel", lkR(kPad - 4, tTop - 4, kWidth - kPad, tTop + 14), sSpec["moreCodeLabel"], 13, lkColor("ink"), empty) into tObj
+         put lkLabel("moreLabel", lkR(kPad - 4, tTop - 4, sWidth - kPad, tTop + 14), sSpec["moreCodeLabel"], 13, lkColor("ink"), empty) into tObj
          set the textStyle of tObj to "bold"
          add 22 to tTop
       end if
-      put kdCodeBlock("more", tTop, "xTalk", lkCodeHtml(sSpec["moreCode"]), sSpec["moreCode"], 200) + 14 into tTop
+      put kdCodeBlock("more", tTop, "xTalk", lkCodeHtml(sSpec["moreCode"]), sSpec["moreCode"], 200, 0) + 14 into tTop
    end if
 
    -- Text as it is, on a code panel
@@ -269,7 +322,8 @@ private command kdBuild
       if tObj is empty then
          put "Text" into tObj
       end if
-      put kdCodeBlock("detail", tTop, tObj, kdPlainHtml(sSpec["detail"]), sSpec["detail"], kMaxPanel) + 14 into tTop
+      put kdCodeBlock("detail", tTop, tObj, kdPlainHtml(sSpec["detail"]), sSpec["detail"], kMaxPanel, tGrow) + 14 into tTop
+      put 0 into tGrow
    end if
 
    -- The choices, a tile each
@@ -281,7 +335,20 @@ private command kdBuild
    -- The foot
    put max(tTop + 6, kHeroHeight + 60) into tTop
    kdButtons tTop, tTone
-   set the rect of me to 0, 0, kWidth, the bottom of group ("button" & the number of lines of sButtons) + 20
+   if pSize then
+      put the bottom of group ("button" & the number of lines of sButtons) + 20 into sNatural
+      set the rect of me to 0, 0, sWidth, sNatural
+      -- (with no panel to take the height, it can only be made wider)
+      set the minWidth of me to kWidth
+      set the minHeight of me to sNatural
+      if sSpec["text"] & sSpec["peek"] & sSpec["code"] & sSpec["detail"] is not empty then
+         set the maxHeight of me to 65535
+      else
+         set the maxHeight of me to sNatural
+      end if
+      set the resizable of me to true
+   end if
+   put false into sBuilding
    unlock messages
    unlock screen
    if tSaved is not empty and there is a stack tSaved then
@@ -314,18 +381,18 @@ private function kdCallout pTop
          put "triangle-alert" into tIcon
          put "Caution" into tWord
    end switch
-   put lkBox("callBg", lkR(kPad - 6, pTop, kWidth - kPad + 6, pTop + 60), lkMix("255,255,255", tAccent, 0.07), 12, empty) into tBox
+   put lkBox("callBg", lkR(kPad - 6, pTop, sWidth - kPad + 6, pTop + 60), lkMix("255,255,255", tAccent, 0.07), 12, empty) into tBox
    lkBorder tBox, lkMix("255,255,255", tAccent, 0.3)
    put lkBox("callBar", lkR(kPad - 6, pTop, kPad - 2, pTop + 60), tAccent, 0, empty) into tBar
    get lkIcon("callIcon", tIcon, tAccent, lkR(kPad + 10, pTop + 13, kPad + 28, pTop + 31), empty)
-   put lkLabel("callWord", lkR(kPad + 38, pTop + 13, kWidth - kPad, pTop + 31), tWord, 13, lkMix(tAccent, lkColor("ink"), 0.3), empty) into tObj
+   put lkLabel("callWord", lkR(kPad + 38, pTop + 13, sWidth - kPad, pTop + 31), tWord, 13, lkMix(tAccent, lkColor("ink"), 0.3), empty) into tObj
    set the textStyle of tObj to "bold"
-   put lkLabel("callText", lkR(kPad + 38, pTop + 36, kWidth - kPad - 6, pTop + 56), sSpec["callout"], 13, \
+   put lkLabel("callText", lkR(kPad + 38, pTop + 36, sWidth - kPad - 6, pTop + 56), sSpec["callout"], 13, \
          lkMix(tAccent, lkColor("ink"), 0.55), empty) into tObj
    set the textHeight of tObj to 19
    set the height of tObj to the formattedHeight of tObj + 5
    set the top of tObj to pTop + 36 - 4
-   set the rect of tBox to kPad - 6, pTop, kWidth - kPad + 6, the bottom of tObj + 10
+   set the rect of tBox to kPad - 6, pTop, sWidth - kPad + 6, the bottom of tObj + 10
    -- (the bar runs down the panel's left, inside its rounded corners)
    set the rect of tBar to kPad - 5, pTop + 10, kPad - 2, the bottom of tObj
    return the bottom of tBox
@@ -333,12 +400,13 @@ end kdCallout
 
 -- A code panel as Learn draws one: dark, with three dots, a word for what
 -- it holds and Copy, and the text in the code font, which scrolls when it
--- is taller than pMax; pHtml is what it shows, pText what Copy copies.
--- The panel is group pName; returns its bottom
-private function kdCodeBlock pName, pTop, pKind, pHtml, pText, pMax
+-- is taller than pMax; pHtml is what it shows, pText what Copy copies,
+-- and pGrow the height it takes beyond that (see sExtra). The panel is
+-- group pName; returns its bottom
+private function kdCodeBlock pName, pTop, pKind, pHtml, pText, pMax, pGrow
    local tBox, tObj, tWidth, tHeight, tLeft, tRight
    put kPad - 6 into tLeft
-   put kWidth - kPad + 6 into tRight
+   put sWidth - kPad + 6 into tRight
    get lkGroup(pName, lkR(tLeft, pTop, tRight, pTop + 100), empty)
    put lkBox(pName & "_bg", lkR(tLeft, pTop, tRight, pTop + 100), lkColor("code"), 14, pName) into tBox
    get lkOval(pName & "_d1", lkR(tLeft + 16, pTop + 14, tLeft + 26, pTop + 24), "248,113,113", pName)
@@ -356,7 +424,7 @@ private function kdCodeBlock pName, pTop, pKind, pHtml, pText, pMax
    put lkCodeField(pName & "_code", lkR(tLeft + 20, pTop + kCodeHead, tRight - 20, pTop + 60), 13, 20, pName) into tObj
    set the dontWrap of tObj to false
    set the htmlText of tObj to pHtml
-   put max(20, min(pMax, the formattedHeight of tObj + 5)) into tHeight
+   put max(20, min(pMax, the formattedHeight of tObj + 5)) + pGrow into tHeight
    set the rect of tObj to tLeft + 20, pTop + kCodeHead - 4, tRight - 20, pTop + kCodeHead - 4 + tHeight
    set the vScrollbar of tObj to true
    lkScroller pName & "_thumb", tObj, "203,213,225", 55, pName
@@ -392,15 +460,17 @@ private function kdPlainHtml pText
    return tHtml
 end kdPlainHtml
 
--- A word cut into lines of at most kBreakChars characters, each after the
--- last slash in it where there is one
+-- A word cut into lines of at most kBreakChars characters (more as the
+-- window is made wider, a character to 8 pixels), each after the last
+-- slash in it where there is one
 private function kdBreakWord pWord
-   local tOut, tPart, tAt
-   repeat while the number of chars of pWord > kBreakChars
-      put char 1 to kBreakChars of pWord into tPart
+   local tOut, tPart, tAt, tMost
+   put kBreakChars + (sWidth - kWidth) div 8 into tMost
+   repeat while the number of chars of pWord > tMost
+      put char 1 to tMost of pWord into tPart
       put kdLastOffset("/", tPart) into tAt
-      if tAt < kBreakChars div 2 then
-         put kBreakChars into tAt
+      if tAt < tMost div 2 then
+         put tMost into tAt
       end if
       put char 1 to tAt of pWord & return after tOut
       delete char 1 to tAt of pWord
@@ -432,25 +502,25 @@ private function kdChoice pIndex, pLine, pTop, pTone
    set the itemDelimiter to comma
    put lkColor(pTone) into tAccent
    put "choice" & pIndex into tName
-   get lkGroup(tName, lkR(kPad - 6, pTop, kWidth - kPad + 6, pTop + 60), empty)
-   put lkBox(tName & "_bg", lkR(kPad - 6, pTop, kWidth - kPad + 6, pTop + 60), lkColor("panel"), 14, tName) into tObj
+   get lkGroup(tName, lkR(kPad - 6, pTop, sWidth - kPad + 6, pTop + 60), empty)
+   put lkBox(tName & "_bg", lkR(kPad - 6, pTop, sWidth - kPad + 6, pTop + 60), lkColor("panel"), 14, tName) into tObj
    lkBorder tObj, lkColor("line")
    put lkBox(tName & "_iconBg", lkR(kPad + 8, pTop + 12, kPad + 44, pTop + 48), lkMix("255,255,255", tAccent, 0.12), 18, tName) into tObj
    if tIcon is not empty then
       get lkIcon(tName & "_icon", tIcon, tAccent, lkR(kPad + 16, pTop + 20, kPad + 36, pTop + 40), tName)
    end if
-   put lkLabel(tName & "_label", lkR(kPad + 58, pTop + 10, kWidth - kPad - 8, pTop + 30), tTitle, 14, lkColor("ink"), tName) into tObj
+   put lkLabel(tName & "_label", lkR(kPad + 58, pTop + 10, sWidth - kPad - 8, pTop + 30), tTitle, 14, lkColor("ink"), tName) into tObj
    set the textStyle of tObj to "bold"
    lkEllipsize tObj
-   put lkLabel(tName & "_text", lkR(kPad + 58, pTop + 32, kWidth - kPad - 8, pTop + 50), tText, 12, lkColor("soft"), tName) into tObj
+   put lkLabel(tName & "_text", lkR(kPad + 58, pTop + 32, sWidth - kPad - 8, pTop + 50), tText, 12, lkColor("soft"), tName) into tObj
    set the textHeight of tObj to 17
    -- (taller than its text by a few pixels, so that no descender of its
    -- last line is cut)
    set the height of tObj to the formattedHeight of tObj + 5
    set the top of tObj to pTop + 32 - 4
    put max(pTop + 60, the bottom of tObj + 10) into tBottom
-   set the rect of graphic (tName & "_bg") to kPad - 6, pTop, kWidth - kPad + 6, tBottom
-   set the rect of group tName to kPad - 6, pTop, kWidth - kPad + 6, tBottom
+   set the rect of graphic (tName & "_bg") to kPad - 6, pTop, sWidth - kPad + 6, tBottom
+   set the rect of group tName to kPad - 6, pTop, sWidth - kPad + 6, tBottom
    put tName & "_bg" into tLook["bg"]
    put lkColor("panel") into tLook["bg0"]
    put lkMix("255,255,255", tAccent, 0.06) into tLook["bg1"]
@@ -486,11 +556,11 @@ private command kdButtons pTop, pTone
    end repeat
    -- Rows from the bottom one up, each filled from the right
    put 1 into tRows
-   put kWidth - kPad + 6 into tRight
+   put sWidth - kPad + 6 into tRight
    repeat with tIndex = tCount down to 1
-      if tRight - tWidths[tIndex] < tLeftEdge and tRight < kWidth - kPad + 6 then
+      if tRight - tWidths[tIndex] < tLeftEdge and tRight < sWidth - kPad + 6 then
          add 1 to tRows
-         put kWidth - kPad + 6 into tRight
+         put sWidth - kPad + 6 into tRight
       end if
       put tRows into tRow[tIndex]
       set the right of group ("button" & tIndex) to tRight
@@ -611,7 +681,7 @@ private command kdPeek
          end if
       end if
       put the rect of graphic "panelBg" into tRect
-      get kdCodeBlock("peekFile", item 2 of tRect, "Scripts", tHtml, tData, item 4 of tRect - item 2 of tRect - kCodeHead - 8)
+      get kdCodeBlock("peekFile", item 2 of tRect, "Scripts", tHtml, tData, item 4 of tRect - item 2 of tRect - kCodeHead - 8, 0)
    end if
    put not sPeeking into sPeeking
    set the visible of group "peekFile" to sPeeking

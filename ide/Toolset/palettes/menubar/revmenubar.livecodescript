@@ -1906,6 +1906,11 @@ end revMenubarWindowMenu
 
 private function revMenubarHelpMenu pContext
    local tHelp
+   -- OXT-Beyond: Home, the IDE's welcome stack (the web IDE adds the same
+   -- item in revWebIDEMenu)
+   if not revEnvironmentIsWeb() then
+      put "Welcome to OXT-Beyond" & return & "-" & return after tHelp
+   end if
    put "Dictionary/|Dictionary" & return after tHelp  --main dictionary
    put "Dictionary Online" & return after tHelp  --online dictionary
    put "-" & return after tHelp
@@ -3026,10 +3031,13 @@ on revMenubarHelpMenuPick pWhich
    local tPick
    put item 1 of pWhich into tPick
    switch tPick
-      -- OXT-Beyond: in the web IDE only (revWebIDEMenu): Home, its welcome
-      -- stack
+      -- OXT-Beyond: Home, the IDE's welcome stack
       case "Welcome to OXT-Beyond"
-         revWebIDEShowHome
+         if revEnvironmentIsWeb() then
+            revWebIDEShowHome
+         else
+            send "tOpenHome" to this stack
+         end if
          break
       case "Dictionary"
          if the shiftkey is down then revIDEDocumentationLoad "API", "Script"
@@ -3324,6 +3332,26 @@ end tOpenNavigator
 on tNavigatorPick
    tOpenNavigator
 end tNavigatorPick
+
+-- OXT-Beyond: Help > Welcome to OXT-Beyond on the desktop opens Home, the
+-- web IDE's welcome stack (palettes/web home), or brings it to the front;
+-- the web IDE opens it through revWebIDELibrary. home.livecodescript sends
+-- it at startup when the user switched Home's "Show Home at startup" on
+on tOpenHome
+   local tPath
+   if "revWebHome" is among the lines of the openStacks then
+      go stack "revWebHome"
+      exit tOpenHome
+   end if
+   if there is a stack "revWebHome" then
+      modeless stack "revWebHome"
+      exit tOpenHome
+   end if
+   put revIDESpecialFolderPath("Toolset") & "/palettes/web home/revwebhome.livecodescript" into tPath
+   if there is a file tPath then
+      modeless stack tPath
+   end if
+end tOpenHome
 
 on tOpenAbout  --tp 24-1, open 'About' stack
    local tFilePath

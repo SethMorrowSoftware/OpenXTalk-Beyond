@@ -1,11 +1,22 @@
 script "revWebHome"
--- OXT-Beyond: Home, the web IDE's welcome stack.
+-- OXT-Beyond: Home, the IDE's welcome stack.
 --
--- In the spirit of HyperCard's Home stack: the window the web IDE opens
--- with, which shows what a stack can do in a browser with live demos, and
--- leads to everything else (a new stack, the lessons, the examples, the
--- Dictionary). It is part of the web IDE only: revWebIDELibrary, which is
--- loaded only in a browser, opens it (revWebIDEShowHome).
+-- In the spirit of HyperCard's Home stack: the window that shows what a
+-- stack can do with live demos, and leads to everything else (a new
+-- stack, the lessons, the examples, the Dictionary). Help > Welcome to
+-- OXT-Beyond opens it: in the web IDE through revWebIDELibrary
+-- (revWebIDEShowHome), which also opens it at startup unless the user
+-- turned that off, and on the desktop through revMenubar (tOpenHome),
+-- which opens it at startup only when the user turned that on (it opened
+-- nothing at startup before). Where a page speaks of the browser, the
+-- desktop has its own words (hmOnWeb).
+--
+-- The window can be resized. The sidebar runs down its left side, with
+-- its foot at the bottom, and the pages keep their own size, in the middle
+-- of the room on its right (hmLayout). Every page is built and animated in
+-- the coordinates of a 1024 by 640 window; sOX and sOY are how far the
+-- pages are from there, and the few things a frame places by number add
+-- them.
 --
 -- Home has the look of the web tour (the Stack Player's "OXT-Beyond on
 -- the Web"), so that the stacks a newcomer meets look like one family: a
@@ -24,7 +35,7 @@ script "revWebHome"
 
 constant kWidth = 1024
 constant kHeight = 640
-constant kContent = "200,0,1024,640"
+constant kSide = 200
 constant kPages = "home,speak,move,draw,web,app"
 constant kFrame = 16
 constant kAwayFrame = 100
@@ -52,6 +63,9 @@ local sHero, sSpeak, sMove, sDraw, sWeb, sApp
 local sBx, sBy, sBvx, sBvy, sBr, sBlife, sBage, sBhue, sBshown, sBcolor, sBkind
 local sFpsFrames, sFpsStart, sFps
 local sTipAt, sTipIndex
+-- How far the pages are from where a 1024 by 640 window has them, and the
+-- window's size they were laid out for
+local sOX, sOY, sLaidW, sLaidH
 
 ################################################################################
 #
@@ -91,6 +105,109 @@ on closeStack
    end if
 end closeStack
 
+on resizeStack pWidth, pHeight
+   hmLayout pWidth, pHeight
+   pass resizeStack
+end resizeStack
+
+-- True in the web IDE, where Home speaks of the browser
+private function hmOnWeb
+   return the platform is "HTML5"
+end hmOnWeb
+
+-- pWeb in the web IDE, pDesktop on the desktop
+private function hmPick pWeb, pDesktop
+   if hmOnWeb() then
+      return pWeb
+   end if
+   return pDesktop
+end hmPick
+
+-- The room the pages are in, right of the sidebar
+private function hmContentRect
+   return kSide & ",0," & the width of me & "," & the height of me
+end hmContentRect
+
+-- The stage of the Move page, where the window has it
+private function hmStageRect
+   return (224 + sOX) & "," & (96 + sOY) & "," & (1000 + sOX) & "," & (452 + sOY)
+end hmStageRect
+
+-- Lays Home out for a window pWidth by pHeight: the sidebar as tall as
+-- the window, its foot at the bottom, and the pages and the header in the
+-- middle of the room on the right. Things are moved by how far they are
+-- from where they were, so it can run as often as the window changes.
+private command hmLayout pWidth, pHeight
+   local tSaved, tOX, tOY, tDX, tDY, tFoot, tPage, tName, tGroups
+   if there is not a group "pg_home" of me then
+      exit hmLayout
+   end if
+   if sLaidW is empty then
+      put kWidth into sLaidW
+      put kHeight into sLaidH
+      put 0 into sOX
+      put 0 into sOY
+   end if
+   put max(0, (pWidth - kWidth) div 2) into tOX
+   put max(0, (pHeight - kHeight) div 2) into tOY
+   put tOX - sOX into tDX
+   put tOY - sOY into tDY
+   put pHeight - sLaidH into tFoot
+   put the defaultStack into tSaved
+   set the defaultStack to the short name of me
+   lock screen
+   lock messages
+   -- The sidebar
+   set the rect of graphic "sideBg" to 0, 0, kSide, pHeight
+   hmGradientPoints the long id of graphic "sideBg", "0,0", "0," & pHeight
+   if tFoot is not 0 then
+      repeat for each item tName in "startup,back,next"
+         set the top of group tName to the top of group tName + tFoot
+         if sCfg[tName]["top"] is not empty then
+            add tFoot to sCfg[tName]["top"]
+         end if
+      end repeat
+      repeat for each item tName in "navCount,navKeys"
+         set the top of field tName to the top of field tName + tFoot
+      end repeat
+   end if
+   -- The pages, the header and the status line
+   if tDX is not 0 or tDY is not 0 then
+      repeat for each item tPage in kPages
+         put "pg_" & tPage & comma after tGroups
+      end repeat
+      repeat for each item tName in tGroups & "hdr"
+         set the topLeft of group tName to the left of group tName + tDX, the top of group tName + tDY
+      end repeat
+      set the topLeft of field "hdrStatus" to the left of field "hdrStatus" + tDX, the top of field "hdrStatus" + tDY
+      -- (a lit thing that slides in or lifts is put at its own top)
+      repeat for each item tPage in kPages
+         repeat for each line tName in sLiveList[tPage]
+            if sCfg[tName]["top"] is not empty then
+               add tDY to sCfg[tName]["top"]
+            end if
+         end repeat
+      end repeat
+      -- (the line the Speak page offers names a place on its stage)
+      if field "spkInput" is hmSpeakFirstTry() then
+         add tDX to sOX
+         add tDY to sOY
+         put hmSpeakFirstTry() into field "spkInput"
+         subtract tDX from sOX
+         subtract tDY from sOY
+      end if
+   end if
+   put tOX into sOX
+   put tOY into sOY
+   put pWidth into sLaidW
+   put pHeight into sLaidH
+   unlock messages
+   unlock screen
+   if tSaved is not empty and there is a stack tSaved then
+      set the defaultStack to tSaved
+   end if
+end hmLayout
+
 -- Below the menu bar, in the middle of the page
 private command hmPlace
    local tScreen, tTop, tError
@@ -99,10 +216,10 @@ private command hmPlace
    if there is a stack "revMenubar" and the visible of stack "revMenubar" then
       put max(tTop, the bottom of stack "revMenubar" + 44) into tTop
    end if
-   if tTop + kHeight > item 4 of tScreen then
-      put max(item 2 of tScreen + 31, item 4 of tScreen - kHeight) into tTop
+   if tTop + the height of me > item 4 of tScreen then
+      put max(item 2 of tScreen + 31, item 4 of tScreen - the height of me) into tTop
    end if
-   set the topLeft of me to max(item 1 of tScreen, (item 1 of tScreen + item 3 of tScreen - kWidth) div 2), tTop
+   set the topLeft of me to max(item 1 of tScreen, (item 1 of tScreen + item 3 of tScreen - the width of me) div 2), tTop
    if there is a stack "revWebIDELibrary" then
       try
          revWebIDEKeepOnPage the long id of me, empty, true
@@ -227,7 +344,11 @@ private function hmPageInfo pPage, pWhat
    local tInfo
    switch pPage
       case "home"
-         put "Home|Welcome to OXT-Beyond, in your browser|indigo|house" into tInfo
+         if hmOnWeb() then
+            put "Home|Welcome to OXT-Beyond, in your browser|indigo|house" into tInfo
+         else
+            put "Home|Welcome to OXT-Beyond|indigo|house" into tInfo
+         end if
          break
       case "speak"
          put "Speak xTalk|Scripts read like English, and every line runs the moment it is typed.|violet|square-terminal" into tInfo
@@ -239,10 +360,18 @@ private function hmPageInfo pPage, pWhat
          put "Draw and dazzle|Gradients, shadows, glows, SVG and widgets, all drawn live.|teal|palette" into tInfo
          break
       case "web"
-         put "The web is yours|A stack in a browser can speak, make QR codes, run JavaScript and open the web.|sky|globe" into tInfo
+         if hmOnWeb() then
+            put "The web is yours|A stack in a browser can speak, make QR codes, run JavaScript and open the web.|sky|globe" into tInfo
+         else
+            put "Beyond the card|A stack can speak, make QR codes, ask the computer about itself and open the web.|sky|globe" into tInfo
+         end if
          break
       case "app"
-         put "Your first app|Draw it, script it, run it, share it: all in this page.|emerald|rocket" into tInfo
+         if hmOnWeb() then
+            put "Your first app|Draw it, script it, run it, share it: all in this page.|emerald|rocket" into tInfo
+         else
+            put "Your first app|Draw it, script it, run it, share it: all in this window.|emerald|rocket" into tInfo
+         end if
          break
    end switch
    set the itemDelimiter to "|"
@@ -270,7 +399,10 @@ private function hmNavLabel pPage
       case "draw"
          return "Draw and dazzle"
       case "web"
-         return "The web is yours"
+         if hmOnWeb() then
+            return "The web is yours"
+         end if
+         return "Beyond the card"
       case "app"
          return "Your first app"
    end switch
@@ -799,8 +931,8 @@ end mouseMove
 on mouseDown pButton
    if pButton is 1 and sPage is "move" and the short name of the target begins with "mv" and \
          hmLiveOf(the long id of the target) is empty and \
-         the mouseLoc is within kStage then
-      hmMoveClick the mouseH, the mouseV
+         the mouseLoc is within hmStageRect() then
+      hmMoveClick the mouseH - sOX, the mouseV - sOY
    end if
    pass mouseDown
 end mouseDown
@@ -972,24 +1104,38 @@ end hmErrorText
 # Show at startup
 #
 
+-- The web IDE opens Home at startup unless the user turned it off
+-- (cWebHomeAtStartup); the desktop IDE only when the user turned it on
+-- (cHomeAtStartup), as it opened nothing at startup before Home
 private function hmShowAtStartup
    local tValue, tError
    try
-      put revIDEGetPreference("cWebHomeAtStartup") into tValue
+      if hmOnWeb() then
+         put revIDEGetPreference("cWebHomeAtStartup") is not false into tValue
+      else
+         put revIDEGetPreference("cHomeAtStartup") is true into tValue
+      end if
    catch tError
+      put hmOnWeb() into tValue
    end try
-   return tValue is not false
+   return tValue
 end hmShowAtStartup
 
 private command hmToggleStartup
    local tError
    try
-      revIDESetPreference "cWebHomeAtStartup", not hmShowAtStartup()
+      if hmOnWeb() then
+         revIDESetPreference "cWebHomeAtStartup", not hmShowAtStartup()
+      else
+         revIDESetPreference "cHomeAtStartup", not hmShowAtStartup()
+      end if
    catch tError
    end try
    hmSyncStartup
-   if hmShowAtStartup() then
+   if hmShowAtStartup() and hmOnWeb() then
       hmStatus "Home will open each time the web IDE starts.", "ok"
+   else if hmShowAtStartup() then
+      hmStatus "Home will open each time OXT-Beyond starts.", "ok"
    else
       hmStatus "Home will not open at startup: Help > Welcome to OXT-Beyond brings it back.", "note"
    end if
@@ -1020,15 +1166,24 @@ private command hmBuild
    lock screen
    lock messages
    set the label of me to "Welcome to OXT-Beyond"
-   set the resizable of me to false
    set the destroyStack of me to true
    set the rect of me to 0,0,kWidth,kHeight
+   -- (larger, the pages stay their size, in the middle: hmLayout)
+   set the resizable of me to true
+   set the minWidth of me to kWidth
+   set the minHeight of me to kHeight
+   put empty into sLaidW
    set the backgroundColor of me to hmColor("bg")
+   -- (the desktop's recent stacks are links: hmRecentStacks)
+   set the linkColor of me to hmColor("emerald")
+   set the linkHiliteColor of me to hmColor("teal")
+   set the linkVisitedColor of me to hmColor("emerald")
+   set the underlineLinks of me to false
    put empty into sCfg
    put empty into sLiveList
    hmBuildSide
    repeat for each item tPage in kPages
-      get hmGroup("pg_" & tPage, kContent, empty)
+      get hmGroup("pg_" & tPage, kSide & ",0," & kWidth & "," & kHeight, empty)
       hide group ("pg_" & tPage)
    end repeat
    hmBuildHome
@@ -1180,7 +1335,11 @@ private command hmBuildSide
    hmGlow tObj, "255,139,0", 16, 110
    get hmIcon("sideMarkIcon", "layers", "255,255,255", "28,30,48,50", empty)
    get hmLabel("sideTitle", "66,21,200,45", "OXT-Beyond", 19, "255,255,255", empty)
-   get hmLabel("sideSub", "66,45,200,61", "Home, in your browser", 11, hmColor("muted"), empty)
+   if hmOnWeb() then
+      get hmLabel("sideSub", "66,45,200,61", "Home, in your browser", 11, hmColor("muted"), empty)
+   else
+      get hmLabel("sideSub", "66,45,200,61", "Home", 11, hmColor("muted"), empty)
+   end if
 
    put hmBox("navHi", "10,84,190,118", hmColor("side2"), 18, empty) into tObj
    hmBorder tObj, hmColor("sideLine")
@@ -1281,7 +1440,7 @@ private command hmGoPage pWhere
          hide group ("pg_" & tOther)
       end repeat
    else
-      lock screen for visual effect in rect kContent
+      lock screen for visual effect in rect hmContentRect()
       hide group ("pg_" & tOld)
       hmPageStop tOld
    end if
@@ -1554,16 +1713,26 @@ private command hmBuildHome
    put hmBox("heroPillBg", "246,40,472,66", "255,255,255", 26, "hero") into tObj
    set the blendLevel of tObj to 78
    get hmIcon("heroPillIcon", "sparkles", "255,255,255", "257,46,271,60", "hero")
-   put hmLabel("heroPill", "278,46,470,64", "The IDE, now in your browser", 12, "255,255,255", "hero") into tObj
+   if hmOnWeb() then
+      put hmLabel("heroPill", "278,46,470,64", "The IDE, now in your browser", 12, "255,255,255", "hero") into tObj
+   else
+      put hmLabel("heroPill", "278,46,470,64", "Free, open and yours", 12, "255,255,255", "hero") into tObj
+   end if
    -- (its words centred on the pill, and the pill as wide as they are,
    -- in whichever font the engine has)
    set the top of tObj to 53 - (the formattedHeight of tObj + kTextInset) div 2
    set the rect of graphic "heroPillBg" to 246, 40, 278 + the formattedWidth of tObj + 14, 66
    put hmLabel("heroTitle", "244,70,740,136", "OXT-Beyond", 54, "255,255,255", "hero") into tObj
    set the textStyle of tObj to "bold"
-   get hmLabel("heroSub", "246,138,730,184", \
-         "Make apps with an English-like language, right here in your browser." & return & \
-         "Nothing to install, and every example on these pages is live.", 15, "238,242,255", "hero")
+   if hmOnWeb() then
+      get hmLabel("heroSub", "246,138,730,184", \
+            "Make apps with an English-like language, right here in your browser." & return & \
+            "Nothing to install, and every example on these pages is live.", 15, "238,242,255", "hero")
+   else
+      get hmLabel("heroSub", "246,138,730,184", \
+            "Make desktop and web apps in an English-like language." & return & \
+            "Every example on these pages is live: try them.", 15, "238,242,255", "hero")
+   end if
 
    -- A Message Box that types
    put hmBox("heroTerm", "246,196,720,266", hmColor("code"), 16, "hero") into tObj
@@ -1659,7 +1828,11 @@ private command hmTile pPage, pX, pY, pIndex
          put "Gradients, glows, SVG and widgets, drawn live." into tText
          break
       case "web"
-         put "Speech, QR codes, JavaScript and links." into tText
+         if hmOnWeb() then
+            put "Speech, QR codes, JavaScript and links." into tText
+         else
+            put "Speech, QR codes, your computer and links." into tText
+         end if
          break
       case "app"
          put "Make a working app in a minute, then change it." into tText
@@ -1700,7 +1873,7 @@ private function hmHeroLines
          "move graphic " & quote & "Ball" & quote & " to 300,200 in 1 second" & return & \
          "set the backgroundColor of this card to " & quote & "gold" & quote & return & \
          "repeat with i = 1 to 10" & return & \
-         "answer " & quote & "I made this in a browser!" & quote & return & \
+         "answer " & quote & hmPick("I made this in a browser!", "I made this myself!") & quote & return & \
          "put the number of words in " & quote & "xTalk reads like English" & quote & return & \
          "sort lines of field " & quote & "Names" & quote & return & \
          "revSpeak " & quote & "Welcome home" & quote
@@ -1711,18 +1884,18 @@ private command hmHomeFrame
    put sNow / 1000 into tT
    -- The gradient turns slowly
    put 0.35 * tT into tA
-   hmGradientPoints the long id of graphic "heroBg", round(612 + 430 * cos(tA)) & "," & round(156 + 150 * sin(tA)), \
-         round(612 - 430 * cos(tA)) & "," & round(156 - 150 * sin(tA))
+   hmGradientPoints the long id of graphic "heroBg", round(612 + sOX + 430 * cos(tA)) & "," & round(156 + sOY + 150 * sin(tA)), \
+         round(612 + sOX - 430 * cos(tA)) & "," & round(156 + sOY - 150 * sin(tA))
    -- The lights drift
    repeat with tIndex = 1 to 4
       put 70 + tIndex * 18 into tR
-      put 612 + (300 - tIndex * 30) * sin(tT * (0.21 + tIndex * 0.07) + tIndex * 1.7) into tX
-      put 156 + (90 - tIndex * 8) * cos(tT * (0.17 + tIndex * 0.05) + tIndex * 2.3) into tY
+      put 612 + sOX + (300 - tIndex * 30) * sin(tT * (0.21 + tIndex * 0.07) + tIndex * 1.7) into tX
+      put 156 + sOY + (90 - tIndex * 8) * cos(tT * (0.17 + tIndex * 0.05) + tIndex * 2.3) into tY
       set the rect of graphic ("heroOrb" & tIndex) to round(tX - tR), round(tY - tR), round(tX + tR), round(tY + tR)
       hmGlowCentre the long id of graphic ("heroOrb" & tIndex)
    end repeat
    -- The stack of cards floats, and sparkles twinkle round it
-   set the top of image "heroArt" to 44 + round(7 * sin(tT * 1.6))
+   set the top of image "heroArt" to 44 + sOY + round(7 * sin(tT * 1.6))
    repeat with tIndex = 1 to 7
       set the blendLevel of graphic ("heroSpark" & tIndex) to round(100 * (0.5 + 0.5 * sin(tT * (1.6 + tIndex * 0.23) + tIndex * 1.9)))
    end repeat
@@ -1764,7 +1937,8 @@ private command hmHomeFrame
       put (sTipIndex - 1) mod 5 + 1 into tTipLine
       put line tTipLine of \
             ("Tip: the arrow keys page through Home." & return & \
-            "Tip: stacks you save stay in this browser; File > Download Stack gives you a copy." & return & \
+            hmPick("Tip: stacks you save stay in this browser; File > Download Stack gives you a copy.", \
+            "Tip: File > Standalone Application Settings turns a stack into an app.") & return & \
             "Tip: the Message Box, in the toolbar, runs any line of xTalk you type." & return & \
             "Tip: Help > Welcome to OXT-Beyond brings you back to Home." & return & \
             "Tip: the Dictionary explains every word of the language, with examples.") into tTip
@@ -1780,11 +1954,17 @@ end hmHomeFrame
 #
 
 -- The lines the demo types: the code, then what it shows
+-- The line the Speak page offers to run first: it moves the ball to the
+-- right of the stage, where the window has it
+private function hmSpeakFirstTry
+   return "move graphic " & quote & "Ball" & quote & " to" && (700 + sOX) & "," & (236 + sOY) && "in 1 second"
+end hmSpeakFirstTry
+
 private function hmSpeakLines
    local tLines
-   put "put 'Hello from your browser!' into field 'Greeting'|put puts text anywhere: in a field, a variable, or the Message Box." & return & \
+   put "put '" & hmPick("Hello from your browser!", "Hello from your stack!") & "' into field 'Greeting'|put puts text anywhere: in a field, a variable, or the Message Box." & return & \
          "set the textColor of field 'Greeting' to 'purple'|Everything has properties you can set: colour, size, font, position." & return & \
-         "move graphic 'Ball' to 930,236 in 1 second without waiting|move glides an object across the card, while the script carries on." & return & \
+         "move graphic 'Ball' to" && (930 + sOX) & "," & (236 + sOY) && "in 1 second without waiting|move glides an object across the card, while the script carries on." & return & \
          "set the angle of graphic 'Gem' to 30|A regular polygon turns when you set its angle." & return & \
          "set the backgroundColor of graphic 'Box' to 'gold'|Colours have names, or you can give red, green and blue: 255,200,0." & return & \
          "set the blendLevel of graphic 'Ball' to 60|blendLevel makes an object see-through: 0 is solid, 100 is invisible." & return & \
@@ -1835,7 +2015,7 @@ private command hmBuildSpeak
    get hmLabel("spkTryTitle", "240,476,800,496", "Your turn: type a line, then press Run or Return", 15, hmColor("ink"), "pg_speak")
    put hmBox("spkInputBg", "240,504,870,540", "248,250,252", 14, "pg_speak") into tObj
    hmBorder tObj, hmColor("line")
-   put hmInput("spkInput", "254,512,860,534", "move graphic " & quote & "Ball" & quote & " to 700,236 in 1 second", 14, "pg_speak") into tObj
+   put hmInput("spkInput", "254,512,860,534", hmSpeakFirstTry(), 14, "pg_speak") into tObj
    if hmCodeFont() is not empty then
       set the textFont of tObj to hmCodeFont()
    end if
@@ -1871,7 +2051,7 @@ end hmSpeakStart
 
 -- The card as it was
 private command hmSpeakReset
-   set the rect of graphic "Ball" to 656,288,704,336
+   set the rect of graphic "Ball" to 656 + sOX, 288 + sOY, 704 + sOX, 336 + sOY
    set the blendLevel of graphic "Ball" to 0
    set the backgroundColor of graphic "Ball" to hmColor("orange")
    set the backgroundColor of graphic "Box" to hmColor("teal")
@@ -2316,7 +2496,8 @@ private command hmMoveFrame
             put sBr[tIndex] * (1 + 0.45 * tDepth) into tR
             hmDrawBall tIndex, tX, tY, tR, hmHue(sBhue[tIndex] + tT * 20, 0.9, 0.65), round(30 - 30 * tDepth)
          end repeat
-         set the rect of graphic "mvSun" to round(612 - 26 - 2 * sin(tT * 3)), round(274 - 26 - 2 * sin(tT * 3)), round(612 + 26 + 2 * sin(tT * 3)), round(274 + 26 + 2 * sin(tT * 3))
+         set the rect of graphic "mvSun" to round(612 + sOX - 26 - 2 * sin(tT * 3)), round(274 + sOY - 26 - 2 * sin(tT * 3)), \
+               round(612 + sOX + 26 + 2 * sin(tT * 3)), round(274 + sOY + 26 + 2 * sin(tT * 3))
          break
       case "wave"
          put max(0, sMove["boost"] - sDt * 0.8) into sMove["boost"]
@@ -2421,9 +2602,13 @@ private command hmMoveFrame
    end if
 end hmMoveFrame
 
+-- (the balls move in the coordinates of a 1024 by 640 window: each is
+-- drawn where the window has the stage)
 private command hmDrawBall pIndex, pX, pY, pR, pColor, pBlend
    local tName
    put "mvB" & pIndex into tName
+   add sOX to pX
+   add sOY to pY
    set the rect of graphic tName to round(pX - pR), round(pY - pR), round(pX + pR), round(pY + pR)
    if sBcolor[pIndex] is not pColor then
       set the backgroundColor of graphic tName to pColor
@@ -2695,7 +2880,7 @@ private command hmDrawFxShow pFx
    switch pFx
       case "gradient"
          if tOn then
-            hmGradient the long id of graphic "drStar", "45,212,191|2,132,199|124,58,237", "826,136", "950,260"
+            hmGradient the long id of graphic "drStar", "45,212,191|2,132,199|124,58,237", (826 + sOX) & "," & (136 + sOY), (950 + sOX) & "," & (260 + sOY)
          else
             set the fillGradient of graphic "drStar" to empty
             set the backgroundColor of graphic "drStar" to hmColor("teal")
@@ -2746,14 +2931,14 @@ private command hmDrawFrame
    -- The star spins
    if "spin" is among the items of sDraw["fx"] then
       add sDt * 1.4 to sDraw["turn"]
-      set the points of graphic "drStar" to hmStarPoints(888, 198, 62, 26, 5, sDraw["turn"])
+      set the points of graphic "drStar" to hmStarPoints(888 + sOX, 198 + sOY, 62, 26, 5, sDraw["turn"])
    end if
    -- The scene drifts and zooms
    put 1.1 + 0.06 * sin(tT * 0.45) into tZoom
    put round(380 * tZoom) into tW
    put round(280 * tZoom) into tH
-   put 414 + 5 * sin(tT * 0.3) into tCx
-   put 232 + 4 * cos(tT * 0.37) into tCy
+   put 414 + sOX + 5 * sin(tT * 0.3) into tCx
+   put 232 + sOY + 4 * cos(tT * 0.37) into tCy
    set the rect of image "drArtImg" to round(tCx - tW / 2), round(tCy - tH / 2), round(tCx - tW / 2) + tW, round(tCy - tH / 2) + tH
    -- The graph walks
    if sNow > sDraw["graphAt"] and there is a widget "drGraph" then
@@ -2817,10 +3002,10 @@ private command hmBuildWeb
    put 224 into tX
    put 92 into tY
    hmWebCard "webCard1", tX, tY, "violet", "volume-2", "Speak", "revSpeak", \
-         "Your stack reads text aloud, in the voices this browser has."
+         hmPick("Your stack reads text aloud, in the voices this browser has.", "Your stack reads text aloud, in this computer's voices.")
    put hmBox("webSayBg", hmR(tX + 16, tY + 108, tX + 232, tY + 140), "248,250,252", 12, "pg_web") into tObj
    hmBorder tObj, hmColor("line")
-   get hmInput("webSay", hmR(tX + 26, tY + 114, tX + 224, tY + 136), "Hello! I am a stack, in a web page.", 13, "pg_web")
+   get hmInput("webSay", hmR(tX + 26, tY + 114, tX + 224, tY + 136), hmPick("Hello! I am a stack, in a web page.", "Hello! I am a stack, on your computer."), 13, "pg_web")
    repeat with tIndex = 1 to 9
       get hmBox("webWave" & tIndex, hmR(tX + 72 + tIndex * 10, tY + 166, tX + 78 + tIndex * 10, tY + 170), hmColor("violet"), 6, "pg_web")
    end repeat
@@ -2829,7 +3014,7 @@ private command hmBuildWeb
    -- A QR code
    put 488 into tX
    hmWebCard "webCard2", tX, tY, "teal", "qr-code", "QR code", "qrCreate", \
-         "A QR code of any text, made by the stack. Scan this page's address."
+         hmPick("A QR code of any text, made by the stack. Scan this page's address.", "A QR code of any text, made by the stack. Scan it with a phone.")
    put hmBox("webQRBg", hmR(tX + 78, tY + 98, tX + 170, tY + 190), "255,255,255", 10, "pg_web") into tObj
    hmBorder tObj, hmColor("line")
    create image "webQR" in group "pg_web"
@@ -2840,10 +3025,17 @@ private command hmBuildWeb
 
    -- JavaScript
    put 752 into tX
-   hmWebCard "webCard3", tX, tY, "sky", "braces", "Ask the browser", "do ... as JavaScript", \
-         "One line of JavaScript, run by the stack, tells it about this browser."
-   get hmLabel("webFactKeys", hmR(tX + 16, tY + 102, tX + 100, tY + 192), \
-         "Language" & return & "Screen" & return & "Time zone" & return & "Theme" & return & "CPU cores", 12, hmColor("muted"), "pg_web")
+   if hmOnWeb() then
+      hmWebCard "webCard3", tX, tY, "sky", "braces", "Ask the browser", "do ... as JavaScript", \
+            "One line of JavaScript, run by the stack, tells it about this browser."
+      get hmLabel("webFactKeys", hmR(tX + 16, tY + 102, tX + 100, tY + 192), \
+            "Language" & return & "Screen" & return & "Time zone" & return & "Theme" & return & "CPU cores", 12, hmColor("muted"), "pg_web")
+   else
+      hmWebCard "webCard3", tX, tY, "sky", "square-terminal", "Ask the computer", "the platform, the screenRect", \
+            "A few words of xTalk tell the stack about the computer it runs on."
+      get hmLabel("webFactKeys", hmR(tX + 16, tY + 102, tX + 100, tY + 192), \
+            "Platform" & return & "System" & return & "Screen" & return & "Processor" & return & "Engine", 12, hmColor("muted"), "pg_web")
+   end if
    put hmLabel("webFactValues", hmR(tX + 100, tY + 102, tX + 236, tY + 192), empty, 12, hmColor("ink"), "pg_web") into tObj
    set the dontWrap of tObj to true
    set the fixedLineHeight of field "webFactKeys" to true
@@ -2856,7 +3048,7 @@ private command hmBuildWeb
    put 224 into tX
    put 352 into tY
    hmWebCard "webCard4", tX, tY, "indigo", "external-link", "Open the web", "launch url", \
-         "launch url opens any address in a new tab of this browser."
+         hmPick("launch url opens any address in a new tab of this browser.", "launch url opens any address in your web browser.")
    put hmBox("webTabBg", hmR(tX + 16, tY + 112, tX + 232, tY + 178), "248,250,252", 12, "pg_web") into tObj
    hmBorder tObj, hmColor("line")
    get hmOval("webTabDot1", hmR(tX + 28, tY + 124, tX + 36, tY + 132), "248,113,113", "pg_web")
@@ -2880,8 +3072,13 @@ private command hmBuildWeb
 
    -- The user's stacks
    put 752 into tX
-   hmWebCard "webCard6", tX, tY, "emerald", "hard-drive", "Your stacks", "Save and Download Stack", \
-         "Stacks you save stay in this browser, even after you close the page."
+   if hmOnWeb() then
+      hmWebCard "webCard6", tX, tY, "emerald", "hard-drive", "Your stacks", "Save and Download Stack", \
+            "Stacks you save stay in this browser, even after you close the page."
+   else
+      hmWebCard "webCard6", tX, tY, "emerald", "hard-drive", "Your stacks", "File > Open Recent File", \
+            "The stacks you opened last, ready to open again."
+   end if
    get hmLabel("webCount", hmR(tX + 16, tY + 102, tX + 76, tY + 146), "0", 36, hmColor("emerald"), "pg_web")
    get hmLabel("webCountLabel", hmR(tX + 76, tY + 124, tX + 236, tY + 142), "stacks saved here", 13, hmColor("soft"), "pg_web")
    put hmLabel("webStackNames", hmR(tX + 16, tY + 150, tX + 236, tY + 190), empty, 11, hmColor("muted"), "pg_web") into tObj
@@ -2890,7 +3087,7 @@ end hmBuildWeb
 
 private function hmWebClipLine
    -- (short enough to fit the box on one line)
-   return "answer " & quote & "Hello, web IDE!" & quote
+   return "answer " & quote & hmPick("Hello, web IDE!", "Hello, OXT-Beyond!") & quote
 end hmWebClipLine
 
 private command hmWebCard pName, pX, pY, pAccent, pIcon, pTitle, pTag, pText
@@ -2950,7 +3147,7 @@ private command hmWebQR
          qrCreate "webQR", tText, "M", tScale
       end if
       put the width of image "webQR" into tSize
-      set the loc of image "webQR" to 488 + 124, 92 + 144
+      set the loc of image "webQR" to 488 + 124 + sOX, 92 + 144 + sOY
       set the resizeQuality of image "webQR" to "normal"
    catch tError
       hmStatus "The QR code could not be made:" && hmErrorText(tError), "bad"
@@ -2969,6 +3166,14 @@ private command hmWebFacts
       catch tError
       end try
    end if
+   if tFacts is empty and not hmOnWeb() then
+      try
+         put the platform & return & the systemVersion & return & \
+               (item 3 of the screenRect - item 1 of the screenRect) && "x" && (item 4 of the screenRect - item 2 of the screenRect) & return & \
+               the processor & return & the version into tFacts
+      catch tError
+      end try
+   end if
    if tFacts is empty then
       put "(a browser has these)" into tFacts
    end if
@@ -2978,6 +3183,10 @@ end hmWebFacts
 private command hmWebCountStacks
    local tFiles, tFile, tCount, tNames, tError
    put 0 into tCount
+   if not hmOnWeb() then
+      hmRecentStacks
+      exit hmWebCountStacks
+   end if
    try
       put files(revWebIDEStacksFolder()) into tFiles
    catch tError
@@ -3008,6 +3217,54 @@ private command hmWebCountStacks
    end if
 end hmWebCountStacks
 
+-- On the desktop, the card of the user's stacks shows the stacks opened
+-- last (File > Open Recent File), and a click on one opens it
+private command hmRecentStacks
+   local tRecent, tCount, tIndex, tHtml, tError
+   try
+      put revIDERecentStacks() into tRecent
+   catch tError
+   end try
+   put 0 into tCount
+   repeat with tIndex = 1 to the number of elements of tRecent
+      if there is a file tRecent[tIndex]["filename"] then
+         add 1 to tCount
+         if tCount <= 3 then
+            put "<p><a href=" & quote & replaceText(hmEscape(tRecent[tIndex]["filename"]), quote, "&quot;") & quote & ">" & \
+                  hmEscape(tRecent[tIndex]["label"]) & "</a></p>" after tHtml
+         end if
+      end if
+   end repeat
+   put tCount into field "webCount"
+   if tCount is 1 then
+      put "recent stack" into field "webCountLabel"
+   else
+      put "recent stacks" into field "webCountLabel"
+   end if
+   set the left of field "webCountLabel" to the left of field "webCount" + the formattedWidth of field "webCount" + 6
+   if tCount is 0 then
+      put "None yet: the stacks you open show here." into field "webStackNames"
+   else
+      set the htmlText of field "webStackNames" to tHtml
+   end if
+end hmRecentStacks
+
+on linkClicked pLink
+   local tError
+   if the short name of the target is not "webStackNames" then
+      pass linkClicked
+   end if
+   if there is not a file pLink then
+      hmStatus "That stack is no longer where it was.", "warn"
+      exit linkClicked
+   end if
+   try
+      revIDEOpenStack pLink
+   catch tError
+      hmStatus "That stack could not open:" && hmErrorText(tError), "bad"
+   end try
+end linkClicked
+
 private command hmWebDo pWhat
    local tError
    switch pWhat
@@ -3016,12 +3273,12 @@ private command hmWebDo pWhat
          break
       case "js"
          hmWebFacts
-         hmStatus "Asked the browser again.", "ok"
+         hmStatus hmPick("Asked the browser again.", "Asked the computer again."), "ok"
          break
       case "link"
          try
             launch url "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond"
-            hmStatus "Opened in a new tab (if the browser blocked it, allow pop-ups for this page).", "ok"
+            hmStatus hmPick("Opened in a new tab (if the browser blocked it, allow pop-ups for this page).", "Opened in your web browser."), "ok"
          catch tError
             hmStatus "The link could not open:" && hmErrorText(tError), "bad"
          end try
@@ -3031,7 +3288,7 @@ private command hmWebDo pWhat
             set the clipboardData["text"] to hmWebClipLine()
             hmStatus "Copied. Now open the Message Box, paste the line and press Return.", "ok"
          catch tError
-            hmStatus "This browser would not let the page copy:" && hmErrorText(tError), "bad"
+            hmStatus hmPick("This browser would not let the page copy:", "The line could not be copied:") && hmErrorText(tError), "bad"
          end try
          break
       case "open"
@@ -3046,12 +3303,13 @@ private command hmWebSay
       revSpeak field "webSay"
       put sNow + 2600 into sWeb["sayUntil"]
       if the number of lines of revSpeechVoices() is 0 then
-         hmStatus "Speaking with the browser's voice (if you hear nothing, this browser has no voices yet).", "ok"
+         hmStatus hmPick("Speaking with the browser's voice (if you hear nothing, this browser has no voices yet).", \
+               "Speaking with the computer's voice (if you hear nothing, it has no voices installed)."), "ok"
       else
          hmStatus "Speaking with one of" && the number of lines of revSpeechVoices() && "voices.", "ok"
       end if
    catch tError
-      hmStatus "This browser could not speak:" && hmErrorText(tError), "bad"
+      hmStatus hmPick("This browser could not speak:", "This computer could not speak:") && hmErrorText(tError), "bad"
    end try
 end hmWebSay
 
@@ -3068,7 +3326,7 @@ private command hmWebFrame
          put 4 + round(3 * (0.5 + 0.5 * sin(tT * 2 + tIndex * 0.6))) into tH
       end if
       put the left of graphic ("webWave" & tIndex) into tX
-      set the rect of graphic ("webWave" & tIndex) to tX, 92 + 168 - tH div 2, tX + 6, 92 + 168 - tH div 2 + tH
+      set the rect of graphic ("webWave" & tIndex) to tX, 92 + sOY + 168 - tH div 2, tX + 6, 92 + sOY + 168 - tH div 2 + tH
    end repeat
 end hmWebFrame
 
@@ -3087,7 +3345,8 @@ private command hmBuildApp
    put "Draw|mouse-pointer-click|Drag a button and a field from the Tools palette onto a card." & return & \
          "Script|code|Edit the button's script: on mouseUp, say what happens." & return & \
          "Run|play|Choose the Run tool and click. Your app works at once." & return & \
-         "Share|share-2|Save it in this browser, or Download Stack to keep a copy." into tSteps
+         hmPick("Share|share-2|Save it in this browser, or Download Stack to keep a copy.", \
+         "Share|share-2|Save it, or make it an app with Standalone Application Settings.") into tSteps
    set the itemDelimiter to "|"
    repeat with tIndex = 1 to 4
       put line tIndex of tSteps into tStep
@@ -3131,7 +3390,8 @@ private command hmBuildApp
    hmGlow the long id of graphic "apMake_bg", "255,255,255", 12, 150
    hmRoom "apMake", 14
    get hmLabel("apCtaNote", "640,512,984,584", \
-         "Then File > Save keeps it in this browser, and File > Download Stack gives you a copy to share.", \
+         hmPick("Then File > Save keeps it in this browser, and File > Download Stack gives you a copy to share.", \
+         "Then File > Save keeps it, and File > Standalone Application Settings turns it into an app to share."), \
          12, "209,250,229", "apCta")
    hmCorners "apCorner", "616,316,1000,596", 22, hmColor("bg"), "apCta"
 end hmBuildApp
@@ -3157,8 +3417,8 @@ private command hmAppFrame
    put (sNow mod 6000) / 6000 into tP
    put hmEase(min(1, tP / 0.8)) into tP
    put round(321 + 582 * tP) into tX
-   set the rect of graphic "apProgress" to 321, 150, max(323, tX), 154
-   set the loc of graphic "apDot" to tX, 152
+   set the rect of graphic "apProgress" to 321 + sOX, 150 + sOY, max(323, tX) + sOX, 154 + sOY
+   set the loc of graphic "apDot" to tX + sOX, 152 + sOY
    put 0 into tLit
    repeat with tIndex = 1 to 4
       put 321 + (tIndex - 1) * 194 into tCx

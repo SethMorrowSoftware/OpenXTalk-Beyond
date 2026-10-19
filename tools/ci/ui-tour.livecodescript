@@ -47,7 +47,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,kit-dialog,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -1201,6 +1201,23 @@ on tour_release_notes
    tourShotStack tNew, "24b-release-notes"
    close stack tNew
 end tour_release_notes
+
+-- Home on the desktop, as Help > Welcome to OXT-Beyond opens it, at the
+-- size it opens at and made bigger, where its pages stay in the middle
+on tour_home
+   local tBefore, tNew, tRect
+   put the openStacks into tBefore
+   send "tOpenHome" to stack "revMenuBar"
+   tourWait 2500
+   put tourNewStack(tBefore) into tNew
+   if tNew is empty then throw "no Home window opened"
+   tourShotStack tNew, "24a-home"
+   put the rect of stack tNew into tRect
+   set the rect of stack tNew to item 1 of tRect, item 2 of tRect, item 1 of tRect + 1200, item 2 of tRect + 760
+   tourWait 1500
+   tourShotStack tNew, "24a-home-resized"
+   close stack tNew
+end tour_home
 
 -- The IDE's own dialog in the look of Learn (palettes/kitdialog), as the
 -- update check and the warning before a stack opens show it: modal, so it
