@@ -32,6 +32,9 @@ words, is in the [README](README.md#the-ide) and on the
 - HyperCard Library: review findings on the list dialog and popups (#152)
 - Notes: the HyperCard externals' stand-ins in 0.2.7-rc.5 (#153)
 - Engine tests: read until EOF from a process that outlives open process (#155)
+- IDE: a dialog in the look of Learn, and the warning before a stack opens (#159)
+- Check for Updates: its messages in the look of Learn (#159)
+- MCP Bridge: its windows in the look of Learn (#159)
 
 ## 0.2.7-rc.4 (2026-10-18, pre-release)
 
