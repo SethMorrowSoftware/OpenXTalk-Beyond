@@ -122,6 +122,7 @@ on TestOffByDefault
 end TestOffByDefault
 
 on TestOpenWindow
+   local tFill
    TestOpenTheWindow "http://127.0.0.1:1"
    TestAssert "the window is built", there is a stack kWindow
    -- It is built invisible, so it must be shown when it opens (0.2.5-rc.2
@@ -140,17 +141,23 @@ on TestOpenWindow
    TestDiagnostic field "Status" of stack kWindow
    TestAssert "the key from the environment is used", field "Status" of stack kWindow contains "from the environment"
    TestAssert "nothing to insert yet", not the enabled of button "Insert" of stack kWindow
-   -- The xTalk Suite's look: its page, the accent band with the title,
+   -- Learn's look: its page, the dark header with the mark and the title,
    -- the status line under it, the conversation on a panel, the prompt
-   -- above the footer, and a window that fits a 720p screen
-   TestAssert "the suite's page", the backgroundColor of this card of stack kWindow is "240,242,246"
-   TestAssert "the accent band, with the title", the backgroundColor of graphic "uiBand" of stack kWindow is "44,90,160" \
+   -- above the footer, flat buttons, and a window that fits a 720p screen
+   TestAssert "Learn's page", the backgroundColor of this card of stack kWindow is "241,245,249"
+   -- (the header is a gradient, from Learn's dark slate)
+   put the fillGradient of graphic "uiBand" of stack kWindow into tFill
+   TestDiagnostic tFill["ramp"]
+   TestAssert "the dark header, with the mark and the title", item 2 to 4 of line 1 of tFill["ramp"] is "15,23,42" \
+         and there is a graphic "uiMark" of stack kWindow \
          and word 1 to -1 of field "uiTitle" of stack kWindow is "xTalk Assistant"
+   TestAssert "Send is filled with the accent, New Chat is a chip", the backgroundColor of button "Send" of stack kWindow is "124,58,237" \
+         and the backgroundColor of button "New" of stack kWindow is "226,232,240"
    TestDiagnostic the rect of field "Status" of stack kWindow && "/" && the rect of button "Provider" of stack kWindow
    TestAssert "the status line under the band, above the settings", item 2 of the rect of field "Status" of stack kWindow >= 30 \
          and item 4 of the rect of field "Status" of stack kWindow <= item 2 of the rect of button "Provider" of stack kWindow
    TestAssert "the pill says it is ready", field "Pill" of stack kWindow is "Ready" \
-         and the backgroundColor of graphic "PillBg" of stack kWindow is "205,240,214"
+         and the backgroundColor of graphic "PillBg" of stack kWindow is "209,250,229"
    TestAssert "the conversation is on its panel", TestWithin(the rect of field "Conversation" of stack kWindow, \
          the rect of graphic "ConversationPanel" of stack kWindow)
    TestDiagnostic the rect of field "Prompt" of stack kWindow && "/" && the rect of field "uiFooter" of stack kWindow
@@ -499,6 +506,8 @@ on TestAnAnswerIsLaidOut
          and the linkText of word -2 of line tHeader of field "Conversation" of stack kWindow is "copy,2,1" \
          and the linkText of word -1 of line tHeader of field "Conversation" of stack kWindow is "insert,2,1"
    TestAssert "its lines in the code's face", the textFont of line tHeader + 1 of field "Conversation" of stack kWindow is not empty
+   TestAssert "xTalk in Learn's colours", the foregroundColor of word 1 of line tHeader + 1 of field "Conversation" of stack kWindow is "196,181,253" \
+         and the foregroundColor of word 2 of line tHeader + 1 of field "Conversation" of stack kWindow is "226,232,240"
    put 0 into tHeader
    repeat with tLine = 1 to the number of lines of tText
       if word 1 of line tLine of tText is "Python" then
@@ -956,9 +965,9 @@ on TestACutOffCallIsNotCarriedOut
          and the textStyle of line tLine of field "Conversation" of stack kWindow is "italic"
    -- 0.2.5-rc.4 named the colours of the conversation's runs as the engine
    -- does not take them, and none showed
-   TestAssert "in amber", the foregroundColor of line tLine of field "Conversation" of stack kWindow is "150,110,40"
+   TestAssert "in amber", the foregroundColor of line tLine of field "Conversation" of stack kWindow is "180,83,9"
    TestAssert "under who answered, in the accent", \
-         the foregroundColor of line lineOffset("xTalk Assistant", tConversation) of field "Conversation" of stack kWindow is "44,90,160"
+         the foregroundColor of line lineOffset("xTalk Assistant", tConversation) of field "Conversation" of stack kWindow is "124,58,237"
    TestDiagnostic field "Status" of stack kWindow
    TestAssert "the status line says it was cut off", field "Status" of stack kWindow contains "the answer was cut off at its length limit"
    put TestStartServer("200 OK", TestAnswer("It places a value.")) into tPort

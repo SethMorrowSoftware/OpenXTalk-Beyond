@@ -28,6 +28,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Home on the desktop: Help > Welcome to OXT-Beyond, a window that can be resized, and opening at startup as a choice (#165)
 - IDE dialogs: the window can be made bigger, and its text and code take the room (#165)
 - Changelog: #159's lines under Unreleased, where they were merged (#165)
+- xTalk Assistant: its windows in the look of Learn, with xTalk in Learn's colours (#PR)
 
 ## 0.2.7-rc.5 (2026-10-19, pre-release)
 
