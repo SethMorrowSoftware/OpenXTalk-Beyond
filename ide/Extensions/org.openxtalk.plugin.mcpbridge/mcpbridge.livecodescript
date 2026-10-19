@@ -155,9 +155,15 @@ private function mcbIsLockedOff
 end mcbIsLockedOff
 
 command mcpBridgeMenuPick
-   local tProblem, tPort, tClients, tText
+   local tProblem, tPort, tClients, tText, tSpec, tChoice
    if mcbIsLockedOff() then
-      answer information "The xTalk MCP Bridge is turned off on this computer (by the environment variable OXTBEYOND_MCP_BRIDGE)." titled kTitle
+      put "The bridge is turned off" into tSpec["heading"]
+      put "On this computer, by the environment variable OXTBEYOND_MCP_BRIDGE" into tSpec["subheading"]
+      put "power" into tSpec["icon"]
+      put "amber" into tSpec["tone"]
+      if not mcbKit(tSpec, tChoice) then
+         answer information "The xTalk MCP Bridge is turned off on this computer (by the environment variable OXTBEYOND_MCP_BRIDGE)." titled kTitle
+      end if
       exit mcpBridgeMenuPick
    end if
    if mcbOnWeb() then
@@ -165,16 +171,27 @@ command mcpBridgeMenuPick
       exit mcpBridgeMenuPick
    end if
    if not mcbIsEnabled() then
-      answer question "The xTalk MCP Bridge lets Claude, in the Claude desktop app or in Claude Code, work on the stacks you have open here: read them, build cards, controls, scripts and new stacks, and try code. It uses your own Claude plan (Free, Pro, Max, Team or Enterprise): you sign in to Claude's app as usual, and this IDE needs no API key." & return & return & \
+      put "The xTalk MCP Bridge lets Claude, in the Claude desktop app or in Claude Code, work on the stacks you have open here: read them, build cards, controls, scripts and new stacks, and try code. It uses your own Claude plan (Free, Pro, Max, Team or Enterprise): you sign in to Claude's app as usual, and this IDE needs no API key." & return & return & \
             "Turning it on starts a connection that only programs on this computer can reach, with a key that is kept in a file only you can read, and " & mcbHostName() & " sends nothing to the internet. Then you add " & mcbHostName() & " to Claude once (the next window shows how)." & return & return & \
-            "Claude's app asks you before it uses each tool. Here you are asked before any code Claude sends runs (you see the code), and before a stack is saved; everything else Claude changes can be undone from this menu item." \
-            with "Cancel" or "Turn On" titled kTitle
-      if it is not "Turn On" then
+            "Claude's app asks you before it uses each tool. Here you are asked before any code Claude sends runs (you see the code), and before a stack is saved; everything else Claude changes can be undone from this menu item." into tText
+      put "Let Claude work on your stacks" into tSpec["heading"]
+      put "With your own Claude plan, in Claude's app or in Claude Code" into tSpec["subheading"]
+      put "bot" into tSpec["icon"]
+      put tText into tSpec["text"]
+      put "Cancel" & return & "Turn On" into tSpec["buttons"]
+      put "Cancel" into tSpec["cancel"]
+      if not mcbKit(tSpec, tChoice) then
+         answer question tText with "Cancel" or "Turn On" titled kTitle
+         put it into tChoice
+      end if
+      if tChoice is not "Turn On" then
          exit mcpBridgeMenuPick
       end if
       put mcbStart() into tProblem
       if tProblem is not empty then
-         answer error "The bridge could not start:" && tProblem titled kTitle
+         if not mcbKitSay("The bridge could not start", tProblem, "triangle-alert", "rose") then
+            answer error "The bridge could not start:" && tProblem titled kTitle
+         end if
          exit mcpBridgeMenuPick
       end if
       revIDESetPreference kPrefEnabled, true
@@ -187,21 +204,42 @@ command mcpBridgeMenuPick
    end if
    put mcbPort() into tPort
    if tPort is empty then
-      answer error "The xTalk MCP Bridge is on but could not start:" && sStartProblem with "Turn Off" or "Close" titled kTitle
-      if it is "Turn Off" then
+      put "The bridge is on but could not start" into tSpec["heading"]
+      put "triangle-alert" into tSpec["icon"]
+      put "rose" into tSpec["tone"]
+      put sStartProblem into tSpec["text"]
+      put "Turn Off" & return & "Close" into tSpec["buttons"]
+      put "Close" into tSpec["cancel"]
+      if not mcbKit(tSpec, tChoice) then
+         answer error "The xTalk MCP Bridge is on but could not start:" && sStartProblem with "Turn Off" or "Close" titled kTitle
+         put it into tChoice
+      end if
+      if tChoice is "Turn Off" then
          mcbTurnOff
       end if
       exit mcpBridgeMenuPick
    end if
    put mcbClients() into tClients
+   put "The bridge is on" into tSpec["heading"]
+   put "bot" into tSpec["icon"]
+   put "emerald" into tSpec["tone"]
    if tClients is 0 then
       put "The xTalk MCP Bridge is on. Claude is not connected yet: in Claude's app, ask it to do something with " & mcbHostName() & "." into tText
+      put "Claude is not connected yet" into tSpec["subheading"]
+      put "In Claude's app, ask it to do something with " & mcbHostName() & "." & return & return into tSpec["text"]
    else
       put "The xTalk MCP Bridge is on, and Claude is connected." into tText
+      put "Claude is connected" into tSpec["subheading"]
    end if
    put return & return & "Undo Last Change takes back the newest change Claude made to a stack, or the newest run of its code on one." after tText
-   answer information tText with "Turn Off" or "Undo Last Change" or "Claude Setup..." or "Close" titled kTitle
-   switch it
+   put "Undo Last Change takes back the newest change Claude made to a stack, or the newest run of its code on one." after tSpec["text"]
+   put "Turn Off" & return & "Undo Last Change" & return & "Claude Setup..." & return & "Close" into tSpec["buttons"]
+   put "Close" into tSpec["cancel"]
+   if not mcbKit(tSpec, tChoice) then
+      answer information tText with "Turn Off" or "Undo Last Change" or "Claude Setup..." or "Close" titled kTitle
+      put it into tChoice
+   end if
+   switch tChoice
       case "Turn Off"
          mcbTurnOff
          break
@@ -215,9 +253,19 @@ command mcpBridgeMenuPick
 end mcpBridgeMenuPick
 
 private command mcbTurnOff
-   answer question "Turn the xTalk MCP Bridge off? Claude can no longer reach " & mcbHostName() & ", and what it changed can no longer be undone from here (it stays as it is). You can turn it on again from Development > Plugins." \
-         with "Cancel" or "Turn Off" titled kTitle
-   if it is not "Turn Off" then
+   local tText, tSpec, tChoice
+   put "Claude can no longer reach " & mcbHostName() & ", and what it changed can no longer be undone from here (it stays as it is). You can turn it on again from Development > Plugins." into tText
+   put "Turn the bridge off?" into tSpec["heading"]
+   put "power" into tSpec["icon"]
+   put "rose" into tSpec["tone"]
+   put tText into tSpec["text"]
+   put "Cancel" & return & "Turn Off" into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if not mcbKit(tSpec, tChoice) then
+      answer question "Turn the xTalk MCP Bridge off?" && tText with "Cancel" or "Turn Off" titled kTitle
+      put it into tChoice
+   end if
+   if tChoice is not "Turn Off" then
       exit mcbTurnOff
    end if
    revIDESetPreference kPrefEnabled, false
@@ -227,8 +275,41 @@ end mcbTurnOff
 private command mcbUndoLastChange
    local tUndone
    put mcbUndoLast() into tUndone
-   answer information tUndone["text"] titled kTitle
+   if not mcbKitSay("Undo Last Change", tUndone["text"], "rotate-cw", "violet") then
+      answer information tUndone["text"] titled kTitle
+   end if
 end mcbUndoLastChange
+
+-- OXT-Beyond: the bridge's windows in the look of Learn, Home and the
+-- About window: OXT-Beyond's revIDEKitDialog, with pSpec as it describes,
+-- titled as answer was. False when that dialog is not shown, and the
+-- caller asks with answer as before: in another xTalk's IDE, which has no
+-- such dialog (a package of this plugin, tools/plugins), with the Option
+-- (Alt) key down, and in the web IDE. rChoice gets the button pressed, as
+-- answer's it.
+private function mcbKit pSpec, @rChoice
+   local tShown, tError
+   put empty into rChoice
+   if the optionKey is down then
+      return false
+   end if
+   put kTitle into pSpec["title"]
+   try
+      put revIDEKitDialog(pSpec, rChoice) into tShown
+   catch tError
+      put false into tShown
+   end try
+   return tShown is true
+end mcbKit
+
+private function mcbKitSay pHeading, pText, pIcon, pTone
+   local tSpec, tChoice
+   put pHeading into tSpec["heading"]
+   put pText into tSpec["text"]
+   put pIcon into tSpec["icon"]
+   put pTone into tSpec["tone"]
+   return mcbKit(tSpec, tChoice)
+end mcbKitSay
 
 -- Loads the bridge's library and starts it; empty, or why it could not
 private function mcbStart
@@ -313,14 +394,29 @@ end mcbAssistantFolder
 -- Setting Claude up
 
 private command mcbSetupDialog
-   local tText
+   local tText, tSpec, tChoice
    put "Add " & mcbHostName() & " to Claude once, in the app you use:" & return & return & \
          "Claude desktop app: press Save Desktop Extension..., then in Claude choose Settings > Extensions > Advanced settings > Install Extension... and choose the file it saved (opening the file works only where Windows or macOS knows it is Claude's). Claude's app runs it with its own Node.js; you install nothing else." & return & return & \
          "Or press Add to Claude Desktop, which adds " & mcbHostName() & " to the Claude desktop app's settings file for you. That way needs Node.js (nodejs.org)." & return & return & \
          "Claude Code: press Copy Claude Code Command and paste it into a terminal. It needs Node.js 16 or later." & return & return & \
          "Then sign in to Claude with your own account, as usual, and ask it to work on your stack. This IDE must be open with the bridge on." into tText
-   answer information tText with "Save Desktop Extension..." or "Add to Claude Desktop" or "Copy Claude Code Command" or "Close" titled kTitle
-   switch it
+   put "Add " & mcbHostName() & " to Claude" into tSpec["heading"]
+   put "Once, in the app you use" into tSpec["subheading"]
+   put "bot" into tSpec["icon"]
+   put "Save Desktop Extension...|Claude desktop app: save the desktop extension|package|" & \
+         "Then in Claude choose Settings > Extensions > Advanced settings > Install Extension... and choose the file it saved. Claude's app runs it with its own Node.js; you install nothing else." & return & \
+         "Add to Claude Desktop|Claude desktop app: add it to Claude's settings|settings|" & \
+         "Adds " & mcbHostName() & " to the Claude desktop app's settings file for you. This way needs Node.js (nodejs.org)." & return & \
+         "Copy Claude Code Command|Claude Code: copy the command|square-terminal|" & \
+         "Paste it into a terminal. It needs Node.js 16 or later." into tSpec["choices"]
+   put "Then sign in to Claude with your own account, as usual, and ask it to work on your stack. This IDE must be open with the bridge on." into tSpec["text"]
+   put "Close" into tSpec["buttons"]
+   put "Close" into tSpec["cancel"]
+   if not mcbKit(tSpec, tChoice) then
+      answer information tText with "Save Desktop Extension..." or "Add to Claude Desktop" or "Copy Claude Code Command" or "Close" titled kTitle
+      put it into tChoice
+   end if
+   switch tChoice
       case "Save Desktop Extension..."
          mcbSaveDesktopExtension
          break
@@ -329,7 +425,17 @@ private command mcbSetupDialog
          break
       case "Copy Claude Code Command"
          set the clipboardData["text"] to mcbClaudeCodeCommand()
-         answer information "The command is on the clipboard: paste it into a terminal (Ctrl+V, or Command-V on a Mac), then start Claude Code (claude) and ask it to work on your stack. It reads:" & return & return & mcbClaudeCodeCommand() titled kTitle
+         put "The command is on the clipboard" into tSpec["heading"]
+         put empty into tSpec["subheading"]
+         put "square-terminal" into tSpec["icon"]
+         put "Paste it into a terminal (Ctrl+V, or Command-V on a Mac), then start Claude Code (claude) and ask it to work on your stack. It reads:" into tSpec["text"]
+         put mcbClaudeCodeCommand() into tSpec["detail"]
+         put empty into tSpec["choices"]
+         put "OK" into tSpec["buttons"]
+         put "OK" into tSpec["cancel"]
+         if not mcbKit(tSpec, tChoice) then
+            answer information "The command is on the clipboard: paste it into a terminal (Ctrl+V, or Command-V on a Mac), then start Claude Code (claude) and ask it to work on your stack. It reads:" & return & return & mcbClaudeCodeCommand() titled kTitle
+         end if
          break
    end switch
 end mcbSetupDialog
@@ -970,6 +1076,19 @@ end mcbWebDownloadExtension
 
 -- Asks the user before what cannot be undone; true when they said yes
 function mcbConfirm pTitle, pDetail, pYes
+   local tSpec, tChoice
+   -- OXT-Beyond: in the look of Learn (mcbKit), with what Claude sent in
+   -- a code panel, whole: it scrolls when it is long
+   put pTitle into tSpec["heading"]
+   put "Claude is waiting for your answer" into tSpec["subheading"]
+   put "bot" into tSpec["icon"]
+   put "amber" into tSpec["tone"]
+   put pDetail into tSpec["detail"]
+   put "Cancel" & return & pYes into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if mcbKit(tSpec, tChoice) then
+      return tChoice is pYes
+   end if
    answer question pTitle & return & return & pDetail with "Cancel" or pYes titled kTitle
    return it is pYes
 end mcbConfirm
@@ -978,7 +1097,9 @@ end mcbConfirm
 -- The user said yes to a question after Claude's app stopped waiting for
 -- the answer (mcbAsk): nothing was done
 on mcbTooLate
-   answer information "Claude stopped waiting for this answer, so nothing was done. Ask Claude again if you still want it." titled kTitle
+   if not mcbKitSay("Nothing was done", "Claude stopped waiting for this answer, so nothing was done. Ask Claude again if you still want it.", "info", "sky") then
+      answer information "Claude stopped waiting for this answer, so nothing was done. Ask Claude again if you still want it." titled kTitle
+   end if
 end mcbTooLate
 
 function mcbEditorStack
