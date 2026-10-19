@@ -45,8 +45,9 @@ A second page then opens the player again, which must list the three in
 its library: the browser keeps them between visits. A third opens each
 stack the home page offers, then
 
-  Hyper  dynamicPaths true, as a stack imported from HyperCard has it:
-         the player must say it opened, and go home again
+  Hyper  dynamicPaths true, as a stack imported from HyperCard has it,
+         and an openCard that calls an XCMD it does not have: the player
+         must say it opened, report that error, and go home again
 
 Screenshots go into <work>/check.
 """
@@ -493,12 +494,22 @@ def check(site, samples, work):
         # has it, so that until the engine's turn ends a public handler of
         # the player's is looked for in that stack's message path. The
         # player must still say it opened, and go home again.
+        # Its first card's openCard calls an XCMD it does not have, as many
+        # HyperCard stacks do: it opens all the same, and the player
+        # reports that error (and only that one) in a dialog.
         got = open_files(third, [os.path.join(samples, 'Hyper.livecode')], 'Hyper', third_lines)
         errors = [x for x in got if x.startswith('PLAYER script error') or x.startswith('PLAYER status Could')]
-        expect('hyper-opens', any(x.startswith('PLAYER opened Hyper') for x in got) and not errors,
+        expect('hyper-opens', any(x.startswith('PLAYER opened Hyper') for x in got)
+               and len(errors) == 1 and 'hyperMissingXCMD' in errors[0],
                ' | '.join(errors or got[-3:]))
         expect('hyper-openStack', 'SAMPLE hyper true' in got, ' | '.join(x for x in got if x.startswith('SAMPLE')))
+        third.wait_for_timeout(500)
+        dialog = third.locator('[class^="oxt-dialog"]')
+        expect('hyper-error-dialog', dialog.count() > 0 and 'hyperMissingXCMD' in (dialog.first.inner_text() or ''),
+               (dialog.first.inner_text() if dialog.count() else 'no dialog')[:200].replace('\n', ' '))
         third.screenshot(path=os.path.join(shots, '12-hyper.png'))
+        third.keyboard.press('Enter')
+        third.wait_for_timeout(500)
         before = len(third_lines)
         third.click('#home')
         wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)

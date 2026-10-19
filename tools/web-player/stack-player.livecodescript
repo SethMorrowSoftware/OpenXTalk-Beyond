@@ -538,7 +538,7 @@ end playerForgetFolder
 ----------------------------------------------------------------
 
 command playerOpenFile pPath
-   local tRect, tName, tError, tResult, tFolder
+   local tRect, tName, tError, tResult, tFolder, tOpenError
    if sCurrent is not empty then
       playerGoHome
    end if
@@ -576,6 +576,16 @@ command playerOpenFile pPath
       put the result into tResult
    catch tError
       put playerErrorText(tError) into tResult
+      -- a script error in the stack's own openStack or openCard (a
+      -- HyperCard stack calling an XCMD it no longer has): the stack is
+      -- open, as it is on the desktop, and the error is reported once it
+      -- shows
+      if there is a stack pPath then
+         if the mode of stack pPath > 0 then
+            put tError into tOpenError
+            put empty into tResult
+         end if
+      end if
    end try
    if tResult is not empty then
       put empty into sCurrent
@@ -599,6 +609,9 @@ command playerOpenFile pPath
    playerLog "opened" && tName && "cards=" & the number of cards of stack tName && \
          "rect=" & the rect of stack tName
    playerTellPage "opened", tName & return & the number of cards of stack tName & return & the width of stack tName & "x" & the height of stack tName
+   if tOpenError is not empty then
+      playerShowError tOpenError, the long name of stack tName
+   end if
 end playerOpenFile
 
 -- Back to the player: the stack's windows close, and it and the stacks it
@@ -811,6 +824,11 @@ private function playerNativeText pLibrary
 end playerNativeText
 
 command playerReportError pError, pObject
+   playerShowError pError, pObject
+end playerReportError
+
+-- (private, for playerOpenFile: see playerLog)
+private command playerShowError pError, pObject
    local tText, tLibrary
    put playerErrorText(pError) into tText
    put playerNativeLibrary(pError) into tLibrary
@@ -828,7 +846,7 @@ command playerReportError pError, pObject
    else
       answer error "A script error in" && pObject & ":" & return & return & tText
    end if
-end playerReportError
+end playerShowError
 
 ----------------------------------------------------------------
 -- Files
