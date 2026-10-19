@@ -1281,6 +1281,10 @@ on toolEnable pWhich
       put true into tIsButton
    else if there is a widget pWhich of me then
       put false into tIsButton
+   else if tmIsModern() then
+      -- OXT-Beyond: the modern look hides a section by leaving it out,
+      -- so enableTools meets the tools of a hidden one
+      exit toolEnable
    else
       throw "Invalid tool type" && pWhich
    end if
@@ -2757,6 +2761,10 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    set the id of tImage to revIDENewIconID()
    put the long id of image (pTypeID & ".icon.png") of group "images" of group "contents" of me into tImage
    revIDEResizeImageInBounds tImage, BLOCK_SIZE * 2, BLOCK_SIZE
+   -- (which ends with unlock messages: without them locked again, each
+   -- control made below sends the IDE its new-object messages, and a
+   -- rebuild takes about ten times as long)
+   lock messages
 
    put pItem["tooltip"] into tTooltip
    if tTooltip is empty then put pItem["title"] into tTooltip
@@ -2876,10 +2884,12 @@ command tmLayout
 
    -- the header
    set the rect of graphic "tmHeadBg" of me to 0, 0, tW, kTmHeadHeight
+   -- Run and Edit with their names when there is room, else their icons,
+   -- narrower still in the narrowest window, to leave room for the menu
    if tW >= 170 then
       put 60 into tSegW
    else
-      put 28 into tSegW
+      put max(20, min(28, (tW - kTmPad * 2 - 24 - 10) div 2)) into tSegW
    end if
    set the rect of graphic "tmSegBg" of me to kTmPad, 7, kTmPad + tSegW * 2 + 4, kTmHeadHeight - 7
    put kTmPad + 2 into tX
