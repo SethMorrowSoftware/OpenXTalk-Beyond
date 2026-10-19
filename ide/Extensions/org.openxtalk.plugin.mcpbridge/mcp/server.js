@@ -56,6 +56,14 @@
 // a page from an origin this allows (the hosted web IDE, OXT-Beyond's own
 // pages on localhost, and those in OXT_MCP_WEB_ORIGINS, a comma list) can
 // connect at all, since a browser always sends a page's true origin.
+// One Claude app can start this server more than once (Claude's desktop
+// app starts one for its own chats and another for its Cowork and Code
+// sessions), and only one can listen on the port. The one that finds the
+// port taken sends its calls to the one listening, over HTTP on the same
+// port (WebLink.relay, relayRequest): it first asks that one to prove it
+// holds the key, so nothing goes to a program that took the port, then
+// sends each call with its own proof, and takes the answer only with that
+// one's proof of it. It tries the port again whenever the other is gone.
 // Without --web, none of this runs, and the server does exactly what it
 // does for the desktop IDE.
 
@@ -99,6 +107,10 @@ const WEB_ORIGINS = ['https://sethmorrow.com'].concat((process.env.OXT_MCP_WEB_O
   .map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean));
 const WEB_MAX_MESSAGE = 64 * 1024 * 1024;
 const WEB_PROOF_TIMEOUT_MS = 10000;
+// How far a relayed call's time may be from this computer's clock, and the
+// largest call a server relays (its arguments: a script, a batch of changes)
+const RELAY_WINDOW_MS = 60000;
+const RELAY_MAX_REQUEST = 16 * 1024 * 1024;
 
 const INSTRUCTIONS = [
   'These tools work in OXT-Beyond, a free IDE for xTalk Script (the language of LiveCode Community 9 and',
@@ -653,6 +665,49 @@ function toolsDifference(ideTools) {
   return note + '. Tell the user to set Claude up again from OXT-Beyond: Development > Plugins > xTalk MCP Bridge > Claude Setup.';
 }
 
+function hmac(key, text) {
+  return crypto.createHmac('sha256', key).update(text).digest('hex');
+}
+
+// Whether two proofs are the same, in a time that does not tell how much
+// of them is
+function sameText(given, expected) {
+  const a = Buffer.from(given, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// An HTTP request to the server listening on this port of this computer:
+// resolves with the parsed JSON of a 200 answer, rejects with the error
+// (its code ECONNREFUSED when nothing listens there now)
+function relayRequest(port, method, path, body, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const data = body === undefined ? null : Buffer.from(JSON.stringify(body), 'utf8');
+    const req = http.request({ host: '127.0.0.1', port, method, path,
+      headers: data ? { 'Content-Type': 'application/json', 'Content-Length': data.length } : {} }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          reject(new Error('it answered ' + res.statusCode));
+          return;
+        }
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        } catch (e) {
+          reject(new Error('its answer is not JSON'));
+        }
+      });
+    });
+    req.setTimeout(timeoutMs, () => req.destroy(new Error('it did not answer in time')));
+    req.on('error', reject);
+    if (data) {
+      req.write(data);
+    }
+    req.end();
+  });
+}
+
 // The web IDE's tab, over a WebSocket (RFC 6455, text messages only), for
 // a server started with --web. It keeps the one tab connected (the newest:
 // a reload, or the IDE opened again, takes over) and hands its messages to
@@ -664,8 +719,11 @@ class WebLink {
     this.key = key;
     this.tab = null;        // the tab's socket
     this.problem = '';      // why it is not listening, when it is not
+    this.taken = false;     // another server listens on the port: calls go to it
     this.onMessage = () => {};
     this.onClose = () => {};
+    this.onRelay = () => Promise.reject(new BridgeError(WEB_NOT_CONNECTED));
+    this.relayNonces = new Map();   // nonce -> when, of relayed calls taken
   }
 
   // Pages the link lets connect: the hosted web IDE, the origins given,
@@ -692,19 +750,103 @@ class WebLink {
       return;
     }
     const server = http.createServer((req, res) => {
+      if (String(req.url || '').startsWith('/relay')) {
+        this.relay(req, res);
+        return;
+      }
       res.writeHead(426, { 'Content-Type': 'text/plain' });
       res.end('The OXT-Beyond MCP server: the web IDE connects here with a WebSocket.\n');
     });
     server.on('upgrade', (req, socket) => this.upgrade(req, socket));
+    server.on('listening', () => {
+      this.problem = '';
+      this.taken = false;
+    });
     server.on('error', (e) => {
+      this.taken = e.code === 'EADDRINUSE';
       this.problem = e.code === 'EADDRINUSE'
-        ? 'Port ' + this.port + ' of this computer is taken, maybe by another Claude app set up for the OXT-Beyond web IDE ' +
-          '(one at a time can be), or by another program. Ask the user to quit the other one. (A different port is the web IDE\'s ' +
-          'cMcpBridge,webPort preference, then Claude Setup... there again, which gives it to this server too.)'
+        ? 'Port ' + this.port + ' of this computer is taken by a program that is not this MCP server set up for the same web IDE ' +
+          '(another Claude app set up from another browser, or another program). Ask the user to quit it. (A different port is the ' +
+          'web IDE\'s cMcpBridge,webPort preference, then Claude Setup... there again, which gives it to this server too.)'
         : 'This MCP server could not listen for the web IDE on port ' + this.port + ': ' + e.message;
       log(this.problem);
     });
     server.listen(this.port, '127.0.0.1', () => log('waiting for the web IDE on ws://127.0.0.1:' + this.port));
+  }
+
+  // A call another server of this computer relays (see the top of this
+  // file): GET /relay-hello?n=<nonce> answers with this server's proof of
+  // holding the key; POST /relay takes {request, proof}, where request is
+  // the JSON text of {nonce, time, tool, arguments} and proof its HMAC,
+  // and answers {response, proof}, response being the JSON text of
+  // {reply} or {error} and proof its HMAC with the call's nonce. A browser
+  // page always sends an Origin, so a request with one is refused.
+  relay(req, res) {
+    const answer = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+    const host = String(req.headers.host || '');
+    if (req.headers.origin !== undefined || !/^(127\.0\.0\.1|localhost):\d+$/.test(host) || this.key.length < 32) {
+      log('refused a relayed call from ' + (req.headers.origin || host || 'an unknown program'));
+      answer(403, { error: 'refused' });
+      return;
+    }
+    const url = new URL(req.url, 'http://127.0.0.1');
+    if (req.method === 'GET' && url.pathname === '/relay-hello') {
+      const nonce = url.searchParams.get('n') || '';
+      if (!/^[0-9a-f]{64}$/.test(nonce)) {
+        answer(400, { error: 'no nonce' });
+        return;
+      }
+      answer(200, { proof: hmac(this.key, 'relay-hello\n' + nonce) });
+      return;
+    }
+    if (req.method !== 'POST' || url.pathname !== '/relay') {
+      answer(404, { error: 'not found' });
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > RELAY_MAX_REQUEST) {
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      let body = null;
+      let request = null;
+      try {
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        request = JSON.parse(String(body.request));
+      } catch (e) {
+        answer(400, { error: 'not JSON' });
+        return;
+      }
+      if (!sameText(String(body.proof || ''), hmac(this.key, 'relay\n' + body.request)) ||
+          !/^[0-9a-f]{64}$/.test(String(request.nonce)) || typeof request.tool !== 'string' ||
+          Math.abs(Date.now() - Number(request.time)) > RELAY_WINDOW_MS || this.relayNonces.has(request.nonce)) {
+        log('refused a relayed call: it does not hold this server\'s key, or was sent before');
+        answer(403, { error: 'refused' });
+        return;
+      }
+      const now = Date.now();
+      for (const [nonce, when] of this.relayNonces) {
+        if (now - when > 2 * RELAY_WINDOW_MS) {
+          this.relayNonces.delete(nonce);
+        }
+      }
+      this.relayNonces.set(request.nonce, now);
+      const respond = (result) => {
+        const response = JSON.stringify(result);
+        answer(200, { response, proof: hmac(this.key, 'relayed\n' + request.nonce + '\n' + response) });
+      };
+      this.onRelay(request.tool, request.arguments || {}).then((reply) => respond({ reply }),
+        (e) => respond({ error: e instanceof BridgeError ? e.message : 'The server the call was relayed to failed: ' + e.message }));
+    });
   }
 
   upgrade(req, socket) {
@@ -892,6 +1034,51 @@ class WebBridge extends Bridge {
         this.onClose();
       }
     };
+    link.onRelay = (tool, args) => this.call(tool, args, {});
+  }
+
+  // A call goes to the tab, or, while another server holds the port, to
+  // that server (see the top of this file)
+  call(tool, args, state) {
+    if (!this.link.taken) {
+      return super.call(tool, args, state);
+    }
+    return this.relay(tool, args);
+  }
+
+  async relay(tool, args) {
+    const port = this.link.port;
+    const key = this.link.key;
+    const timeout = CALL_TIMEOUT_MS + BUSY_WAIT_MS + 5000;
+    const retry = (e) => {
+      // Nothing listens there now: this server takes the port, and the
+      // tab connects to it the next time it tries
+      if (e.code === 'ECONNREFUSED' || e.code === 'ECONNRESET') {
+        log('the server that held port ' + port + ' is gone; this one listens there now');
+        this.link.listen();
+        throw new BridgeError(WEB_NOT_CONNECTED);
+      }
+      throw new BridgeError(this.link.problem + ' (A call to it failed: ' + e.message + '.)');
+    };
+    const hello = crypto.randomBytes(32).toString('hex');
+    const proven = await relayRequest(port, 'GET', '/relay-hello?n=' + hello, undefined, CONNECT_TIMEOUT_MS).catch(retry);
+    if (!sameText(String(proven.proof || ''), hmac(key, 'relay-hello\n' + hello))) {
+      log('what listens on port ' + port + ' does not hold the key; nothing was sent to it');
+      throw new BridgeError(this.link.problem);
+    }
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const request = JSON.stringify({ nonce, time: Date.now(), tool, arguments: args || {} });
+    const answer = await relayRequest(port, 'POST', '/relay', { request, proof: hmac(key, 'relay\n' + request) }, timeout).catch(retry);
+    const response = String(answer.response || '');
+    if (!sameText(String(answer.proof || ''), hmac(key, 'relayed\n' + nonce + '\n' + response))) {
+      throw new BridgeError('The answer from the server on port ' + port + ' did not carry its proof, so it was not used. What was asked ' +
+        'may or may not have been done: read the stack again before going on.');
+    }
+    const result = JSON.parse(response);
+    if (result.error !== undefined) {
+      throw new BridgeError(String(result.error));
+    }
+    return result.reply;
   }
 
   connect() {

@@ -83,7 +83,11 @@ The server also lets only pages from the hosted web IDE
 (`https://sethmorrow.com`) and from this computer (`http://localhost` or
 `http://127.0.0.1`, as `serve.py` in the downloadable web IDE serves it)
 connect; set `OXT_MCP_WEB_ORIGINS` to a comma list of other origins to
-let them in too. Only one Claude app at a time can hold the port. For
+let them in too. Only one server holds the port; when Claude's app
+starts another (Claude's desktop app starts one for its chats and one
+for its Cowork and Code sessions), that one passes its calls to the one
+holding the port, after the two prove to each other that they hold the
+same key, and takes the port over when the other quits. For
 another port than 47861, set the web IDE's `cMcpBridge,webPort`
 preference (for example `revIDESetPreference "cMcpBridge,webPort", 47900`
 in the Message Box), connect again, and set Claude up again: the setup

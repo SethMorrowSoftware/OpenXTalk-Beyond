@@ -42,6 +42,7 @@ Skipped where Node.js is not installed.
 import base64
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import re
@@ -820,6 +821,73 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
             listener.close()
         self.assertEqual(out['state'], 'refused')
         self.assertEqual(out['queued'], [])
+
+    def second_server(self, **settings):
+        """Starts another server on the same port (as Claude's desktop app
+        starts one for its chats and one for its Cowork and Code sessions),
+        which becomes self.proc; the first is returned, still running."""
+        first = self.proc
+        time.sleep(0.3)
+        self.start_web(**settings)
+        self.initialize()
+        self.addCleanup(self.end, first)
+        return first
+
+    def end(self, proc):
+        if proc.poll() is None:
+            proc.stdin.close()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        proc.stdout.close()
+        proc.stderr.close()
+
+    def test_web_a_second_server_relays_to_the_one_on_the_port(self):
+        self.start_web()
+        self.initialize()
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'read ' + json.dumps(r['arguments'])})
+        self.assertTrue(tab.server_ok)
+        self.second_server()
+        result = self.call('read_stack', {'stack': 'Notepad'})
+        self.assertFalse(result['isError'], result)
+        self.assertEqual(result['content'][0]['text'], 'read {"stack": "Notepad"}')
+        self.assertEqual([r.get('tool') for r in tab.requests if r['method'] == 'call'], ['read_stack'])
+        # The tab's errors come back as they are
+        self.assertTrue(self.call('list_stacks')['content'][0]['text'].startswith('read'))
+
+    def test_web_a_second_server_without_the_key_gets_nothing(self):
+        self.start_web()
+        self.initialize()
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'stacks'})
+        self.assertTrue(tab.server_ok)
+        self.second_server(OXT_MCP_WEB_KEY='cd' * 32)
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('Port %d' % self.port, result['content'][0]['text'])
+        self.assertEqual([r for r in tab.requests if r['method'] == 'call'], [])
+
+    def test_web_a_second_server_takes_the_port_when_the_first_is_gone(self):
+        self.start_web()
+        self.initialize()
+        first = self.second_server()
+        self.end(first)
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('not connected', result['content'][0]['text'])
+        time.sleep(0.3)
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'stacks'})
+        self.assertTrue(tab.server_ok)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'stacks')
+
+    def test_web_a_relayed_call_from_a_page_is_refused(self):
+        self.start_web()
+        self.initialize()
+        time.sleep(0.3)
+        conn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        conn.request('GET', '/relay-hello?n=' + 'ab' * 32, headers={'Origin': 'http://localhost:8000'})
+        self.assertEqual(conn.getresponse().status, 403)
+        conn.close()
 
     def test_web_a_taken_port_is_said(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as taken:
