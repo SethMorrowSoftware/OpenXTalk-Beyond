@@ -3262,12 +3262,16 @@ private command tmDragSize
 end tmDragSize
 
 private command tmDragThumb
-   local tStart, tScroll, tNow, tView, tRatio
+   local tStart, tScroll, tNow, tView, tRatio, tTravel
    put item 2 of the screenMouseLoc into tStart
    put the vScroll of group "contents" of me into tScroll
    put the height of group "contents" of me into tView
-   if tView <= 0 then exit tmDragThumb
-   put sTmContentHeight / tView into tRatio
+   if tView <= 0 or sTmContentHeight <= tView then exit tmDragThumb
+   -- how far it scrolls for each pixel the thumb moves on its track, as
+   -- tmSyncThumb places it
+   put tView - max(24, round(tView * tView / sTmContentHeight)) - 18 into tTravel
+   if tTravel <= 0 then exit tmDragThumb
+   put (sTmContentHeight - tView) / tTravel into tRatio
    repeat while the mouse is down
       put item 2 of the screenMouseLoc into tNow
       tmScrollBy tScroll + round((tNow - tStart) * tRatio) - the vScroll of group "contents" of me

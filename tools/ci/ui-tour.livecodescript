@@ -467,10 +467,14 @@ on tour_tools_modern_use
    -- Tools > Paint and Draw Tools
    if there is a stack "revMenuBar" then
       put tourTmGroup("paint") is not empty into tShow
+      tourTmCheck tourTmMenuChecked("Paint and Draw Tools") is tShow, "Tools > Paint and Draw Tools is checked when the paint tools show"
+      tourTmCheck tourTmMenuChecked("Modern Tools Palette") is true, "Tools > Modern Tools Palette is checked"
       dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "paint and draw tools"
       tourTmCheck (tourTmGroup("paint") is not empty) is not tShow, "Tools > Paint and Draw Tools shows or hides the paint tools"
+      tourTmCheck tourTmMenuChecked("Paint and Draw Tools") is not tShow, "and its check follows"
       dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "paint and draw tools"
       tourTmCheck (tourTmGroup("paint") is not empty) is tShow, "and again"
+      tourTmCheck tourTmMenuChecked("Paint and Draw Tools") is tShow, "and its check again"
       tourTmCheck revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") is sTmClassicPrefs, \
             "the classic look's settings are still untouched"
    end if
@@ -571,6 +575,17 @@ command tourTmClick pObj
    end repeat
    tourWait 50
 end tourTmClick
+
+-- Whether an item of the IDE's Tools menu is checked, as the menu bar
+-- builds it; empty when the menu has no such item
+function tourTmMenuChecked pItem
+   local tLine
+   dispatch function "revMenubarBuildMenu" to stack "revMenuBar" with "Tools"
+   repeat for each line tLine in the result
+      if tLine contains pItem then return char 1 to 2 of tLine is "!c"
+   end repeat
+   return empty
+end tourTmMenuChecked
 
 -- A control of the Tools palette by its name
 function tourTmNamed pName

@@ -1441,8 +1441,9 @@ private function revMenubarToolsMenu pContext
    put toggleMenuItem("&Tools Palette/T", revIDEPaletteIsVisible("tools")) & return after tTools
    -- OXT-Beyond: the modern Tools palette keeps its own sections
    if revIDEGetPreference("revTools_look") is "modern" and there is a stack "revTools" then
+      -- (dispatch function puts "handled" in it, and the sections in the result)
       dispatch function "tmShownSections" to stack "revTools"
-      put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of it) & return after tTools
+      put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of the result) & return after tTools
    else
       put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of revIDEGetPreference("revTools_show")) & return after tTools
    end if
