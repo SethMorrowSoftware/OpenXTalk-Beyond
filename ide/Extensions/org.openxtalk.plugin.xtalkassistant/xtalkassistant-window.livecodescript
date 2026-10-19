@@ -5,9 +5,10 @@ script "org.openxtalk.plugin.xtalkassistant-window"
 -- main stack, org.openxtalk.plugin.xtalkassistant, which does the work.
 -- Here "me" is the window.
 --
--- The window wears the xTalk Suite's look (its UI kit v2), which leaves
--- the layout to each window: a 16 pixel edge, rows of 24, gaps of 8. From
--- the top: the band with the title and the pill, the status line, the
+-- The window wears the look of the IDE's learning windows (see the main
+-- stack), and its layout is the one it had in the xTalk Suite's look: a 16
+-- pixel edge, rows of 24, gaps of 8. From the top: the header with the
+-- mark, the title and the pill, the status line, the
 -- row of settings, and the conversation on a panel, with the activity row
 -- at its foot while the assistant works; from the bottom: the footer, the
 -- prompt and Send, the row of actions on the answer, and, while the
@@ -18,16 +19,18 @@ constant kMain = "org.openxtalk.plugin.xtalkassistant"
 constant kEdge = 16
 constant kGap = 8
 constant kRowHeight = 24
-constant kBand = 30
+constant kBand = 44
 constant kPromptHeight = 72
 constant kSendWidth = 80
 constant kAskHeight = 172
 constant kPillWidth = 92
 constant kActivityHeight = 26
--- The prompt's line, as the kit draws an entry field's, and the accent
--- it takes while the prompt has the focus
-constant kFieldLine = "203,210,222"
-constant kAccent = "44,90,160"
+-- The prompt's line, as an entry field's is drawn, and the accent (Learn's
+-- violet) it takes while the prompt has the focus; where the title begins,
+-- after the mark
+constant kFieldLine = "203,213,225"
+constant kAccent = "124,58,237"
+constant kTitleLeft = 46
 
 on preOpenStack
    xtawLayout the width of me, the height of me
@@ -55,11 +58,12 @@ private command xtawLayout pWidth, pHeight
    put pWidth - kEdge into tRight
    lock screen
 
-   -- The band, the title on it and the pill at its right, then the status
-   -- line under it
+   -- The header, its gradient across it, the title on it and the pill at
+   -- its right, then the status line under it
    set the rect of graphic "uiBand" of me to 0, 0, pWidth, kBand
-   set the rect of field "uiTitle" of me to 0, the top of field "uiTitle" of me, pWidth - kEdge - kPillWidth - kGap, the bottom of field "uiTitle" of me
-   set the rect of graphic "PillBg" of me to tRight - kPillWidth, 6, tRight, 24
+   xtawBandGradient pWidth
+   set the rect of field "uiTitle" of me to kTitleLeft, the top of field "uiTitle" of me, pWidth - kEdge - kPillWidth - kGap, the bottom of field "uiTitle" of me
+   set the rect of graphic "PillBg" of me to tRight - kPillWidth, (kBand - 18) div 2, tRight, (kBand + 18) div 2
    set the rect of field "Pill" of me to tRight - kPillWidth, the top of field "Pill" of me, tRight, the bottom of field "Pill" of me
    set the rect of field "Status" of me to tLeft, kBand + 4, tRight, kBand + 22
 
@@ -119,6 +123,17 @@ private command xtawLayout pWidth, pHeight
    xtawFitScrollbar "Conversation"
    unlock screen
 end xtawLayout
+
+-- The header's gradient runs the window's width
+private command xtawBandGradient pWidth
+   local tFill
+   put the fillGradient of graphic "uiBand" of me into tFill
+   if tFill["type"] is empty then
+      exit xtawBandGradient
+   end if
+   put pWidth & ",0" into tFill["to"]
+   set the fillGradient of graphic "uiBand" of me to tFill
+end xtawBandGradient
 
 -- A field's scrollbar, only while it holds more than it shows (measured
 -- with the scrollbar, so that taking it away cannot make the text longer

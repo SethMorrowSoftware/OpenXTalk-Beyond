@@ -54,12 +54,15 @@ script "org.openxtalk.plugin.xtalkassistant"
 -- xtalkassistant-errors.livecodescript (the error hook) and
 -- xtalk-guide.md (the guide).
 --
--- The windows wear the xTalk Suite's look (its UI kit v2,
--- tools/ui-kit.livecodescript in the xtalk-suite repository): an accent
--- band with the title, one status line under it, white panels on a cool
--- page, flat entry fields in the platform's mono face, and a footer. The
--- kit's colors and builders are matched here by value (xtaUi...), not
--- carried, since this is not one of the suite's stacks.
+-- The windows wear the look of the IDE's learning windows (Learn, Home,
+-- About, xTalk Chat and the IDE's own dialogs): a dark header with the
+-- violet mark and the title, one status line under it, white panels with
+-- a hairline on slate, flat buttons, and code on Learn's dark code panel
+-- in Learn's colours. Learn's kit (revLearnKit) is matched here by value
+-- (xtaUi...), not used, so that the plugin package needs nothing of the
+-- IDE's to draw itself; the layout is the one the windows had in the
+-- xTalk Suite's look before (0.2.7-rc.5), so every control is where it
+-- was and is named as it was.
 --
 -- Public handlers (all reached with dispatch, from the menu bar and the
 -- window):
@@ -139,32 +142,37 @@ constant kTickMilliseconds = 125
 constant kPictureSide = 1024
 constant kKeptPictures = 2
 
--- The xTalk Suite's UI kit v2, by value (its tools/ui-kit.livecodescript):
--- the page, the panels and their hairline, the accent band and its text,
--- the inks, the status colors, the entry fields' line, and the code's
--- ground and line
-constant kUiBg = "240,242,246"
+-- Learn's colours, by value (revLearnKit's lkColor): the page, the
+-- panels and their hairline, the accent (violet) and the header's text,
+-- the inks, the status colours, the entry fields' line, the code panel's
+-- ground, its head and its ink, and the ground of a tool's output
+constant kUiBg = "241,245,249"
 constant kUiCard = "255,255,255"
-constant kUiCardLine = "225,229,236"
-constant kUiAccent = "44,90,160"
+constant kUiCardLine = "226,232,240"
+constant kUiAccent = "124,58,237"
 constant kUiAccentText = "255,255,255"
-constant kUiAccentSub = "199,216,241"
-constant kUiInk = "28,34,46"
-constant kUiInkSoft = "95,104,118"
-constant kUiMuted = "138,146,158"
-constant kUiOk = "23,128,63"
-constant kUiWarn = "150,110,40"
-constant kUiBad = "176,58,46"
-constant kUiFieldLine = "203,210,222"
-constant kUiCodeBg = "244,246,250"
-constant kUiCodeLine = "210,217,229"
--- Not the kit's: the header of a block of code in the conversation, and
--- the tint under the user's questions
-constant kUiCodeHead = "230,235,243"
-constant kUiTint = "236,242,251"
--- The kit's title band, and the windows' sizes (each fits 1200 x 640, a
--- 720p screen, as the kit asks)
-constant kUiBand = 30
+constant kUiAccentSub = "203,213,225"
+constant kUiInk = "15,23,42"
+constant kUiInkSoft = "71,85,105"
+constant kUiMuted = "100,116,139"
+constant kUiOk = "22,163,74"
+constant kUiWarn = "180,83,9"
+constant kUiBad = "220,38,38"
+constant kUiFieldLine = "203,213,225"
+constant kUiCodeBg = "15,23,42"
+constant kUiCodeHead = "30,41,59"
+constant kUiCodeInk = "226,232,240"
+constant kUiOutputBg = "241,245,249"
+-- The header's gradient (Learn's), the tint under the user's questions,
+-- and inline code (a violet tint, as Learn shows a word of code in text)
+constant kUiHeadFrom = "15,23,42"
+constant kUiHeadTo = "36,27,82"
+constant kUiTint = "245,243,255"
+constant kUiInlineBg = "237,233,254"
+constant kUiInlineInk = "91,33,182"
+-- The header, and the windows' sizes (each fits 1200 x 640, a 720p
+-- screen, as the xTalk Suite's kit asked)
+constant kUiBand = 44
 constant kWindowWidth = 560
 constant kWindowHeight = 640
 constant kSettingsWidth = 640
@@ -538,7 +546,7 @@ private command xtaBuildWindow
    set the linkColor of stack kWindow to kUiAccent
    set the linkHiliteColor of stack kWindow to kUiAccent
    set the linkVisitedColor of stack kWindow to kUiAccent
-   xtaUiPill "Pill", (kWindowWidth - 108) & ",6," & (kWindowWidth - 16) & ",24"
+   xtaUiPill "Pill", (kWindowWidth - 108) & comma & (kUiBand - 18) div 2 & comma & (kWindowWidth - 16) & comma & (kUiBand + 18) div 2
 
    create button "Provider"
    set the style of button "Provider" to "menu"
@@ -673,6 +681,7 @@ private command xtaBuildWindow
 
    xtaUiFooter xtaFooterText(), "16,614," & (kWindowWidth - 16) & ",632"
    set the dontWrap of field "uiFooter" to true
+   xtaUiButtons kWindow, "Send,AskYes"
 
    set the behavior of stack kWindow to the long id of stack kWindowBehavior
    unlock messages
@@ -743,24 +752,43 @@ private function xtaUiMonoFont
    return "DejaVu Sans Mono"
 end xtaUiMonoFont
 
--- The page, the accent band with the title, and the status line under it
--- (field "Status", which xtaStatus and the dialogs write)
+-- The page, the header with the mark and the title, and the status line
+-- under it (field "Status", which xtaStatus and the dialogs write)
 private command xtaUiChrome pTitle, pWidth, pHeight
    local tHeight
    set the width of this stack to pWidth
    set the height of this stack to pHeight
    set the backgroundColor of this card to kUiBg
    set the title of this stack to pTitle
+   -- The header, dark, its gradient Learn's (xtaUiBandWidth keeps it to
+   -- the window's width)
    xtaUiGfx "uiBand", "0,0," & pWidth & comma & kUiBand
    set the style of graphic "uiBand" to "rectangle"
    set the filled of graphic "uiBand" to true
-   set the backgroundColor of graphic "uiBand" to kUiAccent
+   set the backgroundColor of graphic "uiBand" to kUiHeadFrom
    set the lineSize of graphic "uiBand" to 0
-   xtaUiLabel "uiTitle", "  " & pTitle, "0,0," & pWidth & comma & kUiBand, 15
+   xtaUiBandWidth pWidth
+   -- The mark: a violet square with rounded corners, lit from above, and
+   -- a four-pointed star on it
+   xtaUiGfx "uiMark", "12,9,38,35"
+   set the roundRadius of graphic "uiMark" to 9
+   set the filled of graphic "uiMark" to true
+   set the lineSize of graphic "uiMark" to 0
+   set the backgroundColor of graphic "uiMark" to kUiAccent
+   xtaUiFill the long id of graphic "uiMark", "157,108,242", "109,40,217", "12,9", "12,35"
+   xtaUiLabel "uiMarkGlyph", numToCodepoint(10022), "12,9,38,35", 14
+   set the foregroundColor of field "uiMarkGlyph" to kUiAccentText
+   set the textAlign of field "uiMarkGlyph" to "center"
+   put the formattedHeight of field "uiMarkGlyph" into tHeight
+   if tHeight > 0 and tHeight < 26 then
+      set the height of field "uiMarkGlyph" to tHeight
+      set the top of field "uiMarkGlyph" to 9 + (26 - tHeight) div 2
+   end if
+   xtaUiLabel "uiTitle", pTitle, "46,0," & pWidth & comma & kUiBand, 15
    set the foregroundColor of field "uiTitle" to kUiAccentText
    set the textStyle of field "uiTitle" to "bold"
    set the dontWrap of field "uiTitle" to true
-   -- Centered on the band by its measured height, as the kit does
+   -- Centered on the header by its measured height
    put the formattedHeight of field "uiTitle" into tHeight
    if tHeight > 0 and tHeight < kUiBand then
       set the height of field "uiTitle" to tHeight
@@ -770,6 +798,65 @@ private command xtaUiChrome pTitle, pWidth, pHeight
    set the dontWrap of field "Status" to true
    set the foregroundColor of field "Status" to kUiInkSoft
 end xtaUiChrome
+
+-- The header's gradient across a window pWidth wide (and the window's
+-- behavior keeps it there as the window is resized)
+private command xtaUiBandWidth pWidth
+   xtaUiFill the long id of graphic "uiBand", kUiHeadFrom, kUiHeadTo, "0,0", pWidth & ",0"
+end xtaUiBandWidth
+
+-- A linear gradient on graphic pObj, from pFrom at point pStart to pTo at
+-- pEnd (an engine without gradients keeps the graphic's own colour)
+private command xtaUiFill pObj, pFrom, pTo, pStart, pEnd
+   local tFill, tError
+   try
+      put "linear" into tFill["type"]
+      put "0.0," & pFrom & return & "1.0," & pTo into tFill["ramp"]
+      put pStart into tFill["from"]
+      put pEnd into tFill["to"]
+      put item 1 of pStart & comma & (item 2 of pStart + 1) into tFill["via"]
+      if pStart is not pEnd and item 1 of pStart is item 1 of pEnd then
+         put (item 1 of pStart + 1) & comma & item 2 of pStart into tFill["via"]
+      end if
+      set the fillGradient of pObj to tFill
+   catch tError
+   end try
+end xtaUiFill
+
+-- Flat buttons, as Learn draws them: every push button of the card of
+-- stack pStack a slate chip, and those named in pPrimary (the ones that
+-- say yes) filled with the accent. Menus and checkboxes keep
+-- the platform's look.
+private command xtaUiButtons pStack, pPrimary
+   local tIndex, tButton
+   repeat with tIndex = 1 to the number of buttons of this card of stack pStack
+      put the long id of button tIndex of this card of stack pStack into tButton
+      if the style of tButton is not "standard" then
+         next repeat
+      end if
+      set the style of tButton to "roundrect"
+      set the threeD of tButton to false
+      set the showBorder of tButton to false
+      set the borderWidth of tButton to 0
+      set the hiliteBorder of tButton to false
+      set the showFocusBorder of tButton to false
+      set the opaque of tButton to true
+      set the textStyle of tButton to "bold"
+      if the short name of tButton is among the items of pPrimary then
+         xtaUiButtonColors tButton, kUiAccent, kUiAccentText, "109,40,217"
+      else
+         xtaUiButtonColors tButton, kUiCardLine, kUiInk, kUiFieldLine
+      end if
+   end repeat
+end xtaUiButtons
+
+-- A flat button's ground, ink and colour while pressed
+private command xtaUiButtonColors pButton, pGround, pInk, pPressed
+   set the backgroundColor of pButton to pGround
+   set the borderColor of pButton to pGround
+   set the foregroundColor of pButton to pInk
+   set the hiliteColor of pButton to pPressed
+end xtaUiButtonColors
 
 -- A caption at a fixed rect
 private command xtaUiLabel pName, pText, pRect, pSize
@@ -877,8 +964,8 @@ private command xtaUiPanel pName, pRect
    set the foregroundColor of graphic pName to kUiCardLine
    set the borderColor of graphic pName to kUiCardLine
    try
-      put "90,98,114" into tShadow["color"]
-      put 30 into tShadow["opacity"]
+      put "15,23,42" into tShadow["color"]
+      put 18 into tShadow["opacity"]
       put 10 into tShadow["size"]
       put 0 into tShadow["spread"]
       put 2 into tShadow["distance"]
@@ -998,26 +1085,26 @@ private command xtaPaintPill
    end if
 end xtaPaintPill
 
--- The kit's pill colors, by kind: ok green, wait amber, bad red, and
--- otherwise ("busy") the muted blue of the band
+-- The pill's colours on the dark header, by kind: ok green, wait amber,
+-- bad red, and otherwise ("busy") a deep violet
 private command xtaSetPill pText, pKind
    local tGround, tInk
    switch pKind
       case "ok"
-         put "205,240,214" into tGround
-         put "22,101,52" into tInk
+         put "209,250,229" into tGround
+         put "6,95,70" into tInk
          break
       case "wait"
-         put "250,240,199" into tGround
-         put "133,98,14" into tInk
+         put "254,243,199" into tGround
+         put "146,64,14" into tInk
          break
       case "bad"
-         put "243,215,213" into tGround
-         put "135,44,38" into tInk
+         put "254,226,226" into tGround
+         put "153,27,27" into tInk
          break
       default
-         put "31,64,116" into tGround
-         put kUiAccentSub into tInk
+         put "76,29,149" into tGround
+         put "221,214,254" into tInk
    end switch
    lock messages
    set the backgroundColor of graphic "PillBg" of stack kWindow to tGround
@@ -1474,7 +1561,7 @@ private command xtaDocRunOutput @xDoc, pResult
    put xtaCodeFont() into tMono["textFont"]
    put 10 into tMono["textSize"]
    put kUiInk into tMono["textColor"]
-   put kUiCodeBg into tPara["backgroundColor"]
+   put kUiOutputBg into tPara["backgroundColor"]
    put 16 into tPara["leftIndent"]
    put 8 into tPara["firstIndent"]
    put 0 into tCount
@@ -1766,7 +1853,8 @@ private function xtaInlineRuns pText, pBase
                put empty into tPlain
                put pBase into tStyle
                put xtaCodeFont() into tStyle["textFont"]
-               put kUiCodeHead into tStyle["backgroundColor"]
+               put kUiInlineBg into tStyle["backgroundColor"]
+               put kUiInlineInk into tStyle["textColor"]
                xtaRunAdd tRuns, char tPos + 1 to tEnd - 1 of pText, tStyle
                put tEnd + 1 into tPos
                next repeat
@@ -1911,7 +1999,7 @@ private command xtaDocAnswer @xDoc, pText, pTurn, pInk, pNew
    put pInk into tBody["textColor"]
    put tCodeFont into tCode["textFont"]
    put 11 into tCode["textSize"]
-   put kUiInk into tCode["textColor"]
+   put kUiCodeInk into tCode["textColor"]
    put kUiCodeBg into tCodePara["backgroundColor"]
    put 10 into tCodePara["firstIndent"]
    put (pNew is false) into tFirst
@@ -1936,12 +2024,14 @@ private command xtaDocAnswer @xDoc, pText, pTurn, pInk, pNew
          put empty into tRuns
          put empty into tRun
          put "bold" into tRun["textStyle"]
-         put kUiInkSoft into tRun["textColor"]
+         put "148,163,184" into tRun["textColor"]
          put 10 into tRun["textSize"]
          xtaRunAdd tRuns, xtaLangLabel(tLang), tRun
          put empty into tLink
          put "link" into tLink["textStyle"]
          put 10 into tLink["textSize"]
+         -- (Learn's lighter violet, which reads on the dark head)
+         put "196,181,253" into tLink["textColor"]
          put "copy," & pTurn & comma & tBlock into tLink["linkText"]
          xtaRunAdd tRuns, "     ", tRun
          xtaRunAdd tRuns, "Copy", tLink
@@ -1964,7 +2054,12 @@ private command xtaDocAnswer @xDoc, pText, pTurn, pInk, pNew
          next repeat
       end if
       if tInCode then
-         xtaDocLine xDoc, tLine, tCode, tCodePara
+         -- xTalk in Learn's colours, anything else in the code's ink
+         if xtaIsXTalkLang(tLang) then
+            xtaDocAdd xDoc, xtaCodeRuns(tLine, tCode), tCodePara
+         else
+            xtaDocLine xDoc, tLine, tCode, tCodePara
+         end if
          next repeat
       end if
       -- An empty line sets the next paragraph apart, rather than being a
@@ -2037,6 +2132,87 @@ private command xtaDocAnswer @xDoc, pText, pTurn, pInk, pNew
       xtaDocInline xDoc, tLine, tBody, tPara
    end repeat
 end xtaDocAnswer
+
+-- A line of xTalk as runs in Learn's colours (revLearnKit's lkCodeLineHtml
+-- and lkWordColor, by value): strings, comments, numbers, the commands
+-- and control words, the little words, the objects and chunks, and the
+-- constants, each a colour of its own; pBase is the run every one starts
+-- from (the code's face, size and ink)
+private function xtaCodeRuns pLine, pBase
+   local tRuns, tPos, tLength, tChar, tStart, tWord, tStyle, tPlain
+   put the number of chars of pLine into tLength
+   put 1 into tPos
+   repeat while tPos <= tLength
+      put char tPos of pLine into tChar
+      if tChar is quote then
+         xtaRunAdd tRuns, tPlain, pBase
+         put empty into tPlain
+         put tPos into tStart
+         add 1 to tPos
+         repeat while tPos <= tLength and char tPos of pLine is not quote
+            add 1 to tPos
+         end repeat
+         put pBase into tStyle
+         put "252,211,77" into tStyle["textColor"]
+         xtaRunAdd tRuns, char tStart to tPos of pLine, tStyle
+         add 1 to tPos
+      else if (tChar is "-" and char tPos + 1 of pLine is "-") or tChar is "#" then
+         xtaRunAdd tRuns, tPlain, pBase
+         put empty into tPlain
+         put pBase into tStyle
+         put "100,116,139" into tStyle["textColor"]
+         xtaRunAdd tRuns, char tPos to tLength of pLine, tStyle
+         exit repeat
+      else if xtaIsCodeWordChar(tChar) then
+         xtaRunAdd tRuns, tPlain, pBase
+         put empty into tPlain
+         put tPos into tStart
+         repeat while tPos <= tLength and xtaIsCodeWordChar(char tPos of pLine)
+            add 1 to tPos
+         end repeat
+         put char tStart to tPos - 1 of pLine into tWord
+         put pBase into tStyle
+         put xtaWordColor(tWord) into tStyle["textColor"]
+         xtaRunAdd tRuns, tWord, tStyle
+      else
+         put tChar after tPlain
+         add 1 to tPos
+      end if
+   end repeat
+   xtaRunAdd tRuns, tPlain, pBase
+   -- (an empty line is one empty run, so that it keeps its height)
+   if the number of elements of tRuns is 0 then
+      put empty into tRuns[1]["text"]
+      put pBase into tRuns[1]["style"]
+   end if
+   return tRuns
+end xtaCodeRuns
+
+-- A character of a word of xTalk, as Learn reads one ("is in" ignores
+-- case, so this takes capitals too)
+private function xtaIsCodeWordChar pChar
+   return pChar is not empty and pChar is in "abcdefghijklmnopqrstuvwxyz0123456789_"
+end xtaIsCodeWordChar
+
+-- A word of xTalk's colour, as Learn colours it
+private function xtaWordColor pWord
+   if pWord is a number then
+      return "253,186,116"
+   end if
+   if pWord is among the items of "on,end,put,get,set,move,add,subtract,multiply,divide,send,dispatch,call,repeat,if,then,else,switch,case,break,default,try,catch,throw,answer,ask,create,delete,go,open,close,show,hide,lock,unlock,sort,filter,replace,convert,do,exit,pass,return,local,global,constant,cancel,launch,function,command,getprop,setprop,next,beep,play,wait,select,click,type,import,export,start,stop,read,write,save,visual,focus,choose,combine,split,insert,load,post,format,private" then
+      return "196,181,253"
+   end if
+   if pWord is among the items of "the,of,to,into,in,with,without,waiting,messages,and,or,not,is,are,a,an,for,each,until,while,times,by,after,before,from,at,any,mod,div,as,among,contains,within" then
+      return "125,211,252"
+   end if
+   if pWord is among the items of "field,fld,graphic,grc,button,btn,card,cd,stack,image,img,group,grp,player,widget,scrollbar,control,me,it,this,target,item,items,word,words,line,lines,char,chars,character,characters,url,file,folder,milliseconds,millisecs,ticks,seconds,second,secs" then
+      return "94,234,212"
+   end if
+   if pWord is among the items of "true,false,empty,quote,space,tab,comma,cr,return,lf,slash,colon,pi,zero,one,two,three" then
+      return "249,168,212"
+   end if
+   return kUiCodeInk
+end xtaWordColor
 
 -- Whom a proposed note is about, as the window says it
 private function xtaNoteScope pTurn, pNote
@@ -2260,7 +2436,8 @@ private command xtaBuildSettings
    set the rect of field "Result" to 16, kUiBand + 4, tRight, kUiBand + 34
    set the dontWrap of field "Result" to false
 
-   put 68 into tTop
+   -- (under the header and the line that says what Save found)
+   put kUiBand + 30 into tTop
    xtaSettingsSection "Section1", "1  Provider and key", tTop
    xtaSettingsLabel "Provider", tTop
    create button "Provider"
@@ -2279,13 +2456,13 @@ private command xtaBuildSettings
    add 25 to tTop
    xtaSettingsNote "Key Note", tLeft, tTop, tRight, 31
 
-   add 34 to tTop
+   add 32 to tTop
    xtaSettingsLabel "Base URL", tTop
    xtaSettingsField "Base URL", tLeft, tTop, tRight
    add 25 to tTop
    xtaSettingsNote "Base URL Note", tLeft, tTop, tRight, 31
 
-   add 34 to tTop
+   add 32 to tTop
    xtaSettingsSection "Section2", "2  Model", tTop
    xtaSettingsLabel "Model", tTop
    create button "Model"
@@ -2301,7 +2478,7 @@ private command xtaBuildSettings
    put "Choose a model or type its name. Get Models asks the provider for all of them, and tells you whether the key works." \
          into field "Model Note"
 
-   add 34 to tTop
+   add 32 to tTop
    xtaSettingsSection "Section3", "3  Answers", tTop
    xtaSettingsLabel "Longest answer", tTop
    xtaSettingsField "Max Tokens", tLeft, tTop, tLeft + 80
@@ -2344,6 +2521,7 @@ private command xtaBuildSettings
    set the rect of button "Save" to tRight - 98, tTop, tRight, tTop + 24
    set the default of button "Save" to true
    set the height of stack kSettingsWindow to tTop + 24 + 16
+   xtaUiButtons kSettingsWindow, "Save"
 
    set the behavior of stack kSettingsWindow to the long id of stack kSettingsBehavior
    unlock messages
@@ -3051,7 +3229,7 @@ private function xtaMemoryDialog pWork, pYou, pStackNotes
    set the dontWrap of field "Status" to false
    set the rect of field "Status" to 16, kUiBand + 4, tRight, kUiBand + 34
 
-   put 72 into tTop
+   put kUiBand + 42 into tTop
    xtaSettingsSectionIn "Section1", "1  About you", tTop, kMemoryWidth
    xtaUiCap "YouLabel", "For every stack: one note per line.", "16," & tTop & comma & tRight & comma & (tTop + 16)
    put (the bottom of field "YouLabel") + 6 into tTop
@@ -3095,6 +3273,7 @@ private function xtaMemoryDialog pWork, pYou, pStackNotes
    xtaKeepOnScreen the long id of stack kMemoryWindow, false
    -- Made invisible, so it is shown before it opens as a modal window (as
    -- the assistant's window must be)
+   xtaUiButtons kMemoryWindow, "Save"
    set the visible of stack kMemoryWindow to true
    unlock screen
    modal stack kMemoryWindow
