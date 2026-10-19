@@ -405,6 +405,12 @@ on tCloseSplashFully
    if revEnvironmentIsWeb() and there is a stack "revWebIDELibrary" then
       send "revWebIDEStartupHome" to stack "revWebIDELibrary" in 200 milliseconds
    end if
+   -- OXT-Beyond: on the desktop, Home opens at startup only when the user
+   -- switched that on in it (cHomeAtStartup): the IDE opened nothing at
+   -- startup before Home came to the desktop
+   if not revEnvironmentIsWeb() and revIDEGetPreference("cHomeAtStartup") is true and there is a stack "revMenubar" then
+      send "tOpenHome" to stack "revMenubar" in 200 milliseconds
+   end if
    
 end tCloseSplashFully
 
