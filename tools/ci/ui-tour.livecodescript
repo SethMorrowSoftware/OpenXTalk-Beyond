@@ -343,9 +343,16 @@ on tour_tools_modern_sizes
    tourWait 200
    tourTmLayoutOK "with names, narrow"
    tourTmCheck tourTmColumns("classic") is 1, "names in one column when narrow (" & tourTmColumns("classic") & ")"
+   tourTmNamesWhole "narrow"
+   -- the width of the names snapshot, where two long names were cut off
+   set the rect of stack "revTools" to 40, 120, 40 + 390, 120 + 520
+   tourWait 200
+   tourTmLayoutOK "with names, at 390"
+   tourTmNamesWhole "at 390"
    set the rect of stack "revTools" to 40, 120, 40 + 640, 120 + 520
    tourWait 200
    tourTmLayoutOK "with names, wide"
+   tourTmNamesWhole "wide"
    tourTmCheck tourTmColumns("classic") >= 3, "names in columns when wide (" & tourTmColumns("classic") & ")"
    revIDESetPreference "revTools_modernNames", false
    -- short: it scrolls with the wheel, and no further than its end
@@ -664,6 +671,29 @@ function tourTmLowestTile
    end repeat
    return tMax
 end tourTmLowestTile
+
+-- Every name shown is whole: on one line it is no wider than its field, or
+-- on two lines no taller, and never smaller than 10 points
+command tourTmNamesWhole pWhere
+   local tView, tGroup, i, tLabel, tBad
+   repeat for each item tView in "widget,classic,graphic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      put tourTmGroup(tView) into tGroup
+      if tGroup is empty or not the visible of tGroup then next repeat
+      repeat with i = 1 to the number of buttons of tGroup
+         if not the visible of button i of tGroup then next repeat
+         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         if tLabel is empty or not the visible of tLabel then next repeat
+         if the textSize of tLabel < 10 then
+            put the text of tLabel && "at" && the textSize of tLabel && "points; " after tBad
+         else if the dontWrap of tLabel and the formattedWidth of tLabel > the width of tLabel then
+            put the text of tLabel && "cut off (" & the formattedWidth of tLabel & ">" & the width of tLabel & "); " after tBad
+         else if not the dontWrap of tLabel and the formattedHeight of tLabel > the height of tLabel then
+            put the text of tLabel && "cut off below (" & the formattedHeight of tLabel & ">" & the height of tLabel & "); " after tBad
+         end if
+      end repeat
+   end repeat
+   tourTmCheck tBad is empty, "every name is whole" && pWhere & ":" && tBad
+end tourTmNamesWhole
 
 -- The layout at its size: the header's controls and every tile shown
 -- inside the window's width, below the filter, and no two tiles over

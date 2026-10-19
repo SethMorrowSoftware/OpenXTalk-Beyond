@@ -2848,6 +2848,23 @@ private function tmItemTitle pTypeID, @pItem, pTooltip
    return pTooltip
 end tmItemTitle
 
+-- A name too long for its tile, such as "Mac Native Single-line Field" in
+-- two columns, gets a smaller size, down to 10 points, and then a second
+-- line, so that it is never cut off; each layout starts again from 12
+-- points on one line, as the tile may have grown
+private command tmFitLabel pLabel, pCellH
+   set the dontWrap of pLabel to true
+   set the textSize of pLabel to 12
+   repeat with tSize = 11 down to 10
+      if the formattedWidth of pLabel <= the width of pLabel then exit repeat
+      set the textSize of pLabel to tSize
+   end repeat
+   if the formattedWidth of pLabel > the width of pLabel then
+      set the dontWrap of pLabel to false
+   end if
+   set the height of pLabel to min(pCellH, the formattedHeight of pLabel)
+end tmFitLabel
+
 private function tmShowNames
    return revIDEGetPreference("revTools_modernNames") is true
 end tmShowNames
@@ -3027,6 +3044,7 @@ command tmLayout
                end if
                set the iconGravity of tObj to "left"
                set the width of tLabel to max(10, round(tCellW) - tIconBox - 6)
+               tmFitLabel tLabel, tCellH
                set the topLeft of tLabel to tX + tIconBox + 4, the top of tObj + (tCellH - the height of tLabel) div 2
                show tLabel
                if tIcon is not empty then
