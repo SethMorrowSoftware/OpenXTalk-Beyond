@@ -856,6 +856,45 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         # The tab's errors come back as they are
         self.assertTrue(self.call('list_stacks')['content'][0]['text'].startswith('read'))
 
+    def test_web_a_relayed_call_gets_the_tools_note(self):
+        # The note is the follower's client's to be told, so it rides back
+        # with the relayed answer, once
+        self.start_web()
+        self.initialize()
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'stacks'}, tools=ide_tools() + ',paint_card')
+        self.assertTrue(tab.server_ok)
+        self.second_server()
+        first = self.call('list_stacks')['content'][0]['text']
+        self.assertIn('Claude Setup', first)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'stacks')
+
+    def test_web_a_relayed_call_cancelled_while_it_waits_is_not_sent(self):
+        # The first server is busy with its own client's call; the relayed
+        # one waits its turn there, and the follower's client cancels it
+        def handler(request):
+            time.sleep(1.0)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_web()
+        self.initialize()
+        tab = self.tab(handler)
+        self.assertTrue(tab.server_ok)
+        primary = self.second_server()
+        follower = self.proc
+        self.proc = primary
+        own = self.send('tools/call', {'name': 'list_stacks', 'arguments': {}})
+        self.proc = follower
+        time.sleep(0.2)
+        relayed = self.send('tools/call', {'name': 'list_changes', 'arguments': {}})
+        time.sleep(0.4)
+        self.send('notifications/cancelled', {'requestId': relayed, 'reason': 'test'}, notify=True)
+        self.proc = primary
+        self.assertEqual(self.receive()['id'], own)
+        self.proc = follower
+        time.sleep(0.5)
+        ping = self.send('ping')
+        self.assertEqual(self.receive()['id'], ping)
+        self.assertEqual([r.get('tool') for r in tab.requests if r['method'] == 'call'], ['list_stacks'])
+
     def test_web_a_second_server_without_the_key_gets_nothing(self):
         self.start_web()
         self.initialize()

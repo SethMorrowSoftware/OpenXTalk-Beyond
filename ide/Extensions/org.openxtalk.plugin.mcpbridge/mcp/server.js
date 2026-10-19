@@ -612,7 +612,7 @@ class Bridge {
         return Promise.reject(new BridgeError(ticket.cancelled ? 'Cancelled.' : BUSY));
       }
       ticket.started = true;
-      return this.send({ method: 'call', tool, arguments: args || {} });
+      return this.dispatch(tool, args, ticket);
     };
     const busy = this.waiting > 0;
     this.waiting++;
@@ -631,6 +631,11 @@ class Bridge {
       }, BUSY_WAIT_MS);
       result.then((r) => { clearTimeout(timer); resolve(r); }, (e) => { clearTimeout(timer); reject(e); });
     });
+  }
+
+  // Where a call goes once its turn comes: to OXT-Beyond
+  dispatch(tool, args) {
+    return this.send({ method: 'call', tool, arguments: args || {} });
   }
 
   // The note about the tools, once
@@ -724,6 +729,7 @@ class WebLink {
     this.onClose = () => {};
     this.onRelay = () => Promise.reject(new BridgeError(WEB_NOT_CONNECTED));
     this.relayNonces = new Map();   // nonce -> when, of relayed calls taken
+    this.relayTickets = new Map();  // nonce -> ticket, of relayed calls not answered yet
   }
 
   // Pages the link lets connect: the hosted web IDE, the origins given,
@@ -779,8 +785,13 @@ class WebLink {
   // holding the key; POST /relay takes {request, proof}, where request is
   // the JSON text of {nonce, time, tool, arguments} and proof its HMAC,
   // and answers {response, proof}, response being the JSON text of
-  // {reply} or {error} and proof its HMAC with the call's nonce. A browser
-  // page always sends an Origin, so a request with one is refused.
+  // {reply, note} or {error} and proof its HMAC with the call's nonce
+  // (note: the tools note, which the follower's client is the one to be
+  // told). POST /relay-cancel takes {request, proof} the same way, request
+  // being the JSON text of {nonce, time} of a call relayed before: the
+  // client cancelled it, so if it still waits its turn here it is not
+  // sent, as a call cancelled on this server is not. A browser page
+  // always sends an Origin, so a request with one is refused.
   relay(req, res) {
     const answer = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -802,7 +813,7 @@ class WebLink {
       answer(200, { proof: hmac(this.key, 'relay-hello\n' + nonce) });
       return;
     }
-    if (req.method !== 'POST' || url.pathname !== '/relay') {
+    if (req.method !== 'POST' || (url.pathname !== '/relay' && url.pathname !== '/relay-cancel')) {
       answer(404, { error: 'not found' });
       return;
     }
@@ -826,6 +837,20 @@ class WebLink {
         answer(400, { error: 'not JSON' });
         return;
       }
+      if (url.pathname === '/relay-cancel') {
+        if (!sameText(String(body.proof || ''), hmac(this.key, 'relay-cancel\n' + body.request)) ||
+            Math.abs(Date.now() - Number(request.time)) > RELAY_WINDOW_MS) {
+          log('refused to cancel a relayed call: the request does not hold this server\'s key');
+          answer(403, { error: 'refused' });
+          return;
+        }
+        const ticket = this.relayTickets.get(String(request.nonce));
+        if (ticket) {
+          ticket.cancelled = true;
+        }
+        answer(200, { cancelled: !!ticket });
+        return;
+      }
       if (!sameText(String(body.proof || ''), hmac(this.key, 'relay\n' + body.request)) ||
           !/^[0-9a-f]{64}$/.test(String(request.nonce)) || typeof request.tool !== 'string' ||
           Math.abs(Date.now() - Number(request.time)) > RELAY_WINDOW_MS || this.relayNonces.has(request.nonce)) {
@@ -840,11 +865,14 @@ class WebLink {
         }
       }
       this.relayNonces.set(request.nonce, now);
+      const ticket = {};
+      this.relayTickets.set(request.nonce, ticket);
       const respond = (result) => {
+        this.relayTickets.delete(request.nonce);
         const response = JSON.stringify(result);
         answer(200, { response, proof: hmac(this.key, 'relayed\n' + request.nonce + '\n' + response) });
       };
-      this.onRelay(request.tool, request.arguments || {}).then((reply) => respond({ reply }),
+      this.onRelay(request.tool, request.arguments || {}, ticket).then((done) => respond({ reply: done.reply, note: done.note }),
         (e) => respond({ error: e instanceof BridgeError ? e.message : 'The server the call was relayed to failed: ' + e.message }));
     });
   }
@@ -1034,19 +1062,24 @@ class WebBridge extends Bridge {
         this.onClose();
       }
     };
-    link.onRelay = (tool, args) => this.call(tool, args, {});
+    // A relayed call waits its turn here like this server's own, and the
+    // tools note goes with its answer, to the client that asked
+    link.onRelay = (tool, args, ticket) => this.call(tool, args, ticket)
+      .then((reply) => ({ reply, note: reply && reply.ok ? this.takeToolsNote() : '' }));
   }
 
-  // A call goes to the tab, or, while another server holds the port, to
-  // that server (see the top of this file)
-  call(tool, args, state) {
+  // A call whose turn has come goes to the tab, or, while another server
+  // holds the port, to that server (see the top of this file). It waits
+  // its turn here first either way, so one the client cancels before then
+  // is not sent at all.
+  dispatch(tool, args, ticket) {
     if (!this.link.taken) {
-      return super.call(tool, args, state);
+      return super.dispatch(tool, args, ticket);
     }
-    return this.relay(tool, args);
+    return this.relay(tool, args, ticket);
   }
 
-  async relay(tool, args) {
+  async relay(tool, args, ticket) {
     const port = this.link.port;
     const key = this.link.key;
     const timeout = CALL_TIMEOUT_MS + BUSY_WAIT_MS + 5000;
@@ -1067,8 +1100,26 @@ class WebBridge extends Bridge {
       throw new BridgeError(this.link.problem);
     }
     const nonce = crypto.randomBytes(32).toString('hex');
+    if (ticket && ticket.cancelled) {
+      throw new BridgeError('Cancelled.');
+    }
+    // Cancelled once sent: the other server does not send it either if it
+    // still waits its turn there
+    const cancel = () => {
+      const what = JSON.stringify({ nonce, time: Date.now() });
+      relayRequest(port, 'POST', '/relay-cancel', { request: what, proof: hmac(key, 'relay-cancel\n' + what) }, CONNECT_TIMEOUT_MS)
+        .catch((e) => log('could not cancel a relayed call: ' + e.message));
+    };
+    if (ticket) {
+      ticket.onCancel = cancel;
+    }
     const request = JSON.stringify({ nonce, time: Date.now(), tool, arguments: args || {} });
-    const answer = await relayRequest(port, 'POST', '/relay', { request, proof: hmac(key, 'relay\n' + request) }, timeout).catch(retry);
+    const answer = await relayRequest(port, 'POST', '/relay', { request, proof: hmac(key, 'relay\n' + request) }, timeout)
+      .catch(retry).finally(() => {
+        if (ticket) {
+          ticket.onCancel = null;
+        }
+      });
     const response = String(answer.response || '');
     if (!sameText(String(answer.proof || ''), hmac(key, 'relayed\n' + nonce + '\n' + response))) {
       throw new BridgeError('The answer from the server on port ' + port + ' did not carry its proof, so it was not used. What was asked ' +
@@ -1077,6 +1128,9 @@ class WebBridge extends Bridge {
     const result = JSON.parse(response);
     if (result.error !== undefined) {
       throw new BridgeError(String(result.error));
+    }
+    if (result.note) {
+      this.toolsNote = String(result.note);
     }
     return result.reply;
   }
@@ -1177,7 +1231,11 @@ async function handle(message) {
     // A cancelled call is not sent if it has not been yet, and gets no
     // answer; other notifications (initialized...) need nothing
     if (method === 'notifications/cancelled' && params && inFlight.has(params.requestId)) {
-      inFlight.get(params.requestId).cancelled = true;
+      const state = inFlight.get(params.requestId);
+      state.cancelled = true;
+      if (typeof state.onCancel === 'function') {
+        state.onCancel();
+      }
     }
     return;
   }
