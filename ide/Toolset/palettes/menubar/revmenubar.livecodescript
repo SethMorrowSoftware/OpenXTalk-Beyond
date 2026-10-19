@@ -1439,7 +1439,13 @@ private function revMenubarToolsMenu pContext
    put markMenuItem("&Pointer Tool/0", the tool is "pointer tool") & return after tTools
    put "-" & return after tTools
    put toggleMenuItem("&Tools Palette/T", revIDEPaletteIsVisible("tools")) & return after tTools
-   put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of revIDEGetPreference("revTools_show")) & return after tTools
+   -- OXT-Beyond: the modern Tools palette keeps its own sections
+   if revIDEGetPreference("revTools_look") is "modern" and there is a stack "revTools" then
+      dispatch function "tmShownSections" to stack "revTools"
+      put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of it) & return after tTools
+   else
+      put toggleMenuItem("&Paint and Draw Tools", "paint" is among the items of revIDEGetPreference("revTools_show")) & return after tTools
+   end if
    -- OXT-Beyond: the Tools palette in the look of Learn (revtools.livecodescript)
    put toggleMenuItem("Modern Tools Palette", revIDEGetPreference("revTools_look") is "modern") & return after tTools
    put "-" & return after tTools
@@ -2671,7 +2677,12 @@ on revMenubarToolsMenuPick pWhich
          revIDEChoosePointerTool
          break
       case "paint and draw tools"
-         revIDETogglePaintAndDrawTools
+         -- OXT-Beyond: the modern Tools palette keeps its own sections
+         if revIDEGetPreference("revTools_look") is "modern" and there is a stack "revTools" then
+            dispatch "tmToggleSection" to stack "revTools" with "paint"
+         else
+            revIDETogglePaintAndDrawTools
+         end if
          break
       case "Modern Tools Palette"
          -- the palette follows the preference (idePreferenceChanged)

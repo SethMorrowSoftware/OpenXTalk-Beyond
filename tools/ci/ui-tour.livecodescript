@@ -6,7 +6,8 @@ script "oxt_ui_tour"
 --
 -- It waits for the IDE to finish starting, records the system's
 -- appearance, which the IDE follows, then opens the IDE's
--- windows one by one: the Tools palette, a stack of the user with the
+-- windows one by one: the Tools palette (also in its modern look, at its
+-- first size, wide, and with its names), a stack of the user with the
 -- usual controls, the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects), the Script Editor (and its results of a Find All), the
@@ -45,7 +46,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -184,6 +185,64 @@ on tour_hover_tools
    tourShotAround tButton, "revTools", "02-hover-tools"
    tourMouseAway
 end tour_hover_tools
+
+-- The Tools palette in its modern look (Tools > Modern Tools Palette):
+-- at the size it first opens at, made wide, and wide with the names of
+-- its objects. Each step puts the classic look back, which the other
+-- steps expect. A release whose palette has no modern look is noted and
+-- skipped.
+on tour_tools_modern
+   if tourToolsModern(empty, false) then
+      tourShotStack "revTools", "01-tools-modern"
+   end if
+   tourToolsClassic
+end tour_tools_modern
+
+on tour_tools_modern_wide
+   if tourToolsModern(340, false) then
+      tourShotStack "revTools", "01-tools-modern-wide"
+   end if
+   tourToolsClassic
+end tour_tools_modern_wide
+
+on tour_tools_modern_names
+   if tourToolsModern(380, true) then
+      tourShotStack "revTools", "01-tools-modern-names"
+   end if
+   tourToolsClassic
+end tour_tools_modern_names
+
+-- Turns the modern look on, at its first size or pWidth wide, with or
+-- without names; false when the palette has no modern look
+function tourToolsModern pWidth, pNames
+   revIDEOpenPalette "tools"
+   tourWait 300
+   dispatch function "tmIsModern" to stack "revTools"
+   if it is not "handled" then
+      tourRecord "INFO tools-modern: this palette has no modern look"
+      return false
+   end if
+   revIDESetPreference "revTools_modernSize", empty
+   revIDESetPreference "revTools_modernNames", pNames
+   revIDESetPreference "revTools_modernFolded", empty
+   revIDESetPreference "revTools_modernShow", empty
+   revIDESetPreference "revTools_look", "modern"
+   tourWait 800
+   if pWidth is a number then
+      set the width of stack "revTools" to pWidth
+      set the left of stack "revTools" to item 1 of the working screenRect + 10
+      tourWait 500
+   end if
+   tourRecord "INFO tools-modern rect" && the rect of stack "revTools" && "resizable" && the resizable of stack "revTools"
+   return true
+end tourToolsModern
+
+command tourToolsClassic
+   if revIDEGetPreference("revTools_look") is "modern" then
+      revIDESetPreference "revTools_look", "classic"
+      tourWait 500
+   end if
+end tourToolsClassic
 
 on tour_menubar
    -- Windows and Linux: the IDE's menu bar and toolbar are a stack

@@ -2458,10 +2458,45 @@ private function tmHitButton pName, pGroup
    return tObj
 end tmHitButton
 
--- The data the classic generatePalette reads, read the same way
+-- The sections the modern look shows (revTools_modernShow), its own so
+-- that the classic look's (revTools_show) stay as they are: the widgets,
+-- the controls and the shapes until they are changed, and "none" when
+-- every one is turned off
+function tmShownSections
+   local tShow
+   put revIDEGetPreference("revTools_modernShow") into tShow
+   if tShow is empty then return "widget,classic,graphic"
+   if tShow is "none" then return empty
+   return tShow
+end tmShownSections
+
+-- Turns a section of the modern look on or off: "widget", "classic",
+-- "graphic", "graphictools" or "paint"
+command tmToggleSection pView
+   local tShow
+   put tmShownSections() into tShow
+   if pView is among the items of tShow then
+      delete item itemOffset(pView, tShow) of tShow
+   else if tShow is empty then
+      put pView into tShow
+   else
+      put comma & pView after tShow
+   end if
+   if tShow is empty then put "none" into tShow
+   revIDESetPreference "revTools_modernShow", tShow
+   if tmIsModern() then
+      lock screen
+      tmGenerate
+      tmLayout
+      unlock screen
+   end if
+end tmToggleSection
+
+-- The data the classic generatePalette reads, read the same way, for the
+-- sections the modern look shows
 private function tmViewsData
    local tViews, tData
-   put revIDEGetPreference("revTools_show") into tViews
+   put tmShownSections() into tViews
    put revIDERunEditTools() into tData["runedit"]
    repeat for each item tView in tViews
       switch tView
@@ -3258,7 +3293,7 @@ end tmSetFilter
 -- The options: names, sections, more widgets and the classic look
 private command tmPopupMenu
    local tText, tShow
-   put revIDEGetPreference("revTools_show") into tShow
+   put tmShownSections() into tShow
    put tmCheck("Show Names", tmShowNames()) & return after tText
    put "-" & return after tText
    put tmCheck("Widgets", "widget" is among the items of tShow) & return after tText
@@ -3286,19 +3321,19 @@ command tmMenuPick pWhich
          tmLayout
          break
       case "Widgets"
-         framePreferenceSelected "revTools_show", "widget"
+         tmToggleSection "widget"
          break
       case "Controls"
-         framePreferenceSelected "revTools_show", "classic"
+         tmToggleSection "classic"
          break
       case "Shapes"
-         framePreferenceSelected "revTools_show", "graphic"
+         tmToggleSection "graphic"
          break
       case "Vector Tools"
-         framePreferenceSelected "revTools_show", "graphictools"
+         tmToggleSection "graphictools"
          break
       case "Paint Tools"
-         framePreferenceSelected "revTools_show", "paint"
+         tmToggleSection "paint"
          break
       case "Find More Widgets..."
          findMoreWidgets
