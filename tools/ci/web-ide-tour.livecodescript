@@ -16,7 +16,8 @@ script "oxtwebidetour"
 -- a stack of the user with the usual controls, the Property Inspector,
 -- the Script Editor, the Message Box, the Project Browser, a click in
 -- browse mode that opens an answer dialog, the Dictionary, Preferences,
--- the File menu, and the page made narrow. For each it asks for a
+-- the File menu, one of each control Object > New Control makes, and the
+-- page made narrow. For each it asks for a
 -- screenshot of the page. A step still running after 30 seconds (a
 -- dialog it waits on) has its modal dialogs closed. Script errors in the
 -- IDE's windows are recorded instead of shown.
@@ -44,8 +45,11 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sample,inspector,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,narrow"
+constant kSteps = "start,sample,inspector,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow"
 constant kSample = "Web Tour Sample"
+-- The classic controls of Object > New Control (revMenubar), by the last
+-- part of their kind
+constant kNewControls = "Checkbox,ComboBox,DefaultButton,OptionMenu,PopupMenu,PulldownMenu,RadioButton,RectangleButton,Button,TabPanel,DataGrid,Field,LabelField,TextArea,ListField,TableField,Arrow,FivePointStar,OvalGraphic,RectangleGraphic,RegularGraphic,RoundRectGraphic,SpeechBubble,TenPointStar,CurveGraphic,PolygonGraphic,Image,Player,LittleArrows,Progressbar,Scrollbar,Slider"
 
 local sStarted, sAct, sWatchdog, sFlag
 
@@ -291,6 +295,35 @@ on tour_file_menu
    tourWait 800
 end tour_file_menu
 
+-- One of each control Object > New Control makes, in a stack of their
+-- own, as the menu makes them (revIDECreateObject, which gives each its
+-- properties' defaults): a property the web engine does not have fails
+-- the step, as the player's mirrored did (player-legacy)
+on tour_new_controls
+   local tStack, tType, tCount
+   lock messages
+   create stack "Web Tour Controls"
+   put the long id of it into tStack
+   set the rect of tStack to "320,160,1000,700"
+   unlock messages
+   go tStack
+   put 0 into tCount
+   repeat for each item tType in kNewControls
+      revIDECreateObject "com.livecode.interface.classic." & tType, tStack, \
+            (100 + (tCount mod 6) * 90) & comma & (60 + (tCount div 6) * 80)
+      add 1 to tCount
+   end repeat
+   if the number of controls of card 1 of tStack < tCount then
+      throw "made" && the number of controls of card 1 of tStack && "of" && tCount && "controls"
+   end if
+   tourWait 1000
+   tourShot "11-new-controls"
+   revIDEDeselectAll
+   lock messages
+   delete tStack
+   unlock messages
+end tour_new_controls
+
 -- The page made narrow, as a phone or a small window has it: the IDE
 -- follows the page's size (ideDesktopChanged)
 on tour_narrow
@@ -298,7 +331,7 @@ on tour_narrow
    tourAct "size 900 700"
    tourWait 3000
    tourRecord "INFO screenRect when narrow" && the screenRect
-   tourShot "11-narrow-page"
+   tourShot "12-narrow-page"
    tourAct "size 1400 900"
    tourWait 2000
 end tour_narrow

@@ -25,6 +25,8 @@ What works in it:
 - the Script Editor, with colouring, compile errors and the handler list;
 - browse mode, which runs the stacks' scripts;
 - the Dictionary, its API entries and its Guide;
+- Help > Release Notes, the changes of every release (the page carries
+  the changelog, the README's notes and the history);
 - saving stacks: they are kept in the browser's storage (IndexedDB) between
   visits, in `~/Documents`. File > Download Stack gives the user a copy of
   the stack's file, and File > Open Stack opens one from their computer.

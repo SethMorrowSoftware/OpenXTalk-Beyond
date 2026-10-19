@@ -127,7 +127,9 @@ function revWebIDEMenu pMenuName, pMenu
          put "Test,Test Target" into tLeaveOut
          break
       case "Help"
-         put "Guides,Release Notes,Check for Updates" into tLeaveOut
+         -- (Release Notes stays: its window, updates/revreleasenotes,
+         -- reads the notes the site carries)
+         put "Guides,Check for Updates" into tLeaveOut
          break
    end switch
    if tLeaveOut is not empty then

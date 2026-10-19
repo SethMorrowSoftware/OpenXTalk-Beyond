@@ -18,6 +18,9 @@ words, is in the [README](README.md#the-ide) and on the
 
 - Learn: the xTalk Suite demos open built, in the middle of the screen (#157)
 - Branding: 0.2.7 "Bug Hunt" splash screens, installer art, banner and release name (#161)
+- Web IDE: a new Player is made again, and the tour makes every control (#162)
+- Web IDE: Help > Release Notes, now that its window works on the web (#162)
+- Changelog: #162's commits (#162)
 - Tools palette: a modern look, sizeable, with names, a filter and sections that fold (Tools > Modern Tools Palette; the classic look stays the default) (#166)
 
 ## 0.2.7-rc.5 (2026-10-19, pre-release)
@@ -38,6 +41,10 @@ words, is in the [README](README.md#the-ide) and on the
 - HyperCard Library: review findings on the list dialog and popups (#152)
 - Notes: the HyperCard externals' stand-ins in 0.2.7-rc.5 (#153)
 - Engine tests: read until EOF from a process that outlives open process (#155)
+- IDE: a dialog in the look of Learn, and the warning before a stack opens (#159)
+- Check for Updates: its messages in the look of Learn (#159)
+- MCP Bridge: its windows in the look of Learn (#159)
+- IDE dialogs: code in Learn's colours on its code panels, with Copy, and Learn's callouts (#159)
 
 ## 0.2.7-rc.4 (2026-10-18, pre-release)
 
