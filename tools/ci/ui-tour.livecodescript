@@ -15,8 +15,9 @@ script "oxt_ui_tour"
 -- reports) and its guides, the text dictionary, each pane of Preferences, each card
 -- of the Standalone Settings, the Menu Builder, the
 -- Extension Manager and Builder, the Message Watcher, Search, the Object
--- Library, the Card Navigator, the About window, the answer and ask
--- dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
+-- Library, the Card Navigator, the About window, the IDE's own dialog in
+-- the look of Learn (revIDEKitDialog), the answer and ask dialogs and the
+-- icon chooser. Not the Start Center: OpenXTalk Lite 1.15
 -- turned it off (no menu opens it and its Preferences are greyed out),
 -- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
@@ -44,7 +45,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,kit-dialog,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -661,6 +662,36 @@ on tour_about
    tourShotStack tNew, "24-about"
    close stack tNew
 end tour_about
+
+-- The IDE's own dialog in the look of Learn (palettes/kitdialog), as the
+-- update check and the warning before a stack opens show it: modal, so it
+-- is snapshot and closed by a message sent before it opens
+on tour_kit_dialog
+   local tSpec, tChoice
+   put "OXT-Beyond Updates" into tSpec["title"]
+   put "A message from the screenshot tour" into tSpec["heading"]
+   put "In the look of Learn" into tSpec["subheading"]
+   put "rocket" into tSpec["icon"]
+   put "What it says:" & return & "- A first line" & return & "- A second line" & return & return & \
+         "A last paragraph, long enough to wrap onto a second line of the dialog's panel of text." into tSpec["text"]
+   put "Later" & return & "Open Release Page" into tSpec["buttons"]
+   put "Later" into tSpec["cancel"]
+   send "tourShotKitDialog" to me in 1500 milliseconds
+   if not revIDEKitDialog(tSpec, tChoice) then throw "the dialog did not open"
+   if tChoice is not "Later" then throw "the dialog chose" && quote & tChoice & quote & ", not Later"
+end tour_kit_dialog
+
+on tourShotKitDialog
+   local tError
+   try
+      tourShotStack "revKitDialog", "24b-kit-dialog"
+   catch tError
+      tourRecord "INFO 24b-kit-dialog FAILED" && tourJoin(tError)
+   end try
+   if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+      close stack "revKitDialog"
+   end if
+end tourShotKitDialog
 
 on tour_answer
    send "tourShotDialog" && quote & "25-answer" & quote to me in 1500 milliseconds

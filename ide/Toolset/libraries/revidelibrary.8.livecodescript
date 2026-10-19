@@ -7190,6 +7190,9 @@ on revIDEActionOpenStack
       if the cDontUseCaution of stack "revPreferences" is true then
          -- we aren't using caution prompt
          revIDEOpenStack tStackFilePath
+      else if revIDECautionBeforeOpening(tStackFilePath) then
+         -- OXT-Beyond: the warning in the look of Learn (revKitDialog),
+         -- which asked and opened the stack if the user chose to
       else
          -- we use caution prompt (default)
          local tOldDelim
@@ -7209,6 +7212,106 @@ on revIDEActionOpenStack
    -- we should create a thumbnail for it
    send generateThumbOfStack to stack "revIDElibrary"
 end revIDEActionOpenStack
+
+-- OXT-Beyond: the warning before a stack opens (Preferences, "Use caution
+-- when opening stacks"), in the look of Learn: the classic window's text,
+-- its Peek and its Continue to open, with a Cancel. True when it was
+-- shown, whatever the user chose; false when the classic window
+-- (cautionUponOpening.oxtstack) is to be shown instead: with the Option
+-- (Alt) key down, in the web IDE, or when the dialog cannot open. As the
+-- classic window's button does, Continue to open opens the stack with
+-- open stack.
+private function revIDECautionBeforeOpening pStackFilePath
+   local tSpec, tChoice, tName, tError
+   if the optionKey is down or revEnvironmentIsWeb() then
+      return false
+   end if
+   set the itemDelimiter to slash
+   put the last item of pStackFilePath into tName
+   set the itemDelimiter to comma
+   put "Before the stack opens" into tSpec["title"]
+   put "Open this stack?" into tSpec["heading"]
+   put tName into tSpec["subheading"]
+   put "triangle-alert" into tSpec["icon"]
+   put "amber" into tSpec["tone"]
+   put "Opening a stack starts its scripts, and they can do anything a program on this computer can do." & return & return & \
+         "If you are not sure you trust the scripts in this stack, press Peek. It reads the stack's file as text, to give you an idea of the scripts it contains, and runs none of them." & return & return & \
+         "Once you are happy, press Continue to open: the stack opens as usual, and its scripts run." into tSpec["text"]
+   put pStackFilePath into tSpec["peek"]
+   put "Cancel" & return & "Continue to open" into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if not revIDEKitDialog(tSpec, tChoice) then
+      return false
+   end if
+   if tChoice is "Continue to open" then
+      if there is a file pStackFilePath then
+         try
+            open stack pStackFilePath
+         catch tError
+         end try
+      else
+         answer error "Sorry, the stack to be opened no longer exists at the expected location." with "Cancel"
+      end if
+   end if
+   return true
+end revIDECautionBeforeOpening
+
+/*
+Asks the user something in a dialog in the look of Learn, Home and the
+About window.
+
+pSpec (array): What the dialog shows: its "title", "heading",
+"subheading", "icon", "tone", "text", "detail", "choices", "buttons" and
+"cancel" (described at the top of
+Toolset/palettes/kitdialog/revkitdialog.livecodescript).
+
+rChoice: The label of the button pressed, or the value of the choice
+chosen; the "cancel" of pSpec when the window was closed or Escape
+pressed.
+
+Example:
+local tSpec, tChoice
+put "Save the changes?" into tSpec["heading"]
+put "Don't Save" & return & "Save" into tSpec["buttons"]
+if revIDEKitDialog(tSpec, tChoice) then
+   -- tChoice is "Don't Save" or "Save"
+end if
+
+Returns (boolean): True when the dialog was shown and the user chose;
+false when it was not shown, and the caller asks the way it did before
+(with answer): when the dialog's file is missing or it cannot open, and in
+the web IDE.
+
+Description:
+The dialog is modal. It changes nothing of answer, which a user's stack
+calls: it is for the IDE's own questions, each of which keeps its answer
+dialog for when this one is not shown.
+
+References: answer (command)
+
+Tags: ide
+*/
+function revIDEKitDialog pSpec, @rChoice
+   local tFile, tError
+   put empty into rChoice
+   if revEnvironmentIsWeb() then
+      return false
+   end if
+   put revIDESpecialFolderPath("Toolset") & "/palettes/kitdialog/revkitdialog.livecodescript" into tFile
+   if there is no file tFile then
+      return false
+   end if
+   try
+      dispatch "revKitDialogAsk" to stack tFile with pSpec
+      if it is not "handled" then
+         return false
+      end if
+      put the result into rChoice
+   catch tError
+      return false
+   end try
+   return true
+end revIDEKitDialog
 
 /*
 Asks for a HyperCard stack and imports it (File > Import Stack >
