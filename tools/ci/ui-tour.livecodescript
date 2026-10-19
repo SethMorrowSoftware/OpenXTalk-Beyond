@@ -7,8 +7,9 @@ script "oxt_ui_tour"
 -- It waits for the IDE to finish starting, records the system's
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
--- first size, wide, and with its names), a stack of the user with the
--- usual controls, the Property Inspector (each section for a button, the
+-- first size, wide, and with its names, and checks of how that look
+-- behaves: tools-modern-check, -sizes, -use and -switch), a stack of
+-- the user with the usual controls, the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects), the Script Editor (and its results of a Find All), the
 -- Message Box, the Project Browser, LiveCode's Dictionary (with the
@@ -46,7 +47,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,kit-dialog,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,kit-dialog,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -243,6 +244,458 @@ command tourToolsClassic
       tourWait 500
    end if
 end tourToolsClassic
+
+-- Checks of the modern look, beside its snapshots: what it builds keeps
+-- the classic look's names and properties (which the classic mouseDown,
+-- the tutorial and Home use), its tiles fit the window at every size,
+-- the filter, the folds, the sections, the names, choosing a tool and
+-- making an object work, and switching back gives the classic look as it
+-- was. Each check that fails is listed, and the step then fails.
+-- A release whose palette has no modern look is noted and skipped.
+local sTmClassic, sTmClassicPrefs, sTmChecks, sTmFails
+
+on tour_tools_modern_check
+   local tModern, tName, tKey, tLine, tCount
+   if not tourTmStart("tools-modern-check") then exit tour_tools_modern_check
+   -- the classic look, as the other steps leave it
+   tourToolsClassic
+   put tourTmTiles() into sTmClassic
+   put revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") into sTmClassicPrefs
+   tourTmCheck the number of elements of sTmClassic > 10, "the classic look has its tiles (" & the number of elements of sTmClassic & ")"
+   tourTmCheck tourTmNamed("tmHeader") is empty, "the classic look has no modern controls"
+
+   if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
+   tourTmCheck the resizable of stack "revTools", "the modern look is resizable"
+   tourTmCheck the minWidth of stack "revTools" >= 96 and the minHeight of stack "revTools" >= 160, \
+         "the modern look has a smallest size (" & the minWidth of stack "revTools" & "," & the minHeight of stack "revTools" & ")"
+   repeat for each item tName in "tmHeader,tmSearch,tmGrip,tmMenuBtn,tmFilter,contents,images,runedit,tool_hover,tool_hilite"
+      tourTmCheck tourTmNamed(tName) is not empty, "the modern look has its" && tName
+   end repeat
+   repeat for each item tName in "toolsOVERRIDEmenu,divHeaderVectorShapes,divHeaderVectorTools,divHeaderPaintTools"
+      tourTmCheck tourTmNamed(tName) is empty, "the classic" && tName && "is gone in the modern look"
+   end repeat
+   -- the sections it shows at first: widgets, controls and shapes
+   repeat for each item tName in "widget,classic,graphic"
+      tourTmCheck tourTmGroup(tName) is not empty, "the modern look shows the section" && tName && "at first"
+   end repeat
+   repeat for each item tName in "graphictools,paint"
+      tourTmCheck tourTmGroup(tName) is empty, "the modern look hides the section" && tName && "at first"
+   end repeat
+   -- the same names and properties as the classic look's
+   put tourTmTiles() into tModern
+   put 0 into tCount
+   repeat for each key tKey in tModern
+      if sTmClassic[tKey] is empty then next repeat
+      add 1 to tCount
+      tourTmCheck item 2 to -1 of tModern[tKey] is item 2 to -1 of sTmClassic[tKey], \
+            tKey && "keeps its classic properties (" & item 2 to -1 of tModern[tKey] & " / " & item 2 to -1 of sTmClassic[tKey] & ")"
+   end repeat
+   repeat for each key tKey in sTmClassic
+      if item 1 of sTmClassic[tKey] is among the items of "runedit,classic,graphic" then
+         tourTmCheck tModern[tKey] is not empty, tKey && "of the classic section" && item 1 of sTmClassic[tKey] && "is in the modern look"
+      end if
+   end repeat
+   tourTmCheck tCount >= 20, tCount && "tiles compared with the classic look's"
+   repeat for each key tKey in tModern
+      if item 1 of tModern[tKey] is "widget" then
+         tourTmCheck tourTmNamed("tmIcon:" & tKey) is not empty or the icon of tourTmNamed(tKey) is not 0, "the widget" && tKey && "has an icon"
+      end if
+   end repeat
+   -- the icon images, which Home reads (the Browse tool's as a cursor)
+   tourTmCheck tourTmNamed("com.livecode.tool.Browse.icon.png") is not empty, "the Browse tool's icon image is there"
+   -- the tutorial's calls
+   dispatch function "toolObjectName" to stack "revTools" with "Create Button"
+   put the result into tName
+   tourTmCheck tourTmNamed(tName) is not empty, "toolObjectName gives a tile (" & tName & ")"
+   dispatch "disableTools" to stack "revTools"
+   tourTmCheck the cDisabled of tourTmNamed("com.livecode.tool.Pointer") is true and \
+         the cDisabled of tourTmNamed("com.livecode.interface.classic.Button") is true, "disableTools disables the tiles"
+   dispatch "enableTools" to stack "revTools"
+   tourTmCheck the cDisabled of tourTmNamed("com.livecode.tool.Pointer") is not true and \
+         the cDisabled of tourTmNamed("com.livecode.interface.classic.Button") is not true, "enableTools enables them again"
+   dispatch "isolateTool" to stack "revTools" with "com.livecode.interface.classic.Field"
+   tourTmCheck the cDisabled of tourTmNamed("com.livecode.interface.classic.Field") is not true and \
+         the cDisabled of tourTmNamed("com.livecode.interface.classic.Button") is true, "isolateTool leaves one tile enabled"
+   dispatch "enableTools" to stack "revTools"
+   tourTmLayoutOK "at its first size"
+   tourTmFinish "tools-modern-check"
+end tour_tools_modern_check
+
+-- Sizes: the tiles fit the window at each width, in more columns when
+-- wider; what doesn't fit its height scrolls; the size is kept
+on tour_tools_modern_sizes
+   local tW, tCols, tLast, tMax, tTop
+   if not tourTmStart("tools-modern-sizes") then exit tour_tools_modern_sizes
+   if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
+   put 0 into tLast
+   repeat for each item tW in "96,120,170,240,400,700"
+      set the rect of stack "revTools" to 40, 120, 40 + tW, 120 + 520
+      tourWait 150
+      tourTmLayoutOK "at" && the width of stack "revTools" & "x" & the height of stack "revTools"
+      put tourTmColumns("classic") into tCols
+      tourTmCheck tCols >= tLast, "the controls take as many columns or more when wider (" & tCols && "at" && tW & ")"
+      put tCols into tLast
+   end repeat
+   tourTmCheck tLast >= 6, "a wide palette shows its controls in many columns (" & tLast & ")"
+   -- names: one column of names when narrow, more when wide
+   revIDESetPreference "revTools_modernNames", true
+   set the rect of stack "revTools" to 40, 120, 40 + 170, 120 + 520
+   tourWait 200
+   tourTmLayoutOK "with names, narrow"
+   tourTmCheck tourTmColumns("classic") is 1, "names in one column when narrow (" & tourTmColumns("classic") & ")"
+   set the rect of stack "revTools" to 40, 120, 40 + 640, 120 + 520
+   tourWait 200
+   tourTmLayoutOK "with names, wide"
+   tourTmCheck tourTmColumns("classic") >= 3, "names in columns when wide (" & tourTmColumns("classic") & ")"
+   revIDESetPreference "revTools_modernNames", false
+   -- short: it scrolls with the wheel, and no further than its end
+   set the rect of stack "revTools" to 40, 120, 40 + 120, 120 + 200
+   tourWait 200
+   tourTmLayoutOK "short"
+   tourTmCheck the visible of tourTmNamed("tmThumb"), "a short palette shows its scroll thumb"
+   send "rawKeyDown 65308" to card 1 of stack "revTools"
+   tourTmCheck the vScroll of tourTmNamed("contents") > 0, "the wheel scrolls it (" & the vScroll of tourTmNamed("contents") & ")"
+   repeat 200 times
+      send "rawKeyDown 65308" to card 1 of stack "revTools"
+   end repeat
+   put the vScroll of tourTmNamed("contents") into tMax
+   tourTmCheck tMax > 0 and tMax < 4000, "it scrolls no further than its end (" & tMax & ")"
+   put the bottom of tourTmNamed("contents") into tTop
+   tourTmCheck tourTmLowestTile() <= tTop + 2 and tourTmLowestTile() >= tTop - 120, \
+         "scrolled to its end, its last tile is at the bottom (" & tourTmLowestTile() && tTop & ")"
+   repeat 200 times
+      send "rawKeyDown 65309" to card 1 of stack "revTools"
+   end repeat
+   tourTmCheck the vScroll of tourTmNamed("contents") is 0, "it scrolls back to its top"
+   -- tall: no thumb
+   set the rect of stack "revTools" to 40, 120, 40 + 400, 120 + 600
+   tourWait 200
+   tourTmCheck not the visible of tourTmNamed("tmThumb"), "a palette tall enough shows no thumb"
+   -- the size is kept for the next time
+   set the rect of stack "revTools" to 40, 120, 40 + 260, 120 + 420
+   tourWait 1200
+   tourTmCheck revIDEGetPreference("revTools_modernSize") is "260,420", "its size is kept (" & revIDEGetPreference("revTools_modernSize") & ")"
+   revIDESetPreference "revTools_look", "classic"
+   tourWait 400
+   revIDESetPreference "revTools_look", "modern"
+   tourWait 600
+   tourTmCheck the width of stack "revTools" is 260 and the height of stack "revTools" is 420, \
+         "it opens again at the size kept (" & the width of stack "revTools" & "," & the height of stack "revTools" & ")"
+   tourTmFinish "tools-modern-sizes"
+end tour_tools_modern_sizes
+
+-- Use: the filter, a fold, the sections, choosing a tool, the pointer
+-- over a tile, a double click making an object, the Tools menu
+on tour_tools_modern_use
+   local tAll, tShown, tObj, tStack, tCount, tShow, tTime
+   if not tourTmStart("tools-modern-use") then exit tour_tools_modern_use
+   if tourToolsModern(260, false) is not true then throw "the modern look did not turn on"
+   set the height of stack "revTools" to 600
+   tourWait 200
+   put tourTmShownTiles() into tAll
+   dispatch "tmSetFilter" to stack "revTools" with "button"
+   put tourTmShownTiles() into tShown
+   tourTmCheck tShown > 0 and tShown < tAll, "the filter keeps only what matches (" & tShown && "of" && tAll & ")"
+   tourTmCheck the visible of tourTmNamed("com.livecode.interface.classic.Button") and \
+         not the visible of tourTmNamed("com.livecode.interface.classic.Field"), "the filter shows Button and not Field"
+   tourTmCheck the visible of tourTmNamed("tmFilterClear") and not the visible of tourTmNamed("tmFilterHint"), "a filter shows its clear button"
+   tourTmLayoutOK "filtered"
+   dispatch "tmSetFilter" to stack "revTools" with "zzqq"
+   tourTmCheck tourTmShownTiles() is 0 and the visible of tourTmNamed("tmEmpty"), "nothing matching says so"
+   tourTmClick tourTmNamed("tmFilterClear")
+   tourTmCheck tourTmShownTiles() is tAll and not the visible of tourTmNamed("tmEmpty") and field "tmFilter" of stack "revTools" is empty, \
+         "clearing the filter shows everything again"
+   -- typing in the filter
+   put "graph" into field "tmFilter" of stack "revTools"
+   dispatch "textChanged" to field "tmFilter" of stack "revTools"
+   tourTmCheck tourTmShownTiles() > 0 and tourTmShownTiles() < tAll, "typing in the filter filters (" & tourTmShownTiles() & ")"
+   send "rawKeyDown 65307" to field "tmFilter" of stack "revTools"
+   tourTmCheck tourTmShownTiles() is tAll, "Esc clears the filter"
+   -- a fold
+   tourTmClick tourTmNamed("tmCapHit:classic")
+   tourTmCheck not the visible of tourTmGroup("classic") and "classic" is among the items of revIDEGetPreference("revTools_modernFolded"), "a caption folds its section"
+   tourTmLayoutOK "folded"
+   tourTmClick tourTmNamed("tmCapHit:classic")
+   tourTmCheck the visible of tourTmGroup("classic") and "classic" is not among the items of revIDEGetPreference("revTools_modernFolded"), "and unfolds it"
+   -- the sections from its menu (a rebuild of the palette, timed)
+   put the milliseconds into tTime
+   dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
+   tourRecord "INFO tools-modern-use: a section shown in" && the milliseconds - tTime && "ms"
+   dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+   tourTmCheck tourTmGroup("paint") is not empty and tourTmGroup("graphictools") is not empty, "the menu shows the paint and vector tools"
+   tourTmLayoutOK "with every section"
+   dispatch "tmMenuPick" to stack "revTools" with "Widgets"
+   tourTmCheck tourTmGroup("widget") is empty, "the menu hides the widgets"
+   dispatch "tmMenuPick" to stack "revTools" with "Widgets"
+   tourTmCheck tourTmGroup("widget") is not empty, "and shows them again"
+   tourTmCheck revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") is sTmClassicPrefs, \
+         "the classic look's settings are untouched (" & revIDEGetPreference("revTools_show") & ")"
+   tourTmCheck not the lockScreen, "the screen is not left locked (" & the lockScreen & ")"
+   -- choosing a tool lights its tile, and Run and Edit theirs
+   tourTmClick tourTmNamed("com.livecode.tool.Pencil")
+   tourWait 100
+   tourTmCheck the tool is "pencil tool", "the Pencil tile chooses the pencil tool (" & the tool & ")"
+   tourTmCheck the visible of tourTmNamed("tool_hilite") and the rect of tourTmNamed("tool_hilite") is the rect of tourTmNamed("com.livecode.tool.Pencil"), \
+         "the Pencil tile is lit (" & the visible of tourTmNamed("tool_hilite") && the rect of tourTmNamed("tool_hilite") && the rect of tourTmNamed("com.livecode.tool.Pencil") & ")"
+   choose browse tool
+   tourWait 100
+   tourTmCheck not the visible of tourTmNamed("tool_hilite"), "no tool tile is lit in Run mode"
+   tourTmCheck the visible of tourTmNamed("tmSegHilite") and the rect of tourTmNamed("tmSegHilite") is the rect of tourTmNamed("com.livecode.tool.Browse"), \
+         "Run is lit in Run mode (" & the visible of tourTmNamed("tmSegHilite") && the rect of tourTmNamed("tmSegHilite") && the rect of tourTmNamed("com.livecode.tool.Browse") & ")"
+   choose pointer tool
+   tourWait 100
+   tourTmCheck the rect of tourTmNamed("tmSegHilite") is the rect of tourTmNamed("com.livecode.tool.Pointer"), "Edit is lit in Edit mode"
+   -- the pointer over a tile
+   put tourTmNamed("com.livecode.interface.classic.Field") into tObj
+   send "mouseEnter" to tObj
+   tourTmCheck the visible of tourTmNamed("tool_hover") and the rect of tourTmNamed("tool_hover") is the rect of tObj, "the tile under the pointer shows"
+   send "mouseLeave" to tObj
+   tourTmCheck not the visible of tourTmNamed("tool_hover"), "and stops showing when it leaves"
+   -- a double click makes the object on the stack in front
+   put "OXT Tour Tools Check" into tStack
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to 500, 200, 900, 500
+   go stack tStack
+   tourWait 300
+   put the number of fields of card 1 of stack tStack into tCount
+   send "mouseDoubleUp 1" to tObj
+   tourWait 300
+   tourTmCheck the number of fields of card 1 of stack tStack is tCount + 1, "a double click on Field makes a field (" & tCount && "then" && the number of fields of card 1 of stack tStack & ")"
+   delete stack tStack
+   choose pointer tool
+   -- Tools > Paint and Draw Tools
+   if there is a stack "revMenuBar" then
+      put tourTmGroup("paint") is not empty into tShow
+      dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "paint and draw tools"
+      tourTmCheck (tourTmGroup("paint") is not empty) is not tShow, "Tools > Paint and Draw Tools shows or hides the paint tools"
+      dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "paint and draw tools"
+      tourTmCheck (tourTmGroup("paint") is not empty) is tShow, "and again"
+      tourTmCheck revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") is sTmClassicPrefs, \
+            "the classic look's settings are still untouched"
+   end if
+   tourTmFinish "tools-modern-use"
+end tour_tools_modern_use
+
+-- Switching: back and forth a few times, the modern look builds the same
+-- each time, and the classic look comes back as it was
+on tour_tools_modern_switch
+   local tFirst, tN, tClassic, tKey, tDiff
+   if not tourTmStart("tools-modern-switch") then exit tour_tools_modern_switch
+   if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
+   put the number of controls of card 1 of stack "revTools" into tFirst
+   repeat 3 times
+      revIDESetPreference "revTools_look", "classic"
+      tourWait 200
+      revIDESetPreference "revTools_look", "modern"
+      tourWait 200
+   end repeat
+   put the number of controls of card 1 of stack "revTools" into tN
+   tourTmCheck tN is tFirst, "the modern look builds the same each time (" & tFirst && "then" && tN && "controls)"
+   -- from the Tools menu
+   if there is a stack "revMenuBar" then
+      dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "Modern Tools Palette"
+      tourTmCheck revIDEGetPreference("revTools_look") is "classic", "Tools > Modern Tools Palette turns it off"
+      dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "Modern Tools Palette"
+      tourTmCheck revIDEGetPreference("revTools_look") is "modern", "and on"
+   end if
+   -- the modern menu's Classic Look
+   dispatch "tmMenuPick" to stack "revTools" with "Classic Look"
+   tourWait 500
+   tourTmCheck revIDEGetPreference("revTools_look") is "classic", "the menu's Classic Look turns it off"
+   put tourTmTiles() into tClassic
+   repeat for each key tKey in sTmClassic
+      if tClassic[tKey] is not sTmClassic[tKey] then put tKey & ": " & tClassic[tKey] && "/" && sTmClassic[tKey] & "; " after tDiff
+   end repeat
+   repeat for each key tKey in tClassic
+      if sTmClassic[tKey] is empty then put tKey & " is new; " after tDiff
+   end repeat
+   tourTmCheck tDiff is empty, "the classic look comes back as it was" && tDiff
+   tourTmCheck tourTmNamed("tmHeader") is empty and tourTmNamed("tmGrip") is empty and tourTmNamed("tmThumb") is empty, "and with nothing of the modern look"
+   tourTmCheck tourTmNamed("toolsOVERRIDEmenu") is not empty, "and with its own options button"
+   tourTmCheck revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") is sTmClassicPrefs, "and its own settings"
+   tourTmFinish "tools-modern-switch"
+   tourTmReset
+end tour_tools_modern_switch
+
+function tourTmStart pStep
+   put 0 into sTmChecks
+   put empty into sTmFails
+   revIDEOpenPalette "tools"
+   tourWait 200
+   dispatch function "tmIsModern" to stack "revTools"
+   if it is not "handled" then
+      tourRecord "INFO" && pStep & ": this palette has no modern look"
+      return false
+   end if
+   if sTmClassicPrefs is empty then
+      put revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") into sTmClassicPrefs
+   end if
+   return true
+end tourTmStart
+
+command tourTmCheck pTrue, pWhat
+   add 1 to sTmChecks
+   if pTrue is not true then put pWhat & return after sTmFails
+end tourTmCheck
+
+command tourTmFinish pStep
+   local tFails
+   put sTmFails into tFails
+   tourRecord "INFO" && pStep & ":" && sTmChecks && "checks," && the number of lines of tFails && "failed"
+   if tFails is not empty then
+      tourShotStack "revTools", "zz-" & pStep
+      tourTmReset
+      throw "failed:" && tourJoin(line 1 to -1 of tFails)
+   end if
+   tourToolsClassic
+end tourTmFinish
+
+command tourTmReset
+   local tName
+   revIDESetPreference "revTools_look", "classic"
+   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow"
+      revIDESetPreference tName, empty
+   end repeat
+   tourWait 300
+end tourTmReset
+
+-- A click on a control of the palette, as the IDE gets it: through the
+-- IDE's front script, whose Linux window fix locks the screen without
+-- unlocking it (a click ends at idle, which unlocks it; a sent message
+-- does not)
+command tourTmClick pObj
+   send "mouseDown 1" to pObj
+   repeat while the lockScreen
+      unlock screen
+   end repeat
+   tourWait 50
+end tourTmClick
+
+-- A control of the Tools palette by its name
+function tourTmNamed pName
+   return tourControlNamed("revTools", pName)
+end tourTmNamed
+
+-- A section's group in the palette's group "contents"
+function tourTmGroup pView
+   if there is not a group "contents" of stack "revTools" then return empty
+   if there is not a group pView of group "contents" of stack "revTools" then return empty
+   return the long id of group pView of group "contents" of stack "revTools"
+end tourTmGroup
+
+-- The tiles: the controls with the classic properties, by name, as
+-- "<their group>,<cType>,<cTool>,<cToolName>,<cStyle>,<cName>"; not
+-- their rects, which each look lays out its own way
+function tourTmTiles
+   local tCard, i, tObj, tTiles, tToolName
+   put the long id of card 1 of stack "revTools" into tCard
+   repeat with i = 1 to the number of controls of tCard
+      put the long id of control i of tCard into tObj
+      if the cType of tObj is empty then next repeat
+      if word 1 of tObj is "group" then next repeat
+      -- (the classic look leaves an object's cToolName as the template
+      -- button's last one; only a tool's is read)
+      if the cTool of tObj is empty then
+         put empty into tToolName
+      else
+         put the cToolName of tObj into tToolName
+      end if
+      put the short name of the owner of tObj & comma & the cType of tObj & comma & the cTool of tObj & comma & \
+            tToolName & comma & the cStyle of tObj & comma & the cName of tObj into tTiles[the short name of tObj]
+   end repeat
+   return tTiles
+end tourTmTiles
+
+-- The tiles shown (in a section shown)
+function tourTmShownTiles
+   local tCount, tView, tGroup, i
+   put 0 into tCount
+   repeat for each item tView in "widget,classic,graphic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      put tourTmGroup(tView) into tGroup
+      if tGroup is empty or not the visible of tGroup then next repeat
+      repeat with i = 1 to the number of buttons of tGroup
+         if the visible of button i of tGroup then add 1 to tCount
+      end repeat
+   end repeat
+   return tCount
+end tourTmShownTiles
+
+-- In how many columns a section's tiles are laid out
+function tourTmColumns pView
+   local tGroup, i, tTop, tCols
+   put tourTmGroup(pView) into tGroup
+   if tGroup is empty then return 0
+   put empty into tTop
+   put 0 into tCols
+   repeat with i = 1 to the number of buttons of tGroup
+      if not the visible of button i of tGroup then next repeat
+      if tTop is empty then put the top of button i of tGroup into tTop
+      if the top of button i of tGroup is tTop then add 1 to tCols
+   end repeat
+   return tCols
+end tourTmColumns
+
+-- The bottom of the lowest tile shown
+function tourTmLowestTile
+   local tView, tGroup, i, tMax
+   put 0 into tMax
+   repeat for each item tView in "widget,classic,graphic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      put tourTmGroup(tView) into tGroup
+      if tGroup is empty or not the visible of tGroup then next repeat
+      repeat with i = 1 to the number of buttons of tGroup
+         if the visible of button i of tGroup then put max(tMax, the bottom of button i of tGroup) into tMax
+      end repeat
+   end repeat
+   return tMax
+end tourTmLowestTile
+
+-- The layout at its size: the header's controls and every tile shown
+-- inside the window's width, below the filter, and no two tiles over
+-- each other; a name inside its tile
+command tourTmLayoutOK pWhen
+   local tW, tView, tGroup, i, j, tRects, tR, tS, tBad, tTop, tLabel, tName
+   put the width of stack "revTools" into tW
+   repeat for each item tName in "tmHeadBg,tmMenuBtn,tmSearchBg,tmFilter,tmFilterClear,tmGrip"
+      put the rect of tourTmNamed(tName) into tR
+      if item 1 of tR < 0 or item 3 of tR > tW then put tName && tR & "; " after tBad
+   end repeat
+   put the right of tourTmNamed("com.livecode.tool.Pointer") into tR
+   if tR >= the left of tourTmNamed("tmMenuBtn") then put "Edit runs into the menu button; " after tBad
+   put the bottom of tourTmNamed("tmSearchBg") into tTop
+   repeat for each item tView in "widget,classic,graphic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      put tourTmGroup(tView) into tGroup
+      if tGroup is empty or not the visible of tGroup then next repeat
+      repeat with i = 1 to the number of buttons of tGroup
+         if not the visible of button i of tGroup then next repeat
+         put the rect of button i of tGroup into tR
+         if item 1 of tR < 0 or item 3 of tR > tW - 4 or item 3 of tR <= item 1 of tR then
+            put the short name of button i of tGroup && tR & "; " after tBad
+         end if
+         if item 2 of tR < tTop and the vScroll of tourTmNamed("contents") is 0 then
+            put the short name of button i of tGroup && "above the filter" && tR & "; " after tBad
+         end if
+         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         if tLabel is not empty and the visible of tLabel then
+            if the right of tLabel > item 3 of tR + 1 or the left of tLabel < item 1 of tR then
+               put "the name of" && the short name of button i of tGroup && "outside its tile; " after tBad
+            end if
+         end if
+         put tR into tRects[the number of elements of tRects + 1]
+      end repeat
+   end repeat
+   repeat with i = 1 to the number of elements of tRects
+      put tRects[i] into tR
+      repeat with j = i + 1 to the number of elements of tRects
+         put tRects[j] into tS
+         if item 1 of tR < item 3 of tS and item 1 of tS < item 3 of tR and item 2 of tR < item 4 of tS and item 2 of tS < item 4 of tR then
+            put "tiles over each other" && tR && tS & "; " after tBad
+            exit repeat
+         end if
+      end repeat
+   end repeat
+   tourTmCheck tBad is empty, "the layout fits" && pWhen & ":" && tBad
+end tourTmLayoutOK
 
 on tour_menubar
    -- Windows and Linux: the IDE's menu bar and toolbar are a stack
