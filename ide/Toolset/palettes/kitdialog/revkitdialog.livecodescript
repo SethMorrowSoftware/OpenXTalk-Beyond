@@ -20,9 +20,17 @@ script "revKitDialog"
 --    subheading  the line under it
 --    icon        the header mark's icon (a name of revLearnKit's icons)
 --    tone        the mark's colour, a name of lkColor ("violet" when empty)
+--    callout     a paragraph to heed, above the text, on Learn's tinted
+--                panel with an icon and a word (calloutKind: "caution",
+--                the default, "note", "tip" or "important")
 --    text        what it says: a paragraph a line, "- " before a bullet,
 --                an empty line between paragraphs
---    detail      text shown under it in a code panel (a command to copy)
+--    code        xTalk, shown on Learn's code panel in Learn's colours,
+--                with a Copy button; moreCode, more of it on a second
+--                panel, under the line moreCodeLabel
+--    detail      text shown on a code panel as it is, with a Copy button
+--                (a command for a terminal); detailKind names it on the
+--                panel ("Text" when empty)
 --    choices     things to choose, each a tile with an icon and a line
 --                that says what it does: a line each, as
 --                value|title|icon|text
@@ -30,8 +38,10 @@ script "revKitDialog"
 --                default (Return presses it), as answer's last button is
 --    cancel      what Escape, or closing the window, chooses (empty when
 --                not given)
---    peek        the path of a file: a Peek button shows its text in the
---                panel, as the classic warning before opening a stack did
+--    peek        the path of a file: a Peek button shows its text, in
+--                Learn's colours, on a code panel in place of the text, as
+--                the classic warning before opening a stack showed it in a
+--                window of its own
 --
 -- and it returns, in the result, the value of the choice or the label of
 -- the button the user pressed, as the "it" of the answer it stands for, so
@@ -45,14 +55,19 @@ script "revKitDialog"
 constant kWidth = 600
 constant kHeroHeight = 104
 constant kPad = 24
-constant kFootHeight = 64
 constant kButtonHeight = 34
 -- The tallest the panel of text grows before it scrolls
 constant kMaxPanel = 300
 constant kMinPanel = 44
 constant kPeekHeight = 300
--- The most of a peeked file that is shown
+-- The most of a peeked file that is shown, and the most of it in colour
+-- (colouring is a word at a time, in script)
 constant kPeekChars = 200000
+constant kColourChars = 40000
+-- A code panel's head: its dots, the word that names it and Copy
+constant kCodeHead = 40
+-- The longest word a code panel shows on one line (kdPlainHtml)
+constant kBreakChars = 56
 
 -- What the caller asked for, and what the user chose
 local sSpec, sChoice
@@ -60,6 +75,8 @@ local sSpec, sChoice
 local sButtons, sChoices
 -- True while the panel shows the peeked file
 local sPeeking
+-- The text each code panel's Copy copies, by the panel's name
+local sCopy
 
 ################################################################################
 #
@@ -75,6 +92,7 @@ command revKitDialogAsk pSpec
    put pSpec into sSpec
    put sSpec["cancel"] into sChoice
    put false into sPeeking
+   put empty into sCopy
    kdUseKit
    modal me
    return sChoice
@@ -152,7 +170,7 @@ end kdPlace
 #
 
 private command kdBuild
-   local tSaved, tTone, tObj, tTop, tHeight, tIndex, tTitle, tX
+   local tSaved, tTone, tObj, tTop, tHeight, tIndex, tTitle, tX, tRect
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
    lock screen
@@ -208,6 +226,11 @@ private command kdBuild
 
    put kHeroHeight + 18 into tTop
 
+   -- What to heed, on Learn's tinted panel
+   if sSpec["callout"] is not empty then
+      put kdCallout(tTop) + 14 into tTop
+   end if
+
    -- The panel of text, as tall as its text up to kMaxPanel
    if sSpec["text"] is not empty or sSpec["peek"] is not empty then
       put lkBox("panelBg", lkR(kPad - 6, tTop, kWidth - kPad + 6, tTop + 100), lkColor("panel"), 14, empty) into tObj
@@ -227,19 +250,26 @@ private command kdBuild
       put tTop + tHeight + 20 + 14 into tTop
    end if
 
-   -- The code panel, as tall as its text up to kMaxPanel, and all of its
-   -- text there to scroll to
+   -- xTalk, in Learn's colours
+   if sSpec["code"] is not empty then
+      put kdCodeBlock("code", tTop, "xTalk", lkCodeHtml(sSpec["code"]), sSpec["code"], kMaxPanel) + 14 into tTop
+   end if
+   if sSpec["moreCode"] is not empty then
+      if sSpec["moreCodeLabel"] is not empty then
+         put lkLabel("moreLabel", lkR(kPad - 4, tTop - 4, kWidth - kPad, tTop + 14), sSpec["moreCodeLabel"], 13, lkColor("ink"), empty) into tObj
+         set the textStyle of tObj to "bold"
+         add 22 to tTop
+      end if
+      put kdCodeBlock("more", tTop, "xTalk", lkCodeHtml(sSpec["moreCode"]), sSpec["moreCode"], 200) + 14 into tTop
+   end if
+
+   -- Text as it is, on a code panel
    if sSpec["detail"] is not empty then
-      put lkBox("detailBg", lkR(kPad - 6, tTop, kWidth - kPad + 6, tTop + 60), lkColor("code"), 12, empty) into tObj
-      put lkCodeField("detail", lkR(kPad + 8, tTop + 12, kWidth - kPad - 18, tTop + 50), 12, 18, empty) into tObj
-      set the dontWrap of tObj to false
-      set the text of tObj to sSpec["detail"]
-      put max(18, min(kMaxPanel, the formattedHeight of tObj + 4)) into tHeight
-      set the rect of tObj to item 1 of the rect of tObj, tTop + 8, item 3 of the rect of tObj, tTop + 8 + tHeight
-      set the rect of graphic "detailBg" to kPad - 6, tTop, kWidth - kPad + 6, tTop + tHeight + 20
-      set the vScrollbar of tObj to true
-      lkScroller "detailThumb", tObj, "203,213,225", 55, empty
-      put tTop + tHeight + 20 + 14 into tTop
+      put sSpec["detailKind"] into tObj
+      if tObj is empty then
+         put "Text" into tObj
+      end if
+      put kdCodeBlock("detail", tTop, tObj, kdPlainHtml(sSpec["detail"]), sSpec["detail"], kMaxPanel) + 14 into tTop
    end if
 
    -- The choices, a tile each
@@ -258,6 +288,138 @@ private command kdBuild
       set the defaultStack to tSaved
    end if
 end kdBuild
+
+-- What to heed: Learn's callout, a panel tinted with its colour, a bar at
+-- its left, an icon and a word for what it is; returns its bottom
+private function kdCallout pTop
+   local tAccent, tIcon, tWord, tBox, tBar, tObj
+   switch sSpec["calloutKind"]
+      case "tip"
+         put lkColor("emerald") into tAccent
+         put "lightbulb" into tIcon
+         put "Tip" into tWord
+         break
+      case "note"
+         put lkColor("sky") into tAccent
+         put "info" into tIcon
+         put "Note" into tWord
+         break
+      case "important"
+         put lkColor("violet") into tAccent
+         put "star" into tIcon
+         put "Important" into tWord
+         break
+      default
+         put lkColor("rose") into tAccent
+         put "triangle-alert" into tIcon
+         put "Caution" into tWord
+   end switch
+   put lkBox("callBg", lkR(kPad - 6, pTop, kWidth - kPad + 6, pTop + 60), lkMix("255,255,255", tAccent, 0.07), 12, empty) into tBox
+   lkBorder tBox, lkMix("255,255,255", tAccent, 0.3)
+   put lkBox("callBar", lkR(kPad - 6, pTop, kPad - 2, pTop + 60), tAccent, 0, empty) into tBar
+   get lkIcon("callIcon", tIcon, tAccent, lkR(kPad + 10, pTop + 13, kPad + 28, pTop + 31), empty)
+   put lkLabel("callWord", lkR(kPad + 38, pTop + 13, kWidth - kPad, pTop + 31), tWord, 13, lkMix(tAccent, lkColor("ink"), 0.3), empty) into tObj
+   set the textStyle of tObj to "bold"
+   put lkLabel("callText", lkR(kPad + 38, pTop + 36, kWidth - kPad - 6, pTop + 56), sSpec["callout"], 13, \
+         lkMix(tAccent, lkColor("ink"), 0.55), empty) into tObj
+   set the textHeight of tObj to 19
+   set the height of tObj to the formattedHeight of tObj + 5
+   set the top of tObj to pTop + 36 - 4
+   set the rect of tBox to kPad - 6, pTop, kWidth - kPad + 6, the bottom of tObj + 10
+   -- (the bar runs down the panel's left, inside its rounded corners)
+   set the rect of tBar to kPad - 5, pTop + 10, kPad - 2, the bottom of tObj
+   return the bottom of tBox
+end kdCallout
+
+-- A code panel as Learn draws one: dark, with three dots, a word for what
+-- it holds and Copy, and the text in the code font, which scrolls when it
+-- is taller than pMax; pHtml is what it shows, pText what Copy copies.
+-- The panel is group pName; returns its bottom
+private function kdCodeBlock pName, pTop, pKind, pHtml, pText, pMax
+   local tBox, tObj, tWidth, tHeight, tLeft, tRight
+   put kPad - 6 into tLeft
+   put kWidth - kPad + 6 into tRight
+   get lkGroup(pName, lkR(tLeft, pTop, tRight, pTop + 100), empty)
+   put lkBox(pName & "_bg", lkR(tLeft, pTop, tRight, pTop + 100), lkColor("code"), 14, pName) into tBox
+   get lkOval(pName & "_d1", lkR(tLeft + 16, pTop + 14, tLeft + 26, pTop + 24), "248,113,113", pName)
+   get lkOval(pName & "_d2", lkR(tLeft + 32, pTop + 14, tLeft + 42, pTop + 24), "251,191,36", pName)
+   get lkOval(pName & "_d3", lkR(tLeft + 48, pTop + 14, tLeft + 58, pTop + 24), "52,211,153", pName)
+   put lkLabel(pName & "_kind", lkR(tLeft + 70, pTop + 11, tLeft + 260, pTop + 27), pKind, 11, "100,116,139", pName) into tObj
+   -- (the word on the line of the dots)
+   set the height of tObj to the formattedHeight of tObj
+   set the top of tObj to pTop + 19 - the formattedHeight of tObj div 2
+   -- (wide enough for "Copied")
+   put lkButton(pName & "_copy", tLeft, pTop + 7, 26, "Copy", "copy", "dark", empty, pName, "copy:" & pName, 96) into tWidth
+   set the left of group (pName & "_copy") to tRight - tWidth - 10
+   lkRestAt pName & "_copy"
+   put pText into sCopy[pName]
+   put lkCodeField(pName & "_code", lkR(tLeft + 20, pTop + kCodeHead, tRight - 20, pTop + 60), 13, 20, pName) into tObj
+   set the dontWrap of tObj to false
+   set the htmlText of tObj to pHtml
+   put max(20, min(pMax, the formattedHeight of tObj + 5)) into tHeight
+   set the rect of tObj to tLeft + 20, pTop + kCodeHead - 4, tRight - 20, pTop + kCodeHead - 4 + tHeight
+   set the vScrollbar of tObj to true
+   lkScroller pName & "_thumb", tObj, "203,213,225", 55, pName
+   set the rect of tBox to tLeft, pTop, tRight, the bottom of tObj + 12
+   set the rect of group pName to the rect of tBox
+   return the bottom of tBox
+end kdCodeBlock
+
+-- Text shown as it is, in the code panel's ink. A field wraps only at a
+-- space, so a word too long for the panel (a path) is shown on lines of
+-- its own, broken after a slash where it can be; Copy copies it whole
+private function kdPlainHtml pText
+   local tHtml, tLine, tWord, tOut
+   replace numToCodepoint(13) with empty in pText
+   repeat for each line tLine in pText
+      put empty into tOut
+      repeat for each word tWord in tLine
+         if tOut is not empty then
+            put space after tOut
+         end if
+         put kdBreakWord(tWord) after tOut
+      end repeat
+      if word 1 to -1 of tLine is empty then
+         put tLine into tOut
+      else
+         -- (the line keeps its indent)
+         put char 1 to offset(word 1 of tLine, tLine) - 1 of tLine before tOut
+      end if
+      repeat for each line tWord in tOut
+         put "<p>" & lkEscape(tWord) & "</p>" after tHtml
+      end repeat
+   end repeat
+   return tHtml
+end kdPlainHtml
+
+-- A word cut into lines of at most kBreakChars characters, each after the
+-- last slash in it where there is one
+private function kdBreakWord pWord
+   local tOut, tPart, tAt
+   repeat while the number of chars of pWord > kBreakChars
+      put char 1 to kBreakChars of pWord into tPart
+      put kdLastOffset("/", tPart) into tAt
+      if tAt < kBreakChars div 2 then
+         put kBreakChars into tAt
+      end if
+      put char 1 to tAt of pWord & return after tOut
+      delete char 1 to tAt of pWord
+   end repeat
+   return tOut & pWord
+end kdBreakWord
+
+private function kdLastOffset pFind, pText
+   local tFrom, tFound
+   put 0 into tFrom
+   repeat
+      put offset(pFind, pText, tFrom) into tFound
+      if tFound is 0 then
+         exit repeat
+      end if
+      add tFound to tFrom
+   end repeat
+   return tFrom
+end kdLastOffset
 
 -- A choice: a tile with an icon and what it does, lit as the pointer goes
 -- over it; returns the tile's bottom
@@ -378,6 +540,9 @@ on lkAction pAction
          set the itemDelimiter to comma
          close me
          break
+      case pAction begins with "copy:"
+         kdCopy char 6 to -1 of pAction
+         break
       case pAction is "peek"
          kdPeek
          break
@@ -392,49 +557,74 @@ private command kdPress pIndex
    close me
 end kdPress
 
--- Peek: the file's text in the panel, as the classic warning showed it in
--- a window of its own, read as data and never run; a second press shows
--- the message again. A binary stack's file is mostly not text, so only
--- its runs of printable characters are shown, which is where its scripts
--- are.
+-- A code panel's Copy: its text on the clipboard, and "Copied" on the
+-- button for a moment, as Learn's code panels do
+private command kdCopy pName
+   set the clipboardData["text"] to sCopy[pName]
+   kdCopyLabel pName, "Copied"
+   send "kdCopyDone" && quote & pName & quote to me in 1500 milliseconds
+end kdCopy
+
+on kdCopyDone pName
+   if the mode of me is not 0 then
+      kdCopyLabel pName, "Copy"
+   end if
+end kdCopyDone
+
+-- A Copy button's word, with its icon and word kept in its middle
+private command kdCopyLabel pName, pText
+   local tLabel, tIcon, tBg, tWidth
+   put pName & "_copy_label" into tLabel
+   put pName & "_copy_icon" into tIcon
+   put pName & "_copy_bg" into tBg
+   if there is no field tLabel of me or there is no control tIcon of me or there is no graphic tBg of me then
+      exit kdCopyLabel
+   end if
+   put pText into field tLabel of me
+   set the width of field tLabel of me to the formattedWidth of field tLabel of me + 4
+   put the right of field tLabel of me - the left of control tIcon of me into tWidth
+   set the left of control tIcon of me to (the left of graphic tBg of me + the right of graphic tBg of me - tWidth) div 2
+   set the left of field tLabel of me to the right of control tIcon of me + 8
+end kdCopyLabel
+
+-- Peek: the file's text on a code panel in place of the text, in Learn's
+-- colours, as the classic warning showed it in a window of its own, read
+-- as data and never run; a second press shows the text again. A binary
+-- stack's file is mostly not text, so only its runs of printable
+-- characters are shown, which is where its scripts are.
 private command kdPeek
-   local tSaved, tFile, tData
+   local tSaved, tFile, tData, tHtml, tRect
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
    lock screen
-   if sPeeking then
-      put false into sPeeking
-      set the textFont of field "panel" to empty
-      set the textSize of field "panel" to 13
-      set the textHeight of field "panel" to 19
-      set the textColor of field "panel" to lkColor("soft")
-      set the htmlText of field "panel" to kdTextHtml(sSpec["text"])
-      set the backgroundColor of graphic "panelBg" to lkColor("panel")
-      set the foregroundColor of graphic "panelBg" to lkColor("line")
-      put "Peek" into field "peek_label"
-   else
+   if not sPeeking and there is no group "peekFile" then
       put sSpec["peek"] into tFile
       if there is no file tFile then
-         put kdTextHtml("The stack's file is no longer where it was:" & return & tFile) into tData
-         set the htmlText of field "panel" to tData
+         put "The stack's file is no longer where it was:" & return & tFile into tData
+         put kdPlainHtml(tData) into tHtml
       else
-         put true into sPeeking
          put url ("binfile:" & tFile) into tData
          put char 1 to kPeekChars of kdReadable(tData) into tData
-         if lkCodeFont() is not empty then
-            set the textFont of field "panel" to lkCodeFont()
+         put lkCodeHtml(char 1 to kColourChars of tData) into tHtml
+         if the number of chars of tData > kColourChars then
+            put kdPlainHtml(char kColourChars + 1 to -1 of tData) after tHtml
          end if
-         set the textSize of field "panel" to 12
-         set the textHeight of field "panel" to 17
-         set the textColor of field "panel" to lkColor("codeInk")
-         set the text of field "panel" to tData
-         set the backgroundColor of graphic "panelBg" to lkColor("code")
-         set the foregroundColor of graphic "panelBg" to lkColor("code")
-         put "Back" into field "peek_label"
       end if
+      put the rect of graphic "panelBg" into tRect
+      get kdCodeBlock("peekFile", item 2 of tRect, "Scripts", tHtml, tData, item 4 of tRect - item 2 of tRect - kCodeHead - 8)
    end if
-   set the vScroll of field "panel" to 0
-   lkScrollSync "panelThumb"
+   put not sPeeking into sPeeking
+   set the visible of group "peekFile" to sPeeking
+   set the visible of graphic "panelBg" to not sPeeking
+   set the visible of field "panel" to not sPeeking
+   if sPeeking then
+      put "Back" into field "peek_label"
+      set the vScroll of field "peekFile_code" to 0
+      lkScrollSync "peekFile_thumb"
+   else
+      put "Peek" into field "peek_label"
+      lkScrollSync "panelThumb"
+   end if
    unlock screen
    if tSaved is not empty and there is a stack tSaved then
       set the defaultStack to tSaved
@@ -463,11 +653,6 @@ private function kdReadable pData
       put byteToNum(tChar) into tCode
       if (tCode >= 32 and tCode < 127) or tCode is 9 then
          put tChar after tRun
-      else if tCode is 10 or tCode is 13 then
-         if the number of chars of tRun >= 4 then
-            put tRun & return after tOut
-         end if
-         put empty into tRun
       else
          if the number of chars of tRun >= 4 then
             put tRun & return after tOut

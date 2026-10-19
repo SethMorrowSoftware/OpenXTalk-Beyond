@@ -930,8 +930,10 @@ end mcbAssistantOn
 -- Asking the user
 
 -- Asks the user (the plugin's dialog); true when they said yes. With no
--- asker (the bridge started without one), false.
-private function mcbAsk pTitle, pDetail, pYes
+-- asker (the bridge started without one), false. pParts, when given, is
+-- pDetail in its parts, for an asker that shows them apart (OXT-Beyond's
+-- shows the code in colour): "prose", "code" and "handlers"
+private function mcbAsk pTitle, pDetail, pYes, pParts
    local tAnswer, tError
    if sAsker is empty or there is not a sAsker then
       return false
@@ -941,7 +943,7 @@ private function mcbAsk pTitle, pDetail, pYes
             "more characters, not shown here)" into pDetail
    end if
    try
-      dispatch function "mcbConfirm" to sAsker with pTitle, pDetail, pYes
+      dispatch function "mcbConfirm" to sAsker with pTitle, pDetail, pYes, pParts
       put the result into tAnswer
    catch tError
       put false into tAnswer
@@ -2207,7 +2209,7 @@ end mcbChangesOf
 -- its window before Run; through the bridge, Claude's app may have been
 -- told to allow every call, so this question is the user's only look.
 private function mcbToolRunCode pArguments
-   local tRun, tRisks, tTitle, tDetail, tRan, tText
+   local tRun, tRisks, tTitle, tDetail, tRan, tText, tParts
    put xtaRunPlan(pArguments, mcbWorkStack()) into tRun
    if tRun["ok"] is not true then
       return mcbResult("Nothing ran:" && tRun["problems"], true)
@@ -2218,8 +2220,11 @@ private function mcbToolRunCode pArguments
       replace return with ", " in tRisks
       put "It seems to use" && tRisks & ", and what it does there cannot be undone." & return into tDetail
    end if
-   put tRun["label"] & "." && "It can do anything " & mcbHostName() & " can: run it only if you know what it does." & return & return after tDetail
-   put tRun["code"] after tDetail
+   put tRun["label"] & "." && "It can do anything " & mcbHostName() & " can: run it only if you know what it does." after tDetail
+   put tDetail into tParts["prose"]
+   put tRun["code"] into tParts["code"]
+   put tRun["handlers"] into tParts["handlers"]
+   put return & return & tRun["code"] after tDetail
    if tRun["handlers"] is not empty then
       put return & return & "With these handlers:" & return & tRun["handlers"] after tDetail
    end if
@@ -2231,7 +2236,7 @@ private function mcbToolRunCode pArguments
             " asks before a run (" & the number of chars of tDetail && "characters with the question; at most" && kMaxAskChars & "). " & \
             "Run shorter code: put long handlers into the stack's script with make_changes first, then run a short call to them.", true)
    end if
-   if not mcbAsk(tTitle, tDetail, "Run") then
+   if not mcbAsk(tTitle, tDetail, "Run", tParts) then
       return mcbResult("Nothing ran: the user did not allow the run. Ask them what they would like instead; do not send the same code again.", true)
    end if
    put xtaRunCode(tRun) into tRan

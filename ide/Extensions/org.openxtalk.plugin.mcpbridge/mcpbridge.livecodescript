@@ -58,7 +58,7 @@ script "org.openxtalk.plugin.mcpbridge"
 --    mcpBridgeMenuPick           Development > Plugins > xTalk MCP Bridge
 --    mcbWebMenuPick              the same in the web IDE
 --    mcbIsEnabled()
---    mcbConfirm(pTitle, pDetail, pYes), mcbTooLate, mcbEditorStack(),
+--    mcbConfirm(pTitle, pDetail, pYes, pParts), mcbTooLate, mcbEditorStack(),
 --    mcbEditorContext()          (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
@@ -430,6 +430,7 @@ private command mcbSetupDialog
          put "square-terminal" into tSpec["icon"]
          put "Paste it into a terminal (Ctrl+V, or Command-V on a Mac), then start Claude Code (claude) and ask it to work on your stack. It reads:" into tSpec["text"]
          put mcbClaudeCodeCommand() into tSpec["detail"]
+         put "Terminal" into tSpec["detailKind"]
          put empty into tSpec["choices"]
          put "OK" into tSpec["buttons"]
          put "OK" into tSpec["cancel"]
@@ -1074,16 +1075,26 @@ end mcbWebDownloadExtension
 --------------------------------------------------------------------------------
 -- What the bridge asks
 
--- Asks the user before what cannot be undone; true when they said yes
-function mcbConfirm pTitle, pDetail, pYes
+-- Asks the user before what cannot be undone; true when they said yes.
+-- pParts, when the bridge sends it, is pDetail in its parts (mcbAsk)
+function mcbConfirm pTitle, pDetail, pYes, pParts
    local tSpec, tChoice
-   -- OXT-Beyond: in the look of Learn (mcbKit), with what Claude sent in
-   -- a code panel, whole: it scrolls when it is long
+   -- OXT-Beyond: in the look of Learn (mcbKit). Code Claude sent is shown
+   -- whole, in Learn's colours, on a code panel that scrolls when it is
+   -- long, under what to heed about it
    put pTitle into tSpec["heading"]
    put "Claude is waiting for your answer" into tSpec["subheading"]
    put "bot" into tSpec["icon"]
    put "amber" into tSpec["tone"]
-   put pDetail into tSpec["detail"]
+   if pParts is an array and pParts["code"] is not empty then
+      put pParts["prose"] into tSpec["callout"]
+      put "caution" into tSpec["calloutKind"]
+      put pParts["code"] into tSpec["code"]
+      put pParts["handlers"] into tSpec["moreCode"]
+      put "With these handlers:" into tSpec["moreCodeLabel"]
+   else
+      put pDetail into tSpec["text"]
+   end if
    put "Cancel" & return & pYes into tSpec["buttons"]
    put "Cancel" into tSpec["cancel"]
    if mcbKit(tSpec, tChoice) then

@@ -674,6 +674,9 @@ on tour_kit_dialog
    put "rocket" into tSpec["icon"]
    put "What it says:" & return & "- A first line" & return & "- A second line" & return & return & \
          "A last paragraph, long enough to wrap onto a second line of the dialog's panel of text." into tSpec["text"]
+   put "A tip, on Learn's tinted panel." into tSpec["callout"]
+   put "tip" into tSpec["calloutKind"]
+   put "on mouseUp" & return & "   answer " & quote & "Hello" & quote & " -- in Learn's colours" & return & "end mouseUp" into tSpec["code"]
    put "Later" & return & "Open Release Page" into tSpec["buttons"]
    put "Later" into tSpec["cancel"]
    send "tourShotKitDialog" to me in 1500 milliseconds

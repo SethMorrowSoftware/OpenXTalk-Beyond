@@ -7234,8 +7234,9 @@ private function revIDECautionBeforeOpening pStackFilePath
    put tName into tSpec["subheading"]
    put "triangle-alert" into tSpec["icon"]
    put "amber" into tSpec["tone"]
-   put "Opening a stack starts its scripts, and they can do anything a program on this computer can do." & return & return & \
-         "If you are not sure you trust the scripts in this stack, press Peek. It reads the stack's file as text, to give you an idea of the scripts it contains, and runs none of them." & return & return & \
+   put "Opening a stack starts its scripts, and they can do anything a program on this computer can do." into tSpec["callout"]
+   put "caution" into tSpec["calloutKind"]
+   put "If you are not sure you trust the scripts in this stack, press Peek. It reads the stack's file as text, to give you an idea of the scripts it contains, and runs none of them." & return & return & \
          "Once you are happy, press Continue to open: the stack opens as usual, and its scripts run." into tSpec["text"]
    put pStackFilePath into tSpec["peek"]
    put "Cancel" & return & "Continue to open" into tSpec["buttons"]
@@ -7261,8 +7262,8 @@ Asks the user something in a dialog in the look of Learn, Home and the
 About window.
 
 pSpec (array): What the dialog shows: its "title", "heading",
-"subheading", "icon", "tone", "text", "detail", "choices", "buttons" and
-"cancel" (described at the top of
+"subheading", "icon", "tone", "callout", "text", "code", "detail",
+"choices", "buttons" and "cancel", with the others described at the top of
 Toolset/palettes/kitdialog/revkitdialog.livecodescript).
 
 rChoice: The label of the button pressed, or the value of the choice
