@@ -42,8 +42,13 @@ made, as a user gives them, through the bar's Open button:
          which its relative path must find
 
 A second page then opens the player again, which must list the three in
-its library: the browser keeps them between visits. Screenshots go into
-<work>/check.
+its library: the browser keeps them between visits. A third opens each
+stack the home page offers, then
+
+  Hyper  dynamicPaths true, as a stack imported from HyperCard has it:
+         the player must say it opened, and go home again
+
+Screenshots go into <work>/check.
 """
 
 import argparse
@@ -333,8 +338,9 @@ def check(site, samples, work):
         (passed if ok else problems).append(name + (': ' + detail if detail else ''))
         log('  %s %s %s' % ('PASS' if ok else 'FAIL', name, detail))
 
-    def open_files(page, files, what):
-        before = len(lines)
+    def open_files(page, files, what, out=None):
+        out = lines if out is None else out
+        before = len(out)
         for attempt in range(3):
             try:
                 with page.expect_file_chooser(timeout=10000) as fc:
@@ -344,9 +350,9 @@ def check(site, samples, work):
             except Exception:
                 log('  the file chooser did not open (attempt %d)' % (attempt + 1))
         wait_for(page, lambda: any(x.startswith('PLAYER opened') or x.startswith('PLAYER status Could')
-                                   for x in lines[before:]), 'opening ' + what, 60)
+                                   for x in out[before:]), 'opening ' + what, 60)
         page.wait_for_timeout(1500)
-        return [x for x in lines[before:]]
+        return [x for x in out[before:]]
 
     def canvas_click(page, x, y):
         box = page.locator('#canvas').bounding_box()
@@ -482,6 +488,22 @@ def check(site, samples, work):
             third.screenshot(path=os.path.join(shots, '11-featured-%d.png' % (n + 1)))
             third.click('#home')
             wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
+        # Hyper: dynamicPaths true, as every stack imported from HyperCard
+        # has it, so that until the engine's turn ends a public handler of
+        # the player's is looked for in that stack's message path. The
+        # player must still say it opened, and go home again.
+        got = open_files(third, [os.path.join(samples, 'Hyper.livecode')], 'Hyper', third_lines)
+        errors = [x for x in got if x.startswith('PLAYER script error') or x.startswith('PLAYER status Could')]
+        expect('hyper-opens', any(x.startswith('PLAYER opened Hyper') for x in got) and not errors,
+               ' | '.join(errors or got[-3:]))
+        expect('hyper-openStack', 'SAMPLE hyper true' in got, ' | '.join(x for x in got if x.startswith('SAMPLE')))
+        third.screenshot(path=os.path.join(shots, '12-hyper.png'))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+        expect('hyper-home', not any(x.startswith('PLAYER script error') for x in third_lines[before:]),
+               ' | '.join(third_lines[before:][-3:]))
         third_context.close()
         browser.close()
     server.shutdown()

@@ -256,6 +256,7 @@ private command makeSamples pFolder
    makeTour pFolder & "/Tour.livecode"
    makeGrid pFolder & "/Grid.livecode"
    makeData pFolder & "/Data.livecode"
+   makeHyper pFolder & "/Hyper.livecode"
 end makeSamples
 
 -- Cards, a palette substack, a script error and a widget
@@ -412,6 +413,29 @@ private command makeData pFile
    save stack "Data" as pFile
    delete stack "Data"
 end makeData
+
+-- dynamicPaths true, as a stack imported from HyperCard has it: the
+-- player's own handlers must still be found once it is open
+private command makeHyper pFile
+   create stack "Hyper"
+   set the rect of stack "Hyper" to 0,0,512,342
+   set the backgroundColor of stack "Hyper" to "#FFFFFF"
+   set the dynamicPaths of stack "Hyper" to true
+   set the defaultStack to "Hyper"
+   set the script of stack "Hyper" to \
+         "on openStack" & return & \
+         "   write " & quote & "SAMPLE hyper " & quote & " & the dynamicPaths of this stack & return to stdout" & return & \
+         "end openStack"
+   create field "Words"
+   set the rect of field "Words" to 20,20,492,80
+   set the lockText of field "Words" to true
+   set the textSize of field "Words" to 18
+   put "A stack with dynamicPaths, as HyperCard stacks have" into field "Words"
+   create card
+   go card 1 of stack "Hyper"
+   save stack "Hyper" as pFile
+   delete stack "Hyper"
+end makeHyper
 
 private function buildFiles pFolder
    local tFiles
