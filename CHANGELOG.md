@@ -25,9 +25,9 @@ words, is in the [README](README.md#the-ide) and on the
 - Check for Updates: its messages in the look of Learn (#159)
 - MCP Bridge: its windows in the look of Learn (#159)
 - IDE dialogs: code in Learn's colours on its code panels, with Copy, and Learn's callouts (#159)
-- Home on the desktop: Help > Welcome to OXT-Beyond, a window that can be resized, and opening at startup as a choice (#PR)
-- IDE dialogs: the window can be made bigger, and its text and code take the room (#PR)
-- Changelog: #159's lines under Unreleased, where they were merged (#PR)
+- Home on the desktop: Help > Welcome to OXT-Beyond, a window that can be resized, and opening at startup as a choice (#165)
+- IDE dialogs: the window can be made bigger, and its text and code take the room (#165)
+- Changelog: #159's lines under Unreleased, where they were merged (#165)
 
 ## 0.2.7-rc.5 (2026-10-19, pre-release)
 
