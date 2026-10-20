@@ -130,6 +130,7 @@ def main():
     ap.add_argument('--wasm', required=True)
     ap.add_argument('--advise')
     ap.add_argument('--top', type=int, default=40)
+    ap.add_argument('--remove', help='the ASYNCIFY_REMOVE list (JSON) to check against the names')
     args = ap.parse_args()
 
     d, imports, bodies, names, globals_ = read(args.wasm)
@@ -190,6 +191,22 @@ def main():
     print('\nLargest instrumented functions')
     for s, n in sorted(inst, reverse=True)[:args.top]:
         print('  %7.1f KB  %s' % (s / 1024, n[:150]))
+
+    if args.remove:
+        import json
+        state_of = {}
+        for s_, n in inst:
+            state_of[n] = 'instrumented'
+        for s_, n in plain:
+            state_of.setdefault(n, 'plain')
+        print('\nRemove list: what each pattern matches (functions, still instrumented, examples)')
+        for pat in json.load(open(args.remove)):
+            rx = re.compile('^' + '.*'.join(re.escape(x) for x in pat.split('*')) + '$')
+            hits = [n for n in state_of if rx.match(n)]
+            left = [n for n in hits if state_of[n] == 'instrumented']
+            print('  %-28s %5d %4d  %s' % (pat, len(hits), len(left), ' | '.join(h[:50] for h in hits[:4])))
+            for n in left[:3]:
+                print('      still instrumented: %s' % n[:120])
 
     if args.advise:
         reasons = collections.Counter()

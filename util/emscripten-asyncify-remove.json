@@ -4,6 +4,12 @@
   "FT_*", "ft_*", "FTC_*", "tt_*", "TT_*", "cff_*", "cf2_*", "ps_*", "af_*", "T1_*", "t1_*", "sfnt_*", "pfr_*", "pcf_*", "bdf_*", "gray_*", "psh_*",
   "hb_*", "OT::*", "AAT::*", "CFF::*", "graph::*",
   "ossl_*", "OSSL_*", "EVP_*", "evp_*", "RSA_*", "rsa_*", "AES_*", "aes_*", "BN_*", "bn_*", "CRYPTO_*", "ASN1_*", "asn1_*", "kdf_*", "v2i_*", "i2r_*", "X509*", "x509*", "EC_*", "ec_*", "SHA1*", "SHA256*", "SHA512*", "sha1_*", "sha256_*", "sha512_*", "MD5*", "md5_*", "HMAC*", "PEM_*", "PKCS*", "DSA_*", "dsa_*", "DH_*", "dh_*", "OPENSSL_*", "RAND_*",
+  "MCR_compile*", "MCR_exec*", "MCR_free*", "MCR_clearcache*", "MCR_copyerror*", "regcomp*", "regexec*", "regfree*",
+  "pcre16_*", "match", "match_ref", "internal_dfa_exec", "compile_regex", "compile_branch", "find_minlength", "set_start_bits",
+  "find_fixedlength", "could_be_empty_branch", "auto_possessify", "check_escape", "add_to_class", "add_list_to_class",
+  "add_not_list_to_class", "first_significant_code", "find_recurse", "is_anchored", "is_startline", "find_firstassertedchar",
+  "compare_opcodes", "get_chr_property_list", "check_posix_syntax", "read_repeat_counts", "expand_workspace", "adjust_recurse",
+  "get_othercase_range", "set_table_bit", "set_type_bits", "set_nottype_bits",
   "png_*",
   "jpeg_*", "jinit_*",
   "inflate*", "deflate*", "crc32*", "adler32*", "_tr_*"
