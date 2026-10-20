@@ -252,7 +252,9 @@ jobs:
           export OXT_ASYNCIFY_ADVISE=1 OXT_ASYNCIFY_REMOVE=1
           # EXPERIMENT: wasm-opt inlines a function with one caller whatever
           # its size, which makes the largest functions
-          export OXT_ASYNCIFY_EXTRA="BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=200"
+          # EXPERIMENT: Asyncify's asserts (with ASSERTIONS): a function left
+          # out of Asyncify traps if the engine suspends inside it
+          export OXT_ASYNCIFY_EXTRA="BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=200 ASSERTIONS=1"
           EM_COMPILER_WRAPPER=ccache BUILDTYPE=Release \
             emmake make -C build-emscripten/livecode javascriptify-development -j"$(nproc)" 2>&1 | tee advise.log | grep -v '^\[asyncify\]' | tail -n 200
           python3 tools/ci/asyncify_report.py --wasm build-emscripten/livecode/out/Release/development-community-*.wasm --advise advise.log --remove util/emscripten-asyncify-remove.json --callees --top 40
@@ -378,9 +380,8 @@ jobs:
         # EXPERIMENT: does WebKit's optimizing wasm compiler (OMG) make the
         # memory in Playwright's WebKit as in WebKitGTK?
         include:
-          - {browser: webkit, env: '', omg: '', name: webkit}
-          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented', name: webkit-deny-big}
-          - {browser: chromium, env: '', omg: '', name: chromium}
+          - {browser: webkit, env: '', omg: '', name: webkit-asserts}
+          - {browser: chromium, env: '', omg: '', name: chromium-asserts}
     steps:
       - name: Check out
         uses: actions/checkout@v7

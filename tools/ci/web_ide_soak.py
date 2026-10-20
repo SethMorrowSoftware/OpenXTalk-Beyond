@@ -345,6 +345,14 @@ def main():
     for line in report:
         log(line)
     summary(args.browser, problems, report)
+    if problems:
+        # The page's last words, where the job's log shows them
+        with open(os.path.join(out, 'console.txt'), encoding='utf-8', errors='replace') as f:
+            tail = f.read().splitlines()[-40:]
+        if tail:
+            log('The console\'s last %d lines:' % len(tail))
+            for line in tail:
+                log('  ' + line[:300])
     for problem in problems:
         log('FAILED: %s' % problem)
         annotate('error', problem)
