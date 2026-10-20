@@ -368,14 +368,20 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   soak:
-    name: Web IDE soak (${{ matrix.browser }})
+    name: Web IDE soak (${{ matrix.browser }} ${{ matrix.env }})
     needs: engine
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        browser: [webkit, chromium]
+        # EXPERIMENT: does WebKit's optimizing wasm compiler (OMG) make the
+        # memory in Playwright's WebKit as in WebKitGTK?
+        include:
+          - {browser: webkit, env: '', name: webkit}
+          - {browser: webkit, env: 'JSC_useOMGJIT=false', name: webkit-noomg}
+          - {browser: webkit, env: 'JSC_maximumOMGCandidateCost=10000', name: webkit-cost10k}
+          - {browser: chromium, env: '', name: chromium}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -425,15 +431,17 @@ jobs:
         timeout-minutes: 15
         env:
           BROWSER: ${{ matrix.browser }}
+          BROWSER_ENV: ${{ matrix.env }}
         run: |
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_soak.py --site "$RUNNER_TEMP/site" \
-            --out "$RUNNER_TEMP/web-ide-soak" --browser "$BROWSER" --minutes 8
+            --out "$RUNNER_TEMP/web-ide-soak" --browser "$BROWSER" --minutes 8 \
+            ${BROWSER_ENV:+--env "$BROWSER_ENV"}
 
       - name: Upload the record
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: web-ide-soak-${{ matrix.browser }}
+          name: web-ide-soak-${{ matrix.name }}
           path: ${{ runner.temp }}/web-ide-soak
           if-no-files-found: ignore
           retention-days: 14

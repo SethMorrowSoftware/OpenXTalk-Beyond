@@ -208,6 +208,8 @@ def main():
     ap.add_argument('--timeout', type=float, default=300, help='seconds for the IDE to open')
     ap.add_argument('--unresponsive', type=float, default=60,
                     help='seconds the page may go without answering')
+    ap.add_argument('--env', action='append', default=[], metavar='NAME=VALUE',
+                    help='EXPERIMENT: an environment variable for the browser (JSC_ options)')
     args = ap.parse_args()
 
     from playwright.sync_api import sync_playwright
@@ -235,7 +237,11 @@ def main():
         return '%7.1f' % (time.time() - started)
 
     with sync_playwright() as p:
-        browser = getattr(p, args.browser).launch()
+        env = dict(os.environ)
+        env.update(e.split('=', 1) for e in args.env)
+        if args.env:
+            log('Env    : %s' % ' '.join(args.env))
+        browser = getattr(p, args.browser).launch(env=env)
         page = browser.new_page(viewport={'width': WIDTH, 'height': HEIGHT})
         # A click or a wait gives up rather than waiting for ever
         page.set_default_timeout(30000)
