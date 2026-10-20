@@ -249,7 +249,7 @@ jobs:
           make config-emscripten
           # emcc runs its compiler through ccache
           # EXPERIMENT: Asyncify's advice and function names
-          export OXT_ASYNCIFY_ADVISE=1
+          export OXT_ASYNCIFY_ADVISE=1 OXT_ASYNCIFY_REMOVE=1
           EM_COMPILER_WRAPPER=ccache BUILDTYPE=Release \
             emmake make -C build-emscripten/livecode javascriptify-development -j"$(nproc)" 2>&1 | tee advise.log | grep -v '^\[asyncify\]' | tail -n 200
           python3 tools/ci/asyncify_report.py --wasm build-emscripten/livecode/out/Release/development-community-*.wasm --advise advise.log

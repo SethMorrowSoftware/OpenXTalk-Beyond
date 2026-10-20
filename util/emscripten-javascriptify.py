@@ -160,6 +160,9 @@ if os.getenv('OXT_ASYNCIFY_ADVISE', '0') != '0':
     command += ['-s', 'ASYNCIFY_ADVISE=1', '--profiling-funcs']
 for extra in os.getenv('OXT_ASYNCIFY_EXTRA', '').split():
     command += ['-s', extra]
+if os.getenv('OXT_ASYNCIFY_REMOVE', '0') != '0':
+    command += ['-s', 'ASYNCIFY_REMOVE=@' + os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                         'emscripten-asyncify-remove.json')]
 
 # Run emcc
 # --------
