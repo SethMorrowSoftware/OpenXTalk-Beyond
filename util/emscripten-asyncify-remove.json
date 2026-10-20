@@ -1,7 +1,6 @@
 [
   "Sk*", "(anonymous namespace)::Sk*", "sk_*", "skcms_*", "Gr*",
-  "sqlite3*",
-  "icu_78::*", "*_78", "*_78(*",
+  "icu_78::*", "*_78",
   "FT_*", "ft_*", "FTC_*", "tt_*", "TT_*", "cff_*", "cf2_*", "ps_*", "af_*", "T1_*", "t1_*", "sfnt_*", "pfr_*", "pcf_*", "bdf_*", "gray_*", "psh_*",
   "hb_*", "OT::*", "AAT::*", "CFF::*", "graph::*",
   "ossl_*", "OSSL_*", "EVP_*", "evp_*", "RSA_*", "rsa_*", "AES_*", "aes_*", "BN_*", "bn_*", "CRYPTO_*", "ASN1_*", "asn1_*", "kdf_*", "v2i_*", "i2r_*", "X509*", "x509*", "EC_*", "ec_*", "SHA1*", "SHA256*", "SHA512*", "sha1_*", "sha256_*", "sha512_*", "MD5*", "md5_*", "HMAC*", "PEM_*", "PKCS*", "DSA_*", "dsa_*", "DH_*", "dh_*", "OPENSSL_*", "RAND_*",
