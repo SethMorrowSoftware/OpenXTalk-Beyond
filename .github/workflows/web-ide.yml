@@ -252,9 +252,10 @@ jobs:
           export OXT_ASYNCIFY_ADVISE=1 OXT_ASYNCIFY_REMOVE=1
           # EXPERIMENT: wasm-opt inlines a function with one caller whatever
           # its size, which makes the largest functions
-          # EXPERIMENT: Asyncify's asserts (with ASSERTIONS): a function left
+          # EXPERIMENT: Asyncify's asserts (without the rest of ASSERTIONS,
+          # which stops on an older write to address zero): a function left
           # out of Asyncify traps if the engine suspends inside it
-          export OXT_ASYNCIFY_EXTRA="BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=200 ASSERTIONS=1"
+          export OXT_ASYNCIFY_EXTRA="BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=200,--pass-arg=asyncify-asserts"
           EM_COMPILER_WRAPPER=ccache BUILDTYPE=Release \
             emmake make -C build-emscripten/livecode javascriptify-development -j"$(nproc)" 2>&1 | tee advise.log | grep -v '^\[asyncify\]' | tail -n 200
           python3 tools/ci/asyncify_report.py --wasm build-emscripten/livecode/out/Release/development-community-*.wasm --advise advise.log --remove util/emscripten-asyncify-remove.json --callees --top 40
