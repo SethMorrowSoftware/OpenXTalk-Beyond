@@ -368,7 +368,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   soak:
-    name: Web IDE soak (${{ matrix.browser }} ${{ matrix.env }})
+    name: Web IDE soak (${{ matrix.name }})
     needs: engine
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -378,10 +378,12 @@ jobs:
         # EXPERIMENT: does WebKit's optimizing wasm compiler (OMG) make the
         # memory in Playwright's WebKit as in WebKitGTK?
         include:
-          - {browser: webkit, env: '', name: webkit}
-          - {browser: webkit, env: 'JSC_useOMGJIT=false', name: webkit-noomg}
-          - {browser: webkit, env: 'JSC_maximumOMGCandidateCost=10000', name: webkit-cost10k}
-          - {browser: chromium, env: '', name: chromium}
+          - {browser: webkit, env: '', omg: '', name: webkit}
+          - {browser: webkit, env: '', omg: '--over 10000', name: webkit-deny-big}
+          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented', name: webkit-deny-big-inst}
+          - {browser: webkit, env: '', omg: '--over 10000 --only plain', name: webkit-deny-big-plain}
+          - {browser: webkit, env: '', omg: '--over 10000 --names MCChunk::* MCButton::* MCExec* platform_main* MCN_new_* __MCForeign*', name: webkit-deny-engine}
+          - {browser: chromium, env: '', omg: '', name: chromium}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -432,7 +434,16 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
           BROWSER_ENV: ${{ matrix.env }}
+          OMG: ${{ matrix.omg }}
         run: |
+          if [ -n "$OMG" ]; then
+            wasm=$(ls "$RUNNER_TEMP"/site/*.wasm)
+            set -f
+            # shellcheck disable=SC2086 # the matrix's arguments, * not expanded
+            python3 tools/ci/omg_allowlist.py --wasm "$wasm" --out "$RUNNER_TEMP/omg-allow.txt" $OMG
+            set +f
+            BROWSER_ENV="JSC_omgAllowlist=$RUNNER_TEMP/omg-allow.txt"
+          fi
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_soak.py --site "$RUNNER_TEMP/site" \
             --out "$RUNNER_TEMP/web-ide-soak" --browser "$BROWSER" --minutes 8 \
             ${BROWSER_ENV:+--env "$BROWSER_ENV"}
