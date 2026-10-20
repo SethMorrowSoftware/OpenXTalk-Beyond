@@ -963,10 +963,12 @@ jobs:
           # window managers, xdotool, xwininfo (x11-utils) and ImageMagick:
           # the browser window manager check; the Adwaita GTK 2 themes, light
           # and dark, as a desktop has them: the IDE screenshots; python3-xlib:
-          # the clipboard check's clipboard manager
+          # the clipboard check's clipboard manager; xsettingsd and the
+          # DejaVu fonts: the HiDPI check's settings manager and its text
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
                 xfwm4 openbox xdotool x11-utils imagemagick
-                gnome-themes-extra gtk2-engines-pixbuf python3-xlib)
+                gnome-themes-extra gtk2-engines-pixbuf python3-xlib
+                xsettingsd fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -1191,6 +1193,21 @@ jobs:
           case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
           /usr/bin/python3 tools/ci/clipboard_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/clipboard-check.log"
+
+      # The standalone engine on an Xvfb screen at 1x (nothing changes) and
+      # at a desktop scale of 2 (GDK_SCALE, then an XSETTINGS manager
+      # publishing Gdk/WindowScalingFactor): the screenRect in points, the
+      # scale properties, usePixelScaling off again, and a line of text in
+      # two fonts at six sizes whose glyphs on the screen end where the
+      # engine measures the line to (tools/ci/hidpi_check.py; the pictures
+      # of the screen go with the logs)
+      - name: HiDPI check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/hidpi_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/hidpi-check.log" --shots "$RUNNER_TEMP/logs/hidpi-shots"
 
       # The browser widget in a standalone under xfwm4 and openbox: the page
       # is on the screen in a new stack, a stack opened again and a second
