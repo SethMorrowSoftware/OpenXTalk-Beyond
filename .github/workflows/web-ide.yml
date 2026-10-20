@@ -378,12 +378,9 @@ jobs:
         # EXPERIMENT: does WebKit's optimizing wasm compiler (OMG) make the
         # memory in Playwright's WebKit as in WebKitGTK?
         include:
-          - {browser: webkit, env: '', omg: '', name: webkit}
-          - {browser: webkit, env: '', omg: '--over 10000', name: webkit-deny-big}
-          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented', name: webkit-deny-big-inst}
-          - {browser: webkit, env: '', omg: '--over 10000 --only plain', name: webkit-deny-big-plain}
-          - {browser: webkit, env: '', omg: '--over 10000 --names MCChunk::* MCButton::* MCExec* platform_main* MCN_new_* __MCForeign*', name: webkit-deny-engine}
-          - {browser: chromium, env: '', omg: '', name: chromium}
+          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented --names sqlite3* yy_reduce balance resolveExprStep exprAnalyze multiSelect', name: webkit-deny-sqlite}
+          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented --names sqlite3VdbeExec', name: webkit-deny-vdbe}
+          - {browser: webkit, env: '', omg: '--over 10000 --only instrumented --names xslt* xml* read_markers', name: webkit-deny-xml-jpeg}
     steps:
       - name: Check out
         uses: actions/checkout@v7
