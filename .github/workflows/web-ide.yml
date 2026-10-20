@@ -250,6 +250,9 @@ jobs:
           # emcc runs its compiler through ccache
           # EXPERIMENT: Asyncify's advice and function names
           export OXT_ASYNCIFY_ADVISE=1 OXT_ASYNCIFY_REMOVE=1
+          # EXPERIMENT: wasm-opt inlines a function with one caller whatever
+          # its size, which makes the largest functions
+          export OXT_ASYNCIFY_EXTRA="BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=200"
           EM_COMPILER_WRAPPER=ccache BUILDTYPE=Release \
             emmake make -C build-emscripten/livecode javascriptify-development -j"$(nproc)" 2>&1 | tee advise.log | grep -v '^\[asyncify\]' | tail -n 200
           python3 tools/ci/asyncify_report.py --wasm build-emscripten/livecode/out/Release/development-community-*.wasm --advise advise.log --remove util/emscripten-asyncify-remove.json

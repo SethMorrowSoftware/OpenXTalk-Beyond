@@ -165,6 +165,11 @@ def main():
         (inst if pattern in d[st:st + size] else plain).append((size, name))
     total = sum(s for s, _ in inst) + sum(s for s, _ in plain)
     print('instrumented: %d functions, %.2f MB of %.2f MB' % (len(inst), sum(s for s, _ in inst) / 1e6, total / 1e6))
+    for floor in (4000, 10000, 20000):
+        bi = [s for s, _ in inst if s > floor]
+        bp = [s for s, _ in plain if s > floor]
+        print('over %d bytes: %d instrumented (%.2f MB), %d plain (%.2f MB)'
+              % (floor, len(bi), sum(bi) / 1e6, len(bp), sum(bp) / 1e6))
 
     by_lib = collections.defaultdict(lambda: [0, 0, 0, 0])
     for s, n in inst:
