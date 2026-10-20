@@ -373,6 +373,26 @@ mergeInto(LibraryManager.library, {
 		LiveCodeStorage.changed();
 	},
 
+	// SQLite's fdatasync() (thirdparty/libsqlite/libsqlite.gyp). A
+	// database in the home folder is written back to the browser's
+	// storage soon, as every other file is (MCEmscriptenStorageChanged),
+	// instead of SQLite waiting for it. Emscripten's own fsync() waits
+	// for the browser's storage by suspending the engine, which needed
+	// all of SQLite instrumented by Asyncify; its largest functions
+	// instrumented made Safari's WebAssembly compiler use gigabytes,
+	// and Safari reload the page.
+	MCEmscriptenStorageSync__deps: ['$LiveCodeStorage', '$FS'],
+	MCEmscriptenStorageSync: function(fd) {
+		var stream = FS.getStream(fd);
+		if (!stream) {
+			return -1;
+		}
+		if (stream.node.mount.type.syncfs) {
+			LiveCodeStorage.changed();
+		}
+		return 0;
+	},
+
 });
 
 /*

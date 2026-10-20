@@ -12,5 +12,8 @@
   "get_othercase_range", "set_table_bit", "set_type_bits", "set_nottype_bits",
   "png_*",
   "jpeg_*", "jinit_*",
-  "inflate*", "deflate*", "crc32*", "adler32*", "_tr_*"
+  "inflate*", "deflate*", "crc32*", "adler32*", "_tr_*",
+  "read_markers",
+  "sqlite3*", "fts3*", "fts5*", "yy_reduce", "balance", "resolveExprStep", "exprAnalyze", "multiSelect",
+  "operator new*"
 ]

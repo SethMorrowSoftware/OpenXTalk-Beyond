@@ -93,6 +93,18 @@
 									[
 										'-fexceptions',
 									],
+
+									# OXT-Beyond: SQLite's sync (unixSync) asks
+									# the engine to write the file back to the
+									# browser's storage soon, rather than wait
+									# for it (engine/src/em-system.js), so that
+									# the engine never suspends inside SQLite
+									# and SQLite is left out of Asyncify
+									# (util/emscripten-asyncify-remove.json)
+									'defines':
+									[
+										'fdatasync=MCEmscriptenStorageSync',
+									],
 								},
 							],
 						],
