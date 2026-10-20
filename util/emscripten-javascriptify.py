@@ -153,6 +153,14 @@ for option in ['pre-js', 'shell-file', 'js-library']:
 # folder between visits (em-system.js)
 command += ['-lidbfs.js']
 
+# EXPERIMENT (not for merging): Asyncify's report of what it instruments
+# and why, and function names in the WebAssembly, for
+# tools/ci/asyncify_report.py
+if os.getenv('OXT_ASYNCIFY_ADVISE', '0') != '0':
+    command += ['-s', 'ASYNCIFY_ADVISE=1', '--profiling-funcs']
+for extra in os.getenv('OXT_ASYNCIFY_EXTRA', '').split():
+    command += ['-s', extra]
+
 # Run emcc
 # --------
 
