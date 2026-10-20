@@ -134,10 +134,16 @@ def main():
 
     d, imports, bodies, names, globals_ = read(args.wasm)
     state = [i for i, n in globals_.items() if 'asyncify_state' in n]
+    if not state:
+        # The global that instrumented code compares with 1 (unwinding)
+        # and 2 (rewinding) most often
+        counts = collections.Counter(
+            m.group(1) for m in re.finditer(rb'\x23([\x00-\x7f]|[\x80-\xff][\x00-\x7f])\x41[\x01\x02]\x46', d, re.S))
+        raw = counts.most_common(1)[0][0]
+        g = raw[0] if len(raw) == 1 else (raw[0] & 0x7f) | (raw[1] << 7)
+        state = [g]
     print('functions: %d (+%d imports); names: %d; asyncify state global: %s'
           % (len(bodies), imports, len(names), state))
-    if not state:
-        return 1
     g = state[0]
     out = bytearray([0x23])
     v = g
