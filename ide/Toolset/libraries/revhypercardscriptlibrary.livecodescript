@@ -1736,14 +1736,16 @@ private function _ParserForms pLine, pVars
          case "play"
             -- T35: play harpsichord c d e f (and after "tempo 200"): the
             -- notes not in quotes, which HyperCard read as the text they
-            -- were; one word that is a variable of the handler stays
+            -- were; one word that is a variable of the handler stays, and
+            -- so does an expression ("play x line n of tNotes": a note is
+            -- never "of" or "the"), and a line that goes on after "\"
             put i + 2 into j
             if _T(tTokens, tIdx[j]) is "tempo" then add 2 to j
             if tTokens[tIdx[i + 1]]["k"] is "w" and _T(tTokens, tIdx[i + 1]) is not among the words of "stop tempo" and j <= tEnd \
                   and not (j = tEnd and pVars[_T(tTokens, tIdx[j])]) then
                put true into tAt
                repeat with k = j to tEnd
-                  if tTokens[tIdx[k]]["k"] is "s" or _T(tTokens, tIdx[k]) is among the words of "& && ( ) , then else" then
+                  if tTokens[tIdx[k]]["k"] is "s" or _T(tTokens, tIdx[k]) is among the words of "& && ( ) , then else of the \" then
                      put false into tAt
                      exit repeat
                   end if

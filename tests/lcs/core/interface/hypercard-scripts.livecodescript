@@ -340,6 +340,15 @@ on TestHyperCardScriptsT35
    TestAssert "T35: doMenu with a variable: unchanged", line 5 of tScript is "  doMenu tItem"
    TestAssert "T35: quoted notes: unchanged", line 6 of tScript is "  play " & q & "boing" & q & " " & q & "c d" & q
    TestAssert "T35: in before into: unchanged", line 7 of tScript is "  put x in y into z"
+
+   -- unchanged: a chunk of a container as play's notes, as eight corpus
+   -- stacks have it (the sweep found the rule had quoted them)
+   put _Rewrite("on mouseUp", "  play line x of card field 1", "  play harpsichord item 2 of tNotes", \
+         "  play flute the notes of me", "  play harpsichord line \", "  index of card field 1", "end mouseUp") into tScript
+   TestAssert "T35: play a line of a field: unchanged", line 2 of tScript is "  play line x of card field 1"
+   TestAssert "T35: play a voice and an item: unchanged", line 3 of tScript is "  play harpsichord item 2 of tNotes"
+   TestAssert "T35: play a voice and the: unchanged", line 4 of tScript is "  play flute the notes of me"
+   TestAssert "T35: play's notes on the next line: unchanged", line 5 of tScript is "  play harpsichord line \"
 end TestHyperCardScriptsT35
 
 on TestHyperCardScriptsT34
