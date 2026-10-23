@@ -28,7 +28,7 @@ on openStack
 end openStack
 
 command sweepRun
-   local tStack, tReport, tError, tLine, tLeft, i
+   local tStack, tReport, tError, tLine, tLeft, i, tMace
    global gSweepPhase
    put $HC_OUT into sOut
    start using stack ($HC_LIB & "/revhypercardscriptlibrary.livecodescript")
@@ -44,7 +44,7 @@ command sweepRun
    put the result into tLine
    unlock messages
    repeat for each line tLine in the openStacks
-      if tLine is not among the items of "HyperCardSweep,HyperCardSweepErrors,revHyperCardScriptLibrary" \
+      if tLine is not among the items of "HyperCardSweep,HyperCardSweepErrors,revHyperCardScriptLibrary,revHyperCardMACELibrary" \
             and not (tLine begins with "revHyperCardProbe") then
          put the long id of stack tLine into tStack
          exit repeat
@@ -56,12 +56,38 @@ command sweepRun
    end if
    sweepLog "IMPORTED" & tab & the short name of tStack & tab & the number of cards of tStack
 
+   -- as File > Import Stack does: HyperCard's message order (HC_ORDER=1,
+   -- on an engine that has hyperTalkCompatible), the scripts, the MACE
+   -- sounds and the classic look
+   if $HC_ORDER is 1 then
+      try
+         set the hyperTalkCompatible of tStack to true
+      catch tError
+      end try
+   end if
    put revHyperCardFixScripts(tStack) into tReport
    sweepLog "FIX" & tab & the last line of tReport
    put revHyperCardLeftOutHandlers() into tLeft
    repeat with i = 1 to the number of elements of tLeft
       sweepLog "LEFT" & tab & tLeft[i]["name"] & tab & tLeft[i]["error"] & tab & sweepBase64(tLeft[i]["text"])
    end repeat
+   if there is a file ($HC_LIB & "/revhypercardmacelibrary.livecodescript") then
+      start using stack ($HC_LIB & "/revhypercardmacelibrary.livecodescript")
+      put 0 into tMace
+      repeat for each line tLine in the hcImportStat
+         if tLine begins with "Not converting snd" and "MACE" is in tLine then add 1 to tMace
+      end repeat
+      try
+         get revHyperCardConvertMACESounds(tStack, $HC_IN)
+      catch tError
+         put "error" into it
+      end try
+      if tMace > 0 or it > 0 then sweepLog "MACE" & tab & tMace & tab & it
+   end if
+   try
+      revHyperCardClassicLook tStack
+   catch tError
+   end try
    if $HC_MODE is not "run" then
       sweepLog "DONE"
       quit

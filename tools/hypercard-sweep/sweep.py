@@ -40,7 +40,8 @@ def one(args, stack):
     if os.path.exists(log):
         os.remove(log)
     env = dict(os.environ, HC_IN=os.path.abspath(stack), HC_OUT=os.path.abspath(log),
-               HC_LIB=os.path.abspath(args.lib), HC_MODE=args.mode)
+               HC_LIB=os.path.abspath(args.lib), HC_MODE=args.mode,
+               HC_ORDER="1" if args.hypertalk_order else "0")
     command = [args.engine, "-ui", os.path.join(HERE, "sweep.livecodescript")]
     try:
         result = subprocess.run(command, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -57,6 +58,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--engine", required=True)
     parser.add_argument("--stacks", required=True, help="the folder extract.py wrote")
+    parser.add_argument("--hypertalk-order", action="store_true",
+                        help="set hyperTalkCompatible on each stack before its scripts are fixed, as File > "
+                             "Import Stack does (an engine that has the property)")
     parser.add_argument("--out", required=True, help="the folder for this run's logs")
     parser.add_argument("--mode", choices=["fix", "run"], default="fix")
     parser.add_argument("--lib", default=LIBRARIES)

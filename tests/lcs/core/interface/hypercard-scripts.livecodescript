@@ -312,6 +312,36 @@ on TestHyperCardScriptsMoreForms
    TestAssert "T33: the long version of HyperCard: still T10's", line 4 of tScript is "  get hcLongVersion()"
 end TestHyperCardScriptsMoreForms
 
+on TestHyperCardScriptsT35
+   -- T35: more forms HyperCard took, from the corpus sweep
+   local tScript, q
+   put quote into q
+   put _Rewrite("on mouseUp", "  put true in x", "  if x = on then beep", "  put off into y", \
+         "  doMenu Next", "  play harpsichord c d e f fast", "  play flute tempo 200 c4 d", \
+         "  if x then send " & q & "go" & q & " to card", "  if y is not off then beep", "end mouseUp") into tScript
+   TestAssert "T35: put x in y", line 2 of tScript is "  put true into x"
+   TestAssert "T35: on as a value", line 3 of tScript is "  if x = " & q & "on" & q & " then beep"
+   TestAssert "T35: put off into", line 4 of tScript is "  put " & q & "off" & q & " into y"
+   TestAssert "T35: doMenu one word", line 5 of tScript is "  doMenu " & q & "Next" & q
+   TestAssert "T35: play's notes not in quotes", line 6 of tScript is "  play harpsichord " & q & "c d e f fast" & q
+   TestAssert "T35: play's notes after tempo", line 7 of tScript is "  play flute tempo 200 " & q & "c4 d" & q
+   TestAssert "T35: send to card after then", line 8 of tScript is "  if x then send " & q & "go" & q & " to this card"
+   TestAssert "T35: is not off", line 9 of tScript is "  if y is not " & q & "off" & q & " then beep"
+   TestAssert "T35: the script compiles", _Compiles(tScript)
+
+   -- unchanged: a count put into the message box, a variable after
+   -- play's voice, a variable named on, doMenu with a variable, quoted
+   -- notes
+   put _Rewrite("on mouseUp", "  put the number of words in fld 1", "  play flute tNotes", \
+         "  put 1 into tItem; put 2 into tNotes", "  doMenu tItem", "  play " & q & "boing" & q & " " & q & "c d" & q, \
+         "  put x in y into z", "end mouseUp") into tScript
+   TestAssert "T35: a count into the message box: unchanged", line 2 of tScript is "  put the number of words in fld 1"
+   TestAssert "T35: play with a variable: unchanged", line 3 of tScript is "  play flute tNotes"
+   TestAssert "T35: doMenu with a variable: unchanged", line 5 of tScript is "  doMenu tItem"
+   TestAssert "T35: quoted notes: unchanged", line 6 of tScript is "  play " & q & "boing" & q & " " & q & "c d" & q
+   TestAssert "T35: in before into: unchanged", line 7 of tScript is "  put x in y into z"
+end TestHyperCardScriptsT35
+
 on TestHyperCardScriptsT34
    -- T34: the next forms by reach in the corpus sweep
    local tScript, q

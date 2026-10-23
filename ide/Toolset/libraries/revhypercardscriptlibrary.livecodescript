@@ -1501,7 +1501,7 @@ private function _PhraseRules pLine
 
       -- T11: an object named by its type alone: "of cd", "of bkgnd", "the
       -- size of stack"
-      if tWord is among the words of "bkgnd bg background cd card stack" and (tPrev is "of" or (tPrev is "to" and tFirstWord is "send")) \
+      if tWord is among the words of "bkgnd bg background cd card stack" and (tPrev is "of" or (tPrev is "to" and _StatementWord(tTokens, tIdx, i) is "send")) \
             and (tNext is empty or tNext is among the words of ") , into to then else and or with is = < > & + - * /") then
          put "this " before tTokens[tIdx[i]]["t"]
          _Fire "T11 HyperCard object words"
@@ -1697,6 +1697,64 @@ private function _ParserForms pLine, pVars
                _Fire "T31 HyperTalk this engine's parser refuses"
             end if
             break
+         case "put"
+            -- T35: put x in y, which HyperCard took as put x into y (one
+            -- value before "in" only: "put the number of words in x" is a
+            -- count put into the message box, and stays as it is)
+            if i + 3 <= tEnd and _T(tTokens, tIdx[i + 2]) is "in" \
+                  and tTokens[tIdx[i + 1]]["k"] is among the items of "w,s,n" \
+                  and _T(tTokens, tIdx[i + 1]) is not among the words of "the ( -" then
+               put true into tAt
+               repeat with j = i + 3 to tEnd
+                  if _T(tTokens, tIdx[j]) is among the words of "into before after" then put false into tAt
+               end repeat
+               if tAt then
+                  put "into" into tTokens[tIdx[i + 2]]["t"]
+                  _Fire "T35 more forms HyperCard took"
+               end if
+            end if
+            -- T35: put on into x, put off into x: the words "on" and "off"
+            if i + 2 <= tEnd and _T(tTokens, tIdx[i + 1]) is among the words of "on off" and not pVars[_T(tTokens, tIdx[i + 1])] \
+                  and _T(tTokens, tIdx[i + 2]) is among the words of "into before after" then
+               put quote & tTokens[tIdx[i + 1]]["t"] & quote into tTokens[tIdx[i + 1]]["t"]
+               put "s" into tTokens[tIdx[i + 1]]["k"]
+               _Fire "T35 more forms HyperCard took"
+            end if
+            break
+         case "domenu"
+            -- T35: doMenu Next, doMenu last: one word not in quotes that
+            -- this engine refuses as a value (T27 takes two or more), the
+            -- menu item's name as HyperCard took it
+            if i + 1 = tEnd and tTokens[tIdx[i + 1]]["k"] is "w" and not pVars[_T(tTokens, tIdx[i + 1])] \
+                  and (_T(tTokens, tIdx[i + 1]) is among the words of kRefused or _T(tTokens, tIdx[i + 1]) is among the words of kGoPlaces \
+                  or _T(tTokens, tIdx[i + 1]) is among the words of kObjectWords or _ValueRefused(_T(tTokens, tIdx[i + 1]))) then
+               put quote & tTokens[tIdx[i + 1]]["t"] & quote into tTokens[tIdx[i + 1]]["t"]
+               put "s" into tTokens[tIdx[i + 1]]["k"]
+               _Fire "T35 more forms HyperCard took"
+            end if
+            break
+         case "play"
+            -- T35: play harpsichord c d e f (and after "tempo 200"): the
+            -- notes not in quotes, which HyperCard read as the text they
+            -- were; one word that is a variable of the handler stays
+            put i + 2 into j
+            if _T(tTokens, tIdx[j]) is "tempo" then add 2 to j
+            if tTokens[tIdx[i + 1]]["k"] is "w" and _T(tTokens, tIdx[i + 1]) is not among the words of "stop tempo" and j <= tEnd \
+                  and not (j = tEnd and pVars[_T(tTokens, tIdx[j])]) then
+               put true into tAt
+               repeat with k = j to tEnd
+                  if tTokens[tIdx[k]]["k"] is "s" or _T(tTokens, tIdx[k]) is among the words of "& && ( ) , then else" then
+                     put false into tAt
+                     exit repeat
+                  end if
+               end repeat
+               if tAt and j = tEnd and tTokens[tIdx[j]]["k"] is not "w" then put false into tAt
+               if tAt then
+                  _Replace tTokens, tIdx, j, tEnd, quote & _Span(tTokens, tIdx, j, tEnd) & quote
+                  _Fire "T35 more forms HyperCard took"
+               end if
+            end if
+            break
          case "select"
             -- T34: select "", which HyperCard took as select empty
             if i + 1 = tEnd and tTokens[tIdx[i + 1]]["t"] is quote & quote then
@@ -1747,6 +1805,18 @@ private function _ParserForms pLine, pVars
             end repeat
             break
       end switch
+
+      -- T35: "on" and "off" as values ("if vsound = on"), which HyperCard
+      -- took as their own text
+      repeat with j = i + 1 to tEnd
+         if _T(tTokens, tIdx[j]) is not among the words of "on off" or tTokens[tIdx[j]]["k"] is not "w" then next repeat
+         if pVars[_T(tTokens, tIdx[j])] then next repeat
+         if _T(tTokens, tIdx[j - 1]) is not among the words of "= <> is not" then next repeat
+         if j < tEnd and _T(tTokens, tIdx[j + 1]) is not among the words of "then and or )" then next repeat
+         put quote & tTokens[tIdx[j]]["t"] & quote into tTokens[tIdx[j]]["t"]
+         put "s" into tTokens[tIdx[j]]["k"]
+         _Fire "T35 more forms HyperCard took"
+      end repeat
 
       -- the number of items in line i of fld "toc" of line i of fld
       -- "toc": HyperCard took the count's chunk to end where the same
@@ -2259,6 +2329,16 @@ private function _ValueRefused pName
    if sProbe is empty or not _IsName(pName) then return false
    return not _Compiles("on hcProbe" & return & "get" && pName & return & "end hcProbe")
 end _ValueRefused
+
+-- The first word of the statement code token pAt is in: the line's,
+-- or the one after the nearest "then" or "else" before it (T35: "if c
+-- then send x to card")
+private function _StatementWord pTokens, pIdx, pAt
+   repeat while pAt > 1 and _T(pTokens, pIdx[pAt - 1]) is not among the words of "then else"
+      subtract 1 from pAt
+   end repeat
+   return _T(pTokens, pIdx[pAt])
+end _StatementWord
 
 -- The text of the tokens pFrom to pTo
 private function _Raw pTokens, pFrom, pTo

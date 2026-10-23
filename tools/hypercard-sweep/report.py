@@ -56,7 +56,8 @@ def read_run(folder):
     for name in sorted(os.listdir(folder)):
         if not re.match(r"\d+\.txt$", name):
             continue
-        stack = {"imported": False, "opened": False, "done": False, "exit": None, "left": [], "errors": []}
+        stack = {"imported": False, "opened": False, "done": False, "exit": None, "left": [], "errors": [],
+                 "mace": (0, 0)}
         with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as handle:
             for line in handle:
                 fields = line.rstrip("\n").split("\t")
@@ -68,6 +69,13 @@ def read_run(folder):
                     stack["left"].append((fields[1], fields[2], decode(fields[3])))
                 elif kind in ("ERR", "THROW") and len(fields) >= 3:
                     stack["errors"].append((decode(fields[2]), decode(fields[3]) if len(fields) > 3 else ""))
+                elif kind == "MACE" and len(fields) >= 3:
+                    # the MACE sounds the import log names, and how many
+                    # the IDE's decoder added as audio clips
+                    try:
+                        stack["mace"] = (int(fields[1]), int(fields[2]))
+                    except ValueError:
+                        stack["mace"] = (int(fields[1]) if fields[1].isdigit() else 0, 0)
                 elif kind == "OPENED":
                     stack["opened"] = True
                 elif kind == "DONE":
@@ -105,6 +113,10 @@ def summary(folder, limit):
           "timed out", sum(s["exit"] == "timeout" for s in stacks.values()))
     print("handlers left out", sum(len(s["left"]) for s in imported),
           "in", sum(1 for s in imported if s["left"]), "stacks")
+    if any(s["mace"] != (0, 0) for s in imported):
+        print("MACE sounds", sum(s["mace"][0] for s in imported), "logged,",
+              sum(s["mace"][1] for s in imported), "decoded into audio clips, in",
+              sum(1 for s in imported if s["mace"][0]), "stacks")
     if any(s["opened"] for s in imported):
         print("errors while running", sum(len(s["errors"]) for s in imported),
               "in", sum(1 for s in imported if s["errors"]), "stacks;",
