@@ -279,6 +279,51 @@ on TestHyperCardScriptsRulesForAll
    TestAssert "T32: a text style of this engine's: unchanged", line 4 of tScript is "  set the textStyle of fld 1 to bold"
 end TestHyperCardScriptsRulesForAll
 
+on TestHyperCardScriptsMoreForms
+   -- T33: more forms HyperCard took, from the sweep of 2026-10-23
+   local tScript, q
+   put quote into q
+   put _Rewrite("on mouseUp x", "  answer " & q & "Clear?" & q & " with Yes or No", "  answer " & q & "Q?" & q & " with x or No or " & q & "Maybe" & q, "  answer " & q & "Q?" & q & " with empty or OK", "  convert fileModDate(f, true) to short date", "  convert x to seconds", "  convert line 1 of fld 2 to seconds", "  if x then convert x + 1 to seconds", "end mouseUp") into tScript
+   TestAssert "T33: an answer's replies not in quotes", line 2 of tScript is "  answer " & q & "Clear?" & q & " with " & q & "Yes" & q & " or " & q & "No" & q
+   TestAssert "T33: a variable as a reply: unchanged", line 3 of tScript is "  answer " & q & "Q?" & q & " with x or " & q & "No" & q & " or " & q & "Maybe" & q
+   TestAssert "T33: a constant as a reply: unchanged", line 4 of tScript is "  answer " & q & "Q?" & q & " with empty or " & q & "OK" & q
+   TestAssert "T33: convert an expression", line 5 of tScript is "  get fileModDate(f, true); convert it to short date"
+   TestAssert "T33: convert a variable: unchanged", line 6 of tScript is "  convert x to seconds"
+   TestAssert "T33: convert a chunk: unchanged", line 7 of tScript is "  convert line 1 of fld 2 to seconds"
+   TestAssert "T33: convert after then: unchanged", line 8 of tScript is "  if x then convert x + 1 to seconds"
+
+   put _Rewrite("on mouseUp mouse", "  put mouseLoc into p", "  if optionKey is down then beep", "  if mouse is 1 then beep", "  set the cursor to Mouse Cursor", "  if version of HyperCard < 2 then beep", "  go to card 1 of home", "  go first card of stack Home", "  go to card 2 of home", "  go Electronic Parts", "  doMenu New Stack...", "end mouseUp") into tScript
+   TestAssert "T33: a function without the", line 2 of tScript is "  put the mouseLoc into p"
+   TestAssert "T33: a function without the, before is", line 3 of tScript is "  if the optionKey is down then beep"
+   TestAssert "T33: a variable of that name: unchanged", line 4 of tScript is "  if mouse is 1 then beep"
+   TestAssert "T33: a cursor's name of two words", line 5 of tScript is "  set the cursor to hcCursor(" & q & "Mouse Cursor" & q & ")"
+   TestAssert "T33: version of HyperCard without the", line 6 of tScript is "  if hcVersion() < 2 then beep"
+   TestAssert "T33: card 1 of home", line 7 of tScript is "  hcGoHome"
+   TestAssert "T33: first card of stack Home", line 8 of tScript is "  hcGoHome"
+   TestAssert "T33: another card of home: not the Home card", line 9 of tScript is not "  hcGoHome"
+   TestAssert "T33: go to a stack's name of two words", line 10 of tScript is "  hcGoTo " & q & "Electronic Parts" & q
+   TestAssert "T33: doMenu with dots in the item's name", line 11 of tScript is "  doMenu " & q & "New Stack..." & q
+end TestHyperCardScriptsMoreForms
+
+on TestHyperCardScriptsMoreFormsProbed
+   -- T33: a window's name this engine does not take as a value, which
+   -- only revHyperCardFixScripts (with its probes) finds
+   local tStack, tScript
+   put "HCScripts" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Win"
+   set the script of button "Win" to _Lines("on mouseUp", "  hide window Clipboard", "  hide window w", "  put mouseLoc into p", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put the script of button "Win" of stack tStack into tScript
+   TestAssert "T33: a window named by a word that is no value, quoted", line 2 of tScript is "  hcWindow " & quote & "hide" & quote & ", " & quote & "Clipboard" & quote
+   TestAssert "T33: a window named by a variable: unchanged", line 3 of tScript is "  hcWindow " & quote & "hide" & quote & ", w"
+   TestAssert "T33: the script compiles", _Compiles(tScript)
+   _Close tStack
+end TestHyperCardScriptsMoreFormsProbed
+
 on TestHyperCardScriptsFix
    -- a stack as an import leaves it: scripts that do not compile, one that
    -- does, one with a handler that cannot be saved by rewriting

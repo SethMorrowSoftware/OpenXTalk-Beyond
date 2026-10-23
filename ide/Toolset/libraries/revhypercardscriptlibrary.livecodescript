@@ -37,7 +37,11 @@ script "revHyperCardScriptLibrary"
 -- the item's name not in quotes, T28 the properties of the message box,
 -- T29 HyperCard the application: its name and version, send to it, T30
 -- "choose tool" by HyperCard's number or by a name in a variable, T32 the
--- card's rect and HyperCard's text styles).
+-- card's rect and HyperCard's text styles). T33, in scripts that do not
+-- compile, takes more forms HyperCard took: an answer's replies not in
+-- quotes, "convert" of an expression, functions written without "the",
+-- "go to card 1 of home", and names of several words not in quotes
+-- after a cursor, a window or a "go".
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -95,6 +99,17 @@ constant kObjectWords = "field fld button btn card cd background bkgnd bg stack 
 
 -- Functions HyperTalk let a script write without "the", as "length of x"
 constant kOneArgFunctions = "length random abs atan chartonum cos exp exp1 exp2 ln ln1 log2 numtochar round sin sqrt tan trunc value"
+
+-- Functions with no arguments that HyperTalk let a script write without
+-- "the" or "()", as "if optionKey is down" (T33); the sweep of 2026-10-23
+constant kBareFunctions = "mouse mouseloc mouseh mousev clickloc clickh clickv optionkey commandkey cmdkey shiftkey capslockkey"
+
+-- Words an answer's reply, unquoted, keeps as it is: constants, and "it"
+constant kReplyKeep = "empty return quote space tab comma it true false cr lf eol"
+
+-- Words that end an expression in a plain run of words (T27, T33): a run
+-- of other words is a name HyperCard took as the text it was
+constant kNotPlain = "the of and or not is in contains div mod within among"
 
 constant kLibraryName = "HyperCard Library"
 
@@ -1056,6 +1071,19 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
          end if
       end if
 
+      -- T33: a function with no arguments written without "the" or "()"
+      -- ("put mouseLoc into p", "if optionKey is down"), where it is not
+      -- a variable of the handler, nor a command or a message's name
+      if tWord is among the words of kBareFunctions and not pVars[tWord] \
+            and _T(tTokens, tPrev) is not among the words of "the on function end pass exit send" \
+            and (tNext is empty or tTokens[tNext]["k"] is "p" or _T(tTokens, tNext) is among the words of kAfterValue) \
+            and _T(tTokens, tNext) is not "(" \
+            and not _StatementStart(tTokens, tCode, tIndex) then
+         put "the " before tTokens[tIndex]["t"]
+         _Fire "T33 more forms HyperCard took"
+         next repeat
+      end if
+
       -- T2: a variable whose name is refused
       if pRename[tWord] is "where" then
          if _VariableHere(tTokens, tWord, tPrev, tNext) then
@@ -1102,7 +1130,7 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
    put _Join(tTokens) into pLine
 
    put _PhraseRules(pLine) into pLine
-   put _ParserForms(pLine) into pLine
+   put _ParserForms(pLine, pVars) into pLine
    put _LineCommands(pLine) into tLine
    if tLine is not pLine then return tLine
    put _PlayNotes(pLine) into pLine
@@ -1185,6 +1213,12 @@ private function _PhraseRules pLine
       if tWord is "version" and tPrev is "the" and tNext is "of" and tNext2 is "hypercard" then
          _Replace tTokens, tIdx, i - 1, i + 2, "hcVersion()"
          _Fire "T10 HyperCard's version"
+         next repeat
+      end if
+      -- (T33: and without "the", "if version of HyperCard < 2")
+      if tWord is "version" and tPrev is not "the" and tNext is "of" and tNext2 is "hypercard" then
+         _Replace tTokens, tIdx, i, i + 2, "hcVersion()"
+         _Fire "T33 more forms HyperCard took"
          next repeat
       end if
       if tWord is "version" and tNext is "of" and tNext2 is "scriptinglanguage" then
@@ -1292,8 +1326,9 @@ private function _PhraseRules pLine
 end _PhraseRules
 
 -- T31: forms HyperCard took and this engine's parser refuses, statement
--- by statement (a statement starts a line, or follows "then" or "else")
-private function _ParserForms pLine
+-- by statement (a statement starts a line, or follows "then" or "else");
+-- pVars: the handler's variables
+private function _ParserForms pLine, pVars
    local tTokens, tCode, tIdx, n, tItem, i, j, k, tEnd, tWord, tDepth, tAt, tTypes
    put _Tokens(pLine) into tTokens
    put _Code(tTokens) into tCode
@@ -1356,6 +1391,42 @@ private function _ParserForms pLine
                      _Fire "T31 HyperTalk this engine's parser refuses"
                   end if
                end repeat
+               -- T33: a reply that is one word not in quotes ("with Yes
+               -- or No"), which HyperCard took as the text it was when it
+               -- was not a variable: in quotes
+               if tAt is not empty then
+                  repeat with j = tAt + 1 to tEnd
+                     if tTokens[tIdx[j]]["k"] is "w" and _T(tTokens, tIdx[j - 1]) is among the items of "with,or,," \
+                           and (j = tEnd or _T(tTokens, tIdx[j + 1]) is among the items of "or,,") \
+                           and not pVars[_T(tTokens, tIdx[j])] and _T(tTokens, tIdx[j]) is not among the words of kReplyKeep then
+                        put quote & tTokens[tIdx[j]]["t"] & quote into tTokens[tIdx[j]]["t"]
+                        put "s" into tTokens[tIdx[j]]["k"]
+                        _Fire "T33 more forms HyperCard took"
+                     end if
+                  end repeat
+               end if
+            end if
+            break
+         case "convert"
+            -- T33: convert an expression that is not a container
+            -- ("convert fileModDate(f) to short date"), which HyperCard
+            -- put into it converted: get it, then convert it (a statement
+            -- alone on its line only)
+            if i = 1 and tEnd = n then
+               put empty into tAt
+               put 0 into tDepth
+               repeat with j = i + 1 to tEnd
+                  if _T(tTokens, tIdx[j]) is "(" then add 1 to tDepth
+                  if _T(tTokens, tIdx[j]) is ")" then subtract 1 from tDepth
+                  if tDepth = 0 and _T(tTokens, tIdx[j]) is "to" then put j into tAt
+               end repeat
+               if tAt is not empty and tAt > i + 2 and tAt < tEnd \
+                     and _T(tTokens, tIdx[i + 1]) is not among the words of "char character word item line" \
+                     and _T(tTokens, tIdx[i + 1]) is not among the words of kObjectWords \
+                     and _T(tTokens, tIdx[i + 1]) is not among the words of "card cd background bkgnd bg" then
+                  _Fire "T33 more forms HyperCard took"
+                  return _Raw(tTokens, 1, tIdx[i] - 1) & "get" && _Span(tTokens, tIdx, i + 1, tAt - 1) & "; convert it" && _Raw(tTokens, tIdx[tAt], tTokens["count"])
+               end if
             end if
             break
          case "create"
@@ -1456,6 +1527,21 @@ private function _GoHome @pTokens, pIdx, pAt, pCount
    local j
    put pAt + 1 into j
    if _T(pTokens, pIdx[j]) is "to" then add 1 to j
+   -- (T33: go to card 1 of home, go first card of stack home, with Home
+   -- not in quotes: the Home card, which is the first)
+   if _Span(pTokens, pIdx, j, j + 2) is among the lines of ("card 1 of" & return & "cd 1 of" & return & "first card of" & return & "first cd of") then
+      add 3 to j
+      if _T(pTokens, pIdx[j]) is "stack" then add 1 to j
+      if _T(pTokens, pIdx[j]) is not "home" then
+         return false
+      end if
+   else if _Span(pTokens, pIdx, j, j + 3) is among the lines of ("the first card of" & return & "the first cd of") then
+      add 4 to j
+      if _T(pTokens, pIdx[j]) is "stack" then add 1 to j
+      if _T(pTokens, pIdx[j]) is not "home" then
+         return false
+      end if
+   end if
    if _T(pTokens, pIdx[j]) is "stack" then add 1 to j
    if _T(pTokens, pIdx[j]) is not "home" and _T(pTokens, pIdx[j]) is not quote & "home" & quote then return false
    -- (HyperCard's "in a new window" is no different for the Home stack)
@@ -1623,7 +1709,9 @@ private function _HyperCardRules pLine, pCompiled, pElse
             if tEnd > i + 1 then
                put true into tPlain
                repeat with j = i + 1 to tEnd
-                  if tTokens[tIdx[j]]["k"] is not "w" or _T(tTokens, tIdx[j]) is among the words of "the of and or not is in contains div mod within among" then
+                  -- (the dots of "New Stack..." are part of the name)
+                  if j > i + 1 and tTokens[tIdx[j]]["k"] is "p" and tTokens[tIdx[j]]["t"] is "." then next repeat
+                  if tTokens[tIdx[j]]["k"] is not "w" or _T(tTokens, tIdx[j]) is among the words of kNotPlain then
                      put false into tPlain
                      exit repeat
                   end if
@@ -1746,8 +1834,37 @@ private function _GoTo pTokens, pIdx, pAt, pEnd
    put _ExpressionEnd(pTokens, pIdx, j, pEnd, "in") into tLast
    if tLast < pEnd then put ", " & _Literal(_Span(pTokens, pIdx, tLast + 1, pEnd)) into tTail
    _Fire "T25 go to a destination by its name"
-   return "hcGoTo" && _Span(pTokens, pIdx, j, tLast) & tTail
+   return "hcGoTo" && _PlainName(pTokens, pIdx, j, tLast, true) & tTail
 end _GoTo
+
+-- T33: the code tokens pFrom to pTo as a name HyperCard took as the text
+-- it was ("set the cursor to Mouse Cursor", "go Electronic Parts", "hide
+-- window Clipboard"): in quotes when they are two words or more (numbers
+-- too, with pNumbers, and the dots of "New Stack..."), or one word this
+-- engine does not take as a value; otherwise the tokens as they are
+private function _PlainName pTokens, pIdx, pFrom, pTo, pNumbers
+   local j, tKind, tWords
+   if pFrom > pTo or pTokens[pIdx[pFrom]]["k"] is not "w" then return _Span(pTokens, pIdx, pFrom, pTo)
+   put 0 into tWords
+   repeat with j = pFrom to pTo
+      put pTokens[pIdx[j]]["k"] into tKind
+      if tKind is "w" and _T(pTokens, pIdx[j]) is not among the words of kNotPlain then
+         add 1 to tWords
+      else if not ((tKind is "n" and pNumbers) or (tKind is "p" and pTokens[pIdx[j]]["t"] is ".")) then
+         return _Span(pTokens, pIdx, pFrom, pTo)
+      end if
+   end repeat
+   if tWords = 1 and pFrom = pTo and not _ValueRefused(pTokens[pIdx[pFrom]]["t"]) then return _Span(pTokens, pIdx, pFrom, pTo)
+   _Fire "T33 more forms HyperCard took"
+   return _Literal(_Span(pTokens, pIdx, pFrom, pTo))
+end _PlainName
+
+-- Whether this engine refuses pName as a value ("get clipboard"): only
+-- with a probe, as a word that is a value is a variable or the text it is
+private function _ValueRefused pName
+   if sProbe is empty or not _IsName(pName) then return false
+   return not _Compiles("on hcProbe" & return & "get" && pName & return & "end hcProbe")
+end _ValueRefused
 
 -- The text of the tokens pFrom to pTo
 private function _Raw pTokens, pFrom, pTo
@@ -2124,7 +2241,7 @@ private function _SetCursor pTokens, pIdx, pAt, pEnd
    if _T(pTokens, pIdx[j]) is not "cursor" or _T(pTokens, pIdx[j + 1]) is not "to" or j + 2 > pEnd then return empty
    if _T(pTokens, pIdx[j + 2]) is "hccursor" then return empty
    _Fire "T17 cursor"
-   return "set the cursor to hcCursor(" & _Span(pTokens, pIdx, j + 2, pEnd) & ")"
+   return "set the cursor to hcCursor(" & _PlainName(pTokens, pIdx, j + 2, pEnd, false) & ")"
 end _SetCursor
 
 -- T19: show and hide card picture, background picture (which this engine
@@ -2150,9 +2267,9 @@ private function _ShowHide pTokens, pIdx, pAt, pEnd
    if _T(pTokens, pIdx[j]) is "window" and j < pEnd then
       put _ExpressionEnd(pTokens, pIdx, j + 1, pEnd, "at") into tLast
       _Fire "T21 windows"
-      if tLast = pEnd then return "hcWindow" && quote & tVerb & quote & comma && _Span(pTokens, pIdx, j + 1, pEnd)
+      if tLast = pEnd then return "hcWindow" && quote & tVerb & quote & comma && _PlainName(pTokens, pIdx, j + 1, pEnd, false)
       if tLast + 1 = pEnd then return empty
-      return "hcWindow" && quote & tVerb & quote & comma && _Span(pTokens, pIdx, j + 1, tLast) & comma && _Span(pTokens, pIdx, tLast + 2, pEnd)
+      return "hcWindow" && quote & tVerb & quote & comma && _PlainName(pTokens, pIdx, j + 1, tLast, false) & comma && _Span(pTokens, pIdx, tLast + 2, pEnd)
    end if
    if _T(pTokens, pIdx[j]) is among the words of "tool tools pattern patterns scroll fatbits navigator" \
          and _T(pTokens, pIdx[j + 1]) is "window" and j + 1 = pEnd then
