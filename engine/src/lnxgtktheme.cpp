@@ -276,7 +276,7 @@ static gboolean reload_theme(void)
 		// systemAppearance itself still reports "light" on Linux.) The
 		// message goes only when the theme's name has changed, not for a
 		// notification that names the theme already in use.
-		if (theme_name_changed() && MCdefaultstackptr != nil)
+		if (theme_name_changed() && MCdefaultstackptr . IsValid())
 			MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 	}
 	return (TRUE);
