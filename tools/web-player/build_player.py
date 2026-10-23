@@ -553,9 +553,14 @@ def check(site, samples, work):
         shutil.copyfile(os.path.join(hc_input, 'games', 'Surf.stack'), os.path.join(hc_dir, 'Surf'))
         shutil.copyfile(os.path.join(hc_input, 'forks', 'Stacks.dc42'), os.path.join(hc_dir, 'Stacks.dc42'))
         got = open_files(third, [os.path.join(hc_dir, 'Surf')], 'Surf', third_lines)
-        fixed = [x for x in got if x.startswith('PLAYER hypercard')]
+        # (the player's "hypercard-mace" line follows the summary: the
+        # space keeps it out of the summary's lines)
+        fixed = [x for x in got if x.startswith('PLAYER hypercard ')]
+        mace = [x for x in got if x.startswith('PLAYER hypercard-mace')]
         expect('hypercard-opens', any(x.startswith('PLAYER opened Surf') for x in got), ' | '.join(got[-3:]))
         expect('hypercard-fixed', len(fixed) == 1 and 'HyperCard scripts:' in fixed[0], ' | '.join(fixed or got[-3:]))
+        expect('hypercard-mace', len(mace) == 1 and not mace[0].startswith('PLAYER hypercard-mace-failed'),
+               ' | '.join(mace or got[-3:]))
         third.wait_for_timeout(500)
         if third.locator('[class^="oxt-dialog"]').count():
             third.keyboard.press('Enter')
