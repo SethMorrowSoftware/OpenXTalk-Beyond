@@ -7407,6 +7407,9 @@ function revIDEKitDialog pSpec, @rChoice
    return true
 end revIDEKitDialog
 
+-- The stack the last revIDEImportHyperCardStack imported
+local sHyperCardImported
+
 /*
 Asks for a HyperCard stack and imports it (File > Import Stack >
 HyperCard Stack...).
@@ -7440,12 +7443,55 @@ on revIDEActionImportHyperCardStack
    put line 1 of the result into tFilePath
    if tFilePath is empty or there is not a file tFilePath then exit revIDEActionImportHyperCardStack
    -- OXT-Beyond: a disk image holding stacks
+   put empty into sHyperCardImported
    if revHyperCardIsDiskImage(tFilePath) then
       revIDEImportHyperCardFromDiskImage tFilePath
-      exit revIDEActionImportHyperCardStack
+   else
+      revIDEImportHyperCardStack tFilePath
    end if
-   revIDEImportHyperCardStack tFilePath
+   -- OXT-Beyond: what came in and what is missing, unless turned off (the
+   -- preference cHyperCardImportSummary set to false)
+   if the result is empty and sHyperCardImported is not empty and there is a sHyperCardImported \
+         and revIDEGetPreference("cHyperCardImportSummary") is not false then
+      send "__revIDEShowHyperCardSummary sHyperCardImported, the hcImportStat" to me in 100 milliseconds
+   end if
 end revIDEActionImportHyperCardStack
+
+-- A window with revHyperCardImportSummary's text for the stack just
+-- imported, which a person can read, copy and close
+command __revIDEShowHyperCardSummary pStack, pImportLog
+   local tText, tName, tDefault
+   try
+      put revHyperCardImportSummary(pStack, pImportLog) into tText
+   catch tError
+      exit __revIDEShowHyperCardSummary
+   end try
+   if tText is empty then exit __revIDEShowHyperCardSummary
+   put "revHyperCardImportSummary" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is not a stack tName then
+      create invisible stack tName
+      set the width of stack tName to 520
+      set the height of stack tName to 360
+      set the resizable of stack tName to false
+      set the defaultStack to tName
+      create field "Summary"
+      set the rect of field "Summary" to 10, 10, 510, 312
+      set the lockText of field "Summary" to true
+      set the vScrollbar of field "Summary" to true
+      set the dontWrap of field "Summary" to false
+      set the threeD of field "Summary" to false
+      create button "Close"
+      set the rect of button "Close" to 420, 322, 510, 348
+      set the script of button "Close" to "on mouseUp" & return & "close this stack" & return & "end mouseUp"
+   end if
+   set the title of stack tName to revIDELocalise("HyperCard Import:") && the short name of pStack
+   set the text of field "Summary" of stack tName to tText
+   set the defaultStack to tDefault
+   unlock messages
+   modeless stack tName
+end __revIDEShowHyperCardSummary
 
 /*
 Imports a HyperCard stack from a Mac disk image, with its resource fork.
@@ -7586,6 +7632,7 @@ on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
    if tError is empty and revIDEGetPreference("cHyperCardFixScripts") is not false then
       get revHyperCardFixScripts(tStack)
    end if
+   if tError is empty then put tStack into sHyperCardImported
    set the lockMessages to tWasLocked
 
    if tError is not empty then

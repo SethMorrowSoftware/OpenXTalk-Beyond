@@ -312,6 +312,47 @@ on TestHyperCardScriptsMoreForms
    TestAssert "T33: the long version of HyperCard: still T10's", line 4 of tScript is "  get hcLongVersion()"
 end TestHyperCardScriptsMoreForms
 
+on TestHyperCardScriptsT34
+   -- T34: the next forms by reach in the corpus sweep
+   local tScript, q
+   put quote into q
+   put _Rewrite("on mouseUp", "  select " & q & q, "  repeat with i is 1 to 3", "  end repeat", \
+         "  sort the lines of x", "  put the number of windows into n", \
+         "  put char 3 to the length of fld " & q & "body" & q & " of fld " & q & "body" & q & " into y", \
+         "  put 1 into line bg fld " & q & "N" & q & " of bg fld " & q & "List" & q, \
+         "  if q then reset menubar", "  unlock screen with visual dissolve to cd", \
+         "  answer " & q & "Sure?" & q & " \", "  with No, Yes", "end mouseUp") into tScript
+   TestAssert "T34: select an empty string", line 2 of tScript is "  select empty"
+   TestAssert "T34: repeat with i is", line 3 of tScript is "  repeat with i = 1 to 3"
+   TestAssert "T34: sort the lines of", line 5 of tScript is "  sort lines of x"
+   TestAssert "T34: the number of windows", line 6 of tScript is "  put the number of lines of the windows into n"
+   TestAssert "T34: to the length of the same field", line 7 of tScript is "  put char 3 to (the length of fld " & q & "body" & q & ") of fld " & q & "body" & q & " into y"
+   TestAssert "T34: a field as a line's number", line 8 of tScript is "  put 1 into line (bg fld " & q & "N" & q & ") of bg fld " & q & "List" & q
+   TestAssert "T34: reset menubar after then", line 9 of tScript is "  if q then hcResetMenubar"
+   TestAssert "T34: unlock screen with visual to cd", line 10 of tScript is "  unlock screen with visual dissolve to card"
+   TestAssert "T34: an answer's replies on the next line", line 11 of tScript contains "with " & q & "No" & q & " or " & q & "Yes" & q
+   TestAssert "T34: the line it continued on, left empty", line 12 of tScript is empty
+   TestAssert "T34: the script compiles", _Compiles(tScript)
+
+   -- unchanged: a line's number that is not an object, the number of a
+   -- chunk, a variable named like a function in the external's place
+   put _Rewrite("on mouseUp", "  put 1 into line 2 of fld 3", "  put the number of lines of the windows into n", "end mouseUp") into tScript
+   TestAssert "T34: a line's number: unchanged", line 2 of tScript is "  put 1 into line 2 of fld 3"
+   TestAssert "T34: already the number of lines: unchanged", line 3 of tScript is "  put the number of lines of the windows into n"
+
+   -- a variable named date: the long date stays the function
+   put _Rewrite("on mouseUp", "  put 1 into date", "  put the long date into d", "  put the number of items in date into n", "end mouseUp") into tScript
+   TestAssert "T34: the variable renamed", line 2 of tScript is "  put 1 into hc_date"
+   TestAssert "T34: the long date: the function", line 3 of tScript is "  put the long date into d"
+
+   -- the arguments of an external: on and off in quotes
+   put revHyperCardRewriteScript(_Lines("on mouseUp", "  ink on, 8, x", "  if x then ink off", "  put Zap(on) into y", "  put Other(on) into z", "end mouseUp"), _Lines("ink", "zap")) into tScript
+   TestAssert "T34: an external command's on", line 2 of tScript contains q & "on" & q & ", 8, x"
+   TestAssert "T34: an external command's off after then", line 3 of tScript contains q & "off" & q
+   TestAssert "T34: an external function's on", line 4 of tScript is "  put Zap(" & q & "on" & q & ") into y"
+   TestAssert "T34: not an external: unchanged", line 5 of tScript is "  put Other(on) into z"
+end TestHyperCardScriptsT34
+
 on TestHyperCardScriptsMoreFormsProbed
    -- T33: a window's name this engine does not take as a value, which
    -- only revHyperCardFixScripts (with its probes) finds
@@ -410,6 +451,57 @@ on TestHyperCardScriptsLibrary
    TestAssert "the stack's doMenu handler sees the script's doMenu, and the version is HyperCard's", gHCScriptsTest is "Keep,2.4.1"
    _Close tStack
 end TestHyperCardScriptsLibrary
+
+on TestHyperCardScriptsLibraryMessages
+   -- HyperCard's messages sent to an object with no handler for them end
+   -- in the library; the XFCNs with a plain equivalent answer
+   local tStack, tError
+   global gHCScriptsTest
+   put "HCMessages" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Quiet"
+   create button "B"
+   set the script of button "B" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  send " & quote & "mouseUp" & quote & " to button " & quote & "Quiet" & quote, \
+         "  send " & quote & "tabKey" & quote & " to this card", \
+         "  send " & quote & "closeCard" & quote & " to this card", \
+         "  put MultiFinder() & comma & FileExists(empty) & comma & (CapsLock() is among the words of " & quote & "true false" & quote & ") into gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put empty into gHCScriptsTest
+   try
+      send "mouseUp" to button "B" of stack tStack
+   catch tError
+   end try
+   TestAssert "messages sent to no handler end in the library", tError is empty
+   TestAssert "MultiFinder, FileExists and CapsLock answer", gHCScriptsTest is "true,false,true"
+   _Close tStack
+end TestHyperCardScriptsLibraryMessages
+
+on TestHyperCardScriptsSummary
+   -- the summary File > Import Stack shows: the scripts rewritten, the
+   -- handlers left out by name, and what the import log says is missing
+   local tStack, tSummary, tLeft
+   put "HCSummary" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Mixed"
+   set the script of button "Mixed" to _Lines("on mouseUp", "  put 2 into y", "end mouseUp", "on mouseDown", "  put 1 +* into", "end mouseDown")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put revHyperCardLeftOutHandlers() into tLeft
+   TestAssert "the handler left out is listed", tLeft[1]["name"] is "mouseDown" and tLeft[1]["error"] is not empty
+   put revHyperCardImportSummary(tStack, "Not converting snd  id  9 " & quote & "Boo" & quote & ": MACE 3:1 compression" & return & "Not converting XCMD id 3 " & quote & "Ink" & quote) into tSummary
+   TestAssert "the summary names the stack", line 1 of tSummary begins with tStack & ":"
+   TestAssert "the summary names the handler left out", "mouseDown in button" is in tSummary
+   TestAssert "the summary counts the MACE sound", "Sounds: 1 not converted (1 in MACE" is in tSummary
+   TestAssert "the summary lists the other resources", "Resources not converted: XCMD x1" is in tSummary
+   _Close tStack
+end TestHyperCardScriptsSummary
 
 on TestHyperCardScriptsLoadedByIDE
    -- the IDE loads its libraries by sending extensionInitialize

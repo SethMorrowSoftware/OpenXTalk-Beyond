@@ -1108,6 +1108,124 @@ private function _HCFileName pParams
    return it
 end _HCFileName
 
+-- StandardFile(mode[, file types...][, default name]), the XFCN: the path
+-- of a file the user picks, or empty if they cancel. A mode that begins
+-- "put" is the save dialog (its default name the second parameter),
+-- any other the open dialog; a prompt follows the mode after a colon
+-- ("get:Open which stack?")
+function StandardFile pMode, pDefault
+   local tPrompt
+   set the itemDelimiter to colon
+   put item 2 to -1 of pMode into tPrompt
+   if word 1 of item 1 of pMode is "put" then
+      if tPrompt is empty then put "Save as:" into tPrompt
+      ask file tPrompt with pDefault
+   else
+      if tPrompt is empty then put "Choose a file:" into tPrompt
+      answer file tPrompt
+   end if
+   if the result is "Cancel" then return empty
+   return it
+end StandardFile
+
+-- SelectFile([file types,] [prompt]), the XFCN: the path of a file the
+-- user picks, or empty if they cancel
+function SelectFile
+   local tParams, i
+   repeat with i = 1 to paramCount()
+      put param(i) & return after tParams
+   end repeat
+   return _HCFileName(tParams)
+end SelectFile
+
+-- SelectDir([prompt]), the XFCN: the path of a folder the user picks, or
+-- empty if they cancel
+function SelectDir pPrompt
+   if pPrompt is empty then put "Choose a folder:" into pPrompt
+   answer folder pPrompt
+   if the result is "Cancel" then return empty
+   return it
+end SelectDir
+
+-- MultiFinder(), the XFCN: whether the Mac ran more than one application
+-- at once, which every system here does
+function MultiFinder
+   return true
+end MultiFinder
+
+-- CapsLock(), the XFCN: whether the caps lock key is down
+function CapsLock
+   return the capsLockKey is down
+end CapsLock
+
+-- FileExists(path[, options]), the XFCN: whether there is such a file or
+-- folder (a path here, not a Mac path with colons)
+function FileExists pPath
+   if pPath is empty then return false
+   return there is a file pPath or there is a folder pPath
+end FileExists
+
+-- inKey(), the XFCN: the character of a key being held down, or empty if
+-- none, which scripts read in a loop ("if inKey() is space then exit
+-- repeat")
+function inKey
+   local tKey
+   repeat for each item tKey in the keysDown
+      if tKey is an integer and tKey >= 32 and tKey < 127 then return numToChar(tKey)
+      if tKey is 65293 then return return
+   end repeat
+   return empty
+end inKey
+
+-- HyperCard's own messages, sent by a script to an object with no handler
+-- for them ("send mouseUp to bg btn 3", "send tabKey to this card"):
+-- HyperCard took them at the end of the path; this engine stops with
+-- "can't find handler". Here they end, as they did, and go on to the
+-- engine as they would
+on mouseUp
+   pass mouseUp
+end mouseUp
+
+on mouseDown
+   pass mouseDown
+end mouseDown
+
+on openCard
+   pass openCard
+end openCard
+
+on closeCard
+   pass closeCard
+end closeCard
+
+on openBackground
+   pass openBackground
+end openBackground
+
+on closeBackground
+   pass closeBackground
+end closeBackground
+
+on openStack
+   pass openStack
+end openStack
+
+on closeStack
+   pass closeStack
+end closeStack
+
+on tabKey
+   pass tabKey
+end tabKey
+
+on returnKey
+   pass returnKey
+end returnKey
+
+on enterKey
+   pass enterKey
+end enterKey
+
 -- splashDialog id, seconds, ...: a splash screen while the stack starts,
 -- from a resource that is not imported; nothing is shown
 on splashDialog

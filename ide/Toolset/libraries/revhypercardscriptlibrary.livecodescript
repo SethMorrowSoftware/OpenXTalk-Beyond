@@ -41,7 +41,15 @@ script "revHyperCardScriptLibrary"
 -- compile, takes more forms HyperCard took: an answer's replies not in
 -- quotes, "convert" of an expression, functions written without "the",
 -- "go to card 1 of home", and names of several words not in quotes
--- after a cursor, a window or a "go".
+-- after a cursor, a window or a "go". T34 takes the next forms by
+-- reach in the corpus sweep: an external's arguments not in quotes that
+-- are no value here ("ink on, 8"), an answer's replies over several
+-- lines, "select """, "repeat with i is 1 to n", "sort the lines of",
+-- "the number of windows", a field as a chunk's number ("line bg fld
+-- "N" of bg fld "List""), "to the length of fld x of fld x", "reset
+-- menubar" after "then", "unlock screen with visual ... to cd", and the
+-- long date, the short target and the number of items in it in a
+-- handler with a variable of that name.
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -149,6 +157,10 @@ local sFiredTotal
 -- How many handlers the last _Salvage left out
 local sLeftOut
 
+-- The handlers the last revHyperCardFixScripts left out, for
+-- revHyperCardLeftOutHandlers, and the object whose script it is fixing
+local sLeftOutLog, sObject, sLeftOutStack
+
 -- The pieces of the last _Match
 local sMatch
 
@@ -225,6 +237,8 @@ function revHyperCardFixScripts pStack
       end repeat
    end repeat
    put _Externals(sStack) into tExternals
+   put empty into sLeftOutLog
+   put sStack into sLeftOutStack
 
    _MakeProbe
    put empty into sFiredTotal
@@ -237,6 +251,7 @@ function revHyperCardFixScripts pStack
       put the script of tObject into tOriginal
       if tOriginal is empty then next repeat
       put _Compiles(tOriginal) into tCompiled
+      put tObject into sObject
       put empty into sFired
       put _Rewrite(tOriginal, tDefines, tExternals, tCompiled) into tNew
       put empty into tNote
@@ -312,6 +327,163 @@ function revHyperCardRewriteScript pScript, pExternals
    put empty into sFired
    return _Rewrite(pScript, empty, tExternals, false)
 end revHyperCardRewriteScript
+
+/*
+A summary of a HyperCard import for a person, a screenful at most: what
+came in, what was converted, and what is missing and why, each with
+where to look. File > Import Stack shows it after an import.
+
+pStack (String): The imported stack, after <revHyperCardFixScripts>.
+
+pImportLog (String): The engine's import log, the hcImportStat (optional;
+the hcImportStat when left out).
+
+Returns (String): The summary, as lines of text.
+*/
+function revHyperCardImportSummary pStack, pImportLog
+   local tOut, tReport, tLine, tCount, tLeft, i, tNames, tType, tName, tLibrary, tDefines
+   local tSounds, tMace, tTypes, tKind, tPicts, tFonts, tFont, tObject, tKey
+
+   if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
+   if pImportLog is empty then put the hcImportStat into pImportLog
+
+   put the short name of pStack & ":" && the number of cards of pStack && "cards," \
+         && the number of backgrounds of pStack && "backgrounds" & return into tOut
+
+   -- the scripts
+   put the uHyperCard["scripts"] of pStack into tReport
+   put the last line of tReport into tLine
+   if tLine begins with "HyperCard scripts:" then
+      put word 3 of tLine into tCount
+      if tCount is an integer and tCount > 0 then
+         put return & "Scripts: " & tCount && "rewritten to run here. Each keeps its HyperTalk in its object's uHyperCard[" & quote & "script" & quote & "]." & return after tOut
+      end if
+   end if
+   put revHyperCardLeftOutHandlers() into tLeft
+   if the number of elements of tLeft > 0 and sLeftOutStack is pStack then
+      put return & "Left out:" && the number of elements of tLeft && _Plural(the number of elements of tLeft, "handler") && "still" \
+            && _Plural(the number of elements of tLeft, "does", "do") && "not compile here, kept commented out in a handler that passes its message:" & return after tOut
+      repeat with i = 1 to min(12, the number of elements of tLeft)
+         put "   " & tLeft[i]["name"] && "in" && _ShortObject(tLeft[i]["object"]) & return after tOut
+      end repeat
+      if the number of elements of tLeft > 12 then put "   and" && the number of elements of tLeft - 12 && "more" & return after tOut
+   end if
+
+   -- the externals: the XCMDs got stand-ins; the XFCNs the library
+   -- does not have stop a script that calls them
+   repeat for each line tLine in revHyperCardLibraryScript()
+      if word 1 of tLine is among the words of "on function command" then put true into tLibrary[_Lower(word 2 of tLine)]
+   end repeat
+   repeat for each line tObject in _Objects(pStack)
+      repeat for each line tLine in the script of tObject
+         if word 1 of tLine is among the items of "on,function" then put true into tDefines[_Lower(_Word2(tLine))]
+      end repeat
+   end repeat
+   set the itemDelimiter to tab
+   put empty into tNames
+   repeat for each line tLine in the uHyperCard["externals"] of pStack
+      put word 1 to -1 of item 1 of tLine into tType
+      put word 1 to -1 of item 2 of tLine into tName
+      if tType is not "XFCN" or tName is empty then next repeat
+      if tLibrary[_Lower(tName)] or tLibrary["hcx_" & _Lower(tName)] or tDefines[_Lower(tName)] then next repeat
+      if tName is among the items of tNames then next repeat
+      if tNames is not empty then put ", " after tNames
+      put tName after tNames
+   end repeat
+   set the itemDelimiter to colon
+   repeat for each line tLine in tReport
+      if tLine begins with "Stand-ins:" then
+         put return & "XCMDs that do nothing here:" && word 1 to -1 of item -1 of tLine & return after tOut
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   if tNames is not empty then
+      put return & "XFCNs that are not available (a script stops where it calls one):" && tNames & return after tOut
+   end if
+
+   -- what the engine could not convert
+   put 0 into tSounds
+   put 0 into tMace
+   put 0 into tPicts
+   repeat for each line tLine in pImportLog
+      if tLine begins with "Not converting snd" then
+         add 1 to tSounds
+         if "MACE" is in tLine then
+            add 1 to tMace
+         end if
+      else if tLine begins with "Not converting" then
+         put word 3 of tLine into tKind
+         add 1 to tTypes[tKind]
+      else if tLine begins with "PICT id" and "not drawn" is in tLine then
+         add 1 to tPicts
+      end if
+   end repeat
+   if tSounds > 0 then
+      put return & "Sounds:" && tSounds && "not converted" after tOut
+      if tMace > 0 then put " (" & tMace && "in MACE, which this engine cannot play yet)" after tOut
+      put "." & return after tOut
+   end if
+   if tPicts > 0 then put return & "Pictures:" && tPicts && "drawn without some of their parts (text or QuickTime in a PICT)." & return after tOut
+   if the number of elements of tTypes > 0 then
+      put empty into tNames
+      repeat for each key tKey in tTypes
+         if tNames is not empty then put ", " after tNames
+         put tKey && "x" & tTypes[tKey] after tNames
+      end repeat
+      put return & "Resources not converted:" && tNames & return after tOut
+   end if
+
+   -- fonts the stack names that this system does not have
+   put empty into tNames
+   repeat for each line tObject in _Objects(pStack)
+      if word 1 of tObject is not among the words of "field button" then next repeat
+      put the textFont of tObject into tFont
+      if tFont is empty or tFont is among the lines of the fontNames or tFont is among the items of tNames then next repeat
+      if tNames is not empty then put ", " after tNames
+      put tFont after tNames
+   end repeat
+   if tNames is not empty then
+      put return & "Fonts this system does not have, shown in another face:" && tNames & return after tOut
+   end if
+
+   put return & "The full log is the stack's uHyperCard[" & quote & "scripts" & quote & "] and the hcImportStat." after tOut
+   return tOut
+end revHyperCardImportSummary
+
+-- pWord for one, else its plural (pPlural, or pWord & "s")
+private function _Plural pCount, pWord, pPlural
+   if pCount = 1 then return pWord
+   if pPlural is not empty then return pPlural
+   return pWord & "s"
+end _Plural
+
+-- An object as a person reads it: "button "Next" of card 3"
+private function _ShortObject pObject
+   local tName
+   try
+      if word 1 of pObject is "stack" then return "the stack script"
+      put the name of pObject into tName
+      if word 2 of pObject is "id" and word 1 of pObject is among the words of "card background bkgnd group" then return tName
+      return tName && "of" && the name of the owner of pObject
+   catch tError
+      return pObject
+   end try
+end _ShortObject
+
+/*
+The handlers the last <revHyperCardFixScripts> left out because they
+still did not compile after its rewrites (each one's HyperTalk is kept,
+commented out, in a handler that passes its message): what a corpus
+sweep counts (tools/hypercard-sweep).
+
+Returns (Array): One element per handler, numbered from 1, each with the
+keys "object" (the long id of the object whose script it is in), "name",
+"error" (the first line of the engine's compile error, "number,line,
+column,token") and "text" (the handler as rewritten).
+*/
+function revHyperCardLeftOutHandlers
+   return sLeftOutLog
+end revHyperCardLeftOutHandlers
 
 /*
 The script of the substack "HyperCard Library (<stack name>)" that
@@ -486,6 +658,19 @@ private command _MakeProbe
    create invisible stack tName
    put the long id of stack tName into sProbe
 end _MakeProbe
+
+-- A handler _Salvage leaves out, with the compile error it gives on its own
+private command _LogLeftOut pName, pText
+   local tCount
+   put the number of elements of sLeftOutLog + 1 into tCount
+   put sObject into sLeftOutLog[tCount]["object"]
+   put pName into sLeftOutLog[tCount]["name"]
+   put pText into sLeftOutLog[tCount]["text"]
+   if sProbe is empty or there is not a stack sProbe then _MakeProbe
+   set the script of sProbe to pText
+   put line 1 of the result into sLeftOutLog[tCount]["error"]
+   set the script of sProbe to empty
+end _LogLeftOut
 
 private function _Compiles pScript
    local tResult
@@ -770,7 +955,7 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
       repeat with tKey = tSpans[i]["start"] to tSpans[i]["end"]
          put _RewriteLine(tLines[tKey], tVars, tRename, pExternals, tRenameHandlers) into tLines[tKey]
       end repeat
-      _ContinuedCommands tLines, tSpans[i]["start"], tSpans[i]["end"]
+      _ContinuedCommands tLines, tSpans[i]["start"], tSpans[i]["end"], tVars
       _HyperCardRulesLines tLines, tSpans[i]["start"], tSpans[i]["end"], false
    end repeat
    return _JoinLines(tLines, tCount)
@@ -779,8 +964,9 @@ end _Rewrite
 -- The commands of _LineCommands on a statement continued over lines (a
 -- \ at the end of a line, HyperCard's option-return): the statement is
 -- put on its first line, and the lines it took after that are left empty,
--- so that the lines after it keep their numbers
-private command _ContinuedCommands @pLines, pStart, pEnd
+-- so that the lines after it keep their numbers. An answer continued over
+-- lines also gets _ParserForms' rules for its replies (T34)
+private command _ContinuedCommands @pLines, pStart, pEnd, pVars
    local i, j, tMerged, tNew, tCode
    put pStart into i
    repeat while i < pEnd
@@ -797,6 +983,9 @@ private command _ContinuedCommands @pLines, pStart, pEnd
          put space & word 1 to -1 of pLines[j] after tMerged
       end repeat
       put _LineCommands(tMerged) into tNew
+      if tNew is tMerged and _Lower(word 1 of _CodeText(tMerged)) is "answer" then
+         put _ParserForms(tMerged, pVars) into tNew
+      end if
       if tNew is not tMerged then
          put tNew into pLines[i]
          repeat with i = i + 1 to j
@@ -1000,7 +1189,8 @@ private function _VariableHere pTokens, pWord, pPrev, pNext
    local tPrev, tNext
    put _T(pTokens, pPrev) into tPrev
    put _T(pTokens, pNext) into tNext
-   if tPrev is among the words of "the go" then return false
+   -- (T34: "the short target", "the long date")
+   if tPrev is among the words of "the go long short abbreviated abbrev abbr english" then return false
    if tPrev is "of" and pWord is among the words of "card cd background bkgnd bg" then return false
    if tPrev is among the words of "char character word item line" and tNext is among the words of "of to" then return true
    if pNext is empty then return true
@@ -1099,7 +1289,9 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
             next repeat
          end if
       else if pRename[tWord] is true then
-         if _T(tTokens, tPrev) is not among the words of "the set" \
+         -- (T34: not "the long date", nor "the number of items in it")
+         if _T(tTokens, tPrev) is not among the words of "the set long short abbreviated abbrev abbr english" \
+               and not (_T(tTokens, tPrev) is "of" and _T(tTokens, tNext) is "in") \
                and not (_T(tTokens, tNext) is "of" and _T(tTokens, tPrev) is not among the words of "char character word item line to into" \
                and _T(tTokens, tPrev) is not among the words of kObjectWords) then
             put "hc_" & tTokens[tIndex]["t"] into tTokens[tIndex]["t"]
@@ -1138,6 +1330,7 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
 
    put _PhraseRules(pLine) into pLine
    put _ParserForms(pLine, pVars) into pLine
+   put _ExternalArguments(pLine, pVars, pExternals) into pLine
    put _LineCommands(pLine) into tLine
    if tLine is not pLine then return tLine
    put _PlayNotes(pLine) into pLine
@@ -1208,8 +1401,9 @@ private function _PhraseRules pLine
          next repeat
       end if
 
-      -- T6: visual ... to cd
-      if tFirstWord is "visual" and tWord is "cd" and tPrev is "to" then
+      -- T6: visual ... to cd (T34: and unlock screen with visual ... to cd)
+      if (tFirstWord is "visual" or (tFirstWord is "unlock" and "visual" is among the words of pLine)) \
+            and tWord is "cd" and tPrev is "to" then
          put "card" into tTokens[tIdx[i]]["t"]
          _Fire "T6 visual to cd"
          next repeat
@@ -1405,8 +1599,9 @@ private function _ParserForms pLine, pVars
                -- was not a variable: in quotes
                if tAt is not empty then
                   repeat with j = tAt + 1 to tEnd
-                     if tTokens[tIdx[j]]["k"] is "w" and _T(tTokens, tIdx[j - 1]) is among the items of "with,or,," \
-                           and (j = tEnd or _T(tTokens, tIdx[j + 1]) is among the items of "or,,") \
+                     -- (a comma made " or " above is "or" here, T34)
+                     if tTokens[tIdx[j]]["k"] is "w" and (word 1 of _T(tTokens, tIdx[j - 1]) is among the words of "with or" or _T(tTokens, tIdx[j - 1]) is ",") \
+                           and (j = tEnd or word 1 of _T(tTokens, tIdx[j + 1]) is "or" or _T(tTokens, tIdx[j + 1]) is ",") \
                            and not pVars[_T(tTokens, tIdx[j])] and _T(tTokens, tIdx[j]) is not among the words of kReplyKeep then
                         put quote & tTokens[tIdx[j]]["t"] & quote into tTokens[tIdx[j]]["t"]
                         put "s" into tTokens[tIdx[j]]["k"]
@@ -1445,6 +1640,31 @@ private function _ParserForms pLine, pVars
                _Replace tTokens, tIdx, tEnd - 3, tEnd, empty
                put empty into tTokens[tIdx[tEnd - 3] - 1]["t"]
                _Fire "T31 HyperTalk this engine's parser refuses"
+            end if
+            break
+         case "select"
+            -- T34: select "", which HyperCard took as select empty
+            if i + 1 = tEnd and tTokens[tIdx[i + 1]]["t"] is quote & quote then
+               put "empty" into tTokens[tIdx[i + 1]]["t"]
+               put "w" into tTokens[tIdx[i + 1]]["k"]
+               _Fire "T34 more forms HyperCard took"
+            end if
+            break
+         case "repeat"
+            -- T34: repeat with i is 1 to n
+            if _T(tTokens, tIdx[i + 1]) is "with" and tTokens[tIdx[i + 2]]["k"] is "w" \
+                  and _T(tTokens, tIdx[i + 3]) is "is" and i + 3 < tEnd then
+               put "=" into tTokens[tIdx[i + 3]]["t"]
+               _Fire "T34 more forms HyperCard took"
+            end if
+            break
+         case "sort"
+            -- T34: sort the lines of x, sort the items of x
+            if _T(tTokens, tIdx[i + 1]) is "the" and _T(tTokens, tIdx[i + 2]) is among the words of "lines items" \
+                  and _T(tTokens, tIdx[i + 3]) is "of" then
+               put empty into tTokens[tIdx[i + 1]]["t"]
+               _ClearSpaceAfter tTokens, tIdx[i + 1]
+               _Fire "T34 more forms HyperCard took"
             end if
             break
          case "go"
@@ -1489,9 +1709,119 @@ private function _ParserForms pLine, pVars
             end repeat
          end if
       end repeat
+
+      -- T34: char x to the length of fld "body" of fld "body": as above,
+      -- the length's object ended where the same object began again
+      repeat with j = i to tEnd - 6
+         if _T(tTokens, tIdx[j]) is "to" and _T(tTokens, tIdx[j + 1]) is "the" and _T(tTokens, tIdx[j + 2]) is "length" \
+               and _T(tTokens, tIdx[j + 3]) is "of" then
+            repeat with k = j + 5 to tEnd - 1
+               if k + (k - j - 4) > tEnd then exit repeat
+               if _T(tTokens, tIdx[k]) is "of" \
+                     and _Lower(_Span(tTokens, tIdx, j + 4, k - 1)) is _Lower(_Span(tTokens, tIdx, k + 1, k + (k - j - 4))) then
+                  put "(" before tTokens[tIdx[j + 1]]["t"]
+                  put ")" after tTokens[tIdx[k - 1]]["t"]
+                  _Fire "T34 more forms HyperCard took"
+                  exit repeat
+               end if
+            end repeat
+         end if
+      end repeat
+
+      -- T34: a field or button as a chunk's number ("line bg fld "N" of
+      -- bg fld "List"", which HyperCard took as the line the field's text
+      -- numbers): the object in parentheses
+      repeat with j = i to tEnd - 3
+         if _T(tTokens, tIdx[j]) is not among the words of "char character word item line" then next repeat
+         if j > 1 and _T(tTokens, tIdx[j - 1]) is "the" then next repeat
+         put j + 1 into k
+         if _T(tTokens, tIdx[k]) is among the words of "card cd background bkgnd bg" then add 1 to k
+         if _T(tTokens, tIdx[k]) is not among the words of "field fld button btn" then next repeat
+         add 1 to k
+         if _T(tTokens, tIdx[k]) is "id" then add 1 to k
+         if k >= tEnd or _T(tTokens, tIdx[k + 1]) is not "of" then next repeat
+         if tTokens[tIdx[k]]["k"] is not among the items of "s,n,w" then next repeat
+         put "(" before tTokens[tIdx[j + 1]]["t"]
+         put ")" after tTokens[tIdx[k]]["t"]
+         _Fire "T34 more forms HyperCard took"
+      end repeat
+
+      -- T34: the number of windows (HyperCard's, here the stacks' open
+      -- windows)
+      repeat with j = i to tEnd - 3
+         if _T(tTokens, tIdx[j]) is "the" and _T(tTokens, tIdx[j + 1]) is "number" and _T(tTokens, tIdx[j + 2]) is "of" \
+               and _T(tTokens, tIdx[j + 3]) is "windows" and _T(tTokens, tIdx[j + 4]) is not "of" then
+            put "lines of the windows" into tTokens[tIdx[j + 3]]["t"]
+            _Fire "T34 more forms HyperCard took"
+         end if
+      end repeat
    end repeat
    return _Join(tTokens)
 end _ParserForms
+
+-- T34: the arguments of an external (an XCMD or XFCN of the stack) that
+-- are one word not in quotes and no value here ("ink on, 8", "video
+-- sound, 2", "Version(numbers, stack)"). HyperCard passed such a word as
+-- its own text when it was not a variable, so it goes in quotes: "on"
+-- and "off" always, any other word only where a probe compile confirms
+-- the engine refuses it as a value (a word it takes is its own text here
+-- too, as a variable never set)
+private function _ExternalArguments pLine, pVars, pExternals
+   local tTokens, tCode, tIdx, n, tItem, i, j, tWord, tName, tDepth, tStart, tInCall, tStop
+   if pExternals is empty then return pLine
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   put 0 into n
+   repeat for each item tItem in tCode
+      add 1 to n
+      put tItem into tIdx[n]
+   end repeat
+   repeat with i = 1 to n
+      if tTokens[tIdx[i]]["k"] is not "w" then next repeat
+      put _T(tTokens, tIdx[i]) into tName
+      if tName begins with "hcx_" then delete char 1 to 4 of tName
+      if not pExternals[tName] then next repeat
+      if _T(tTokens, tIdx[i + 1]) is "(" and _T(tTokens, tIdx[i - 1]) is not "the" then
+         -- a call: the arguments inside its parentheses
+         put true into tInCall
+         put i + 2 into tStart
+      else if i = 1 or _T(tTokens, tIdx[i - 1]) is among the words of "then else" then
+         -- a command: its arguments to the end of the statement
+         put false into tInCall
+         put i + 1 into tStart
+      else
+         next repeat
+      end if
+      put 0 into tDepth
+      put false into tStop
+      repeat with j = tStart to n
+         put _T(tTokens, tIdx[j]) into tWord
+         if tWord is "(" then
+            add 1 to tDepth
+            next repeat
+         end if
+         if tWord is ")" then
+            subtract 1 from tDepth
+            if tDepth < 0 then exit repeat
+            next repeat
+         end if
+         if tDepth > 0 then next repeat
+         if not tInCall and tWord is among the words of "then else" then exit repeat
+         if tTokens[tIdx[j]]["k"] is not "w" then next repeat
+         -- one word alone between commas (or the bounds of the list)
+         if j > tStart and _T(tTokens, tIdx[j - 1]) is not "," then next repeat
+         if j < n and _T(tTokens, tIdx[j + 1]) is not "," and _T(tTokens, tIdx[j + 1]) is not ")" \
+               and not (not tInCall and _T(tTokens, tIdx[j + 1]) is among the words of "then else") then next repeat
+         if pVars[tWord] then next repeat
+         if tWord is among the words of "on off" or _ValueRefused(tWord) then
+            put quote & tTokens[tIdx[j]]["t"] & quote into tTokens[tIdx[j]]["t"]
+            put "s" into tTokens[tIdx[j]]["k"]
+            _Fire "T34 more forms HyperCard took"
+         end if
+      end repeat
+   end repeat
+   return _Join(tTokens)
+end _ExternalArguments
 
 -- T10: the version and the long version, which in HyperCard are
 -- HyperCard's, not this engine's (scripts test "the version < 2")
@@ -2302,6 +2632,13 @@ private function _LineCommands pLine
       _Fire "T8 reset menubar"
       return tIndent & "hcResetMenubar" & _Spaced(tRest)
    end if
+   -- (T34: after then or else, "if q then reset menubar else ...")
+   if _Match(pLine, "(?i)^(.*\b(?:then|else)\s+)reset\s+menubar\b(.*)$") then
+      put sMatch[1] into tIndent
+      put sMatch[2] into tRest
+      _Fire "T34 more forms HyperCard took"
+      return tIndent & "hcResetMenubar" & tRest
+   end if
    if _Match(pLine, "(?i)^(\s*)(create|delete)\s+menu\s+(.+)$") then
       put sMatch[1] into tIndent
       put sMatch[2] into a
@@ -2489,6 +2826,7 @@ private function _Salvage pScript, pOriginal
          next repeat
       end if
       add 1 to tLeftOut
+      _LogLeftOut tName, tPieces[i]["text"]
       put _Stub(tKind, tName, _OriginalHandler(tOriginalHandlers, tName, tPieces[i]["text"])) into tStub
       if not _Compiles(tStub) then
          -- a name no handler can have here ("v" in quotes, time&Date):
