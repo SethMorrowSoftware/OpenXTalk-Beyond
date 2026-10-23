@@ -329,6 +329,57 @@ function revHyperCardRewriteScript pScript, pExternals
 end revHyperCardRewriteScript
 
 /*
+Gives an imported HyperCard stack HyperCard's look: white paper and
+black ink, and its buttons and fields drawn flat in black and white
+rather than in this platform's 3D look.
+
+pStack (String): The imported stack.
+
+Description:
+File > Import Stack does this for a new import unless the preference
+cHyperCardClassicLook is false, and the web Stack Player does it for
+every HyperCard stack it opens. It sets the stack's colours (the cards
+and controls that set none of their own take them), turns off the 3D
+borders of its buttons and fields, and draws HyperCard's standard and
+default buttons, which this engine would draw as the platform's push
+buttons, as round rectangles. Check boxes, radio buttons and popups
+keep the platform's look. The stack's uHyperCard["classic"] is set to
+true, so it is not done twice. Only properties are set: nothing a script
+reads changes but the colours, the threeD and the style of a standard
+button.
+*/
+command revHyperCardClassicLook pStack
+   local tObject, tStyle
+   if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
+   if the uHyperCard["classic"] of pStack is true then return empty
+   lock screen
+   set the backgroundColor of pStack to "white"
+   set the foregroundColor of pStack to "black"
+   set the borderColor of pStack to "black"
+   set the shadowColor of pStack to "black"
+   repeat for each line tObject in _Objects(pStack)
+      switch word 1 of tObject
+         case "button"
+            put the style of tObject into tStyle
+            if tStyle is among the words of "standard default" then
+               set the style of tObject to "roundrect"
+               put "roundrect" into tStyle
+            end if
+            if tStyle is among the words of "rectangle roundrect shadow transparent opaque" then
+               set the threeD of tObject to false
+            end if
+            break
+         case "field"
+            set the threeD of tObject to false
+            break
+      end switch
+   end repeat
+   set the uHyperCard["classic"] of pStack to true
+   unlock screen
+   return empty
+end revHyperCardClassicLook
+
+/*
 A summary of a HyperCard import for a person, a screenful at most: what
 came in, what was converted, and what is missing and why, each with
 where to look. File > Import Stack shows it after an import.

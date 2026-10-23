@@ -481,6 +481,56 @@ on TestHyperCardScriptsLibraryMessages
    _Close tStack
 end TestHyperCardScriptsLibraryMessages
 
+on TestHyperCardScriptsClassicLook
+   -- File > Import Stack gives an imported stack HyperCard's black and
+   -- white look: white cards, black text, round-rect buttons without 3-D
+   -- edges, flat fields; a second call changes nothing
+   local tStack
+   put "HCClassic" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Standard"
+   set the style of button "Standard" to "standard"
+   create button "Check"
+   set the style of button "Check" to "checkbox"
+   create field "F"
+   set the threeD of field "F" to true
+   unlock messages
+   revHyperCardClassicLook tStack
+   TestAssert "the cards are white", the backgroundColor of stack tStack is "white"
+   TestAssert "the text is black", the foregroundColor of stack tStack is "black"
+   TestAssert "a standard button becomes a round rect", the style of button "Standard" of stack tStack is "roundrect"
+   TestAssert "without its 3-D edge", the threeD of button "Standard" of stack tStack is false
+   TestAssert "a check box stays a check box", the style of button "Check" of stack tStack is "checkbox"
+   TestAssert "fields are flat", the threeD of field "F" of stack tStack is false
+   TestAssert "the stack is marked", the uHyperCard["classic"] of stack tStack is true
+   set the backgroundColor of stack tStack to "red"
+   revHyperCardClassicLook tStack
+   TestAssert "a second call changes nothing", the backgroundColor of stack tStack is "red"
+   _Close tStack
+end TestHyperCardScriptsClassicLook
+
+on TestHyperCardScriptsSpeech
+   -- SpeakString and Say, the speech XCMDs, end in the library
+   local tStack, tError
+   put "HCSpeech" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "B"
+   set the script of button "B" to _Lines("on mouseUp", "  SpeakString " & quote & "hello" & quote, \
+         "  Say " & quote & "hello" & quote, "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   try
+      send "mouseUp" to button "B" of stack tStack
+   catch tError
+   end try
+   TestAssert "SpeakString and Say are handled", tError is empty
+   _Close tStack
+end TestHyperCardScriptsSpeech
+
 on TestHyperCardScriptsSummary
    -- the summary File > Import Stack shows: the scripts rewritten, the
    -- handlers left out by name, and what the import log says is missing

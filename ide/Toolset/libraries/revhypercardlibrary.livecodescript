@@ -1376,6 +1376,16 @@ on Talk pText
    return _HCSpeak(pText)
 end Talk
 
+-- SpeakString text and Say text, the speech XCMDs stacks carried (The
+-- Haunted House speaks with SpeakString): the same
+on SpeakString pText
+   return _HCSpeak(pText)
+end SpeakString
+
+on Say pText
+   return _HCSpeak(pText)
+end Say
+
 -- HCBalloon text: a balloon for the object the message came to, here its
 -- tooltip. HCBalloon "on", "off" and "query" turn balloons on and off and
 -- give back whether they are on
@@ -1617,7 +1627,17 @@ private function _HCPopUp pText, pTop, pLeft
    return tChosen
 end _HCPopUp
 
+-- In a browser (the Stack Player) by the page's speech synthesis, else
+-- by revSpeak
 private function _HCSpeak pText
+   if the platform is "web" then
+      try
+         do "window.speechSynthesis.speak(new SpeechSynthesisUtterance(" & _HCJavaScriptString(pText) & "))" as "javascript"
+      catch tError
+         return "Speech is not available"
+      end try
+      return empty
+   end if
    try
       revSpeak pText
    catch tError
@@ -1625,3 +1645,12 @@ private function _HCSpeak pText
    end try
    return the result
 end _HCSpeak
+
+-- pText as a JavaScript string literal
+private function _HCJavaScriptString pText
+   replace "\" with "\\" in pText
+   replace quote with "\" & quote in pText
+   replace return with "\n" in pText
+   replace numToChar(13) with "\r" in pText
+   return quote & pText & quote
+end _HCJavaScriptString

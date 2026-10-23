@@ -7585,6 +7585,10 @@ while it is imported. They run as usual once you use the stack.
 An imported stack has no file name, as with Open Stack, so File > Save
 asks where to save it and the HyperCard file is not overwritten.
 
+Unless the preference cHyperCardClassicLook is false, the stack is then
+given HyperCard's look by <revHyperCardClassicLook>: white cards, black
+ink, and flat black-and-white buttons and fields.
+
 Unless File > Import Stack > Make HyperTalk Scripts Compile is turned off
 (the preference cHyperCardFixScripts set to false), the stack's scripts
 that do not compile here are then rewritten by
@@ -7631,6 +7635,11 @@ on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
    -- OXT-Beyond: HyperTalk that compiles here, unless turned off
    if tError is empty and revIDEGetPreference("cHyperCardFixScripts") is not false then
       get revHyperCardFixScripts(tStack)
+   end if
+   -- OXT-Beyond: HyperCard's white paper and flat black-and-white
+   -- buttons, unless turned off
+   if tError is empty and revIDEGetPreference("cHyperCardClassicLook") is not false then
+      revHyperCardClassicLook tStack
    end if
    if tError is empty then put tStack into sHyperCardImported
    set the lockMessages to tWasLocked

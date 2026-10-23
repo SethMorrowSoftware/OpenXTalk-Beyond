@@ -547,6 +547,12 @@ private command playerFixHyperCard pStack
    catch tError
       playerLog "hypercard-fix-failed" && playerErrorText(tError)
    end try
+   -- HyperCard's white paper and flat black-and-white buttons
+   try
+      revHyperCardClassicLook pStack
+   catch tError
+      playerLog "hypercard-look-failed" && playerErrorText(tError)
+   end try
 end playerFixHyperCard
 
 -- The extension of a file name (after its last full stop), or empty
