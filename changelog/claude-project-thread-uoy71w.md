@@ -1,0 +1,1 @@
+- HyperCard import: File > Import Stack and the Stack Player decode a stack's MACE 3:1 and 6:1 sounds, which the engine's importer leaves out, into audio clips named as the sounds are, with an IDE-only port of FFmpeg's MACE decoder (LGPL 2.1 or later); the import summary counts only the sounds still missing

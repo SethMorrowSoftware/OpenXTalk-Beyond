@@ -550,6 +550,10 @@ on TestHyperCardScriptsSummary
    TestAssert "the summary names the handler left out", "mouseDown in button" is in tSummary
    TestAssert "the summary counts the MACE sound", "Sounds: 1 not converted (1 in MACE" is in tSummary
    TestAssert "the summary lists the other resources", "Resources not converted: XCMD x1" is in tSummary
+   -- a sound the MACE decoder converted is no longer counted
+   set the uHyperCard["mace"] of stack tStack to "9"
+   put revHyperCardImportSummary(tStack, "Not converting snd  id  9 " & quote & "Boo" & quote & ": MACE 3:1 compression") into tSummary
+   TestAssert "a decoded MACE sound is not counted", "Sounds:" is not in tSummary
    _Close tStack
 end TestHyperCardScriptsSummary
 

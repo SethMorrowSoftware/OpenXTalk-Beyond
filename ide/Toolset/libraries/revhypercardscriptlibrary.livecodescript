@@ -393,7 +393,7 @@ Returns (String): The summary, as lines of text.
 */
 function revHyperCardImportSummary pStack, pImportLog
    local tOut, tReport, tLine, tCount, tLeft, i, tNames, tType, tName, tLibrary, tDefines
-   local tSounds, tMace, tTypes, tKind, tPicts, tFonts, tFont, tObject, tKey
+   local tSounds, tMace, tTypes, tKind, tPicts, tFonts, tFont, tObject, tKey, tConverted
 
    if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
    if pImportLog is empty then put the hcImportStat into pImportLog
@@ -456,8 +456,12 @@ function revHyperCardImportSummary pStack, pImportLog
    put 0 into tSounds
    put 0 into tMace
    put 0 into tPicts
+   -- the IDE's MACE decoder converts what the engine logged, and
+   -- records the ids it converted
+   put the uHyperCard["mace"] of pStack into tConverted
    repeat for each line tLine in pImportLog
       if tLine begins with "Not converting snd" then
+         if word 5 of tLine is among the items of tConverted then next repeat
          add 1 to tSounds
          if "MACE" is in tLine then
             add 1 to tMace
@@ -471,7 +475,7 @@ function revHyperCardImportSummary pStack, pImportLog
    end repeat
    if tSounds > 0 then
       put return & "Sounds:" && tSounds && "not converted" after tOut
-      if tMace > 0 then put " (" & tMace && "in MACE, which this engine cannot play yet)" after tOut
+      if tMace > 0 then put " (" & tMace && "in MACE that could not be decoded)" after tOut
       put "." & return after tOut
    end if
    if tPicts > 0 then put return & "Pictures:" && tPicts && "drawn without some of their parts (text or QuickTime in a PICT)." & return after tOut

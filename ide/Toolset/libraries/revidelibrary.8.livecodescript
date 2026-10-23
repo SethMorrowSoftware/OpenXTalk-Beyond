@@ -7585,6 +7585,10 @@ while it is imported. They run as usual once you use the stack.
 An imported stack has no file name, as with Open Stack, so File > Save
 asks where to save it and the HyperCard file is not overwritten.
 
+Its MACE sounds, which the engine's importer leaves out, are then
+decoded from its resource fork and added as audio clips by
+<revHyperCardConvertMACESounds>.
+
 Unless the preference cHyperCardClassicLook is false, the stack is then
 given HyperCard's look by <revHyperCardClassicLook>: white cards, black
 ink, and flat black-and-white buttons and fields.
@@ -7607,7 +7611,7 @@ References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command
 Tags: ide
 */
 on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
-   local tError, tStack, tWasLocked
+   local tError, tStack, tWasLocked, tMACEError
 
    if there is not a file pFilePath then return __revIDEError("Specified file does not exist")
    if not __revIDEIsHyperCardFile(pFilePath) then
@@ -7635,6 +7639,14 @@ on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
    -- OXT-Beyond: HyperTalk that compiles here, unless turned off
    if tError is empty and revIDEGetPreference("cHyperCardFixScripts") is not false then
       get revHyperCardFixScripts(tStack)
+   end if
+   -- OXT-Beyond: the MACE sounds the engine's importer leaves out,
+   -- decoded from the stack's resource fork (revHyperCardMACELibrary)
+   if tError is empty then
+      try
+         get revHyperCardConvertMACESounds(tStack, pFilePath)
+      catch tMACEError
+      end try
    end if
    -- OXT-Beyond: HyperCard's white paper and flat black-and-white
    -- buttons, unless turned off

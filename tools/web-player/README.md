@@ -74,8 +74,11 @@ extensions that are not installed with OXT-Beyond.
 
 HyperCard stacks open as File > Import Stack opens them on the desktop.
 The player carries the IDE's HyperCard libraries
-(`revhypercardscriptlibrary` and `revhypercarddiskimagelibrary`, made
-substacks of the player by `build-player.livecodescript`). A file is a
+(`revhypercardscriptlibrary`, `revhypercarddiskimagelibrary` and
+`revhypercardmacelibrary`, made substacks of the player by
+`build-player.livecodescript`; the last, which decodes a stack's MACE
+sounds into audio clips, is under the LGPL 2.1 or later, as its header
+says). A file is a
 HyperCard stack by its first bytes, whatever its name: the stack itself
 (with its resource fork beside it as `Name.rsrc` or `._Name`, or in a
 zip's `__MACOSX` folder), a MacBinary or BinHex copy, or an AppleSingle

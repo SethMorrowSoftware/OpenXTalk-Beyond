@@ -1517,6 +1517,9 @@ command revInternal__InstallFileAssociations
       put return & "revHyperCardDiskImageLibrary" after tLoadList
       -- OXT-Beyond: HyperTalk that compiles after File > Import Stack
       put return & "revHyperCardScriptLibrary" after tLoadList
+      -- OXT-Beyond: MACE sounds of HyperCard stacks, decoded at import
+      -- (LGPL 2.1 or later, the IDE only: see the library's header)
+      put return & "revHyperCardMACELibrary" after tLoadList
       -- OXT-Beyond: what the IDE does differently in a web browser, loaded
       -- only there
       if revEnvironmentIsWeb() then

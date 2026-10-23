@@ -30,7 +30,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --      revZip, revDB with SQLite, revSpeech) and every widget and library
 --      extension installed for the web, so that a stack the player opens
 --      finds what its own standalone would carry;
---      it carries the IDE's HyperCard script and disk image libraries
+--      it carries the IDE's HyperCard script, disk image and MACE libraries
 --      as substacks, so that it opens a HyperCard stack as File > Import
 --      Stack does (see makeHyperCardLibraries);
 --   3. with OXT_PLAYER_SAMPLES, saves there the stacks that
@@ -267,6 +267,17 @@ private command makeHyperCardLibraries pPlayer
    set the script of stack tName of pPlayer to the script of stack "revHyperCardDiskImageLibrary"
    if the result is not empty then
       throw "the HyperCard disk image library: " & the result
+   end if
+   close stack tName of pPlayer
+
+   -- the MACE decoder (LGPL 2.1 or later, see its header): a stack's
+   -- MACE sounds as audio clips
+   put "Player HyperCard MACE" into tName
+   create invisible stack tName
+   set the mainStack of stack tName to the short name of pPlayer
+   set the script of stack tName of pPlayer to the script of stack "revHyperCardMACELibrary"
+   if the result is not empty then
+      throw "the HyperCard MACE library: " & the result
    end if
    close stack tName of pPlayer
    set the defaultStack to the short name of pPlayer

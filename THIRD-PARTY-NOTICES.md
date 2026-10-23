@@ -198,6 +198,21 @@ with an AI assistant; they say so in their own messages.
 | The null card checks in `MCInterfaceExecPop` and `MCInterfaceExecPopToLast` (`engine/src/exec-interface.cpp`) and the pop error in slot 396 | Emily-Elizabeth Howard, commit eb5fe5e2f ("Fix pop without push causing silent SIGSEGV crash (#425)") |
 | *View > Show IDE Stacks In Lists* | Emily-Elizabeth Howard, commits e02b2627d and 084195cbe |
 
+### The MACE decoder from FFmpeg
+
+`ide/Toolset/libraries/revhypercardmacelibrary.livecodescript`, which
+decodes the MACE 3:1 and 6:1 sounds of HyperCard stacks when File >
+Import Stack imports them (and in the Stack Player, which carries the
+library as script), is a port to xTalk of FFmpeg's
+`libavcodec/mace.c`: Copyright © 2002 Laszlo Torok, adapted to libavcodec
+by Francois Revol. Unlike the rest of OXT-Beyond, that file is under the
+GNU Lesser General Public License, version 2.1 or (at your option) any
+later version; its header says so, and the licence's text is in
+[`thirdparty/libcairo/docs/COPYING-LGPL-2.1`](thirdparty/libcairo/docs/COPYING-LGPL-2.1).
+It runs only in the IDE and the Stack Player: the engine and the
+standalones it builds do not contain it, and an imported stack keeps the
+decoded audio clips, not the decoder.
+
 Parts of the IDE that have their own author or terms are listed below.
 
 ### Extensions shipped with the IDE

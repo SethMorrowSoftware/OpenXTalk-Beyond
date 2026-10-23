@@ -72,6 +72,7 @@ constant kLibraryName = "Stack Player"
 -- (build-player.livecodescript, makeHyperCardLibraries)
 constant kHyperCardScripts = "Player HyperCard Scripts"
 constant kHyperCardImages = "Player HyperCard Disk Images"
+constant kHyperCardMACE = "Player HyperCard MACE"
 -- Between a disk image's path and the HFS path of a stack on it, in a
 -- choice (an HFS path never has two colons in a row)
 constant kImageSeparator = "::"
@@ -116,7 +117,7 @@ private command playerUseHyperCardLibraries
    -- HyperCard Library's hcGoHome)
    global gHyperCardHome
    put the long id of me into gHyperCardHome
-   repeat for each item tName in kHyperCardScripts & comma & kHyperCardImages
+   repeat for each item tName in kHyperCardScripts & comma & kHyperCardImages & comma & kHyperCardMACE
       if there is a stack tName then
          start using stack tName
       end if
@@ -546,6 +547,13 @@ private command playerFixHyperCard pStack
       playerLog "hypercard" && the last line of revHyperCardFixScripts(pStack)
    catch tError
       playerLog "hypercard-fix-failed" && playerErrorText(tError)
+   end try
+   -- its MACE sounds, which the engine's importer leaves out, decoded
+   -- from its resource fork as audio clips
+   try
+      playerLog "hypercard-mace" && revHyperCardConvertMACESounds(pStack, the uHyperCard["file"] of pStack)
+   catch tError
+      playerLog "hypercard-mace-failed" && playerErrorText(tError)
    end try
    -- HyperCard's white paper and flat black-and-white buttons
    try
