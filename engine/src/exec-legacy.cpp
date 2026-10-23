@@ -27,6 +27,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "mode.h"
 #include "uidc.h"
 #include "stack.h"
+#include "param.h"
+#include "debug.h"
 #include "card.h"
 #include "group.h"
 
@@ -270,6 +272,35 @@ Variable Watcher, Message Watcher
 
 void MCLegacyExecDoMenu(MCExecContext& ctxt, MCStringRef p_option)
 {
+	// OXT-Beyond: in a stack whose hyperTalkCompatible is true, doMenu is
+	//   first a message, as in HyperCard: sent, as by send, to the object
+	//   whose handler runs it, with the item as its parameter. The item
+	//   below runs only if no handler takes the message or one passes it.
+	MCObject *t_object = ctxt . GetObject();
+	if (t_object != nil && t_object -> getstack() -> ishypertalkcompatible())
+	{
+		MCParameter t_item;
+		t_item . setvalueref_argument(p_option);
+
+		Boolean t_added = False;
+		if (MCnexecutioncontexts < MAX_CONTEXTS)
+		{
+			MCexecutioncontexts[MCnexecutioncontexts++] = &ctxt;
+			t_added = True;
+		}
+		Exec_stat t_stat = t_object -> message(MCNAME("doMenu"), &t_item, True, True);
+		if (t_added)
+			MCnexecutioncontexts--;
+
+		if (t_stat == ES_ERROR)
+		{
+			ctxt . Throw();
+			return;
+		}
+		if (t_stat != ES_NOT_HANDLED && t_stat != ES_PASS)
+			return;
+	}
+
 	uint2 size = ELEMENTS(domenu_table);
 	bool t_success = false;
 	while(size--)

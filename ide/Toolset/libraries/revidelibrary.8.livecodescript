@@ -7605,6 +7605,13 @@ while it is imported. They run as usual once you use the stack.
 An imported stack has no file name, as with Open Stack, so File > Save
 asks where to save it and the HyperCard file is not overwritten.
 
+Unless File > Import Stack > HyperCard Message Order is turned off (the
+preference cHyperCardMessageOrder set to false), the stack's
+hyperTalkCompatible is set to true, so that its messages go where
+HyperCard sent them: a background part's to the card before the
+background, and doMenu to the stack's handlers before the menu item
+runs.
+
 Its MACE sounds, which the engine's importer leaves out, are then
 decoded from its resource fork and added as audio clips by
 <revHyperCardConvertMACESounds>.
@@ -7655,6 +7662,12 @@ on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
          set the uHyperCard["image"] of tStack to pImage
          set the uHyperCard["imagepath"] of tStack to pImagePath
       end if
+   end if
+   -- OXT-Beyond: HyperCard's message order (a background part's messages
+   -- reach the card first, doMenu is a message before it runs), unless
+   -- turned off; before the scripts are fixed, which may compile them
+   if tError is empty and revIDEGetPreference("cHyperCardMessageOrder") is not false then
+      set the hyperTalkCompatible of tStack to true
    end if
    -- OXT-Beyond: HyperTalk that compiles here, unless turned off
    if tError is empty and revIDEGetPreference("cHyperCardFixScripts") is not false then

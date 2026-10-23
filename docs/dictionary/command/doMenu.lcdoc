@@ -33,8 +33,14 @@ The <doMenu> <command> is not implemented for all <menu item|menu
 items>. This command is included for compatibility with
 imported <HyperCard> stacks.
 
+In a <stack> whose <hyperTalkCompatible> is true, <doMenu> is first
+sent as a message to the <object> whose <handler> runs it, as in
+<HyperCard>, and the <menu item> is chosen only if no <handler> takes
+the message or one passes it.
+
 References: copy (command), enable menu (command), paste (command),
 OpenXTalk (glossary), command (glossary), menu item (glossary),
-HyperCard (glossary), menuItem (keyword), menu (keyword)
+HyperCard (glossary), menuItem (keyword), menu (keyword),
+hyperTalkCompatible (property)
 
 Tags: menus

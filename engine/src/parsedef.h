@@ -1761,6 +1761,9 @@ enum Properties {
     P_LAYER_CLIP_RECT,
 	
 	P_SYSTEM_APPEARANCE,
+
+    // OXT-Beyond: a stack's hyperTalkCompatible
+    P_HYPERTALK_COMPATIBLE,
     
     __P_LAST,
 };

@@ -1159,6 +1159,20 @@ Exec_stat MCObject::handleself(Handler_type p_handler_type, MCNameRef p_message,
 
 Exec_stat MCObject::handle(Handler_type htype, MCNameRef mess, MCParameter *params, MCObject *pass_from)
 {
+	// OXT-Beyond: in HyperCard a background part's message went to the card
+	//   before the background. So in a stack whose hyperTalkCompatible is
+	//   true, a message passed up from one of a background group's controls
+	//   goes on to the card, still naming that control as where it came
+	//   from: the card then takes it to every background, this one
+	//   included, and to the stack (MCCard::handle). A message sent to the
+	//   group itself, or brought to it by the card, is handled here as
+	//   always.
+	if (pass_from != nil && pass_from != this && gettype() == CT_GROUP &&
+		parent && parent -> gettype() == CT_CARD &&
+		static_cast<MCGroup *>(this) -> isbackground() &&
+		getstack() -> ishypertalkcompatible())
+		return parent -> handle(htype, mess, params, pass_from);
+
 	// MW-2009-01-28: [[ Bug ]] Card and stack parentScripts don't work.
 	// First attempt to handle the message with the script and parentScript of this
 	// object.

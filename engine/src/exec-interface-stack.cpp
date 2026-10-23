@@ -2190,6 +2190,36 @@ void MCStack::GetIgnoreMouseEvents(MCExecContext &ctxt, bool &r_ignored)
     r_ignored = getextendedstate(ECS_IGNORE_MOUSE_EVENTS);
 }
 
+// OXT-Beyond: the stack's hyperTalkCompatible (MCStack::ishypertalkcompatible).
+// Kept as the stack's custom property of the same name too, which the stack
+// is saved with (MCStack::loadhypertalkcompatible); set with messages locked,
+// so no setProp handler can keep the two apart. A handler that is already
+// compiled keeps its name check: set it before the stack's scripts compile.
+void MCStack::SetHyperTalkCompatible(MCExecContext &ctxt, bool p_compatible)
+{
+    // as text, which every stack file format keeps
+    MCExecValue t_value;
+    t_value . type = kMCExecValueTypeStringRef;
+    t_value . stringref_value = MCValueRetain(p_compatible ? kMCTrueString : kMCFalseString);
+
+    bool t_old_lock = MClockmessages;
+    MClockmessages = true;
+    bool t_stored = setcustomprop(ctxt, kMCEmptyName, MCNAME("hyperTalkCompatible"), nil, t_value);
+    MClockmessages = t_old_lock;
+    if (!t_stored)
+    {
+        ctxt . Throw();
+        return;
+    }
+
+    m_hypertalk_compatible = p_compatible;
+}
+
+void MCStack::GetHyperTalkCompatible(MCExecContext &ctxt, bool &r_compatible)
+{
+    r_compatible = m_hypertalk_compatible;
+}
+
 // MERG-2015-08-31: [[ ScriptOnly ]] Setter and getter for scriptOnly
 void MCStack::GetScriptOnly(MCExecContext& ctxt, bool& r_script_only)
 {

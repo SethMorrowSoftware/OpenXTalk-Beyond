@@ -543,6 +543,13 @@ end playerOpenFromImage
 -- (revHyperCardFixScripts, the IDE's revhypercardscriptlibrary)
 private command playerFixHyperCard pStack
    local tError
+   -- HyperCard's message order (a background part's messages reach the
+   -- card first), before the scripts are fixed
+   try
+      set the hyperTalkCompatible of pStack to true
+   catch tError
+      playerLog "hypercard-order-failed" && playerErrorText(tError)
+   end try
    try
       playerLog "hypercard" && the last line of revHyperCardFixScripts(pStack)
    catch tError

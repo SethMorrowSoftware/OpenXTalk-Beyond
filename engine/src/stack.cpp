@@ -173,6 +173,9 @@ MCPropertyInfo MCStack::kProperties[] =
 	DEFINE_RO_OBJ_EFFECTIVE_PROPERTY(P_DEFER_SCREEN_UPDATES, Bool, MCStack, DeferScreenUpdates)
     
     DEFINE_RW_OBJ_PROPERTY(P_IGNORE_MOUSE_EVENTS, Bool, MCStack, IgnoreMouseEvents)
+
+    // OXT-Beyond: HyperCard's message order for a stack imported from HyperCard
+    DEFINE_RW_OBJ_PROPERTY(P_HYPERTALK_COMPATIBLE, Bool, MCStack, HyperTalkCompatible)
     
     DEFINE_RW_OBJ_CUSTOM_PROPERTY(P_DECORATIONS, InterfaceDecoration, MCStack, Decorations)
 
@@ -326,6 +329,7 @@ MCStack::MCStack()
 	view_init();
     
     m_is_ide_stack = false;
+    m_hypertalk_compatible = false;
 }
 
 MCStack::MCStack(const MCStack &sref)
@@ -541,6 +545,7 @@ MCStack::MCStack(const MCStack &sref)
 	view_copy(sref);
     
     m_is_ide_stack = sref.m_is_ide_stack;
+    m_hypertalk_compatible = sref.m_hypertalk_compatible;
 }
 
 MCStack::~MCStack()

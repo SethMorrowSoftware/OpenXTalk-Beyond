@@ -1348,6 +1348,8 @@ private function revMenubarFileMenu pContext, tFile
    put tab & toggleMenuItem("Make HyperTalk Scripts Compile/|hypercardscripts", revIDEGetPreference("cHyperCardFixScripts") is not false) & return after tFile
    -- and whether it gives the stack HyperCard's look (revHyperCardClassicLook),
    -- and shows a summary of what came in and what is missing
+   -- and whether it gets HyperCard's message order (hyperTalkCompatible)
+   put tab & toggleMenuItem("HyperCard Message Order/|hypercardorder", revIDEGetPreference("cHyperCardMessageOrder") is not false) & return after tFile
    put tab & toggleMenuItem("Classic HyperCard Look/|hypercardlook", revIDEGetPreference("cHyperCardClassicLook") is not false) & return after tFile
    put tab & toggleMenuItem("Show Import Summary/|hypercardsummary", revIDEGetPreference("cHyperCardImportSummary") is not false) & return after tFile
    put enableMenuItem("&Close/W", the mode of the topStack <= 3 and the short name of the topstack is not "revMenubar") & return after tFile
@@ -2574,6 +2576,9 @@ on revMenubarFileMenuPick pWhich
                if item 2 of pWhich is "hypercard" then revIDEActionImportHyperCardStack
                if item 2 of pWhich is "hypercardscripts" then
                   revIDESetPreference "cHyperCardFixScripts", (revIDEGetPreference("cHyperCardFixScripts") is false)
+               end if
+               if item 2 of pWhich is "hypercardorder" then
+                  revIDESetPreference "cHyperCardMessageOrder", (revIDEGetPreference("cHyperCardMessageOrder") is false)
                end if
                if item 2 of pWhich is "hypercardlook" then
                   revIDESetPreference "cHyperCardClassicLook", (revIDEGetPreference("cHyperCardClassicLook") is false)

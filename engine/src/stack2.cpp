@@ -269,6 +269,49 @@ Boolean MCStack::hcstack()
 	return (flags & F_HC_STACK) != 0;
 }
 
+/* OXT-Beyond: whether HyperCard's message rules apply to the objects of
+ * this stack: a background part's messages reach the card before the
+ * background (MCObject::handle), a handler can be called doMenu
+ * (MCHandler::parse) and doMenu is sent as a message before it runs
+ * (MCLegacyExecDoMenu). The importer's substacks (the HyperCard library,
+ * palettes) follow their mainstack. Off unless a script sets the
+ * stack's hyperTalkCompatible, as File > Import Stack does for a stack it
+ * imports. */
+bool MCStack::ishypertalkcompatible(void)
+{
+	if (m_hypertalk_compatible)
+		return true;
+	if (parent && parent -> gettype() == CT_STACK)
+		return parent.GetAs<MCStack>() -> m_hypertalk_compatible;
+	return false;
+}
+
+/* OXT-Beyond: the stack keeps its hyperTalkCompatible as a custom
+ * property of that name in its unnamed set, so the file format does not
+ * change and an engine without the property keeps the stack's other
+ * behaviour. Read with messages locked, as no script of the stack may run
+ * while it loads. */
+void MCStack::loadhypertalkcompatible(void)
+{
+	m_hypertalk_compatible = false;
+	if (props == nil)
+		return;
+
+	bool t_old_lock = MClockmessages;
+	MClockmessages = true;
+	MCExecValue t_value;
+	MCExecContext ctxt(nil, nil, nil);
+	bool t_got = getcustomprop(ctxt, kMCEmptyName, MCNAME("hyperTalkCompatible"), nil, t_value);
+	MClockmessages = t_old_lock;
+	if (!t_got)
+		return;
+
+	bool t_compatible = false;
+	MCExecTypeConvertAndReleaseAlways(ctxt, t_value . type, &t_value, kMCExecValueTypeBool, &t_compatible);
+	if (!ctxt . HasError())
+		m_hypertalk_compatible = t_compatible;
+}
+
 Boolean MCStack::islocked()
 {
 	return (flags & F_CANT_MODIFY) != 0;

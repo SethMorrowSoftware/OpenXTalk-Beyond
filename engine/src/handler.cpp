@@ -32,6 +32,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "mcerror.h"
 #include "newobj.h"
 #include "object.h"
+#include "stack.h"
 #include "util.h"
 #include "dispatch.h"
 #include "globals.h"
@@ -150,6 +151,17 @@ Parse_stat MCHandler::newparam(MCScriptPoint& sp)
 	return PS_NORMAL;
 }
 
+// OXT-Beyond: whether the script being compiled belongs to a stack whose
+// hyperTalkCompatible is true
+static bool MCHandlerIsHyperTalkName(MCScriptPoint &sp)
+{
+	MCObject *t_object = sp . getobj();
+	if (t_object == nil)
+		return false;
+	MCStackHandle t_stack = t_object -> getstack();
+	return t_stack . IsValid() && t_stack -> ishypertalkcompatible();
+}
+
 Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 {
 	Parse_stat stat;
@@ -170,8 +182,11 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 	const LT *te;
 	// MW-2010-01-08: [[Bug 7792]] Check whether the handler name is a reserved function identifier
     // special case log command is a permitted handler name
+    // OXT-Beyond: and doMenu in a stack whose hyperTalkCompatible is true,
+    //   where doMenu is sent as a message before it runs (MCLegacyExecDoMenu)
 	if (t_type != ST_ID ||
-			(sp.lookup(SP_COMMAND, te) != PS_NO_MATCH && te -> which != S_LOG) ||
+			(sp.lookup(SP_COMMAND, te) != PS_NO_MATCH && te -> which != S_LOG &&
+			 !(te -> which == S_DOMENU && MCHandlerIsHyperTalkName(sp))) ||
 			(sp.lookup(SP_FACTOR, te) != PS_NO_MATCH &&
 			te -> type == TT_FUNCTION))
 	{

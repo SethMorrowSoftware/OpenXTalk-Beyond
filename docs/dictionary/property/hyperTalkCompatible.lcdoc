@@ -1,0 +1,64 @@
+Name: hyperTalkCompatible
+
+Type: property
+
+Syntax: set the hyperTalkCompatible of <stack> to {true | false}
+
+Syntax: get the hyperTalkCompatible of <stack>
+
+Summary:
+Specifies whether a <stack> <import|imported> from <HyperCard> sends
+its messages the way <HyperCard> did.
+
+Associations: stack
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, html5
+
+Platforms: desktop, server
+
+Example:
+set the hyperTalkCompatible of stack "Address Book" to true
+
+Example:
+if the hyperTalkCompatible of this stack then answer "HyperCard rules"
+
+Value (bool):
+The <hyperTalkCompatible> of a <stack> is true or false. By default, it
+is false.
+
+Description:
+Use the <hyperTalkCompatible> <property> to run a <stack> that came
+from <HyperCard> with the rules its <script|scripts> were written for.
+It changes nothing for a <stack> whose <hyperTalkCompatible> is false,
+which is every <stack> unless a <script> sets it. File > Import Stack
+sets it for each <stack> it imports, unless File > Import Stack >
+HyperCard Message Order is turned off.
+
+When it is true, three things are as they were in <HyperCard>, for the
+<stack> and for its substacks:
+
+- A message that a <control> of a <background> group does not handle
+  goes to the <card> before the <background>: a background button's
+  <mouseUp> reaches the card's <script>, then the background's, then
+  the stack's.
+- A <handler> can be called <doMenu>.
+- The <doMenu> <command> is first sent as a message to the <object>
+  whose <handler> runs it, with the menu item as its parameter. The
+  menu item is chosen only if no <handler> takes the message, or one
+  passes it.
+
+The <stack> keeps the <property> as its <custom property> of the same
+name, and is saved with it, so the <stack file> format does not change.
+An engine without the <property> opens the <stack> with its usual
+rules.
+
+Set the <hyperTalkCompatible> before the <stack|stack's> <script|scripts>
+are first compiled: a <script> already compiled keeps the <handler>
+names it was compiled with until it is set again.
+
+References: HCStack (property), HCAddressing (property),
+HCImportStat (property), doMenu (command), import (command),
+stack (object), background (glossary), message path (glossary),
+HyperCard (glossary), custom property (glossary)

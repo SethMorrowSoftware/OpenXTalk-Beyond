@@ -326,6 +326,9 @@ IO_stat MCStack::load_stack(IO_handle stream, uint32_t version)
 
 	mode_load();
 
+	// OXT-Beyond: before any of the stack's scripts can compile
+	loadhypertalkcompatible();
+
 	while (True)
 	{
 		uint1 type;

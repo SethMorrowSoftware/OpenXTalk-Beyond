@@ -306,6 +306,9 @@ protected:
     MCStringLineEndingStyle m_line_encoding_style : 3;
 	
 	bool m_is_ide_stack : 1;
+
+	// OXT-Beyond: the stack's hyperTalkCompatible (see ishypertalkcompatible)
+	bool m_hypertalk_compatible : 1;
 	
 	// IM-2014-05-27: [[ Bug 12321 ]] Indicate if we need to purge fonts when reopening the window
 	bool m_purge_fonts;
@@ -633,6 +636,11 @@ public:
 	uint2 userlevel();
 	Boolean hcaddress();
 	Boolean hcstack();
+	// OXT-Beyond: whether HyperCard's message rules apply to the stack's
+	// objects: its hyperTalkCompatible, or its mainstack's
+	bool ishypertalkcompatible(void);
+	// OXT-Beyond: reads the hyperTalkCompatible the stack was saved with
+	void loadhypertalkcompatible(void);
 	
 	virtual bool haspassword() { return false; }
 	virtual bool iskeyed() { return true; }
@@ -1260,6 +1268,10 @@ public:
     // SN-2014-06-25: [[ IgnoreMouseEvents ]] Setter and getter added
     void SetIgnoreMouseEvents(MCExecContext &ctxt, bool p_ignore);
     void GetIgnoreMouseEvents(MCExecContext &ctxt, bool &r_ignored);
+
+    // OXT-Beyond: the stack's hyperTalkCompatible
+    void SetHyperTalkCompatible(MCExecContext &ctxt, bool p_compatible);
+    void GetHyperTalkCompatible(MCExecContext &ctxt, bool &r_compatible);
     
     // MERG-2015-08-31: [[ ScriptOnly ]] Setter and getter added
     void GetScriptOnly(MCExecContext &ctxt, bool &r_script_only);
