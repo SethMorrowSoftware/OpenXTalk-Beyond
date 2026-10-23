@@ -80,9 +80,10 @@ Adds the MACE sounds of a HyperCard stack to the stack as audio clips.
 pStack (String): The stack just imported from pPath.
 
 pPath (String): The HyperCard file it was imported from: a MacBinary,
-AppleSingle or AppleDouble file, or a data fork with its resource fork
-beside it (<name>.rsrc, ._<name>, .AppleDouble/<name>, or on a Mac the
-file's own resource fork).
+AppleSingle or AppleDouble file, or a data fork whose resource fork the
+importer finds, in the importer's order: on a Mac the file's own
+resource fork, then ._<name>, a Finder zip's __MACOSX/<path>/._<name>,
+.AppleDouble/<name>, <name>.rsrc and .rsrc/<name>.
 
 Returns (String): How many sounds were added, or empty with an error in
 the result.
@@ -311,10 +312,15 @@ private function _Number pData, pAt, pLength
    return tNumber
 end _Number
 
--- The resource fork of a HyperCard file, where the importer finds it:
--- inside the file (MacBinary, AppleSingle, AppleDouble), or beside it
+-- The resource fork of a HyperCard file, where the importer finds it
+-- (MCHcstak::read and readsidecarresources in engine/src/hc.cpp), in its
+-- order, so that both read the same fork: inside the file (MacBinary,
+-- AppleSingle, AppleDouble); else, for a bare data fork, the file's own
+-- fork on a Mac, ._Name, __MACOSX/<path>/._Name in each of the 8 folders
+-- above it (a Finder zip unpacked anywhere), .AppleDouble/Name,
+-- Name.rsrc and .rsrc/Name
 private function _ResourceFork pPath
-   local tFile, tFork, tFolder, tLeaf, tCandidate
+   local tFile, tFork, tFolder, tLeaf, tCandidate, tCandidates, tAbove, tBelow, tLevel
    if there is not a file pPath then return empty
    put url ("binfile:" & pPath) into tFile
    put _ForkOf(tFile) into tFork
@@ -324,23 +330,22 @@ private function _ResourceFork pPath
    put item -1 of pPath into tLeaf
    put item 1 to -2 of pPath into tFolder
    if tFolder is not empty then put slash after tFolder
+   put pPath & "/..namedfork/rsrc" & return & tFolder & "._" & tLeaf & return into tCandidates
+   put tFolder into tAbove
+   repeat with tLevel = 1 to 8
+      put tAbove & "__MACOSX/" & tBelow & "._" & tLeaf & return after tCandidates
+      -- one folder up: tAbove ("/a/b/") gives its last folder ("b/") to
+      -- the front of tBelow; a stack inside __MACOSX stops the search
+      -- (a trailing slash makes no item of its own)
+      if the number of items of tAbove < 2 or item -1 of tAbove is "__MACOSX" then exit repeat
+      put item -1 of tAbove & slash before tBelow
+      put item 1 to -2 of tAbove & slash into tAbove
+   end repeat
+   put tFolder & ".AppleDouble/" & tLeaf & return & pPath & ".rsrc" & return \
+         & tFolder & ".rsrc/" & tLeaf after tCandidates
    set the itemDelimiter to comma
-   repeat for each item tCandidate in "rsrc,dot,netatalk,named"
-      switch tCandidate
-         case "rsrc"
-            put pPath & ".rsrc" into tCandidate
-            break
-         case "dot"
-            put tFolder & "._" & tLeaf into tCandidate
-            break
-         case "netatalk"
-            put tFolder & ".AppleDouble/" & tLeaf into tCandidate
-            break
-         case "named"
-            -- a Mac file's own resource fork
-            put pPath & "/..namedfork/rsrc" into tCandidate
-            break
-      end switch
+
+   repeat for each line tCandidate in tCandidates
       if there is not a file tCandidate then next repeat
       put url ("binfile:" & tCandidate) into tFile
       put _ForkOf(tFile) into tFork

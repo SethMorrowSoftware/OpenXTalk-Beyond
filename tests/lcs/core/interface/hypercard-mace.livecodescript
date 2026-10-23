@@ -92,6 +92,16 @@ private function _Fork
          "Qm9pbmcBMQF4")
 end _Fork
 
+-- A resource fork with one 'STR ' and no sounds
+private function _SoundlessFork
+   return base64Decode("AAABAAAAAQcAAAAHAAAANAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMCaGkAAAEAAAAB" & \
+         "BwAAAAcAAAA0AAAAAAAAAAAAHAAyAABTVFIgAAAACgCAAAAAAAAAAAAAAAF4")
+end _SoundlessFork
+
 private command _Close pStack
    lock messages
    if there is a stack pStack then delete stack pStack
@@ -132,6 +142,34 @@ on TestHyperCardMACEConvert
    put the long id of stack "MACETest" into tStack
    TestAssert "a MacBinary file's fork", revHyperCardConvertMACESounds(tStack, tFolder & "/Stack.bin") is 2
    _Close "MACETest"
+
+   -- ._Name comes before Name.rsrc, as in the importer: a stale .rsrc
+   -- with no sounds beside a ._Name with them
+   put _Fork() into url ("binfile:" & tFolder & "/._Stack")
+   put _SoundlessFork() into url ("binfile:" & tPath & ".rsrc")
+   create invisible stack "MACETest"
+   put the long id of stack "MACETest" into tStack
+   TestAssert "._Name before Name.rsrc", revHyperCardConvertMACESounds(tStack, tPath) is 2
+   _Close "MACETest"
+   delete file (tFolder & "/._Stack")
+
+   -- a Finder zip unpacked: Zip/Folder/Stack and Zip/__MACOSX/Folder/._Stack
+   create folder tFolder & "/Zip"
+   create folder tFolder & "/Zip/Folder"
+   create folder tFolder & "/Zip/__MACOSX"
+   create folder tFolder & "/Zip/__MACOSX/Folder"
+   put "data fork" into url ("binfile:" & tFolder & "/Zip/Folder/Stack")
+   put _Fork() into url ("binfile:" & tFolder & "/Zip/__MACOSX/Folder/._Stack")
+   create invisible stack "MACETest"
+   put the long id of stack "MACETest" into tStack
+   TestAssert "a Finder zip's __MACOSX fork", revHyperCardConvertMACESounds(tStack, tFolder & "/Zip/Folder/Stack") is 2
+   _Close "MACETest"
+   delete file (tFolder & "/Zip/__MACOSX/Folder/._Stack")
+   delete file (tFolder & "/Zip/Folder/Stack")
+   delete folder (tFolder & "/Zip/__MACOSX/Folder")
+   delete folder (tFolder & "/Zip/__MACOSX")
+   delete folder (tFolder & "/Zip/Folder")
+   delete folder (tFolder & "/Zip")
 
    -- no fork at all
    delete file (tPath & ".rsrc")
