@@ -30,8 +30,8 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 - [engine/installer-armv6-hf.link:187](engine/installer-armv6-hf.link#L187) FIXME: Why do we need it? When there is no .bss section, we don't
 - [engine/src/dispatch.cpp:1563](engine/src/dispatch.cpp#L1563) FIXME This is horrible
 - [engine/src/em-dc-mainloop.cpp:46](engine/src/em-dc-mainloop.cpp#L46) FIXME these functions are pretty much the same for every X_init()
-- [engine/src/em-event.js:502](engine/src/em-event.js#L502) FIXME Maybe this should be done in the engine?
-- [engine/src/em-event.js:701](engine/src/em-event.js#L701) FIXME not supported
+- [engine/src/em-event.js:510](engine/src/em-event.js#L510) FIXME Maybe this should be done in the engine?
+- [engine/src/em-event.js:709](engine/src/em-event.js#L709) FIXME not supported
 - [engine/src/em-filehandle.cpp:126](engine/src/em-filehandle.cpp#L126) FIXME Figure out why this is needed
 - [engine/src/em-filehandle.cpp:151](engine/src/em-filehandle.cpp#L151) FIXME Figure out why this is a success
 - [engine/src/em-filehandle.cpp:210](engine/src/em-filehandle.cpp#L210) FIXME figure out why this is a success
@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11892](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11892) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11993](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11993) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -259,7 +259,7 @@ Work left for later. 421 notes, by part of the repository:
 - [engine/src/dskw32.cpp:623](engine/src/dskw32.cpp#L623) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/dskw32.cpp:633](engine/src/dskw32.cpp#L633) TODO: still necessary with GetFileAttributes instead of stat?
 - [engine/src/em-dc.js:181](engine/src/em-dc.js#L181) TODO - handle cleanup of embedded canvas
-- [engine/src/em-event.js:873](engine/src/em-event.js#L873) TODO - reenable alt key detection
+- [engine/src/em-event.js:881](engine/src/em-event.js#L881) TODO - reenable alt key detection
 - [engine/src/em-util.js:304](engine/src/em-util.js#L304) TODO - support more value types
 - [engine/src/em-util.js:332](engine/src/em-util.js#L332) TODO - for now, treat functions as objects but we may wish to differentiate them later
 - [engine/src/exec-engine.cpp:519](engine/src/exec-engine.cpp#L519) TODO - create as list?
@@ -419,9 +419,9 @@ Work left for later. 421 notes, by part of the repository:
 - [engine/src/sha1.cpp:24](engine/src/sha1.cpp#L24) TODO: can we do this in an endian-proof way?
 - [engine/src/srvcgi.cpp:1042](engine/src/srvcgi.cpp#L1042) TODO: currently we assume that urlencoded form data is small enough to fit into memory,
 - [engine/src/srvscript.cpp:125](engine/src/srvscript.cpp#L125) TODO[2017-02-06] This is fragile; FindFile() should be
-- [engine/src/stack.cpp:639](engine/src/stack.cpp#L639) COCOA-TODO: Remove dependence on ifdef
-- [engine/src/stack.cpp:1539](engine/src/stack.cpp#L1539) COCOA-TODO: Remove dependence on ifdef
-- [engine/src/stack.cpp:1630](engine/src/stack.cpp#L1630) TODO[19681]: This can be removed when all engine messages are sent with
+- [engine/src/stack.cpp:644](engine/src/stack.cpp#L644) COCOA-TODO: Remove dependence on ifdef
+- [engine/src/stack.cpp:1544](engine/src/stack.cpp#L1544) COCOA-TODO: Remove dependence on ifdef
+- [engine/src/stack.cpp:1635](engine/src/stack.cpp#L1635) TODO[19681]: This can be removed when all engine messages are sent with
 - [engine/src/stackcache.cpp:210](engine/src/stackcache.cpp#L210) if defined(__ARM__) && 0 // TODO
 - [engine/src/stackcache.cpp:272](engine/src/stackcache.cpp#L272) if defined(__ARM__) && 0 // TODO
 - [engine/src/stackfileformat.cpp:25](engine/src/stackfileformat.cpp#L25) TODO: change this, and comparisons for version >= 7000 / 5500, etc

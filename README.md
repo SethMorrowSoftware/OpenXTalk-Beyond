@@ -107,7 +107,12 @@ the Mac IDE's start-up stall, Linux's browser widget, the modern Tools
 palette and many more imported HyperCard scripts, brings the xTalk
 Suite and a downloadable zip to the web IDE, and lets the xTalk
 Assistant use a local model (see
-[0.2.7-rc.6.2](#027-rc62-the-bug-hunt-round-two));
+[0.2.7-rc.6.2](#027-rc62-the-bug-hunt-round-two)), and 0.2.7-rc.6.3
+brings in imported HyperCard stacks' MACE sounds, HyperCard's message
+order for them and many more of their scripts, keeps two web tabs from
+deleting each other's files, fixes the dark appearance's rows and
+switching, and gives the xTalk Assistant many more services (see
+[0.2.7-rc.6.3](#027-rc63-the-bug-hunt-round-three));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1575,6 +1580,113 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.3: the Bug Hunt, round three
+
+OXT-Beyond 0.2.7-rc.6.3 has everything in 0.2.7-rc.6.2. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the
+bug it squashes:
+
+- **A stack lost between two web tabs.** With the web IDE, or any web
+  stack, open in two tabs, a file one tab had saved in the home folder
+  was deleted from the browser's storage the next time the other tab
+  wrote a file, because each tab put back its own copy of the whole
+  folder. Each tab now adds what it wrote and reads in what the other
+  wrote, and a file changed in one tab is never put back to an older
+  copy by the other (#203).
+- **Submenus out of reach by touch.** On a phone or tablet (iOS Safari
+  and Chrome), a tap on a menu item with a submenu closed the menu
+  instead of opening the submenu, so the web IDE's deeper menus could
+  not be reached; a pressed menu also took the keyboard and came to the
+  front, which a desktop menu does not (#197).
+- **Unreadable rows in the dark.** In the dark appearance on macOS and
+  Windows, the Project Browser's and Message Box's rows were white and
+  light grey under white labels; they are dark now. The Tools palette,
+  the Project Browser and the menu bar follow a switch between light
+  and dark without a restart (#201).
+- **Linux colours from the last theme.** Switching the desktop between
+  light and dark left menu text and other themed colours from the
+  previous theme until a restart, and no script heard of the switch;
+  the colours now follow it, and the engine sends
+  `systemAppearanceChanged`, as on macOS and Windows (#201).
+- **HyperCard scripts the parser refused** (#196, #198). More imported
+  handlers compile instead of being left out: an answer's replies not
+  in quotes or on the next line, `convert` of an expression, `the
+  mouseLoc`, `the optionKey` and the like written without "the",
+  `version of HyperCard`, `go to card 1 of home`, names of several
+  words not in quotes, an external's arguments not in quotes,
+  `select ""`, `repeat with i is`, `sort the lines of`, and more.
+- **HyperCard externals that stopped a script.** The HyperCard Library
+  now answers StandardFile, SelectFile, SelectDir, MultiFinder,
+  CapsLock, FileExists and inKey, and HyperCard's messages that no
+  handler takes end quietly, as in HyperCard (#198).
+- **An import that said nothing.** File > Import Stack shows a summary
+  of what came in and what is missing (File > Import Stack > Show
+  Import Summary turns it off) (#198, #200).
+- **HyperCard stacks in colour.** An imported stack opened with the
+  IDE's look; it now has HyperCard's black-and-white look, in the IDE
+  and in the Stack Player (File > Import Stack > Classic HyperCard Look
+  turns it off) (#200).
+- **A silent SpeakString.** `SpeakString` and `Say` in an imported stack
+  speak, through the browser's speech synthesis in the Stack Player
+  (#200).
+- **HyperCard sounds left behind.** The engine's importer leaves out a
+  stack's MACE 3:1 and 6:1 sounds, so many HyperCard stacks played no
+  sound at all. File > Import Stack and the Stack Player now decode
+  them into audio clips named as the sounds were, with an IDE-only port
+  of FFmpeg's MACE decoder (LGPL 2.1 or later), and the import summary
+  counts only the sounds still missing (#202).
+- **Card scripts that never heard a background click.** In HyperCard,
+  a message that a background's button or field did not handle went to
+  the card before the background, and stacks often caught background
+  clicks in the card script; OXT sent them past the card, so those
+  handlers never ran. HyperCard stacks' own `on doMenu` handlers did
+  not compile at all. A new stack property, `hyperTalkCompatible`,
+  gives a stack and its substacks HyperCard's order (card, then
+  background, then stack), allows a `doMenu` handler, and sends
+  `doMenu` as a message before its menu item runs. It is false unless
+  a script sets it; File > Import Stack sets it on the stacks it
+  imports (File > Import Stack > HyperCard Message Order turns that
+  off), and so does the Stack Player for a HyperCard stack (#204).
+- **More HyperCard scripts the parser refused** (#204). `put x in y`,
+  `on` and `off` as values, `doMenu` with a bare word, `play` with its
+  notes not in quotes, and `send ... to card` after `then` or `else`
+  are rewritten as the stack is imported.
+- **An assistant tied to a few services.** The xTalk Assistant's
+  Settings have a Services menu that sets it up for OpenRouter, Groq,
+  Google Gemini, DeepSeek, Mistral, Cerebras, Together AI, Fireworks
+  AI, Hugging Face or xAI, each with its own key (a key typed for one
+  service is never sent to another), and Local adds llama.cpp, Jan,
+  vLLM and KoboldCpp to LM Studio and Ollama. The xTalk MCP Bridge's
+  Other MCP Apps... gives the command for Codex and Gemini CLI and the
+  MCP JSON that Cursor, VS Code, Windsurf, LM Studio and other apps
+  read (#195).
+- **A web site that kept the last release.** A second deploy of the
+  GitHub Pages site from one commit kept the first, and a release made
+  by the "Tag a release" workflow never reached the site; each deploy
+  now has a build version of its own, and publishing a release starts
+  the site's update (#193, #194).
+
+Measured on a corpus of 2,202 HyperCard stacks with the same engine,
+File > Import Stack now leaves 2,667 handlers that do not compile,
+where 0.2.7-rc.6.2 left 3,209 (17% fewer), and none that compiled
+before fails now; 389 of the corpus's 389 MACE sounds, in 32 stacks,
+come in as audio clips, where 0.2.7-rc.6.2 brought in none; and the
+script errors met while running the stacks went from 4,830 to 4,632.
+
+A script sees these differences from 0.2.7-rc.6.2. On the web, a
+file another tab of the same site saved in the home folder appears in
+this tab's home folder too, where before it could vanish from the
+browser's storage; with one tab, what is kept is as before. On Linux,
+the engine sends `systemAppearanceChanged` when the desktop switches
+between light and dark (`the systemAppearance` still answers "light"
+there, as before). In the dark appearance on macOS and Windows, the
+Project Browser's and Message Box's rows have dark colours. A HyperCard
+stack imported from now on has more of its scripts compiled and
+rewritten, opens with the classic black-and-white look and with
+`hyperTalkCompatible` set, so its background messages reach the card
+first and its `doMenu` handlers run, as in HyperCard; stacks
+imported and saved before, and ordinary stacks, are untouched.
 
 #### 0.2.7-rc.6.2: the Bug Hunt, round two
 

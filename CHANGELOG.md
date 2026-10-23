@@ -14,6 +14,23 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.7-rc.6.3 (2026-10-23, pre-release)
+
+- Web pages: each deploy has a build version of its own, so a second deploy from one commit updates the site instead of keeping the first (#193)
+- Release: once a release is published, it starts the Web pages workflow, which puts that release on the GitHub Pages site; the workflow_run trigger, which a release made by tag-release.yml never set off, is gone (#194)
+- HyperCard import: more HyperTalk forms that this engine's parser refused now compile (rule T33): an answer's replies not in quotes, convert of an expression, mouseLoc, optionKey and the like without "the", "version of HyperCard", "go to card 1 of home", and names of several words not in quotes after a cursor, a window, a go and a doMenu (#196)
+- Web: a tap on a menu item with a submenu opens the submenu instead of closing the menu, on a phone or tablet (iOS Safari and Chrome), so every level of the web IDE's menus can be reached by touch; a menu no longer takes the keyboard or comes to the front when it is pressed, as on the desktop (#197)
+- HyperCard import: rule T34 compiles more HyperTalk (an external's arguments not in quotes, an answer's replies on the next line, select "", repeat with i is, sort the lines of, a field as a chunk's number, and more); the HyperCard Library answers StandardFile, SelectFile, SelectDir, MultiFinder, CapsLock, FileExists and inKey and ends HyperCard's messages sent to no handler; File > Import Stack shows a summary of what came in and what is missing; tools/hypercard-sweep measures a whole corpus (#198)
+- HyperCard import: File > Import Stack and the Stack Player give an imported stack HyperCard's black-and-white look (File > Import Stack > Classic HyperCard Look turns it off); SpeakString and Say speak, through the browser's speech synthesis in the Stack Player; File > Import Stack > Show Import Summary turns the summary off (#200)
+- xTalk Assistant: a Services menu in the Settings sets it up for OpenRouter, Groq, Google Gemini, DeepSeek, Mistral, Cerebras, Together AI, Fireworks AI, Hugging Face or xAI, each with its own key (a key typed for another service is not sent to it), and Local offers llama.cpp, Jan, vLLM and KoboldCpp beside LM Studio and Ollama (#195)
+- xTalk MCP Bridge: Other MCP Apps... in its setup window gives a command for Codex and Gemini CLI, and the MCP JSON that Cursor, VS Code, Windsurf, LM Studio and other apps read (#195)
+- Web: with the web IDE (or any web stack) open in two tabs, a file one tab saves in the home folder is no longer deleted when the other tab writes a file; each tab reads in what the other wrote, and a file changed in one tab is not put back to an older copy by the other. With one tab, what is kept is as before (#203)
+- IDE: in the dark appearance on macOS and Windows the Project Browser's and Message Box's rows are dark, so their white labels can be read (they were white and light grey); the Tools palette, the Project Browser and the menu bar follow a switch between light and dark without a restart (#201)
+- Linux: switching the desktop between light and dark no longer leaves menu text and other themed colours from the previous theme, and sends systemAppearanceChanged, as macOS and Windows do (#201)
+- HyperCard import: File > Import Stack and the Stack Player decode a stack's MACE 3:1 and 6:1 sounds, which the engine's importer leaves out, into audio clips named as the sounds are, with an IDE-only port of FFmpeg's MACE decoder (LGPL 2.1 or later); the import summary counts only the sounds still missing (#202)
+- Engine: a stack's new hyperTalkCompatible property (off unless set) gives it HyperCard's message order: a background part's messages reach the card before the background, and doMenu goes to the stack's own doMenu handlers before the menu item runs; File > Import Stack and the Stack Player set it on HyperCard stacks they import (File > Import Stack > HyperCard Message Order turns it off) (#204)
+- HyperCard import: more HyperTalk forms compile after File > Import Stack (put x in y, on and off as values, doMenu with one word, play's notes not in quotes, send to card after then) (#204)
+
 ## 0.2.7-rc.6.2 (2026-10-22, pre-release)
 
 - Remastered examples: a card's arrow keys play its program wherever the focus is, so a click no longer makes left and right on Animate a Letter's Arrow Keys, Play a Video's Theater and Balloon Game's flying cards go to the next card (#177)

@@ -1,1 +1,0 @@
-- Web: with the web IDE (or any web stack) open in two tabs, a file one tab saves in the home folder is no longer deleted when the other tab writes a file; each tab reads in what the other wrote, and a file changed in one tab is not put back to an older copy by the other. With one tab, what is kept is as before (#203)
