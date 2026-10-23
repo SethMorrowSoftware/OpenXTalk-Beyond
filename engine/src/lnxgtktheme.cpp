@@ -233,6 +233,11 @@ static GtkWidgetState getpartandstate(const MCWidgetInfo &winfo, GtkThemeWidgetT
 // OXT-Beyond: the name of the GTK theme last seen, for reload_theme
 static gchar *s_theme_name = NULL;
 
+// g_object_get is variadic, so the weak link gives a pointer to it rather
+// than a function of its name (as lnxcursor.cpp uses it)
+typedef void (*g_object_getPTR) (void *widget, const gchar *first_property_name, ...);
+extern g_object_getPTR g_object_get_ptr;
+
 // Whether the GTK theme's name differs from the one last seen (and
 // remember the new one)
 static bool theme_name_changed(void)
@@ -241,7 +246,7 @@ static bool theme_name_changed(void)
 	if (t_settings == NULL)
 		return false;
 	gchar *t_name = NULL;
-	g_object_get(t_settings, "gtk-theme-name", &t_name, NULL);
+	g_object_get_ptr(t_settings, "gtk-theme-name", &t_name, NULL);
 	// (strcmp, as g_strcmp0 is not among the weakly linked GLib calls)
 	bool t_changed;
 	if (t_name == NULL || s_theme_name == NULL)
