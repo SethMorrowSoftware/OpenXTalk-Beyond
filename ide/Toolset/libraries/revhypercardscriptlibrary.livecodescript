@@ -104,6 +104,10 @@ constant kOneArgFunctions = "length random abs atan chartonum cos exp exp1 exp2 
 -- "the" or "()", as "if optionKey is down" (T33); the sweep of 2026-10-23
 constant kBareFunctions = "mouse mouseloc mouseh mousev clickloc clickh clickv optionkey commandkey cmdkey shiftkey capslockkey"
 
+-- The keys among them, which after "with" ("type "C" with commandKey",
+-- "drag ... with optionKey, shiftKey") name a modifier, not a value
+constant kModifierKeys = "optionkey commandkey cmdkey shiftkey capslockkey"
+
 -- Words an answer's reply, unquoted, keeps as it is: constants, and "it"
 constant kReplyKeep = "empty return quote space tab comma it true false cr lf eol"
 
@@ -1073,9 +1077,12 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
 
       -- T33: a function with no arguments written without "the" or "()"
       -- ("put mouseLoc into p", "if optionKey is down"), where it is not
-      -- a variable of the handler, nor a command or a message's name
+      -- a variable of the handler, nor a command or a message's name, nor
+      -- a modifier key after "with"
       if tWord is among the words of kBareFunctions and not pVars[tWord] \
-            and _T(tTokens, tPrev) is not among the words of "the on function end pass exit send" \
+            and _T(tTokens, tPrev) is not among the words of "the on function end pass exit send with" \
+            and not (tWord is among the words of kModifierKeys and _T(tTokens, tPrev) is "," \
+            and _T(tTokens, _PrevCode(tCode, tPrev)) is among the words of kModifierKeys) \
             and (tNext is empty or tTokens[tNext]["k"] is "p" or _T(tTokens, tNext) is among the words of kAfterValue) \
             and _T(tTokens, tNext) is not "(" \
             and not _StatementStart(tTokens, tCode, tIndex) then
@@ -1215,8 +1222,10 @@ private function _PhraseRules pLine
          _Fire "T10 HyperCard's version"
          next repeat
       end if
-      -- (T33: and without "the", "if version of HyperCard < 2")
-      if tWord is "version" and tPrev is not "the" and tNext is "of" and tNext2 is "hypercard" then
+      -- (T33: and without "the", "if version of HyperCard < 2"; not "the
+      -- long version of HyperCard", which compiles as it is)
+      if tWord is "version" and tPrev is not among the words of "the long short abbreviated abbrev abbr english" \
+            and tNext is "of" and tNext2 is "hypercard" then
          _Replace tTokens, tIdx, i, i + 2, "hcVersion()"
          _Fire "T33 more forms HyperCard took"
          next repeat

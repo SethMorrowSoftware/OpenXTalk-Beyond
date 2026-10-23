@@ -303,6 +303,13 @@ on TestHyperCardScriptsMoreForms
    TestAssert "T33: another card of home: not the Home card", line 9 of tScript is not "  hcGoHome"
    TestAssert "T33: go to a stack's name of two words", line 10 of tScript is "  hcGoTo " & q & "Electronic Parts" & q
    TestAssert "T33: doMenu with dots in the item's name", line 11 of tScript is "  doMenu " & q & "New Stack..." & q
+
+   -- the corpus sweep: a modifier key after "with" stays bare, and the
+   -- long version of HyperCard is still T10's
+   put _Rewrite("on mouseUp", "  type " & q & "C" & q & " with commandKey", "  drag from 1,1 to 9,9 with optionKey, shiftKey", "  get the long version of HyperCard", "end mouseUp") into tScript
+   TestAssert "T33: a modifier key after with: unchanged", line 2 of tScript is "  type " & q & "C" & q & " with commandKey"
+   TestAssert "T33: modifier keys after with: unchanged", line 3 of tScript is "  drag from 1,1 to 9,9 with optionKey, shiftKey"
+   TestAssert "T33: the long version of HyperCard: still T10's", line 4 of tScript is "  get hcLongVersion()"
 end TestHyperCardScriptsMoreForms
 
 on TestHyperCardScriptsMoreFormsProbed
