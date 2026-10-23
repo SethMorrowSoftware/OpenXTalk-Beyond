@@ -147,6 +147,9 @@ on registerForMessages
    revIDESubscribe "ideToolChanged"
    -- OXT-Beyond: Tools > Modern Tools Palette
    revIDESubscribe "idePreferenceChanged:revTools_look"
+   -- OXT-Beyond: either look chooses dark or light when it is drawn, so
+   -- it is drawn again when the desktop switches
+   revIDESubscribe "ideSystemAppearanceChanged"
    -- revIDESubscribe "ideExtensionsChanged"
 end registerForMessages
 
@@ -162,6 +165,13 @@ on ideExtensionsChanged
    layoutPalette
    unlock screen
 end ideExtensionsChanged
+
+on ideSystemAppearanceChanged
+   lock screen
+   generatePalette
+   layoutPalette
+   unlock screen
+end ideSystemAppearanceChanged
 
 on idePreferenceChanged pPreference
    switch pPreference
@@ -2658,6 +2668,10 @@ command tmGenerate
    if the platform contains "mac" then
       put the systemAppearance is "dark" into sTmDark
    else if the platform contains "linux" then
+      -- the theme's colour, not the one this look gave the window when it
+      -- was last made (kept, as the window is), which would keep the
+      -- look it had when the desktop switched between light and dark
+      set the backgroundColor of me to empty
       put the effective backgroundColor of me into tSum
       put item 1 of tSum + item 2 of tSum + item 3 of tSum < 234 into sTmDark
    else

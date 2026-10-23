@@ -34,9 +34,6 @@
 
 #define GTK_MAGIC_FONT_SCALE_FACTOR 96/72
 
-// Cached styles for various widget types
-static GtkStyle* s_styles[kMCPlatformControlTypeMessageBox+1];
-
 // Cached widgets (for style updates)
 static GtkWidget* s_widgets[kMCPlatformControlTypeMessageBox+1];
 
@@ -187,21 +184,26 @@ static GtkWidget* getWidgetForControlType(MCPlatformControlType p_type, MCPlatfo
 }
 
 // Gets the style for the given control type
+//
+// OXT-Beyond: the style is read from the (cached) widget each time rather
+// than kept. A change of GTK theme (a desktop switched between light and
+// dark) gives each widget a new GtkStyle and releases the old one, which
+// the engine held without a reference: its colours then came from the
+// theme before the last change, or from freed memory, so that menu text
+// and other themed colours went wrong after a second switch until the
+// IDE was restarted.
 static GtkStyle* getStyleForControlType(MCPlatformControlType p_type, MCPlatformControlPart p_part)
 {
-    if (s_styles[p_type] == NULL)
-    {
-        GtkWidget* t_widget;
-        t_widget = getWidgetForControlType(p_type, p_part);
-        
-        if (t_widget != NULL)
-        {
-            s_styles[p_type] = gtk_widget_get_style(t_widget);
-            g_object_unref(t_widget);
-        }
-    }
+    GtkWidget* t_widget;
+    t_widget = getWidgetForControlType(p_type, p_part);
+    if (t_widget == NULL)
+        return NULL;
     
-    return s_styles[p_type];
+    GtkStyle* t_style;
+    t_style = gtk_widget_get_style(t_widget);
+    g_object_unref(t_widget);
+    
+    return t_style;
 }
 
 

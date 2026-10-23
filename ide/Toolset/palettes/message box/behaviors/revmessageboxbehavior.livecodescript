@@ -191,8 +191,10 @@ command setUpDataView
    
    set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_hiliteColor")
    set the viewProp["background color"] of group "objectList" to empty
-   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")
+   -- OXT-Beyond: dark rows in the dark appearance, under the rows' text
+   -- (text_1 and text_3), which is white there
+   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_themedRowColor")
+   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_themedRowAlternateColor")
    
    set the viewProp["fixed row height"] of group "objectList" of me to "true"
    set the viewProp["row height"] of group "objectList" of me to 24

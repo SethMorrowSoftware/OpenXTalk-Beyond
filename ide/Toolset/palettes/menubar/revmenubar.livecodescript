@@ -49,13 +49,28 @@ on preOpenStack
    set the tStoredWidgetsSubmenu of this stack to ""  --tp 24-4, clear custom wd props
    set the tStoredControlSubmenu of this stack to ""
    if the platform contains "linux" then set the style of stack "revMenubar" to modeless  --tp 24-11, linux no toplevel
-   if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
-      if the systemappearance is "dark" then set the backgroundColor of this stack to "61,61,61"
-      else set the backgroundColor of this stack to ""
-   end if
+   menubarFollowAppearance
    set the cantModify of me to true
    unlock screen
 end preOpenStack
+
+-- OXT-Beyond: the toolbar's colour on macOS, when it opens and again when
+-- the desktop switches between light and dark (before, only when it
+-- opened, so a switch left it in the other appearance's colour)
+on menubarFollowAppearance
+   if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
+      if the systemappearance is "dark" then set the backgroundColor of me to "61,61,61"
+      else set the backgroundColor of me to ""
+   end if
+end menubarFollowAppearance
+
+on ideSystemAppearanceChanged
+   local tCantModify
+   put the cantModify of me into tCantModify
+   set the cantModify of me to false
+   menubarFollowAppearance
+   set the cantModify of me to tCantModify
+end ideSystemAppearanceChanged
 
 on closeStackRequest
    revIDEQuit
@@ -76,6 +91,7 @@ on subscribeMessages
    
    revIDESubscribe "ideTutorialProgressChanged"
    revIDESubscribe "ideActiveStacksChanged"
+   revIDESubscribe "ideSystemAppearanceChanged"
 end subscribeMessages
 
 local sTextMenuDisabledText, sTextMenuText, sPluginMenuText  --script locals

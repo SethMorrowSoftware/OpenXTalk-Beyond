@@ -423,3 +423,12 @@ on desktopChanged
    send "ideMessageSend ideDesktopChanged" to stack "revIDELibrary" in 0 milliseconds
    pass desktopChanged
 end desktopChanged
+
+-- OXT-Beyond: the desktop switched between light and dark (macOS and
+-- Windows, and on Linux a change of GTK theme): the palettes that chose
+-- their colours when they were drawn (the Tools palette, the Project
+-- Browser, the menu bar) subscribe to ideSystemAppearanceChanged
+on systemAppearanceChanged
+   send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
+   pass systemAppearanceChanged
+end systemAppearanceChanged

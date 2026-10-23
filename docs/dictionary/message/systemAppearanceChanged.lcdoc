@@ -12,7 +12,7 @@ Associations: card
 
 Introduced: 1.0
 
-OS: mac, android
+OS: mac, windows, linux, android
 
 Platforms: desktop,mobile
 
@@ -30,6 +30,12 @@ end systemAppearanceChanged
 Description:
 Handle the <systemAppearanceChanged> <message> if you need to change the color
 of objects when the application enters either light or dark mode.
+
+On Linux the message is sent when the desktop's GTK theme changes, which is
+how a desktop switches between light and dark there; the <systemAppearance>
+itself reports "light" on Linux, so a handler can compare the
+<effective> <backgroundColor> of a stack to tell a dark theme from a light
+one.
 
 References: systemAppearance (property), message (glossary), defaultStack (property)
 

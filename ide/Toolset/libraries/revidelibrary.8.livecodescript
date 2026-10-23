@@ -1563,7 +1563,7 @@ function revIDEMessages
          "ideAnswerDialogClosed,ideControlDeleted,ideCardDeleted,ideEditScript,ideExtensionLog,ideExtensionsChanged,ideExtensionStatusChanged,ideFindMoreWidgets," \
          & "ideInspectedObjectsChanged,ideLibraryStack,ideNewCard,ideNewStack,ideNewControl,revIDENameChanged,ideObjectSelectionStarted,ideOpenStack," \
          & "idePluginsChanged,idePreferenceChanged,idePropertyChanged,ideReleaseStack,ideResumeStack,ideSelectedObjectChanged,ideStackDeleted,ideToolChanged," \
-         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged" \
+         & "ideTutorialProgressChanged,ideWindowsChanged,ideDesktopChanged,ideSystemAppearanceChanged" \
          )
 end revIDEMessages
 
@@ -2573,6 +2573,26 @@ function revIDEColor pTag
          break
       case "dataView_rowAlternateColor"
          return "238,238,238"
+         break
+      -- OXT-Beyond: the rows of a list whose text follows the appearance
+      -- (text_1, text_2 and text_3 above): the Project Browser and the
+      -- Message Box. The two above stay light in both appearances, for
+      -- the lists whose text is dark in both (the Extension Manager's).
+      -- Before, the Project Browser's rows were white and light grey in
+      -- the dark appearance too, under white text.
+      case "dataView_themedRowColor"
+         if tAppearance is "dark" then
+            return "30,30,30"
+         else
+            return "255,255,255"
+         end if
+         break
+      case "dataView_themedRowAlternateColor"
+         if tAppearance is "dark" then
+            return "42,42,42"
+         else
+            return "238,238,238"
+         end if
          break
       case "dataView_hiliteColor"
          return "48,160,209"

@@ -114,6 +114,8 @@ on preOpenStack
    revIDESubscribe "idePreferenceChanged:pb_textSize"
    
    revIDESubscribe "ideShowInProjectBrowser"
+   -- OXT-Beyond: the rows' colours follow a switch between light and dark
+   revIDESubscribe "ideSystemAppearanceChanged"
    
    local tTextSize
    put revIDEGetPreference("pb_textSize") into tTextSize
@@ -340,6 +342,17 @@ on idePreferenceChanged pPreference, pValue
    end switch
 end idePreferenceChanged
 
+-- OXT-Beyond: the desktop switched between light and dark. The rows and
+-- their text take their colours when the view is set up and drawn, so
+-- both are done again (as for a change of text size); before, the rows
+-- kept the other appearance's colours until the browser was reopened.
+on ideSystemAppearanceChanged
+   lock screen
+   setUpProjectView
+   buildProjectView true
+   unlock screen
+end ideSystemAppearanceChanged
+
 on ideShowInProjectBrowser pTarget
    lock screen
    repeat for each line tObj in pTarget
@@ -401,8 +414,10 @@ command setUpProjectView
    set the viewProp["row style templates"] of group "objectList" of me to theStylesA
    set the viewProp["hilite color"] of group "objectList" of me to revIDEColor("dataView_HiliteColor")
    
-   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_rowAlternateColor")     
+   -- OXT-Beyond: dark rows in the dark appearance, under the rows' text
+   -- (text_1 to text_3), which is white there
+   set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_themedRowColor")
+   set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_themedRowAlternateColor")
    
    set the viewProp["fixed row height"] of group "objectList" of me to "true"
    set the viewProp["row height"] of group "objectList" of me to the effective textSize of me + 14

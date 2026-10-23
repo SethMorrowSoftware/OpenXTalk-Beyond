@@ -230,6 +230,29 @@ static GtkWidgetState getpartandstate(const MCWidgetInfo &winfo, GtkThemeWidgetT
 	return state;
 }
 
+// OXT-Beyond: the name of the GTK theme last seen, for reload_theme
+static gchar *s_theme_name = NULL;
+
+// Whether the GTK theme's name differs from the one last seen (and
+// remember the new one)
+static bool theme_name_changed(void)
+{
+	GtkSettings *t_settings = gtk_settings_get_default();
+	if (t_settings == NULL)
+		return false;
+	gchar *t_name = NULL;
+	g_object_get(t_settings, "gtk-theme-name", &t_name, NULL);
+	// (strcmp, as g_strcmp0 is not among the weakly linked GLib calls)
+	bool t_changed;
+	if (t_name == NULL || s_theme_name == NULL)
+		t_changed = (t_name != s_theme_name);
+	else
+		t_changed = (strcmp(t_name, s_theme_name) != 0);
+	g_free(s_theme_name);
+	s_theme_name = t_name;
+	return t_changed;
+}
+
 static gboolean reload_theme(void)
 {
 	Boolean reload = True;
@@ -245,6 +268,16 @@ static gboolean reload_theme(void)
 
 		// MW-2011-08-17: [[ Redraw ]] The theme has changed so redraw everything.
 		MCRedrawDirtyScreen();
+
+		// OXT-Beyond: on Linux a desktop switched between light and dark
+		// changes the GTK theme, so tell scripts as macOS and Windows do,
+		// with systemAppearanceChanged: the IDE remakes the palettes that
+		// chose their colours from the theme when they were drawn. (The
+		// systemAppearance itself still reports "light" on Linux.) The
+		// message goes only when the theme's name has changed, not for a
+		// notification that names the theme already in use.
+		if (theme_name_changed() && MCdefaultstackptr != nil)
+			MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
 	}
 	return (TRUE);
 }
@@ -295,8 +328,13 @@ Boolean MCNativeTheme::load()
 		initialised = True;
 		GtkSettings *settings = gtk_settings_get_default();
 		if (settings)
+		{
+			// OXT-Beyond: the theme in use at start, which reload_theme
+			// compares a later notification's with
+			theme_name_changed();
 			g_signal_connect_data( settings, "notify::gtk-theme-name", G_CALLBACK(reload_theme),
 			                         NULL, NULL, (GConnectFlags)0);
+		}
 	}
 	gtkpix = NULL;
 	mNeedNewGC = true;
