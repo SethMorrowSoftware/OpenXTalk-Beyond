@@ -82,6 +82,35 @@ void MCS_getlocaldatetime(MCDateTime& r_datetime)
 	tm_to_datetime(true, t_tm, r_datetime);
 }
 
+// OXT-Beyond: for "the microseconds" (osspec.h). The engine's clock
+// (MCS_time) counts with timeGetTime, in milliseconds; this reads the
+// system time instead. GetSystemTimePreciseAsFileTime (Windows 8 and later)
+// has it to a fraction of a microsecond, GetSystemTimeAsFileTime only to
+// the clock's tick. The first is looked up rather than linked: the build
+// targets Windows 7 (config/win32.gypi), whose kernel32 lacks it.
+typedef VOID (WINAPI *MCW32GetSystemTimeProc)(LPFILETIME);
+
+real8 MCS_microseconds(void)
+{
+	static MCW32GetSystemTimeProc s_get_system_time = nullptr;
+	if (s_get_system_time == nullptr)
+	{
+		HMODULE t_kernel = GetModuleHandleW(L"kernel32.dll");
+		if (t_kernel != nullptr)
+			s_get_system_time = (MCW32GetSystemTimeProc)GetProcAddress(t_kernel, "GetSystemTimePreciseAsFileTime");
+		if (s_get_system_time == nullptr)
+			s_get_system_time = GetSystemTimeAsFileTime;
+	}
+
+	FILETIME t_time;
+	s_get_system_time(&t_time);
+
+	// The intervals of 100 nanoseconds since January 1, 1601, of which
+	// 116444736000000000 come before January 1, 1970
+	uint64_t t_intervals = ((uint64_t)t_time.dwHighDateTime << 32) | t_time.dwLowDateTime;
+	return (real8)(int64_t)(t_intervals - 116444736000000000ULL) / 10.0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // The C runtime's _mkgmtime64, _mktime64, _gmtime64_s and _localtime64_s only

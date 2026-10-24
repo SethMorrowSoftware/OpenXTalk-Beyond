@@ -197,6 +197,11 @@ with an AI assistant; they say so in their own messages.
 | 64-bit times in `MCSystemFolderEntry` (`engine/src/system.h`) and the platforms' folder listings | Emily-Elizabeth Howard, commit 2aa83ba07 ("fix for Year 2038 problem") |
 | The null card checks in `MCInterfaceExecPop` and `MCInterfaceExecPopToLast` (`engine/src/exec-interface.cpp`) and the pop error in slot 396 | Emily-Elizabeth Howard, commit eb5fe5e2f ("Fix pop without push causing silent SIGSEGV crash (#425)") |
 | *View > Show IDE Stacks In Lists* | Emily-Elizabeth Howard, commits e02b2627d and 084195cbe |
+| `the microseconds` and its other names (`MCMicrosecs` in `engine/src/funcs.h`; `MCS_microseconds` in `engine/src/sysunxdate.cpp`, `syscfdate.cpp` and `w32date.cpp`), with names that are no keywords, and `microseconds()` in the HyperXTalk Compatibility library (`extensions/libraries/hxtcompat`) | Mark Wieder, commit 57cfd10c0 ("It's the twenty-first century and millisecond timing is no longer good enough") |
+| The `matches wildcard` and `matches regex` operator (`MCMatches` in `engine/src/operator.cpp` and `operator.h`), with `matches` no keyword | Mark Wieder, commit 5e069cb7e ("Add a matches operator"); its two error codes, Emily-Elizabeth Howard, commit 2c3ac0e00 ("fix: add EE_MATCHES_BADLEFT/BADRIGHT error codes to executionerrors.h") |
+| `MCFiltersQuotedPrintableEncode` and `MCFiltersQuotedPrintableDecode` (`libfoundation/src/foundation-filters.cpp`), with lines of at most 76 characters, for `quotedPrintableEncode` and `quotedPrintableDecode` in the HyperXTalk Compatibility library | Emily-Elizabeth Howard, commit ab8f00ed5 ("Add quotedPrintableEncode and quotedPrintableDecode functions (#484)") |
+| `iff` in the HyperXTalk Compatibility library, as a handler of the library | Emily-Elizabeth Howard, commit 8a594ecbd ("Add iff() ternary function for inline conditional expressions") |
+| Comment and Uncomment in the Script Editor's context menu (`prepareContextMenu` and `menuPick` in `revseeditorbehavior.livecodescript`) | Emily-Elizabeth Howard, commit 9e4b604fc ("added commenting/uncommenting to the context menu") |
 
 ### The MACE decoder from FFmpeg
 

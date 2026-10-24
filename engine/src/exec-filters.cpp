@@ -267,6 +267,23 @@ void MCFiltersEvalBase64Encode(MCExecContext& ctxt, MCDataRef p_source, MCString
 
 //////////
 
+// OXT-Beyond: HyperXTalk's quotedPrintableEncode and quotedPrintableDecode
+// are handlers of the HyperXTalk compatibility library
+// (extensions/libraries/hxtcompat), which binds to these by name, not
+// functions of the engine: a script's own handlers of those names then come
+// first, as they did before
+extern "C" MC_DLLEXPORT_DEF bool MCHyperXTalkQuotedPrintableEncode(MCDataRef p_data, MCStringRef& r_string)
+{
+	return MCFiltersQuotedPrintableEncode(p_data, r_string);
+}
+
+extern "C" MC_DLLEXPORT_DEF bool MCHyperXTalkQuotedPrintableDecode(MCStringRef p_string, MCDataRef& r_data)
+{
+	return MCFiltersQuotedPrintableDecode(p_string, r_data);
+}
+
+//////////
+
 void MCFiltersEvalIsoToMac(MCExecContext& ctxt, MCDataRef p_source, MCDataRef& r_result)
 {
 	if (!MCFiltersIsoToMac(p_source, r_result))

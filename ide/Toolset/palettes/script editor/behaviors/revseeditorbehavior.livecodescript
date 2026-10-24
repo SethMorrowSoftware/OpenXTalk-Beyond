@@ -1074,6 +1074,18 @@ private command prepareContextMenu
              "Paste" after tText
    end if
    
+   -- OXT-Beyond: Comment and Uncomment, as the Edit menu has them, for the
+   -- selected lines or the caret's line (from HyperXTalk)
+   if scriptLocked() then
+      put return & "-" & return & \
+             "(Comment" & return & \
+             "(Uncomment" after tText
+   else
+      put return & "-" & return & \
+             "Comment" & return & \
+             "Uncomment" after tText
+   end if
+   
    if the last char of tText is not return then
       put return after tText
    end if
@@ -1194,6 +1206,19 @@ on menuPick pItemName
          
       case "Paste"
          actionPaste
+         break
+         
+      -- OXT-Beyond: the Comment and Uncomment of prepareContextMenu
+      case "Comment"
+         if not scriptLocked() then
+            scriptComment
+         end if
+         break
+         
+      case "Uncomment"
+         if not scriptLocked() then
+            scriptUncomment
+         end if
          break
          
       case "Go to definition"

@@ -1027,6 +1027,20 @@ class MCMillisecs : public MCConstantFunctionCtxt<double, MCDateTimeEvalMillisec
 public:
 };
 
+// OXT-Beyond: HyperXTalk's "the microseconds", the microseconds since
+// midnight GMT, January 1, 1970 (MCS_microseconds)
+class MCMicrosecs : public MCConstantFunctionCtxt<double, MCDateTimeEvalMicroseconds>
+{
+public:
+	// Whether the token sp has just read is one of its names: microseconds,
+	// microsecond, microsecs or microsec, as "the milliseconds" has four.
+	// They are no keywords, so that variables, handlers and custom
+	// properties keep them: MCScriptPoint::parseexp ("the microseconds")
+	// and MCProperty::parse ("the long microseconds") read them only after
+	// "the", where the expression failed to parse before
+	static bool isname(MCScriptPoint &sp);
+};
+
 class MCMonthNames : public MCConstantFunctionCtxt<MCStringRef, MCDateTimeEvalMonthNames>
 {
 public:

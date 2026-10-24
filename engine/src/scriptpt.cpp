@@ -1569,6 +1569,25 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 					return PS_ERROR;
 				}
 		}
+		// OXT-Beyond: HyperXTalk's "matches wildcard" and "matches regex"
+		// operators (MCMatches). "matches" is no keyword, so variables,
+		// handlers and custom properties keep the name: it is the operator
+		// only after an operand and before "wildcard" or "regex", where the
+		// expression ended before (an error, or the rest of the line was a
+		// statement of its own, a call to a handler named matches)
+		if (!needfact && type == ST_ID && MCMatches::isahead(*this))
+		{
+			newfact = new (nothrow) MCMatches;
+			if (newfact->parse(*this, doingthe) != PS_NORMAL)
+			{
+				delete newfact;
+				return PS_ERROR;
+			}
+			if (insertbinop(newfact, curfact, top) == NULL)
+				return PS_ERROR;
+			needfact = True;
+			continue;
+		}
 		if (!needfact && type != ST_OP && type != ST_MIN && type != ST_RP
 		        && !(type == ST_SEP && litems)
 		        && !(type == ST_ID && lookup(SP_FACTOR, te) == PS_NORMAL
@@ -1838,14 +1857,31 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 						*this = thesp;
 						MCerrorlock--;
 
-                        if (MCStringIsEmpty(gettoken_stringref()))
+						// OXT-Beyond: HyperXTalk's "the microseconds" (and
+						// its other names: MCMicrosecs::isname). As they are
+						// no keywords, the property parse above claims them
+						// first ("the microseconds of me" is the custom
+						// property it was), and what it leaves failed here
+						MCScriptPoint t_name(*this);
+						Symbol_type t_name_type;
+						if (t_name.next(t_name_type) == PS_NORMAL && t_name_type == ST_ID &&
+							MCMicrosecs::isname(t_name))
 						{
-							MCperror->add(PE_EXPRESSION_NOTFACT, *this);
-							return PS_ERROR;
+							next(type);
+							newfact = new (nothrow) MCMicrosecs;
+							newfact->parse(*this, doingthe);
 						}
+						else
+						{
+							if (MCStringIsEmpty(gettoken_stringref()))
+							{
+								MCperror->add(PE_EXPRESSION_NOTFACT, *this);
+								return PS_ERROR;
+							}
 
-						newfact = new (nothrow) MCFuncref(gettoken_nameref());
-						newfact->parse(*this, doingthe);
+							newfact = new (nothrow) MCFuncref(gettoken_nameref());
+							newfact->parse(*this, doingthe);
+						}
 					}
 					else
 						MCerrorlock--;

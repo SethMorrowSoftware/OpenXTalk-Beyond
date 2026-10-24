@@ -612,6 +612,12 @@ enum Functions {
     F_EVENT_CONTROL_KEY,
     F_EVENT_OPTION_KEY,
     F_EVENT_SHIFT_KEY,
+
+    // OXT-Beyond: HyperXTalk's "the microseconds", read only after "the"
+    // (MCScriptPoint::parseexp, MCProperty::parse): no token of the factor
+    // table, so "microseconds" stays free as a name. At the end, so that no
+    // other value moves
+    F_MICROSECS,
 };
 
 /* The HT_MIN and HT_MAX elements of the enum delimit the range of the handler
