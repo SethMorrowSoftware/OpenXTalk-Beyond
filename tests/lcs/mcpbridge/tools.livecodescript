@@ -32,11 +32,20 @@ on TestSetup
          "on revIDESetEdited pStack" & return & "end revIDESetEdited" & return & \
          "on mcbTestSetAnswer pAnswer" & return & "put pAnswer into sAnswer" & return & "end mcbTestSetAnswer" & return & \
          "function mcbConfirm pTitle, pDetail, pYes" & return & "put pTitle & return after sAsked" & return & \
+         "global gMcbTestDuringAsk, gMcbTestDuringReply" & return & \
+         "repeat for each line tLine in gMcbTestDuringAsk" & return & "put mcbHandleLine(tLine) & return after gMcbTestDuringReply" & return & "end repeat" & return & \
          "if sAnswer is " & quote & "lose" & quote & " then" & return & "mcbLinkLost" & return & "return true" & return & "end if" & return & \
          "return sAnswer" & return & "end mcbConfirm" & return & \
          "on mcbTooLate" & return & "put " & quote & "too late" & quote & " & return after sAsked" & return & "end mcbTooLate" & return & \
          "function mcbEditorStack" & return & "return empty" & return & "end mcbEditorStack" & return & \
-         "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return into tStub
+         "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return & \
+         "on revIDEImportHyperCardStack pFile" & return & "lock messages" & return & "import stack from file pFile" & return & "unlock messages" & return & \
+         "end revIDEImportHyperCardStack" & return & \
+         "on revIDEImportHyperCardFromDiskImage pImage, pPath" & return & "local tFolder" & return & \
+         "put the temporary folder & " & quote & "/mcbtest-hc-" & quote & " & the milliseconds into tFolder" & return & "create folder tFolder" & return & \
+         "revIDEImportHyperCardStack revHyperCardImageExtract(pImage, pPath, tFolder)" & return & "end revIDEImportHyperCardFromDiskImage" & return & \
+         "function revHyperCardImportSummary pStack, pLog" & return & "return " & quote & "The summary of " & quote & " & the short name of pStack" & return & \
+         "end revHyperCardImportSummary" & return into tStub
    create invisible stack "mcbTestIDE"
    set the script of stack "mcbTestIDE" to tStub
    start using stack "mcbTestIDE"
@@ -663,3 +672,120 @@ on TestAYesAfterTheLinkWasLostDoesNothing
    put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
    TestAssert "the next request, on the new connection, runs", not TestIsError(tReply) and TestText(tReply) contains "42"
 end TestAYesAfterTheLinkWasLostDoesNothing
+
+-- A line of a request as the MCP server sends it, with the token
+private function TestRequestLine pMethod, pTool, pArgumentsJson
+   if pArgumentsJson is empty then
+      put "{}" into pArgumentsJson
+   end if
+   replace "`" with quote in pArgumentsJson
+   return "{" & quote & "id" & quote & ":9," & quote & "token" & quote & ":" & quote & TestToken() & quote & "," & \
+         quote & "method" & quote & ":" & quote & pMethod & quote & "," & quote & "tool" & quote & ":" & quote & pTool & quote & "," & \
+         quote & "arguments" & quote & ":" & pArgumentsJson & "}"
+end TestRequestLine
+
+-- What the bridge waits for: nothing, then the user's answer to its
+-- question, which a status and a call refused as busy both say, while
+-- the tools that unblock still answer
+on TestTheStatusSaysWhatItWaitsFor
+   local tReply, tReplies
+   global gMcbTestDuringAsk, gMcbTestDuringReply
+   TestStart
+   put xtaJsonParse(mcbHandleLine(TestRequestLine("status"))) into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a status, not busy", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true" and xtaJsonText(xtaJsonMember(tReply, "busy")) is "false" \
+         and TestText(tReply) contains "not busy"
+   -- While the user is asked before a run: a status, a call, and one that
+   -- unblocks, each read inside the question as the engine reads them
+   put TestRequestLine("status") & return & TestRequestLine("call", "list_stacks") & return & \
+         TestRequestLine("call", "stop_paused_script") into gMcbTestDuringAsk
+   put empty into gMcbTestDuringReply
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   put empty into gMcbTestDuringAsk
+   put gMcbTestDuringReply into tReplies
+   TestDiagnostic tReplies
+   put xtaJsonParse(line 1 of tReplies) into tReply
+   TestAssert "the status names the question", xtaJsonText(xtaJsonMember(tReply, "busy")) is "true" \
+         and TestText(tReply) contains "waiting for the user to answer its question" and TestText(tReply) contains "Claude asks to run code."
+   put xtaJsonParse(line 2 of tReplies) into tReply
+   TestAssert "a call is refused as busy, and told why", xtaJsonText(xtaJsonMember(tReply, "ok")) is "false" \
+         and xtaJsonText(xtaJsonMember(tReply, "error")) contains "still busy" \
+         and xtaJsonText(xtaJsonMember(tReply, "error")) contains "Claude asks to run code."
+   put xtaJsonParse(line 3 of tReplies) into tReply
+   TestAssert "stop_paused_script answers while it waits", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true" and TestText(tReply) contains "nothing to stop"
+   put xtaJsonParse(mcbHandleLine(TestRequestLine("status"))) into tReply
+   TestAssert "and once answered, not busy", TestText(tReply) contains "not busy"
+end TestTheStatusSaysWhatItWaitsFor
+
+-- The tools for what holds a call up, with nothing holding it up
+on TestNothingPausedAndNoDialog
+   local tReply
+   TestStart
+   put TestCall("stop_paused_script") into tReply
+   TestAssert "nothing to stop", not TestIsError(tReply) and TestText(tReply) contains "nothing to stop"
+   put TestCall("answer_dialog", "{`button`:`OK`}") into tReply
+   TestAssert "no dialog to answer", TestIsError(tReply) and TestText(tReply) contains "No dialog is open"
+end TestNothingPausedAndNoDialog
+
+-- A stack imported from HyperCard names its controls as HyperCard did
+-- (hcAddressing): "card button", "bkgnd field". They are buttons and
+-- fields, and a background's are searched once, not once a card.
+on TestHyperCardAddressingLabels
+   local tStack, tReply, tGroup
+   TestStart
+   put TestUserStack() into tStack
+   set the script of button "Go" of tStack to "on mouseUp" & return & "  doThing 1" & return & "end mouseUp"
+   create group "Bg" in card 1 of tStack
+   put the long id of group "Bg" of card 1 of tStack into tGroup
+   create button "Shared" in tGroup
+   set the script of button "Shared" of tGroup to "on mouseUp" & return & "  doThing 2" & return & "end mouseUp"
+   set the backgroundBehavior of tGroup to true
+   create card in tStack
+   create card in tStack
+   set the hcAddressing of tStack to true
+   TestAssert "names are HyperCard's here", word 1 of the name of button "Go" of card 1 of tStack is "card"
+   put TestCall("search_scripts", "{`text`:`doThing`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a card button is a button", TestText(tReply) contains ("the button" && quote & "Go" & quote) \
+         and not (TestText(tReply) contains ("the card" && quote & "Go" & quote))
+   TestAssert "a background's button, once", TestText(tReply) contains ("the background button" && quote & "Shared" & quote) \
+         and TestText(tReply) contains "Found in 2 lines"
+end TestHyperCardAddressingLabels
+
+-- A run on the stack whose own code fails gives the engine's error and
+-- its line: it said only "it stopped at an error."
+on TestARunOnTheStackGivesItsError
+   local tReply, tStack
+   TestStart
+   put TestUserStack() into tStack
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("run_code", "{`code`:`put 1 into tA\nput fld \`Account\``,`where`:`stack`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "an error, with its line", TestIsError(tReply) and TestText(tReply) contains "it stopped at an error." \
+         and TestText(tReply) contains "line 2 of the code"
+   TestAssert "and the line", TestText(tReply) contains (">2: put fld" && quote & "Account" & quote)
+end TestARunOnTheStackGivesItsError
+
+-- HyperCard stacks: a stack's file, and a disk image listed and then a
+-- stack of it imported, with messages locked (the IDE's import; here a
+-- stand-in for it, as the IDE is not loaded)
+on TestImportHyperCard
+   local tReply, tStack
+   TestStart
+   put TestCall("import_hypercard", "{`file`:`/no/such/file`}") into tReply
+   TestAssert "no file", TestIsError(tReply) and TestText(tReply) contains "There is no file"
+   put TestCall("import_hypercard", "{`file`:`" & TestGetInputFile("hypercard/TestCardsBackgrounds.stack") & "`}") into tReply
+   TestAssert "without the IDE's HyperCard libraries, nothing", TestIsError(tReply) and TestText(tReply) contains "not loaded"
+   start using stack (TestGetIDERepositoryPath() & "/Toolset/libraries/revhypercarddiskimagelibrary.livecodescript")
+   put TestCall("import_hypercard", "{`file`:`" & TestGetInputFile("hypercard/TestCardsBackgrounds.stack") & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a stack's file", not TestIsError(tReply) and TestText(tReply) contains "Imported" and TestText(tReply) contains "The summary of"
+   put TestCall("import_hypercard", "{`file`:`" & TestGetInputFile("hypercard/forks/Stacks.dc42") & "`,`list`:true}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a disk image's stacks", not TestIsError(tReply) and TestText(tReply) contains "The HyperCard stacks on the disk image"
+   put TestCall("import_hypercard", "{`file`:`" & TestGetInputFile("hypercard/forks/Stacks.dc42") & "`,`stack_path`:`No:Such`}") into tReply
+   TestAssert "a stack the image has not", TestIsError(tReply) and TestText(tReply) contains "has no stack"
+   put TestCall("import_hypercard", "{`file`:`" & TestGetInputFile("hypercard/forks/Stacks.dc42") & "`}") into tReply
+   TestAssert "an image with no stack_path lists, and imports nothing", not TestIsError(tReply) and TestText(tReply) contains "Nothing was imported"
+end TestImportHyperCard

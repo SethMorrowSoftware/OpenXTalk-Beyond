@@ -2467,7 +2467,7 @@ end xtbWasStopped
 -- stack has the line numbers of their scripts, and of the code (which the
 -- engine counts from the line after its own first).
 private function xtbRunErrorText pTrace, pRun, pHandlersLines
-   local tText, tLine, tPending, tObject, tWhere, tLineNo, tExcerptSource, tExcerptLine
+   local tText, tLine, tPending, tObject, tWhere, tLineNo, tExcerptSource, tExcerptLine, tNoSource, tNoLine
    replace crlf with return in pTrace
    repeat for each line tLine in pTrace
       if word 1 to -1 of tLine is empty then
@@ -2489,7 +2489,23 @@ private function xtbRunErrorText pTrace, pRun, pHandlersLines
       put tLine & return after tPending
    end repeat
    -- Lines after the last object named are those of the handler that
-   -- caught the error, the assistant's
+   -- caught the error, the assistant's; but code sent to the user's stack
+   -- ("send script", a run on the stack) runs as a handler of no object's
+   -- script, and the engine names no object after its lines: an error in
+   -- the code itself has only those lines, and its text was empty ("it
+   -- stopped at an error." and nothing more). They are the code's, whose
+   -- lines the engine counts from the line after its own first, up to the
+   -- one that names its handler, "message"; the assistant's come after.
+   if tPending is not empty and pRun["where"] is "stack" then
+      put xtbSentCodeLines(tPending) into tPending
+      -- The lines around it only when the error is the code's own (not of
+      -- a handler of the stack it called, whose lines are above)
+      if tPending is not empty and tText is empty then
+         put xtbRunCodeLines(tPending, pRun, tExcerptSource, tExcerptLine) after tText
+      else if tPending is not empty then
+         put xtbRunCodeLines(tPending, pRun, tNoSource, tNoLine) after tText
+      end if
+   end if
    if tExcerptSource is not empty then
       put "Around that line:" & return & xtaScriptExcerpt(tExcerptSource, tExcerptLine) & return after tText
    end if
@@ -2498,6 +2514,59 @@ private function xtbRunErrorText pTrace, pRun, pHandlersLines
    end if
    return tText
 end xtbRunErrorText
+
+-- Of the lines of a trace that no object follows, those of the code sent
+-- to the user's stack: up to the line that names its handler (message),
+-- which "send script" gives it; none when there is no such line
+private function xtbSentCodeLines pLines
+   local tLine, tOut
+   repeat for each line tLine in pLines
+      put tLine & return after tOut
+      if item 4 to -1 of tLine is "message" then
+         delete the last char of tOut
+         return tOut
+      end if
+   end repeat
+   return empty
+end xtbSentCodeLines
+
+-- The lines of a trace that no object follows, in a run on the user's
+-- stack: those of the code sent (xtbRunErrorText), in words, with the
+-- code's own line numbers; the first gives the excerpt when none has
+private function xtbRunCodeLines pLines, pRun, @xExcerptSource, @xExcerptLine
+   local tText, tLine, tCode, tLineNo, tMessage, tHint
+   repeat for each line tLine in pLines
+      put item 1 of tLine into tCode
+      put item 2 of tLine into tLineNo
+      put item 4 to -1 of tLine into tHint
+      -- The hint of the code's handler is its name, which says nothing
+      if tHint is "message" then
+         put empty into tHint
+      end if
+      put empty into tMessage
+      if tCode > 0 then
+         put line tCode of the scriptExecutionErrors into tMessage
+      end if
+      if tMessage is empty then
+         put "error" && tCode into tMessage
+      else
+         put " (error" && tCode & ")" after tMessage
+      end if
+      put "- " & tMessage after tText
+      if tLineNo is an integer and tLineNo > 1 then
+         put ", line" && tLineNo - 1 && "of the code" after tText
+         if xExcerptSource is empty then
+            put pRun["code"] into xExcerptSource
+            put tLineNo - 1 into xExcerptLine
+         end if
+      end if
+      if tHint is not empty then
+         put ", near" && quote & tHint & quote after tText
+      end if
+      put return after tText
+   end repeat
+   return tText
+end xtbRunCodeLines
 
 -- The lines of one object of a trace, in words; the first that has a line
 -- number in the run's own code or handlers gives the excerpt

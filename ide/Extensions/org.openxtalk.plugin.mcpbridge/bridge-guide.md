@@ -106,7 +106,8 @@ it whenever you write xTalk Script.
   code there, after a checkpoint `undo_changes` goes back to (a run that
   changed nothing keeps none), and `return` gives nothing back: `put` the
   value. The user reads every run before it starts, so keep the code
-  short and plain. Code that waits for the user (`answer`, `ask`) or runs
+  short and plain: past 3,000 characters a run is refused, unless
+  OXT-Beyond can show it in a scrolling window (up to 20,000). Code that waits for the user (`answer`, `ask`) or runs
   for long holds up the IDE. A run the user stopped (Control-period)
   comes back saying so: do not run it again as it was.
 - `check_code` compiles code on OXT-Beyond's engine without running it,
@@ -126,3 +127,19 @@ it whenever you write xTalk Script.
   Into, Run, in the Script Editor): say which to press.
 - `undo_changes` takes back a change and every later one on the same
   stack; `list_changes` lists them. After an undo, read the stack again.
+- A call that waits says what it waits for: the user's answer to
+  OXT-Beyond's question (its window may be behind others: ask them to
+  look for it), a script paused in the debugger, or a dialog open in
+  front of the user. `ide_context` says so too. `stop_paused_script`
+  stops a paused script, as Stop in the Script Editor does, and answers
+  even while the IDE is held up; ask the user before you stop their
+  script. `answer_dialog` presses a button, by its label, of an
+  `answer` or `ask` dialog a stack of the user's opened (with `text` for
+  an `ask`); it never answers OXT-Beyond's own questions, which are the
+  user's. A file dialog ("Where is...?") holds up everything, the bridge
+  included, until the user answers it.
+- `import_hypercard` imports a HyperCard stack from its file, or from a
+  Mac disk image (`list` lists its stacks; `stack_path` picks one), with
+  messages locked, so none of its scripts run. The stack opens unsaved,
+  and names its controls as HyperCard did ("card button", "bkgnd
+  field"). Read it and offer to save it.
