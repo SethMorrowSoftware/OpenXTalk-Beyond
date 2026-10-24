@@ -1372,6 +1372,12 @@ interface:
   engine with `-ui` (`tests/_testrunner.livecodescript invoke`) and a
   time limit (`--timeout`, 300 seconds). The LiveCode Builder modules of
   `tests/` are compiled into `_tests/_build` first.
+- `ext`: the extensions' own LiveCode Script tests, those of a folder
+  named `tests` or `test` of an extension in `extensions/` (the JSON
+  library's, the widgets'...: about 80), run as those of `lcs` are and
+  named by their path in `extensions/`. They load the extensions they
+  test from the build's `packaged_extensions`. (LiveCode ran them with
+  `extensions/Makefile`'s `extensions-check`, which no build here calls.)
 - `lcb`: the LiveCode Builder tests of `tests/lcb` (the virtual machine,
   the standard library and compiled code): each `Test...` handler of each
   module, in its own run of `lc-run` with the test library. (LiveCode's
@@ -1415,7 +1421,7 @@ is `true`) and are skipped elsewhere unless you pass `--desktop-tests`.
 On Windows the tests run with `the hideConsoleWindows` set, so the
 commands they run open no console windows.
 
-Every CI build runs the four suites after the IDE compile check: on
+Every CI build runs the five suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
 (Apple Silicon and Intel). The job summary lists new failures, flaky
 tests and baseline entries that passed. The 32-bit builds have

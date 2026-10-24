@@ -20,7 +20,7 @@ headless, on Windows, Linux or macOS, and compare the failures with a
 baseline of known ones.
 
   python tools/ci/run_engine_tests.py --bin DIR [--repo DIR]
-      [--suite lcs|lcb|compiler|parser]... [--filter REGEX]
+      [--suite lcs|ext|lcb|compiler|parser]... [--filter REGEX]
       [--baseline FILE] [--arch ARCH] [--update-baseline] [--timeout SECONDS]
       [--symbols DIR]... [--log FILE]
 
@@ -44,6 +44,14 @@ The suites, as tests/Makefile names them:
             (--timeout). The LiveCode Builder modules the tests load are
             compiled first, in dependency order, to _tests/_build in the
             checkout, as the Makefile's lcm_compile does.
+  ext       (extensions/Makefile's extensions-check) the LiveCode Script
+            tests of the extensions themselves: the "on Test..." handlers of
+            the .livecodescript files in a folder named tests or test of an
+            extension in extensions/ (the JSON library's, the widgets'...),
+            run as those of lcs are, each named by its file's path in
+            extensions/ ("ext: libraries/json/tests/basic: TestImportArray").
+            They load the extensions they test from the build's
+            packaged_extensions, as the tests of tests/lcs that load one do.
   lcb       (lcb-check) the LiveCode Builder tests of tests/lcb (the
             virtual machine, the standard library and compiled code): each
             "Test..." handler of each module, run on its own by lc-run with
@@ -110,7 +118,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 BASELINE = os.path.join(HERE, 'engine-tests-baseline.txt')
-SUITES = ('lcs', 'lcb', 'compiler', 'parser')
+SUITES = ('lcs', 'ext', 'lcb', 'compiler', 'parser')
 RESULT_ORDER = ('fail', 'xpass', 'xfail', 'pass', 'skip')
 ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]|\x1b\(B')
 RUNNER_LINE = re.compile(r'^(PASS|FAIL|XFAIL|XPASS|SKIP):\s+(.*?)\s+\[\d+/\d+\]\s*$')
@@ -395,11 +403,13 @@ def compile_test_modules(tools, repo, log_lines):
 # ---------------------------------------------------------------------------
 # The suites
 
-def lcs_tests(root, pattern):
+def lcs_tests(root, pattern, suite='lcs', base=None):
     """(test file, handler) pairs in the order the test runner finds them:
     .livecodescript files whose names do not start with "_" or ".", in
     folders not starting with ".", and in each the "on Test..." handlers
-    except TestSetup and TestTearDown (TesterParseTestCommandNames)."""
+    except TestSetup and TestTearDown (TesterParseTestCommandNames). A test
+    is named by its file's path in base (default: root), without the
+    extension, and its handler."""
     tests = []
     for folder, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if not d.startswith('.'))
@@ -407,7 +417,7 @@ def lcs_tests(root, pattern):
             if not f.endswith('.livecodescript') or f.startswith(('_', '.')):
                 continue
             path = os.path.join(folder, f)
-            pretty = os.path.relpath(path, root).replace('\\', '/')[:-len('.livecodescript')]
+            pretty = os.path.relpath(path, base or root).replace('\\', '/')[:-len('.livecodescript')]
             seen = set()
             with open(path, encoding='utf-8-sig', errors='replace') as fh:
                 for line in fh:
@@ -421,9 +431,23 @@ def lcs_tests(root, pattern):
                         raise SuiteError('duplicate test name %s in %s' % (name, path))
                     seen.add(name.lower())
                     ident = '%s: %s' % (pretty, name)
-                    if pattern and not re.search(pattern, 'lcs: ' + ident):
+                    if pattern and not re.search(pattern, suite + ': ' + ident):
                         continue
                     tests.append((path, name, ident))
+    return tests
+
+
+def ext_tests(repo, pattern):
+    """The ext suite's tests: those lcs_tests finds in each folder named
+    tests or test of extensions/ (an extension's own), named by their path
+    in extensions/."""
+    root = os.path.join(repo, 'extensions')
+    tests = []
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if not d.startswith('.'))
+        if os.path.basename(folder) in ('tests', 'test'):
+            tests += lcs_tests(folder, pattern, 'ext', root)
+            dirs[:] = []
     return tests
 
 
@@ -514,19 +538,25 @@ def run_test(suite, ident, cmd, cwd, env, args, known, family, symbol_dirs, out=
     return result
 
 
-def run_lcs(tools, repo, family, args, symbol_dirs, known):
+def run_lcs(tools, repo, family, args, symbol_dirs, known, suite='lcs'):
+    """The lcs suite, or with suite "ext" the ext suite, which runs the same
+    way."""
     tests_dir = os.path.join(repo, 'tests')
     runner = lc_path(os.path.join(tests_dir, '_testrunner.livecodescript'))
-    tests = lcs_tests(os.path.join(tests_dir, 'lcs'), args.filter)
-    log('LiveCode Script tests: %d in %s' % (len(tests), lc_path(os.path.join(tests_dir, 'lcs'))))
+    if suite == 'ext':
+        tests = ext_tests(repo, args.filter)
+        log('Extension tests: %d in %s' % (len(tests), lc_path(os.path.join(repo, 'extensions'))))
+    else:
+        tests = lcs_tests(os.path.join(tests_dir, 'lcs'), args.filter)
+        log('LiveCode Script tests: %d in %s' % (len(tests), lc_path(os.path.join(tests_dir, 'lcs'))))
     env = child_env()
     desktop_tests = args.desktop_tests or os.environ.get('CI', '').lower() == 'true'
 
     def run_file(file_tests, out):
         file_results = []
         for path, name, ident in file_tests:
-            if not desktop_tests and any(re.search(x, 'lcs: ' + ident) for x in INTRUSIVE):
-                result = Result('lcs', ident, 'skip', {'skip': 1},
+            if not desktop_tests and any(re.search(x, suite + ': ' + ident) for x in INTRUSIVE):
+                result = Result(suite, ident, 'skip', {'skip': 1},
                                 'ok # SKIP acts on this computer\'s desktop (run with --desktop-tests)\n')
                 result.failures = []
                 file_results.append(result)
@@ -537,7 +567,7 @@ def run_lcs(tools, repo, family, args, symbol_dirs, known):
                     out.append(line)
                 continue
             cmd = [tools['engine'], '-ui', runner, 'invoke', lc_path(path), name]
-            file_results.append(run_test('lcs', ident, cmd, tests_dir, env, args, known, family,
+            file_results.append(run_test(suite, ident, cmd, tests_dir, env, args, known, family,
                                          symbol_dirs, out))
         return file_results
 
@@ -798,6 +828,8 @@ def main(argv=None):
                 '' if not failed else '; %d did not compile: %s' % (len(failed), ', '.join(failed))))
         if 'lcs' in suites:
             results += run_lcs(tools, repo, family, args, symbol_dirs, known)
+        if 'ext' in suites:
+            results += run_lcs(tools, repo, family, args, symbol_dirs, known, 'ext')
         if 'lcb' in suites:
             results += run_lcb(tools, repo, family, args, symbol_dirs, known)
         for suite in ('compiler', 'parser'):
