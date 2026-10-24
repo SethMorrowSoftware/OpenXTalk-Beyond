@@ -1,0 +1,267 @@
+STARTED
+INFO platform MacOS 15.7.9 arm64
+INFO version 9.7.1-OXT 25923
+INFO screenRect 0,0,1024,768
+INFO openStacks revTools | revMenuBar | oxt_ui_tour
+INFO tools look at start ""
+INFO systemAppearance dark
+STEP appearance ok
+SHOT 00-screen-start.png 0,0,1024,768
+STEP screen ok
+INFO 01-tools stack revTools rect 13,98,108,640 effective 13,79,108,640 title "Tools"
+SHOT 01-tools.png 13,79,108,640
+STEP tools ok
+INFO tooltip com.livecode.tool.Pointer: Pointer Tool - Select and edit objects
+SHOT 02-tooltip-tools.png 41,95,501,255
+STEP tooltip-tools ok
+INFO hover com.livecode.interface.classic.RectangleGraphic: 0,0,0
+SHOT 02-hover-tools.png 0,412,449,572
+STEP hover-tools ok
+INFO tools-modern rect 13,98,133,701 resizable true
+INFO 01-tools-modern stack revTools rect 13,98,133,701 effective 13,79,133,701 title "Tools"
+SHOT 01-tools-modern.png 13,79,133,701
+STEP tools-modern ok
+INFO tools-modern rect 10,98,350,701 resizable true
+INFO 01-tools-modern-wide stack revTools rect 10,98,350,701 effective 10,79,350,701 title "Tools"
+SHOT 01-tools-modern-wide.png 10,79,350,701
+STEP tools-modern-wide ok
+INFO tools-modern rect 10,98,390,701 resizable true
+INFO 01-tools-modern-names stack revTools rect 10,98,390,701 effective 10,79,390,701 title "Tools"
+SHOT 01-tools-modern-names.png 10,79,390,701
+STEP tools-modern-names ok
+INFO tools-modern rect 10,98,130,701 resizable true
+INFO tools-modern-check: 112 checks, 0 failed
+STEP tools-modern-check ok
+INFO tools-modern rect 10,98,130,701 resizable true
+INFO tools-modern-sizes: 30 checks, 0 failed
+STEP tools-modern-sizes ok
+INFO tools-modern rect 10,120,270,701 resizable true
+INFO tools-modern-use: a section shown in 72 ms
+INFO tools-modern-use: 32 checks, 0 failed
+STEP tools-modern-use ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO tools-modern-switch: 10 checks, 0 failed
+STEP tools-modern-switch ok
+INFO 03-menubar stack revMenuBar rect 0,25,886,72 effective 0,25,886,72 title "OXT-Beyond 0.2.7-rc.6.3"
+SHOT 03-menubar.png 0,25,886,72
+STEP menubar ok
+INFO 04-sample-stack stack OXT Tour Sample rect 220,140,700,520 effective 220,112,700,520 title ""
+SHOT 04-sample-stack.png 220,112,700,520
+STEP sample ok
+INFO title-bar oxt_tb_above: rect 40,57,360,257, effective rect 40,29,360,257, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_script: rect 0,57,320,257, effective rect 0,29,320,257, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_fine: rect 120,165,440,365, effective rect 120,137,440,365, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_plain: rect 160,-75,480,125, effective rect 160,-75,480,125, working screenRect 0,25,1024,709
+SHOT 04b-title-bar.png 0,0,1024,768
+STEP title-bar ok
+INFO revPropertyInspector 1 header: 9 section tabs
+INFO revPropertyInspector 1 section Basic
+INFO 05-inspector-button-1-basic stack revPropertyInspector 1 rect 170,122,429,493 effective 170,103,429,493 title "button "Push" (id 1003)"
+SHOT 05-inspector-button-1-basic.png 170,103,429,493
+INFO revPropertyInspector 1 section Icons
+INFO 05-inspector-button-2-icons stack revPropertyInspector 1 rect 170,122,429,447 effective 170,103,429,447 title "button "Push" (id 1003)"
+INFO 05-inspector-button-2-icons: the screen was locked
+SHOT 05-inspector-button-2-icons.png 170,103,429,447
+INFO revPropertyInspector 1 section Colors
+INFO 05-inspector-button-3-colors stack revPropertyInspector 1 rect 170,122,501,491 effective 170,103,501,491 title "button "Push" (id 1003)"
+INFO 05-inspector-button-3-colors: the screen was locked
+SHOT 05-inspector-button-3-colors.png 170,103,501,491
+INFO revPropertyInspector 1 section Text
+INFO 05-inspector-button-4-text stack revPropertyInspector 1 rect 170,122,501,295 effective 170,103,501,295 title "button "Push" (id 1003)"
+INFO 05-inspector-button-4-text: the screen was locked
+SHOT 05-inspector-button-4-text.png 170,103,501,295
+INFO revPropertyInspector 1 section Position
+INFO 05-inspector-button-5-position stack revPropertyInspector 1 rect 170,122,501,443 effective 170,103,501,443 title "button "Push" (id 1003)"
+INFO 05-inspector-button-5-position: the screen was locked
+SHOT 05-inspector-button-5-position.png 170,103,501,443
+INFO revPropertyInspector 1 section Effects
+INFO 05-inspector-button-6-effects stack revPropertyInspector 1 rect 170,122,501,295 effective 170,103,501,295 title "button "Push" (id 1003)"
+INFO 05-inspector-button-6-effects: the screen was locked
+SHOT 05-inspector-button-6-effects.png 170,103,501,295
+INFO revPropertyInspector 1 section Custom
+INFO 05-inspector-button-7-custom stack revPropertyInspector 1 rect 170,122,501,526 effective 170,103,501,526 title "button "Push" (id 1003)"
+INFO 05-inspector-button-7-custom: the screen was locked
+SHOT 05-inspector-button-7-custom.png 170,103,501,526
+INFO revPropertyInspector 1 section Advanced
+INFO 05-inspector-button-8-advanced stack revPropertyInspector 1 rect 170,122,501,266 effective 170,103,501,266 title "button "Push" (id 1003)"
+INFO 05-inspector-button-8-advanced: the screen was locked
+SHOT 05-inspector-button-8-advanced.png 170,103,501,266
+STEP inspector ok
+INFO revPropertyInspector 1 section Text
+INFO 06-inspector-field-text stack revPropertyInspector 1 rect 170,122,501,341 effective 170,103,501,341 title "field "Text" (id 1009)"
+INFO 06-inspector-field-text: the screen was locked
+SHOT 06-inspector-field-text.png 170,103,501,341
+STEP inspector-text ok
+INFO revPropertyInspector 1 section Colors
+INFO 07-inspector-graphic-colors stack revPropertyInspector 1 rect 170,122,501,407 effective 170,103,501,407 title "graphic "Box" (id 1015)"
+INFO 07-inspector-graphic-colors: the screen was locked
+SHOT 07-inspector-graphic-colors.png 170,103,501,407
+STEP inspector-graphic ok
+INFO revPropertyInspector 1 section Colors
+INFO 08-inspector-multiple-colors stack revPropertyInspector 1 rect 170,122,501,316 effective 170,103,501,316 title "Multiple objects"
+INFO 08-inspector-multiple-colors: the screen was locked
+SHOT 08-inspector-multiple-colors.png 170,103,501,316
+STEP inspector-multiple ok
+INFO revPropertyInspector 1 section Colors
+INFO tooltip rowlabel: foregroundColor | foregroundPattern
+INFO hover over rowlabel: the screen was locked
+SHOT 09-tooltip-inspector.png 220,121,680,281
+STEP tooltip-inspector ok
+INFO 10-script-editor stack revNewScriptEditor 1 rect 307,162,717,572 effective 307,134,717,572 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+INFO 10-script-editor: the screen was locked
+SHOT 10-script-editor.png 307,134,717,572
+STEP script-editor ok
+INFO 10-script-editor-search stack revNewScriptEditor 1 rect 307,162,717,572 effective 307,134,717,572 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+INFO 10-script-editor-search: the screen was locked
+SHOT 10-script-editor-search.png 307,134,717,572
+STEP script-editor-search ok
+INFO 11-message-box stack Message Box rect 125,538,432,709 effective 125,519,432,709 title "Message Box (Single Line)"
+SHOT 11-message-box.png 125,519,432,709
+STEP message-box ok
+INFO 12-project-browser stack revIDEProjectBrowser rect 152,161,638,668 effective 152,133,638,668 title "Project Browser"
+SHOT 12-project-browser.png 152,133,638,668
+STEP project-browser ok
+INFO LiveCode's Dictionary shows the entry try
+INFO LiveCode's Dictionary livecode_script: 4285 entries, 52 libraries (18 widgets)
+INFO LiveCode's Dictionary livecode_builder: 609 entries, 4 libraries (0 widgets)
+INFO 13-dictionary stack revDictionary rect 212,125,1222,641 effective 212,97,1222,641 title "Dictionary"
+INFO 13-dictionary: the screen was locked
+SHOT 13-dictionary.png 212,97,1024,641
+STEP dictionary ok
+INFO the guides: 16 guides; Printing shows 11 of its 11 images
+INFO 13-guides stack revDictionary rect 14,125,1024,641 effective 14,97,1024,641 title "Dictionary"
+INFO 13-guides: the screen was locked
+SHOT 13-guides.png 14,97,1024,641
+STEP guides ok
+INFO dictionary entry try control structure.txt
+INFO 13-dictionary-text stack OpenXTalk Lite Dictionary rect 148,117,1014,694 effective 148,89,1014,694 title "OpenXTalk Lite Dictionary"
+SHOT 13-dictionary-text.png 148,89,1014,694
+STEP text-dictionary ok
+INFO 14-preferences-01-general stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-01-general.png 162,106,862,634
+INFO 14-preferences-02-files-memory stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-02-files-memory.png 162,106,862,634
+INFO 14-preferences-03-appearance stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-03-appearance.png 162,106,862,634
+INFO 14-preferences-04-ui-tweaks stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-04-ui-tweaks.png 162,106,862,634
+INFO 14-preferences-05-extras stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-05-extras.png 162,106,862,634
+INFO 14-preferences-06-object-sizes stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-06-object-sizes.png 162,106,862,634
+INFO 14-preferences-07-script-editor stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-07-script-editor.png 162,106,862,634
+INFO 14-preferences-08-property-profiles stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-08-property-profiles.png 162,106,862,634
+INFO 14-preferences-09-app-browser stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-09-app-browser.png 162,106,862,634
+INFO 14-preferences-10-dictionary stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-10-dictionary.png 162,106,862,634
+INFO 14-preferences-11-mobile-support stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-11-mobile-support.png 162,106,862,634
+INFO 14-preferences-12-project-browser stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-12-project-browser.png 162,106,862,634
+INFO 14-preferences-13-compatibility stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-13-compatibility.png 162,106,862,634
+INFO 14-preferences-14-automatic-updates stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-14-automatic-updates.png 162,106,862,634
+INFO 14-preferences-15-troubleshooting stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-15-troubleshooting.png 162,106,862,634
+INFO 14-preferences-16-debug-properties stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-16-debug-properties.png 162,106,862,634
+STEP preferences ok
+INFO web runtime check true installed true runtime /Users/runner/work/_temp/oxt-test/OXT-Beyond.app/Contents/Tools/Runtime user runtime /Users/runner/Documents/OXT-Beyond/Runtime folder true
+INFO 15-standalone-01-general stack revStandaloneSettings rect 260,239,1014,699 effective 260,211,1014,699 title "Standalone Application Settings for OXT Tour Sample - General"
+SHOT 15-standalone-01-general.png 260,211,1014,699
+INFO 15-standalone-02-stacks stack revStandaloneSettings rect 260,222,1014,709 effective 260,194,1014,709 title "Standalone Application Settings for OXT Tour Sample - Stacks"
+SHOT 15-standalone-02-stacks.png 260,194,1014,709
+INFO 15-standalone-03-os-x stack revStandaloneSettings rect 260,109,1014,709 effective 260,81,1014,709 title "Standalone Application Settings for OXT Tour Sample - Mac"
+SHOT 15-standalone-03-os-x.png 260,81,1014,709
+INFO 15-standalone-04-unix stack revStandaloneSettings rect 260,109,1014,409 effective 260,81,1014,409 title "Standalone Application Settings for OXT Tour Sample - Linux"
+SHOT 15-standalone-04-unix.png 260,81,1014,409
+INFO 15-standalone-05-copy-files stack revStandaloneSettings rect 260,109,1014,469 effective 260,81,1014,469 title "Standalone Application Settings for OXT Tour Sample - Copy Files"
+SHOT 15-standalone-05-copy-files.png 260,81,1014,469
+INFO 15-standalone-06-windows stack revStandaloneSettings rect 260,109,1014,669 effective 260,81,1014,669 title "Standalone Application Settings for OXT Tour Sample - Windows"
+SHOT 15-standalone-06-windows.png 260,81,1014,669
+INFO 15-standalone-07-android stack revStandaloneSettings rect 260,53,1014,753 effective 260,25,1014,753 title "Standalone Application Settings for OXT Tour Sample - Android"
+SHOT 15-standalone-07-android.png 260,25,1014,753
+INFO 15-standalone-08-bug-reports stack revStandaloneSettings rect 260,53,1014,424 effective 260,25,1014,424 title "Standalone Application Settings for OXT Tour Sample - Bug Reports"
+SHOT 15-standalone-08-bug-reports.png 260,25,1014,424
+INFO 15-standalone-09-emscripten stack revStandaloneSettings rect 260,53,1014,424 effective 260,25,1014,424 title "Standalone Application Settings for OXT Tour Sample - Web"
+SHOT 15-standalone-09-emscripten.png 260,25,1014,424
+INFO 15-standalone-10-inclusions stack revStandaloneSettings rect 260,53,1014,605 effective 260,25,1014,605 title "Standalone Application Settings for OXT Tour Sample - Inclusions"
+SHOT 15-standalone-10-inclusions.png 260,25,1014,605
+STEP standalone-settings ok
+INFO 16-menu-builder stack revMenuManager rect 264,149,760,620 effective 264,121,760,620 title "Menu Builder"
+SHOT 16-menu-builder.png 264,121,760,620
+STEP menu-builder ok
+INFO 17-extension-manager stack revIDEExtensionManager rect 148,101,1014,699 effective 148,73,1014,699 title "Extension Manager"
+SHOT 17-extension-manager.png 148,73,1014,699
+STEP extension-manager ok
+INFO 18-extension-builder stack revExtensionBuilder rect 194,101,688,699 effective 194,73,688,699 title "Extension Builder"
+SHOT 18-extension-builder.png 194,73,688,699
+STEP extension-builder ok
+INFO 19-message-watcher stack revMessageWatcher rect 457,430,853,680 effective 457,411,853,680 title "Message Watcher"
+SHOT 19-message-watcher.png 457,411,853,680
+STEP message-watcher ok
+INFO 20-search stack revSearch rect 285,154,735,695 effective 285,126,735,695 title "Find and Replace"
+SHOT 20-search.png 285,126,735,695
+STEP search ok
+INFO 22-object-library stack revImageLibrary rect 138,186,738,690 effective 138,158,738,690 title "Library"
+SHOT 22-object-library.png 138,158,738,690
+STEP object-library ok
+INFO 23-navigator stack Card Navigator rect 125,588,651,652 effective 125,569,651,652 title "Card Navigator"
+SHOT 23-navigator.png 125,569,651,652
+STEP navigator ok
+INFO 24-about stack revAbout rect 192,114,832,614 effective 192,86,832,614 title "About OXT-Beyond"
+SHOT 24-about.png 192,86,832,614
+STEP about ok
+INFO 24b-release-notes stack revReleaseNotes rect 104,44,1024,684 effective 104,16,1024,684 title "Release Notes"
+SHOT 24b-release-notes.png 104,16,1024,684
+STEP release-notes ok
+INFO 24a-home stack revWebHome rect 0,69,1024,709 effective 0,41,1024,709 title "Welcome to OXT-Beyond"
+SHOT 24a-home.png 0,41,1024,709
+INFO 24a-home-resized stack revWebHome rect 0,53,1200,813 effective 0,25,1200,813 title "Welcome to OXT-Beyond"
+SHOT 24a-home-resized.png 0,25,1024,768
+STEP home ok
+INFO 24c-kit-dialog stack revKitDialog rect 212,99,812,610 effective 212,71,812,610 title "OXT-Beyond Updates"
+SHOT 24c-kit-dialog.png 212,71,812,610
+STEP kit-dialog ok
+INFO 24d-learn stack revLearn rect 40,77,1024,709 effective 40,49,1024,709 title "Learn OXT-Beyond"
+SHOT 24d-learn.png 40,49,1024,709
+INFO Learn's Academy button: "New to coding? Try the Academy" rect 328,238,597,276
+STEP learn ok
+INFO 24e-academy stack revAcademy rect 24,77,1024,709 effective 24,49,1024,709 title "xTalk Academy"
+SHOT 24e-academy.png 24,49,1024,709
+INFO the Academy's courses: 3
+INFO the Academy's output: "Ran in 1 ms" | Hello, world!
+INFO 24e-academy-lesson stack revAcademy rect 24,77,1024,709 effective 24,49,1024,709 title "xTalk Academy"
+SHOT 24e-academy-lesson.png 24,49,1024,709
+STEP academy ok
+INFO 24f-xtalk-assistant-settings stack revXTalkAssistantSettings rect 192,62,832,701 effective 192,34,832,701 title "xTalk Assistant Settings"
+SHOT 24f-xtalk-assistant-settings.png 192,34,832,701
+INFO xTalk Assistant status: Anthropic · no API key yet (More > Settings...) · claude-opus-5-5
+INFO 24f-xtalk-assistant stack revXTalkAssistant rect 232,61,792,701 effective 232,42,792,701 title "xTalk Assistant"
+SHOT 24f-xtalk-assistant.png 232,42,792,701
+INFO 24f-xtalk-assistant-memory stack revXTalkAssistantMemory rect 220,76,700,585 effective 220,48,700,585 title "xTalk Assistant Memory"
+SHOT 24f-xtalk-assistant-memory.png 220,48,700,585
+STEP xtalk-assistant ok
+INFO xTalk Chat: online false; relays ""
+INFO 24g-xtalk-chat stack revXTalkChat rect 40,77,1024,709 effective 40,49,1024,709 title "xTalk Chat"
+SHOT 24g-xtalk-chat.png 40,49,1024,709
+STEP xtalk-chat ok
+INFO 25-answer stack Answer Dialog rect 312,154,712,254 effective 312,126,712,254 title " "
+SHOT 25-answer.png 312,126,712,254
+INFO closing Answer Dialog
+STEP answer ok
+INFO 26-ask stack Ask Dialog rect 287,154,737,267 effective 287,126,737,267 title " "
+SHOT 26-ask.png 287,126,737,267
+INFO closing Ask Dialog
+STEP ask ok
+INFO 27-icon-chooser stack revIconChooser rect 454,370,914,699 effective 454,351,914,699 title "Image Chooser"
+SHOT 27-icon-chooser.png 454,351,914,699
+STEP icon-chooser ok
+SHOT 99-screen-end.png 0,0,1024,768
+STEP screen-end ok
+INFO openStacks at the end OXT Tour Sample | revInspector | revTools | oxt_ui_tour | revMenuBar
+DONE
