@@ -1222,6 +1222,26 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         crashed.append(crashed_page)
         log('  the page crashed')
 
+    # The pages opened after the probe's (the two tabs, the old home
+    # folder's copy): in WebKit one of them was closed under the check
+    # ("Target page, context or browser has been closed"), a different one
+    # from run to run, with nothing in the log to say why. Each says here
+    # if it crashed, closed, threw or logged an error, and a check that
+    # fails names what its pages said
+    extra_events = []
+
+    def watch_extra(extra, name):
+        def note(what):
+            extra_events.append('%s: %s' % (name, what))
+            log('  %s: %s' % (name, what))
+        extra.on('crash', lambda _page: note('the page crashed'))
+        extra.on('close', lambda _page: note('the page closed'))
+        extra.on('pageerror', lambda error: note('page error: %s' % error))
+        extra.on('console', lambda msg: note('console.error: %s' % msg.text) if msg.type == 'error' else None)
+
+    def extra_said():
+        return ' (%s)' % '; '.join(extra_events) if extra_events else ' (its pages reported no crash, close or error)'
+
     def wait_for(predicate, what, seconds):
         browser_waiting[0] = what
         deadline = time.time() + seconds
@@ -1809,12 +1829,14 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             # probe runs no checks.
             try:
                 browser_waiting[0] = 'the page in two tabs'
+                del extra_events[:]
                 tabs = browser.new_context()
                 report_js = "document.liveCode.findStackWithName('%s').probeReport('%%s')" % STACK_NAME
                 opened = []
                 for name in ('first', 'second'):
                     tab = tabs.new_page()
                     tab.on('dialog', on_dialog)
+                    watch_extra(tab, 'the %s tab' % name)
                     tab.goto(url + ('&' if '?' in url else '?') + 'tab=' + name)
                     tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
                                           "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
@@ -1853,25 +1875,25 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                     else:
                         problems.append('the second tab has %r for the first tab\'s file, expected %r'
                                         % (seen[0], TWO_TABS_TEXTS[0]))
+                del extra_events[:]
                 tabs.close()
             except (PlaywrightError, PlaywrightTimeoutError) as e:
-                problems.append('the check of the page in two tabs failed: %s' % e)
+                problems.append('the check of the page in two tabs failed: %s%s' % (e, extra_said()))
+                del extra_events[:]
         if 'ready' in probes:
             # what an older engine kept in /livecode, in a new browser
             # profile: written before the page opens, copied to /openxtalk.
             # The copy is the engine's, at start (em-system.js), so the page
-            # opens with ?tab=, where the probe runs no checks: without it
-            # the probe ran all its checks a second time in this page (its
-            # downloads, its printing, its palette closed by its close box),
-            # and in WebKit the page was closed under the evaluate below
-            # ("Target page, context or browser has been closed"), twice on
-            # #208, whose change the web runtime does not contain. The page
-            # is in a context of its own, closed after, as the two tabs' is.
+            # opens with ?tab=, where the probe runs no checks (before, it
+            # ran them all a second time here), in a context of its own,
+            # closed after, as the two tabs' is.
             try:
                 browser_waiting[0] = 'the old home folder\'s copy'
+                del extra_events[:]  # (and what closing the last pages said)
                 profile = browser.new_context()
                 fresh = profile.new_page()
                 fresh.on('dialog', on_dialog)
+                watch_extra(fresh, 'the old home folder\'s page')
                 fresh.goto(urllib.parse.urljoin(url, '/no-such-page'))  # the site, without the engine
                 fresh.evaluate(SEED_LEGACY_HOME_JS, [LEGACY_HOME_FILE[0], LEGACY_HOME_FILE[2]])
                 fresh.goto(url + ('&' if '?' in url else '?') + 'tab=legacy')
@@ -1887,9 +1909,11 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 if kept != LEGACY_HOME_FILE[2]:
                     problems.append('the old home folder\'s database has %r for %s after the copy, expected '
                                     'it left as it was' % (kept, LEGACY_HOME_FILE[0]))
+                del extra_events[:]
                 profile.close()
             except PlaywrightError as e:
-                problems.append('the check of the old home folder\'s copy failed: %s' % e)
+                problems.append('the check of the old home folder\'s copy failed: %s%s' % (e, extra_said()))
+                del extra_events[:]
         browser_waiting[0] = 'the browser to close'
         browser.close()
 
