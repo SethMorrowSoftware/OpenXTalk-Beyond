@@ -25,10 +25,16 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- HyperXTalk's "the microseconds" and its "matches wildcard" and "matches
 -- regex" operators are in the engine (funcs.h, operator.h), read only where
--- they were errors before. The work behind quotedPrintableEncode,
--- quotedPrintableDecode and microseconds() is the engine's too
--- (engine/src/exec-filters.cpp, exec-datetime.cpp): the library binds to it
--- by name.
+-- what holds them did not compile without them (scriptpt.h, MCNewSyntax).
+-- The work behind quotedPrintableEncode, quotedPrintableDecode and
+-- microseconds() is the engine's too (engine/src/exec-filters.cpp,
+-- exec-datetime.cpp): the library binds to it by name.
+--
+-- The handlers' names are not all lower case (Iff, microSeconds): lc-compile
+-- keeps such names for syntax and warns of them, and the extension build
+-- turns its warnings into errors. A script finds a library handler whatever
+-- the case of the name it calls, so iff() and microseconds() reach them,
+-- and the doc blocks give the names as scripts write them.
 
 /**
 Functions from HyperXTalk: <iff>, <quotedPrintableEncode>,
@@ -66,6 +72,10 @@ private foreign handler MCHyperXTalkMicroseconds(out rMicroseconds as CDouble) \
 		returns nothing binds to "<builtin>"
 
 /**
+Name: iff
+
+Syntax: iff(<pCondition>, <pTrue>, <pFalse>)
+
 Summary: Returns one of two values, chosen by a condition.
 
 Example:
@@ -100,7 +110,7 @@ Tags: Library
 
 References: if (control structure), true (constant), false (constant)
 */
-public handler iff(in pCondition as Boolean, in pTrue as optional any, \
+public handler Iff(in pCondition as Boolean, in pTrue as optional any, \
 		in pFalse as optional any) returns optional any
 	if pCondition then
 		return pTrue
@@ -199,6 +209,10 @@ public handler quotedPrintableDecode(in pText as String) returns Data
 end handler
 
 /**
+Name: microseconds
+
+Syntax: microseconds()
+
 Summary: Returns the number of microseconds since midnight GMT, January
 1, 1970, when it is called with brackets.
 
@@ -219,7 +233,7 @@ Tags: Library
 
 References: microseconds (function), milliseconds (function)
 */
-public handler microseconds() returns Number
+public handler microSeconds() returns Number
 	variable tMicroseconds as Number
 	unsafe
 		MCHyperXTalkMicroseconds(tMicroseconds)
@@ -228,6 +242,10 @@ public handler microseconds() returns Number
 end handler
 
 /**
+Name: microsecs
+
+Syntax: microsecs()
+
 Summary: The same as <microseconds>.
 
 Example:
@@ -242,11 +260,15 @@ Tags: Library
 
 References: microseconds (handler)
 */
-public handler microsecs() returns Number
-	return microseconds()
+public handler microSecs() returns Number
+	return microSeconds()
 end handler
 
 /**
+Name: microsecond
+
+Syntax: microsecond()
+
 Summary: The same as <microseconds>.
 
 Example:
@@ -261,11 +283,15 @@ Tags: Library
 
 References: microseconds (handler)
 */
-public handler microsecond() returns Number
-	return microseconds()
+public handler microSecond() returns Number
+	return microSeconds()
 end handler
 
 /**
+Name: microsec
+
+Syntax: microsec()
+
 Summary: The same as <microseconds>.
 
 Example:
@@ -280,8 +306,8 @@ Tags: Library
 
 References: microseconds (handler)
 */
-public handler microsec() returns Number
-	return microseconds()
+public handler microSec() returns Number
+	return microSeconds()
 end handler
 
 end library

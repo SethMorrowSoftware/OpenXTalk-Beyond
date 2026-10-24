@@ -90,7 +90,7 @@ on TestQuotedPrintableLineLength
    end repeat
    put quotedPrintableEncode(tText) into tEncoded
    TestAssert "a long line is broken", tEncoded is (char 1 to 75 of tText) & "=" & crlf & (char 76 to 100 of tText)
-   TestAssert "76 characters and no more", longestLine(tEncoded) is 76
+   TestAssert "lines of up to 76 characters", longestLine(tEncoded) is 76
 
    -- exactly 76 characters fit on a line, when it is the last
    put char 1 to 76 of tText into tText
@@ -102,18 +102,21 @@ on TestQuotedPrintableLineLength
       put numToByte(255) after tText
    end repeat
    put quotedPrintableEncode(tText) into tEncoded
-   -- (76 characters, and the CR of the soft line break)
-   TestAssert "encoded bytes are kept whole", line 1 of tEncoded ends with "=FF=" & cr and \
+   -- (76 characters, and the CR of the soft line break: not cr, which is a
+   -- line feed in script)
+   TestAssert "encoded bytes are kept whole", line 1 of tEncoded ends with "=FF=" & numToCodepoint(13) and \
          the number of chars of line 1 of tEncoded is 77
    TestAssert "and the lines are no longer than 76", longestLine(tEncoded) <= 76
 end TestQuotedPrintableLineLength
 
--- The length of the longest line, without its CR and soft line break's
--- line feed
+-- The length of the longest line, without the line break that ends it: a
+-- line ends where the encoder starts the next, at CR LF, LF or CR (bytes 13
+-- and 10 stay as they are; cr in script is a line feed, so numToCodepoint)
 private function longestLine pText
    local tLongest
    put 0 into tLongest
    replace crlf with lf in pText
+   replace numToCodepoint(13) with lf in pText
    repeat for each line tLine in pText
       put max(tLongest, the number of chars of tLine) into tLongest
    end repeat
