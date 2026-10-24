@@ -22,7 +22,11 @@ forks/Clash.rsrc            ids that collide: ICON 129 and CURS 129, ICON 2842
 forks/Sounds.rsrc           the sound headers beyond the standard one: snd 200
                             "Stereo 16" (extended, 16-bit stereo), 201 "Mono 8
                             Extended", 202 "IMA" (compressed, IMA 4:1 stereo),
-                            203 "MACE" (compressed, MACE 3:1: logged only)
+                            203 "MACE" (compressed, MACE 3:1: logged only);
+                            and two standard ones whose first command is a
+                            nullCmd, as SoundEdit wrote them: 204 "After
+                            NullCmd" (format 2) and 205 "After NullCmd 1"
+                            (format 1)
 forks/Pictures.rsrc         PICT 300 "Colour" (version 2: colour shapes, an
                             8-bit PackBitsRect, a 32-bit DirectBitsRect, a
                             BitsRect and a line) and PICT 301 (version 1,
@@ -81,6 +85,23 @@ def sound(samples):
     # pointing at a standard sound header, 8-bit unsigned, 22254 Hz
     header_at = 2 + 2 + 2 + 8
     out = struct.pack(">HHH", 2, 0, 1)
+    out += struct.pack(">HHI", 0x8051, 0, header_at)
+    out += struct.pack(">IIIII", 0, len(samples), 0x56EE8BA3, 0, 0)
+    out += bytes([0, 0x3C])
+    return out + samples
+
+
+def sound_after_nullcmd(samples, fmt):
+    # a nullCmd (its param1 'ST', as SoundEdit's) before the bufferCmd: the
+    # header is the bufferCmd's param2. Format 1 lists one synthesizer
+    # first (sampledSynth, 5, initMono, 0x80).
+    if fmt == 1:
+        out = struct.pack(">HHHI", 1, 1, 5, 0x80)
+    else:
+        out = struct.pack(">HH", 2, 0)
+    header_at = len(out) + 2 + 2 * 8
+    out += struct.pack(">H", 2)
+    out += struct.pack(">HHI", 0x0000, 0x5354, 0)
     out += struct.pack(">HHI", 0x8051, 0, header_at)
     out += struct.pack(">IIIII", 0, len(samples), 0x56EE8BA3, 0, 0)
     out += bytes([0, 0x3C])
@@ -461,6 +482,8 @@ def main():
                                            compression=-2, samples=ima)),
         ("snd ", 203, "MACE", extended_sound(1, 8, 100, encode=0xFE, fmt=b"MAC3",
                                             compression=3, samples=b"\0" * 200)),
+        ("snd ", 204, "After NullCmd", sound_after_nullcmd(bytes(128 + (i % 50) for i in range(600)), 2)),
+        ("snd ", 205, "After NullCmd 1", sound_after_nullcmd(bytes(128 - (i % 30) for i in range(700)), 1)),
     ])
     pictures = resource_fork([
         ("PICT", 300, "Colour", pict_v2()),
