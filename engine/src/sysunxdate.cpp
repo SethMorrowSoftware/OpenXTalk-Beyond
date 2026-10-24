@@ -31,7 +31,14 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define sys_mktime mktime64
 #define sys_gmtime gmtime64
 #define sys_timegm timegm64
-#elif defined(_LINUX_DESKTOP) || defined(_LINUX_SERVER) || defined(_DARWIN_SERVER) || defined(__EMSCRIPTEN__) || defined(_ANDROID_MOBILE)
+#elif defined(__EMSCRIPTEN__)
+#include <time.h>
+#define sys_time_t time_t
+#define sys_localtime localtime
+#define sys_mktime em_mktime
+#define sys_gmtime gmtime
+#define sys_timegm em_timegm
+#elif defined(_LINUX_DESKTOP) || defined(_LINUX_SERVER) || defined(_DARWIN_SERVER) || defined(_ANDROID_MOBILE)
 #include <time.h>
 #define sys_time_t time_t
 #define sys_localtime localtime
@@ -40,6 +47,42 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define sys_timegm timegm
 #else
 #error 'sysunxdate.cpp' not supported on this platform
+#endif
+
+#if defined(__EMSCRIPTEN__)
+// Emscripten's mktime and timegm give tm_year + 1900 to JavaScript's Date
+// (new Date() and Date.UTC()), which reads a year from 0 to 99 as 1900 to
+// 1999, so the web engine converted the year 99 as 1999 where the desktop
+// engines convert it as 99. The calendar repeats every 400 years, leap days
+// and weekdays included (146097 days, which is 20871 weeks), so such a year
+// is converted 400 years later and moved back. The years 400 to 499 come
+// before every time zone's first rule, as the years 0 to 99 do, so their
+// offset from UTC is the same. On failure the tm is left as it was.
+static const int kEmYearShift = 400;
+static const time_t kEmYearShiftSeconds = (time_t)146097 * 24 * 60 * 60;
+
+static time_t em_convert_tm(time_t (*p_convert)(struct tm *), struct tm *x_tm)
+{
+	if (x_tm -> tm_year < 0 - 1900 || x_tm -> tm_year > 99 - 1900)
+		return p_convert(x_tm);
+
+	x_tm -> tm_year += kEmYearShift;
+	time_t t = p_convert(x_tm);
+	x_tm -> tm_year -= kEmYearShift;
+	if (t == -1)
+		return -1;
+	return t - kEmYearShiftSeconds;
+}
+
+static time_t em_mktime(struct tm *x_tm)
+{
+	return em_convert_tm(mktime, x_tm);
+}
+
+static time_t em_timegm(struct tm *x_tm)
+{
+	return em_convert_tm(timegm, x_tm);
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
