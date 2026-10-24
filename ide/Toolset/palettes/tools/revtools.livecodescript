@@ -166,25 +166,11 @@ on ideExtensionsChanged
    unlock screen
 end ideExtensionsChanged
 
--- OXT-Beyond: this arrives a moment after the switch (the message
--- handler frontscript sends it in 0 milliseconds), when the defaultStack
--- is whatever stack the user last worked in, not this one. Both looks
--- make some of their controls with a plain "create" (the modern look's
--- groups "tmIcons", "contents", "tmHeader" and "tmSearch", the classic
--- look's group "contents"), which makes them on the defaultStack's card:
--- the first "of me" after them then named nothing, the rebuild stopped
--- (ideMessageSend catches its error) and the palette kept the other
--- appearance until the look was turned off and on. So the palette is the
--- defaultStack while it is made again, and the one before is given back.
 on ideSystemAppearanceChanged
-   local tOldDefault
-   put the defaultStack into tOldDefault
-   set the defaultStack to the short name of me
    lock screen
    generatePalette
    layoutPalette
    unlock screen
-   if there is a stack tOldDefault then set the defaultStack to tOldDefault
 end ideSystemAppearanceChanged
 
 on idePreferenceChanged pPreference
