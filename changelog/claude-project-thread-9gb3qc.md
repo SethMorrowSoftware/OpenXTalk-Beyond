@@ -1,0 +1,2 @@
+- Tools palette: in the light appearance the modern look's window is a shade darker, and the white check box and radio button icons of macOS and Linux are drawn dark, so they can be seen (they were all but invisible); its menu has Large Icons, which makes the icons and tiles half as large again (#211)
+- Tools palette: the classic look has a "Modern look" button above its tools, so the modern look can be chosen again from the palette itself, as well as from Tools > Modern Tools Palette (#211)

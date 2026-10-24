@@ -24,6 +24,8 @@ constant kTmMinWidth = 96
 constant kTmMinHeight = 160
 constant kTmDefaultWidth = 120
 constant kTmWheel = 36
+-- How much larger Large Icons makes the icons and tiles
+constant kTmLargeScale = 1.5
 -- The engine draws a field's lines from 6 points (its TEXT_Y_OFFSET) above
 -- the top margin, and counts the formattedHeight as if the text reached
 -- that far into the top and bottom margins; so a label with margins of 0
@@ -813,6 +815,11 @@ set the script of btn tOverideBtnMenu of cd 1 of stack "revTools" to tScriptToSe
 if there is a button "toolsOVERRIDEmenu" of cd 1 of this stack then
    set the topright of btn tOverideBtnMenu of cd 1 of stack "revTools" to the width of stack "revTools",0
 end if
+
+-- OXT-Beyond: the way back to the modern look, on the palette itself as
+-- the modern look's menu has its Classic Look (before, only Tools >
+-- Modern Tools Palette brought it back, and it was hard to find)
+tmClassicModernButton
 
 --
 -- if we adjusted the vertical position of things earlier, pick up on those adjustments now
@@ -2354,9 +2361,13 @@ private function tmColor pName
             return "124,58,237"
       end switch
    else
+      -- (the window a shade darker than the panels: the classic look's
+      -- control icons are white and pale grey, made for a grey palette,
+      -- and on 241,245,249 a checkbox or a radio button was all but
+      -- invisible; the tiles under the pointer a shade darker again)
       switch pName
          case "bg"
-            return "241,245,249"
+            return "226,232,240"
          case "head"
             return "15,23,42"
          case "seg"
@@ -2372,7 +2383,7 @@ private function tmColor pName
          case "muted"
             return "100,116,139"
          case "hover"
-            return "226,232,240"
+            return "203,213,225"
          case "hilite"
             return "237,233,254"
          case "hiliteLine"
@@ -2601,6 +2612,7 @@ command tmTeardown pKeepWindow
       if there is a field tName of me then delete field tName of me
    end repeat
    if there is a button "toolsOVERRIDEmenu" of me then delete button "toolsOVERRIDEmenu" of me
+   if there is a button "tmModernLook" of me then delete button "tmModernLook" of me
    put the long id of card 1 of me into tCard
    repeat with i = the number of graphics of tCard down to 1
       if the short name of graphic i of tCard contains "com.livecode.interface.classic" and \
@@ -2635,6 +2647,36 @@ on closeStack
    put true into sTmNeedSize
    pass closeStack
 end closeStack
+
+-- The classic look's "Modern look" button, left of its options arrow in
+-- the row above the tools, made (as the arrow's button is) whenever the
+-- classic look lays the palette out
+command tmClassicModernButton
+   local tBtn
+   if there is not a button "tmModernLook" of card 1 of stack "revTools" then
+      reset the templateButton
+      create button "tmModernLook" in card 1 of stack "revTools"
+   end if
+   put the long id of button "tmModernLook" of card 1 of stack "revTools" into tBtn
+   set the style of tBtn to "transparent"
+   set the showBorder of tBtn to false
+   set the opaque of tBtn to false
+   set the showFocusBorder of tBtn to false
+   set the traversalOn of tBtn to false
+   set the textSize of tBtn to 10
+   set the textAlign of tBtn to "left"
+   set the label of tBtn to "Modern look"
+   set the tooltip of tBtn to "Show the Tools palette in its modern look (Tools > Modern Tools Palette)"
+   set the script of tBtn to "on mouseUp" & return & \
+         "   send " & quote & "tmChooseModern" & quote & " to stack " & quote & "revTools" & quote & " in 0 milliseconds" & return & \
+         "end mouseUp"
+   set the rect of tBtn to 2, 2, max(40, the width of stack "revTools" - 26), 22
+end tmClassicModernButton
+
+-- (once the click is over: the palette is made again)
+command tmChooseModern
+   revIDESetPreference "revTools_look", "modern"
+end tmChooseModern
 
 -- Tools > Modern Tools Palette, or the menu's Classic Look
 command tmSwitchLook
@@ -2826,9 +2868,19 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    put it into tImage
    set the visible of tImage to false
    set the filename of tImage to tFilename
+   -- (a white glyph, such as the macOS and Linux check box's and radio
+   -- button's, made for the classic look's grey, inked for the light one)
+   if not sTmDark then tmInkPaleIcon tImage
    set the id of tImage to revIDENewIconID()
    put the long id of image (pTypeID & ".icon.png") of group "images" of group "contents" of me into tImage
    revIDEResizeImageInBounds tImage, BLOCK_SIZE * 2, BLOCK_SIZE
+   -- Large Icons: half as large again (revIDEResizeImageInBounds only
+   -- makes an image smaller)
+   if tmLarge() then
+      set the resizeQuality of tImage to "best"
+      set the width of tImage to round(the width of tImage * kTmLargeScale)
+      set the height of tImage to round(the height of tImage * kTmLargeScale)
+   end if
    -- (which ends with unlock messages: without them locked again, each
    -- control made below sends the IDE its new-object messages, and a
    -- rebuild takes about ten times as long)
@@ -2861,8 +2913,8 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    if pItem["svgicon"] is not empty and pView is not "runedit" then
       create widget ("tmIcon:" & pTypeID) as "com.livecode.widget.svgpath" in group tGroup of me
       put it into tObj
-      set the width of tObj to BLOCK_SIZE
-      set the height of tObj to BLOCK_SIZE
+      set the width of tObj to tmSize(BLOCK_SIZE)
+      set the height of tObj to tmSize(BLOCK_SIZE)
       set the iconPath of tObj to pItem["svgicon"]
       set the foregroundColor of tObj to tmColor("icon")
       if pItem["status"] is "error" then set the blendLevel of tObj to 50
@@ -2908,6 +2960,43 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    end if
 end tmMakeItem
 
+-- An icon drawn in white or near-white with no darker outline, which on
+-- the light look's pale tiles cannot be seen (the macOS and Linux check
+-- box's tick and radio button's dot, the little arrows), is drawn again in
+-- the light look's icon colour: white becomes that colour, black becomes
+-- white, and what is between goes between, with the same transparency.
+-- An icon with an outline (a push button, a field: a twentieth or more of
+-- what it draws darker than 215 of 255) is left as it is. Only what is
+-- drawn on this palette changes: the image is the palette's own copy.
+private command tmInkPaleIcon pImage
+   local tData, tAlpha, tN, tI, tL, tLums, tStep, tInk, tOut, tC
+   put the alphaData of pImage into tAlpha
+   put the imageData of pImage into tData
+   put the number of bytes of tAlpha into tN
+   if tN is 0 or the number of bytes of tData is not tN * 4 then exit tmInkPaleIcon
+   -- how light it is where it is drawn, from about 600 of its pixels
+   put max(1, tN div 600) into tStep
+   repeat with tI = 1 to tN step tStep
+      if byteToNum(byte tI of tAlpha) < 160 then next repeat
+      put (byteToNum(byte tI * 4 - 2 of tData) + byteToNum(byte tI * 4 - 1 of tData) + \
+            byteToNum(byte tI * 4 of tData)) / 3 & return after tLums
+   end repeat
+   if tLums is empty then exit tmInkPaleIcon
+   sort lines of tLums numeric ascending
+   if line (the number of lines of tLums div 20 + 1) of tLums < 215 then exit tmInkPaleIcon
+   put tmColor("icon") into tInk
+   repeat with tI = 1 to tN
+      put (byteToNum(byte tI * 4 - 2 of tData) + byteToNum(byte tI * 4 - 1 of tData) + \
+            byteToNum(byte tI * 4 of tData)) / 3 / 255 into tL
+      put numToByte(0) after tOut
+      repeat for each item tC in tInk
+         put numToByte(round(255 - (255 - tC) * tL)) after tOut
+      end repeat
+   end repeat
+   set the imageData of pImage to tOut
+   set the alphaData of pImage to tAlpha
+end tmInkPaleIcon
+
 -- A short name for a tile: the title, else the tooltip
 private function tmItemTitle pTypeID, @pItem, pTooltip
    if pTypeID is "com.livecode.tool.Browse" then return "Run"
@@ -2936,6 +3025,18 @@ end tmFitLabel
 private function tmShowNames
    return revIDEGetPreference("revTools_modernNames") is true
 end tmShowNames
+
+-- The menu's Large Icons (revTools_modernLarge): the icons and the tiles
+-- half as large again, for a screen where they are too small to make out
+private function tmLarge
+   return revIDEGetPreference("revTools_modernLarge") is true
+end tmLarge
+
+-- A tile's or an icon's measure, at the size Large Icons chooses
+private function tmSize pSize
+   if tmLarge() then return round(pSize * kTmLargeScale)
+   return pSize
+end tmSize
 
 -- Whether a tile's button matches the filter
 private function tmMatches pObj
@@ -3074,13 +3175,13 @@ command tmLayout
       put tKey is among the items of "widget,classic" into tWide
       if tNames then
          put kTmNameCell into tCellW
-         put kTmNameHeight into tCellH
+         put tmSize(kTmNameHeight) into tCellH
       else if tWide then
-         put kTmWideCell into tCellW
-         put kTmCellHeight into tCellH
+         put tmSize(kTmWideCell) into tCellW
+         put tmSize(kTmCellHeight) into tCellH
       else
-         put kTmSmallCell into tCellW
-         put kTmCellHeight into tCellH
+         put tmSize(kTmSmallCell) into tCellW
+         put tmSize(kTmCellHeight) into tCellH
       end if
       put max(1, (tAvail + kTmGap) div (tCellW + kTmGap)) into tCols
       put max(tCellW div 2, (tAvail - (tCols - 1) * kTmGap) / tCols) into tCellW
@@ -3111,10 +3212,10 @@ command tmLayout
             show tObj
             if tNames then
                if tWide then
-                  put kTmIconBox into tIconBox
+                  put tmSize(kTmIconBox) into tIconBox
                   set the leftMargin of tObj to 4
                else
-                  put 28 into tIconBox
+                  put tmSize(28) into tIconBox
                   set the leftMargin of tObj to 4
                end if
                set the iconGravity of tObj to "left"
@@ -3423,6 +3524,7 @@ private command tmPopupMenu
    local tText, tShow
    put tmShownSections() into tShow
    put tmCheck("Show Names", tmShowNames()) & return after tText
+   put tmCheck("Large Icons", tmLarge()) & return after tText
    put "-" & return after tText
    put tmCheck("Widgets", "widget" is among the items of tShow) & return after tText
    put tmCheck("Controls", "classic" is among the items of tShow) & return after tText
@@ -3447,6 +3549,23 @@ command tmMenuPick pWhich
       case "Show Names"
          revIDESetPreference "revTools_modernNames", not tmShowNames()
          tmLayout
+         break
+      case "Large Icons"
+         revIDESetPreference "revTools_modernLarge", not tmLarge()
+         -- (the icons are sized when they are made)
+         lock screen
+         -- wide enough for the widgets and controls in two columns, as
+         -- the palette starts
+         -- (by its right edge: setting the width keeps the centre)
+         if tmLarge() and the width of me < kTmPad * 2 + 4 + tmSize(kTmWideCell) * 2 + kTmGap then
+            local tRect
+            put the rect of me into tRect
+            put item 1 of tRect + kTmPad * 2 + 4 + tmSize(kTmWideCell) * 2 + kTmGap into item 3 of tRect
+            set the rect of me to tRect
+         end if
+         tmGenerate
+         tmLayout
+         unlock screen
          break
       case "Widgets"
          tmToggleSection "widget"
