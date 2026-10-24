@@ -9,7 +9,8 @@ script "oxt_ui_tour"
 -- windows one by one: the Tools palette (also in its modern look, at its
 -- first size, wide, with its names and with Large Icons, and checks of how that look
 -- behaves: tools-modern-check, -sizes, -use and -switch), a stack of
--- the user with the usual controls (and stacks opened with their title
+-- the user with the usual controls (and a switch between light and dark
+-- while it is the defaultStack: appearance-switch) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
 -- title-bar), the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
@@ -58,7 +59,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,appearance-switch,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -614,6 +615,80 @@ on tour_tools_modern_switch
    tourTmFinish "tools-modern-switch"
    tourTmReset
 end tour_tools_modern_switch
+
+-- A switch between light and dark as the IDE hears it: the engine's
+-- systemAppearanceChanged, which the message handler frontscript turns into
+-- ideSystemAppearanceChanged for the windows that subscribe to it, sent
+-- in 0 milliseconds, with the sample the defaultStack, as the stack the
+-- user last worked in. The Tools palette, in each look, and the Message
+-- Box with its Front Scripts list shown are made again on themselves:
+-- nothing made on the sample, nothing lost, and the defaultStack the
+-- sample again after
+on tour_appearance_switch
+   local tSample, tName, tExpect, tBefore, tLook, tN, tId, tMB, tLines
+   if not tourTmStart("appearance-switch") then exit tour_appearance_switch
+   put tourSampleStack() into tSample
+   put the short name of tSample into tName
+   tourTmCheck tourHears("revTools", "ideSystemAppearanceChanged"), "the Tools palette hears ideSystemAppearanceChanged"
+   repeat for each item tLook in "classic,modern"
+      if tLook is "classic" then
+         tourToolsClassic
+      else if tourToolsModern(empty, false) is not true then
+         throw "the modern look did not turn on"
+      end if
+      put the number of controls of card 1 of tSample into tBefore
+      put the number of controls of card 1 of stack "revTools" into tN
+      put the id of group "contents" of card 1 of stack "revTools" into tId
+      set the defaultStack to tName
+      put the defaultStack into tExpect
+      tourAppearanceSwitch
+      tourTmCheck the number of controls of card 1 of tSample is tBefore, \
+            "a switch in the" && tLook && "look makes nothing on the defaultStack (" & \
+            the number of controls of card 1 of tSample && "controls, were" && tBefore & ")"
+      tourTmCheck there is a group "contents" of card 1 of stack "revTools" and \
+            the id of group "contents" of card 1 of stack "revTools" is not tId, "and makes the palette again"
+      tourTmCheck the number of controls of card 1 of stack "revTools" is tN, \
+            "and whole (" & the number of controls of card 1 of stack "revTools" && "controls, were" && tN & ")"
+      tourTmCheck the defaultStack is tExpect, "and leaves the defaultStack as it was (" & the defaultStack & ")"
+   end repeat
+   tourTmReset
+   revIDEOpenPalette "message box"
+   tourWait 800
+   put revIDEPaletteToStackName("message box") into tMB
+   if tMB is empty or there is not a stack tMB then throw "no Message Box"
+   tourTmCheck tourHears(tMB, "ideSystemAppearanceChanged"), "the Message Box hears ideSystemAppearanceChanged"
+   dispatch "showCard" to stack tMB with "Front Scripts"
+   tourWait 500
+   put the number of controls of card 1 of tSample into tBefore
+   set the defaultStack to tName
+   put the defaultStack into tExpect
+   tourAppearanceSwitch
+   tourTmCheck the number of controls of card 1 of tSample is tBefore, \
+         "a switch with the Message Box's Front Scripts shown makes nothing on the defaultStack (" & \
+         the number of controls of card 1 of tSample && "controls, were" && tBefore & ")"
+   tourTmCheck the defaultStack is tExpect, "and leaves the defaultStack as it was (" & the defaultStack & ")"
+   tourTmCheck the short name of this card of stack tMB is "Front Scripts", \
+         "and the Message Box still shows its Front Scripts (" & the short name of this card of stack tMB & ")"
+   dispatch "showCard" to stack tMB with "Single Line"
+   close stack tMB
+   tourTmFinish "appearance-switch"
+end tour_appearance_switch
+
+-- Whether the stack pStack, or a card or control of it, subscribes to the
+-- IDE's message pMessage
+function tourHears pStack, pMessage
+   local tObject
+   repeat for each line tObject in revIDESubscribedObjects(pMessage)
+      if tObject ends with the long id of stack pStack and exists(tObject) then return true
+   end repeat
+   return false
+end tourHears
+
+-- As the engine's systemAppearanceChanged reaches the IDE's windows
+command tourAppearanceSwitch
+   send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
+   tourWait 1500
+end tourAppearanceSwitch
 
 function tourTmStart pStep
    put 0 into sTmChecks
