@@ -30,6 +30,7 @@ Contents:
 - [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty)
 - [Third-party code inside LiveCode's own sources](#third-party-code-inside-livecodes-own-sources)
 - [The IDE](#the-ide)
+- [mergJSON](#mergjson)
 - [xTalk Suite extensions](#xtalk-suite-extensions)
 - [Standalone runtimes for other platforms](#standalone-runtimes-for-other-platforms)
 - [The web runtime](#the-web-runtime)
@@ -385,6 +386,20 @@ Two of those, `play-solid` and `pause-solid`, are Lucide's play and
 pause, filled. Play a Video also draws `stop-solid`, a plain filled
 square that is not Lucide's.
 
+## mergJSON
+
+The packages include Monte Goulding's mergJSON, the JSON external of
+LiveCode's mergExt collection, built from its source in
+[`mergjson/`](mergjson/) (see [`mergjson/README.md`](mergjson/README.md)),
+in `Ext/mergJSON` (in the app under `Contents/Tools/Ext/mergJSON`): the
+external, its library `mergJSONLibrary.livecodescript`, and the two
+licences. A standalone that includes the external gets the library too.
+
+| Component | Version | Used by | Licence | Licence text |
+| --- | --- | --- | --- | --- |
+| mergJSON (Monte Goulding, mergExt) | commit `db85296` of [montegoulding/mergJSON](https://github.com/montegoulding/mergJSON) (18 June 2019) | `JSONToArray`, `ArrayToJSON`, the OAuth2 library | GPL 3 (also offered under a commercial licence, which this copy is not) | [`mergjson/LICENSE.txt`](mergjson/LICENSE.txt), installed as `Ext/mergJSON/LICENSE.txt` |
+| Jansson (Petri Lehtinen), Monte Goulding's fork | commit `17ac0ee` of [montegoulding/jansson](https://github.com/montegoulding/jansson) (`v2.11-31-g17ac0ee`) | mergJSON, compiled into it | MIT | [`mergjson/jansson/LICENSE`](mergjson/jansson/LICENSE), installed as `Ext/mergJSON/LICENSE-jansson.txt` |
+
 ## xTalk Suite extensions
 
 The packages include fifteen extensions of the xTalk Suite by Seth
@@ -696,14 +711,15 @@ the repository, its history and its packages:
 
 | File | Why |
 | --- | --- |
-| `Ext/` (the mergExt externals blur 1.1.53, mergJSON 1.0.70, mergMarkdown 1.0.66 and mergMicrophone 1.0.66, for Windows, Linux and macOS) | The collection that LiveCode's installer builder downloaded from LiveCode's server. Each folder has a `LICENSE.txt` (MIT texts naming Trevor DeVore or M E R Goulding, and the GPLv3 text), but whether these cover the binaries as shipped, and where their corresponding source is, has not been established. Until it has, OXT-Beyond does not redistribute them. Stacks that use them need a copy from elsewhere. |
+| `Ext/` (the mergExt externals blur 1.1.53, mergJSON 1.0.70, mergMarkdown 1.0.66 and mergMicrophone 1.0.66, for Windows, Linux and macOS) | The collection that LiveCode's installer builder downloaded from LiveCode's server. Each folder has a `LICENSE.txt` (MIT texts naming Trevor DeVore or M E R Goulding, and the GPLv3 text), but whether these cover the binaries as shipped, and where their corresponding source is, has not been established. Until it has, OXT-Beyond does not redistribute them. mergJSON is built from its source instead, into `Ext/mergJSON` (see [mergJSON](#mergjson)); stacks that use the others need a copy from elsewhere. |
 | `Documentation/linked_files/apple-human-interface-guidelines-2005.pdf` | Apple Inc. copyright, with no licence to redistribute. |
 | `Documentation/linked_files/animationEngine6.zip` | A third-party library with no licence in the release. |
 
 [`tools/oxt/layout.py`](tools/oxt/layout.py) classes the last two as
 "excluded" (`NOT_REDISTRIBUTABLE`), and
-[`tools/oxt/package.py`](tools/oxt/package.py) reports `Ext/` as an
-intended difference from OpenXTalk Lite 1.15. OpenXTalk Lite's
+[`tools/oxt/package.py`](tools/oxt/package.py) reports OpenXTalk Lite's
+`Ext/` as an intended difference from OpenXTalk Lite 1.15, and
+OXT-Beyond's own `Ext/mergJSON` as an intended addition. OpenXTalk Lite's
 `OpenXTalk Lite.lnk` shortcut and two empty SQLite files (`test.db`,
 `Toolset/palettes/dictionary/api.sqlite`) are left out as well; they
 contain nothing of use.

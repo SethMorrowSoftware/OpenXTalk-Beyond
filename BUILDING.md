@@ -817,7 +817,9 @@ differences are:
 
 - `OpenXTalk-Lite.exe` is staged as `OXT-Beyond.exe`;
 - `Ext\` (the mergExt externals) is not included (see
-  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#files-openxtalk-lite-shipped-that-oxt-beyond-does-not));
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#files-openxtalk-lite-shipped-that-oxt-beyond-does-not)),
+  and `Ext\mergJSON`, built from [`mergjson/`](mergjson/README.md), is
+  added;
 - ten `.lci` files in `Toolchain\modules\lci` are missing: interfaces of
   LiveCode commercial-edition modules that this repository does not
   have, and `com.livecode.commercial.license.lci`, which this build does

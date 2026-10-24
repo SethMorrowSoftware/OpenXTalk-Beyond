@@ -17,7 +17,8 @@ script "oxt_ui_tour"
 -- Message Box, the Project Browser, LiveCode's Dictionary (with the
 -- entries of both languages and of the extensions, which its page
 -- reports) and its guides, the text dictionary, each pane of Preferences, each card
--- of the Standalone Settings, the Menu Builder, the
+-- of the Standalone Settings (and mergJSON, which the IDE loads from its
+-- Ext folder: ext-mergjson), the Menu Builder, the
 -- Extension Manager and Builder, the Message Watcher, Search, the Object
 -- Library, the Card Navigator, the About window, the Release Notes
 -- window, the IDE's own dialog in the look of Learn (revIDEKitDialog),
@@ -52,7 +53,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -1315,6 +1316,110 @@ on tour_standalone_settings
    end repeat
    close stack tStack
 end tour_standalone_settings
+
+-- mergJSON, built from its source into Ext/mergJSON (tools/oxt/package.py
+-- EXT_FILES), as LiveCode's installer put its mergExt collection there:
+-- the IDE loads the folder's external and its library
+-- (revInternal__SetupExternals and revInternal__InitialiseLibraries in
+-- home.livecodescript), so JSONToArray and ArrayToJSON work, and the
+-- standalone builder finds the external for this computer's platform. A
+-- release before it was built has no such folder, and the step fails there.
+on tour_ext_mergjson
+   local tFolder, tFile, tTarget, tFails, tA, tJson, tLibrary, tIncluded
+   put revEnvironmentExtPath() & "/mergJSON" into tFolder
+   if there is not a folder tFolder then throw "there is no" && tFolder
+   switch the platform
+      case "Win32"
+         if the processor is "x86_64" then
+            put "mergJSON-x64.dll,Windows x86-64" into tFile
+         else
+            put "mergJSON-x86.dll,Windows" into tFile
+         end if
+         break
+      case "MacOS"
+         if the processor is "arm64" then
+            put "mergJSON.bundle,MacOSX x64-ARM64" into tFile
+         else
+            put "mergJSON.bundle,MacOSX x86-64" into tFile
+         end if
+         break
+      default
+         if the processor is "x86_64" then
+            put "mergJSON-x64.so,Linux x64" into tFile
+         else if the processor is among the items of "arm64,aarch64" then
+            put "mergJSON-arm64.so,Linux arm64" into tFile
+         else
+            put "mergJSON-x86.so,Linux" into tFile
+         end if
+         break
+   end switch
+   put item 2 of tFile into tTarget
+   put tFolder & "/" & item 1 of tFile into tFile
+   tourRecord "INFO ext-mergjson" && tFile && "target" && tTarget && "files" && tourJoin(files(tFolder) & return & folders(tFolder))
+   if there is not a file tFile and there is not a folder tFile then
+      put "there is no" && tFile & return after tFails
+   end if
+
+   -- the external
+   if tFile is not among the lines of the externals of stack "Home" then
+      put "Home's externals do not have it:" && tourJoin(the externals of stack "Home") & return after tFails
+   end if
+   if "mergJSONDecode" is not among the lines of the externalFunctions of stack "Home" or \
+         "mergJSONEncode" is not among the lines of the externalFunctions of stack "Home" then
+      put "its functions are not loaded:" && tourJoin(the externalFunctions of stack "Home") & return after tFails
+   end if
+
+   -- its library
+   put "ws.goulding.script-library.mergjson" into tLibrary
+   if there is not a stack tLibrary then
+      put "its library is not loaded" & return after tFails
+   else
+      if the effective filename of stack tLibrary is not tFolder & "/mergJSONLibrary.livecodescript" then
+         put "the library is" && the effective filename of stack tLibrary & return after tFails
+      end if
+      if the long id of stack tLibrary is not among the lines of the backScripts then
+         put "the library is not in the back scripts" & return after tFails
+      end if
+   end if
+
+   -- JSON both ways, through the library and the external
+   put "{" & quote & "a" & quote & ":[1,{" & quote & "b" & quote & ":true}]}" into tJson
+   try
+      put JSONToArray(tJson) into tA
+      if tA["a"][2]["b"] is not "true" then
+         put "JSONToArray gives" && tourJoin(the keys of tA) & return after tFails
+      end if
+      if ArrayToJSON(tA) is not tJson then
+         put "ArrayToJSON gives" && ArrayToJSON(tA) & return after tFails
+      end if
+   catch tA
+      put "JSON both ways:" && tourJoin(tA) & return after tFails
+   end try
+
+   -- the standalone builder (revsblibrary): it offers the external for this
+   -- platform, and would include this file for this computer's target. A
+   -- Mac bundle is a folder, which the builder names with a slash at its
+   -- end (__EnumerateFolder, __FilterExternalsForDesktop), as it did
+   -- LiveCode's mergExt bundles in Ext
+   try
+      if "mergJSON" is not among the lines of revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget)) then
+         put "the standalone builder does not offer it:" && \
+               tourJoin(revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget))) & return after tFails
+      else
+         put revSBIncludedExternalPath(tTarget, "mergJSON") into tIncluded
+         if the platform is "MacOS" and the last char of tIncluded is slash then
+            delete the last char of tIncluded
+         end if
+         if tIncluded is not tFile then
+            put "the standalone builder would include" && revSBIncludedExternalPath(tTarget, "mergJSON") & return after tFails
+         end if
+      end if
+   catch tA
+      put "the standalone builder:" && tourJoin(tA) & return after tFails
+   end try
+
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_ext_mergjson
 
 on tour_menu_builder
    tourPalette "menu builder", "16-menu-builder", 1500
