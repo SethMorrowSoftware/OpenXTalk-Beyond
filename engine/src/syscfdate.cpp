@@ -27,6 +27,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include <CoreFoundation/CoreFoundation.h>
 
+#include <sys/time.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static void datetime_to_time(bool p_local, const MCDateTime& p_datetime, CFAbsoluteTime& r_time);
@@ -39,6 +41,16 @@ void MCS_getlocaldatetime(MCDateTime& r_datetime)
 	t_system_time = CFAbsoluteTimeGetCurrent();
 	
 	time_to_datetime(true, t_system_time, r_datetime);
+}
+
+// OXT-Beyond: for "the microseconds" (osspec.h). The clock the engine's own
+// (MCS_time, in dskmac.cpp) reads, so that "the microseconds" and "the
+// milliseconds" agree
+real8 MCS_microseconds(void)
+{
+	struct timeval t_time;
+	gettimeofday(&t_time, NULL);
+	return t_time.tv_sec * 1000000.0 + t_time.tv_usec;
 }
 
 bool MCS_datetimetouniversal(MCDateTime& x_datetime)

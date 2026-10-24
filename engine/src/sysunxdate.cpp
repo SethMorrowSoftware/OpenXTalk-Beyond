@@ -24,6 +24,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "date.h"
 
+#include <sys/time.h>
+
 #if defined(_ANDROID_MOBILE) && !defined(__LP64__)
 #include <time64.h>
 #define sys_time_t time64_t
@@ -129,6 +131,16 @@ void MCS_getlocaldatetime(MCDateTime& r_datetime)
 	t = time(NULL);
 	tmp = sys_localtime(&t);
 	tm_to_datetime(true, tmp, r_datetime);
+}
+
+// OXT-Beyond: for "the microseconds" (osspec.h). The clock the engine's own
+// (MCS_time: dsklnx.cpp, mblandroidprocess.cpp, em-system.cpp) reads, so
+// that "the microseconds" and "the milliseconds" agree
+real8 MCS_microseconds(void)
+{
+	struct timeval t_time;
+	gettimeofday(&t_time, NULL);
+	return t_time.tv_sec * 1000000.0 + t_time.tv_usec;
 }
 
 bool MCS_datetimetouniversal(MCDateTime& x_datetime)

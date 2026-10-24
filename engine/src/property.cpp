@@ -628,6 +628,22 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 
 		if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 		{
+			// OXT-Beyond: HyperXTalk's "the long microseconds", and every
+			// other form "the milliseconds" takes. Its names are no keywords
+			// (MCMicrosecs::isname), so they were an error here. Only after
+			// "the": without it the parse failed more gently ("long" became
+			// a literal), and "create button long microseconds" made a
+			// button named long, then ran a handler named microseconds
+			if (the && type == ST_ID && MCMicrosecs::isname(sp))
+			{
+				function = F_MICROSECS;
+				if (which == P_INTERNET)
+				{
+					MCperror->add(PE_FACTOR_BADPARAM, sp);
+					return PS_ERROR;
+				}
+				return PS_NORMAL;
+			}
 			MCperror->add(PE_GENERAL_CANTMODIFY, sp);
 			return PS_ERROR;
 		}
@@ -1335,6 +1351,19 @@ void MCProperty::eval_function_ctxt(MCExecContext& ctxt, MCExecValue& r_value)
 				MCDateTimeGetLongMilliseconds(ctxt, r_value . double_value);
 			else
 				MCDateTimeGetMilliseconds(ctxt, r_value . double_value);
+            
+			if (!ctxt . HasError())
+                r_value . type = kMCExecValueTypeDouble;
+            
+            return;
+		}
+		// OXT-Beyond: HyperXTalk's "the microseconds" (see MCProperty::parse)
+		case F_MICROSECS:
+		{
+			if (which == P_LONG)
+				MCDateTimeGetLongMicroseconds(ctxt, r_value . double_value);
+			else
+				MCDateTimeGetMicroseconds(ctxt, r_value . double_value);
             
 			if (!ctxt . HasError())
                 r_value . type = kMCExecValueTypeDouble;

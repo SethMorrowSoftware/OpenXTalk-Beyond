@@ -153,6 +153,11 @@ extern bool MCS_datetimetouniversal(MCDateTime& x_datetime);
 extern bool MCS_datetimetolocal(MCDateTime& x_datetime);
 extern bool MCS_datetimetoseconds(const MCDateTime& p_datetime, double& r_seconds);
 extern bool MCS_secondstodatetime(double p_seconds, MCDateTime& r_datetime);
+// OXT-Beyond: microseconds since midnight GMT, January 1, 1970, read from
+// the system clock with the finest resolution it has, for "the
+// microseconds" (MCS_time() has only milliseconds on Windows). Each
+// platform's date file has it: w32date.cpp, syscfdate.cpp, sysunxdate.cpp
+extern real8 MCS_microseconds(void);
 extern const MCDateTimeLocale *MCS_getdatetimelocale(void);     // REMOVE ME
 extern MCLocaleRef MCS_getsystemlocale();
 

@@ -1838,14 +1838,31 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 						*this = thesp;
 						MCerrorlock--;
 
-                        if (MCStringIsEmpty(gettoken_stringref()))
+						// OXT-Beyond: HyperXTalk's "the microseconds" (and
+						// its other names: MCMicrosecs::isname). As they are
+						// no keywords, the property parse above claims them
+						// first ("the microseconds of me" is the custom
+						// property it was), and what it leaves failed here
+						MCScriptPoint t_name(*this);
+						Symbol_type t_name_type;
+						if (t_name.next(t_name_type) == PS_NORMAL && t_name_type == ST_ID &&
+							MCMicrosecs::isname(t_name))
 						{
-							MCperror->add(PE_EXPRESSION_NOTFACT, *this);
-							return PS_ERROR;
+							next(type);
+							newfact = new (nothrow) MCMicrosecs;
+							newfact->parse(*this, doingthe);
 						}
+						else
+						{
+							if (MCStringIsEmpty(gettoken_stringref()))
+							{
+								MCperror->add(PE_EXPRESSION_NOTFACT, *this);
+								return PS_ERROR;
+							}
 
-						newfact = new (nothrow) MCFuncref(gettoken_nameref());
-						newfact->parse(*this, doingthe);
+							newfact = new (nothrow) MCFuncref(gettoken_nameref());
+							newfact->parse(*this, doingthe);
+						}
 					}
 					else
 						MCerrorlock--;
