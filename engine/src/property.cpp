@@ -405,6 +405,9 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
     DEFINE_RO_PROPERTY(P_LOADED_EXTENSIONS, ProperLinesOfString, Engine, LoadedExtensions)
 	
 	DEFINE_RO_ENUM_PROPERTY(P_SYSTEM_APPEARANCE, InterfaceSystemAppearance, Interface, SystemAppearance)
+	
+	// OXT-Beyond: stacks on macOS in the system's window colour
+	DEFINE_RW_PROPERTY(P_USE_SYSTEM_WINDOW_COLOR, Bool, Interface, UseSystemWindowColor)
 };
 
 static bool MCPropertyInfoTableLookup(Properties p_which, Boolean p_effective, const MCPropertyInfo*& r_info, bool p_is_array_prop)
@@ -943,6 +946,7 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
     // MW-2014-12-10: [[ Extensions ]] Add support for global loadedExtensions property.
     case P_LOADED_EXTENSIONS:
 	case P_SYSTEM_APPEARANCE:
+	case P_USE_SYSTEM_WINDOW_COLOR:
         break;
     
     case P_REV_LIBRARY_MAPPING:

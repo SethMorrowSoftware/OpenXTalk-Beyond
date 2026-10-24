@@ -28,6 +28,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "stack.h"
 #include "card.h"
 #include "field.h"
+#include "group.h"
 #include "scrolbar.h"
 #include "mcerror.h"
 #include "param.h"
@@ -38,13 +39,34 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 static MCWidgetScrollBarInfo themesbinfo;
 
+#if defined(_MACOSX)
+// OXT-Beyond: 'true' for the scrollbar of a field or of a group, 'false' for a
+//   scrollbar control (on a card or in a group).
+static bool MCScrollbarIsOwnedByControl(const MCScrollbar *p_scrollbar)
+{
+	MCObject *t_parent = p_scrollbar -> getparent();
+	if (t_parent == nil)
+		return false;
+	if (t_parent -> gettype() == CT_FIELD)
+		return true;
+	if (t_parent -> gettype() == CT_GROUP)
+		return static_cast<MCGroup *>(t_parent) -> ownsscrollbar(p_scrollbar);
+	return false;
+}
+#endif
+
 // MW-2011-09-06: [[ Redraw ]] Added 'sprite' option - if true, ink and opacity are not set.
 void MCScrollbar::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p_sprite)
 #if defined(_MACOSX) /* OXT-TOM: macOS */
 {
 	// Skip drawing entirely if scrollbar is disabled (content doesn't need scrolling)
 	// This prevents any track or thumb from being drawn
-	if (issbdisabled())
+	// OXT-Beyond: only the scrollbars of fields and groups, which hide when
+	//   there is nothing to scroll as the Mac's do (the field's frame leaves
+	//   their room out then, field.cpp). A scrollbar control, a slider or a
+	//   progress bar that is disabled, or whose thumbSize is its whole range,
+	//   is drawn, as on Windows and Linux; skipped, nothing of it showed.
+	if (issbdisabled() && MCScrollbarIsOwnedByControl(this))
 		return;
 	
 #else /* OXT-TOM: Windows */

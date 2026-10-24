@@ -196,6 +196,9 @@ public:
 	bool isbackground(void) const { return getflag(F_GROUP_ONLY) == False; }
 	// MW-2011-08-09: [[ Groups ]] Returns 'true' if the group is on/can be on multiple cards.
 	bool isshared(void) const { return getflag(F_GROUP_SHARED); }
+	// OXT-Beyond: Returns 'true' if p_scrollbar is one of the group's own
+	//   scrollbars (its hScrollbar or vScrollbar), not a control in it.
+	bool ownsscrollbar(const MCScrollbar *p_scrollbar) const { return p_scrollbar != nil && (p_scrollbar == vscrollbar || p_scrollbar == hscrollbar); }
 
 	// MW-2011-08-09: Ensure that all children of the group have non-zero id.
 	void ensureids(void);

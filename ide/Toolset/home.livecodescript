@@ -278,6 +278,15 @@ on revInternal__openStack
    -- OXT-Beyond: the automatic update check (oxtBeyondUpdater library) is off
    -- unless the user turns it on in Preferences > Automatic Updates.
    if the cUseAutoUpdates of stack "revPreferences" is empty then set the cUseAutoUpdates of stack "revPreferences" to false
+   -- OXT-Beyond: stacks on the Mac in the system's window colour instead of
+   -- white (Preferences > Appearance, which sets the global
+   -- useSystemWindowColor as well), off unless the user turns it on
+   if the cUseSystemWindowColor of stack "revPreferences" is not true then set the cUseSystemWindowColor of stack "revPreferences" to false
+   try
+      set the useSystemWindowColor to (the cUseSystemWindowColor of stack "revPreferences" is true)
+   catch tError
+      -- an engine without the property
+   end try
    -- added as of 13-4-24 (tperry)
    if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
    -- (cDisableBrowserWidget and cDisablePlayerTool: revInternal__InitialiseMediaTools)

@@ -274,6 +274,7 @@ extern Boolean MCsystemFS;
 extern Boolean MCsystemCS;
 extern Boolean MCsystemPS;
 extern Boolean MChidewindows;
+extern Boolean MCusesystemwindowcolor;
 extern Boolean MCbufferimages;
 extern MCStringRef MCserialcontrolsettings;
 extern MCStringRef MCshellcmd;

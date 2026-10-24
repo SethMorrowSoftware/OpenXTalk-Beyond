@@ -1,0 +1,53 @@
+Name: useSystemWindowColor
+
+Type: property
+
+Syntax: set the useSystemWindowColor to {true | false}
+
+Syntax: get the useSystemWindowColor
+
+Summary:
+Specifies whether <stack|stacks> on macOS are drawn in the system's
+window colour instead of white.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, html5
+
+Platforms: desktop
+
+Example:
+set the useSystemWindowColor to true
+
+Example:
+if the platform is "MacOS" then set the useSystemWindowColor to true
+
+Value (bool):
+The <useSystemWindowColor> is true or false. By default, it is false.
+
+Description:
+Use the <useSystemWindowColor> property to give the <stack|stacks> of an
+application on macOS the light grey of the Mac's own windows.
+
+On macOS, a <stack> whose <backgroundColor> is not set is drawn in white,
+as it always has been. When the <useSystemWindowColor> is true, such a
+<stack> is drawn in the system's window colour instead: light grey, or
+the dark grey of dark mode when the Mac uses dark mode, following the
+change when the user switches between them. A <stack>, <card> or
+<control> with a <backgroundColor> of its own keeps it.
+
+Setting the <useSystemWindowColor> redraws every open <stack>. It is a
+global property: it is not saved with a <stack>, so an application that
+wants it sets it when it starts, for example in its <openStack>
+<handler>. The development environment sets it from the "Use the Mac's
+window colour for stacks" setting in the General pane of its
+Preferences.
+
+On Windows and Linux, a <stack> whose <backgroundColor> is not set is
+already drawn in the system's window colour, and the
+<useSystemWindowColor> changes nothing there.
+
+References: backgroundColor (property), systemAppearance (property),
+systemAppearanceChanged (message), openStack (message)
+
+Tags: ui

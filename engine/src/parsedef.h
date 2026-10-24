@@ -1765,6 +1765,9 @@ enum Properties {
     // OXT-Beyond: a stack's hyperTalkCompatible
     P_HYPERTALK_COMPATIBLE,
     
+    // OXT-Beyond: the global useSystemWindowColor
+    P_USE_SYSTEM_WINDOW_COLOR,
+    
     __P_LAST,
 };
 

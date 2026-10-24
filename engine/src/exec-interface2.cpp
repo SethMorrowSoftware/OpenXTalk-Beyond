@@ -1725,6 +1725,40 @@ void MCInterfaceGetSystemAppearance(MCExecContext& ctxt, intenum_t& r_value)
 	r_value = (intenum_t)t_appearance;
 }
 
+// OXT-Beyond: the useSystemWindowColor. When true, a stack on macOS with no
+// backgroundColor of its own is drawn in the system's window colour (light
+// grey, or dark in dark mode) instead of the white LiveCode has always used
+// there (mac-theme.mm). False by default, so that existing stacks look as
+// they did; Windows and Linux use the system's window colour already, so it
+// changes nothing there. Every open stack is redrawn when it changes.
+void MCInterfaceGetUseSystemWindowColor(MCExecContext& ctxt, bool& r_value)
+{
+	r_value = MCusesystemwindowcolor == True;
+}
+
+void MCInterfaceSetUseSystemWindowColor(MCExecContext& ctxt, bool p_value)
+{
+	Boolean t_value = p_value ? True : False;
+	if (t_value == MCusesystemwindowcolor)
+		return;
+	MCusesystemwindowcolor = t_value;
+	
+	if (MCstacks == nil)
+		return;
+	MCStacknode *t_node = MCstacks->topnode();
+	if (t_node != nil)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node->getstack();
+			if (t_stack != NULL)
+				t_stack->dirtyall();
+			t_node = t_node->next();
+		} while (t_node != nil && t_node != t_start);
+	}
+}
+
 void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color)
 {
 	get_interface_color(MCselectioncolor, MCselectioncolorname, r_color);
