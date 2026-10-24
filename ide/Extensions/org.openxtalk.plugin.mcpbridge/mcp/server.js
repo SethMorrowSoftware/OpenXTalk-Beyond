@@ -558,7 +558,14 @@ class Bridge {
         this.token = info.token;
         this.buffer = '';
         socket.on('data', (chunk) => this.onData(chunk));
-        socket.on('close', () => this.onClose());
+        // Only while calls go on it: a connection close() let go can close
+        // after the next one is made (a call queued behind one that timed
+        // out connects at once), and would take that one's call with it
+        socket.on('close', () => {
+          if (this.socket === socket) {
+            this.onClose();
+          }
+        });
         socket.on('error', (e) => log('socket: ' + e.message));
         resolve();
       });

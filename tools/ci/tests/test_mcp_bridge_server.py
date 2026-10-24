@@ -70,11 +70,15 @@ def ide_tools():
 class FakeOXT:
     """OXT-Beyond's side: answers each line with handler(request)."""
 
-    def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0, status=None):
+    def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0, status=None,
+                 held_up=False):
         self.handler = handler
         # What a status says (mcbStatusText); None answers it as an
         # OXT-Beyond that has no status does
         self.status = status
+        # True: a status gets no answer at all, as from an OXT-Beyond held
+        # up in code that does not end, which reads nothing meanwhile
+        self.held_up = held_up
         self.token = token
         self.tools = ide_tools() if tools is None else tools
         self.hello_delay = hello_delay
@@ -113,6 +117,8 @@ class FakeOXT:
                     line, data = data.split(b'\n', 1)
                     request = json.loads(line.decode('utf-8'))
                     self.requests.append(request)
+                    if self.held_up and request.get('method') == 'status':
+                        continue
                     with self.lock:
                         self.in_flight += 1
                         self.most_in_flight = max(self.most_in_flight, self.in_flight)
@@ -354,7 +360,8 @@ class McpBridgeServerBase(unittest.TestCase):
             json.dump(info, f)
 
     def start_server(self, args=(), loaded=False, **settings):
-        env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000', **settings)
+        env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000')
+        env.update(settings)
         # loaded: started by a script that loads server.js, as the Node.js
         # built into Claude's desktop app may, so require.main is not it
         command = [NODE, '-e', 'require(process.argv[1])', SERVER] if loaded else [NODE, SERVER]
@@ -519,6 +526,32 @@ class McpBridgeServerTest(McpBridgeServerBase):
         result = self.call('run_code', {'code': 'put 1'})
         self.assertTrue(result['isError'])
         self.assertIn('closed the connection', result['content'][0]['text'])
+
+    def test_a_call_queued_behind_one_that_timed_out_gets_its_answer(self):
+        # The first call is not answered, nor the status asked after it
+        # timed out; the call queued behind it goes on a new connection,
+        # which OXT-Beyond answers. Until 0.2.7-rc.6.4 the first
+        # connection, let go after the status, closed after the new one
+        # was made, and the queued call was told "closed the connection".
+        def handler(request):
+            if request['tool'] == 'run_code':
+                time.sleep(5)
+                return None
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, held_up=True)
+        self.start_server(OXT_MCP_TIMEOUT_MS='1000')
+        self.initialize()
+        first = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}})
+        second = self.send('tools/call', {'name': 'list_stacks', 'arguments': {}})
+        replies = {}
+        for _ in range(2):
+            reply = self.receive()
+            replies[reply['id']] = reply['result']
+        self.assertTrue(replies[first]['isError'])
+        self.assertIn('did not answer in 1 seconds', replies[first]['content'][0]['text'])
+        self.assertEqual(replies[second]['content'][0]['text'], 'list_stacks')
+        self.assertFalse(replies[second]['isError'])
+        self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code', 'list_stacks'])
 
     def test_calls_go_one_at_a_time(self):
         def handler(request):
