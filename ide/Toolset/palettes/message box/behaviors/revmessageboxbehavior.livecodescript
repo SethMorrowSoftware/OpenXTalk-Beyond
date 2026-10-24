@@ -109,6 +109,8 @@ on openStack
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,fontSize"
    
    revIDESubscribe "ideActiveStacksChanged"
+   -- OXT-Beyond: the lists' rows follow a switch between light and dark
+   revIDESubscribe "ideSystemAppearanceChanged"
    
    if revIDEGetPreference("revPaletteFrameSize") is empty then revIDESetPreference "revPaletteFrameSize", "small"
    
@@ -201,6 +203,35 @@ command setUpDataView
    set the viewProp["cache"] of group "objectList" of me to "none"
    unlock screen
 end setUpDataView
+
+-- OXT-Beyond: the desktop switched between light and dark. The lists
+-- (Front Scripts, Back Scripts, Pending Messages and Stacks in Use) take
+-- their rows' colours and their text's when a card opens (its
+-- preOpenCard), so the one shown is set up and drawn again as it is
+-- there; before, it kept the other appearance's colours until another
+-- card was shown. The others are done when they open, as before. (This
+-- arrives in 0 milliseconds, with another stack perhaps the defaultStack,
+-- and the cards' scripts name some of their fields plainly, so the
+-- Message Box is the defaultStack meanwhile.)
+on ideSystemAppearanceChanged
+   local tOldDefault
+   switch lSelectedCard
+      case "Front Scripts"
+      case "Back Scripts"
+      case "Pending Messages"
+      case "Stacks in Use"
+         if the short name of this card of me is not lSelectedCard then break
+         put the defaultStack into tOldDefault
+         set the defaultStack to the short name of me
+         lock screen
+         setUpDataView
+         send "getDataArray" to card lSelectedCard of me
+         send "renderView" to group "objectList" of card lSelectedCard of me
+         unlock screen
+         if there is a stack tOldDefault then set the defaultStack to tOldDefault
+         break
+   end switch
+end ideSystemAppearanceChanged
 
 command showCard pCard
    lock screen
