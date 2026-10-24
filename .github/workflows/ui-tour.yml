@@ -103,12 +103,13 @@ jobs:
           echo "PACKAGE=$(pwd -W 2>/dev/null || pwd)/$(ls *-"$ASSET")" >> "$GITHUB_ENV"
 
       # The runtime libraries, Xvfb, and the Adwaita GTK 2 themes, light and
-      # dark, as a desktop Linux has them
+      # dark, as a desktop Linux has them; xdotool closes the menu of the
+      # tour's menu-marks step
       - name: Install Xvfb, the GTK themes and the runtime libraries
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          pkgs=(xvfb xauth gnome-themes-extra gtk2-engines-pixbuf fonts-dejavu-core)
+          pkgs=(xvfb xauth gnome-themes-extra gtk2-engines-pixbuf fonts-dejavu-core xdotool)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
