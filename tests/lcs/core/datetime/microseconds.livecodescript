@@ -29,9 +29,10 @@ on TestTheMicroseconds
    put the milliseconds into tMsAfter
    TestDiagnostic "the microseconds:" && tUs
    TestAssert "the microseconds is a whole number", tUs is an integer
-   -- On Windows the milliseconds counts from the time the engine started,
-   -- with timeGetTime, and the microseconds reads the system time, so the
-   -- two can drift apart when the clock is set: a minute is plenty
+   -- On Windows the milliseconds reads the system time when the engine
+   -- starts and counts on from there with timeGetTime, while the
+   -- microseconds reads the system time each time, so the two can drift
+   -- apart when the clock is set: a minute is plenty
    TestAssert "the microseconds counts from the same time as the milliseconds", \
          tUs >= (tMsBefore - 60000) * 1000 and tUs <= (tMsAfter + 60000) * 1000
    if the platform is not "win32" then

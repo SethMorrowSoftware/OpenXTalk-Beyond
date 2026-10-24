@@ -45,9 +45,11 @@ on macOS and Linux, and to a fraction of a microsecond on Windows 8 and
 later (to the clock's tick, about 16 milliseconds, on Windows 7). In a
 web browser, it counts in whole milliseconds.
 
-On Windows the <milliseconds> counts from the time the engine started,
-and the <microseconds> reads the system time, so the two can drift apart
-when the clock is set. Use one or the other to time an <event>.
+On Windows the <milliseconds> reads the system time when the engine
+starts (and again after the computer sleeps) and counts on from there,
+while the <microseconds> reads the system time each time, so the two can
+drift apart when the clock is set. Use one or the other to time an
+<event>.
 
 The <microseconds> can be written only with `the` before it.
 <microseconds> is not a reserved word: a <variable>, a <handler>, a
