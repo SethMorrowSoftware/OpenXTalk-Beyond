@@ -764,6 +764,46 @@ void MCButton::drawlabel(MCDC *dc, int2 sx, int sy, uint2 twidth, const MCRectan
 	}
 }
 
+#if defined(TARGET_PLATFORM_LINUX)
+// OXT-Beyond: whether one of the engine's menu items sits on a dark menu of
+// the desktop's theme. A menu item's tick, its radio dot and a submenu's
+// arrow are white on a dark appearance and black on a light one (tperry,
+// January 2026). Linux's systemAppearance is always light, though
+// (MCUIDC::getsystemappearance): a dark GTK theme comes in as the theme's
+// colours, not as an appearance, so they were black on a dark theme's menu
+// (forum, tperry2x, rc.6.3: File > Import Stack's HyperCard options looked
+// unticked). There the theme's colour behind the item decides. A light
+// theme's menu, a menu whose item, button or stack has a background colour
+// or pattern of its own, and a stack used as a menu keep their black marks,
+// as before
+static bool MCButtonMenuItemIsOnDarkTheme(MCButton *p_item, MCDC *p_dc)
+{
+	if (p_item -> getmenucontrol() != MENUCONTROL_ITEM)
+		return false;
+
+	// The objects getforecolor looks to for the colour, in its order
+	for (MCObject *t_object = p_item; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+	{
+		uint2 t_index;
+		if (t_object -> getcindex(DI_BACK, t_index) || t_object -> getpindex(DI_BACK, t_index))
+			return false;
+	}
+
+	// The theme's colour, which the item fills its background with
+	// (MCButton::draw: menu items are opaque)
+	MCColor t_color;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (!p_item -> getforecolor(DI_BACK, False, False, t_color, t_pattern, t_x, t_y, p_dc -> gettype(), p_item))
+		return false;
+
+	// Rec. 601 luma, out of 65535
+	uint32_t t_luma;
+	t_luma = (299 * uint32_t(t_color . red) + 587 * uint32_t(t_color . green) + 114 * uint32_t(t_color . blue)) / 1000;
+	return t_luma < 32768;
+}
+#endif
+
 void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 {
 	MCRectangle trect;
@@ -909,6 +949,13 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 			{
 				MCSystemAppearance t_appearance;
 				MCscreen->getsystemappearance(t_appearance);
+#if defined(TARGET_PLATFORM_LINUX)
+				// OXT-Beyond: a menu item's tick, on Linux by the theme's
+				// menu (MCButtonMenuItemIsOnDarkTheme); a check box's stays
+				// black on its white box
+				if (MCButtonMenuItemIsOnDarkTheme(this, dc))
+					t_appearance = kMCSystemAppearanceDark;
+#endif
 				if (t_appearance == kMCSystemAppearanceDark)
 					dc->setforeground(dc->getwhite());
 				else
@@ -1098,6 +1145,13 @@ void MCButton::drawradio(MCDC *dc, MCRectangle &srect, Boolean white)
 				{
 					if (white && state & CS_ARMED)
 						dc->setforeground(dc->getwhite());
+#if defined(TARGET_PLATFORM_LINUX)
+					// OXT-Beyond: a menu item's dot, which has no circle
+					// behind it, white on a dark theme's menu, as the tick
+					// in drawcheck (MCButtonMenuItemIsOnDarkTheme)
+					else if (MCButtonMenuItemIsOnDarkTheme(this, dc))
+						dc->setforeground(dc->getwhite());
+#endif
 					else
 						dc->setforeground(dc->getblack());
 					dc->setfillstyle(FillSolid, nil, 0, 0);
@@ -1334,6 +1388,12 @@ void MCButton::drawcascade(MCDC *dc, MCRectangle &srect)
 		//-- tperry 21st January 2026: Make cascade arrow dark mode aware
 		MCSystemAppearance t_appearance;
 		MCscreen->getsystemappearance(t_appearance);
+#if defined(TARGET_PLATFORM_LINUX)
+		// OXT-Beyond: a submenu's arrow, on Linux by the theme's menu, as
+		// the tick in drawcheck (MCButtonMenuItemIsOnDarkTheme)
+		if (MCButtonMenuItemIsOnDarkTheme(this, dc))
+			t_appearance = kMCSystemAppearanceDark;
+#endif
 		if (t_appearance == kMCSystemAppearanceDark)
 			dc->setforeground(dc->getwhite());
 		else
