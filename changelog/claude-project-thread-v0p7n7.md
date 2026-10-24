@@ -1,2 +1,0 @@
-- Dark mode: the Tools palette (either look) changes with a switch between light and dark, instead of keeping the other appearance until the look was turned off and on (#PR)
-- Dark mode: the Message Box's Front Scripts, Back Scripts, Pending Messages and Stacks in Use lists change with a switch between light and dark, instead of only when another tab was shown (#PR)
