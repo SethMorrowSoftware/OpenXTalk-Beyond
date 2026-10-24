@@ -14,6 +14,13 @@ constant kTmCaptionHeight = 24
 constant kTmWideCell = 48
 constant kTmSmallCell = 30
 constant kTmCellHeight = 30
+-- A widget's tile without its name: the widget's icon, an SVG path that
+-- draws at any size, with 4 points around it. The controls' and the
+-- tools' icons are pictures and stay at their own size. (The widgets'
+-- icons were 20 points in tiles of 48 by 30, small and far apart:
+-- openxtalk.org, October 2026.)
+constant kTmWidgetIcon = 26
+constant kTmWidgetCell = 34
 constant kTmNameCell = 150
 -- A tile with its name: tall enough for a name on two lines of 10 points
 -- (30, with the insets of kTmTextInset), one point over and under it;
@@ -2913,8 +2920,8 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    if pItem["svgicon"] is not empty and pView is not "runedit" then
       create widget ("tmIcon:" & pTypeID) as "com.livecode.widget.svgpath" in group tGroup of me
       put it into tObj
-      set the width of tObj to tmSize(BLOCK_SIZE)
-      set the height of tObj to tmSize(BLOCK_SIZE)
+      set the width of tObj to tmSize(kTmWidgetIcon)
+      set the height of tObj to tmSize(kTmWidgetIcon)
       set the iconPath of tObj to pItem["svgicon"]
       set the foregroundColor of tObj to tmColor("icon")
       if pItem["status"] is "error" then set the blendLevel of tObj to 50
@@ -3176,6 +3183,9 @@ command tmLayout
       if tNames then
          put kTmNameCell into tCellW
          put tmSize(kTmNameHeight) into tCellH
+      else if tKey is "widget" then
+         put tmSize(kTmWidgetCell) into tCellW
+         put tmSize(kTmWidgetCell) into tCellH
       else if tWide then
          put tmSize(kTmWideCell) into tCellW
          put tmSize(kTmCellHeight) into tCellH

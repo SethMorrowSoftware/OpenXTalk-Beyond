@@ -7,7 +7,7 @@ script "oxt_ui_tour"
 -- It waits for the IDE to finish starting, records the system's
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
--- first size, wide, and with its names, and checks of how that look
+-- first size, wide, with its names and with Large Icons, and checks of how that look
 -- behaves: tools-modern-check, -sizes, -use and -switch), a stack of
 -- the user with the usual controls (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
@@ -52,7 +52,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -233,6 +233,21 @@ on tour_tools_modern_names
    end if
    tourToolsClassic
 end tour_tools_modern_names
+
+-- Large Icons, chosen in the palette's menu as a user does: the icons and
+-- the tiles half as large again, and the palette as wide as two columns
+-- need (a palette without the option is snapshotted as it is)
+on tour_tools_modern_large
+   if tourToolsModern(empty, false) then
+      revIDESetPreference "revTools_modernLarge", false
+      dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+      tourWait 500
+      tourRecord "INFO tools-modern-large" && revIDEGetPreference("revTools_modernLarge") && "rect" && the rect of stack "revTools"
+      tourShotStack "revTools", "01-tools-modern-large"
+      revIDESetPreference "revTools_modernLarge", false
+   end if
+   tourToolsClassic
+end tour_tools_modern_large
 
 -- Turns the modern look on, at its first size or pWidth wide, with or
 -- without names; false when the palette has no modern look
