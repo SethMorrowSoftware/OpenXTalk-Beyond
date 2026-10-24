@@ -1,0 +1,14 @@
+# Menu Builder, "New Main Menu": TerryL turned this call off in December
+# 2023 because revSetEdited, which it called, does not exist and stopped
+# the button. With the IDE's handler, revIDESetEdited, which LiveCode
+# 9.6.3's Menu Builder calls here, the stack that gets the new menu bar is
+# marked as changed again.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revmenumanager.rev
+object: button "New Main Menu" of card "Menu Manager"
+replace:
+|   --revSetEdited tDefaultStack  --TL 12/23, there is no revSetEdited custom cmd, blocks line 169-179.|
+with:
+|   -- OXT-Beyond: the IDE's handler is revIDESetEdited (TerryL turned this|
+|   -- off in 12/23: "there is no revSetEdited custom cmd")|
+|   revIDESetEdited tDefaultStack|

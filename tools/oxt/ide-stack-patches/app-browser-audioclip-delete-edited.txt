@@ -1,0 +1,13 @@
+# App Browser (Plugins), the Audioclip menu's Delete: after deleting the
+# clips it called revSetEdited, a handler that does not exist, so it
+# stopped with "can't find handler" and the stack was not marked as
+# changed. The IDE's handler is revIDESetEdited, as in the Menu Builder
+# (revmenumanager-set-edited.txt).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Plugins/App Browser.livecode
+object: button "Audioclip Popup" of card "Cards and Controls"
+replace:
+|    revSetEdited (the short name of stack gREVStackName)|
+with:
+|    -- OXT-Beyond: the IDE's handler (it was revSetEdited, which does not exist)|
+|    revIDESetEdited (the short name of stack gREVStackName)|

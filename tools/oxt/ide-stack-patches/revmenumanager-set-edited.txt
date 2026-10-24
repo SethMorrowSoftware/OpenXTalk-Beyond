@@ -1,0 +1,16 @@
+# Menu Builder: when it opened on a stack with a menu bar, revEditMenubar
+# called revSetEdited, a handler that does not exist ("can't find
+# handler"), so it stopped halfway: the lists of menus and items were
+# never set up, the stack's hcAddressing was not set back and the screen
+# stayed locked (forum, tperry2x, rc.6.3: "has gone a bit weird"). The
+# IDE's handler is revIDESetEdited, which LiveCode 9.6.3's Menu Builder
+# calls here; it marks the stack as changed.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revmenumanager.rev
+object: card "Menu Manager"
+replace:
+|   revSetEdited tDefaultStack|
+with:
+|   -- OXT-Beyond: the IDE's handler (it was revSetEdited, which does not|
+|   -- exist, so the Menu Builder stopped here)|
+|   revIDESetEdited tDefaultStack|
