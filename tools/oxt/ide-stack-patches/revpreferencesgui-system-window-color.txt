@@ -1,0 +1,60 @@
+# Preferences, card "Appearance": on the Mac, a check box "Stacks in the
+# Mac's window colour", which turns the global useSystemWindowColor on and
+# off (a stack with no backgroundColor of its own is then drawn in the
+# Mac's light grey window colour, or dark grey in dark mode, instead of
+# white) and keeps the choice in the preference cUseSystemWindowColor, which
+# home.livecodescript applies when the IDE starts. A patch cannot add a
+# control to the stack file, so the card makes the check box itself the
+# first time it opens on the Mac, as a copy of its "Grid enabled" check
+# box, above it in the right-hand column where nothing else is. On Windows
+# and Linux the property changes nothing (their stacks are in the system's
+# window colour already) and the check box is not made. The property is
+# set with "do", so that the script also compiles in an engine without it
+# (the one that applies this patch, for one).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: card "Appearance"
+replace:
+|   set the opaque of btn "tArrowBtn" of cd "Appearance" of stack "revPreferencesGUI" to false|
+|   |
+|end preOpenCard|
+with:
+|   set the opaque of btn "tArrowBtn" of cd "Appearance" of stack "revPreferencesGUI" to false|
+|   |
+|   -- OXT-Beyond: the Mac's window colour for stacks (the global|
+|   -- useSystemWindowColor)|
+|   oxtPrefsSystemWindowColorBox|
+|end preOpenCard|
+||
+|-- OXT-Beyond: makes the check box for the preference cUseSystemWindowColor|
+|-- on the Mac (once; the stack file is not saved) and shows its setting|
+|on oxtPrefsSystemWindowColorBox|
+|   local tBox, tRect|
+|   if the platform is not "MacOS" then exit oxtPrefsSystemWindowColorBox|
+|   if there is not a button "useSystemWindowColor" of me then|
+|      lock messages|
+|      copy button "gridCheckAtStartup" of me to group "Appearance" of me|
+|      put it into tBox|
+|      set the name of tBox to "useSystemWindowColor"|
+|      set the label of button "useSystemWindowColor" of me to "Stacks in the Mac's window colour"|
+|      set the toolTip of button "useSystemWindowColor" of me to "Stacks with no background colour of their own are light grey, as Mac windows are, or dark grey in dark mode, instead of white"|
+|      put the rect of button "gridCheckAtStartup" of me into tRect|
+|      put item 2 of tRect - 33 into item 2 of tRect|
+|      put item 4 of tRect - 33 into item 4 of tRect|
+|      put item 1 of tRect + 260 into item 3 of tRect|
+|      set the rect of button "useSystemWindowColor" of me to tRect|
+|      set the script of button "useSystemWindowColor" of me to "on mouseUp" & return & "   oxtPrefsSetSystemWindowColor the hilite of me" & return & "end mouseUp"|
+|      unlock messages|
+|   end if|
+|   set the hilite of button "useSystemWindowColor" of me to (the cUseSystemWindowColor of stack "revPreferences" is true)|
+|end oxtPrefsSystemWindowColorBox|
+||
+|on oxtPrefsSetSystemWindowColor pValue|
+|   local tError|
+|   revIDESetPreference "cUseSystemWindowColor", (pValue is true)|
+|   try|
+|      do "set the useSystemWindowColor to" && (pValue is true)|
+|   catch tError|
+|      -- an engine without the property|
+|   end try|
+|end oxtPrefsSetSystemWindowColor|

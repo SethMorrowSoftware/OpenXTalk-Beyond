@@ -353,6 +353,8 @@ Boolean MCsystemFS = True;
 Boolean MCsystemCS = True;
 Boolean MCsystemPS = True;
 Boolean MChidewindows;
+// OXT-Beyond: the useSystemWindowColor (mac-theme.mm, the window background)
+Boolean MCusesystemwindowcolor;
 Boolean MCbufferimages;
 MCStringRef MCserialcontrolsettings;
 MCStringRef MCshellcmd;
@@ -739,6 +741,7 @@ void X_clear_globals(void)
 	MCsystemCS = True;
 	MCsystemPS = True;
 	MChidewindows = False;
+	MCusesystemwindowcolor = False;
 	MCbufferimages = False;
 	MCserialcontrolsettings = MCValueRetain(kMCEmptyString);
 	MCshellcmd = MCValueRetain(kMCEmptyString);

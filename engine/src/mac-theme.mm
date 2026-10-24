@@ -32,6 +32,9 @@
 #include "font.h"
 
 #import <AppKit/NSColor.h>
+#import <AppKit/NSColorSpace.h>
+#import <AppKit/NSAppearance.h>
+#import <AppKit/NSApplication.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSImageRep.h>
 #import <CoreText/CoreText.h>
@@ -159,6 +162,32 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatfo
     }
     
     return t_found;
+}
+
+// OXT-Beyond: [NSColor windowBackgroundColor] as a plain RGB colour, as the
+// app's appearance (light or dark) shows it, or nil. It is a dynamic colour,
+// which a conversion outside a drawing appearance may not resolve, so it is
+// converted inside one.
+static NSColor *MCMacResolveWindowBackgroundColor(void)
+{
+    __block NSColor *t_resolved = nil;
+    if (@available(macOS 11.0, *))
+    {
+        [[NSApp effectiveAppearance] performAsCurrentDrawingAppearance:^{
+            t_resolved = [[[NSColor windowBackgroundColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]] retain];
+        }];
+        [t_resolved autorelease];
+    }
+    else if (@available(macOS 10.14, *))
+    {
+        NSAppearance *t_old = [NSAppearance currentAppearance];
+        [NSAppearance setCurrentAppearance:[NSApp effectiveAppearance]];
+        t_resolved = [[NSColor windowBackgroundColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+        [NSAppearance setCurrentAppearance:t_old];
+    }
+    else
+        t_resolved = [[NSColor windowBackgroundColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    return t_resolved;
 }
 
 bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
@@ -296,6 +325,17 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                         /* FALLTHROUGH */
                         
                     case kMCPlatformControlTypeMessageBox:
+                        // OXT-Beyond: with the useSystemWindowColor true, the
+                        // system's window colour itself (light grey, or dark
+                        // in dark mode), resolved in the app's appearance;
+                        // otherwise white, as below, as stacks always were
+                        if (MCusesystemwindowcolor)
+                        {
+                            t_color = MCMacResolveWindowBackgroundColor();
+                            if (t_color != nil)
+                                break;
+                        }
+                        
                         // windowBackgroundColor is a pattern
                         t_is_pattern = true;
                         t_color = [NSColor windowBackgroundColor];

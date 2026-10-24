@@ -9,7 +9,10 @@ script "oxt_ui_tour"
 -- windows one by one: the Tools palette (also in its modern look, at its
 -- first size, wide, and with its names, and checks of how that look
 -- behaves: tools-modern-check, -sizes, -use and -switch), a stack of
--- the user with the usual controls (and stacks opened with their title
+-- the user with the usual controls, a second one whose controls the
+-- pixels of the screen are checked on (controls: the frames of empty
+-- fields, the tabs, a scrollbar with nothing to scroll, sliders, and on
+-- the Mac the useSystemWindowColor) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
 -- title-bar), the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
@@ -52,8 +55,9 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
+constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
 constant kButtonSections = "Basic,Icons,Colors,Text,Position,Effects,Custom,Advanced"
@@ -823,6 +827,239 @@ on tour_sample
    tourWait 800
    tourShotStack kSample, "04-sample-stack"
 end tour_sample
+
+-- The controls whose drawing went wrong on macOS 10.14 and later, where
+-- the engine draws them with AppKit (engine/src/osxtheme.mm), checked by
+-- the pixels on the screen, on every platform: an empty text field and an
+-- empty list field have a frame that shows on the card (it was white on
+-- white), a tabbed button draws its tabs (only the names showed), a
+-- scrollbar whose thumbSize is its whole range draws its track (nothing of
+-- it showed), a slider draws all its knob (the top and bottom were cut
+-- off), and a disabled one is drawn too. On the Mac the global
+-- useSystemWindowColor makes the card the system's window colour and
+-- back. A check that fails names what it saw, and fails the step.
+local sCtlChecks, sCtlFails, sPixWidth, sPixHeight, sPixData
+on tour_controls
+   local tStack, tBack, tInside, tWhere, tMax, tExtent, tOn, tOff, tError
+   put 0 into sCtlChecks
+   put empty into sCtlFails
+   put tourControlsStack() into tStack
+   go tStack
+   tourWait 800
+   tourShotStack kControls, "04b-controls"
+   
+   -- The card's own colour, where nothing is
+   tourGrab "Back"
+   put tourLum(10, 10) into tBack
+   tourRecord "INFO controls: the card is" && tBack && "(the luminance of its pixels, 0 to 255)"
+   
+   repeat for each item tWhere in "Empty,EmptyList"
+      tourGrab tWhere
+      -- the frame: a point of the outer three along the left and top edges
+      -- that differs both from the card and from the field's inside (in
+      -- the dark the inside is darker than the card)
+      put tourLum(sPixWidth div 2, sPixHeight div 2) into tInside
+      put max(tourFramePoints(0, 0, 3, sPixHeight, tBack, tInside), \
+            tourFramePoints(0, 0, sPixWidth, 3, tBack, tInside)) into tMax
+      tourCtlCheck tMax > 0, "the field" && tWhere && "has a frame that shows on the card (the card" && tBack & ", the inside" && tInside & ")"
+   end repeat
+   
+   -- The tabs: the column three points in from the left of the first tab,
+   -- left of its name, from the top to below the tabs
+   tourGrab "Tabs"
+   put tourMaxDiff(3, 0, 4, 30, tBack) into tMax
+   tourCtlCheck tMax >= 24, "the tabs are drawn (" & tMax & ")"
+   
+   tourGrab "Track"
+   put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
+   tourCtlCheck tMax >= 12, "a scrollbar with nothing to scroll draws its track (" & tMax & ")"
+   
+   tourGrab "Scroll"
+   put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
+   tourCtlCheck tMax >= 24, "a scrollbar with something to scroll is drawn (" & tMax & ")"
+   
+   repeat for each item tWhere in "Slider,SliderOff"
+      tourGrab tWhere
+      put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
+      put tourRowsDrawn(tBack, 24) into tExtent
+      tourRecord "INFO controls:" && tWhere && "differs by" && tMax && "and is drawn in rows" && tExtent && "of 0 to" && sPixHeight - 1
+      tourCtlCheck tMax >= 24, "the slider" && tWhere && "is drawn (" & tMax & ")"
+      -- The knob of a slider is taller than its track: cut off on the Mac,
+      -- the drawing ended two points in from the top and bottom, 14 high
+      if tWhere is "Slider" and the platform is "MacOS" then
+         tourCtlCheck tExtent is not empty and item 2 of tExtent - item 1 of tExtent + 1 >= 16, \
+               "the knob of the slider is drawn whole (rows" && tExtent & ")"
+      end if
+   end repeat
+   
+   -- The window colour: on the Mac the card turns the system's window colour
+   -- and back; elsewhere nothing changes
+   try
+      do "set the useSystemWindowColor to true"
+      tourWait 500
+      tourGrab "Back"
+      put tourLum(10, 10) into tOn
+      tourShotStack kControls, "04c-controls-window-color"
+      do "set the useSystemWindowColor to false"
+      tourWait 500
+      tourGrab "Back"
+      put tourLum(10, 10) into tOff
+      tourRecord "INFO controls: the card with the useSystemWindowColor:" && tOn & ", without:" && tOff
+      if the platform is "MacOS" then
+         tourCtlCheck abs(tOn - tBack) >= 6, "the useSystemWindowColor makes the card the window colour (" & tBack && "to" && tOn & ")"
+      else
+         tourCtlCheck abs(tOn - tBack) < 3, "the useSystemWindowColor changes nothing here (" & tBack && "to" && tOn & ")"
+      end if
+      tourCtlCheck abs(tOff - tBack) < 3, "the card is its own colour again without the useSystemWindowColor (" & tBack && "to" && tOff & ")"
+   catch tError
+      tourCtlCheck false, "the useSystemWindowColor:" && tourJoin(tError)
+   end try
+   
+   tourRecord "INFO controls:" && sCtlChecks && "checks," && the number of lines of sCtlFails && "failed"
+   delete stack kControls
+   if sCtlFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of sCtlFails)
+end tour_controls
+
+command tourCtlCheck pTrue, pWhat
+   add 1 to sCtlChecks
+   if pTrue is not true then put pWhat & return after sCtlFails
+end tourCtlCheck
+
+-- The stack of the step controls, each control on the card's own colour
+-- (no colours of their own, as a user's stack has them)
+function tourControlsStack
+   local tDefault
+   if there is a stack kControls then return the long id of stack kControls
+   put the defaultStack into tDefault
+   lock screen
+   lock messages
+   create stack kControls
+   set the rect of it to "240,160,700,500"
+   set the defaultStack to kControls
+   -- where nothing is, for the card's colour
+   create graphic "Back"
+   set the style of it to "rectangle"
+   set the rect of it to "420,300,450,330"
+   set the visible of it to false
+   create field "Empty"
+   set the rect of it to "20,20,200,80"
+   create field "EmptyList"
+   set the listBehavior of it to true
+   set the rect of it to "220,20,400,80"
+   create button "Tabs"
+   set the style of it to "menu"
+   set the menuMode of it to "tabbed"
+   set the text of it to "One" & return & "Two" & return & "Three"
+   set the rect of it to "20,100,260,190"
+   create scrollbar "Track"
+   set the rect of it to "280,100,440,116"
+   set the endValue of it to 100
+   set the thumbSize of it to 100
+   create scrollbar "Scroll"
+   set the rect of it to "280,130,440,146"
+   set the endValue of it to 100
+   set the thumbSize of it to 20
+   set the thumbPosition of it to 30
+   create scrollbar "Slider"
+   set the style of it to "scale"
+   set the showValue of it to false
+   set the rect of it to "20,210,260,240"
+   set the endValue of it to 100
+   set the thumbPosition of it to 40
+   create scrollbar "SliderOff"
+   set the style of it to "scale"
+   set the showValue of it to false
+   set the rect of it to "20,250,260,280"
+   set the endValue of it to 100
+   set the thumbPosition of it to 70
+   set the enabled of it to false
+   create button "Tall"
+   set the rect of it to "280,210,440,260"
+   unlock messages
+   unlock screen
+   set the defaultStack to tDefault
+   return the long id of stack kControls
+end tourControlsStack
+
+-- The pixels of the screen where the control pName of the controls stack
+-- is: sPixWidth by sPixHeight points, sPixData their imageData (four bytes
+-- a point: one unused, then red, green and blue)
+command tourGrab pName
+   local tDefault, tRect, tTopLeft, tImage
+   tourUnlockScreen "controls"
+   put the defaultStack into tDefault
+   set the defaultStack to kControls
+   put the rect of control pName of card 1 of stack kControls into tRect
+   put globalLoc(item 1 to 2 of tRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, \
+         item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
+         item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for" && pName && "(" & tRect & ")"
+end tourGrab
+
+-- The luminance (0 to 255) of the point pX, pY of the pixels tourGrab got
+function tourLum pX, pY
+   local tAt
+   put max(0, min(pX, sPixWidth - 1)) into pX
+   put max(0, min(pY, sPixHeight - 1)) into pY
+   put (pY * sPixWidth + pX) * 4 into tAt
+   return round((byteToNum(byte tAt + 2 of sPixData) + byteToNum(byte tAt + 3 of sPixData) + byteToNum(byte tAt + 4 of sPixData)) / 3)
+end tourLum
+
+-- The most any point of the rect pLeft, pTop to pRight, pBottom (right and
+-- bottom not included) of the pixels differs from the luminance pRef
+function tourMaxDiff pLeft, pTop, pRight, pBottom, pRef
+   local tMax, tX, tY
+   put 0 into tMax
+   repeat with tY = max(0, pTop) to min(pBottom, sPixHeight) - 1
+      repeat with tX = max(0, pLeft) to min(pRight, sPixWidth) - 1
+         put max(tMax, abs(tourLum(tX, tY) - pRef)) into tMax
+      end repeat
+   end repeat
+   return tMax
+end tourMaxDiff
+
+-- The number of points in the rect pLeft, pTop to pRight, pBottom of the
+-- pixels that differ by 16 or more from the luminance pBack and by 6 or
+-- more from pInside
+function tourFramePoints pLeft, pTop, pRight, pBottom, pBack, pInside
+   local tCount, tX, tY, tLum
+   put 0 into tCount
+   repeat with tY = max(0, pTop) to min(pBottom, sPixHeight) - 1
+      repeat with tX = max(0, pLeft) to min(pRight, sPixWidth) - 1
+         put tourLum(tX, tY) into tLum
+         if abs(tLum - pBack) >= 16 and abs(tLum - pInside) >= 6 then add 1 to tCount
+      end repeat
+   end repeat
+   return tCount
+end tourFramePoints
+
+-- The first and last rows of the pixels with a point that differs from
+-- the luminance pRef by pBy or more ("first,last"), or empty
+function tourRowsDrawn pRef, pBy
+   local tFirst, tLast, tX, tY
+   repeat with tY = 0 to sPixHeight - 1
+      repeat with tX = 0 to sPixWidth - 1
+         if abs(tourLum(tX, tY) - pRef) >= pBy then
+            if tFirst is empty then put tY into tFirst
+            put tY into tLast
+            exit repeat
+         end if
+      end repeat
+   end repeat
+   if tFirst is empty then return empty
+   return tFirst & "," & tLast
+end tourRowsDrawn
 
 -- A stack opened with its title bar above the top of the screen (a
 -- HyperCard stack at 0,0, or a stack whose own preOpenStack puts it there)

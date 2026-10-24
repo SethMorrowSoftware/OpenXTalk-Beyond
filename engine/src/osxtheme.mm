@@ -653,16 +653,11 @@ static void DrawMacAMScrollControls(MCDC *dc, const MCWidgetInfo &winfo, const M
 	if (winfo.datatype != WTHEME_DATA_SCROLLBAR && winfo.type != WTHEME_TYPE_SMALLSCROLLBAR)
 		return;
 	
-	// Check if scrollbar should be hidden (content doesn't need scrolling)
-	// This is for regular scrollbars, not sliders or progress bars
+	// OXT-Beyond: a scrollbar with nothing to scroll is not skipped here any
+	// more. The scrollbars of fields and groups are skipped before they get
+	// here (MCScrollbar::draw), and a scrollbar control is drawn as its track
+	// (THEME_DRAW_TYPE_SCROLLBAR), as on Windows and Linux.
 	MCWidgetScrollBarInfo *sbinfo = (MCWidgetScrollBarInfo *)winfo.data;
-	if (winfo.type == WTHEME_TYPE_SCROLLBAR || winfo.type == WTHEME_TYPE_SMALLSCROLLBAR)
-	{
-		// Content doesn't need scrolling when range <= thumbsize
-		real8 range = fabs(sbinfo->endvalue - sbinfo->startvalue);
-		if (range <= sbinfo->thumbsize + 0.5)
-			return;
-	}
 	
 	fillTrackDrawInfo(winfo, t_info . slider . info, drect);
 	
@@ -921,6 +916,238 @@ static inline CGRect CGRectFromRect(Rect s)
 	return t_rect;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// OXT-Beyond: the frames of fields and the tabs and pane of a tabbed button on
+// macOS 10.14 and later. The AppKit drawing these replace stroked a field's
+// frame with [NSColor controlColor], which is white in the light appearance,
+// and filled tabs through an NSGraphicsContext that drew nothing into the
+// bitmap MCThemeDraw makes: fields and lists had no frame (white on white)
+// and a tabbed button showed only its names. These draw with Core Graphics
+// straight into that bitmap, whose transform already maps the control's own
+// coordinates, in plain colours chosen for the light and the dark
+// appearance, so what they draw does not depend on which NSAppearance is
+// current while the engine redraws.
+
+extern bool MCPlatformGetSystemAppearanceIsDark(void);
+
+static void MCMacThemeSetGray(CGContextRef p_context, double p_gray, double p_alpha, bool p_fill)
+{
+	if (p_fill)
+		CGContextSetRGBFillColor(p_context, p_gray, p_gray, p_gray, p_alpha);
+	else
+		CGContextSetRGBStrokeColor(p_context, p_gray, p_gray, p_gray, p_alpha);
+}
+
+// A one point frame along the inside of p_rect, made of four filled strips so
+// that it covers whole pixels at any scale.
+static void MCMacThemeFillFrame(CGContextRef p_context, CGRect p_rect)
+{
+	if (p_rect.size.width < 2 || p_rect.size.height < 2)
+	{
+		CGContextFillRect(p_context, p_rect);
+		return;
+	}
+	double t_x = p_rect.origin.x, t_y = p_rect.origin.y;
+	double t_width = p_rect.size.width, t_height = p_rect.size.height;
+	CGContextFillRect(p_context, CGRectMake(t_x, t_y, t_width, 1));
+	CGContextFillRect(p_context, CGRectMake(t_x, t_y + t_height - 1, t_width, 1));
+	CGContextFillRect(p_context, CGRectMake(t_x, t_y + 1, 1, t_height - 2));
+	CGContextFillRect(p_context, CGRectMake(t_x + t_width - 1, t_y + 1, 1, t_height - 2));
+}
+
+// The outline of one tab: rounded on the left for the first tab and on the
+// right for the last. With p_closed false the left edge is left out, so that
+// two tabs side by side share a one point line.
+static CGPathRef MCMacThemeCreateTabPath(CGRect p_rect, double p_radius, bool p_round_left, bool p_round_right, bool p_closed)
+{
+	double t_left = p_rect.origin.x, t_top = p_rect.origin.y;
+	double t_right = t_left + p_rect.size.width, t_bottom = t_top + p_rect.size.height;
+	double t_radius = p_radius;
+	if (t_radius * 2 > p_rect.size.height)
+		t_radius = p_rect.size.height / 2;
+	if (t_radius * 2 > p_rect.size.width)
+		t_radius = p_rect.size.width / 2;
+	
+	CGMutablePathRef t_path = CGPathCreateMutable();
+	if (p_round_left)
+		CGPathMoveToPoint(t_path, NULL, t_left + t_radius, t_bottom);
+	else
+		CGPathMoveToPoint(t_path, NULL, t_left, t_bottom);
+	
+	if (p_closed)
+	{
+		// round the bottom left corner, up the left edge, round the top left
+		if (p_round_left)
+		{
+			CGPathAddArcToPoint(t_path, NULL, t_left, t_bottom, t_left, t_bottom - t_radius, t_radius);
+			CGPathAddLineToPoint(t_path, NULL, t_left, t_top + t_radius);
+			CGPathAddArcToPoint(t_path, NULL, t_left, t_top, t_left + t_radius, t_top, t_radius);
+		}
+		else
+			CGPathAddLineToPoint(t_path, NULL, t_left, t_top);
+	}
+	else
+		CGPathMoveToPoint(t_path, NULL, t_left, t_top);
+	
+	if (p_round_right)
+	{
+		CGPathAddLineToPoint(t_path, NULL, t_right - t_radius, t_top);
+		CGPathAddArcToPoint(t_path, NULL, t_right, t_top, t_right, t_top + t_radius, t_radius);
+		CGPathAddLineToPoint(t_path, NULL, t_right, t_bottom - t_radius);
+		CGPathAddArcToPoint(t_path, NULL, t_right, t_bottom, t_right - t_radius, t_bottom, t_radius);
+	}
+	else
+	{
+		CGPathAddLineToPoint(t_path, NULL, t_right, t_top);
+		CGPathAddLineToPoint(t_path, NULL, t_right, t_bottom);
+	}
+	
+	if (p_closed)
+		CGPathCloseSubpath(t_path);
+	else if (p_round_left)
+		CGPathAddLineToPoint(t_path, NULL, t_left + t_radius, t_bottom);
+	else
+		CGPathAddLineToPoint(t_path, NULL, t_left, t_bottom);
+	
+	return t_path;
+}
+
+static void MCMacThemeDrawFrame(CGContextRef p_context, const MCThemeDrawInfo& p_info)
+{
+	bool t_dark = MCPlatformGetSystemAppearanceIsDark();
+	bool t_disabled = p_info.frame.state == kThemeStateInactive;
+	
+	double t_gray;
+	if (t_dark)
+		t_gray = t_disabled ? 0.30 : 0.42;
+	else
+		t_gray = t_disabled ? 0.82 : 0.70;
+	
+	CGContextSaveGState(p_context);
+	MCMacThemeSetGray(p_context, t_gray, 1.0, true);
+	MCMacThemeFillFrame(p_context, CGRectFromRect(p_info.frame.bounds));
+	CGContextRestoreGState(p_context);
+}
+
+static void MCMacThemeDrawTabPane(CGContextRef p_context, const MCThemeDrawInfo& p_info)
+{
+	bool t_dark = MCPlatformGetSystemAppearanceIsDark();
+	
+	// One point down from the top (the pane's line runs through the middle of
+	// the tabs), and one shorter, so that the bottom edge stays inside the
+	// bitmap
+	CGRect t_rect = CGRectFromRect(p_info.tab_pane.bounds);
+	t_rect.origin.y += 1;
+	t_rect.size.height -= 1;
+	if (t_rect.size.width < 2 || t_rect.size.height < 2)
+		return;
+	
+	CGContextSaveGState(p_context);
+	CGPathRef t_path = MCMacThemeCreateTabPath(CGRectInset(t_rect, 0.5, 0.5), 5.0, true, true, true);
+	
+	// Translucent, so that the pane is a little darker (lighter in the dark)
+	// than whatever colour the card behind it has
+	if (t_dark)
+		MCMacThemeSetGray(p_context, 1.0, 0.05, true);
+	else
+		MCMacThemeSetGray(p_context, 0.0, 0.04, true);
+	CGContextAddPath(p_context, t_path);
+	CGContextFillPath(p_context);
+	
+	if (t_dark)
+		MCMacThemeSetGray(p_context, 1.0, 0.20, false);
+	else
+		MCMacThemeSetGray(p_context, 0.0, 0.20, false);
+	CGContextSetLineWidth(p_context, 1.0);
+	CGContextAddPath(p_context, t_path);
+	CGContextStrokePath(p_context);
+	
+	CGPathRelease(t_path);
+	CGContextRestoreGState(p_context);
+}
+
+static void MCMacThemeDrawTab(CGContextRef p_context, const MCThemeDrawInfo& p_info)
+{
+	bool t_dark = MCPlatformGetSystemAppearanceIsDark();
+	bool t_selected = p_info.tab.is_hilited;
+	bool t_disabled = p_info.tab.is_disabled;
+	bool t_pressed = p_info.tab.is_pressed;
+	bool t_first = p_info.tab.is_first;
+	bool t_last = p_info.tab.is_last;
+	
+	// The tabs are the height MCThemeDraw's bitmap has (22, drawthemetabs)
+	CGRect t_rect = CGRectFromRect(p_info.tab.bounds);
+	if (t_rect.size.height > p_info.dest.height)
+		t_rect.size.height = p_info.dest.height;
+	if (t_rect.size.width < 2 || t_rect.size.height < 2)
+		return;
+	
+	// Before macOS 11 the selected tab is the accent colour and its name is
+	// drawn white (mac-theme.mm, the text colour of a selected tab button); on
+	// macOS 11 and later it is the raised, lighter segment with the name in
+	// the usual text colour.
+	bool t_accent = false;
+	if (t_selected && !t_disabled)
+	{
+		if (@available(macOS 11.0, *))
+			t_accent = false;
+		else
+			t_accent = true;
+	}
+	
+	double t_fill;
+	if (t_dark)
+		t_fill = t_selected ? 0.40 : (t_pressed ? 0.30 : 0.20);
+	else
+		t_fill = t_selected ? 1.00 : (t_pressed ? 0.82 : 0.93);
+	double t_border = t_dark ? 0.46 : 0.70;
+	double t_alpha = t_disabled ? 0.5 : 1.0;
+	
+	CGContextSaveGState(p_context);
+	
+	CGRect t_inner = CGRectInset(t_rect, 0.5, 0.5);
+	if (!t_first)
+	{
+		// the line between two tabs is the right edge of the one before
+		t_inner.origin.x -= 0.5;
+		t_inner.size.width += 0.5;
+	}
+	CGPathRef t_shape = MCMacThemeCreateTabPath(t_inner, 5.0, t_first, t_last, true);
+	
+	// Opaque under the translucent disabled colours, so that the pane's top
+	// line does not show through the tab
+	if (t_disabled)
+	{
+		MCMacThemeSetGray(p_context, t_dark ? 0.16 : 0.97, 1.0, true);
+		CGContextAddPath(p_context, t_shape);
+		CGContextFillPath(p_context);
+	}
+	
+	if (t_accent)
+	{
+		NSColor *t_color = nil;
+		if (@available(macOS 10.14, *))
+			t_color = [[NSColor controlAccentColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+		if (t_color == nil)
+			t_color = [NSColor colorWithSRGBRed:0.0 green:0.48 blue:1.0 alpha:1.0];
+		CGContextSetRGBFillColor(p_context, [t_color redComponent], [t_color greenComponent], [t_color blueComponent], 1.0);
+	}
+	else
+		MCMacThemeSetGray(p_context, t_fill, t_alpha, true);
+	CGContextAddPath(p_context, t_shape);
+	CGContextFillPath(p_context);
+	CGPathRelease(t_shape);
+	
+	CGPathRef t_outline = MCMacThemeCreateTabPath(t_inner, 5.0, t_first, t_last, t_first);
+	MCMacThemeSetGray(p_context, t_border, t_alpha, false);
+	CGContextSetLineWidth(p_context, 1.0);
+	CGContextAddPath(p_context, t_outline);
+	CGContextStrokePath(p_context);
+	CGPathRelease(t_outline);
+	
+	CGContextRestoreGState(p_context);
+}
+
 void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRef p_context, bool p_hidpi)
 {
 	CGContextRef t_context = p_context;
@@ -938,10 +1165,16 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 			{
 				t_use_modern = true;
 				
-				NSRect t_frame = NSRectFromCGRect(p_info.slider.info.bounds);
+				// OXT-Beyond: drawn in the whole rect of the control
+				// (p_info.dest), at the largest size of NSSlider that fits
+				// across it. The bounds HITheme was given are two points in
+				// from the edges and 14 points high (fillTrackDrawInfo), and
+				// the knob of a regular NSSlider is taller than that, so its
+				// top and bottom were cut off.
+				NSRect t_frame = NSMakeRect(p_info.dest.x, p_info.dest.y, p_info.dest.width, p_info.dest.height);
+				bool t_is_vertical = t_frame.size.height > t_frame.size.width;
+				double t_across = t_is_vertical ? t_frame.size.width : t_frame.size.height;
 				
-				// Create slider with origin at (0,0) so the draw rect and
-				// view bounds match exactly inside the off-screen image.
 				NSSlider *t_slider = [[NSSlider alloc] initWithFrame:
 				    NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height)];
 				
@@ -956,15 +1189,38 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 				[t_slider setDoubleValue:p_info.slider.info.value];
 				[t_slider setEnabled:(p_info.slider.info.enableState != kThemeTrackDisabled)];
 				
-				bool t_is_vertical = t_frame.size.height > t_frame.size.width;
 				if (@available(macOS 10.10, *))
 					[t_slider setVertical:t_is_vertical];
+				
+				// The regular size, else the small, else the mini one
+				NSControlSize t_sizes[3] = {NSControlSizeRegular, NSControlSizeSmall, NSControlSizeMini};
+				NSSize t_cell_size = NSZeroSize;
+				for (int i = 0; i < 3; i++)
+				{
+					[[t_slider cell] setControlSize:t_sizes[i]];
+					t_cell_size = [[t_slider cell] cellSize];
+					if ((t_is_vertical ? t_cell_size.width : t_cell_size.height) <= t_across)
+						break;
+				}
+				
+				// Centred across the control, along all its length
+				NSRect t_draw_rect;
+				if (t_is_vertical)
+				{
+					double t_width = t_cell_size.width > 0 && t_cell_size.width < t_frame.size.width ? t_cell_size.width : t_frame.size.width;
+					t_draw_rect = NSMakeRect(floor((t_frame.size.width - t_width) / 2), 0, t_width, t_frame.size.height);
+				}
+				else
+				{
+					double t_height = t_cell_size.height > 0 && t_cell_size.height < t_frame.size.height ? t_cell_size.height : t_frame.size.height;
+					t_draw_rect = NSMakeRect(0, floor((t_frame.size.height - t_height) / 2), t_frame.size.width, t_height);
+				}
+				[t_slider setFrame:t_draw_rect];
 				
 				// Draw into image then flip
 				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
 				[t_image lockFocus];
 				
-				NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
 				[[t_slider cell] drawWithFrame:t_draw_rect inView:t_slider];
 				
 				[t_image unlockFocus];
@@ -1014,9 +1270,12 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 			
 		case THEME_DRAW_TYPE_SCROLLBAR:
 		{
-			// Skip drawing entirely if scrollbar is disabled (content doesn't need scrolling)
-			if (p_info.scrollbar.info.enableState == kThemeTrackDisabled)
-				break;
+			// OXT-Beyond: a disabled scrollbar is drawn too, as its track with
+			// no thumb, as on Windows and Linux; skipping it left nothing of a
+			// scrollbar control whose thumbSize is its whole range. The
+			// scrollbars of fields and groups that have nothing to scroll are
+			// still left out, by MCScrollbar::draw.
+			bool t_sb_disabled = (p_info.scrollbar.info.enableState == kThemeTrackDisabled);
 			
 			//-- tperry 18th October 2025
 			// Use modern NSScroller for proper dark mode and system appearance
@@ -1040,7 +1299,9 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 				[t_scroller setScrollerStyle:NSScrollerStyleLegacy];
 				
 				// Set enabled state
-				[t_scroller setEnabled:(p_info.scrollbar.info.enableState != kThemeTrackDisabled)];
+				// OXT-Beyond: always enabled, so that the track of a disabled
+				// one is drawn in full; its thumb is left out below
+				[t_scroller setEnabled:YES];
 				
 				// Calculate knob proportion (thumb size)
 				// Note: viewsize is in pixels, range is the scroll range
@@ -1102,7 +1363,9 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 				
 				// Only draw scrollbar if content needs scrolling
 				// When t_range <= 0 or viewsize <= 0, skip drawing entirely
-				if (t_range > 0 && t_viewsize_pixels > 0)
+				// OXT-Beyond: the track is drawn either way, the thumb only
+				// when there is something to scroll
+				bool t_has_knob = !t_sb_disabled && t_range > 0 && t_viewsize_pixels > 0;
 				{
 					// Draw scroller into an image first, then flip it
 					NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
@@ -1111,7 +1374,8 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 					// Draw both track and knob
 					NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
 					[t_scroller drawKnobSlotInRect:t_draw_rect highlight:NO];
-					[t_scroller drawKnob];
+					if (t_has_knob)
+						[t_scroller drawKnob];
 					
 					[t_image unlockFocus];
 				
@@ -1525,48 +1789,13 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 		{
 			//-- tperry 27th May 2026
 			// Use modern NSBox / NSBezierPath for proper dark mode frame rendering
+			// OXT-Beyond: drawn by MCMacThemeDrawFrame (above), which the
+			// light appearance shows; the NSBezierPath stroke drew white.
 			bool t_use_modern = false;
 			if (@available(macOS 10.14, *))
 			{
 				t_use_modern = true;
-				
-				NSRect t_frame = NSRectFromCGRect(CGRectFromRect(p_info.frame.bounds));
-				
-				// Draw frame using NSBezierPath for consistent appearance
-				NSImage *t_image = [[NSImage alloc] initWithSize:t_frame.size];
-				[t_image lockFocus];
-				
-				NSBezierPath *t_path = [NSBezierPath bezierPathWithRect:NSMakeRect(0.5, 0.5,
-					t_frame.size.width - 1.0, t_frame.size.height - 1.0)];
-				[t_path setLineWidth:1.0];
-				
-				// Use system colors for dark/light mode
-				if (p_info.frame.is_list)
-					[[NSColor separatorColor] setStroke];
-				else
-					[[NSColor controlColor] setStroke];
-				
-				[t_path stroke];
-				
-				[t_image unlockFocus];
-				
-				// Draw into context (flipped)
-				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:p_context flipped:NO];
-				[NSGraphicsContext saveGraphicsState];
-				[NSGraphicsContext setCurrentContext:t_ns_context];
-				
-				CGContextSaveGState(p_context);
-				CGContextTranslateCTM(p_context, 0, t_frame.origin.y + t_frame.size.height);
-				CGContextScaleCTM(p_context, 1.0, -1.0);
-				
-				[t_image drawAtPoint:NSMakePoint(t_frame.origin.x, 0)
-				            fromRect:NSZeroRect
-				           operation:NSCompositingOperationSourceOver
-				            fraction:1.0];
-				
-				CGContextRestoreGState(p_context);
-				[NSGraphicsContext restoreGraphicsState];
-				[t_image release];
+				MCMacThemeDrawFrame(t_context, p_info);
 			}
 			
 			if (!t_use_modern)
@@ -1596,139 +1825,13 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 			// for its layer-backed cell rendering. NSImage lockFocus also
 			// conflicts with the bitmap context that MCThemeDraw creates,
 			// so we draw NSBezierPath directly via NSGraphicsContext.
+			// OXT-Beyond: that drew nothing either (only the names showed);
+			// MCMacThemeDrawTab (above) draws with Core Graphics instead.
 			bool t_use_modern = false;
 			if (@available(macOS 10.14, *))
 			{
 				t_use_modern = true;
-				
-				CGRect t_cgrect = CGRectMake(p_info.tab.bounds.left, p_info.tab.bounds.top,
-					p_info.tab.bounds.right - p_info.tab.bounds.left,
-					p_info.tab.bounds.bottom - p_info.tab.bounds.top);
-				NSRect t_frame = NSRectFromCGRect(t_cgrect);
-				
-				extern bool MCPlatformGetSystemAppearanceIsDark(void);
-				bool t_is_dark = MCPlatformGetSystemAppearanceIsDark();
-				
-				bool t_is_selected = p_info.tab.is_hilited;
-				bool t_is_disabled = p_info.tab.is_disabled;
-				bool t_is_pressed = p_info.tab.is_pressed;
-				bool t_is_first = p_info.tab.is_first;
-				bool t_is_last = p_info.tab.is_last;
-				
-				// Draw directly into the bitmap context via NSGraphicsContext.
-				// NSImage lockFocus produces black/transparent output for tabs,
-				// likely because the nested bitmap context conflicts with the
-				// temporary image context. Drawing directly avoids NSImage.
-				[NSGraphicsContext saveGraphicsState];
-				NSGraphicsContext *t_ns_context = [NSGraphicsContext graphicsContextWithCGContext:t_context flipped:YES];
-				[NSGraphicsContext setCurrentContext:t_ns_context];
-				
-				NSRect t_draw_rect = NSMakeRect(t_frame.origin.x, t_frame.origin.y, t_frame.size.width, t_frame.size.height);
-				
-				// Button background path — rounded rect, position-aware corners
-				CGFloat t_radius = 4.0;
-				NSBezierPath *t_bg;
-				
-				if (t_is_first && t_is_last)
-				{
-					// Single tab — round all corners
-					t_bg = [NSBezierPath bezierPathWithRoundedRect:t_draw_rect xRadius:t_radius yRadius:t_radius];
-				}
-				else if (t_is_first)
-				{
-					// First tab — round left corners, square right edge
-					t_bg = [NSBezierPath bezierPath];
-					[t_bg moveToPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y)];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y)];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height)];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y + t_draw_rect.size.height)];
-					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height)
-					                             toPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height - t_radius)
-					                              radius:t_radius];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_radius)];
-					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y)
-					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_radius, t_draw_rect.origin.y)
-					                              radius:t_radius];
-					[t_bg closePath];
-				}
-				else if (t_is_last)
-				{
-					// Last tab — round right corners, square left edge
-					t_bg = [NSBezierPath bezierPath];
-					[t_bg moveToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y)];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - t_radius, t_draw_rect.origin.y)];
-					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y)
-					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_radius)
-					                              radius:t_radius];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height - t_radius)];
-					[t_bg appendBezierPathWithArcFromPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width, t_draw_rect.origin.y + t_draw_rect.size.height)
-					                             toPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - t_radius, t_draw_rect.origin.y + t_draw_rect.size.height)
-					                              radius:t_radius];
-					[t_bg lineToPoint:NSMakePoint(t_draw_rect.origin.x, t_draw_rect.origin.y + t_draw_rect.size.height)];
-					[t_bg closePath];
-				}
-				else
-				{
-					// Middle tab — square left/right edges, rounded top/bottom
-					t_bg = [NSBezierPath bezierPathWithRoundedRect:t_draw_rect xRadius:1.0 yRadius:1.0];
-				}
-				
-				// Fill background based on state
-				if (t_is_disabled)
-				{
-					if (t_is_dark)
-						[[NSColor colorWithWhite:0.22 alpha:1.0] setFill];
-					else
-						[[NSColor colorWithWhite:0.90 alpha:1.0] setFill];
-				}
-				else if (t_is_selected)
-				{
-					if (t_is_dark)
-						[[NSColor colorWithWhite:0.30 alpha:1.0] setFill];
-					else
-						[[NSColor controlBackgroundColor] setFill];
-				}
-				else if (t_is_pressed)
-				{
-					if (t_is_dark)
-						[[NSColor colorWithWhite:0.28 alpha:1.0] setFill];
-					else
-						[[NSColor colorWithWhite:0.82 alpha:1.0] setFill];
-				}
-				else
-				{
-					// Unselected, not pressed
-					if (t_is_dark)
-						[[NSColor colorWithWhite:0.25 alpha:1.0] setFill];
-					else
-						[[NSColor colorWithWhite:0.88 alpha:1.0] setFill];
-				}
-				[t_bg fill];
-				
-				// Border stroke
-				if (t_is_dark)
-					[[NSColor colorWithWhite:0.35 alpha:1.0] setStroke];
-				else
-					[[NSColor separatorColor] setStroke];
-				[t_bg setLineWidth:1.0];
-				[t_bg stroke];
-				
-				// Selected tab accent bottom border (modern macOS look)
-				if (t_is_selected && !t_is_disabled)
-				{
-					NSBezierPath *t_accent = [NSBezierPath bezierPath];
-					[t_accent moveToPoint:NSMakePoint(t_draw_rect.origin.x + 2.0, t_draw_rect.origin.y + 1.0)];
-					[t_accent lineToPoint:NSMakePoint(t_draw_rect.origin.x + t_draw_rect.size.width - 2.0, t_draw_rect.origin.y + 1.0)];
-					[t_accent setLineWidth:2.5];
-					[t_accent setLineCapStyle:NSLineCapStyleRound];
-					if (@available(macOS 10.14, *))
-						[[NSColor controlAccentColor] setStroke];
-					else
-						[[NSColor systemBlueColor] setStroke];
-					[t_accent stroke];
-				}
-				
-				[NSGraphicsContext restoreGraphicsState];
+				MCMacThemeDrawTab(t_context, p_info);
 			}
 			
 			if (!t_use_modern)
@@ -1774,32 +1877,13 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 		{
 			//-- tperry 27th May 2026
 			// Use modern NSBox for proper dark mode tab pane rendering
+			// OXT-Beyond: MCMacThemeDrawTabPane (above), with its bottom edge
+			// and rounded corners inside the bitmap.
 			bool t_use_modern = false;
 			if (@available(macOS 10.14, *))
 			{
 				t_use_modern = true;
-				
-				CGRect t_cgrect = CGRectFromRect(p_info.tab_pane.bounds);
-				t_cgrect.origin.y += 1;
-				NSRect t_frame = NSRectFromCGRect(t_cgrect);
-				
-				extern bool MCPlatformGetSystemAppearanceIsDark(void);
-				bool t_is_dark = MCPlatformGetSystemAppearanceIsDark();
-				
-				// Draw directly to the bitmap context (already in screen coords
-				// thanks to MCThemeDraw's TranslateCTM + ScaleCTM setup).
-				if (t_is_dark)
-					CGContextSetFillColorWithColor(p_context, [NSColor colorWithWhite:0.20 alpha:1.0].CGColor);
-				else
-					CGContextSetFillColorWithColor(p_context, [NSColor controlBackgroundColor].CGColor);
-				CGContextFillRect(p_context, NSRectToCGRect(t_frame));
-				
-				if (t_is_dark)
-					CGContextSetStrokeColorWithColor(p_context, [NSColor colorWithWhite:0.35 alpha:1.0].CGColor);
-				else
-					CGContextSetStrokeColorWithColor(p_context, [NSColor separatorColor].CGColor);
-				CGContextSetLineWidth(p_context, 1.0);
-				CGContextStrokeRect(p_context, NSRectToCGRect(t_frame));
+				MCMacThemeDrawTabPane(t_context, p_info);
 			}
 			
 			if (!t_use_modern)

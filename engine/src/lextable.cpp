@@ -1831,6 +1831,8 @@ const LT factor_table[] =
         {"usermodify", TT_PROPERTY, P_USER_MODIFY},
         {"userproperties", TT_PROPERTY, P_CUSTOM_KEYS},
         {"usesystemdate", TT_PROPERTY, P_USE_SYSTEM_DATE},
+        // OXT-Beyond: stacks on macOS in the system's window colour
+        {"usesystemwindowcolor", TT_PROPERTY, P_USE_SYSTEM_WINDOW_COLOR},
         {"useunicode", TT_PROPERTY, P_USE_UNICODE},
 		// MW-2013-05-08: [[ Uuid ]] The uuid function token.
 		{"uuid", TT_FUNCTION, F_UUID},
