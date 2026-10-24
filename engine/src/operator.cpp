@@ -185,6 +185,61 @@ void MCEndsWith::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
     MCExecValueTraits<bool>::set(r_value, t_result);
 }
 
+bool MCMatches::isahead(MCScriptPoint& sp)
+{
+    if (!sp . token_is_cstring("matches"))
+        return false;
+
+    // (A copy, so that sp is as it was whatever comes next)
+    MCScriptPoint t_sp(sp);
+    return t_sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_WILDCARD) == PS_NORMAL
+        || t_sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_REGEX) == PS_NORMAL;
+}
+
+Parse_stat MCMatches::parse(MCScriptPoint& sp, Boolean the)
+{
+    initpoint(sp);
+
+    if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_WILDCARD) == PS_NORMAL)
+        m_mode = MA_WILDCARD;
+    else if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_REGEX) == PS_NORMAL)
+        m_mode = MA_REGEX;
+    else
+    {
+        // (MCScriptPoint::parseexp has seen one: MCMatches::isahead)
+        MCperror -> add(PE_EXPRESSION_NOTFACT, sp);
+        return PS_ERROR;
+    }
+
+    // "pattern" may follow, as after "filter ... with regex"
+    sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_PATTERN);
+
+    return PS_NORMAL;
+}
+
+void MCMatches::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
+{
+    MCAutoStringRef t_left, t_right;
+    bool t_result;
+
+    if (!ctxt . EvalExprAsStringRef(left, EE_MATCHES_BADLEFT, &t_left)
+            || !ctxt . EvalExprAsStringRef(right, EE_MATCHES_BADRIGHT, &t_right))
+        return;
+
+    if (m_mode == MA_REGEX)
+    {
+        // A bad pattern throws, as in matchText
+        MCStringsEvalMatchText(ctxt, *t_left, *t_right, nil, 0, t_result);
+        if (ctxt . HasError())
+            return;
+    }
+    else
+        t_result = MCStringWildcardMatch(*t_left, MCRangeMake(0, MCStringGetLength(*t_left)),
+                                         *t_right, ctxt . GetStringComparisonType());
+
+    MCExecValueTraits<bool>::set(r_value, t_result);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  Numeric operators

@@ -1569,6 +1569,25 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 					return PS_ERROR;
 				}
 		}
+		// OXT-Beyond: HyperXTalk's "matches wildcard" and "matches regex"
+		// operators (MCMatches). "matches" is no keyword, so variables,
+		// handlers and custom properties keep the name: it is the operator
+		// only after an operand and before "wildcard" or "regex", where the
+		// expression ended before (an error, or the rest of the line was a
+		// statement of its own, a call to a handler named matches)
+		if (!needfact && type == ST_ID && MCMatches::isahead(*this))
+		{
+			newfact = new (nothrow) MCMatches;
+			if (newfact->parse(*this, doingthe) != PS_NORMAL)
+			{
+				delete newfact;
+				return PS_ERROR;
+			}
+			if (insertbinop(newfact, curfact, top) == NULL)
+				return PS_ERROR;
+			needfact = True;
+			continue;
+		}
 		if (!needfact && type != ST_OP && type != ST_MIN && type != ST_RP
 		        && !(type == ST_SEP && litems)
 		        && !(type == ST_ID && lookup(SP_FACTOR, te) == PS_NORMAL

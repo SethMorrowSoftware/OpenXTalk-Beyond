@@ -2784,7 +2784,13 @@ enum Exec_errors
     EE_MACSETICON_BADPARAM,
 
     // {EE-0912} snapshot: the image is too big to make
-    EE_SNAPSHOT_TOOBIG
+    EE_SNAPSHOT_TOOBIG,
+
+    // {EE-0913} matches: illegal type for left operand
+    EE_MATCHES_BADLEFT,
+
+    // {EE-0914} matches: illegal type for right operand
+    EE_MATCHES_BADRIGHT
     
 };
 
