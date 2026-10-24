@@ -513,12 +513,18 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 	// read as this only after "the" and before "date", which compiled to
 	// nothing before
 	if (the && !effective && type == ST_ID &&
-		MCStringIsEqualToCString(sp.gettoken_stringref(), "sql", kMCCompareCaseless) &&
-		sp.skip_token(SP_FACTOR, TT_FUNCTION, F_DATE) == PS_NORMAL)
+		MCStringIsEqualToCString(sp.gettoken_stringref(), "sql", kMCCompareCaseless))
 	{
-		which = P_SQL;
-		function = F_DATE;
-		return PS_NORMAL;
+		// (a skip_token that finds no "date" clears the token, which the
+		// lookups below read: they get "sql" back)
+		MCScriptPoint t_sql(sp);
+		if (sp.skip_token(SP_FACTOR, TT_FUNCTION, F_DATE) == PS_NORMAL)
+		{
+			which = P_SQL;
+			function = F_DATE;
+			return PS_NORMAL;
+		}
+		sp = t_sql;
 	}
 	if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 	{

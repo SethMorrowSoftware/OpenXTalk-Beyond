@@ -24,9 +24,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 on TestTheSqlDate
    local tSql, tBefore, tAfter
    -- the day before and after it, in case midnight comes between
-   put the dateItems into tBefore
+   put the seconds into tBefore
    put the sql date into tSql
-   put the dateItems into tAfter
+   put the seconds into tAfter
+   convert tBefore to dateItems
+   convert tAfter to dateItems
    TestAssert "the sql date is YYYY-MM-DD HH:MM:SS", \
          matchText(tSql, "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$")
    TestAssert "the sql date has today's date", \
@@ -119,14 +121,33 @@ function sql pValue
 end sql
 
 on TestSqlCustomProperty
+   -- set and read by another name too, so that a property set and read
+   -- under some other name (none) would not pass
+   local tName
+   put "sql" into tName
    set the sql of me to "kept"
    TestAssert "a custom property named sql", the sql of me is "kept"
-   set the sql of me to empty
+   TestAssert "the custom property is named sql", the tName of me is "kept"
+   TestAssert "sql is among the custom keys", "sql" is among the lines of the customKeys of me
+   set the tName of me to "changed"
+   TestAssert "the sql of me reads it", the sql of me is "changed"
+   set the sql[1] of me to "one"
+   TestAssert "the sql of me with an index", the sql[1] of me is "one"
 end TestSqlCustomProperty
+
+on TestSqlVariableNamesAProperty
+   -- the <variable> of an object is the property the variable names, so
+   -- "the sql of" with a variable named sql reads the property it names
+   local sql
+   put "cSqlNamed" into sql
+   set the sql of me to "named"
+   TestAssert "the sql of me with a variable named sql", the cSqlNamed of me is "named"
+   TestAssert "read back the same way", the sql of me is "named"
+end TestSqlVariableNamesAProperty
 
 on TestSqlTextNotRecognisedUnlessNamed
    local tDate
-   TestAssert "2026-10-24 14:30:05 is not a date", not ("2026-10-24 14:30:05" is a date)
+   TestAssert "an sql date alone is not a date", not ("2026-10-24 14:30:05" is a date)
    put "2026-10-24 14:30:05" into tDate
    convert tDate to dateItems
    TestAssert "convert without from leaves an sql date", the result is "invalid date"
