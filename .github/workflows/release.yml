@@ -650,11 +650,17 @@ jobs:
   # only branch the site's environment takes). A dry run publishes nothing
   # and starts nothing. The release is out whatever this job does, so a
   # failure to start the site is a warning: Actions > Web pages > Run
-  # workflow with the tag does the same.
+  # workflow with the tag does the same. "!cancelled()" is needed: when
+  # the release reuses main's builds, the windows, linux and macos jobs are
+  # skipped, and a job whose needs reach a skipped job is skipped too
+  # unless its condition has a status function, as publish's has (so
+  # v0.2.7-rc.6.3's run skipped this job).
   pages:
     name: Web pages
     needs: [prepare, publish]
-    if: needs.publish.result == 'success' && needs.prepare.outputs.dry-run != 'true'
+    if: >-
+      !cancelled() && needs.publish.result == 'success' &&
+      needs.prepare.outputs.dry-run != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
