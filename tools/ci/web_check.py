@@ -1858,13 +1858,23 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 problems.append('the check of the page in two tabs failed: %s' % e)
         if 'ready' in probes:
             # what an older engine kept in /livecode, in a new browser
-            # profile: written before the page opens, copied to /openxtalk
+            # profile: written before the page opens, copied to /openxtalk.
+            # The copy is the engine's, at start (em-system.js), so the page
+            # opens with ?tab=, where the probe runs no checks: without it
+            # the probe ran all its checks a second time in this page (its
+            # downloads, its printing, its palette closed by its close box),
+            # and in WebKit the page was closed under the evaluate below
+            # ("Target page, context or browser has been closed"), twice on
+            # #208, whose change the web runtime does not contain. The page
+            # is in a context of its own, closed after, as the two tabs' is.
             try:
                 browser_waiting[0] = 'the old home folder\'s copy'
-                fresh = browser.new_page()
+                profile = browser.new_context()
+                fresh = profile.new_page()
+                fresh.on('dialog', on_dialog)
                 fresh.goto(urllib.parse.urljoin(url, '/no-such-page'))  # the site, without the engine
                 fresh.evaluate(SEED_LEGACY_HOME_JS, [LEGACY_HOME_FILE[0], LEGACY_HOME_FILE[2]])
-                fresh.goto(url)
+                fresh.goto(url + ('&' if '?' in url else '?') + 'tab=legacy')
                 copied = [None]
 
                 def legacy_copied():
@@ -1877,7 +1887,7 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 if kept != LEGACY_HOME_FILE[2]:
                     problems.append('the old home folder\'s database has %r for %s after the copy, expected '
                                     'it left as it was' % (kept, LEGACY_HOME_FILE[0]))
-                fresh.close()
+                profile.close()
             except PlaywrightError as e:
                 problems.append('the check of the old home folder\'s copy failed: %s' % e)
         browser_waiting[0] = 'the browser to close'
