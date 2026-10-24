@@ -118,7 +118,19 @@ bool MCNumberStrictFetchAsIndex(MCNumberRef self,
         r_index = self->integer;
         return true;
     }
-    
+
+    // OXT-Beyond: a real outside index_t's range (or NaN) is not an index.
+    // Casting it anyway is undefined behaviour: x86 gives INT_MIN, so the
+    // test below failed and the caller fell back to the number's text, but
+    // the web engine saturated it to INT32_MAX and passed the test, so
+    // every number above that (the milliseconds, the Geometry Manager's
+    // revUniqueIDs) became the array key "2147483647". Refusing it here
+    // gives every platform the text, as x86 always had.
+    if (!(self -> real >= (real64_t)INDEX_MIN && self -> real <= (real64_t)INDEX_MAX))
+    {
+        return false;
+    }
+
     index_t t_as_int = (index_t)(self -> real);
     if (self->real - t_as_int != 0.0)
     {

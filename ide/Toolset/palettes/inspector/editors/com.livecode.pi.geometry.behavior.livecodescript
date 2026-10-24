@@ -16,9 +16,24 @@ on editorInitialize
       set the icon of btn "Window" to 210116
       set the top of btn "Window" to 102
    end if
-   if the platform contains "linux" then 
+   if the platform contains "linux" then
       set the icon of btn "Window" to 210118
       set the top of btn "Window" to 104
+   end if
+
+   -- OXT-Beyond: the web IDE (the platform "HTML5") matched none of the
+   -- above, so the diagram kept the stack's own window picture, placed so
+   -- that the bottom of the diagram ran past it. It takes the picture
+   -- whose title bar looks like the web IDE's windows (close at the
+   -- right). Its emulated theme's text is 14 points, which the pane was
+   -- not laid out for: the check boxes' labels ran into the frames of
+   -- the groups below them and "Selected object" filled its box, so the
+   -- pane's text is 12 points there (labels with a size of their own
+   -- keep it). The desktop is as before.
+   if revEnvironmentIsWeb() then
+      set the icon of btn "Window" to 210116
+      set the top of btn "Window" to 102
+      set the textSize of me to 12
    end if
 end editorInitialize
 
