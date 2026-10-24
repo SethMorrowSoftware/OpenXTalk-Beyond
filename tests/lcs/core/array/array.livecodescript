@@ -288,3 +288,42 @@ on TestEncodeDecode
    
    __encodeDecodeArray tEmptyArray
 end TestEncodeDecode
+
+-- OXT-Beyond: a number too large for a 32-bit index, computed (so held as
+-- a number, not as text), keys an array by its text on every platform.
+-- The web engine once made every such key "2147483647", which broke the
+-- Geometry Manager's cache of revUniqueIDs (the milliseconds) there.
+on TestLargeComputedNumericKeys
+   local tArray, tNumber, tKeys
+   put 1792873706500 into tNumber
+   add 1 to tNumber
+   put "a" into tArray[tNumber]
+   add 1 to tNumber
+   put "b" into tArray[tNumber]
+   put the keys of tArray into tKeys
+   sort lines of tKeys
+   TestAssert "large computed keys stay distinct", tKeys is "1792873706501" & return & "1792873706502"
+   TestAssert "large computed key looks up as text", tArray["1792873706502"] is "b"
+
+   delete variable tArray
+   put the milliseconds into tNumber
+   put "now" into tArray[tNumber]
+   TestAssert "the milliseconds as a key", the keys of tArray is tNumber
+
+   delete variable tArray
+   put -2147483648 into tNumber
+   subtract 5 from tNumber
+   put "low" into tArray[tNumber]
+   TestAssert "large negative computed key", the keys of tArray is "-2147483653"
+
+   -- the edges of the 32-bit range still key as before
+   delete variable tArray
+   put 2147483646 into tNumber
+   add 1 to tNumber
+   put "max" into tArray[tNumber]
+   add 1 to tNumber
+   put "over" into tArray[tNumber]
+   put the keys of tArray into tKeys
+   sort lines of tKeys numeric
+   TestAssert "32-bit edge keys", tKeys is "2147483647" & return & "2147483648"
+end TestLargeComputedNumericKeys
