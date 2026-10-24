@@ -1,1 +1,0 @@
-- Web: a number above 2147483647 that a script computed (the milliseconds, a sum) keys an array by its own digits, as on the desktop, instead of every one becoming the key "2147483647"; this made the Geometry Manager's settings do nothing in the web IDE and in web standalones (OpenXTalkPaul's report) (#PR)
