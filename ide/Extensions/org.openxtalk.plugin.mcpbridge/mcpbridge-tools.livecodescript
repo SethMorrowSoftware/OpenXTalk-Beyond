@@ -1939,7 +1939,7 @@ end mcbHandlerIndex
 -- object, line number and the handler it is in; case is ignored.
 private function mcbToolSearchScripts pArguments
    local tText, tRegex, tTarget, tStacks, tStack, tName, tObjects, tObject, tSeen, tList, tError, tLine, \
-         tFound, tCount, tShown, tOut, tLocked, tCard, tCtl, tKey
+         tFound, tCount, tShown, tOut, tLocked, tCard, tCtl
    put mcbArg(pArguments, "text") into tText
    if tText is empty then
       return mcbResult("Give the text to find.", true)
@@ -1994,18 +1994,10 @@ private function mcbToolSearchScripts pArguments
          end repeat
       end repeat
       repeat for each line tObject in tList
-         -- A background's controls are on every card of it, each time with
-         -- the long id of that card: searched, and listed, once, by their
-         -- id, which is the same on every card (ids are the stack's)
-         if word 1 of tObject is "stack" then
-            put tObject into tKey
-         else
-            put tStack & "|" & the short id of tObject into tKey
-         end if
-         if tSeen[tKey] is true then
+         if tSeen[tObject] is true then
             next repeat
          end if
-         put true into tSeen[tKey]
+         put true into tSeen[tObject]
          try
             put mcbScriptSearched(tObject, tText, tRegex) into tFound
          catch tError

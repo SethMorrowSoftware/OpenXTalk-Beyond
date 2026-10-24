@@ -730,7 +730,7 @@ end TestNothingPausedAndNoDialog
 
 -- A stack imported from HyperCard names its controls as HyperCard did
 -- (hcAddressing): "card button", "bkgnd field". They are buttons and
--- fields, and a background's are searched once, not once a card.
+-- fields, not cards.
 on TestHyperCardAddressingLabels
    local tStack, tReply, tGroup
    TestStart
@@ -743,13 +743,19 @@ on TestHyperCardAddressingLabels
    set the backgroundBehavior of tGroup to true
    create card in tStack
    create card in tStack
+   put TestCall("search_scripts", "{`text`:`doThing`}") into tReply
+   TestAssert "without hcAddressing, as before", TestText(tReply) contains ("the button" && quote & "Shared" & quote) \
+         and TestText(tReply) contains "Found in 2 lines"
    set the hcAddressing of tStack to true
    TestAssert "names are HyperCard's here", word 1 of the name of button "Go" of card 1 of tStack is "card"
    put TestCall("search_scripts", "{`text`:`doThing`}") into tReply
    TestDiagnostic TestText(tReply)
    TestAssert "a card button is a button", TestText(tReply) contains ("the button" && quote & "Go" & quote) \
          and not (TestText(tReply) contains ("the card" && quote & "Go" & quote))
-   TestAssert "a background's button, once", TestText(tReply) contains ("the background button" && quote & "Shared" & quote) \
+   -- The long id of a background's control names the stack's current
+   -- card whichever card it is reached from, so it is listed once
+   TestAssert "a background's button is a background button, listed once", \
+         TestText(tReply) contains ("the background button" && quote & "Shared" & quote) \
          and TestText(tReply) contains "Found in 2 lines"
 end TestHyperCardAddressingLabels
 
