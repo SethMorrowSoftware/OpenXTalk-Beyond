@@ -1325,7 +1325,7 @@ end tour_standalone_settings
 -- standalone builder finds the external for this computer's platform. A
 -- release before it was built has no such folder, and the step fails there.
 on tour_ext_mergjson
-   local tFolder, tFile, tTarget, tFails, tA, tJson, tLibrary
+   local tFolder, tFile, tTarget, tFails, tA, tJson, tLibrary, tIncluded
    put revEnvironmentExtPath() & "/mergJSON" into tFolder
    if there is not a folder tFolder then throw "there is no" && tFolder
    switch the platform
@@ -1397,13 +1397,22 @@ on tour_ext_mergjson
    end try
 
    -- the standalone builder (revsblibrary): it offers the external for this
-   -- platform, and would include this file for this computer's target
+   -- platform, and would include this file for this computer's target. A
+   -- Mac bundle is a folder, which the builder names with a slash at its
+   -- end (__EnumerateFolder, __FilterExternalsForDesktop), as it did
+   -- LiveCode's mergExt bundles in Ext
    try
       if "mergJSON" is not among the lines of revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget)) then
          put "the standalone builder does not offer it:" && \
                tourJoin(revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget))) & return after tFails
-      else if revSBIncludedExternalPath(tTarget, "mergJSON") is not tFile then
-         put "the standalone builder would include" && revSBIncludedExternalPath(tTarget, "mergJSON") & return after tFails
+      else
+         put revSBIncludedExternalPath(tTarget, "mergJSON") into tIncluded
+         if the platform is "MacOS" and the last char of tIncluded is slash then
+            delete the last char of tIncluded
+         end if
+         if tIncluded is not tFile then
+            put "the standalone builder would include" && revSBIncludedExternalPath(tTarget, "mergJSON") & return after tFails
+         end if
       end if
    catch tA
       put "the standalone builder:" && tourJoin(tA) & return after tFails
