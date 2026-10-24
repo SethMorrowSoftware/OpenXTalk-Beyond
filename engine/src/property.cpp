@@ -633,8 +633,11 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 			// (MCMicrosecs::isname), so they were an error here. Only after
 			// "the": without it the parse failed more gently ("long" became
 			// a literal), and "create button long microseconds" made a
-			// button named long, then ran a handler named microseconds
-			if (the && type == ST_ID && MCMicrosecs::isname(sp))
+			// button named long, then ran a handler named microseconds. And
+			// only where what holds it did not compile without it, as with
+			// "the microseconds" (MCNewSyntax)
+			if (the && type == ST_ID && MCMicrosecs::isname(sp) &&
+				MCNewSyntax::Read())
 			{
 				function = F_MICROSECS;
 				if (which == P_INTERNET)

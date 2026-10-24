@@ -58,12 +58,24 @@ parameter or a <custom property> named `microseconds` (or `microsecond`,
 your own with that name, if there is one, and otherwise the HyperXTalk
 Compatibility library's.
 
+A few lines meant something else before the <microseconds> was added:
+`beep the microseconds` was a beep, then a call of a <handler> named
+`the`, and `create button the microseconds` made a button with no
+name, then called a <handler> named `microseconds`. So that scripts
+work as they did, a <handler> that compiles without the <microseconds>
+is read as before, every line of it, and only one that does not compile
+without it is read with it; so is a <do> script or a <value>
+<expression>. Any other use of `the microseconds`, such as
+`put the microseconds into tStart`, did not compile before, so a
+<handler> that has one is read with the <microseconds>.
+
 The <microseconds> comes from HyperXTalk, so that stacks written for it
 work unchanged.
 
 References: function (control structure), milliseconds (function),
-seconds (function), ticks (function), event (glossary),
-return (glossary), eon (glossary), integer (keyword), long (keyword),
-variable (glossary), handler (glossary), custom property (glossary)
+seconds (function), ticks (function), do (command), value (function),
+event (glossary), return (glossary), eon (glossary), integer (keyword),
+long (keyword), variable (glossary), handler (glossary),
+custom property (glossary)
 
 Tags: math

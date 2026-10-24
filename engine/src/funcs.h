@@ -1037,7 +1037,8 @@ public:
 	// They are no keywords, so that variables, handlers and custom
 	// properties keep them: MCScriptPoint::parseexp ("the microseconds")
 	// and MCProperty::parse ("the long microseconds") read them only after
-	// "the", where the expression failed to parse before
+	// "the", where the expression failed to parse before, and only where
+	// what holds them did not compile without them (MCNewSyntax)
 	static bool isname(MCScriptPoint &sp);
 };
 

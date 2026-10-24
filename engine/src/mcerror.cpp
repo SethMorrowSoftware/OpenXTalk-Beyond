@@ -107,6 +107,16 @@ void MCError::append(MCError& p_other)
                                          *p_other.buffer);
 }
 
+void MCError::copyfrom(MCError& p_other)
+{
+    buffer.Reset();
+    /* UNCHECKED */ MCStringMutableCopy(*p_other.buffer, &buffer);
+	errorline = p_other.errorline;
+	errorpos = p_other.errorpos;
+	depth = p_other.depth;
+	thrown = p_other.thrown;
+}
+
 void MCError::copystringref(MCStringRef s, Boolean t)
 {
     buffer.Reset();

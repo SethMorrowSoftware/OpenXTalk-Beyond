@@ -171,3 +171,67 @@ on TestMatchesCustomProperty
    TestAssert "the custom property is named matches", the tName of me is "kept"
    TestAssert "the custom property matches wildcard", the matches of me matches wildcard "k*"
 end TestMatchesCustomProperty
+
+on TestMatchesOldReadings
+   -- A handler that compiles without the operator compiles as it did, as
+   -- this one does: "get tText matches wildcard (3)" was "get tText", then
+   -- a call of the command matches with the value of the function wildcard
+   -- (both in this script), and "return" stopped before "matches"
+   local tText, tResult
+   put "abc" into tText
+   get tText matches wildcard (3)
+   put the result into tResult
+   TestAssert "get, then a call of matches: it", it is "abc"
+   TestAssert "get, then a call of matches: the result", tResult is 6
+   TestAssert "return, then a call of matches", returnsBeforeMatches() is "abc"
+
+   -- and so does a do script
+   put empty into tResult
+   do "get tText matches wildcard (3)"
+   put the result into tResult
+   TestAssert "in do, get, then a call of matches: it", it is "abc"
+   TestAssert "in do, get, then a call of matches: the result", tResult is 6
+end TestMatchesOldReadings
+
+on TestMatchesInDo
+   -- A do script that does not compile without the operator is read with
+   -- it as if that were its first reading: a local it declares is no
+   -- duplicate, and nothing is left of the reading without the operator,
+   -- in which "get tText matches wildcard ..." made "wildcard" a variable
+   -- of this handler
+   local tNames
+   do "local tText" & return & \
+         "put" && quote & "notes.txt" & quote && "into tText" & return & \
+         "get tText matches wildcard" && quote & "*.txt" & quote
+   TestAssert "a do script that declares a local", it is true
+   put the localNames into tNames
+   replace return with comma in tNames
+   TestDiagnostic tNames
+   TestAssert "nothing is left of the reading without the operator", \
+         "wildcard" is not among the items of tNames
+end TestMatchesInDo
+
+private function returnsBeforeMatches
+   return "abc" matches wildcard (3)
+end returnsBeforeMatches
+
+function wildcard pValue
+   return pValue
+end wildcard
+
+on TestMatchesErrorsAsBefore
+   -- A handler that compiles neither way reports the error it reported
+   -- before: where the reading without the operator failed, line 2 here,
+   -- not line 3, where the reading with it fails
+   local tStack, tError
+   create invisible stack "MatchesErrorsAsBefore"
+   put the long id of it into tStack
+   set the script of tStack to "on probe" & return & \
+         "get 1 matches wildcard 2" & return & \
+         "put into" & return & \
+         "end probe"
+   put the result into tError
+   delete stack "MatchesErrorsAsBefore"
+   TestDiagnostic tError
+   TestAssert "the error is where the first reading failed", item 2 of line 1 of tError is 2
+end TestMatchesErrorsAsBefore

@@ -73,15 +73,30 @@ operators do: after `&`, and before `is`, <and> and <or>, so
 <custom property> named `matches` works as it always has. It is read as
 this <operator> only after a value and before `wildcard` or `regex`.
 
+A few lines meant something else before the <matches> <operator> was
+added: `get tText matches wildcard (tPattern)` was `get tText`, then a
+call of a <handler> named `matches` with the value of a <function>
+named `wildcard`, and `return tText matches wildcard (tPattern)`
+returned tText. So that scripts work as they did, a <handler> that
+compiles without the <matches> <operator> is read as before, every line
+of it, and only one that does not compile without it is read with it;
+so is a <do> script or a <value> <expression>. Any other use of the
+<operator>, such as those in the examples above, did not compile
+before, so a <handler> that has one is read with the <operator>. To
+have the <operator> in a line such as
+`get tText matches wildcard (tPattern)`, leave out the brackets around
+the pattern, or put them around the whole <expression>:
+`get (tText matches wildcard tPattern)`.
+
 The <matches> <operator> comes from HyperXTalk, so that stacks written
 for it work unchanged.
 
 References: filter (command), matchText (function),
 matchChunk (function), contains (operator), begins with (operator),
 ends with (operator), = (operator), and (operator), or (operator),
-if (control structure), caseSensitive (property),
-regular expression (glossary), expression (glossary),
-property (glossary), variable (glossary), handler (glossary),
-custom property (glossary)
+if (control structure), do (command), value (function),
+caseSensitive (property), regular expression (glossary),
+expression (glossary), property (glossary), variable (glossary),
+handler (glossary), custom property (glossary)
 
 Tags: text processing

@@ -180,3 +180,45 @@ on TestMicrosecondsCustomProperty
    -- and the function, beside it
    TestAssert "the microseconds is still the function", the microseconds is an integer
 end TestMicrosecondsCustomProperty
+
+on TestMicrosecondsOldReadings
+   -- A handler that compiles without "the microseconds" compiles as it did,
+   -- as this one does: "put 1 into tValue the microseconds" was "put 1 into
+   -- tValue", then a call of the command the (in this script)
+   local tValue, tResult
+   put 1 into tValue the microseconds
+   put the result into tResult
+   TestAssert "put, then a call of the: the value", tValue is 1
+   TestAssert "put, then a call of the: its parameter", tResult is "the microseconds"
+end TestMicrosecondsOldReadings
+
+command the pValue
+   return "the" && pValue
+end the
+
+on TestMicrosecondsInDo
+   -- A do script that does not compile without the microseconds is read
+   -- with it as if that were its first reading, so a local it declares is
+   -- no duplicate (this handler must not name the local itself)
+   do "local tStart" & return & \
+         "put the microseconds into tStart" & return & \
+         "get tStart"
+   TestAssert "a do script that declares a local", it is an integer and it > 0
+end TestMicrosecondsInDo
+
+on TestMicrosecondsErrorsAsBefore
+   -- A handler that compiles neither way reports the error it reported
+   -- before: where the reading without "the microseconds" failed, line 2
+   -- here, not line 3, where the reading with it fails
+   local tStack, tError
+   create invisible stack "MicrosecondsErrorsAsBefore"
+   put the long id of it into tStack
+   set the script of tStack to "on probe" & return & \
+         "put the microseconds into tValue" & return & \
+         "put into" & return & \
+         "end probe"
+   put the result into tError
+   delete stack "MicrosecondsErrorsAsBefore"
+   TestDiagnostic tError
+   TestAssert "the error is where the first reading failed", item 2 of line 1 of tError is 2
+end TestMicrosecondsErrorsAsBefore

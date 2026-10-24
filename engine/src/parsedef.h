@@ -614,7 +614,8 @@ enum Functions {
     F_EVENT_SHIFT_KEY,
 
     // OXT-Beyond: HyperXTalk's "the microseconds", read only after "the"
-    // (MCScriptPoint::parseexp, MCProperty::parse): no token of the factor
+    // (MCScriptPoint::parseexp, MCProperty::parse) and where what holds it
+    // did not compile without it (MCNewSyntax): no token of the factor
     // table, so "microseconds" stays free as a name. At the end, so that no
     // other value moves
     F_MICROSECS,

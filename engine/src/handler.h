@@ -99,6 +99,11 @@ public:
 	Parse_stat findconstant(MCNameRef name, MCExpression **);
 	Parse_stat newconstant(MCNameRef name, MCValueRef value);
 	void newglobal(MCNameRef name);
+	// OXT-Beyond: the counts of the variables, constants and globals the
+	// handler declares, and taking back those declared since they were
+	// got, with their variables while the handler runs (MCNewSyntaxRetry)
+	void getdeclarations(uint2 r_counts[3]);
+	void undeclare(const uint2 p_counts[3]);
 	bool getparamnames(MCListRef& r_list);
 	bool getparamnames_as_properlist(MCProperListRef& r_list);
 	bool getvariablenames(MCListRef& r_list);

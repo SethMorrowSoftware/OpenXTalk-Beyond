@@ -499,7 +499,8 @@ public:
 // matchText reads one (anywhere in it, unless ^ and $ say otherwise). It
 // binds as "contains" and "begins with" do. "matches" is no keyword:
 // MCScriptPoint::parseexp makes this only where it follows an operand and
-// "wildcard" or "regex" follows it (MCMatches::isahead)
+// "wildcard" or "regex" follows it (MCMatches::isahead), and only where
+// what holds it did not compile without it (MCNewSyntax)
 class MCMatches : public MCBinaryOperator
 {
 public:

@@ -80,6 +80,8 @@ private:
 
 	// Return the next statement in the script point, processing any definitions
 	// that occur before it.
+	// OXT-Beyond: with the statements that follow it on its line, as a chain
+	// (MCServerScriptParseLine)
 	Parse_stat ParseNextStatement(MCScriptPoint& sp, MCStatement*& r_statement);
 
 	// The linked list of files that have been included

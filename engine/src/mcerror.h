@@ -44,6 +44,9 @@ public:
 	void add(uint2 id, uint2 line, uint2 pos, const char *);
 	void add(uint2 id, uint2 line, uint2 pos, MCValueRef);
 	void append(MCError& string);
+	// OXT-Beyond: makes this error the same as p_other, its location and
+	// whether it was thrown included (MCNewSyntaxRetry)
+	void copyfrom(MCError& p_other);
 	void copystringref(MCStringRef s, Boolean t);
 	bool copyasstringref(MCStringRef &r_string);
 	bool isthrown(void) const {return thrown;}
@@ -51,6 +54,13 @@ public:
 	Boolean isempty()
 	{
 		return MCStringIsEmpty(*buffer);
+	}
+	// OXT-Beyond: whether this error is as clear() leaves it, its location
+	// and whether it was thrown included (MCNewSyntaxRetry)
+	bool isclear()
+	{
+		return MCStringIsEmpty(*buffer) && errorline == 0 && errorpos == 0 &&
+			depth == 0 && !thrown;
 	}
 	void geterrorloc(uint2 &line, uint2 &pos);
 	void seterrorloc(uint2 line, uint2 pos)
