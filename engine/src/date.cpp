@@ -36,9 +36,11 @@ static int1 s_datetime_month_length[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static const char *s_internet_date_format = "!%a, %#d %b %Y %H:%M:%S %z";
 static const char *s_items_date_format = "!%#Y,%#m,%#d,%#H,%#M,%#S,%#w";
 // OXT-Beyond: HyperXTalk's sql date, local time, and its date alone (which
-// "from sql date" also takes, as an SQL DATE column holds)
-static const char *s_sql_date_format = "!%#Y-%m-%d %H:%M:%S";
-static const char *s_sql_day_format = "!%#Y-%m-%d";
+// "from sql date" also takes, as an SQL DATE column holds). The year has
+// four digits, as SQL writes it: HyperXTalk's %#Y writes the year 99 as 99,
+// which reads back as 1999.
+static const char *s_sql_date_format = "!%Y-%m-%d %H:%M:%S";
+static const char *s_sql_day_format = "!%Y-%m-%d";
 
 ///////////////////////////////////////////////////////////////////////////////
 //

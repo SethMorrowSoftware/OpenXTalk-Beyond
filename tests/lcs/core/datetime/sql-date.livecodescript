@@ -104,6 +104,31 @@ on TestConvertFromSqlRefuses
    TestAssert "another format is refused", the result is "invalid date"
 end TestConvertFromSqlRefuses
 
+on TestSqlYearBefore1000
+   local tDate
+   -- four digits, as SQL writes a year: in two, the year 99 would read
+   -- back as 1999 (the centuryCutoff)
+   put "0099-10-24 14:30:05" into tDate
+   convert tDate from sql date to sql date
+   if the result is "invalid date" then
+      -- where time_t has 32 bits (32-bit Linux), the engine converts only
+      -- the years 1901 to 2038 and refuses the others
+      TestAssert "a year the engine cannot convert is refused and left as it was", \
+            tDate is "0099-10-24 14:30:05"
+      TestSkip "a year before 1000 has four digits", "this engine converts only the years 1901 to 2038"
+      exit TestSqlYearBefore1000
+   end if
+   TestAssert "the year 99 has four digits", tDate is "0099-10-24 14:30:05"
+   convert tDate from sql date to dateItems
+   TestAssert "and reads back as the year 99", item 1 to 6 of tDate is "99,10,24,14,30,5"
+
+   put "0999,1,2,3,4,5,6" into tDate
+   convert tDate from dateItems to sql date
+   TestAssert "the year 999 has four digits", tDate is "0999-01-02 03:04:05"
+   convert tDate from sql date to sql
+   TestAssert "and keeps them", tDate is "0999-01-02 03:04:05"
+end TestSqlYearBefore1000
+
 -- What scripts saw before stays as it was
 
 on TestSqlIsStillAName
