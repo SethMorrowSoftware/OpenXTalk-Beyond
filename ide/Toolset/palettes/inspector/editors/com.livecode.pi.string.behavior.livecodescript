@@ -18,6 +18,14 @@ on editorUpdate
    
    lock messages
    set the locktext of field 1 of me to not tEnabled
+   -- OXT-Beyond: the field's own colour first, so that the grey of an
+   -- inherited value is chosen for the colour it is drawn on (set after
+   -- it, the grey went by the colour of the update before)
+   if tConflicted then
+      set the backcolor of field 1 of me to kConflictedFieldColor
+   else
+      set the backcolor of field 1 of me to empty
+   end if
    if tEffective is true then
       if the focusedobject is not the long ID of field 1 of me then
          put tValue into field 1 of me
@@ -34,11 +42,6 @@ on editorUpdate
       end if
    end if
    
-   if tConflicted then
-      set the backcolor of field 1 of me to kConflictedFieldColor
-   else
-      set the backcolor of field 1 of me to empty
-   end if
    unlock messages
    
    unlock screen
@@ -88,17 +91,43 @@ end valueChanged
 -- OXT-Beyond: the grey of an inherited (effective) value, 100,100,100,
 -- cannot be read on the dark appearance's dark controls (richmond62's
 -- font menu on rc.6.3); there it is a light grey, chosen by how dark the
--- control it is drawn on is, or where its colour is the theme's pattern
--- rather than a colour (macOS's menus), by the system's appearance
+-- control it is drawn on is. A colour of the control's own is drawn as it
+-- is. Without one these controls (opaque, with a border) are drawn in the
+-- theme's colour, whatever colour the Inspector's window has (its
+-- background preference). On macOS and Windows that follows the system's
+-- appearance, which decides (for a button's or a menu's colour macOS
+-- gives scripts a stand-in, controlHighlightColor, rather than the colour
+-- it draws). On Linux the GTK theme's is the control's effective colour,
+-- unless something the control is in has a colour of its own: then it is
+-- the effective colour of a template, which is in nothing.
 private function effectiveTextColor pObject
-   local tBack
-   put the effective backgroundColor of pObject into tBack
+   local tBack, tOwner
+   put the backgroundColor of pObject into tBack
+   if tBack is empty and the platform is among the items of "MacOS,Win32" then
+      if the systemAppearance is "dark" then
+         return kEffectiveTextColorDark
+      end if
+      return kEffectiveTextColor
+   end if
+   if tBack is empty then
+      put the effective backgroundColor of pObject into tBack
+      put pObject into tOwner
+      repeat while word 1 of tOwner is not "stack"
+         put the long id of the owner of tOwner into tOwner
+         if the backgroundColor of tOwner is not empty then
+            if word 1 of pObject is "field" then
+               put the effective backgroundColor of the templateField into tBack
+            else
+               put the effective backgroundColor of the templateButton into tBack
+            end if
+            exit repeat
+         end if
+      end repeat
+   end if
    if the number of items of tBack is 3 and item 1 of tBack is an integer then
       if item 1 of tBack + item 2 of tBack + item 3 of tBack < 384 then
          return kEffectiveTextColorDark
       end if
-   else if the systemAppearance is "dark" then
-      return kEffectiveTextColorDark
    end if
    return kEffectiveTextColor
 end effectiveTextColor

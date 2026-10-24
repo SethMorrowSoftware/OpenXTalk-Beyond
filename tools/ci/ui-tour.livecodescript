@@ -45,6 +45,9 @@ script "oxt_ui_tour"
 --    OXT_TOUR_OUT    the folder for the snapshots (PNG)
 --    OXT_TOUR_LOG    the file for the lines below
 --    OXT_TOUR_ONLY   comma-separated steps to run (empty: all)
+--    OXT_TOUR_APPEARANCE  light or dark: the system's appearance, which
+--                    ui_tour.py set (the inspector's inherited values are
+--                    checked against it; empty: not checked)
 --
 -- Lines:
 --    STARTED
@@ -951,7 +954,7 @@ command tourTbMake pName, pLeft, pTop, pScript
 end tourTbMake
 
 on tour_inspector
-   local tPI, tSection, tShown, tIndex
+   local tPI, tSection, tShown, tIndex, tError
    put tourInspect(tourSample("Push")) into tPI
    tourInspectorHeaderCheck tPI
    put 0 into tIndex
@@ -963,7 +966,10 @@ on tour_inspector
       end if
       add 1 to tIndex
       tourShotStack tPI, "05-inspector-button-" & tIndex & "-" & tourFileName(tSection)
+      if tSection is "Text" then put tourInspectorInherited(tPI) into tError
    end repeat
+   if tError is empty then put tourInspectorInheritedOnColour() into tError
+   if tError is not empty then throw tError
 end tour_inspector
 
 on tour_inspector_text
@@ -2248,6 +2254,103 @@ function tourInspectorSection pStack, pSection
    tourRecord "INFO" && pStack && "section" && tShown
    return tShown
 end tourInspectorSection
+
+-- The push button's font and size in the Text section, which it takes
+-- from the stack: inherited values, in grey italics that can be read on
+-- the control they are drawn on, 170,170,170 with the system dark and
+-- 100,100,100 with it light (richmond62 on rc.6.3: grey 100 on the dark
+-- font menu). The appearance is the one ui_tour.py set; without it
+-- nothing is checked. Returns what is wrong, or empty
+function tourInspectorInherited pStack
+   local tWant, tProperty, tEditor, tControl, tShown, tFails
+   switch $OXT_TOUR_APPEARANCE
+      case "dark"
+         put "170,170,170" into tWant
+         break
+      case "light"
+         put "100,100,100" into tWant
+         break
+      default
+         tourRecord "INFO inspector inherited values: not checked (no OXT_TOUR_APPEARANCE)"
+         return empty
+   end switch
+   repeat for each item tProperty in "textFont,textSize"
+      put tourInspectorEditor(pStack, tProperty) into tEditor
+      if tEditor is empty then
+         put tProperty & ": no editor in the Text section" & return after tFails
+         next repeat
+      end if
+      -- the font menu, or the size's field (com.livecode.pi.font and
+      -- com.livecode.pi.number)
+      if tProperty is "textFont" then
+         put the long id of button 1 of tEditor into tControl
+         put the label of tControl into tShown
+      else
+         put the long id of field 1 of tEditor into tControl
+         put the text of tControl into tShown
+      end if
+      tourRecord "INFO inspector inherited" && tProperty & ":" && quote & tourJoin(tShown) & quote && \
+            "textColor" && the textColor of tControl && "italic" && the textStyle["italic"] of tControl && \
+            "backgroundColor" && quote & the backgroundColor of tControl & quote && \
+            "effective" && the effective backgroundColor of tControl
+      if the textStyle["italic"] of tControl is not true then
+         put tProperty & ": not shown as inherited (not in italics)" & return after tFails
+      else if the textColor of tControl is not tWant then
+         put tProperty & ": the inherited value is" && the textColor of tControl & ", not" && tWant && \
+               "(the system" && $OXT_TOUR_APPEARANCE & ")" & return after tFails
+      end if
+   end repeat
+   if tFails is empty then return empty
+   return "inherited values:" && tourJoin(line 1 to -1 of tFails)
+end tourInspectorInherited
+
+-- The same with the Inspector's window in a colour of the other darkness
+-- (its background preference, in the Preferences): the grey follows the
+-- control it is drawn on, which the theme colours whatever colour the
+-- window has
+function tourInspectorInheritedOnColour
+   local tColour, tPI, tError
+   switch $OXT_TOUR_APPEARANCE
+      case "dark"
+         put "225,225,225" into tColour
+         break
+      case "light"
+         put "40,40,40" into tColour
+         break
+      default
+         return empty
+   end switch
+   if there is not a stack "revPreferences" then
+      tourRecord "INFO inspector inherited values on a window colour: no stack revPreferences"
+      return empty
+   end if
+   set the cInspectorBackgroundColor of stack "revPreferences" to tColour
+   try
+      put tourInspect(tourSample("Push")) into tPI
+      get tourInspectorSection(tPI, "Text")
+      tourRecord "INFO inspector inherited values on the window colour" && the backgroundColor of stack tPI
+      put tourInspectorInherited(tPI) into tError
+   catch tError
+   end try
+   set the cInspectorBackgroundColor of stack "revPreferences" to empty
+   tourCloseInspectors
+   if tError is empty then return empty
+   return "with the Inspector's window" && tColour & ":" && tError
+end tourInspectorInheritedOnColour
+
+-- The editor of the property pProperty in the inspector pStack: the group
+-- revinspectorgroupbehavior.livecodescript names for it, in the row of
+-- the section shown
+function tourInspectorEditor pStack, pProperty
+   local tCard, tControl, i
+   put the long id of this card of stack pStack into tCard
+   repeat with i = 1 to the number of controls of tCard
+      put the long id of control i of tCard into tControl
+      if word 1 of tControl is not "group" or the short name of tControl is not pProperty then next repeat
+      if the editorProperty["property_name"] of tControl is pProperty then return tControl
+   end repeat
+   return empty
+end tourInspectorEditor
 
 -- The first visible open stack whose name starts with pPrefix
 function tourStackNamed pPrefix
