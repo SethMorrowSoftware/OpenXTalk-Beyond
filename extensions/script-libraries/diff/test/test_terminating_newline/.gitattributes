@@ -1,0 +1,4 @@
+# Disable eol conversion for this folder: the diffs compared with these
+# files are read as they are (binfile), so a Windows checkout that gave
+# them CRLF endings failed the tests there
+* -text
