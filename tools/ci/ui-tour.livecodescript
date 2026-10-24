@@ -8,9 +8,10 @@ script "oxt_ui_tour"
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
 -- first size, wide, with its names and with Large Icons, and checks of how that look
--- behaves: tools-modern-check, -sizes, -use and -switch), on Linux a
--- pop-up menu whose ticks, dots and submenu arrows must stand out from the
--- menu (menu-marks), a stack of
+-- behaves: tools-modern-check, -sizes, -use and -switch), on macOS the
+-- menu bar stack told it was moved, and made a window (menubar-mac), on
+-- Linux a pop-up menu whose ticks, dots and submenu arrows must stand out
+-- from the menu (menu-marks), a stack of
 -- the user with the usual controls (and a switch between light and dark
 -- while it is the defaultStack: appearance-switch) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
@@ -64,7 +65,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menu-marks,sample,appearance-switch,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -956,6 +957,109 @@ on tour_menubar
       tourRecord "INFO menubar: no visible revMenuBar stack (the menu bar is the system's)"
    end if
 end tour_menubar
+
+-- macOS, where the IDE keeps a stack moved under its menu bar stack from
+-- staying there (revidemessagehandlerlibrary's moveStack sets it below).
+-- The menu bar itself, told it was moved where it is, as a drag of its
+-- title bar tells it, must stay there and stop on nothing: in rc.6.3 the
+-- guard set it its own height and 20 lower, while a dragged window stays
+-- where it is dragged, so its buttons stopped working, and the end of the
+-- drag stopped on an error (hCheckMacUp) (forum, bwmilby, rc.6.3). Another
+-- stack told it was moved under the menu bar, with the mouse up, is set
+-- below it at once, as before. Made a window with a title bar (Preferences
+-- > Appearance), the menu bar must open with all of its title bar below the
+-- Mac's menu bar (rc.6.3 put its top at 52, a pixel under a menu bar of
+-- 25). Its settings are put back as they were, and it is docked again
+on tour_menubar_mac
+   local tMenuBar, tBefore, tSaved, tName, tExpected, tEffective, tWorking, tFails, tError
+   if the platform is not "MacOS" then
+      tourRecord "INFO menubar-mac: the IDE keeps stacks from under its menu bar on macOS only"
+      exit tour_menubar_mac
+   end if
+   put revIDEPaletteToStackName("menubar") into tMenuBar
+   if tMenuBar is empty or there is not a stack tMenuBar or not the visible of stack tMenuBar then
+      tourRecord "INFO menubar-mac: no visible menu bar stack"
+      exit tour_menubar_mac
+   end if
+   put the rect of stack tMenuBar into tBefore
+   put the cMakeRevMenuBarStandard of stack "revPreferences" into tSaved["standard"]
+   put the cTweakMenuBarOffset of stack "revPreferences" into tSaved["offset"]
+   put the cTweakMenuBarL of stack "revPreferences" into tSaved["left"]
+   put the cTweakMenuBarT of stack "revPreferences" into tSaved["top"]
+   try
+      -- the menu bar told it was moved where it is
+      dispatch "moveStack" to card 1 of stack tMenuBar with item 1 of tBefore, item 2 of tBefore
+      tourWait 1000
+      if the rect of stack tMenuBar is not tBefore then
+         put "the menu bar, told it was moved where it is, set itself at" && the rect of stack tMenuBar & return after tFails
+         lock messages
+         set the rect of stack tMenuBar to tBefore
+         unlock messages
+      end if
+      -- another stack told it was moved under the menu bar
+      put "OXT Tour Under The Menu Bar" into tName
+      lock messages
+      if there is a stack tName then delete stack tName
+      create stack tName
+      set the rect of stack tName to (item 1 of tBefore + 40), (item 4 of tBefore + 100), (item 1 of tBefore + 340), (item 4 of tBefore + 300)
+      close stack tName
+      unlock messages
+      go stack tName
+      tourWait 500
+      lock messages
+      set the top of stack tName to item 2 of tBefore + 10
+      unlock messages
+      tourWait 300
+      dispatch "moveStack" to card 1 of stack tName with the left of stack tName, the top of stack tName
+      tourWait 500
+      put item 4 of the rect of stack tMenuBar + 20 into tExpected
+      if the top of stack tName is not tExpected then
+         put "a stack told it was moved under the menu bar has its top at" && the top of stack tName & ", not at" && tExpected & return after tFails
+      end if
+      close stack tName
+      lock messages
+      delete stack tName
+      unlock messages
+      -- the menu bar made a window with a title bar, as Preferences makes it
+      set the cMakeRevMenuBarStandard of stack "revPreferences" to true
+      send "tMenuBar_WDdecorations" to stack tMenuBar
+      tourWait 1500
+      put the effective rect of stack tMenuBar into tEffective
+      put line (the screen of stack tMenuBar) of the working screenRects into tWorking
+      tourRecord "INFO menubar-mac: as a window, rect" && the rect of stack tMenuBar & ", effective rect" && \
+            tEffective & ", working screenRect" && tWorking
+      tourShotStack tMenuBar, "03a-menubar-window"
+      if item 2 of tEffective < item 2 of tWorking then
+         put "made a window, the menu bar's title bar starts at" && item 2 of tEffective & \
+               ", above the bottom of the Mac's menu bar at" && item 2 of tWorking & return after tFails
+      end if
+   catch tError
+      unlock messages
+      put "it stopped:" && tourJoin(tError) & return after tFails
+   end try
+   -- docked again, with its settings as they were (it records its place
+   -- in them as it moves, hSetMBOffsets)
+   tourMbMacSettings tSaved
+   send "tMenuBar_WDdecorations" to stack tMenuBar
+   tourWait 1500
+   tourMbMacSettings tSaved
+   if the rect of stack tMenuBar is not tBefore then
+      tourRecord "INFO menubar-mac: docked again at" && the rect of stack tMenuBar & ", set back at" && tBefore
+      lock messages
+      set the rect of stack tMenuBar to tBefore
+      unlock messages
+   end if
+   tourUnlockScreen "menubar-mac"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menubar_mac
+
+-- The menu bar's settings in Preferences as tour_menubar_mac found them
+command tourMbMacSettings pSaved
+   set the cMakeRevMenuBarStandard of stack "revPreferences" to pSaved["standard"]
+   set the cTweakMenuBarOffset of stack "revPreferences" to pSaved["offset"]
+   set the cTweakMenuBarL of stack "revPreferences" to pSaved["left"]
+   set the cTweakMenuBarT of stack "revPreferences" to pSaved["top"]
+end tourMbMacSettings
 
 -- The marks of a menu's items as the engine draws them on Linux, where the
 -- IDE's menus are menu buttons of a stack too: the tick of a checked item,
