@@ -865,10 +865,11 @@ on tour_controls
    end repeat
    
    -- The tabs: the column three points in from the left of the first tab,
-   -- left of its name, from the top to below the tabs
+   -- left of its name, from the top to below the tabs. Undrawn tabs read
+   -- 0; Windows' light tabs, near white on its light grey card, read 23
    tourGrab "Tabs"
    put tourMaxDiff(3, 0, 4, 30, tBack) into tMax
-   tourCtlCheck tMax >= 24, "the tabs are drawn (" & tMax & ")"
+   tourCtlCheck tMax >= 16, "the tabs are drawn (" & tMax & ")"
    
    tourGrab "Track"
    put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
@@ -881,7 +882,9 @@ on tour_controls
    repeat for each item tWhere in "Slider,SliderOff"
       tourGrab tWhere
       put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
-      put tourRowsDrawn(tBack, 24) into tExtent
+      -- 12, not 24: the light knob is white on the white card, and only
+      -- its edge and its shadow below show, by 15 or more
+      put tourRowsDrawn(tBack, 12) into tExtent
       tourRecord "INFO controls:" && tWhere && "differs by" && tMax && "and is drawn in rows" && tExtent && "of 0 to" && sPixHeight - 1
       tourCtlCheck tMax >= 24, "the slider" && tWhere && "is drawn (" & tMax & ")"
       -- The knob of a slider is taller than its track: cut off on the Mac,
@@ -892,8 +895,9 @@ on tour_controls
       end if
    end repeat
    
-   -- The window colour: on the Mac the card turns the system's window colour
-   -- and back; elsewhere nothing changes
+   -- The window colour: on the Mac in light mode the card turns the
+   -- system's window colour and back; in dark mode it is that colour
+   -- already, and elsewhere nothing changes
    try
       do "set the useSystemWindowColor to true"
       tourWait 500
@@ -905,7 +909,7 @@ on tour_controls
       tourGrab "Back"
       put tourLum(10, 10) into tOff
       tourRecord "INFO controls: the card with the useSystemWindowColor:" && tOn & ", without:" && tOff
-      if the platform is "MacOS" then
+      if the platform is "MacOS" and tBack >= 128 then
          tourCtlCheck abs(tOn - tBack) >= 6, "the useSystemWindowColor makes the card the window colour (" & tBack && "to" && tOn & ")"
       else
          tourCtlCheck abs(tOn - tBack) < 3, "the useSystemWindowColor changes nothing here (" & tBack && "to" && tOn & ")"

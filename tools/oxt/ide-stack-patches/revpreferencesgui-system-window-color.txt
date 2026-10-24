@@ -1,8 +1,8 @@
 # Preferences, card "Appearance": on the Mac, a check box "Stacks in the
 # Mac's window colour", which turns the global useSystemWindowColor on and
 # off (a stack with no backgroundColor of its own is then drawn in the
-# Mac's light grey window colour, or dark grey in dark mode, instead of
-# white) and keeps the choice in the preference cUseSystemWindowColor, which
+# Mac's light grey window colour instead of white; in dark mode stacks
+# are in the Mac's dark window colour already) and keeps the choice in the preference cUseSystemWindowColor, which
 # home.livecodescript applies when the IDE starts. A patch cannot add a
 # control to the stack file, so the card makes the check box itself the
 # first time it opens on the Mac, as a copy of its "Grid enabled" check
@@ -37,7 +37,7 @@ with:
 |      put it into tBox|
 |      set the name of tBox to "useSystemWindowColor"|
 |      set the label of button "useSystemWindowColor" of me to "Stacks in the Mac's window colour"|
-|      set the toolTip of button "useSystemWindowColor" of me to "Stacks with no background colour of their own are light grey, as Mac windows are, or dark grey in dark mode, instead of white"|
+|      set the toolTip of button "useSystemWindowColor" of me to "Stacks with no background colour of their own are light grey, as Mac windows are, instead of white"|
 |      put the rect of button "gridCheckAtStartup" of me into tRect|
 |      put item 2 of tRect - 33 into item 2 of tRect|
 |      put item 4 of tRect - 33 into item 4 of tRect|
