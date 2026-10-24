@@ -71,6 +71,9 @@
 							'revmobile/revmobile.gyp:external-revandroid',
 							'revspeech/revspeech.gyp:external-revspeech',
 							
+							# OXT-Beyond: mergJSON (mergjson/README.md)
+							'mergjson/mergjson.gyp:external-mergjson',
+							
 							# Server externals
 							'revdb/revdb.gyp:external-revdb-server',
 						],

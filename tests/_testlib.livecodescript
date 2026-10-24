@@ -457,7 +457,9 @@ on TestLoadExternal pExternal
 
    create stack pExternal && "External"
    start using it
-   if the externalCommands of it is empty then
+   -- OXT-Beyond: an external may define functions only, as mergJSON does
+   if the externalCommands of it is empty and \
+         the externalFunctions of it is empty then
       write "Cannot load external" && pExternal & return to stderr
       quit 1
    end if

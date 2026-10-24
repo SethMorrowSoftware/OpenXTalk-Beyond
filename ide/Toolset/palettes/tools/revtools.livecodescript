@@ -54,6 +54,9 @@ local sTmContentHeight
 local sTmNeedSize
 -- The pending save of the window's size
 local sTmSaveMsg
+-- The pending look again at macOS's appearance after a switch, and how
+-- many looks are left (tmRecheckAppearance)
+local sAppearanceMsg, sAppearanceTries
 
 on preOpenStack
    if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99 -- tperry 1/5/24
@@ -180,7 +183,40 @@ on ideSystemAppearanceChanged
    generatePalette
    layoutPalette
    unlock screen
+   -- OXT-Beyond: on macOS the systemAppearance, which both looks read
+   -- to choose dark or light, comes from the user defaults, and they
+   -- can still hold the old appearance when the switch is announced: the
+   -- palette was drawn again in the old one, and only looked right once
+   -- it was drawn again later (turning the modern look off and on). So
+   -- it looks again for a few seconds, and draws itself once more if the
+   -- appearance it was drawn in is no longer the system's
+   if the platform is "MacOS" then
+      if sAppearanceMsg is not empty then cancel sAppearanceMsg
+      put 10 into sAppearanceTries
+      send "tmRecheckAppearance" to me in 300 milliseconds
+      put the result into sAppearanceMsg
+   end if
 end ideSystemAppearanceChanged
+
+on tmRecheckAppearance
+   local tDark
+   put empty into sAppearanceMsg
+   -- the palette was closed meanwhile: it is drawn when it opens
+   if the mode of me is 0 then exit tmRecheckAppearance
+   subtract 1 from sAppearanceTries
+   put the systemAppearance is "dark" into tDark
+   if tDark is not (the cUsingTheme of me is "dark") then
+      lock screen
+      generatePalette
+      layoutPalette
+      unlock screen
+      exit tmRecheckAppearance
+   end if
+   if sAppearanceTries > 0 then
+      send "tmRecheckAppearance" to me in 300 milliseconds
+      put the result into sAppearanceMsg
+   end if
+end tmRecheckAppearance
 
 on idePreferenceChanged pPreference
    switch pPreference
