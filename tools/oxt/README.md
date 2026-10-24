@@ -96,7 +96,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `.version`, `.buildnumber`, `about.dat`, `about.txt`, `License Agreement.txt`, `Open Source Licenses.txt`, `OpenXTalk-lite_1024.ico`, `OXT-Beyond.ico`, `Release Notes.pdf` | ide | `ide/<name>` | Misc (`about.txt`, licences); the rest are OpenXTalk Lite or OXT-Beyond additions |
 | `Extensions/<folder>/**` for a folder in `xtalk-extensions.json`, `Extensions/XTALK-EXTENSIONS.txt` | xtalk | | not in package.txt: the bundled xTalk Suite extensions (before the next rule) |
 | `Extensions/<id>/**` for an id not built here | ide | `ide/Extensions/<id>/**` | new folder, see below |
-| `Extensions/<one of the 42 com.livecode.* ids>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |
+| `Extensions/<one of the 43 ids in REPO_BUILT_EXTENSIONS>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |
 | `Extensions/com.livecode.library.timezone/code/x86_64-win32/**` | build | | TimeZone (win-x86_64) |
 | `Extensions/com.livecode.library.timezone/code/**` (other platforms) | external | | TimeZone (other platform builds) |
 | `Extensions/com.livecode.library.timezone/resources/**` | external | | TimeZone: the zoneinfo data, compiled by `zic` only in macOS and Linux builds (`tz.gyp` target `tzdata`); upstream takes the whole extension from the macOS build |
@@ -288,7 +288,7 @@ The folder is put together from:
   | `w32-manifest-template*.xml` (3) | `Runtime/Windows/x86-64/` | Runtime.Windows |
   | `revpdfprinter.dll`, `revsecurity.dll` | `Runtime/Windows/x86-64/Support/` | Runtime.Windows |
   | the Externals rows above (without `revandroid.dll`) | `Runtime/Windows/x86-64/Externals/...` | Runtime x86-64: `include Externals` |
-  | `packaged_extensions/<id>/**` for the 42 ids in `REPO_BUILT_EXTENSIONS` | `Extensions/<id>/**` | Extensions, TimeZone |
+  | `packaged_extensions/<id>/**` for the 43 ids in `REPO_BUILT_EXTENSIONS` | `Extensions/<id>/**` | Extensions, TimeZone |
 
 * **Generated files**: `edition.txt` (`community`, no line break);
   `Externals.txt` (`Speech,revspeech.dll`, `XML,revxml.dll`,
@@ -446,7 +446,7 @@ disagree, the layout follows the IDE:
 | mobile | `Externals/revandroid.so` | `Externals/revandroid.bundle` |
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
 | standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
-| `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+| `packaged_extensions/<id>` | `Extensions/<id>` (the 43 ids; the timezone library brings its own zoneinfo and native code) | the same |
 | (from the repository) `Installer/linux/*`, branding PNGs | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | none |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,

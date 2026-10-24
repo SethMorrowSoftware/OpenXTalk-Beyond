@@ -256,7 +256,7 @@ SHOWCASE = 'Resources/Examples/Showcase/'
 RELEASE_NOTES = ('CHANGELOG.md', 'HISTORY.md', 'README.md')
 RELEASE_NOTES_DIR = 'Toolset/palettes/updates/notes/'
 
-# components Extensions and TimeZone: the same 42 ids layout.py knows
+# components Extensions and TimeZone: the ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
 
 # The web runtime (--web-runtime), under the tools folder: where the IDE's

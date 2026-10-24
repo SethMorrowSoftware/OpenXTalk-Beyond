@@ -161,6 +161,15 @@ void MCDateTimeGetLongMicroseconds(MCExecContext &ctxt, double& r_value)
 	r_value = MCS_microseconds();
 }
 
+// OXT-Beyond: microseconds() of the HyperXTalk compatibility library
+// (extensions/libraries/hxtcompat), which binds to this by name. Called so,
+// with brackets, it is a call of a script's own function handler, and the
+// library answers it only where there is none
+extern "C" MC_DLLEXPORT_DEF void MCHyperXTalkMicroseconds(double& r_value)
+{
+	r_value = floor(MCS_microseconds());
+}
+
 void MCDateTimeGetSeconds(MCExecContext &ctxt, double& r_value)
 {
 	r_value = floor(MCS_time());

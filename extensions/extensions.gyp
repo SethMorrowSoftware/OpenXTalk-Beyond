@@ -152,6 +152,7 @@
 				'libraries/ini/ini.lcb',
 				'libraries/timezone/timezone.lcb',
 				'libraries/macstatusmenu/macstatusmenu.lcb',
+				'libraries/hxtcompat/hxtcompat.lcb',
 
 				'widgets/androidbutton/androidbutton.lcb',
 				'widgets/androidfield/androidfield.lcb',

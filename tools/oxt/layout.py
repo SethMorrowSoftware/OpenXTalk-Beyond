@@ -191,6 +191,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.widget.switchbutton',
     'com.livecode.widget.tile',
     'com.livecode.widget.treeview',
+    'org.openxtalk.library.hxtcompat',
 )
 
 # The xTalk Suite extensions (class xtalk): their folders are the ones

@@ -487,6 +487,9 @@ component Extensions
 		rfolder macosx:packaged_extensions/com.livecode.library.objectrepository
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/com.livecode.library.native.mac.statusmenu
+	// OXT-Beyond: HyperXTalk's iff, quotedPrintableEncode and Decode, microseconds()
+	into [[ToolsFolder]]/Extensions place
+		rfolder macosx:packaged_extensions/org.openxtalk.library.hxtcompat
 
 	include TimeZone
 

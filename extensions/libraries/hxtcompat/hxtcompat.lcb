@@ -1,0 +1,287 @@
+/* Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond.
+
+OXT-Beyond is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
+
+-- Functions that HyperXTalk (Emily-Elizabeth Howard's fork of LiveCode
+-- Community, https://github.com/emily-elizabeth/HyperXTalk, GPLv3) has as
+-- functions of its engine, here as handlers of a library, so that adding
+-- them breaks no script: a library's handlers come last in the message
+-- path, so a script's own handlers of these names come first, as they did,
+-- and a call that found no handler before now finds one here. Making them
+-- functions of the engine would have reserved their names, which a
+-- variable, parameter or handler could then no longer have.
+--
+-- HyperXTalk's "the microseconds" and its "matches wildcard" and "matches
+-- regex" operators are in the engine (funcs.h, operator.h), read only where
+-- they were errors before. The work behind quotedPrintableEncode,
+-- quotedPrintableDecode and microseconds() is the engine's too
+-- (engine/src/exec-filters.cpp, exec-datetime.cpp): the library binds to it
+-- by name.
+
+/**
+Functions from HyperXTalk: <iff>, <quotedPrintableEncode>,
+<quotedPrintableDecode> and <microseconds>, for scripts written for
+HyperXTalk.
+
+Description:
+HyperXTalk, a fork of LiveCode Community, has these functions in its
+engine. Here they are handlers of a library, which come after every other
+handler in the message path: where a script has its own handler of one of
+these names, that handler is called, as before.
+
+The engine has the rest of what HyperXTalk added to the language: the
+<microseconds> function (`the microseconds`) and the <matches> operator.
+
+In a standalone application, include the "HyperXTalk Compatibility"
+library (Standalone Application Settings, Inclusions).
+
+Tags: Library
+*/
+
+library org.openxtalk.library.hxtcompat
+
+metadata version is "1.0.0"
+metadata author is "OXT-Beyond"
+metadata title is "HyperXTalk Compatibility"
+
+use com.livecode.foreign
+
+private foreign handler MCHyperXTalkQuotedPrintableEncode(in pData as Data, \
+		out rText as String) returns CBool binds to "<builtin>"
+private foreign handler MCHyperXTalkQuotedPrintableDecode(in pText as String, \
+		out rData as Data) returns CBool binds to "<builtin>"
+private foreign handler MCHyperXTalkMicroseconds(out rMicroseconds as CDouble) \
+		returns nothing binds to "<builtin>"
+
+/**
+Summary: Returns one of two values, chosen by a condition.
+
+Example:
+put iff(tCount is 1, "item", "items") into tWord
+
+Example:
+answer "The file is" && iff(there is a file tPath, "there", "missing") & "."
+
+Parameters:
+pCondition: An expression that is true or false.
+pTrue: The value to return when <pCondition> is true.
+pFalse: The value to return when <pCondition> is false.
+
+Returns: <pTrue> if <pCondition> is true, <pFalse> if it is false.
+
+Description:
+Use the <iff> function to choose between two values in an expression,
+where an <if> statement would take several lines.
+
+As with any handler, both values are worked out before <iff> is called,
+so a value that can fail, such as `1 / tCount` when <tCount> can be 0,
+fails even when it is not the one returned: use an <if> statement for
+it. (HyperXTalk's <iff> works out only the value it returns.)
+
+If <pCondition> is neither true nor false, the call fails with
+"call: type conversion error".
+
+<iff> comes from HyperXTalk. Where a script has its own <iff> handler,
+that handler is called instead.
+
+Tags: Library
+
+References: if (control structure), true (constant), false (constant)
+*/
+public handler iff(in pCondition as Boolean, in pTrue as optional any, \
+		in pFalse as optional any) returns optional any
+	if pCondition then
+		return pTrue
+	end if
+	return pFalse
+end handler
+
+/**
+Summary: Encodes data as quoted-printable text, as email does.
+
+Example:
+put quotedPrintableEncode(textEncode(field "Message", "UTF-8")) into tBody
+
+Parameters:
+pData: The data to encode.
+
+Returns: The quoted-printable text.
+
+Description:
+Use the <quotedPrintableEncode> function to encode text or data for an
+email message whose Content-Transfer-Encoding is quoted-printable (RFC
+2045).
+
+Bytes from 33 to 126 stay as they are, but "=", and so do spaces and
+tabs, unless one ends a line. Line breaks (CR and LF) stay as they are.
+Every other byte becomes "=" and its two hexadecimal digits, upper case.
+A longer line is broken with soft line breaks ("=" at the end of a line,
+then CR LF), so that no line is longer than 76 characters.
+
+Text with characters outside the ASCII range should be encoded first,
+with <textEncode> (for example in UTF-8), and the message should say
+which encoding it is in.
+
+<quotedPrintableEncode> comes from HyperXTalk. HyperXTalk's can make a
+line of 77 characters, which the RFC does not allow. Where a script has
+its own <quotedPrintableEncode> handler, that handler is called instead.
+
+Tags: Library
+
+References: quotedPrintableDecode (handler), textEncode (function),
+base64Encode (function)
+*/
+public handler quotedPrintableEncode(in pData as Data) returns String
+	variable tText as String
+	variable tDone as Boolean
+	unsafe
+		put MCHyperXTalkQuotedPrintableEncode(pData, tText) into tDone
+	end unsafe
+	if not tDone then
+		throw "quotedPrintableEncode: out of memory"
+	end if
+	return tText
+end handler
+
+/**
+Summary: Decodes quoted-printable text, as email has it.
+
+Example:
+put textDecode(quotedPrintableDecode(tBody), "UTF-8") into field "Message"
+
+Parameters:
+pText: The quoted-printable text to decode.
+
+Returns: The data it encodes.
+
+Description:
+Use the <quotedPrintableDecode> function to decode the body of an email
+message whose Content-Transfer-Encoding is quoted-printable (RFC 2045).
+
+An "=" and two hexadecimal digits (in upper or lower case) become the
+byte they encode. A soft line break ("=" at the end of a line) is left
+out, with its line break. Everything else stays as it is, an "=" that
+starts neither included.
+
+The result is data: decode it as text with <textDecode>, in the
+encoding the message names.
+
+<quotedPrintableDecode> comes from HyperXTalk. Where a script has its own
+<quotedPrintableDecode> handler, that handler is called instead.
+
+Tags: Library
+
+References: quotedPrintableEncode (handler), textDecode (function),
+base64Decode (function)
+*/
+public handler quotedPrintableDecode(in pText as String) returns Data
+	variable tData as Data
+	variable tDone as Boolean
+	unsafe
+		put MCHyperXTalkQuotedPrintableDecode(pText, tData) into tDone
+	end unsafe
+	if not tDone then
+		throw "quotedPrintableDecode: out of memory"
+	end if
+	return tData
+end handler
+
+/**
+Summary: Returns the number of microseconds since midnight GMT, January
+1, 1970, when it is called with brackets.
+
+Example:
+put microseconds() into tStart
+
+Returns: The number of microseconds since the start of the eon, a whole
+number.
+
+Description:
+`microseconds()` is the <microseconds> function (`the microseconds`),
+which the engine has, written as HyperXTalk also allows: with brackets,
+as a call of a handler. Where a script has its own <microseconds>
+function handler, `microseconds()` calls that handler, as before, and
+`the microseconds` is still the engine's.
+
+Tags: Library
+
+References: microseconds (function), milliseconds (function)
+*/
+public handler microseconds() returns Number
+	variable tMicroseconds as Number
+	unsafe
+		MCHyperXTalkMicroseconds(tMicroseconds)
+	end unsafe
+	return tMicroseconds
+end handler
+
+/**
+Summary: The same as <microseconds>.
+
+Example:
+put microsecs() into tStart
+
+Returns: The number of microseconds since midnight GMT, January 1, 1970.
+
+Description:
+`microsecs()` is `microseconds()`: another of its names.
+
+Tags: Library
+
+References: microseconds (handler)
+*/
+public handler microsecs() returns Number
+	return microseconds()
+end handler
+
+/**
+Summary: The same as <microseconds>.
+
+Example:
+put microsecond() into tStart
+
+Returns: The number of microseconds since midnight GMT, January 1, 1970.
+
+Description:
+`microsecond()` is `microseconds()`: another of its names.
+
+Tags: Library
+
+References: microseconds (handler)
+*/
+public handler microsecond() returns Number
+	return microseconds()
+end handler
+
+/**
+Summary: The same as <microseconds>.
+
+Example:
+put microsec() into tStart
+
+Returns: The number of microseconds since midnight GMT, January 1, 1970.
+
+Description:
+`microsec()` is `microseconds()`: another of its names.
+
+Tags: Library
+
+References: microseconds (handler)
+*/
+public handler microsec() returns Number
+	return microseconds()
+end handler
+
+end library
