@@ -325,5 +325,5 @@ on TestLargeComputedNumericKeys
    put "over" into tArray[tNumber]
    put the keys of tArray into tKeys
    sort lines of tKeys numeric
-   TestAssert "32-bit edge keys", tKeys is "2147483647" & return & "2147483648"
+   TestAssert "the 32-bit edge keys", tKeys is "2147483647" & return & "2147483648"
 end TestLargeComputedNumericKeys
