@@ -6,6 +6,8 @@ Syntax: the [{ long | abbreviated | short }] [{ english | system }] date
 
 Syntax: the internet date
 
+Syntax: the sql date
+
 Syntax: date()
 
 Summary:
@@ -57,6 +59,11 @@ The internet date form returns the following parts, separated by spaces:
   colons 
 * the four-digit time zone relative to UTC (Greenwich) time.
 
+The <sql> date form returns the date and the local time as SQL
+databases store them, `YYYY-MM-DD HH:MM:SS`, for example
+2017-02-17 22:13:21 (see <sql>). It was added in OXT-Beyond 9.7.1 for
+stacks written in HyperXTalk.
+
 
 Description:
 Use the <date> <function> to display the current date to the user, or to
@@ -76,7 +83,8 @@ References: convert (command), function (control structure),
 dateFormat (function), milliseconds (function), format (function),
 ticks (function), property (glossary), return (glossary),
 format (glossary), long (keyword), english (keyword), short (keyword),
-system (keyword), abbreviated (keyword), centuryCutoff (property)
+system (keyword), abbreviated (keyword), sql (keyword),
+centuryCutoff (property)
 
 Tags: math
 

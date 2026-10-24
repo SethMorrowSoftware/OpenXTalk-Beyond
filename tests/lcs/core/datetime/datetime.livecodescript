@@ -59,3 +59,42 @@ on TestConvertDatesBefore1970
    put "2/29/1904" into tDate
    TestAssert "the leap day 2/29/1904 is a date", tDate is a date
 end TestConvertDatesBefore1970
+
+on TestConvertYearsBefore100
+   -- A year from 0 to 99 written with more than two digits is that year (in
+   -- two it goes through the centuryCutoff). The web engine converted it as
+   -- 1900 to 1999: its date functions go through JavaScript's Date, which
+   -- reads such a year so.
+   local tDate
+   put "0099,10,24,14,30,5,1" into tDate
+   convert tDate from dateItems to dateItems
+   if the result is "invalid date" then
+      -- where time_t has 32 bits (32-bit Linux), the engine converts only
+      -- the years 1901 to 2038 and refuses the others
+      TestAssert "a year the engine cannot convert is refused and left as it was", \
+            tDate is "0099,10,24,14,30,5,1"
+      TestSkip "a year from 0 to 99", "this engine converts only the years 1901 to 2038"
+      exit TestConvertYearsBefore100
+   end if
+   TestAssert "the year 99 in dateItems", tDate is "99,10,24,14,30,5,7"
+
+   put "0004,2,29,12,0,0,1" into tDate
+   convert tDate from dateItems to dateItems
+   TestAssert "the leap day of the year 4", tDate is "4,2,29,12,0,0,1"
+
+   put "100,1,0,12,0,0,1" into tDate
+   convert tDate from dateItems to dateItems
+   TestAssert "the day before the year 100 is in the year 99", tDate is "99,12,31,12,0,0,5"
+
+   put "10/24/0099" into tDate
+   convert tDate to long date
+   TestAssert "the year 99 as a long date", tDate is "Saturday, October 24, 99"
+
+   put "Sat, 24 Oct 0099 14:30:05 +0000" into tDate
+   convert tDate from internet date to seconds
+   TestAssert "the year 99 in seconds", tDate is -59017368595
+
+   put "99,10,24,14,30,5,1" into tDate
+   convert tDate from dateItems to dateItems
+   TestAssert "in two digits the year 99 is 1999, as before", tDate is "1999,10,24,14,30,5,1"
+end TestConvertYearsBefore100

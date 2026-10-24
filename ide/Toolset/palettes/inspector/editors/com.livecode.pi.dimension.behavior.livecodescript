@@ -4,6 +4,7 @@ local sMax, sMin
 constant kFieldWidth = 100
 constant CONTROL_PADDING = 5
 constant kEffectiveTextColor = "100,100,100"
+constant kEffectiveTextColorDark = "170,170,170"
 constant kConflictedFieldColor = "193,201,215"
 
 on editorInitialize
@@ -50,7 +51,7 @@ on editorUpdate
          put tValue + 0 into field 1 of me
       end if
       set the textstyle["italic"] of field 1 of me to true
-      set the textcolor of field 1 of me to kEffectiveTextColor
+      set the textcolor of field 1 of me to effectiveTextColor(the long id of field 1 of me)
    else
       set the textstyle of field 1 of me to empty
       set the textcolor of field 1 of me to empty
@@ -157,3 +158,21 @@ on valueChanged
    set the editorValue of me to field 1 of me
    updateProperty
 end valueChanged
+
+-- OXT-Beyond: the grey of an inherited (effective) value, 100,100,100,
+-- cannot be read on the dark appearance's dark controls (richmond62's
+-- font menu on rc.6.3); there it is a light grey, chosen by how dark the
+-- control it is drawn on is, or where its colour is the theme's pattern
+-- rather than a colour (macOS's menus), by the system's appearance
+private function effectiveTextColor pObject
+   local tBack
+   put the effective backgroundColor of pObject into tBack
+   if the number of items of tBack is 3 and item 1 of tBack is an integer then
+      if item 1 of tBack + item 2 of tBack + item 3 of tBack < 384 then
+         return kEffectiveTextColorDark
+      end if
+   else if the systemAppearance is "dark" then
+      return kEffectiveTextColorDark
+   end if
+   return kEffectiveTextColor
+end effectiveTextColor

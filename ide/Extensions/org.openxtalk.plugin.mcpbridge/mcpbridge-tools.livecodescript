@@ -98,9 +98,23 @@ constant kMaxRequestBytes = 8000000
 constant kPictureSide = 1024
 -- The most text of a detail the user is asked about (the code of a run)
 constant kMaxAskChars = 3000
+-- The most code a run may have when the asker shows it whole on a panel
+-- that scrolls (OXT-Beyond's question, mcbShowsLongCode): kMaxAskChars
+-- still holds where the question is answer's, which cuts it
+constant kMaxAskLongChars = 20000
 -- The tools, in the order the MCP server lists them (mcp/server.js has
 -- their descriptions and schemas)
-constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state"
+constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard"
+-- The tools that answer while another call is still being carried out
+-- (sBusy): they are for what holds that call up, a script paused in the
+-- debugger or a dialog a stack opened, so they never wait for it. They
+-- start nothing that another call could be in the middle of.
+constant kUnblockingTools = "stop_paused_script,answer_dialog"
+-- The dialogs answer_dialog answers that are the IDE's own stacks: those
+-- answer and ask open for a script of the user's
+constant kAnswerDialogs = "Answer Dialog,Ask Dialog"
+-- The most characters of a dialog's text that the status gives
+constant kDialogTextChars = 600
 -- The most text of a script read_script gives at once (read_stack gives
 -- 24,000 characters of a script, then says how many lines it left out)
 constant kScriptReadChars = 20000
@@ -132,8 +146,12 @@ local sToken
 local sPort, sClients, sInfoFile, sAssistantFolder, sAsker
 -- True when this loaded the assistant's libraries (and so unloads them)
 local sLoadedCore, sLoadedBuild
--- True while a tool runs
-local sBusy
+-- True while a tool runs; the tool, and when it began (the seconds)
+local sBusy, sBusyTool, sBusySince
+-- What the user is being asked now (the title of the question), and since
+-- when, empty while nothing is asked: what a status, and a call refused
+-- as busy, are told the bridge waits for
+local sWaiting, sWaitingSince
 -- The socket of the request being answered: a question to the user is
 -- answered after the server gave up waiting (and closed it) only with
 -- nothing done (mcbAsk)
@@ -242,6 +260,8 @@ end mcbServerStop
 private command mcbStopParts
    local tError
    put false into sBusy
+   put empty into sBusyTool
+   put empty into sWaiting
    mcbStopErrorHook
    put empty into sAsker
    if not mcbAssistantOn() then
@@ -510,7 +530,7 @@ on mcbConnection pSocket
 end mcbConnection
 
 on mcbLineRead pSocket, pData
-   local tReply, tError
+   local tReply, tError, tOuter
    if pSocket is not among the lines of sClients then
       exit mcbLineRead
    end if
@@ -518,13 +538,18 @@ on mcbLineRead pSocket, pData
       mcbDropClient pSocket
       exit mcbLineRead
    end if
+   -- A request read while an earlier one waits (a status, a call refused
+   -- as busy) is answered inside that wait: the earlier one's socket is
+   -- put back after, so that its question still knows when the server
+   -- gave up on it (mcbAsk)
+   put sRequestSocket into tOuter
    put pSocket into sRequestSocket
    try
       put mcbHandleLine(textDecode(pData, "UTF-8")) into tReply
    catch tError
       put mcbRefusal("null", "The bridge failed:" && line 1 of tError) into tReply
    end try
-   put empty into sRequestSocket
+   put tOuter into sRequestSocket
    -- The server may have been stopped while the tool ran (or asked)
    if pSocket is not among the lines of sClients then
       exit mcbLineRead
@@ -600,7 +625,7 @@ end mcbHandleLine
 -- IDE's link (mcbLinkHandle), which carries no token; false for one from
 -- a socket, which must carry the server's.
 private function mcbAnswerLine pLine, pFromLink
-   local tRequest, tError, tId, tMethod, tArguments, tResult, tReply
+   local tRequest, tError, tId, tMethod, tArguments, tResult, tReply, tTool
    -- Stopped: nothing is read, and the assistant's libraries, which read
    -- JSON, may be gone
    if pFromLink is true then
@@ -634,6 +659,14 @@ private function mcbAnswerLine pLine, pFromLink
             mcbJsonString("engine") & ":" & mcbJsonString(the version) & "," & \
             mcbJsonString("tools") & ":" & mcbJsonString(kTools) & "}"
    end if
+   -- What the bridge is doing or waiting for, answered at once, even while
+   -- a tool runs (the MCP server asks it while a call takes long, over a
+   -- connection of its own, to tell Claude why)
+   if tMethod is "status" then
+      return "{" & mcbJsonString("id") & ":" & tId & "," & mcbJsonString("ok") & ":true," & \
+            mcbJsonString("busy") & ":" & (sBusy is true) & "," & \
+            mcbJsonString("text") & ":" & mcbJsonString(mcbStatusText()) & "}"
+   end if
    if tMethod is not "call" then
       return mcbRefusal(tId, "There is no method" && quote & tMethod & quote & ".")
    end if
@@ -648,18 +681,28 @@ private function mcbAnswerLine pLine, pFromLink
    -- question here, or for a run), the engine still reads the sockets, and
    -- a second call, from another Claude app or after a reconnect, would
    -- start on the same journal
-   if sBusy is true then
-      return mcbRefusal(tId, mcbHostName() & " is still busy with an earlier request (it may be waiting for the user to answer a question in " & mcbHostName() & ", " & \
-            "or running code). Try again once that is done.")
-   end if
-   put true into sBusy
-   try
-      put mcbCallTool(xtaJsonText(xtaJsonMember(tRequest, "tool")), tArguments) into tResult
-   catch tError
+   put xtaJsonText(xtaJsonMember(tRequest, "tool")) into tTool
+   if sBusy is true and tTool is among the items of kUnblockingTools then
+      -- What holds the earlier call up is what this one is for
+      put mcbCallTool(tTool, tArguments) into tResult
+   else
+      if sBusy is true then
+         return mcbRefusal(tId, mcbHostName() & " is still busy with an earlier request (it may be waiting for the user to answer a question in " & mcbHostName() & ", " & \
+               "or running code). Try again once that is done." & return & mcbStatusText())
+      end if
+      put true into sBusy
+      put tTool into sBusyTool
+      put the seconds into sBusySince
+      try
+         put mcbCallTool(tTool, tArguments) into tResult
+      catch tError
+         put false into sBusy
+         put empty into sBusyTool
+         throw tError
+      end try
       put false into sBusy
-      throw tError
-   end try
-   put false into sBusy
+      put empty into sBusyTool
+   end if
    put "{" & mcbJsonString("id") & ":" & tId & "," & mcbJsonString("ok") & ":true," & \
          mcbJsonString("isError") & ":" & (tResult["error"] is true) & "," & \
          mcbJsonString("text") & ":" & mcbJsonString(tResult["text"]) into tReply
@@ -761,6 +804,12 @@ function mcbCallTool pTool, pArguments
             return mcbToolUndo(mcbArg(pArguments, "entry"))
          case "debug_state"
             return mcbToolDebugState()
+         case "stop_paused_script"
+            return mcbToolStopPaused()
+         case "answer_dialog"
+            return mcbToolAnswerDialog(pArguments)
+         case "import_hypercard"
+            return mcbToolImportHyperCard(pArguments)
       end switch
    catch tError
       return mcbFailed(tError)
@@ -934,7 +983,7 @@ end mcbAssistantOn
 -- pDetail in its parts, for an asker that shows them apart (OXT-Beyond's
 -- shows the code in colour): "prose", "code" and "handlers"
 private function mcbAsk pTitle, pDetail, pYes, pParts
-   local tAnswer, tError
+   local tAnswer, tError, tOuter
    if sAsker is empty or there is not a sAsker then
       return false
    end if
@@ -942,12 +991,20 @@ private function mcbAsk pTitle, pDetail, pYes, pParts
       put char 1 to kMaxAskChars of pDetail & return & "... (" & the number of chars of pDetail - kMaxAskChars && \
             "more characters, not shown here)" into pDetail
    end if
+   -- What a status says while the question is open (an outer question,
+   -- which cannot be, would be put back)
+   put sWaiting into tOuter[1]
+   put sWaitingSince into tOuter[2]
+   put pTitle into sWaiting
+   put the seconds into sWaitingSince
    try
       dispatch function "mcbConfirm" to sAsker with pTitle, pDetail, pYes, pParts
       put the result into tAnswer
    catch tError
       put false into tAnswer
    end try
+   put tOuter[1] into sWaiting
+   put tOuter[2] into sWaitingSince
    -- The server gives up on a call after a while (server.js, 10 minutes)
    -- and closes the connection; Claude was told so and may send it again.
    -- A yes after that would run (or save, or undo) what nobody is waiting
@@ -964,6 +1021,27 @@ private function mcbAsk pTitle, pDetail, pYes, pParts
    end if
    return tAnswer is true
 end mcbAsk
+
+-- True when the asker shows a run's code whole, on a panel that scrolls
+-- (OXT-Beyond's mcbShowsLongCode), so that it may be longer than
+-- kMaxAskChars; false for an asker that has no such function (a package of
+-- the bridge in another xTalk's IDE, the tests' stand-in)
+private function mcbShowsLongCode
+   local tShows, tError
+   if sAsker is empty or there is not a sAsker then
+      return false
+   end if
+   put false into tShows
+   try
+      dispatch function "mcbShowsLongCode" to sAsker
+      if it is "handled" then
+         put (the result is true) into tShows
+      end if
+   catch tError
+      put false into tShows
+   end try
+   return tShows
+end mcbShowsLongCode
 
 -- The stack of the script open in the Script Editor, from the asker (the
 -- IDE's), or empty
@@ -1143,7 +1221,7 @@ end mcbToolListStacks
 -- (and the caret's line, and whether it holds changes not yet applied),
 -- the last error the IDE showed them, and a script paused in the debugger
 private function mcbToolContext
-   local tWork, tText, tTop, tLine, tObject, tList, tEditor, tError, tState, tLast
+   local tWork, tText, tTop, tLine, tObject, tList, tEditor, tError, tState, tLast, tDialog
    put mcbWorkStack() into tWork
    if tWork is empty then
       put "The user has no stack of their own open in " & mcbHostName() & "." into tText
@@ -1206,9 +1284,16 @@ private function mcbToolContext
       put xtaDebugState() into tState
       if tState["paused"] is true then
          put return & "A script is paused in the debugger: debug_state reads where, and its variables." after tText
+         -- Where, at once, and what it holds up
+         put return & mcbPausedText() && "Code run now waits while it is paused: the user presses Run or Stop in the Script Editor, " & \
+               "or stop_paused_script stops it." after tText
       end if
    catch tError
    end try
+   put mcbFrontDialog() into tDialog
+   if tDialog is not empty then
+      put return & mcbDialogText(tDialog) after tText
+   end if
    return mcbResult(tText, false)
 end mcbToolContext
 
@@ -1266,6 +1351,10 @@ private function mcbLastError
          if mcbIsIDEStack(tStack) then
             next repeat
          end if
+      else if mcbNamesIDEStack(tObject) then
+         -- Gone, or never an object (the IDE's temporary stacks, a
+         -- behavior's): one of the IDE's by its name is not the user's
+         next repeat
       end if
       put true into tFound
       exit repeat
@@ -1294,6 +1383,25 @@ private function mcbLastError
    end if
    return tText
 end mcbLastError
+
+-- True when pObject, a reference to an object that is not there, names a
+-- stack of the IDE's: by the names mcbIsIDEStack knows them by, or by a
+-- file in the IDE's folders
+private function mcbNamesIDEStack pObject
+   local tName
+   repeat for each item tName in "rev,com.livecode.,org.openxtalk.,Message Box,Answer Dialog,Ask Dialog,Home"
+      if pObject contains ("stack" && quote & tName) then
+         return true
+      end if
+   end repeat
+   -- A main stack of the IDE's is named by its file, in the IDE's folders
+   repeat for each item tName in "/Toolset/,/Plugins/,/Extensions/org.openxtalk.,/Extensions/com.livecode."
+      if pObject contains tName then
+         return true
+      end if
+   end repeat
+   return false
+end mcbNamesIDEStack
 
 -- The stack an object is in (itself for a stack), from its long id
 private function mcbStackOfObject pObject
@@ -1654,12 +1762,25 @@ private function mcbScriptObject pStackName, pId
    return tResult
 end mcbScriptObject
 
--- An object as the user would name it: its type, name and id
+-- An object as the user would name it: its type, name and id. A stack
+-- whose hcAddressing is true (every stack imported from HyperCard) names
+-- its controls as HyperCard did, "card button" or "bkgnd field": the
+-- type is then the second word, and a background's control is called so
 private function mcbObjectLabel pObject
-   local tType
-   put word 1 of the name of pObject into tType
+   local tName, tType
+   put the name of pObject into tName
+   put word 1 of tName into tType
    if tType is "stack" then
       return "the stack" && quote & the short name of pObject & quote
+   end if
+   if tType is among the items of "card,bkgnd,background" and char 1 of word 2 of tName is not quote and word 2 of tName is not "id" then
+      if tType is "card" then
+         put word 2 of tName into tType
+      else
+         put "background" && word 2 of tName into tType
+      end if
+   else if tType is "bkgnd" then
+      put "background" into tType
    end if
    return "the" && tType && quote & the short name of pObject & quote && "(id" && the short id of pObject & ")"
 end mcbObjectLabel
@@ -2209,7 +2330,7 @@ end mcbChangesOf
 -- its window before Run; through the bridge, Claude's app may have been
 -- told to allow every call, so this question is the user's only look.
 private function mcbToolRunCode pArguments
-   local tRun, tRisks, tTitle, tDetail, tRan, tText, tParts
+   local tRun, tRisks, tTitle, tDetail, tRan, tText, tParts, tLong, tMax, tPaused
    put xtaRunPlan(pArguments, mcbWorkStack()) into tRun
    if tRun["ok"] is not true then
       return mcbResult("Nothing ran:" && tRun["problems"], true)
@@ -2222,6 +2343,7 @@ private function mcbToolRunCode pArguments
    end if
    put tRun["label"] & "." && "It can do anything " & mcbHostName() & " can: run it only if you know what it does." after tDetail
    put tDetail into tParts["prose"]
+   put mcbShowsLongCode() into tLong
    put tRun["code"] into tParts["code"]
    put tRun["handlers"] into tParts["handlers"]
    put return & return & tRun["code"] after tDetail
@@ -2230,11 +2352,29 @@ private function mcbToolRunCode pArguments
    end if
    -- The question shows the user the whole of what would run, or nothing
    -- runs: mcbAsk cuts a longer text, and Run then ran code the user could
-   -- not read
-   if the number of chars of tDetail > kMaxAskChars then
+   -- not read. OXT-Beyond's question shows the code whole on a panel that
+   -- scrolls (mcbShowsLongCode), so there it may be longer; where the
+   -- question is answer's it may not
+   if tLong then
+      put kMaxAskLongChars into tMax
+   else
+      put kMaxAskChars into tMax
+   end if
+   if the number of chars of tDetail > tMax then
       return mcbResult("Nothing ran: the code and its handlers are too long for the user to read in the question " & mcbHostName() & \
-            " asks before a run (" & the number of chars of tDetail && "characters with the question; at most" && kMaxAskChars & "). " & \
+            " asks before a run (" & the number of chars of tDetail && "characters with the question; at most" && tMax & "). " & \
             "Run shorter code: put long handlers into the stack's script with make_changes first, then run a short call to them.", true)
+   end if
+   if the number of chars of tDetail > kMaxAskChars then
+      -- The asker refuses it if it can only ask with answer after all
+      put true into tParts["long"]
+   end if
+   -- A script paused in the debugger: the user is told before they allow
+   -- the run, and Claude with its result
+   put mcbPausedText() into tPaused
+   if tPaused is not empty then
+      put return & "Note:" && tPaused after tParts["prose"]
+      put return & "Note:" && tPaused before tDetail
    end if
    if not mcbAsk(tTitle, tDetail, "Run", tParts) then
       return mcbResult("Nothing ran: the user did not allow the run. Ask them what they would like instead; do not send the same code again.", true)
@@ -2244,6 +2384,9 @@ private function mcbToolRunCode pArguments
       return mcbResult("Nothing ran:" && tRan["error"], true)
    end if
    put tRan["text"] into tText
+   if tPaused is not empty then
+      put return & tPaused && "(It was paused before this run.)" after tText
+   end if
    if tRan["entry"] is not empty then
       put return & "This is change" && tRan["entry"] & "; undo_changes takes the stack back to before the run." after tText
    end if
@@ -2398,6 +2541,471 @@ private function mcbUndo pEntry, pAsk, pForUser
    end if
    return tResult
 end mcbUndo
+
+--------------------------------------------------------------------------------
+-- What holds the IDE up
+--
+-- A call can wait without the bridge being able to say why: for the user
+-- to answer the IDE's question before a run (whose window may be behind
+-- others), for a script paused in the debugger, or for a dialog a stack
+-- opened (answer, ask, a modal stack of its own). The engine still reads
+-- the sockets while it waits, so a status (the method, which the MCP
+-- server asks over a connection of its own while a call takes long) and a
+-- call refused as busy say which; stop_paused_script and answer_dialog end
+-- the last two, and answer while another call waits (kUnblockingTools).
+
+-- What the bridge is doing and what holds it up, as text for Claude
+private function mcbStatusText
+   local tText, tBlockers
+   if sWaiting is not empty then
+      put mcbHostName() & " is waiting for the user to answer its question" && quote & sWaiting & quote && \
+            "(asked" && the seconds - sWaitingSince && "seconds ago). Its window may be behind other windows: " & \
+            "ask the user to look for it in " & mcbHostName() & " and answer it." into tText
+   else if sBusy is true then
+      put mcbHostName() & " is carrying out" && sBusyTool && "(for" && the seconds - sBusySince && "seconds)." into tText
+   else
+      put mcbHostName() & " is not busy with a call of the bridge." into tText
+   end if
+   put mcbBlockersText() into tBlockers
+   if tBlockers is not empty then
+      put return & tBlockers after tText
+   end if
+   return tText
+end mcbStatusText
+
+-- A script paused in the debugger and the dialog open, a line each, or
+-- empty
+private function mcbBlockersText
+   local tText, tPaused, tDialog
+   put mcbPausedText() into tPaused
+   if tPaused is not empty then
+      put tPaused && "While it is paused, the code it runs waits: the user presses Run or Stop in the Script Editor, " & \
+            "or stop_paused_script stops it." & return after tText
+   end if
+   put mcbFrontDialog() into tDialog
+   if tDialog is not empty then
+      put mcbDialogText(tDialog) & return after tText
+   end if
+   if tText is not empty then
+      delete the last char of tText
+   end if
+   return tText
+end mcbBlockersText
+
+-- Where a script of the user's is paused in the debugger, as a sentence,
+-- or empty when none is
+private function mcbPausedText
+   local tState, tError
+   try
+      put xtaDebugState() into tState
+   catch tError
+      return empty
+   end try
+   if tState["paused"] is not true then
+      return empty
+   end if
+   return "A script of the user's is paused in the debugger, at line" && tState["line"] && "of the handler" && tState["handler"] && \
+         "in" && mcbLabelOf(tState["object"]) & "."
+end mcbPausedText
+
+-- mcbObjectLabel of an object that may be gone (then its reference as it
+-- was given)
+private function mcbLabelOf pObject
+   local tError
+   try
+      if pObject is not empty and there is a pObject then
+         return mcbObjectLabel(the long id of pObject)
+      end if
+   catch tError
+   end try
+   return pObject
+end mcbLabelOf
+
+-- The dialog in front, or empty: an array with "stack" (its long id),
+-- "mine" (true when it is the bridge's own question to the user), "user"
+-- (true when a script of the user's opened it: the only kind answer_dialog
+-- answers) and "caller" (that handler and its object, when known). A
+-- dialog is a stack open as modal or as a sheet, the first the openStacks
+-- lists, which is the one in front. The file dialogs of the system (answer
+-- file, and the engine's "Where is ...?") are not stacks, and while one is
+-- open the engine reads no socket: no call is answered then at all.
+private function mcbFrontDialog
+   local tName, tStack, tDialog, tCaller
+   repeat for each line tName in the openStacks
+      if there is not a stack tName then
+         next repeat
+      end if
+      put the long id of stack tName into tStack
+      if the mode of tStack is among the items of "5,6" and the visible of tStack then
+         put tStack into tDialog["stack"]
+         exit repeat
+      end if
+   end repeat
+   if tDialog["stack"] is empty then
+      return empty
+   end if
+   put (sWaiting is not empty) into tDialog["mine"]
+   put mcbDialogCaller() into tCaller
+   put tCaller["label"] into tDialog["caller"]
+   -- Opened by a script of the user's: the handler that called it is
+   -- theirs, and the dialog is theirs too, or the IDE's answer or ask
+   put false into tDialog["user"]
+   if not tDialog["mine"] and tCaller["user"] is true then
+      if not mcbIsIDEStack(tDialog["stack"]) or the short name of tDialog["stack"] is among the items of kAnswerDialogs then
+         put true into tDialog["user"]
+      end if
+   end if
+   return tDialog
+end mcbFrontDialog
+
+-- The handler that opened the dialog in front: the one that ran when the
+-- engine began the wait that this call came in through, which is just
+-- before this call's first handler in the executionContexts (oldest
+-- first): mcbLineRead for a socket, the plugin's mcbWebPoll for the web
+-- IDE's link. An array with "label" and "user" (true when its object is
+-- the user's), or empty when the call did not come in through a wait.
+private function mcbDialogCaller
+   local tContexts, tIndex, tEntry, tContext, tResult, tError
+   put the executionContexts into tContexts
+   put 0 into tEntry
+   repeat with tIndex = the number of lines of tContexts down to 2
+      put mcbParseContext(line tIndex of tContexts) into tContext
+      if tContext["handler"] is among the items of "mcbLineRead,mcbWebPoll" then
+         put tIndex into tEntry
+         exit repeat
+      end if
+   end repeat
+   if tEntry < 2 then
+      return empty
+   end if
+   put mcbParseContext(line tEntry - 1 of tContexts) into tContext
+   put false into tResult["user"]
+   try
+      if tContext["object"] is not empty and there is a tContext["object"] then
+         put tContext["handler"] && "in" && mcbObjectLabel(the long id of tContext["object"]) into tResult["label"]
+         put not mcbIsIDEStack(mcbStackOfObject(the long id of tContext["object"])) into tResult["user"]
+      end if
+   catch tError
+      put false into tResult["user"]
+   end try
+   return tResult
+end mcbDialogCaller
+
+-- One line of the executionContexts: "object" (which may have commas in
+-- it), "handler" and "line", the line being the first item after the
+-- second that is a whole number, as the IDE's debugger reads it
+private function mcbParseContext pLine
+   local tContext, tIndex, tItem
+   put 0 into tIndex
+   repeat for each item tItem in pLine
+      add 1 to tIndex
+      if tIndex > 2 and tItem is an integer then
+         put item 1 to tIndex - 2 of pLine into tContext["object"]
+         put item tIndex - 1 of pLine into tContext["handler"]
+         put tItem into tContext["line"]
+         exit repeat
+      end if
+   end repeat
+   return tContext
+end mcbParseContext
+
+-- The dialog as a sentence for Claude: its title, its text, its buttons,
+-- who opened it, and whether answer_dialog can answer it
+private function mcbDialogText pDialog
+   local tStack, tText, tFields, tButtons, tTitle
+   put pDialog["stack"] into tStack
+   if pDialog["mine"] then
+      return "The dialog in front is " & mcbHostName() & "'s own question to the user, which only they answer."
+   end if
+   put the title of tStack into tTitle
+   if word 1 to -1 of tTitle is empty then
+      put the short name of tStack into tTitle
+   end if
+   put "A dialog is open in front of the user, titled" && quote & word 1 to -1 of tTitle & quote into tText
+   if pDialog["caller"] is not empty then
+      put ", opened by" && pDialog["caller"] after tText
+   end if
+   put "." after tText
+   mcbDialogParts tStack, tFields, tButtons
+   if tFields is not empty then
+      put " It says:" && quote & tFields & quote & "." after tText
+   end if
+   if tButtons is not empty then
+      put " Its buttons:" && tButtons & "." after tText
+   end if
+   if pDialog["user"] then
+      put " Everything else waits until it is answered: the user answers it, or answer_dialog presses one of its buttons." after tText
+   else
+      put " It is the IDE's own, or it is not known what opened it: everything else waits until the user answers it." after tText
+   end if
+   return tText
+end mcbDialogText
+
+-- The text a dialog shows (its visible fields, joined, cut to
+-- kDialogTextChars) and its buttons (each label in quotes, comma
+-- separated): those visible and on its card. The IDE's answer dialog
+-- keeps the buttons it does not use, moved off the card.
+private command mcbDialogParts pStack, @rFields, @rButtons
+   local tCard, tIndex, tControl, tLabel, tRect
+   put empty into rFields
+   put empty into rButtons
+   put the long id of this card of pStack into tCard
+   put the rect of tCard into tRect
+   repeat with tIndex = 1 to the number of controls of tCard
+      put the long id of control tIndex of tCard into tControl
+      if not the visible of tControl or not mcbOnCard(tControl, tRect) then
+         next repeat
+      end if
+      if word 1 of the name of tControl is "field" then
+         if word 1 to -1 of the text of tControl is not empty then
+            if rFields is not empty then
+               put " / " after rFields
+            end if
+            put word 1 to -1 of the text of tControl after rFields
+         end if
+      else if word 1 of the name of tControl is "button" and the showName of tControl then
+         put mcbButtonLabel(tControl) into tLabel
+         if tLabel is not empty then
+            put quote & tLabel & quote & ", " after rButtons
+         end if
+      end if
+   end repeat
+   replace return with " " in rFields
+   if the number of chars of rFields > kDialogTextChars then
+      put char 1 to kDialogTextChars of rFields & "..." into rFields
+   end if
+   if rButtons is not empty then
+      delete char -2 to -1 of rButtons
+   end if
+end mcbDialogParts
+
+private function mcbOnCard pControl, pRect
+   return item 3 of the rect of pControl > item 1 of pRect and item 1 of the rect of pControl < item 3 of pRect \
+         and item 4 of the rect of pControl > item 2 of pRect and item 2 of the rect of pControl < item 4 of pRect
+end mcbOnCard
+
+private function mcbButtonLabel pButton
+   if the label of pButton is not empty then
+      return the label of pButton
+   end if
+   return the short name of pButton
+end mcbButtonLabel
+
+-- Stops the script paused in the debugger, as Stop in the Script Editor
+-- does: the IDE's (the asker's mcbStopDebugger), else the debugger
+-- library's own revDebuggerStop
+private function mcbToolStopPaused
+   local tWhere, tDone, tError
+   put mcbPausedText() into tWhere
+   if tWhere is empty then
+      return mcbResult("No script of the user's is paused in the debugger: there is nothing to stop.", false)
+   end if
+   put false into tDone
+   if sAsker is not empty and there is a sAsker then
+      try
+         dispatch function "mcbStopDebugger" to sAsker
+         put (it is "handled" and the result is true) into tDone
+      catch tError
+         put false into tDone
+      end try
+   end if
+   if not tDone then
+      try
+         revDebuggerStop
+         put true into tDone
+      catch tError
+         put false into tDone
+      end try
+   end if
+   if not tDone then
+      return mcbResult("The paused script could not be stopped here. Ask the user to press Stop in the Script Editor.", true)
+   end if
+   return mcbResult(tWhere && "It is stopped, as Stop in the Script Editor stops it: the rest of that handler, and of the handlers that called it, " & \
+         "does not run. What it did before the line it was paused at stays done.", false)
+end mcbToolStopPaused
+
+-- Presses a button of the dialog in front, when a script of the user's
+-- opened it (mcbFrontDialog): button, its label as the status gives it;
+-- text, for an ask dialog, what is typed into its field first. Never the
+-- bridge's own question, nor a dialog of the IDE's.
+private function mcbToolAnswerDialog pArguments
+   local tDialog, tWanted, tText, tCard, tIndex, tControl, tButton, tField, tRect, tFields, tButtons
+   put mcbFrontDialog() into tDialog
+   if tDialog is empty then
+      return mcbResult("No dialog is open in " & mcbHostName() & ". (The system's file dialogs, and the engine's " & quote & "Where is" & quote & \
+            " dialog, cannot be seen here: while one is open, no call is answered at all.)", true)
+   end if
+   if not tDialog["user"] then
+      return mcbResult("Nothing was pressed:" && mcbDialogText(tDialog), true)
+   end if
+   put word 1 to -1 of mcbArg(pArguments, "button") into tWanted
+   mcbDialogParts tDialog["stack"], tFields, tButtons
+   put the long id of this card of tDialog["stack"] into tCard
+   put the rect of tCard into tRect
+   repeat with tIndex = 1 to the number of controls of tCard
+      put the long id of control tIndex of tCard into tControl
+      if not the visible of tControl or not mcbOnCard(tControl, tRect) then
+         next repeat
+      end if
+      if word 1 of the name of tControl is "button" and the showName of tControl and tButton is empty then
+         if mcbButtonLabel(tControl) is tWanted then
+            put tControl into tButton
+         end if
+      else if word 1 of the name of tControl is "field" and not the lockText of tControl and tField is empty then
+         put tControl into tField
+      end if
+   end repeat
+   if tButton is empty then
+      return mcbResult("Nothing was pressed: the dialog has no button" && quote & tWanted & quote & ". Its buttons:" && tButtons & ".", true)
+   end if
+   if xtaJsonType(xtaJsonMember(pArguments, "text")) is "string" then
+      if tField is empty then
+         return mcbResult("Nothing was pressed: the dialog has no field to type text into.", true)
+      end if
+      put mcbArg(pArguments, "text") into tText
+      set the text of tField to tText
+   end if
+   -- As a click does: the IDE's answer and ask dialogs take mouseUp, on
+   -- the button or on their card, and close
+   send "mouseUp" to tButton
+   return mcbResult("Pressed" && quote & tWanted & quote && "in the dialog" && quote & word 1 to -1 of the title of tDialog["stack"] & quote & \
+         ". The script that opened it goes on once this call has been answered.", false)
+end mcbToolAnswerDialog
+
+--------------------------------------------------------------------------------
+-- HyperCard
+
+-- Lists the stacks on a Mac disk image (list), or imports a HyperCard
+-- stack, from its file or from a disk image (file and stack_path), as File
+-- > Import Stack does: with messages locked, so that none of its scripts
+-- runs. The stack is open in the IDE afterwards, not saved. The summary of
+-- the import is the IDE's (revHyperCardImportSummary).
+private function mcbToolImportHyperCard pArguments
+   local tFile, tStackPath, tList, tError, tLine, tFound, tBefore, tName, tStack, tSummary, tText, tIsImage, tDone
+   put mcbArg(pArguments, "file") into tFile
+   if the platform is "Win32" then
+      replace backslash with slash in tFile
+   end if
+   if word 1 to -1 of tFile is empty then
+      return mcbResult("Give the file: a HyperCard stack (or a MacBinary or BinHex copy of one), or a Mac disk image of stacks.", true)
+   end if
+   if there is not a file tFile then
+      return mcbResult("There is no file" && tFile & ".", true)
+   end if
+   put mcbStackPathArg(pArguments) into tStackPath
+   try
+      put revHyperCardIsDiskImage(tFile) into tIsImage
+   catch tError
+      return mcbResult("HyperCard stacks cannot be imported here: the IDE's HyperCard libraries are not loaded.", true)
+   end try
+   if tIsImage is true then
+      put revHyperCardImageStacks(tFile) into tList
+      put the result into tError
+      if tError is not empty then
+         return mcbResult("The disk image cannot be read:" && tError, true)
+      end if
+      if mcbArg(pArguments, "list") is "true" or tStackPath is empty then
+         if tList is empty then
+            return mcbResult("The disk image" && tFile && "holds no HyperCard stack.", false)
+         end if
+         put "The HyperCard stacks on the disk image" && tFile & ", as stack_path (data fork, resource fork, in bytes):" into tText
+         set the itemDelimiter to tab
+         repeat for each line tLine in tList
+            put return & "-" && item 1 of tLine && "(" & item 2 of tLine & "," && item 3 of tLine & ")" after tText
+         end repeat
+         if mcbArg(pArguments, "list") is not "true" then
+            put return & "Nothing was imported: give one of them as stack_path." after tText
+         end if
+         return mcbResult(tText, false)
+      end if
+      set the itemDelimiter to tab
+      put false into tFound
+      repeat for each line tLine in tList
+         if item 1 of tLine is tStackPath then
+            put true into tFound
+            exit repeat
+         end if
+      end repeat
+      if not tFound then
+         return mcbResult("The disk image has no stack" && quote & tStackPath & quote & ". list: true lists them.", true)
+      end if
+   else if mcbArg(pArguments, "list") is "true" then
+      return mcbResult(tFile && "is not a Mac disk image (an HFS volume): import it as a stack, without list.", true)
+   else if not mcbIsHyperCardFile(tFile) then
+      return mcbResult(tFile && "is not a HyperCard stack, or a MacBinary or BinHex copy of one, or a Mac disk image.", true)
+   end if
+   -- The stack the import opens is the main stack that was not there
+   repeat for each line tName in the mainStacks
+      if there is a stack tName then
+         put true into tBefore[the long id of stack tName]
+      end if
+   end repeat
+   try
+      if tIsImage is true then
+         revIDEImportHyperCardFromDiskImage tFile, tStackPath
+      else
+         revIDEImportHyperCardStack tFile
+      end if
+      put the result into tError
+   catch tError
+      put "the import failed:" && line 1 of tError into tError
+   end try
+   repeat for each line tName in the mainStacks
+      if there is a stack tName then
+         if tBefore[the long id of stack tName] is not true then
+            put the long id of stack tName into tStack
+            exit repeat
+         end if
+      end if
+   end repeat
+   if tStack is empty then
+      if tError is empty then
+         put "no new stack opened (a stack of that name may be open already)" into tError
+      end if
+      return mcbResult("Nothing was imported:" && tError, true)
+   end if
+   try
+      put revHyperCardImportSummary(tStack, the hcImportStat) into tSummary
+   catch tError
+      put empty into tSummary
+   end try
+   put "Imported" && quote & the short name of tStack & quote && "from" && tFile into tText
+   if tIsImage is true then
+      put "," && tStackPath after tText
+   end if
+   put ", with messages locked (none of its scripts ran). It is open in " & mcbHostName() & ", not saved: save_stack saves it where the user chooses." after tText
+   if tSummary is not empty then
+      put return & return & "The import's summary:" & return & tSummary after tText
+   end if
+   return mcbResult(tText, false)
+end mcbToolImportHyperCard
+
+private function mcbStackPathArg pArguments
+   return word 1 to -1 of mcbArg(pArguments, "stack_path")
+end mcbStackPathArg
+
+-- True when the file begins as a HyperCard stack does, or a MacBinary,
+-- AppleSingle or BinHex copy of one, as the IDE's import tells
+private function mcbIsHyperCardFile pFile
+   local tHeader
+   open file pFile for binary read
+   if the result is not empty then
+      return false
+   end if
+   read from file pFile for 256
+   put it into tHeader
+   close file pFile
+   if byte 5 to 8 of tHeader is "STAK" then
+      return true
+   end if
+   if byte 1 to 4 of tHeader is (numToByte(0) & numToByte(5) & numToByte(22) & numToByte(0)) then
+      return true
+   end if
+   if byteToNum(byte 1 of tHeader) is 0 and byteToNum(byte 75 of tHeader) is 0 and byteToNum(byte 83 of tHeader) is 0 then
+      return byte 66 to 69 of tHeader is "STAK"
+   end if
+   return "BinHex" is in tHeader
+end mcbIsHyperCardFile
 
 -- The IDE's name, where the user or the model reads it: "OXT-Beyond", or,
 -- in a package of the plugin installed in another xTalk's IDE, the name

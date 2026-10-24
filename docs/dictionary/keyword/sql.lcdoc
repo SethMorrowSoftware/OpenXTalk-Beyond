@@ -1,0 +1,69 @@
+Name: sql
+
+Type: keyword
+
+Syntax: sql [date]
+
+Summary:
+Specifies a <format> for the <date> <function> and the <convert>
+<command> that SQL databases use for their DATETIME and TIMESTAMP
+columns.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, html5
+
+Platforms: desktop, server
+
+Example:
+put the sql date into tTimestamp -- for example "2026-10-24 14:30:05"
+
+Example:
+local tWhen
+put the date && the long time into tWhen
+convert tWhen to sql date
+
+Example:
+convert tTimestamp from sql date to long date and long time
+
+The result:
+You can use the modifiers <long>, <short>, <abbreviated>, <english> and
+<system> before <sql> in the <convert> <command> without causing a
+<error|script error>, but they have no effect on the resulting format.
+
+Description:
+Use the <sql> <keyword> to work with dates and times in the form SQL
+databases use for their `DATETIME` and `TIMESTAMP` columns:
+
+    YYYY-MM-DD HH:MM:SS
+
+The year has four digits; the month, day, hours, minutes and seconds
+have two each. The time is in 24-hour format, and there is no time
+zone: the time is local time, as `the sql date` gives it and as the
+<convert> <command> reads it. `sql` and `sql date` are the same format.
+
+Converting `from sql date` also accepts a date alone (`YYYY-MM-DD`, as
+in an SQL `DATE` column), which is taken to be midnight local time.
+Anything else, or anything after the time, is refused: the value is
+left as it was and <result|the result> is "invalid date".
+
+A date in this format is recognized only where `from sql date` names
+it: as before, `convert "2026-10-24 14:30:05" to seconds` and
+`"2026-10-24 14:30:05" is a date` do not recognize it.
+
+<sql> is not a reserved word: a <variable>, a <handler> or a
+<custom property> named `sql` works as it always has. It is read as
+this <format> only in `the sql date` and in the <convert> <command>'s
+formats.
+
+The <sql> format comes from HyperXTalk, so that stacks written for it
+work unchanged. `the sql time` is not part of it.
+
+References: convert (command), date (function), format (glossary),
+keyword (glossary), internet (keyword), dateItems (keyword),
+seconds (keyword), short (keyword), long (keyword),
+abbreviated (keyword), english (keyword), system (keyword),
+result (function), variable (glossary), handler (glossary),
+custom property (glossary)
+
+Tags: math, database

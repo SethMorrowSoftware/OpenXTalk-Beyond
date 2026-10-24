@@ -508,6 +508,24 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 		MCperror->add(PE_PROPERTY_NOPROP, sp);
 		return PS_ERROR;
 	}
+	// OXT-Beyond: HyperXTalk's "the sql date". "sql" is no keyword (a
+	// variable, handler or custom property named sql is as it was): it is
+	// read as this only after "the" and before "date", which compiled to
+	// nothing before
+	if (the && !effective && type == ST_ID &&
+		MCStringIsEqualToCString(sp.gettoken_stringref(), "sql", kMCCompareCaseless))
+	{
+		// (a skip_token that finds no "date" clears the token, which the
+		// lookups below read: they get "sql" back)
+		MCScriptPoint t_sql(sp);
+		if (sp.skip_token(SP_FACTOR, TT_FUNCTION, F_DATE) == PS_NORMAL)
+		{
+			which = P_SQL;
+			function = F_DATE;
+			return PS_NORMAL;
+		}
+		sp = t_sql;
+	}
 	if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 	{
 		// MW-2011-06-22: [[ SERVER ]] Update to use SP findvar method to take into account
