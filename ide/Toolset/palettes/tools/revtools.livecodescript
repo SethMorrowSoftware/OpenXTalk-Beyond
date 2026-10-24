@@ -166,6 +166,8 @@ on registerForMessages
    -- OXT-Beyond: either look chooses dark or light when it is drawn, so
    -- it is drawn again when the desktop switches
    revIDESubscribe "ideSystemAppearanceChanged"
+   -- OXT-Beyond: Preferences > Compatibility turns the Player tool on or off
+   revIDESubscribe "idePreferenceChanged:cDisablePlayerTool"
    -- revIDESubscribe "ideExtensionsChanged"
 end registerForMessages
 
@@ -238,6 +240,14 @@ on idePreferenceChanged pPreference
       case "revTools_look"
          -- OXT-Beyond: the classic look or the modern one (below)
          tmSwitchLook
+         break
+      case "cDisablePlayerTool"
+         -- OXT-Beyond: the Player tool is shown or hidden at once, in
+         -- either look (revIDEClassicControls reads the setting)
+         lock screen
+         generatePalette
+         resizeStack
+         unlock screen
          break
    end switch
 end idePreferenceChanged

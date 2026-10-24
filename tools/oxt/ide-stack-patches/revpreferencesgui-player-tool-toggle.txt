@@ -1,0 +1,31 @@
+# Preferences, card "Compatibility": 'Disable the "Player" tool' set its
+# setting on stack revPreferences directly, so it was kept only when the
+# IDE next saved its preferences, and nothing told the Tools palette, which
+# went on showing the tool, or not, as it was when the IDE started (forum,
+# tperry2x, rc.6.3: a player could not be made after the tool was turned
+# on). Set with revIDESetPreference, the setting is saved at once and the
+# palette, which listens for it (revtools), shows or hides the tool. The
+# IDE now reads the player's properties when the tool is off too
+# (revidelibrary), so the tool works as soon as it is shown. Setting it to
+# the value it has already does nothing, as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "disPlayerLin" of card "Compatibility"
+replace:
+|   if the hilite of me is true then|
+|      set the hilite of me to false|
+|      set the cDisablePlayerTool of stack "revPreferences" to false -- enable player tool|
+|   else|
+|      set the hilite of me to true|
+|      set the cDisablePlayerTool of stack "revPreferences" to true -- disable player tool|
+|   end if|
+with:
+|   -- OXT-Beyond: as a preference, so that it is saved at once and the|
+|   -- Tools palette shows or hides the tool (revtools)|
+|   if the hilite of me is true then|
+|      set the hilite of me to false|
+|      revIDESetPreference "cDisablePlayerTool", false -- enable player tool|
+|   else|
+|      set the hilite of me to true|
+|      revIDESetPreference "cDisablePlayerTool", true -- disable player tool|
+|   end if|

@@ -402,8 +402,8 @@ private on __orderClassicTools
    -- modular 'classic tools' loading (tperry 13-4-2024)
    -- also see function "revIDEAvailableControls"
    put url ("file:" & tToolsOrderFile) into tToolsToLoad -- we store this in a variable, makes the next part easier
-   -- we can now filter out what 'classic tools' are turned off
-   if (the cDisablePlayerTool of stack "revPreferences" is true) then filter lines of tToolsToLoad without "*classic.Player"  -- player is turned off
+   -- OXT-Beyond: every tool has its place, the Player too when its tool is
+   -- turned off: revIDEClassicControls leaves it out then (__playerToolHidden)
    
    repeat for each line tTool in tToolsToLoad
       add 1 to tOrder
@@ -411,6 +411,14 @@ private on __orderClassicTools
    end repeat
    
 end __orderClassicTools
+
+-- OXT-Beyond: whether Preferences > Compatibility turns the Player tool
+-- off. It is read when it is asked for, so turning the tool on or off
+-- shows or hides it the next time the Tools palette is drawn
+private function __playerToolHidden
+   if there is not a stack "revPreferences" then return false
+   return the cDisablePlayerTool of stack "revPreferences" is true
+end __playerToolHidden
 
 # Reads in the basic property data for classic controls
 private on __objectPropertiesRead
@@ -437,12 +445,12 @@ private on __objectPropertiesRead
       # Get the name of the object
       set the itemdel to "."
       if the last item of tObjectType is "tsv" then delete the last item of tObjectType
-      -- tperry (put this in on Linux to disable the player until it's fixed) 21-11-2023 (part 2 of 2)
-      if the platform contains "linux" then
-        if (the cDisablePlayerTool of stack "revPreferences" is true) then
-          if tObjectType contains "classic.Player" then next repeat
-        end if
-      end if
+      -- OXT-Beyond: the player's properties are read when its tool is
+      -- turned off too (__playerToolHidden). On Linux they were left out
+      -- then (tperry, 21-11-2023, while the Linux player did not work), so
+      -- a player made by script showed only what every control has in the
+      -- Inspector, with no Source, and turning the tool on again could not
+      -- make one until the IDE was started again (forum, tperry2x, rc.6.3)
       if tObjectType is empty then next repeat
       
       __setPropertyDataOfObjectFromFile tObjectType, tObjectDefinitionsPath & slash & tFile, tPropertiesInfo
@@ -1902,6 +1910,7 @@ function revIDEClassicControls
    local tReturnData
    repeat for each key tIndex in sClassicObjectProperties
       if tIndex is "com.livecode.interface.classic.widget" then next repeat
+      if tIndex is "com.livecode.interface.classic.Player" and __playerToolHidden() then next repeat
       if sClassicObjectProperties[tIndex]["type"] is among the items of "button,field,scrollbar,player,image,data grid" then
          put sClassicObjectProperties[tIndex] into tReturnData[tIndex]
       end if
@@ -10284,6 +10293,10 @@ function revIDEAvailableControls
    repeat for each key tTypeID in sClassicObjectProperties
       put sClassicObjectProperties[tTypeID]["type"] into tType
       if tType is "card" or tType is "stack" or tType is "group" then
+         next repeat
+      end if
+      -- OXT-Beyond: as the Tools palette (revIDEClassicControls)
+      if tTypeID is "com.livecode.interface.classic.Player" and __playerToolHidden() then
          next repeat
       end if
       put sClassicObjectProperties[tTypeID]["title"] into tTitle
