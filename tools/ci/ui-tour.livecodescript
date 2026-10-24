@@ -13,7 +13,9 @@ script "oxt_ui_tour"
 -- bars above the screen, which the IDE moves where they can be dragged:
 -- title-bar), the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
--- objects), the Script Editor (and its results of a Find All), the
+-- objects, and the graphic's Fill gradient popup, which must open beside
+-- the Inspector and off the graphic), the Script Editor (and its results
+-- of a Find All), the
 -- Message Box, the Project Browser, LiveCode's Dictionary (with the
 -- entries of both languages and of the extensions, which its page
 -- reports) and its guides, the text dictionary, each pane of Preferences, each card
@@ -53,7 +55,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
@@ -977,6 +979,148 @@ on tour_inspector_graphic
    get tourInspectorSection(tPI, "Colors")
    tourShotStack tPI, "07-inspector-graphic-colors"
 end tour_inspector_graphic
+
+-- The Fill gradient popup, opened as a click on its row of the Colors
+-- section opens it, with the Inspector right of the Tools palette and the
+-- sample at the right of the screen. It must be all on the screen, and
+-- where the screen has room for it beside the Inspector off the graphic
+-- (to the Inspector's right or left, or below or above it), it must cover
+-- neither (richmond62 on rc.6.3: it opened on top of the graphic; here
+-- rc.6.3 put it left of the Inspector, two thirds of it off the screen).
+-- Then with the graphic over the whole screen, so that every place covers
+-- it: to the Inspector's left, as before, where it fits there.
+on tour_inspector_gradient
+   local tSampleRect, tBox, tBoxRect, tPI, tScreen, tLeft, tPopRect, tPIRect, tRoom, tError
+   put tourSample("Box") into tBox
+   put the rect of stack kSample into tSampleRect
+   put the rect of tBox into tBoxRect
+   put tourInspect(tBox) into tPI
+   get tourInspectorSection(tPI, "Colors")
+   put the working screenRect into tScreen
+   put item 1 of tScreen + 10 into tLeft
+   if there is a stack "revTools" and the mode of stack "revTools" is not 0 and the visible of stack "revTools" then
+      put max(tLeft, the right of stack "revTools" + 20) into tLeft
+   end if
+   set the topLeft of stack tPI to tLeft, item 2 of tScreen + 40
+   set the topRight of stack kSample to item 3 of tScreen - 10, item 2 of tScreen + 40
+   tourWait 500
+   try
+      put tourGradientPopup(tPI) into tPopRect
+      put the rect of stack tPI into tPIRect
+      put tourScreenRectOf(tBox) into tBoxRect
+      put tourRoomBeside(tPIRect, tPopRect, tBoxRect, tScreen) into tRoom
+      tourRecord "INFO inspector-gradient popup" && tPopRect && "inspector" && tPIRect && "graphic" && tBoxRect && \
+            "screen" && tScreen && "room off the graphic:" && tourJoin(tRoom)
+      tourShotScreen "07-inspector-gradient"
+      tourCloseGradientPopup
+      if not tourRectWithin(tPopRect, tScreen) then throw "the popup" && tPopRect && "is not all on the screen" && tScreen
+      if tRoom is not empty then
+         if tourRectsOverlap(tPopRect, tPIRect) then throw "the popup" && tPopRect && "covers the Inspector" && tPIRect
+         if tourRectsOverlap(tPopRect, tBoxRect) then throw "the popup" && tPopRect && "covers the graphic" && tBoxRect
+      end if
+      -- every place covers the graphic: the Inspector's left, as before
+      set the rect of stack kSample to tScreen
+      set the rect of tBox to the rect of card 1 of stack kSample
+      set the topLeft of stack tPI to item 1 of tScreen + 400, item 2 of tScreen + 40
+      tourWait 500
+      put tourGradientPopup(tPI) into tPopRect
+      put the rect of stack tPI into tPIRect
+      put tourRoomBeside(tPIRect, tPopRect, tourScreenRectOf(tBox), tScreen) into tRoom
+      tourRecord "INFO inspector-gradient over the graphic: popup" && tPopRect && "inspector" && tPIRect && \
+            "room off the graphic:" && tourJoin(tRoom)
+      tourCloseGradientPopup
+      if tRoom is not empty then throw "the graphic leaves room beside the Inspector:" && tourJoin(tRoom)
+      if not tourRectWithin(tPopRect, tScreen) then throw "the popup" && tPopRect && "is not all on the screen" && tScreen
+      if item 3 of tPopRect > item 1 of tPIRect then
+         throw "with the graphic everywhere, the popup" && tPopRect && "is not left of the Inspector" && tPIRect
+      end if
+   catch tError
+   end try
+   tourCloseGradientPopup
+   tourCloseInspectors
+   set the rect of tBox to tBoxRect
+   set the rect of stack kSample to tSampleRect
+   if tError is not empty then throw tError
+end tour_inspector_gradient
+
+-- Opens the Fill gradient popup of the inspector pPI, as a click on its
+-- row of the Colors section does, and returns the popup's rect once it has
+-- placed itself (as it opens, and again a moment later)
+function tourGradientPopup pPI
+   local tRow, tEditor, i
+   put the long id of group "Fill gradient" of group "inspector" of card 1 of stack pPI into tRow
+   repeat with i = 1 to the number of groups of tRow
+      if the editorProperty["property_name"] of group i of tRow is "fillGradient" then
+         put the long id of group i of tRow into tEditor
+         exit repeat
+      end if
+   end repeat
+   if tEditor is empty then throw "no Fill gradient editor in the row"
+   send "mouseUp 1" to tEditor
+   if not tourWaitOpen("revPropertyPopup fillGradient", 3000) then throw "the Fill gradient popup did not open"
+   tourWait 1000
+   return the rect of stack "revPropertyPopup fillGradient"
+end tourGradientPopup
+
+command tourCloseGradientPopup
+   if there is a stack "revPropertyPopup fillGradient" then
+      close stack "revPropertyPopup fillGradient"
+      tourWait 500
+   end if
+end tourCloseGradientPopup
+
+-- The rect of the control pObj on the screen
+function tourScreenRectOf pObj
+   local tRect, tStack
+   put the rect of pObj into tRect
+   put revIDEStackOfObject(pObj) into tStack
+   return item 1 of tRect + the left of tStack, item 2 of tRect + the top of tStack, \
+         item 3 of tRect + the left of tStack, item 4 of tRect + the top of tStack
+end tourScreenRectOf
+
+-- Whether two rects share any point
+function tourRectsOverlap pA, pB
+   return item 1 of pA < item 3 of pB and item 1 of pB < item 3 of pA and \
+         item 2 of pA < item 4 of pB and item 2 of pB < item 4 of pA
+end tourRectsOverlap
+
+-- Whether the rect pA is all inside pB
+function tourRectWithin pA, pB
+   return item 1 of pA >= item 1 of pB and item 2 of pA >= item 2 of pB and \
+         item 3 of pA <= item 3 of pB and item 4 of pA <= item 4 of pB
+end tourRectWithin
+
+-- The places, of right, left, below and above, where a window the size of
+-- pWindow fits on the screen pScreen 5 points from the rect pBeside (at
+-- its top, or at its left, moved to stay on the screen) without covering
+-- the rect pAvoid
+function tourRoomBeside pBeside, pWindow, pAvoid, pScreen
+   local tW, tH, tTop, tLeft, tPlace, tRect, tRoom
+   put item 3 of pWindow - item 1 of pWindow into tW
+   put item 4 of pWindow - item 2 of pWindow into tH
+   put max(item 2 of pScreen, min(item 2 of pBeside, item 4 of pScreen - tH)) into tTop
+   put max(item 1 of pScreen, min(item 1 of pBeside, item 3 of pScreen - tW)) into tLeft
+   repeat for each item tPlace in "right,left,below,above"
+      switch tPlace
+         case "right"
+            put item 3 of pBeside + 5, tTop, item 3 of pBeside + 5 + tW, tTop + tH into tRect
+            break
+         case "left"
+            put item 1 of pBeside - 5 - tW, tTop, item 1 of pBeside - 5, tTop + tH into tRect
+            break
+         case "below"
+            put tLeft, item 4 of pBeside + 5, tLeft + tW, item 4 of pBeside + 5 + tH into tRect
+            break
+         case "above"
+            put tLeft, item 2 of pBeside - 5 - tH, tLeft + tW, item 2 of pBeside - 5 into tRect
+            break
+      end switch
+      if tourRectWithin(tRect, pScreen) and not tourRectsOverlap(tRect, pAvoid) then
+         put tPlace & return after tRoom
+      end if
+   end repeat
+   return line 1 to -1 of tRoom
+end tourRoomBeside
 
 on tour_inspector_multiple
    local tPI

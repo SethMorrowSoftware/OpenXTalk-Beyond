@@ -82,19 +82,25 @@ end ensureOnScreen
 -- below it or above it, at its left; a place is taken only when the
 -- window fits on the screen there and does not cover the object the
 -- inspector shows. If every place that fits covers it, to the inspector's
--- left as before, else its right. True when one was taken.
+-- left as before, else its right. The screen is the one the inspector is
+-- on. True when one was taken.
 private function placeBesideInspector
-   local tInspector, tScreen, tAvoid, tW, tH, tTop, tLeft, tRect, tPlace, tPass
+   local tInspector, tScreen, tAvoid, tW, tH, tTop, tLeft, tRect, tPlace, tPass, tPlaces
    put the rect of stack "revPropertyInspector 1" into tInspector
-   put the working screenRect into tScreen
+   put line (the screen of stack "revPropertyInspector 1") of the working screenRects into tScreen
+   if the number of items of tScreen is not 4 then put the working screenRect into tScreen
    put objectScreenRect() into tAvoid
    put the width of me into tW
    put the height of me into tH
    put max(item 2 of tScreen, min(item 2 of tInspector, item 4 of tScreen - tH)) into tTop
    put max(item 1 of tScreen, min(item 1 of tInspector, item 3 of tScreen - tW)) into tLeft
    repeat for each item tPass in "avoid,any"
-      repeat for each item tPlace in "right,left,below,above"
-         if tPass is "any" and tPlace is among the items of "below,above" then next repeat
+      if tPass is "avoid" then
+         put "right,left,below,above" into tPlaces
+      else
+         put "left,right" into tPlaces
+      end if
+      repeat for each item tPlace in tPlaces
          switch tPlace
             case "right"
                put item 3 of tInspector + 5, tTop, item 3 of tInspector + 5 + tW, tTop + tH into tRect
