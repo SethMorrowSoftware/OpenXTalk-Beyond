@@ -339,6 +339,13 @@ on tour_tools_modern_check
          tourTmCheck tourTmNamed("tmIcon:" & tKey) is not empty or the icon of tourTmNamed(tKey) is not 0, "the widget" && tKey && "has an icon"
       end if
    end repeat
+   -- a shape's icon is drawn, sharp at any size, where the classic look's
+   -- is a picture of 12 to 14 points
+   repeat for each key tKey in tModern
+      if item 1 of tModern[tKey] is "graphic" then
+         tourTmCheck tourTmShapeIcon(tKey) > 14, "the shape" && tKey && "has a drawn icon (" & tourTmShapeIcon(tKey) & ")"
+      end if
+   end repeat
    -- the icon images, which Home reads (the Browse tool's as a cursor)
    tourTmCheck tourTmNamed("com.livecode.tool.Browse.icon.png") is not empty, "the Browse tool's icon image is there"
    -- the tutorial's calls
@@ -362,7 +369,7 @@ end tour_tools_modern_check
 -- Sizes: the tiles fit the window at each width, in more columns when
 -- wider; what doesn't fit its height scrolls; the size is kept
 on tour_tools_modern_sizes
-   local tW, tCols, tLast, tMax, tTop
+   local tW, tCols, tLast, tMax, tTop, tShape, tWidget
    if not tourTmStart("tools-modern-sizes") then exit tour_tools_modern_sizes
    if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
    put 0 into tLast
@@ -416,6 +423,27 @@ on tour_tools_modern_sizes
    set the rect of stack "revTools" to 40, 120, 40 + 400, 120 + 600
    tourWait 200
    tourTmCheck not the visible of tourTmNamed("tmThumb"), "a palette tall enough shows no thumb"
+   -- Large Icons, from the menu: the tiles and the drawn icons half as
+   -- large again, still fitting, and back again
+   revIDESetPreference "revTools_modernLarge", false
+   set the rect of stack "revTools" to 40, 120, 40 + 260, 120 + 520
+   tourWait 200
+   put tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") into tShape
+   put the width of widget 1 of tourTmGroup("widget") into tWidget
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernLarge") is true, "the menu turns Large Icons on"
+   tourTmLayoutOK "with Large Icons"
+   tourTmCheck tShape > 14 and tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") is round(tShape * 1.5), \
+         "with Large Icons a shape's icon is drawn half as large again (" & tShape && "and" && \
+         tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") & ")"
+   tourTmCheck the width of widget 1 of tourTmGroup("widget") is round(tWidget * 1.5), \
+         "and a widget's icon (" & tWidget && "and" && the width of widget 1 of tourTmGroup("widget") & ")"
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernLarge") is false and \
+         tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") is tShape, "the menu turns Large Icons off again"
+   tourTmLayoutOK "after Large Icons"
    -- the size is kept for the next time
    set the rect of stack "revTools" to 40, 120, 40 + 260, 120 + 420
    tourWait 1200
@@ -618,7 +646,7 @@ end tourTmFinish
 command tourTmReset
    local tName
    revIDESetPreference "revTools_look", "classic"
-   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow"
+   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow,revTools_modernLarge"
       revIDESetPreference tName, empty
    end repeat
    tourWait 300
@@ -658,6 +686,18 @@ function tourTmGroup pView
    if there is not a group pView of group "contents" of stack "revTools" then return empty
    return the long id of group pView of group "contents" of stack "revTools"
 end tourTmGroup
+
+-- The width of a shape's drawn icon (the palette's tmShapeSvg), or empty
+-- when its tile shows a picture
+function tourTmShapeIcon pTypeID
+   local tID
+   if tourTmNamed(pTypeID) is empty then return empty
+   put the icon of tourTmNamed(pTypeID) into tID
+   if tID is not an integer or tID is 0 then return empty
+   if there is not an image id tID of stack "revTools" then return empty
+   if the short name of image id tID of stack "revTools" is not ("tm.shape:" & pTypeID) then return empty
+   return the width of image id tID of stack "revTools"
+end tourTmShapeIcon
 
 -- The tiles: the controls with the classic properties, by name, as
 -- "<their group>,<cType>,<cTool>,<cToolName>,<cStyle>,<cName>"; not

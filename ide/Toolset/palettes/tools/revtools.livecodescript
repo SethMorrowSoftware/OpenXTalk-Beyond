@@ -21,6 +21,10 @@ constant kTmCellHeight = 30
 -- openxtalk.org, October 2026.)
 constant kTmWidgetIcon = 26
 constant kTmWidgetCell = 34
+-- A shape's icon, drawn as Run's and Edit's are (tmShapeSvg), in a tile
+-- of kTmSmallCell; the classic look's pictures of the shapes are 12 to 14
+-- points
+constant kTmShapeIcon = 20
 constant kTmNameCell = 150
 -- A tile with its name: tall enough for a name on two lines of 10 points
 -- (30, with the insets of kTmTextInset), one point over and under it;
@@ -2347,7 +2351,8 @@ end hPositionAccentsInTools
 -- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 -- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 --
--- The corner's grip (two short strokes) is not Lucide's.
+-- The corner's grip (two short strokes) is not Lucide's, nor are the
+-- shapes' icons, which are drawn from the shapes themselves (tmShapeSvg).
 
 -- kTmSections as an array, 1 to n, of ["key"], ["title"] and ["views"]
 private function tmSections
@@ -2468,11 +2473,17 @@ end tmIconPaths
 -- reserved range (revIDENewIconID), as the classic icons have, so that no
 -- user's image of the same ID is drawn in its place; returns its ID
 private function tmIcon pName, pIcon, pColor, pSize
+   return tmSvgIcon(pName, tmIconPaths(pIcon), pColor, pSize)
+end tmIcon
+
+-- The same, for the inside of an <svg> of 24 by 24 drawn with a stroke
+-- of 2, as Lucide's icons are
+private function tmSvgIcon pName, pPaths, pColor, pSize
    local tHex, tSvg, tObj, tID
    put "#" & format("%02x%02x%02x", item 1 of pColor, item 2 of pColor, item 3 of pColor) into tHex
    put "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='" & tHex & \
          "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" & \
-         tmIconPaths(pIcon) & "</svg>" into tSvg
+         pPaths & "</svg>" into tSvg
    create image pName in group "tmIcons" of me
    put it into tObj
    set the text of tObj to drawingSvgCompile(tSvg)
@@ -2482,7 +2493,58 @@ private function tmIcon pName, pIcon, pColor, pSize
    set the lockLoc of image id tID of me to true
    set the rect of image id tID of me to 0, 0, pSize, pSize
    return tID
-end tmIcon
+end tmSvgIcon
+
+-- A shape's icon (the Shapes section): the shape its tile makes, drawn as
+-- the other icons are, at any size and in the icons' colour. The classic
+-- look's pictures of the shapes are 12 to 14 points of thin grey lines,
+-- which Large Icons blurred and the dark look's background all but hid.
+-- A polygon is drawn from the points it is made with, so that the star is
+-- the star the tile makes. Empty for a shape of another kind, which keeps
+-- its picture.
+private function tmShapeSvg @pItem
+   local tPoints, tLine, tMinX, tMinY, tMaxX, tMaxY, tScale, tMidX, tMidY, tOut
+   switch pItem["properties"]["style"]["default"]
+      case "oval"
+         return "<circle cx='12' cy='12' r='9'/>"
+      case "rectangle"
+         return "<rect x='3' y='5' width='18' height='14'/>"
+      case "roundrect"
+         return "<rect x='3' y='5' width='18' height='14' rx='4'/>"
+      case "regular"
+         -- (a diamond, as the classic look's picture draws it)
+         return "<path d='M12 2.5 21.5 12 12 21.5 2.5 12z'/>"
+      case "polygon"
+         put pItem["properties"]["points"]["default"] into tPoints
+         filter lines of tPoints with "*,*"
+         if the number of lines of tPoints < 3 then return empty
+         repeat for each line tLine in tPoints
+            if item 1 of tLine is not a number or item 2 of tLine is not a number then return empty
+            if tMinX is empty then
+               put item 1 of tLine into tMinX
+               put item 1 of tLine into tMaxX
+               put item 2 of tLine into tMinY
+               put item 2 of tLine into tMaxY
+            end if
+            put min(tMinX, item 1 of tLine) into tMinX
+            put max(tMaxX, item 1 of tLine) into tMaxX
+            put min(tMinY, item 2 of tLine) into tMinY
+            put max(tMaxY, item 2 of tLine) into tMaxY
+         end repeat
+         if max(tMaxX - tMinX, tMaxY - tMinY) <= 0 then return empty
+         -- (19 across at most, centred, as the diamond is)
+         put 19 / max(tMaxX - tMinX, tMaxY - tMinY) into tScale
+         put (tMinX + tMaxX) / 2 into tMidX
+         put (tMinY + tMaxY) / 2 into tMidY
+         repeat for each line tLine in tPoints
+            put round(12 + (item 1 of tLine - tMidX) * tScale, 2) & comma & \
+                  round(12 + (item 2 of tLine - tMidY) * tScale, 2) & space after tOut
+         end repeat
+         delete the last char of tOut
+         return "<polygon points='" & tOut & "'/>"
+   end switch
+   return empty
+end tmShapeSvg
 
 private function tmField pName, pText, pSize, pColor, pGroup
    local tObj
@@ -2898,7 +2960,7 @@ end tmOrderRunEdit
 -- makes it, and its button, named for its type with the classic
 -- properties; a widget's SVG icon and a name below the button
 private command tmMakeItem pView, pTypeID, @pItem, pThemePath
-   local tFilename, tImage, tObj, tTooltip, tToolType, tGroup
+   local tFilename, tImage, tObj, tTooltip, tToolType, tGroup, tShape
    if pItem["userVisible"] is false then exit tmMakeItem
 
    -- the icon, as the classic look makes it (Home reads the Browse tool's)
@@ -2963,6 +3025,10 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
       if pItem["status"] is "error" then set the blendLevel of tObj to 50
    end if
 
+   -- a shape's icon is drawn (tmShapeSvg); its picture is still made,
+   -- above, as every tile's is
+   if pView is "graphic" then put tmShapeSvg(pItem) into tShape
+
    put tmHitButton(pTypeID, tGroup) into tObj
    set the cType of tObj to pView
    set the cStyle of tObj to pItem["properties"]["style"]["default"]
@@ -2974,6 +3040,8 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
       else
          set the icon of tObj to tmIcon("tm.edit", "mouse-pointer-2", tmColor("headInk"), 16)
       end if
+   else if tShape is not empty then
+      set the icon of tObj to tmSvgIcon("tm.shape:" & pTypeID, tShape, tmColor("icon"), tmSize(kTmShapeIcon))
    else if pItem["svgicon"] is empty then
       set the icon of tObj to the id of tImage
    end if
