@@ -88,7 +88,7 @@ hScrollbar	Horizontal scrollbar	Basic	com.livecode.pi.boolean	true	false		false
 icon	Icon	Icons	com.livecode.pi.imageid	true	false		0	
 iconGravity	Gravity	Icons	com.livecode.pi.enum	true	false			,left,top,right,bottom,topLeft,topRight,bottomLeft,bottomRight,center,resize
 iconic	Minimized	Basic	com.livecode.pi.boolean	true	false		false	
-id	ID	Basic	com.livecode.pi.imageID	true	false			
+id	ID	Basic	com.livecode.pi.integer	true	false			
 ink	Ink	Colors	com.livecode.pi.enum	true	false		srcCopy	blendClear,blendSrc,blendDst,blendSrcOver,blendDstOver,blendSrcIn,blendDstIn,blendSrcOut,blendDstOut,blendSrcAtop,blendDstAtop,blendXor,blendPlus,blendMultiply,blendScreen,blendOverlay,blendDarken,blendLighten,blendDodge,blendBurn,blendHardLight,blendSoftLight,blendDifference,blendExclusion,srcCopy
 innerGlow	Inner glow	Effects	com.livecode.pi.graphicEffect	true	false			popup:effectColor,effectBlendMode,effectFilter,effectSize,effectSpread
 innerShadow	Inner shadow	Effects	com.livecode.pi.graphicEffect	true	false			popup:effectColor,effectBlendMode,effectFilter,effectSize,effectSpread,effectDistance,effectAngle
@@ -148,7 +148,7 @@ resizeQuality	Resize quality	Basic	com.livecode.pi.enum	true	false		normal	best,
 right::revIDESetRectProperty	Right	Position	com.livecode.pi.integer	true	false		no_default					1
 roundRadius	Corner radius	Basic	com.livecode.pi.number	true	false							
 scaleFactor	Scale factor	Basic	com.livecode.pi.number	true	false							
-scrollbarWidth	Scrollbar width	Basic	com.livecode.pi.enum	true	false		16	12,16,20				
+scrollbarWidth::revIDESetScrollbarWidthProperty	Scrollbar width	Basic	com.livecode.pi.enum	true	false		16	12,Standard				
 selectGroupedControls	Select grouped controls	Basic	com.livecode.pi.boolean	true	false		true					
 shadow	Shadow	Icons	com.livecode.pi.boolean	true	false							
 shadowColor	Shadow color	Colors	com.livecode.pi.color	true	false	Shadow fill						

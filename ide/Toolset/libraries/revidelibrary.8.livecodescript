@@ -6557,6 +6557,43 @@ function revIDEGetRectProperty pObject, pProperty
    end switch
 end revIDEGetRectProperty
 
+-- OXT-Beyond: a field's Scrollbar width in the Inspector, 12 or Standard.
+-- The engine takes a field's scrollbar width of 16 or 20 as the platform's
+-- standard width: 16 on macOS, 20 on Windows and in the web IDE, and the
+-- GTK theme's on Linux (13 with Adwaita). A field opened with either one
+-- gets the standard width (MCScrollbar::open, MCField::setsbrects), and a
+-- field whose scrollbar is 16 or 20 wide keeps its width when it is set
+-- to the other (on Linux it takes the theme's). So the Inspector's 16 and
+-- 20 were one width, and choosing the other did nothing: on macOS 20 went
+-- back to 16 (tperry2x, openxtalk.org, October 2026), on Windows 16 went
+-- back to 20, and on Linux both gave 13, or stuck until the stack was
+-- opened again. Standard sets 12, then the platform's 16 or 20, then the
+-- other one, which the engine turns into the standard width as it does
+-- when the stack is opened, so the field shows the width it will have
+-- then. A field with no scrollbar keeps what it is set to, so it gets
+-- the platform's 16 or 20 back, which it turns into the standard width
+-- when it shows a scrollbar. Any other value is set as a script sets it.
+command revIDESetScrollbarWidthProperty pObject, pProperty, pValue
+   local tStandard, tOther
+   if pValue is not "standard" then
+      set the scrollbarWidth of pObject to pValue
+      exit revIDESetScrollbarWidthProperty
+   end if
+   if the platform is "MacOS" then
+      put 16 into tStandard
+      put 20 into tOther
+   else
+      put 20 into tStandard
+      put 16 into tOther
+   end if
+   set the scrollbarWidth of pObject to 12
+   set the scrollbarWidth of pObject to tStandard
+   set the scrollbarWidth of pObject to tOther
+   if the scrollbarWidth of pObject is tOther then
+      set the scrollbarWidth of pObject to tStandard
+   end if
+end revIDESetScrollbarWidthProperty
+
 command revIDESetImageFilename pObjectID, pProperty, pFilename
    if revIDEGetPreference("cImageFileRelative") is not false then
       local tStackPath, tFilePath
