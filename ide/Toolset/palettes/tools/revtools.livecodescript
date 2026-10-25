@@ -3118,11 +3118,18 @@ private command tmInkPaleIcon pImage
    set the alphaData of pImage to tAlpha
 end tmInkPaleIcon
 
--- A short name for a tile: the title, else the tooltip
+-- A short name for a tile: the title, else the tooltip up to its " - ".
+-- The paint tools have no title, and their tooltips go on to say what
+-- each does ("Pencil Tool - Draw a freehand line on an image"), which in
+-- a tile was cut off at the top and the bottom (OpenXTalkPaul,
+-- openxtalk.org, October 2026); the filter still finds the rest of it
 private function tmItemTitle pTypeID, @pItem, pTooltip
+   local tDash
    if pTypeID is "com.livecode.tool.Browse" then return "Run"
    if pTypeID is "com.livecode.tool.Pointer" then return "Edit"
    if pItem["title"] is not empty then return pItem["title"]
+   put offset(" - ", pTooltip) into tDash
+   if tDash > 1 then return char 1 to tDash - 1 of pTooltip
    return pTooltip
 end tmItemTitle
 

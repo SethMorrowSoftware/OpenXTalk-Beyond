@@ -289,6 +289,18 @@ end tour_tools_modern_wide
 on tour_tools_modern_names
    if tourToolsModern(380, true) then
       tourShotStack "revTools", "01-tools-modern-names"
+      -- the vector and paint tools with their names, below the shapes,
+      -- with the widgets and controls folded
+      dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+      dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
+      tourTmClick tourTmNamed("tmCapHit:widget")
+      tourTmClick tourTmNamed("tmCapHit:classic")
+      tourWait 300
+      tourShotStack "revTools", "01-tools-modern-names-tools"
+      tourTmClick tourTmNamed("tmCapHit:widget")
+      tourTmClick tourTmNamed("tmCapHit:classic")
+      dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+      dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
    end if
    tourToolsClassic
 end tour_tools_modern_names
@@ -463,6 +475,25 @@ on tour_tools_modern_sizes
    tourTmLayoutOK "with names, wide"
    tourTmNamesWhole "wide"
    tourTmCheck tourTmColumns("classic") >= 3, "names in columns when wide (" & tourTmColumns("classic") & ")"
+   -- every section, turned on as the menu's Vector Tools and Paint Tools
+   -- do: a paint tool's name is its tooltip's first part, where the whole
+   -- tooltip was cut off
+   dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+   dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
+   tourTmCheck tourTmGroup("graphictools") is not empty and tourTmGroup("paint") is not empty, \
+         "the vector and paint tools are shown (" & revIDEGetPreference("revTools_modernShow") & ")"
+   set the rect of stack "revTools" to 40, 120, 40 + 170, 120 + 520
+   tourWait 300
+   tourTmLayoutOK "with names and every section, narrow"
+   tourTmNamesWhole "with every section, narrow"
+   set the rect of stack "revTools" to 40, 120, 40 + 390, 120 + 520
+   tourWait 200
+   tourTmLayoutOK "with names and every section, at 390"
+   tourTmNamesWhole "with every section, at 390"
+   tourTmCheck the text of tourTmNamed("tmLabel:com.livecode.tool.Pencil") is "Pencil Tool", \
+         "a paint tool's name is its tooltip's first part (" & the text of tourTmNamed("tmLabel:com.livecode.tool.Pencil") & ")"
+   dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+   dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
    revIDESetPreference "revTools_modernNames", false
    -- short: it scrolls with the wheel, and no further than its end
    set the rect of stack "revTools" to 40, 120, 40 + 120, 120 + 200
@@ -825,6 +856,17 @@ function tourTmGroup pView
    return the long id of group pView of group "contents" of stack "revTools"
 end tourTmGroup
 
+-- The name of button pIndex of a section's group: its label in that group,
+-- or empty. Two sections can hold a tool of the same type, as the vector
+-- and paint tools' fill colour, line colour and line size do, so a label is
+-- looked for in its tile's group, as the palette lays it out
+function tourTmLabel pGroup, pIndex
+   local tName
+   put "tmLabel:" & the short name of button pIndex of pGroup into tName
+   if there is not a field tName of pGroup then return empty
+   return the long id of field tName of pGroup
+end tourTmLabel
+
 -- The width of a shape's drawn icon (the palette's tmShapeSvg), or empty
 -- when its tile shows a picture
 function tourTmShapeIcon pTypeID
@@ -912,7 +954,7 @@ command tourTmNamesWhole pWhere
       if tGroup is empty or not the visible of tGroup then next repeat
       repeat with i = 1 to the number of buttons of tGroup
          if not the visible of button i of tGroup then next repeat
-         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         put tourTmLabel(tGroup, i) into tLabel
          if tLabel is empty or not the visible of tLabel then next repeat
          if the textSize of tLabel < 10 then
             put the text of tLabel && "at" && the textSize of tLabel && "points; " after tBad
@@ -971,7 +1013,7 @@ command tourTmLayoutOK pWhen
          if item 2 of tR < tTop and the vScroll of tourTmNamed("contents") is 0 then
             put the short name of button i of tGroup && "above the filter" && tR & "; " after tBad
          end if
-         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         put tourTmLabel(tGroup, i) into tLabel
          if tLabel is not empty and the visible of tLabel then
             if the right of tLabel > item 3 of tR + 1 or the left of tLabel < item 1 of tR then
                put "the name of" && the short name of button i of tGroup && "outside its tile; " after tBad
