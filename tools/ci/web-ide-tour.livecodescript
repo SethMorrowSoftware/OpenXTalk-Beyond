@@ -13,8 +13,8 @@ script "oxtwebidetour"
 --
 -- It waits for the IDE to finish starting and for web_ide_tour.py to say
 -- go, then opens the IDE's windows one by one, as a user does on the web:
--- a stack of the user with the usual controls, the Property Inspector,
--- the Script Editor, the Message Box, the Project Browser, a click in
+-- a stack of the user with the usual controls, the Property Inspector
+-- (and its section icons clicked: inspector-tabs), the Script Editor, the Message Box, the Project Browser, a click in
 -- browse mode that opens an answer dialog, the Dictionary, Preferences,
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
@@ -49,7 +49,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sample,inspector,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu"
+constant kSteps = "start,sample,inspector,inspector-tabs,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu"
 constant kSample = "Web Tour Sample"
 -- The classic controls of Object > New Control (revMenubar), by the last
 -- part of their kind
@@ -172,6 +172,57 @@ on tour_inspector
    tourShot "03-inspector"
    tourCloseInspectors
 end tour_inspector
+
+-- The section icons in the inspector's header, clicked as a user clicks
+-- them (OpenXTalkPaul on rc.6.3, on the web and the Mac: he "can't click
+-- the little category tab icons"): each of the first few is clicked in
+-- its middle, and the inspector must then show its section
+on tour_inspector_tabs
+   local tButton, tPI, tHeader, tNav, tHeight, tLeft, tTop, tIndex, tLabel, tX, tY, tShown, tFails
+   put tourSample("Push") into tButton
+   go stack kSample
+   revIDESelectObjects tButton
+   revIDEInspectObjects tButton
+   tourWait 2000
+   put tourStackNamed("revPropertyInspector") into tPI
+   if tPI is empty then
+      throw "no inspector opened:" && tourJoin(the openStacks)
+   end if
+   if there is not a widget "header_background" of group "background" of stack tPI then
+      throw tPI && "has no header widget"
+   end if
+   put the long id of widget "header_background" of group "background" of stack tPI into tHeader
+   put the navData of tHeader into tNav
+   put the height of tHeader into tHeight
+   -- the page's point of the header's top left
+   put the left of stack tPI + the left of tHeader into tLeft
+   put the top of stack tPI + the top of tHeader into tTop
+   tourRecord "INFO inspector-tabs header" && the rect of tHeader && "of" && tPI && "at" && \
+         the rect of stack tPI & ";" && the number of elements of tNav && "tabs, icons" && the showNavIcons of tHeader
+   repeat with tIndex = 2 to min(5, the number of elements of tNav)
+      put tNav[tIndex]["label"] into tLabel
+      -- a tab is as wide as the header is high, after a padding of 0.225
+      -- of that (paletteactions.lcb, calculateRects)
+      put round(tLeft + tHeight * (0.225 + tIndex - 0.5)) into tX
+      put round(tTop + tHeight * 0.55) into tY
+      if tX > tLeft + the navBarRight of tHeader then
+         exit repeat
+      end if
+      tourAct "click" && tX && tY
+      tourWait 1500
+      dispatch function "inspectorSectionGetName" to stack tPI
+      put the result into tShown
+      tourRecord "INFO inspector-tabs clicked" && tLabel && "at" && tX & "," & tY & ": shows" && tShown
+      if tShown is not tLabel then
+         put tLabel & ":" && tShown & "; " after tFails
+      end if
+   end repeat
+   tourShot "03-inspector-tabs"
+   tourCloseInspectors
+   if tFails is not empty then
+      throw "a click on a section's icon did not show it (the icon: the section shown):" && char 1 to -3 of tFails
+   end if
+end tour_inspector_tabs
 
 on tour_script_editor
    local tSE

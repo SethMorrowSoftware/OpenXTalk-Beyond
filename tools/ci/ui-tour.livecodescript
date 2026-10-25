@@ -18,7 +18,8 @@ script "oxt_ui_tour"
 -- of empty fields, the tabs, a scrollbar with nothing to scroll, sliders,
 -- and on the Mac the useSystemWindowColor) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
--- title-bar), the Property Inspector (each section for a button, the
+-- title-bar), the Property Inspector (each section for a button, its
+-- section icons clicked with the system's mouse: inspector-tabs, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects, and the graphic's Fill gradient popup, which must open beside
 -- the Inspector and off the graphic, and a player made with the IDE and
@@ -68,7 +69,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-tabs,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -1650,6 +1651,130 @@ on tour_inspector
    if tError is empty then put tourInspectorInheritedOnColour() into tError
    if tError is not empty then throw tError
 end tour_inspector
+
+-- The section icons in the inspector's header, clicked with the system's
+-- mouse as a user clicks them (OpenXTalkPaul on rc.6.3, on the Mac and
+-- the web: he "can't click the little category tab icons, which makes it
+-- Inspector pretty much unusable"): the pointer rests on each of the
+-- first few, so that its tooltip shows, then clicks it in its middle, and
+-- the inspector must then show the icon's section. A click on a button
+-- of a stack of the tour comes first, to see that the system's clicks
+-- reach the IDE on this machine; when they do not, that is noted and the
+-- header is not clicked
+on tour_inspector_tabs
+   local tPI, tHeader, tNav, tHeight, tLeft, tTop, tIndex, tLabel, tX, tY, tShown, tFails
+   if not tourClickWorks() then exit tour_inspector_tabs
+   put tourInspect(tourSample("Push")) into tPI
+   tourInspectorHeaderCheck tPI
+   tourOnScreen tPI
+   put the long id of widget "header_background" of group "background" of stack tPI into tHeader
+   put the navData of tHeader into tNav
+   put the height of tHeader into tHeight
+   -- the screen's point of the header's top left
+   put the left of stack tPI + the left of tHeader into tLeft
+   put the top of stack tPI + the top of tHeader into tTop
+   tourRecord "INFO inspector-tabs header" && the rect of tHeader && "of" && tPI && "at" && \
+         the rect of stack tPI & ";" && the number of elements of tNav && "tabs, icons" && the showNavIcons of tHeader
+   tourUnlockScreen "click the inspector's header"
+   repeat with tIndex = 2 to min(5, the number of elements of tNav)
+      put tNav[tIndex]["label"] into tLabel
+      -- a tab is as wide as the header is high, after a padding of 0.225
+      -- of that (paletteactions.lcb, calculateRects)
+      put round(tLeft + tHeight * (0.225 + tIndex - 0.5)) into tX
+      put round(tTop + tHeight * 0.55) into tY
+      if tX > tLeft + the navBarRight of tHeader then
+         exit repeat
+      end if
+      tourMoveMouse (tX - 3) & "," & (tY - 2)
+      tourWait 200
+      tourMoveMouse tX & "," & tY
+      tourWait 1500
+      tourClick tX, tY
+      tourWait 1500
+      dispatch function "inspectorSectionGetName" to stack tPI
+      put the result into tShown
+      tourRecord "INFO inspector-tabs clicked" && tLabel && "at" && tX & "," & tY & ": shows" && tShown
+      if tShown is not tLabel then
+         put tLabel & ":" && tShown & "; " after tFails
+      end if
+   end repeat
+   tourShotStack tPI, "05-inspector-tabs"
+   tourMouseAway
+   if tFails is not empty then
+      throw "a click on a section's icon in the inspector's header did not show it (the icon: the section shown):" && \
+            char 1 to -3 of tFails
+   end if
+end tour_inspector_tabs
+
+-- Whether a click of tourClick reaches the IDE here: a button of a stack
+-- of the tour, clicked in Run mode, must get its mouseUp. Notes it when not
+function tourClickWorks
+   local tStack, tDefault, tLoc, tWorks
+   put "OXT Tour Click Check" into tStack
+   if there is a stack tStack then delete stack tStack
+   put the defaultStack into tDefault
+   lock messages
+   create stack tStack
+   set the rect of stack tStack to (item 3 of the screenRect - 380) & ",160," & (item 3 of the screenRect - 80) & ",320"
+   set the defaultStack to tStack
+   create button "Click"
+   set the rect of it to "60,50,240,100"
+   set the script of it to "on mouseUp" & return & "   set the cTourClicked of me to true" & return & "end mouseUp"
+   unlock messages
+   go stack tStack
+   choose browse tool
+   tourWait 800
+   tourUnlockScreen "click a button"
+   put tourScreenLoc(the long id of button "Click" of card 1 of stack tStack, tStack) into tLoc
+   tourMoveMouse tLoc
+   tourWait 300
+   tourClick item 1 of tLoc, item 2 of tLoc
+   tourWait 1500
+   put the cTourClicked of button "Click" of card 1 of stack tStack is true into tWorks
+   choose pointer tool
+   delete stack tStack
+   set the defaultStack to tDefault
+   if not tWorks then
+      tourRecord "INFO inspector-tabs: a click of the system's at" && tLoc && "did not reach a button there, so the inspector's header is not clicked"
+   end if
+   return tWorks
+end tourClickWorks
+
+-- A click of the system's left mouse button at the point pX,pY of the
+-- screen, as a user's: CGEventPost on macOS, xdotool on Linux, and
+-- SetCursorPos and mouse_event on Windows (PowerShell). The engine waits
+-- on the command and handles the click once it is back
+command tourClick pX, pY
+   local tCommand, tScript
+   switch the platform
+      case "MacOS"
+         put "osascript -l JavaScript -e 'ObjC.import(" & quote & "CoreGraphics" & quote & "); " & \
+               "function post(t) { var e = $.CGEventCreateMouseEvent(null, t, {x: " & pX & ", y: " & pY & "}, 0); " & \
+               "$.CGEventSetIntegerValueField(e, 1, 1); $.CGEventPost(0, e); } " & \
+               "post(1); delay(0.08); post(2);'" into tCommand
+         break
+      case "Win32"
+         put "Add-Type -Namespace OxtTour -Name Mouse -MemberDefinition '" & \
+               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern bool SetCursorPos(int x, int y); " & \
+               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern void mouse_event(int f, int x, int y, int d, int e);'" & return & \
+               "[OxtTour.Mouse]::SetCursorPos(" & pX & ", " & pY & ") | Out-Null" & return & \
+               "[OxtTour.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return & \
+               "Start-Sleep -Milliseconds 80" & return & \
+               "[OxtTour.Mouse]::mouse_event(4, 0, 0, 0, 0)" into tScript
+         -- (encoded, as cmd.exe would take its quotes apart)
+         put base64Encode(textEncode(tScript, "UTF-16LE")) into tScript
+         replace return with empty in tScript
+         put "powershell -NoProfile -NonInteractive -EncodedCommand" && tScript into tCommand
+         break
+      default
+         put "xdotool mousemove" && pX && pY && "click 1" into tCommand
+         break
+   end switch
+   get shell(tCommand)
+   if it is not empty then
+      tourRecord "INFO click at" && pX & "," & pY & ":" && tourJoin(it)
+   end if
+end tourClick
 
 on tour_inspector_text
    local tPI
