@@ -119,7 +119,17 @@ Builder, Linux's menu ticks and players, the Mac's field frames, tabs
 and sliders, the Mac menu bar made a window, the Geometry Manager and
 vertical sliders on the web, and the time zone library on 32-bit Linux,
 and brings back mergJSON and some of HyperXTalk's syntax (see
-[0.2.7-rc.6.4](#027-rc64-the-bug-hunt-round-four));
+[0.2.7-rc.6.4](#027-rc64-the-bug-hunt-round-four)), and 0.2.7-rc.6.5
+fixes what they reported on rc.6.4: a Mac IDE that seemed to freeze
+after a click on its backdrop, the paint tools' names in the Tools
+palette and the IDE's messages that called it LiveCode, ends a crash on
+a file that is not a stack and one on invisible direction marks in a
+field, shows a card's border as soon as a script changes it, keeps the
+Windows icons out of the Linux and Mac packages, draws the palette's
+controls and tools, gives the toolbar a modern look, and brings the dark
+appearance to Home, Learn, the xTalk Academy, About, xTalk Chat, the
+xTalk Assistant and the Dictionary (see
+[0.2.7-rc.6.5](#027-rc65-the-bug-hunt-round-five));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1589,6 +1599,120 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.5: the Bug Hunt, round five
+
+OXT-Beyond 0.2.7-rc.6.5 has everything in 0.2.7-rc.6.4. In the spirit of
+the Bug Hunt, here is every change since then, each listed as the bug it
+squashes:
+
+- **A Mac IDE that seemed to freeze.** With the backdrop on (View >
+  Backdrop), a click on it, after a menu of the menu bar or not, brought
+  the backdrop in front of the IDE's menu bar and stacks, so that only
+  the palettes were left and the IDE looked frozen: macOS raises a
+  clicked window after the click, also one that only closed a menu. The
+  backdrop now goes back behind the IDE's windows as soon as they are
+  covered, and looks again just after a click on it.
+  `mouseDownInBackdrop` and `mouseUpInBackdrop` are sent as before
+  (#222).
+- **Paint tools named by their whole tooltips.** With Show Names on, the
+  modern Tools palette names a paint tool by the first part of its
+  tooltip ("Pencil Tool"), where the whole tooltip ("Pencil Tool - Draw
+  a freehand line on an image") was cut off at the top and the bottom of
+  its tile; the filter still finds the rest of it (#222).
+- **Pale pictures for the controls and tools.** The modern look draws
+  the icons of its Controls, Vector Tools and Paint Tools, as it draws
+  the widgets' and its Shapes: sharp at any size, Large Icons included,
+  and in the light and dark looks' colours, where the classic look's
+  white and pale grey pictures were blurred and hard to see in the light
+  look. Drawn Icons in the palette's menu turns them off and gives back
+  the pictures; the classic look is unchanged (#224).
+- **A toolbar left behind.** The toolbar under the menu bar still had
+  its 2010s pictures on a grey bar, beside the modern Tools palette. It
+  now has a modern look, on by default: drawn icons, sharp at any size,
+  on a strip in the Tools palette's colours, light or dark as the
+  desktop is and switching with it, and a toggle that is on (Select
+  Grouped, Suppress Messages, Suppress Errors, Edit Group) is lit, as
+  the palette marks its tool. The menus look as before. View > Modern
+  Toolbar turns it off and gives back the classic toolbar, as it was in
+  rc.6.4 (#225).
+- **Light windows on a dark desktop.** Home, Learn, the xTalk Academy,
+  About, the IDE's kit dialogs (the update check, warnings), xTalk Chat
+  and the xTalk Assistant, with its Settings and Memory windows, follow
+  the desktop's dark mode, with white text instead of grey, and switch
+  while open, keeping what was typed in them. In the light appearance a
+  few small captions on their dark sidebars are brighter (#223).
+- **A light Dictionary in the dark.** The Dictionary's API and Guide
+  pages follow the desktop's dark mode, with white text, and switch while
+  open, as the text dictionary already did (#223).
+- **An IDE that called itself LiveCode.** Choosing a new user extensions
+  folder in Preferences said "LiveCode must be restarted to complete this
+  change". That message and the IDE's others that called it LiveCode name
+  OXT-Beyond: the restart after Reset Preferences to Defaults, the error
+  dialog for a value a script throws and nothing catches, the warnings
+  about stacks with the same name and about names that begin with rev,
+  Search and Replace's messages about the IDE's stacks (which named a View
+  menu item that does not exist), the standalone builders' errors, the
+  PICT conversion offer on the Mac and the type a script-only stack is
+  saved as. So do the Extension Builder's test window, the Book Library
+  sample and the macOS Native App Tools sample, whose buttons brought
+  LiveCode to the front instead of the IDE. Names that scripts use, such
+  as the `com.livecode.*` stacks and libraries, stay (#226).
+- **A crash on a script file without its first line.** The engine run on
+  a file that is neither a stack nor a script-only stack (whose first
+  line is `script "name"`), such as `OXT-Beyond -ui file`, crashed with
+  signal 11. It ends with a startup error instead, "file is not a stack",
+  and exit code -1, as for a file it cannot read (#226).
+- **A crash on invisible direction marks.** Text in which a POP
+  DIRECTIONAL ISOLATE (U+2069) comes after an isolate that an earlier
+  one closed, such as the string tperry2x posted, ">>> " with a U+2068
+  and two U+2069 before " <<<", crashed OXT-Beyond as soon as a field
+  showed it, pasted, typed or set by a script, and so did OXT Lite and
+  LiveCode Community. The engine's text direction code now counts each
+  isolate off as it is closed, as Unicode's bidi algorithm says, and
+  lays such text out; text that was laid out before is laid out as it
+  was (#227).
+- **A card border that did not show.** A card showed a change a script
+  made to its border only when something else redrew it: a border
+  turned on with a borderWidth of 20 stayed hidden, and a 3D border
+  stayed after threeD was turned off (tperry2x). A card now shows a
+  change to its showBorder, borderWidth or threeD as soon as it is
+  set, as it did a change to its colours; the properties' values are as
+  before (#227).
+- **Windows icons in the Linux package.** The Linux and Mac packages had
+  the two Windows icon files at the root of the IDE, OXT-Beyond's (the
+  Windows installer's) and OpenXTalk Lite's, which nothing on those
+  platforms opens. Only the Windows package has them now. The sample
+  icons that the standalone builder gives a Windows application built
+  on any platform stay in every package (#227).
+
+Under the hood, every Mac build clicks a menu of the IDE and its
+backdrop with real mouse events and checks with the window server that
+the backdrop stays behind the IDE's windows, and the IDE's tours click
+the Property Inspector's section icons with the system's mouse and in
+the browser, as a person would (#222). The engine's tests print a card
+with text and a graphic to PDF and check that the file holds them, where
+a white page passed before, and the smoke tests start the engine on a
+file that is not a stack (#226). And the engine's tests put text with
+the direction marks that crashed a field into one, in each text
+direction, and the tours read a card's border from the screen after each
+change a script makes to it (#227). The tours check the toolbar in both
+looks, and that its buttons, pictures and menus are the same to a script
+in each (#225).
+
+A script sees no difference from 0.2.7-rc.6.4: the changes are in the
+IDE's own windows and messages, in the Mac's backdrop staying behind the
+app's windows after a click on it, in the engine ending with a startup
+error, and a field laying out text, where they crashed, and in a card
+showing a change to its border at once, where it showed it at its next
+redraw. The toolbar's buttons and pictures keep their names and IDs in
+both looks. Two things act differently: the macOS Native App Tools
+sample's buttons, which bring OXT-Beyond to the front instead of
+LiveCode, and the View menu, which gains a Modern Toolbar item after
+Toolbar Text, moving the items below it down by one. On Linux and macOS
+the IDE's folder no longer has the two Windows icon files, which no
+script of the IDE reads; a Windows standalone built there from a stack
+whose icon was one of them gets the generic icon, with a warning.
 
 #### 0.2.7-rc.6.4: the Bug Hunt, round four
 

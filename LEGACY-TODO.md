@@ -312,20 +312,20 @@ Work left for later. 421 notes, by part of the repository:
 - [engine/src/lnxstack.cpp:449](engine/src/lnxstack.cpp#L449) TODO: test if this comment is still true
 - [engine/src/mac-av-player.mm:1552](engine/src/mac-av-player.mm#L1552) TODO: Add more types??
 - [engine/src/mac-av-player.mm:1601](engine/src/mac-av-player.mm#L1601) TODO
-- [engine/src/mac-core.mm:1584](engine/src/mac-core.mm#L1584) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
-- [engine/src/mac-core.mm:1651](engine/src/mac-core.mm#L1651) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
-- [engine/src/mac-core.mm:1724](engine/src/mac-core.mm#L1724) COCOA-TODO: Clean up this external dependency.
-- [engine/src/mac-core.mm:2246](engine/src/mac-core.mm#L2246) COCOA-TODO: Abstract Command/Control switching.
-- [engine/src/mac-core.mm:2321](engine/src/mac-core.mm#L2321) COCOA-TODO: Make this is a little more discerning (only need to reset if
+- [engine/src/mac-core.mm:1657](engine/src/mac-core.mm#L1657) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
+- [engine/src/mac-core.mm:1724](engine/src/mac-core.mm#L1724) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
+- [engine/src/mac-core.mm:1797](engine/src/mac-core.mm#L1797) COCOA-TODO: Clean up this external dependency.
+- [engine/src/mac-core.mm:2319](engine/src/mac-core.mm#L2319) COCOA-TODO: Abstract Command/Control switching.
+- [engine/src/mac-core.mm:2394](engine/src/mac-core.mm#L2394) COCOA-TODO: Make this is a little more discerning (only need to reset if
 - [engine/src/mac-menu.mm:1886](engine/src/mac-menu.mm#L1886) COCOA-TODO: Abstract Command/Control switching.
 - [engine/src/mac-surface.mm:34](engine/src/mac-surface.mm#L34) COCOA-TODO: Clean up external linkage for surface.
 - [engine/src/mac-surface.mm:219](engine/src/mac-surface.mm#L219) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-surface.mm:261](engine/src/mac-surface.mm#L261) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-surface.mm:294](engine/src/mac-surface.mm#L294) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-window.mm:569](engine/src/mac-window.mm#L569) COCOA-TODO: Make sure this is necessary, apparantly things should
-- [engine/src/mac-window.mm:2003](engine/src/mac-window.mm#L2003) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
-- [engine/src/mac-window.mm:2040](engine/src/mac-window.mm#L2040) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
-- [engine/src/mac-window.mm:2330](engine/src/mac-window.mm#L2330) COCOA-TODO: Make display update more specific.
+- [engine/src/mac-window.mm:2008](engine/src/mac-window.mm#L2008) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
+- [engine/src/mac-window.mm:2045](engine/src/mac-window.mm#L2045) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
+- [engine/src/mac-window.mm:2335](engine/src/mac-window.mm#L2335) COCOA-TODO: Make display update more specific.
 - [engine/src/mblandroidad.cpp:171](engine/src/mblandroidad.cpp#L171) TODO - Should probably improve this to use a similar method to native controls.
 - [engine/src/mblandroidcalendar.cpp:79](engine/src/mblandroidcalendar.cpp#L79) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
 - [engine/src/mblandroidcalendar.cpp:92](engine/src/mblandroidcalendar.cpp#L92) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
@@ -354,7 +354,7 @@ Work left for later. 421 notes, by part of the repository:
 - [engine/src/mixin-refcounted.h:54](engine/src/mixin-refcounted.h#L54) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:62](engine/src/mixin-refcounted.h#L62) TODO: atomic ops
 - [engine/src/mixin-refcounted.h:70](engine/src/mixin-refcounted.h#L70) TODO: atomic ops
-- [engine/src/mode_development.cpp:433](engine/src/mode_development.cpp#L433) TODO: Script Wiping
+- [engine/src/mode_development.cpp:436](engine/src/mode_development.cpp#L436) TODO: Script Wiping
 - [engine/src/module-canvas.cpp:153](engine/src/module-canvas.cpp#L153) TODO - throw error on failure
 - [engine/src/module-canvas.cpp:1278](engine/src/module-canvas.cpp#L1278) TODO - implement describe
 - [engine/src/module-canvas.cpp:2003](engine/src/module-canvas.cpp#L2003) TODO - handle case of missing normal density image
@@ -495,7 +495,7 @@ Work left for later. 421 notes, by part of the repository:
 - [libfoundation/include/foundation.h:797](libfoundation/include/foundation.h#L797) TODO: re-write when we adopt C++11
 - [libfoundation/src/foundation-array.cpp:937](libfoundation/src/foundation-array.cpp#L937) if defined(__ARM__) && 0 // TODO
 - [libfoundation/src/foundation-bidi.cpp:380](libfoundation/src/foundation-bidi.cpp#L380) TODO
-- [libfoundation/src/foundation-bidi.cpp:783](libfoundation/src/foundation-bidi.cpp#L783) TODO: figure out WTH TR9 is going on about here. Somewhat unclear...
+- [libfoundation/src/foundation-bidi.cpp:789](libfoundation/src/foundation-bidi.cpp#L789) TODO: figure out WTH TR9 is going on about here. Somewhat unclear...
 - [libfoundation/src/foundation-data.cpp:894](libfoundation/src/foundation-data.cpp#L894) TODO: Shrink the buffer if its too big.
 - [libfoundation/src/foundation-foreign.cpp:967](libfoundation/src/foundation-foreign.cpp#L967) TODO[C++17] Some of the fields in here are left empty, and
 - [libfoundation/src/foundation-foreign.cpp:1010](libfoundation/src/foundation-foreign.cpp#L1010) TODO[C++17] We need to use the setup_optional() and
