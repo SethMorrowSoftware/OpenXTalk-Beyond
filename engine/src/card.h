@@ -353,6 +353,9 @@ public:
     virtual void SetTextSize(MCExecContext& ctxt, uinteger_t* size);
     virtual void SetTextStyle(MCExecContext& ctxt, const MCInterfaceTextStyle& p_style);
     virtual void SetTheme(MCExecContext& ctxt, intenum_t p_theme);
+    virtual void SetShowBorder(MCExecContext& ctxt, bool setting);
+    virtual void SetBorderWidth(MCExecContext& ctxt, uinteger_t width);
+    virtual void Set3D(MCExecContext& ctxt, bool setting);
 };
 
 ////////////////////////////////////////////////////////////////////////////////

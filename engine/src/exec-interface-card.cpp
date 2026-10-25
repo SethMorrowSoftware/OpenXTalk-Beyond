@@ -456,3 +456,27 @@ void MCCard::SetTheme(MCExecContext& ctxt, intenum_t p_theme)
     MCObject::SetTheme(ctxt, p_theme);
     getstack() -> dirtyall();
 }
+
+// OXT-Beyond: the card's border is drawn with the card, and MCObject's
+// setters redraw controls only, so a card whose showBorder, borderWidth or
+// threeD changed kept its old border on the screen until something else
+// redrew it (tperry2x, rc.6.4: a border of 20 that did not show, and a 3D
+// border that stayed after threeD was turned off). The card redraws, as
+// for its colours above.
+void MCCard::SetShowBorder(MCExecContext& ctxt, bool setting)
+{
+    MCObject::SetShowBorder(ctxt, setting);
+    getstack() -> dirtyall();
+}
+
+void MCCard::SetBorderWidth(MCExecContext& ctxt, uinteger_t width)
+{
+    MCObject::SetBorderWidth(ctxt, width);
+    getstack() -> dirtyall();
+}
+
+void MCCard::Set3D(MCExecContext& ctxt, bool setting)
+{
+    MCObject::Set3D(ctxt, setting);
+    getstack() -> dirtyall();
+}

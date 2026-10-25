@@ -19,8 +19,9 @@ script "oxt_ui_tour"
 -- of empty fields, the tabs, a scrollbar with nothing to scroll, sliders,
 -- and on the Mac the useSystemWindowColor) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
--- title-bar), the Property Inspector (each section for a button, its
--- section icons clicked with the system's mouse: inspector-tabs, the
+-- title-bar, and a card that must show at once each change a script makes
+-- to its border: card-border), the Property Inspector (each section for a
+-- button, its section icons clicked with the system's mouse: inspector-tabs, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects, and the graphic's Fill gradient popup, which must open beside
 -- the Inspector and off the graphic, and a player made with the IDE and
@@ -70,7 +71,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-tabs,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,inspector,inspector-tabs,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -1922,6 +1923,131 @@ command tourTbMake pName, pLeft, pTop, pScript
    set the defaultStack to tDefault
    unlock messages
 end tourTbMake
+
+-- A card shows each change a script makes to its border at once. The
+-- engine redrew a card for its colours but not for its showBorder,
+-- borderWidth or threeD, so a border a script turned on stayed hidden
+-- until something else redrew the card, and a 3D border stayed after
+-- threeD was turned off (tperry2x, rc.6.4). After each change the screen
+-- is read 2 and 10 points in from the left of the card, at its middle:
+-- blue (the borderColor) where a flat border is, green (the topColor)
+-- where a 3D one is, white (the backColor) where none is. A wrong colour
+-- is logged with the colours the card has once it is redrawn, so that
+-- each change starts from a card that shows the one before it
+on tour_card_border
+   local tArea, tName, tCard, tFails
+   put "oxt_card_border" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   put the long id of card 1 of stack tName into tCard
+   lock messages
+   set the backColor of tCard to "255,255,255"
+   set the borderColor of tCard to "0,0,255"
+   set the topColor of tCard to "0,255,0"
+   set the bottomColor of tCard to "255,0,0"
+   set the borderWidth of tCard to 20
+   set the threeD of tCard to false
+   set the showBorder of tCard to false
+   unlock messages
+   go stack tName
+   tourOnScreen tName
+   put tourCbCheck(tName, "opened", "white,white", empty) after tFails
+   set the showBorder of tCard to true
+   put tourCbCheck(tName, "showBorder true", "blue,blue", empty) after tFails
+   set the threeD of tCard to true
+   put tourCbCheck(tName, "threeD true", "green,green", empty) after tFails
+   set the threeD of tCard to false
+   put tourCbCheck(tName, "threeD false", "blue,blue", "04c-card-border") after tFails
+   set the borderWidth of tCard to 4
+   put tourCbCheck(tName, "borderWidth 4", "blue,white", empty) after tFails
+   set the showBorder of tCard to false
+   put tourCbCheck(tName, "showBorder false", "white,white", empty) after tFails
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_card_border
+
+-- After a change (pWhat) to the card of the stack pStack: empty if the
+-- screen shows pWant 2 and 10 points in from the left of the card, else a
+-- line with what it shows, and what it shows once the card is redrawn
+-- (which a card's colour setters do). pShot, if not empty, is a snapshot
+-- of the window, taken before that redraw
+function tourCbCheck pStack, pWhat, pWant, pShot
+   local tGot, tCard
+   tourWait 600
+   if pShot is not empty then tourShotStack pStack, pShot
+   put tourCbColours(pStack) into tGot
+   tourRecord "INFO card-border" && pWhat & ":" && tGot
+   if tourCbNames(tGot) is pWant then return empty
+   put the long id of card 1 of stack pStack into tCard
+   set the backColor of tCard to the backColor of tCard
+   tourWait 600
+   return pWhat && "shows" && tGot & ", not" && pWant & "; redrawn," && tourCbColours(pStack) & return
+end tourCbCheck
+
+-- The colours of the screen 2 and 10 points in from the left of the card
+-- of the stack pStack, at its middle, each as its name and its red, green
+-- and blue ("blue 0 0 255,white 255 255 255")
+function tourCbColours pStack
+   local tColours, tX, tRGB
+   repeat for each item tX in "2,10"
+      put tourCbPixel(pStack, tX) into tRGB
+      put tourCbName(tRGB) && item 1 of tRGB && item 2 of tRGB && item 3 of tRGB & comma after tColours
+   end repeat
+   return item 1 to -1 of tColours
+end tourCbColours
+
+-- The names alone of tourCbColours ("blue,white")
+function tourCbNames pColours
+   local tColour, tNames
+   repeat for each item tColour in pColours
+      put word 1 of tColour & comma after tNames
+   end repeat
+   return item 1 to -1 of tNames
+end tourCbNames
+
+-- The red, green and blue of the screen pX points in from the left of the
+-- card of the stack pStack, at its middle: the middle point of a snapshot
+-- 5 points square, so a point of the screen on a Retina display too
+function tourCbPixel pStack, pX
+   local tRect, tX, tY, tData, tW, tH, tAt
+   tourUnlockScreen "card-border"
+   put the rect of stack pStack into tRect
+   put item 1 of tRect + pX into tX
+   put (item 2 of tRect + item 4 of tRect) div 2 into tY
+   export snapshot from rect (tX - 2, tY - 2, tX + 3, tY + 3) to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the width of image "oxt_tour_probe" of stack "oxt_ui_tour" into tW
+   put the height of image "oxt_tour_probe" of stack "oxt_ui_tour" into tH
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put ((tH div 2) * tW + tW div 2) * 4 into tAt
+   return byteToNum(byte tAt + 2 of tData) & comma & byteToNum(byte tAt + 3 of tData) & comma & byteToNum(byte tAt + 4 of tData)
+end tourCbPixel
+
+-- The nearest to the colour pRGB of the four the card is given
+function tourCbName pRGB
+   local tRef, tName, tDist, tBest, tBestName, i
+   put "255,255,255" into tRef["white"]
+   put "0,0,255" into tRef["blue"]
+   put "0,255,0" into tRef["green"]
+   put "255,0,0" into tRef["red"]
+   repeat for each item tName in "white,blue,green,red"
+      put 0 into tDist
+      repeat with i = 1 to 3
+         add (item i of pRGB - item i of tRef[tName]) ^ 2 to tDist
+      end repeat
+      if tBest is empty or tDist < tBest then
+         put tDist into tBest
+         put tName into tBestName
+      end if
+   end repeat
+   return tBestName
+end tourCbName
 
 on tour_inspector
    local tPI, tSection, tShown, tIndex, tError
