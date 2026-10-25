@@ -716,6 +716,12 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
                 while (t_stack[t_depth].isolate == false)
                     t_current_level = t_stack[--t_depth].level;
                 t_current_level = t_stack[--t_depth].level;
+                // OXT-Beyond: the isolate this PDI closed is no longer valid
+                // (X6a). Kept at its old count, the next PDI after a closed
+                // isolate looked for one below the first entry of the stack
+                // and crashed: ">>> " FSI PDI PDI " <<<" in any field
+                // (tperry2x, rc.6.4)
+                t_valid_isolates--;
             }
             
             t_levels[i] = t_current_level;
