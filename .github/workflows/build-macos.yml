@@ -41,7 +41,10 @@
 #   format and architecture (tools/ci/standalone_check.py), and an HTML5
 #   standalone built by the IDE and opened in headless Chromium
 #   (tools/ci/web_check.py). It also extracts the zip and verifies its
-#   signature.
+#   signature, and clicks a menu of the IDE and its backdrop with real
+#   mouse events, after which the backdrop must still be behind the IDE's
+#   windows (tools/ci/mac_menu_backdrop.py; also on macOS 26, after the
+#   IDE tour there).
 #
 # The artifact is uploaded before the test jobs run, so a release has to
 # need both the package and the test jobs: .github/workflows/release.yml
@@ -118,6 +121,7 @@ on:
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
       - '.github/workflows/ui-tour.yml'
+      - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/ci/changelog.py'
@@ -1105,6 +1109,22 @@ jobs:
           URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
         run: python3 tools/ci/ui_tour_page.py "$LOGS/ui-tour" --title "$TITLE" --summary --url="$URL"
 
+      # The backdrop (View > Backdrop) and the menu bar, with real clicks
+      # (tools/ci/mac_menu_backdrop.py): a menu opened and closed, a menu
+      # then a click on the backdrop (the forum's report on 0.2.7-rc.6.4
+      # of an IDE that seemed to freeze), the backdrop clicked twice, and
+      # clicked from another app. After each step the IDE must answer and
+      # the window server must have the backdrop behind the IDE's windows:
+      # a click on it brought it in front of all of them but the palettes,
+      # as macOS raises a clicked window after the click. The IDE is
+      # started as the Finder starts it (open), as on a user's Mac.
+      - name: Menu and backdrop check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/mac_menu_backdrop.py --install "$RUNNER_TEMP/oxt-test" --launch open \
+            --out "$LOGS/menu-backdrop"
+
       # The browser widget (WKWebView), revBrowser and the player
       # (AVFoundation) in a standalone of the app: a page loads and its
       # JavaScript calls back into the script, a WAV and an MP4 file play,
@@ -1227,4 +1247,12 @@ jobs:
         timeout-minutes: 15
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --appearance light --only sample,controls,inspector,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+            --appearance light --only sample,controls,inspector,inspector-tabs,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+
+      # As the test job runs it (see there), on macOS 26
+      - name: Menu and backdrop check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/mac_menu_backdrop.py --install "$RUNNER_TEMP/oxt-test" --launch open \
+            --out "$RUNNER_TEMP/menu-backdrop"

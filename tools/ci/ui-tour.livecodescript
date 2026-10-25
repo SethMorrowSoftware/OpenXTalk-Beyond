@@ -18,7 +18,8 @@ script "oxt_ui_tour"
 -- of empty fields, the tabs, a scrollbar with nothing to scroll, sliders,
 -- and on the Mac the useSystemWindowColor) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
--- title-bar), the Property Inspector (each section for a button, the
+-- title-bar), the Property Inspector (each section for a button, its
+-- section icons clicked with the system's mouse: inspector-tabs, the
 -- Text section of a field, the Colors section of a graphic and of several
 -- objects, and the graphic's Fill gradient popup, which must open beside
 -- the Inspector and off the graphic, and a player made with the IDE and
@@ -68,7 +69,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-tabs,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -288,6 +289,18 @@ end tour_tools_modern_wide
 on tour_tools_modern_names
    if tourToolsModern(380, true) then
       tourShotStack "revTools", "01-tools-modern-names"
+      -- the vector and paint tools with their names, below the shapes,
+      -- with the widgets and controls folded
+      dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+      dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
+      tourTmClick tourTmNamed("tmCapHit:widget")
+      tourTmClick tourTmNamed("tmCapHit:classic")
+      tourWait 300
+      tourShotStack "revTools", "01-tools-modern-names-tools"
+      tourTmClick tourTmNamed("tmCapHit:widget")
+      tourTmClick tourTmNamed("tmCapHit:classic")
+      dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+      dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
    end if
    tourToolsClassic
 end tour_tools_modern_names
@@ -462,6 +475,25 @@ on tour_tools_modern_sizes
    tourTmLayoutOK "with names, wide"
    tourTmNamesWhole "wide"
    tourTmCheck tourTmColumns("classic") >= 3, "names in columns when wide (" & tourTmColumns("classic") & ")"
+   -- every section, turned on as the menu's Vector Tools and Paint Tools
+   -- do: a paint tool's name is its tooltip's first part, where the whole
+   -- tooltip was cut off
+   dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+   dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
+   tourTmCheck tourTmGroup("graphictools") is not empty and tourTmGroup("paint") is not empty, \
+         "the vector and paint tools are shown (" & revIDEGetPreference("revTools_modernShow") & ")"
+   set the rect of stack "revTools" to 40, 120, 40 + 170, 120 + 520
+   tourWait 300
+   tourTmLayoutOK "with names and every section, narrow"
+   tourTmNamesWhole "with every section, narrow"
+   set the rect of stack "revTools" to 40, 120, 40 + 390, 120 + 520
+   tourWait 200
+   tourTmLayoutOK "with names and every section, at 390"
+   tourTmNamesWhole "with every section, at 390"
+   tourTmCheck the text of tourTmNamed("tmLabel:com.livecode.tool.Pencil") is "Pencil Tool", \
+         "a paint tool's name is its tooltip's first part (" & the text of tourTmNamed("tmLabel:com.livecode.tool.Pencil") & ")"
+   dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+   dispatch "tmMenuPick" to stack "revTools" with "Paint Tools"
    revIDESetPreference "revTools_modernNames", false
    -- short: it scrolls with the wheel, and no further than its end
    set the rect of stack "revTools" to 40, 120, 40 + 120, 120 + 200
@@ -932,6 +964,17 @@ function tourTmGroup pView
    return the long id of group pView of group "contents" of stack "revTools"
 end tourTmGroup
 
+-- The name of button pIndex of a section's group: its label in that group,
+-- or empty. Two sections can hold a tool of the same type, as the vector
+-- and paint tools' fill colour, line colour and line size do, so a label is
+-- looked for in its tile's group, as the palette lays it out
+function tourTmLabel pGroup, pIndex
+   local tName
+   put "tmLabel:" & the short name of button pIndex of pGroup into tName
+   if there is not a field tName of pGroup then return empty
+   return the long id of field tName of pGroup
+end tourTmLabel
+
 -- The width of a shape's drawn icon (the palette's tmShapeSvg), or empty
 -- when its tile shows a picture
 function tourTmShapeIcon pTypeID
@@ -1019,7 +1062,7 @@ command tourTmNamesWhole pWhere
       if tGroup is empty or not the visible of tGroup then next repeat
       repeat with i = 1 to the number of buttons of tGroup
          if not the visible of button i of tGroup then next repeat
-         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         put tourTmLabel(tGroup, i) into tLabel
          if tLabel is empty or not the visible of tLabel then next repeat
          if the textSize of tLabel < 10 then
             put the text of tLabel && "at" && the textSize of tLabel && "points; " after tBad
@@ -1078,7 +1121,7 @@ command tourTmLayoutOK pWhen
          if item 2 of tR < tTop and the vScroll of tourTmNamed("contents") is 0 then
             put the short name of button i of tGroup && "above the filter" && tR & "; " after tBad
          end if
-         put tourTmNamed("tmLabel:" & the short name of button i of tGroup) into tLabel
+         put tourTmLabel(tGroup, i) into tLabel
          if tLabel is not empty and the visible of tLabel then
             if the right of tLabel > item 3 of tR + 1 or the left of tLabel < item 1 of tR then
                put "the name of" && the short name of button i of tGroup && "outside its tile; " after tBad
@@ -1758,6 +1801,139 @@ on tour_inspector
    if tError is empty then put tourInspectorInheritedOnColour() into tError
    if tError is not empty then throw tError
 end tour_inspector
+
+-- The section icons in the inspector's header, clicked with the system's
+-- mouse as a user clicks them (OpenXTalkPaul on rc.6.3, on the Mac and
+-- the web: he "can't click the little category tab icons, which makes it
+-- Inspector pretty much unusable"): the pointer rests on each of the
+-- first few, so that its tooltip shows, then clicks it in its middle, and
+-- the inspector must then show the icon's section. A click on a button
+-- of a stack of the tour comes first, to see that the system's clicks
+-- reach the IDE on this machine; when they do not, that is noted and the
+-- header is not clicked
+on tour_inspector_tabs
+   local tPI, tHeader, tNav, tHeight, tLeft, tTop, tIndex, tLabel, tX, tY, tShown, tFails
+   if not tourClickWorks() then exit tour_inspector_tabs
+   put tourInspect(tourSample("Push")) into tPI
+   tourInspectorHeaderCheck tPI
+   tourOnScreen tPI
+   put the long id of widget "header_background" of group "background" of stack tPI into tHeader
+   put the navData of tHeader into tNav
+   put the height of tHeader into tHeight
+   -- the screen's point of the header's top left
+   put the left of stack tPI + the left of tHeader into tLeft
+   put the top of stack tPI + the top of tHeader into tTop
+   tourRecord "INFO inspector-tabs header" && the rect of tHeader && "of" && tPI && "at" && \
+         the rect of stack tPI & ";" && the number of elements of tNav && "tabs, icons" && the showNavIcons of tHeader
+   tourUnlockScreen "click the inspector's header"
+   repeat with tIndex = 2 to min(5, the number of elements of tNav)
+      put tNav[tIndex]["label"] into tLabel
+      -- a tab is as wide as the header is high, after a padding of 0.225
+      -- of that (paletteactions.lcb, calculateRects)
+      put round(tLeft + tHeight * (0.225 + tIndex - 0.5)) into tX
+      put round(tTop + tHeight * 0.55) into tY
+      if tX > tLeft + the navBarRight of tHeader then
+         exit repeat
+      end if
+      tourMoveMouse (tX - 3) & "," & (tY - 2)
+      tourWait 200
+      tourMoveMouse tX & "," & tY
+      tourWait 1500
+      tourClick tX, tY
+      tourWait 1500
+      dispatch function "inspectorSectionGetName" to stack tPI
+      put the result into tShown
+      tourRecord "INFO inspector-tabs clicked" && tLabel && "at" && tX & "," & tY & ": shows" && tShown
+      if tShown is not tLabel then
+         put tLabel & ":" && tShown & "; " after tFails
+      end if
+   end repeat
+   tourShotStack tPI, "05-inspector-tabs"
+   tourMouseAway
+   if tFails is not empty then
+      throw "a click on a section's icon in the inspector's header did not show it (the icon: the section shown):" && \
+            char 1 to -3 of tFails
+   end if
+end tour_inspector_tabs
+
+-- Whether a click of tourClick reaches the IDE here: a button of a stack
+-- of the tour, clicked in Run mode, must get its mouseUp. Notes it when not
+function tourClickWorks
+   local tStack, tDefault, tLoc, tWorks
+   put "OXT Tour Click Check" into tStack
+   if there is a stack tStack then delete stack tStack
+   put the defaultStack into tDefault
+   lock messages
+   create stack tStack
+   set the rect of stack tStack to (item 3 of the screenRect - 380) & ",160," & (item 3 of the screenRect - 80) & ",320"
+   set the defaultStack to tStack
+   create button "Click"
+   set the rect of it to "60,50,240,100"
+   set the script of it to "on mouseUp" & return & "   set the cTourClicked of me to true" & return & "end mouseUp"
+   unlock messages
+   go stack tStack
+   choose browse tool
+   tourWait 800
+   tourUnlockScreen "click a button"
+   put tourScreenLoc(the long id of button "Click" of card 1 of stack tStack, tStack) into tLoc
+   tourMoveMouse tLoc
+   tourWait 300
+   tourClick item 1 of tLoc, item 2 of tLoc
+   tourWait 1500
+   put the cTourClicked of button "Click" of card 1 of stack tStack is true into tWorks
+   choose pointer tool
+   delete stack tStack
+   set the defaultStack to tDefault
+   if not tWorks then
+      tourRecord "INFO inspector-tabs: a click of the system's at" && tLoc && "did not reach a button there, so the inspector's header is not clicked"
+   end if
+   return tWorks
+end tourClickWorks
+
+-- A click of the system's left mouse button at the point pX,pY of the
+-- screen, as a user's: CGEventPost on macOS, xdotool on Linux, and
+-- SetCursorPos and mouse_event on Windows (PowerShell). The engine waits
+-- on the command and handles the click once it is back. On Windows the
+-- command's console window is hidden: shell opens one in front unless the
+-- hideConsoleWindows is true, and on the CI runner's screen of 1024 by 768
+-- the click at the check's button, most likely in that window, never
+-- reached the IDE (rc.6.4's release tour)
+command tourClick pX, pY
+   local tCommand, tScript, tHide
+   switch the platform
+      case "MacOS"
+         put "osascript -l JavaScript -e 'ObjC.import(" & quote & "CoreGraphics" & quote & "); " & \
+               "function post(t) { var e = $.CGEventCreateMouseEvent(null, t, {x: " & pX & ", y: " & pY & "}, 0); " & \
+               "$.CGEventSetIntegerValueField(e, 1, 1); $.CGEventPost(0, e); } " & \
+               "post(1); delay(0.08); post(2);'" into tCommand
+         break
+      case "Win32"
+         put "Add-Type -Namespace OxtTour -Name Mouse -MemberDefinition '" & \
+               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern bool SetCursorPos(int x, int y); " & \
+               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern void mouse_event(int f, int x, int y, int d, int e);'" & return & \
+               "[OxtTour.Mouse]::SetCursorPos(" & pX & ", " & pY & ") | Out-Null" & return & \
+               "[OxtTour.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return & \
+               "Start-Sleep -Milliseconds 80" & return & \
+               "[OxtTour.Mouse]::mouse_event(4, 0, 0, 0, 0)" into tScript
+         -- (encoded, as cmd.exe would take its quotes apart)
+         put base64Encode(textEncode(tScript, "UTF-16LE")) into tScript
+         replace return with empty in tScript
+         put "powershell -NoProfile -NonInteractive -EncodedCommand" && tScript into tCommand
+         break
+      default
+         put "xdotool mousemove" && pX && pY && "click 1" into tCommand
+         break
+   end switch
+   if the platform is "Win32" then
+      put the hideConsoleWindows into tHide
+      set the hideConsoleWindows to true
+   end if
+   get shell(tCommand)
+   if the platform is "Win32" then set the hideConsoleWindows to tHide
+   if it is not empty then
+      tourRecord "INFO click at" && pX & "," & pY & ":" && tourJoin(it)
+   end if
+end tourClick
 
 on tour_inspector_text
    local tPI

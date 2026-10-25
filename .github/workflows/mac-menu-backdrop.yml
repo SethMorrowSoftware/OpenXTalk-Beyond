@@ -1,0 +1,98 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# tools/ci/mac_menu_backdrop.py on a published release, by hand: the Mac
+# IDE with the backdrop on, a menu of its menu bar and real clicks, the
+# window server's order of its windows read after each (the forum's report
+# on 0.2.7-rc.6.4, tperry2x, macOS Sonoma on Apple silicon, of an IDE that
+# seemed to freeze: a click on the backdrop brought it in front of every
+# window of the IDE but its palettes). Every Mac build runs the same check
+# on its own app (build-macos.yml); this runs it on a release's, as the
+# "before" of a fix. The IDE is started both as the IDE tour starts it
+# (its binary, run by the runner) and as the Finder does (open), which
+# makes macOS take it for an app of its own, as on a user's Mac. A stop is
+# sampled, its main thread's call graph named from the release's debug
+# symbols.
+name: Menu and backdrop (macOS releases)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to check, by its tag
+        required: true
+        default: v0.2.7-rc.6.4
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-menu-backdrop-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ inputs.tag }}, ${{ matrix.launch }} (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, launch: exec }
+          - { runner: macos-15, launch: open }
+          - { runner: macos-15-intel, launch: open }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release and its debug symbols
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt-test" "$RUNNER_TEMP/oxt-symbols"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal.zip" --dir "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal-symbols.zip" \
+            --dir "$RUNNER_TEMP/dist" || echo "(no debug symbols in $TAG)"
+          ls -l "$RUNNER_TEMP/dist"
+          ditto -x -k "$RUNNER_TEMP"/dist/*-mac-universal.zip "$RUNNER_TEMP/oxt-test"
+          for f in "$RUNNER_TEMP"/dist/*-mac-universal-symbols.zip; do
+            [ -f "$f" ] && ditto -x -k "$f" "$RUNNER_TEMP/oxt-symbols"
+          done
+          echo "OXT_DSYM_DIR=$RUNNER_TEMP/oxt-symbols" >> "$GITHUB_ENV"
+
+      - name: Menu and backdrop
+        env:
+          LAUNCH: ${{ matrix.launch }}
+        run: |
+          python3 tools/ci/mac_menu_backdrop.py --install "$RUNNER_TEMP/oxt-test" \
+            --out "$RUNNER_TEMP/menu-backdrop" --launch "$LAUNCH"
+
+      - name: Upload the logs and the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: menu-backdrop-${{ inputs.tag }}-${{ matrix.launch }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/menu-backdrop
+          if-no-files-found: ignore
+          retention-days: 14

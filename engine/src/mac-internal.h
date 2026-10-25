@@ -657,6 +657,11 @@ void MCMacPlatformSetGlobalVolume(double volume);
 // MW-2014-04-23: [[ CocoaBackdrop ]] Ensures the windows are stacked correctly.
 void MCMacPlatformSyncBackdrop(void);
 
+// Puts the backdrop back behind our windows when the window server has
+// raised it in front of one of them, as it does after a click on it.
+void MCMacPlatformSyncBackdropIfRaised(void);
+void MCMacPlatformBackdropMouseReleased(MCPlatformWindowRef p_window);
+
 // MW-2014-06-11: [[ Bug 12436 ]] These are used to ensure that the cursor doesn't get clobbered whilst in an user area snapshot.
 void MCMacPlatformLockCursor(void);
 void MCMacPlatformUnlockCursor(void);
