@@ -1508,6 +1508,11 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 	else
 		t_button = [event buttonNumber];
 	
+	// Before the engine handles it, which may run a script that sets the
+	// backdrop to none
+	if (!pressed)
+		MCMacPlatformBackdropMouseReleased(t_window);
+	
 	t_window -> ProcessMousePress(t_button, pressed == YES);
 }
 					 

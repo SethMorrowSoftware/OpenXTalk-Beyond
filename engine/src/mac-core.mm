@@ -390,9 +390,27 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 	if ([NSWindow respondsToSelector:@selector(allowsAutomaticWindowTabbing)])
 		[NSWindow setAllowsAutomaticWindowTabbing: NO];
 	
+	// A window the backdrop covers changes its occlusion state, which is
+	// when it is put back behind our windows (see
+	// MCMacPlatformSyncBackdropIfRaised).
+	[[NSNotificationCenter defaultCenter] addObserver: self
+											 selector: @selector(windowOcclusionChanged:)
+												 name: NSWindowDidChangeOcclusionStateNotification
+											   object: nil];
+
 	// We started up successfully, so queue the root runloop invocation
 	// message.
 	[self performSelector: @selector(runMainLoop) withObject: nil afterDelay: 0];
+}
+
+- (void)windowOcclusionChanged:(NSNotification *)notification
+{
+	MCMacPlatformSyncBackdropIfRaised();
+}
+
+- (void)syncBackdropIfRaised
+{
+	MCMacPlatformSyncBackdropIfRaised();
 }
 
 - (void)interfaceThemeChangedNotification:(NSNotification *)notification
@@ -1430,6 +1448,61 @@ void MCMacPlatformSyncBackdrop(void)
         [t_backdrop orderBack: nil];
 
     [CATransaction commit];
+}
+
+// Whether one of our windows at the backdrop's level is behind it: the
+// backdrop belongs behind them all
+static bool MCMacPlatformIsBackdropRaised(NSWindow *p_backdrop)
+{
+    bool t_seen;
+    t_seen = false;
+    for(NSNumber *t_window_id in [NSWindow windowNumbersWithOptions: 0])
+    {
+        NSWindow *t_window;
+        t_window = [NSApp windowWithWindowNumber: [t_window_id longValue]];
+        if (t_window == nil)
+            continue;
+
+        if (t_window == p_backdrop)
+            t_seen = true;
+        else if (t_seen && [t_window level] >= [p_backdrop level])
+            return true;
+    }
+    return false;
+}
+
+// The window server raises a window that is clicked AFTER the click, and
+// whatever the app did with it (seen on macOS 14, 15 and 26), even when the
+// click only closed a menu, so the sync in acceptsFirstMouse: runs too early:
+// a click on the backdrop brought it in front of all our windows but the
+// floating ones, and they seemed gone (the forum's report on
+// 0.2.7-rc.6.4 of an IDE that froze after a menu and a click on the
+// backdrop). A window the backdrop covers changes its occlusion state, which
+// calls this; a mouse up on the backdrop calls it too, shortly after
+// (MCMacPlatformBackdropMouseReleased), for windows that were covered already.
+void MCMacPlatformSyncBackdropIfRaised(void)
+{
+    if (s_backdrop_window == nil)
+        return;
+
+    NSWindow *t_backdrop;
+    t_backdrop = ((MCMacPlatformWindow *)s_backdrop_window) -> GetHandle();
+    if (MCMacPlatformIsBackdropRaised(t_backdrop))
+        MCMacPlatformSyncBackdrop();
+}
+
+// Called on a mouse up in a window, before the engine handles it: when the
+// window is the backdrop, look again once the window server has raised it
+// (in the tests it had, at the latest, 5ms after the mouse up), for our
+// windows that another app's covered already: they change no occlusion
+// state when it does.
+void MCMacPlatformBackdropMouseReleased(MCPlatformWindowRef p_window)
+{
+    if (p_window == nil || p_window != s_backdrop_window)
+        return;
+
+    for(NSNumber *t_delay in @[@0.0, @0.1, @0.3])
+        [(MCApplicationDelegate *)[NSApp delegate] performSelector: @selector(syncBackdropIfRaised) withObject: nil afterDelay: [t_delay doubleValue]];
 }
 
 void MCPlatformConfigureBackdrop(MCPlatformWindowRef p_backdrop_window)

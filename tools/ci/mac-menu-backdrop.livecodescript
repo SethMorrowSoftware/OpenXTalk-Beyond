@@ -1,27 +1,31 @@
 script "oxt_menu_backdrop"
--- The Mac IDE when a menu of its menu bar is open and the backdrop is
--- clicked, run inside the real IDE by tools/ci/mac_menu_backdrop.py, which
--- names this file on the command line (the engine opens it once the IDE
--- has started) and makes the clicks itself, with real mouse events. The
--- forum's report on 0.2.7-rc.6.4 (tperry2x, macOS Sonoma on Apple
--- silicon): "If you click the menu, then click the actual backdrop, seems
--- to be a program freeze (loop?)", the menu's title left selected, the
--- Menubar palette gone and nothing else drawn, until a force quit.
+-- The Mac IDE with the backdrop on, a menu of its menu bar and real clicks,
+-- run inside the real IDE by tools/ci/mac_menu_backdrop.py, which names
+-- this file on the command line (the engine opens it once the IDE has
+-- started), makes the clicks itself, with real mouse events, and reads the
+-- window server's order of the IDE's windows after each. The forum's
+-- report on 0.2.7-rc.6.4 (tperry2x, macOS Sonoma on Apple silicon): "If
+-- you click the menu, then click the actual backdrop, seems to be a
+-- program freeze (loop?)", the Menubar palette gone and nothing else
+-- drawn, until a force quit. A click on the backdrop brought it in front
+-- of every window of the IDE but its palettes.
 --
 -- Once the IDE has started this turns the backdrop on as View > Backdrop
 -- does (revIDEToggle), and leaves the rest of the IDE as a user has it
 -- (Preferences' "hide the IDE's windows when the desktop is clicked" too,
 -- which the IDE tour turns off). From then on it writes beat.txt beside
 -- this file every 250 milliseconds: the time, the Menubar palette's
--- visible, the backdrop, the defaultStack and the pending messages. A
--- pending message writes it, so the beat stops while the engine does not
--- answer: in a handler that never ends, a call that waits, or a menu that
--- is still open. A frontscript logs the messages of the menus, the
--- backdrop and the windows' focus as they come, and passes each.
+-- visible, the backdrop, the defaultStack, the first of the windows and
+-- the pending messages. A pending message writes it, so the beat stops
+-- while the engine does not answer: in a handler that never ends, a call
+-- that waits, or a menu that is still open. A frontscript logs the
+-- messages of the menus, the backdrop and the windows' focus as they come,
+-- and passes each.
 --
 -- It reads command.txt beside this file at each beat: a line of script
--- that it runs with "do" (the driver turns the backdrop off with it), and
--- then deletes. Its lines go into menu-backdrop.txt beside this file:
+-- that it runs with "do" (the driver turns the backdrop off with it, or
+-- off and on again with mbResetBackdrop), and then deletes. Its lines go
+-- into menu-backdrop.txt beside this file:
 --    STARTED
 --    INFO <key> <value>
 --    ERROR <a script error, its lines joined with " | ">
@@ -148,14 +152,25 @@ on mbBeat
    end if
 end mbBeat
 
--- The first three windows of the app, front to back (the windows)
+-- The first three windows of the app, front to back, by the engine's own
+-- list (the windows: their stacks' names; the backdrop is not one)
 function mbFrontWindows
    local tNames, tWindow
    repeat for each line tWindow in line 1 to 3 of the windows
-      put the short name of tWindow & "|" after tNames
+      put tWindow & "|" after tNames
    end repeat
    return char 1 to -2 of tNames
 end mbFrontWindows
+
+-- The backdrop turned off and on again, which orders it behind the IDE's
+-- windows as turning it on does
+command mbResetBackdrop
+   local tBackdrop
+   put the backdrop into tBackdrop
+   if tBackdrop is "none" then exit mbResetBackdrop
+   set the backdrop to "none"
+   set the backdrop to tBackdrop
+end mbResetBackdrop
 
 -- The names of the pending messages, other than the beat's
 function mbPendingNames

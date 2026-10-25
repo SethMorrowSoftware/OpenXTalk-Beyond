@@ -15,11 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Does the Mac IDE still answer after a menu of its menu bar is opened and
-the backdrop is clicked? The forum's report on 0.2.7-rc.6.4 (tperry2x,
-macOS Sonoma on Apple silicon): "If you click the menu, then click the
-actual backdrop, seems to be a program freeze (loop?)", the menu's title
-left selected, the Menubar palette gone and nothing else drawn.
+"""The Mac IDE with the backdrop on, a menu of its menu bar and real
+clicks. The forum's report on 0.2.7-rc.6.4 (tperry2x, macOS Sonoma on
+Apple silicon): "If you click the menu, then click the actual backdrop,
+seems to be a program freeze (loop?)", the Menubar palette gone and
+nothing else drawn. It was no freeze: a click on the backdrop brought it
+in front of every window of the IDE but its palettes, and the engine went
+on answering behind it.
 
   python3 tools/ci/mac_menu_backdrop.py --install DIR --out DIR
       [--menu Text] [--launch exec|open]
@@ -32,21 +34,29 @@ writes a beat every 250 ms that stops while the engine does not answer,
 and logs the messages of the menus, the backdrop and the windows' focus.
 Then it clicks with real mouse events (CGEventPost through osascript's
 JavaScript, as the IDE tour posts its mouse moves; the menu's title is
-found with System Events), each step followed by a look at the beat:
+found with System Events), each step followed by a look at the beat and
+at the window server's order of the IDE's windows
+(CGWindowListCopyWindowInfo):
 
-  menu-close     the menu's title, then the title again (the menu closes)
-  backdrop       the backdrop alone
-  menu-backdrop  the menu's title, then the backdrop (the report), twice
-  menu-desktop   the backdrop off, the menu's title, then the desktop
+  menu-close      the menu's title, then the title again (the menu closes)
+  menu-backdrop   the menu's title, then the backdrop (the report)
+  backdrop        the backdrop alone, then once more
+  away-backdrop   the Finder made the active app, then the backdrop
+  menu-desktop    the backdrop off, the menu's title, then the desktop
 
-A step after which the beat stops for 8 s is a stop: the screen is taken,
-the engine is sampled (its main thread's call graph into the log, named
-from the build's dSYMs under $OXT_DSYM_DIR), then Escape is pressed and
-the title clicked again to see whether either brings it back, and no more
-steps run. Every screenshot is printed into the log as tools/ci/print_images.py
-reads it. Exit status 0 when the IDE answered after every step, 1 when it
-stopped, 2 when the check itself could not run. Only the Python 3
-standard library is used.
+After each step with the backdrop on, the backdrop must be behind every
+window of the IDE of the normal layer (the Menubar palette, the stacks),
+not in front of them; when it is not, the screen is taken and the
+backdrop turned off and on again, which puts it back, before the next
+step. A step after which the beat stops for 8 s is a stop: the screen is
+taken, the engine is sampled (its main thread's call graph into the log,
+named from the build's dSYMs under $OXT_DSYM_DIR), then Escape is pressed
+and the title clicked again to see whether either brings it back, and no
+more steps run. Every screenshot is printed into the log as
+tools/ci/print_images.py reads it. Exit status 0 when the IDE answered and
+kept the backdrop behind its windows after every step, 1 when it did not,
+2 when the check itself could not run. Only the Python 3 standard library
+is used.
 """
 
 import argparse
@@ -184,12 +194,13 @@ def backdrop_behind(windows, screen):
     """Whether the backdrop (the process's window of the normal layer, 0,
     that covers the whole screen, x, y, width and height) is behind the
     process's other windows of that layer, and the order as text. None
-    when there is no such window, or no list."""
+    when there is no such window, no other window of that layer to be
+    behind (so no answer), or no list."""
     if windows is None:
         return None, 'no window list'
     names = []
     backdrop = None
-    after = []
+    before, after = [], []
     for number, layer, x, y, w, h, title in windows:
         if w == 0 or h == 0:
             continue
@@ -199,14 +210,22 @@ def backdrop_behind(windows, screen):
             continue
         names.append('%s%s' % (title or '#%d %dx%d at %d,%d' % (number, w, h, x, y),
                                '' if layer == 0 else ' (layer %d)' % layer))
-        if backdrop is not None and layer == 0:
-            after.append(names[-1])
+        if layer == 0:
+            (before if backdrop is None else after).append(names[-1])
     text = ' > '.join(names)
     if backdrop is None:
         return None, 'no backdrop: ' + text
     if after:
         return False, 'the backdrop is IN FRONT of %s: %s' % (', '.join(after), text)
+    if not before:
+        return None, 'no window of the normal layer but the backdrop: ' + text
     return True, 'the backdrop is behind: ' + text
+
+
+def frontmost():
+    """The unix id of the active app's process, as System Events sees it."""
+    code, said = osascript('tell application "System Events" to get unix id of first process whose frontmost is true')
+    return said
 
 
 def menu_bar_titles(pid):
@@ -333,6 +352,7 @@ def main(argv=None):
     engine_log = open(os.path.join(out, 'engine-output.txt'), 'wb')
     started = time.time()
     status = 2
+    misplaced = []
     try:
         if args.launch == 'exec':
             proc = subprocess.Popen([lay.engine, document], cwd=out, stdout=engine_log, stderr=subprocess.STDOUT,
@@ -369,6 +389,13 @@ def main(argv=None):
             ui_tour.mac_sample(pid, os.path.join(out, 'sample-not-ready.txt'))
             return 2
         log('Ready after %.0f s; a point of the backdrop: %s' % (time.time() - started, point))
+        rect = next((x.split()[2] for x in lines if x.startswith('INFO screenRect ')), '')
+        try:
+            left, top, right, bottom = [int(v) for v in rect.split(',')]
+        except ValueError:
+            log('error: no screenRect from the IDE: %r' % rect)
+            return 2
+        screen = (left, top, right - left, bottom - top)
         if not point:
             log('error: no point of the backdrop that no window covers')
             return 2
@@ -408,6 +435,9 @@ def main(argv=None):
         def step_backdrop():
             click(bx, by)
             time.sleep(1)
+            run.screen('backdrop-clicked')
+            click(bx, by)
+            time.sleep(1)
 
         def step_menu_backdrop():
             open_menu()
@@ -416,6 +446,15 @@ def main(argv=None):
             click(bx, by)
             time.sleep(1)
             run.screen('backdrop-clicked')
+
+        def step_away_backdrop():
+            code, said = osascript('tell application "Finder" to activate')
+            time.sleep(2)
+            log('%.3f the active app: %s' % (time.time(), frontmost()))
+            run.screen('finder-active')
+            click(bx, by)
+            time.sleep(1.5)
+            log('%.3f the active app: %s (the IDE is %d)' % (time.time(), frontmost(), pid))
 
         def step_menu_desktop():
             command(out, 'set the backdrop to "none"')
@@ -426,11 +465,17 @@ def main(argv=None):
             time.sleep(1)
             run.screen('desktop-clicked')
 
-        steps = [('menu-close', step_menu_close), ('backdrop', step_backdrop),
-                 ('menu-backdrop', step_menu_backdrop), ('menu-backdrop-again', step_menu_backdrop),
-                 ('menu-desktop', step_menu_desktop)]
+        # (name, what it does, whether the backdrop is on)
+        steps = [('menu-close', step_menu_close, True), ('menu-backdrop', step_menu_backdrop, True),
+                 ('backdrop', step_backdrop, True), ('away-backdrop', step_away_backdrop, True),
+                 ('menu-desktop', step_menu_desktop, False)]
         status = 0
-        for name, do in steps:
+        behind, said = backdrop_behind(window_order(pid), screen)
+        log('Ready: %s' % said)
+        if behind is not True:
+            log('error: the backdrop is not behind the IDE\'s windows before the first click')
+            return 2
+        for name, do, backdrop in steps:
             log('::group::Step %s' % name)
             do()
             answered = run.look(name)
@@ -441,6 +486,18 @@ def main(argv=None):
                 status = 1
                 break
             log('Step %s: the IDE answers.' % name)
+            if not backdrop:
+                continue
+            behind, said = backdrop_behind(window_order(pid), screen)
+            log('Step %s: %s' % (name, said))
+            if behind is not True:
+                log('::error title=Menu and backdrop::after the step %s %s' % (name, said))
+                misplaced.append(name)
+                status = 1
+                # back behind the IDE's windows for the next step
+                command(out, 'mbResetBackdrop')
+                time.sleep(2)
+                log('After the backdrop was turned off and on: %s' % backdrop_behind(window_order(pid), screen)[1])
     finally:
         if proc is not None:
             ui_tour.stop(proc)
@@ -467,8 +524,18 @@ def main(argv=None):
         for n in names:
             ui_tour.print_image('menu-backdrop/%s' % n, os.path.join(shots, n))
         log('::endgroup::')
-    log('Menu and backdrop: %s' % {0: 'the IDE answered after every step', 1: 'the IDE stopped answering',
-                                   2: 'the check could not run'}[status])
+    if status == 1:
+        said = []
+        if misplaced:
+            said.append('the backdrop came in front of the IDE\'s windows after the step%s %s' % (
+                's' if len(misplaced) > 1 else '', ', '.join(misplaced)))
+        if 'run' in locals() and run.stopped:
+            said.append('the IDE stopped answering after the step %s' % run.stopped)
+        verdict = '; '.join(said)
+    else:
+        verdict = {0: 'the IDE answered and kept the backdrop behind its windows after every step',
+                   2: 'the check could not run'}[status]
+    log('Menu and backdrop: %s' % verdict)
     return status
 
 

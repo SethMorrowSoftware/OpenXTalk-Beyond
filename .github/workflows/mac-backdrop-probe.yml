@@ -14,17 +14,17 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-# A probe, not a test, for the backdrop's fix: where macOS orders a window
-# that cannot become key when it is clicked (tools/ci/mac_backdrop_probe.py)
-name: Backdrop probe (macOS)
+# For the backdrop's fix only, and removed before it merges: the "before"
+# of the check every Mac build now runs (tools/ci/mac_menu_backdrop.py),
+# on the published 0.2.7-rc.6.4, which must show the backdrop coming in
+# front of the IDE's windows. A job passes when the check sees it.
+name: Backdrop before the fix (macOS)
 
 on:
   pull_request:
     branches: [ main ]
     paths:
       - .github/workflows/mac-backdrop-probe.yml
-      - tools/ci/mac-backdrop-probe.m
-      - tools/ci/mac_backdrop_probe.py
   workflow_dispatch:
 
 permissions:
@@ -35,21 +35,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  probe:
-    name: Probe (${{ matrix.runner }})
+  before:
+    name: v0.2.7-rc.6.4 (${{ matrix.runner }})
     strategy:
       fail-fast: false
       matrix:
-        runner: [ macos-14, macos-15, macos-26 ]
+        runner: [ macos-14, macos-15, macos-15-intel, macos-26 ]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Probe
+      - name: Download the release and its debug symbols
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: v0.2.7-rc.6.4
         run: |
           sw_vers
-          python3 tools/ci/mac_backdrop_probe.py "$RUNNER_TEMP/backdrop-probe"
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt-test" "$RUNNER_TEMP/oxt-symbols"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal.zip" --dir "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal-symbols.zip" \
+            --dir "$RUNNER_TEMP/dist" || echo "(no debug symbols in $TAG)"
+          ditto -x -k "$RUNNER_TEMP"/dist/*-mac-universal.zip "$RUNNER_TEMP/oxt-test"
+          for f in "$RUNNER_TEMP"/dist/*-mac-universal-symbols.zip; do
+            [ -f "$f" ] && ditto -x -k "$f" "$RUNNER_TEMP/oxt-symbols"
+          done
+          echo "OXT_DSYM_DIR=$RUNNER_TEMP/oxt-symbols" >> "$GITHUB_ENV"
+
+      # Exit status 1 with the backdrop in front of the IDE's windows is the
+      # bug, seen; 0 would be a check that does not see it
+      - name: Menu and backdrop check, before the fix
+        run: |
+          set +e
+          python3 tools/ci/mac_menu_backdrop.py --install "$RUNNER_TEMP/oxt-test" --launch open \
+            --out "$RUNNER_TEMP/menu-backdrop" 2>&1 | tee "$RUNNER_TEMP/check.txt"
+          status=${PIPESTATUS[0]}
+          set -e
+          verdict=$(grep '^Menu and backdrop: ' "$RUNNER_TEMP/check.txt" | tail -1)
+          echo "Exit status $status. $verdict"
+          if [ "$status" = 1 ] && echo "$verdict" | grep -q 'came in front'; then
+            echo "Before the fix: the check sees the backdrop come in front of the IDE's windows."
+            exit 0
+          fi
+          echo "::error::the check did not see the bug on rc.6.4 (exit status $status)"
+          exit 1
