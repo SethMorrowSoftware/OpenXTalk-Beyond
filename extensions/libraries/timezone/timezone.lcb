@@ -45,8 +45,42 @@ foreign handler GMTimeStruct(inout pTime as Time, out pStruct as TimeStruct) ret
 foreign handler LocalTimeStruct(inout pTime as Time, out rStruct as TimeStruct) returns Pointer \
 	binds to "tz>localtime_r"
 
+-- OXT-Beyond: the same three functions with the time as C's time_t is
+-- where it is a 32-bit long, on 32-bit Linux and Android. The three above
+-- pass a time of 64 bits and read 64 bits back, so there every result was
+-- wrong or an error (the library's tests failed in every zone on 32-bit
+-- Linux). They bind the functions the tz code has always exported, so the
+-- tz code built before this works with them: Android's, and that of the
+-- other platforms in each package.
+foreign handler TimeFromLocalTimeStructLong(inout pStruct as TimeStruct) returns CLong \
+	binds to "tz>mktime_tz"
+
+foreign handler GMTimeStructLong(inout pTime as CLong, out pStruct as TimeStruct) returns Pointer \
+	binds to "tz>gmtime_r"
+
+foreign handler LocalTimeStructLong(inout pTime as CLong, out rStruct as TimeStruct) returns Pointer \
+	binds to "tz>localtime_r"
+
 foreign handler SetTZDataDir(in pDir as ZStringNative) returns CBool \
 	binds to "tz>tzsetdir"
+
+-- OXT-Beyond: whether time_t is a 32-bit long here. It is a long on every
+-- platform but Windows, and a long has 32 bits on the 32-bit ones; on
+-- Windows it has 64 bits on both
+handler __TimeIsLong() returns Boolean
+	return the operating system is not "windows" and \
+		(the architecture is "x86" or the architecture is "arm")
+end handler
+
+-- OXT-Beyond: mktime_tz's result as a Time. Where the time has 64 bits, a
+-- time before 1970 (or the -1 of one that cannot be converted) is an
+-- error, as a Time has no sign; so it is here too
+handler __TimeFromLong(in pTime as CLong) returns Time
+	if pTime < 0 then
+		throw "Time out of range"
+	end if
+	return pTime
+end handler
 
 private variable mInited as Boolean
 handler __DataDir() returns String
@@ -695,12 +729,21 @@ public handler ToUniversalTime(in pSeconds as Time, in pTimeZone as String) retu
 	__EnsureDataDir()
 	unsafe
 		variable tTimeStruct as TimeStruct
-		GMTimeStruct(pSeconds, tTimeStruct)
+		variable tLong as CLong
+		if __TimeIsLong() then
+			put pSeconds into tLong
+			GMTimeStructLong(tLong, tTimeStruct)
+		else
+			GMTimeStruct(pSeconds, tTimeStruct)
+		end if
 		
 		-- Invalidate daylight savings value
 		put -1 into the last element of tTimeStruct
 		TimeZoneSetLocale(pTimeZone)
 		
+		if __TimeIsLong() then
+			return __TimeFromLong(TimeFromLocalTimeStructLong(tTimeStruct))
+		end if
 		return TimeFromLocalTimeStruct(tTimeStruct)
 	end unsafe
 end handler
@@ -739,12 +782,21 @@ public handler FromUniversalTime(in pSeconds as Time, in pTimeZone as String) re
 		TimeZoneSetLocale(pTimeZone)
 			
 		variable tTimeStruct as TimeStruct
-		LocalTimeStruct(pSeconds, tTimeStruct)
+		variable tLong as CLong
+		if __TimeIsLong() then
+			put pSeconds into tLong
+			LocalTimeStructLong(tLong, tTimeStruct)
+		else
+			LocalTimeStruct(pSeconds, tTimeStruct)
+		end if
 
 		-- Invalidate daylight savings value
 		put -1 into the last element of tTimeStruct	
 		TimeZoneSetLocale("")
 		
+		if __TimeIsLong() then
+			return __TimeFromLong(TimeFromLocalTimeStructLong(tTimeStruct))
+		end if
 		return TimeFromLocalTimeStruct(tTimeStruct)
 	end unsafe
 end handler
