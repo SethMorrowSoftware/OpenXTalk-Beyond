@@ -362,6 +362,12 @@ are held by Lucide Contributors 2022." The licence's full text is in that
 folder's [`README.md`](ide/Toolset/palettes/menubar/images-web/README.md),
 which lists the icons used.
 
+The desktop IDE's toolbar, in its modern look
+([`ide/Toolset/palettes/menubar/revmenubar.livecodescript`](ide/Toolset/palettes/menubar/revmenubar.livecodescript)),
+draws the same 16 Lucide icons as the web IDE's toolbar, of the same
+version and under the same licence, from their SVG text, which its script
+carries with the licence's full text.
+
 Home, the web IDE's welcome stack
 ([`ide/Toolset/palettes/web home/revwebhome.livecodescript`](ide/Toolset/palettes/web%20home/revwebhome.livecodescript)),
 draws 25 Lucide icons of the same version, under the same licence, from
