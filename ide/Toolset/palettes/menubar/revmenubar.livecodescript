@@ -799,8 +799,8 @@ end updateMenubarPreference
 -- OXT-Beyond: the toolbar's modern look (View > Modern Toolbar, the
 -- preference revMenubar_look; only "classic" gives the classic look).
 -- It draws the toolbar's pictures as Lucide icons in the Tools palette's
--- colours, light or dark as the desktop is, and gives the window and the
--- labels those colours. Nothing else changes: the buttons, their names,
+-- colours, light or dark as the desktop is, and gives the toolbar's
+-- background and labels those colours (not the menus: mbApplyColors). Nothing else changes: the buttons, their names,
 -- labels, sizes and places, the menus and their shortcuts, the images in
 -- group "icons" and their names and IDs are those the classic look makes
 -- (generateMenubarUI makes both), and an icon that cannot be drawn keeps
@@ -1099,26 +1099,49 @@ command mbDrawImages
    end if
 end mbDrawImages
 
--- The window's, the labels' and the menus' colours, and the line under the
--- menus (Linux), in the modern look; in the classic one, none of them set,
--- as the classic look always had them (on macOS, its dark grey)
+-- The toolbar's colours in the modern look: a graphic of the window's
+-- colour behind the toolbar (below the menus' row on Windows and Linux),
+-- the labels' colour and the line under the menus (Linux). Nothing the
+-- menus' buttons inherit is coloured: on Linux a menu takes its
+-- background, and the colour of its ticks and arrows, from the first
+-- object above its button that has one (the tour's menu-marks), so the
+-- menus and their row keep the theme's look. In the classic look none of
+-- these are set, as the classic look always had them (on macOS, its dark
+-- grey for the window)
 command mbApplyColors
-   local tModern
+   local tModern, tTop, tBack
    put revMenubarIsModern() into tModern
-   -- (no one-line "if" before an "else" or "end if": the "else" would be its)
-   local tBack, tInk
    if tModern then
-      put mbColor("bg") into tBack
-      put mbColor("ink") into tInk
-   else if the platform contains "mac" and the systemappearance is "dark" then
-      put "61,61,61" into tBack
+      if there is not a graphic "mbBackground" of card 1 of me then
+         lock messages
+         reset the templateGraphic
+         create graphic "mbBackground" in card 1 of me
+         set the style of graphic "mbBackground" of card 1 of me to "rectangle"
+         set the opaque of graphic "mbBackground" of card 1 of me to true
+         set the lineSize of graphic "mbBackground" of card 1 of me to 0
+         set the traversalOn of graphic "mbBackground" of card 1 of me to false
+         unlock messages
+      end if
+      set the layer of graphic "mbBackground" of card 1 of me to 1
+      put 0 into tTop
+      if the platform is not "MacOS" then put kMenuBarHeight into tTop
+      -- (wider and taller than the toolbar can grow)
+      set the rect of graphic "mbBackground" of card 1 of me to 0, tTop, 4000, 400
+      set the backgroundColor of graphic "mbBackground" of card 1 of me to mbColor("bg")
+      set the backgroundColor of me to empty
+   else
+      if there is a graphic "mbBackground" of card 1 of me then
+         delete graphic "mbBackground" of card 1 of me
+      end if
+      if the platform contains "mac" and the systemappearance is "dark" then put "61,61,61" into tBack
+      set the backgroundColor of me to tBack
    end if
-   set the backgroundColor of me to tBack
    if there is a group "toolbar" of me then
-      set the textColor of group "toolbar" of me to tInk
-   end if
-   if there is a group "revMenuBar" of me then
-      set the textColor of group "revMenuBar" of me to tInk
+      if tModern then
+         set the textColor of group "toolbar" of me to mbColor("ink")
+      else
+         set the textColor of group "toolbar" of me to empty
+      end if
    end if
    if there is a button "Divider" of group "revMenuBar" of me then
       if tModern then

@@ -1040,7 +1040,9 @@ on tour_menubar_modern
          end if
       end repeat
       add 1 to tChecks
-      if the backgroundColor of stack tMb is empty then put "modern: the window has no colour" & return after tFails
+      if there is not a graphic "mbBackground" of card 1 of stack tMb or the backgroundColor of stack tMb is not empty then
+         put "modern: the toolbar has no background of its own, or the window has a colour (the menus would take it)" & return after tFails
+      end if
       tourShotStack tMb, "03-menubar-modern"
       -- (as the toggles' states read; Suppress Messages asks first)
       tourMbToggles true
@@ -1067,7 +1069,9 @@ on tour_menubar_modern
          if the filename of tImg is empty then put "classic: the picture" && the short name of tImg && "has no file" & return after tFails
       end repeat
       add 1 to tChecks
-      if the textColor of group "toolbar" of stack tMb is not empty then put "classic: the labels have a colour" & return after tFails
+      if the textColor of group "toolbar" of stack tMb is not empty or there is a graphic "mbBackground" of card 1 of stack tMb then
+         put "classic: the labels have a colour, or the modern look's background is still there" & return after tFails
+      end if
       tourShotStack tMb, "03-menubar-classic"
       dispatch "revMenubarViewMenuPick" to stack tMb with "Modern Toolbar"
       tourWait 300
@@ -1085,7 +1089,7 @@ end tour_menubar_modern
 -- What a script sees of the toolbar and the menus, one line each: every
 -- control of the toolbar (name, label, rect, shown, enabled, lit, its
 -- icon's ID), every picture's name and ID, the window's rect, and every
--- menu's text but the View menu's Modern Toolbar line
+-- menu's text but the View menu's Modern Toolbar and Grid lines
 function tourMbPrint
    local tMb, tOut, tCtl, tMenu, tText
    put "revMenuBar" into tMb
@@ -1105,7 +1109,10 @@ function tourMbPrint
    end repeat
    repeat with tMenu = 1 to the number of buttons of group "revMenuBar" of stack tMb
       put the text of button tMenu of group "revMenuBar" of stack tMb into tText
+      -- (and the Grid line: the View menu sets the grid as a preference
+      -- holds it when it is built, which an earlier step can leave apart)
       filter lines of tText without "*Modern Toolbar*"
+      filter lines of tText without "*Grid*"
       put "menu" && the short name of button tMenu of group "revMenuBar" of stack tMb & return & tText & return after tOut
    end repeat
    return tOut
