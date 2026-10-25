@@ -1,0 +1,17 @@
+# The macOS Native App Tools extension's sample, MacOS-Native-Tools-Tester:
+# its buttons brought the IDE back to the front with the AppleScript
+# 'tell application "LiveCode" to activate', which on a Mac without
+# LiveCode cannot find the application and, with it, brings LiveCode to
+# the front instead of the IDE. They name OXT-Beyond, the IDE's application
+# (CFBundleName in tools/oxt/package.py).
+# This is the AppHide & AppUnhide button (with the line before, as the
+# other button has the same line).
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Extensions/org.openxtalk.library.macosnativeapptools/samples/MacOS-Native-Tools-Tester.oxtstack
+object: button "AppHide & AppUnhide" of card 1
+replace:
+|   AppUnhide -- the windowID of this stack|
+|   do "tell application "& quote & "LiveCode" & quote & " to activate" as AppleScript|
+with:
+|   AppUnhide -- the windowID of this stack|
+|   do "tell application "& quote & "OXT-Beyond" & quote & " to activate" as AppleScript|

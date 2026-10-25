@@ -387,7 +387,13 @@ on __revIDEDeveloperExtensionDoCreateTestStack pPath, tRectsA, pDetailsA
          set the loc of stack "LiveCode Extension Test Window" to tRectsA["loc"]
       end if
       set the destroyStack of stack "LiveCode Extension Test Window" to true
-      set the title of it to pDetailsA["title"]
+      -- OXT-Beyond: an extension without a title titles the window this
+      -- way, not by the stack's name (which stays, for other scripts)
+      if pDetailsA["title"] is empty then
+         set the title of it to "Extension Test Window"
+      else
+         set the title of it to pDetailsA["title"]
+      end if
       set the script of it to __testStackScript()
       go stack "LiveCode Extension Test Window"
       revIDECreateObject pDetailsA["name"], the long id of the defaultStack, \

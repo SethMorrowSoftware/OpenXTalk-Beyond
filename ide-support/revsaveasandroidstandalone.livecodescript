@@ -90,7 +90,7 @@ private function updateMinimumAPI pVersionSet, pLimit
    
    answer "The minimum Android API is currently set to" && \
          pVersionSet && \
-         "but the" && tLimitType & " Android API available from LiveCode" && the version && \
+         "but the" && tLimitType & " Android API available from OXT-Beyond's engine" && the version && \
          "is" && pLimit & "." & LF & \
          "Do you want to update the minimum Android API to" && pLimit & "?" \
          with "No" or "Yes" \

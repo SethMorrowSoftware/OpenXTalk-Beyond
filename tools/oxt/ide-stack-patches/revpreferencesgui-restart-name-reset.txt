@@ -1,0 +1,12 @@
+# Preferences, button "Reset Preferences to Defaults": with a user
+# extensions folder set, the warning after the reset said "Some settings
+# have changed which require LiveCode to be restarted", as the one after
+# choosing the folder did (revpreferencesgui-restart-name-extensions-path.txt).
+# It names OXT-Beyond. Only the message's text changes.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Reset Preferences to Defaults" of card "General"
+replace:
+|      answer warning "Some settings have changed which require LiveCode to be restarted" with "Later" or "Quit"|
+with:
+|      answer warning "Some settings have changed which require OXT-Beyond to be restarted" with "Later" or "Quit"|

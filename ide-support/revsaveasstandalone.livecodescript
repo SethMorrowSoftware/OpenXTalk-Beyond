@@ -774,7 +774,7 @@ command revSaveAsMacStandalone pStack, pRestoreFileName, pFolder, @xStandalonePa
       
       -- Ensure executable is at the expected location
       if there is not a file tEngineSourceFile then
-         throw "Standalone: Ensure that you have not renamed the main LiveCode executable file: " \
+         throw "Standalone: Ensure that you have not renamed the main OXT-Beyond executable file: " \
                & return & tEngineSourceFile
       end if
       
@@ -930,7 +930,7 @@ command revSaveAsWindowsStandalone pStack, pRestoreFileName, pFolder, @xStandalo
       
       -- Ensure executable is at the expected location
       if there is not a file tEngineSourceFile then
-         throw "Standalone: Ensure that you have not renamed the main LiveCode executable file: " \
+         throw "Standalone: Ensure that you have not renamed the main OXT-Beyond executable file: " \
                & return & tEngineSourceFile
       end if
       
@@ -1089,7 +1089,7 @@ command revSaveAsLinuxStandalone pStack, pRestoreFileName, pFolder, @xStandalone
       
       -- Ensure executable is at the expected location
       if there is not a file tEngineSourceFile then
-         throw "Standalone: Ensure that you have not renamed the main LiveCode executable file: " \
+         throw "Standalone: Ensure that you have not renamed the main OXT-Beyond executable file: " \
                & return & tEngineSourceFile
       end if
       

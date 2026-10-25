@@ -1,0 +1,12 @@
+# Search and Replace, the Search button: with no stack of the user's open,
+# it asked to "select 'LiveCode UI Stacks in Lists' from the View menu", an
+# item the View menu does not have. It names the IDE's stacks and the item
+# as the menu has it, Show IDE Stacks in Lists. Only the message's text
+# changes: the search and when the message is shown are as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revsearch.rev
+object: button "Search" of card 1
+replace:
+|      answer "There are no open user stacks. Please open a stack or, to enable searching of LiveCode UI stacks instead, select 'LiveCode UI Stacks in Lists' from the View menu."|
+with:
+|      answer "There are no open user stacks. Please open a stack or, to enable searching of IDE stacks instead, select 'Show IDE Stacks in Lists' from the View menu."|

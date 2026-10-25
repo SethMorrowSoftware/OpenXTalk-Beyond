@@ -1,0 +1,10 @@
+# Search and Replace, the Search button: a stack to search that is not open
+# or is one of the IDE's was "not open or is a LiveCode UI stack". It names
+# the IDE's stacks. Only the message's text changes.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revsearch.rev
+object: button "Search" of card 1
+replace:
+|            answer "The stack you have specified is not open or is a LiveCode UI stack. To search a LiveCode UI stack you must first select 'Show IDE Stacks in Lists' from the View menu."|
+with:
+|            answer "The stack you have specified is not open or is an IDE stack. To search an IDE stack you must first select 'Show IDE Stacks in Lists' from the View menu."|

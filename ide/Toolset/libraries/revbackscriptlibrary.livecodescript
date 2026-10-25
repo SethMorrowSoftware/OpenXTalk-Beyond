@@ -1537,7 +1537,7 @@ on errorDialog pWhatError, pWhatError2
    if gREVSuppressErrors then exit errorDialog
    filter pWhatError without "*,0,0"
    if (item 1 of pWhatError is not a number or item 2 of pWhatError is not a number) and the number of words in pWhatError is not 0 then
-      answer "The following user thrown error was generated and not handled, so it was intercepted by LiveCode:" & cr & cr & the params
+      answer "The following user thrown error was generated and not handled, so it was intercepted by OXT-Beyond:" & cr & cr & the params
       exit errorDialog
    end if
    if the number of lines in pWhatError is 0 then exit errorDialog -- bogus error
@@ -1797,7 +1797,7 @@ on revReloadBreakpoints
       local tList
       put the cREVGeneral["debugObjects"] of stack l into tList
       if the number of lines in tList > 250 then
-         answer error "It appears your breakPoint information has been corrupted.  Fixing this will remove all breakPoints from this stack.  If you don't fix this, LiveCode may not work correctly.  Please file a bug report as this problem should not occur." with "Don't fix" or "Fix"
+         answer error "It appears your breakPoint information has been corrupted.  Fixing this will remove all breakPoints from this stack.  If you don't fix this, OXT-Beyond may not work correctly.  Please file a bug report as this problem should not occur." with "Don't fix" or "Fix"
          if it is "fix" then
             set the cREVGeneral["debugObjects"] of stack l to empty
             put empty into tList
@@ -2155,8 +2155,8 @@ on revImportImageFile pStack
                put true into tConvertPICT
                if not (the cNOPICTWarning of stack "revPreferences") then
                   answer warning "This file is in Macintosh PICT format, which can only be displayed on Mac OS systems.  " & \
-                  "LiveCode can convert the imported image to PNG format, which can be displayed cross platform. " & \
-                  "Would you like LiveCode to convert the imported image to PNG format?" \
+                  "OXT-Beyond can convert the imported image to PNG format, which can be displayed cross platform. " & \
+                  "Would you like OXT-Beyond to convert the imported image to PNG format?" \
                         with "Don't Show Again" or "Cancel" or "Don't Convert" or "Convert to PNG Format"
                   
                   if it is "Cancel" then

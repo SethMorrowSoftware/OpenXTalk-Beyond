@@ -1,0 +1,29 @@
+# The macOS Native App Tools extension's sample, MacOS-Native-Tools-Tester:
+# its buttons brought the IDE back to the front with the AppleScript
+# 'tell application "LiveCode" to activate', which on a Mac without
+# LiveCode cannot find the application and, with it, brings LiveCode to
+# the front instead of the IDE. They name OXT-Beyond, the IDE's application
+# (CFBundleName in tools/oxt/package.py).
+# This is the Get Frontmost Application button, whose message also said
+# "the frontmost application will be LiveCode IDE".
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Extensions/org.openxtalk.library.macosnativeapptools/samples/MacOS-Native-Tools-Tester.oxtstack
+object: button "Get Frontmost Application" of card 1
+replace:
+|   Answer "This will wait 3 seconds to allow time for the tester to switch to another apploication, otherwise the frontmost application will be LiveCode IDE"|
+|   wait 3 seconds with messages|
+|   --put GetFrontmostApplication("Path") -- return just the path string|
+|   --put GetFrontmostApplication("ProcessID") -- return just the process ID number|
+|   --put GetFrontmostApplication("BundleID") -- return just the bundle ID string|
+|   put GetFrontmostApplication("") -- return line delimited list of all info|
+|   AppUnhide |
+|   do "tell application "& quote & "LiveCode" & quote & " to activate" as AppleScript|
+with:
+|   Answer "This will wait 3 seconds to allow time for the tester to switch to another apploication, otherwise the frontmost application will be the OXT-Beyond IDE"|
+|   wait 3 seconds with messages|
+|   --put GetFrontmostApplication("Path") -- return just the path string|
+|   --put GetFrontmostApplication("ProcessID") -- return just the process ID number|
+|   --put GetFrontmostApplication("BundleID") -- return just the bundle ID string|
+|   put GetFrontmostApplication("") -- return line delimited list of all info|
+|   AppUnhide |
+|   do "tell application "& quote & "OXT-Beyond" & quote & " to activate" as AppleScript|

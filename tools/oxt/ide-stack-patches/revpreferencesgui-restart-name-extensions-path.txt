@@ -1,0 +1,12 @@
+# Preferences, card "Files & Memory": once a new user extensions folder was
+# chosen, the warning said "LiveCode must be restarted to complete this
+# change." (forum, Skids, on an Apple Silicon Mac with macOS Sequoia). It
+# names OXT-Beyond. Only the message's text changes: the setting, the Later
+# and Quit buttons and what they do are as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: group "Files & Memory" of card "Files & Memory"
+replace:
+|    answer warning "LiveCode must be restarted to complete this change." with "Later" or "Quit"|
+with:
+|    answer warning "OXT-Beyond must be restarted to complete this change." with "Later" or "Quit"|

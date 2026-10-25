@@ -5329,7 +5329,7 @@ function ideCheckStackName pName
       return false
    end if
    if char 1 to 3 of pName is "rev" then
-      answer warning revIDELocalise("Using rev in the first three characters of a stack name is reserved for use by the LiveCode development environment and advanced users creating Plug-ins. If you use these characters, your stack may not behave as expected.") with revIDELocalise("OK") and revIDELocalise("Cancel")
+      answer warning revIDELocalise("Using rev in the first three characters of a stack name is reserved for use by the OXT-Beyond development environment and advanced users creating Plug-ins. If you use these characters, your stack may not behave as expected.") with revIDELocalise("OK") and revIDELocalise("Cancel")
       if it is revIDELocalise("Cancel") then
          return false
       end if
@@ -8742,7 +8742,7 @@ on revIDEActionSaveStackAs pStackID, pSubstackOnly
          break
       case the scriptOnly of stack tShortName
          put "script" after tStackName
-         ask file revIDELocalise("Save script only stack %1 as:", tSubstitutions) with tStackName with type (revIDELocalise("LiveCode Script Only Stack") & "|livecodescript|RSTK")
+         ask file revIDELocalise("Save script only stack %1 as:", tSubstitutions) with tStackName with type (revIDELocalise("OpenXTalk Script Only Stack") & "|livecodescript|RSTK")
          break
       case tStackFileType is 8.0
          ask file revIDELocalise("Save stack %1 as:", tSubstitutions) with tStackName with type tStack80Filter or type tStackFilter or type tStack70Filter or type tStack55Filter or type tStack27Filter or type tStack24Filter
