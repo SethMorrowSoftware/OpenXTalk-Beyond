@@ -114,8 +114,10 @@ public:
 	void DrawWinProgressBar(MCDC *dc, MCRectangle &rect, int2 endpos);
 	void DrawMacScale(MCDC *dc, MCRectangle &trect, MCRectangle &thumb);
 	void DrawWinScale(MCDC *dc, MCRectangle &trect, MCRectangle &thumb);
+	void DrawWinVerticalScale(MCDC *dc, MCRectangle &trect, MCRectangle &thumb);
 	void drawvalue(MCDC *dc, MCRectangle &thumb);
 	void drawticks(MCDC *dc, MCRectangle &thumb);
+	void drawverticalticks(MCDC *dc, MCRectangle &thumb);
 	void compute_barsize();
 	MCRectangle compute_bar();
 	MCRectangle compute_thumb(real8 pos);
@@ -130,6 +132,10 @@ public:
 	uint2 getwidgetthemetype();
 
 	bool issbdisabled(void) const;
+
+	// OXT-Beyond: true for a vertical scale that is drawn in the Windows
+	// look as a horizontal one is, on its side (only in the web engine)
+	bool iswinverticalscale(void) const;
 
 	void link(MCControl *p_control);
 

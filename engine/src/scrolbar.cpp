@@ -779,8 +779,11 @@ MCRectangle MCScrollbar::compute_thumb(real8 pos)
 	{
 		MCRectangle trect = compute_bar();
 		real8 range = endvalue - startvalue;
+		// OXT-Beyond: a vertical scale in the Windows look has no border,
+		//   as a horizontal one has none
 		if (flags & F_SHOW_BORDER && (MClook == LF_MOTIF || !(flags & F_SCALE)
-		                              || getstyleint(flags) == F_VERTICAL))
+		                              || getstyleint(flags) == F_VERTICAL)
+		    && !iswinverticalscale())
 		{
 			if (IsMacEmulatedLF())
 				trect = MCU_reduce_rect(trect, 1);
@@ -793,7 +796,25 @@ MCRectangle MCScrollbar::compute_thumb(real8 pos)
 			{
 				thumb.x = trect.x;
 				thumb.width = trect.width;
-				if (flags & F_SCALE)
+				if (iswinverticalscale())
+				{
+					// OXT-Beyond: the horizontal Windows thumb's size (below),
+					//   across and along the bar swapped; a bar too narrow for
+					//   it has a thumb a pixel across, not one that wraps round
+					if (trect.width < WIN_SCALE_HEIGHT)
+						thumb.height = trect.width
+						               * WIN_SCALE_THUMB_WIDTH / WIN_SCALE_HEIGHT;
+					else
+						thumb.height = WIN_SCALE_THUMB_WIDTH;
+					thumb.width = MCU_min(WIN_SCALE_HEIGHT, trect.width);
+					thumb.width = thumb.width > 6 ? thumb.width - 6 : 1;
+					real8 height = trect.height - thumb.height;
+					real8 offset = height * (pos - startvalue);
+					thumb.y = trect.y;
+					if (range != 0.0)
+						thumb.y += (int2)(offset / range);
+				}
+				else if (flags & F_SCALE)
 				{
 					real8 height = trect.height - MOTIF_SCALE_THUMB_SIZE;
 					real8 offset = height * (pos - startvalue);
@@ -1067,6 +1088,26 @@ bool MCScrollbar::issbdisabled(void) const
 	ret = getflag(F_DISABLED) || (MClook != LF_MOTIF && !(flags & F_SB_STYLE) && fabs(endvalue - startvalue) == thumbsize);
 	return ret;
 #endif /* OXT-TOM */
+}
+
+// OXT-Beyond: the engine draws a horizontal scale in the Windows look with
+// a groove and a pointed thumb over tick marks (DrawWinScale), but it drew
+// a vertical one in its older look, a trough with a block for a thumb, so
+// that on the web, where no theme draws sliders and the look is Windows,
+// a vertical slider looked like a scrollbar without arrows (bwmilby, forum
+// p=25316). A vertical scale is drawn as the horizontal one is, on its
+// side, only in the web engine: on the desktop a theme draws sliders, and
+// a look that the engine draws (the lookAndFeel set to "Windows 95") draws
+// them as before.
+bool MCScrollbar::iswinverticalscale(void) const
+{
+#if defined(__EMSCRIPTEN__)
+	return MCcurtheme == nil && MClook == LF_WIN95
+	       && (flags & F_SB_STYLE) == F_SCALE
+	       && getstyleint(flags) == F_VERTICAL;
+#else
+	return false;
+#endif
 }
 
 void MCScrollbar::link(MCControl *p_control)

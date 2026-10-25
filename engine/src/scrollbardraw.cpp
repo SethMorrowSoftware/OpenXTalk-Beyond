@@ -144,10 +144,13 @@ void MCScrollbar::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bo
 		}
 		else		
 			// MW-2007-09-18: [[ Bug 1650 ]] Disabled state linked to thumb size
+			// OXT-Beyond: a vertical scale in the Windows look has no trough,
+			//   as a horizontal one has none (iswinverticalscale())
 			if (!issbdisabled() && flags & F_OPAQUE
 			        && (MClook == LF_MOTIF || flags & F_PROGRESS
 			            || getstyleint(flags) == F_VERTICAL
-			            || (IsMacEmulatedLF() && !(flags & F_SB_STYLE))))
+			            || (IsMacEmulatedLF() && !(flags & F_SB_STYLE)))
+			        && !iswinverticalscale())
 			{ //filled
 				setforeground(dc, DI_SHADOW, False);
 				dc->fillrect(trect);
@@ -236,6 +239,8 @@ void MCScrollbar::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bo
 				else
 					DrawWinScale(dc, trect, thumb);
 			}
+			else if (iswinverticalscale())
+				DrawWinVerticalScale(dc, trect, thumb);
 			else		
 				// MW-2007-09-18: [[ Bug 1650 ]] Disabled state linked to thumb size
 				if (!issbdisabled())
@@ -369,8 +374,11 @@ void MCScrollbar::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bo
 			}
 			else
 			{
-				if (MClook != LF_WIN95 || !(flags & F_SCALE)
+				// OXT-Beyond: nor a border round a vertical scale in the
+				//   Windows look (iswinverticalscale())
+				if ((MClook != LF_WIN95 || !(flags & F_SCALE)
 				        || getstyleint(flags) == F_VERTICAL)
+				    && !iswinverticalscale())
 				{
 					if (flags & F_3D)
 						draw3d(dc, frect, ETCH_SUNKEN, borderwidth);
@@ -807,6 +815,103 @@ void MCScrollbar::DrawWinScale(MCDC *dc, MCRectangle &trect, MCRectangle &thumb)
 		drawticks(dc, thumb);
 }
 
+// OXT-Beyond: DrawWinScale on its side, for a vertical scale (only in the
+// web engine: iswinverticalscale()). Each point that DrawWinScale draws at
+// (x, y) from its thumb's or its rect's corner is drawn here at (y, x), so
+// the groove runs down the bar, the thumb points right and the tick marks
+// are to its right, as in a vertical Windows trackbar. The groove is placed
+// in the bar (compute_bar()), which is the rect unless the value is shown.
+void MCScrollbar::DrawWinVerticalScale(MCDC *dc, MCRectangle &trect, MCRectangle &thumb)
+{ /*routine draws WIN style vertical scale */
+	MCPoint p[6];
+	real8 sf = 1.0;     //scale factor
+
+	/*if the rect width is less than 26, scale down the object by a scale factor */
+	if (trect.width < WIN_SCALE_HEIGHT) //26.0
+		sf = (real8)trect.width / WIN_SCALE_HEIGHT;
+
+	/*draw vertical lines down the height of the rect 1/4 the way across */
+	MCRectangle t_bar = compute_bar();
+	uint2 w = MCU_min(8, (uint2)(t_bar.width / 4.0 * sf) + 1);
+	p[0].x = rect.x + w;
+	p[0].y = rect.y;
+	p[1].y = rect.y + rect.height;
+	dc->setforeground(dc->getgray()); //gray
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	dc->drawline(p[0].x, p[0].y, p[0].x, p[1].y);
+	p[0].x += 1;
+	dc->setforeground(dc->getblack()); //black
+	dc->drawline(p[0].x, p[0].y, p[0].x, p[1].y);
+	p[0].x += 1;
+	setforeground(dc, DI_TOP, False); //white
+	dc->drawline(p[0].x, p[0].y, p[0].x, p[1].y);
+	p[0].x += 1;
+	setforeground(dc, DI_TOP, False); //white
+	dc->drawline(p[0].x, p[0].y, p[0].x, p[1].y);
+	/*draw the thumb*/
+	int2 my = thumb.y + (thumb.height >> 1);
+	int2 bx = thumb.x + thumb.width - (thumb.height >> 1) - 1;
+	// define the shape of the thumb, to be filled with background color
+	//this filled area is 4 pixel shorter than the actual thumb height, due to the
+	//3D effect on other side of the thumb
+	p[0].x = p[1].x = thumb.x + 2;
+	p[2].x = p[4].x = bx;
+	p[3].x = thumb.x + thumb.width - 2;
+	p[0].y = p[4].y = thumb.y + 2;
+	p[1].y = p[2].y = thumb.y + thumb.height - 2;
+	p[3].y = my;
+	p[5] = p[0];
+
+	if (issbdisabled()) //fill with back color if is disabled
+		setforeground(dc, DI_BACK, False);
+	else
+		setforeground(dc, DI_SHADOW, False);
+	dc->fillpolygon(p, 6);
+
+	//draw light gray
+	p[0].x = p[1].x = thumb.x + 1;
+	p[2].x = bx;
+	p[3].x = thumb.x + thumb.width - 3;
+	p[0].y = thumb.y + thumb.height - 2;
+	p[1].y = p[2].y = thumb.y + 1;
+	p[3].y = my - 1;
+	setforeground(dc, DI_BACK, False);
+	dc->drawlines(p, 4);
+
+	//dark gray on the bottom side
+	p[0].x = thumb.x + 1;
+	p[1].x = bx;
+	p[2].x = thumb.x + thumb.width - 2;
+	p[0].y = p[1].y = thumb.y + thumb.height - 2;
+	p[2].y = my;
+	dc->setforeground(dc->getgray());
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	dc->drawlines(p, 3);
+
+	//draw black
+	p[0].x = thumb.x;
+	p[1].x = bx;
+	p[2].x = thumb.x + thumb.width - 1;
+	p[0].y = p[1].y = thumb.y + thumb.height - 1;
+	p[2].y = my;
+	dc->setforeground(dc->getblack());
+	dc->drawlines(p, 3);
+
+	//draw white
+	p[0].x = p[1].x = thumb.x;
+	p[2].x = bx;
+	p[3].x = thumb.x + thumb.width - 2;
+	p[0].y = thumb.y + thumb.height - 2;
+	p[1].y = p[2].y = thumb.y;
+	p[3].y = my - 1;
+	setforeground(dc, DI_TOP, False); //White
+	dc->drawlines(p, 4);
+	if (flags & F_SHOW_VALUE)
+		drawvalue(dc, thumb);
+	else
+		drawverticalticks(dc, thumb);
+}
+
 void MCScrollbar::drawvalue(MCDC *dc, MCRectangle &thumb)
 {
 	int32_t fascent, fdescent;
@@ -876,6 +981,34 @@ void MCScrollbar::drawticks(MCDC *dc, MCRectangle &thumb)
 	//draw last scale mark
 	p.x = sx + rect.width - halfThumbWidth;
 	dc->drawline(p.x, p.y, p.x, p.y + 4);
+}
+
+// OXT-Beyond: drawticks on its side, for DrawWinVerticalScale: the marks
+// are to the right of the thumb, down the rect
+void MCScrollbar::drawverticalticks(MCDC *dc, MCRectangle &thumb)
+{
+	MCPoint p;
+	dc->setforeground(dc->getblack()); //black
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	int2 sy = rect.y;
+	uint2 halfThumbHeight = thumb.height >> 1;
+	//draw scale marks in the middle
+	//a space between tip of thumb and the left of tick mark
+	uint2 nticks = (uint2)(fabs(endvalue - startvalue) / (pageinc - lineinc)) + 1;
+	uint2 sh = rect.height - thumb.height + 1;
+	p.x = thumb.x + thumb.width + 2;
+	uint2 i;
+	for (i = 1 ; i < nticks ; i++)
+	{
+		p.y = sy + halfThumbHeight + i * sh / nticks;
+		dc->drawline(p.x, p.y, p.x + 3, p.y);
+	}
+	//draw first scale mark
+	p.y = sy + halfThumbHeight;
+	dc->drawline(p.x, p.y, p.x + 4, p.y);
+	//draw last scale mark
+	p.y = sy + rect.height - halfThumbHeight;
+	dc->drawline(p.x, p.y, p.x + 4, p.y);
 }
 
 void MCScrollbar::drawmacthumb(MCDC *dc, MCRectangle &thumb)
