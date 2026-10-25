@@ -35,7 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mac_menu_backdrop as mb  # noqa: E402
 
-WAYS = ['firstmouse', 'upstream', 'mousedown', 'sendevent', 'prevent', 'keyable']
+WAYS = ['firstmouse', 'occlusion', 'deferred', 'both', 'panel']
 
 log = mb.log
 

@@ -21,14 +21,21 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 //
 //   mac-backdrop-probe <way> <folder>
 //
-// The ways (the engine today is "firstmouse"):
+// The ways (the engine today is "firstmouse"). The first round tried
+// syncing in mouseDown:, after sendEvent:, preventWindowOrdering and a
+// backdrop that can become key: none kept it behind, on macOS 14, 15 and
+// 26, as the window server raises a clicked window after the click, even
+// one whose click a menu took. This round:
 //   firstmouse  sync in acceptsFirstMouse: only
-//   upstream    the same, with LiveCode's own sync (ordered out first)
-//   mousedown   sync in acceptsFirstMouse: and when mouseDown: starts
-//   sendevent   sync in acceptsFirstMouse: and after [super sendEvent:]
-//   prevent     shouldDelayWindowOrderingForEvent: YES while the app is
-//               active, and preventWindowOrdering and sync in mouseDown:
-//   keyable     the backdrop can become key, sync in acceptsFirstMouse:
+//   occlusion   also a sync when a window's occlusion state changes and
+//               the backdrop is in front of one of the app's windows
+//   deferred    also a sync just after a mouse up on the backdrop, then
+//               0.1 and 0.3 s later, when it is in front of one
+//   both        occlusion and deferred
+//   panel       the backdrop a non-activating panel, sync in
+//               acceptsFirstMouse: only
+// Every way logs any call that orders the backdrop that is not a sync's,
+// with its call stack.
 //
 // It writes <folder>/probe.txt and reads <folder>/command.txt every 100 ms:
 // "log <label>", "sync" or "quit".
@@ -38,6 +45,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 static NSWindow *s_backdrop = nil;
 static NSString *s_way = nil;
+static BOOL s_in_sync = NO;
 static NSString *s_folder = nil;
 static FILE *s_log = NULL;
 
@@ -66,6 +74,26 @@ static NSString *ProbeOrder(void)
 			[t_names addObject: [NSString stringWithFormat: @"%@(%ld)", [t_window title], (long)[t_window level]]];
 	}
 	return [t_names componentsJoinedByString: @" > "];
+}
+
+// Whether one of the app's windows is behind the backdrop
+static BOOL ProbeBackdropMisplaced(void)
+{
+	BOOL t_seen = NO;
+	for (NSNumber *t_number in [NSWindow windowNumbersWithOptions: 0])
+	{
+		NSWindow *t_window = [NSApp windowWithWindowNumber: [t_number integerValue]];
+		if (t_window == s_backdrop)
+			t_seen = YES;
+		else if (t_seen && t_window != nil)
+			return YES;
+	}
+	return NO;
+}
+
+static BOOL ProbeWay(NSString *p_name)
+{
+	return [s_way isEqualToString: p_name];
 }
 
 // The engine's MCMacPlatformSyncBackdrop, as it is
@@ -114,11 +142,23 @@ static void ProbeSyncUpstream(void)
 
 static void ProbeSync(NSString *p_where)
 {
+	s_in_sync = YES;
 	if ([s_way isEqualToString: @"upstream"])
 		ProbeSyncUpstream();
 	else
 		ProbeSyncEngine();
+	s_in_sync = NO;
 	ProbeLog(@"%@ synced: %@", p_where, ProbeOrder());
+}
+
+static void ProbeTrace(NSWindow *p_window, NSString *p_call)
+{
+	if (p_window != s_backdrop || s_in_sync)
+		return;
+	NSArray *t_stack = [NSThread callStackSymbols];
+	NSRange t_range = NSMakeRange(1, MIN((NSUInteger)12, [t_stack count] - 1));
+	ProbeLog(@"%@ on the backdrop, not by a sync: %@ | %@", p_call, ProbeOrder(),
+			 [[t_stack subarrayWithRange: t_range] componentsJoinedByString: @" | "]);
 }
 
 @interface ProbeWindow : NSWindow
@@ -137,6 +177,38 @@ static void ProbeSync(NSString *p_where)
 	return p_frame;
 }
 
+- (void)orderWindow: (NSWindowOrderingMode)p_place relativeTo: (NSInteger)p_other
+{
+	ProbeTrace(self, [NSString stringWithFormat: @"orderWindow:%ld relativeTo:%ld", (long)p_place, (long)p_other]);
+	[super orderWindow: p_place relativeTo: p_other];
+}
+
+- (void)orderFront: (id)p_sender
+{
+	ProbeTrace(self, @"orderFront:");
+	[super orderFront: p_sender];
+}
+
+- (void)orderFrontRegardless
+{
+	ProbeTrace(self, @"orderFrontRegardless");
+	[super orderFrontRegardless];
+}
+
+- (void)makeKeyAndOrderFront: (id)p_sender
+{
+	ProbeTrace(self, @"makeKeyAndOrderFront:");
+	[super makeKeyAndOrderFront: p_sender];
+}
+
+- (void)deferredSync: (NSNumber *)p_delay
+{
+	BOOL t_misplaced = ProbeBackdropMisplaced();
+	ProbeLog(@"deferred %.1f: %@: %@", [p_delay doubleValue], t_misplaced ? @"misplaced" : @"in place", ProbeOrder());
+	if (t_misplaced)
+		ProbeSync([NSString stringWithFormat: @"deferred %.1f", [p_delay doubleValue]]);
+}
+
 - (void)sendEvent: (NSEvent *)p_event
 {
 	NSEventType t_type = [p_event type];
@@ -150,19 +222,40 @@ static void ProbeSync(NSString *p_where)
 	{
 		ProbeLog(@"sendEvent %@ after (active %d): %@", t_type == NSEventTypeLeftMouseDown ? @"down" : @"up",
 				 [NSApp isActive], ProbeOrder());
-		if ([s_way isEqualToString: @"sendevent"] && t_type == NSEventTypeLeftMouseDown)
-			ProbeSync(@"sendEvent");
+		if ((ProbeWay(@"deferred") || ProbeWay(@"both")) && t_type == NSEventTypeLeftMouseUp)
+		{
+			for (NSNumber *t_delay in @[@0.0, @0.1, @0.3])
+				[self performSelector: @selector(deferredSync:) withObject: t_delay afterDelay: [t_delay doubleValue]];
+		}
 	}
 }
 @end
 
 @interface ProbePanel : NSPanel
+@property (nonatomic) BOOL canKey;
 @end
 
 @implementation ProbePanel
 - (BOOL)canBecomeKeyWindow
 {
-	return YES;
+	return self.canKey;
+}
+
+- (NSRect)constrainFrameRect: (NSRect)p_frame toScreen: (NSScreen *)p_screen
+{
+	return p_frame;
+}
+
+- (void)orderWindow: (NSWindowOrderingMode)p_place relativeTo: (NSInteger)p_other
+{
+	ProbeTrace(self, [NSString stringWithFormat: @"orderWindow:%ld relativeTo:%ld", (long)p_place, (long)p_other]);
+	[super orderWindow: p_place relativeTo: p_other];
+}
+
+- (void)orderFront: (id)p_sender
+{
+	ProbeTrace(self, @"orderFront:");
+	[super orderFront: p_sender];
 }
 @end
 
@@ -187,23 +280,10 @@ static void ProbeSync(NSString *p_where)
 	return YES;
 }
 
-- (BOOL)shouldDelayWindowOrderingForEvent: (NSEvent *)p_event
-{
-	BOOL t_delay = [s_way isEqualToString: @"prevent"] && [self window] == s_backdrop && [NSApp isActive];
-	if ([self window] == s_backdrop)
-		ProbeLog(@"shouldDelayWindowOrderingForEvent -> %d: %@", t_delay, ProbeOrder());
-	return t_delay;
-}
-
 - (void)mouseDown: (NSEvent *)p_event
 {
-	if ([self window] != s_backdrop)
-		return;
-	ProbeLog(@"mouseDown (active %d): %@", [NSApp isActive], ProbeOrder());
-	if ([s_way isEqualToString: @"prevent"] && [NSApp isActive])
-		[NSApp preventWindowOrdering];
-	if ([s_way isEqualToString: @"mousedown"] || [s_way isEqualToString: @"prevent"])
-		ProbeSync(@"mouseDown");
+	if ([self window] == s_backdrop)
+		ProbeLog(@"mouseDown (active %d): %@", [NSApp isActive], ProbeOrder());
 }
 
 - (void)mouseUp: (NSEvent *)p_event
@@ -217,6 +297,17 @@ static void ProbeSync(NSString *p_where)
 @end
 
 @implementation ProbeCommands
+- (void)occlusionChanged: (NSNotification *)p_note
+{
+	NSWindow *t_window = [p_note object];
+	BOOL t_misplaced = ProbeBackdropMisplaced();
+	ProbeLog(@"occlusion of %@: %@, backdrop %@: %@", [t_window title],
+			 ([t_window occlusionState] & NSWindowOcclusionStateVisible) != 0 ? @"visible" : @"hidden",
+			 t_misplaced ? @"misplaced" : @"in place", ProbeOrder());
+	if (t_misplaced && (ProbeWay(@"occlusion") || ProbeWay(@"both")))
+		ProbeSync(@"occlusion");
+}
+
 - (void)poll: (NSTimer *)p_timer
 {
 	NSString *t_path = [s_folder stringByAppendingPathComponent: @"command.txt"];
@@ -301,9 +392,29 @@ int main(int argc, const char *argv[])
 		[t_palette setContentView: t_palette_view];
 		[t_palette setFrameTopLeftPoint: NSMakePoint(NSMinX(t_visible) + 10, NSMaxY(t_visible) - 60)];
 
-		ProbeWindow *t_backdrop = ProbeMakeWindow(@"Backdrop", t_screen, NSWindowStyleMaskBorderless, [NSColor darkGrayColor]);
+		NSWindow *t_backdrop;
+		if (ProbeWay(@"panel"))
+		{
+			ProbePanel *t_panel = [[ProbePanel alloc] initWithContentRect: t_screen
+																styleMask: NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+																  backing: NSBackingStoreBuffered defer: NO];
+			t_panel.canKey = NO;
+			[t_panel setFloatingPanel: NO];
+			[t_panel setLevel: NSNormalWindowLevel];
+			[t_panel setHidesOnDeactivate: NO];
+			[t_panel setTitle: @"Backdrop"];
+			ProbeView *t_view = [[ProbeView alloc] initWithFrame: NSMakeRect(0, 0, t_screen.size.width, t_screen.size.height)];
+			t_view.colour = [NSColor darkGrayColor];
+			[t_panel setContentView: t_view];
+			t_backdrop = t_panel;
+		}
+		else
+		{
+			ProbeWindow *t_window = ProbeMakeWindow(@"Backdrop", t_screen, NSWindowStyleMaskBorderless, [NSColor darkGrayColor]);
+			t_window.canKey = NO;
+			t_backdrop = t_window;
+		}
 		[t_backdrop setFrame: t_screen display: NO];
-		t_backdrop.canKey = [s_way isEqualToString: @"keyable"];
 		s_backdrop = t_backdrop;
 
 		[t_menubar orderFront: nil];
@@ -320,6 +431,8 @@ int main(int argc, const char *argv[])
 
 		ProbeCommands *t_commands = [[ProbeCommands alloc] init];
 		[NSTimer scheduledTimerWithTimeInterval: 0.1 target: t_commands selector: @selector(poll:) userInfo: nil repeats: YES];
+		[[NSNotificationCenter defaultCenter] addObserver: t_commands selector: @selector(occlusionChanged:)
+													 name: NSWindowDidChangeOcclusionStateNotification object: nil];
 
 		// A point of the backdrop that no window covers, in the screen's
 		// top-left coordinates (CGEvent's), off the Dock
