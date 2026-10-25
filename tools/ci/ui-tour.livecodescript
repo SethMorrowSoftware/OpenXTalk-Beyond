@@ -182,10 +182,51 @@ end tourScriptError
 -- Steps
 
 on tour_appearance
+   local tBad
    -- The IDE follows the system's appearance as OpenXTalk Lite 1.15 does
    tourWait 1000
    tourRecord "INFO systemAppearance" && the systemAppearance
+   -- On macOS and Windows it is the appearance ui_tour.py set, wherever it
+   -- is read (Linux's is light: a dark GTK theme comes in as its colours).
+   -- The Mac engine wrote 16 of its 32 bits, so the rest was what the
+   -- stack held, and it could come back empty: the Tools palette's modern
+   -- look then took its light colours in the dark (Apple silicon)
+   if the platform is among the items of "MacOS,Win32" and \
+         $OXT_TOUR_APPEARANCE is among the items of "light,dark" then
+      put tourAppearanceAtDepths($OXT_TOUR_APPEARANCE) into tBad
+      if tBad is not empty then
+         throw "the systemAppearance is not" && $OXT_TOUR_APPEARANCE && "at every depth of handler calls:" && tBad
+      end if
+   end if
 end tour_appearance
+
+-- The systemAppearance read from 1 to 40 handler calls deep, each time
+-- after calls as deep that leave other values where it is made: the
+-- depths where it is not pWant, with what it was there
+function tourAppearanceAtDepths pWant
+   local tBad, tSeen
+   repeat with tDepth = 1 to 40
+      tourLeaveValues tDepth
+      put tourAppearanceAt(tDepth) into tSeen
+      if tSeen is not pWant then put tDepth & ":" & quote & tSeen & quote & " " after tBad
+   end repeat
+   return word 1 to -1 of tBad
+end tourAppearanceAtDepths
+
+function tourAppearanceAt pDepth
+   if pDepth > 1 then return tourAppearanceAt(pDepth - 1)
+   return the systemAppearance
+end tourAppearanceAt
+
+command tourLeaveValues pDepth
+   local tText
+   if pDepth > 1 then
+      tourLeaveValues pDepth - 1
+   else
+      put format("%s %d %f", the long id of me, the milliseconds, pi) into tText
+      put the number of words of tText && the length of (tText & tText) into tText
+   end if
+end tourLeaveValues
 
 on tour_screen
    tourShotScreen "00-screen-start"
@@ -319,6 +360,12 @@ on tour_tools_modern_check
    tourTmCheck tourTmNamed("tmHeader") is empty, "the classic look has no modern controls"
 
    if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
+   -- dark or light as the system is (on Apple silicon it took its light
+   -- colours in the dark when the systemAppearance came back empty)
+   if $OXT_TOUR_APPEARANCE is among the items of "light,dark" then
+      tourTmCheck the cUsingTheme of stack "revTools" is $OXT_TOUR_APPEARANCE, \
+            "the modern look is" && $OXT_TOUR_APPEARANCE && "as the system is (" & the cUsingTheme of stack "revTools" & ")"
+   end if
    tourTmCheck the resizable of stack "revTools", "the modern look is resizable"
    tourTmCheck the minWidth of stack "revTools" >= 96 and the minHeight of stack "revTools" >= 160, \
          "the modern look has a smallest size (" & the minWidth of stack "revTools" & "," & the minHeight of stack "revTools" & ")"

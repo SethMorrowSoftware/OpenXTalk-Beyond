@@ -47,14 +47,16 @@ Windows and macOS; Linux is drawn light).
 Everything is printed, for the CI log: the script's lines (INFO, ERROR,
 SHOT, STEP and DONE) and every snapshot as lines tools/ci/print_images.py
 turns back into PNG files ("IMAGE <appearance>/<file> <part>/<parts>
-<base64>"). The snapshots also stay in <out>/shots. Exit status 0 when the
-script got to the end with every step done and no script error in the IDE's
-windows, 1 otherwise. Only the Python 3 standard library is used (3.8 or
-later).
+<base64>"). The snapshots also stay in <out>/shots. On macOS a crash report
+macOS wrote of the engine during the run is printed too, with a warning.
+Exit status 0 when the script got to the end with every step done and no
+script error in the IDE's windows, 1 otherwise. Only the Python 3 standard
+library is used (3.8 or later).
 """
 
 import argparse
 import base64
+import json
 import os
 import re
 import shutil
@@ -423,6 +425,158 @@ def mac_sample(pid, path, seconds=5, lines=400):
     return True
 
 
+# Where macOS's crash reporter writes a report (a .ips file; a .crash
+# before macOS 12) some seconds after a process crashed, as it puts up
+# "<app> quit unexpectedly" over whatever runs next: main's tour on Apple
+# silicon showed one over the dark run's windows, from an IDE that had
+# crashed as stop ended the light run, and no report reached the log
+MAC_CRASH_DIRS = ('~/Library/Logs/DiagnosticReports', '/Library/Logs/DiagnosticReports')
+
+
+def mac_crash_reports(name, since):
+    """The crash reports of the process name written since since (a
+    time.time()), oldest first."""
+    found = []
+    for d in MAC_CRASH_DIRS:
+        d = os.path.expanduser(d)
+        try:
+            names = os.listdir(d)
+        except OSError:
+            continue
+        for n in names:
+            if not (n.startswith(name) and n[len(name):len(name) + 1] in ('-', '_')
+                    and n.endswith(('.ips', '.crash'))):
+                continue
+            try:
+                when = os.path.getmtime(os.path.join(d, n))
+            except OSError:
+                continue
+            if when >= since:
+                found.append((when, os.path.join(d, n)))
+    return [path for when, path in sorted(found)]
+
+
+def mac_crash_frames(frames, images, lines):
+    """Lines for frames, a thread's in a .ips report: each frame's image,
+    address and symbol, the frames in the app's own binaries (the engine,
+    the externals) named by atos from the build's dSYMs where there are
+    any, as the stripped engine's have no names of their own."""
+    def image_of(f):
+        i = f.get('imageIndex')
+        return i if isinstance(i, int) and 0 <= i < len(images) else None
+
+    named = {}
+    wanted = {}
+    for f in frames[:lines]:
+        i = image_of(f)
+        if i is not None and isinstance(f.get('imageOffset'), int):
+            wanted.setdefault(i, set()).add(images[i].get('base', 0) + f['imageOffset'])
+    for i, addresses in wanted.items():
+        image = images[i]
+        if '.app/' not in image.get('path', '') or not shutil.which('atos'):
+            continue
+        dwarf = mac_dwarf(image.get('name', ''))
+        if not dwarf:
+            continue
+        addresses = sorted(addresses)
+        try:
+            proc = subprocess.run(['atos', '-o', dwarf, '-arch', image.get('arch') or os.uname().machine,
+                                   '-l', hex(image.get('base', 0))] + [hex(a) for a in addresses],
+                                  stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120)
+        except (subprocess.TimeoutExpired, OSError):
+            continue
+        for a, s in zip(addresses, proc.stdout.decode('utf-8', 'replace').splitlines()):
+            named[(i, a)] = s.strip()
+
+    out = []
+    for n, f in enumerate(frames[:lines]):
+        i = image_of(f)
+        image = images[i] if i is not None else {}
+        offset = f.get('imageOffset') if isinstance(f.get('imageOffset'), int) else 0
+        address = image.get('base', 0) + offset
+        what = named.get((i, address))
+        if not what and f.get('symbol'):
+            what = f['symbol'] + (' + %d' % f['symbolLocation'] if isinstance(f.get('symbolLocation'), int) else '')
+        out.append('%3d  %-28s 0x%x  %s' % (n, image.get('name', '???'), address, what or '+ 0x%x' % offset))
+    if len(frames) > lines:
+        out.append('     ... (%d frames more)' % (len(frames) - lines))
+    return out
+
+
+def mac_crash_report(path, pid=None, lines=50):
+    """Log a crash report: the process, what ended it and what it said as
+    it ended (an abort's message, an uncaught exception's reason), an
+    uncaught exception's backtrace, and the frames of the thread that
+    crashed and of the main thread."""
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError as e:
+        log('(the crash report %s could not be read: %s)' % (path, e))
+        return
+    log('::group::A crash report: %s' % os.path.basename(path))
+    try:
+        # a .ips is a line of JSON about the report, then the report
+        try:
+            report = json.loads(text.partition('\n')[2])
+        except ValueError:
+            report = None
+        if not isinstance(report, dict):
+            # a .crash is text already
+            for x in text.splitlines()[:lines * 4]:
+                log(x)
+            return
+        who = report.get('pid')
+        log('Process     : %s [%s]%s' % (report.get('procName'), who,
+                                         ' (this run\'s engine)' if pid is not None and who == pid else ''))
+        log('Path        : %s' % report.get('procPath'))
+        log('Captured    : %s' % report.get('captureTime'))
+        exc = report.get('exception') or {}
+        log('Exception   : %s' % ' '.join(str(exc[k]) for k in ('type', 'signal', 'subtype') if exc.get(k)))
+        if (report.get('termination') or {}).get('indicator'):
+            log('Termination : %s' % report['termination']['indicator'])
+        for k, v in sorted((report.get('asi') or {}).items()):
+            log('It said     : %s: %s' % (k, ' | '.join(str(x) for x in v) if isinstance(v, list) else v))
+        images = report.get('usedImages') or []
+        if report.get('lastExceptionBacktrace'):
+            log('The uncaught exception\'s backtrace:')
+            for x in mac_crash_frames(report['lastExceptionBacktrace'], images, lines):
+                log(x)
+        threads = report.get('threads') or []
+        crashed = report.get('faultingThread', 0)
+        for n in [crashed] + ([0] if crashed != 0 else []):
+            if not (isinstance(n, int) and 0 <= n < len(threads)):
+                continue
+            t = threads[n]
+            label = t.get('name') or t.get('queue')
+            log('Thread %d%s%s:' % (n, ' (crashed)' if n == crashed else ' (the main thread)',
+                                    ', %s' % label if label else ''))
+            for x in mac_crash_frames(t.get('frames') or [], images, lines):
+                log(x)
+    finally:
+        log('::endgroup::')
+
+
+def mac_crashes(name, since, pid, returncode, wait=45):
+    """Log the crash reports of name (the engine's binary) written since
+    since, a time.time(), and return how many. The report comes some
+    seconds after the crash, so when the engine ended on a signal that
+    was not stop's (SIGTERM, SIGKILL) this waits up to wait seconds for
+    it; otherwise it looks once."""
+    crashed = returncode is not None and returncode < 0 and -returncode not in (signal.SIGTERM, signal.SIGKILL)
+    deadline = time.time() + (wait if crashed else 0)
+    while True:
+        found = mac_crash_reports(name, since)
+        if found or time.time() >= deadline:
+            break
+        time.sleep(1)
+    if crashed and not found:
+        log('(the engine ended on signal %d, and no crash report came in %d s)' % (-returncode, wait))
+    for path in found:
+        mac_crash_report(path, pid)
+    return len(found)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Screenshots of the IDE\'s windows, light or dark.')
     ap.add_argument('--install', metavar='DIR', help='installed layout')
@@ -529,6 +683,14 @@ def main(argv=None):
         log('The script %s.' % status)
         if not finished:
             problems.append('the script %s' % status)
+        if p.family == 'mac':
+            # a crash as the engine ended fails no step of the tour: the
+            # report goes into the log, with a warning
+            log('The engine ended with exit status %s.' % proc.returncode)
+            crashes = mac_crashes(os.path.basename(lay.engine), started, proc.pid, proc.returncode)
+            if crashes and os.environ.get('GITHUB_ACTIONS'):
+                log('::warning title=IDE screenshots (%s)::macOS wrote %d crash report(s) of %s during this run '
+                    '(see "A crash report" in the log)' % (args.appearance, crashes, os.path.basename(lay.engine)))
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))
     finally:

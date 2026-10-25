@@ -312,11 +312,11 @@ Work left for later. 421 notes, by part of the repository:
 - [engine/src/lnxstack.cpp:449](engine/src/lnxstack.cpp#L449) TODO: test if this comment is still true
 - [engine/src/mac-av-player.mm:1552](engine/src/mac-av-player.mm#L1552) TODO: Add more types??
 - [engine/src/mac-av-player.mm:1601](engine/src/mac-av-player.mm#L1601) TODO
-- [engine/src/mac-core.mm:1578](engine/src/mac-core.mm#L1578) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
-- [engine/src/mac-core.mm:1645](engine/src/mac-core.mm#L1645) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
-- [engine/src/mac-core.mm:1718](engine/src/mac-core.mm#L1718) COCOA-TODO: Clean up this external dependency.
-- [engine/src/mac-core.mm:2240](engine/src/mac-core.mm#L2240) COCOA-TODO: Abstract Command/Control switching.
-- [engine/src/mac-core.mm:2315](engine/src/mac-core.mm#L2315) COCOA-TODO: Make this is a little more discerning (only need to reset if
+- [engine/src/mac-core.mm:1584](engine/src/mac-core.mm#L1584) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
+- [engine/src/mac-core.mm:1651](engine/src/mac-core.mm#L1651) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
+- [engine/src/mac-core.mm:1724](engine/src/mac-core.mm#L1724) COCOA-TODO: Clean up this external dependency.
+- [engine/src/mac-core.mm:2246](engine/src/mac-core.mm#L2246) COCOA-TODO: Abstract Command/Control switching.
+- [engine/src/mac-core.mm:2321](engine/src/mac-core.mm#L2321) COCOA-TODO: Make this is a little more discerning (only need to reset if
 - [engine/src/mac-menu.mm:1886](engine/src/mac-menu.mm#L1886) COCOA-TODO: Abstract Command/Control switching.
 - [engine/src/mac-surface.mm:34](engine/src/mac-surface.mm#L34) COCOA-TODO: Clean up external linkage for surface.
 - [engine/src/mac-surface.mm:219](engine/src/mac-surface.mm#L219) COCOA-TODO: Getting the height to flip round is dependent on a friend.

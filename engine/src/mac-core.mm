@@ -695,15 +695,21 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 		
 		case kMCPlatformSystemPropertySystemAppearance:
 		{
+			// OXT-Beyond: all 32 bits, as the caller asks for an Int32 (an
+			// MCSystemAppearance, desktop-dc.cpp) and Windows writes one.
+			// With 16 the other 16 were whatever the caller's stack held,
+			// so the systemAppearance could come back empty, and the
+			// Tools palette's modern look took its light colours in the
+			// dark appearance (CI's IDE tour on Apple silicon)
 			NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
 			NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
 			if (t_appearance == nil || ![t_appearance isEqualToString:@"Dark"])
 			{
-				*(int16_t *)r_value = kMCPlatformSystemAppearanceLight;
+				*(int32_t *)r_value = kMCPlatformSystemAppearanceLight;
 			}
 			else
 			{
-				*(int16_t *)r_value = kMCPlatformSystemAppearanceDark;
+				*(int32_t *)r_value = kMCPlatformSystemAppearanceDark;
 			}
 		}
 			break;

@@ -1638,6 +1638,11 @@ squashes:
 - **A Mac Tools palette left in the old appearance.** After a switch
   between light and dark on macOS, the palette looks again for a few
   seconds and draws itself again if it was drawn in the old one (#213).
+- **A Mac Tools palette that opened light in the dark.** On Apple
+  Silicon `the systemAppearance` could come back empty, as the engine
+  filled in only half of it, and the modern Tools palette then took its
+  light colours in the dark appearance; it is "light" or "dark" every
+  time now (#220).
 - **HyperCard sounds that came in as noise.** Sounds whose 'snd '
   resource starts with a nullCmd (a fifth of the sounds on one CD) are
   read from their real header (#207).
@@ -1758,9 +1763,10 @@ before 1970 is on 64-bit platforms. On macOS 10.14 and later, fields,
 tabbed buttons, sliders, progress bars and scrollbars are drawn as they
 are meant to look, and windows stay white unless `useSystemWindowColor`
 is set; a script that used that name for a custom property of its own
-reaches the engine's property. Imported HyperCard stacks run more of
-their scripts; stacks imported and saved before, and ordinary stacks,
-are untouched.
+reaches the engine's property. On macOS, `the systemAppearance` is
+"light" or "dark" every time it is read, where on Apple Silicon it could
+be empty. Imported HyperCard stacks run more of their scripts; stacks
+imported and saved before, and ordinary stacks, are untouched.
 
 #### 0.2.7-rc.6.3: the Bug Hunt, round three
 
