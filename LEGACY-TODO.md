@@ -51,11 +51,11 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 - [engine/src/em-system.cpp:969](engine/src/em-system.cpp#L969) FIXME Implement ResolvePath()
 - [engine/src/em-url.js:59](engine/src/em-url.js#L59) FIXME maybe this needs a helper function in LiveCodeUtil
 - [engine/src/em-url.js:303](engine/src/em-url.js#L303) FIXME this isn't quite correct; we don't correctly
-- [engine/src/funcs.h:1118](engine/src/funcs.h#L1118) class MCNativeCharToNum : public MCUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalNativeCharToNum, EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> //...
-- [engine/src/funcs.h:1133](engine/src/funcs.h#L1133) EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
-- [engine/src/funcs.h:1141](engine/src/funcs.h#L1141) EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
-- [engine/src/funcs.h:1574](engine/src/funcs.h#L1574) EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> // FIXME
-- [engine/src/globals.cpp:978](engine/src/globals.cpp#L978) FIXME use MCProperListRef
+- [engine/src/funcs.h:1133](engine/src/funcs.h#L1133) class MCNativeCharToNum : public MCUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalNativeCharToNum, EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> //...
+- [engine/src/funcs.h:1148](engine/src/funcs.h#L1148) EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
+- [engine/src/funcs.h:1156](engine/src/funcs.h#L1156) EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
+- [engine/src/funcs.h:1589](engine/src/funcs.h#L1589) EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> // FIXME
+- [engine/src/globals.cpp:981](engine/src/globals.cpp#L981) FIXME use MCProperListRef
 - [engine/src/mcsemaphore.h:61](engine/src/mcsemaphore.h#L61) FIXME mark as explicit
 - [engine/src/sysspec-url.cpp:341](engine/src/sysspec-url.cpp#L341) FIXME if wait() returns non-zero, cancel the URL
 - [engine/src/widget.lcb:911](engine/src/widget.lcb#L911) FIXME not actually implemented
@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:11993](ide/Toolset/libraries/revidelibrary.8.livecodescript#L11993) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12033](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12033) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -161,7 +161,7 @@ Workarounds their authors were not happy with. 29 notes, by part of the reposito
 - [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:24](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L24) Hack to get round bug 18946
 - [ide/Toolset/palettes/reverrordisplay.livecodescript:550](ide/Toolset/palettes/reverrordisplay.livecodescript#L550) attempting to highlight the appropriate line number. This is a total hack, but there doensn't seem
 - [ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript:3578](ide/Toolset/palettes/script%20editor/behaviors/revsecommoneditorbehavior.livecodescript#L3578) First wrap the script to the required width, this is a total hack as doing it properly would take quite a while.
-- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:2222](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L2222) this is clearly a bit of a hack, but hopefully doing is this way will minimize the risk.
+- [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:2247](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L2247) this is clearly a bit of a hack, but hopefully doing is this way will minimize the risk.
 - [ide/Toolset/palettes/script editor/behaviors/revsevariablespanebehavior.livecodescript:116](ide/Toolset/palettes/script%20editor/behaviors/revsevariablespanebehavior.livecodescript#L116) If the user chooses a large font, we need to increase the size of the template, for now we just hack this as
 
 <a id="hack-libfoundation"></a>
@@ -205,7 +205,7 @@ Workarounds their authors were not happy with. 29 notes, by part of the reposito
 
 ### HACK: extensions (1)
 
-- [extensions/extensions.gyp:201](extensions/extensions.gyp#L201) hack because gyp wants an output
+- [extensions/extensions.gyp:202](extensions/extensions.gyp#L202) hack because gyp wants an output
 
 ## TODO
 
@@ -597,7 +597,7 @@ Work left for later. 421 notes, by part of the repository:
 ### TODO: tests (13)
 
 - [tests/_compilertestrunner.livecodescript:165](tests/_compilertestrunner.livecodescript#L165) TODO the marker position should come from the position
-- [tests/_testlib.livecodescript:725](tests/_testlib.livecodescript#L725) TODO: make externals tests work in standalone test builder
+- [tests/_testlib.livecodescript:727](tests/_testlib.livecodescript#L727) TODO: make externals tests work in standalone test builder
 - [tests/lcb/stdlib/char.lcb:277](tests/lcb/stdlib/char.lcb#L277) test diagnostic "TODO 'y' is not in 'xyz'"
 - [tests/lcb/stdlib/sort.lcb:42](tests/lcb/stdlib/sort.lcb#L42) TODO allow generation of *any* codepoint
 - [tests/lcb/stdlib/string.lcb:63](tests/lcb/stdlib/string.lcb#L63) test diagnostic "TODO test some Unicode corner cases"

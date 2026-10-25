@@ -112,7 +112,14 @@ brings in imported HyperCard stacks' MACE sounds, HyperCard's message
 order for them and many more of their scripts, keeps two web tabs from
 deleting each other's files, fixes the dark appearance's rows and
 switching, and gives the xTalk Assistant many more services (see
-[0.2.7-rc.6.3](#027-rc63-the-bug-hunt-round-three));
+[0.2.7-rc.6.3](#027-rc63-the-bug-hunt-round-three)), and 0.2.7-rc.6.4
+fixes what the Bug Hunt's testers reported on rc.6.3: the Tools
+palette's icons, the Inspector and the Message Box in the dark, the Menu
+Builder, Linux's menu ticks and players, the Mac's field frames, tabs
+and sliders, the Mac menu bar made a window, the Geometry Manager and
+vertical sliders on the web, and the time zone library on 32-bit Linux,
+and brings back mergJSON and some of HyperXTalk's syntax (see
+[0.2.7-rc.6.4](#027-rc64-the-bug-hunt-round-four));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1582,6 +1589,178 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.4: the Bug Hunt, round four
+
+OXT-Beyond 0.2.7-rc.6.4 has everything in 0.2.7-rc.6.3. In the spirit of
+the Bug Hunt, here is every change since then, each listed as the bug it
+squashes:
+
+- **Tools palette icons you could hardly see.** In the light appearance
+  the modern look's window is a shade darker, and the white check box
+  and radio button icons of macOS and Linux are drawn dark. The widgets'
+  icons are larger and closer together (26 points in tiles of 34 by 34,
+  instead of 20 in tiles of 48 by 30), so more of them fit across a wide
+  palette, and Large Icons in the palette's menu makes the icons and
+  tiles half as large again (#211). The modern look's Shapes are drawn
+  from the shapes, in the icons' colour, so they are sharp at any size
+  and can be seen on the dark look; the classic look is unchanged
+  (#217).
+- **No way back to the modern palette.** The classic look has a "Modern
+  look" button above its tools, as well as Tools > Modern Tools Palette
+  (#211).
+- **Inherited values unreadable in the dark.** The Property Inspector's
+  grey inherited values, such as the font menu's "(Text)", are a light
+  grey on the dark appearance's dark controls, so they and the font
+  menu's list can be read (#211). That holds on macOS and Windows too,
+  where the system draws those controls, and on an Inspector with a
+  background colour of its own (#217).
+- **Popups on top of the object.** The Gradient and graphic effect
+  popups open beside the Inspector, where they cover neither it nor the
+  object being edited, on the screen the Inspector is on; when every
+  place there would cover the object, the Gradient popup opens to the
+  Inspector's left, as before (#211, #217).
+- **Breakpoints that never stopped.** HyperXTalk's `the sql date`, and
+  the convert command's `sql date` format (or `sql`),
+  `YYYY-MM-DD HH:MM:SS` in local time, work, so its stacks that use them
+  compile; a handler that did not compile had breakpoints that never
+  stopped. `from sql date` also takes a date alone. `sql` is not a
+  reserved word, so a variable, handler or custom property named sql
+  works as before (#211).
+- **The years 0 to 99 on the web.** A year from 0 to 99 written with
+  more than two digits (`0099-10-24 14:30:05`, or `0099` in dateItems)
+  is that year, as on Windows, macOS and Linux, instead of 1900 to 1999;
+  a two-digit year still goes through the centuryCutoff (#211).
+- **Message Box lists stuck in the old appearance.** Its Front Scripts,
+  Back Scripts, Pending Messages and Stacks in Use lists follow a switch
+  between light and dark, instead of changing only when another tab was
+  shown (#208).
+- **A Mac Tools palette left in the old appearance.** After a switch
+  between light and dark on macOS, the palette looks again for a few
+  seconds and draws itself again if it was drawn in the old one (#213).
+- **HyperCard sounds that came in as noise.** Sounds whose 'snd '
+  resource starts with a nullCmd (a fifth of the sounds on one CD) are
+  read from their real header (#207).
+- **HyperCard stacks that stopped.** On Windows, a stack whose name has
+  a character Windows refuses in a file name ("WhatIsIt?") imports from
+  a disk image and keeps its name. A stack's handler named like a
+  command ("sort", "rename", "remove") is reached by its bare calls, and
+  menu items written "in menu", by their place ("last menuItem") or
+  without "the" work. `the heapSpace` reads 16 MB, so stacks that check
+  for memory run; "Quit HyperCard" closes the stack in the IDE instead
+  of quitting OXT-Beyond; openCard and HyperCard's other messages called
+  as commands no longer stop with "can't find handler". The HyperCard 2
+  Home stack's handlers that stacks call (getHomeInfo and others) are in
+  the HyperCard Library, palettes no longer run the stack's openStack
+  again as they open, and stacks named with a comma or a number import
+  fully (#207).
+- **An MCP Bridge that only said "timed out".** A call held up by a
+  question, a paused script or a dialog says what it waits for, and new
+  tools stop a paused script, answer a dialog a stack opened and import
+  HyperCard stacks. run_code on a stack gives the error's text and line,
+  HyperCard stacks' controls are labelled and searched correctly, and on
+  Windows the bridge's question before a run stays in front of other
+  windows (#210). A call that waited behind one that timed out is sent
+  and answered, instead of being told that OXT-Beyond closed the
+  connection (#217).
+- **JSONToArray: "can't find handler".** The IDE has Monte Goulding's
+  mergJSON external again, built from its source into `Ext/mergJSON` on
+  Windows, macOS (Apple Silicon included) and Linux, so stacks written
+  for LiveCode can call `JSONToArray` and `ArrayToJSON` as they did
+  there, and the OAuth2 library, which calls them, works. The Standalone
+  Settings list mergJSON under Inclusions, and a standalone for the
+  platform the IDE runs on can include it (#214).
+- **HyperXTalk stacks that would not compile.** `the microseconds` (also
+  `the long microseconds`), the `matches wildcard` and `matches regex`
+  operator, and the HyperXTalk Compatibility library's `iff`,
+  `quotedPrintableEncode`, `quotedPrintableDecode` and `microseconds()`,
+  with no new reserved word; the Script Editor's right-click menu has
+  Comment and Uncomment, as its Edit menu does (#215).
+- **A Geometry Manager that did nothing on the web.** A number above
+  2147483647 that a script computed (the milliseconds, a sum) keys an
+  array by its own digits, as on the desktop, instead of every one
+  becoming the key "2147483647", so the Geometry Manager's settings take
+  effect in the web IDE and web standalones; the web IDE's Geometry pane
+  fits the web's theme (#216).
+- **Vertical sliders that looked like scrollbars on the web.** In the
+  web engine a vertical slider (a scrollbar whose style is "scale") is
+  drawn as a horizontal one is, on its side: a groove, a thumb that
+  points right and tick marks to its right, as a vertical Windows
+  trackbar has them, instead of the engine's older look, a grey trough
+  with a block for a thumb; a click and a drag find the thumb where it
+  is drawn. Desktop sliders are drawn as before, in a look set by script
+  too (#219).
+- **Menu ticks you could not see on Linux.** On a dark desktop theme a
+  menu item's tick, radio dot and submenu arrow are white, so options
+  such as File > Import Stack's HyperCard settings show as ticked; a
+  light theme's menus, and menus with a colour of their own, are drawn
+  as before (#217).
+- **A Linux player you could not make.** When the Player tool was off as
+  the IDE started (as a first start without /usr/bin/mplayer leaves it),
+  turning it on in Preferences lets you make a player again, and a
+  player made by script shows its properties in the Property Inspector,
+  Source included. The setting only hides the tool, saves at once and
+  takes effect without a restart, and on macOS and Windows it hides the
+  tool too (#217).
+- **A Menu Builder that stopped halfway.** On a stack with a menu bar it
+  opens fully, with its lists of menus and items filled, instead of
+  stopping on a handler that does not exist, and "New Main Menu" marks
+  the stack as edited again; its lists' text follows the dark
+  appearance. The App Browser's Delete of an audio or video clip no
+  longer stops on the same handler (#217).
+- **A Mac menu bar under the menu bar, with dead buttons.** Made a
+  window in Preferences > Appearance, the IDE's menu bar opens with all
+  of its title bar below the Mac's own menu bar, and a drag leaves it
+  where it was put; it was moved down by its own height and 20 points
+  more, and its buttons stopped working, as did those of a palette then
+  dragged under it (#217).
+- **Wrong times on 32-bit Linux.** The Time zone library's
+  ToUniversalTime and FromUniversalTime gave a wrong time or an error
+  for every time on 32-bit Linux, as they handed the C library a 64-bit
+  time where it takes a 32-bit one; they give the right times now
+  (#217).
+- **Stark white Mac controls.** On macOS 10.14 and later, text and list
+  fields have their frame again, a tabbed button shows its tabs and
+  pane, a slider's knob is no longer cut off, and an idle or disabled
+  scrollbar, slider or progress bar is drawn instead of vanishing. A new
+  global property, `useSystemWindowColor` (Preferences > Appearance >
+  Stacks in the Mac's window colour), draws a Mac stack with no
+  backgroundColor of its own in the system's window colour instead of
+  white; it is off unless set (#212).
+- **A web site that kept the last release.** A release that reuses
+  main's builds starts the GitHub Pages site's update again, instead of
+  skipping it (#206).
+
+Under the hood, the extensions' own tests (the JSON library's
+JSONTestSuite cases, the widgets' and libraries' tests) run in every
+platform's build for the first time, and the IDE screenshots check more
+of the Tools palette, the Inspector, the menus and light/dark switching.
+
+A script sees these differences from 0.2.7-rc.6.3, each a fix.
+`the sql date`, `the microseconds` and the `matches` operator are read
+only where a line did not compile without them, so a line that compiled
+means what it did; the one difference is that a `merge` template's
+`[[...]]` or `<?...?>`, or a `send` parameter given as text, that does
+not compile without them was left as text before and is now worked out.
+`JSONToArray`, `ArrayToJSON`, `iff`, `quotedPrintableEncode`,
+`quotedPrintableDecode` and `microseconds()` come after a script's own
+handlers of those names, which are called as before. On the web, a year
+from 0 to 99 in more than two digits is that year, and a computed number
+above 2147483647 keys an array by its own digits, as on the desktop. A
+vertical slider on the web is drawn as the horizontal one is, on its
+side, and its thumb, like the horizontal one's, is 11 pixels long (fewer
+on a slider narrower than 26 pixels) where it was 30, so a click just
+beyond the thumb moves it a page where it grabbed it before; its values
+and messages are as before. On 32-bit Linux, and in 32-bit Android
+standalones, the time zone library gives the right times, and a time
+after 19 January 2038 or a result before 1970 is an error, as a result
+before 1970 is on 64-bit platforms. On macOS 10.14 and later, fields,
+tabbed buttons, sliders, progress bars and scrollbars are drawn as they
+are meant to look, and windows stay white unless `useSystemWindowColor`
+is set; a script that used that name for a custom property of its own
+reaches the engine's property. Imported HyperCard stacks run more of
+their scripts; stacks imported and saved before, and ordinary stacks,
+are untouched.
 
 #### 0.2.7-rc.6.3: the Bug Hunt, round three
 
