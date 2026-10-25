@@ -2212,24 +2212,25 @@ on tour_inspector_text
 end tour_inspector_text
 
 -- A field's Scrollbar width in the inspector offers 12 and Standard. The
--- engine takes 16 and 20 as one width, the platform's standard, which a
--- field opened with either gets: offered both, on macOS 20 went back to
--- 16 (tperry2x on rc.6.4), on Windows 16 to 20, and on Linux both gave
--- the GTK theme's width or stuck until the stack was opened again. 12 must
--- set 12, and Standard the width the sample's list field opened with (16
--- on macOS, 20 on Windows, the theme's on Linux), from 12 and from 16 and
--- 20 set by a script, and on a field with no scrollbar the platform's 16
--- or 20, which a field takes as the standard width when it shows one
+-- engine takes 16 and 20 as one width, the look's standard, which a field
+-- opened with either gets: offered both, on macOS (tperry2x on rc.6.4)
+-- and on Windows 20 went back to 16, and on Linux both gave the GTK
+-- theme's width or stuck until the stack was opened again. 12 must set
+-- 12, and Standard the width the sample's list field opened with (16 on
+-- macOS and Windows, the theme's on Linux), from 12 and from 16 and 20 set
+-- by a script, and on a field with no scrollbar the look's 16 (20 in the
+-- Motif and Macintosh looks), which a field takes as the standard width
+-- when it shows one
 on tour_inspector_scrollbar
    local tField, tStandard, tMarker, tPI, tEditor, tMenu, tFails, tFrom
    put tourSample("List") into tField
    put the scrollbarWidth of tField into tStandard
-   if the platform is "MacOS" then
-      put 16 into tMarker
-   else
+   if the lookAndFeel is "Motif" or the lookAndFeel is "Macintosh" then
       put 20 into tMarker
+   else
+      put 16 into tMarker
    end if
-   tourRecord "INFO inspector-scrollbar the list field opened with" && tStandard
+   tourRecord "INFO inspector-scrollbar the list field opened with" && tStandard && "in the look" && the lookAndFeel
    put tourInspect(tField) into tPI
    get tourInspectorSection(tPI, "Basic")
    put tourInspectorEditor(tPI, "scrollbarWidth") into tEditor
@@ -2263,9 +2264,17 @@ end tour_inspector_scrollbar
 -- then the menu gets menuPick (MCButton::mup; setting its menuHistory sends
 -- menuPick before it changes the label, which the editor reads); empty if
 -- the field pField then has the width pWant, else a line naming pWhat with
--- what it has
+-- what it has. It first waits, as a person would, until the inspector
+-- shows the field's width: an editor ignores a pick of the value it holds
+-- (revInspectorEditorBehavior's editorValue), and it learns of a width a
+-- script set only when the inspector refreshes, so on CI's Linux ARM
+-- runner Standard picked straight after a script set 20 was ignored
 function tourSbPick pEditor, pField, pItem, pWant, pWhat
    local tMenu, tGot
+   repeat 30 times
+      if the editorValue of pEditor is the scrollbarWidth of pField then exit repeat
+      tourWait 100
+   end repeat
    put the long id of button "pulldown" of pEditor into tMenu
    set the label of tMenu to line pItem of the text of tMenu
    dispatch "menuPick" to tMenu with line pItem of the text of tMenu

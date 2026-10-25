@@ -6558,33 +6558,37 @@ function revIDEGetRectProperty pObject, pProperty
 end revIDEGetRectProperty
 
 -- OXT-Beyond: a field's Scrollbar width in the Inspector, 12 or Standard.
--- The engine takes a field's scrollbar width of 16 or 20 as the platform's
--- standard width: 16 on macOS, 20 on Windows and in the web IDE, and the
--- GTK theme's on Linux (13 with Adwaita). A field opened with either one
--- gets the standard width (MCScrollbar::open, MCField::setsbrects), and a
--- field whose scrollbar is 16 or 20 wide keeps its width when it is set
--- to the other (on Linux it takes the theme's). So the Inspector's 16 and
--- 20 were one width, and choosing the other did nothing: on macOS 20 went
--- back to 16 (tperry2x, openxtalk.org, October 2026), on Windows 16 went
--- back to 20, and on Linux both gave 13, or stuck until the stack was
--- opened again. Standard sets 12, then the platform's 16 or 20, then the
--- other one, which the engine turns into the standard width as it does
--- when the stack is opened, so the field shows the width it will have
--- then. A field with no scrollbar keeps what it is set to, so it gets
--- the platform's 16 or 20 back, which it turns into the standard width
--- when it shows a scrollbar. Any other value is set as a script sets it.
+-- The engine takes a field's scrollbar width of 16 or 20 as the standard
+-- width of the look it draws in: 16 on macOS, and on Windows and in the
+-- web IDE (the Windows look takes the 2-point border off both sides of a
+-- field's 20-point scrollbar when it first lays it out,
+-- MCScrollbar::setborderwidth), the GTK theme's on Linux (13 with
+-- Adwaita), and 20 in the Motif and Macintosh looks, which the engine
+-- draws itself. A field opened with either one gets the standard width
+-- (MCScrollbar::open, MCField::setsbrects), and a field whose scrollbar is
+-- 16 or 20 wide keeps its width when it is set to the other (on Linux it
+-- takes the theme's). So the Inspector's 16 and 20 were one width, and
+-- choosing the other did nothing: on macOS (tperry2x, openxtalk.org,
+-- October 2026) and on Windows 20 went back to 16, and on Linux both gave
+-- 13, or stuck until the stack was opened again. Standard sets 12, then
+-- the look's 16 or 20, then the other one, which the engine turns into the
+-- standard width as it does when the stack is opened, so the field shows
+-- the width it will have then. A field with no scrollbar keeps what it is
+-- set to, so it gets the look's 16 or 20 back, which it turns into the
+-- standard width when it shows a scrollbar. Any other value is set as a
+-- script sets it.
 command revIDESetScrollbarWidthProperty pObject, pProperty, pValue
    local tStandard, tOther
    if pValue is not "standard" then
       set the scrollbarWidth of pObject to pValue
       exit revIDESetScrollbarWidthProperty
    end if
-   if the platform is "MacOS" then
-      put 16 into tStandard
-      put 20 into tOther
-   else
+   if the lookAndFeel is "Motif" or the lookAndFeel is "Macintosh" then
       put 20 into tStandard
       put 16 into tOther
+   else
+      put 16 into tStandard
+      put 20 into tOther
    end if
    set the scrollbarWidth of pObject to 12
    set the scrollbarWidth of pObject to tStandard
