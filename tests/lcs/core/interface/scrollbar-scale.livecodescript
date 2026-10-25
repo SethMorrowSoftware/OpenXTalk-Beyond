@@ -105,6 +105,31 @@ private function _CompareOnItsSide pAcross, pPositions
    return tResults
 end _CompareOnItsSide
 
+-- How far, in pixels, the middle of a vertical slider's thumb pLength
+-- pixels long lands from the pointer after a middle click (button 2) at
+-- each of the points pYs down it, on a slider 26 pixels wide and 200
+-- long: the farthest. The thumb's top travels 200 - pLength pixels, as
+-- far down them as its thumbPosition is through the slider's values,
+-- and its middle is pLength / 2 below its top
+private function _MiddleClickMiss pLength, pYs
+   local tY, tMiddle, tMiss
+   _CreateScale "V", "0,40,26,240"
+   -- (the thumbPosition is rounded by the scrollbar's numberFormat)
+   set the numberFormat of scrollbar "V" to "0.000"
+   put 0 into tMiss
+   repeat for each item tY in pYs
+      set the thumbPosition of scrollbar "V" to 0
+      click button 2 at 13, tY
+      put 40 + (200 - pLength) * the thumbPosition of scrollbar "V" / 100 \
+            + pLength / 2 into tMiddle
+      TestDiagnostic "a middle click at" && tY & ": thumbPosition" \
+            && the thumbPosition of scrollbar "V" & ", the thumb's middle at" && tMiddle
+      put max(tMiss, abs(tMiddle - tY)) into tMiss
+   end repeat
+   delete scrollbar "V"
+   return tMiss
+end _MiddleClickMiss
+
 on TestWebVerticalSliderIsTheHorizontalOneOnItsSide
    local tResults, tLine
    TestSkipIfNot "platform", "HTML5"
@@ -136,6 +161,21 @@ on TestWebVerticalSliderIsTheHorizontalOneOnItsSide
    end repeat
    delete stack "ScaleTest"
 end TestWebVerticalSliderIsTheHorizontalOneOnItsSide
+
+on TestWebVerticalSliderMiddleClick
+   local tMiss
+   TestSkipIfNot "platform", "HTML5"
+   TestSkipIfNot "ui"
+
+   -- A middle click puts the middle of the thumb at the pointer, as it
+   -- put the older look's 30-pixel thumb's; on a slider 26 pixels wide
+   -- the thumb is 11 pixels long
+   create stack "ScaleTest"
+   set the defaultStack to "ScaleTest"
+   put _MiddleClickMiss(11, "90,140,200") into tMiss
+   delete stack "ScaleTest"
+   TestAssert "a middle click puts the middle of the thumb at the pointer", tMiss <= 1
+end TestWebVerticalSliderMiddleClick
 
 on TestDesktopVerticalSliderAsBefore
    local tLook, tResults, tLine

@@ -482,7 +482,17 @@ Boolean MCScrollbar::mdown(uint2 which)
 			real8 newpos;
 			real8 range = endvalue - startvalue;
 			real8 offset = startvalue;
-			if (flags & F_SCALE)
+			if (iswinverticalscale())
+			{
+				// OXT-Beyond: the middle of the thumb goes to the pointer,
+				//   as it did with the older look's thumb; this one is
+				//   shorter (compute_thumb()). On a bar no longer than its
+				//   thumb the pointer's place along the whole bar decides
+				margin = compute_thumb(thumbpos).height >> 1;
+				if (brect.height <= (margin << 1))
+					margin = 0;
+			}
+			else if (flags & F_SCALE)
 				margin = MOTIF_SCALE_THUMB_SIZE >> 1;
 			else
 				if (MCproportionalthumbs)
