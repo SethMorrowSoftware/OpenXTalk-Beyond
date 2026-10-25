@@ -73,6 +73,7 @@ on:
       - .github/workflows/web-ide.yml
       - tools/ci/web_ide_tour.py
       - tools/ci/web_ide_soak.py
+      - tools/ci/retry_check.py
       - tools/ci/web-ide-tour.livecodescript
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
@@ -95,6 +96,7 @@ on:
       - .github/workflows/web-ide.yml
       - tools/ci/web_ide_tour.py
       - tools/ci/web_ide_soak.py
+      - tools/ci/retry_check.py
       - tools/ci/web-ide-tour.livecodescript
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
@@ -419,7 +421,7 @@ jobs:
     needs: engine
     if: ${{ !inputs.release }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.browser == 'webkit' && 40 || 30 }}
     strategy:
       fail-fast: false
       matrix:
@@ -469,12 +471,20 @@ jobs:
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
 
+      # In WebKit the soak runs a second time if it fails, as web.yml's
+      # check does (tools/ci/retry_check.py: the first try's record is
+      # kept in try-1 of the uploaded folder, with a warning in the
+      # summary), and the step and the job have room for two tries;
+      # Chromium runs it once, as before
       - name: Web IDE soak
-        timeout-minutes: 15
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 25 || 15 }}
         env:
           BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
         run: |
-          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_soak.py --site "$RUNNER_TEMP/site" \
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-ide-soak" \
+            --what "The web IDE soak in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_soak.py --site "$RUNNER_TEMP/site" \
             --out "$RUNNER_TEMP/web-ide-soak" --browser "$BROWSER" --minutes 8
 
       - name: Upload the record
@@ -550,13 +560,23 @@ jobs:
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
 
+      # In WebKit the check runs a second time if it fails, as web.yml's
+      # check does (tools/ci/retry_check.py, with the first try's record
+      # kept in try-1 and a warning in the summary): a secp256k1 result
+      # checked in the page (a BIP-340 public key or signature) has come
+      # out wrong there now and then, at a different step from run to
+      # run, where the next run, Chromium and Firefox had it right. A
+      # pass takes about two minutes, so the step has room for two tries.
       - name: Web IDE xTalk Suite check
         timeout-minutes: 45
         env:
           BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
         run: |
           files="$RUNNER_TEMP/xtalk-files"
-          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-ide-xtalk" \
+            --what "The web IDE xTalk Suite check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
             --out "$RUNNER_TEMP/web-ide-xtalk" --browser "$BROWSER" --timeout 2400 \
             --tour tools/ci/web-ide-xtalk.livecodescript --relay \
             --add "$files/holdem.livecodescript" --add "$files/box2dxt-platformer.livecodescript" \

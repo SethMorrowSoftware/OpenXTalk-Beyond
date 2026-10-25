@@ -415,12 +415,24 @@ jobs:
           "$RUNNER_TEMP/fonttools/bin/python" -m pip install --quiet fonttools==4.67.0
           "$RUNNER_TEMP/fonttools/bin/python" tools/oxt/build_web_fonts.py "$RUNNER_TEMP/font-sources/x" --check
 
+      # In WebKit the check runs a second time if it fails
+      # (tools/ci/retry_check.py), with the first try's files kept in
+      # try-1 of the uploaded folder and a warning in the summary: now and
+      # then WebKit's web process crashes under one of the two tabs, which
+      # the next run does not do (6 of the 26 Linux builds from 2026-10-24
+      # to the 25th; never in Chromium or Firefox), and a failed check here
+      # leaves the Linux packages unmade. A check that fails twice fails
+      # as before. The step has room for two tries in WebKit; Chromium and
+      # Firefox run it once, as before.
       - name: Check the runtime in ${{ matrix.browser }}
-        timeout-minutes: 15
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 25 || 15 }}
         env:
           BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
         run: |
-          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-check" \
+            --what "The web runtime check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_check.py --runtime "$RUNNER_TEMP/web-runtime" \
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check" --browser "$BROWSER"
 
       - name: Upload the check's files

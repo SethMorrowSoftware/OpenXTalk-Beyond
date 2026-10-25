@@ -2178,7 +2178,13 @@ only those builds nothing; otherwise it takes the libraries, the
 Emscripten SDK and ccache's cache of the compiled files from the cache,
 and builds the engine. In the Linux workflow it also runs the
 [web standalone check](#web-standalone-check) on the runtime, in the job
-"Web runtime check".
+"Web runtime check", in Chromium, Firefox and WebKit. WebKit's web
+process now and then crashes under the check where the next run passes,
+so in WebKit a check that fails runs once more
+([`tools/ci/retry_check.py`](tools/ci/retry_check.py), which keeps the
+first try's files in `try-1` of the uploaded folder and gives a
+warning), and the job fails only when both tries fail. The web IDE's
+soak and xTalk Suite checks (`web-ide.yml`) do the same in WebKit.
 
 The Linux and macOS builds also upload their build outputs, without the
 build's own tools (GENTLE among them, which may not be redistributed;
