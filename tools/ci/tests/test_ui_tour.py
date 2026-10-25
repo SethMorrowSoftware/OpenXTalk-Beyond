@@ -160,7 +160,10 @@ class CrashReports(unittest.TestCase):
         self.assertEqual((count, lines), (0, ['(the engine ended on signal 11, and no crash report came in 2 s)']))
 
     def test_a_report_ends_the_wait(self):
-        since = time.time()
+        # (a second early: a file's mtime comes from the kernel's coarse
+        # clock, a few milliseconds behind time.time(), so a report written
+        # just after since could read as older and the wait ran out)
+        since = time.time() - 1
         self.write('OXT-Beyond-2026-10-25-022355.ips', json.dumps(HEADER) + '\n' + json.dumps(REPORT))
         started = time.time()
         with mock.patch.object(ui_tour.shutil, 'which', return_value=None):
