@@ -473,6 +473,8 @@ const static LT convert_table[] =
         {"seconds", TT_CHUNK, CF_SECONDS},
         {"secs", TT_CHUNK, CF_SECONDS},
         {"short", TT_CHUNK, CF_SHORT},
+        // OXT-Beyond: only the convert command reads this table
+        {"sql", TT_CHUNK, CF_SQL_DATE},
         {"system", TT_CHUNK, CF_SYSTEM},
         {"time", TT_CHUNK, CF_TIME}
     };

@@ -35,6 +35,11 @@ void MCDateTimeEvalMilliseconds(MCExecContext& ctxt, real64_t& r_real)
 	MCDateTimeGetMilliseconds(ctxt, r_real);
 }
 
+void MCDateTimeEvalMicroseconds(MCExecContext& ctxt, real64_t& r_real)
+{
+	MCDateTimeGetMicroseconds(ctxt, r_real);
+}
+
 void MCDateTimeEvalSeconds(MCExecContext& ctxt, real64_t& r_seconds)
 {
 	MCDateTimeGetSeconds(ctxt, r_seconds);
@@ -141,6 +146,28 @@ void MCDateTimeGetMilliseconds(MCExecContext &ctxt, double& r_value)
 void MCDateTimeGetLongMilliseconds(MCExecContext &ctxt, double& r_value)
 {
 	r_value = MCS_time() * 1000.0;
+}
+
+// OXT-Beyond: "the microseconds" and "the long microseconds" (from
+// HyperXTalk), which read the clock with MCS_microseconds rather than scale
+// MCS_time: on Windows that has only milliseconds (osspec.h)
+void MCDateTimeGetMicroseconds(MCExecContext &ctxt, double& r_value)
+{
+	r_value = floor(MCS_microseconds());
+}
+
+void MCDateTimeGetLongMicroseconds(MCExecContext &ctxt, double& r_value)
+{
+	r_value = MCS_microseconds();
+}
+
+// OXT-Beyond: microseconds() of the HyperXTalk compatibility library
+// (extensions/libraries/hxtcompat), which binds to this by name. Called so,
+// with brackets, it is a call of a script's own function handler, and the
+// library answers it only where there is none
+extern "C" MC_DLLEXPORT_DEF void MCHyperXTalkMicroseconds(double& r_value)
+{
+	r_value = floor(MCS_microseconds());
 }
 
 void MCDateTimeGetSeconds(MCExecContext &ctxt, double& r_value)

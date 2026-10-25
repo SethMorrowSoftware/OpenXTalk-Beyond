@@ -1,0 +1,14 @@
+# Preferences, card "Compatibility": the Success button's "Do it for me"
+# turns the Player tool on through this handler of the check box; it sets
+# the setting as the check box does now (revpreferencesgui-player-tool-
+# toggle.txt), so the Tools palette shows the tool at once.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "disPlayerLin" of card "Compatibility"
+replace:
+|   set the hilite of me to false|
+|   set the cDisablePlayerTool of stack "revPreferences" to false -- enable player tool|
+with:
+|   set the hilite of me to false|
+|   -- OXT-Beyond: as the check box does it (mouseUp)|
+|   revIDESetPreference "cDisablePlayerTool", false -- enable player tool|

@@ -118,6 +118,10 @@ enum Convert_form {
     CF_ABBREV_DATE,
     CF_LONG_DATE,
     CF_INTERNET_DATE,
+    // OXT-Beyond: HyperXTalk's sql format ("YYYY-MM-DD HH:MM:SS", local
+    // time), only where a script names it: "sql" and "sql date" are the
+    // same form
+    CF_SQL_DATE,
     CF_ENGLISH = 1000,
     CF_SYSTEM = 2000
 };
@@ -608,6 +612,13 @@ enum Functions {
     F_EVENT_CONTROL_KEY,
     F_EVENT_OPTION_KEY,
     F_EVENT_SHIFT_KEY,
+
+    // OXT-Beyond: HyperXTalk's "the microseconds", read only after "the"
+    // (MCScriptPoint::parseexp, MCProperty::parse) and where what holds it
+    // did not compile without it (MCNewSyntax): no token of the factor
+    // table, so "microseconds" stays free as a name. At the end, so that no
+    // other value moves
+    F_MICROSECS,
 };
 
 /* The HT_MIN and HT_MAX elements of the enum delimit the range of the handler
@@ -1764,6 +1775,11 @@ enum Properties {
 
     // OXT-Beyond: a stack's hyperTalkCompatible
     P_HYPERTALK_COMPATIBLE,
+
+    // OXT-Beyond: not a property: the format of "the sql date"
+    // (HyperXTalk's), as P_INTERNET is "the internet date"'s; at the end, so
+    // that no other value moves
+    P_SQL,
     
     // OXT-Beyond: the global useSystemWindowColor
     P_USE_SYSTEM_WINDOW_COLOR,

@@ -256,7 +256,7 @@ SHOWCASE = 'Resources/Examples/Showcase/'
 RELEASE_NOTES = ('CHANGELOG.md', 'HISTORY.md', 'README.md')
 RELEASE_NOTES_DIR = 'Toolset/palettes/updates/notes/'
 
-# components Extensions and TimeZone: the same 42 ids layout.py knows
+# components Extensions and TimeZone: the ids layout.py knows
 PACKAGED_EXTENSIONS = layout.REPO_BUILT_EXTENSIONS
 
 # The web runtime (--web-runtime), under the tools folder: where the IDE's
@@ -271,6 +271,30 @@ WEB_RUNTIME = 'Runtime/Emscripten/js/'
 WEB_ENGINE_FILES = tuple('standalone-community-%%s.%s' % ext for ext in ('js', 'wasm', 'html'))
 WEB_TEMPLATE_FOLDER = 'emscripten-standalone-template'
 WEB_STARTUP_TEMPLATE = 'emscripten-startup-template.livecodescript'
+
+# The Ext folder (component Ext): LiveCode's installer put the mergExt
+# collection there, downloaded from LiveCode's server, and OXT-Beyond does
+# not redistribute it (INTENDED_MISSING). mergJSON is built from its source
+# instead (mergjson/README.md) into Ext/mergJSON, where the IDE loads every
+# external of the folder that is for its platform and every stack of it
+# as a library (home.livecodescript, revInternal__SetupExternals and
+# revInternal__InitialiseLibraries). The standalone builder offers the
+# externals of the folder and tells their architectures apart by the end
+# of their names (revsblibrary, __ExternalArchitecture): LiveCode's
+# collection named them mergJSON-x64.dll, mergJSON-x86.so and so on, and so
+# does each platform's "ext" here. A package has its own build only, so a
+# standalone for another platform or architecture is built without the
+# external, as the builder does for any external it does not have.
+EXT_NAME = {'x86_64': 'x64', 'x86': 'x86', 'arm64': 'arm64'}
+# The files of Ext that come from the repository (installed path under
+# Ext/, repository path): the library with JSONToArray and ArrayToJSON,
+# which scripts written for LiveCode's mergJSON call, and the licences of
+# the external's code
+EXT_FILES = (
+    ('mergJSON/mergJSONLibrary.livecodescript', 'mergjson/src/mergJSONLibrary.livecodescript'),
+    ('mergJSON/LICENSE.txt', 'mergjson/LICENSE.txt'),
+    ('mergJSON/LICENSE-jansson.txt', 'mergjson/jansson/LICENSE'),
+)
 
 # ---------------------------------------------------------------------------
 # Platforms: build output -> installed path. The tables transcribe
@@ -331,6 +355,10 @@ class Platform(object):
                            and revsecurity next to the engine
       mobile               build outputs installed into Externals/ at the
                            tools root only (package.txt Mobile.<platform>)
+      ext                  (build output, installed path under Ext/): the
+                           externals of LiveCode's mergExt collection that
+                           this repository builds from their source
+                           (mergJSON: mergjson/README.md), with EXT_FILES
       toolchain            build outputs installed into Toolchain/
       cef                  None, or dict(files, trees: under
                            Externals/CEF of the build; helpers_in_cef: from
@@ -367,6 +395,7 @@ class Platform(object):
         self.drivers = kw['drivers']
         self.engine_support = kw['engine_support']
         self.mobile = kw['mobile']
+        self.ext = tuple(kw.get('ext', ()))
         self.toolchain = kw['toolchain']
         self.cef = kw.get('cef')
         self.runtimes = kw['runtimes']
@@ -407,6 +436,8 @@ def _windows(arch):
                         ('revsecurity.dll', 'revsecurity.dll')),
         # component Mobile.Windows
         mobile=('revandroid.dll',),
+        # component Ext (see EXT_NAME)
+        ext=(('mergJSON.dll', 'mergJSON/mergJSON-%s.dll' % EXT_NAME[arch]),),
         # component Toolchain.Windows
         toolchain=('lc-compile.exe', 'lc-run.exe', 'lc-compile-ffi-java.exe'),
         # component Externals.CEF.Windows: the helpers from the build root,
@@ -492,6 +523,7 @@ def _linux(arch):
         engine_support=(('revpdfprinter.so', 'revpdfprinter.so'),
                         ('revsecurity.so', 'revsecurity.so')),
         mobile=('revandroid.so',),
+        ext=(('mergJSON.so', 'mergJSON/mergJSON-%s.so' % EXT_NAME[arch]),),
         toolchain=('lc-compile', 'lc-run', 'lc-compile-ffi-java'),
         # component Externals.CEF.Linux, without chrome-sandbox; the helper
         # executables where the code starts them (see the Platform notes)
@@ -832,6 +864,9 @@ def _mac(arch):
                         ('revpdfprinter.bundle', app + '/Contents/MacOS/revpdfprinter.bundle')),
         # component Mobile.MacOSX (its Resources/Mobile Examples come from ide/)
         mobile=('revandroid.bundle',),
+        # a bundle has no architecture in its name: the standalone builder
+        # takes it for every macOS target (EXT_NAME)
+        ext=(('mergJSON.bundle', 'mergJSON/mergJSON.bundle'),),
         toolchain=('lc-compile', 'lc-run', 'lc-compile-ffi-java'),
         cef=None,
         runtimes=tuple(MAC_RUNTIMES[f] for f in folders),
@@ -883,7 +918,8 @@ INTENDED_MISSING = tuple(
       'from the stock LiveCode 9.6.3 Toolchain; this repository compiles '
       'engine/src/license.lcb into lc-compile instead (engine_syntax_only_lcb_files) '
       'and writes no .lci for it'),
-     ('Ext/**', 'the mergExt collection is not redistributed (licence unclear)')])
+     ('Ext/**', 'the mergExt collection is not redistributed (licence unclear); mergJSON is built from '
+                'its source into Ext/mergJSON instead (EXT_FILES)')])
 
 
 class PackageError(Exception):
@@ -1223,6 +1259,9 @@ def plan_build(pl):
     externals_component(pl, tools, False)
     for name in p.mobile:
         pl.output(tools + 'Externals/' + name, name, 'Mobile.' + p.component)
+    # Ext (EXT_NAME; plan adds EXT_FILES)
+    for rel, name in p.ext:
+        pl.output(tools + 'Ext/' + name, rel, 'Ext')
     # Toolchain.<platform>
     for name in p.toolchain:
         pl.file(tools + 'Toolchain/' + name, name, 'Toolchain.' + p.component)
@@ -1360,6 +1399,12 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
     plan_build(pl)
     if p.family == 'linux':
         plan_linux_desktop(pl, repo)
+    for target, rel in EXT_FILES:
+        path = layout.native(repo, rel)
+        if not os.path.isfile(path):
+            pl.problems.append('Ext: %s is missing' % path)
+            continue
+        pl.add(Item(tools + 'Ext/' + target, 'ide', source=path, note='%s (Ext)' % rel))
 
     # Licence files
     for name in LICENCE_FILES:
@@ -1809,6 +1854,8 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             continue
         if it.origin == 'licence':
             status, why = 'intended addition', 'OXT-Beyond licence file'
+        elif it.target.startswith('Ext/'):
+            status, why = 'intended addition', 'mergJSON, built from its source (EXT_FILES)'
         elif it.origin == 'asset' and _asset_rel(it) in it.asset.get('rename', {}):
             status, why = 'intended addition', 'notice file of an external asset (%s)' % it.note
         elif it.origin == 'asset' and rebuilt and it.target.startswith(REBUILT_RUNTIMES + ('PROVENANCE-',)):

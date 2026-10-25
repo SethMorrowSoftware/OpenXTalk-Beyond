@@ -59,7 +59,8 @@ script "org.openxtalk.plugin.mcpbridge"
 --    mcbWebMenuPick              the same in the web IDE
 --    mcbIsEnabled()
 --    mcbConfirm(pTitle, pDetail, pYes, pParts), mcbTooLate, mcbEditorStack(),
---    mcbEditorContext()          (the bridge's)
+--    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger()
+--                                (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
 constant kTools = "org.openxtalk.plugin.mcpbridge-tools"
@@ -1194,12 +1195,53 @@ function mcbConfirm pTitle, pDetail, pYes, pParts
    end if
    put "Cancel" & return & pYes into tSpec["buttons"]
    put "Cancel" into tSpec["cancel"]
+   -- Claude asks while the user is in Claude's app, and the question came
+   -- up behind the Script Editor: it stays in front of every window while
+   -- it is open (revKitDialog's "front")
+   put true into tSpec["front"]
    if mcbKit(tSpec, tChoice) then
       return tChoice is pYes
+   end if
+   -- Code longer than answer shows whole (mcbShowsLongCode said it would be
+   -- shown on the panel): not asked about, so nothing runs that the user
+   -- could not read
+   if pParts is an array and pParts["long"] is true then
+      answer information "Claude asked to run code that is too long to show in this window, so it did not run." titled kTitle
+      return false
    end if
    answer question pTitle & return & return & pDetail with "Cancel" or pYes titled kTitle
    return it is pYes
 end mcbConfirm
+
+-- True when mcbConfirm shows the code of a run whole, on the kit dialog's
+-- panel that scrolls, and not with answer, which the bridge cuts: the
+-- bridge then lets a run be longer
+function mcbShowsLongCode
+   if the optionKey is down or mcbOnWeb() then
+      return false
+   end if
+   return there is a file (revIDESpecialFolderPath("Toolset") & "/palettes/kitdialog/revkitdialog.livecodescript")
+end mcbShowsLongCode
+
+-- Stops the script paused in the debugger as the Script Editor's Stop
+-- does (its actionDebugStop puts the editor back to editing too); true
+-- when it was stopped
+function mcbStopDebugger
+   local tEditor, tError
+   try
+      put revTopMostScriptEditor() into tEditor
+      if tEditor is not empty and there is a tEditor then
+         dispatch "actionDebugStop" to tEditor
+         if it is "handled" then
+            return true
+         end if
+      end if
+      revDebuggerStop
+      return true
+   catch tError
+      return false
+   end try
+end mcbStopDebugger
 
 -- The stack of the script open in the Script Editor, or empty
 -- The user said yes to a question after Claude's app stopped waiting for

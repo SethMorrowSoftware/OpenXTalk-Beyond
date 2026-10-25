@@ -455,11 +455,12 @@ private function _PString pData, pAt
 end _PString
 
 -- A 'snd ' resource whose sound is MACE: format 1 or 2, its first
--- command's second parameter the offset of a compressed sound header
+-- soundCmd's or bufferCmd's second parameter (else its first command's)
+-- the offset of a compressed sound header
 -- (encode 0xFE). Inside Macintosh: Sound, 2-104 to 2-111, and the
 -- importer's MCHcsnd::import.
 private function _Sound pSnd
-   local tType, tCommands, tHeader, tFormat, tCompression, tSound, tBase
+   local tType, tCommands, tHeader, tFormat, tCompression, tSound, tBase, i
    if the number of bytes of pSnd < 4 then return empty
    put _Number(pSnd, 1, 2) into tType
    if tType is 1 then
@@ -471,6 +472,15 @@ private function _Sound pSnd
    end if
    if tCommands + 10 > the number of bytes of pSnd then return empty
    put _Number(pSnd, tCommands + 7, 4) into tHeader
+   -- a nullCmd may come first: the header is then the param2 of the
+   -- first soundCmd or bufferCmd, as the importer reads it
+   repeat with i = 0 to _Number(pSnd, tCommands + 1, 2) - 1
+      if tCommands + 10 + i * 8 > the number of bytes of pSnd then exit repeat
+      if _Number(pSnd, tCommands + 3 + i * 8, 2) mod 32768 is among the items of "80,81" then
+         put _Number(pSnd, tCommands + 7 + i * 8, 4) into tHeader
+         exit repeat
+      end if
+   end repeat
    if tHeader + 64 > the number of bytes of pSnd then return empty
    if byteToNum(byte tHeader + 21 of pSnd) is not 254 then return empty
    put byte tHeader + 41 to tHeader + 44 of pSnd into tFormat

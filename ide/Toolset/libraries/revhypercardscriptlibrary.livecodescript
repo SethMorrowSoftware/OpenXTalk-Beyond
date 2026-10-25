@@ -127,6 +127,9 @@ constant kLibraryName = "HyperCard Library"
 
 -- The properties of a menu and a menu item in HyperCard 2.2's menus
 constant kMenuProperties = "checkmark commandchar cmdchar enabled markchar name textstyle menumessage menumsg"
+-- The words that name a menu item by its place ("last menuItem of menu 3"),
+-- which the library's menus read (_HCMenuItemNumber)
+constant kMenuOrdinals = "first second third fourth fifth sixth seventh eighth ninth tenth last middle"
 
 -- The properties of HyperCard's picture and palette windows that this
 -- engine's windows do not have (T26)
@@ -293,6 +296,8 @@ function revHyperCardFixScripts pStack
    if tLine begins with "Added" and sStandInNames is not empty then
       put "Stand-ins: the stack's external commands, which this engine cannot run, do nothing when called:" && sStandInNames & return after tReport
    end if
+   put _QuietPalettes(sStack) into tLine
+   if tLine is not empty then put tLine & return after tReport
 
    put "HyperCard scripts:" && tChanged && "rewritten," && tSalvaged && "salvaged by handler (" & tStubs && "handlers left out)," && tStill && "still do not compile" into tSummary
    put tSummary after tReport
@@ -666,6 +671,35 @@ private function _StandIns pStack, pDefines
    return tOut
 end _StandIns
 
+-- The messages a palette window gets as it opens and closes, which a
+-- palette made from a PLTE resource (a substack, its script made by the
+-- engine's importer) would pass on to the stack's own script: in
+-- HyperCard a palette was a window, not a stack, and the stack's
+-- openStack did not run again as its palette opened (CoinMaster's
+-- openStack, run from the palette it opens, found none of its fields)
+constant kPaletteMessages = "preOpenStack openStack closeStack preOpenCard openCard closeCard openBackground closeBackground resumeStack suspendStack"
+constant kPaletteFirstLine = "-- HyperCard palette (PLTE resource), made by the HyperCard importer"
+
+private function _QuietPalettes pStack
+   local tSub, tScript, tMessage, tAdd, tCount
+   put 0 into tCount
+   repeat for each line tSub in the substacks of pStack
+      put the script of stack tSub of pStack into tScript
+      if line 1 of tScript is not kPaletteFirstLine then next repeat
+      put empty into tAdd
+      repeat for each word tMessage in kPaletteMessages
+         if ("on" && tMessage) is among the lines of tScript then next repeat
+         put return & "on" && tMessage & return & "end" && tMessage after tAdd
+      end repeat
+      if tAdd is empty then next repeat
+      set the script of stack tSub of pStack to tScript & return & \
+            "-- (a palette's own opening and closing do not reach the stack)" & tAdd
+      add 1 to tCount
+   end repeat
+   if tCount is 0 then return empty
+   return "Palettes:" && tCount && "made to keep their opening and closing messages from the stack's script"
+end _QuietPalettes
+
 -- Add the library as a substack of the stack and make it the stack's
 -- behavior. Returns a line for the report, or empty if it was there.
 private function _AddLibrary pStack, pStandIns
@@ -689,9 +723,18 @@ private function _AddLibrary pStack, pStandIns
    if tName is not among the lines of the substacks of pStack then
       -- made under a name no other stack has, as the library of a stack
       -- imported before would otherwise be the one "it" names
-      local tTemp
+      local tTemp, tMain, tPlain
       put "revHyperCardLibrary" & the milliseconds into tTemp
       create invisible stack tTemp
+      -- the mainStack is set by name, and a name that is a number ("007")
+      -- is not found as one: the stack has another name while its
+      -- library is made
+      put the short name of pStack into tMain
+      if tMain is a number then
+         put "revHyperCardStack" & the milliseconds into tPlain
+         set the name of pStack to tPlain
+         put the long id of stack tPlain into pStack
+      end if
       set the mainStack of stack tTemp to the short name of pStack
       set the name of stack tTemp of pStack to tName
       set the script of stack tName of pStack to revHyperCardLibraryScript() & pStandIns
@@ -701,6 +744,7 @@ private function _AddLibrary pStack, pStandIns
       close stack tName of pStack
    end if
    set the behavior of pStack to the long id of stack tName of pStack
+   if tPlain is not empty then set the name of pStack to tMain
    return "Added: the substack" && quote & tName & quote && "as the stack's behavior"
 end _AddLibrary
 
@@ -1179,6 +1223,28 @@ private function _NextCode pCode, pIndex
    return empty
 end _NextCode
 
+-- Whether the statement that starts with the token at pIndex goes on to
+-- the end of the statement (the line, or else) with values only: numbers,
+-- strings, the handler's variables, commas and signs; nothing that a
+-- command of this engine would read as its own words ("sort lines of x")
+private function _PlainCall pTokens, pCode, pIndex, pVars
+   local tItem, tFound, tKind, tWord
+   repeat for each item tItem in pCode
+      if not tFound then
+         if tItem = pIndex then put true into tFound
+         next repeat
+      end if
+      put pTokens[tItem]["k"] into tKind
+      put _Lower(pTokens[tItem]["t"]) into tWord
+      if tKind is "w" and tWord is "else" then return true
+      if tKind is among the words of "n s" then next repeat
+      if tKind is "p" and (tWord is comma or tWord is "-" or tWord is "+") then next repeat
+      if tKind is "w" and pVars[tWord] then next repeat
+      return false
+   end repeat
+   return true
+end _PlainCall
+
 -- A token's text in lower case, or empty for no token
 private function _T pTokens, pIndex
    if pIndex is empty then return empty
@@ -1306,6 +1372,13 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
                _Fire "T1 handler named like a keyword"
                next repeat
             end if
+         else if _StatementStart(tTokens, tCode, tIndex) and _PlainCall(tTokens, tCode, tIndex, pVars) then
+            -- ... and a call to one named like a command of this engine
+            -- ("sort", "rename i", "remove") made as a handler is called,
+            -- with nothing but values: HyperCard sent it to the handler
+            put pRenameHandlers[tWord] into tTokens[tIndex]["t"]
+            _Fire "T1 handler named like a keyword"
+            next repeat
          end if
       end if
 
@@ -1954,6 +2027,7 @@ end _ExternalArguments
 -- HyperCard's, not this engine's (scripts test "the version < 2")
 private function _VersionRule pLine
    local tTokens, tCode, tIdx, n, tItem, i, tWord
+   if "heapspace" is in pLine then put _HeapSpaceRule(pLine) into pLine
    if "version" is not in pLine then return pLine
    put _Tokens(pLine) into tTokens
    put _Code(tTokens) into tCode
@@ -1974,6 +2048,32 @@ private function _VersionRule pLine
    end repeat
    return _Join(tTokens)
 end _VersionRule
+
+-- T10: the heapSpace (or heapSpace()), the memory HyperCard had free,
+-- which stacks checked before they ran ("if the heapSpace < 1321000 then
+-- doMenu Quit HyperCard"); this engine gives 1000000 always, so it goes
+-- to the library's hcHeapSpace()
+private function _HeapSpaceRule pLine
+   local tTokens, tCode, tIdx, n, tItem, i
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   put 0 into n
+   repeat for each item tItem in tCode
+      add 1 to n
+      put tItem into tIdx[n]
+   end repeat
+   repeat with i = 1 to n
+      if _T(tTokens, tIdx[i]) is not "heapspace" then next repeat
+      if i > 1 and _T(tTokens, tIdx[i - 1]) is "the" then
+         _Replace tTokens, tIdx, i - 1, i, "hcHeapSpace()"
+         _Fire "T10 HyperCard's version"
+      else if _T(tTokens, tIdx[i + 1]) is "(" and _T(tTokens, tIdx[i + 2]) is ")" then
+         _Replace tTokens, tIdx, i, i + 2, "hcHeapSpace()"
+         _Fire "T10 HyperCard's version"
+      end if
+   end repeat
+   return _Join(tTokens)
+end _HeapSpaceRule
 
 -- Replace the code tokens pFrom to pTo with pText
 private command _Replace @pTokens, pIdx, pFrom, pTo, pText
@@ -2194,6 +2294,65 @@ private function _HyperCardRules pLine, pCompiled, pElse
                _Fire "T27 doMenu with the item not in quotes"
                put "hcDoMenu" && tTokens[tIdx[i + 1]]["t"] into tNew
             end if
+            -- doMenu "Quit HyperCard": the library's hcDoMenu, which
+            -- closes the stack in the IDE rather than quit it (a stack
+            -- that found too little memory quit, with messages locked, so
+            -- the IDE closed without asking to save), and quits a
+            -- standalone as HyperCard quit
+            if tWord is "domenu" then
+               if tEnd = i + 1 and _T(tTokens, tIdx[i + 1]) is among the items of (quote & "quit hypercard" & quote & comma & quote & "quit" & quote) then
+                  _Fire "T27 doMenu with the item not in quotes"
+                  put "hcDoMenu" && tTokens[tIdx[i + 1]]["t"] into tNew
+               else if tEnd > i + 1 and tPlain and _Span(tTokens, tIdx, i + 1, tEnd) is among the items of "quit hypercard,quit" then
+                  put "hcDoMenu" && quote & _Span(tTokens, tIdx, i + 1, tEnd) & quote into tNew
+               end if
+            end if
+            break
+         case "opencard"
+         case "closecard"
+         case "openbackground"
+         case "closebackground"
+         case "openstack"
+         case "closestack"
+         case "resumestack"
+         case "suspendstack"
+         case "idle"
+         case "openfield"
+         case "closefield"
+         case "exitfield"
+         case "mouseup"
+         case "mousedown"
+         case "mousestilldown"
+         case "mouseenter"
+         case "mouseleave"
+         case "mousewithin"
+         case "startup"
+         case "resume"
+         case "suspend"
+         case "newcard"
+         case "newbackground"
+         case "newstack"
+            -- T35: a message HyperCard sent ("openCard"), called alone as a
+            -- command: what no handler took, HyperCard took; here it is
+            -- passed off the end of the message path, where this engine
+            -- has no such command and stops with an error. Sent instead,
+            -- it goes the same way and ends quietly
+            if tEnd = i then
+               _Fire "T35 more forms HyperCard took"
+               put "send" && quote & tTokens[tIdx[i]]["t"] & quote && "to me" into tNew
+            end if
+            break
+         case "debug"
+            -- T35: HyperCard 2's debug command: "debug checkpoint" is this
+            -- engine's breakpoint, and its other options ("debug sound
+            -- off", "debug pureQuickDraw true") have nothing to set here
+            if tEnd = i + 1 and _T(tTokens, tIdx[i + 1]) is "checkpoint" then
+               _Fire "T35 more forms HyperCard took"
+               put "breakpoint" into tNew
+            else if tEnd > i and tTokens[tIdx[i + 1]]["k"] is "w" and quote is not in _Span(tTokens, tIdx, i + 1, tEnd) then
+               _Fire "T35 more forms HyperCard took"
+               put "hcDebug" && quote & _Span(tTokens, tIdx, i + 1, tEnd) & quote into tNew
+            end if
             break
          default
             -- T18: tabKey and HyperCard's other key commands, and the
@@ -2374,8 +2533,20 @@ private function _MenuItemProperties pLine
       if _T(tTokens, tIdx[i]) is "the" and _T(tTokens, tIdx[i - 1]) is not "set" \
             and _T(tTokens, tIdx[i + 1]) is among the words of kMenuProperties \
             and _T(tTokens, tIdx[i + 2]) is "of" and _T(tTokens, tIdx[i + 3]) is "menuitem" \
-            and _T(tTokens, tIdx[i + 5]) is "of" and _T(tTokens, tIdx[i + 6]) is "menu" then
+            and _T(tTokens, tIdx[i + 5]) is among the words of "of in" and _T(tTokens, tIdx[i + 6]) is "menu" then
          _Replace tTokens, tIdx, i, i + 7, "hcMenuItem(" & quote & _T(tTokens, tIdx[i + 1]) & quote & comma && tTokens[tIdx[i + 7]]["t"] & comma && tTokens[tIdx[i + 4]]["t"] & ")"
+         _Fire "T22 HyperCard menus"
+         put true into tChanged
+      end if
+   end repeat
+   -- ... without the ("if checkMark of menuItem 1 of menu M"), or with
+   -- "in menu", which HyperCard took too
+   repeat with i = 1 to n - 6
+      if _T(tTokens, tIdx[i]) is among the words of kMenuProperties and _T(tTokens, tIdx[i - 1]) is not among the words of "the set" \
+            and tTokens[tIdx[i]]["k"] is "w" \
+            and _T(tTokens, tIdx[i + 1]) is "of" and _T(tTokens, tIdx[i + 2]) is "menuitem" \
+            and _T(tTokens, tIdx[i + 4]) is among the words of "of in" and _T(tTokens, tIdx[i + 5]) is "menu" then
+         _Replace tTokens, tIdx, i, i + 6, "hcMenuItem(" & quote & _T(tTokens, tIdx[i]) & quote & comma && tTokens[tIdx[i + 6]]["t"] & comma && tTokens[tIdx[i + 3]]["t"] & ")"
          _Fire "T22 HyperCard menus"
          put true into tChanged
       end if
@@ -2633,9 +2804,15 @@ private function _SetMenuItem pTokens, pIdx, pAt, pEnd
    put _FindWord(pTokens, pIdx, j + 2, pEnd, "to", empty) into tTo
    if tTo is empty or tTo = pEnd then return empty
    if _T(pTokens, pIdx[j + 2]) is "menuitem" then
-      put _FindWord(pTokens, pIdx, j + 3, tTo, "of", "menu") into tMenu
+      put _FindWord(pTokens, pIdx, j + 3, tTo, "of in", "menu") into tMenu
       if tMenu is empty or tMenu = j + 3 or tMenu + 2 > tTo - 1 then return empty
       put _Span(pTokens, pIdx, j + 3, tMenu - 1) into tItem
+      add 2 to tMenu
+   else if _T(pTokens, pIdx[j + 2]) is among the words of kMenuOrdinals and _T(pTokens, pIdx[j + 3]) is "menuitem" then
+      -- set the checkMark of last menuItem of menu M
+      put _FindWord(pTokens, pIdx, j + 4, tTo, "of in", "menu") into tMenu
+      if tMenu is not j + 4 or tMenu + 2 > tTo - 1 then return empty
+      put quote & _T(pTokens, pIdx[j + 2]) & quote into tItem
       add 2 to tMenu
    else if _T(pTokens, pIdx[j + 2]) is "menu" and j + 3 < tTo then
       put "empty" into tItem
@@ -2652,6 +2829,11 @@ end _SetMenuItem
 private function _PutIntoMenu pTokens, pIdx, pAt, pEnd
    local tPrep, tWith, tMenu, tItem, tMessages
    put _FindWord(pTokens, pIdx, pAt + 2, pEnd, "into after before", "menu menuitem") into tPrep
+   if tPrep is empty then
+      -- put E into last menuItem of menu M
+      put _FindWord(pTokens, pIdx, pAt + 2, pEnd, "into after before", kMenuOrdinals) into tPrep
+      if tPrep is not empty and _T(pTokens, pIdx[tPrep + 2]) is not "menuitem" then put empty into tPrep
+   end if
    if tPrep is empty or tPrep + 2 > pEnd then return empty
    put "empty" into tMessages
    put "empty" into tItem
@@ -2663,9 +2845,14 @@ private function _PutIntoMenu pTokens, pIdx, pAt, pEnd
       put tWith - 1 into pEnd
    end if
    if _T(pTokens, pIdx[tPrep + 1]) is "menuitem" then
-      put _FindWord(pTokens, pIdx, tPrep + 2, pEnd, "of", "menu") into tMenu
+      put _FindWord(pTokens, pIdx, tPrep + 2, pEnd, "of in", "menu") into tMenu
       if tMenu is empty or tMenu = tPrep + 2 or tMenu + 2 > pEnd then return empty
       put _Span(pTokens, pIdx, tPrep + 2, tMenu - 1) into tItem
+      put _Span(pTokens, pIdx, tMenu + 2, pEnd) into tMenu
+   else if _T(pTokens, pIdx[tPrep + 2]) is "menuitem" then
+      put _FindWord(pTokens, pIdx, tPrep + 3, pEnd, "of in", "menu") into tMenu
+      if tMenu is not tPrep + 3 or tMenu + 2 > pEnd then return empty
+      put quote & _T(pTokens, pIdx[tPrep + 1]) & quote into tItem
       put _Span(pTokens, pIdx, tMenu + 2, pEnd) into tMenu
    else
       put _Span(pTokens, pIdx, tPrep + 2, pEnd) into tMenu
@@ -2684,10 +2871,17 @@ private function _MenuCommand pTokens, pIdx, pAt, pEnd
       put _Span(pTokens, pIdx, pAt + 2, pEnd) into tMenu
       put "empty" into tItem
    else if _T(pTokens, pIdx[pAt + 1]) is "menuitem" and tVerb is not "create" then
-      put _FindWord(pTokens, pIdx, pAt + 2, pEnd, "of", "menu") into tMenu
+      put _FindWord(pTokens, pIdx, pAt + 2, pEnd, "of in", "menu") into tMenu
       if tMenu is empty and tVerb is "delete" then put _FindWord(pTokens, pIdx, pAt + 2, pEnd, "from", "menu") into tMenu
       if tMenu is empty or tMenu = pAt + 2 or tMenu + 2 > pEnd then return empty
       put _Span(pTokens, pIdx, pAt + 2, tMenu - 1) into tItem
+      put _Span(pTokens, pIdx, tMenu + 2, pEnd) into tMenu
+   else if _T(pTokens, pIdx[pAt + 1]) is among the words of kMenuOrdinals and _T(pTokens, pIdx[pAt + 2]) is "menuitem" \
+         and tVerb is not "create" then
+      -- disable last menuItem of menu M
+      put _FindWord(pTokens, pIdx, pAt + 3, pEnd, "of in from", "menu") into tMenu
+      if tMenu is not pAt + 3 or tMenu + 2 > pEnd then return empty
+      put quote & _T(pTokens, pIdx[pAt + 1]) & quote into tItem
       put _Span(pTokens, pIdx, tMenu + 2, pEnd) into tMenu
    else
       return empty

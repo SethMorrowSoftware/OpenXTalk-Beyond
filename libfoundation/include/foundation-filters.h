@@ -32,6 +32,9 @@ bool MCFiltersIsoToMac(MCDataRef p_source, MCDataRef &r_result);
 bool MCFiltersMacToIso(MCDataRef p_source, MCDataRef &r_result);
 bool MCFiltersUrlEncode(MCStringRef p_source, MCStringRef& r_result);
 bool MCFiltersUrlDecode(MCStringRef p_source, MCStringRef& r_result);
+// OXT-Beyond: quoted-printable, from HyperXTalk (foundation-filters.cpp)
+bool MCFiltersQuotedPrintableEncode(MCDataRef p_src, MCStringRef& r_dst);
+bool MCFiltersQuotedPrintableDecode(MCStringRef p_src, MCDataRef& r_dst);
 
 ////////////////////////////////////////////////////////////////////////////////
 

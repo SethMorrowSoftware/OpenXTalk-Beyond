@@ -672,6 +672,20 @@ Boolean MCHcsnd::import(uint4 inid, MCNameRef inname, char *sptr, uint4 p_length
 	if (t_commands + 10 > p_length || hc_get_uint2(&sptr[t_commands]) == 0)
 		return False;
 	uint4 hsize = hc_get_uint4(&sptr[t_commands + 6]);
+	// OXT-Beyond: some sounds start with a nullCmd before the bufferCmd
+	// (SoundEdit's, its param1 'ST'); the header is then the param2 of the
+	// first soundCmd or bufferCmd (0x50, 0x51; the high bit says param2 is
+	// an offset). With none of those, the first command's, as before.
+	uint2 t_count = hc_get_uint2(&sptr[t_commands]);
+	for (uint4 i = 0; i < t_count && t_commands + 10 + i * 8 <= p_length; i++)
+	{
+		uint2 t_cmd = hc_get_uint2(&sptr[t_commands + 2 + i * 8]) & 0x7FFF;
+		if (t_cmd == 0x50 || t_cmd == 0x51)
+		{
+			hsize = hc_get_uint4(&sptr[t_commands + 6 + i * 8]);
+			break;
+		}
+	}
 	if (hsize > p_length || p_length - hsize < 22)
 		return False;
 	uint1 t_encode = (uint1)sptr[hsize + 20];

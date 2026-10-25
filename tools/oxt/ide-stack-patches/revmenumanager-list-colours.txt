@@ -1,0 +1,12 @@
+# Menu Builder: the lists of menus and of menu items were saved with black
+# text, which could not be read in the dark appearance (forum, tperry2x,
+# rc.6.3). Unset, they follow it, as the Menu Builder's other fields do.
+file: Toolset/palettes/revmenumanager.rev
+object: field "Menu Buttons" of card "Menu Manager"
+property: foregroundColor
+from: black
+to: 
+object: field "Menu Items" of card "Menu Manager"
+property: foregroundColor
+from: black
+to: 

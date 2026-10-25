@@ -168,6 +168,124 @@ MCServerScript::File *MCServerScript::FindFile(MCStringRef p_filename, bool p_ad
 	return t_file;
 }
 
+// OXT-Beyond: the statements of a line of a server script's top level, as
+// a chain, from the one whose first token sp has just read (of type p_type)
+// to the last that starts on the line. A statement can end before its line
+// does ("get tText matches wildcard tPattern" was "get tText", then a
+// statement "matches wildcard tPattern"), and ParseNextStatement then reads
+// the rest of the line as the next statement: here, a next statement that
+// starts on the line is read with the first, the same way, and anything
+// else is left to ParseNextStatement, as before.
+static Parse_stat MCServerScriptParseLine(MCScriptPoint& sp, Symbol_type p_type, MCStatement*& r_statements)
+{
+	r_statements = NULL;
+	MCStatement *t_last = NULL;
+	Symbol_type t_type;
+	t_type = p_type;
+	for(;;)
+	{
+		Parse_stat t_stat;
+		t_stat = PS_NORMAL;
+
+		MCStatement *t_statement;
+		t_statement = NULL;
+
+		const LT *t_symbol;
+		if (sp . lookup(SP_COMMAND, t_symbol) == PS_NORMAL)
+		{
+			// It's a statement
+			if (t_symbol -> type == TT_STATEMENT)
+			{
+				t_statement = MCN_new_statement(t_symbol -> which);
+				
+				if (t_statement -> parse(sp) != PS_NORMAL)
+				{
+					MCperror -> add(PE_SCRIPT_BADSTATEMENT, sp);
+					t_stat = PS_ERROR;
+				}
+			}
+			else
+			{
+				MCperror -> add(PE_SCRIPT_NOTSTATEMENT, sp);
+				t_stat = PS_ERROR;
+			}
+		}
+		else if (t_type == ST_ID)
+		{
+			// Treat it as a call
+			t_statement = new (nothrow) MCComref(sp . gettoken_nameref());
+			if (t_statement -> parse(sp) != PS_NORMAL)
+			{
+				MCperror -> add(PE_SCRIPT_BADCOMMAND, sp);
+				t_stat = PS_ERROR;
+			}
+		}
+		else
+		{
+			MCperror -> add(PE_SCRIPT_NOTCOMMAND, sp);
+			t_stat = PS_ERROR;
+		}
+
+		if (t_stat != PS_NORMAL)
+		{
+			delete t_statement;
+			return t_stat;
+		}
+
+		if (t_last != NULL)
+			t_last -> setnext(t_statement);
+		else
+			r_statements = t_statement;
+		t_last = t_statement;
+
+		// Whether a statement starts next on the line (a copy looks, so that
+		// sp is as it was whatever comes)
+		MCScriptPoint t_next(sp);
+		const LT *t_next_symbol;
+		if (t_next . next(t_type) != PS_NORMAL || t_type == ST_DATA ||
+			t_next . lookup(SP_HANDLER, t_next_symbol) == PS_NORMAL ||
+			(t_next . lookup(SP_COMMAND, t_next_symbol) != PS_NORMAL && t_type != ST_ID))
+			return PS_NORMAL;
+		sp . next(t_type);
+	}
+}
+
+// A line of a server script's top level that parses without the syntax
+// from HyperXTalk parses as it did; only one that does not is read again
+// with it (MCNewSyntaxRetry). As with a handler, but a line, not a
+// statement: the statements on a line that held "get tText matches wildcard
+// tPattern" parsed (and so does "get tText") until the one that started
+// with "matches" failed
+static void MCServerScriptDeleteLine(MCStatement*& x_statements)
+{
+	if (x_statements != NULL)
+		x_statements -> deletestatements(x_statements);
+	x_statements = NULL;
+}
+
+static Parse_stat MCServerScriptParseLineAgain(MCScriptPoint& sp, Symbol_type p_type, MCStatement*& r_statements)
+{
+	MCNewSyntaxRetry t_retry(sp);
+	Parse_stat t_stat;
+	t_stat = MCServerScriptParseLine(sp, p_type, r_statements);
+	if (t_stat == PS_ERROR && t_retry . Again())
+	{
+		MCServerScriptDeleteLine(r_statements);
+		t_stat = MCServerScriptParseLine(sp, p_type, r_statements);
+		if (t_stat == PS_ERROR)
+		{
+			MCServerScriptDeleteLine(r_statements);
+			t_retry . Undo();
+			t_stat = MCServerScriptParseLine(sp, p_type, r_statements);
+		}
+	}
+
+	if (t_stat != PS_NORMAL)
+		MCServerScriptDeleteLine(r_statements);
+
+	return t_stat;
+}
+
 Parse_stat MCServerScript::ParseNextStatement(MCScriptPoint& sp, MCStatement*& r_statement)
 {
 	Parse_stat t_stat;
@@ -220,7 +338,35 @@ Parse_stat MCServerScript::ParseNextStatement(MCScriptPoint& sp, MCStatement*& r
 						MCHandler *t_new_handler;
 						t_new_handler = new (nothrow) MCHandler((uint1)t_symbol -> which, t_is_private);
 						t_new_handler -> setfileindex(m_current_file -> index);
-						if (t_new_handler -> parse(sp, false) == PS_NORMAL && !hlist -> hashandler((Handler_type)t_symbol -> which, t_new_handler -> getname()))
+
+						// OXT-Beyond: as in MCHandlerlist::parse, a handler
+						// that compiles without the syntax from HyperXTalk
+						// compiles as it did (MCNewSyntaxRetry)
+						MCNewSyntaxRetry t_retry(sp);
+						Parse_stat t_parsed;
+						t_parsed = t_new_handler -> parse(sp, false);
+						if (t_parsed != PS_NORMAL && t_retry . Again())
+						{
+							delete t_new_handler;
+							t_new_handler = new (nothrow) MCHandler((uint1)t_symbol -> which, t_is_private);
+							t_new_handler -> setfileindex(m_current_file -> index);
+							t_parsed = t_new_handler -> parse(sp, false);
+
+							// (One whose name is taken fails, as below, so is
+							// read as before too)
+							if (t_parsed != PS_NORMAL ||
+								hlist -> hashandler((Handler_type)t_symbol -> which, t_new_handler -> getname()))
+							{
+								sp . sethandler(NULL);
+								delete t_new_handler;
+								t_retry . Undo();
+								t_new_handler = new (nothrow) MCHandler((uint1)t_symbol -> which, t_is_private);
+								t_new_handler -> setfileindex(m_current_file -> index);
+								t_parsed = t_new_handler -> parse(sp, false);
+							}
+						}
+
+						if (t_parsed == PS_NORMAL && !hlist -> hashandler((Handler_type)t_symbol -> which, t_new_handler -> getname()))
 						{
 							sp . sethandler(NULL);
 							hlist -> addhandler((Handler_type)t_symbol -> which, t_new_handler);
@@ -265,39 +411,11 @@ Parse_stat MCServerScript::ParseNextStatement(MCScriptPoint& sp, MCStatement*& r
 					}
 				}
 			}
-			else if (sp . lookup(SP_COMMAND, t_symbol) == PS_NORMAL)
-			{
-				// It's a statement
-				if (t_symbol -> type == TT_STATEMENT)
-				{
-					t_statement = MCN_new_statement(t_symbol -> which);
-					
-					if (t_statement -> parse(sp) != PS_NORMAL)
-					{
-						MCperror -> add(PE_SCRIPT_BADSTATEMENT, sp);
-						t_stat = PS_ERROR;
-					}
-				}
-				else
-				{
-					MCperror -> add(PE_SCRIPT_NOTSTATEMENT, sp);
-					t_stat = PS_ERROR;
-				}
-			}
-			else if (t_type == ST_ID)
-			{
-				// Treat it as a call
-				t_statement = new (nothrow) MCComref(sp . gettoken_nameref());
-				if (t_statement -> parse(sp) != PS_NORMAL)
-				{
-					MCperror -> add(PE_SCRIPT_BADCOMMAND, sp);
-					t_stat = PS_ERROR;
-				}
-			}
 			else
 			{
-				MCperror -> add(PE_SCRIPT_NOTCOMMAND, sp);
-				t_stat = PS_ERROR;
+				// A statement, or a call; OXT-Beyond: and those that follow
+				// it on its line (MCServerScriptParseLine)
+				t_stat = MCServerScriptParseLineAgain(sp, t_type, t_statement);
 			}
 		}
 		else if (t_stat == PS_EOF)
@@ -498,6 +616,7 @@ bool MCServerScript::Include(MCExecContext& ctxt, MCStringRef p_filename, bool p
 		t_stat = ParseNextStatement(sp, t_statement);
 	
 		// If we got a statement, append it to the chain.
+		// OXT-Beyond: or the statements of a line (ParseNextStatement)
 		if (t_statement != nil)
 		{
 			if (t_last_statement != nil)
@@ -506,6 +625,8 @@ bool MCServerScript::Include(MCExecContext& ctxt, MCStringRef p_filename, bool p
 				t_statements = t_statement;
 
 			t_last_statement = t_statement;
+			while (t_last_statement -> getnext() != nil)
+				t_last_statement = t_last_statement -> getnext();
 		}
 		else if (t_stat == PS_EOF)
 		{

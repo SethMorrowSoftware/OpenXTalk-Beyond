@@ -70,8 +70,15 @@ def ide_tools():
 class FakeOXT:
     """OXT-Beyond's side: answers each line with handler(request)."""
 
-    def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0):
+    def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0, status=None,
+                 held_up=False):
         self.handler = handler
+        # What a status says (mcbStatusText); None answers it as an
+        # OXT-Beyond that has no status does
+        self.status = status
+        # True: a status gets no answer at all, as from an OXT-Beyond held
+        # up in code that does not end, which reads nothing meanwhile
+        self.held_up = held_up
         self.token = token
         self.tools = ide_tools() if tools is None else tools
         self.hello_delay = hello_delay
@@ -110,6 +117,8 @@ class FakeOXT:
                     line, data = data.split(b'\n', 1)
                     request = json.loads(line.decode('utf-8'))
                     self.requests.append(request)
+                    if self.held_up and request.get('method') == 'status':
+                        continue
                     with self.lock:
                         self.in_flight += 1
                         self.most_in_flight = max(self.most_in_flight, self.in_flight)
@@ -119,6 +128,11 @@ class FakeOXT:
                         if self.hello_delay:
                             time.sleep(self.hello_delay)
                         reply = {'ok': True, 'protocol': 1, 'tools': self.tools}
+                    elif request.get('method') == 'status':
+                        if self.status is None:
+                            reply = {'ok': False, 'error': 'There is no method "status".'}
+                        else:
+                            reply = {'ok': True, 'busy': True, 'text': self.status}
                     else:
                         reply = self.handler(request)
                     with self.lock:
@@ -346,7 +360,8 @@ class McpBridgeServerBase(unittest.TestCase):
             json.dump(info, f)
 
     def start_server(self, args=(), loaded=False, **settings):
-        env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000', **settings)
+        env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000')
+        env.update(settings)
         # loaded: started by a script that loads server.js, as the Node.js
         # built into Claude's desktop app may, so require.main is not it
         command = [NODE, '-e', 'require(process.argv[1])', SERVER] if loaded else [NODE, SERVER]
@@ -512,6 +527,32 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertTrue(result['isError'])
         self.assertIn('closed the connection', result['content'][0]['text'])
 
+    def test_a_call_queued_behind_one_that_timed_out_gets_its_answer(self):
+        # The first call is not answered, nor the status asked after it
+        # timed out; the call queued behind it goes on a new connection,
+        # which OXT-Beyond answers. Until 0.2.7-rc.6.4 the first
+        # connection, let go after the status, closed after the new one
+        # was made, and the queued call was told "closed the connection".
+        def handler(request):
+            if request['tool'] == 'run_code':
+                time.sleep(5)
+                return None
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, held_up=True)
+        self.start_server(OXT_MCP_TIMEOUT_MS='1000')
+        self.initialize()
+        first = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}})
+        second = self.send('tools/call', {'name': 'list_stacks', 'arguments': {}})
+        replies = {}
+        for _ in range(2):
+            reply = self.receive()
+            replies[reply['id']] = reply['result']
+        self.assertTrue(replies[first]['isError'])
+        self.assertIn('did not answer in 1 seconds', replies[first]['content'][0]['text'])
+        self.assertEqual(replies[second]['content'][0]['text'], 'list_stacks')
+        self.assertFalse(replies[second]['isError'])
+        self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code', 'list_stacks'])
+
     def test_calls_go_one_at_a_time(self):
         def handler(request):
             time.sleep(0.2)
@@ -587,6 +628,62 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertIn('busy', replies[second]['content'][0]['text'])
         time.sleep(0.5)
         self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['list_stacks'])
+
+    def test_a_call_told_the_ide_is_busy_is_told_what_it_waits_for(self):
+        def handler(request):
+            time.sleep(1.5)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."')
+        self.start_server(OXT_MCP_BUSY_WAIT_MS='300')
+        self.initialize()
+        first = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}})
+        second = self.send('tools/call', {'name': 'list_changes', 'arguments': {}})
+        replies = {}
+        for _ in range(2):
+            reply = self.receive()
+            replies[reply['id']] = reply['result']
+        self.assertEqual(replies[first]['content'][0]['text'], 'run_code')
+        self.assertTrue(replies[second]['isError'])
+        text = replies[second]['content'][0]['text']
+        self.assertIn('busy', text)
+        self.assertIn('waiting for the user to answer its question', text)
+        # The status went on a connection of its own, and is not a call
+        self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code'])
+        self.assertGreaterEqual(self.oxt.connections, 2)
+
+    def test_a_long_call_tells_a_client_that_asked_for_progress(self):
+        def handler(request):
+            time.sleep(1.2)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."')
+        self.start_server(OXT_MCP_STATUS_INTERVAL_MS='300')
+        self.initialize()
+        sent = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}, '_meta': {'progressToken': 'p1'}})
+        progress = []
+        while True:
+            message = self.receive()
+            if message.get('method') == 'notifications/progress':
+                progress.append(message['params'])
+                continue
+            self.assertEqual(message.get('id'), sent)
+            break
+        self.assertTrue(progress)
+        self.assertEqual(progress[0]['progressToken'], 'p1')
+        self.assertIn('waiting for the user', progress[0]['message'])
+        self.assertEqual([p['progress'] for p in progress], list(range(1, len(progress) + 1)))
+
+    def test_no_progress_without_a_token_or_a_status(self):
+        def handler(request):
+            time.sleep(0.8)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        # An OXT-Beyond that has no status: nothing is said
+        self.start_oxt(handler)
+        self.start_server(OXT_MCP_STATUS_INTERVAL_MS='200')
+        self.initialize()
+        sent = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}, '_meta': {'progressToken': 7}})
+        message = self.receive()
+        self.assertEqual(message.get('id'), sent)
+        self.assertEqual(message['result']['content'][0]['text'], 'run_code')
 
     def test_a_cancelled_call_is_not_sent_and_not_answered(self):
         def handler(request):

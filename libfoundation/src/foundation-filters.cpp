@@ -189,6 +189,143 @@ bool MCFiltersBase64Encode(MCDataRef p_src, MCStringRef& r_dst)
 	return buffer.CreateStringAndRelease(r_dst);
 }
 
+//////////
+
+// OXT-Beyond: quoted-printable (RFC 2045, section 6.7), from HyperXTalk's
+// libfoundation/src/foundation-filters.cpp, for the quotedPrintableEncode
+// and quotedPrintableDecode of the HyperXTalk compatibility library
+// (extensions/libraries/hxtcompat, through engine/src/exec-filters.cpp).
+//
+// Encoding: bytes 33 to 126 stay as they are, but "="; space and tab do too,
+// unless a line break or the end comes next; CR and LF stay as they are and
+// start a new line; every other byte becomes "=XX" in upper-case hex. A
+// longer line is broken with soft line breaks ("=" and CR LF), so that no
+// line is longer than 76 characters, a soft line break's "=" included, as
+// the RFC asks. (HyperXTalk's lines could be 77 characters, and its buffer
+// was too small for data that is mostly bytes to encode.)
+bool MCFiltersQuotedPrintableEncode(MCDataRef p_src, MCStringRef& r_dst)
+{
+	const uint8_t *s = MCDataGetBytePtr(p_src);
+	uindex_t size = MCDataGetLength(p_src);
+
+	// A byte is at most 3 characters, and at least 73 come before each soft
+	// line break (3 more)
+	uint64_t t_capacity = uint64_t(size) * 3 + (uint64_t(size) / 24 + 1) * 3;
+	if (t_capacity > UINDEX_MAX)
+		return false;
+
+	MCAutoNativeCharArray buffer;
+	if (!buffer.New(uindex_t(t_capacity)))
+		return false;
+
+	static const char_t hex[] = "0123456789ABCDEF";
+
+	char_t *p = buffer.Chars();
+	uindex_t col = 0;
+	for (uindex_t i = 0; i < size; i++)
+	{
+		uint8_t c = s[i];
+		if (c == '\r' || c == '\n')
+		{
+			*p++ = c;
+			col = 0;
+			continue;
+		}
+
+		// Whether this is the last byte of its line
+		bool at_end = i + 1 == size || s[i + 1] == '\r' || s[i + 1] == '\n';
+		bool is_ws = c == ' ' || c == '\t';
+		bool must_encode = c == '=' || (is_ws && at_end) ||
+		                   (c < 0x20 && !is_ws) || c > 0x7e;
+		uindex_t needed = must_encode ? 3 : 1;
+
+		// The last characters of a line need no room for a soft line
+		// break's "="
+		if (col + needed > (at_end ? 76u : 75u))
+		{
+			*p++ = '=';
+			*p++ = '\r';
+			*p++ = '\n';
+			col = 0;
+		}
+
+		if (must_encode)
+		{
+			*p++ = '=';
+			*p++ = hex[c >> 4];
+			*p++ = hex[c & 0xf];
+		}
+		else
+			*p++ = c;
+		col += needed;
+	}
+
+	buffer.Shrink(p - buffer.Chars());
+	return buffer.CreateStringAndRelease(r_dst);
+}
+
+static int __MCFiltersQuotedPrintableHexValue(char_t p_char)
+{
+	if (p_char >= '0' && p_char <= '9')
+		return p_char - '0';
+	if (p_char >= 'A' && p_char <= 'F')
+		return p_char - 'A' + 10;
+	if (p_char >= 'a' && p_char <= 'f')
+		return p_char - 'a' + 10;
+	return -1;
+}
+
+// Decoding: "=XX" (hex in either case) becomes its byte, a soft line break
+// ("=" and CR LF, or "=" and LF) is left out, and everything else stays as
+// it is, an "=" that starts neither included. The string is read as native
+// text (as its bytes, when it holds data).
+bool MCFiltersQuotedPrintableDecode(MCStringRef p_src, MCDataRef& r_dst)
+{
+	MCAutoStringRefAsNativeChars t_native;
+	const char_t *s = nil;
+	uindex_t l = 0;
+	if (!t_native.Lock(p_src, s, l))
+		return false;
+
+	MCAutoByteArray buffer;
+	if (!buffer.New(l))
+		return false;
+
+	byte_t *p = buffer.Bytes();
+	uindex_t i = 0;
+	while (i < l)
+	{
+		if (s[i] == '=' && i + 1 < l)
+		{
+			if (s[i + 1] == '\r' && i + 2 < l && s[i + 2] == '\n')
+			{
+				i += 3;
+				continue;
+			}
+			if (s[i + 1] == '\n')
+			{
+				i += 2;
+				continue;
+			}
+			if (i + 2 < l)
+			{
+				int hi = __MCFiltersQuotedPrintableHexValue(s[i + 1]);
+				int lo = __MCFiltersQuotedPrintableHexValue(s[i + 2]);
+				if (hi >= 0 && lo >= 0)
+				{
+					*p++ = byte_t((hi << 4) | lo);
+					i += 3;
+					continue;
+				}
+			}
+		}
+		*p++ = byte_t(s[i++]);
+	}
+
+	buffer.Shrink(p - buffer.Bytes());
+	return buffer.CreateDataAndRelease(r_dst);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "zlib.h"

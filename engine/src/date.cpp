@@ -35,6 +35,12 @@ static int1 s_datetime_month_length[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 
 static const char *s_internet_date_format = "!%a, %#d %b %Y %H:%M:%S %z";
 static const char *s_items_date_format = "!%#Y,%#m,%#d,%#H,%#M,%#S,%#w";
+// OXT-Beyond: HyperXTalk's sql date, local time, and its date alone (which
+// "from sql date" also takes, as an SQL DATE column holds). The year has
+// four digits, as SQL writes it: HyperXTalk's %#Y writes the year 99 as 99,
+// which reads back as 1999.
+static const char *s_sql_date_format = "!%Y-%m-%d %H:%M:%S";
+static const char *s_sql_day_format = "!%Y-%m-%d";
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -730,6 +736,13 @@ void MCD_date(MCExecContext &ctxt, Properties p_format, MCStringRef &r_date)
 	uint4 t_length;
 	MCD_decompose_format(ctxt, p_format, t_length, t_use_system);
 
+	// OXT-Beyond: "the sql date" (HyperXTalk's), the local date and time
+	if (t_length == P_SQL)
+	{
+		datetime_format(g_basic_locale, MCSTR(s_sql_date_format), t_datetime, r_date);
+		return;
+	}
+
 	if (t_length != P_SHORT && t_length != P_ABBREVIATE && t_length != P_LONG && t_length != P_INTERNET)
 		t_length = P_SHORT;
 
@@ -912,6 +925,10 @@ static bool MCD_decompose_convert_format(MCExecContext &ctxt, int p_form, const 
 		r_format = MCSTR(s_items_date_format);
 	break;
 
+	case CF_SQL_DATE:
+		r_format = MCSTR(s_sql_date_format);
+	break;
+
 	case CF_TIME:
 	case CF_SHORT_TIME:
 	case CF_ABBREV_TIME:
@@ -1043,6 +1060,42 @@ bool MCD_convert_to_datetime(MCExecContext &ctxt, MCValueRef p_input, Convert_fo
             
 			datetime_normalize(t_datetime);
             
+			t_success = MCS_datetimetouniversal(t_datetime);
+		}
+		else if (p_primary_from == CF_SQL_DATE)
+		{
+			// OXT-Beyond: "from sql date": the date and time, or the date
+			// alone (midnight), and nothing after it; local time, as
+			// "the sql date" gives it
+			int t_valid_dateitems;
+			t_valid_dateitems = 0;
+
+			MCAutoStringRef t_string;
+			if (!ctxt.ConvertToString(p_input, &t_string))
+				return false;
+
+			// datetime_parse sets only the parts it reads, so a date alone
+			// leaves the time as this
+			t_datetime . hour = 0;
+			t_datetime . minute = 0;
+			t_datetime . second = 0;
+			t_datetime . bias = 0;
+
+			if (!datetime_parse(g_basic_locale, ctxt.GetCutOff(), false, MCSTR(s_sql_date_format), *t_string, t_offset, t_datetime, t_valid_dateitems) ||
+				t_offset != MCStringGetLength(*t_string))
+			{
+				t_offset = 0;
+				t_valid_dateitems = 0;
+				if (!datetime_parse(g_basic_locale, ctxt.GetCutOff(), false, MCSTR(s_sql_day_format), *t_string, t_offset, t_datetime, t_valid_dateitems) ||
+					t_offset != MCStringGetLength(*t_string))
+					return false;
+			}
+
+			if (!datetime_validate(t_datetime))
+				return false;
+
+			datetime_normalize(t_datetime);
+
 			t_success = MCS_datetimetouniversal(t_datetime);
 		}
 		else if (p_primary_from == CF_INTERNET_DATE)
@@ -1276,7 +1329,7 @@ bool MCD_convert_from_datetime(MCExecContext &ctxt, MCDateTime p_datetime, Conve
 	}
 	else 
 	{
-		if (p_primary_to == CF_INTERNET_DATE || p_secondary_to == CF_DATEITEMS)
+		if (p_primary_to == CF_INTERNET_DATE || p_primary_to == CF_SQL_DATE || p_secondary_to == CF_DATEITEMS)
 			p_secondary_to = CF_UNDEFINED;
         
 		t_success = MCS_datetimetolocal(p_datetime);

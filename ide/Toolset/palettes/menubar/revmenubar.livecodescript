@@ -268,11 +268,12 @@ on hCheckMacUp
    if the mouse is up then
       if the platform contains "mac" then send "revMenubarBuildMenus" to this stack in 20 milliseconds  --tp 25-9, speed update
       unIconifyStack
-      put the rect of this stack into tOldRect
-      lock screen
-      set the itemdelimiter to ","
-      set the bottomLeft of this stack to tOldBL
-      unlock screen
+      -- OXT-Beyond: no more "set the bottomLeft of this stack to tOldBL"
+      -- (and the rect put before it). tOldBL is set nowhere, so it reads as
+      -- the text "tOldBL" and the set could only stop on an error, as
+      -- unIconifyStack did before it: the end of every drag of the menu bar
+      -- stopped on one or the other, and neither moved it (forum, bwmilby,
+      -- rc.6.3)
    else
       if not (the pendingmessages contains "hCheckMacUp") then send "hCheckMacUp" to this stack in 200 milliseconds
    end if
@@ -2283,7 +2284,12 @@ on unIconifyStack
    end repeat
    if gREVBackDropRestore is not empty then set the backDrop to gREVBackDropRestore
    unlock messages
-   set the windowBoundingRect to gREVRestore["windowBoundingRect"]
+   -- OXT-Beyond: only one that iconifyStack kept. hCheckMacUp calls this
+   -- after a drag too, when the menu bar may never have been minimized, and
+   -- the windowBoundingRect cannot be set to empty (an error, every time)
+   if gREVRestore["windowBoundingRect"] is not empty then
+      set the windowBoundingRect to gREVRestore["windowBoundingRect"]
+   end if
 end unIconifyStack
 
 on iconifyStack
@@ -3498,6 +3504,21 @@ on tMenuBar_WDdecorations  --tp 24-1, show revmenubar as standard window
             replace "." with return in tCorrectMacOS
             if word 1 of line 1 of tCorrectMacOS < "11" then put "46" into tOldTop  --compensate for MacOS
             else put "52" into tOldTop  --compensate for MacOS Sonoma+
+            -- OXT-Beyond: and with all of its title bar below the Mac's own
+            -- menu bar, which is taller than 24 on a MacBook with a camera
+            -- notch (#174), as a title bar can be taller than 28 (forum,
+            -- bwmilby, rc.6.3: the top of the title bar sat under the menu
+            -- bar). The menu bar's bottom is the top of the working
+            -- screenRect, and the title bar is what the window's effective
+            -- rect has above its rect; where they come to no more than the
+            -- place above, it stays
+            local tWorkingTop, tTitleBar
+            put item 2 of line (the screen of this stack) of the working screenRects into tWorkingTop
+            put (the top of this stack) - (item 2 of the effective rect of this stack) into tTitleBar
+            if tWorkingTop is a number and tWorkingTop < 60 and tTitleBar is a number and tTitleBar >= 0 \
+                  and tTitleBar < 60 and tWorkingTop + tTitleBar > tOldTop then
+               put tWorkingTop + tTitleBar into tOldTop
+            end if
          end if
       end if
    else  --docked stack

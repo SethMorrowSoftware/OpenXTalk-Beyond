@@ -7,20 +7,30 @@ script "oxt_ui_tour"
 -- It waits for the IDE to finish starting, records the system's
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
--- first size, wide, and with its names, and checks of how that look
--- behaves: tools-modern-check, -sizes, -use and -switch), a stack of
--- the user with the usual controls, a second one whose controls the
--- pixels of the screen are checked on (controls: the frames of empty
--- fields, the tabs, a scrollbar with nothing to scroll, sliders, and on
--- the Mac the useSystemWindowColor) (and stacks opened with their title
+-- first size, wide, with its names and with Large Icons, and checks of how that look
+-- behaves: tools-modern-check, -sizes, -use and -switch), on macOS the
+-- menu bar stack told it was moved, and made a window (menubar-mac), on
+-- Linux a pop-up menu whose ticks, dots and submenu arrows must stand out
+-- from the menu (menu-marks), a stack of
+-- the user with the usual controls (and a switch between light and dark
+-- while it is the defaultStack: appearance-switch), a second one whose
+-- controls the pixels of the screen are checked on (controls: the frames
+-- of empty fields, the tabs, a scrollbar with nothing to scroll, sliders,
+-- and on the Mac the useSystemWindowColor) (and stacks opened with their title
 -- bars above the screen, which the IDE moves where they can be dragged:
 -- title-bar), the Property Inspector (each section for a button, the
 -- Text section of a field, the Colors section of a graphic and of several
--- objects), the Script Editor (and its results of a Find All), the
+-- objects, and the graphic's Fill gradient popup, which must open beside
+-- the Inspector and off the graphic, and a player made with the IDE and
+-- inspected, with the Player tool turned off and on again: player), the
+-- Script Editor (and its results
+-- of a Find All), the
 -- Message Box, the Project Browser, LiveCode's Dictionary (with the
 -- entries of both languages and of the extensions, which its page
 -- reports) and its guides, the text dictionary, each pane of Preferences, each card
--- of the Standalone Settings, the Menu Builder, the
+-- of the Standalone Settings (and mergJSON, which the IDE loads from its
+-- Ext folder: ext-mergjson), the Menu Builder (on a stack with a menu
+-- bar, which it must read whole), the
 -- Extension Manager and Builder, the Message Watcher, Search, the Object
 -- Library, the Card Navigator, the About window, the Release Notes
 -- window, the IDE's own dialog in the look of Learn (revIDEKitDialog),
@@ -45,6 +55,9 @@ script "oxt_ui_tour"
 --    OXT_TOUR_OUT    the folder for the snapshots (PNG)
 --    OXT_TOUR_LOG    the file for the lines below
 --    OXT_TOUR_ONLY   comma-separated steps to run (empty: all)
+--    OXT_TOUR_APPEARANCE  light or dark: the system's appearance, which
+--                    ui_tour.py set (the inspector's inherited values are
+--                    checked against it; empty: not checked)
 --
 -- Lines:
 --    STARTED
@@ -55,7 +68,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,sample,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-multiple,tooltip-inspector,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -238,6 +251,21 @@ on tour_tools_modern_names
    tourToolsClassic
 end tour_tools_modern_names
 
+-- Large Icons, chosen in the palette's menu as a user does: the icons and
+-- the tiles half as large again, and the palette as wide as two columns
+-- need (a palette without the option is snapshotted as it is)
+on tour_tools_modern_large
+   if tourToolsModern(empty, false) then
+      revIDESetPreference "revTools_modernLarge", false
+      dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+      tourWait 500
+      tourRecord "INFO tools-modern-large" && revIDEGetPreference("revTools_modernLarge") && "rect" && the rect of stack "revTools"
+      tourShotStack "revTools", "01-tools-modern-large"
+      revIDESetPreference "revTools_modernLarge", false
+   end if
+   tourToolsClassic
+end tour_tools_modern_large
+
 -- Turns the modern look on, at its first size or pWidth wide, with or
 -- without names; false when the palette has no modern look
 function tourToolsModern pWidth, pNames
@@ -327,6 +355,13 @@ on tour_tools_modern_check
          tourTmCheck tourTmNamed("tmIcon:" & tKey) is not empty or the icon of tourTmNamed(tKey) is not 0, "the widget" && tKey && "has an icon"
       end if
    end repeat
+   -- a shape's icon is drawn, sharp at any size, where the classic look's
+   -- is a picture of 12 to 14 points
+   repeat for each key tKey in tModern
+      if item 1 of tModern[tKey] is "graphic" then
+         tourTmCheck tourTmShapeIcon(tKey) > 14, "the shape" && tKey && "has a drawn icon (" & tourTmShapeIcon(tKey) & ")"
+      end if
+   end repeat
    -- the icon images, which Home reads (the Browse tool's as a cursor)
    tourTmCheck tourTmNamed("com.livecode.tool.Browse.icon.png") is not empty, "the Browse tool's icon image is there"
    -- the tutorial's calls
@@ -350,7 +385,7 @@ end tour_tools_modern_check
 -- Sizes: the tiles fit the window at each width, in more columns when
 -- wider; what doesn't fit its height scrolls; the size is kept
 on tour_tools_modern_sizes
-   local tW, tCols, tLast, tMax, tTop
+   local tW, tCols, tLast, tMax, tTop, tShape, tWidget
    if not tourTmStart("tools-modern-sizes") then exit tour_tools_modern_sizes
    if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
    put 0 into tLast
@@ -404,6 +439,27 @@ on tour_tools_modern_sizes
    set the rect of stack "revTools" to 40, 120, 40 + 400, 120 + 600
    tourWait 200
    tourTmCheck not the visible of tourTmNamed("tmThumb"), "a palette tall enough shows no thumb"
+   -- Large Icons, from the menu: the tiles and the drawn icons half as
+   -- large again, still fitting, and back again
+   revIDESetPreference "revTools_modernLarge", false
+   set the rect of stack "revTools" to 40, 120, 40 + 260, 120 + 520
+   tourWait 200
+   put tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") into tShape
+   put the width of widget 1 of tourTmGroup("widget") into tWidget
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernLarge") is true, "the menu turns Large Icons on"
+   tourTmLayoutOK "with Large Icons"
+   tourTmCheck tShape > 14 and tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") is round(tShape * 1.5), \
+         "with Large Icons a shape's icon is drawn half as large again (" & tShape && "and" && \
+         tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") & ")"
+   tourTmCheck the width of widget 1 of tourTmGroup("widget") is round(tWidget * 1.5), \
+         "and a widget's icon (" & tWidget && "and" && the width of widget 1 of tourTmGroup("widget") & ")"
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernLarge") is false and \
+         tourTmShapeIcon("com.livecode.interface.classic.OvalGraphic") is tShape, "the menu turns Large Icons off again"
+   tourTmLayoutOK "after Large Icons"
    -- the size is kept for the next time
    set the rect of stack "revTools" to 40, 120, 40 + 260, 120 + 420
    tourWait 1200
@@ -570,6 +626,80 @@ on tour_tools_modern_switch
    tourTmReset
 end tour_tools_modern_switch
 
+-- A switch between light and dark as the IDE hears it: the engine's
+-- systemAppearanceChanged, which the message handler frontscript turns into
+-- ideSystemAppearanceChanged for the windows that subscribe to it, sent
+-- in 0 milliseconds, with the sample the defaultStack, as the stack the
+-- user last worked in. The Tools palette, in each look, and the Message
+-- Box with its Front Scripts list shown are made again on themselves:
+-- nothing made on the sample, nothing lost, and the defaultStack the
+-- sample again after
+on tour_appearance_switch
+   local tSample, tName, tExpect, tBefore, tLook, tN, tId, tMB, tLines
+   if not tourTmStart("appearance-switch") then exit tour_appearance_switch
+   put tourSampleStack() into tSample
+   put the short name of tSample into tName
+   tourTmCheck tourHears("revTools", "ideSystemAppearanceChanged"), "the Tools palette hears ideSystemAppearanceChanged"
+   repeat for each item tLook in "classic,modern"
+      if tLook is "classic" then
+         tourToolsClassic
+      else if tourToolsModern(empty, false) is not true then
+         throw "the modern look did not turn on"
+      end if
+      put the number of controls of card 1 of tSample into tBefore
+      put the number of controls of card 1 of stack "revTools" into tN
+      put the id of group "contents" of card 1 of stack "revTools" into tId
+      set the defaultStack to tName
+      put the defaultStack into tExpect
+      tourAppearanceSwitch
+      tourTmCheck the number of controls of card 1 of tSample is tBefore, \
+            "a switch in the" && tLook && "look makes nothing on the defaultStack (" & \
+            the number of controls of card 1 of tSample && "controls, were" && tBefore & ")"
+      tourTmCheck there is a group "contents" of card 1 of stack "revTools" and \
+            the id of group "contents" of card 1 of stack "revTools" is not tId, "and makes the palette again"
+      tourTmCheck the number of controls of card 1 of stack "revTools" is tN, \
+            "and whole (" & the number of controls of card 1 of stack "revTools" && "controls, were" && tN & ")"
+      tourTmCheck the defaultStack is tExpect, "and leaves the defaultStack as it was (" & the defaultStack & ")"
+   end repeat
+   tourTmReset
+   revIDEOpenPalette "message box"
+   tourWait 800
+   put revIDEPaletteToStackName("message box") into tMB
+   if tMB is empty or there is not a stack tMB then throw "no Message Box"
+   tourTmCheck tourHears(tMB, "ideSystemAppearanceChanged"), "the Message Box hears ideSystemAppearanceChanged"
+   dispatch "showCard" to stack tMB with "Front Scripts"
+   tourWait 500
+   put the number of controls of card 1 of tSample into tBefore
+   set the defaultStack to tName
+   put the defaultStack into tExpect
+   tourAppearanceSwitch
+   tourTmCheck the number of controls of card 1 of tSample is tBefore, \
+         "a switch with the Message Box's Front Scripts shown makes nothing on the defaultStack (" & \
+         the number of controls of card 1 of tSample && "controls, were" && tBefore & ")"
+   tourTmCheck the defaultStack is tExpect, "and leaves the defaultStack as it was (" & the defaultStack & ")"
+   tourTmCheck the short name of this card of stack tMB is "Front Scripts", \
+         "and the Message Box still shows its Front Scripts (" & the short name of this card of stack tMB & ")"
+   dispatch "showCard" to stack tMB with "Single Line"
+   close stack tMB
+   tourTmFinish "appearance-switch"
+end tour_appearance_switch
+
+-- Whether the stack pStack, or a card or control of it, subscribes to the
+-- IDE's message pMessage
+function tourHears pStack, pMessage
+   local tObject
+   repeat for each line tObject in revIDESubscribedObjects(pMessage)
+      if tObject ends with the long id of stack pStack and exists(tObject) then return true
+   end repeat
+   return false
+end tourHears
+
+-- As the engine's systemAppearanceChanged reaches the IDE's windows
+command tourAppearanceSwitch
+   send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
+   tourWait 1500
+end tourAppearanceSwitch
+
 function tourTmStart pStep
    put 0 into sTmChecks
    put empty into sTmFails
@@ -606,7 +736,7 @@ end tourTmFinish
 command tourTmReset
    local tName
    revIDESetPreference "revTools_look", "classic"
-   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow"
+   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow,revTools_modernLarge"
       revIDESetPreference tName, empty
    end repeat
    tourWait 300
@@ -646,6 +776,18 @@ function tourTmGroup pView
    if there is not a group pView of group "contents" of stack "revTools" then return empty
    return the long id of group pView of group "contents" of stack "revTools"
 end tourTmGroup
+
+-- The width of a shape's drawn icon (the palette's tmShapeSvg), or empty
+-- when its tile shows a picture
+function tourTmShapeIcon pTypeID
+   local tID
+   if tourTmNamed(pTypeID) is empty then return empty
+   put the icon of tourTmNamed(pTypeID) into tID
+   if tID is not an integer or tID is 0 then return empty
+   if there is not an image id tID of stack "revTools" then return empty
+   if the short name of image id tID of stack "revTools" is not ("tm.shape:" & pTypeID) then return empty
+   return the width of image id tID of stack "revTools"
+end tourTmShapeIcon
 
 -- The tiles: the controls with the classic properties, by name, as
 -- "<their group>,<cType>,<cTool>,<cToolName>,<cStyle>,<cName>"; not
@@ -819,6 +961,316 @@ on tour_menubar
       tourRecord "INFO menubar: no visible revMenuBar stack (the menu bar is the system's)"
    end if
 end tour_menubar
+
+-- macOS, where the IDE keeps a stack moved under its menu bar stack from
+-- staying there (revidemessagehandlerlibrary's moveStack sets it below).
+-- The menu bar itself, told it was moved where it is, as a drag of its
+-- title bar tells it, must stay there and stop on nothing: in rc.6.3 the
+-- guard set it its own height and 20 lower, while a dragged window stays
+-- where it is dragged, so its buttons stopped working, and the end of the
+-- drag stopped on an error (hCheckMacUp) (forum, bwmilby, rc.6.3). Another
+-- stack told it was moved under the menu bar, with the mouse up, is set
+-- below it at once, as before. Made a window with a title bar (Preferences
+-- > Appearance), the menu bar must open with all of its title bar below the
+-- Mac's menu bar (rc.6.3 put its top at 52, a pixel under a menu bar of
+-- 25). Its settings are put back as they were, and it is docked again
+on tour_menubar_mac
+   local tMenuBar, tBefore, tSaved, tName, tExpected, tEffective, tWorking, tFails, tError
+   if the platform is not "MacOS" then
+      tourRecord "INFO menubar-mac: the IDE keeps stacks from under its menu bar on macOS only"
+      exit tour_menubar_mac
+   end if
+   put revIDEPaletteToStackName("menubar") into tMenuBar
+   if tMenuBar is empty or there is not a stack tMenuBar or not the visible of stack tMenuBar then
+      tourRecord "INFO menubar-mac: no visible menu bar stack"
+      exit tour_menubar_mac
+   end if
+   put the rect of stack tMenuBar into tBefore
+   put the cMakeRevMenuBarStandard of stack "revPreferences" into tSaved["standard"]
+   put the cTweakMenuBarOffset of stack "revPreferences" into tSaved["offset"]
+   put the cTweakMenuBarL of stack "revPreferences" into tSaved["left"]
+   put the cTweakMenuBarT of stack "revPreferences" into tSaved["top"]
+   try
+      -- the menu bar told it was moved where it is
+      dispatch "moveStack" to card 1 of stack tMenuBar with item 1 of tBefore, item 2 of tBefore
+      tourWait 1000
+      if the rect of stack tMenuBar is not tBefore then
+         put "the menu bar, told it was moved where it is, set itself at" && the rect of stack tMenuBar & return after tFails
+         lock messages
+         set the rect of stack tMenuBar to tBefore
+         unlock messages
+      end if
+      -- another stack told it was moved under the menu bar
+      put "OXT Tour Under The Menu Bar" into tName
+      lock messages
+      if there is a stack tName then delete stack tName
+      create stack tName
+      set the rect of stack tName to (item 1 of tBefore + 40), (item 4 of tBefore + 100), (item 1 of tBefore + 340), (item 4 of tBefore + 300)
+      close stack tName
+      unlock messages
+      go stack tName
+      tourWait 500
+      lock messages
+      set the top of stack tName to item 2 of tBefore + 10
+      unlock messages
+      tourWait 300
+      dispatch "moveStack" to card 1 of stack tName with the left of stack tName, the top of stack tName
+      tourWait 500
+      put item 4 of the rect of stack tMenuBar + 20 into tExpected
+      if the top of stack tName is not tExpected then
+         put "a stack told it was moved under the menu bar has its top at" && the top of stack tName & ", not at" && tExpected & return after tFails
+      end if
+      close stack tName
+      lock messages
+      delete stack tName
+      unlock messages
+      -- the menu bar made a window with a title bar, as Preferences makes it
+      set the cMakeRevMenuBarStandard of stack "revPreferences" to true
+      send "tMenuBar_WDdecorations" to stack tMenuBar
+      tourWait 1500
+      put the effective rect of stack tMenuBar into tEffective
+      put line (the screen of stack tMenuBar) of the working screenRects into tWorking
+      tourRecord "INFO menubar-mac: as a window, rect" && the rect of stack tMenuBar & ", effective rect" && \
+            tEffective & ", working screenRect" && tWorking
+      tourShotStack tMenuBar, "03a-menubar-window"
+      if item 2 of tEffective < item 2 of tWorking then
+         put "made a window, the menu bar's title bar starts at" && item 2 of tEffective & \
+               ", above the bottom of the Mac's menu bar at" && item 2 of tWorking & return after tFails
+      end if
+   catch tError
+      unlock messages
+      put "it stopped:" && tourJoin(tError) & return after tFails
+   end try
+   -- docked again, with its settings as they were (it records its place
+   -- in them as it moves, hSetMBOffsets)
+   tourMbMacSettings tSaved
+   send "tMenuBar_WDdecorations" to stack tMenuBar
+   tourWait 1500
+   tourMbMacSettings tSaved
+   if the rect of stack tMenuBar is not tBefore then
+      tourRecord "INFO menubar-mac: docked again at" && the rect of stack tMenuBar & ", set back at" && tBefore
+      lock messages
+      set the rect of stack tMenuBar to tBefore
+      unlock messages
+   end if
+   tourUnlockScreen "menubar-mac"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menubar_mac
+
+-- The menu bar's settings in Preferences as tour_menubar_mac found them
+command tourMbMacSettings pSaved
+   set the cMakeRevMenuBarStandard of stack "revPreferences" to pSaved["standard"]
+   set the cTweakMenuBarOffset of stack "revPreferences" to pSaved["offset"]
+   set the cTweakMenuBarL of stack "revPreferences" to pSaved["left"]
+   set the cTweakMenuBarT of stack "revPreferences" to pSaved["top"]
+end tourMbMacSettings
+
+-- The marks of a menu's items as the engine draws them on Linux, where the
+-- IDE's menus are menu buttons of a stack too: the tick of a checked item,
+-- the dot of a radio item and a submenu's arrow must stand out from the
+-- menu behind them. Each is what differs between two snapshots of the same
+-- pop-up menu, opened with the marks and without them, and the luma of one
+-- of its pixels must differ from the menu's there by more than half the
+-- way from black to white. In rc.6.3 they were black on a dark theme's
+-- menu, so that File > Import Stack's HyperCard options looked unticked
+-- (forum, tperry2x, rc.6.3 on Linux Mint). Linux only: macOS's menus are
+-- the system's, and on Windows the engine draws the marks by the system's
+-- appearance (tperry, January 2026). xdotool's Escape closes the menu, so
+-- without xdotool the step is noted and skipped
+constant kMarksRect = "600,400,900,640"
+
+on tour_menu_marks
+   local tName, tDefault, tGroups, tGroup, tMarks, tFails, tObject
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-marks: the engine draws its menus' marks so on Linux only"
+      exit tour_menu_marks
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-marks: there is no xdotool to close the menu with"
+      exit tour_menu_marks
+   end if
+   put "OXT Tour Menu Marks" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "The first item, plain" & return & "!cTicked" & return & "!rDotted" & return & \
+         "Submenu" & return & tab & "Child" & return & "The last item, plain"
+   create button "No marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to "The first item, plain" & return & "!nTicked" & return & "!uDotted" & return & \
+         "Submenu" & return & "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourMarksPopup tName, "Marks", "03b-menu-marks"
+   tourMarksPopup tName, "No marks", "03c-menu-no-marks"
+   -- (closed, not deleted: the engine holds on to the button whose menu
+   -- was open until the step is over)
+   close stack tName
+   put tourMarksGroups(sOut & "/03b-menu-marks.png", sOut & "/03c-menu-no-marks.png") into tGroups
+   -- a group of a few pixels is not a mark
+   put 0 into tMarks
+   repeat for each line tGroup in tGroups
+      if item 5 of tGroup < 4 then next repeat
+      add 1 to tMarks
+      tourRecord "INFO menu-marks: a mark at" && item 1 to 4 of tGroup & "," && item 5 of tGroup && \
+            "pixels, which differ from the menu by" && item 6 of tGroup && "in luma"
+      if item 6 of tGroup <= 127 then
+         put "the mark at" && item 1 to 4 of tGroup && "differs from the menu by" && item 6 of tGroup && \
+               "in luma (0 to 255)" & return after tFails
+      end if
+   end repeat
+   -- the tick, the dot and the arrow, and perhaps the submenu's name,
+   -- which may sit a pixel or two further right in a submenu's item
+   if tMarks < 3 then
+      put "the menus' snapshots differ in" && tMarks && "places, not in the tick, the dot and the arrow" & return after tFails
+   end if
+   -- The IDE's own menus, File > Import Stack's HyperCard options among
+   -- them, are drawn as this step's are only if they take the theme's
+   -- colour too: the engine draws the marks white only when nothing from
+   -- the menu's button up has a background colour or pattern of its own
+   -- (a stack read from a file goes on to the home stack)
+   if there is a button "File" of group "revMenuBar" of stack "revMenubar" then
+      put the long id of button "File" of group "revMenuBar" of stack "revMenubar" into tObject
+      repeat while tObject is not empty
+         if the backgroundColor of tObject is not empty or the backgroundPattern of tObject is not empty then
+            put "the IDE's File menu has a background of its own, from" && the name of tObject & return after tFails
+         end if
+         if word 1 of tObject is "stack" then
+            if the short name of tObject is "home" or there is not a stack "home" then exit repeat
+            put the long id of stack "home" into tObject
+         else
+            put the long id of the owner of tObject into tObject
+         end if
+      end repeat
+   else
+      put "the IDE has no File menu (button File of group revMenuBar of stack revMenubar)" & return after tFails
+   end if
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_marks
+
+-- Opens the pop-up menu of the button pButton of the stack pStack where
+-- the step's snapshots are taken, takes the snapshot pFile while it is
+-- open, and closes it. The long names of the first and last items make
+-- the menus as wide with a submenu as without (an item with a submenu
+-- needs its name's width and 16 more)
+local sMarksShot
+
+command tourMarksPopup pStack, pButton, pFile
+   set the defaultStack to pStack
+   get shell("xdotool mousemove 340 240")
+   tourWait 300
+   put empty into sMarksShot
+   send "tourMarksShot" && quote & pFile & quote to me in 700 milliseconds
+   popup button pButton of stack pStack at 340,240
+   repeat 50 times
+      if sMarksShot is not empty then exit repeat
+      tourWait 100
+   end repeat
+   tourWait 500
+end tourMarksPopup
+
+on tourMarksShot pFile
+   local tError
+   try
+      tourShotRect kMarksRect, pFile
+   catch tError
+      tourRecord "INFO" && pFile && "FAILED" && tourJoin(tError)
+   end try
+   get shell("xdotool key Escape")
+   put "done" into sMarksShot
+end tourMarksShot
+
+-- What differs between two snapshots of the same size (PNG files): the
+-- pixels that are not the same in both, in groups of neighbours (a pixel
+-- at most 2 away from one of a group is in it). Returns a line for each
+-- group: its left, top, right and bottom in the snapshots, its number of
+-- pixels, and the largest difference in luma (Rec. 601, 0 to 255) of one
+-- of its pixels between the two snapshots
+function tourMarksGroups pFileA, pFileB
+   local tDefault, tA, tB, tW, tH, tAt, tLumaA, tLumaB, tDiff, tKey, tSeen
+   local tQueue, tHead, tTail, tPoint, tX, tY, tNext, tBounds, tCount, tMax, tGroups, tError, i, dx, dy
+   if there is not a file pFileA or there is not a file pFileB then
+      throw "there are not both snapshots," && pFileA && "and" && pFileB
+   end if
+   put the defaultStack into tDefault
+   lock messages
+   try
+      if there is a stack "oxt_ui_tour_pixels" then delete stack "oxt_ui_tour_pixels"
+      create invisible stack "oxt_ui_tour_pixels"
+      set the defaultStack to "oxt_ui_tour_pixels"
+      import paint from file pFileA
+      put the imageData of the last image into tA
+      put the width of the last image into tW
+      put the height of the last image into tH
+      import paint from file pFileB
+      put the imageData of the last image into tB
+      if the width of the last image is not tW or the height of the last image is not tH then
+         put empty into tA
+      end if
+   catch tError
+      put empty into tA
+   end try
+   if there is a stack "oxt_ui_tour_pixels" then delete stack "oxt_ui_tour_pixels"
+   set the defaultStack to tDefault
+   unlock messages
+   if tError is not empty then throw "the snapshots could not be read:" && tourJoin(tError)
+   if tA is empty or tW * tH is 0 then throw "the snapshots" && pFileA && "and" && pFileB && "are not of the same size"
+   repeat with i = 0 to tW * tH - 1
+      put i * 4 into tAt
+      if byteToNum(byte tAt + 2 of tA) is byteToNum(byte tAt + 2 of tB) and \
+            byteToNum(byte tAt + 3 of tA) is byteToNum(byte tAt + 3 of tB) and \
+            byteToNum(byte tAt + 4 of tA) is byteToNum(byte tAt + 4 of tB) then next repeat
+      put 299 * byteToNum(byte tAt + 2 of tA) + 587 * byteToNum(byte tAt + 3 of tA) + 114 * byteToNum(byte tAt + 4 of tA) into tLumaA
+      put 299 * byteToNum(byte tAt + 2 of tB) + 587 * byteToNum(byte tAt + 3 of tB) + 114 * byteToNum(byte tAt + 4 of tB) into tLumaB
+      put round(abs(tLumaA - tLumaB) / 1000) into tDiff[(i mod tW) & "," & (i div tW)]
+   end repeat
+   repeat for each key tKey in tDiff
+      if tSeen[tKey] is true then next repeat
+      put true into tSeen[tKey]
+      put tKey into tQueue[1]
+      put 1 into tHead
+      put 1 into tTail
+      put tKey & "," & tKey into tBounds
+      put 0 into tCount
+      put 0 into tMax
+      repeat while tHead <= tTail
+         put tQueue[tHead] into tPoint
+         add 1 to tHead
+         add 1 to tCount
+         put max(tMax, tDiff[tPoint]) into tMax
+         put item 1 of tPoint into tX
+         put item 2 of tPoint into tY
+         put min(item 1 of tBounds, tX) into item 1 of tBounds
+         put min(item 2 of tBounds, tY) into item 2 of tBounds
+         put max(item 3 of tBounds, tX) into item 3 of tBounds
+         put max(item 4 of tBounds, tY) into item 4 of tBounds
+         repeat with dx = -2 to 2
+            repeat with dy = -2 to 2
+               put (tX + dx) & "," & (tY + dy) into tNext
+               if tDiff[tNext] is empty or tSeen[tNext] is true then next repeat
+               put true into tSeen[tNext]
+               add 1 to tTail
+               put tNext into tQueue[tTail]
+            end repeat
+         end repeat
+      end repeat
+      delete variable tQueue
+      put tBounds & "," & tCount & "," & tMax & return after tGroups
+   end repeat
+   return line 1 to -1 of tGroups
+end tourMarksGroups
 
 on tour_sample
    local tStack
@@ -1134,7 +1586,7 @@ command tourTbMake pName, pLeft, pTop, pScript
 end tourTbMake
 
 on tour_inspector
-   local tPI, tSection, tShown, tIndex
+   local tPI, tSection, tShown, tIndex, tError
    put tourInspect(tourSample("Push")) into tPI
    tourInspectorHeaderCheck tPI
    put 0 into tIndex
@@ -1146,7 +1598,10 @@ on tour_inspector
       end if
       add 1 to tIndex
       tourShotStack tPI, "05-inspector-button-" & tIndex & "-" & tourFileName(tSection)
+      if tSection is "Text" then put tourInspectorInherited(tPI) into tError
    end repeat
+   if tError is empty then put tourInspectorInheritedOnColour() into tError
+   if tError is not empty then throw tError
 end tour_inspector
 
 on tour_inspector_text
@@ -1162,6 +1617,148 @@ on tour_inspector_graphic
    get tourInspectorSection(tPI, "Colors")
    tourShotStack tPI, "07-inspector-graphic-colors"
 end tour_inspector_graphic
+
+-- The Fill gradient popup, opened as a click on its row of the Colors
+-- section opens it, with the Inspector right of the Tools palette and the
+-- sample at the right of the screen. It must be all on the screen, and
+-- where the screen has room for it beside the Inspector off the graphic
+-- (to the Inspector's right or left, or below or above it), it must cover
+-- neither (richmond62 on rc.6.3: it opened on top of the graphic; here
+-- rc.6.3 put it left of the Inspector, two thirds of it off the screen).
+-- Then with the graphic over the whole screen, so that every place covers
+-- it: to the Inspector's left, as before, where it fits there.
+on tour_inspector_gradient
+   local tSampleRect, tBox, tBoxRect, tPI, tScreen, tLeft, tPopRect, tPIRect, tRoom, tError
+   put tourSample("Box") into tBox
+   put the rect of stack kSample into tSampleRect
+   put the rect of tBox into tBoxRect
+   put tourInspect(tBox) into tPI
+   get tourInspectorSection(tPI, "Colors")
+   put the working screenRect into tScreen
+   put item 1 of tScreen + 10 into tLeft
+   if there is a stack "revTools" and the mode of stack "revTools" is not 0 and the visible of stack "revTools" then
+      put max(tLeft, the right of stack "revTools" + 20) into tLeft
+   end if
+   set the topLeft of stack tPI to tLeft, item 2 of tScreen + 40
+   set the topRight of stack kSample to item 3 of tScreen - 10, item 2 of tScreen + 40
+   tourWait 500
+   try
+      put tourGradientPopup(tPI) into tPopRect
+      put the rect of stack tPI into tPIRect
+      put tourScreenRectOf(tBox) into tBoxRect
+      put tourRoomBeside(tPIRect, tPopRect, tBoxRect, tScreen) into tRoom
+      tourRecord "INFO inspector-gradient popup" && tPopRect && "inspector" && tPIRect && "graphic" && tBoxRect && \
+            "screen" && tScreen && "room off the graphic:" && tourJoin(tRoom)
+      tourShotScreen "07-inspector-gradient"
+      tourCloseGradientPopup
+      if not tourRectWithin(tPopRect, tScreen) then throw "the popup" && tPopRect && "is not all on the screen" && tScreen
+      if tRoom is not empty then
+         if tourRectsOverlap(tPopRect, tPIRect) then throw "the popup" && tPopRect && "covers the Inspector" && tPIRect
+         if tourRectsOverlap(tPopRect, tBoxRect) then throw "the popup" && tPopRect && "covers the graphic" && tBoxRect
+      end if
+      -- every place covers the graphic: the Inspector's left, as before
+      set the rect of stack kSample to tScreen
+      set the rect of tBox to the rect of card 1 of stack kSample
+      set the topLeft of stack tPI to item 1 of tScreen + 400, item 2 of tScreen + 40
+      tourWait 500
+      put tourGradientPopup(tPI) into tPopRect
+      put the rect of stack tPI into tPIRect
+      put tourRoomBeside(tPIRect, tPopRect, tourScreenRectOf(tBox), tScreen) into tRoom
+      tourRecord "INFO inspector-gradient over the graphic: popup" && tPopRect && "inspector" && tPIRect && \
+            "room off the graphic:" && tourJoin(tRoom)
+      tourCloseGradientPopup
+      if tRoom is not empty then throw "the graphic leaves room beside the Inspector:" && tourJoin(tRoom)
+      if not tourRectWithin(tPopRect, tScreen) then throw "the popup" && tPopRect && "is not all on the screen" && tScreen
+      if item 3 of tPopRect > item 1 of tPIRect then
+         throw "with the graphic everywhere, the popup" && tPopRect && "is not left of the Inspector" && tPIRect
+      end if
+   catch tError
+   end try
+   tourCloseGradientPopup
+   tourCloseInspectors
+   set the rect of tBox to tBoxRect
+   set the rect of stack kSample to tSampleRect
+   if tError is not empty then throw tError
+end tour_inspector_gradient
+
+-- Opens the Fill gradient popup of the inspector pPI, as a click on its
+-- row of the Colors section does, and returns the popup's rect once it has
+-- placed itself (as it opens, and again a moment later)
+function tourGradientPopup pPI
+   local tRow, tEditor, i
+   put the long id of group "Fill gradient" of group "inspector" of card 1 of stack pPI into tRow
+   repeat with i = 1 to the number of groups of tRow
+      if the editorProperty["property_name"] of group i of tRow is "fillGradient" then
+         put the long id of group i of tRow into tEditor
+         exit repeat
+      end if
+   end repeat
+   if tEditor is empty then throw "no Fill gradient editor in the row"
+   send "mouseUp 1" to tEditor
+   if not tourWaitOpen("revPropertyPopup fillGradient", 3000) then throw "the Fill gradient popup did not open"
+   tourWait 1000
+   return the rect of stack "revPropertyPopup fillGradient"
+end tourGradientPopup
+
+command tourCloseGradientPopup
+   if there is a stack "revPropertyPopup fillGradient" then
+      close stack "revPropertyPopup fillGradient"
+      tourWait 500
+   end if
+end tourCloseGradientPopup
+
+-- The rect of the control pObj on the screen
+function tourScreenRectOf pObj
+   local tRect, tStack
+   put the rect of pObj into tRect
+   put revIDEStackOfObject(pObj) into tStack
+   return item 1 of tRect + the left of tStack, item 2 of tRect + the top of tStack, \
+         item 3 of tRect + the left of tStack, item 4 of tRect + the top of tStack
+end tourScreenRectOf
+
+-- Whether two rects share any point
+function tourRectsOverlap pA, pB
+   return item 1 of pA < item 3 of pB and item 1 of pB < item 3 of pA and \
+         item 2 of pA < item 4 of pB and item 2 of pB < item 4 of pA
+end tourRectsOverlap
+
+-- Whether the rect pA is all inside pB
+function tourRectWithin pA, pB
+   return item 1 of pA >= item 1 of pB and item 2 of pA >= item 2 of pB and \
+         item 3 of pA <= item 3 of pB and item 4 of pA <= item 4 of pB
+end tourRectWithin
+
+-- The places, of right, left, below and above, where a window the size of
+-- pWindow fits on the screen pScreen 5 points from the rect pBeside (at
+-- its top, or at its left, moved to stay on the screen) without covering
+-- the rect pAvoid
+function tourRoomBeside pBeside, pWindow, pAvoid, pScreen
+   local tW, tH, tTop, tLeft, tPlace, tRect, tRoom
+   put item 3 of pWindow - item 1 of pWindow into tW
+   put item 4 of pWindow - item 2 of pWindow into tH
+   put max(item 2 of pScreen, min(item 2 of pBeside, item 4 of pScreen - tH)) into tTop
+   put max(item 1 of pScreen, min(item 1 of pBeside, item 3 of pScreen - tW)) into tLeft
+   repeat for each item tPlace in "right,left,below,above"
+      switch tPlace
+         case "right"
+            put item 3 of pBeside + 5, tTop, item 3 of pBeside + 5 + tW, tTop + tH into tRect
+            break
+         case "left"
+            put item 1 of pBeside - 5 - tW, tTop, item 1 of pBeside - 5, tTop + tH into tRect
+            break
+         case "below"
+            put tLeft, item 4 of pBeside + 5, tLeft + tW, item 4 of pBeside + 5 + tH into tRect
+            break
+         case "above"
+            put tLeft, item 2 of pBeside - 5 - tH, tLeft + tW, item 2 of pBeside - 5 into tRect
+            break
+      end switch
+      if tourRectWithin(tRect, pScreen) and not tourRectsOverlap(tRect, pAvoid) then
+         put tPlace & return after tRoom
+      end if
+   end repeat
+   return line 1 to -1 of tRoom
+end tourRoomBeside
 
 on tour_inspector_multiple
    local tPI
@@ -1188,6 +1785,143 @@ on tour_tooltip_inspector
    tourMouseAway
    tourCloseInspectors
 end tour_tooltip_inspector
+
+-- A player made with the IDE, as the Tools palette makes one, and the
+-- Property Inspector on it, with its Source (the filename): as the IDE
+-- started, then with the Player tool turned off and on again by the check
+-- box in Preferences > Compatibility, which takes it out of the Tools
+-- palette and Object > New Control at once and back again; a player can be
+-- made either way. In rc.6.3 an IDE started with the tool off, as a first
+-- start on Linux without mplayer leaves it, knew no player
+-- (revIDECreateObject: "Invalid classic control type ID", and no Source
+-- in the Inspector), and the check box changed the palette only at the
+-- next start (forum, tperry2x, rc.6.3 on Linux Mint)
+on tour_player
+   local tName, tStart, tOff, tBefore, tPrefs, tFails, tError, i
+   put "OXT Tour Player" into tName
+   put revIDEGetPreference("cDisablePlayerTool") is true into tStart
+   tourRecord "INFO player: the Player tool was turned off as the IDE started:" && tStart
+   tourToolsClassic
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,800,600"
+   close stack tName
+   unlock messages
+   go stack tName
+   tourWait 500
+   put tourPlayerCheck(tName, "as the IDE started", tStart, "09b-player-inspector") after tFails
+   -- the check box's card shown, as its script expects. On Linux the card
+   -- looks for what the player needs, and turns the tool off when
+   -- something is missing; the check box then only says so (a dialog), so
+   -- the setting is set as the check box sets it
+   revIDEOpenPalette "preferences"
+   tourWait 1000
+   put revIDEPaletteToStackName("preferences") into tPrefs
+   if tPrefs is not empty and there is a card "Compatibility" of stack tPrefs then
+      go card "Compatibility" of stack tPrefs
+      tourWait 1000
+   end if
+   put revIDEGetPreference("cDisablePlayerTool") is true into tOff
+   put tOff into tBefore
+   repeat with i = 1 to 2
+      try
+         if tPrefs is not empty and there is a button "disPlayerLin" of card "Compatibility" of stack tPrefs \
+               and the hilite of button "Success" of card "Compatibility" of stack tPrefs then
+            send "mouseUp" to button "disPlayerLin" of card "Compatibility" of stack tPrefs
+         else
+            tourRecord "INFO player: Preferences finds something the player needs missing; the setting is set"
+            revIDESetPreference "cDisablePlayerTool", not tOff
+         end if
+      catch tError
+         put "click" && i && "on the check box stopped:" && tourJoin(tError) & return after tFails
+         exit repeat
+      end try
+      tourWait 1000
+      put not tOff into tOff
+      if (revIDEGetPreference("cDisablePlayerTool") is true) is not tOff then
+         put "click" && i && "on the check box left the setting at" && \
+               quote & revIDEGetPreference("cDisablePlayerTool") & quote & return after tFails
+      end if
+      put tourPlayerCheck(tName, "after click" && i && "on the check box", tOff, empty) after tFails
+   end repeat
+   tourUnlockScreen "player"
+   if tPrefs is not empty and there is a stack tPrefs then close stack tPrefs
+   if (revIDEGetPreference("cDisablePlayerTool") is true) is not tBefore then
+      revIDESetPreference "cDisablePlayerTool", tBefore
+   end if
+   close stack tName
+   lock messages
+   delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_player
+
+-- What is wrong with the Player tool, turned off (pOff true) or on: it is
+-- in the Tools palette and in Object > New Control only when it is on, a
+-- player can be made with the IDE either way, and the Inspector on it has
+-- its Source. pWhen names the moment in what is returned; pFile, when it
+-- is not empty, is the Inspector's snapshot
+function tourPlayerCheck pStack, pWhen, pOff, pFile
+   local tFails, tTool, tControls, tTitle, tOffered, tBefore, tResult, tError, tPlayer, tPI
+   put tourControlNamed("revTools", "com.livecode.interface.classic.Player") into tTool
+   if tTool is not empty and not the visible of tTool then put empty into tTool
+   if pOff and tTool is not empty then
+      put pWhen & ": the Tools palette shows the Player tool, which is turned off" & return after tFails
+   else if not pOff and tTool is empty then
+      put pWhen & ": the Tools palette has no Player tool" & return after tFails
+   end if
+   put false into tOffered
+   put revIDEAvailableControls() into tControls
+   repeat for each key tTitle in tControls
+      if tControls[tTitle]["kind"] is "com.livecode.interface.classic.Player" then put true into tOffered
+   end repeat
+   if pOff and tOffered then
+      put pWhen & ": Object > New Control offers the Player, which is turned off" & return after tFails
+   else if not pOff and not tOffered then
+      put pWhen & ": Object > New Control does not offer the Player" & return after tFails
+   end if
+   put the number of players of card 1 of stack pStack into tBefore
+   try
+      revIDECreateObject "com.livecode.interface.classic.Player", the long id of card 1 of stack pStack, "250,200"
+      put the result into tResult
+   catch tError
+      put tourJoin(tError) into tResult
+   end try
+   -- (revIDECreateObject leaves messages and the screen locked when it
+   -- does not know the type)
+   unlock messages
+   tourUnlockScreen pWhen
+   if the number of players of card 1 of stack pStack is not tBefore + 1 then
+      put pWhen & ": a player could not be made with the IDE (" & tResult & ")" & return after tFails
+      return tFails
+   end if
+   put the long id of the last player of card 1 of stack pStack into tPlayer
+   tourCloseInspectors
+   revIDESelectObjects tPlayer
+   revIDEInspectObjects tPlayer
+   tourWait 1500
+   try
+      put revIDEInspectorForObject(tPlayer) into tPI
+   catch tError
+      put empty into tPI
+   end try
+   if tPI is not empty and exists(tPI) then
+      put the short name of tPI into tPI
+   else
+      put tourStackNamed("revPropertyInspector") into tPI
+   end if
+   if tPI is empty then
+      put pWhen & ": no Inspector opened on the player" & return after tFails
+   else
+      if pFile is not empty then tourShotStack tPI, pFile
+      if tourInspectorEditor(tPI, "filename") is empty then
+         put pWhen & ": the Inspector on the player has no Source" & return after tFails
+      end if
+   end if
+   tourCloseInspectors
+   return tFails
+end tourPlayerCheck
 
 on tour_script_editor
    local tSE
@@ -1542,9 +2276,197 @@ on tour_standalone_settings
    close stack tStack
 end tour_standalone_settings
 
+-- mergJSON, built from its source into Ext/mergJSON (tools/oxt/package.py
+-- EXT_FILES), as LiveCode's installer put its mergExt collection there:
+-- the IDE loads the folder's external and its library
+-- (revInternal__SetupExternals and revInternal__InitialiseLibraries in
+-- home.livecodescript), so JSONToArray and ArrayToJSON work, and the
+-- standalone builder finds the external for this computer's platform. A
+-- release before it was built has no such folder, and the step fails there.
+on tour_ext_mergjson
+   local tFolder, tFile, tTarget, tFails, tA, tJson, tLibrary, tIncluded
+   put revEnvironmentExtPath() & "/mergJSON" into tFolder
+   if there is not a folder tFolder then throw "there is no" && tFolder
+   switch the platform
+      case "Win32"
+         if the processor is "x86_64" then
+            put "mergJSON-x64.dll,Windows x86-64" into tFile
+         else
+            put "mergJSON-x86.dll,Windows" into tFile
+         end if
+         break
+      case "MacOS"
+         if the processor is "arm64" then
+            put "mergJSON.bundle,MacOSX x64-ARM64" into tFile
+         else
+            put "mergJSON.bundle,MacOSX x86-64" into tFile
+         end if
+         break
+      default
+         if the processor is "x86_64" then
+            put "mergJSON-x64.so,Linux x64" into tFile
+         else if the processor is among the items of "arm64,aarch64" then
+            put "mergJSON-arm64.so,Linux arm64" into tFile
+         else
+            put "mergJSON-x86.so,Linux" into tFile
+         end if
+         break
+   end switch
+   put item 2 of tFile into tTarget
+   put tFolder & "/" & item 1 of tFile into tFile
+   tourRecord "INFO ext-mergjson" && tFile && "target" && tTarget && "files" && tourJoin(files(tFolder) & return & folders(tFolder))
+   if there is not a file tFile and there is not a folder tFile then
+      put "there is no" && tFile & return after tFails
+   end if
+
+   -- the external
+   if tFile is not among the lines of the externals of stack "Home" then
+      put "Home's externals do not have it:" && tourJoin(the externals of stack "Home") & return after tFails
+   end if
+   if "mergJSONDecode" is not among the lines of the externalFunctions of stack "Home" or \
+         "mergJSONEncode" is not among the lines of the externalFunctions of stack "Home" then
+      put "its functions are not loaded:" && tourJoin(the externalFunctions of stack "Home") & return after tFails
+   end if
+
+   -- its library
+   put "ws.goulding.script-library.mergjson" into tLibrary
+   if there is not a stack tLibrary then
+      put "its library is not loaded" & return after tFails
+   else
+      if the effective filename of stack tLibrary is not tFolder & "/mergJSONLibrary.livecodescript" then
+         put "the library is" && the effective filename of stack tLibrary & return after tFails
+      end if
+      if the long id of stack tLibrary is not among the lines of the backScripts then
+         put "the library is not in the back scripts" & return after tFails
+      end if
+   end if
+
+   -- JSON both ways, through the library and the external
+   put "{" & quote & "a" & quote & ":[1,{" & quote & "b" & quote & ":true}]}" into tJson
+   try
+      put JSONToArray(tJson) into tA
+      if tA["a"][2]["b"] is not "true" then
+         put "JSONToArray gives" && tourJoin(the keys of tA) & return after tFails
+      end if
+      if ArrayToJSON(tA) is not tJson then
+         put "ArrayToJSON gives" && ArrayToJSON(tA) & return after tFails
+      end if
+   catch tA
+      put "JSON both ways:" && tourJoin(tA) & return after tFails
+   end try
+
+   -- the standalone builder (revsblibrary): it offers the external for this
+   -- platform, and would include this file for this computer's target. A
+   -- Mac bundle is a folder, which the builder names with a slash at its
+   -- end (__EnumerateFolder, __FilterExternalsForDesktop), as it did
+   -- LiveCode's mergExt bundles in Ext
+   try
+      if "mergJSON" is not among the lines of revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget)) then
+         put "the standalone builder does not offer it:" && \
+               tourJoin(revSBAdditionalExternalsList(revSBTargetToPlatform(tTarget))) & return after tFails
+      else
+         put revSBIncludedExternalPath(tTarget, "mergJSON") into tIncluded
+         if the platform is "MacOS" and the last char of tIncluded is slash then
+            delete the last char of tIncluded
+         end if
+         if tIncluded is not tFile then
+            put "the standalone builder would include" && revSBIncludedExternalPath(tTarget, "mergJSON") & return after tFails
+         end if
+      end if
+   catch tA
+      put "the standalone builder:" && tourJoin(tA) & return after tFails
+   end try
+
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_ext_mergjson
+
+-- The Menu Builder opened on a stack of the user's with a menu bar (it
+-- edits the topStack's): it lists the menus and the first one's items,
+-- ticks "MacOS Menu Bar", sets the stack's hcAddressing back and stops on
+-- nothing (in rc.6.3 it stopped halfway, on revSetEdited, a handler that
+-- does not exist: forum, tperry2x), and its lists of menus and items take
+-- their text colour from the appearance (rc.6.3 saved them black, which
+-- could not be read on the dark appearance)
 on tour_menu_builder
-   tourPalette "menu builder", "16-menu-builder", 1500
+   local tName, tMM, tFails, tError, tField
+   put "OXT Tour Menus" into tName
+   tourMbMake tName
+   go stack tName
+   tourWait 500
+   if the short name of the topStack is not tName then
+      throw "the stack with the menu bar is not the topStack (" & the short name of the topStack & ")"
+   end if
+   put revIDEPaletteToStackName("menu builder") into tMM
+   try
+      revIDEOpenPalette "menu builder"
+   catch tError
+      put "it stopped as it opened:" && tourJoin(tError) & return after tFails
+   end try
+   tourWait 1500
+   if tMM is empty or there is not a stack tMM or not the visible of stack tMM then
+      put "the Menu Builder did not open" & return before tFails
+   else
+      tourShotStack tMM, "16-menu-builder"
+      if the text of field "Menu Buttons" of stack tMM is not ("File" & return & "Edit") then
+         put "its menus are" && quote & tourJoin(the text of field "Menu Buttons" of stack tMM) & quote & return after tFails
+      end if
+      if "New" is not among the words of the text of field "Menu Items" of stack tMM then
+         put "its items are" && quote & tourJoin(the text of field "Menu Items" of stack tMM) & quote & return after tFails
+      end if
+      if not the hilite of button "MacOS Menu Bar" of stack tMM then
+         put "MacOS Menu Bar is not ticked" & return after tFails
+      end if
+      if the hcAddressing of stack tName is not true then
+         put "the stack's hcAddressing was not set back" & return after tFails
+      end if
+      repeat for each item tField in "Menu Buttons,Menu Items"
+         if the foregroundColor of field tField of stack tMM is not empty then
+            put "its list" && tField && "has the text colour" && the foregroundColor of field tField of stack tMM & return after tFails
+         end if
+      end repeat
+   end if
+   -- The Menu Builder is closed and the stack deleted however it went, so
+   -- that a Menu Builder stopped halfway (rc.6.3) is not left open for the
+   -- steps after this one
+   try
+      if tMM is not empty and tMM is among the lines of the openStacks then close stack tMM
+      if tName is among the lines of the openStacks then close stack tName
+      lock messages
+      delete stack tName
+      unlock messages
+   catch tError
+      unlock messages
+      put "it stopped as it closed:" && tourJoin(tError) & return after tFails
+   end try
+   tourUnlockScreen "menu-builder"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_builder
+
+-- A stack of the user's with a menu bar of two menus, File and Edit, and
+-- the hcAddressing of a HyperCard stack
+command tourMbMake pName
+   local tDefault
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack pName then delete stack pName
+   create stack pName
+   set the rect of stack pName to "300,200,700,500"
+   set the defaultStack to pName
+   create group "Menubar 1"
+   create button "File" in group "Menubar 1"
+   set the style of it to "menu"
+   set the menuMode of it to "pulldown"
+   set the text of it to "New" & return & "Open..." & return & "-" & return & "Quit"
+   create button "Edit" in group "Menubar 1"
+   set the style of it to "menu"
+   set the menuMode of it to "pulldown"
+   set the text of it to "Undo" & return & "Cut" & return & "Copy" & return & "Paste"
+   set the menubar of stack pName to "Menubar 1"
+   set the hcAddressing of stack pName to true
+   close stack pName
+   set the defaultStack to tDefault
+   unlock messages
+end tourMbMake
 
 on tour_extension_manager
    tourPalette "extension manager", "17-extension-manager", 2500
@@ -2185,6 +3107,103 @@ function tourInspectorSection pStack, pSection
    tourRecord "INFO" && pStack && "section" && tShown
    return tShown
 end tourInspectorSection
+
+-- The push button's font and size in the Text section, which it takes
+-- from the stack: inherited values, in grey italics that can be read on
+-- the control they are drawn on, 170,170,170 with the system dark and
+-- 100,100,100 with it light (richmond62 on rc.6.3: grey 100 on the dark
+-- font menu). The appearance is the one ui_tour.py set; without it
+-- nothing is checked. Returns what is wrong, or empty
+function tourInspectorInherited pStack
+   local tWant, tProperty, tEditor, tControl, tShown, tFails
+   switch $OXT_TOUR_APPEARANCE
+      case "dark"
+         put "170,170,170" into tWant
+         break
+      case "light"
+         put "100,100,100" into tWant
+         break
+      default
+         tourRecord "INFO inspector inherited values: not checked (no OXT_TOUR_APPEARANCE)"
+         return empty
+   end switch
+   repeat for each item tProperty in "textFont,textSize"
+      put tourInspectorEditor(pStack, tProperty) into tEditor
+      if tEditor is empty then
+         put tProperty & ": no editor in the Text section" & return after tFails
+         next repeat
+      end if
+      -- the font menu, or the size's field (com.livecode.pi.font and
+      -- com.livecode.pi.number)
+      if tProperty is "textFont" then
+         put the long id of button 1 of tEditor into tControl
+         put the label of tControl into tShown
+      else
+         put the long id of field 1 of tEditor into tControl
+         put the text of tControl into tShown
+      end if
+      tourRecord "INFO inspector inherited" && tProperty & ":" && quote & tourJoin(tShown) & quote && \
+            "textColor" && the textColor of tControl && "italic" && the textStyle["italic"] of tControl && \
+            "backgroundColor" && quote & the backgroundColor of tControl & quote && \
+            "effective" && the effective backgroundColor of tControl
+      if the textStyle["italic"] of tControl is not true then
+         put tProperty & ": not shown as inherited (not in italics)" & return after tFails
+      else if the textColor of tControl is not tWant then
+         put tProperty & ": the inherited value is" && the textColor of tControl & ", not" && tWant && \
+               "(the system" && $OXT_TOUR_APPEARANCE & ")" & return after tFails
+      end if
+   end repeat
+   if tFails is empty then return empty
+   return "inherited values:" && tourJoin(line 1 to -1 of tFails)
+end tourInspectorInherited
+
+-- The same with the Inspector's window in a colour of the other darkness
+-- (its background preference, in the Preferences): the grey follows the
+-- control it is drawn on, which the theme colours whatever colour the
+-- window has
+function tourInspectorInheritedOnColour
+   local tColour, tPI, tError
+   switch $OXT_TOUR_APPEARANCE
+      case "dark"
+         put "225,225,225" into tColour
+         break
+      case "light"
+         put "40,40,40" into tColour
+         break
+      default
+         return empty
+   end switch
+   if there is not a stack "revPreferences" then
+      tourRecord "INFO inspector inherited values on a window colour: no stack revPreferences"
+      return empty
+   end if
+   set the cInspectorBackgroundColor of stack "revPreferences" to tColour
+   try
+      put tourInspect(tourSample("Push")) into tPI
+      get tourInspectorSection(tPI, "Text")
+      tourRecord "INFO inspector inherited values on the window colour" && the backgroundColor of stack tPI
+      put tourInspectorInherited(tPI) into tError
+   catch tError
+   end try
+   set the cInspectorBackgroundColor of stack "revPreferences" to empty
+   tourCloseInspectors
+   if tError is empty then return empty
+   return "with the Inspector's window" && tColour & ":" && tError
+end tourInspectorInheritedOnColour
+
+-- The editor of the property pProperty in the inspector pStack: the group
+-- revinspectorgroupbehavior.livecodescript names for it, in the row of
+-- the section shown
+function tourInspectorEditor pStack, pProperty
+   local tCard, tControl, i
+   put the long id of this card of stack pStack into tCard
+   repeat with i = 1 to the number of controls of tCard
+      put the long id of control i of tCard into tControl
+      if word 1 of tControl is not "group" or the short name of tControl is not pProperty then next repeat
+      if the editorProperty["property_name"] of tControl is pProperty then return tControl
+   end repeat
+   return empty
+end tourInspectorEditor
 
 -- The first visible open stack whose name starts with pPrefix
 function tourStackNamed pPrefix

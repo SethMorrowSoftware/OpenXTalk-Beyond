@@ -102,6 +102,54 @@ private function _SoundlessFork
          "BwAAAAcAAAA0AAAAAAAAAAAAHAAyAABTVFIgAAAACgCAAAAAAAAAAAAAAAF4")
 end _SoundlessFork
 
+-- The sounds of _Fork and two more whose commands start with a nullCmd
+-- (its param1 'ST'), as SoundEdit wrote sounds: 'snd ' 9003 "After
+-- NullCmd" (format 2, the MACE 3:1 of Boing) and 9004 "After NullCmd 1"
+-- (format 1, a synthesizer listed first, the MACE 6:1 of "1")
+private function _NullCmdFork
+   return base64Decode("AAABAAAACAoAAAcKAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & \
+         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqwAAQABAAUAAACA" & \
+         "AAGAUQAAAAAAFAAAAAAAAAABVu5dGAAAAAAAAAAA/jwAAAEsQA2t3RdF0XRdGAAAAABNQUMz" & \
+         "AAAAAAAAAAAAAAAAAAMAAAAAAAiV8dmc0/NfAYCt7uwsIKKY0CpSNc55pwMSbKh4O20um5jJ" & \
+         "7vSqzo1nTgR1WP/J8z44qZc+VSjfevzn3Ji5YsjHioS0vzh0DhxMb5nvLTowElva/Ppak02c" & \
+         "57Oq9IlddXmyMD+pnnmztN9nPJzqjwnbOkJ65qPy6BKPC1/aABgJ2c0Sh46x7zGaLreq4jdC" & \
+         "dsn0rGic7zBY31jbUJzUYY/12aDxoqWB9k3J8ijI3lIOIgQtZ1H2RAr13ivP3H7qmd5ITiS6" & \
+         "kFjbZgyfpr8o/VEETZYZhRJNjyB35Rw0ey/sX+TVhR27DLw7eC/oQTWPBacbMrVA0PIvBDze" & \
+         "DQ5D4nVIRr18b86Ovw4uiBrOW7qL4m33eGc3U1u0AAQzHhDEptP/uA5SLVHLvDWUkYZVCh7i" & \
+         "YXKLAC6PFNyI6+aHtO81t939KljXHH3EnOgh2ufiUHgwKpGUXpdCiUfvP6K721HItPYZVkDp" & \
+         "VMn6YyZqUfpiuTteoW+2hOVBGwGMHGuI8bO1TZYv9dyRwFObli/fbMd7I2dyfcvC1uOUo+7g" & \
+         "0xPQGW5KwyHcgfHYWoOUkHDlQNmyLU7a7YOee03DZ0mPBulrkYTRa2BFPjyw1rqQbkswUc/a" & \
+         "5NoR/PXlJd0Jr0U9JkELdWA6J389JelMTEx4WO121z+I6xJnSXmWHyZgUK25TZpNpCIRNvN2" & \
+         "nSqHqIC4GxlqFqQRF9oe2aF0QmMfGYOkHZzHhOJlvBrbN2Yb//IN46WeSrZwD4Zes6tiuVHO" & \
+         "bLTnuAryLqx9tPpMdVCu+5z5HDW9f0stdXAAAADMAAEAAQAFAAAAgAABgFEAAAAAABQAAAAA" & \
+         "AAAAAVbuXRgAAAAAAAAAAP48AAAAeEANrd0XRdF0XRgAAAAATUFDNgAAAAAAAAAAAAAAAAAE" & \
+         "AAAAAAAIlfHZnNPzXwGAre7sLCCimNAqUjXOeacDEmyoeDttLpuYye70qs6NZ04EdVj/yfM+" & \
+         "OKmXPlUo33r859yYuWLIx4qEtL84dA4cTG+Z7y06MBJb2vz6WpNNnOezqvSJXXV5sjA/qZ55" & \
+         "s7TfZzyc6o8J2zpCeuaj8ugSAAACrgACAAAAAgAAU1QAAAAAgFEAAAAAABYAAAAAAAAAAVbu" & \
+         "XRgAAAAAAAAAAP48AAABLEANrd0XRdF0XRgAAAAATUFDMwAAAAAAAAAAAAAAAAADAAAAAAAI" & \
+         "lfHZnNPzXwGAre7sLCCimNAqUjXOeacDEmyoeDttLpuYye70qs6NZ04EdVj/yfM+OKmXPlUo" & \
+         "33r859yYuWLIx4qEtL84dA4cTG+Z7y06MBJb2vz6WpNNnOezqvSJXXV5sjA/qZ55s7TfZzyc" & \
+         "6o8J2zpCeuaj8ugSjwtf2gAYCdnNEoeOse8xmi63quI3QnbJ9KxonO8wWN9Y21Cc1GGP9dmg" & \
+         "8aKlgfZNyfIoyN5SDiIELWdR9kQK9d4rz9x+6pneSE4kupBY22YMn6a/KP1RBE2WGYUSTY8g" & \
+         "d+UcNHsv7F/k1YUduwy8O3gv6EE1jwWnGzK1QNDyLwQ83g0OQ+J1SEa9fG/Ojr8OLogazlu6" & \
+         "i+Jt93hnN1NbtAAEMx4QxKbT/7gOUi1Ry7w1lJGGVQoe4mFyiwAujxTciOvmh7TvNbfd/SpY" & \
+         "1xx9xJzoIdrn4lB4MCqRlF6XQolH7z+iu9tRyLT2GVZA6VTJ+mMmalH6Yrk7XqFvtoTlQRsB" & \
+         "jBxriPGztU2WL/XckcBTm5Yv32zHeyNncn3LwtbjlKPu4NMT0BluSsMh3IHx2FqDlJBw5UDZ" & \
+         "si1O2u2DnntNw2dJjwbpa5GE0WtgRT48sNa6kG5LMFHP2uTaEfz15SXdCa9FPSZBC3VgOid/" & \
+         "PSXpTExMeFjtdtc/iOsSZ0l5lh8mYFCtuU2aTaQiETbzdp0qh6iAuBsZahakERfaHtmhdEJj" & \
+         "HxmDpB2cx4TiZbwa2zdmG//yDeOlnkq2cA+GXrOrYrlRzmy057gK8i6sfbT6THVQrvuc+Rw1" & \
+         "vX9LLXVwAAAA1AABAAEABQAAAIAAAgAAU1QAAAAAgFEAAAAAABwAAAAAAAAAAVbuXRgAAAAA" & \
+         "AAAAAP48AAAAeEANrd0XRdF0XRgAAAAATUFDNgAAAAAAAAAAAAAAAAAEAAAAAAAIlfHZnNPz" & \
+         "XwGAre7sLCCimNAqUjXOeacDEmyoeDttLpuYye70qs6NZ04EdVj/yfM+OKmXPlUo33r859yY" & \
+         "uWLIx4qEtL84dA4cTG+Z7y06MBJb2vz6WpNNnOezqvSJXXV5sjA/qZ55s7TfZzyc6o8J2zpC" & \
+         "euaj8ugSAAABAAAACAoAAAcKAAAAfAAAAAAAAAAAABwAVgAAc25kIAADAAojKQAAAAAAAAAA" & \
+         "AAAjKgAGAAACsAAAAAAjKwAIAAADgAAAAAAjLAAWAAAGMgAAAAAFQm9pbmcBMQ1BZnRlciBO" & \
+         "dWxsQ21kD0FmdGVyIE51bGxDbWQgMQ==")
+end _NullCmdFork
+
 private command _Close pStack
    lock messages
    if there is a stack pStack then delete stack pStack
@@ -186,3 +234,30 @@ on TestHyperCardMACEConvert
    delete file (tFolder & "/Stack.bin")
    delete folder tFolder
 end TestHyperCardMACEConvert
+
+on TestHyperCardMACEAfterNullCmd
+   -- the header is the bufferCmd's (rc.6.3's library read the nullCmd's
+   -- offset, 0, found no compressed header there and left the sound out)
+   local tFolder, tPath, tStack
+   put specialFolderPath("temporary") & "/oxt-mace-nullcmd-" & the milliseconds into tFolder
+   create folder tFolder
+   put tFolder & "/Stack" into tPath
+   put "data fork" into url ("binfile:" & tPath)
+   put _NullCmdFork() into url ("binfile:" & tPath & ".rsrc")
+   create invisible stack "MACETest"
+   put the long id of stack "MACETest" into tStack
+   TestAssert "after a nullCmd: four sounds", revHyperCardConvertMACESounds(tStack, tPath) is 4
+   -- the 16-bit samples of Boing's 600 bytes of MACE 3:1 (3600 bytes, as
+   -- Boing's clip) and of the 120 of MACE 6:1 of "1" (1440)
+   TestAssert "after a nullCmd: imported", there is an audioClip "After NullCmd" of tStack
+   TestAssert "after a nullCmd: the samples of Boing", there is an audioClip "After NullCmd" of tStack \
+         and the size of audioClip "After NullCmd" of tStack is 3600 \
+         and the size of audioClip "Boing" of tStack is 3600
+   TestAssert "format 1, after a nullCmd: imported", there is an audioClip "After NullCmd 1" of tStack
+   TestAssert "format 1, after a nullCmd: the samples of 1", there is an audioClip "After NullCmd 1" of tStack \
+         and the size of audioClip "After NullCmd 1" of tStack is 1440
+   _Close "MACETest"
+   delete file (tPath & ".rsrc")
+   delete file tPath
+   delete folder tFolder
+end TestHyperCardMACEAfterNullCmd

@@ -96,6 +96,16 @@ on TestHyperCardScriptsRules
    put _Rewrite("on doMenu which", "  if which is " & quote & "Quit" & quote & " then exit doMenu", "  pass doMenu", "end doMenu") into tScript
    TestAssert "T1: on doMenu renamed with its exit and pass", tScript is _Lines("on hcDoMenu which", "  if which is " & quote & "Quit" & quote & " then exit hcDoMenu", "  pass hcDoMenu", "end hcDoMenu")
 
+   -- a handler named like a command, called with values only (Video
+   -- Poker's "sort" and "rename i"), and the command itself left alone
+   put _Rewrite("on openCard", "  sort", "  put 2 into i", "  rename i", "  if i > 1 then rename 0", "  sort lines of x by word 2 of each", "end openCard", "on sort", "  beep", "end sort", "on rename n", "  put n into x", "end rename") into tScript
+   TestAssert "T1: a bare call to a handler named like a command", line 2 of tScript is "  hc_sort"
+   TestAssert "T1: a call with a variable", line 4 of tScript is "  hc_rename i"
+   TestAssert "T1: a call after then, with a number", line 5 of tScript is "  if i > 1 then hc_rename 0"
+   TestAssert "T1: the command with its own words is not the handler", line 6 of tScript is "  sort lines of x by word 2 of each"
+   TestAssert "T1: the handlers renamed", line 8 of tScript is "on hc_sort" and line 11 of tScript is "on hc_rename n"
+   TestAssert "T1: the calls compile", _Compiles(tScript)
+
    put _Rewrite("on mouseUp", "  put the message box into x", "  put the msg into y", "end mouseUp") into tScript
    TestAssert "T4: the message box", tScript is _Lines("on mouseUp", "  put msg into x", "  put msg into y", "end mouseUp")
 
@@ -124,6 +134,11 @@ on TestHyperCardScriptsRules
    put _Rewrite("on mouseUp", "  put the version of scriptingLanguage " & quote & "AppleScript" & quote & " into x", "  get version of scriptingLanguage " & quote & "AppleScript" & quote, "end mouseUp") into tScript
    TestAssert "T10: the version of a scripting language", line 2 of tScript is "  put hcVersion() into x"
    TestAssert "T10: version of a scripting language, without the", line 3 of tScript is "  get hcVersion()"
+
+   -- the heapSpace, which Gems of Hubble checks before it quits
+   put _Rewrite("on mouseUp", "  if the HeapSpace < 1321000 then beep", "  put heapSpace() into x", "end mouseUp") into tScript
+   TestAssert "T10: the heapSpace", line 2 of tScript is "  if hcHeapSpace() < 1321000 then beep"
+   TestAssert "T10: heapSpace()", line 3 of tScript is "  put hcHeapSpace() into x"
 
    put _Rewrite("junk before", "on mouseUp", "  put 1 into x", "end mouseUp", "junk after") into tScript
    TestAssert "T0: text outside handlers", tScript is _Lines("-- junk before", "on mouseUp", "  put 1 into x", "end mouseUp", "-- junk after")
@@ -171,7 +186,7 @@ on TestHyperCardScriptsRules
    TestAssert "T11: in card for of card", line 5 of tScript is "  put the number of items in fld " & quote & "F" & quote & " of card " & quote & "K" & quote & " into x"
    TestAssert "T7: number of without the", line 6 of tScript is "  put the number of cards into n"
    TestAssert "T7: version without the", line 7 of tScript is "  if hcVersion() < 2 then beep"
-   TestAssert "T31: a string closed at the end of the line", line 8 of tScript is "  domenu " & quote & "Quit HyperCard" & quote
+   TestAssert "T31: a string closed at the end of the line (and Quit HyperCard to the library, T27)", line 8 of tScript is "  hcDoMenu " & quote & "Quit HyperCard" & quote
    TestAssert "T22: delete menuItem from menu", line 9 of tScript is "  hcDeleteMenuItem " & quote & "Edit" & quote & ", " & quote & "New Card" & quote
    TestAssert "T5: notes after a tempo in a variable", line 10 of tScript is "  play harpsichord tempo t " & quote & "c5e d e" & quote
    TestAssert "T3: a field named cards", line 11 of tScript is "  put card field " & quote & "cards" & quote & " into x"
@@ -222,6 +237,15 @@ on TestHyperCardScriptsRulesForAll
    TestAssert "T22: set the checkMark of menuItem", line 4 of tScript is "  hcSetMenuItem " & q & "checkmark" & q & ", " & q & "Tools" & q & ", 1, true"
    TestAssert "T22: the checkMark of menuItem", line 5 of tScript is "  if hcMenuItem(" & q & "checkmark" & q & ", " & q & "Tools" & q & ", 1) then beep"
    TestAssert "T22: delete menuItem", line 6 of tScript is "  hcDeleteMenuItem " & q & "Tools" & q & ", 1"
+
+   -- "in menu", a menu item by its place, and a property without the
+   -- (Audio Help's and HyperJack's)
+   put _Rewrite("on mouseUp", "  set the checkmark of menuItem tItem in menu 3 to true", "  put tName into last menuItem of menu 3 with menuMsg APHideNotes", "  disable last menuItem of menu 3", "  if checkMark of menuItem " & q & "Sound" & q & " of menu " & q & "Option" & q & " is true then beep", "  if the enabled of menuItem 2 in menu 3 then beep", "end mouseUp") into tScript
+   TestAssert "T22: set ... of menuItem in menu", line 2 of tScript is "  hcSetMenuItem " & q & "checkmark" & q & ", 3, tItem, true"
+   TestAssert "T22: put into last menuItem with menuMsg", line 3 of tScript is "  hcPutIntoMenu tName, " & q & "into" & q & ", 3, APHideNotes, " & q & "last" & q
+   TestAssert "T22: disable last menuItem", line 4 of tScript is "  hcEnableMenu false, 3, " & q & "last" & q
+   TestAssert "T22: a menu item's property without the", line 5 of tScript is "  if hcMenuItem(" & q & "checkmark" & q & ", " & q & "Option" & q & ", " & q & "Sound" & q & ") is true then beep"
+   TestAssert "T22: the property of menuItem in menu", line 6 of tScript is "  if hcMenuItem(" & q & "enabled" & q & ", 3, 2) then beep"
 
    put _Rewrite("on mouseUp", "  start using stack " & q & "Lib" & q, "  stop using stack tName", "  print card field " & q & "Notes" & q, "  print card 3", "end mouseUp") into tScript
    TestAssert "T23: start using a stack", line 2 of tScript is "  hcStartUsing " & q & "Lib" & q
@@ -328,6 +352,22 @@ on TestHyperCardScriptsT35
    TestAssert "T35: send to card after then", line 8 of tScript is "  if x then send " & q & "go" & q & " to this card"
    TestAssert "T35: is not off", line 9 of tScript is "  if y is not " & q & "off" & q & " then beep"
    TestAssert "T35: the script compiles", _Compiles(tScript)
+
+   -- a message called alone as a command (Gems of Hubble's resumeStack
+   -- calls openCard), and quit as a menu item
+   put _Rewrite("on resumeStack", "  openCard", "  if x then closeCard", "  pass resumeStack", "end resumeStack", "on mouseUp", "  doMenu " & q & "Quit HyperCard" & q, "end mouseUp") into tScript
+   TestAssert "T35: openCard sent", line 2 of tScript is "  send " & q & "openCard" & q & " to me"
+   TestAssert "T35: closeCard after then sent", line 3 of tScript is "  if x then send " & q & "closeCard" & q & " to me"
+   TestAssert "T35: pass left alone", line 4 of tScript is "  pass resumeStack"
+   TestAssert "T27: Quit HyperCard to the library", line 7 of tScript is "  hcDoMenu " & q & "Quit HyperCard" & q
+
+   -- idle and the other messages alone, and HyperCard 2's debug command
+   put _Rewrite("on mouseUp", "  idle", "  closeField", "  debug checkpoint", "  debug sound off", "end mouseUp") into tScript
+   TestAssert "T35: idle sent", line 2 of tScript is "  send " & q & "idle" & q & " to me"
+   TestAssert "T35: closeField sent", line 3 of tScript is "  send " & q & "closeField" & q & " to me"
+   TestAssert "T35: debug checkpoint", line 4 of tScript is "  breakpoint"
+   TestAssert "T35: debug's other options", line 5 of tScript is "  hcDebug " & q & "sound off" & q
+   TestAssert "T35: the debug lines compile", _Compiles(tScript)
 
    -- unchanged: a count put into the message box, a variable after
    -- play's voice, a variable named on, doMenu with a variable, quoted
@@ -491,6 +531,73 @@ on TestHyperCardScriptsLibrary
    _Close tStack
 end TestHyperCardScriptsLibrary
 
+on TestHyperCardScriptsHomeHandlers
+   -- the HyperCard 2 Home stack's handlers stacks called, which the
+   -- library stands in for, and a stack's own coming first
+   local tStack, q
+   global gHCScriptsTest
+   put quote into q
+   put "HCHome" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "B"
+   set the script of button "B" to _Lines("on mouseUp", "  global gHCScriptsTest, Stacks, UserName", \
+         "  getHomeInfo", "  setUserLevelFive", "  put the userLevel into gHCScriptsTest", "  restoreUserLevel", \
+         "  put comma & lastHCItem(" & q & ":" & q & ", " & q & "HD:Stacks:Home" & q & ") after gHCScriptsTest", \
+         "  put comma & (UserName is UserName) after gHCScriptsTest", \
+         "  disallowInterruption", "  put comma & the cantAbort of this stack after gHCScriptsTest", "  allowInterruption", \
+         "  put comma & checkHCFont(" & q & "No Such Font" & q & ", " & q & "12" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Own"
+   set the script of button "Own" to _Lines("on mouseUp", "  global gHCScriptsTest", "  getHomeInfo", "end mouseUp", \
+         "on getHomeInfo", "  global gHCScriptsTest", "  put " & q & "own" & q & " into gHCScriptsTest", "end getHomeInfo")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "B" of stack tStack
+   TestAssert "Home handlers: user level, lastHCItem, getHomeInfo, cantAbort, checkHCFont", gHCScriptsTest is "5,Home,true,true,No Such Font 12" & return
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Own" of stack tStack
+   TestAssert "Home handlers: a stack's own getHomeInfo first", gHCScriptsTest is "own"
+   _Close tStack
+end TestHyperCardScriptsHomeHandlers
+
+on TestHyperCardScriptsCommonExternals
+   -- the externals stacks called most that the library stands in for
+   local tStack, q, tLoudness, tSettable
+   global gHCScriptsTest
+   put quote into q
+   put "HCExternals" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "B"
+   set the script of button "B" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put Trim(" & q & "  a b " & q & " & tab) into gHCScriptsTest", \
+         "  SetVolume 7", "  put comma & GetVolume() & comma & the playLoudness after gHCScriptsTest", \
+         "  SetVolume 0", "  put comma & GetVolume() after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put the playLoudness into tLoudness
+   -- a machine with no sound output keeps the playLoudness at 0 whatever
+   -- it is set to (the Linux and Windows CI runners), so the volume is
+   -- only checked where it can be set
+   set the playLoudness to 50
+   put the playLoudness is 50 into tSettable
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "B" of stack tStack
+   set the playLoudness to tLoudness
+   if tSettable then
+      TestAssert "Trim, SetVolume and GetVolume", gHCScriptsTest is "a b,7,100,0"
+   else
+      TestAssert "Trim", item 1 of gHCScriptsTest is "a b"
+      TestSkip "SetVolume and GetVolume", "the playLoudness cannot be set on this machine"
+   end if
+   _Close tStack
+end TestHyperCardScriptsCommonExternals
+
 on TestHyperCardScriptsLibraryMessages
    -- HyperCard's messages sent to an object with no handler for them end
    -- in the library; the XFCNs with a plain equivalent answer
@@ -644,6 +751,37 @@ on TestHyperCardScriptsTwoImports
    _Close tSecond
 end TestHyperCardScriptsTwoImports
 
+on TestHyperCardScriptsNumberName
+   -- a stack whose name is a number (a CD's "007"): its library is made
+   -- although the mainStack is set by name, and the stack keeps its name
+   local tName, tStack, tError
+   global gHCScriptsTest
+   put "0" & (the milliseconds mod 100000) into tName
+   lock messages
+   create invisible stack tName
+   put it into tStack
+   set the defaultStack to tStack
+   create button "B" in card 1 of tStack
+   set the script of button "B" of card 1 of tStack to _Lines("on mouseUp", "  global gHCScriptsTest", "  put the version into gHCScriptsTest", "end mouseUp")
+   unlock messages
+   try
+      get revHyperCardFixScripts(tStack)
+   catch tError
+   end try
+   TestAssert "a number as a name: no error", tError is empty
+   TestAssert "a number as a name: the stack keeps it", the short name of tStack is tName
+   TestAssert "a number as a name: its library", _Library(tName) is among the lines of the substacks of tStack
+   put empty into gHCScriptsTest
+   try
+      send "mouseUp" to button "B" of card 1 of tStack
+   catch tError
+   end try
+   TestAssert "a number as a name: the library answers", gHCScriptsTest is "2.4.1"
+   lock messages
+   delete tStack
+   unlock messages
+end TestHyperCardScriptsNumberName
+
 on TestHyperCardScriptsStandIns
    -- calls to the externals stacks call most reach the library's
    -- stand-ins (those that need no dialog)
@@ -747,10 +885,10 @@ on TestHyperCardScriptsImported
    local tStack, tReport, tLine, tObject, tFailed
    put _ImportFile("TestV1.stack", "TestV1.stack") into tStack
    put revHyperCardFixScripts(tStack) into tReport
-   -- (4 scripts that did not compile; 33 that did, for "go home",
-   -- "arrowKey", the cursor and "go" to another stack, by "stack" or by
-   -- its name alone)
-   TestAssert "TestV1: scripts rewritten", "HyperCard scripts: 37 rewritten" is in tReport
+   -- (4 scripts that did not compile; 34 that did, for "go home",
+   -- "arrowKey", the cursor, "go" to another stack, by "stack" or by
+   -- its name alone, and doMenu "Quit HyperCard")
+   TestAssert "TestV1: scripts rewritten", "HyperCard scripts: 38 rewritten" is in tReport
    set the itemDelimiter to tab
    repeat for each line tLine in tReport
       if item 2 of tLine is empty then next repeat

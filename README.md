@@ -177,6 +177,8 @@ switching, and gives the xTalk Assistant many more services (see
   mergMicrophone), Apple's Human Interface Guidelines PDF and
   `animationEngine6.zip`. OXT-Beyond does not redistribute them; see
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#files-openxtalk-lite-shipped-that-oxt-beyond-does-not).
+  It builds mergJSON from its source instead, so `JSONToArray` and
+  `ArrayToJSON` work as in LiveCode (see [mergjson/README.md](mergjson/README.md)).
 - **Mostly separate settings.** OXT-Beyond keeps its preferences, caches
   and logs in its own folders (`%APPDATA%\OXT-Beyond`,
   `%LOCALAPPDATA%\OXT-Beyond`) and does not copy LiveCode's or OpenXTalk
@@ -2582,7 +2584,8 @@ Known limitations, in rough order of importance:
    engine files.
 5. Legacy toolchain (v141, Python 2.7, Cygwin). Plan: move to the current
    Visual Studio toolset and Python 3.
-6. The mergExt externals are not included.
+6. The mergExt externals are not included, except mergJSON, which is
+   built from its source.
 7. It has not been confirmed that Tom Perry and the other OpenXTalk Lite
    contributors offer their changes with LiveCode's permission to combine
    the code with ATL (see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)).

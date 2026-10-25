@@ -56,6 +56,11 @@ before openStack
 end openStack
 
 on gluetoLeft
+   -- OXT-Beyond: the popup places itself beside the inspector, choosing a
+   -- side that does not cover the object being edited either
+   -- (revInspectorPopupStackBehavior's ensureOnScreen)
+   dispatch "ensureOnScreen" to me
+   if it is "handled" then exit gluetoLeft
    set the right of this stack to the left of stack "revPropertyInspector 1"
 end gluetoLeft
 

@@ -42,6 +42,11 @@ script "revKitDialog"
 --                Learn's colours, on a code panel in place of the text, as
 --                the classic warning before opening a stack showed it in a
 --                window of its own
+--    front       true: on Windows, the dialog stays in front of every
+--                window, of every program, while it is open (it is a
+--                systemWindow then), for a question asked while the user
+--                is in another program (the xTalk MCP Bridge's before a
+--                run); the dialog is as it was once it closes
 --
 -- and it returns, in the result, the value of the choice or the label of
 -- the button the user pressed, as the "it" of the answer it stands for, so
@@ -93,6 +98,7 @@ local sWidth, sExtra, sNatural, sBuilding
 -- Shows the dialog for pSpec (see the top) and returns what was chosen,
 -- or throws when it cannot open, which tells the caller to fall back
 command revKitDialogAsk pSpec
+   local tDecorations
    if the mode of me is not 0 then
       throw "the dialog is open already"
    end if
@@ -104,7 +110,19 @@ command revKitDialogAsk pSpec
    put 0 into sExtra
    put false into sBuilding
    kdUseKit
+   -- A modal window of a program that is not in front opened behind the
+   -- others, the Script Editor's too. On Windows the engine makes a
+   -- systemWindow topmost and leaves a modal one's frame as it is
+   -- (w32stack.cpp); elsewhere it would change the kind of window, so
+   -- only there
+   put the decorations of me into tDecorations
+   if sSpec["front"] is true and the platform is "Win32" then
+      set the decorations of me to "title,menu,close,utility"
+   end if
    modal me
+   if the decorations of me is not tDecorations then
+      set the decorations of me to tDecorations
+   end if
    return sChoice
 end revKitDialogAsk
 

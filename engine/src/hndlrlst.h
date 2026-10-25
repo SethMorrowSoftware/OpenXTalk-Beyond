@@ -126,6 +126,11 @@ public:
     bool getconstantnames(MCListRef& r_list);
     void appendglobalnames(MCStringRef& r_string, bool first);
 	void newglobal(MCNameRef name);
+	// OXT-Beyond: the counts of the script's variables, constants and
+	// globals, and taking back those declared since they were got
+	// (MCNewSyntaxRetry)
+	void getdeclarations(uint2 r_counts[3]);
+	void undeclare(const uint2 p_counts[3]);
 	
     Parse_stat parse(MCObject *, MCDataRef);
     Parse_stat parse(MCObject *, MCStringRef);

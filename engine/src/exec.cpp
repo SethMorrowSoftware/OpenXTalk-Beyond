@@ -1301,6 +1301,36 @@ void MCExecContext::deletestatements(MCStatement* p_statements)
     }
 }
 
+// OXT-Beyond: the expression of a "value", whole; false if it does not
+// parse (and r_exp what was parsed of it, for the caller to delete)
+static bool MCExecContextParseWholeExpression(MCScriptPoint &sp, MCExpression *&r_exp)
+{
+    Symbol_type type;
+    r_exp = NULL;
+    return sp.parseexp(False, True, &r_exp) == PS_NORMAL && sp.next(type) == PS_EOF;
+}
+
+// An expression that parses without the syntax from HyperXTalk parses as
+// it did; only one that does not is read again with it, and one that parses
+// neither way is read as before once more, to fail as it did
+// (MCNewSyntaxRetry)
+static bool MCExecContextParseExpression(MCScriptPoint &sp, MCExpression *&r_exp)
+{
+    MCNewSyntaxRetry t_retry(sp);
+    if (MCExecContextParseWholeExpression(sp, r_exp))
+        return true;
+    if (!t_retry . Again())
+        return false;
+
+    delete r_exp;
+    if (MCExecContextParseWholeExpression(sp, r_exp))
+        return true;
+
+    delete r_exp;
+    t_retry . Undo();
+    return MCExecContextParseWholeExpression(sp, r_exp);
+}
+
 void MCExecContext::eval(MCExecContext &ctxt, MCStringRef p_expression, MCValueRef &r_value)
 {
     MCScriptPoint sp(ctxt, p_expression);
@@ -1308,9 +1338,8 @@ void MCExecContext::eval(MCExecContext &ctxt, MCStringRef p_expression, MCValueR
     //  sets the ScriptPoint handler to NULL (same as post-constructor state).
     sp.sethandler(ctxt . GetHandler());
     MCExpression *exp = NULL;
-    Symbol_type type;
 
-    if (sp.parseexp(False, True, &exp) == PS_NORMAL && sp.next(type) == PS_EOF)
+    if (MCExecContextParseExpression(sp, exp))
         ctxt . EvalExprAsValueRef(exp, EE_HANDLER_BADEXP, r_value);
     else
         ctxt . Throw();
@@ -1325,9 +1354,8 @@ void MCExecContext::eval_ctxt(MCExecContext &ctxt, MCStringRef p_expression, MCE
     //  sets the ScriptPoint handler to NULL (same as post-constructor state).
     sp.sethandler(ctxt . GetHandler());
     MCExpression *exp = NULL;
-    Symbol_type type;
 
-    if (sp.parseexp(False, True, &exp) == PS_NORMAL && sp.next(type) == PS_EOF)
+    if (MCExecContextParseExpression(sp, exp))
         ctxt . EvaluateExpression(exp, EE_HANDLER_BADEXP, r_value);
     else
         ctxt . Throw();
@@ -1335,19 +1363,17 @@ void MCExecContext::eval_ctxt(MCExecContext &ctxt, MCStringRef p_expression, MCE
     delete exp;
 }
 
-void MCExecContext::doscript(MCExecContext &ctxt, MCStringRef p_script, uinteger_t p_line, uinteger_t p_pos)
+// OXT-Beyond: the statements of a "do" script, parsed as doscript runs
+// them: ES_PASS when they all parse, ES_ERROR when one does not
+static Exec_stat MCExecContextParseDo(MCScriptPoint &sp, MCStringRef p_script, uinteger_t p_line, uinteger_t p_pos, MCStatement *&statements, uint4 &count)
 {
-    MCScriptPoint sp(ctxt, p_script);
     MCStatement *curstatement = NULL;
-    MCStatement *statements = NULL;
     MCStatement *newstatement = NULL;
     Symbol_type type;
     const LT *te;
     Exec_stat stat = ES_NORMAL;
-    Boolean oldexplicit = MCexplicitvariables;
-    MCexplicitvariables = False;
-    uint4 count = 0;
-    sp.setline(p_line - 1);
+    statements = NULL;
+    count = 0;
     while (stat == ES_NORMAL)
     {
         switch (sp.next(type))
@@ -1400,6 +1426,38 @@ void MCExecContext::doscript(MCExecContext &ctxt, MCStringRef p_script, uinteger
             break;
         default:
             stat = ES_ERROR;
+        }
+    }
+    return stat;
+}
+
+void MCExecContext::doscript(MCExecContext &ctxt, MCStringRef p_script, uinteger_t p_line, uinteger_t p_pos)
+{
+    MCScriptPoint sp(ctxt, p_script);
+    MCStatement *statements = NULL;
+    Exec_stat stat;
+    Boolean oldexplicit = MCexplicitvariables;
+    MCexplicitvariables = False;
+    uint4 count = 0;
+    sp.setline(p_line - 1);
+
+    // OXT-Beyond: a script that parses without the syntax from HyperXTalk
+    // parses as it did; only one that does not is read again with it, and
+    // one that parses neither way is read as before once more, to fail as
+    // it did (MCNewSyntaxRetry)
+    {
+        MCNewSyntaxRetry t_retry(sp);
+        stat = MCExecContextParseDo(sp, p_script, p_line, p_pos, statements, count);
+        if (stat == ES_ERROR && t_retry . Again())
+        {
+            deletestatements(statements);
+            stat = MCExecContextParseDo(sp, p_script, p_line, p_pos, statements, count);
+            if (stat == ES_ERROR)
+            {
+                deletestatements(statements);
+                t_retry . Undo();
+                stat = MCExecContextParseDo(sp, p_script, p_line, p_pos, statements, count);
+            }
         }
     }
     MCexplicitvariables = oldexplicit;

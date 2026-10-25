@@ -206,6 +206,14 @@ Parse_stat MCConvert::parsedtformat(MCScriptPoint &sp, Convert_form &firstform,
 		case CF_ENGLISH:
 			localeform = (Convert_form)te->which;
 			break;
+		// OXT-Beyond: HyperXTalk's "sql" or "sql date", a whole format of
+		// its own (a short, long, english or system before it changes
+		// nothing, as in HyperXTalk)
+		case CF_SQL_DATE:
+			firstform = CF_SQL_DATE;
+			secondform = CF_UNDEFINED;
+			sp.skip_token(SP_CONVERT, TT_CHUNK, CF_DATE);
+			return PS_NORMAL;
 		case CF_DATE:
 		case CF_TIME:
 			if (firstform == CF_UNDEFINED)

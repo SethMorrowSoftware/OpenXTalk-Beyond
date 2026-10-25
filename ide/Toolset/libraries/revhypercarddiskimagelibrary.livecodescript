@@ -109,7 +109,8 @@ with an error in the result if the image or the file cannot be read.
 
 Description:
 The copy is named after the file on the volume, with any slash or colon
-replaced by a hyphen. A file of that name in pFolder is replaced.
+replaced by a hyphen (on Windows, any of < > " \ | ? * too). A file of
+that name in pFolder is replaced.
 */
 function revHyperCardImageExtract pImage, pStackPath, pFolder
    local tError, tEach, tFile, tData, tName, tPath
@@ -125,6 +126,14 @@ function revHyperCardImageExtract pImage, pStackPath, pFolder
    put sFiles[tFile]["name"] into tName
    replace slash with "-" in tName
    replace colon with "-" in tName
+   -- Windows refuses these in a file's name ("WhatIsIt?"), which a Mac
+   -- volume allows: the importer names the stack after the file, so
+   -- revIDEImportHyperCardFromDiskImage gives it back its name
+   if the platform is "Win32" then
+      repeat for each char tEach in "<>" & quote & "\|?*"
+         replace tEach with "-" in tName
+      end repeat
+   end if
    if pFolder ends with slash then delete the last char of pFolder
    put pFolder & slash & tName into tPath
 

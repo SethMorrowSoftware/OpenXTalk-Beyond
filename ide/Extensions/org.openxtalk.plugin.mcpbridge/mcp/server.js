@@ -95,6 +95,11 @@ const HELLO_TIMEOUT_MS = Number(process.env.OXT_MCP_HELLO_TIMEOUT_MS) || 15000;
 // that OXT-Beyond is busy (the earlier one may be waiting for the user to
 // answer a question there)
 const BUSY_WAIT_MS = Number(process.env.OXT_MCP_BUSY_WAIT_MS) || 20000;
+// While a call takes long, how often OXT-Beyond is asked what it waits for
+// (its status, over a connection of its own), to tell the client that
+// asked for progress; and how long it may take to answer that
+const STATUS_INTERVAL_MS = Number(process.env.OXT_MCP_STATUS_INTERVAL_MS) || 15000;
+const STATUS_TIMEOUT_MS = 3000;
 // For the web IDE (see the top of this file): whether this server is for
 // it, the port it listens on for the tab, the key the two ends share, the
 // origins it lets connect, the largest message it reads from the tab (a
@@ -125,7 +130,10 @@ const INSTRUCTIONS = [
   'A change is made as soon as the user allows the tool here; OXT-Beyond asks the user itself before every run of code',
   '(showing it), before saving, and before undoing what they changed since.',
   'undo_changes takes back what you changed or ran on a stack. Check code with check_code and look up what you',
-  'are not sure of with lookup_dictionary rather than guess.'
+  'are not sure of with lookup_dictionary rather than guess.',
+  'When a call waits or is refused as busy, its text says what OXT-Beyond waits for: the user\'s answer to its question',
+  '(ask them to look for that window), a script paused in the debugger (stop_paused_script), or a dialog a stack opened',
+  '(answer_dialog). import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
 ].join(' ');
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -402,6 +410,55 @@ const TOOLS = [
       'script around the line. It only reads: stepping and going on are the user\'s, in the Script Editor.',
     inputSchema: { type: 'object', properties: {} },
     annotations: READ_ONLY
+  },
+  {
+    name: 'stop_paused_script',
+    title: 'Stop the paused script',
+    description: 'Stops the script of the user\'s that is paused in the debugger, as Stop in the Script Editor does: the rest ' +
+      'of that handler, and of those that called it, does not run (what it did already stays done). While a script is ' +
+      'paused, code run in OXT-Beyond waits for it; ide_context, debug_state and a call refused as busy say where it is ' +
+      'paused. Read debug_state first when the user wants the error fixed, then stop it. It answers even while another ' +
+      'call waits.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
+  },
+  {
+    name: 'answer_dialog',
+    title: 'Answer a dialog',
+    description: 'Presses a button of the dialog in front in OXT-Beyond, when a script of the user\'s opened it (answer, ask, ' +
+      'or a modal stack of theirs): the script that opened it waits until it is answered, and so does every other call. ' +
+      'ide_context, and a call refused as busy, give the dialog\'s text and buttons. With text, it is typed into the ' +
+      'dialog\'s field first (an ask dialog). Never OXT-Beyond\'s own question before a run, a save or an undo, nor a dialog ' +
+      'of the IDE\'s: those are the user\'s to answer. Answer only as the user asked you to. It answers even while another call waits.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        button: { type: 'string', description: 'The button to press, by its label, as ide_context gives it' },
+        text: { type: 'string', description: 'What to type into the dialog\'s field before (an ask dialog)' }
+      },
+      required: ['button']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+  },
+  {
+    name: 'import_hypercard',
+    title: 'Import a HyperCard stack',
+    description: 'Imports a HyperCard stack into OXT-Beyond as File > Import Stack > HyperCard Stack does, with messages ' +
+      'locked, so that none of its scripts runs (old stacks often carry a HyperTalk virus): from its file (a HyperCard ' +
+      'stack, or a MacBinary or BinHex copy), or from a Mac disk image (a floppy or CD image with an HFS volume) with ' +
+      'stack_path. With list, it lists the stacks on a disk image instead. Gives the import\'s summary: what came in, what ' +
+      'was converted and what is missing. The stack is open afterwards, and not saved (save_stack saves it where the user ' +
+      'chooses).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'The path of the stack or the disk image, on this computer' },
+        stack_path: { type: 'string', description: 'For a disk image: the stack\'s path on it, as list gives it (Volume:Folder:Stack)' },
+        list: { type: 'boolean', description: 'For a disk image: list its stacks, and import nothing' }
+      },
+      required: ['file']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
   }
 ];
 
@@ -501,7 +558,14 @@ class Bridge {
         this.token = info.token;
         this.buffer = '';
         socket.on('data', (chunk) => this.onData(chunk));
-        socket.on('close', () => this.onClose());
+        // Only while calls go on it: a connection close() let go can close
+        // after the next one is made (a call queued behind one that timed
+        // out connects at once), and would take that one's call with it
+        socket.on('close', () => {
+          if (this.socket === socket) {
+            this.onClose();
+          }
+        });
         socket.on('error', (e) => log('socket: ' + e.message));
         resolve();
       });
@@ -575,11 +639,16 @@ class Bridge {
       const timer = setTimeout(() => {
         if (this.pending && this.pending.id === id) {
           this.pending = null;
-          reject(new BridgeError(timeoutText || ('OXT-Beyond did not answer in ' + Math.round(timeoutMs / 1000) + ' seconds. ' +
+          const text = timeoutText || ('OXT-Beyond did not answer in ' + Math.round(timeoutMs / 1000) + ' seconds. ' +
             'It may be waiting for the user, or running code that does not end (Control-period stops it). A question it was ' +
             'asking the user does nothing now, even if they answer it; code that was running may still finish: check ' +
-            'list_changes before sending it again.')));
-          this.close();
+            'list_changes before sending it again.');
+          // What it waits for is asked before this connection closes: a
+          // question still open then is one the user has not answered
+          this.withStatus(text).then((e) => {
+            reject(e);
+            this.close();
+          });
         }
       }, timeoutMs);
       // The connection can close between the hello and the call (onClose
@@ -626,7 +695,7 @@ class Bridge {
       const timer = setTimeout(() => {
         if (!ticket.started) {
           ticket.abandoned = true;
-          reject(new BridgeError(BUSY));
+          this.withStatus(BUSY).then(reject);
         }
       }, BUSY_WAIT_MS);
       result.then((r) => { clearTimeout(timer); resolve(r); }, (e) => { clearTimeout(timer); reject(e); });
@@ -636,6 +705,56 @@ class Bridge {
   // Where a call goes once its turn comes: to OXT-Beyond
   dispatch(tool, args) {
     return this.send({ method: 'call', tool, arguments: args || {} });
+  }
+
+  // What OXT-Beyond says it is doing and what holds it up (its status:
+  // the user's answer to its question, a script paused in the debugger, a
+  // dialog), asked over a connection of its own, since the one calls go on
+  // is waiting for an answer. Resolves with the text, or '' when there is
+  // none to give (an OXT-Beyond that has no status, or none running).
+  status() {
+    let info;
+    try {
+      info = this.readInfo();
+    } catch (e) {
+      return Promise.resolve('');
+    }
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: '127.0.0.1', port: info.port });
+      let buffer = '';
+      let done = false;
+      const finish = (text) => {
+        if (!done) {
+          done = true;
+          clearTimeout(timer);
+          socket.destroy();
+          resolve(text);
+        }
+      };
+      const timer = setTimeout(() => finish(''), STATUS_TIMEOUT_MS);
+      socket.setEncoding('utf8');
+      socket.on('connect', () => socket.write(JSON.stringify({ id: 1, token: info.token, method: 'status' }) + '\n'));
+      socket.on('data', (chunk) => {
+        buffer += chunk;
+        const at = buffer.indexOf('\n');
+        if (at < 0) {
+          return;
+        }
+        let reply = null;
+        try {
+          reply = JSON.parse(buffer.slice(0, at));
+        } catch (e) {
+          // not an answer
+        }
+        finish(reply && reply.ok && typeof reply.text === 'string' ? reply.text : '');
+      });
+      socket.on('error', () => finish(''));
+    });
+  }
+
+  // A refusal or a timeout with what OXT-Beyond says it waits for after it
+  withStatus(text) {
+    return this.status().then((status) => new BridgeError(status ? text + '\n\n' + status : text));
   }
 
   // The note about the tools, once
@@ -1147,6 +1266,12 @@ class WebBridge extends Bridge {
     return result.reply;
   }
 
+  // The tab answers one request at a time, on the one connection: there is
+  // no second one to ask on
+  status() {
+    return Promise.resolve('');
+  }
+
   connect() {
     if (this.link.problem) {
       return Promise.reject(new BridgeError(this.link.problem));
@@ -1272,12 +1397,28 @@ async function handle(message) {
     case 'tools/call': {
       const state = { cancelled: false };
       inFlight.set(id, state);
+      // A client that asked for progress (a progressToken) is told, while
+      // the call takes long, what OXT-Beyond waits for
+      const token = params && params._meta && params._meta.progressToken;
+      let ticks = 0;
+      const progress = (token === undefined || token === null) ? null : setInterval(() => {
+        bridge.status().then((text) => {
+          if (text && inFlight.get(id) === state) {
+            ticks++;
+            process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress',
+              params: { progressToken: token, progress: ticks, message: text } }) + '\n');
+          }
+        });
+      }, STATUS_INTERVAL_MS);
       let result;
       let failure;
       try {
         result = await callTool(params, state);
       } catch (e) {
         failure = e;
+      }
+      if (progress) {
+        clearInterval(progress);
       }
       inFlight.delete(id);
       if (state.cancelled) {

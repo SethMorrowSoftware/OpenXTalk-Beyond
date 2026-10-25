@@ -511,6 +511,24 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 		MCperror->add(PE_PROPERTY_NOPROP, sp);
 		return PS_ERROR;
 	}
+	// OXT-Beyond: HyperXTalk's "the sql date". "sql" is no keyword (a
+	// variable, handler or custom property named sql is as it was): it is
+	// read as this only after "the" and before "date", which compiled to
+	// nothing before
+	if (the && !effective && type == ST_ID &&
+		MCStringIsEqualToCString(sp.gettoken_stringref(), "sql", kMCCompareCaseless))
+	{
+		// (a skip_token that finds no "date" clears the token, which the
+		// lookups below read: they get "sql" back)
+		MCScriptPoint t_sql(sp);
+		if (sp.skip_token(SP_FACTOR, TT_FUNCTION, F_DATE) == PS_NORMAL)
+		{
+			which = P_SQL;
+			function = F_DATE;
+			return PS_NORMAL;
+		}
+		sp = t_sql;
+	}
 	if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 	{
 		// MW-2011-06-22: [[ SERVER ]] Update to use SP findvar method to take into account
@@ -613,6 +631,25 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 
 		if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 		{
+			// OXT-Beyond: HyperXTalk's "the long microseconds", and every
+			// other form "the milliseconds" takes. Its names are no keywords
+			// (MCMicrosecs::isname), so they were an error here. Only after
+			// "the": without it the parse failed more gently ("long" became
+			// a literal), and "create button long microseconds" made a
+			// button named long, then ran a handler named microseconds. And
+			// only where what holds it did not compile without it, as with
+			// "the microseconds" (MCNewSyntax)
+			if (the && type == ST_ID && MCMicrosecs::isname(sp) &&
+				MCNewSyntax::Read())
+			{
+				function = F_MICROSECS;
+				if (which == P_INTERNET)
+				{
+					MCperror->add(PE_FACTOR_BADPARAM, sp);
+					return PS_ERROR;
+				}
+				return PS_NORMAL;
+			}
 			MCperror->add(PE_GENERAL_CANTMODIFY, sp);
 			return PS_ERROR;
 		}
@@ -1321,6 +1358,19 @@ void MCProperty::eval_function_ctxt(MCExecContext& ctxt, MCExecValue& r_value)
 				MCDateTimeGetLongMilliseconds(ctxt, r_value . double_value);
 			else
 				MCDateTimeGetMilliseconds(ctxt, r_value . double_value);
+            
+			if (!ctxt . HasError())
+                r_value . type = kMCExecValueTypeDouble;
+            
+            return;
+		}
+		// OXT-Beyond: HyperXTalk's "the microseconds" (see MCProperty::parse)
+		case F_MICROSECS:
+		{
+			if (which == P_LONG)
+				MCDateTimeGetLongMicroseconds(ctxt, r_value . double_value);
+			else
+				MCDateTimeGetMicroseconds(ctxt, r_value . double_value);
             
 			if (!ctxt . HasError())
                 r_value . type = kMCExecValueTypeDouble;

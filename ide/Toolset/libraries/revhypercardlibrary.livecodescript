@@ -30,6 +30,13 @@ on hcDoMenu pItem, pMenu
       create button "New Button"
       return empty
    end if
+   -- Quit HyperCard: in the IDE, the stack is closed rather than the IDE
+   -- quit (a stack that quit as it opened closed the IDE, with no word
+   -- about unsaved work); a standalone quits, as HyperCard did
+   if pItem is among the items of "Quit HyperCard,Quit" and the environment is "development" then
+      close this stack
+      return empty
+   end if
    doMenu pItem
    return the result
 end hcDoMenu
@@ -39,6 +46,13 @@ end hcDoMenu
 function hcVersion
    return "2.4.1"
 end hcVersion
+
+-- the heapSpace: the memory HyperCard had free, which stacks checked
+-- before they ran (Gems of Hubble quits under 1321000). This engine's
+-- heapSpace is 1000000 always; 16 MB passes those checks
+function hcHeapSpace
+   return 16777216
+end hcHeapSpace
 
 -- HyperCard's long version, as HyperCard 2.4.1 gave it
 function hcLongVersion
@@ -123,6 +137,109 @@ on hcGoHome
    end if
    return "Can't find the Home stack"
 end hcGoHome
+
+-- HyperCard 2's Home stack had handlers other stacks called, as they
+-- were in every user's message path (a CD's stacks call getHomeInfo in
+-- 47 stacks, lastHCItem in 11, setUserLevelFive in 9). With no Home
+-- stack here, these stand in for them; a stack's own comes first.
+
+-- getHomeInfo: the Home stack read the user's name and search paths into
+-- these globals (Stacks and Documents are hc_Stacks and hc_Documents in
+-- the rewritten scripts, rule T2). The name is the system's user; the
+-- paths stay as they are
+on getHomeInfo
+   global hc_Stacks, Applications, hc_Documents, UserName
+   if UserName is empty then
+      put $USER into UserName
+      if UserName is empty then put $USERNAME into UserName
+   end if
+   return empty
+end getHomeInfo
+
+on setUserLevelFive
+   global SvLvl
+   put the userLevel into SvLvl
+   set the userLevel to 5
+end setUserLevelFive
+
+on restoreUserLevel
+   global SvLvl
+   if SvLvl is a number then set the userLevel to SvLvl
+end restoreUserLevel
+
+on allowInterruption
+   set the cantAbort of this stack to false
+end allowInterruption
+
+on disallowInterruption
+   set the cantAbort of this stack to true
+end disallowInterruption
+
+-- the part of pText after the last pDelim, all of it with none
+function lastHCItem pDelim, pText
+   local tAt
+   if pDelim is empty then return pText
+   repeat
+      put offset(pDelim, pText) into tAt
+      if tAt is 0 then exit repeat
+      delete char 1 to tAt + the number of chars of pDelim - 1 of pText
+   end repeat
+   return pText
+end lastHCItem
+
+-- the fonts the Home stack checked for and warned of: shown here in
+-- another face when the system lacks them, which the import summary says
+function checkHCFont pFont, pSizes
+   if pFont is among the lines of the fontNames then return empty
+   return pFont && pSizes & return
+end checkHCFont
+
+on checkForMissingFonts
+   return empty
+end checkForMissingFonts
+
+-- debug sound off, debug pureQuickDraw true...: HyperCard 2's debug
+-- options (rule T35), which have nothing to set here
+on hcDebug pOptions
+   return empty
+end hcDebug
+
+-- Externals stacks called most that this script can do (a CD's stacks:
+-- SetVolume in 26, GetVolume in 18, Trim in 12): a stack's own XCMD or
+-- XFCN of the name is not run here, so these stand in for it
+
+-- the sound volume, 0 to 7 as the Macintosh's, from this engine's
+-- playLoudness (0 to 100)
+function GetVolume
+   return round(the playLoudness * 7 / 100)
+end GetVolume
+
+on SetVolume pLevel
+   if pLevel is not a number then return empty
+   set the playLoudness to max(0, min(100, round(pLevel * 100 / 7)))
+end SetVolume
+
+-- whether the system has the font (FontExists in 19 stacks of the CD);
+-- any size of a font it has is drawn here
+function FontExists pFont, pSize
+   return pFont is among the lines of the fontNames
+end FontExists
+
+-- the name of the window in front (FrontWindow, 12 stacks)
+function FrontWindow
+   return the short name of the topStack
+end FrontWindow
+
+-- the text without the spaces and tabs at its start and end
+function Trim pText
+   repeat while pText is not empty and (char 1 of pText is space or char 1 of pText is tab)
+      delete char 1 of pText
+   end repeat
+   repeat while pText is not empty and (char -1 of pText is space or char -1 of pText is tab)
+      delete char -1 of pText
+   end repeat
+   return pText
+end Trim
 
 ----------------------------------------------------------------------
 -- go to a stack that is not open
@@ -294,11 +411,28 @@ private function _HCImport pFile
       put empty into tStack
    end try
    if tStack is not empty then
+      -- this engine's stack names have no commas: the name it gives
+      if the short name of tStack contains comma then
+         set the name of tStack to the short name of tStack
+         put the long id of stack (the short name of tStack) into tStack
+      end if
       if line 2 of pFile is empty then
          set the uHyperCard["file"] of tStack to tPath
       else
          set the uHyperCard["image"] of tStack to line 2 of pFile
          set the uHyperCard["imagepath"] of tStack to line 3 of pFile
+         -- a name Windows refuses for a file was copied out under
+         -- another (revHyperCardImageExtract): the stack gets its own
+         if the platform is "Win32" then
+            set the itemDelimiter to colon
+            put the last item of line 3 of pFile into tEach
+            replace slash with "-" in tEach
+            replace comma with "_" in tEach
+            if the short name of tStack is not tEach then
+               set the name of tStack to tEach
+               put the long id of stack tEach into tStack
+            end if
+         end if
       end if
       try
          -- (the IDE's, and the Stack Player's)
@@ -416,6 +550,8 @@ on hcPutIntoMenu pItems, pPreposition, pMenu, pMessages, pItem
       put _HCMenuItemNumber(tKey, pItem) into tAt
       if tAt is 0 then return "Can't find menu item" && pItem
       put item 1 of pItems into sHCMenus[tKey][tAt]["name"]
+      -- (with menuMsg X: the item's message too)
+      if pMessages is not empty then put word 1 to -1 of pMessages into sHCMenus[tKey][tAt]["menumessage"]
       return empty
    end if
    put sHCMenus[tKey]["count"] into tOld
@@ -562,6 +698,18 @@ private function _HCMenuItemNumber pKey, pItem
       put sHCMenus[pKey][i]["name"] into tName
       if tName is pItem or (tName ends with "..." and char 1 to -4 of tName is pItem) then return i
    end repeat
+   -- by its place, when no item has that name: "last", "first" ...
+   -- "tenth", "middle" (a script's "last menuItem of menu M")
+   if pItem is among the words of "first second third fourth fifth sixth seventh eighth ninth tenth" then
+      put wordOffset(pItem, "first second third fourth fifth sixth seventh eighth ninth tenth") into i
+   else if pItem is "last" then
+      put sHCMenus[pKey]["count"] into i
+   else if pItem is "middle" then
+      put (sHCMenus[pKey]["count"] + 1) div 2 into i
+   else
+      return 0
+   end if
+   if i >= 1 and i <= sHCMenus[pKey]["count"] then return i
    return 0
 end _HCMenuItemNumber
 

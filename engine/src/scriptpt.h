@@ -128,7 +128,13 @@ public:
 
 	~MCScriptPoint();
 	MCScriptPoint& operator=(const MCScriptPoint& sp);
-	
+
+	// OXT-Beyond: puts this script point exactly where sp is, as the copy
+	// constructor and operator= do not quite (they leave out length, and
+	// the copy constructor the token's name; operator= leaves out escapes
+	// and the tag state). MCNewSyntaxRetry reads a script again from here
+	void restore(const MCScriptPoint &sp);
+
 	void allowescapes(Boolean which)
 	{
 		escapes = which;
@@ -251,6 +257,100 @@ public:
     
 private:
     bool lookupconstantintable(int& r_position);
+};
+
+// OXT-Beyond: the syntax from HyperXTalk ("the microseconds", and the
+// "matches wildcard" and "matches regex" operator) uses no reserved word,
+// so it can be read only where it gives a meaning to something that had
+// none. But a line could mean something else before: "get tText matches
+// wildcard (tPattern)" was "get tText", then a call of a handler named
+// matches, with the value of a function named wildcard. So that every
+// script that compiled before compiles as it did, the parser reads each
+// handler, "do" script, "value" expression and line at a server script's
+// top level without that syntax first, and with it only if that failed
+// after meeting it (MCNewSyntaxRetry). Where the parser meets it, Read
+// says whether it may read it there.
+class MCNewSyntax
+{
+public:
+	// Whether the parser may read the syntax from HyperXTalk at the place
+	// it has reached. When it may not, this is noted, so that a failed
+	// reading is tried again with the syntax (MCNewSyntaxRetry::Again)
+	static bool Read(void);
+
+private:
+	friend class MCNewSyntaxRetry;
+
+	// Whether the syntax may be read: only in a second reading
+	static bool s_read;
+	// Whether the reading met the syntax where it might not read it
+	static bool s_passed;
+};
+
+// One reading of a part of a script, a handler for example, which is read
+// again with the syntax MCNewSyntax gates when it fails after meeting that
+// syntax. Each reading starts where the first did, as if none had been
+// before it: at the same place in the script, with the parse and execution
+// errors there were, and with only what was declared there (so that a
+// "local" the first reading declared is no duplicate in the second). If
+// the second reading fails too, the part is read a third time without the
+// syntax, and fails just as the first did: the same errors, at the same
+// place, with the same declarations. Make one where the first reading
+// starts:
+//
+//   MCNewSyntaxRetry t_retry(sp);
+//   <first reading>
+//   if (<it failed> && t_retry . Again())
+//   {
+//       <delete what it made>, <second reading>
+//       if (<that failed>)
+//           <delete what it made>, t_retry . Undo(), <third reading>
+//   }
+//
+// The parse does not run script, so one reading is never inside another;
+// if one were, it would read the inner part without the syntax first too.
+class MCNewSyntaxRetry
+{
+public:
+	MCNewSyntaxRetry(MCScriptPoint &sp);
+	~MCNewSyntaxRetry(void);
+
+	// After the first reading failed: whether it met the syntax, and so is
+	// to be read again with it. If so, all is as it was where it started
+	bool Again(void);
+
+	// After the second reading failed and what it made has been deleted:
+	// all is as it was where the first reading started, and the syntax is
+	// not read, for the third reading
+	void Undo(void);
+
+private:
+	// Puts sp, the errors and the declarations back as they were where the
+	// first reading started
+	void Rollback(void);
+
+	MCScriptPoint &m_sp;
+
+	// Where the first reading starts
+	MCScriptPoint m_start;
+
+	// The errors there: MCperror and MCeerror, each nil if it held nothing
+	// (MCNewSyntaxKeepError), and MCerrorlock
+	MCError *m_errors[2];
+	int m_errorlock;
+
+	// What was declared there: the newest global (MCglobals), and the
+	// counts of the variables, constants and globals of the handler and the
+	// handler list sp declares them in
+	MCVariable *m_globals;
+	MCHandler *m_handler;
+	uint2 m_handler_declarations[3];
+	MCHandlerlist *m_hlist;
+	uint2 m_hlist_declarations[3];
+
+	// MCNewSyntax's state outside this reading
+	bool m_outer_read;
+	bool m_outer_passed;
 };
 #endif
 

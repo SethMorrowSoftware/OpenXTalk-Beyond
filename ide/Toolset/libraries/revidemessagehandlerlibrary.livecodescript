@@ -315,15 +315,37 @@ on mainstackChanged pOldMainstack, pNewMainStack
    pass mainstackChanged
 end mainstackChanged
 
+-- OXT-Beyond: the stacks a moveStack found under the menu bar while the
+-- mouse was down, which revIDEStackBelowMenuBar moves once it is up
+local sBelowMenuBarPending
+
 on moveStack pLeft, pTop
-   local tMenuBar
+   local tMenuBar, tStack
    if the platform is "MacOS" then -- prevent stack getting stuck under menu bar
       put revIDEPaletteToStackName("menubar") into tMenuBar
-      if pTop < the bottom of stack tMenuBar and the right of stack revTargetStack() < the right of stack tMenuBar + 5 then
-         set the top of stack revTargetStack() to the bottom of stack tMenuBar + 20
+      put revTargetStack() into tStack
+      -- OXT-Beyond: not the menu bar itself. Preferences can make it a
+      -- window with a title bar, which is dragged, and its top is always
+      -- above its own bottom, so a drag set it its height and 20 lower.
+      -- Nor a stack while the mouse is down: set during a drag, a window
+      -- stays where it is dragged and the engine takes it to be where it
+      -- was set, so its buttons stop working until it is set where it is
+      -- (forum, bwmilby, rc.6.3: the Menubar's, then revTools'). The stack
+      -- goes below the menu bar once the mouse is up, as before
+      if tStack is not tMenuBar then
+         if pTop < the bottom of stack tMenuBar and the right of stack tStack < the right of stack tMenuBar + 5 then
+            if the mouse is down then
+               if sBelowMenuBarPending[tStack] is not true then
+                  put true into sBelowMenuBarPending[tStack]
+                  send "revIDEStackBelowMenuBar" && quote & tStack & quote to me in 100 milliseconds
+               end if
+            else
+               set the top of stack tStack to the bottom of stack tMenuBar + 20
+            end if
+         end if
       end if
    end if
-   
+
    # IDE to notify any objects subscribed to the ideStackMoved Message
    local tLongID
    -- moveStack is sent to the card, so the owner of the target is the stack
@@ -331,6 +353,23 @@ on moveStack pLeft, pTop
    send "ideMessageSendWithTrigger" &&  "ideStackMoved, tLongID, tLongID" to stack "revIDELibrary" in 0 milliseconds
    pass moveStack
 end moveStack
+
+-- OXT-Beyond: the stack pStack, which a moveStack found under the menu bar
+-- while the mouse was down (above), goes below it once the mouse is up, if
+-- it is still under it
+on revIDEStackBelowMenuBar pStack
+   local tMenuBar
+   if the mouse is down then
+      send "revIDEStackBelowMenuBar" && quote & pStack & quote to me in 100 milliseconds
+      exit revIDEStackBelowMenuBar
+   end if
+   delete variable sBelowMenuBarPending[pStack]
+   put revIDEPaletteToStackName("menubar") into tMenuBar
+   if there is not a stack pStack or there is not a stack tMenuBar then exit revIDEStackBelowMenuBar
+   if the top of stack pStack < the bottom of stack tMenuBar and the right of stack pStack < the right of stack tMenuBar + 5 then
+      set the top of stack pStack to the bottom of stack tMenuBar + 20
+   end if
+end revIDEStackBelowMenuBar
 
 on moveControl
    # IDE to notify any objects subscribed to the ideControlMoved Message

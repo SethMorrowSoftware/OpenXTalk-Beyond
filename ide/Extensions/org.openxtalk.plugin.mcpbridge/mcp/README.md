@@ -120,6 +120,15 @@ Claude can do the same things the xTalk Assistant's tools do:
   completely or not at all.
 - **Run and save:** run code in a sandbox or on your stack, and save a
   stack.
+- **When OXT-Beyond is held up:** say what a call waits for (a question
+  of OXT-Beyond's behind other windows, a script paused in the debugger,
+  a dialog open in front of you), stop a paused script as Stop in the
+  Script Editor does, and press a button of an `answer` or `ask` dialog
+  one of your stacks opened. Claude never answers OXT-Beyond's own
+  questions. A client that asks for progress is told every 15 seconds
+  what a long call waits for (`OXT_MCP_STATUS_INTERVAL_MS` changes it).
+- **Import from HyperCard:** a stack's file, or a stack on a Mac disk
+  image, imported with messages locked so none of its scripts run.
 
 Claude's app asks you before it uses each tool. OXT-Beyond asks you
 itself in three cases:

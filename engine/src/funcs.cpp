@@ -80,6 +80,12 @@ Parse_stat MCFunction::parse(MCScriptPoint &sp, Boolean the)
 	return PS_NORMAL;
 }
 
+bool MCMicrosecs::isname(MCScriptPoint &sp)
+{
+	return sp.token_is_cstring("microseconds") || sp.token_is_cstring("microsecond")
+		|| sp.token_is_cstring("microsecs") || sp.token_is_cstring("microsec");
+}
+
 Parse_stat MCFunction::parsetarget(MCScriptPoint &sp, Boolean the,
                                    Boolean needone, MCChunk *&object)
 {

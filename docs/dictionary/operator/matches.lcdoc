@@ -1,0 +1,102 @@
+Name: matches
+
+Type: operator
+
+Syntax: <string> matches wildcard [pattern] <wildcardPattern>
+
+Syntax: <string> matches regex [pattern] <regexPattern>
+
+Summary:
+Returns true if a string matches a wildcard pattern or a regular
+expression, and false if it does not.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android, html5
+
+Platforms: desktop, server, mobile
+
+Example:
+"notes.txt" matches wildcard "*.txt" -- evaluates to true
+
+Example:
+"notes.txt.bak" matches wildcard "*.txt" -- evaluates to false
+
+Example:
+"2026-10-24" matches regex "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" -- evaluates to true
+
+Example:
+local tFile, tImages
+repeat for each line tFile in files(specialFolderPath("documents"))
+   if tFile matches wildcard "*.png" then
+      put tFile & return after tImages
+   end if
+end repeat
+
+Parameters:
+string (string):
+The text to match.
+
+wildcardPattern (string):
+A pattern of the kind the <filter> <command> takes, with `*`, `?` and
+`[chars]`.
+
+regexPattern (string):
+A <regular expression>, as the <matchText> <function> takes.
+
+Description:
+Use the <matches> <operator> to test a string against a pattern where
+an <if> <control structure> or any other <expression> needs true or
+false.
+
+`matches wildcard` is true when the whole of <string> matches
+<wildcardPattern>, which is read as the <filter> <command> reads one:
+`*` matches any characters or none, `?` any one character, and `[abc]`,
+`[a-c]` and `[!abc]` one of a set of characters (or one not in it). It
+takes the <caseSensitive> <property> into account, as <filter> does.
+
+`matches regex` is true when <regexPattern> matches <string>, as the
+<matchText> <function> would say: it can match anywhere in the string,
+unless the pattern begins with `^` or ends with `$`, and it matches
+case, whatever the <caseSensitive>, unless the pattern begins with
+`(?i)`. A <regexPattern> that is not a <regular expression> is an
+error, as it is in <matchText>.
+
+The word `pattern` may follow `wildcard` or `regex`, as it may in the
+<filter> <command>.
+
+The <matches> <operator> binds as the <contains> and <begins with>
+operators do: after `&`, and before `is`, <and> and <or>, so
+`tName matches wildcard tPrefix & "*" and tSize > 0` needs no brackets.
+
+`matches` is not a reserved word: a <variable>, a <handler> or a
+<custom property> named `matches` works as it always has. It is read as
+this <operator> only after a value and before `wildcard` or `regex`.
+
+A few lines meant something else before the <matches> <operator> was
+added: `get tText matches wildcard (tPattern)` was `get tText`, then a
+call of a <handler> named `matches` with the value of a <function>
+named `wildcard`, and `return tText matches wildcard (tPattern)`
+returned tText. So that scripts work as they did, a <handler> that
+compiles without the <matches> <operator> is read as before, every line
+of it, and only one that does not compile without it is read with it;
+so is a <do> script or a <value> <expression>. Any other use of the
+<operator>, such as those in the examples above, did not compile
+before, so a <handler> that has one is read with the <operator>. To
+have the <operator> in a line such as
+`get tText matches wildcard (tPattern)`, leave out the brackets around
+the pattern, or put them around the whole <expression>:
+`get (tText matches wildcard tPattern)`.
+
+The <matches> <operator> comes from HyperXTalk, so that stacks written
+for it work unchanged.
+
+References: filter (command), matchText (function),
+matchChunk (function), contains (operator), begins with (operator),
+ends with (operator), = (operator), and (operator), or (operator),
+if (control structure), do (command), value (function),
+caseSensitive (property), regular expression (glossary),
+expression (glossary), property (glossary), variable (glossary),
+handler (glossary), custom property (glossary)
+
+Tags: text processing

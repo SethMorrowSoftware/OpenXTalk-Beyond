@@ -492,4 +492,32 @@ public:
     virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
 };
 
+// OXT-Beyond: HyperXTalk's "<string> matches wildcard [pattern] <pattern>"
+// and "<string> matches regex [pattern] <pattern>": true when a wildcard
+// pattern matches the whole string, as the filter command reads one (and
+// as caseSensitive says), or when a regular expression matches it, as
+// matchText reads one (anywhere in it, unless ^ and $ say otherwise). It
+// binds as "contains" and "begins with" do. "matches" is no keyword:
+// MCScriptPoint::parseexp makes this only where it follows an operand and
+// "wildcard" or "regex" follows it (MCMatches::isahead), and only where
+// what holds it did not compile without it (MCNewSyntax)
+class MCMatches : public MCBinaryOperator
+{
+public:
+    MCMatches(void)
+    {
+        rank = FR_COMPARISON;
+        m_mode = MA_UNDEFINED;
+    }
+    virtual Parse_stat parse(MCScriptPoint&, Boolean the);
+    virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
+
+    // Whether the token sp has just read is "matches", and "wildcard" or
+    // "regex" comes next
+    static bool isahead(MCScriptPoint &sp);
+
+private:
+    Match_mode m_mode;
+};
+
 #endif

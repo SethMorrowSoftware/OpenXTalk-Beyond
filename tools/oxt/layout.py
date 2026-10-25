@@ -191,6 +191,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.widget.switchbutton',
     'com.livecode.widget.tile',
     'com.livecode.widget.treeview',
+    'org.openxtalk.library.hxtcompat',
 )
 
 # The xTalk Suite extensions (class xtalk): their folders are the ones
@@ -390,6 +391,8 @@ def _rules():
     add(Rule('Externals/**', BUILD, None,
              'package.txt Externals, Databases, Externals.CEF.Windows, Mobile.Windows'))
     add(Rule('Toolchain/**', BUILD, None, 'package.txt Toolchain.Windows'))
+    add(Rule('Ext/mergJSON/**', BUILD, None,
+             'OXT-Beyond\'s Ext: mergJSON, built from mergjson/ (package.py EXT_FILES)'))
     add(Rule('Ext/**', EXTERNAL, None,
              'package.txt Ext: mergExt collection downloaded by the builder'))
     return R

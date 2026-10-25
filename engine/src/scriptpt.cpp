@@ -280,6 +280,16 @@ MCScriptPoint::~MCScriptPoint()
 	MCValueRelease(utf16_script);
 }
 
+void MCScriptPoint::restore(const MCScriptPoint &sp)
+{
+	*this = sp;
+	length = sp.length;
+	escapes = sp.escapes;
+	tagged = sp.tagged;
+	in_tag = sp.in_tag;
+	was_in_tag = sp.was_in_tag;
+}
+
 void MCScriptPoint::cleartoken(void)
 {
 	token . setlength(0);
@@ -1569,6 +1579,28 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 					return PS_ERROR;
 				}
 		}
+		// OXT-Beyond: HyperXTalk's "matches wildcard" and "matches regex"
+		// operators (MCMatches). "matches" is no keyword, so variables,
+		// handlers and custom properties keep the name: it is the operator
+		// only after an operand and before "wildcard" or "regex", where the
+		// expression ended before. That was an error, or the rest of the
+		// line was a statement of its own, a call of a handler named
+		// matches: so it is read only where what holds it did not compile
+		// without it (MCNewSyntax)
+		if (!needfact && type == ST_ID && MCMatches::isahead(*this) &&
+			MCNewSyntax::Read())
+		{
+			newfact = new (nothrow) MCMatches;
+			if (newfact->parse(*this, doingthe) != PS_NORMAL)
+			{
+				delete newfact;
+				return PS_ERROR;
+			}
+			if (insertbinop(newfact, curfact, top) == NULL)
+				return PS_ERROR;
+			needfact = True;
+			continue;
+		}
 		if (!needfact && type != ST_OP && type != ST_MIN && type != ST_RP
 		        && !(type == ST_SEP && litems)
 		        && !(type == ST_ID && lookup(SP_FACTOR, te) == PS_NORMAL
@@ -1838,14 +1870,36 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 						*this = thesp;
 						MCerrorlock--;
 
-                        if (MCStringIsEmpty(gettoken_stringref()))
+						// OXT-Beyond: HyperXTalk's "the microseconds" (and
+						// its other names: MCMicrosecs::isname). As they are
+						// no keywords, the property parse above claims them
+						// first ("the microseconds of me" is the custom
+						// property it was), and what it leaves failed here,
+						// where a statement could still end and another
+						// begin ("beep the microseconds" was "beep", then a
+						// call of a handler named the): so it is read only
+						// where what holds it did not compile without it
+						// (MCNewSyntax)
+						MCScriptPoint t_name(*this);
+						Symbol_type t_name_type;
+						if (t_name.next(t_name_type) == PS_NORMAL && t_name_type == ST_ID &&
+							MCMicrosecs::isname(t_name) && MCNewSyntax::Read())
 						{
-							MCperror->add(PE_EXPRESSION_NOTFACT, *this);
-							return PS_ERROR;
+							next(type);
+							newfact = new (nothrow) MCMicrosecs;
+							newfact->parse(*this, doingthe);
 						}
+						else
+						{
+							if (MCStringIsEmpty(gettoken_stringref()))
+							{
+								MCperror->add(PE_EXPRESSION_NOTFACT, *this);
+								return PS_ERROR;
+							}
 
-						newfact = new (nothrow) MCFuncref(gettoken_nameref());
-						newfact->parse(*this, doingthe);
+							newfact = new (nothrow) MCFuncref(gettoken_nameref());
+							newfact->parse(*this, doingthe);
+						}
 					}
 					else
 						MCerrorlock--;
@@ -1970,4 +2024,131 @@ Parse_stat MCScriptPoint::finduqlvar(MCNameRef p_name, MCVarref** r_var)
 		return curhlist -> newvar(p_name, nil, r_var, True);
 
 	return PS_ERROR;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool MCNewSyntax::s_read = false;
+bool MCNewSyntax::s_passed = false;
+
+bool MCNewSyntax::Read(void)
+{
+	if (!s_read)
+		s_passed = true;
+	return s_read;
+}
+
+// The parse keeps MCerrorlock balanced, but a reading that stopped inside
+// one of its trials could leave it locked: each reading starts with the
+// count the first did, and a failure leaves the count the first left
+static void MCNewSyntaxSetErrorLock(int p_count)
+{
+	MCerrorlock . Reset();
+	while (p_count-- > 0)
+		MCerrorlock . Lock();
+}
+
+// A copy of an error (MCperror or MCeerror), to put back later; nil if it
+// holds nothing, as it most often does where a reading starts, so that a
+// reading that does not fail costs no copy
+static MCError *MCNewSyntaxKeepError(MCError &p_error)
+{
+	if (p_error . isclear())
+		return nil;
+
+	MCError *t_kept = new (nothrow) MCError;
+	t_kept -> copyfrom(p_error);
+	return t_kept;
+}
+
+static void MCNewSyntaxPutBackError(MCError &p_error, MCError *p_kept)
+{
+	if (p_kept != nil)
+		p_error . copyfrom(*p_kept);
+	else
+	{
+		// (Not clear(), which on MCeerror forgets MCerrorptr too)
+		MCError t_clear;
+		p_error . copyfrom(t_clear);
+	}
+}
+
+MCNewSyntaxRetry::MCNewSyntaxRetry(MCScriptPoint &sp)
+	: m_sp(sp),
+	  m_start(sp)
+{
+	m_start . restore(sp);
+
+	m_errors[0] = MCNewSyntaxKeepError(*MCperror);
+	m_errors[1] = MCNewSyntaxKeepError(*MCeerror);
+	m_errorlock = MCerrorlock;
+
+	m_globals = MCglobals;
+	m_handler = sp . gethandler();
+	if (m_handler != nil)
+		m_handler -> getdeclarations(m_handler_declarations);
+	m_hlist = sp . gethlist();
+	if (m_hlist != nil)
+		m_hlist -> getdeclarations(m_hlist_declarations);
+
+	m_outer_read = MCNewSyntax::s_read;
+	m_outer_passed = MCNewSyntax::s_passed;
+	MCNewSyntax::s_read = false;
+	MCNewSyntax::s_passed = false;
+}
+
+MCNewSyntaxRetry::~MCNewSyntaxRetry(void)
+{
+	delete m_errors[0];
+	delete m_errors[1];
+
+	// What this reading met, a reading around it met too
+	MCNewSyntax::s_passed = m_outer_passed || MCNewSyntax::s_passed;
+	MCNewSyntax::s_read = m_outer_read;
+}
+
+void MCNewSyntaxRetry::Rollback(void)
+{
+	if (m_handler != nil)
+		m_handler -> undeclare(m_handler_declarations);
+	if (m_hlist != nil)
+		m_hlist -> undeclare(m_hlist_declarations);
+
+	m_sp . restore(m_start);
+	MCNewSyntaxPutBackError(*MCperror, m_errors[0]);
+	MCNewSyntaxPutBackError(*MCeerror, m_errors[1]);
+	MCNewSyntaxSetErrorLock(m_errorlock);
+}
+
+bool MCNewSyntaxRetry::Again(void)
+{
+	// Only the first reading is tried again, and only where it met the
+	// syntax: otherwise the second would fail as the first did
+	if (MCNewSyntax::s_read || !MCNewSyntax::s_passed)
+		return false;
+
+	// The globals the first reading made stay, as what it made can still
+	// point at them, and one declared again is no duplicate
+	Rollback();
+
+	MCNewSyntax::s_read = true;
+
+	return true;
+}
+
+void MCNewSyntaxRetry::Undo(void)
+{
+	Rollback();
+
+	// What the readings made is gone, and so can the globals they made be:
+	// the third reading makes the first's again, in the same order
+	// (MCVariable::ensureglobal puts each new global first)
+	while (MCglobals != m_globals && MCglobals != nil)
+	{
+		MCVariable *t_global = MCglobals;
+		MCglobals = t_global -> getnext();
+		delete t_global;
+	}
+
+	MCNewSyntax::s_read = false;
 }

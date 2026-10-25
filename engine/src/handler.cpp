@@ -724,6 +724,38 @@ void MCHandler::newglobal(MCNameRef p_name)
 	globals[nglobals++] = gptr;
 }
 
+void MCHandler::getdeclarations(uint2 r_counts[3])
+{
+	r_counts[0] = nvnames;
+	r_counts[1] = nconstants;
+	r_counts[2] = nglobals;
+}
+
+void MCHandler::undeclare(const uint2 p_counts[3])
+{
+	while (nvnames > p_counts[0])
+	{
+		nvnames--;
+		MCValueRelease(vinfo[nvnames] . name);
+		MCValueRelease(vinfo[nvnames] . init);
+
+		// While the handler runs, newvar makes each its variable too
+		if (executing)
+			delete vars[nvnames];
+	}
+
+	while (nconstants > p_counts[1])
+	{
+		nconstants--;
+		MCValueRelease(cinfo[nconstants] . name);
+		MCValueRelease(cinfo[nconstants] . value);
+	}
+
+	// (Only the references: MCglobals has the globals themselves)
+	if (nglobals > p_counts[2])
+		nglobals = p_counts[2];
+}
+
 bool MCHandler::getparamnames(MCListRef& r_list)
 {
 	MCAutoListRef t_list;

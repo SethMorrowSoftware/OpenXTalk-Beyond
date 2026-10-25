@@ -416,6 +416,55 @@ void MCHandlerlist::newglobal(MCNameRef p_name)
 	globals[nglobals++] = gptr;
 }
 
+void MCHandlerlist::getdeclarations(uint2 r_counts[3])
+{
+	r_counts[0] = nvars;
+	r_counts[1] = nconstants;
+	r_counts[2] = nglobals;
+}
+
+void MCHandlerlist::undeclare(const uint2 p_counts[3])
+{
+	if (nvars > p_counts[0])
+	{
+		// The variables are a list, in the order newvar appends them
+		MCVariable *t_last = nil;
+		MCVariable *t_var = vars;
+		for(uint2 i = 0; i < p_counts[0]; i++)
+		{
+			t_last = t_var;
+			t_var = t_var -> getnext();
+		}
+		if (t_last != nil)
+			t_last -> setnext(nil);
+		else
+			vars = nil;
+		while (t_var != nil)
+		{
+			MCVariable *t_next = t_var -> getnext();
+			delete t_var;
+			t_var = t_next;
+		}
+
+		while (nvars > p_counts[0])
+		{
+			nvars--;
+			MCValueRelease(vinits[nvars]);
+		}
+	}
+
+	while (nconstants > p_counts[1])
+	{
+		nconstants--;
+		MCValueRelease(cinfo[nconstants] . name);
+		MCValueRelease(cinfo[nconstants] . value);
+	}
+
+	// (Only the references: MCglobals has the globals themselves)
+	if (nglobals > p_counts[2])
+		nglobals = p_counts[2];
+}
+
 Parse_stat MCHandlerlist::parse(MCObject *objptr, MCDataRef script_utf8)
 {
 	Parse_stat status = PS_NORMAL;
@@ -498,7 +547,31 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCDataRef script_utf8)
 						t_is_private = true;
 					}
 					newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
-					if (newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP) != PS_NORMAL)
+
+					// OXT-Beyond: a handler that compiles without the syntax
+					// from HyperXTalk compiles as it did; only one that does
+					// not is read again with it, and one that does not
+					// compile either way is read as before once more, to
+					// fail as it did (MCNewSyntaxRetry)
+					MCNewSyntaxRetry t_retry(sp);
+					Parse_stat t_parsed;
+					t_parsed = newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP);
+					if (t_parsed != PS_NORMAL && t_retry . Again())
+					{
+						delete newhandler;
+						newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
+						t_parsed = newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP);
+						if (t_parsed != PS_NORMAL)
+						{
+							sp.sethandler(NULL);
+							delete newhandler;
+							t_retry . Undo();
+							newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
+							t_parsed = newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP);
+						}
+					}
+
+					if (t_parsed != PS_NORMAL)
 					{
 						sp.sethandler(NULL);
 						delete newhandler;

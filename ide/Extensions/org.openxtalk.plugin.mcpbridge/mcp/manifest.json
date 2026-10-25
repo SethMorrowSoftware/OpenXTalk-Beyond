@@ -39,7 +39,10 @@
     { "name": "save_stack", "description": "Saves a stack to its file, after the user says yes in OXT-Beyond" },
     { "name": "list_changes", "description": "What was changed or run, and whether it was undone" },
     { "name": "undo_changes", "description": "Takes back a change or a run" },
-    { "name": "debug_state", "description": "Where a script paused in the debugger is" }
+    { "name": "debug_state", "description": "Where a script paused in the debugger is" },
+    { "name": "stop_paused_script", "description": "Stops the script paused in the debugger, as Stop in the Script Editor does" },
+    { "name": "answer_dialog", "description": "Presses a button of a dialog a stack of the user's opened" },
+    { "name": "import_hypercard", "description": "Imports a HyperCard stack, or one from a Mac disk image, without running its scripts" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],

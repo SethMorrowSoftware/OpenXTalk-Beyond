@@ -96,7 +96,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `.version`, `.buildnumber`, `about.dat`, `about.txt`, `License Agreement.txt`, `Open Source Licenses.txt`, `OpenXTalk-lite_1024.ico`, `OXT-Beyond.ico`, `Release Notes.pdf` | ide | `ide/<name>` | Misc (`about.txt`, licences); the rest are OpenXTalk Lite or OXT-Beyond additions |
 | `Extensions/<folder>/**` for a folder in `xtalk-extensions.json`, `Extensions/XTALK-EXTENSIONS.txt` | xtalk | | not in package.txt: the bundled xTalk Suite extensions (before the next rule) |
 | `Extensions/<id>/**` for an id not built here | ide | `ide/Extensions/<id>/**` | new folder, see below |
-| `Extensions/<one of the 42 com.livecode.* ids>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |
+| `Extensions/<one of the 43 ids in REPO_BUILT_EXTENSIONS>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |
 | `Extensions/com.livecode.library.timezone/code/x86_64-win32/**` | build | | TimeZone (win-x86_64) |
 | `Extensions/com.livecode.library.timezone/code/**` (other platforms) | external | | TimeZone (other platform builds) |
 | `Extensions/com.livecode.library.timezone/resources/**` | external | | TimeZone: the zoneinfo data, compiled by `zic` only in macOS and Linux builds (`tz.gyp` target `tzdata`); upstream takes the whole extension from the macOS build |
@@ -105,6 +105,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `Externals/**`, `Toolchain/**` | build | | Externals, Databases, Externals.CEF.Windows, Mobile.Windows, Toolchain.Windows |
 | `Runtime/Windows/x86-64/**` | build | | Runtime.Windows x86-64 |
 | `Runtime/**` (Windows x86-32, Linux, Android, Emscripten, macOS, iOS) | external | | Runtime.* for other platforms |
+| `Ext/mergJSON/**` | build | | OXT-Beyond's Ext: mergJSON, built from `mergjson/` (`package.py` `EXT_FILES`; before the next rule) |
 | `Ext/**` | external | | Ext: mergExt collection downloaded by the builder |
 | `*.lnk`, `test.db`, `Toolset/palettes/standalone settings/mac-arm-deploy.oxtstack`, names starting with `.` below the root | junk | | |
 
@@ -288,7 +289,7 @@ The folder is put together from:
   | `w32-manifest-template*.xml` (3) | `Runtime/Windows/x86-64/` | Runtime.Windows |
   | `revpdfprinter.dll`, `revsecurity.dll` | `Runtime/Windows/x86-64/Support/` | Runtime.Windows |
   | the Externals rows above (without `revandroid.dll`) | `Runtime/Windows/x86-64/Externals/...` | Runtime x86-64: `include Externals` |
-  | `packaged_extensions/<id>/**` for the 42 ids in `REPO_BUILT_EXTENSIONS` | `Extensions/<id>/**` | Extensions, TimeZone |
+  | `packaged_extensions/<id>/**` for the 43 ids in `REPO_BUILT_EXTENSIONS` | `Extensions/<id>/**` | Extensions, TimeZone |
 
 * **Generated files**: `edition.txt` (`community`, no line break);
   `Externals.txt` (`Speech,revspeech.dll`, `XML,revxml.dll`,
@@ -446,7 +447,7 @@ disagree, the layout follows the IDE:
 | mobile | `Externals/revandroid.so` | `Externals/revandroid.bundle` |
 | toolchain | `Toolchain/lc-compile`, `lc-run`, `lc-compile-ffi-java`, `modules/` | the same |
 | standalone engine | `Runtime/Linux/x86-64/Standalone` with `Support/` and `Externals/` (including CEF and both helpers at its root) | `Runtime/Mac OS X/x86-64/Standalone.app`, `x64-ARM64/Standalone-blank.app` (each with `Support/` and `Externals/`) and `x86-32/Standalone.app`; the Apple Silicon target's externals in `Runtime/Mac OS X/arm64/Externals/` |
-| `packaged_extensions/<id>` | `Extensions/<id>` (the 42 ids; the timezone library brings its own zoneinfo and native code) | the same |
+| `packaged_extensions/<id>` | `Extensions/<id>` (the 43 ids; the timezone library brings its own zoneinfo and native code) | the same |
 | (from the repository) `Installer/linux/*`, branding PNGs | `oxt-beyond`, `install.sh`, `uninstall.sh`, `linux/` | none |
 
 Not installed on Linux: `*.dbg` (the symbols archive), `installer`,
@@ -530,11 +531,12 @@ Intended differences from OXT Lite 1.15:
 | path | why |
 |---|---|
 | `OpenXTalk-Lite.exe` | staged as `OXT-Beyond.exe` |
-| `Ext/**` (46 files) | the mergExt collection is not redistributed (licence unclear) |
+| `Ext/**` (46 files) | the mergExt collection is not redistributed (licence unclear); mergJSON is built from its source into `Ext/mergJSON` instead |
 | `Toolchain/modules/lci/` `com.livecode.library.native.android.barcode`, `...barcodesupport`, `com.livecode.library.native.speech`, `com.livecode.library.securekey`, `com.livecode.widget.native.android.barcodescanner`, `com.livecode.widget.native.map`, `com.livecode.widget.pdf`, `com.livecode.widget.pdf.pdfium`, `com.livecode.widget.signature` (`.lci`) | interfaces of LiveCode commercial-edition modules. OXT Lite 1.15's `Toolchain/` is the stock LiveCode 9.6.3 one (all 78 files identical), which has them; the modules are not in this repository and the IDE does not use them |
 | `Toolchain/modules/lci/com.livecode.commercial.license.lci` | also from stock 9.6.3; this repository compiles `engine/src/license.lcb` into lc-compile (`engine_syntax_only_lcb_files`) and writes no `.lci` for it |
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
+| `Ext/mergJSON/**` | added: mergJSON, built from its source in `mergjson/` (the external, its library and the licences of its code) |
 | `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.5-rc.2.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
 | `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |

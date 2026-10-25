@@ -732,6 +732,22 @@ on TestHyperCardImportSoundHeaders
    TestAssert "MACE is logged", "Not converting snd  id   203" && quote & "MACE" & quote & ": MACE 3:1 compression" is in tLog
    TestAssert "sounds in resource order", the short name of audioClip 1 of stack tStack is "Stereo 16" \
       and the short name of audioClip 3 of stack tStack is "IMA"
+   -- the bytes of samples each header gives: 500 frames of two 16-bit
+   -- channels, 800 of one byte, and 2 packets a channel of IMA's 64
+   -- 16-bit samples
+   TestAssert "samples: 16-bit stereo", the size of audioClip "Stereo 16" of stack tStack is 2000
+   TestAssert "samples: 8-bit extended", the size of audioClip "Mono 8 Extended" of stack tStack is 800
+   TestAssert "samples: IMA 4:1", the size of audioClip "IMA" of stack tStack is 512
+   -- a nullCmd before the bufferCmd, as SoundEdit wrote: the header is the
+   -- bufferCmd's. rc.6.3 read the nullCmd's offset, 0: it imported the
+   -- resource itself as the samples (noise, 22 bytes too long), and with a
+   -- synthesizer listed first (format 1) refused an unknown header
+   TestAssert "after a nullCmd: imported", there is an audioClip "After NullCmd" of stack tStack
+   TestAssert "after a nullCmd: the header's samples", there is an audioClip "After NullCmd" of stack tStack \
+      and the size of audioClip "After NullCmd" of stack tStack is 600
+   TestAssert "format 1, after a nullCmd: imported", there is an audioClip "After NullCmd 1" of stack tStack
+   TestAssert "format 1, after a nullCmd: the header's samples", there is an audioClip "After NullCmd 1" of stack tStack \
+      and the size of audioClip "After NullCmd 1" of stack tStack is 700
    _Close tStack
    _DeleteFolder tFolder
 end TestHyperCardImportSoundHeaders

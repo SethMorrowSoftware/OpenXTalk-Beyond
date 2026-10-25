@@ -1,0 +1,83 @@
+Name: microseconds
+
+Synonyms: microsecond, microsec, microsecs
+
+Type: function
+
+Syntax: the [long] microseconds
+
+Summary:
+<return|Returns> the number of microseconds since the start of the
+<eon>.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android, html5
+
+Platforms: desktop, server, mobile
+
+Example:
+put the microseconds into tStart
+
+Example:
+local tStart
+put the microseconds into tStart
+sort lines of field "Names"
+put "Sorted in" && the microseconds - tStart && "microseconds"
+
+Returns:
+The <microseconds> <function> <return|returns> a positive <integer>.
+`the long microseconds` can have a fraction, where the clock has a finer
+resolution than a microsecond.
+
+Description:
+Use the <microseconds> <function> to time <event|events> that take less
+than a millisecond, or to time them more finely than the <milliseconds>
+can.
+
+The <microseconds> <function> <return|returns> the total number of
+microseconds since midnight GMT, January 1, 1970: the
+<milliseconds> times 1000, and more finely. A microsecond is one
+millionth of a second.
+
+How finely it counts depends on the system's clock: to the microsecond
+on macOS and Linux, and to a fraction of a microsecond on Windows 8 and
+later (to the clock's tick, about 16 milliseconds, on Windows 7). In a
+web browser, it counts in whole milliseconds.
+
+On Windows the <milliseconds> reads the system time when the engine
+starts (and again after the computer sleeps) and counts on from there,
+while the <microseconds> reads the system time each time, so the two can
+drift apart when the clock is set. Use one or the other to time an
+<event>.
+
+The <microseconds> can be written only with `the` before it.
+<microseconds> is not a reserved word: a <variable>, a <handler>, a
+parameter or a <custom property> named `microseconds` (or `microsecond`,
+`microsec` or `microsecs`) works as it always has, and
+`the microseconds of me` is the custom property. Written as
+`microseconds()`, it is a call of a <handler>: a <function> handler of
+your own with that name, if there is one, and otherwise the HyperXTalk
+Compatibility library's.
+
+A few lines meant something else before the <microseconds> was added:
+`beep the microseconds` was a beep, then a call of a <handler> named
+`the`, and `create button the microseconds` made a button with no
+name, then called a <handler> named `microseconds`. So that scripts
+work as they did, a <handler> that compiles without the <microseconds>
+is read as before, every line of it, and only one that does not compile
+without it is read with it; so is a <do> script or a <value>
+<expression>. Any other use of `the microseconds`, such as
+`put the microseconds into tStart`, did not compile before, so a
+<handler> that has one is read with the <microseconds>.
+
+The <microseconds> comes from HyperXTalk, so that stacks written for it
+work unchanged.
+
+References: function (control structure), milliseconds (function),
+seconds (function), ticks (function), do (command), value (function),
+event (glossary), return (glossary), eon (glossary), integer (keyword),
+long (keyword), variable (glossary), handler (glossary),
+custom property (glossary)
+
+Tags: math
