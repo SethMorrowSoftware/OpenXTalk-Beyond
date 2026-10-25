@@ -318,7 +318,10 @@ IO_stat MCDispatch::startup(void)
 IO_stat MCDispatch::startup(void)
 {
 	IO_stat stat;
+	// OXT-Beyond: none until a file gives one (see the check before
+	// setparent below)
 	MCStack *sptr;
+	sptr = nullptr;
 
 	// set up image cache before the first stack is opened
 	MCCachedImageRep::init();
@@ -460,6 +463,18 @@ IO_stat MCDispatch::startup(void)
     
 	if (!MCquit)
 	{
+		// OXT-Beyond: a file that is neither a stack nor a script-only stack,
+		// such as a script without its script "name" first line, leaves no
+		// stack to start: with no stack open yet, loadfile takes it for a lone
+		// script (MetaCard's way), puts it in a stack of its own and gives
+		// back none. The engine crashed on that below (signal 11 with -ui);
+		// it now ends with this error, as it does for a file it cannot read.
+		if (sptr == nullptr)
+		{
+			MCresult -> setvalueref(MCSTR("file is not a stack (a script-only stack's first line is script \"name\")"));
+			return IO_ERROR;
+		}
+
 		// OK-2007-11-13 : Bug 5525, after opening the IDE engine, the allowInterrupts should always default to false,
 		// regardless of what the environment stack may have set it to.
 		MCallowinterrupts = true;

@@ -828,9 +828,20 @@ IO_stat MCDispatch::startup(void)
     if (MCS_getenv(MCSTR("TEST_STACK"), &t_env) && !MCStringIsEmpty(*t_env))
     {
 	    MCStack *t_stack;
+	    t_stack = nullptr;
 	    if (MCdispatcher->loadfile(*t_env, t_stack) != IO_NORMAL)
 	    {
 		    MCresult->sets("failed to read TEST_STACK stackfile");
+		    return IO_ERROR;
+	    }
+
+	    // OXT-Beyond: a file that is neither a stack nor a script-only stack
+	    // (a script without its script "name" first line) gives back no
+	    // stack, which the engine crashed on below (see mode_development.cpp's
+	    // MCDispatch::startup)
+	    if (t_stack == nullptr)
+	    {
+		    MCresult->sets("TEST_STACK is not a stack (a script-only stack's first line is script \"name\")");
 		    return IO_ERROR;
 	    }
 
@@ -909,9 +920,17 @@ IO_stat MCDispatch::startup(void)
 	else if (MCnstacks > 1 && MClicenseparameters . license_class == kMCLicenseClassCommunity)
 	{
 		MCStack *sptr;
+		sptr = nullptr;
 		if (MCdispatcher -> loadfile(MCstacknames[1], sptr) != IO_NORMAL)
 		{
 			MCresult -> sets("failed to read stackfile");
+			return IO_ERROR;
+		}
+		
+		// OXT-Beyond: no stack from a file that is not one (see above)
+		if (sptr == nullptr)
+		{
+			MCresult -> sets("file is not a stack (a script-only stack's first line is script \"name\")");
 			return IO_ERROR;
 		}
 		

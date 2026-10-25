@@ -40,6 +40,12 @@
     lists but the layout lacks is a failure too; a layout without any of
     them (packaged with --no-xtalk-extensions) skips these checks.
 
+    Last, it runs the engine with -ui on a script file without its
+    script "name" first line, which is neither a stack nor a script-only
+    stack: the engine must end with its startup error (exit code -1) and
+    not crash. That is one more check; until 0.2.7-rc.6.5 the development
+    engine crashed on such a file.
+
     With -Package, a zip is extracted to a temporary folder first and its
     engine is tested, so the check covers the files users download. The zip
     must have one top folder; its layout is detected: the portable zip made
@@ -269,6 +275,7 @@ $outFile = [System.IO.Path]::GetTempFileName()
 $errFile = [System.IO.Path]::GetTempFileName()
 $failed = $null
 $passed = $null
+$notStackDir = $null
 try {
     $process = Start-Process -FilePath $engine -ArgumentList @('-ui', ('"{0}"' -f $script)) `
         -WorkingDirectory $engineDir -RedirectStandardOutput $outFile -RedirectStandardError $errFile `
@@ -307,9 +314,59 @@ try {
     if ($exitCode -ne $failed) {
         throw "Exit code $exitCode does not match the $failed failed check(s) reported"
     }
+
+    # --- A file that is not a stack ---
+    # A script file without its script "name" first line: neither a stack
+    # nor a script-only stack. With no stack open yet, the engine takes such
+    # a file for a lone script (MetaCard's way), puts it in a stack of its
+    # own and gives back none, which MCDispatch::startup crashed on until
+    # 0.2.7-rc.6.5 (engine\src\mode_development.cpp). A run of it must end
+    # with the startup error: exit code -1, after "ERROR: Initialization
+    # Error: ..." on stderr. A crash ends the process with the exception's
+    # code instead (0xC0000005). If the script ever ran, it would say so.
+    $notStackDir = Join-Path ([System.IO.Path]::GetTempPath()) ('oxt-not-a-stack-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    New-Item -ItemType Directory -Path $notStackDir | Out-Null
+    $notStackFile = Join-Path $notStackDir 'not-a-stack.livecodescript'
+    [System.IO.File]::WriteAllText($notStackFile, "on startUp`n   write `"ran the file as a script`" & return to stdout`n   quit 0`nend startUp`n", $utf8NoBom)
+    $notStackOut = Join-Path $notStackDir 'stdout.txt'
+    $notStackErr = Join-Path $notStackDir 'stderr.txt'
+    $notStackProblem = $null
+    $notStackCode = $null
+    $notStackProcess = Start-Process -FilePath $engine -ArgumentList @('-ui', ('"{0}"' -f $notStackFile)) `
+        -WorkingDirectory $engineDir -RedirectStandardOutput $notStackOut -RedirectStandardError $notStackErr `
+        -NoNewWindow -PassThru
+    $null = $notStackProcess.Handle
+    if (-not $notStackProcess.WaitForExit([Math]::Min($TimeoutSeconds, 120) * 1000)) {
+        Stop-Process -Id $notStackProcess.Id -Force -ErrorAction SilentlyContinue
+        $notStackProblem = 'the engine did not finish'
+    }
+    else {
+        $notStackProcess.WaitForExit()
+        $notStackCode = $notStackProcess.ExitCode
+        if ($notStackCode -eq 0) {
+            $notStackProblem = 'the engine exited with 0, as if the file were a stack or had run'
+        }
+        elseif ($notStackCode -ne -1) {
+            $notStackProblem = "the engine ended with exit code 0x$('{0:X8}' -f $notStackCode), not the startup error's -1 (0xC0000005 is a crash)"
+        }
+    }
+    $notStackLines = @(Get-Content -LiteralPath $notStackOut, $notStackErr -ErrorAction SilentlyContinue | Where-Object { $_ -ne '' })
+    if ($null -eq $notStackProblem) {
+        $passed += 1
+        Write-Host 'PASS a file that is not a stack: the engine ended with its startup error (exit code -1)'
+    }
+    else {
+        $failed += 1
+        Write-Host "FAIL a file that is not a stack: $notStackProblem"
+    }
+    $notStackLines | ForEach-Object { Write-Host "  $_" }
+    if ($LogFile) {
+        Add-Content -LiteralPath $LogFile -Value (@('', "a file that is not a stack (exit code $notStackCode):") + $notStackLines) -Encoding utf8
+    }
 }
 finally {
     Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue
+    if ($notStackDir) { Remove-Item -LiteralPath $notStackDir -Recurse -Force -ErrorAction SilentlyContinue }
     if ($xtalkProbeFile) { Remove-Item -LiteralPath $xtalkProbeFile -Force -ErrorAction SilentlyContinue }
     if ($extractDir) { Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue }
     if ($env:GITHUB_OUTPUT -and $null -ne $failed) {

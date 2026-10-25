@@ -66,8 +66,12 @@ tools/oxt/xtalk-extensions.json it also loads and calls each of them, in
 load order, as smoke-test.ps1 does; the libraries' dependencies come from
 tools/ci/check_native_deps.py, and a library that needs something neither
 a system library nor next to it is a failed check, since this machine may
-have what a user's lacks. It exits with the number of failed checks, or 1
-when the engine did not finish.
+have what a user's lacks. Last, it runs the engine with -ui on a script
+file without its script "name" first line, which is neither a stack nor
+a script-only stack: the engine must end with its startup error, "file
+is not a stack", and not crash (one more check; until 0.2.7-rc.6.5 the
+development engine crashed on such a file). It exits with the number of
+failed checks, or 1 when the engine did not finish.
 
 compile runs tools/ci/ide-compile-check.livecodescript over a layout's
 Toolset, Plugins and Extensions and compares the errors with
@@ -116,6 +120,15 @@ SMOKE_SCRIPT = os.path.join(HERE, 'smoke-test.livecodescript')
 COMPILE_SCRIPT = os.path.join(HERE, 'ide-compile-check.livecodescript')
 BASELINE = os.path.join(HERE, 'ide-compile-baseline.txt')
 XTALK_MANIFEST = os.path.join(REPO, 'tools', 'oxt', 'xtalk-extensions.json')
+
+# A script file without its script "name" first line: neither a stack nor a
+# script-only stack. With no stack open yet, the engine takes such a file
+# for a lone script (MetaCard's way), puts it in a stack of its own and
+# gives back none, which MCDispatch::startup crashed on until 0.2.7-rc.6.5
+# (engine/src/mode_development.cpp). If the script ever ran, it would say so.
+NOT_A_STACK = 'on startUp\n   write "ran the file as a script" & return to stdout\n   quit 0\nend startUp\n'
+NOT_A_STACK_CHECK = 'a file that is not a stack'
+NOT_A_STACK_TIMEOUT = 120
 
 # The record of a file that crashed the engine during the compile check,
 # and how many such files end the check
@@ -369,6 +382,41 @@ def xtalk_probe_lines(tools, fam):
     return lines, len(present)
 
 
+def not_a_stack_problem(code, out, err):
+    """What went wrong in a run of NOT_A_STACK with -ui (exit code or None
+    when it timed out, stdout lines, stderr lines), or None when it ended
+    as it should: with the startup error, which the engine prints to
+    stderr after "Startup error - " on Linux and macOS and exits with -1
+    (255). A crash prints "<engine> exiting on signal <n>" there first,
+    and on macOS the system then ends the process with the signal."""
+    if code is None:
+        return 'the engine did not finish'
+    crash = [x.strip() for x in out + err if 'exiting on signal' in x]
+    if crash:
+        return 'the engine crashed (%s)' % crash[0]
+    if code < 0:
+        return 'the engine was ended by signal %d' % -code
+    if code == 0:
+        return 'the engine exited with 0, as if the file were a stack or had run'
+    if not any('Startup error' in x and 'not a stack' in x for x in err):
+        return 'exit code %d, without the startup error "file is not a stack"' % code
+    return None
+
+
+def check_not_a_stack(engine, env, cwd, timeout):
+    """Runs the engine with -ui on NOT_A_STACK: (problem or None, exit
+    code, stdout lines, stderr lines)."""
+    folder = tempfile.mkdtemp(prefix='oxt-not-a-stack-')
+    try:
+        path = os.path.join(folder, 'not-a-stack.livecodescript')
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(NOT_A_STACK)
+        code, out, err = run_engine(engine, path, env, cwd, timeout)
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    return not_a_stack_problem(code, out, err), code, out, err
+
+
 def cmd_smoke(args, p):
     temp_dirs = []
     passed = failed = None
@@ -429,6 +477,21 @@ def cmd_smoke(args, p):
         passed, failed = int(summary[-1].group(1)), int(summary[-1].group(2))
         if code != failed:
             raise CheckError('exit code %s does not match the %d failed check(s) reported' % (code, failed))
+        problem, ns_code, ns_out, ns_err = check_not_a_stack(lay.engine, env, os.path.dirname(lay.engine),
+                                                             min(args.timeout, NOT_A_STACK_TIMEOUT))
+        if problem is None:
+            passed += 1
+            log('PASS %s: %s (exit code %d)' % (NOT_A_STACK_CHECK, next(
+                x.strip() for x in ns_err if 'Startup error' in x and 'not a stack' in x), ns_code))
+        else:
+            failed += 1
+            log('FAIL %s: %s' % (NOT_A_STACK_CHECK, problem))
+            for line in ns_out + ns_err:
+                log('  ' + line)
+        if args.log:
+            with open(args.log, 'a', encoding='utf-8', newline='\n') as f:
+                f.write('\n'.join(['', '%s (exit code %s):' % (NOT_A_STACK_CHECK, ns_code)] + ns_out
+                                  + ['', 'stderr:'] + ns_err) + '\n')
         _append('GITHUB_STEP_SUMMARY', '### Smoke test (%s layout, %s)\n\nHeadless run of '
                 '`tools/ci/smoke-test.livecodescript` with `%s` from `%s`: %s.%s\n\n'
                 % (lay.kind, p.name, os.path.basename(lay.engine), lay.source,
