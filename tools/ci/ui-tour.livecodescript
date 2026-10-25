@@ -1785,9 +1785,13 @@ end tourClickWorks
 -- A click of the system's left mouse button at the point pX,pY of the
 -- screen, as a user's: CGEventPost on macOS, xdotool on Linux, and
 -- SetCursorPos and mouse_event on Windows (PowerShell). The engine waits
--- on the command and handles the click once it is back
+-- on the command and handles the click once it is back. On Windows the
+-- command's console window is hidden: shell opens one in front unless the
+-- hideConsoleWindows is true, and on the CI runner's screen of 1024 by 768
+-- the click at the check's button, most likely in that window, never
+-- reached the IDE (rc.6.4's release tour)
 command tourClick pX, pY
-   local tCommand, tScript
+   local tCommand, tScript, tHide
    switch the platform
       case "MacOS"
          put "osascript -l JavaScript -e 'ObjC.import(" & quote & "CoreGraphics" & quote & "); " & \
@@ -1812,7 +1816,12 @@ command tourClick pX, pY
          put "xdotool mousemove" && pX && pY && "click 1" into tCommand
          break
    end switch
+   if the platform is "Win32" then
+      put the hideConsoleWindows into tHide
+      set the hideConsoleWindows to true
+   end if
    get shell(tCommand)
+   if the platform is "Win32" then set the hideConsoleWindows to tHide
    if it is not empty then
       tourRecord "INFO click at" && pX & "," & pY & ":" && tourJoin(it)
    end if
