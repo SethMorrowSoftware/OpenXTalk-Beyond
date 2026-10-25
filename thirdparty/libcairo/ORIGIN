@@ -1,3 +1,21 @@
 Files in this folder are based on cairo-1.9.4.
 
 Original source archives are available from <http://www.cairographics.org>
+
+The PDF surface carries LiveCode's additions for revPDFPrinter (links,
+anchors, bookmarks, metadata): src/cairo-pdf-ext*, and the parts of
+cairo-pdf.h, cairo-pdf-surface.c, cairo-pdf-surface-private.h,
+cairo-surface.c and cairo-image-info* in src/ between "begin revpdfprinter
+additions" and "end revpdfprinter additions".
+
+One local change, marked "OXT-Beyond" in the source:
+
+- In src/cairo-pdf-surface.c, the array of a document's URI actions is
+  made for the cairo_pdf_value_t each action is, where it was made for a
+  cairo_pdf_object_t (a long). It kept 8 bytes of each 72-byte action on
+  64-bit Linux, so the lookup for a document's second link read its
+  action type and URI from memory past the first action, and crashed in
+  strcmp when that memory was zero. On rc.6.4 under Linux, every PDF
+  tried with more than one link crashed the engine (two print links on a
+  page or on two pages, and a field with two runs of link text); a PDF
+  with one link is the same as before but for its creation date.

@@ -88,7 +88,7 @@ licence text are in `thirdparty/`.
 
 | Component | Version | Used by | Licence | Licence text |
 | --- | --- | --- | --- | --- |
-| cairo (including pixman) | 1.9.4 | revPDFPrinter (on Windows the server engine does not link it) | LGPL 2.1 or MPL 1.1, at your choice (pixman: MIT-style) | [`thirdparty/libcairo/docs/`](thirdparty/libcairo/docs/) (`COPYING`, `COPYING-LGPL-2.1`, `COPYING-MPL-1.1`); pixman terms are in the headers of `thirdparty/libcairo/src/pixman*` |
+| cairo (including pixman) | 1.9.4, with LiveCode's additions for revPDFPrinter and one change (see [`thirdparty/libcairo/ORIGIN`](thirdparty/libcairo/ORIGIN)) | revPDFPrinter (on Windows the server engine does not link it) | LGPL 2.1 or MPL 1.1, at your choice (pixman: MIT-style) | [`thirdparty/libcairo/docs/`](thirdparty/libcairo/docs/) (`COPYING`, `COPYING-LGPL-2.1`, `COPYING-MPL-1.1`); pixman terms are in the headers of `thirdparty/libcairo/src/pixman*` |
 | CEF C++ wrapper and headers | 74.1.16 (`thirdparty/libcef/include/cef_version.h`) | browser widget, revBrowser | BSD 3-clause | [`thirdparty/libcef/LICENSE.txt`](thirdparty/libcef/LICENSE.txt) |
 | libffi | git commit `ee718066` | LiveCode Builder runtime, `lc-compile`, `lc-run` | MIT | file headers in `thirdparty/libffi/`, [upstream](https://github.com/libffi/libffi/blob/master/LICENSE) |
 | giflib | 5.2.2 | engines, libgraphics | MIT | [`thirdparty/libgif/docs/COPYING`](thirdparty/libgif/docs/COPYING) |

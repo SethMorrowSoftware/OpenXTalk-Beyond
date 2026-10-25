@@ -68,6 +68,81 @@ on TestPDFPrinterDrawsTheCard
    TestAssert "the pdf of a card with text has its font", URL ("binfile:" & tDrawn) contains "/Font"
 end TestPDFPrinterDrawsTheCard
 
+-- OXT-Beyond: a PDF with more than one link must print. On 0.2.7-rc.6.4
+-- the second link of a document crashed the engine with signal 11 at the
+-- end of its page, whether it was a second print link (to the same URL
+-- or another), a link on a later page or a field's second link text
+-- (tperry2x, openxtalk.org, October 2026): the PDF printer's cairo kept
+-- 8 bytes of each URL's action and read the rest of it from memory past
+-- them. Each link is an annotation (/Subtype /Link) of the PDF, and each
+-- URL one action (/S /URI) that every link to it shares.
+on TestPDFPrinterLinks
+   TestSkipIfNot "external", "revpdfprinter"
+
+   local tFile, tStack, tData
+   put TestGetTestBuildFolder() & slash & "test-links.pdf" into tFile
+   create stack
+   put it into tStack
+   set the defaultStack to the short name of tStack
+
+   open printing to pdf tFile
+   print link to url "https://openxtalk.org/" with rect 10, 10, 200, 40
+   print link to url "https://openxtalk.org/" with rect 10, 50, 200, 80
+   print link to url "https://github.com/" with rect 10, 90, 200, 120
+   print card 1 of tStack
+   print break
+   print link to url "https://openxtalk.org/" with rect 10, 10, 200, 40
+   print card 1 of tStack
+   close printing
+
+   TestAssert "a pdf with four links printed", there is a file tFile
+   put URL ("binfile:" & tFile) into tData
+   TestDiagnostic "pdf with four links:" && the number of bytes of tData && "bytes"
+   TestAssert "the pdf has its four links", _TestCountOf("/Subtype /Link", tData) is 4
+   TestAssert "the pdf has one action for each of its two urls", _TestCountOf("/S /URI", tData) is 2
+   TestAssert "the pdf links to its first url", tData contains "(https://openxtalk.org/)"
+   TestAssert "the pdf links to its second url", tData contains "(https://github.com/)"
+end TestPDFPrinterLinks
+
+on TestPDFPrinterFieldLinks
+   TestSkipIfNot "external", "revpdfprinter"
+
+   local tFile, tStack, tData
+   put TestGetTestBuildFolder() & slash & "test-field-links.pdf" into tFile
+   create stack
+   put it into tStack
+   set the defaultStack to the short name of tStack
+
+   create field "Links"
+   set the rect of field "Links" to 20, 20, 380, 80
+   set the text of field "Links" to "GitHub and OpenXTalk"
+   set the textStyle of word 1 of field "Links" to "link"
+   set the linkText of word 1 of field "Links" to "https://github.com/"
+   set the textStyle of word 3 of field "Links" to "link"
+   set the linkText of word 3 of field "Links" to "https://openxtalk.org/"
+   open printing to pdf tFile
+   print card 1 of tStack
+   close printing
+
+   TestAssert "a card with a field of two links printed to pdf", there is a file tFile
+   put URL ("binfile:" & tFile) into tData
+   TestAssert "the pdf has the field's two links", _TestCountOf("/Subtype /Link", tData) is 2
+   TestAssert "the pdf has an action for each of the field's urls", _TestCountOf("/S /URI", tData) is 2
+end TestPDFPrinterFieldLinks
+
+private function _TestCountOf pNeedle, pData
+   local tCount, tSkip, tFound
+   put 0 into tCount
+   put 0 into tSkip
+   repeat
+      put offset(pNeedle, pData, tSkip) into tFound
+      if tFound is 0 then exit repeat
+      add 1 to tCount
+      add tFound to tSkip
+   end repeat
+   return tCount
+end _TestCountOf
+
 command _TestOpenPrintingBadDest
    local tFile
    put TestGetTestBuildFolder() & slash & "test" into tFile

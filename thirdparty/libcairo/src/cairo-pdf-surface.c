@@ -390,7 +390,18 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
 	_cairo_pdf_value_init(&surface->annotations, CAIRO_PDF_VALUE_TYPE_ARRAY);
 	_cairo_pdf_value_init(&surface->annotation_ids, CAIRO_PDF_VALUE_TYPE_ARRAY);
 	
-	_cairo_array_init (&surface->actions, sizeof (cairo_pdf_object_t));
+	/* OXT-Beyond: the actions are cairo_pdf_value_t, appended whole and
+	   read back by _cairo_pdf_surface_find_uri_action. Sized for a
+	   cairo_pdf_object_t (a long: 8 bytes on 64-bit Linux, where a
+	   cairo_pdf_value_t is 72), the array kept each action's type and id
+	   and none of its URI, so the lookup for a document's second link
+	   read the memory past the first action as its action type and URI,
+	   and when that memory was zero (CAIRO_PDF_ACTION_TYPE_URI and a NULL
+	   URI) crashed in strcmp: "print link" twice in one PDF, on rc.6.4 and
+	   since these additions came from LiveCode (openxtalk.org, October
+	   2026). Each action now keeps all of itself, so a second link to the
+	   same URI shares the first one's action, as the lookup meant. */
+	_cairo_array_init (&surface->actions, sizeof (cairo_pdf_value_t));
 	_cairo_array_init (&surface->outline_entries, sizeof (cairo_pdf_outline_entry_t));
 	
 	surface->premultiplied_alpha = 1;
