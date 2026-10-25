@@ -577,6 +577,35 @@ def mac_crashes(name, since, pid, returncode, wait=45):
     return len(found)
 
 
+# That dialog stays until someone answers it, and the next run's windows
+# draw as inactive under it, so a step that looks at what was drawn can
+# fail there (the dark run on Apple silicon, 2026-10-25: "the slider
+# SliderOff is drawn (19)"). So on CI, whose runner is thrown away after
+# the job, macOS is told to show none (DialogType none, the old switch, and
+# UseUNC, which makes it a notification from macOS 12 on), and Problem
+# Reporter, which shows it, is closed if an earlier run left one open. The
+# reports are still written, and mac_crashes logs them
+MAC_CRASH_DIALOG = 'Problem Reporter'
+
+
+def mac_no_crash_dialog():
+    """No "quit unexpectedly" dialog over the run: none from now on, and
+    none left open by an earlier run."""
+    done = True
+    for key, kind, value in (('DialogType', '-string', 'none'), ('UseUNC', '-bool', 'true')):
+        code, said = mac_defaults('write', 'com.apple.CrashReporter', key, kind, value)
+        if code != 0:
+            done = False
+            log('(could not set com.apple.CrashReporter %s: %s)' % (key, said))
+    if done:
+        log('The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)')
+    if shutil.which('pkill'):
+        # 0: it was open and is closed; 1: none was open
+        if subprocess.run(['pkill', '-x', MAC_CRASH_DIALOG], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL).returncode == 0:
+            log('Closed a crash dialog an earlier run left open (%s)' % MAC_CRASH_DIALOG)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Screenshots of the IDE\'s windows, light or dark.')
     ap.add_argument('--install', metavar='DIR', help='installed layout')
@@ -620,6 +649,8 @@ def main(argv=None):
         })
         cmd = [lay.engine, document]
         if p.family == 'mac':
+            if os.environ.get('GITHUB_ACTIONS'):
+                mac_no_crash_dialog()
             restore = set_mac(args.appearance)
         elif p.family == 'windows':
             restore = set_windows(args.appearance)

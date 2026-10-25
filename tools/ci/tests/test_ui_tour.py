@@ -16,7 +16,8 @@
 
 """tools/ci/ui_tour.py's macOS crash reports, with made-up ones: which it
 finds, when it waits for one, and what it logs of one (a .ips as macOS 12
-and later write it, and a .crash).
+and later write it, and a .crash); and the crash dialog it keeps off CI's
+screen.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -167,6 +168,32 @@ class CrashReports(unittest.TestCase):
         self.assertLess(time.time() - started, 5)
         self.assertEqual(count, 1)
         self.assertIn('Termination : Segmentation fault: 11', lines)
+
+
+class CrashDialog(unittest.TestCase):
+    def run_it(self, pkill_status):
+        written, ran = [], []
+        out = io.StringIO()
+        with mock.patch.object(ui_tour, 'mac_defaults', side_effect=lambda *a: written.append(a) or (0, '')), \
+                mock.patch.object(ui_tour.shutil, 'which', return_value='/usr/bin/pkill'), \
+                mock.patch.object(ui_tour.subprocess, 'run',
+                                  side_effect=lambda cmd, **kw: ran.append(cmd) or mock.Mock(returncode=pkill_status)), \
+                contextlib.redirect_stdout(out):
+            ui_tour.mac_no_crash_dialog()
+        return written, ran, out.getvalue().splitlines()
+
+    def test_turned_off_and_one_left_open_is_closed(self):
+        written, ran, lines = self.run_it(0)
+        self.assertEqual(written, [('write', 'com.apple.CrashReporter', 'DialogType', '-string', 'none'),
+                                   ('write', 'com.apple.CrashReporter', 'UseUNC', '-bool', 'true')])
+        self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
+        self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)',
+                                 'Closed a crash dialog an earlier run left open (Problem Reporter)'])
+
+    def test_none_left_open(self):
+        _, ran, lines = self.run_it(1)
+        self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
+        self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)'])
 
 
 if __name__ == '__main__':

@@ -59,6 +59,7 @@ words, is in the [README](README.md#the-ide) and on the
 - CI: in WebKit, the web runtime check, the web IDE soak and the web IDE's xTalk Suite check run once more when they fail, with the first try's files kept and a warning in the job summary, so that one crash of WebKit's web process no longer leaves the Linux packages unmade; a check that fails twice still fails (#218)
 - macOS: `the systemAppearance` is "light" or "dark" every time it is read: the engine wrote 16 of its 32 bits, so on Apple Silicon it could be empty, and the Tools palette's modern look then opened in its light colours in the dark appearance (#220)
 - Tests: the IDE tour reads the systemAppearance at many depths of handler calls on macOS and Windows, and checks that the Tools palette's modern look is light or dark as the system is; on macOS it logs any crash report macOS writes of the IDE during a run, with a warning (#220)
+- CI: macOS's "quit unexpectedly" dialog is turned off for the IDE tour's runs, and one left open is closed before a run starts: a crash of the IDE as the light run was stopped left one over the dark run's windows on Apple Silicon, which then drew as inactive, and a step there failed (#220)
 
 ## 0.2.7-rc.6.3 (2026-10-23, pre-release)
 
