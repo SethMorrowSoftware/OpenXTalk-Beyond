@@ -1,0 +1,55 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# A probe, not a test, for the backdrop's fix: where macOS orders a window
+# that cannot become key when it is clicked (tools/ci/mac_backdrop_probe.py)
+name: Backdrop probe (macOS)
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/mac-backdrop-probe.yml
+      - tools/ci/mac-backdrop-probe.m
+      - tools/ci/mac_backdrop_probe.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-backdrop-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Probe (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ macos-14, macos-15, macos-26 ]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Probe
+        run: |
+          sw_vers
+          python3 tools/ci/mac_backdrop_probe.py "$RUNNER_TEMP/backdrop-probe"

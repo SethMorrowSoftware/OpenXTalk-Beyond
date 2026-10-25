@@ -73,9 +73,10 @@ LOOK = 10.0
 log = ui_tour.log
 
 
-def osascript(text, language=None, timeout=30):
-    """Runs text with osascript: (exit status, what it printed)."""
-    cmd = ['osascript'] + (['-l', language] if language else []) + ['-e', text]
+def osascript(text, language=None, timeout=30, args=()):
+    """Runs text with osascript, args going to its run handler: (exit
+    status, what it printed)."""
+    cmd = ['osascript'] + (['-l', language] if language else []) + ['-e', text] + [str(a) for a in args]
     try:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -138,6 +139,74 @@ def menu_title(pid, menu):
     except ValueError:
         return None
     return x + w // 2, y + h // 2
+
+
+# The windows of a process on the screen, front to back, as the window
+# server orders them (CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly):
+# a line each of its number, layer, x, y, width, height and title (empty
+# where macOS does not give it)
+WINDOWS = '''ObjC.import("CoreGraphics");
+function run(argv) {
+  var pid = parseInt(argv[0]);
+  var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)));
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var w = list[i];
+    if (w.kCGWindowOwnerPID != pid) continue;
+    var b = w.kCGWindowBounds;
+    out.push([w.kCGWindowNumber, w.kCGWindowLayer, Math.round(b.X), Math.round(b.Y),
+              Math.round(b.Width), Math.round(b.Height), w.kCGWindowName || ""].join(" "));
+  }
+  return out.join("\\n");
+}
+'''
+
+
+def window_order(pid):
+    """The windows of the process pid on the screen, front to back: tuples
+    of (number, layer, x, y, width, height, title), or None when the
+    window server could not be asked."""
+    code, said = osascript(WINDOWS, 'JavaScript', args=[pid])
+    if code != 0:
+        log('The window list: exit status %s: %s' % (code, said))
+        return None
+    windows = []
+    for line in said.splitlines():
+        words = line.split(' ', 6)
+        try:
+            windows.append(tuple(int(v) for v in words[:6]) + ((words[6] if len(words) > 6 else ''),))
+        except ValueError:
+            log('The window list: an odd line: %r' % line)
+    return windows
+
+
+def backdrop_behind(windows, screen):
+    """Whether the backdrop (the process's window of the normal layer, 0,
+    that covers the whole screen, x, y, width and height) is behind the
+    process's other windows of that layer, and the order as text. None
+    when there is no such window, or no list."""
+    if windows is None:
+        return None, 'no window list'
+    names = []
+    backdrop = None
+    after = []
+    for number, layer, x, y, w, h, title in windows:
+        if w == 0 or h == 0:
+            continue
+        if layer == 0 and (x, y, w, h) == tuple(screen):
+            backdrop = number
+            names.append('[backdrop]')
+            continue
+        names.append('%s%s' % (title or '#%d %dx%d at %d,%d' % (number, w, h, x, y),
+                               '' if layer == 0 else ' (layer %d)' % layer))
+        if backdrop is not None and layer == 0:
+            after.append(names[-1])
+    text = ' > '.join(names)
+    if backdrop is None:
+        return None, 'no backdrop: ' + text
+    if after:
+        return False, 'the backdrop is IN FRONT of %s: %s' % (', '.join(after), text)
+    return True, 'the backdrop is behind: ' + text
 
 
 def menu_bar_titles(pid):
