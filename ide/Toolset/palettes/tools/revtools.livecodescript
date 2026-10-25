@@ -16,7 +16,8 @@ constant kTmSmallCell = 30
 constant kTmCellHeight = 30
 -- A widget's tile without its name: the widget's icon, an SVG path that
 -- draws at any size, with 4 points around it. The controls' and the
--- tools' icons are pictures and stay at their own size. (The widgets'
+-- tools' icons are drawn too (kTmControlIcon, kTmToolIcon), or with
+-- Drawn Icons off are pictures at their own size. (The widgets'
 -- icons were 20 points in tiles of 48 by 30, small and far apart:
 -- openxtalk.org, October 2026.)
 constant kTmWidgetIcon = 26
@@ -25,6 +26,11 @@ constant kTmWidgetCell = 34
 -- of kTmSmallCell; the classic look's pictures of the shapes are 12 to 14
 -- points
 constant kTmShapeIcon = 20
+-- A control's or a tool's drawn icon (tmDrawnIconSvg): a control's in a
+-- tile of kTmWideCell by kTmCellHeight, a tool's in one of kTmSmallCell,
+-- as a shape's is
+constant kTmControlIcon = 22
+constant kTmToolIcon = 20
 constant kTmNameCell = 150
 -- A tile with its name: tall enough for a name on two lines of 10 points
 -- (30, with the insets of kTmTextInset), one point over and under it;
@@ -2339,7 +2345,8 @@ end hPositionAccentsInTools
 -- tmIsModern() is true, and the classic look's own code and settings
 -- (revTools_show, revTools_columns) are as they were.
 --
--- Run and Edit, the menu, the filter and the folds are drawn with Lucide's
+-- Run and Edit, the menu, the filter, the folds and some of the controls
+-- and tools (tmDrawnIconSvg) are drawn with Lucide's
 -- icons (lucide-static 0.469.0), the inside of each icon's <svg>, under
 -- Lucide's licence:
 --
@@ -2362,7 +2369,8 @@ end hPositionAccentsInTools
 -- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 --
 -- The corner's grip (two short strokes) is not Lucide's, nor are the
--- shapes' icons, which are drawn from the shapes themselves (tmShapeSvg).
+-- shapes' icons, which are drawn from the shapes themselves (tmShapeSvg),
+-- nor the rest of the controls' and tools' (tmDrawnIconSvg says which).
 
 -- kTmSections as an array, 1 to n, of ["key"], ["title"] and ["views"]
 private function tmSections
@@ -2487,10 +2495,12 @@ private function tmIcon pName, pIcon, pColor, pSize
 end tmIcon
 
 -- The same, for the inside of an <svg> of 24 by 24 drawn with a stroke
--- of 2, as Lucide's icons are
+-- of 2, as Lucide's icons are; "@ink" in pPaths is the colour too, for a
+-- part filled with it (a radio button's dot)
 private function tmSvgIcon pName, pPaths, pColor, pSize
    local tHex, tSvg, tObj, tID
    put "#" & format("%02x%02x%02x", item 1 of pColor, item 2 of pColor, item 3 of pColor) into tHex
+   replace "@ink" with tHex in pPaths
    put "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='" & tHex & \
          "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" & \
          pPaths & "</svg>" into tSvg
@@ -2555,6 +2565,154 @@ private function tmShapeSvg @pItem
    end switch
    return empty
 end tmShapeSvg
+
+-- A control's or a tool's icon (Controls, Vector Tools, Paint Tools),
+-- drawn as Run's and Edit's are, at any size and in the icons' colour,
+-- light or dark: what the control looks like, or the tool as other
+-- programs draw it. The classic look's pictures of them are made for its
+-- grey palette: white and pale grey, 12 to 20 points, which Large Icons
+-- blurred and the light look all but hid (tmInkPaleIcon only inked the
+-- palest). Those of the paint tools and the image and player are
+-- Lucide's (pencil, brush, paint-bucket, spray-can, square-dashed,
+-- eraser, hexagon, image, film; and square-check for the check box), the
+-- rest are drawn here. The fill and line colour tools are white where
+-- the colour chosen goes: revToolsOptionClicked tints that white with a
+-- colorOverlay, as it tinted the pictures'. Empty for any other type,
+-- which keeps its picture (tmMakeItem), as does every type when the
+-- menu's Drawn Icons is off (tmDrawnIcons).
+private function tmDrawnIconSvg pTypeID
+   switch pTypeID
+      case "com.livecode.interface.classic.Button"
+         return "<rect x='2' y='6' width='20' height='12' rx='3'/><path d='M8 12h8'/>"
+      case "com.livecode.interface.classic.DefaultButton"
+         return "<rect x='2.5' y='6.5' width='19' height='11' rx='3' stroke-width='3'/>" & \
+               "<path d='M8 12h8'/>"
+      case "com.livecode.interface.classic.RectangleButton"
+         return "<rect x='2' y='6' width='20' height='12'/><path d='M8 12h8'/>"
+      case "com.livecode.interface.classic.Checkbox"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='m8 12 3 3 5-6'/>"
+      case "com.livecode.interface.classic.RadioButton"
+         return "<circle cx='12' cy='12' r='9'/>" & \
+               "<circle cx='12' cy='12' r='3.5' fill='@ink' stroke='none'/>"
+      case "com.livecode.interface.classic.TabPanel"
+         return "<path d='M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>" & \
+               "<path d='M3 9V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v4'/>" & \
+               "<path d='M11 6h6a1 1 0 0 1 1 1v2'/>"
+      case "com.livecode.interface.classic.LabelField"
+         return "<path d='M4 7V4h16v3'/><path d='M9 20h6'/><path d='M12 4v16'/>"
+      case "com.livecode.interface.classic.Field"
+         return "<rect x='2' y='6' width='20' height='12' rx='2'/><path d='M6.5 9v6'/>"
+      case "com.livecode.interface.classic.TextArea"
+         return "<rect x='2' y='3' width='20' height='18' rx='2'/><path d='M16 3v18'/>" & \
+               "<path d='M6 8h6'/><path d='M6 12h6'/><path d='M6 16h4'/><path d='M19 7v3'/>"
+      case "com.livecode.interface.classic.TableField"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18'/>" & \
+               "<path d='M3 15h18'/><path d='M9 3v18'/><path d='M15 3v18'/>"
+      case "com.livecode.interface.classic.ListField"
+         return "<rect x='2' y='3' width='20' height='18' rx='2'/><path d='M16 3v18'/>" & \
+               "<path d='M6 7.5h6'/>" & \
+               "<rect x='5' y='10' width='8' height='4' rx='1' fill='@ink' stroke='none'/>" & \
+               "<path d='M6 16.5h6'/><path d='M19 7v3'/>"
+      case "com.livecode.interface.classic.DataGrid"
+         return "<path d='M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4z' fill='@ink'/>" & \
+               "<path d='M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><path d='M3 15h18'/>" & \
+               "<path d='M9 9v12'/><path d='M15 9v12'/>"
+      case "com.livecode.interface.classic.OptionMenu"
+         return "<rect x='2' y='6' width='20' height='12' rx='3'/><path d='M6 12h6'/>" & \
+               "<path d='m15.5 10.5 1.5-1.5 1.5 1.5'/><path d='m15.5 13.5 1.5 1.5 1.5-1.5'/>"
+      case "com.livecode.interface.classic.PulldownMenu"
+         return "<path d='M3 4h7'/><path d='m13 3 1.5 1.5L16 3'/>" & \
+               "<rect x='3' y='8' width='18' height='13' rx='2'/><path d='M7 12.5h10'/>" & \
+               "<path d='M7 16.5h6'/>"
+      case "com.livecode.interface.classic.ComboBox"
+         return "<rect x='2' y='6' width='20' height='12' rx='2'/><path d='M15 6v12'/>" & \
+               "<path d='M6 9v6'/><path d='m17 11 1.5 1.5L20 11'/>"
+      case "com.livecode.interface.classic.PopupMenu"
+         return "<rect x='3' y='3' width='15' height='15' rx='2'/><path d='M7 8h7'/>" & \
+               "<path d='M7 12.5h7'/><path d='M21 8v11a2 2 0 0 1-2 2H8'/>"
+      case "com.livecode.interface.classic.Progressbar"
+         return "<rect x='2' y='8' width='20' height='8' rx='4'/>" & \
+               "<path d='M6 12h6' stroke-width='4'/>"
+      case "com.livecode.interface.classic.Slider"
+         return "<path d='M2 12h9'/><path d='M17 12h5'/><circle cx='14' cy='12' r='3'/>"
+      case "com.livecode.interface.classic.LittleArrows"
+         return "<rect x='7' y='2' width='10' height='20' rx='3'/>" & \
+               "<path d='m9.5 9.5 2.5-2.5 2.5 2.5'/><path d='m9.5 14.5 2.5 2.5 2.5-2.5'/>"
+      case "com.livecode.interface.classic.Scrollbar"
+         return "<rect x='2' y='8' width='20' height='8' rx='2'/>" & \
+               "<path d='M6 10.5 4.5 12 6 13.5'/><path d='m18 10.5 1.5 1.5-1.5 1.5'/>" & \
+               "<path d='M10 12h4' stroke-width='3'/>"
+      case "com.livecode.interface.classic.Image"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='9' cy='9' r='2'/>" & \
+               "<path d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/>"
+      case "com.livecode.interface.classic.Player"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 3v18'/>" & \
+               "<path d='M3 7.5h4'/><path d='M3 12h18'/><path d='M3 16.5h4'/>" & \
+               "<path d='M17 3v18'/><path d='M17 7.5h4'/><path d='M17 16.5h4'/>"
+      case "com.livecode.interface.classic.LineGraphic"
+         return "<path d='M5 19 19 5'/>"
+      case "com.livecode.interface.classic.CurveGraphic"
+      case "com.livecode.tool.Curve"
+         return "<path d='M3 17c2-6 4-9 6.5-6s3 7 6 3.5S19 6 21 5'/>"
+      case "com.livecode.interface.classic.PolygonGraphic"
+      case "com.livecode.tool.Polygon"
+         return "<path d='M4 19 6 6l10 2 4 11z'/>"
+      case "com.livecode.tool.FillColor"
+         return "<rect x='3' y='3' width='18' height='18' rx='3' fill='#ffffff'/>"
+      case "com.livecode.tool.LineColor"
+         return "<rect x='5' y='5' width='14' height='14' rx='2' stroke='#ffffff' stroke-width='4'/>" & \
+               "<rect x='2.5' y='2.5' width='19' height='19' rx='3.5' stroke-width='1.5'/>" & \
+               "<rect x='7.5' y='7.5' width='9' height='9' rx='1' stroke-width='1.5'/>"
+      case "com.livecode.tool.LineSize"
+         return "<path d='M4 6h16' stroke-width='1'/><path d='M4 12h16' stroke-width='2.5'/>" & \
+               "<path d='M4 18.5h16' stroke-width='4'/>"
+      case "com.livecode.tool.Pencil"
+         return "<path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321" & \
+               " 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z'/>" & \
+               "<path d='m15 5 4 4'/>"
+      case "com.livecode.tool.Brush"
+         return "<path d='m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08'/>" & \
+               "<path d='M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4" & \
+               " 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z'/>"
+      case "com.livecode.tool.Bucket"
+         return "<path d='m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z'/>" & \
+               "<path d='m5 2 5 5'/><path d='M2 13h15'/>" & \
+               "<path d='M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z'/>"
+      case "com.livecode.tool.SprayCan"
+         return "<path d='M3 3h.01'/><path d='M7 5h.01'/><path d='M11 7h.01'/>" & \
+               "<path d='M3 7h.01'/><path d='M7 9h.01'/><path d='M3 11h.01'/>" & \
+               "<rect width='4' height='4' x='15' y='5'/>" & \
+               "<path d='m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2'/>" & \
+               "<path d='m13 14 8-2'/><path d='m13 19 8-2'/>"
+      case "com.livecode.tool.Select"
+         return "<path d='M5 3a2 2 0 0 0-2 2'/><path d='M19 3a2 2 0 0 1 2 2'/>" & \
+               "<path d='M21 19a2 2 0 0 1-2 2'/><path d='M5 21a2 2 0 0 1-2-2'/>" & \
+               "<path d='M9 3h1'/><path d='M9 21h1'/><path d='M14 3h1'/><path d='M14 21h1'/>" & \
+               "<path d='M3 9v1'/><path d='M21 9v1'/><path d='M3 14v1'/><path d='M21 14v1'/>"
+      case "com.livecode.tool.Eraser"
+         return "<path d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0" & \
+               " 3.4L13 21'/>" & \
+               "<path d='M22 21H7'/><path d='m5 11 9 9'/>"
+      case "com.livecode.tool.BrushPattern"
+         return "<circle cx='4.5' cy='12' r='1.5' fill='@ink' stroke='none'/>" & \
+               "<circle cx='10.5' cy='12' r='2.5' fill='@ink' stroke='none'/>" & \
+               "<circle cx='18' cy='12' r='4' fill='@ink' stroke='none'/>"
+      case "com.livecode.tool.PolygonSides"
+         return "<path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1" & \
+               " 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/>"
+      case "com.livecode.tool.RoundRadius"
+         return "<path d='M4 21v-9a8 8 0 0 1 8-8h9'/><path d='M4 4h.01'/><path d='M8 4h.01'/>" & \
+               "<path d='M4 8h.01'/>"
+   end switch
+   return empty
+end tmDrawnIconSvg
+
+-- The menu's Drawn Icons (revTools_modernPictures false or empty, the
+-- default): the controls and tools drawn (tmDrawnIconSvg); off, the
+-- classic look's pictures, as 0.2.7-rc.6.4 and before showed them
+private function tmDrawnIcons
+   return revIDEGetPreference("revTools_modernPictures") is not true
+end tmDrawnIcons
 
 private function tmField pName, pText, pSize, pColor, pGroup
    local tObj
@@ -2970,7 +3128,7 @@ end tmOrderRunEdit
 -- makes it, and its button, named for its type with the classic
 -- properties; a widget's SVG icon and a name below the button
 private command tmMakeItem pView, pTypeID, @pItem, pThemePath
-   local tFilename, tImage, tObj, tTooltip, tToolType, tGroup, tShape
+   local tFilename, tImage, tObj, tTooltip, tToolType, tGroup, tShape, tDrawn, tDrawnID, tError
    if pItem["userVisible"] is false then exit tmMakeItem
 
    -- the icon, as the classic look makes it (Home reads the Browse tool's)
@@ -3038,6 +3196,26 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
    -- a shape's icon is drawn (tmShapeSvg); its picture is still made,
    -- above, as every tile's is
    if pView is "graphic" then put tmShapeSvg(pItem) into tShape
+   -- so is a control's or a tool's (tmDrawnIconSvg), unless Drawn Icons
+   -- is off; one that cannot be drawn keeps its picture
+   if pView is not among the items of "runedit,widget,graphic" and tmDrawnIcons() then
+      put tmDrawnIconSvg(pTypeID) into tDrawn
+   end if
+   if tDrawn is not empty then
+      try
+         if pView is "classic" then
+            put tmSvgIcon("tm.drawn:" & pTypeID, tDrawn, tmColor("icon"), tmSize(kTmControlIcon)) into tDrawnID
+         else
+            put tmSvgIcon("tm.drawn:" & pTypeID, tDrawn, tmColor("icon"), tmSize(kTmToolIcon)) into tDrawnID
+         end if
+      catch tError
+         -- (what tmSvgIcon made before it failed: the last image made)
+         put empty into tDrawnID
+         if the number of images of group "tmIcons" of me > 0 then
+            delete image (the number of images of group "tmIcons" of me) of group "tmIcons" of me
+         end if
+      end try
+   end if
 
    put tmHitButton(pTypeID, tGroup) into tObj
    set the cType of tObj to pView
@@ -3052,6 +3230,8 @@ private command tmMakeItem pView, pTypeID, @pItem, pThemePath
       end if
    else if tShape is not empty then
       set the icon of tObj to tmSvgIcon("tm.shape:" & pTypeID, tShape, tmColor("icon"), tmSize(kTmShapeIcon))
+   else if tDrawnID is an integer and there is an image id tDrawnID of me then
+      set the icon of tObj to tDrawnID
    else if pItem["svgicon"] is empty then
       set the icon of tObj to the id of tImage
    end if
@@ -3649,6 +3829,7 @@ private command tmPopupMenu
    put tmShownSections() into tShow
    put tmCheck("Show Names", tmShowNames()) & return after tText
    put tmCheck("Large Icons", tmLarge()) & return after tText
+   put tmCheck("Drawn Icons", tmDrawnIcons()) & return after tText
    put "-" & return after tText
    put tmCheck("Widgets", "widget" is among the items of tShow) & return after tText
    put tmCheck("Controls", "classic" is among the items of tShow) & return after tText
@@ -3687,6 +3868,13 @@ command tmMenuPick pWhich
             put item 1 of tRect + kTmPad * 2 + 4 + tmSize(kTmWideCell) * 2 + kTmGap into item 3 of tRect
             set the rect of me to tRect
          end if
+         tmGenerate
+         tmLayout
+         unlock screen
+         break
+      case "Drawn Icons"
+         revIDESetPreference "revTools_modernPictures", tmDrawnIcons()
+         lock screen
          tmGenerate
          tmLayout
          unlock screen

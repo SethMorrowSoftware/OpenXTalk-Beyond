@@ -8,7 +8,7 @@ script "oxt_ui_tour"
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
 -- first size, wide, with its names and with Large Icons, and checks of how that look
--- behaves: tools-modern-check, -sizes, -use and -switch), on macOS the
+-- behaves: tools-modern-check, -sizes, -use, -drawn and -switch), on macOS the
 -- menu bar stack told it was moved, and made a window (menubar-mac), on
 -- Linux a pop-up menu whose ticks, dots and submenu arrows must stand out
 -- from the menu (menu-marks), a stack of
@@ -68,7 +68,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -617,6 +617,72 @@ on tour_tools_modern_use
    tourTmFinish "tools-modern-use"
 end tour_tools_modern_use
 
+-- Drawn icons: every control and tool, in every section, has a drawn
+-- icon (tmDrawnIconSvg) where it had a picture, at its size and half as
+-- large again with Large Icons; the fill colour tool still shows the
+-- colour chosen (revToolsOptionClicked's colorOverlay tints its white);
+-- the pictures that Home reads are still there; and the menu's Drawn
+-- Icons off puts the classic look's pictures back, and on draws again
+on tour_tools_modern_drawn
+   local tObj, tCount, tSize, tFill, tView
+   if not tourTmStart("tools-modern-drawn") then exit tour_tools_modern_drawn
+   if tourToolsModern(260, false) is not true then throw "the modern look did not turn on"
+   revIDESetPreference "revTools_modernShow", "classic,graphictools,paint"
+   dispatch "tmGenerate" to stack "revTools"
+   dispatch "tmLayout" to stack "revTools"
+   tourWait 300
+   repeat for each item tView in "classic,graphictools,graphictoolscontrols,paint,paintcontrols"
+      repeat for each line tObj in tourTmGroupTiles(tView)
+         add 1 to tCount
+         put tourTmDrawnIcon(tObj) into tSize
+         if tView is "classic" then
+            tourTmCheck tSize is 22, "the control" && the short name of tObj && "has a drawn icon of 22 (" & tSize & ")"
+         else
+            tourTmCheck tSize is 20, "the tool" && the short name of tObj && "of" && tView && "has a drawn icon of 20 (" & tSize & ")"
+         end if
+      end repeat
+   end repeat
+   tourTmCheck tCount >= 40, tCount && "controls and tools looked at"
+   tourTmCheck tourTmNamed("com.livecode.tool.Browse.icon.png") is not empty and \
+         tourTmNamed("com.livecode.interface.classic.Button.icon.png") is not empty, "the icon pictures are still there"
+   -- the fill colour, as revToolsOptionClicked shows it
+   put line 1 of tourTmGroupTiles("graphictoolscontrols") into tFill
+   repeat for each line tObj in tourTmGroupTiles("graphictoolscontrols")
+      if the cToolName of tObj is "graphic fill color tool" then put tObj into tFill
+   end repeat
+   tourTmCheck the cToolName of tFill is "graphic fill color tool", "the graphic fill colour tool is there"
+   tourTmCheck tourRedness(tFill) < 40, "the fill colour tool is not red before a colour is chosen (" & tourRedness(tFill) & ")"
+   set the colorOverlay["color"] of tFill to "255,0,0"
+   set the colorOverlay["blendMode"] of tFill to "multiply"
+   tourWait 200
+   tourTmCheck tourRedness(tFill) > 100, "red chosen, the fill colour tool shows red (" & tourRedness(tFill) & ")"
+   set the colorOverlay of tFill to empty
+   -- Large Icons
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   tourTmCheck tourTmDrawnIcon(tourTmNamed("com.livecode.interface.classic.Field")) is 33 and \
+         tourTmDrawnIcon(tourTmNamed("com.livecode.tool.Pencil")) is 30, "Large Icons draws them half as large again"
+   tourTmLayoutOK "large, drawn"
+   dispatch "tmMenuPick" to stack "revTools" with "Large Icons"
+   tourWait 300
+   -- Drawn Icons off and on
+   dispatch "tmMenuPick" to stack "revTools" with "Drawn Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernPictures") is true, "the menu turns Drawn Icons off"
+   put the long id of image "com.livecode.interface.classic.Field.icon.png" of stack "revTools" into tObj
+   tourTmCheck tourTmDrawnIcon(tourTmNamed("com.livecode.interface.classic.Field")) is empty and \
+         the icon of tourTmNamed("com.livecode.interface.classic.Field") is the short id of tObj, "off, a control shows its picture"
+   tourTmCheck tourTmDrawnIcon(tourTmNamed("com.livecode.tool.Pencil")) is empty, "off, a tool shows its picture"
+   tourTmLayoutOK "pictures"
+   tourShotStack "revTools", "01-tools-modern-pictures"
+   dispatch "tmMenuPick" to stack "revTools" with "Drawn Icons"
+   tourWait 300
+   tourTmCheck revIDEGetPreference("revTools_modernPictures") is false and \
+         tourTmDrawnIcon(tourTmNamed("com.livecode.interface.classic.Field")) is 22, "and on, draws them again"
+   tourShotStack "revTools", "01-tools-modern-drawn"
+   tourTmFinish "tools-modern-drawn"
+end tour_tools_modern_drawn
+
 -- Switching: back and forth a few times, the modern look builds the same
 -- each time, and the classic look comes back as it was
 on tour_tools_modern_switch
@@ -783,7 +849,7 @@ end tourTmFinish
 command tourTmReset
    local tName
    revIDESetPreference "revTools_look", "classic"
-   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow,revTools_modernLarge"
+   repeat for each item tName in "revTools_modernSize,revTools_modernNames,revTools_modernFolded,revTools_modernShow,revTools_modernLarge,revTools_modernPictures"
       revIDESetPreference tName, empty
    end repeat
    tourWait 300
@@ -816,6 +882,48 @@ end tourTmMenuChecked
 function tourTmNamed pName
    return tourControlNamed("revTools", pName)
 end tourTmNamed
+
+-- The width of a control's or a tool's drawn icon (the palette's
+-- tmDrawnIconSvg) on the tile pObj, or empty when it shows a picture
+function tourTmDrawnIcon pObj
+   local tID
+   if pObj is empty then return empty
+   put the icon of pObj into tID
+   if tID is not an integer or tID is 0 then return empty
+   if there is not an image id tID of stack "revTools" then return empty
+   if the short name of image id tID of stack "revTools" is not ("tm.drawn:" & the short name of pObj) then return empty
+   return the width of image id tID of stack "revTools"
+end tourTmDrawnIcon
+
+-- The tiles (their buttons) of a section's group, one long id a line
+function tourTmGroupTiles pView
+   local tGroup, i, tTiles
+   put tourTmGroup(pView) into tGroup
+   if tGroup is empty then return empty
+   repeat with i = 1 to the number of buttons of tGroup
+      if the cType of button i of tGroup is empty then next repeat
+      put the long id of button i of tGroup & return after tTiles
+   end repeat
+   return line 1 to -1 of tTiles
+end tourTmGroupTiles
+
+-- How red the middle of an object of the Tools palette is on the screen:
+-- red less the mean of green and blue. (A snapshot from the object leaves
+-- out its colorOverlay, which the screen shows.)
+function tourRedness pObj
+   local tData, tW, tH, tAt, tLoc
+   tourUnlockScreen "redness of" && the short name of pObj
+   put tourScreenLoc(pObj, "revTools") into tLoc
+   export snapshot from rect (item 1 of tLoc - 2, item 2 of tLoc - 2, item 1 of tLoc + 3, item 2 of tLoc + 3) to tData as PNG
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the width of image "oxt_tour_probe" of stack "oxt_ui_tour" into tW
+   put the height of image "oxt_tour_probe" of stack "oxt_ui_tour" into tH
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   put ((tH div 2) * tW + tW div 2) * 4 into tAt
+   return byteToNum(byte tAt + 2 of tData) - (byteToNum(byte tAt + 3 of tData) + byteToNum(byte tAt + 4 of tData)) / 2
+end tourRedness
 
 -- A section's group in the palette's group "contents"
 function tourTmGroup pView
