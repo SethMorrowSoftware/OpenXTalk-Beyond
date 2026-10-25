@@ -1109,19 +1109,32 @@ end mbDrawImages
 -- these are set, as the classic look always had them (on macOS, its dark
 -- grey for the window)
 command mbApplyColors
-   local tModern, tTop, tBack
+   local tModern, tTop, tBack, tLocked, tCantModify
    put revMenubarIsModern() into tModern
+   -- (the stack can be locked while it opens, by whatever ran before:
+   -- a locked stack refuses create and delete)
+   put the cantModify of me into tCantModify
+   set the cantModify of me to false
    if tModern then
       if there is not a graphic "mbBackground" of card 1 of me then
+         -- (the IDE can open this stack with its messages locked: they
+         -- stay as they were)
+         put the lockMessages into tLocked
          lock messages
          reset the templateGraphic
-         create graphic "mbBackground" in card 1 of me
-         set the style of graphic "mbBackground" of card 1 of me to "rectangle"
-         set the opaque of graphic "mbBackground" of card 1 of me to true
-         set the lineSize of graphic "mbBackground" of card 1 of me to 0
-         set the traversalOn of graphic "mbBackground" of card 1 of me to false
-         unlock messages
+         try
+            create graphic "mbBackground" in card 1 of me
+            set the style of graphic "mbBackground" of card 1 of me to "rectangle"
+            set the opaque of graphic "mbBackground" of card 1 of me to true
+            set the lineSize of graphic "mbBackground" of card 1 of me to 0
+            set the traversalOn of graphic "mbBackground" of card 1 of me to false
+         catch tError
+            -- (the window's own colour stays behind the toolbar)
+         end try
+         set the lockMessages to tLocked
       end if
+   end if
+   if tModern and there is a graphic "mbBackground" of card 1 of me then
       set the layer of graphic "mbBackground" of card 1 of me to 1
       put 0 into tTop
       if the platform is not "MacOS" then put kMenuBarHeight into tTop
@@ -1158,6 +1171,7 @@ command mbApplyColors
          set the backgroundColor of button "Divider" of group "revMenuBar" of me to empty
       end if
    end if
+   set the cantModify of me to tCantModify
 end mbApplyColors
 
 -- The look again: when the preference changes, and when the desktop
