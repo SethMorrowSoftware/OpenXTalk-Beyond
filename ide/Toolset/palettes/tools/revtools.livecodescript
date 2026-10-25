@@ -2574,7 +2574,8 @@ end tmShapeSvg
 -- blurred and the light look all but hid (tmInkPaleIcon only inked the
 -- palest). Those of the paint tools and the image and player are
 -- Lucide's (pencil, brush, paint-bucket, spray-can, square-dashed,
--- eraser, hexagon, image, film; and square-check for the check box), the
+-- eraser, hexagon, image, film; and square-check, with a larger tick,
+-- for the check box), the
 -- rest are drawn here. The fill and line colour tools are white where
 -- the colour chosen goes: revToolsOptionClicked tints that white with a
 -- colorOverlay, as it tinted the pictures'. Empty for any other type,

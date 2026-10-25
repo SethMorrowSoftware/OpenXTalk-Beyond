@@ -377,9 +377,9 @@ draws its icons with the same kit.
 
 The Tools palette's modern look
 ([`ide/Toolset/palettes/tools/revtools.livecodescript`](ide/Toolset/palettes/tools/revtools.livecodescript))
-draws seven Lucide icons of the same version, under the same licence,
-from their SVG text, which its script carries with the licence's full
-text.
+draws 17 Lucide icons of the same version, under the same licence,
+from their SVG text (square-check with a larger tick), which its script
+carries with the licence's full text.
 
 The remastered examples
 ([`ide/Resources/Examples/Remastered/`](ide/Resources/Examples/Remastered/))
