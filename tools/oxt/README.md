@@ -93,7 +93,7 @@ and `builder/package_compiler.livecodescript` (Windows: `TargetFolder`,
 | `Resources/**` | ide | `ide/Resources/**` | Resources |
 | `Documentation/**` | ide | `ide/Documentation/**` | Documentation (see below) |
 | `Runtime/Windows/{x86-64,x86-32}/Support/Sample Icons/*` | ide | `ide/Resources/Sample Icons/*` | Runtime.Windows: `file ide:Resources/Sample Icons/*` |
-| `.version`, `.buildnumber`, `about.dat`, `about.txt`, `License Agreement.txt`, `Open Source Licenses.txt`, `OpenXTalk-lite_1024.ico`, `OXT-Beyond.ico`, `Release Notes.pdf` | ide | `ide/<name>` | Misc (`about.txt`, licences); the rest are OpenXTalk Lite or OXT-Beyond additions |
+| `.version`, `.buildnumber`, `about.dat`, `about.txt`, `License Agreement.txt`, `Open Source Licenses.txt`, `OpenXTalk-lite_1024.ico`, `OXT-Beyond.ico`, `Release Notes.pdf` | ide | `ide/<name>` | Misc (`about.txt`, licences); the rest are OpenXTalk Lite or OXT-Beyond additions. `package.py` stages the two `.ico` files, which are Windows icons, in the Windows package only (`WINDOWS_ONLY_IDE_FILES`) |
 | `Extensions/<folder>/**` for a folder in `xtalk-extensions.json`, `Extensions/XTALK-EXTENSIONS.txt` | xtalk | | not in package.txt: the bundled xTalk Suite extensions (before the next rule) |
 | `Extensions/<id>/**` for an id not built here | ide | `ide/Extensions/<id>/**` | new folder, see below |
 | `Extensions/<one of the 43 ids in REPO_BUILT_EXTENSIONS>/**` | build | | Extensions: `packaged_extensions` built from `extensions/` |

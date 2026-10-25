@@ -225,6 +225,18 @@ EMPTY_DIRS = (
     'Documentation/html_viewer/resources/data/api/exports/datagrid/plugins',
 )
 
+# The IDE's files at the root of an install that only the Windows package
+# ships: the Windows icons, OXT-Beyond's (the icon of the installer, its
+# shortcuts and its file types: Installer/oxt-beyond/branding/README.md)
+# and OpenXTalk Lite's, which it was adapted from. Nothing on Linux or
+# macOS opens them: those packages have the icon as PNGs (the desktop
+# entry's) and as an .icns (the app's). tperry2x on openxtalk.org (October
+# 2026): "the linux version ships with a windows ico file". The sample
+# icons of the Windows standalone runtimes (Runtime/Windows/*/Support/
+# Sample Icons), which the standalone builder gives a Windows application
+# built on any platform, are not these, and every package keeps them.
+WINDOWS_ONLY_IDE_FILES = ('OXT-Beyond.ico', 'OpenXTalk-lite_1024.ico')
+
 # What tools/ci/build_docs.sh generates into the checkout and git does not
 # keep, in DOCS_DATA (an installed path): LiveCode's Dictionary, the guides
 # and the text dictionary. Without them the IDE's dictionaries and guides
@@ -1359,6 +1371,17 @@ def showcase_stacks(repo):
             if name.endswith('.oxtstack') and os.path.isfile(os.path.join(folder, name))]
 
 
+def ide_pairs(repo, p):
+    """The IDE's files that platform p's package stages: (installed path
+    below the tools folder, repository path) pairs and problems, as
+    layout.plan_assemble gives them, less WINDOWS_ONLY_IDE_FILES on Linux
+    and macOS."""
+    pairs, problems = layout.plan_assemble(repo, p.ide_include)
+    if p.family != 'windows':
+        pairs = [(target, repo_path) for target, repo_path in pairs if target not in WINDOWS_ONLY_IDE_FILES]
+    return pairs, problems
+
+
 def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=None, web=None):
     """Return (items, folders, problems); folders are installed paths of
     folders to create even if empty. xtalk is what xtalk_extensions.build
@@ -1371,7 +1394,7 @@ def plan(repo, bin_dir, build_number, assets, xtalk=None, platform=None, notes=N
     folders = [tools + d for d in EMPTY_DIRS]
 
     # IDE
-    pairs, ide_problems = layout.plan_assemble(repo, p.ide_include)
+    pairs, ide_problems = ide_pairs(repo, p)
     pl.problems.extend('IDE: ' + x for x in ide_problems)
     planned = set(target for target, _ in pairs)
     missing = [f for f in DOCS_FILES if DOCS_DATA + f not in planned]

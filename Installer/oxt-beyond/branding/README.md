@@ -30,7 +30,7 @@ Made by `draw_branding.py` elsewhere in the repository:
 
 | File | Used for |
 | --- | --- |
-| `ide/OXT-Beyond.ico` | 16 to 128 px as 32-bit bitmaps and 256 px as PNG (`tools/oxt/ico.py`); the installer, shortcuts and file associations. |
+| `ide/OXT-Beyond.ico` | 16 to 128 px as 32-bit bitmaps and 256 px as PNG (`tools/oxt/ico.py`); the installer, shortcuts and file associations. Only the Windows package has it (`WINDOWS_ONLY_IDE_FILES` in `tools/oxt/package.py`). |
 | `engine/rsrc/oxt-beyond.ico` | The same icon, compiled into the development engine (packaged as `OXT-Beyond.exe`) as icon 111 by `engine/rsrc/development.rc`. Standalone applications keep their own icon (`standalone.rc` is unchanged). |
 | `ide/Toolset/resources/community/ideSkin/splash.png`, `splash-light.png` and their `@extra-high` versions | The splash screens at 591 × 306 and 1182 × 612. |
 
