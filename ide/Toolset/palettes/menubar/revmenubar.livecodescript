@@ -2,6 +2,8 @@
 --openxtalk lite, openxtalk.org, open source gpl3 license
 
 local sMenuTarget, tPaletteList  --script locals
+-- OXT-Beyond: the toolbar's modern look (mbRefreshLook)
+local sMbAppearanceMsg, sMbAppearanceTries
 
 on preOpenStack
    if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99  --tp 24-1
@@ -58,6 +60,13 @@ end preOpenStack
 -- the desktop switches between light and dark (before, only when it
 -- opened, so a switch left it in the other appearance's colour)
 on menubarFollowAppearance
+   -- OXT-Beyond: the modern look has colours of its own, light or dark
+   -- (mbRefreshLook, below layoutMenu)
+   if revMenubarIsModern() then
+      mbDrawImages
+      mbApplyColors
+      exit menubarFollowAppearance
+   end if
    if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
       if the systemappearance is "dark" then set the backgroundColor of me to "61,61,61"
       else set the backgroundColor of me to ""
@@ -70,6 +79,12 @@ on ideSystemAppearanceChanged
    set the cantModify of me to false
    menubarFollowAppearance
    set the cantModify of me to tCantModify
+   if the platform is "MacOS" and revMenubarIsModern() then
+      if sMbAppearanceMsg is not empty then cancel sMbAppearanceMsg
+      put 10 into sMbAppearanceTries
+      send "mbRecheckAppearance" to me in 300 milliseconds
+      put the result into sMbAppearanceMsg
+   end if
 end ideSystemAppearanceChanged
 
 on closeStackRequest
@@ -92,6 +107,8 @@ on subscribeMessages
    revIDESubscribe "ideTutorialProgressChanged"
    revIDESubscribe "ideActiveStacksChanged"
    revIDESubscribe "ideSystemAppearanceChanged"
+   -- OXT-Beyond: View > Modern Toolbar
+   revIDESubscribe "idePreferenceChanged:revMenubar_look"
 end subscribeMessages
 
 local sTextMenuDisabledText, sTextMenuText, sPluginMenuText  --script locals
@@ -329,6 +346,10 @@ on idePreferenceChanged pPreference
          layoutMenu
          ideSetWindowBoundingRect
          unlock screen
+         break
+      case "revMenubar_look"
+         -- OXT-Beyond: the same images, buttons and places, drawn again
+         mbRefreshLook
          break
    end switch
 end idePreferenceChanged
@@ -773,6 +794,383 @@ on updateMenubarPreference
    unlock messages
    unlock screen
 end updateMenubarPreference
+
+################################################################################
+-- OXT-Beyond: the toolbar's modern look (View > Modern Toolbar, the
+-- preference revMenubar_look; only "classic" gives the classic look).
+-- It draws the toolbar's pictures as Lucide icons in the Tools palette's
+-- colours, light or dark as the desktop is, and gives the window and the
+-- labels those colours. Nothing else changes: the buttons, their names,
+-- labels, sizes and places, the menus and their shortcuts, the images in
+-- group "icons" and their names and IDs are those the classic look makes
+-- (generateMenubarUI makes both), and an icon that cannot be drawn keeps
+-- its picture. The classic look sets none of these colours, as before. The
+-- web IDE keeps its own flat pictures (images-web) and colours.
+--
+-- mbIconPaths carries 16 Lucide icons (lucide-static 0.469.0), the inside
+-- of each icon's <svg>, under Lucide's licence:
+--
+-- ISC License
+--
+-- Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as
+-- part of Feather (MIT). All other copyright (c) for Lucide are held by
+-- Lucide Contributors 2022.
+--
+-- Permission to use, copy, modify, and/or distribute this software for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+constant kMbIconBox = 28
+local sMbDark
+
+function revMenubarIsModern
+   if revEnvironmentIsWeb() then return false
+   return revIDEGetPreference("revMenubar_look") is not "classic"
+end revMenubarIsModern
+
+-- Dark or light as the Tools palette decides it: the systemAppearance, or
+-- on Linux (where it is always light) how dark the theme's window is
+private command mbReadAppearance
+   local tSum, tOld
+   if the platform is "Linux" then
+      put the backgroundColor of me into tOld
+      set the backgroundColor of me to empty
+      put the effective backgroundColor of me into tSum
+      set the backgroundColor of me to tOld
+      put item 1 of tSum + item 2 of tSum + item 3 of tSum < 234 into sMbDark
+   else
+      put the systemAppearance is "dark" into sMbDark
+   end if
+end mbReadAppearance
+
+-- The Tools palette's colours (its tmColor), light or dark
+private function mbColor pName
+   if sMbDark then
+      switch pName
+         case "bg"
+            return "15,23,42"
+         case "ink"
+            return "226,232,240"
+         case "icon"
+            return "203,213,225"
+         case "line"
+            return "51,65,85"
+         case "press"
+            return "30,41,59"
+         case "hilite"
+            return "46,16,101"
+         case "hilitePress"
+            return "59,25,128"
+         case "hiliteLine"
+            return "167,139,250"
+      end switch
+   else
+      switch pName
+         case "bg"
+            return "241,245,249"
+         case "ink"
+            return "15,23,42"
+         case "icon"
+            return "71,85,105"
+         case "line"
+            return "203,213,225"
+         case "press"
+            return "226,232,240"
+         case "hilite"
+            return "237,233,254"
+         case "hilitePress"
+            return "221,214,254"
+         case "hiliteLine"
+            return "124,58,237"
+      end switch
+   end if
+   return "15,23,42"
+end mbColor
+
+private function mbHex pColor
+   return "#" & format("%02x%02x%02x", item 1 of pColor, item 2 of pColor, item 3 of pColor)
+end mbHex
+
+-- pColor a third of the way to the window's colour (a disabled icon)
+private function mbFaded pColor
+   local tBg, tOut, tN
+   put mbColor("bg") into tBg
+   repeat with tN = 1 to 3
+      put round(item tN of pColor * 0.35 + item tN of tBg * 0.65) into item tN of tOut
+   end repeat
+   return tOut
+end mbFaded
+
+-- The inside of a 24 by 24 Lucide <svg> for a toolbar button (lucide-static
+-- 0.469.0, the icons the web IDE's images-web are made of; README.md there)
+private function mbIconPaths pItem, pHilited
+   switch pItem
+      case "Inspector"
+         -- sliders-horizontal
+         return "<line x1='21' x2='14' y1='4' y2='4'/><line x1='10' x2='3' y1='4' y2='4'/>" & \
+               "<line x1='21' x2='12' y1='12' y2='12'/><line x1='8' x2='3' y1='12' y2='12'/>" & \
+               "<line x1='21' x2='16' y1='20' y2='20'/><line x1='12' x2='3' y1='20' y2='20'/>" & \
+               "<line x1='14' x2='14' y1='2' y2='6'/><line x1='8' x2='8' y1='10' y2='14'/>" & \
+               "<line x1='16' x2='16' y1='18' y2='22'/>"
+      case "Code"
+         -- code-xml
+         return "<path d='m18 16 4-4-4-4'/><path d='m6 8-4 4 4 4'/><path d='m14.5 4-5 16'/>"
+      case "Tools"
+         -- pencil-ruler
+         return "<path d='M13 7 8.7 2.7a2.41 2.41 0 0 0-3.4 0L2.7 5.3a2.41 2.41 0 0 0 0 3.4L7 13'/>" & \
+               "<path d='m8 6 2-2'/><path d='m18 16 2-2'/>" & \
+               "<path d='m17 11 4.3 4.3c.94.94.94 2.46 0 3.4l-2.6 2.6c-.94.94-2.46.94-3.4 0L11 17'/>" & \
+               "<path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 " & \
+               ".623.622l4.353-1.32a2 2 0 0 0 .83-.497z'/><path d='m15 5 4 4'/>"
+      case "Message Box"
+         -- square-terminal
+         return "<path d='m7 11 2-2-2-2'/><path d='M11 13h4'/><rect width='18' height='18' x='3' y='3' rx='2' ry='2'/>"
+      case "Group"
+         if pHilited then
+            -- ungroup (the button says Ungroup)
+            return "<rect width='8' height='6' x='5' y='4' rx='1'/><rect width='8' height='6' x='11' y='14' rx='1'/>"
+         end if
+         -- group
+         return "<path d='M3 7V5c0-1.1.9-2 2-2h2'/><path d='M17 3h2c1.1 0 2 .9 2 2v2'/>" & \
+               "<path d='M21 17v2c0 1.1-.9 2-2 2h-2'/><path d='M7 21H5c-1.1 0-2-.9-2-2v-2'/>" & \
+               "<rect width='7' height='5' x='7' y='7' rx='1'/><rect width='7' height='5' x='10' y='12' rx='1'/>"
+      case "Edit Group"
+         -- square-pen
+         return "<path d='M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/>" & \
+               "<path d='M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l" & \
+               ".84-2.873a2 2 0 0 1 .506-.852z'/>"
+      case "Select Grouped"
+         -- square-mouse-pointer
+         return "<path d='M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0" & \
+               "-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z'/><path d='M21 11V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 " & \
+               "0 2 2h6'/>"
+      case "Messages"
+         if pHilited then
+            -- message-square-off (messages are suppressed)
+            return "<path d='M21 15V5a2 2 0 0 0-2-2H9'/><path d='m2 2 20 20'/>" & \
+                  "<path d='M3.6 3.6c-.4.3-.6.8-.6 1.4v16l4-4h10'/>"
+         end if
+         -- message-square
+         return "<path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/>"
+      case "Errors"
+         -- triangle-alert
+         return "<path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/>" & \
+               "<path d='M12 9v4'/><path d='M12 17h.01'/>"
+      case "Sample Stacks"
+         -- layers
+         return "<path d='M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58" & \
+               "-3.9a1 1 0 0 0 0-1.83z'/><path d='M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 " & \
+               "22 12'/><path d='M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17'/>"
+      case "Tutorials"
+         -- graduation-cap
+         return "<path d='M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 " & \
+               "1.832l8.57 3.908a2 2 0 0 0 1.66 0z'/><path d='M22 10v6'/><path d='M6 12.5V16a6 3 0 0 0 12 0v-3.5'/>"
+      case "Resources"
+         -- lightbulb
+         return "<path d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 " & \
+               "1.3 1.5 1.5 2.5'/><path d='M9 18h6'/><path d='M10 22h4'/>"
+      case "Dictionary"
+         -- book-a
+         return "<path d='M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20'/>" & \
+               "<path d='m8 13 4-7 4 7'/><path d='M9.1 11h5.7'/>"
+      case "Test"
+         -- play
+         return "<polygon points='6 3 20 12 6 21 6 3'/>"
+   end switch
+   return empty
+end mbIconPaths
+
+-- The whole <svg> of a button's picture in a state (revMenubarButtonNameToIconPath's
+-- styles: empty, "hilited", "disabled", "depressed", "hilited-depressed"):
+-- the icon 20 points square in the middle of the classic pictures' 28, on
+-- a square with round corners when the button is pressed or on. Group's
+-- "hilited" is Ungroup, an action, so it looks as a button that is not on.
+-- Empty for an item it has no icon for, which keeps its picture.
+private function mbIconSvg pItem, pStyle
+   local tPaths, tHilited, tPressed, tInk, tBack
+   put pStyle is "hilited" or pStyle is "hilited-depressed" into tHilited
+   put pStyle is "depressed" or pStyle is "hilited-depressed" into tPressed
+   put mbIconPaths(pItem, tHilited) into tPaths
+   if tPaths is empty then return empty
+   if pItem is "Group" then put false into tHilited
+   if pStyle is "disabled" then
+      put mbFaded(mbColor("icon")) into tInk
+   else if tHilited then
+      put mbColor("hiliteLine") into tInk
+      put mbColor("hilite") into tBack
+      if tPressed then
+         put mbColor("hilitePress") into tBack
+      end if
+   else if tPressed then
+      put mbColor("ink") into tInk
+      put mbColor("press") into tBack
+   else
+      put mbColor("icon") into tInk
+   end if
+   -- (a view box 33.6 wide shows the 24 of the icon at 20 of the 28 points)
+   if tBack is not empty then
+      put "<rect x='-4.8' y='-4.8' width='33.6' height='33.6' rx='8.4' fill='" & mbHex(tBack) & "' stroke='none'/>" before tPaths
+   end if
+   return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4.8 -4.8 33.6 33.6' fill='none' stroke='" & \
+         mbHex(tInk) & "' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'>" & tPaths & "</svg>"
+end mbIconSvg
+
+-- The line between groups of buttons: one point wide, in the middle of the
+-- image's two, from 8 points below its top to 8 above its bottom
+private function mbDividerSvg
+   return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 41'><line x1='1' x2='1' y1='8' y2='33' stroke='" & \
+         mbHex(mbColor("line")) & "' stroke-width='1'/></svg>"
+end mbDividerSvg
+
+-- Draws an image of the toolbar in the modern look (pModern), or gives it
+-- back its picture; pItem and pStyle as revMenubarButtonNameToIconPath
+-- takes them ("Divide" for a divider). The image keeps its name, ID and
+-- place; only what it shows changes
+private command mbDrawImage pImage, pItem, pStyle, pModern
+   local tSvg, tDrawing, tLoc
+   if pModern then
+      if pItem is "Divide" then put mbDividerSvg() into tSvg
+      else put mbIconSvg(pItem, pStyle) into tSvg
+      if tSvg is empty then exit mbDrawImage
+      try
+         put drawingSvgCompile(tSvg) into tDrawing
+      catch tError
+         -- (the picture stays)
+         exit mbDrawImage
+      end try
+      put the loc of pImage into tLoc
+      set the filename of pImage to empty
+      set the text of pImage to tDrawing
+      if pItem is "Divide" then
+         set the rect of pImage to 0, 0, kDividerWidth, kDividerHeight
+      else
+         set the rect of pImage to 0, 0, kMbIconBox, kMbIconBox
+      end if
+      set the loc of pImage to tLoc
+   else
+      -- the picture, as generateMenubarUI gives it (its size the file's)
+      if the filename of pImage is not empty then exit mbDrawImage
+      put the loc of pImage into tLoc
+      set the text of pImage to empty
+      set the lockLoc of pImage to false
+      set the filename of pImage to revMenubarButtonNameToIconPath(pItem, pStyle)
+      if pItem is "Divide" then set the rect of pImage to 0, 0, kDividerWidth, kDividerHeight
+      set the loc of pImage to tLoc
+   end if
+end mbDrawImage
+
+-- Every image of the toolbar, as the look is now: the buttons' pictures in
+-- group "icons" (named as the item, or the item, a hyphen and the state)
+-- and the dividers in group "toolbar"
+command mbDrawImages
+   local tModern, tID, tName, tItem, tStyle, tOffset
+   put revMenubarIsModern() into tModern
+   if tModern then mbReadAppearance
+   if there is a group "icons" of me then
+      repeat for each line tID in the childControlIDs of group "icons" of me
+         if word 1 of the name of control id tID of me is not "image" then next repeat
+         put the short name of control id tID of me into tName
+         put offset("-", tName) into tOffset
+         if tOffset > 0 then
+            put char 1 to tOffset - 1 of tName into tItem
+            put char tOffset + 1 to -1 of tName into tStyle
+         else
+            put tName into tItem
+            put empty into tStyle
+         end if
+         mbDrawImage the long id of control id tID of me, tItem, tStyle, tModern
+      end repeat
+   end if
+   if there is a group "toolbar" of me then
+      repeat for each line tID in the childControlIDs of group "toolbar" of me
+         if word 1 of the name of control id tID of me is not "image" then next repeat
+         if the short name of control id tID of me begins with "Divide" then
+            mbDrawImage the long id of control id tID of me, "Divide", empty, tModern
+         end if
+      end repeat
+   end if
+end mbDrawImages
+
+-- The window's, the labels' and the menus' colours, and the line under the
+-- menus (Linux), in the modern look; in the classic one, none of them set,
+-- as the classic look always had them (on macOS, its dark grey)
+command mbApplyColors
+   local tModern
+   put revMenubarIsModern() into tModern
+   -- (no one-line "if" before an "else" or "end if": the "else" would be its)
+   local tBack, tInk
+   if tModern then
+      put mbColor("bg") into tBack
+      put mbColor("ink") into tInk
+   else if the platform contains "mac" and the systemappearance is "dark" then
+      put "61,61,61" into tBack
+   end if
+   set the backgroundColor of me to tBack
+   if there is a group "toolbar" of me then
+      set the textColor of group "toolbar" of me to tInk
+   end if
+   if there is a group "revMenuBar" of me then
+      set the textColor of group "revMenuBar" of me to tInk
+   end if
+   if there is a button "Divider" of group "revMenuBar" of me then
+      if tModern then
+         set the threeD of button "Divider" of group "revMenuBar" of me to false
+         set the showBorder of button "Divider" of group "revMenuBar" of me to false
+         set the borderWidth of button "Divider" of group "revMenuBar" of me to 0
+         set the opaque of button "Divider" of group "revMenuBar" of me to true
+         set the backgroundColor of button "Divider" of group "revMenuBar" of me to mbColor("line")
+      else
+         -- (as generateMenuGroup makes it)
+         set the threeD of button "Divider" of group "revMenuBar" of me to true
+         set the showBorder of button "Divider" of group "revMenuBar" of me to true
+         set the borderWidth of button "Divider" of group "revMenuBar" of me to 2
+         set the backgroundColor of button "Divider" of group "revMenuBar" of me to empty
+      end if
+   end if
+end mbApplyColors
+
+-- The look again: when the preference changes, and when the desktop
+-- switches between light and dark
+command mbRefreshLook
+   local tCantModify
+   put the cantModify of me into tCantModify
+   set the cantModify of me to false
+   lock screen
+   lock messages
+   mbDrawImages
+   mbApplyColors
+   unlock messages
+   unlock screen
+   set the cantModify of me to tCantModify
+end mbRefreshLook
+
+-- macOS can still answer the old systemAppearance when the switch is
+-- announced (the Tools palette's tmRecheckAppearance): it looks again for
+-- a few seconds, and draws the toolbar again once the appearance changed
+on mbRecheckAppearance
+   local tWasDark
+   put empty into sMbAppearanceMsg
+   if not revMenubarIsModern() then exit mbRecheckAppearance
+   subtract 1 from sMbAppearanceTries
+   put sMbDark into tWasDark
+   mbReadAppearance
+   if sMbDark is not tWasDark then
+      mbRefreshLook
+      exit mbRecheckAppearance
+   end if
+   if sMbAppearanceTries > 0 then
+      send "mbRecheckAppearance" to me in 300 milliseconds
+      put the result into sMbAppearanceMsg
+   end if
+end mbRecheckAppearance
 
 on setButtonHilite pLongId, pValue
    if pValue then
@@ -1894,6 +2292,8 @@ private function revMenubarViewMenu pContext
    put "-" & return after tView
    put toggleMenuItem("Toolbar Icons/^@I", the cToolbarIcons of stack "revPreferences") & return after tView  --tp 24-1, add shortcut
    put toggleMenuItem("Toolbar Text/^@T", the cToolbarText of stack "revPreferences") & return after tView  --tp 24-1, add shortcut
+   -- OXT-Beyond: the toolbar in the look of the Tools palette (mbRefreshLook)
+   if not revEnvironmentIsWeb() then put toggleMenuItem("Modern Toolbar", revMenubarIsModern()) & return after tView
    put "-" & return after tView
    put toggleMenuItem("Palettes", gREVPalettes is empty) & return after tView
    put "-" & return after tView
@@ -3031,6 +3431,15 @@ on revMenubarViewMenuPick pWhich
          break
       case "Refresh Toolbar"
          layoutMenu
+         break
+      case "Modern Toolbar"
+         -- the toolbar follows the preference (idePreferenceChanged); the
+         -- modern look is the default, with the preference still empty
+         if revMenubarIsModern() then
+            revIDESetPreference "revMenubar_look", "classic"
+         else
+            revIDESetPreference "revMenubar_look", "modern"
+         end if
          break
       case "Palettes"
          revIDETogglePaletteView

@@ -1,0 +1,1 @@
+- Toolbar: a modern look in the Tools palette's colours, light or dark as the desktop is, with drawn icons; View > Modern Toolbar gives back the classic look, unchanged (#TBD)

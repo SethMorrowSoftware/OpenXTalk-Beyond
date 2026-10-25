@@ -8,7 +8,8 @@ script "oxt_ui_tour"
 -- appearance, which the IDE follows, then opens the IDE's
 -- windows one by one: the Tools palette (also in its modern look, at its
 -- first size, wide, with its names and with Large Icons, and checks of how that look
--- behaves: tools-modern-check, -sizes, -use and -switch), on macOS the
+-- behaves: tools-modern-check, -sizes, -use and -switch), the menu bar's
+-- toolbar in its modern and classic looks (menubar-modern), on macOS the
 -- menu bar stack told it was moved, and made a window (menubar-mac), on
 -- Linux a pop-up menu whose ticks, dots and submenu arrows must stand out
 -- from the menu (menu-marks), a stack of
@@ -68,7 +69,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,inspector,inspector-text,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -1008,6 +1009,138 @@ on tour_menubar
       tourRecord "INFO menubar: no visible revMenuBar stack (the menu bar is the system's)"
    end if
 end tour_menubar
+
+-- The toolbar's modern look (revMenubar's mbRefreshLook, View > Modern
+-- Toolbar) and its classic one: the same buttons, labels, places, states
+-- and menus in both, every picture drawn in the modern look and given back
+-- in the classic one, and the toggles on in both (Messages, Errors and
+-- Select Grouped). The look the IDE started with is put back
+on tour_menubar_modern
+   local tMb, tStart, tModern, tClassic, tFails, tChecks, tImg, tName, tToggle
+   put "revMenuBar" into tMb
+   if there is not a stack tMb or not the visible of stack tMb then
+      tourRecord "INFO menubar-modern: no visible revMenuBar stack"
+      exit tour_menubar_modern
+   end if
+   dispatch function "revMenubarIsModern" to stack tMb
+   if it is not "handled" then
+      tourRecord "INFO menubar-modern: this toolbar has no modern look"
+      exit tour_menubar_modern
+   end if
+   put revIDEGetPreference("revMenubar_look") into tStart
+   try
+      revIDESetPreference "revMenubar_look", "modern"
+      tourWait 200
+      put tourMbPrint() into tModern
+      repeat for each line tImg in tourMbImages()
+         add 1 to tChecks
+         put the short name of tImg into tName
+         if the filename of tImg is not empty or the text of tImg is empty then
+            put "modern: the picture" && tName && "is not drawn" & return after tFails
+         end if
+      end repeat
+      add 1 to tChecks
+      if the backgroundColor of stack tMb is empty then put "modern: the window has no colour" & return after tFails
+      tourShotStack tMb, "03-menubar-modern"
+      -- (as the toggles' states read; Suppress Messages asks first)
+      tourMbToggles true
+      repeat for each item tToggle in "Messages,Errors,Select Grouped"
+         add 1 to tChecks
+         if not the hilite of button tToggle of group "toolbar" of stack tMb then
+            put "modern: the toggle" && tToggle && "is not on" & return after tFails
+         end if
+      end repeat
+      tourShotStack tMb, "03-menubar-modern-on"
+      tourMbToggles false
+      -- the View menu's item turns the classic look on
+      dispatch "revMenubarViewMenuPick" to stack tMb with "Modern Toolbar"
+      tourWait 300
+      add 1 to tChecks
+      if revIDEGetPreference("revMenubar_look") is not "classic" then put "View > Modern Toolbar did not turn it off" & return after tFails
+      put tourMbPrint() into tClassic
+      add 1 to tChecks
+      if tClassic is not tModern then
+         put "classic: the buttons or menus differ from the modern look's:" && tourJoin(tourMbDiff(tModern, tClassic)) & return after tFails
+      end if
+      repeat for each line tImg in tourMbImages()
+         add 1 to tChecks
+         if the filename of tImg is empty then put "classic: the picture" && the short name of tImg && "has no file" & return after tFails
+      end repeat
+      add 1 to tChecks
+      if the textColor of group "toolbar" of stack tMb is not empty then put "classic: the labels have a colour" & return after tFails
+      tourShotStack tMb, "03-menubar-classic"
+      dispatch "revMenubarViewMenuPick" to stack tMb with "Modern Toolbar"
+      tourWait 300
+      add 1 to tChecks
+      if tourMbPrint() is not tModern then put "modern again: not as it was" & return after tFails
+   catch tError
+      put "error:" && tourJoin(tError) & return after tFails
+   end try
+   revIDESetPreference "revMenubar_look", tStart
+   tourWait 200
+   tourRecord "INFO menubar-modern:" && tChecks && "checks," && the number of lines of tFails && "failed"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menubar_modern
+
+-- What a script sees of the toolbar and the menus, one line each: every
+-- control of the toolbar (name, label, rect, shown, enabled, lit, its
+-- icon's ID), every picture's name and ID, the window's rect, and every
+-- menu's text but the View menu's Modern Toolbar line
+function tourMbPrint
+   local tMb, tOut, tCtl, tMenu, tText
+   put "revMenuBar" into tMb
+   dispatch "revMenubarBuildMenus" to stack tMb
+   put "window" && the rect of stack tMb & return after tOut
+   repeat with tCtl = 1 to the number of controls of group "toolbar" of stack tMb
+      put the name of control tCtl of group "toolbar" of stack tMb && "|" && the rect of control tCtl of group "toolbar" of stack tMb \
+            && "|" && the visible of control tCtl of group "toolbar" of stack tMb && "|" && the enabled of control tCtl of group "toolbar" of stack tMb after tOut
+      if word 1 of the name of control tCtl of group "toolbar" of stack tMb is "button" then
+         put "|" && the label of control tCtl of group "toolbar" of stack tMb && "|" && the hilite of control tCtl of group "toolbar" of stack tMb \
+               && "|" && the icon of control tCtl of group "toolbar" of stack tMb && "|" && the textStyle of control tCtl of group "toolbar" of stack tMb after tOut
+      end if
+      put return after tOut
+   end repeat
+   repeat for each line tCtl in tourMbImages()
+      put "picture" && the short name of tCtl && the short id of tCtl & return after tOut
+   end repeat
+   repeat with tMenu = 1 to the number of buttons of group "revMenuBar" of stack tMb
+      put the text of button tMenu of group "revMenuBar" of stack tMb into tText
+      filter lines of tText without "*Modern Toolbar*"
+      put "menu" && the short name of button tMenu of group "revMenuBar" of stack tMb & return & tText & return after tOut
+   end repeat
+   return tOut
+end tourMbPrint
+
+-- Messages, Errors and Select Grouped on (pOn) or off, as the toolbar
+-- reads them (updateButtonState)
+command tourMbToggles pOn
+   global gRevSuppressErrors, gRevSuppressMessages
+   put pOn into gRevSuppressErrors
+   put pOn into gRevSuppressMessages
+   set the selectGroupedControls to pOn
+   dispatch "updateButtonState" to stack "revMenuBar"
+   tourWait 200
+end tourMbToggles
+
+function tourMbImages
+   local tOut, tN
+   repeat with tN = 1 to the number of images of group "icons" of stack "revMenuBar"
+      put the long id of image tN of group "icons" of stack "revMenuBar" & return after tOut
+   end repeat
+   return line 1 to -1 of tOut
+end tourMbImages
+
+-- The first lines that differ, for the log
+function tourMbDiff pA, pB
+   local tN, tOut
+   repeat with tN = 1 to max(the number of lines of pA, the number of lines of pB)
+      if line tN of pA is not line tN of pB then
+         put "<" && line tN of pA && "> <" && line tN of pB & ">" & return after tOut
+         if the number of lines of tOut >= 3 then exit repeat
+      end if
+   end repeat
+   return line 1 to -1 of tOut
+end tourMbDiff
 
 -- macOS, where the IDE keeps a stack moved under its menu bar stack from
 -- staying there (revidemessagehandlerlibrary's moveStack sets it below).
