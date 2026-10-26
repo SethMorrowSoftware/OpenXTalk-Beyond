@@ -17,15 +17,19 @@
 
 """Make the GitHub Pages site (.github/workflows/pages.yml) from a release's
 web zips: the web IDE and the Stack Player, each in a folder of its own,
-with a front page that links to both.
+with a front page that links to both, and to the codebase map when one is
+given.
 
   python3 tools/pages/build_pages.py --out DIR
       [--ide ZIP --ide-version V] [--player ZIP --player-version V]
+      [--map HTML --map-version V]
 
   DIR/index.html     the front page (tools/pages/index.html)
   DIR/ide/           OXT-Beyond-<version>-web-ide.zip's site (tools/web-ide)
   DIR/player/        OXT-Beyond-<version>-web-player.zip's site
                      (tools/web-player)
+  DIR/map/           the codebase map: the one self-contained page that
+                     tools/codebase-map/build_map.py writes (index.html)
 
 Each zip holds its site in one folder (StackPlayer/, or the web IDE's
 folder named after its zip); the folder with index.html is the one taken.
@@ -94,7 +98,7 @@ def check_sizes(folder):
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
-    for key in ('IDE', 'PLAYER'):
+    for key in ('IDE', 'PLAYER', 'MAP'):
         start, end = '<!-- @%s@ -->' % key, '<!-- /@%s@ -->' % key
         if start not in page or end not in page:
             raise BuildError('tools/pages/index.html has no %s ... %s' % (start, end))
@@ -103,13 +107,15 @@ def front_page(out, parts):
             page = page[:page.index(start)] + page[page.index(end) + len(end):]
         else:
             page = page.replace('@%s_VERSION@' % key, html.escape(version))
-    page = page.replace('<!-- @IDE@ -->', '').replace('<!-- /@IDE@ -->', '')
-    page = page.replace('<!-- @PLAYER@ -->', '').replace('<!-- /@PLAYER@ -->', '')
+    for key in ('IDE', 'PLAYER', 'MAP'):
+        page = page.replace('<!-- @%s@ -->' % key, '').replace('<!-- /@%s@ -->' % key, '')
     with open(os.path.join(out, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(page)
 
 
 def build(args):
+    # The map alone is not a site: it is there beside the web IDE and the
+    # Stack Player, and a run that has neither should fail as it always has
     if not args.ide and not args.player:
         raise BuildError('nothing to put on the site: give --ide, --player or both')
     out = os.path.abspath(args.out)
@@ -123,6 +129,10 @@ def build(args):
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''
+    if args.map:
+        os.makedirs(os.path.join(out, 'map'))
+        shutil.copyfile(args.map, os.path.join(out, 'map', 'index.html'))
+        parts['MAP'] = args.map_version or ''
     front_page(out, parts)
     check_sizes(out)
     for key, version in sorted(parts.items()):
@@ -137,6 +147,8 @@ def main():
     ap.add_argument('--ide-version', metavar='V', help='shown on the front page')
     ap.add_argument('--player', metavar='ZIP', help='OXT-Beyond-<version>-web-player.zip')
     ap.add_argument('--player-version', metavar='V', help='shown on the front page')
+    ap.add_argument('--map', metavar='HTML', help="the codebase map's index.html (tools/codebase-map)")
+    ap.add_argument('--map-version', metavar='V', help='shown on the front page')
     args = ap.parse_args()
     try:
         build(args)

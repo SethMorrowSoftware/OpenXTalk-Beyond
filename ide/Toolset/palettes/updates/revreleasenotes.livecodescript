@@ -99,6 +99,8 @@ end rnRestore
 
 private command rnOpen
    rnUseKit
+   -- (light or dark, as the desktop is: lkAppearanceChanged)
+   get lkReadAppearance()
    rnLoad
    rnBuild
    rnPlace
@@ -119,7 +121,36 @@ end rnOpen
 on openStack
    lkStartTicking
    lkEnter "side"
+   lkFollowAppearance
 end openStack
+
+-- The desktop switched between light and dark (revLearnKit): the window
+-- is built again in the other colours, at its size, showing the release
+-- it showed, scrolled where it was, with the search as it was
+on lkAppearanceChanged
+   local tRect, tScroll, tIdxScroll
+   if there is no field "page" of me then
+      exit lkAppearanceChanged
+   end if
+   put the rect of me into tRect
+   put the vScroll of field "page" of me into tScroll
+   put the vScroll of field "idx" of me into tIdxScroll
+   lock screen
+   lkClear
+   rnBuild
+   set the rect of me to tRect
+   rnLayout
+   put sSearch into field "search"
+   rnSyncSearch
+   rnFillIndex
+   rnRender
+   set the vScroll of field "idx" of me to tIdxScroll
+   set the vScroll of field "page" of me to tScroll
+   lkScrollSync "idxThumb"
+   lkScrollSync "pageThumb"
+   lkEnter "side"
+   unlock screen
+end lkAppearanceChanged
 
 on closeStack
    lkStopTicking
@@ -394,9 +425,9 @@ private command rnBuild
    set the destroyStack of me to true
    set the rect of me to 0, 0, kWidth, kHeight
    set the backgroundColor of me to lkColor("bg")
-   set the linkColor of me to lkColor("violet")
-   set the linkHiliteColor of me to lkColor("pink")
-   set the linkVisitedColor of me to lkColor("violet")
+   set the linkColor of me to lkAccentInk(lkColor("violet"))
+   set the linkHiliteColor of me to lkAccentInk(lkColor("pink"))
+   set the linkVisitedColor of me to lkAccentInk(lkColor("violet"))
    set the underlineLinks of me to false
    rnBuildSide
    rnBuildHeader
@@ -409,7 +440,11 @@ private command rnBuild
          empty, 13, lkColor("soft"), empty) into tObj
    set the textHeight of tObj to 19
    set the vScrollbar of tObj to true
-   lkScroller "pageThumb", tObj, "100,116,139", 45, empty
+   if lkDark() then
+      lkScroller "pageThumb", tObj, "148,163,184", 45, empty
+   else
+      lkScroller "pageThumb", tObj, "100,116,139", 45, empty
+   end if
    lkScroller "idxThumb", the long id of field "idx", "255,255,255", 70, empty
 
    -- The foot
@@ -538,7 +573,7 @@ private command rnBuildHeader
    set the dontWrap of tObj to true
    put lkLabel("hdrTag", lkR(kSide + kPad, 52, kWidth - 200, 70), empty, 13, lkColor("soft"), empty) into tObj
    set the dontWrap of tObj to true
-   put lkBox("hdrLine", lkR(kSide + kPad, 78, kSide + kPad + 56, 81), lkColor("violet"), 3, empty) into tObj
+   put lkBox("hdrLine", lkR(kSide + kPad, 78, kSide + kPad + 56, 81), lkAccentInk(lkColor("violet")), 3, empty) into tObj
    get lkButton("github", kWidth - kPad - 134, 24, 32, "On GitHub", "external-link", "ghost", lkColor("violet"), \
          empty, "github", 134)
 end rnBuildHeader
@@ -892,7 +927,7 @@ private function rnReleaseHtml pIndex, pTerm
    if sNotes[tVersion]["title"] is not empty then
       put sNotes[tVersion]["title"] into tTitle
       put toUpper(char 1 of tTitle) into char 1 of tTitle
-      put rnHeadingHtml(tTitle, 17, lkColor("violet"), pTerm) after tHtml
+      put rnHeadingHtml(tTitle, 17, lkAccentInk(lkColor("violet")), pTerm) after tHtml
       put rnBlocksHtml(sNotes[tVersion]["body"], "README.md", pTerm) after tHtml
       put "<p></p>" & rnHeadingHtml("Every change", 15, lkColor("ink"), empty) after tHtml
    end if
@@ -977,7 +1012,7 @@ private function rnBlocksHtml pText, pDoc, pTerm
             put "<p></p>" after tHtml
          end if
          if tLevel <= 2 then
-            put rnHeadingHtml(word 2 to -1 of tLine, 17, lkColor("violet"), pTerm) after tHtml
+            put rnHeadingHtml(word 2 to -1 of tLine, 17, lkAccentInk(lkColor("violet")), pTerm) after tHtml
          else
             put rnHeadingHtml(word 2 to -1 of tLine, 14, lkColor("ink"), pTerm) after tHtml
          end if
@@ -1059,7 +1094,7 @@ private function rnInline pText, pDoc, pTerm
             put rnPlain(tRun, pTerm) after tOut
             put empty into tRun
             put "<font face=" & quote & rnCodeFont() & quote & " color=" & quote & lkHex(lkColor("ink")) & quote & \
-                  " bgcolor=" & quote & "#eef2f7" & quote & ">" & lkEscape(char 1 to tEnd - 1 of tRest) & "</font>" after tOut
+                  " bgcolor=" & quote & rnCodeBack() & quote & ">" & lkEscape(char 1 to tEnd - 1 of tRest) & "</font>" after tOut
             add tEnd + 1 to tPos
             next repeat
          end if
@@ -1118,12 +1153,30 @@ private function rnPlain pText, pTerm
       if tAt is 0 then
          exit repeat
       end if
-      put lkEscape(char 1 to tAt - 1 of pText) & "<font bgcolor=" & quote & "#fde68a" & quote & ">" & \
+      put lkEscape(char 1 to tAt - 1 of pText) & "<font bgcolor=" & quote & rnMarkBack() & quote & ">" & \
             lkEscape(char tAt to tAt + tLen - 1 of pText) & "</font>" after tOut
       delete char 1 to tAt + tLen - 1 of pText
    end repeat
    return tOut & lkEscape(pText)
 end rnPlain
+
+-- Behind `code` on the page: a pale slate, and in the dark a slate a
+-- little lighter than the panel, under the white ink
+private function rnCodeBack
+   if lkDark() then
+      return lkHex(lkColor("line"))
+   end if
+   return "#eef2f7"
+end rnCodeBack
+
+-- Behind a word the search found: pale amber, and in the dark a deep
+-- amber, under the white text
+private function rnMarkBack
+   if lkDark() then
+      return "#92400e"
+   end if
+   return "#fde68a"
+end rnMarkBack
 
 -- A link of the repository's markdown, as a web address: its own files
 -- and their headings are on GitHub

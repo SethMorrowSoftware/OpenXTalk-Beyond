@@ -1,0 +1,632 @@
+<meta charset="utf-8">
+<title>OXT-Beyond Codebase Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@500;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a reference tool. Sticky tab bar, one view at a time; each view is summary first, then sortable detail. */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#18212b; --muted:#5b6774; --line:#d9dee4; --soft:#eef1f4;
+  --accent:#1f6aa5; --accent-soft:#dcebf7;
+  --ok:#2f7d4f; --warn:#b26b00; --crit:#b3261e; --warn-soft:#fbefd9; --crit-soft:#f8dedb;
+  --e-build:#7a5aa8; --e-script:#1f6aa5; --e-lcb:#2f7d4f; --e-boot:#b26b00; --e-other:#7d8894;
+  --f-display:"Chivo",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --panel:#18202a; --ink:#e3e8ee; --muted:#9aa6b2; --line:#2c3743; --soft:#1f2934;
+  --accent:#6cb3ea; --accent-soft:#1b3348;
+  --ok:#6cc08d; --warn:#e9a640; --crit:#f07a70; --warn-soft:#3a2d16; --crit-soft:#3d1f1d;
+  --e-build:#b39be0; --e-script:#6cb3ea; --e-lcb:#6cc08d; --e-boot:#e9a640; --e-other:#8b97a3;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --panel:#18202a; --ink:#e3e8ee; --muted:#9aa6b2; --line:#2c3743; --soft:#1f2934;
+  --accent:#6cb3ea; --accent-soft:#1b3348;
+  --ok:#6cc08d; --warn:#e9a640; --crit:#f07a70; --warn-soft:#3a2d16; --crit-soft:#3d1f1d;
+  --e-build:#b39be0; --e-script:#6cb3ea; --e-lcb:#6cc08d; --e-boot:#e9a640; --e-other:#8b97a3;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--panel);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:20px 14px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.6rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.stamp{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin}
+nav.tabs button{font:600 .85rem var(--f-body);color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,.box:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main .wrap{padding-block:20px 60px}
+section.view{display:grid;gap:22px}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.25rem;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:700;font-size:1rem;margin:0 0 6px}
+p{margin:0;max-width:72ch}
+.lede{color:var(--muted);max-width:80ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px 28px}
+.kpi b{display:block;font:700 1.35rem var(--f-display);font-variant-numeric:tabular-nums}
+.kpi span{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.mono,code{font-family:var(--f-mono);font-size:.8rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;cursor:pointer;user-select:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:var(--soft)}
+.lnk{color:var(--accent);cursor:pointer;text-decoration:none;background:none;border:0;padding:0;font:inherit;text-align:left;overflow-wrap:anywhere}
+.lnk.mono{font-family:var(--f-mono);font-size:.8rem}
+.lnk:hover{text-decoration:underline}
+.pill{display:inline-block;font:600 .68rem var(--f-body);letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill.front{background:var(--crit-soft);color:var(--crit)}
+.pill.back{background:var(--warn-soft);color:var(--warn)}
+.pill.lib{background:var(--accent-soft);color:var(--accent)}
+.sev{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.sev.c{background:var(--crit)}.sev.w{background:var(--warn)}.sev.o{background:var(--ok)}
+.bar{height:6px;background:var(--soft);border-radius:3px;overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.hot i{background:var(--crit)}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+ul.small{margin:4px 0 8px;padding-left:1.2em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 .78rem var(--f-mono);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input[type=search],select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 10px}
+input[type=search]{min-width:0;flex:1 1 260px}
+label.tog{display:inline-flex;gap:6px;align-items:center;font-size:.84rem;color:var(--muted)}
+.ov-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:16px}
+@media (max-width:900px){.ov-wrap{grid-template-columns:1fr}}
+.box rect.b{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+.box{cursor:pointer}
+.box:hover rect.b,.box.sel rect.b{stroke:var(--accent);stroke-width:2.4}
+.box text.t{fill:var(--ink);font-weight:700;font-size:12px;font-family:var(--f-display)}
+.box text.s{fill:var(--muted);font-size:10.5px;font-family:var(--f-mono)}
+.edge{fill:none;stroke-width:1.4;opacity:.12}
+.edge.on{opacity:.85;stroke-width:2.2}
+.layer-label{fill:var(--muted);font-size:10px;letter-spacing:.12em;font-family:var(--f-body)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.path-ladder{display:grid;gap:6px}
+.rung{display:grid;grid-template-columns:170px minmax(0,1fr);gap:10px;align-items:start;padding:8px 10px;border:1px solid var(--line);border-radius:5px;background:var(--panel)}
+.rung .k{font:700 .78rem var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rung.front{border-left:4px solid var(--crit)}
+.rung.target{border-left:4px solid var(--ok)}
+.rung.lib{border-left:4px solid var(--accent)}
+.rung.back{border-left:4px solid var(--warn)}
+.rung.engine{border-left:4px solid var(--e-build)}
+@media (max-width:560px){.rung{grid-template-columns:1fr}}
+.boot ol{margin:0;padding-left:1.8em;columns:2 220px;font-family:var(--f-mono);font-size:.8rem}
+.sugg{border:1px solid var(--line);border-radius:5px;background:var(--panel);max-height:320px;overflow:auto;margin-top:6px}
+.sugg button{display:flex;gap:10px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:6px 10px;font:inherit;color:var(--ink);cursor:pointer}
+.sugg button:hover,.sugg button:focus{background:var(--soft)}
+.sugg .ty{font:600 .66rem var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:84px;padding-top:2px}
+.check{list-style:none;padding-left:0}
+.check li{margin-bottom:5px}
+.matrix td{text-align:center;font-variant-numeric:tabular-nums;font-size:.72rem;padding:4px;min-width:34px}
+.matrix th{font-size:.62rem;cursor:default}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 12px;border-radius:0 5px 5px 0;font-size:.85rem}
+.gyp .n rect{fill:var(--panel);stroke:var(--line)}
+.gyp .n text{font-size:10px;fill:var(--ink);font-family:var(--f-mono)}
+.gyp .n{cursor:pointer}
+.gyp .n.sel rect{stroke:var(--accent);stroke-width:2}
+.gyp .n.rel rect{stroke:var(--accent)}
+.gyp path{fill:none;stroke:var(--e-other);opacity:.25}
+.gyp path.on{stroke:var(--accent);opacity:.9}
+pre.cmd{white-space:pre-wrap;background:var(--soft);padding:10px;border-radius:5px;overflow-x:auto;margin:8px 0 0}
+@media (prefers-reduced-motion:no-preference){.edge{transition:opacity .15s}}
+/* Constellation: a deliberately dark "sky" panel in both themes, so the glow reads the same everywhere. */
+.sky{--sky:#0a1020;--sky-ink:#e6edf7;--sky-muted:#8fa0b8;--sky-line:#22304a;
+  --c-engine:#f2a93b;--c-boot:#ffd166;--c-lib:#5cb8ff;--c-pal:#3dd6c6;--c-ext:#ff6fb5;--c-lcs:#8be07a;--c-res:#7f8ea8;
+  position:relative;background:radial-gradient(120% 90% at 20% 40%,#162544 0%,var(--sky) 60%);color:var(--sky-ink);border-radius:8px;overflow:hidden;border:1px solid #1b2740}
+.sky canvas{display:block;width:100%;height:600px;cursor:grab}
+@media (max-width:700px){.sky canvas{height:460px}}
+.sky .cap{position:absolute;left:0;top:0;right:0;padding:18px 20px;pointer-events:none;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+.sky .cap h2{font:800 clamp(1.15rem,2.4vw,1.7rem) var(--f-display);color:var(--sky-ink);letter-spacing:-.01em}
+.sky .cap p{color:var(--sky-muted);font-size:.84rem;max-width:56ch;margin-top:4px}
+.sky .side{position:absolute;left:20px;bottom:16px;right:20px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;justify-content:space-between;pointer-events:none}
+.sky .legend2{display:flex;flex-wrap:wrap;gap:6px;pointer-events:auto}
+.sky .legend2 button{font:600 .72rem var(--f-body);color:var(--sky-ink);background:rgba(255,255,255,.06);border:1px solid var(--sky-line);border-radius:999px;padding:4px 10px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.sky .legend2 button[aria-pressed="false"]{opacity:.4}
+.sky .legend2 i{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 8px currentColor}
+.sky .ctl{pointer-events:auto;display:flex;gap:6px}
+.sky .ctl button{font:600 .72rem var(--f-body);color:var(--sky-ink);background:rgba(255,255,255,.08);border:1px solid var(--sky-line);border-radius:5px;padding:5px 10px;cursor:pointer}
+.sky .tip{position:absolute;pointer-events:none;background:rgba(8,13,26,.94);border:1px solid var(--sky-line);color:var(--sky-ink);font-size:.78rem;padding:7px 10px;border-radius:6px;max-width:300px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.sky .tip b{font-family:var(--f-mono);font-weight:500;font-size:.76rem;overflow-wrap:anywhere}
+.sky .tip .m{color:var(--sky-muted)}
+.sky .info{position:absolute;right:20px;top:86px;width:min(320px,calc(100% - 40px));background:rgba(8,13,26,.9);border:1px solid var(--sky-line);border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--sky-ink)}
+.sky .info .lnk{color:#8fd0ff}
+.sky .info .m{color:var(--sky-muted)}
+/* History */
+.lin svg text{font-family:var(--f-body)}
+.lin .era{opacity:.16}
+.lin .tick{stroke:var(--line)}
+.lin .lbl{fill:var(--muted);font-size:11px}
+.lin .ver{cursor:pointer}
+.lin .ver circle{stroke:var(--panel);stroke-width:1.5}
+.lin .ver:hover circle,.lin .ver.sel circle{stroke:var(--ink);stroke-width:2}
+.roots{list-style:none;margin:14px 0 4px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:18px 14px;position:relative}
+.roots li{position:relative;padding-top:26px;min-width:0}
+.roots li::before{content:"";position:absolute;left:0;right:-14px;top:9px;height:3px;background:var(--rc);opacity:.45;border-radius:2px}
+.roots li:last-child::before{right:0}
+.roots li::after{content:"";position:absolute;left:0;top:3px;width:15px;height:15px;border-radius:50%;background:var(--panel);border:3px solid var(--rc);box-sizing:border-box}
+.roots .yr{font:800 1.35rem/1 var(--f-display);color:var(--rc);letter-spacing:-.01em}
+.roots .nm{font-weight:700;margin:4px 0 2px}
+.roots .tx{font-size:.8rem;color:var(--muted);line-height:1.4}
+.roots .src{font-size:.72rem;margin-top:4px}
+.roots .src a{color:var(--muted)}
+.verinfo{min-height:4.5em;border-left:3px solid var(--accent);padding:6px 12px;background:var(--soft);border-radius:0 5px 5px 0;font-size:.85rem}
+.act rect.abar{cursor:default}
+.act text{font-family:var(--f-body);font-size:10px;fill:var(--muted)}
+.act .rel line{stroke:var(--ink);opacity:.35}
+.act .rel.stable line{opacity:.9;stroke:var(--accent);stroke-width:1.5}
+.act .rel.stable text{fill:var(--accent);font-weight:600}
+:root{--g-engine:#c97a10;--g-ide:#1f6aa5;--g-ext:#2f8f5b;--g-build:#7a5aa8;--g-web:#c2416b;--g-docs:#6b7c8f;--g-other:#a7b1bc}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--g-engine:#f2a93b;--g-ide:#5cb8ff;--g-ext:#6cc08d;--g-build:#b39be0;--g-web:#ff7aa2;--g-docs:#93a4b7;--g-other:#5a6673}}
+:root[data-theme="dark"]{--g-engine:#f2a93b;--g-ide:#5cb8ff;--g-ext:#6cc08d;--g-build:#b39be0;--g-web:#ff7aa2;--g-docs:#93a4b7;--g-other:#5a6673}
+</style>
+
+<header class="top"><div class="wrap">
+  <h1>OXT-Beyond Codebase Map</h1>
+  <div class="stamp" id="stamp"></div>
+</div></header>
+<nav class="tabs" aria-label="Views"><div class="wrap" role="tablist" id="tabs"></div></nav>
+<main><div class="wrap" id="views"></div></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const MAP=/*MAP_DATA*/null;
+const D=MAP, U=D.units;
+const $=(s,r=document)=>r.querySelector(s);
+function h(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v)}for(const k of kids.flat(3)){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)))}return e}
+const fmt=n=>Number(n).toLocaleString('en-US');
+const AREA=Object.fromEntries(D.areas.map(a=>[a.id,a]));
+const short=p=>p.split('/').pop();
+const ROLEPILL=r=>!r?null:h('span',{class:'pill '+(r.startsWith('front')?'front':r.startsWith('back')?'back':'lib')},r.replace(' (start using)',''));
+function ulink(id,label){const u=U[id];return h('button',{class:'lnk',title:u.path,onclick:()=>openImpact('unit',id)},label||u.path)}
+const BYPATH=Object.fromEntries(U.map(u=>[u.path,u.id]));
+function plink(path){return BYPATH[path]!=null?ulink(BYPATH[path]):h('span',{class:'mono'},path)}
+
+function table(cols,rows,opts={}){
+  let sortI=opts.sort??null,dir=opts.dir??-1;const limit=opts.limit||400;
+  const tb=h('tbody');const thead=h('thead',null,h('tr',null,cols.map((c,i)=>h('th',{class:c.n?'n':null,scope:'col',onclick:()=>{dir=sortI===i?-dir:(c.n?-1:1);sortI=i;draw()}},c.t))));
+  const more=h('p',{class:'small muted'});
+  function draw(){let rs=rows.slice();if(sortI!=null){const k=cols[sortI].k;rs.sort((a,b)=>{const x=k(a),y=k(b);return (x>y?1:x<y?-1:0)*dir})}
+    tb.replaceChildren(...rs.slice(0,limit).map(r=>h('tr',null,cols.map(c=>h('td',{class:c.n?'n':null},c.v?c.v(r):c.k(r))))));
+    more.textContent=rs.length>limit?`Showing ${limit} of ${fmt(rs.length)}.`:''}
+  draw();return h('div',null,h('div',{class:'scroll'},h('table',null,thead,tb)),more)}
+
+const VIEWS=[['overview','Overview'],['impact','What breaks if I change…'],['ide','IDE scripts'],['engine','Engine'],['build','Build & CI'],['ext','Extensions & Suite'],['history','History'],['hot','Hot spots'],['method','How it was made']];
+const built={};
+function show(id){for(const[v]of VIEWS){document.getElementById('v-'+v).hidden=v!==id;document.getElementById('t-'+v).setAttribute('aria-selected',v===id)}
+  if(!built[id]){built[id]=true;BUILD[id](document.getElementById('v-'+id))}
+  try{history.replaceState(null,'','#'+id)}catch(e){}}
+const tabs=$('#tabs'),views=$('#views');
+for(const[id,t]of VIEWS){tabs.append(h('button',{role:'tab',id:'t-'+id,onclick:()=>show(id)},t));views.append(h('section',{class:'view',id:'v-'+id,hidden:true}))}
+$('#stamp').textContent=`main @ ${D.head.split(' ').slice(0,2).join(' ')} · ${fmt(D.files)} tracked files · built ${D.generated}`;
+const BUILD={};
+const svgNS='http://www.w3.org/2000/svg';const S=(t,a)=>{const e=document.createElementNS(svgNS,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+
+/* ---------- Constellation: engine subsystems and IDE scripts ---------- */
+const SKYAREAS={'ide-boot':['IDE start-up','--c-boot'],'ide-lib':['IDE libraries','--c-lib'],'ide-palette':['Palettes & dialogs','--c-pal'],'ide-ext':['Plugins','--c-ext'],'lcs-ext':['Script libraries','--c-lcs'],'ide-resources':['Examples & help stacks','--c-res']};
+function constellation(host){
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wrap=h('div',{class:'sky'});const cv=h('canvas',{role:'img','aria-label':'Network of engine subsystems and IDE scripts with the links between them'});
+  const tip=h('div',{class:'tip',hidden:true});const info=h('div',{class:'info',hidden:true});
+  const nIDE=U.filter(u=>SKYAREAS[u.area]&&(u.fanin||u.fanout)).length;
+  const nMsgLinks=D.intercepts.reduce((s,m)=>s+m.units.length,0);
+  wrap.append(cv,h('div',{class:'cap'},h('div',null,h('h2',null,'How the engine and the IDE hold together'),
+    h('p',null,`${D.engine.subsystems.length} engine subsystems (amber, left) and ${nIDE} IDE scripts (right), sized by how much depends on them. Lines are real links: #includes, script calls and stack references, and the engine messages and properties the IDE handles. Sparks travel the engine-to-IDE links. Hover, drag, or click a star.`))),tip,info);
+  const groups=Object.keys(SKYAREAS).concat(['engine']);const on=Object.fromEntries(groups.map(g=>[g,true]));
+  const legend=h('div',{class:'legend2'},[['engine','Engine subsystems','--c-engine'],...Object.entries(SKYAREAS).map(([k,[l,c]])=>[k,l,c])].map(([k,l,c])=>{const b=h('button',{'aria-pressed':'true',onclick:()=>{on[k]=!on[k];b.setAttribute('aria-pressed',on[k]);if(!running)draw()}},h('i',{style:`background:var(${c});color:var(${c})`}),l);return b}));
+  const pauseBtn=h('button',{type:'button'},reduce?'Play sparks':'Pause sparks');
+  wrap.append(h('div',{class:'side'},legend,h('div',{class:'ctl'},pauseBtn)));
+  host.append(wrap);
+  const css=getComputedStyle(wrap);const col=v=>css.getPropertyValue(v).trim();
+  // nodes
+  const nodes=[],byKey={};
+  for(const s of D.engine.subsystems){const n={key:'e:'+s.id,label:s.id,kind:'engine',area:'engine',r:6+Math.sqrt(s.lines/1000)*1.9,info:`${fmt(s.files)} files · ${fmt(s.lines)} lines of C++`};nodes.push(n);byKey[n.key]=n}
+  for(const u of U){if(!SKYAREAS[u.area]||!(u.fanin||u.fanout))continue;const n={key:'u:'+u.id,uid:u.id,label:short(u.path),kind:'script',area:u.area,r:2.2+Math.sqrt(u.fanin)*1.25,info:`${u.fanin} scripts depend on it · ${u.lines} lines`+(u.role?` · ${u.role}`:'')};nodes.push(n);byKey[n.key]=n}
+  // links
+  const L={};const add=(a,b,type,label)=>{if(!byKey[a]||!byKey[b]||a===b)return;const k=a+'|'+b;(L[k]=L[k]||{source:a,target:b,type,w:0,labels:new Set()});L[k].w++;if(label)L[k].labels.add(label)};
+  for(const e of D.engine.subsystem_edges)add('e:'+e.src,'e:'+e.dst,'include');
+  for(const e of D.edges)add('u:'+e.s,'u:'+e.d,'script');
+  for(const m of D.intercepts)for(const s of m.sender_subsys)for(const u of m.units)add('e:'+s,'u:'+u,'boundary',m.name+' (engine message)');
+  for(const p of D.devprops)for(const u of p.units)add('e:modes','u:'+u,'boundary','the '+p.name+' (engine property)');
+  const home=U.find(u=>u.path==='ide/Toolset/home.livecodescript');if(home)add('e:modes','u:'+home.id,'boundary','opens home in development mode');
+  const links=Object.values(L).map(l=>({...l,labels:[...l.labels]}));
+  const nbr={};for(const l of links){(nbr[l.source]=nbr[l.source]||new Set()).add(l.target);(nbr[l.target]=nbr[l.target]||new Set()).add(l.source)}
+  let W=0,H=0,dpr=1;const ctx=cv.getContext('2d');
+  function size(){const r=cv.getBoundingClientRect();W=r.width;H=r.height;dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+  size();
+  const sim=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.key).distance(l=>l.type==='boundary'?160:l.type==='include'?70:26).strength(l=>l.type==='boundary'?0.004:l.type==='include'?0.05:0.08))
+    .force('charge',d3.forceManyBody().strength(d=>d.kind==='engine'?-260:-14))
+    .force('x',d3.forceX(d=>d.kind==='engine'?W*0.2:W*0.64).strength(d=>d.kind==='engine'?0.12:0.05))
+    .force('y',d3.forceY(()=>H*0.56).strength(0.07))
+    .force('collide',d3.forceCollide(d=>d.r+1.5))
+    .alphaDecay(0.025);
+  let sel=null,hover=null,running=true,sparksOn=!reduce;const sparks=[];
+  const bLinks=links.filter(l=>l.type==='boundary');
+  const colorOf=n=>n.kind==='engine'?col('--c-engine'):col(SKYAREAS[n.area][1]);
+  const visible=n=>on[n.area];
+  function draw(){ctx.clearRect(0,0,W,H);
+    const focus=sel||hover;const fset=focus?nbr[focus.key]||new Set():null;
+    for(const l of links){const a=l.source,b=l.target;if(!visible(a)||!visible(b))continue;
+      const hot=focus&&(a===focus||b===focus);
+      if(focus&&!hot){ctx.globalAlpha=0.03}else ctx.globalAlpha=l.type==='boundary'?(hot?0.75:0.08):l.type==='include'?(hot?0.9:0.32):(hot?0.8:0.12);
+      ctx.strokeStyle=l.type==='boundary'?col('--c-engine'):l.type==='include'?col('--c-engine'):colorOf(a);ctx.lineWidth=l.type==='include'?Math.min(3,0.6+Math.sqrt(l.w)/4):hot?1.2:0.6;
+      ctx.beginPath();if(l.type==='boundary'){const mx=(a.x+b.x)/2,my=(a.y+b.y)/2-60;ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(mx,my,b.x,b.y)}else{ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}ctx.stroke()}
+    ctx.globalAlpha=1;
+    for(const s of sparks){const a=s.l.source,b=s.l.target;if(!visible(a)||!visible(b))continue;const t=s.t,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-60;
+      const x=(1-t)*(1-t)*a.x+2*(1-t)*t*mx+t*t*b.x,y=(1-t)*(1-t)*a.y+2*(1-t)*t*my+t*t*b.y;
+      const g=ctx.createRadialGradient(x,y,0,x,y,5);g.addColorStop(0,'rgba(255,230,170,.95)');g.addColorStop(1,'rgba(255,190,80,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill()}
+    for(const n of nodes){if(!visible(n))continue;const dim=focus&&n!==focus&&!fset.has(n.key);const c=colorOf(n);
+      ctx.globalAlpha=dim?0.15:1;
+      if(n.kind==='engine'||n.r>6){ctx.shadowColor=c;ctx.shadowBlur=n.kind==='engine'?22:12}else ctx.shadowBlur=0;
+      ctx.fillStyle=c;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);ctx.fill();ctx.shadowBlur=0;
+      if(n===focus){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke()}
+      if((n.kind==='engine'||n.r>9||n===focus||(fset&&fset.has(n.key)&&n.r>4))&&!dim){ctx.fillStyle=n.kind==='engine'?'#ffe4b5':'#dfe9f7';ctx.font=(n.kind==='engine'?'600 11px ':'10px ')+'"JetBrains Mono",monospace';ctx.textAlign='center';ctx.fillText(n.kind==='engine'?n.label:n.label.replace(/\.livecodescript$|\.livecode$|\.rev$/,''),n.x,n.y-n.r-4)}}
+    ctx.globalAlpha=1}
+  function tick(){if(sparksOn){if(sparks.length<140&&bLinks.length){for(let i=0;i<3;i++){const l=bLinks[(Math.random()*bLinks.length)|0];sparks.push({l,t:0,v:0.004+Math.random()*0.008})}}
+      for(let i=sparks.length-1;i>=0;i--){sparks[i].t+=sparks[i].v;if(sparks[i].t>=1)sparks.splice(i,1)}}
+    draw();if(running)requestAnimationFrame(tick)}
+  sim.on('tick',()=>{if(!running)draw()});
+  requestAnimationFrame(tick);
+  // keep the loop only while the panel is on screen
+  if('IntersectionObserver' in window)new IntersectionObserver(es=>{const vis=es[0].isIntersecting&&!document.getElementById('v-overview').hidden;if(vis&&!running){running=true;requestAnimationFrame(tick)}else if(!vis)running=false}).observe(cv);
+  pauseBtn.addEventListener('click',()=>{sparksOn=!sparksOn;if(!sparksOn)sparks.length=0;pauseBtn.textContent=sparksOn?'Pause sparks':'Play sparks'});
+  const at=ev=>{const r=cv.getBoundingClientRect();return[ev.clientX-r.left,ev.clientY-r.top]};
+  const pickNode=(x,y)=>{let best=null,bd=1e9;for(const n of nodes){if(!visible(n))continue;const d=Math.hypot(n.x-x,n.y-y)-n.r;if(d<bd){bd=d;best=n}}return bd<6?best:null};
+  let drag=null;
+  cv.addEventListener('pointermove',ev=>{const[x,y]=at(ev);if(drag){drag.fx=x;drag.fy=y;sim.alphaTarget(0.2).restart();return}
+    const n=pickNode(x,y);hover=n;cv.style.cursor=n?'pointer':'grab';
+    if(n){tip.hidden=false;tip.replaceChildren(h('b',null,n.kind==='engine'?'engine: '+n.label:U[n.uid].path),h('div',{class:'m'},n.info));const r=wrap.getBoundingClientRect();let tx=x+14,ty=y+14;if(tx>r.width-310)tx=x-300;tip.style.left=tx+'px';tip.style.top=ty+'px'}else tip.hidden=true});
+  cv.addEventListener('pointerleave',()=>{hover=null;tip.hidden=true});
+  cv.addEventListener('pointerdown',ev=>{const[x,y]=at(ev);const n=pickNode(x,y);if(n){drag=n;n.fx=n.x;n.fy=n.y;cv.setPointerCapture(ev.pointerId)}});
+  cv.addEventListener('pointerup',ev=>{const[x,y]=at(ev);if(drag){const moved=Math.hypot(drag.x-x,drag.y-y)>4;drag.fx=null;drag.fy=null;sim.alphaTarget(0);const n=drag;drag=null;if(!moved||true){select(n)}}else select(null)});
+  function select(n){sel=n;if(!n){info.hidden=true;return}
+    const ls=links.filter(l=>l.source===n||l.target===n);const bl=ls.filter(l=>l.type==='boundary');
+    info.hidden=false;info.replaceChildren(h('div',{style:'font-family:var(--f-mono);font-size:.78rem;overflow-wrap:anywhere'},n.kind==='engine'?'engine: '+n.label:U[n.uid].path),h('div',{class:'m',style:'margin:2px 0 6px'},n.info),
+      h('div',null,`${ls.length} links, ${bl.length} across the engine/IDE boundary.`),
+      bl.length?h('div',{class:'m',style:'margin-top:4px;max-height:110px;overflow:auto'},[...new Set(bl.flatMap(l=>l.labels))].slice(0,14).join(' · ')):null,
+      n.uid!=null?h('div',{style:'margin-top:8px'},h('button',{class:'lnk',onclick:()=>openImpact('unit',n.uid)},'What breaks if I change it →')):null,
+      h('div',{style:'margin-top:6px'},h('button',{class:'lnk',onclick:()=>select(null)},'Clear')))}
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{size();sim.force('x').x(d=>d.kind==='engine'?W*0.2:W*0.64);sim.force('y').y(()=>H*0.56);sim.alpha(0.3).restart()},150)});
+}
+
+/* ---------- Lineage and activity ---------- */
+const HGROUP={engine:'engine','engine-lcb':'engine',libfoundation:'engine',libgraphics:'engine',libscript:'engine',libcore:'engine',libbrowser:'engine',externals:'engine',thirdparty:'engine',toolchain:'engine',
+  'ide-boot':'ide','ide-lib':'ide','ide-palette':'ide','ide-ext':'ide','ide-resources':'ide','lcb-ext':'ext','lcs-ext':'ext',suite:'ext',ci:'build',packaging:'build',web:'web',docs:'docs',tests:'docs',other:'other'};
+const HG=[['engine','Engine & libraries'],['ide','IDE'],['ext','Extensions'],['build','Build & CI'],['web','Web IDE'],['docs','Docs & tests'],['other','Other']];
+// The family before this repository's own history. Each line names its
+// source; MetaCard's first release is not dated in any of them, so it has
+// no year here.
+const ROOTS=[
+  ['1987','HyperCard','Apple releases Bill Atkinson\'s HyperCard on 11 August 1987. Its HyperTalk language is where the xTalk family starts. Apple withdrew it from sale in March 2004.','--g-docs',[['Wikipedia: HyperCard','https://en.wikipedia.org/wiki/HyperCard']]],
+  ['','MetaCard','A HyperCard-style development environment and GUI toolkit, first for UNIX. Its engine is the one LiveCode, and so OXT-Beyond, grew from.','--g-docs',[['Wikipedia: LiveCode (company)','https://en.wikipedia.org/wiki/LiveCode_(company)']]],
+  ['2001','Revolution','Cross Worlds Computing, later Runtime Revolution, introduces Revolution, an IDE for the MetaCard engine. Runtime Revolution acquires MetaCard in July 2003.','--g-engine',[['Wikipedia: LiveCode','https://en.wikipedia.org/wiki/LiveCode'],['LiveCode (company)','https://en.wikipedia.org/wiki/LiveCode_(company)']]],
+  ['2010','LiveCode','Revolution is renamed LiveCode in November 2010.','--g-engine',[['Wikipedia: LiveCode (company)','https://en.wikipedia.org/wiki/LiveCode_(company)']]],
+  ['2013','LiveCode Community','In April 2013 LiveCode Community Edition 6.0 is published as free and open source software under the GPL.','--g-web',[['Wikipedia: LiveCode','https://en.wikipedia.org/wiki/LiveCode']]],
+  ['2021','Community 9.6.3','The last GPL release. The upstream repositories have had no changes since July 2021, and on 31 August 2021 the Community edition was discontinued.','--g-web',[['Wikipedia: LiveCode','https://en.wikipedia.org/wiki/LiveCode'],['HISTORY.md','https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/HISTORY.md']]],
+  ['2023','OpenXTalk Lite','Terry Little releases OpenXTalk Lite ".9" on 1 September 2023, on Community 9.6.3. Tom Perry makes the releases from that month to 1.15 in June 2026.','--g-ext',[['HISTORY.md','https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/HISTORY.md']]],
+  ['2026','OXT-Beyond','Starts in September 2026 and carries on from OpenXTalk Lite 1.15 on the 9.x engine: this repository.','--g-ide',[['HISTORY.md','https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/HISTORY.md']]],
+];
+function rootsPanel(host){
+  const ol=h('ol',{class:'roots'},ROOTS.map(([y,n,t,c,src])=>h('li',{style:`--rc:var(${c})`},
+    h('div',{class:'yr'},y||'—'),h('div',{class:'nm'},n),h('div',{class:'tx'},t),
+    h('div',{class:'src'},src.map(([l,u],i)=>[i?' · ':'',h('a',{href:u,rel:'noopener',target:'_blank'},l)])))));
+  host.append(h('div',{class:'panel'},h('h2',null,'Roots: from HyperCard to OXT-Beyond'),
+    h('p',{class:'lede',style:'margin:4px 0 0'},'OXT-Beyond is the newest link in an xTalk line that begins with HyperCard in 1987. The chart below takes it up from Community 9.6.3, where this repository\'s own records begin.'),ol));
+}
+function lineageChart(host){
+  const t0=Date.parse('2021-01-01'),t1=Date.parse('2026-11-15');const W=1100,H=230,X=d=>40+(Date.parse(d)-t0)/(t1-t0)*(W-60);
+  const svg=S('svg',{viewBox:`0 0 ${W} ${H}`,style:'width:100%;min-width:720px;height:auto;display:block',role:'img','aria-label':'Timeline from LiveCode Community to OXT-Beyond'});
+  const eras=[['2021-01-01','2023-09-01','LiveCode Community 9.6.3 (2021); upstream archived July 2021','--g-docs'],['2023-09-01','2026-06-07','OpenXTalk Lite: Terry Little, then Tom Perry from Sep 2023','--g-ext'],['2026-09-01','2026-11-15','OXT-Beyond','--g-ide']];
+  eras.forEach(([a,b,l,c],i)=>{svg.append(S('rect',{x:X(a),y:40,width:Math.max(4,X(b)-X(a)),height:120,fill:`var(${c})`,class:'era',rx:4}));const tx=S('text',i===2?{x:X(b)-2,y:32,'text-anchor':'end',class:'lbl','font-weight':'700',style:`fill:var(${c})`}:{x:X(a)+6,y:56,class:'lbl','font-weight':'600',style:`fill:var(${c})`});tx.textContent=i===2?'OXT-Beyond (Sep 2026 on)':l;svg.append(tx)});
+  for(let y=2021;y<=2026;y++){const x=X(y+'-01-01');svg.append(S('line',{x1:x,x2:x,y1:36,y2:170,class:'tick'}));const tx=S('text',{x:x+3,y:186,class:'lbl'});tx.textContent=y;svg.append(tx)}
+  const vinfo=h('div',{class:'verinfo'},'Click a dot for that release.');
+  const show1=(g,html)=>{svg.querySelectorAll('.ver').forEach(e=>e.classList.remove('sel'));g.classList.add('sel');vinfo.replaceChildren(...html)};
+  D.lineage.forEach((r,i)=>{const g=S('g',{class:'ver',tabindex:0});const x=X(r.iso),y=150-((i%5)*18);
+    g.append(S('line',{x1:x,x2:x,y1:y,y2:160,stroke:'var(--g-ext)',opacity:.5}));
+    g.append(S('circle',{cx:x,cy:y,r:5,style:r.approx?'fill:var(--panel);stroke:var(--g-ext);stroke-width:2':'fill:var(--g-ext)'}));
+    const ti=S('title',{});ti.textContent=`OpenXTalk Lite ${r.v} · ${r.date}`;g.append(ti);
+    const f=()=>show1(g,[h('b',null,`OpenXTalk Lite ${r.v}`),h('span',{class:'muted'},` · ${r.date}${r.approx?' (date approximate)':''}`),h('div',null,r.text)]);
+    g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter')f()});svg.append(g)});
+  const stable=D.releases.filter(r=>!r.rc);
+  D.releases.forEach((r,i)=>{const x=X(r.d);svg.append(S('line',{x1:x,x2:x,y1:r.rc?118:96,y2:160,stroke:'var(--g-ide)',opacity:r.rc?.35:.9,'stroke-width':r.rc?1:2}))});
+  const g=S('g',{class:'ver',tabindex:0});const bx=X(D.releases[0].d);g.append(S('circle',{cx:bx+12,cy:88,r:6,fill:'var(--g-ide)',stroke:'var(--g-ide)'}));const tl=S('title',{});tl.textContent='OXT-Beyond releases';g.append(tl);
+  const fb=()=>show1(g,[h('b',null,'OXT-Beyond'),h('span',{class:'muted'},` · ${D.releases.length} tagged releases, ${D.releases[0].d} to ${D.releases[D.releases.length-1].d}`),h('div',null,'Started in September 2026 (as winoxt) to build LiveCode Community for 64-bit Windows with Tom Perry\'s engine work, then imported the OpenXTalk Lite IDE history; renamed OpenXTalk-Beyond in October 2026. Stable releases: '+stable.map(r=>r.tag).join(', ')+'. The month is drawn day by day below.')]);
+  g.addEventListener('click',fb);g.addEventListener('keydown',e=>{if(e.key==='Enter')fb()});svg.append(g);
+  const lg=S('text',{x:40,y:214,class:'lbl'});lg.textContent='Filled dot: dated release · hollow: month known only · blue ticks: OXT-Beyond tags (tall = stable). Source: HISTORY.md and the repository tags.';svg.append(lg);
+  host.append(h('div',{class:'panel lin'},h('h2',null,'From LiveCode Community to OXT-Beyond'),h('p',{class:'lede',style:'margin:4px 0 10px'},'OpenXTalk Lite carried LiveCode Community 9.6.3 forward from 2023 to 2026; OXT-Beyond continues its last release, 1.15, on the 9.x engine. Every date here comes from HISTORY.md or a git tag.'),h('div',{class:'scroll'},svg),vinfo));
+}
+function activityChart(host){
+  const days=D.history.daily;const W=1100,H=300,top=46,bot=250;const n=days.length;const bw=(W-60)/n;
+  const tot=d=>HG.reduce((s,[g])=>s+(d.g[g]||0),0);
+  days.forEach(d=>{d.g={};for(const[a,c]of Object.entries(d.areas)){const g=HGROUP[a]||'other';d.g[g]=(d.g[g]||0)+c}});
+  const mx=Math.max(...days.map(tot));const Y=v=>bot-(v/mx)*(bot-top);
+  const svg=S('svg',{viewBox:`0 0 ${W} ${H}`,style:'width:100%;min-width:720px;height:auto;display:block',class:'act',role:'img','aria-label':'Commits per day by area, with release tags'});
+  [0,0.5,1].forEach(f=>{const v=Math.round(mx*f);const y=Y(v);svg.append(S('line',{x1:40,x2:W-14,y1:y,y2:y,stroke:'var(--line)'}));const t=S('text',{x:34,y:y+3,'text-anchor':'end'});t.textContent=v;svg.append(t)});
+  const di=Object.fromEntries(days.map((d,i)=>[d.d,i]));
+  days.forEach((d,i)=>{let acc=0;const x=44+i*bw;for(const[g,l]of HG){const v=d.g[g]||0;if(!v)continue;const y0=Y(acc),y1=Y(acc+v);acc+=v;const r=S('rect',{x,y:y1,width:Math.max(1,bw-3),height:y0-y1,fill:`var(--g-${g})`,class:'abar',rx:1});const ti=S('title',{});ti.textContent=`${d.d}: ${d.commits} commits; ${HG.map(([gg,ll])=>d.g[gg]?`${ll} ${d.g[gg]}`:'').filter(Boolean).join(', ')}`;r.append(ti);svg.append(r)}
+    if(i%3===0){const t=S('text',{x:x+bw/2,y:bot+14,'text-anchor':'middle'});t.textContent=d.d.slice(5);svg.append(t)}});
+  let lastX=-99;D.releases.forEach(r=>{const i=di[r.d];if(i==null)return;const x=44+i*bw+bw/2;const g=S('g',{class:'rel'+(r.rc?'':' stable')});g.append(S('line',{x1:x,x2:x,y1:r.rc?30:18,y2:bot}));
+    if(!r.rc&&x-lastX>46){const t=S('text',{x,y:14,'text-anchor':'middle'});t.textContent=r.tag;g.append(t);lastX=x}const ti=S('title',{});ti.textContent=`${r.tag} · ${r.d}`;g.append(ti);svg.append(g)});
+  const lg=h('div',{class:'legend'},HG.map(([g,l])=>h('span',null,h('i',{style:`background:var(--g-${g});height:9px;width:9px`}),l)));
+  host.append(h('div',{class:'panel'},h('h2',null,'OXT-Beyond, day by day'),h('p',{class:'lede',style:'margin:4px 0 10px'},`${fmt(D.history.commits)} non-merge commits on main from ${D.history.since} to ${D.head.split(' ')[1]}, and ${D.releases.length} tagged releases. Each bar counts the commits that touched each part of the codebase that day (a commit that touched two parts counts in both). Vertical lines are release tags; labelled ones are stable releases. Hover a bar for the numbers.`),h('div',{class:'scroll'},svg),lg));
+}
+
+/* Overview */
+const GRID={'ide-ext':[0,0],'ide-palette':[1,0],'ide-boot':[2,0],'ide-lib':[3,0],'ide-resources':[4,0],'docs':[5,0],
+ 'lcs-ext':[0,1],'lcb-ext':[1,1],'engine-lcb':[2,1],'suite':[3,1],'web':[4,1],'tests':[5,1],
+ 'libscript':[0,2],'engine':[1,2],'libbrowser':[2,2],'externals':[3,2],'toolchain':[4,2],'ci':[5,2],
+ 'libfoundation':[0,3],'libgraphics':[1,3],'libcore':[2,3],'thirdparty':[3,3],'other':[4,3],'packaging':[5,3]};
+const ROWLBL=['IDE (LIVECODE SCRIPT)','EXTENSIONS · WEB · SUITE · TESTS','ENGINE · LIBRARIES · TOOLS · CI','FOUNDATION · THIRD-PARTY · PACKAGING'];
+const EKIND={build:'--e-build',script:'--e-script',lcb:'--e-lcb',boot:'--e-boot'};
+BUILD.overview=el=>{
+  if(window.d3)constellation(el);else el.append(h('p',{class:'note'},'The network view needs d3 from cdnjs.cloudflare.com, which did not load.'));
+  const ar={};for(const x of D.hot)ar[x.area]=(ar[x.area]||0)+x.score;const maxr=Math.max(...Object.values(ar));
+  const nBin=U.filter(u=>u.kind==='binary').length;
+  el.append(h('div',{class:'panel'},
+    h('p',{class:'lede'},'Each box is a part of the codebase and each line a dependency: found by the scanners (build files, script calls and stack references, LCB "use" lines) or a known link with its evidence. Click a box to see what reaches into it and what it reaches. The corner mark shows how much of the hot-spot list lives there.'),
+    h('div',{class:'kpis',style:'margin-top:12px'},
+      [[D.engine.lines,'engine C++ lines'],[U.length,'script files mapped'],[nBin,'binary stacks read'],[D.edges.length,'script-to-script links'],[D.handlers_total,'public handlers'],[D.gyp.targets.length,'build targets'],[D.lcb.modules.length,'LCB modules'],[D.ci.length,'CI workflows']].map(([n,l])=>h('div',{class:'kpi'},h('b',null,fmt(n)),h('span',null,l))))));
+  const W=6*200+20,H=4*118+30,BW=176,BH=74;
+  const pos=id=>{const[c,r]=GRID[id];return{x:20+c*200,y:28+r*118}};
+  const svg=S('svg',{viewBox:`0 0 ${W} ${H}`,style:'width:100%;min-width:760px;height:auto;display:block',role:'img','aria-label':'Diagram of the codebase areas and their dependencies'});
+  ROWLBL.forEach((l,i)=>{const t=S('text',{x:20,y:20+i*118,class:'layer-label'});t.textContent=l;svg.append(t)});
+  const pairs={};
+  for(const e of D.area_edges){if(!GRID[e.s]||!GRID[e.d]||e.s===e.d)continue;const k=e.s+'>'+e.d;(pairs[k]=pairs[k]||{s:e.s,d:e.d,kinds:{},n:0});pairs[k].kinds[e.k]=(pairs[k].kinds[e.k]||0)+e.n;pairs[k].n+=e.n}
+  const edgeEls=[];const eg=S('g',{});svg.append(eg);
+  for(const p of Object.values(pairs)){const a=pos(p.s),b=pos(p.d);const ax=a.x+BW/2,ay=a.y+BH/2,bx=b.x+BW/2,by=b.y+BH/2;
+    const mx=(ax+bx)/2+(by-ay)*.18,my=(ay+by)/2-(bx-ax)*.18;const kind=Object.keys(p.kinds).sort((x,y)=>p.kinds[y]-p.kinds[x])[0];
+    const path=S('path',{d:`M${ax},${ay} Q${mx},${my} ${bx},${by}`,class:'edge',stroke:`var(${EKIND[kind]||'--e-other'})`});eg.append(path);edgeEls.push({p,path})}
+  const boxes={};
+  for(const a of D.areas){if(!GRID[a.id])continue;const{x,y}=pos(a.id);const g=S('g',{class:'box',transform:`translate(${x},${y})`,tabindex:0,role:'button','aria-label':a.title});
+    g.append(S('rect',{class:'b',width:BW,height:BH,rx:5}));
+    const r=(ar[a.id]||0)/maxr;if(r>0.02)g.append(S('path',{d:`M${BW-26},0 L${BW-5},0 Q${BW},0 ${BW},5 L${BW},26 Z`,fill:r>.25?'var(--crit)':'var(--warn)',opacity:Math.max(.4,Math.min(1,r*2.2))}));
+    const t=S('text',{x:10,y:22,class:'t'});t.textContent=a.title;g.append(t);
+    const s1=S('text',{x:10,y:42,class:'s'});s1.textContent=`${fmt(a.files)} files`+(a.units?` · ${a.units} scripts`:'');g.append(s1);
+    const s2=S('text',{x:10,y:59,class:'s'});s2.textContent=a.churn?`${fmt(a.churn)} file changes`:'';g.append(s2);
+    g.addEventListener('click',()=>pick(a.id));g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(a.id)}});
+    svg.append(g);boxes[a.id]=g}
+  const detail=h('div',{class:'panel'});
+  const legend=h('div',{class:'legend'},[['build','build target (gyp)'],['script','script calls & stack refs'],['lcb','LCB use'],['boot','start-up / known link'],['other','patch · pin · check']].map(([k,l])=>h('span',null,h('i',{style:`background:var(${EKIND[k]||'--e-other'})`}),l)));
+  el.append(h('div',{class:'ov-wrap'},h('div',{class:'panel'},h('div',{class:'scroll'},svg),legend),detail));
+  function pick(id){for(const k in boxes)boxes[k].classList.toggle('sel',k===id);for(const e of edgeEls)e.path.classList.toggle('on',e.p.s===id||e.p.d===id);
+    const a=AREA[id];const inc=Object.values(pairs).filter(p=>p.d===id).sort((x,y)=>y.n-x.n),out=Object.values(pairs).filter(p=>p.s===id).sort((x,y)=>y.n-x.n);
+    const why=(s,d)=>D.known_edges.filter(k=>k.s===s&&k.d===d).map(k=>k.why);
+    const er=(p,other)=>h('li',null,h('button',{class:'lnk',onclick:()=>pick(other)},AREA[other].title),' ',h('span',{class:'muted'},Object.entries(p.kinds).map(([k,n])=>n?`${k} ×${fmt(n)}`:k).join(', ')),why(p.s,p.d).map(w=>h('div',{class:'muted'},w)));
+    const hot=D.hot.filter(x=>x.area===id).slice(0,6);
+    const units=U.filter(u=>u.area===id&&u.fanin).sort((x,y)=>y.fanin-x.fanin).slice(0,6);
+    detail.replaceChildren(h('h3',null,a.title),h('p',{class:'small'},a.desc),
+      h('p',{class:'small muted',style:'margin-top:6px'},`${fmt(a.files)} files, ${(a.bytes/1048576).toFixed(1)} MB. Most common: `+a.ext.map(([e,n])=>`${e} ${n}`).join(', ')),
+      inc.length?h('div',{style:'margin-top:10px'},h('b',{class:'small'},'Depends on it'),h('ul',{class:'small'},inc.map(p=>er(p,p.s)))):null,
+      out.length?h('div',null,h('b',{class:'small'},'It depends on'),h('ul',{class:'small'},out.map(p=>er(p,p.d)))):null,
+      units.length?h('div',null,h('b',{class:'small'},'Most-called scripts here'),h('ul',{class:'small'},units.map(u=>h('li',null,ulink(u.id,short(u.path)),h('span',{class:'muted'},` · called from ${u.fanin}`))))):null,
+      hot.length?h('div',null,h('b',{class:'small'},'Hot spots here'),h('ul',{class:'small'},hot.map(x=>h('li',null,x.kind==='script'?ulink(x.id,short(x.name)):h('span',{class:'mono'},short(x.name)),h('span',{class:'muted'},' · '+x.reasons[0]))))):null)}
+  pick('ide-lib');
+  const hub=[...U].sort((a,b)=>b.fanin-a.fanin)[0];
+  el.append(h('div',{class:'grid3'},
+    h('div',{class:'panel'},h('h3',null,'The two boundaries that break things'),h('p',{class:'small'},'Engine to IDE: the engine opens home in development mode, the IDE handles engine messages in its front and back scripts, and it reads engine properties that exist only for it. IDE to user stacks: every frontscript and library sits in the message path of every stack a user opens, so a handler there that forgets to pass, or shares a name with a user\'s handler, changes what old stacks see.'),h('p',{class:'small',style:'margin-top:6px'},h('button',{class:'lnk',onclick:()=>show('ide')},'See the message path →'))),
+    h('div',{class:'panel'},h('h3',null,'The biggest single hub'),h('p',{class:'small'},ulink(hub.id),` is called from ${hub.fanin} other scripts and changed in ${hub.churn} commits in the window. Treat a change to any public handler in it as a change to the whole IDE.`)),
+    h('div',{class:'panel'},h('h3',null,'Binary stacks hide code'),h('p',{class:'small'},`${nBin} of the scripts mapped here live inside binary stacks (.livecode, .rev, .oxtstack). Git can't diff them; they change through tools/oxt/ide-stack-patches, and the IDE compile check is what catches mistakes in them. This map read them by dumping each stack with the released engine.`))));
+};
+
+/* Impact */
+let IDX=null,impactOut,impactInput,impactSugg;
+function buildIndex(){IDX=[];
+  U.forEach(u=>IDX.push({t:'script',l:u.path,k:u.path.toLowerCase(),ref:u.id,w:u.fanin}));
+  D.handlers.forEach((x,i)=>IDX.push({t:'handler',l:x.name,k:x.name.toLowerCase(),ref:i,w:x.ncallers}));
+  D.globals.forEach((g,i)=>IDX.push({t:'global',l:g.name,k:g.name.toLowerCase(),ref:i,w:g.n}));
+  D.bus.forEach((b,i)=>IDX.push({t:'IDE message',l:b.name,k:b.name.toLowerCase(),ref:i,w:b.subs.length}));
+  D.intercepts.forEach((m,i)=>IDX.push({t:'engine msg',l:m.name,k:m.name.toLowerCase(),ref:i,w:m.units.length}));
+  D.engine.headers_top.forEach((x,i)=>IDX.push({t:'header',l:'engine/src/'+x.name,k:x.name.toLowerCase(),ref:i,w:x.reach}));
+  D.engine.globals_top.forEach((x,i)=>IDX.push({t:'C++ global',l:x.name,k:x.name.toLowerCase(),ref:i,w:x.files}));
+  D.gyp.targets.forEach((x,i)=>IDX.push({t:'target',l:x.name+'  ('+x.file+')',k:x.name.toLowerCase()+' '+x.file.toLowerCase(),ref:i,w:0}));
+  D.lcb.modules.forEach((x,i)=>IDX.push({t:'LCB module',l:x.name,k:x.name.toLowerCase()+' '+x.file.toLowerCase(),ref:i,w:x.used_by}));
+}
+BUILD.impact=el=>{
+  el.append(h('div',{class:'panel'},h('h2',null,'What breaks if I change…'),
+    h('p',{class:'lede',style:'margin-top:4px'},'Type a script file, handler, global, IDE message, engine message, engine header, C++ global, build target or LCB module. You get who depends on it, which tests and CI workflows look at it, what usually changes with it, and a checklist for the change.'),
+    h('div',{class:'controls',style:'margin-top:10px'},impactInput=h('input',{type:'search',id:'impact-q',placeholder:'e.g. revIDEStackOfObject, gREVShowStacks, revmenubar, object.h','aria-label':'Search the map',autocomplete:'off'})),
+    impactSugg=h('div',{class:'sugg',hidden:true})));
+  impactOut=h('div',{class:'view'});el.append(impactOut);
+  impactInput.addEventListener('input',suggest);
+  if(!impactOut.childNodes.length){const u=[...U].sort((a,b)=>b.fanin-a.fanin)[0];renderImpact('unit',u.id)}
+};
+function suggest(){if(!IDX)buildIndex();const q=impactInput.value.trim().toLowerCase();if(q.length<2){impactSugg.hidden=true;return}
+  const hits=[];for(const x of IDX){const i=x.k.indexOf(q);if(i<0)continue;hits.push([(x.k===q?0:i===0?1:2)*1e6-(x.w||0),x])}
+  hits.sort((a,b)=>a[0]-b[0]);
+  impactSugg.replaceChildren(...hits.slice(0,40).map(([,x])=>h('button',{onclick:()=>{impactSugg.hidden=true;renderImpact(x.t==='script'?'unit':x.t,x.ref)}},h('span',{class:'ty'},x.t),h('span',{class:'mono'},x.l))));
+  impactSugg.hidden=!hits.length}
+function openImpact(t,ref){show('impact');renderImpact(t,ref);window.scrollTo({top:0})}
+function ciFor(path){return D.ci.filter(w=>w.scripts.some(s=>path===s||path.startsWith(s+'/'))||w.paths.some(p=>{const b=p.replace(/\*.*$/,'');return b&&path.startsWith(b)}))}
+function partners(path){return D.pairs.filter(p=>p[0]===path||p[1]===path).map(p=>[p[0]===path?p[1]:p[0],p[2]]).sort((a,b)=>b[1]-a[1]).slice(0,12)}
+function checklist(u){const L=[];const p=u.path;
+  if(u.kind==='binary')L.push(['c','Binary stack: change its scripts and properties with a patch file in tools/oxt/ide-stack-patches (applied by tools/oxt/ide-stack-patch.sh) and commit the patch with the stack. Do not open and re-save it otherwise.']);
+  if(u.role.startsWith('frontscript'))L.push(['c',(u.role.includes('while')?'Frontscript while a tool or mode is active:':'Frontscript:')+' it sees every message of every stack before the stack does. Each handler must pass its message unless swallowing it is the point, and a new handler name must not collide with names user stacks use.']);
+  else if(u.role)L.push(['w',`In the message path as a ${u.role}: a new public handler here can be reached by, and can shadow, handlers in users' stacks.`]);
+  if(u.fanin)L.push(['w',`Check the ${u.fanin} calling scripts below before renaming a handler or changing its parameters or result.`]);
+  if(u.globals.length)L.push(['w',`Declares ${u.globals.length} global${u.globals.length>1?'s':''}; the shared ones are listed below with every other script that uses them.`]);
+  if(p.startsWith('ide'))L.push(['o','Run the IDE compile check (tools/ci/run_livecode_check.py compile) and start the IDE from your clone.']);
+  if(u.tests)L.push(['o',`Run the ${u.tests} test or CI script${u.tests>1?'s':''} that name it (listed below).`]);else L.push(['w','No test or CI script names it: try the feature by hand and compare with the released build.']);
+  if(u.pubs.length||u.subs.length)L.push(['w','Takes part in the IDE message bus; keep message names and parameters stable, because plugins subscribe too.']);
+  L.push(['o','Per CLAUDE.md: run the scripts it touches on the released build and on yours, and compare the results.']);return L}
+function renderImpact(t,ref){impactOut.replaceChildren();const P=(...k)=>impactOut.append(...k);
+  const sec=(title,...kids)=>h('div',{class:'panel'},h('h3',null,title),...kids);
+  const ul=items=>items.length?h('ul',{class:'small'},items.map(i=>h('li',null,i))):h('p',{class:'small muted'},'None found.');
+  const head=(name,sub,...extra)=>h('div',{class:'panel'},h('h2',{class:'mono',style:'font-size:1.05rem;overflow-wrap:anywhere'},name),sub?h('p',{class:'small muted',style:'margin-top:4px'},sub):null,...extra);
+  if(t==='unit'){const u=U[ref];
+    const agg=(es,side)=>{const m={};for(const e of es){const o=e[side];(m[o]=m[o]||{o,k:new Set(),n:0});m[o].k.add(e.k);m[o].n+=e.n}return Object.values(m).sort((a,b)=>b.n-a.n)};
+    const inA=agg(D.edges.filter(e=>e.d===ref),'s'),outA=agg(D.edges.filter(e=>e.s===ref),'d');
+    const myH=D.handlers.filter(x=>x.defs.includes(ref));
+    const sharedG=D.globals.filter(g=>g.units.includes(ref)&&g.n>1);
+    const notes=[];D.dups.filter(d=>d.units.includes(ref)).forEach(d=>notes.push(`${d.name} is also defined in ${d.units.filter(x=>x!==ref).map(x=>short(U[x].path)).join(', ')}; `+(d.winner==null?'which copy runs depends on load order at run time.':d.winner===ref?'this copy is searched first, so it is the one that runs.':`the copy in ${short(U[d.winner].path)} is searched first, so this one does not run for callers that reach the path.`)));
+    D.intercepts.filter(m=>m.nopass.includes(ref)).forEach(m=>notes.push(`Handles the engine message ${m.name} without ever passing it.`));
+    P(h('div',{class:'panel'},h('div',{class:'controls'},h('h2',{class:'mono',style:'font-size:1.05rem;overflow-wrap:anywhere'},u.path),ROLEPILL(u.role),h('span',{class:'pill'},AREA[u.area].title),h('span',{class:'pill'},u.kind==='binary'?'binary stack':'script-only stack')),
+      h('div',{class:'kpis',style:'margin-top:10px'},[[u.fanin,'scripts depend on it'],[u.fanout,'it depends on'],[u.public,'public handlers'],[u.lines,'script lines'],[u.churn,'commits in window'],[u.tests,'tests / CI refs']].map(([n,l])=>h('div',{class:'kpi'},h('b',null,fmt(n)),h('span',null,l)))),
+      u.stacks.length?h('p',{class:'small muted',style:'margin-top:8px'},'Stack names: ',u.stacks.join(', '),u.nstacks>u.stacks.length?` and ${u.nstacks-u.stacks.length} more`:''):null,
+      notes.length?h('div',{class:'note',style:'margin-top:10px'},notes.slice(0,8).map(n=>h('div',null,n))):null));
+    P(sec('Before you change it',h('ul',{class:'check small'},checklist(u).map(([s,txt])=>h('li',null,h('span',{class:'sev '+s}),txt)))));
+    const er=x=>[ulink(x.o,U[x.o].path),h('span',{class:'muted'},` · ${[...x.k].join(' + ')} ×${x.n}`)];
+    P(h('div',{class:'grid2'},sec(`Depends on it (${inA.length})`,ul(inA.slice(0,60).map(er))),sec(`It depends on (${outA.length})`,ul(outA.slice(0,60).map(er)))));
+    P(h('div',{class:'grid2'},
+      sec('Its most-called public handlers',myH.length?table([{t:'Handler',k:x=>x.name,v:x=>h('button',{class:'lnk mono',onclick:()=>renderImpact('handler',D.handlers.indexOf(x))},x.name)},{t:'Callers',n:1,k:x=>x.ncallers},{t:'Tests',n:1,k:x=>x.tests}],myH,{sort:1,limit:25}):h('p',{class:'small muted'},'None.')),
+      sec('Shared globals',sharedG.length?ul(sharedG.map(g=>[h('button',{class:'lnk mono',onclick:()=>renderImpact('global',D.globals.indexOf(g))},g.name),h('span',{class:'muted'},` · ${g.n} scripts`)])):h('p',{class:'small muted'},'None shared.'))));
+    P(h('div',{class:'grid3'},
+      sec('Tests and CI scripts that name it',ul(u.test_ids.map(i=>ulink(i)))),
+      sec('Usually changes together with',ul(partners(u.path).map(([f,n])=>[plink(f),h('span',{class:'muted'},` · ${n} commits`)]))),
+      sec('CI workflows that name this path',ul(ciFor(u.path).map(w=>h('span',{class:'mono'},short(w.file)))))));
+    if(u.pubs.length||u.subs.length)P(sec('IDE message bus',h('p',{class:'small'},'Sends: ',u.pubs.join(', ')||'none'),h('p',{class:'small'},'Subscribes to: ',u.subs.join(', ')||'none')));
+  }
+  else if(t==='handler'){const x=D.handlers[ref];
+    P(head(x.name,`${x.kind} · defined in ${x.defs.length} product script${x.defs.length>1?'s':''} · ${x.ncallers} calling scripts · ${x.tests} tests`+(x.engine?' · also an engine message':'')));
+    if(x.defs.length>1)P(h('div',{class:'note'},'More than one script defines this name. Which one runs depends on the message path and load order; changing one copy may not change what callers get.'));
+    P(h('div',{class:'grid2'},sec('Defined in',ul(x.defs.map(i=>[ulink(i),' ',ROLEPILL(U[i].role)]))),sec(`Called from (${x.ncallers})`,ul(x.callers.map(i=>ulink(i))))));
+  }
+  else if(t==='global'){const g=D.globals[ref];P(head(g.name,`Declared in ${g.n} scripts. A global is shared by every script in the process, including users' stacks that declare the same name.`),sec('Scripts',ul(g.units.map(i=>ulink(i)))))}
+  else if(t==='IDE message'){const b=D.bus[ref];P(head(b.name,'An IDE message: sent with ideMessageSend and delivered by revIDEMessageHandlerLibrary to every object that called revIDESubscribe for it.'),h('div',{class:'grid2'},sec('Sent by',ul(b.pubs.map(i=>ulink(i)))),sec('Subscribers',ul(b.subs.map(i=>ulink(i))))))}
+  else if(t==='engine msg'){const m=D.intercepts[ref];P(head(m.name,`Engine message, named in ${m.senders} engine source files. Handled by ${m.units.length} IDE scripts in the message path.`),sec('Handled in the message path',ul(m.units.map(i=>[ulink(i),' ',ROLEPILL(U[i].role),m.nopass.includes(i)?h('span',{class:'pill front',style:'margin-left:6px'},'no pass'):null]))))}
+  else if(t==='header'){const x=D.engine.headers_top[ref];P(head('engine/src/'+x.name,null,h('p',{class:'small',style:'margin-top:6px'},`Included directly by ${x.direct} engine files and reached through includes by ${x.reach}. A change here rebuilds nearly the whole engine on every platform, including Android, which CI does not build.`)),sec('Usually changes together with',ul(partners('engine/src/'+x.name).map(([f,n])=>[plink(f),h('span',{class:'muted'},` · ${n} commits`)]))))}
+  else if(t==='C++ global'){const x=D.engine.globals_top[ref];P(head(x.name,null,h('p',{class:'small',style:'margin-top:6px'},`Declared in engine/src/globals.h and used in ${x.files} engine source files across: ${x.subsystems.join(', ')}.`)))}
+  else if(t==='target'){const x=D.gyp.targets[ref];const deps=D.gyp.edges.filter(e=>e[0]===x.id).map(e=>e[1]),rdeps=D.gyp.edges.filter(e=>e[1]===x.id).map(e=>e[0]);
+    P(head(x.name,x.file+(x.type?' · '+x.type:'')),h('div',{class:'grid2'},sec('Needed by',ul(rdeps.map(d=>h('span',{class:'mono'},d)))),sec('Needs',ul(deps.map(d=>h('span',{class:'mono'},d))))))}
+  else if(t==='LCB module'){const x=D.lcb.modules[ref];const users=D.lcb.modules.filter(m=>m.uses.includes(x.name));
+    P(head(x.name,`${x.kind} · ${x.file} · ${x.lines} lines · ${x.foreign} foreign bindings`),h('div',{class:'grid2'},sec('Used by',ul(users.map(m=>h('span',{class:'mono'},m.name)))),sec('Uses',ul(x.uses.map(m=>h('span',{class:'mono'},m))))))}
+}
+
+/* IDE */
+BUILD.ide=el=>{
+  const byStack={};U.forEach(u=>u.stacks.forEach(s=>{const k=s.toLowerCase();if(byStack[k]==null||u.role)byStack[k]=u.id}));
+  const sl=n=>{const i=byStack[n.toLowerCase()];return i!=null?ulink(i,n):h('span',{class:'mono muted',title:'not in this repository or built at packaging time'},n)};
+  const fronts=U.filter(u=>u.role.startsWith('frontscript')),backs=[...D.boot.first_back,...D.boot.back].reverse(),libsSearch=D.boot.load.slice().reverse();
+  el.append(h('div',{class:'panel'},h('h2',null,'The message path every stack shares'),
+    h('p',{class:'lede',style:'margin:4px 0 12px'},'When the engine sends a message (mouseUp, openStack…) to an object in a user\'s stack, it travels down this path until a handler does not pass it. Everything except the green row belongs to the IDE but sits in the path of every stack a user opens, so this is where IDE changes can alter what old stacks see.'),
+    h('div',{class:'path-ladder'},
+      h('div',{class:'rung front'},h('div',{class:'k'},'Frontscripts'),h('div',{class:'chips'},fronts.map(u=>h('span',{class:'chip',title:u.role},ulink(u.id,(u.stacks[0]||short(u.path))+(u.role.includes('while')?' *':'')))))),
+      h('div',{class:'rung target'},h('div',{class:'k'},'The user\'s stack'),h('div',{class:'small'},'Target object → its behavior → card → background groups → stack → main stack')),
+      h('div',{class:'rung lib'},h('div',{class:'k'},'Libraries, newest first'),h('div',{class:'chips'},libsSearch.map(n=>h('span',{class:'chip'},sl(n))))),
+      h('div',{class:'rung back'},h('div',{class:'k'},'Backscripts, newest first'),h('div',{class:'chips'},backs.map(n=>h('span',{class:'chip'},sl(n))))),
+      h('div',{class:'rung engine'},h('div',{class:'k'},'Engine'),h('div',{class:'small'},'The default behaviour for the message, if nothing above swallowed it.'))),
+    h('p',{class:'small muted',style:'margin-top:8px'},'Rows are in the order the engine searches them. The libraries and backscripts are those home loads at start-up (revInternal__InitialiseLibraries in ide/Toolset/home.livecodescript); the engine searches libraries from the last one started first (MCDispatch::handle in engine/src/dispatch.cpp) and backscripts from the last one inserted first (MCDLlist::insertto in engine/src/dllst.cpp). Plugins and on-demand libraries started later are searched before these. Frontscripts are scripts that run "insert script of me into front" when loaded, plus the plugins\' error hooks; their order depends on when each is loaded, and the ones marked * are in the path only while a tool or mode is on (Suppress Messages, the reshape and rulers tools, widget dragging, shortcuts): they take themselves out, or another script unloads them, at run time. Grey names have no script file in the repository (built at packaging time, or loaded only in some editions).')));
+  const fr=D.intercepts.filter(m=>m.front.length);
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'Engine messages the IDE catches in front of user stacks'),h('p',{class:'small muted'},'A frontscript handler runs before the user\'s own handler. "No pass" lists scripts in the path whose handler never passes the message on: check that it only swallows IDE-owned cases.'),
+      table([{t:'Message',k:m=>m.name,v:m=>h('button',{class:'lnk mono',onclick:()=>openImpact('engine msg',D.intercepts.indexOf(m))},m.name)},{t:'Front',n:1,k:m=>m.front.length},{t:'In path',n:1,k:m=>m.units.length},{t:'No pass',k:m=>m.nopass.length,v:m=>h('span',null,m.nopass.map((i,j)=>[j?', ':'',ulink(i,short(U[i].path))]))}],fr,{sort:1,limit:60})),
+    h('div',{class:'panel'},h('h3',null,'Handler names defined twice in the path'),h('p',{class:'small muted'},'Only one copy runs for a message or call that reaches the path: the one the engine searches first (shown under Runs). Editing the other copy changes nothing for those callers. Lifecycle handlers (extensionInitialize) and IDE-message subscribers are left out.'),
+      table([{t:'Handler',k:d=>d.name,v:d=>h('span',{class:'mono'},d.name)},{t:'Defined in',k:d=>d.units.length,v:d=>h('span',null,d.units.map((i,j)=>[j?', ':'',ulink(i,short(U[i].path)),' ',ROLEPILL(U[i].role)]))},{t:'Runs',k:d=>d.winner??-1,v:d=>d.winner!=null?ulink(d.winner,short(U[d.winner].path)):h('span',{class:'muted small'},'decided at run time')}],D.dups,{limit:50}))));
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'IDE message bus'),h('p',{class:'small muted'},'ideMessageSend → revIDEMessageHandlerLibrary → every object that called revIDESubscribe. Plugins subscribe too, so these names are an API.'),
+      table([{t:'Message',k:b=>b.name,v:b=>h('button',{class:'lnk mono',onclick:()=>openImpact('IDE message',D.bus.indexOf(b))},b.name)},{t:'Senders',n:1,k:b=>b.pubs.length},{t:'Subscribers',n:1,k:b=>b.subs.length}],D.bus,{sort:2})),
+    h('div',{class:'panel'},h('h3',null,'Globals shared between scripts'),h('p',{class:'small muted'},'Globals are process-wide: a user stack that declares the same name shares the value.'),
+      table([{t:'Global',k:g=>g.name,v:g=>h('button',{class:'lnk mono',onclick:()=>openImpact('global',D.globals.indexOf(g))},g.name)},{t:'Scripts',n:1,k:g=>g.n}],D.globals.filter(g=>g.n>1),{sort:1}))));
+  const fil=h('input',{type:'search',id:'unit-filter',placeholder:'Filter by path','aria-label':'Filter scripts'});
+  const sel=h('select',{id:'unit-area','aria-label':'Area'},h('option',{value:''},'All areas'),D.areas.filter(a=>a.units).map(a=>h('option',{value:a.id},a.title)));
+  const box=h('div');
+  function draw(){const q=fil.value.toLowerCase(),a=sel.value;const rows=U.filter(u=>(!a||u.area===a)&&(!q||u.path.toLowerCase().includes(q)));
+    box.replaceChildren(table([{t:'Script',k:u=>u.path,v:u=>ulink(u.id)},{t:'Role',k:u=>u.role,v:u=>ROLEPILL(u.role)},{t:'Called from',n:1,k:u=>u.fanin},{t:'Calls into',n:1,k:u=>u.fanout},{t:'Public',n:1,k:u=>u.public},{t:'Lines',n:1,k:u=>u.lines},{t:'Commits',n:1,k:u=>u.churn},{t:'Tests',n:1,k:u=>u.tests}],rows,{sort:2,limit:200}))}
+  fil.addEventListener('input',draw);sel.addEventListener('change',draw);draw();
+  el.append(h('div',{class:'panel'},h('h3',null,'Every script'),h('div',{class:'controls',style:'margin-bottom:8px'},fil,sel),box));
+  el.append(h('div',{class:'panel boot'},h('h3',null,'Library load order at start-up'),h('p',{class:'small muted',style:'margin-bottom:8px'},'revInternal__InitialiseLibraries starts these libraries in this order, after inserting revInitialisationLibrary into the back, and inserts the backscripts after them. Because the engine searches the most recently started library first, a library lower in this list wins a handler-name clash with one higher up.'),h('ol',null,D.boot.load.map(n=>h('li',null,n)))));
+};
+
+/* Engine */
+BUILD.engine=el=>{const E=D.engine;
+  el.append(h('div',{class:'panel'},h('h2',null,'Engine (engine/src)'),h('div',{class:'kpis',style:'margin-top:10px'},[[E.files,'source files'],[E.headers,'headers'],[E.lines,'lines'],[E.globals_count,'globals in globals.h'],[E.messages.length,'named engine messages']].map(([n,l])=>h('div',{class:'kpi'},h('b',null,fmt(n)),h('span',null,l))))));
+  const subs=E.subsystems.map(s=>s.id);const M={};for(const e of E.subsystem_edges)M[e.src+'>'+e.dst]=e.n;const mx=Math.max(...E.subsystem_edges.map(e=>e.n));
+  const mat=h('table',{class:'matrix'},h('thead',null,h('tr',null,h('th',null,'includes →'),subs.map(s=>h('th',null,s)))),h('tbody',null,subs.map(a=>h('tr',null,h('th',{style:'text-align:right'},a),subs.map(b=>{const n=M[a+'>'+b]||0;return h('td',{style:n?`background:color-mix(in srgb,var(--accent) ${Math.round(10+70*Math.sqrt(n/mx))}%,transparent)`:null,title:`${a} includes ${b}: ${n}`},a===b?'·':n||'')})))));
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'Subsystems'),h('p',{class:'small muted'},'Files grouped by name: exec-* and friends are the interpreter, w32*/lnx*/mac* the platform layers, and so on.'),table([{t:'Subsystem',k:s=>s.id,v:s=>h('span',{class:'mono'},s.id)},{t:'Files',n:1,k:s=>s.files},{t:'Lines',n:1,k:s=>s.lines,v:s=>fmt(s.lines)}],E.subsystems,{sort:2})),
+    h('div',{class:'panel'},h('h3',null,'Who includes whom'),h('p',{class:'small muted'},'The number of #include lines from a row\'s sources to a column\'s headers. Dense columns are what everything leans on.'),h('div',{class:'scroll'},mat))));
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'Headers with the widest reach'),h('p',{class:'small muted'},'Reach counts every engine source that sees the header through any chain of includes.'),table([{t:'Header',k:x=>x.name,v:x=>h('button',{class:'lnk mono',onclick:()=>openImpact('header',E.headers_top.indexOf(x))},x.name)},{t:'Direct',n:1,k:x=>x.direct},{t:'Reach',n:1,k:x=>x.reach}],E.headers_top,{sort:2,limit:40})),
+    h('div',{class:'panel'},h('h3',null,'Globals used across the engine'),h('p',{class:'small muted'},'Process-wide state such as MCscreen and MCdefaultstackptr. A change in what one means ripples into every file that reads it.'),table([{t:'Global',k:x=>x.name,v:x=>h('button',{class:'lnk mono',onclick:()=>openImpact('C++ global',E.globals_top.indexOf(x))},x.name)},{t:'Files',n:1,k:x=>x.files},{t:'Subsystems',k:x=>x.subsystems.length,v:x=>h('span',{class:'small muted'},x.subsystems.join(', '))}],E.globals_top,{sort:1,limit:30}))));
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'Engine properties that exist for the IDE'),h('p',{class:'small muted'},'The rev* and _* properties of the lexer table. Changing what they return changes the script editor, debugger and project browser.'),table([{t:'Property',k:p=>p.name,v:p=>h('span',{class:'mono'},p.name)},{t:'IDE scripts using it',n:1,k:p=>p.units.length,v:p=>h('span',null,p.units.length+' ',p.units.slice(0,4).map((i,j)=>[j?', ':'',ulink(i,short(U[i].path))]))}],D.devprops,{sort:1})),
+    h('div',{class:'panel'},h('h3',null,'Engine messages with the most IDE handlers'),h('p',{class:'small muted'},'Renaming one of these, changing when it is sent or what parameters it carries, changes the IDE\'s front and back scripts as well as users\' stacks.'),table([{t:'Message',k:m=>m.name,v:m=>h('button',{class:'lnk mono',onclick:()=>openImpact('engine msg',D.intercepts.indexOf(m))},m.name)},{t:'IDE handlers',n:1,k:m=>m.units.length},{t:'Engine files',n:1,k:m=>m.senders}],D.intercepts,{sort:1,limit:40}))));
+};
+
+/* Build & CI */
+BUILD.build=el=>{
+  const hide=h('input',{type:'checkbox',id:'gyp-hide',checked:true});
+  const box=h('div',{class:'scroll'});const info=h('p',{class:'small muted',style:'margin:6px 0'},'Click a target to highlight what it needs and what needs it.');
+  el.append(h('div',{class:'panel'},h('h2',null,'Build graph (gyp targets)'),h('p',{class:'lede',style:'margin:4px 0 8px'},'Read left to right: the products on the left need what is to their right. Built from the "dependencies" of every .gyp file.'),h('div',{class:'controls'},h('label',{class:'tog'},hide,'Hide prebuilt and third-party targets')),info,box));
+  function draw(){const T=D.gyp.targets.filter(t=>!(hide.checked&&t.area==='thirdparty'));const ids=new Set(T.map(t=>t.id));const E=D.gyp.edges.filter(e=>ids.has(e[0])&&ids.has(e[1]));
+    const deps={};E.forEach(([a,b])=>(deps[a]=deps[a]||[]).push(b));const L={};const lay=id=>{if(L[id]!=null)return L[id];L[id]=0;let m=0;for(const d of deps[id]||[])m=Math.max(m,lay(d)+1);return L[id]=m};T.forEach(t=>lay(t.id));
+    const maxL=Math.max(...Object.values(L));const cols=[];T.forEach(t=>{const c=maxL-L[t.id];(cols[c]=cols[c]||[]).push(t)});
+    cols.forEach(c=>c.sort((a,b)=>a.file.localeCompare(b.file)||a.name.localeCompare(b.name)));
+    const NW=176,NH=20,GX=56,GY=6;const P={};cols.forEach((c,ci)=>c.forEach((t,ri)=>P[t.id]={x:10+ci*(NW+GX),y:10+ri*(NH+GY)}));
+    const W=10+cols.length*(NW+GX),Hh=20+Math.max(...cols.map(c=>c.length))*(NH+GY);
+    const svg=S('svg',{viewBox:`0 0 ${W} ${Hh}`,width:W,class:'gyp',role:'img','aria-label':'Build target graph'});
+    const pe=E.map(([a,b])=>{const p=P[a],q=P[b];const x1=p.x+NW,y1=p.y+NH/2,x2=q.x,y2=q.y+NH/2;const pth=S('path',{d:`M${x1},${y1} C${x1+GX/2},${y1} ${x2-GX/2},${y2} ${x2},${y2}`});svg.append(pth);return{a,b,el:pth}});
+    const ne={};T.forEach(t=>{const p=P[t.id];const g=S('g',{class:'n',transform:`translate(${p.x},${p.y})`});g.append(S('rect',{width:NW,height:NH,rx:3}));const tx=S('text',{x:6,y:14});tx.textContent=t.name.length>27?t.name.slice(0,26)+'…':t.name;g.append(tx);const ti=S('title',{});ti.textContent=t.id;g.append(ti);g.addEventListener('click',()=>sel(t.id));svg.append(g);ne[t.id]=g});
+    function sel(id){const rel=new Set([id]);pe.forEach(e=>{const on=e.a===id||e.b===id;e.el.classList.toggle('on',on);if(on){rel.add(e.a);rel.add(e.b)}});for(const k in ne){ne[k].classList.toggle('sel',k===id);ne[k].classList.toggle('rel',rel.has(k)&&k!==id)}
+      const t=D.gyp.targets.find(x=>x.id===id);info.replaceChildren(h('span',{class:'mono'},id),` · needs ${E.filter(e=>e[0]===id).length}, needed by ${E.filter(e=>e[1]===id).length} · `,h('button',{class:'lnk',onclick:()=>openImpact('target',D.gyp.targets.indexOf(t))},'open in the impact view'))}
+    box.replaceChildren(svg)}
+  hide.addEventListener('change',draw);draw();
+  el.append(h('div',{class:'panel'},h('h3',null,'CI workflows'),h('p',{class:'small muted'},'What each workflow runs on, its jobs, and the repository files and folders it names. The impact view uses this to tell you which workflows name a path.'),
+    table([{t:'Workflow',k:w=>w.file,v:w=>h('div',null,h('b',null,w.name),h('div',{class:'mono muted'},short(w.file)))},{t:'Runs on',k:w=>w.triggers.join(','),v:w=>h('div',{class:'chips'},w.triggers.map(t=>h('span',{class:'pill'},t)))},{t:'Jobs',k:w=>w.jobs.length,v:w=>h('div',{class:'small'},w.jobs.map(j=>j.name).join(' · '))},{t:'Files it names',k:w=>w.scripts.length,v:w=>h('div',{class:'chips'},w.scripts.slice(0,14).map(s=>h('span',{class:'chip'},s)))}],D.ci,{limit:50})));
+};
+
+/* Extensions & suite */
+BUILD.ext=el=>{const M=D.lcb.modules;
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h2',null,'LCB modules'),h('p',{class:'small muted',style:'margin:4px 0 8px'},'Every module, library and widget written in LiveCode Builder in this repository, with what it "use"s. A module many others use (com.livecode.engine, canvas, widget) is part of every widget.'),
+      table([{t:'Module',k:m=>m.name,v:m=>h('button',{class:'lnk mono',onclick:()=>openImpact('LCB module',M.indexOf(m))},m.name)},{t:'Kind',k:m=>m.kind,v:m=>h('span',{class:'pill'},m.kind)},{t:'Used by',n:1,k:m=>m.used_by},{t:'Uses',n:1,k:m=>m.uses.length},{t:'Foreign',n:1,k:m=>m.foreign},{t:'Lines',n:1,k:m=>m.lines}],M,{sort:2,limit:100})),
+    h('div',{class:'panel'},h('h2',null,'xTalk Suite inside OXT-Beyond'),h('p',{class:'small muted',style:'margin:4px 0 8px'},'Suite extensions are not copied into this repository. tools/oxt/xtalk-extensions.json pins each member repository at a commit; tools/oxt/xtalk_extensions.py fetches, verifies (SHA-256) and builds them into Extensions/. Changing a pin changes what ships.'),
+      table([{t:'Member',k:m=>m.name,v:m=>h('div',null,h('b',null,m.name),h('div',{class:'mono muted'},m.repository))},{t:'Pinned',k:m=>m.commit,v:m=>h('span',{class:'mono'},m.commit)},{t:'Ships as',k:m=>m.extensions.length,v:m=>h('div',{class:'small'},m.extensions.map(e=>`${e[0]} (${e[1]})`).join(', '))},{t:'Native libs',n:1,k:m=>m.natives}],D.suite.members,{limit:20}),
+      D.suite.web_libraries.length?h('div',{style:'margin-top:14px'},h('h3',null,'Linked into the web IDE\'s engine'),h('p',{class:'small muted',style:'margin-bottom:6px'},'engine/src/em-xtalk-web.cpp registers these WebAssembly archives; tools/web-ide/xtalk_web_libraries.py pins them, and their Emscripten version must match config/emscripten-version.'),h('div',{class:'chips'},D.suite.web_libraries.map(w=>h('span',{class:'chip'},`${w.name} @ ${w.commit}`)))):null,
+      D.suite.refs?h('div',{style:'margin-top:14px'},h('h3',null,'Suite files that know about OXT-Beyond'),h('p',{class:'small muted'},`xtalk-suite @ ${D.suite.head}. The suite's tools/check-dictionary-docs.py guards the doc blocks Beyond's dictionaries read, so a suite change to a shipped library's doc comments or handler names reaches Beyond at the next pin.`),h('ul',{class:'small'},D.suite.refs.map(r=>h('li',null,h('span',{class:'mono'},r.file),h('span',{class:'muted'},` · ${r.n} mentions`))))):null)));
+};
+
+/* History */
+BUILD.history=el=>{const Hh=D.history;const mx=Math.max(...Hh.top.map(x=>x.n));
+  rootsPanel(el);lineageChart(el);activityChart(el);
+  el.append(h('div',{class:'panel'},h('h2',null,'Where change happens'),h('p',{class:'lede',style:'margin-top:4px'},`${fmt(Hh.commits)} non-merge commits on main, ${Hh.since} to ${D.head.split(' ')[1]}. Files that change often are where the next regression is most likely. The window starts at ${Hh.since} because that is the earliest commit date on main: the imported history was re-committed then.`)));
+  el.append(h('div',{class:'grid2'},
+    h('div',{class:'panel'},h('h3',null,'Most-changed files'),table([{t:'File',k:x=>x.f,v:x=>plink(x.f)},{t:'Commits',n:1,k:x=>x.n,v:x=>h('div',{style:'display:flex;gap:8px;align-items:center;justify-content:flex-end'},h('div',{class:'bar'},h('i',{style:`width:${100*x.n/mx}%`})),String(x.n))}],Hh.top,{sort:1,limit:60})),
+    h('div',{class:'panel'},h('h3',null,'Changes that cross areas'),h('p',{class:'small muted'},'Files in different areas changed in the same commit at least three times. Often a contract no scanner sees: change one, check the other.'),table([{t:'Pair',k:c=>c.a,v:c=>h('div',null,plink(c.a),h('div',{class:'muted small'},'with'),plink(c.b))},{t:'Together',n:1,k:c=>c.n}],D.cochange,{sort:1,limit:60}))));
+};
+
+/* Hot spots */
+BUILD.hot=el=>{const mx=Math.max(...D.hot.map(x=>x.score));
+  const KL={script:'IDE or script file',header:'engine header',source:'engine source'};
+  const kinds=[...new Set(D.hot.map(x=>x.kind))];const sel=h('select',{id:'hot-kind','aria-label':'Kind'},h('option',{value:''},'All kinds'),kinds.map(k=>h('option',{value:k},KL[k]||k)));const box=h('div');
+  function draw(){const rows=D.hot.filter(x=>!sel.value||x.kind===sel.value);
+    box.replaceChildren(table([{t:'Risk',n:1,k:x=>x.score,v:x=>h('div',{class:'bar hot',style:'width:90px;margin-left:auto'},h('i',{style:`width:${100*x.score/mx}%`}))},{t:'Where',k:x=>x.name,v:x=>h('div',null,x.kind==='script'?ulink(x.id):h('span',{class:'mono'},x.name),h('div',{class:'small muted'},KL[x.kind]||x.kind))},{t:'Why',k:x=>x.reasons.length,v:x=>h('ul',{class:'small',style:'margin:0'},x.reasons.map(r=>h('li',null,r)))}],rows,{sort:0,limit:80}))}
+  sel.addEventListener('change',draw);draw();
+  el.append(h('div',{class:'panel'},h('h2',null,'Hot spots'),h('p',{class:'lede',style:'margin:4px 0 10px'},'Ranked by a simple score: scripts that call in (×3), commits in the window (capped at 60), a place in the message path, names shared with other path libraries, shared globals, and frontscript handlers that never pass. Engine headers score by how many sources see them. The score only orders the list; the reasons are what to check.'),h('div',{class:'controls',style:'margin-bottom:8px'},sel),box));
+};
+
+/* Method */
+BUILD.method=el=>{
+  el.append(h('div',{class:'panel'},h('h2',null,'How this map was made'),
+    h('div',{class:'grid2',style:'margin-top:10px'},
+      h('div',null,h('h3',null,'What was read'),h('ul',{class:'small'},
+        h('li',null,`Every tracked file of OXT-Beyond at ${D.head.split(' ')[0]} and of xtalk-suite at ${(D.suite.head||'?').split(' ')[0]}.`),
+        h('li',null,`${U.length} scripts: every .livecodescript, plus the scripts inside ${U.filter(u=>u.kind==='binary').length} binary IDE stacks, dumped with tools/oxt/ide-stack-dump.livecodescript run headless on the released v0.2.7-rc.6.4 Linux engine (stacks loaded with messages locked, never saved).`),
+        D.missing_dumps.length?h('li',null,'Not dumped, because the engine refused to load them: ',D.missing_dumps.join(', '),'.'):null,
+        h('li',null,'The targets and dependencies of every .gyp file; the module line and "use" lines of every .lcb file; every workflow in .github/workflows.'),
+        h('li',null,'In engine/src: #include lines, the externs of globals.h, the message table of mcstring.cpp and the rev*/_* properties of lextable.cpp.'),
+        h('li',null,`Git history: ${fmt(D.history.commits)} non-merge commits on main since ${D.history.since}, by commit date.`))),
+      h('div',null,h('h3',null,'What the numbers mean, and their limits'),h('ul',{class:'small'},
+        h('li',null,'Script links are lexical. A call links to the script that defines a public handler of that name; a name defined in more than four scripts (mouseUp, openStack…) counts as a message, not a call. Calls built at run time (do, value, send with a variable) are not seen.'),
+        h('li',null,'Old help and example stacks carry copies of library handlers; calls link to the product\'s own copy.'),
+        h('li',null,'Stack links are literal stack "Name" references, resolved by stack name.'),
+        h('li',null,'Tests are left out of "called from" and counted separately.'),
+        h('li',null,'A handler "passes" if its body contains pass with its own name anywhere, so a conditional pass counts as passing.'),
+        h('li',null,'Nothing was built or run except the stack dumps. Use the map as a list of places to look, then confirm with the IDE compile check, the engine tests and a before-and-after run on the released build.'))))));
+  el.append(h('div',{class:'panel'},h('h3',null,'Regenerate it'),h('p',{class:'small'},'The generator is in the project files under codebase-map/. With both repositories checked out and a released Linux engine unpacked:'),
+    h('pre',{class:'mono cmd'},'bash make_dumps.sh OpenXTalk-Beyond linux-x86_64-bin/LiveCode-Community dumps\npython3 build_map.py --beyond OpenXTalk-Beyond --suite xtalk-suite --dumps dumps --out out\n# out/codebase-map.html is this page; out/map-data.json is its data')));
+};
+
+const start=(location.hash||'').slice(1);
+show(VIEWS.some(v=>v[0]===start)?start:'overview');
+</script>

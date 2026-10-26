@@ -322,6 +322,17 @@ includes these web libraries:
 | marked | as bundled | MIT, stated in the file header |
 | remarkable | 1.4.1 | MIT, stated in the file header |
 
+### The codebase map
+
+The codebase map on the GitHub Pages site (`tools/codebase-map/`,
+published by `.github/workflows/pages.yml`) carries a copy of d3 inside
+its page. The repository holds no copy: the workflow takes it from npm
+and checks its SHA-256.
+
+| Component | Version | Licence |
+| --- | --- | --- |
+| d3 (`dist/d3.min.js`, Copyright 2010-2023 Mike Bostock) | 7.9.0 | ISC; `build_map.py` puts the package's `LICENSE` above the copy in the page |
+
 ### The IDE's own notice file
 
 The IDE ships the notice file it inherited from LiveCode Community,

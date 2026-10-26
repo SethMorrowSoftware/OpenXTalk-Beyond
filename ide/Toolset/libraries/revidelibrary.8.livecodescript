@@ -2530,6 +2530,34 @@ function revIDEPlatformVersion
    return tSystemVersion
 end revIDEPlatformVersion
 
+-- OXT-Beyond: true when the desktop is dark, as the Tools palette and
+-- Learn's kit read it (revTools' tmGenerate, revLearnKit's
+-- lkReadAppearance): the systemAppearance on macOS and Windows, and on
+-- Linux, where the systemAppearance is always light, how dark the GTK
+-- theme's window colour is (the effective colour of a stack that sets
+-- none). For the IDE's windows that draw their own colours.
+function revIDEAppearanceIsDark
+   local tSum, tSaved, tError
+   try
+      if the platform contains "linux" then
+         put the backgroundColor of me into tSaved
+         lock screen
+         set the backgroundColor of me to empty
+         put the effective backgroundColor of me into tSum
+         set the backgroundColor of me to tSaved
+         unlock screen
+         if item 1 of tSum is a number and item 3 of tSum is a number then
+            return item 1 of tSum + item 2 of tSum + item 3 of tSum < 234
+         end if
+         return false
+      end if
+      return the systemAppearance is "dark"
+   catch tError
+      -- (an engine without the property: light, as before)
+   end try
+   return false
+end revIDEAppearanceIsDark
+
 function revIDEColor pTag
    
    --# Added by skids 7 Dec 2025.

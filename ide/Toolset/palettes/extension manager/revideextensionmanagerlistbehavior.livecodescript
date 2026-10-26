@@ -27,6 +27,8 @@ on preOpenCard
    revIDESubscribe "ideExtensionsChanged"
    revIDESubscribe "ideExtensionStatusChanged"
    revIDESubscribe "idePreferenceChanged:ideExtensionManager_showInactiveExtensions"
+   -- OXT-Beyond: the rows' colours follow a switch between light and dark
+   revIDESubscribe "ideSystemAppearanceChanged"
 
    lock screen
    setSection
@@ -62,6 +64,27 @@ on ideExtensionsChanged
    refreshExtensionList
 end ideExtensionsChanged
 
+-- OXT-Beyond: the desktop switched between light and dark. The rows take
+-- their colours and their text's when the list is set up and drawn, so
+-- the list is set up and drawn again as it is (as the Project Browser
+-- and the Message Box do); before, it kept the other appearance's
+-- colours until it was opened again. (This arrives in 0 milliseconds,
+-- with another stack perhaps the defaultStack.)
+on ideSystemAppearanceChanged
+   local tOldDefault
+   if the short name of this card of this stack is not "list" then
+      exit ideSystemAppearanceChanged
+   end if
+   put the defaultStack into tOldDefault
+   set the defaultStack to the short name of this stack
+   lock screen
+   setUpExtensionList
+   set the rect of group "extensionList" of me to the contentRect of this stack of me
+   refreshList
+   unlock screen
+   if there is a stack tOldDefault then set the defaultStack to tOldDefault
+end ideSystemAppearanceChanged
+
 on setUpExtensionList
    local theStylesA
 
@@ -79,13 +102,18 @@ on setUpExtensionList
    -- set the viewProp["row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowColor")
    -- set the viewProp["alternate row color"] of group "extensionList" of card "list" of this stack to "Gray70"
    -- set the viewProp["alternate row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowAlternateColor")
-   -- OXT-Beyond: the rows light, as before 0.2.7-rc.4, in the light and
-   -- the dark appearance alike (the rows' own grey backgrounds read as
-   -- dark, and white text on them in the dark appearance)
+   -- OXT-Beyond: the rows white and light grey, as before 0.2.7-rc.4, and
+   -- in the dark appearance (revIDEAppearanceIsDark, Linux's dark GTK
+   -- themes too) dark, under the light text the row behavior gives them
    set the viewProp["hilite color"] of group "extensionList" of card "list" of this stack to ideColorGet("pb_line_selected")
    set the viewProp["background color"] of group "extensionList" of card "list" of this stack to empty
-   set the viewProp["row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowColor")
-   set the viewProp["alternate row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowAlternateColor")
+   if revIDEAppearanceIsDark() then
+      set the viewProp["row color"] of group "extensionList" of card "list" of this stack to "30,30,30"
+      set the viewProp["alternate row color"] of group "extensionList" of card "list" of this stack to "42,42,42"
+   else
+      set the viewProp["row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowColor")
+      set the viewProp["alternate row color"] of group "extensionList" of card "list" of this stack to revIDEColor("dataView_rowAlternateColor")
+   end if
 
    set the viewProp["fixed row height"] of group "extensionList" of card "list" of this stack to "true"
    set the viewProp["row height"] of group "extensionList" of card "list" of this stack to 41

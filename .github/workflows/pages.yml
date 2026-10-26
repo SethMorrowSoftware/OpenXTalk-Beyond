@@ -17,15 +17,17 @@
 
 # The web IDE (tools/web-ide) and the Stack Player (tools/web-player) on
 # the repository's GitHub Pages site, with a front page that links to both
-# (tools/pages/build_pages.py):
+# (tools/pages/build_pages.py), and the codebase map beside them:
 #
 #   <site>/          the front page (tools/pages/index.html)
 #   <site>/ide/      the web IDE
 #   <site>/player/   the Stack Player
+#   <site>/map/      the codebase map (tools/codebase-map)
 #
 # Both are taken as a release ships them, from its files
 # OXT-Beyond-<version>-web-ide.zip and OXT-Beyond-<version>-web-player.zip,
-# so the site is always a released build and this workflow builds nothing.
+# so the site is always a released build and this workflow builds neither (the
+# map below is the one part it makes).
 # The release is the input tag, or else the newest one that is not a draft
 # (prereleases count: every 0.2.7 build is one). A release with no web IDE
 # zip (those before it was a release file) takes the web IDE from the
@@ -53,6 +55,18 @@
 # release. It needs GitHub Pages turned on with "GitHub Actions" as
 # its source (Settings > Pages); until then the deploy job fails and
 # nothing else is touched. It changes no release, package or build.
+#
+# The codebase map is the one part made here, and it is made from the
+# source of the commit this run checks out (main's, for the release's run),
+# so it is as new as the site. tools/codebase-map/build_map.py reads the
+# checkout with its history (hence fetch-depth 0; blob:none fetches no old
+# file contents), xtalk-suite's main, and the scripts of the binary IDE
+# stacks, which make_dumps.sh writes out with the newest release's Linux
+# engine (it opens each stack with messages locked and saves none). d3,
+# which the page draws with, comes from npm at a pinned version and
+# checksum and is put in the page, so the page needs no other host. Making
+# the map is allowed to fail: the site then goes up without it, as before,
+# and the summary says so.
 
 name: Web pages
 
@@ -95,7 +109,7 @@ jobs:
   site:
     name: Build the site
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
       # the fallback's artifact from web-ide.yml
@@ -105,6 +119,10 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # The codebase map's history and release tags; blob:none leaves
+          # the old file contents on the server
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Download the release's web files
         env:
@@ -181,6 +199,42 @@ jobs:
             echo "::warning::no web IDE zip in $TAG or in main's Web IDE runs; the site has the Stack Player alone"
           fi
 
+      - name: Build the codebase map
+        id: map
+        # The site goes up without the map rather than not at all
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          # d3 7.9.0's dist/d3.min.js (npm pack d3@7.9.0)
+          D3_SHA256: f2094bbf6141b359722c4fe454eb6c4b0f0e42cc10cc7af921fc158fceb86539
+        run: |
+          work="$RUNNER_TEMP/codebase-map"
+          mkdir -p "$work/engine"
+          python3 -c 'import yaml' 2>/dev/null ||
+            python3 -m pip install --user --break-system-packages pyyaml
+          (cd "$work" && npm pack d3@7.9.0 --silent && tar -xzf d3-7.9.0.tgz)
+          echo "$D3_SHA256  $work/package/dist/d3.min.js" | sha256sum -c
+          git clone --quiet --depth 1 "https://github.com/$OWNER/xtalk-suite.git" "$work/suite"
+          # The engine only reads the stacks, so any recent one does: the
+          # newest release's, also when this run puts a test build up
+          etag=$(gh release list --repo "$REPO" --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          dumps=()
+          if gh release download "$etag" --repo "$REPO" --pattern '*-linux-x86_64-binaries.tar.xz' --dir "$work/engine"; then
+            tar -xJf "$work"/engine/*-linux-x86_64-binaries.tar.xz -C "$work/engine"
+            engine=$(find "$work/engine" -type f -name LiveCode-Community | head -n 1)
+            bash tools/codebase-map/make_dumps.sh . "$engine" "$work/dumps"
+            dumps=(--dumps "$work/dumps")
+            echo "MAP_ENGINE=$etag" >> "$GITHUB_ENV"
+          else
+            echo "::warning::$etag has no Linux binaries; the map leaves out the binary stacks' scripts"
+          fi
+          python3 tools/codebase-map/build_map.py --beyond . --suite "$work/suite" "${dumps[@]}" \
+            --d3 "$work/package/dist/d3.min.js" --out "$work/out"
+          echo "MAP_HTML=$work/out/index.html" >> "$GITHUB_ENV"
+          echo "MAP_VERSION=$GITHUB_REF_NAME @ $(git rev-parse --short=8 HEAD), $(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+
       - name: Build the site
         run: |
           args=()
@@ -197,6 +251,9 @@ jobs:
             [ -n "${UNRELEASED:-}" ] && version="$version (test build)"
             args+=(--player "$player" --player-version "$version")
           fi
+          if [ -n "${MAP_HTML:-}" ] && [ -f "$MAP_HTML" ]; then
+            args+=(--map "$MAP_HTML" --map-version "$MAP_VERSION")
+          fi
           python3 tools/pages/build_pages.py --out "$RUNNER_TEMP/site" "${args[@]}"
           describe() { if [ -n "$1" ]; then basename "$1"; else echo "not on the site"; fi; }
           {
@@ -204,6 +261,11 @@ jobs:
             echo
             echo "- Web IDE: $(describe "$ide")${ide:+${IDE_FROM:+, from $IDE_FROM}}"
             echo "- Stack Player: $(describe "$player")"
+            if [ -n "${MAP_HTML:-}" ]; then
+              echo "- Codebase map: $MAP_VERSION${MAP_ENGINE:+, binary stacks read with the engine of $MAP_ENGINE}"
+            else
+              echo "- Codebase map: not on the site (its step failed; see the log)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the site

@@ -81,7 +81,13 @@ on preOpenStack
    set the dontwrap of it to true
    set the tabstops of it to "100,2000"
    set the margins of it to "8,14,8,8"
-   set the bordercolor of it to "220,220,220"
+   -- OXT-Beyond: in the dark appearance a dark border, as the text on the
+   -- field is light there (errInk)
+   if revIDEAppearanceIsDark() then
+      set the bordercolor of it to "72,72,72"
+   else
+      set the bordercolor of it to "220,220,220"
+   end if
    set the showfocusborder of it to false
    create button "Ignore" in group "errordisplay"
    create button "Script" in group "errorDisplay"
@@ -325,14 +331,14 @@ on preOpenCard
       exit preOpenCard
    else if lExit then
       put tErrorString into line 1 to 5 of fld "Error" of group "errorDisplay" of me
-      set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to kErrorTextColor
+      set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to errInk(kErrorTextColor)
    else
       put tErrorString & cr & cr before fld "Error" of group "errorDisplay" of me
    end if
    set the imageSource of char 1 of fld "Error" of group "errorDisplay" of me to kErrorYellowIconID
    set the textStyle of line 1 of fld "Error" of group "errorDisplay" of me to "bold"
    set the textStyle of line 2 to 5 of fld "Error" of group "errorDisplay" of me to "plain"
-   set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to "black"
+   set the textColor of line 1 to 5 of fld "Error" of group "errorDisplay" of me to errInk("black")
    set the hScroll of fld "Error" of group "errorDisplay" of me to 0
    if tUIError then
       --
@@ -398,6 +404,21 @@ on openCard
    end if
 end openCard
 
+-- OXT-Beyond: the colour of the field's text. The field takes the
+-- desktop's colours, dark in the dark appearance (revIDEAppearanceIsDark),
+-- where black text and the dark grey of the errors before the last could
+-- hardly be read: there the last error is white and those before it light
+-- grey. In the light appearance, pLight, as before.
+private function errInk pLight
+   if not revIDEAppearanceIsDark() then
+      return pLight
+   end if
+   if pLight is kErrorTextColor then
+      return "176,176,176"
+   end if
+   return "255,255,255"
+end errInk
+
 on revLineColors
    local tTotal
    put 0 into tTotal
@@ -410,7 +431,7 @@ on revLineColors
    add tTotal * 6 to tLineStart
    
    set the textColor of line tLineStart to tLineStart+5 of \ 
-         fld "Error" of group "errorDisplay" of me to kErrorTextColor
+         fld "Error" of group "errorDisplay" of me to errInk(kErrorTextColor)
    set the imageSource of char 1 of line tLineStart of \ 
          fld "Error" of group "errorDisplay" of me to kErrorGreyIconID
    

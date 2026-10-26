@@ -74,7 +74,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3174,9 +3174,55 @@ command tourMbMake pName
    unlock messages
 end tourMbMake
 
+-- The Extension Manager's list: white and light grey rows under dark
+-- text in the light appearance, dark rows under white text in the dark
+-- one; and set up and drawn again as a switch between the two does it
 on tour_extension_manager
-   tourPalette "extension manager", "17-extension-manager", 2500
+   local tStack, tWant, tSeen, tBefore, tAfter
+   put revIDEPaletteToStackName("extension manager") into tStack
+   revIDEOpenPalette "extension manager"
+   tourWait 2500
+   if tStack is empty or there is not a stack tStack then throw "no stack for the palette extension manager"
+   if not the visible of stack tStack then throw "the palette extension manager (" & tStack & ") is not visible"
+   tourShotStack tStack, "17-extension-manager"
+   if $OXT_TOUR_APPEARANCE is "dark" then
+      put "255,255,255" into tWant
+   else if $OXT_TOUR_APPEARANCE is "light" then
+      put "0,0,0" into tWant
+   end if
+   put tourEmFirstInk(tStack) into tSeen
+   tourRecord "INFO the Extension Manager's first row's name in" && tSeen
+   if tWant is not empty and tSeen is not tWant then
+      throw "the Extension Manager's first row's name is in" && tSeen & ", not" && tWant && "(" & $OXT_TOUR_APPEARANCE & ")"
+   end if
+   if not tourHears(tStack, "ideSystemAppearanceChanged") then
+      throw "the Extension Manager's list does not hear ideSystemAppearanceChanged"
+   end if
+   put the number of controls of group "extensionList" of card "list" of stack tStack into tBefore
+   dispatch "ideSystemAppearanceChanged" to card "list" of stack tStack
+   tourWait 800
+   put the number of controls of group "extensionList" of card "list" of stack tStack into tAfter
+   if tAfter is not tBefore then
+      throw "the Extension Manager drawn again has" && tAfter && "controls in its list, not" && tBefore
+   end if
+   if tWant is not empty and tourEmFirstInk(tStack) is not tWant then
+      throw "the Extension Manager drawn again has its first row's name in" && tourEmFirstInk(tStack) & ", not" && tWant
+   end if
+   tourShotStack tStack, "17-extension-manager-redrawn"
+   close stack tStack
 end tour_extension_manager
+
+-- The colour of the name in the Extension Manager's first row
+function tourEmFirstInk pStack
+   local tGroup, tC
+   put the long id of group "extensionList" of card "list" of stack pStack into tGroup
+   repeat with tC = 1 to the number of fields of tGroup
+      if the short name of field tC of tGroup is "description" and the visible of field tC of tGroup then
+         return the textColor of line 1 of field tC of tGroup
+      end if
+   end repeat
+   return "no row"
+end tourEmFirstInk
 
 on tour_extension_builder
    tourPalette "extension builder", "18-extension-builder", 2000
@@ -3185,6 +3231,43 @@ end tour_extension_builder
 on tour_message_watcher
    tourPalette "message watcher", "19-message-watcher", 1500
 end tour_message_watcher
+
+-- The window that shows an error in a script that ran (revErrorDisplay),
+-- as an error in a user's handler opens it: its text black on white in
+-- the light appearance, and light on the dark field in the dark one
+on tour_error_display
+   local tButton, tSaved, tError, tInk
+   put tourSample("Push") into tButton
+   put the script of tButton into tSaved
+   set the script of tButton to "on tourFail" & return & "   put 1 into item 0 of field 1 of stack " & quote & "no such stack" & quote & return & "end tourFail"
+   try
+      dispatch "tourFail" to tButton
+   catch tError
+   end try
+   if tError is empty then
+      set the script of tButton to tSaved
+      throw "the handler that fails did not fail"
+   end if
+   revIDEErrorDialog tError, empty
+   tourWait 1500
+   set the script of tButton to tSaved
+   if there is not a stack "revErrorDisplay" or the mode of stack "revErrorDisplay" is 0 then
+      throw "the error window did not open"
+   end if
+   put the textColor of line 2 of field "Error" of group "errorDisplay" of stack "revErrorDisplay" into tInk
+   tourRecord "INFO the error window's text in" && tInk && "(" & the effective textColor of line 2 of field "Error" of group "errorDisplay" of stack "revErrorDisplay" & ")"
+   -- (its lines are selected as it opens: unselected, the text shows)
+   select empty
+   tourWait 300
+   tourShotStack "revErrorDisplay", "19b-error-display"
+   close stack "revErrorDisplay"
+   if $OXT_TOUR_APPEARANCE is "light" and tInk is not "black" and tInk is not "0,0,0" then
+      throw "the error window's text is in" && tInk & ", not black, in the light appearance"
+   end if
+   if $OXT_TOUR_APPEARANCE is "dark" and tInk is not "255,255,255" then
+      throw "the error window's text is in" && tInk & ", not white, in the dark appearance"
+   end if
+end tour_error_display
 
 on tour_search
    tourPalette "search", "20-search", 1500
@@ -3233,8 +3316,41 @@ on tour_release_notes
    put tourNewStack(tBefore) into tNew
    if tNew is empty then throw "no Release Notes window opened"
    tourShotStack tNew, "24b-release-notes"
+   tourReleaseNotesSearch tNew
    close stack tNew
 end tour_release_notes
+
+-- Release Notes searching for "dark" (its sidebar's search box, as a user
+-- types into it), snapshot with the words found marked, and then drawn
+-- again as a switch between light and dark draws it: the same release in
+-- front, the same search, the same place on the page
+command tourReleaseNotesSearch pStack
+   local tSaved, tTitle, tScroll, tError
+   put the defaultStack into tSaved
+   try
+      set the defaultStack to the short name of stack pStack
+      put "dark" into field "search" of stack pStack
+      dispatch "textChanged" to field "search" of stack pStack
+      set the vScroll of field "page" of stack pStack to 120
+      put field "hdrTitle" of stack pStack into tTitle
+      put the vScroll of field "page" of stack pStack into tScroll
+   catch tError
+   end try
+   set the defaultStack to tSaved
+   if tError is not empty then throw "Release Notes' search:" && tourJoin(tError)
+   tourWait 800
+   tourShotStack pStack, "24b-release-notes-search"
+   tourRedrawCheck pStack, "lkAppearanceChanged", "24b-release-notes-redrawn"
+   if the text of field "search" of stack pStack is not "dark" then
+      throw "Release Notes drawn again searches for" && quote & the text of field "search" of stack pStack & quote & ", not dark"
+   end if
+   if field "hdrTitle" of stack pStack is not tTitle then
+      throw "Release Notes drawn again shows" && quote & field "hdrTitle" of stack pStack & quote & ", not" && quote & tTitle & quote
+   end if
+   if the vScroll of field "page" of stack pStack is not tScroll then
+      throw "Release Notes drawn again is scrolled to" && the vScroll of field "page" of stack pStack & ", not" && tScroll
+   end if
+end tourReleaseNotesSearch
 
 -- Home on the desktop, as Help > Welcome to OXT-Beyond opens it, at the
 -- size it opens at and made bigger, where its pages stay in the middle

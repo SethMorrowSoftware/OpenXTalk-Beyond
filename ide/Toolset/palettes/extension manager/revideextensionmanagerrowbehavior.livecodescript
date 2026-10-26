@@ -189,10 +189,21 @@ on LayoutControl pControlRect
    set the loc of field "description" of me to the loc of me
    set the left of field "description" of me to the right of widget "svgicon" of me + tPadding
 
-   -- OXT-Beyond: dark text on the light rows in either appearance
-   -- (revIDEColor("text_1") is white in the dark one)
-   set the textColor of line 1 of field "description" of me to "0,0,0"
-   set the textColor of line 2 of field "description" of me to "125,125,125"
+   -- OXT-Beyond: dark text on the light rows, and white and light grey
+   -- on the dark rows of the dark appearance (the list behavior's
+   -- setUpExtensionList)
+   -- and the line under the row a dark grey there, not the template's
+   -- light one (the template's in the light appearance)
+   if revIDEAppearanceIsDark() then
+      set the textColor of line 1 of field "description" of me to "255,255,255"
+      set the textColor of line 2 of field "description" of me to "201,201,201"
+      set the foregroundColor of graphic "border" of me to "58,58,58"
+   else
+      set the textColor of line 1 of field "description" of me to "0,0,0"
+      set the textColor of line 2 of field "description" of me to "125,125,125"
+      set the foregroundColor of graphic "border" of me to \
+            the foregroundColor of graphic "border" of group "extensionRow" of card "templates" of this stack
+   end if
 
    ## Action Icon
    set the loc of widget "ActionIcon" of me to the loc of me

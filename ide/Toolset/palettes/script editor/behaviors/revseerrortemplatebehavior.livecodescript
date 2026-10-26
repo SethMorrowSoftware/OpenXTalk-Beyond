@@ -102,6 +102,16 @@ command itemHilite
 end itemHilite
 
 command itemUnhilite
+   -- OXT-Beyond: in the dark appearance (revIDEAppearanceIsDark) the
+   -- pane's own dark colour under white text; before, a white row whose
+   -- text on macOS, left to the appearance, was white too
+   if revIDEAppearanceIsDark() then
+      if seGetPlatform() is not "MacOS" then
+         set the textColor of field 1 of me to "255,255,255"
+      end if
+      set the backgroundColor of field 1 of me to empty
+      exit itemUnhilite
+   end if
    if seGetPlatform() is not "MacOS" then
       set the textColor of field 1 of me to "0,0,0"
    end if
