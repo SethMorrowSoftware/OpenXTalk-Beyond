@@ -2065,7 +2065,19 @@ function autoCompleteIFsAreBalanced pLineNumber, pScript
    repeat
       put offset(tBeginAsterix, pScript) into tCharBegin
       if tCharBegin is 0 then exit repeat
-      put offset(tEndAsterix, pScript) into tCharEnd
+      -- OXT-Beyond: look for the "*/" after this "/*", not the first one in
+      -- the handler. With no "*/" after it (an unclosed comment, or a "*/"
+      -- earlier on, in a string say) the delete below removed nothing and
+      -- the loop never ended, so typing in such a script hung the IDE
+      -- (LiveCode bug 22826; Mark Wieder's fix in OXT DPE stopped the loop
+      -- for an unclosed comment only). Where the old search ended, it found
+      -- the same "*/" as this one. An unclosed comment runs to the end.
+      put offset(tEndAsterix, pScript, tCharBegin) into tCharEnd
+      if tCharEnd is 0 then
+         delete char tCharBegin to -1 of pScript
+         exit repeat
+      end if
+      add tCharBegin to tCharEnd
       delete char tCharBegin to tCharEnd of pScript
    end repeat
 

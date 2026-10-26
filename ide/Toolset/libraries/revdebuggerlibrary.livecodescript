@@ -1865,7 +1865,19 @@ private command __ActivateWatches pStack
       if item 1 of tWatch is empty then
          put tWatch into tWatchString
       else
-         put __ResolveId(item 1 of tWatch, pStack) & comma & item 2 to -1 of tWatch into tWatchString
+         -- OXT-Beyond: a watch saved for an object that has since been
+         -- deleted cannot be resolved, and the error stopped this handler,
+         -- which preOpenStack calls before it passes, so the stack's own
+         -- preOpenStack never ran. Skip that watch and activate the rest;
+         -- __CleanWatches still removes it. (OXT DPE fixed this in
+         -- __ResolveId itself, which would also stop the clean-up from
+         -- seeing the failure.)
+         try
+            put __ResolveId(item 1 of tWatch, pStack) & comma & item 2 to -1 of tWatch into tWatchString
+         catch tError
+            add 1 to tLineNumber
+            next repeat
+         end try
       end if
       
       if tCurrentWatches is empty then
@@ -1912,7 +1924,13 @@ private command __ActivateBreakpoints pStack, pObject
          put line tLineNumber of tStates into tState
          
          if tState is "active" then
-            put __ResolveId(item 1 of tBreakpoint, pStack) & comma & item 2 of tBreakpoint & return after tBreakpointsToActivate
+            -- OXT-Beyond: skip a breakpoint saved for an object that has
+            -- since been deleted, rather than stop with an error before
+            -- preOpenStack passes (see __ActivateWatches).
+            try
+               put __ResolveId(item 1 of tBreakpoint, pStack) & comma & item 2 of tBreakpoint & return after tBreakpointsToActivate
+            catch tError
+            end try
          end if
       end if
    end repeat

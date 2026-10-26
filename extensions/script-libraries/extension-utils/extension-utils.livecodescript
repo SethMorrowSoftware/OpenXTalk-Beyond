@@ -1668,6 +1668,14 @@ rType (enum): The type of extension.
 command extensionFetchSourceFromFolder pFolder, @rSource, @rSupportFiles, @rType
    local tFiles
    put files(pFolder) into tFiles
+   -- OXT-Beyond: leave out the "._" files macOS writes beside each file on
+   -- a disk it did not format (AppleDouble metadata, never source). A
+   -- "._widget.lcb" counted as a second module, so on Windows and Linux the
+   -- folder was refused as having no main module (Paul McClernan's fix in
+   -- OXT DPE, which also left out every other name beginning with a dot).
+   -- extensionValidateLCEPackage reads only the type from a package's
+   -- items, so its check is left as it was.
+   filter lines of tFiles without "._*"
    
    local tExtFiles, tType
    __FilterFilesForExtension tFiles, tExtFiles, tType
