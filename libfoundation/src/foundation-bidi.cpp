@@ -241,45 +241,60 @@ static void bidiApplyRuleW5(isolating_run_sequence& irs, uint8_t *classes)
 {
     // ----- RULE W5 -----
     // Sequences of ET adjacent to EN turn into EN
+    // OXT-Beyond: as the rule says, only the ETs next to an EN. The scan
+    // never read the class of the characters it passed, so it turned
+    // everything from the first ET to the last EN after it into EN (a
+    // Hebrew or Arabic word between a "$" and a later number was laid out
+    // as part of the number, reversed: "<Hebrew> $100 <or> $200"), and it
+    // never set t_in_en, so an ET after an EN stayed an ET ("50%")
     level_run *t_run = irs.first_run;
     uindex_t t_index = t_run->start;
     uint8_t t_class;
-    bool t_in_en = false;
+    // Is the character before this one (BNs aside) an EN, or an ET that
+    // became one?
+    bool t_after_en = false;
     do
     {
         t_class = classes[t_index];
-        
-        // Are we already expanding an EN?
-        if (t_in_en)
+
+        if (t_class == kMCUnicodeDirectionEuropeanNumber)
+            t_after_en = true;
+        else if (t_class != kMCUnicodeDirectionEuropeanNumberTerminator)
+            t_after_en = false;
+        else if (t_after_en)
+            classes[t_index] = kMCUnicodeDirectionEuropeanNumber;
+        else
         {
-            if (t_class == kMCUnicodeDirectionEuropeanNumber)
-                ;
-            else if (t_class == kMCUnicodeDirectionEuropeanNumberTerminator)
-                classes[t_index] = kMCUnicodeDirectionEuropeanNumber;
-            else
-                t_in_en = false;
-            
-        }
-        else if (t_class == kMCUnicodeDirectionEuropeanNumberTerminator)
-        {
-            // Scan along a run of European number terminators
-            uindex_t t_start = t_index;
-            level_run *t_start_run = t_run;
-            bool t_valid = true;
-            while (t_class == kMCUnicodeDirectionEuropeanNumberTerminator
-                   && (t_valid = bidiIncrementISRIndex(classes, t_run, t_index)))
-                
-                
-                // Did we find a European number?
-                if (t_valid && classes[t_index] == kMCUnicodeDirectionEuropeanNumber)
+            // A sequence of ETs after something else: find what follows it
+            level_run *t_last_run = t_run;
+            level_run *t_next_run = t_run;
+            uindex_t t_last = t_index;
+            uindex_t t_next = t_index;
+            bool t_valid;
+            while ((t_valid = bidiIncrementISRIndex(classes, t_next_run, t_next))
+                   && classes[t_next] == kMCUnicodeDirectionEuropeanNumberTerminator)
+            {
+                t_last = t_next;
+                t_last_run = t_next_run;
+            }
+
+            // Did we find a European number?
+            if (t_valid && classes[t_next] == kMCUnicodeDirectionEuropeanNumber)
+            {
+                // Set all of the terminators to EN
+                for (;;)
                 {
-                    // Set all of the terminators to EN
-                    while (t_start != t_index)
-                    {
-                        classes[t_start] = kMCUnicodeDirectionEuropeanNumber;
-                        bidiIncrementISRIndex(classes, t_start_run, t_start);
-                    }
+                    classes[t_index] = kMCUnicodeDirectionEuropeanNumber;
+                    if (t_index == t_last)
+                        break;
+                    bidiIncrementISRIndex(classes, t_run, t_index);
                 }
+            }
+
+            // Go on from the last terminator (the loop moves to what follows
+            // it)
+            t_index = t_last;
+            t_run = t_last_run;
         }
     }
     while (bidiIncrementISRIndex(classes, t_run, t_index));
@@ -414,6 +429,12 @@ static void bidiApplyRuleN1(isolating_run_sequence& irs, uint8_t *classes, uint8
             {
                 t_strong_before = irs.sos;
                 t_before_run = irs.first_run;
+                // OXT-Beyond: the neutrals run from the start of the
+                // sequence. From the first character of the paragraph this
+                // began one character on, which since a sequence goes on
+                // across an isolate (X10, below) can be inside the isolate:
+                // in another sequence
+                t_before_index = irs.first_run->start;
             }
             
             // Scan forwards for a strong direction
@@ -556,7 +577,13 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
     /* UNCHECKED */ t_stack.New(256);
     uindex_t t_depth = 0;
     t_stack[t_depth].clear();
-    
+    // OXT-Beyond: the first entry of the stack holds the paragraph's level
+    // (X1), so that the text after a closed embedding or isolate in a
+    // right-to-left paragraph goes back to level 1. At 0, it was laid out
+    // at the level of a left-to-right paragraph (stam66, openxtalk.org,
+    // October 2026)
+    t_stack[t_depth].level = t_base_level;
+
     // Counters
     const uindex_t MAX_DEPTH = 125;
     uint8_t t_current_level = t_base_level;
@@ -575,6 +602,7 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
     for (uindex_t i = 0; i < t_length; i++)
     {
         uint8_t t_class = t_classes[i];
+        uint8_t t_level_before = t_current_level;
         bool t_formatting = false;
         bool t_to_remove = false;
         
@@ -761,10 +789,47 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
         if (t_to_remove || t_class == kMCUnicodeDirectionBoundaryNeutral)
         {
             t_classes[i] = kMCUnicodeDirectionBoundaryNeutral;
-            t_levels[i] = t_current_level;
+            // OXT-Beyond: an embedding or override control keeps the level
+            // of the text before it, as a PDF has the level of the text
+            // after it (UAX #9 section 5.2), so that an embedding with
+            // nothing in it does not split the level run it is in (X10).
+            // It had the level of the embedding it opens
+            if (t_to_remove && t_class != kMCUnicodeDirectionPopDirectionalFormat)
+                t_levels[i] = t_level_before;
+            else
+                t_levels[i] = t_current_level;
         }
     }
-    
+
+    // OXT-Beyond: the characters X9 removed, whose levels are set after the
+    // others' (below)
+    MCAutoArray<bool> t_removed;
+    /* UNCHECKED */ t_removed.New(t_length);
+    for (uindex_t i = 0; i < t_length; i++)
+        t_removed[i] = t_classes[i] == kMCUnicodeDirectionBoundaryNeutral;
+
+    // OXT-Beyond: removed characters between two characters of the same
+    // level take that level, so that the level runs are those of the text
+    // without them (X10). An embedding with only a BN in it (an RLO, a soft
+    // hyphen and a PDF) split the run it was in, so that a number after it
+    // took no account of an Arabic letter before it (W2)
+    for (uindex_t i = 0; i < t_length;)
+    {
+        if (!t_removed[i])
+        {
+            i++;
+            continue;
+        }
+
+        uindex_t t_end = i;
+        while (t_end < t_length && t_removed[t_end])
+            t_end++;
+        if (i > 0 && t_end < t_length && t_levels[i - 1] == t_levels[t_end])
+            for (uindex_t j = i; j < t_end; j++)
+                t_levels[j] = t_levels[t_end];
+        i = t_end;
+    }
+
     // ----- RULE X10 -----
     // Compute the isolating run sequences and apply rules W1-W7, N0-N2 and I1-I2
     
@@ -784,37 +849,112 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
     }
     
     // X10: compute the set of isolating run sequences
+    // OXT-Beyond: a level run that ends with an isolate initiator goes on
+    // with the level run its matching PDI starts (BD13), so that the rules
+    // see the text either side of an isolate as one sequence, as they would
+    // the same text without the isolate. Each level run was a sequence of
+    // its own. First the matching PDI of each initiator (BD9):
+    MCAutoArray<uindex_t> t_matching_pdi;
+    MCAutoArray<uindex_t> t_open_isolates;
+    /* UNCHECKED */ t_matching_pdi.New(t_length);
+    /* UNCHECKED */ t_open_isolates.New(t_length);
+    uindex_t t_open_count = 0;
+    for (uindex_t i = 0; i < t_length; i++)
+    {
+        t_matching_pdi[i] = UINDEX_MAX;
+        if (t_classes[i] == kMCUnicodeDirectionLeftToRightIsolate
+            || t_classes[i] == kMCUnicodeDirectionRightToLeftIsolate
+            || t_classes[i] == kMCUnicodeDirectionFirstStrongIsolate)
+            t_open_isolates[t_open_count++] = i;
+        else if (t_classes[i] == kMCUnicodeDirectionPopDirectionalIsolate && t_open_count > 0)
+            t_matching_pdi[t_open_isolates[--t_open_count]] = i;
+    }
+
+    // ... then the level run that starts at each character that starts one
+    // ...
+    MCAutoArray<uindex_t> t_run_starting_at;
+    /* UNCHECKED */ t_run_starting_at.New(t_length);
+    for (uindex_t i = 0; i < t_length; i++)
+        t_run_starting_at[i] = UINDEX_MAX;
     for (uindex_t i = 0; i < t_runs.Size(); i++)
     {
-        // TODO: figure out WTH TR9 is going on about here. Somewhat unclear...
         t_runs[i].irs = i;
         t_runs[i].next_run = nil;
         t_runs[i].prev_run = nil;
-        
+        t_run_starting_at[t_runs[i].start] = i;
+    }
+
+    // ... then the links, from the level run that ends with an initiator to
+    // the one its matching PDI starts (an isolate the stack had no room
+    // for has its PDI in the same run, at the same level) ...
+    for (uindex_t i = 0; i < t_runs.Size(); i++)
+    {
+        uindex_t t_pdi = t_matching_pdi[t_runs[i].start + t_runs[i].length - 1];
+        if (t_pdi == UINDEX_MAX)
+            continue;
+        uindex_t t_next = t_run_starting_at[t_pdi];
+        if (t_next != UINDEX_MAX && t_levels[t_pdi] == t_levels[t_runs[i].start])
+        {
+            t_runs[i].next_run = &t_runs[t_next];
+            t_runs[t_next].prev_run = &t_runs[i];
+        }
+    }
+
+    // ... and a sequence from each level run that no other goes on to
+    for (uindex_t i = 0; i < t_runs.Size(); i++)
+    {
+        if (t_runs[i].prev_run != nil)
+            continue;
+
         uindex_t t_irs_number = t_irs.Size();
         t_irs.Extend(t_irs_number + 1);
         t_irs[t_irs_number].first_run = &t_runs[i];
-        t_irs[t_irs_number].last_run = &t_runs[i];
+        level_run *t_last_run = &t_runs[i];
+        while (t_last_run->next_run != nil)
+            t_last_run = t_last_run->next_run;
+        t_irs[t_irs_number].last_run = t_last_run;
     }
-    
+
     // X10: compute the start-of-sequence and end-of-sequence types
+    // OXT-Beyond: from the level of the character before the sequence and
+    // that of the character after it, X9's removed characters aside, as
+    // X10 says. Both were the paragraph's level, whatever the sequence was
+    // next to, so the text after a closed embedding took no account of it
     for (uindex_t i = 0; i < t_irs.Size(); i++)
     {
         // SOS calculation
         uindex_t t_preceding = t_irs[i].first_run->start;
         uint8_t t_sos_level = t_levels[t_preceding];
         uint8_t t_preceding_level = t_base_level;
-        while (t_preceding > 0 && t_classes[--t_preceding] == kMCUnicodeDirectionBoundaryNeutral)
-            ;
-        
+        while (t_preceding > 0)
+            if (t_classes[--t_preceding] != kMCUnicodeDirectionBoundaryNeutral)
+            {
+                t_preceding_level = t_levels[t_preceding];
+                break;
+            }
+
         // EOS calculation
-        // NOTE: this might be wrong if the last char in the sequence is FSI/LRI/RLI without matching PDI
+        // A sequence that ends with an isolate initiator (whose isolate
+        // nothing closes, or the sequence would go on after it) takes the
+        // paragraph's level
         uindex_t t_succeeding = t_irs[i].last_run->start + t_irs[i].last_run->length - 1;
         uint8_t t_eos_level = t_levels[t_succeeding];
         uint8_t t_succeeding_level = t_base_level;
-        while (t_succeeding < (t_length-1) && t_classes[++t_succeeding] == kMCUnicodeDirectionBoundaryNeutral)
-            ;
-        
+        uindex_t t_last = t_succeeding;
+        while (t_last > t_irs[i].last_run->start && t_classes[t_last] == kMCUnicodeDirectionBoundaryNeutral)
+            t_last--;
+        if (t_classes[t_last] != kMCUnicodeDirectionLeftToRightIsolate
+            && t_classes[t_last] != kMCUnicodeDirectionRightToLeftIsolate
+            && t_classes[t_last] != kMCUnicodeDirectionFirstStrongIsolate)
+        {
+            while (t_succeeding + 1 < t_length)
+                if (t_classes[++t_succeeding] != kMCUnicodeDirectionBoundaryNeutral)
+                {
+                    t_succeeding_level = t_levels[t_succeeding];
+                    break;
+                }
+        }
+
         // Direction is R if the higher level is odd, L otherwise
         t_sos_level = t_sos_level < t_preceding_level ? t_preceding_level : t_sos_level;
         t_eos_level = t_eos_level < t_succeeding_level ? t_succeeding_level : t_eos_level;
@@ -847,7 +987,19 @@ bool MCBidiResolveTextDirection(MCStringRef p_string, intenum_t p_base_level, ui
         bidiApplyRuleI1(irs, classes, levels);
         bidiApplyRuleI2(irs, classes, levels);
     }
-    
+
+    // OXT-Beyond: the characters X9 removed (embedding and override
+    // controls, and BNs such as ZWJ, ZWNJ and the soft hyphen) take the
+    // level of the character before them, or the paragraph's at its start
+    // (UAX #9 section 5.2, rule L1). At the level of the embedding they
+    // were in, they split the runs that rule L2 reverses: a Persian word
+    // with a ZWNJ in it, in left-to-right text, was drawn in two pieces in
+    // the wrong order, and closing an embedding in right-to-left text could
+    // move the text after it to the wrong side
+    for (uindex_t i = 0; i < t_length; i++)
+        if (t_removed[i])
+            t_levels[i] = i > 0 ? t_levels[i - 1] : t_base_level;
+
     r_level_size = t_length;
     r_levels = t_levels;
 
