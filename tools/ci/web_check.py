@@ -2004,6 +2004,12 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                           timeout=timeout * 1000)
                     seen[name] = tab.evaluate(report_js)
                     if name == 'following the browser' and seen[name] == 'dark,0':
+                        # the page's own count of the browser's change
+                        # events, which says on a failure whether the
+                        # browser sent one
+                        tab.evaluate("() => { window.oxtCheckSchemeChanges = 0; "
+                                     "window.matchMedia('(prefers-color-scheme: dark)').addEventListener("
+                                     "'change', () => { window.oxtCheckSchemeChanges++; }); }")
                         tab.emulate_media(color_scheme='light')
                         after = [None]
 
@@ -2012,7 +2018,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                             return after[0] == 'light,1'
                         if not wait_for(turned_light, 'the systemAppearance following the browser to light', 10):
                             problems.append('with the browser turned light, the page that follows its colour '
-                                            'scheme reports %r, expected \'light,1\'' % after[0])
+                                            'scheme reports %r, expected \'light,1\' (the browser sent %s change '
+                                            'events to the page)'
+                                            % (after[0], tab.evaluate('window.oxtCheckSchemeChanges')))
                 if seen.get('as built') != 'light,0':
                     problems.append('in a browser set to dark, the page as built reports %r for the '
                                     'systemAppearance, expected \'light,0\'' % seen.get('as built'))
