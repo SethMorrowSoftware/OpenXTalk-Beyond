@@ -41,6 +41,11 @@ as a JSON type other than the default
 - "object" - force an object even if the array has numeric 1...N keys
 - "string" - force a string even if the element value parses as a number or boolean
 
+pPretty:
+Use this optional parameter which defaults to false to pretty print the
+JSON. If true the JSON will be formatted with whitespace and object names
+will be alphabetically sorted.
+
 Returns: A UTF8 encoded JSON string
 
 Description:
