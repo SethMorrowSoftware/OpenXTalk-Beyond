@@ -1,0 +1,13 @@
+# Preferences, card "Files & Memory": the folder named "User Extensions"
+# holds the user's externals, plugins, runtimes and more besides
+# extensions, and LiveCode's own comments called it the "user additions"
+# folder (forum, Skids, openxtalk.org p=25608). The label and the prompt of
+# its folder chooser say "User Additions" now. Only the words change: the
+# folder, its preference (cCustomizationPath) and the
+# revEnvironmentUser...Path functions are as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: field "Customization Path Label" of card "Files & Memory"
+property: htmlText
+from: <p>User Extensions:</p>
+to: <p>User Additions:</p>
