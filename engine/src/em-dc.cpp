@@ -1752,8 +1752,12 @@ public:
 			} while (t_node != nil && t_node != t_start);
 		}
 
+		/* Sent now, not delayed as the desktop does: a message delayed
+		 * from a queued event waited for the next event from the page
+		 * (the wait loop had already read when its next message falls
+		 * due), so an idle page never got it (web_check.py) */
 		if (MCdefaultstackptr && MCdefaultstackptr->getcurcard() != nil)
-			MCscreen->delaymessage(MCdefaultstackptr->getcurcard(), MCM_system_appearance_changed);
+			MCdefaultstackptr->getcurcard()->message(MCM_system_appearance_changed);
 	}
 };
 
