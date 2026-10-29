@@ -14,6 +14,15 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.7-rc.6.9 (2026-10-29, pre-release)
+
+- Web standalones: an HTML5 standalone gets the web engine with the xTalk Suite's sodiumxt, box2dxt, coinxt and datachannelxt libraries only when it includes an extension that uses one of them; any other gets the same engine without them, as every web standalone had before 0.2.7-rc.6.8, and a smaller `.wasm`. The Stack Player keeps the engine with the libraries, and the standalone setting `emscripten,xtalklibraries` set to `always` asks for it in any standalone. The web runtime has the engine without them in `lean/` beside the full one (OpenXTalkPaul, openxtalk.org p=25579) (#283)
+- Dictionary: the .lcdoc docs of externals in the user's Externals folder now show in the Dictionary and the Script Editor (#285)
+- Dictionary: ArrayToJSON and JSONToArray, the mergJSON library's functions, are documented (docs by Paul McClernan) (#285)
+- Preferences: the user extensions folder is labelled "User Additions" (#285)
+- Web: an HTML5 standalone can follow the browser's light or dark colour scheme (Standalone Settings > Web > Appearance; Light stays the default) (#285)
+- Standalone Settings: the Web card's controls have tooltips of their own instead of the Windows card's (which spoke of the application's .ico icon and file description) (#285)
+
 ## 0.2.7-rc.6.8 (2026-10-28, pre-release)
 
 - HyperCard import: rule T10 takes `the systemVersion` (and `systemVersion()` and `value("the systemVersion")`), which stacks compare with 7 ("if the systemVersion < 7 then", Finder Cleaner's) and which here was the host's ("14.5.0" on macOS, less than 7 as text, so those stacks said they needed System 7; 72 lines of 19 stacks of the corpus): the HyperCard Library's new `hcSystemVersion()` gives "7.55", as HyperCard 2.2's code gives System 7.5.5. A stack's own `systemVersion` handler is still called (#278)

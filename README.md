@@ -151,7 +151,11 @@ lets the Script Editor follow the dark appearance, makes the Project
 Browser's script counts and the Tools palette's icons easier to read,
 runs the xTalk Suite's libraries in web standalones and the Stack
 Player, and stops more imported HyperCard stacks from hanging (see
-[0.2.7-rc.6.8](#027-rc68-the-bug-hunt-round-eight));
+[0.2.7-rc.6.8](#027-rc68-the-bug-hunt-round-eight)), and 0.2.7-rc.6.9
+shows the docs of externals you add in the Dictionary, lets a web
+standalone follow the browser's dark mode, and keeps web standalones
+that use none of the xTalk Suite's libraries as small as before (see
+[0.2.7-rc.6.9](#027-rc69-the-bug-hunt-round-nine));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1621,6 +1625,46 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.9: the Bug Hunt, round nine
+
+OXT-Beyond 0.2.7-rc.6.9 has everything in 0.2.7-rc.6.8. In the spirit of
+the Bug Hunt, here is every change since then, each listed as the bug it
+squashes:
+
+- **Docs of added externals that never showed.** The IDE loads every
+  external in your Externals folder (in the User Additions folder), but
+  the Dictionary read only the docs of installed extensions, so an
+  external's `.lcdoc` was ignored. A `.lcdoc` beside an external, in a
+  folder of one, or in a bundle's `Contents/Resources` now shows in the
+  Dictionary and the Script Editor under its `Library:` name. An edit
+  shows at the next start without emptying the docs cache, and a removed
+  file's entries go. A folder without `.lcdoc` files adds nothing, as
+  before (#285).
+- **Undocumented mergJSON functions.** `ArrayToJSON` and `JSONToArray`,
+  the functions of the mergJSON script library, are in the Dictionary,
+  with docs by Paul McClernan (#285).
+- **A folder called "User Extensions" that holds more.** Preferences >
+  Files & Memory calls the folder of your extensions, externals and
+  plugins "User Additions", and so does its folder chooser. Only the
+  words change: the folder and its preference are the same (#285).
+- **A web standalone that stayed light in a dark browser.** The web
+  engine said "light" for `the systemAppearance` whatever the browser's
+  colour scheme. Standalone Settings > Web has an Appearance menu:
+  Light, the default, keeps every page as it was, and Follow the
+  browser makes `the systemAppearance` and the default control colours
+  follow the browser's light or dark scheme, with
+  `systemAppearanceChanged` when it changes (#285).
+- **Windows tooltips on the Web card.** The Web card's controls showed
+  the Windows card's tooltips, about an application's `.ico` icon and
+  file description. Each now says what it does on the page (#285).
+- **Web standalones that got bigger for libraries they never call.**
+  Since 0.2.7-rc.6.8 every HTML5 standalone got the engine with the
+  xTalk Suite's libraries. A standalone now gets it only when it
+  includes an extension that uses one of them; any other gets the
+  smaller engine every standalone had before. The Stack Player keeps the
+  full engine, and the setting `emscripten,xtalklibraries` set to
+  `always` asks for it in any standalone (#283).
 
 #### 0.2.7-rc.6.8: the Bug Hunt, round eight
 
