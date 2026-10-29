@@ -75,8 +75,14 @@ mergeInto(LibraryManager.library, {
 			}
 		},
 
+		// Read with a query of its own: Chromium sends a query's change
+		// event only if the query's value differs from the one it last
+		// gave, so reading the watched query after the scheme changed and
+		// before the event (a script that read the systemAppearance then)
+		// lost the event, and systemAppearanceChanged with it
 		isAppearanceDark: function() {
-			return LiveCodeDC._appearanceQuery !== null && LiveCodeDC._appearanceQuery.matches;
+			return LiveCodeDC._appearanceQuery !== null &&
+				window.matchMedia('(prefers-color-scheme: dark)').matches;
 		},
 
 		containerCreate: function(containerElement, maxZIndex) {
