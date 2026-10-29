@@ -343,3 +343,101 @@ on TestRemoveLibraryFromAnEmptyCache
    TestAssert "no error", the result is empty
    TestAssert "nothing in it", __CacheEntries() is empty
 end TestRemoveLibraryFromAnEmptyCache
+
+--------------------------------------------------------------------------------
+-- The docs of the externals the user added (ideDocsUserExternalsDocs,
+-- ideDocsNoteUserExternalsDocs): their .lcdoc files were never read, and
+-- went into the Dictionary only wrapped in an LCB library (Skids,
+-- openxtalk.org p=25608)
+
+private command __WriteFile pFile, pText
+   local tFolder
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   if there is not a folder tFolder then
+      create folder tFolder
+   end if
+   put textEncode(pText, "utf-8") into url ("binfile:" & pFile)
+end __WriteFile
+
+-- "key|title|file name" lines of what ideDocsUserExternalsDocs finds
+private function __ExternalsDocs pFolder
+   local tDocsA, tLines
+   put ideDocsUserExternalsDocs(pFolder) into tDocsA
+   set the itemDelimiter to slash
+   repeat with tIndex = 1 to the number of elements of tDocsA
+      put tDocsA[tIndex]["key"] & "|" & tDocsA[tIndex]["title"] & "|" & \
+            item -1 of tDocsA[tIndex]["file"] & return after tLines
+   end repeat
+   delete the last char of tLines
+   return tLines
+end __ExternalsDocs
+
+-- A folder with no .lcdoc, as every one was, gives nothing, and so does
+-- one that is not there
+on TestUserExternalsWithoutDocs
+   local tExternals
+   put sFolder & "/Externals" into tExternals
+   TestAssert "no folder, no docs", __ExternalsDocs(tExternals) is empty
+   __WriteFile tExternals & "/Externals.txt", "blur,blur.so"
+   __WriteFile tExternals & "/blur.so", "not an external"
+   create folder tExternals & "/Legacy"
+   TestAssert "no .lcdoc, no docs", __ExternalsDocs(tExternals) is empty
+   TestAssert "empty folder name, no docs", __ExternalsDocs(empty) is empty
+end TestUserExternalsWithoutDocs
+
+-- A .lcdoc beside the externals, in a folder of one and in a bundle, each
+-- once, under its own Library name or else its file's (or folder's)
+on TestUserExternalsDocsFound
+   local tExternals, tFound
+   put sFolder & "/Externals" into tExternals
+   __WriteFile tExternals & "/blur.lcdoc", "Library: Blur" & return & return & "Name: blur" & return
+   -- (indented, as LiveCode's own blur.lcdoc is)
+   __WriteFile tExternals & "/indented.lcdoc", " Library: Indented" & return & return & " Name: indented" & return
+   __WriteFile tExternals & "/noname.lcdoc", "Name: nonameCommand" & return
+   __WriteFile tExternals & "/mergFoo/api.lcdoc", "Library:  mergFoo Lib  " & numToChar(13) & numToChar(10)
+   __WriteFile tExternals & "/rreThing.bundle/Contents/Resources/api.lcdoc", "Name: rreThing" & return
+   __WriteFile tExternals & "/rreThing.bundle/Contents/Resources/notdocs.txt", "Library: no"
+   __WriteFile tExternals & "/rreThing.bundle/api.lcdoc", "Name: rreThing" & return
+   put __ExternalsDocs(tExternals) into tFound
+   TestDiagnostic tFound
+   TestAssert "beside the externals, by Library name", "blur|Blur|blur.lcdoc" is among the lines of tFound
+   TestAssert "beside the externals, by file name", "noname|noname|noname.lcdoc" is among the lines of tFound
+   TestAssert "in a folder, by Library name, CRLF", "mergFoo_api|mergFoo Lib|api.lcdoc" is among the lines of tFound
+   TestAssert "a bundle's, by its name", "rreThing.bundle_api|rreThing|api.lcdoc" is among the lines of tFound
+   TestAssert "an indented Library name", "indented|Indented|indented.lcdoc" is among the lines of tFound
+   TestAssert "each once", the number of lines of tFound is 5
+end TestUserExternalsDocsFound
+
+-- The cache notes each one's library, and when its .lcdoc goes, its
+-- folder and its entries go, but not a library another still has, nor an
+-- installed extension's
+on TestUserExternalsDocsForgotten
+   local tExternals, tCache, tDocsA, tEntries
+   put sFolder & "/Externals" into tExternals
+   put sFolder & "/userdocs/Externals" into tCache
+   __MakeDistributed "put,command"
+   __AddDocs sCacheFolder, "livecode_script", "Blur", "blur,command"
+   __AddDocs sCacheFolder, "livecode_script", "Tree View", "treeViewSelect,message"
+   TestAssert "put found", __Found("put") is 1
+
+   __WriteFile tExternals & "/blur.lcdoc", "Library: Blur" & return
+   __WriteFile tExternals & "/other.lcdoc", "Library: Tree View" & return
+   put ideDocsUserExternalsDocs(tExternals) into tDocsA
+   ideDocsNoteUserExternalsDocs tCache, tDocsA, "Tree View"
+   TestAssert "a folder for each", there is a folder (tCache & "/blur") and there is a folder (tCache & "/other")
+   TestAssert "its library noted", url ("binfile:" & tCache & "/blur/library.txt") is "Blur"
+   TestAssert "entries kept while there", "Blur:blur" is among the lines of __CacheEntries()
+
+   delete file tExternals & "/blur.lcdoc"
+   delete file tExternals & "/other.lcdoc"
+   put ideDocsUserExternalsDocs(tExternals) into tDocsA
+   ideDocsNoteUserExternalsDocs tCache, tDocsA, "Tree View"
+   put __CacheEntries() into tEntries
+   TestDiagnostic tEntries
+   TestAssert "its folder gone", there is not a folder (tCache & "/blur")
+   TestAssert "the other's folder gone", there is not a folder (tCache & "/other")
+   TestAssert "its entries gone", "Blur:blur" is not among the lines of tEntries
+   TestAssert "an installed extension's kept", "Tree View:treeViewSelect" is among the lines of tEntries
+   TestAssert "the distributed kept", "LiveCode Script:put" is among the lines of tEntries
+end TestUserExternalsDocsForgotten

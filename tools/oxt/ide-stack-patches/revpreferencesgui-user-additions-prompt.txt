@@ -1,0 +1,11 @@
+# Preferences, card "Files & Memory": the prompt of the folder chooser for
+# the user additions folder, which the label names so now
+# (revpreferencesgui-user-additions-label.txt). Only the prompt's text
+# changes.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: group "Files & Memory" of card "Files & Memory"
+replace:
+|  answer folder "Please choose user extensions path"|
+with:
+|  answer folder "Please choose the user additions folder (extensions, externals, plugins and more)"|

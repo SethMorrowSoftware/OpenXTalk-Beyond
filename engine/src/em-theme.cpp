@@ -24,6 +24,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "platform.h"
 #include "mctheme.h"
 #include "context.h"
+#include "uidc.h"
+#include "globals.h"
 
 /* OXT-Beyond: the web has no native theme, so the engine draws every
  * control itself. It draws them in the look of the desktop engines' themes
@@ -107,6 +109,23 @@ em_theme_color(uint32_t p_rgb, MCColor& r_color)
 #define kMCWebThemeHilightEdge      0xFFFFFF /* COLOR_3DHILIGHT */
 #define kMCWebThemeShadowEdge       0xA0A0A0 /* COLOR_3DSHADOW */
 
+/* OXT-Beyond: in the dark appearance (a page that follows the browser's
+ * colour scheme: MCScreenDC::getsystemappearance in em-dc.cpp), the colours
+ * that the Windows engine gives a control in Windows' dark mode
+ * (windows-theme.cpp): white text, and RGB(32,32,32) behind controls,
+ * fields and windows. The others stay as in the light appearance, as
+ * there. */
+#define kMCWebThemeDarkText         0xFFFFFF
+#define kMCWebThemeDarkFace         0x202020
+
+static bool
+em_theme_is_dark(void)
+{
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	return t_appearance == kMCSystemAppearanceDark;
+}
+
 bool
 MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
                                    MCPlatformControlPart p_part,
@@ -114,6 +133,8 @@ MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
                                    MCPlatformThemeProperty p_prop,
                                    MCColor& r_color)
 {
+	bool t_dark = em_theme_is_dark();
+
 	switch (p_prop)
 	{
 	case kMCPlatformThemePropertyTextColor:
@@ -121,7 +142,7 @@ MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
 			return em_theme_color(kMCWebThemeGrayText, r_color);
 		if (p_state & kMCPlatformControlStateSelected)
 			return em_theme_color(kMCWebThemeHighlightText, r_color);
-		return em_theme_color(kMCWebThemeWindowText, r_color);
+		return em_theme_color(t_dark ? kMCWebThemeDarkText : kMCWebThemeWindowText, r_color);
 
 	case kMCPlatformThemePropertyBackgroundColor:
 		if (p_state & kMCPlatformControlStateSelected)
@@ -146,9 +167,9 @@ MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
 		case kMCPlatformControlTypeOptionMenu:
 		case kMCPlatformControlTypePulldownMenu:
 		case kMCPlatformControlTypePopupMenu:
-			return em_theme_color(kMCWebThemeWindow, r_color);
+			return em_theme_color(t_dark ? kMCWebThemeDarkFace : kMCWebThemeWindow, r_color);
 		default:
-			return em_theme_color(kMCWebThemeFace, r_color);
+			return em_theme_color(t_dark ? kMCWebThemeDarkFace : kMCWebThemeFace, r_color);
 		}
 
 	case kMCPlatformThemePropertyShadowColor:

@@ -769,6 +769,29 @@ def make_standalone(runtime, js, wasm, html, startup_data, site, files=(), title
         f.write(page)
 
 
+# The probe's page as a page that follows the browser's colour scheme, as
+# the web builder writes it with the HTML5 pane's Appearance set to "Follow
+# the browser" (getPageHead in
+# ide-support/revsaveasemscriptenstandalone.livecodescript)
+APPEARANCE_META = ('<meta name="color-scheme" content="light dark">'
+                   '<meta name="oxt-appearance" content="system">')
+
+
+def appearance_page_name():
+    return STACK_NAME + '-appearance.html'
+
+
+def write_appearance_page(page):
+    """Writes the probe's page with APPEARANCE_META beside it."""
+    with open(page, 'r', encoding='utf-8') as f:
+        text = f.read()
+    if '</head>' not in text:
+        raise CheckError('%s has no </head>' % page)
+    text = text.replace('</head>', APPEARANCE_META + '</head>', 1)
+    with open(os.path.join(os.path.dirname(page), appearance_page_name()), 'w', encoding='utf-8') as f:
+        f.write(text)
+
+
 def built_files(site):
     """(version, page) of a standalone's folder: its engine
     (standalone-community-<version>.js and .wasm), standalone.zip and the
@@ -1956,6 +1979,63 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             except PlaywrightError as e:
                 problems.append('the check of the old home folder\'s copy failed: %s%s' % (e, extra_said()))
                 del extra_events[:]
+        if 'ready' in probes:
+            # the systemAppearance in a browser set to dark: "light" on the
+            # page as built, as on every page before 0.2.7-rc.6.9; "dark"
+            # on the page that follows the browser's colour scheme, and
+            # "light" again, with a systemAppearanceChanged message, when
+            # the browser's scheme turns light. With ?tab=, the probe runs
+            # no checks.
+            try:
+                browser_waiting[0] = 'the systemAppearance'
+                del extra_events[:]
+                dark = browser.new_context(color_scheme='dark')
+                report_js = "document.liveCode.findStackWithName('%s').probeReport('appearance')" % STACK_NAME
+                seen = {}
+                for name, page_url in (('as built', url),
+                                       ('following the browser',
+                                        urllib.parse.urljoin(url, appearance_page_name()))):
+                    tab = dark.new_page()
+                    tab.on('dialog', on_dialog)
+                    watch_extra(tab, 'the page %s' % name)
+                    tab.goto(page_url + ('&' if '?' in page_url else '?') + 'tab=appearance')
+                    tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
+                                          "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
+                                          timeout=timeout * 1000)
+                    seen[name] = tab.evaluate(report_js)
+                    if name == 'following the browser' and seen[name] == 'dark,0':
+                        # the page's own count of the browser's change
+                        # events, which says on a failure whether the
+                        # browser sent one
+                        tab.evaluate("() => { window.oxtCheckSchemeChanges = 0; "
+                                     "window.matchMedia('(prefers-color-scheme: dark)').addEventListener("
+                                     "'change', () => { window.oxtCheckSchemeChanges++; }); }")
+                        tab.emulate_media(color_scheme='light')
+                        after = [None]
+
+                        def turned_light():
+                            after[0] = tab.evaluate(report_js)
+                            return after[0] == 'light,1'
+                        if not wait_for(turned_light, 'the systemAppearance following the browser to light', 10):
+                            problems.append('with the browser turned light, the page that follows its colour '
+                                            'scheme reports %r, expected \'light,1\' (the browser sent %s change '
+                                            'events to the page)'
+                                            % (after[0], tab.evaluate('window.oxtCheckSchemeChanges')))
+                if seen.get('as built') != 'light,0':
+                    problems.append('in a browser set to dark, the page as built reports %r for the '
+                                    'systemAppearance, expected \'light,0\'' % seen.get('as built'))
+                if seen.get('following the browser') != 'dark,0':
+                    problems.append('in a browser set to dark, the page that follows its colour scheme reports '
+                                    '%r for the systemAppearance, expected \'dark,0\''
+                                    % seen.get('following the browser'))
+                elif seen.get('as built') == 'light,0':
+                    lines.append('the systemAppearance: light on the page as built, the browser\'s on the page '
+                                 'that follows it, with systemAppearanceChanged')
+                del extra_events[:]
+                dark.close()
+            except (PlaywrightError, PlaywrightTimeoutError) as e:
+                problems.append('the check of the systemAppearance failed: %s%s' % (e, extra_said()))
+                del extra_events[:]
         browser_waiting[0] = 'the browser to close'
         browser.close()
 
@@ -2077,6 +2157,7 @@ def main(argv=None):
         lines.append('web engine %s: .wasm %.1f MB, .js %.0f kB' % (
             version, os.path.getsize(wasm) / 1e6, os.path.getsize(js) / 1e3))
         lines.append('standalone.zip %.1f kB' % (os.path.getsize(os.path.join(site, 'standalone.zip')) / 1e3))
+        write_appearance_page(page)
         server = make_server(site, PROBE_PAGE_DEFERRED if args.browser == 'webkit' else PROBE_PAGE)
         url = 'http://127.0.0.1:%d/%s' % (server.server_address[1], os.path.basename(page))
         log('Opening %s' % url)

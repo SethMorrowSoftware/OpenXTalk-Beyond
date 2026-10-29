@@ -232,6 +232,10 @@ public:
     /* OXT-Beyond: a stack's title, in its window's title bar (em-dc.js) */
     virtual void setname(Window window, MCStringRef newname);
 
+    /* OXT-Beyond: the systemAppearance: the browser's colour scheme on a
+     * page that asks for it, and else light, as before (em-dc.js) */
+    virtual void getsystemappearance(MCSystemAppearance &r_appearance);
+
     /* OXT-Beyond: "start using font file" and "stop using font file"
      * (em-font.cpp) */
     virtual bool loadfont(MCStringRef p_path, bool p_globally, void*& r_loaded_font_handle);

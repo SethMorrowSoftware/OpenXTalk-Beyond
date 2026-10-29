@@ -9,7 +9,7 @@ Determins if the system appearance is dark or light mode.
 
 Introduced: 9.6
 
-OS: mac, android
+OS: mac, windows, android, html5
 
 Platforms: desktop, mobile
 
@@ -24,7 +24,14 @@ end if
 
 Description:
 The <systemAppearance> property returns either "dark" or "light" depending on
-whether the application is running in a dark mode context or not. On windows
-and linux the property will return "light".
+whether the application is running in a dark mode context or not. On
+Windows it follows the "app mode" of Windows' colour settings. On Linux the
+property returns "light".
+
+In an HTML5 standalone it returns "light" unless the page was built with
+**Appearance** set to **Follow the browser** in the Web pane of the
+Standalone Application Settings: then it follows the browser's colour scheme
+(the CSS prefers-color-scheme), and the <systemAppearanceChanged> message is
+sent when that changes.
 
 References: systemAppearanceChanged (message)

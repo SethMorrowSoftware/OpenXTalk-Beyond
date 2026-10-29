@@ -46,6 +46,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 local sClicks, sKeys, sLoaded, sLoadedData, sInner, sOrder, sPlayStopped
 local sBrowserCalls, sBrowserEvents, sDrag, sDnd, sDrop, sMouseLoop
+-- how many systemAppearanceChanged messages the stack had (probeReport
+-- "appearance")
+local sAppearanceChanges
 
 private command probeLine pText
    write "PROBE " & pText & return to stdout
@@ -1069,5 +1072,16 @@ function probeReport pWhat
    if pWhat is "mouse" then
       return sMouseLoop
    end if
+   -- the systemAppearance, and how many times it changed (web_check.py
+   -- opens the page in a browser set to dark, as built and as a page that
+   -- follows the browser's colour scheme)
+   if pWhat is "appearance" then
+      return the systemAppearance & "," & (sAppearanceChanges + 0)
+   end if
    return the text of field "Probe Field" & "|" & sKeys & "|" & sClicks
 end probeReport
+
+on systemAppearanceChanged
+   add 1 to sAppearanceChanges
+   pass systemAppearanceChanged
+end systemAppearanceChanged

@@ -401,6 +401,12 @@ end createHtmlPage
 --                     centered at the top (the page's own place), "center"
 --                     for centered in the browser's window, "topLeft" for at
 --                     the top left
+--    appearance       empty for the light appearance always (as every page
+--                     had), "system" for the browser's colour scheme: the
+--                     systemAppearance, and the colours of controls that set
+--                     none, follow it (MCScreenDC::getsystemappearance in
+--                     engine/src/em-dc.cpp), and so does the page's colour
+--                     when it has none of its own
 -- A setting that cannot be used is left out, with a warning.
 private function getPageHead pSettings, pBaseFolder, pBuildFolder
    local tHead, tStyle, tIcon, tExtension, tColor, tLuminance
@@ -443,6 +449,23 @@ private function getPageHead pSettings, pBaseFolder, pBuildFolder
          revStandaloneAddWarning "HTML5: the page's colour is not #RRGGBB:" && tColor
       end if
    end if
+
+   switch pSettings["emscripten,appearance"]
+      case empty
+         break
+      case "system"
+         put "<meta name=" & quote & "color-scheme" & quote && "content=" & quote & "light dark" & quote & ">" & \
+               "<meta name=" & quote & "oxt-appearance" & quote && "content=" & quote & "system" & quote & ">" after tHead
+         -- the page's dark colour, that of the stacks (em-theme.cpp), when
+         -- it has none of its own
+         if pSettings["emscripten,backgroundColor"] is empty then
+            put "@media (prefers-color-scheme: dark){body{background-color:#202020}#status{color:#cccccc}}" after tStyle
+         end if
+         break
+      default
+         revStandaloneAddWarning "HTML5: unknown appearance of the page:" && pSettings["emscripten,appearance"]
+         break
+   end switch
 
    switch pSettings["emscripten,position"]
       case empty

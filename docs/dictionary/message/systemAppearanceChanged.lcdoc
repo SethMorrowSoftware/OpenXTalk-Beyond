@@ -12,7 +12,7 @@ Associations: card
 
 Introduced: 1.0
 
-OS: mac, windows, linux, android
+OS: mac, windows, linux, android, html5
 
 Platforms: desktop,mobile
 
@@ -36,6 +36,10 @@ how a desktop switches between light and dark there; the <systemAppearance>
 itself reports "light" on Linux, so a handler can compare the
 <effective> <backgroundColor> of a stack to tell a dark theme from a light
 one.
+
+In an HTML5 standalone the message is sent when the browser's colour scheme
+changes, on a page built with **Appearance** set to **Follow the browser**
+in the Web pane of the Standalone Application Settings.
 
 References: systemAppearance (property), message (glossary), defaultStack (property)
 

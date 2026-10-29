@@ -689,3 +689,155 @@ private function ideDocsRemoveAttached pConnection, pAPI, pLibraryName, pAttache
    end if
    return tFailed
 end ideDocsRemoveAttached
+
+# OXT-Beyond: the docs of the externals the user added. The IDE loads every
+# external of the user's Externals folder (revEnvironmentUserExternalsPath),
+# as LiveCode did, but the Dictionary only ever read the docs of extensions,
+# so an external's .lcdoc was ignored, and the way round it was to wrap the
+# docs in an empty LiveCode Builder library (Skids, openxtalk.org p=25608).
+# The .lcdoc files of that folder, beside the externals or in a folder of one
+# (blur/ or blur.bundle/, and a bundle's Contents/Resources), now go in as an
+# installed extension's api.lcdoc does (revIDEGetExtensionDocsData in
+# revidelibrary). A folder with none, as every one had before, adds nothing.
+# Returns a numerically keyed array, in the order of the files' names: "file"
+# the .lcdoc, "key" its folder in the docs cache's Externals folder, and
+# "title" the library it is shown under: its own "Library:" name, or else
+# the name of its file (of its folder, for an api.lcdoc, less a .bundle)
+function ideDocsUserExternalsDocs pFolder
+   local tDocsA, tSeenA
+   if pFolder is empty or there is not a folder pFolder then
+      return tDocsA
+   end if
+   __ideDocsAddExternalsDocs pFolder, empty, tDocsA, tSeenA
+   local tFolders
+   put folders(pFolder) into tFolders
+   sort lines of tFolders
+   repeat for each line tSub in tFolders
+      if tSub is empty or tSub begins with "." then
+         next repeat
+      end if
+      __ideDocsAddExternalsDocs pFolder & slash & tSub, tSub, tDocsA, tSeenA
+      __ideDocsAddExternalsDocs pFolder & slash & tSub & "/Contents/Resources", tSub, tDocsA, tSeenA
+   end repeat
+   return tDocsA
+end ideDocsUserExternalsDocs
+
+private command __ideDocsAddExternalsDocs pFolder, pOwner, @xDocsA, @xSeenA
+   if there is not a folder pFolder then
+      exit __ideDocsAddExternalsDocs
+   end if
+   local tFiles
+   put files(pFolder) into tFiles
+   filter tFiles with "*.lcdoc"
+   sort lines of tFiles
+   set the itemDelimiter to "."
+   repeat for each line tFile in tFiles
+      local tName, tKey, tTitle, tText, tCount
+      if tFile begins with "." then
+         next repeat
+      end if
+      put item 1 to -2 of tFile into tName
+      if pOwner is empty then
+         put tName into tKey
+      else
+         put pOwner & "_" & tName into tKey
+         if tName is "api" then
+            put pOwner into tName
+            if tName ends with ".bundle" then
+               delete the last item of tName
+            end if
+         end if
+      end if
+      -- (a bundle's api.lcdoc, both beside its Contents and in it, once)
+      if xSeenA[tKey] is true then
+         next repeat
+      end if
+      put true into xSeenA[tKey]
+
+      put empty into tTitle
+      put textDecode(url ("binfile:" & pFolder & slash & tFile), "utf-8") into tText
+      get matchText(tText, "(?m)^[ \t]*Library:[ \t]*(\S[^\r\n]*?)[ \t]*\r?$", tTitle)
+      if tTitle is empty then
+         put tName into tTitle
+      end if
+
+      put the number of elements of xDocsA + 1 into tCount
+      put pFolder & slash & tFile into xDocsA[tCount]["file"]
+      put tKey into xDocsA[tCount]["key"]
+      put tTitle into xDocsA[tCount]["title"]
+   end repeat
+end __ideDocsAddExternalsDocs
+
+# OXT-Beyond: keeps the docs cache's folder of the user's externals
+# (pCacheFolder) in step with pDocsA (ideDocsUserExternalsDocs): each .lcdoc
+# gets its folder there, with the library it is shown under noted in it, and
+# the folder of one that has gone goes, with its library's entries in the
+# docs database (ideDocsRemoveLibrary), as an uninstalled extension's do.
+# They stay when pDocsA still has a library of that name, or when it is one
+# of pKeepTitles (the installed extensions'). Nothing here throws
+constant kExternalsDocsTitleFile = "library.txt"
+
+command ideDocsNoteUserExternalsDocs pCacheFolder, pDocsA, pKeepTitles
+   local tKeepA, tTitlesA
+   if pCacheFolder is empty then
+      exit ideDocsNoteUserExternalsDocs
+   end if
+   try
+      repeat for each element tDocA in pDocsA
+         local tFolder, tNote
+         put true into tKeepA[tDocA["key"]]
+         put true into tTitlesA[tDocA["title"]]
+         put pCacheFolder & slash & tDocA["key"] into tFolder
+         if there is not a folder tFolder then
+            __ideDocsEnsureFolder tFolder
+         end if
+         put textEncode(tDocA["title"], "utf-8") into tNote
+         if url ("binfile:" & tFolder & slash & kExternalsDocsTitleFile) is not tNote then
+            put tNote into url ("binfile:" & tFolder & slash & kExternalsDocsTitleFile)
+         end if
+      end repeat
+
+      if there is not a folder pCacheFolder then
+         exit ideDocsNoteUserExternalsDocs
+      end if
+      repeat for each line tSub in folders(pCacheFolder)
+         local tTitle
+         if tSub is empty or tSub is "." or tSub is ".." or tKeepA[tSub] is true then
+            next repeat
+         end if
+         put textDecode(url ("binfile:" & pCacheFolder & slash & tSub & slash & \
+               kExternalsDocsTitleFile), "utf-8") into tTitle
+         if tTitle is not empty and tTitlesA[tTitle] is not true and \
+               tTitle is not among the lines of pKeepTitles then
+            try
+               ideDocsRemoveLibrary "livecode_script", tTitle
+            catch tError
+            end try
+         end if
+         __ideDocsDeleteFolder pCacheFolder & slash & tSub
+      end repeat
+   catch tError
+   end try
+end ideDocsNoteUserExternalsDocs
+
+private command __ideDocsEnsureFolder pFolder
+   local tParent
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFolder into tParent
+   if tParent is not empty and there is not a folder tParent then
+      __ideDocsEnsureFolder tParent
+   end if
+   create folder pFolder
+end __ideDocsEnsureFolder
+
+private command __ideDocsDeleteFolder pFolder
+   repeat for each line tFile in files(pFolder)
+      delete file (pFolder & slash & tFile)
+   end repeat
+   repeat for each line tSub in folders(pFolder)
+      if tSub is not "." and tSub is not ".." then
+         __ideDocsDeleteFolder pFolder & slash & tSub
+      end if
+   end repeat
+   delete folder pFolder
+end __ideDocsDeleteFolder

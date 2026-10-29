@@ -12031,6 +12031,43 @@ private function __webDocsInputsKey pInputs, pSourceAPI, pExtensionData
    return tHex
 end __webDocsInputsKey
 
+-- OXT-Beyond: the docs of the externals in the user's Externals folder
+-- (ideDocsUserExternalsDocs in revIDEDocumentationLibrary), added to
+-- xDataA as installed extensions' docs are (revIDEExtensionDocsData), for
+-- the xTalk Script API. Each .lcdoc is its own source, so it is read again
+-- when it changes, with no need to empty the docs cache, and its docs leave
+-- the cache with it (ideDocsNoteUserExternalsDocs). Without a .lcdoc there,
+-- nothing is added. Nothing here stops the docs of the extensions
+private command __addUserExternalsDocsData pAPI, @xDataA
+   if pAPI is not empty and pAPI is not "livecode_script" then
+      exit __addUserExternalsDocsData
+   end if
+   if revEnvironmentIsWeb() then
+      exit __addUserExternalsDocsData
+   end if
+   try
+      local tDocsA, tKeepTitles, tCount, tIndex, tExtension
+      put ideDocsUserExternalsDocs(revEnvironmentUserExternalsPath()) into tDocsA
+      repeat for each element tExtension in revIDEExtensionDocsData()
+         put tExtension["title"] & return after tKeepTitles
+      end repeat
+      ideDocsNoteUserExternalsDocs revEnvironmentUserDocsPath() & "/Externals", \
+            tDocsA, tKeepTitles
+
+      put the number of elements of xDataA into tCount
+      set the itemDelimiter to slash
+      repeat with tIndex = 1 to the number of elements of tDocsA
+         add 1 to tCount
+         put item 1 to -2 of tDocsA[tIndex]["file"] into xDataA[tCount]["folder"]
+         put item -1 of tDocsA[tIndex]["file"] into xDataA[tCount]["source_file"]
+         put tDocsA[tIndex]["file"] into xDataA[tCount]["api_file"]
+         put tDocsA[tIndex]["title"] into xDataA[tCount]["title"]
+         put "Externals/" & tDocsA[tIndex]["key"] into xDataA[tCount]["name"]
+      end repeat
+   catch tError
+   end try
+end __addUserExternalsDocsData
+
 -- (OXT-Beyond: with pDatabaseOnly true, the docs database is brought up to
 -- date while the browser Dictionary is off: revIDEUpdateExtensionDocsDatabase)
 private function revIDEGetExtensionDocsData pAPI, pDatabaseOnly
@@ -12039,6 +12076,8 @@ private function revIDEGetExtensionDocsData pAPI, pDatabaseOnly
    --
    local tExtensionDocsDataA
    put revIDEExtensionDocsData(pAPI) into tExtensionDocsDataA
+   -- OXT-Beyond: and the docs of the externals the user added
+   __addUserExternalsDocsData pAPI, tExtensionDocsDataA
 
    local tFolder, tCachedDataFolder
    set the itemdelimiter to slash
@@ -12073,6 +12112,10 @@ private function revIDEGetExtensionDocsData pAPI, pDatabaseOnly
       
       local tSourceAPI
       put tFolder & slash & "api.lcdoc" into tSourceAPI
+      -- (an external's .lcdoc is its own source: __addUserExternalsDocsData)
+      if tExtensionData["api_file"] is not empty then
+         put tExtensionData["api_file"] into tSourceAPI
+      end if
       
       local tAPIJS
       put tCachedDataFolder & "/api.js" into tAPIJS

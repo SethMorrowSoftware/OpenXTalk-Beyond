@@ -1698,6 +1698,86 @@ MCEmscriptenHandleWindowClose(uint32_t p_window)
 }
 
 /* ================================================================
+ * The system's appearance
+ * ================================================================ */
+
+/* OXT-Beyond: the web engine said "light" for the systemAppearance whatever
+ * the browser's colour scheme, so a stack drew in the light colours in a
+ * browser set to dark, while the desktop engines follow the system (Paul,
+ * openxtalk.org p=25208; bwmilby p=25615). A page that asks for it, with
+ * <meta name="oxt-appearance" content="system"> (the "Appearance" setting
+ * of the Standalone Settings' HTML5 pane), now gets the browser's scheme,
+ * and the systemAppearanceChanged message when it changes, as the desktop
+ * engines do. A page without it, which every page was, keeps "light", so
+ * that a stack made for the light colours looks as it did. The colours of
+ * each appearance are em-theme.cpp's. */
+
+extern "C" int32_t MCEmscriptenGetSystemAppearanceIsDark(void);
+
+void
+MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+{
+	if (MCEmscriptenGetSystemAppearanceIsDark() != 0)
+		r_appearance = kMCSystemAppearanceDark;
+	else
+		r_appearance = kMCSystemAppearanceLight;
+}
+
+/* Every stack is drawn again in the colours of the new appearance (they are
+ * read as the stacks draw), and the current card gets the message, as on
+ * the desktop (MCPlatformHandleSystemAppearanceChanged in desktop.cpp) */
+class MCEmscriptenSystemAppearanceChangedEvent: public MCCustomEvent
+{
+public:
+	virtual void Destroy(void)
+	{
+		delete this;
+	}
+
+	virtual void Dispatch(void)
+	{
+		if (MCquit || MCstacks == nil)
+			return;
+
+		MCStacknode *t_node = MCstacks->topnode();
+		if (t_node != nil)
+		{
+			MCStacknode *t_start = t_node;
+			do
+			{
+				MCStack *t_stack = t_node->getstack();
+				if (t_stack != nil)
+					t_stack->dirtyall();
+				t_node = t_node->next();
+			} while (t_node != nil && t_node != t_start);
+		}
+
+		/* Sent while the event is handled, as the window close event
+		 * sends closeStackRequest, rather than left pending for the wait
+		 * loop, which had already read when its next message falls due */
+		if (MCdefaultstackptr && MCdefaultstackptr->getcurcard() != nil)
+			MCdefaultstackptr->getcurcard()->message(MCM_system_appearance_changed);
+	}
+};
+
+extern "C" MC_DLLEXPORT_DEF bool
+MCEmscriptenHandleSystemAppearanceChanged(void)
+{
+	MCEmscriptenSystemAppearanceChangedEvent *t_event = nil;
+	if (!MCnoui)
+		t_event = new (nothrow) MCEmscriptenSystemAppearanceChangedEvent;
+	if (t_event == nil)
+		return false;
+
+	if (!MCEventQueuePostCustom(t_event))
+	{
+		t_event->Destroy();
+		return false;
+	}
+	return true;
+}
+
+/* ================================================================
  * Snapshots of the screen
  * ================================================================ */
 

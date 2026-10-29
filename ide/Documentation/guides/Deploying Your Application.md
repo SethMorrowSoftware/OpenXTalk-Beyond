@@ -318,6 +318,7 @@ Figure 9 – Standalone Settings – Web (HTML5)
 | **Icon**                        | An image that the browser shows as the page's icon, in its tab and its bookmarks: a PNG, ICO, SVG, GIF, JPEG or WebP file, which the standalone gets a copy of. **Use None** removes it                                                               |
 | **Background**                  | The colour of the page around the main stack: click the swatch or **Choose...** to change it. **Use White** puts back the page's own white                                                                                                            |
 | **Position**                    | Where the main stack is in the page: **Centered at the top** (the page's own place), **Centered in the window** of the browser, or **At the top left**                                                                                                |
+| **Appearance**                  | **Light**: the stacks keep the light colours whatever the browser's colour scheme, as before. **Follow the browser**: the `systemAppearance` is the browser's scheme, controls without colours of their own are drawn dark in a dark scheme, the card gets `systemAppearanceChanged` when the scheme changes, and so does a page without its own background |
 
 Almost every Internet-connected device has a web browser.  If your application
 can run in a browser, your app can be used anywhere and by anyone, without any

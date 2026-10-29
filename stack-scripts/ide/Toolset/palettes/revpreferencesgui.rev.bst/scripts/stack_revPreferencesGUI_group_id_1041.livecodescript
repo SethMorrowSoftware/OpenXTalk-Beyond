@@ -12,7 +12,7 @@ script "stack_revPreferencesGUI_group_id_1041"
 #   If the user cancels the folder choose prompt or doesn't select a valid folder, nothing is done.
 command chooseCustomizationPath
   local tPath
-  answer folder "Please choose user extensions path"
+  answer folder "Please choose the user additions folder (extensions, externals, plugins and more)"
   put it into tPath
   if tPath is empty then
     exit chooseCustomizationPath
