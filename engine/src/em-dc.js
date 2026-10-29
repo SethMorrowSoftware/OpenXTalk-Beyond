@@ -31,6 +31,8 @@ mergeInto(LibraryManager.library, {
 			LiveCodeDC._windowList = this.containerCreate(document.body, 1);
 			LiveCodeDC._assignedMainWindow = false;
 
+			LiveCodeDC._watchAppearance();
+
 			LiveCodeDC._initialised = true;
 		},
 
@@ -40,6 +42,41 @@ mergeInto(LibraryManager.library, {
 			}
 
 			LiveCodeDC._initialised = false;
+		},
+
+		// OXT-Beyond: the browser's colour scheme, which is the
+		// systemAppearance only on a page that asks for it with
+		// <meta name="oxt-appearance" content="system"> (em-dc.cpp,
+		// MCScreenDC::getsystemappearance). Elsewhere it stays light, as it
+		// always was. When the scheme changes, the engine draws its stacks
+		// again and sends systemAppearanceChanged.
+		_appearanceQuery: null,
+
+		_watchAppearance: function() {
+			LiveCodeDC._appearanceQuery = null;
+			var meta = document.querySelector('meta[name="oxt-appearance"]');
+			if (!meta || meta.getAttribute('content') !== 'system' ||
+			    typeof window.matchMedia !== 'function') {
+				return;
+			}
+			var query = window.matchMedia('(prefers-color-scheme: dark)');
+			LiveCodeDC._appearanceQuery = query;
+			var changed = function() {
+				LiveCodeAsync.delay(function() {
+					Module.ccall('MCEmscriptenHandleSystemAppearanceChanged', 'number', [], []);
+				});
+				LiveCodeAsync.resume();
+			};
+			if (typeof query.addEventListener === 'function') {
+				query.addEventListener('change', changed);
+			} else if (typeof query.addListener === 'function') {
+				// Safari before 14
+				query.addListener(changed);
+			}
+		},
+
+		isAppearanceDark: function() {
+			return LiveCodeDC._appearanceQuery !== null && LiveCodeDC._appearanceQuery.matches;
 		},
 
 		containerCreate: function(containerElement, maxZIndex) {
@@ -1218,6 +1255,11 @@ mergeInto(LibraryManager.library, {
 		{{{ makeSetValue('rTop', '0', 'rect.top', 'i32') }}};
 		{{{ makeSetValue('rRight', '0', 'rect.right', 'i32') }}};
 		{{{ makeSetValue('rBottom', '0', 'rect.bottom', 'i32') }}};
+	},
+
+	MCEmscriptenGetSystemAppearanceIsDark__deps: ['$LiveCodeDC'],
+	MCEmscriptenGetSystemAppearanceIsDark: function() {
+		return LiveCodeDC.isAppearanceDark() ? 1 : 0;
 	},
 
 	MCEmscriptenDCInitializeJS__deps: ['$LiveCodeDC'],

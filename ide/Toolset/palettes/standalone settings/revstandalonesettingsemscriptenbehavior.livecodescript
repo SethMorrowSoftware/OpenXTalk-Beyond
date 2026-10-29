@@ -66,7 +66,7 @@ end emscriptenBuyNow
 --------------------------------------------------------------------------------
 -- OXT-Beyond: the settings of the page that the builder writes
 -- (revsaveasemscriptenstandalone.livecodescript): its title, its icon, its
--- colour and where the main stack is in it, each under the key
+-- colour, where the main stack is in it and its appearance, each under the key
 -- "emscripten,<setting>" of the standalone settings. OpenXTalk Lite moved
 -- the HTML5 checkbox out of the window and wrote a note about Webtalk, an
 -- interpreter of its own, in its place. The stack file has no controls for
@@ -77,12 +77,17 @@ end emscriptenBuyNow
 
 -- The controls that the page's settings use, which are enabled while the
 -- standalone is built for HTML5
-constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition"
+constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition,emscriptenAppearanceLabel,emscriptenAppearance"
 
 -- The places of the main stack in the page: the menu's items, and the
 -- settings' values (empty for the first, the page's own place)
 constant kPositionItems = "Centered at the top,Centered in the window,At the top left"
 constant kPositionValues = ",center,topLeft"
+
+-- The appearances of the page: the menu's items, and the settings' values
+-- (empty for the first, light always, as every page was)
+constant kAppearanceItems = "Light,Follow the browser (light or dark)"
+constant kAppearanceValues = ",system"
 
 -- The page's colour when it has none of its own
 constant kDefaultPageColor = "#FFFFFF"
@@ -104,7 +109,7 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of graphic id 1620 of tWindows, "emscriptenPageLine") into tControl
    
    -- A label for each setting, as the Windows card's "Application Icon:"
-   repeat for each item tSetting in "Title,Icon,Color,Position"
+   repeat for each item tSetting in "Title,Icon,Color,Position,Appearance"
       put __CopyControl(the long id of field id 1135 of tWindows, "emscripten" & tSetting & "Label") into tControl
       if tSetting is "Color" then
          set the text of tControl to "Background:"
@@ -147,6 +152,11 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of button "UAC Execution Level" of tWindows, "emscriptenPosition") into tControl
    set the text of tControl to replaceText(kPositionItems, comma, return)
    set the label of tControl to item 1 of kPositionItems
+   
+   -- The appearance: light always, or the browser's colour scheme
+   put __CopyControl(the long id of button "UAC Execution Level" of tWindows, "emscriptenAppearance") into tControl
+   set the text of tControl to replaceText(kAppearanceItems, comma, return)
+   set the label of tControl to item 1 of kAppearanceItems
    
    unlock messages
    unlock screen
@@ -202,6 +212,10 @@ private command __LayoutWebSettings pTop
    set the rect of field "emscriptenPositionLabel" of me to 2, tTop, 142, tTop + 24
    set the rect of button "emscriptenPosition" of me to 150, tTop + 1, 400, tTop + 23
    
+   add 32 to tTop
+   set the rect of field "emscriptenAppearanceLabel" of me to 2, tTop, 142, tTop + 24
+   set the rect of button "emscriptenAppearance" of me to 150, tTop + 1, 400, tTop + 23
+   
    -- the text, as tall as it is at this width
    add 38 to tTop
    set the rect of field "emscriptenDeploymentInfoLabel" of me to 10, tTop, 740, tTop + 84
@@ -229,6 +243,11 @@ private command __ShowWebSettings pSettings
       put 1 into tValue
    end if
    set the menuHistory of button "emscriptenPosition" of me to tValue
+   put itemOffset(pSettings["emscripten,appearance"], kAppearanceValues) into tValue
+   if pSettings["emscripten,appearance"] is empty or tValue is 0 then
+      put 1 into tValue
+   end if
+   set the menuHistory of button "emscriptenAppearance" of me to tValue
    repeat for each item tControl in kWebSettingsControls
       set the enabled of control tControl of me to tEnabled
    end repeat
@@ -312,6 +331,9 @@ end mouseUp
 on menuPick pItem
    if the short name of the target is "emscriptenPosition" then
       setSetting "emscripten,position", item (the menuHistory of the target) of kPositionValues
+   end if
+   if the short name of the target is "emscriptenAppearance" then
+      setSetting "emscripten,appearance", item (the menuHistory of the target) of kAppearanceValues
    end if
    pass menuPick
 end menuPick
