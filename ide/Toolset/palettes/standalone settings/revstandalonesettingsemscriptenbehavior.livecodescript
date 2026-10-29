@@ -157,7 +157,19 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of button "UAC Execution Level" of tWindows, "emscriptenAppearance") into tControl
    set the text of tControl to replaceText(kAppearanceItems, comma, return)
    set the label of tControl to item 1 of kAppearanceItems
-   
+
+   -- Each control's own tooltip: a copy keeps its template's, which speaks
+   -- of the Windows application's icon (.ico) and file description
+   set the tooltip of field "emscriptenTitle" of me to "The title of the web page, which the browser shows on its tab (empty: the stack's title)"
+   set the tooltip of field "emscriptenIcon" of me to "The image that the browser shows as the page's icon on its tab"
+   set the tooltip of button "emscriptenIconNone" of me to "Don't give the page an icon and empty the field"
+   set the tooltip of button "emscriptenIconChoose" of me to "Choose an image (.png, .ico, .svg, .gif, .jpg or .webp) for the page's icon"
+   set the tooltip of graphic "emscriptenColorSwatch" of me to "The colour of the page around the stack: click to choose another"
+   set the tooltip of button "emscriptenColorDefault" of me to "Use white, the page's colour when none is chosen"
+   set the tooltip of button "emscriptenColorChoose" of me to "Choose the colour of the page around the stack"
+   set the tooltip of button "emscriptenPosition" of me to "Where the main stack is on the page"
+   set the tooltip of button "emscriptenAppearance" of me to "Light: the stack draws light in every browser, as before. Follow the browser: the systemAppearance and the controls' default colours follow the browser's light or dark scheme"
+
    unlock messages
    unlock screen
 end __EnsureWebSettings
