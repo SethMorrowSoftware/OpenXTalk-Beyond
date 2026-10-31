@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3151,6 +3151,49 @@ function tourRoomBeside pBeside, pWindow, pAvoid, pScreen
    end repeat
    return line 1 to -1 of tRoom
 end tourRoomBeside
+
+-- A widget colour whose default is a colour of its own (the header bar's
+-- text colour, 0,0,0) can be cleared in the inspector, so that the widget
+-- inherits its colour again, as a script can do (OpenXTalkPaul,
+-- openxtalk.org p=25683): its editor offers Clear while it has a colour,
+-- and Clear sets the property to empty. A colour editor whose default is
+-- empty offers no Clear (Reset to default does it)
+on tour_inspector_clear_colour
+   local tWidget, tPI, tEditor, tFails, tError
+   get tourSampleStack()
+   go stack kSample
+   set the defaultStack to kSample
+   create widget "oxtTourHeader" as "com.livecode.widget.headerbar"
+   put it into tWidget
+   set the foregroundColor of tWidget to "200,0,0"
+   try
+      put tourInspect(tWidget) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "foregroundColor") into tEditor
+      if tEditor is empty then throw "the header bar's inspector has no Text color"
+      repeat 30 times
+         if the editorValue of tEditor is "200,0,0" then exit repeat
+         tourWait 100
+      end repeat
+      if the editorCanClear of tEditor is not true then
+         put "Text color (200,0,0, default 0,0,0) offers no Clear" & return after tFails
+      end if
+      -- as a pick of Clear in the editor's menu (editorPopupMenu's button)
+      if there is not a button "inspectMenu" of tEditor then create button "inspectMenu" in tEditor
+      dispatch "menuPick" to button "inspectMenu" of tEditor with "Clear (no colour of its own)"
+      tourWait 500
+      tourRecord "INFO inspector-clear-colour the header bar's foregroundColor after Clear:" && \
+            quote & the foregroundColor of tWidget & quote
+      if the foregroundColor of tWidget is not empty then
+         put "Clear left the foregroundColor" && the foregroundColor of tWidget & return after tFails
+      end if
+   catch tError
+      put tError & return after tFails
+   end try
+   tourCloseInspectors
+   if exists(tWidget) then delete tWidget
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_clear_colour
 
 on tour_inspector_multiple
    local tPI

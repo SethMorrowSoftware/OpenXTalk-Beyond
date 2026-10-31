@@ -134,12 +134,38 @@ on updateProperty pForce
 end updateProperty
 
 before mouseUp pButtonNumber
-      if pButtonNumber is 3 and sPropertyInfo["default"] is not "no_default" then
-         editorPopupMenu "Reset to default", the mouseloc
+      local tMenu
+      if pButtonNumber is 3 then
+         if sPropertyInfo["default"] is not "no_default" then put "Reset to default" into tMenu
+         if the editorCanClear of me then
+            if tMenu is not empty then put return after tMenu
+            put "Clear (no colour of its own)" after tMenu
+         end if
+      end if
+      if tMenu is not empty then
+         editorPopupMenu tMenu, the mouseloc
       else
          pass mouseUp
       end if
 end mouseUp
+
+-- OXT-Beyond: a colour whose default is a colour of its own (a widget's,
+-- from its metadata) could not be set back to empty in the inspector, so
+-- the widget could not inherit its colour again, though a script can set
+-- it to empty (OpenXTalkPaul, openxtalk.org p=25683; bwmilby, p=25701).
+-- Its editor's menu offers "Clear" too, while it has a colour. A colour
+-- whose default is empty already clears with "Reset to default", and
+-- other editors are unchanged.
+getProp editorCanClear
+   local tDefault
+   if sPropertyInfo["editor"] is not among the items of "com.livecode.pi.color,com.livecode.pi.colorwithalpha" then
+      return false
+   end if
+   if sPropertyInfo["read_only"] is true or ";" is in sPropertyInfo["property_name"] then return false
+   put sPropertyInfo["default"] into tDefault
+   if tDefault is "no_default" or tDefault is "empty" or tDefault is empty then return false
+   return sValue is not empty
+end editorCanClear
 
 on editorPopupMenu pMenuText, pLoc
    # Create the button that we're going to popup on this stack
@@ -163,6 +189,12 @@ end editorPopupMenu
 on menuPick pPick
    lock screen
    local tDefault
+   if pPick begins with "Clear" and the short name of the target is "inspectMenu" then
+      set the editorValue of me to empty
+      updateProperty
+      unlock screen
+      exit menuPick
+   end if
    put the editorDefault of me into tDefault
    if tDefault is not "no_default" then
       if tDefault is "empty" then
