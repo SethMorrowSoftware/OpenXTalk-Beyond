@@ -2,8 +2,11 @@ script "revLearn"
 -- OXT-Beyond: Learn, one window for the lessons, the guides and the
 -- examples.
 --
--- The Help menu's Lessons, Guides and Demos open it (revMenubar), and so
--- do Home's Lessons and Examples. It has the look of Home and the web
+-- It is a place of OXT-Beyond Home (palettes/home/revhub.livecodescript):
+-- the Help menu's How-to, Guides and Examples open Home there, and Home
+-- hosts this stack as its window's behavior (the How-to, Guides and
+-- Examples places; see "Hosted in Home" below). Opened on its own, as its
+-- file can be, it is its own window as before. It has the look of Home and the web
 -- tour, drawn by revLearnKit, which is its behavior: a dark sidebar with
 -- the three places, a search box, an index and Back and Next; a header
 -- with the page's title; and the page.
@@ -79,6 +82,12 @@ local sRelayout, sPlaced
 command revLearnShow pSection, pPage
    if pSection is not among the items of kSections then
       put "lessons" into pSection
+   end if
+   -- (OXT-Beyond Home, when the IDE has it, is where Learn opens now)
+   -- (the stack's own kit may not be its behavior yet: the property is
+   -- read, not lkHosted)
+   if the cHubPlaces of me is empty and leOpenInHome(pSection, pPage) then
+      exit revLearnShow
    end if
    if the mode of me is 0 then
       put pSection into sSection
@@ -208,19 +217,21 @@ end leUseKit
 -- This stack's folder, the IDE's Toolset folder and the IDE's own folder
 -- (where Resources is), from this stack's file: the same in a source
 -- tree, an installed IDE and the web IDE
+-- (hosted in Home, "me" is Home's window, whose file is elsewhere: the
+-- file is this script's own stack's, revLearn)
 private function leFolder
    set the itemDelimiter to slash
-   return item 1 to -2 of the filename of me
+   return item 1 to -2 of the filename of stack "revLearn"
 end leFolder
 
 private function leToolset
    set the itemDelimiter to slash
-   return item 1 to -4 of the filename of me
+   return item 1 to -4 of the filename of stack "revLearn"
 end leToolset
 
 private function leRoot
    set the itemDelimiter to slash
-   return item 1 to -5 of the filename of me
+   return item 1 to -5 of the filename of stack "revLearn"
 end leRoot
 
 -- Below the menu bar, as large as the screen allows
@@ -274,6 +285,95 @@ end leUnload
 
 ################################################################################
 #
+# Hosted in Home
+#
+-- OXT-Beyond Home (palettes/home/revhub.livecodescript) uses this stack as
+-- its window's behavior for three of its places: How-to (the section
+-- "lessons"), Guides and Examples. It sends these four messages, and the
+-- window's own preOpenStack, openStack and closeStack never reach this
+-- script (Home keeps them), so these do what those do here, but for the
+-- window's place and size, which are Home's.
+
+-- The section a place of Home's stands for, and the other way about
+private function leSectionOf pPlace
+   if pPlace is "howto" then
+      return "lessons"
+   end if
+   if pPlace is among the items of kSections then
+      return pPlace
+   end if
+   return "lessons"
+end leSectionOf
+
+private function lePlaceOf pSection
+   if pSection is "lessons" then
+      return "howto"
+   end if
+   return pSection
+end lePlaceOf
+
+-- How far down the sidebar's search and index are: below Home's five
+-- places when hosted, where the three sections' list was otherwise
+private function leSideShift
+   if lkHosted() then
+      return 62
+   end if
+   return 0
+end leSideShift
+
+-- Opens Home at the place a section is, if the IDE has Home; false when it
+-- does not, or it failed
+private function leOpenInHome pSection, pPage
+   local tPath, tError
+   put leToolset() & "/palettes/home/revhub.livecodescript" into tPath
+   if there is no file tPath then
+      return false
+   end if
+   try
+      dispatch "revHubShow" to stack tPath with lePlaceOf(pSection), pPage
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end leOpenInHome
+
+on revHubAttach pPlace, pPage
+   local tSection
+   put leSectionOf(pPlace) into tSection
+   put tSection into sSection
+   put pPage into sPage[tSection]
+   leUseKit
+   get lkReadAppearance()
+   leBuild
+   leLayout
+end revHubAttach
+
+on revHubStart pPlace, pPage
+   lkStartTicking
+   lkFollowAppearance
+   leShowSection sSection, sPage[sSection]
+end revHubStart
+
+on revHubNavigate pPlace, pPage
+   local tSection
+   put leSectionOf(pPlace) into tSection
+   if tSection is sSection and pPage is empty then
+      exit revHubNavigate
+   end if
+   leShowSection tSection, pPage
+end revHubNavigate
+
+on revHubDetach
+   lkStopTicking
+   if sRelayout is not empty then
+      cancel sRelayout
+      put empty into sRelayout
+   end if
+   leUnload
+end revHubDetach
+
+################################################################################
+#
 # The three places
 #
 
@@ -283,7 +383,7 @@ private function leSectionInfo pSection, pWhat
    local tInfo
    switch pSection
       case "lessons"
-         put "Lessons|graduation-cap|violet|userguides|Lesson|Lessons edited by Terry Little from LiveCode's " & \
+         put "How-to|lightbulb|violet|userguides|Lesson|Lessons edited by Terry Little from LiveCode's " & \
                "community lessons, with lessons by Paul McClernan, collected by Tom Perry." into tInfo
          break
       case "guides"
@@ -318,6 +418,9 @@ command leShowSection pSection, pPage
       exit leShowSection
    end if
    put pSection into sSection
+   if lkHosted() then
+      set the cHubPlace of me to lePlaceOf(pSection)
+   end if
    if pSection is not "examples" then
       leLoad pSection
    end if
@@ -431,12 +534,15 @@ private command leBuild
    set the defaultStack to the short name of me
    lock screen
    lock messages
-   set the label of me to "Learn OXT-Beyond"
-   set the resizable of me to true
-   set the minWidth of me to kMinWidth
-   set the minHeight of me to kMinHeight
-   set the destroyStack of me to true
-   set the rect of me to 0, 0, kWidth, kHeight
+   -- (hosted in Home, the window's title and size are Home's)
+   if not lkHosted() then
+      set the label of me to "Learn OXT-Beyond"
+      set the resizable of me to true
+      set the minWidth of me to kMinWidth
+      set the minHeight of me to kMinHeight
+      set the destroyStack of me to true
+      set the rect of me to 0, 0, kWidth, kHeight
+   end if
    set the backgroundColor of me to lkColor("bg")
    leBuildSide
    leBuildHeader
@@ -460,43 +566,51 @@ private command leBuildSide
    local tObj, tY, tSection
    put lkBox("sideBg", lkR(0, 0, kSide, kHeight), lkColor("side"), 0, empty) into tObj
    lkGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", "0," & kHeight
-   -- The mark
-   put lkBox("sideMark", "20,22,56,58", lkColor("violet"), 22, empty) into tObj
-   lkGradient tObj, "124,58,237|219,39,119", "20,22", "56,58"
-   lkGlow tObj, "168,85,247", 16, 110
-   get lkIcon("sideMarkIcon", "graduation-cap", "255,255,255", "28,30,48,50", empty)
-   get lkLabel("sideTitle", lkR(66, 21, kSide - 8, 45), "Learn", 19, "255,255,255", empty)
-   get lkLabel("sideSub", lkR(66, 45, kSide - 8, 61), "Lessons, guides and examples", 11, lkColor("sideMuted"), empty)
+   if lkHosted() then
+      -- Home's mark and its five places, of which the three sections are
+      -- three; the search and the index go below them (leSideShift)
+      get lkHubHead(kSide)
+      put 84 into sNavY
+   else
+      -- The mark
+      put lkBox("sideMark", "20,22,56,58", lkColor("violet"), 22, empty) into tObj
+      lkGradient tObj, "124,58,237|219,39,119", "20,22", "56,58"
+      lkGlow tObj, "168,85,247", 16, 110
+      get lkIcon("sideMarkIcon", "graduation-cap", "255,255,255", "28,30,48,50", empty)
+      get lkLabel("sideTitle", lkR(66, 21, kSide - 8, 45), "Learn", 19, "255,255,255", empty)
+      get lkLabel("sideSub", lkR(66, 45, kSide - 8, 61), "Lessons, guides and examples", 11, lkColor("sideMuted"), empty)
 
-   -- The three places
-   put lkBox("navHi", lkR(10, 84, kSide - 10, 116), lkColor("side2"), 16, empty) into tObj
-   lkBorder tObj, lkColor("sideLine")
-   put lkBox("navBar", "10,91,14,109", lkColor("violet"), 4, empty) into tObj
-   put 84 into tY
-   put tY into sNavY
-   repeat for each item tSection in kSections
-      lkNavItem "nav_" & tSection, tY, 32, leSectionInfo(tSection, "label"), \
-            leSectionInfo(tSection, "icon"), "section" && tSection, 14, kSide - 10
-      add 36 to tY
-   end repeat
+      -- The three places
+      put lkBox("navHi", lkR(10, 84, kSide - 10, 116), lkColor("side2"), 16, empty) into tObj
+      lkBorder tObj, lkColor("sideLine")
+      put lkBox("navBar", "10,91,14,109", lkColor("violet"), 4, empty) into tObj
+      put 84 into tY
+      put tY into sNavY
+      repeat for each item tSection in kSections
+         lkNavItem "nav_" & tSection, tY, 32, leSectionInfo(tSection, "label"), \
+               leSectionInfo(tSection, "icon"), "section" && tSection, 14, kSide - 10
+         add 36 to tY
+      end repeat
+   end if
 
    -- Search
-   put lkBox("searchBg", lkR(14, 204, kSide - 14, 238), lkColor("side2"), 17, empty) into tObj
+   put leSideShift() into tY
+   put lkBox("searchBg", lkR(14, 204 + tY, kSide - 14, 238 + tY), lkColor("side2"), 17, empty) into tObj
    lkBorder tObj, lkColor("sideLine")
-   get lkIcon("searchIcon", "search", lkColor("sideMuted"), "27,213,43,229", empty)
-   get lkLabel("searchHint", lkR(52, 212, kSide - 44, 230), "Search", 13, lkColor("sideMuted"), empty)
+   get lkIcon("searchIcon", "search", lkColor("sideMuted"), lkR(27, 213 + tY, 43, 229 + tY), empty)
+   get lkLabel("searchHint", lkR(52, 212 + tY, kSide - 44, 230 + tY), "Search", 13, lkColor("sideMuted"), empty)
    set the dontWrap of field "searchHint" to true
-   put lkInput("search", lkR(52, 212, kSide - 44, 230), empty, 13, empty) into tObj
+   put lkInput("search", lkR(52, 212 + tY, kSide - 44, 230 + tY), empty, 13, empty) into tObj
    set the textColor of tObj to "255,255,255"
    set the hiliteColor of tObj to lkColor("sideLine")
-   get lkGroup("searchClear", lkR(kSide - 42, 209, kSide - 18, 233), empty)
-   get lkBox("searchClear_bg", lkR(kSide - 42, 209, kSide - 18, 233), lkColor("sideLine"), 12, "searchClear")
-   get lkIcon("searchClear_icon", "x", lkColor("sideInk"), lkR(kSide - 37, 214, kSide - 23, 228), "searchClear")
+   get lkGroup("searchClear", lkR(kSide - 42, 209 + tY, kSide - 18, 233 + tY), empty)
+   get lkBox("searchClear_bg", lkR(kSide - 42, 209 + tY, kSide - 18, 233 + tY), lkColor("sideLine"), 12, "searchClear")
+   get lkIcon("searchClear_icon", "x", lkColor("sideInk"), lkR(kSide - 37, 214 + tY, kSide - 23, 228 + tY), "searchClear")
    leLiveFade "searchClear", "clear"
    hide group "searchClear"
 
    -- The index
-   put lkLabel("idx", lkR(8, 250, kSide - 8, kHeight - 116), empty, 13, lkColor("sideInk"), empty) into tObj
+   put lkLabel("idx", lkR(8, 250 + tY, kSide - 8, kHeight - 116), empty, 13, lkColor("sideInk"), empty) into tObj
    set the listBehavior of tObj to true
    set the autoHilite of tObj to true
    set the dontWrap of tObj to true
@@ -558,7 +672,7 @@ private command leLayout
    lock screen
    set the rect of graphic "sideBg" to 0, 0, kSide, tH
    lkGradientPoints the long id of graphic "sideBg", "0,0", "0," & tH
-   set the rect of field "idx" to 8, 246, kSide - 8, tH - 116
+   set the rect of field "idx" to 8, 246 + leSideShift(), kSide - 8, tH - 116
    set the top of group "back" to tH - 104
    lkRestAt "back"
    set the top of group "next" to tH - 104
@@ -609,8 +723,15 @@ end leColumn
 private command leSyncSide
    local tAccent, tSection, tName
    put leSectionInfo(sSection, "accent") into tAccent
+   if lkHosted() then
+      -- (Home's places: this section's is lit)
+      put lkHubSync(tAccent) into sNavTarget
+   end if
    repeat for each item tSection in kSections
       put "nav_" & tSection into tName
+      if there is not a group tName then
+         next repeat
+      end if
       if tSection is sSection then
          lkSetLook tName, "ink0", "255,255,255"
          lkIconInk the long id of image (tName & "_icon"), leSectionInfo(tSection, "icon"), lkMix(tAccent, "255,255,255", 0.35)
@@ -939,6 +1060,10 @@ end lkAction
 -- beginners that the lessons' first page points to
 private command leOpenAcademy
    local tPath
+   if lkHosted() then
+      revHubGo "academy"
+      exit leOpenAcademy
+   end if
    put leToolset() & "/palettes/academy/revacademy.livecodescript" into tPath
    if there is no file tPath then
       exit leOpenAcademy
@@ -1783,7 +1908,8 @@ private command leRenderLanding
    leHeader empty
    leBeginPage true
    if sSection is "lessons" then
-      leHero "LESSONS", "Learn xTalk, one idea at a time", \
+      -- (the lessons are how-tos: a course in coding is the Academy's)
+      leHero "HOW-TO", "Everyday tasks, one idea at a time", \
             the number of lines of sTitles[sSection] - 2 && "short lessons, each with code you can copy: from your first button to arrays, SQLite, sockets and widgets.", \
             leSectionInfo(sSection, "credit"), "124,58,237|219,39,119|249,115,22", \
             "Start with lesson 1|go 3|play", "Read the foreword|go 2|book-open", \
@@ -2140,8 +2266,6 @@ private function leExampleTable
    put "Resources/Examples/RSS Demo.oxtstack|RSS Demo|Reads a news feed from the web and shows what it holds.|" & \
          "Via theotherbassist, 2016, in OpenXTalk Lite's demo set|apps|rss|orange|internet url xml feed|" & \
          "Resources/Examples/Remastered/RSS Reader.oxtstack|RSS Reader" & return after tTable
-   put "Resources/Examples/Text To Image.oxtstack|Text To Image|Turns typed words into an image, with a reflection.|" & \
-         "Terry Little, 2013, after an idea of Jacqueline Landman Gay's|apps|wand-sparkles|violet|image text snapshot" & return after tTable
    put "Resources/Examples/Scroll Image.oxtstack|Scroll Image|A picture larger than its window, in a group that scrolls.|" & \
          "In OpenXTalk Lite's demo set; its author is not recorded|apps|image|sky|image group scroll|" & \
          "Resources/Examples/Remastered/Scroll an Image.oxtstack|Scroll an Image" & return after tTable
@@ -2165,35 +2289,6 @@ private function leExampleTable
    put "Resources/Start Center/samples/sample_4/balloon.livecode|Balloon Game|A small game, and a book about how it is " & \
          "made: animation, sound, a game loop and collisions.|LiveCode Ltd, from LiveCode Community's Start Center|samples|gamepad-2|rose|" & \
          "game animation sound loop|Resources/Examples/Remastered/Balloon Game.oxtstack|Balloon Game" & return after tTable
-   put "Resources/Start Center/samples/sample_3/mobileTemplate.livecode|Mobile Template|A starting point for a phone app: " & \
-         "a header, pages, icons and colours to change.|LiveCode Ltd, from LiveCode Community's Start Center|samples|smartphone|teal|" & \
-         "mobile template phone" & return after tTable
-   put "Resources/Mobile Examples/Browser Example.livecode|Mobile Browser|A web page inside a phone app.|" & \
-         "LiveCode Ltd, from LiveCode Community|mobile|globe|indigo|mobile browser phone" & return after tTable
-   put "Resources/Mobile Examples/Orientation Example.livecode|Mobile Orientation|A phone app that follows the way the " & \
-         "phone is turned.|LiveCode Ltd, from LiveCode Community|mobile|smartphone|sky|mobile orientation phone" & return after tTable
-   put "Resources/Mobile Examples/Scroller Example.livecode|Mobile Scroller|Scrolling the way a phone does, with a " & \
-         "native scroller.|LiveCode Ltd, from LiveCode Community|mobile|monitor-play|teal|mobile scroller phone" & return after tTable
-   put "Resources/Mobile Examples/Sound Example.livecode|Mobile Sound|Plays sounds in a phone app.|" & \
-         "LiveCode Ltd, from LiveCode Community|mobile|volume-2|pink|mobile sound audio phone" & return after tTable
-   -- OXT-Beyond: whole apps on the xTalk Suite extensions the IDE ships
-   -- built in (tools/examples/README.md, "xTalk Suite demos"). The web IDE
-   -- has no such extensions and leaves the files out, so it lists none
-   put "Resources/Examples/xTalk Suite/No Cloud Quick Share.oxtstack|No Cloud Quick Share|Share a file of any size " & \
-         "with a short code and no server: it goes straight from your computer to your friend's, over BitTorrent, " & \
-         "or Tor when you choose.|Seth Morrow, 2026, from the xTalk Suite|suite|zap|sky|" & \
-         "torrent share files peer-to-peer tor torrentxt sodiumxt onionxt" & return after tTable
-   put "Resources/Examples/xTalk Suite/Torrent Client.oxtstack|Torrent Client|A whole BitTorrent client: add magnets " & \
-         "and .torrent files, make and seed your own, and watch files, peers and trackers.|" & \
-         "Seth Morrow, 2026, from the xTalk Suite|suite|package|indigo|torrent download magnet seed torrentxt" & return after tTable
-   put "Resources/Examples/xTalk Suite/Box2D Platformer.oxtstack|Box2D Platformer|Seven levels of running, " & \
-         "jumping and coin collecting, with real physics: rope bridges, boulders, crushers and a bestiary of " & \
-         "enemies.|Seth Morrow, 2026, from the xTalk Suite; art by Kenney (CC0)|suite|gamepad-2|emerald|" & \
-         "game physics platformer box2d box2dxt" & return after tTable
-   put "Resources/Examples/xTalk Suite/Texas Holdem.oxtstack|Texas Hold'em|No-limit Texas Hold'em for up " & \
-         "to six: play the computer, pass one screen around, or deal online with no server.|" & \
-         "Seth Morrow, 2026, from the xTalk Suite; art and sounds by Kenney (CC0)|suite|heart|rose|" & \
-         "game cards poker holdem box2dxt torrentxt sodiumxt" & return after tTable
    -- The Stack Player's stacks, when this copy of the IDE has them
    put leShowcaseTable() after tTable
    return tTable
@@ -2309,17 +2404,18 @@ end leShowcaseInfo
 
 -- The groups of examples, in order: key, title and a line about them
 private function leExampleGroups
+   -- (OXT-Beyond Home's gallery: the classic originals, LiveCode's mobile
+   -- examples and template and the xTalk Suite's apps are not installed
+   -- since 0.2.7-rc.6.12, and the Stack Player's own course and tour are
+   -- the Academy and Home's tour)
    return "start|Start here|Two stacks that teach as they go: open one and follow it." & return & \
-         "web|Made for the web|The Stack Player's three whole stacks: a tour of what a stack does in a " & \
-         "browser, a first course in ten lessons, and a home stack of examples." & return & \
+         "web|Made for the web|The Stack Player's home stack of examples: buttons and menus, fields and " & \
+         "text, graphics and timers, lists and data, each with a short script to read." & return & \
          "small|Small samples|Also from the Stack Player: games, music, live data, speech, notes and modern " & \
          "controls, each small enough to read in one sitting." & return & \
          "tours|Tours|Guided tours of the Data Grid and of SQLite, a card at a time." & return & \
          "apps|Small apps to take apart|Each does one thing, in a few short scripts: open one, then read its scripts." & return & \
-         "suite|xTalk Suite demos|Whole apps on the xTalk Suite extensions built into OXT-Beyond: share files " & \
-         "with no server, download torrents, play a physics platformer, and play poker." & return & \
-         "samples|Start Center samples|LiveCode Community's samples: a game, a database and a template." & return & \
-         "mobile|For phones and tablets|These use the mobile engine's commands: they open here, but do their work on a phone."
+         "samples|Samples, remade|Three of LiveCode Community's samples in Home's look: a game, bouncing balls and a database of books."
 end leExampleGroups
 
 -- The numbers (in leExampleTable) of the examples that are here, and that

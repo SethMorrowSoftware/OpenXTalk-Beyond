@@ -4958,6 +4958,30 @@ function revIDEBrowserWidgetUnavailable
 end revIDEBrowserWidgetUnavailable
 
 /*
+Opens OXT-Beyond Home (palettes/home/revhub.livecodescript), the one window
+of the IDE's welcome, the xTalk Academy, the how-to lessons, the guides and
+the examples, at a place ("home", "academy", "howto", "guides" or
+"examples", or a name the IDE used before for one, such as "lessons" or
+"demos") and a page of it. Returns false when the IDE has no Home.
+
+pPlace (String): The place
+pPage (String): The page, or empty
+*/
+function revIDEOpenHome pPlace, pPage
+   local tPath, tError
+   put revIDESpecialFolderPath("Toolset") & "/palettes/home/revhub.livecodescript" into tPath
+   if there is no file tPath then
+      return false
+   end if
+   try
+      dispatch "revHubShow" to stack tPath with pPlace, pPage
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end revIDEOpenHome
+
+/*
 Opens an IDE stack as a palette. In the future this should be changed so that
 palettes can decide what mode they ought to be opened in, i.e. this logic should
 be removed from the IDE library and be specific to the stack rather than the 
@@ -4971,6 +4995,16 @@ command revIDEOpenPalette pPaletteName
    
    local tStackName
    put revIDEPaletteToStackName(pPaletteName) into tStackName
+   
+   -- OXT-Beyond: LiveCode's Start Center and Welcome stacks are not
+   -- installed (OXT-Beyond Home took their place: palettes/home). Asked
+   -- for, Home opens at its welcome, so a script or a plugin that opened
+   -- them still opens a welcome.
+   if (pPaletteName is "start center" or pPaletteName is "welcome") and there is not a stack tStackName then
+      if revIDEOpenHome("home") then
+         return empty
+      end if
+   end if
    
    if there is not a stack tStackName then return __revIDEError("No such palette:" && pPaletteName)
    

@@ -1421,6 +1421,91 @@ end lkNavItem
 
 ################################################################################
 #
+# OXT-Beyond Home (palettes/home/revhub.livecodescript)
+#
+-- Home is one window with a sidebar of five places, each drawn by the
+-- stack that always drew it, used as the window's behavior. A stack that
+-- uses the kit and is hosted there sees the places in the cHubPlaces of
+-- me (lines of key|label|icon|accent) and the one in front in the
+-- cHubPlace of me, and draws the head of the sidebar with lkHubHead in
+-- place of its own mark and list. Open on its own, a stack is not hosted
+-- and draws itself as it always did.
+
+function lkHosted
+   return the cHubPlaces of me is not empty
+end lkHosted
+
+-- The head of Home's sidebar, pSide wide: Home's mark, and the five
+-- places, each sending "hub <place>" (revHub's lkAction). It makes the
+-- highlight that slides to the place in front (graphics "navHi" and
+-- "navBar", as the stacks' own lists had), and returns the y below the
+-- places.
+function lkHubHead pSide
+   local tObj, tY, tLine
+   put lkBox("sideMark", "20,22,56,58", lkColor("orange"), 22, empty) into tObj
+   lkGradient tObj, "255,139,0|236,72,153", "20,22", "56,58"
+   lkGlow tObj, "255,139,0", 16, 110
+   get lkIcon("sideMarkIcon", "layers", "255,255,255", "28,30,48,50", empty)
+   get lkLabel("sideTitle", lkR(66, 21, pSide - 8, 45), "OXT-Beyond", 19, "255,255,255", empty)
+   get lkLabel("sideSub", lkR(66, 45, pSide - 8, 61), "Home: learn, explore, build", 11, lkColor("sideMuted"), empty)
+   put lkBox("navHi", lkR(10, 84, pSide - 10, 116), lkColor("side2"), 16, empty) into tObj
+   lkBorder tObj, lkColor("sideLine")
+   put lkBox("navBar", "10,91,14,109", lkColor("violet"), 4, empty) into tObj
+   put 84 into tY
+   set the itemDelimiter to "|"
+   repeat for each line tLine in the cHubPlaces of me
+      lkNavItem "hub_" & item 1 of tLine, tY, 32, item 2 of tLine, item 3 of tLine, "hub" && item 1 of tLine, 14, pSide - 10
+      add 34 to tY
+   end repeat
+   set the itemDelimiter to comma
+   return tY
+end lkHubHead
+
+-- The sidebar marks the place in front: its name white, its icon in its
+-- accent. Returns the top of its item, where the highlight goes.
+function lkHubSync pAccent
+   local tLine, tName, tTop, tPlace
+   put the cHubPlace of me into tPlace
+   set the itemDelimiter to "|"
+   repeat for each line tLine in the cHubPlaces of me
+      put "hub_" & item 1 of tLine into tName
+      if there is not a group tName of me then
+         next repeat
+      end if
+      if item 1 of tLine is tPlace then
+         lkSetLook tName, "ink0", "255,255,255"
+         lkIconInk the long id of image (tName & "_icon") of me, item 3 of tLine, lkMix(pAccent, "255,255,255", 0.35)
+         put the top of group tName of me into tTop
+      else
+         lkSetLook tName, "ink0", lkColor("sideInk")
+         lkIconInk the long id of image (tName & "_icon") of me, item 3 of tLine, lkColor("sideInk")
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   return tTop
+end lkHubSync
+
+-- A small heading in the sidebar, under the places ("COURSES", "TOUR")
+command lkHubHeading pName, pTop, pText, pSide
+   local tObj
+   put lkLabel(pName, lkR(22, pTop, pSide - 10, pTop + 14), toUpper(pText), 10, lkColor("sideMuted"), empty) into tObj
+   set the textStyle of tObj to "bold"
+end lkHubHeading
+
+-- The place's accent, by its key
+function lkHubAccent pPlace
+   local tLine
+   set the itemDelimiter to "|"
+   repeat for each line tLine in the cHubPlaces of me
+      if item 1 of tLine is pPlace then
+         return lkColor(item 4 of tLine)
+      end if
+   end repeat
+   return lkColor("violet")
+end lkHubAccent
+
+################################################################################
+#
 # Code, in colour, and errors in words
 #
 

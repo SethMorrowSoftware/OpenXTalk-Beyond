@@ -25,6 +25,13 @@ script "revWebHome"
 -- and one palette, read through hmColor. The icons are Lucide's (ISC
 -- licence, see THIRD-PARTY-NOTICES.md), drawn by drawingSvgCompile.
 --
+-- It is the first place of OXT-Beyond Home (palettes/home/
+-- revhub.livecodescript), the one window that also holds the xTalk Academy
+-- and Learn: Home hosts this stack as its window's behavior (see "Hosted
+-- in Home" below), and its sidebar then lists Home's five places and,
+-- below them, this stack's pages as the tour. Opened on its own, as its
+-- file can be, it is its own window as before.
+--
 -- It is a script-only stack, so it keeps no controls: this script builds
 -- them when it opens, on one card. Each page is a group, and moving
 -- between pages pushes the content area as the tour's cards do. One timer
@@ -135,8 +142,22 @@ end hmPick
 
 -- The room the pages are in, right of the sidebar
 private function hmContentRect
-   return kSide & ",0," & the width of me & "," & the height of me
+   return hmSide() & ",0," & the width of me & "," & the height of me
 end hmContentRect
+
+-- True when this script runs as Home's behavior (OXT-Beyond Home), not as
+-- its own window
+private function hmHosted
+   return the cHubPlaces of me is not empty
+end hmHosted
+
+-- The sidebar's width: the kit's, in Home; this stack's own otherwise
+private function hmSide
+   if hmHosted() then
+      return 248
+   end if
+   return kSide
+end hmSide
 
 -- The stage of the Move page, where the window has it
 private function hmStageRect
@@ -158,7 +179,12 @@ private command hmLayout pWidth, pHeight
       put 0 into sOX
       put 0 into sOY
    end if
-   put max(0, (pWidth - kWidth) div 2) into tOX
+   -- (the pages, laid out for a kSide sidebar, in the middle of the room
+   -- right of the sidebar: with this stack's own sidebar this is half of
+   -- what the window has over kWidth, as it always was. In OXT-Beyond
+   -- Home, whose sidebar is wider, a window kWidth wide has the pages'
+   -- content, 224 to 1000, right up to the sidebar.)
+   put max(max(0, hmSide() - 224), (pWidth + hmSide() - kSide - kWidth) div 2) into tOX
    put max(0, (pHeight - kHeight) div 2) into tOY
    put tOX - sOX into tDX
    put tOY - sOY into tDY
@@ -168,7 +194,7 @@ private command hmLayout pWidth, pHeight
    lock screen
    lock messages
    -- The sidebar
-   set the rect of graphic "sideBg" to 0, 0, kSide, pHeight
+   set the rect of graphic "sideBg" to 0, 0, hmSide(), pHeight
    hmGradientPoints the long id of graphic "sideBg", "0,0", "0," & pHeight
    if tFoot is not 0 then
       repeat for each item tName in "startup,back,next"
@@ -1249,6 +1275,10 @@ private command hmDo pAction
       case "make"
          hmMakeFirstApp
          break
+      case "hub"
+         -- (one of OXT-Beyond Home's places: revHub)
+         revHubGo tArg
+         break
    end switch
 end hmDo
 
@@ -1264,17 +1294,28 @@ private command hmIde pWhat
             revIDEActionOpenStack
             break
          case "lessons"
-            send "tOpenNewGuides" to stack "revMenubar"
-            break
          case "examples"
-            send "tOpenDemos" to stack "revMenubar"
+         case "academy"
+            -- (in OXT-Beyond Home, its places; the lessons for a
+            -- beginner are the Academy's)
+            if hmHosted() then
+               if pWhat is "lessons" then
+                  revHubGo "academy"
+               else
+                  revHubGo pWhat
+               end if
+               exit hmIde
+            end if
+            if pWhat is "lessons" then
+               send "tOpenNewGuides" to stack "revMenubar"
+            else if pWhat is "examples" then
+               send "tOpenDemos" to stack "revMenubar"
+            else
+               send "tOpenAcademy" to stack "revMenubar"
+            end if
             break
          case "dictionary"
             send "tNewDictionaryDisplay" to stack "revMenubar"
-            break
-         case "academy"
-            -- (the xTalk Academy: palettes/academy)
-            send "tOpenAcademy" to stack "revMenubar"
             break
       end switch
    catch tError
@@ -1391,13 +1432,16 @@ private command hmBuild
    set the defaultStack to the short name of me
    lock screen
    lock messages
-   set the label of me to "Welcome to OXT-Beyond"
-   set the destroyStack of me to true
-   set the rect of me to 0,0,kWidth,kHeight
-   -- (larger, the pages stay their size, in the middle: hmLayout)
-   set the resizable of me to true
-   set the minWidth of me to kWidth
-   set the minHeight of me to kHeight
+   -- (hosted in Home, the window's title and size are Home's)
+   if not hmHosted() then
+      set the label of me to "Welcome to OXT-Beyond"
+      set the destroyStack of me to true
+      set the rect of me to 0,0,kWidth,kHeight
+      -- (larger, the pages stay their size, in the middle: hmLayout)
+      set the resizable of me to true
+      set the minWidth of me to kWidth
+      set the minHeight of me to kHeight
+   end if
    put empty into sLaidW
    set the backgroundColor of me to hmColor("bg")
    -- (the desktop's recent stacks are links: hmRecentStacks)
@@ -1554,6 +1598,10 @@ end hmRoom
 
 private command hmBuildSide
    local tObj, tY, tPage, tLook
+   if hmHosted() then
+      hmBuildHostedSide
+      exit hmBuildSide
+   end if
    put hmBox("sideBg", "0,0,200,640", hmColor("side"), 0, empty) into tObj
    hmGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", "0,640"
    -- The mark: the toolbar's stack icon on the web IDE's colours
@@ -1604,14 +1652,18 @@ private command hmBuildSide
    get hmLabel("navKeys", "0,573,200,589", "or use the arrow keys", 11, hmColor("sideMuted"), empty, "center")
 end hmBuildSide
 
-private command hmNavItem pName, pTop, pHeight, pLabel, pIcon, pAction, pSize
+private command hmNavItem pName, pTop, pHeight, pLabel, pIcon, pAction, pSize, pRight
    local tObj, tLook, tMid
+   -- (pRight is the item's right edge: the sidebar's width less 10)
+   if pRight is empty then
+      put 190 into pRight
+   end if
    put pTop + pHeight div 2 into tMid
-   get hmGroup(pName, hmR(10, pTop, 190, pTop + pHeight), empty)
-   put hmBox(pName & "_bg", hmR(10, pTop, 190, pTop + pHeight), hmColor("side2"), 18, pName) into tObj
+   get hmGroup(pName, hmR(10, pTop, pRight, pTop + pHeight), empty)
+   put hmBox(pName & "_bg", hmR(10, pTop, pRight, pTop + pHeight), hmColor("side2"), 18, pName) into tObj
    set the blendLevel of tObj to 100
    get hmIcon(pName & "_icon", pIcon, hmColor("sideInk"), hmR(24, tMid - 8, 40, tMid + 8), pName)
-   put hmLabel(pName & "_label", hmR(50, tMid - 10, 188, tMid + 10), pLabel, pSize, hmColor("sideInk"), pName) into tObj
+   put hmLabel(pName & "_label", hmR(50, tMid - 10, pRight - 2, tMid + 10), pLabel, pSize, hmColor("sideInk"), pName) into tObj
    set the dontWrap of tObj to true
    set the top of tObj to tMid - (the formattedHeight of tObj + kTextInset) div 2
    put pName & "_bg" into tLook["bg"]
@@ -1623,6 +1675,130 @@ private command hmNavItem pName, pTop, pHeight, pLabel, pIcon, pAction, pSize
    hmLive pName, "side", pAction, tLook
 end hmNavItem
 
+-- The sidebar in OXT-Beyond Home: Home's mark and five places (the same
+-- as the kit's lkHubHead draws for the Academy and Learn), then this
+-- stack's pages as the tour, the switch, and Back and Next
+private command hmBuildHostedSide
+   local tObj, tY, tPage, tLook, tLine, tSide
+   put hmSide() into tSide
+   put hmBox("sideBg", hmR(0, 0, tSide, 640), hmColor("side"), 0, empty) into tObj
+   hmGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", "0,640"
+   put hmBox("sideMark", "20,22,56,58", hmColor("flame"), 22, empty) into tObj
+   hmGradient tObj, "255,139,0|236,72,153", "20,22", "56,58"
+   hmGlow tObj, "255,139,0", 16, 110
+   get hmIcon("sideMarkIcon", "layers", "255,255,255", "28,30,48,50", empty)
+   get hmLabel("sideTitle", hmR(66, 21, tSide - 8, 45), "OXT-Beyond", 19, "255,255,255", empty)
+   get hmLabel("sideSub", hmR(66, 45, tSide - 8, 61), "Home: learn, explore, build", 11, hmColor("sideMuted"), empty)
+
+   -- The places
+   put hmBox("navHi", hmR(10, 84, tSide - 10, 116), hmColor("side2"), 16, empty) into tObj
+   hmBorder tObj, hmColor("sideLine")
+   put hmBox("navBar", "10,91,14,109", hmColor("indigo"), 4, empty) into tObj
+   put 84 into tY
+   put tY into sNavY
+   set the itemDelimiter to "|"
+   repeat for each line tLine in the cHubPlaces of me
+      hmNavItem "hub_" & item 1 of tLine, tY, 32, item 2 of tLine, item 3 of tLine, "hub" && item 1 of tLine, 14, tSide - 10
+      add 34 to tY
+   end repeat
+   set the itemDelimiter to comma
+
+   -- The tour: this stack's pages
+   add 8 to tY
+   put hmLabel("sideTour", hmR(22, tY, tSide - 10, tY + 14), "TOUR", 10, hmColor("sideMuted"), empty) into tObj
+   set the textStyle of tObj to "bold"
+   add 18 to tY
+   repeat for each item tPage in kPages
+      hmNavItem "nav_" & tPage, tY, 28, hmNavLabel(tPage), hmPageInfo(tPage, "icon"), "page" && tPage, 13, tSide - 10
+      add 30 to tY
+   end repeat
+
+   -- Show at startup: a switch
+   get hmGroup("startup", hmR(14, 470, tSide - 14, 500), empty)
+   put hmBox("startup_bg", hmR(14, 470, tSide - 14, 500), hmColor("side2"), 14, "startup") into tObj
+   put hmBox("startTrack", "20,477,52,493", hmColor("emerald"), 16, "startup") into tObj
+   put hmOval("startKnob", "36,479,48,491", "255,255,255", "startup") into tObj
+   get hmLabel("startup_label", hmR(60, 477, tSide - 16, 495), "Show Home at startup", 12, hmColor("sideInk"), "startup")
+   put "startup_bg" into tLook["bg"]
+   put 100 into tLook["blend0"]
+   put 40 into tLook["blend1"]
+   put "startup_label" into tLook["label"]
+   put hmColor("sideInk") into tLook["ink0"]
+   put "255,255,255" into tLook["ink1"]
+   hmLive "startup", "side", "startup", tLook
+   hmSyncStartup
+
+   get hmButton("back", 14, 510, 32, "Back", "chevron-left", "dark", empty, empty, "page prev", 106)
+   get hmButton("next", tSide - 120, 510, 32, "Next", "chevron-right", "dark", empty, empty, "page next", 106)
+   get hmLabel("navCount", hmR(0, 556, tSide, 572), "Page 1 of 6", 12, hmColor("sideMuted"), empty, "center")
+   get hmLabel("navKeys", hmR(0, 573, tSide, 589), "or use the arrow keys", 11, hmColor("sideMuted"), empty, "center")
+end hmBuildHostedSide
+
+-- OXT-Beyond Home's places: Home's lit, and the highlight on it
+private command hmHubSync pAccent
+   local tLine, tName
+   set the itemDelimiter to "|"
+   repeat for each line tLine in the cHubPlaces of me
+      put "hub_" & item 1 of tLine into tName
+      if there is not a group tName then
+         next repeat
+      end if
+      if item 1 of tLine is "home" then
+         put "255,255,255" into sCfg[tName]["ink0"]
+         hmIconInk the long id of image (tName & "_icon"), item 3 of tLine, hmMix(pAccent, "255,255,255", 0.35)
+         put the top of group tName into sNavTarget
+      else
+         put hmColor("sideInk") into sCfg[tName]["ink0"]
+         hmIconInk the long id of image (tName & "_icon"), item 3 of tLine, hmColor("sideInk")
+      end if
+      hmApply tName
+   end repeat
+   set the itemDelimiter to comma
+end hmHubSync
+
+################################################################################
+#
+# Hosted in Home
+#
+-- OXT-Beyond Home (palettes/home/revhub.livecodescript) uses this stack as
+-- its window's behavior for its first place, Home. It sends these four
+-- messages, and the window's own preOpenStack, openStack and closeStack
+-- never reach this script (Home keeps them), so these do what those do
+-- here, but for the window's place and size, which are Home's. A page is
+-- one of kPages.
+
+on revHubAttach pPlace, pPage
+   get hmReadAppearance()
+   put empty into sPage
+   put empty into sNavY
+   put empty into sNavTarget
+   hmBuild
+   hmLayout the width of me, the height of me
+end revHubAttach
+
+on revHubStart pPlace, pPage
+   if pPage is not among the items of kPages then
+      put "home" into pPage
+   end if
+   hmGoPage pPage
+   hmStartTicking
+   hmFollowAppearance
+end revHubStart
+
+on revHubNavigate pPlace, pPage
+   if pPage is among the items of kPages then
+      hmGoPage pPage
+   end if
+end revHubNavigate
+
+on revHubDetach
+   hmStopTicking
+   if sHover is not empty then
+      put empty into sHover
+      unlock cursor
+   end if
+end revHubDetach
+
 ################################################################################
 #
 # The header and the status line
@@ -1630,7 +1806,7 @@ end hmNavItem
 
 private command hmBuildHeader
    local tObj
-   get hmGroup("hdr", "200,0,1024,90", empty)
+   get hmGroup("hdr", kSide & ",0,1024,90", empty)
    get hmLabel("hdrTitle", "224,14,1000,50", empty, 26, hmColor("ink"), "hdr")
    get hmLabel("hdrTag", "224,52,1000,70", empty, 13, hmColor("soft"), "hdr")
    put hmBox("hdrLine", "224,76,280,79", hmColor("indigo"), 3, "hdr") into tObj
@@ -1704,13 +1880,20 @@ private command hmSyncChrome
       if tPage is sPage then
          put "255,255,255" into sCfg[tName]["ink0"]
          hmIconInk the long id of image (tName & "_icon"), hmPageInfo(tPage, "icon"), hmMix(tAccent, "255,255,255", 0.35)
-         put the top of group tName into sNavTarget
+         -- (in Home the highlight is on its place, Home; the page is lit
+         -- in the tour below the places)
+         if not hmHosted() then
+            put the top of group tName into sNavTarget
+         end if
       else
          put hmColor("sideInk") into sCfg[tName]["ink0"]
          hmIconInk the long id of image (tName & "_icon"), hmPageInfo(tPage, "icon"), hmColor("sideInk")
       end if
       hmApply tName
    end repeat
+   if hmHosted() then
+      hmHubSync tAccent
+   end if
    put "Page" && itemOffset(sPage, kPages) && "of" && the number of items of kPages into field "navCount"
    put empty into field "hdrStatus"
    put 0 into sTipAt
@@ -2034,7 +2217,12 @@ end hmHeroSparkles
 private command hmTile pPage, pX, pY, pIndex
    local tName, tObj, tAccent, tTitle, tText, tIcon, tAction, tLook
    put "tile_" & pPage into tName
-   if pPage is "lessons" then
+   if pPage is "lessons" and hmHosted() then
+      put hmColor("emerald") into tAccent
+      put "xTalk Academy" into tTitle
+      put "graduation-cap" into tIcon
+      put "ide academy" into tAction
+   else if pPage is "lessons" then
       put hmColor("amber") into tAccent
       put "Lessons" into tTitle
       put "graduation-cap" into tIcon
@@ -2066,7 +2254,11 @@ private command hmTile pPage, pX, pY, pIndex
          put "Make a working app in a minute, then change it." into tText
          break
       case "lessons"
-         put "Step by step, from your first card to a game." into tText
+         if hmHosted() then
+            put "Learn to code, one step at a time, by running it." into tText
+         else
+            put "Step by step, from your first card to a game." into tText
+         end if
          break
    end switch
    get hmGroup(tName, hmR(pX, pY, pX + 248, pY + 84), "pg_home")
@@ -3766,6 +3958,9 @@ end hmMakeFirstApp
 -- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 private function hmIconPaths pName
    switch pName
+      case "lightbulb"
+         return "<path d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1." & \
+               "3 1.5 1.5 2.5'/><path d='M9 18h6'/><path d='M10 22h4'/>"
       case "house"
          return "<path d='M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8'/><path d='M3 10a2 2 0 0 1 .709-1.528l" & \
                "7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>"
