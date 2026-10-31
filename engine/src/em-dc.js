@@ -32,6 +32,7 @@ mergeInto(LibraryManager.library, {
 			LiveCodeDC._assignedMainWindow = false;
 
 			LiveCodeDC._watchAppearance();
+			LiveCodeDC._readFieldBackground();
 
 			LiveCodeDC._initialised = true;
 		},
@@ -73,6 +74,19 @@ mergeInto(LibraryManager.library, {
 				// Safari before 14
 				query.addListener(changed);
 			}
+		},
+
+		// OXT-Beyond: true on a page that asks for its fields in the card's
+		// grey with <meta name="oxt-field-background" content="card"> (the
+		// "Fields" setting of the Standalone Settings' HTML5 pane): in the
+		// light appearance a field that sets no colour is then drawn in the
+		// grey of a card that sets none, as both are in the dark one
+		// (em-theme.cpp). Elsewhere fields stay white, as they always were.
+		_fieldsLikeCard: false,
+
+		_readFieldBackground: function() {
+			var meta = document.querySelector('meta[name="oxt-field-background"]');
+			LiveCodeDC._fieldsLikeCard = !!meta && meta.getAttribute('content') === 'card';
 		},
 
 		// Read with a query of its own: Chromium sends a query's change
@@ -1266,6 +1280,11 @@ mergeInto(LibraryManager.library, {
 	MCEmscriptenGetSystemAppearanceIsDark__deps: ['$LiveCodeDC'],
 	MCEmscriptenGetSystemAppearanceIsDark: function() {
 		return LiveCodeDC.isAppearanceDark() ? 1 : 0;
+	},
+
+	MCEmscriptenGetFieldsLikeCard__deps: ['$LiveCodeDC'],
+	MCEmscriptenGetFieldsLikeCard: function() {
+		return LiveCodeDC._fieldsLikeCard ? 1 : 0;
 	},
 
 	MCEmscriptenDCInitializeJS__deps: ['$LiveCodeDC'],

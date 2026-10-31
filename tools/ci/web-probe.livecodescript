@@ -49,6 +49,8 @@ local sBrowserCalls, sBrowserEvents, sDrag, sDnd, sDrop, sMouseLoop
 -- how many systemAppearanceChanged messages the stack had (probeReport
 -- "appearance")
 local sAppearanceChanges
+-- the probe's own backgroundColor while probeColorsOpen's stack is open
+local sColorsBack
 
 private command probeLine pText
    write "PROBE " & pText & return to stdout
@@ -830,6 +832,58 @@ private function probeSnapshots
    return tResult
 end probeSnapshots
 
+-- A stack whose colours are all unset (the probe's own set theirs), with
+-- one empty field, for probeDefaultColors: opened by one call from the
+-- page and read by the next, since a handler the page calls cannot wait
+-- for the page to draw it. A mainstack's colours come from the home
+-- stack, which in a standalone is its own stack, this one: so this
+-- one's blue is taken off until "colors-close" puts it back
+private function probeColorsOpen
+   local tDefault, tError
+   put the defaultStack into tDefault
+   try
+      if there is a stack "Probe Colors" then
+         delete stack "Probe Colors"
+      else
+         put the backgroundColor of stack "WebProbe" into sColorsBack
+      end if
+      set the backgroundColor of stack "WebProbe" to empty
+      create stack "Probe Colors"
+      set the rect of stack "Probe Colors" to 660,0,860,100
+      set the defaultStack to "Probe Colors"
+      create field "Plain Field"
+      set the rect of field "Plain Field" of stack "Probe Colors" to 10,10,190,50
+      go stack "Probe Colors"
+   catch tError
+      set the defaultStack to tDefault
+      return "error" && item 1 of tError
+   end try
+   set the defaultStack to tDefault
+   return "opened"
+end probeColorsOpen
+
+-- The colours that a field and a card that set none are drawn in (the web
+-- engine's theme, engine/src/em-theme.cpp), from a snapshot of the stack
+-- that probeColorsOpen opened: the snapshot's size, then the colour of a
+-- point in the field and of one on the card,
+-- 200x100:255,255,255:240,240,240
+private function probeDefaultColors
+   local tDefault, tResult, tError
+   if there is not a stack "Probe Colors" then
+      return "no stack"
+   end if
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to "Probe Colors"
+      import snapshot from rect 0,0,200,100 of window (the windowID of stack "Probe Colors")
+      put probeImage(100, 30, 100, 80) into tResult
+   catch tError
+      put "error" && item 1 of tError into tResult
+   end try
+   set the defaultStack to tDefault
+   return tResult
+end probeDefaultColors
+
 -- The size of the last image and the colours of points in it (x, y, ...),
 -- then deletes it: 100x100:204,51,0
 private function probeImage
@@ -1077,6 +1131,23 @@ function probeReport pWhat
    -- follows the browser's colour scheme)
    if pWhat is "appearance" then
       return the systemAppearance & "," & (sAppearanceChanges + 0)
+   end if
+   -- the colours of a field and a card that set none (web_check.py opens
+   -- the page as built and as a page that asks for fields in the card's
+   -- grey): "colors-open" opens a stack for it, "colors" reads them once
+   -- the page has drawn it, and "colors-close" deletes it
+   if pWhat is "colors-open" then
+      return probeColorsOpen()
+   end if
+   if pWhat is "colors" then
+      return probeDefaultColors()
+   end if
+   if pWhat is "colors-close" then
+      if there is a stack "Probe Colors" then
+         delete stack "Probe Colors"
+         set the backgroundColor of stack "WebProbe" to sColorsBack
+      end if
+      return "closed"
    end if
    return the text of field "Probe Field" & "|" & sKeys & "|" & sClicks
 end probeReport

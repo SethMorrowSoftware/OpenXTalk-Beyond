@@ -19,9 +19,11 @@ script "oxtwebidetour"
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
 -- phone in portrait, File's items with a submenu tapped on a touch
--- screen, and the browser switched between light and dark and back (the
--- page follows it: index.html's oxt-appearance). For each it asks for a
--- screenshot of the page. A step still running after 30 seconds (a
+-- screen, the browser switched between light and dark and back (the
+-- page follows it: index.html's oxt-appearance), and the page's
+-- not-saved bar as the IDE opens and when the browser's storage refuses
+-- a write and then takes one. For each it asks for a screenshot of the
+-- page. A step still running after 30 seconds (a
 -- dialog it waits on) has its modal dialogs closed. Script errors in the
 -- IDE's windows are recorded instead of shown.
 --
@@ -51,7 +53,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sample,inspector,inspector-tabs,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance"
+constant kSteps = "start,storage-open,sample,inspector,inspector-tabs,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,storage"
 constant kSample = "Web Tour Sample"
 -- The classic controls of Object > New Control (revMenubar), by the last
 -- part of their kind
@@ -175,6 +177,22 @@ on tour_start
       tourRecord "INFO Home" && tHome
    end if
 end tour_start
+
+-- As the IDE opened, the page's not-saved bar (index.html's #storage)
+-- says whether the browser keeps the home folder, where the IDE saves
+-- stacks: hidden when it does, and shown with the browser's reason when
+-- its storage refused the page from the start, as a private window or a
+-- site's blocked storage can (web_ide_tour.py --refuse-storage, which
+-- runs this step alone). Before, the page said nothing, and a stack saved
+-- there was lost when the tab closed.
+on tour_storage_open
+   if tourJS("String(window.oxtTour.refused)") is "true" then
+      tourCheckStorage true, "refused by the tour", 5000
+      tourShot "16-not-saved-at-open"
+   else
+      tourCheckStorage false, empty, 0
+   end if
+end tour_storage_open
 
 on tour_sample
    go tourSampleStack()
@@ -656,6 +674,76 @@ on tour_appearance
    tourAct "scheme" && tStart
    tourCheckAppearance tStart, 5000
 end tour_appearance
+
+-- A write to the browser's storage that fails (a full disk, a refused or
+-- deleted storage) shows the page's not-saved bar with the browser's
+-- reason, and the next write that works hides it again. The tour makes
+-- the storage refuse each write (IDBObjectStore's put, which the engine's
+-- IDBFS writes with, throws), saves a file in the home folder, then lets
+-- the storage write again and saves it again.
+on tour_storage
+   local tFile, tProblem
+   put specialFolderPath("documents") & "/oxt-web-tour-storage.txt" into tFile
+   tourCheckStorage false, empty, 0
+   get tourJS("(function () { var p = IDBObjectStore.prototype; " & \
+         "if (!window.oxtTourPut) { window.oxtTourPut = p.put; } " & \
+         "p.put = function () { throw new DOMException('refused by the tour', 'QuotaExceededError'); }; " & \
+         "return 'refusing'; })()")
+   try
+      put "not kept" into URL ("file:" & tFile)
+      tourCheckStorage true, "refused by the tour", 5000
+      tourShot "17-not-saved"
+   catch tProblem
+   end try
+   get tourJS("(function () { if (window.oxtTourPut) { IDBObjectStore.prototype.put = window.oxtTourPut; } " & \
+         "return 'writing'; })()")
+   if tProblem is empty then
+      try
+         put "kept" into URL ("file:" & tFile)
+         tourCheckStorage false, empty, 5000
+      catch tProblem
+      end try
+   end if
+   if there is a file tFile then
+      delete file tFile
+   end if
+   if tProblem is not empty then
+      throw tProblem
+   end if
+end tour_storage
+
+-- Waits (at most pMilliseconds) until the page's not-saved bar is shown
+-- with pReason in it (pShown true), or hidden, and the engine's
+-- Module.livecodeStorageError says the same
+command tourCheckStorage pShown, pReason, pMilliseconds
+   local tDeadline, tState, tText, tError, tWant
+   put the milliseconds + pMilliseconds into tDeadline
+   repeat
+      put tourJS("(function () { var e = document.getElementById('storage'); " & \
+            "return e ? getComputedStyle(e).display : 'missing'; })()") into tState
+      put tourJS("(function () { var e = document.getElementById('storage'); " & \
+            "return e ? e.textContent.replace(/\s+/g, ' ') : ''; })()") into tText
+      put tourJS("String(window.Module && Module.livecodeStorageError || '')") into tError
+      if pShown is true then
+         if tState is "block" and pReason is in tText and pReason is in tError then
+            exit repeat
+         end if
+      else if tState is "none" and tError is empty then
+         exit repeat
+      end if
+      if the milliseconds > tDeadline then
+         if pShown is true then
+            put "shown, with" && quote & pReason & quote into tWant
+         else
+            put "hidden" into tWant
+         end if
+         throw "after" && pMilliseconds && "ms the page's not-saved bar is" && tState && \
+               "(" & tText & "), Module.livecodeStorageError" && quote & tError & quote & "; want it" && tWant
+      end if
+      wait 100 milliseconds with messages
+   end repeat
+   tourRecord "INFO not-saved bar" && tState & ":" && tText
+end tourCheckStorage
 
 -- The systemAppearance, the menu bar's colours and the toolbar's pictures
 -- all say pAppearance (within pMilliseconds): in dark the pictures are

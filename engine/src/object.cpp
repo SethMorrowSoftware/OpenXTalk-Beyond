@@ -1718,6 +1718,14 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
         if (t_style == F_MENU)
             t_skip_theme = false;
     }
+    // OXT-Beyond: nor a stack or card: drawn in the Mac's own window and
+    // text colours, as the appearance shows them now, the ones the
+    // effective backgroundColor and foregroundColor read (seth's choice 1A
+    // of 2026-10-31); before, a fixed 61,61,61 and white that a script
+    // could not read (bwmilby, openxtalk.org p=25665, p=25668). The
+    // legacy theme has no window colour, so it keeps 61,61,61 (below)
+    if (t_skip_theme && (o->gettype() == CT_STACK || o->gettype() == CT_CARD))
+        t_skip_theme = false;
     if (!t_skip_theme &&
 #else
     if (
@@ -1730,7 +1738,13 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
     {
         if (selected)
             t_control_state |= kMCPlatformControlStateSelected;
-        
+#if defined(_MACOSX) && !defined(_SERVER)
+        // OXT-Beyond: a stack or card printed takes the light appearance's
+        // colours, as the dark ones above leave the printer out
+        if (dc_type == CONTEXT_TYPE_PRINTER && (o->gettype() == CT_STACK || o->gettype() == CT_CARD))
+            t_control_state |= kMCPlatformControlStateLightAppearance;
+#endif
+
         if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_theme_prop, c))
             return True;
 #if defined(_MACOSX) /* OXT-TOM: macOS */

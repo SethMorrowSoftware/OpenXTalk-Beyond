@@ -62,7 +62,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                      or the test runner's
 --    OXT_WEB_STACK     where to save the stack file
 --    OXT_WEB_OUTPUT    1: the startup data to write; 2: the folder to build
---                      the standalone in
+--                      the standalone in, and with "-fields" after it, the
+--                      folder of the one with its fields in the card's grey
 --    OXT_WEB_TEMPLATE  1: the startup template
 --                      (engine/rsrc/emscripten-startup-template.livecodescript)
 --    OXT_WEB_VERSION   1: the web engine's version, which the startup script
@@ -303,7 +304,7 @@ private command webLog pLine
 end webLog
 
 on webBuild
-   local tSettings, tFolder, tError
+   local tSettings, tFolder, tError, tFieldsSettings, tFieldsFolder
    webLog "INFO version" && the version && the buildNumber
    webLog "INFO platform" && the platform && the processor
    webCatchErrors
@@ -339,6 +340,22 @@ on webBuild
             with "WebProbe", tFolder, tSettings
       webLog "INFO warnings" && revStandaloneGetWarnings()
       webLog "INFO files" && webFiles(tFolder)
+      -- The same standalone with the HTML5 pane's Fields setting at "The
+      -- card's grey" (seth's choice 9A of 2026-10-31), in a folder beside
+      -- it: web_check.py checks that its page is the one above with the
+      -- builder's <meta name="oxt-field-background" content="card">, and
+      -- that the web engine draws a field that sets no colour in the
+      -- card's grey on it
+      put tSettings into tFieldsSettings
+      put "card" into tFieldsSettings["emscripten,fieldBackground"]
+      put $OXT_WEB_OUTPUT & "-fields" into tFieldsFolder
+      if there is not a folder tFieldsFolder then
+         create folder tFieldsFolder
+      end if
+      dispatch "revSaveAsEmscriptenStandalone" to stack "revsaveasemscriptenstandalone" \
+            with "WebProbe", tFieldsFolder, tFieldsSettings
+      webLog "INFO fields-warnings" && revStandaloneGetWarnings()
+      webLog "INFO fields-files" && webFiles(tFieldsFolder)
    catch tError
    end try
    if "revStandaloneProgress" is among the lines of the openStacks then

@@ -227,6 +227,31 @@ constant kPostMessage is true
 constant kDontPostMessage is false
 --
 
+-- OXT-Beyond: the light defaults of the colours, as the metadata gives
+-- them to a new widget, and what each is drawn as in the dark appearance
+-- (paintFor)
+constant kForeLight is [0, 0, 0]
+constant kForeDark is [235, 235, 235]
+constant kBackLight is [244, 244, 244]
+constant kBackDark is [64, 64, 64]
+constant kBorderLight is [109, 109, 109]
+constant kBorderDark is [120, 120, 120]
+
+-- OXT-Beyond: my paint pType (0 foreground, 1 background, 3 border, as
+-- 'my ... paint' numbers them), except that in the dark appearance a colour
+-- of the widget's own that is still its light default pLight is drawn as
+-- pDark: so a widget whose colours nobody set by hand follows light and
+-- dark, a colour set by hand to anything else stays, and in the light
+-- appearance it is drawn as before (seth's choice 2A of 2026-10-31;
+-- MCWidgetGetMyPaintForAppearance in the engine's widget-syntax.cpp)
+private handler paintFor(in pType as Integer, in pLight as List, in pDark as List) returns Paint
+	variable tPaint as Paint
+	MCWidgetGetMyPaintForAppearance(pType, \
+		color [pLight[1] / 255, pLight[2] / 255, pLight[3] / 255], \
+		color [pDark[1] / 255, pDark[2] / 255, pDark[3] / 255], tPaint)
+	return tPaint
+end handler
+
 public handler OnSave(out rProperties as Array)
 	put the empty array into rProperties
 	
@@ -325,7 +350,7 @@ public handler OnPaint()
 		-- draw the lines to separate the segments
 		set the antialias of this canvas to false
 		set the stroke width of this canvas to 1
-		set the paint of this canvas to my border paint
+		set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 
 		variable tLine
 		repeat for each element tLine in mLines
@@ -336,7 +361,7 @@ public handler OnPaint()
 		--
 
 		-- draw the perimeter of the control
-		set the paint of this canvas to my border paint
+		set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 		set the stroke width of this canvas to 1
 		stroke mPerimeter on this canvas
 	end if
@@ -430,7 +455,7 @@ private handler drawSegments() returns nothing
 		if tIsIn then
 			set the paint of this canvas to my highlight paint
 		else
-			set the paint of this canvas to my background paint
+			set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 		end if
 
 		variable tSegmentRect as List
@@ -486,7 +511,7 @@ private handler drawSegments() returns nothing
 				set the paint of this canvas to solid paint with mSelectedLabelColor
 			end if
 		else
-			set the paint of this canvas to my foreground paint
+			set the paint of this canvas to paintFor(0, kForeLight, kForeDark)
 		end if	
 			
 		variable tIconPath as Path

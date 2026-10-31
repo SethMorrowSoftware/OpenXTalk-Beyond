@@ -534,6 +534,10 @@ public foreign handler MCWidgetGetMyFont(out rFont as Font) returns nothing bind
 public foreign handler MCWidgetGetMyEnabled(out rEnabled as CBool) returns nothing binds to "<builtin>"
 public foreign handler MCWidgetGetMyDisabled(out rDisabled as CBool) returns nothing binds to "<builtin>"
 public foreign handler MCWidgetGetMyPaint(in pPaintType as CUInt, out rPaint as Paint) returns nothing binds to "<builtin>"
+// OXT-Beyond: 'my ... paint' (pPaintType as MyPaint numbers it), but in the
+// dark appearance a colour of the widget's own that is still pLight, the
+// light default the widget gives it, is pDark (widget-syntax.cpp)
+public foreign handler MCWidgetGetMyPaintForAppearance(in pPaintType as CUInt, in pLight as Color, in pDark as Color, out rPaint as Paint) returns nothing binds to "<builtin>"
 public foreign handler MCWidgetGetMyPixelScale(out rPixelScale as CanvasFloat) returns nothing binds to "<builtin>"
 
 /**

@@ -51,7 +51,10 @@ What it leaves out (`revWebIDEMenu` in
 [revwebidelibrary.livecodescript](../../ide/Toolset/libraries/revwebidelibrary.livecodescript)),
 because a browser cannot do it: building standalones, the Extension
 Builder (it runs `lc-compile`), quitting, update checks, the guides that
-the page does not carry, the Resource Center and the tutorials. A browser
+the page does not carry, the Resource Center and the tutorials. The zip
+also leaves out the files of the Script Editor's font, Source Code Pro,
+which the web engine cannot load (code shows in Droid Sans Mono, which the
+Dictionary carries), and an unused archive of the Linux theme. A browser
 keeps some shortcuts for itself (Ctrl+W closes the tab, Ctrl+N and Ctrl+T
 open windows), so their menu items are picked with the mouse. The page asks
 before it is closed once the IDE has started.

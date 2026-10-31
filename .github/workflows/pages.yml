@@ -260,6 +260,11 @@ jobs:
             echo "Release: $TAG"
             echo
             echo "- Web IDE: $(describe "$ide")${ide:+${IDE_FROM:+, from $IDE_FROM}}"
+            if [ -f "$RUNNER_TEMP/site/dictionary/index.html" ]; then
+              echo "- Dictionary: from the web IDE's (what Help > Dictionary Online opens)"
+            else
+              echo "- Dictionary: not on the site (no web IDE, or one without the dictionary's files)"
+            fi
             echo "- Stack Player: $(describe "$player")"
             if [ -n "${MAP_HTML:-}" ]; then
               echo "- Codebase map: $MAP_VERSION${MAP_ENGINE:+, binary stacks read with the engine of $MAP_ENGINE}"

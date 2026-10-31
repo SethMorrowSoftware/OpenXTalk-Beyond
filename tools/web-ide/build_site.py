@@ -48,7 +48,9 @@ Left out of the zip, because a browser cannot use them or the web IDE
 does not offer them: the engines and runtimes, the externals (the web
 engine has its own linked in), the native libraries of extensions (code/
 folders), the user guides except the dictionary and the PDF guides, the
-Resource Center, the tutorials and the 23 MB "All Guides" stack.
+Resource Center, the tutorials, the 23 MB "All Guides" stack, the
+Source Code Pro font files (the web engine cannot load them) and an
+unused archive of the Linux theme.
 
 --repo DIR copies a source checkout's script-only IDE stacks
 (ide/**/*.livecodescript, the xTalk Academy's course files, and
@@ -115,7 +117,19 @@ LEAVE_OUT = (
     # The Resource Center and the tutorials, which the menu bar hides
     'Toolset/palettes/revresourcecenter.rev',
     'Toolset/palettes/tutorial',
+    # A copy, carried from OpenXTalk Lite 1.15, of the Linux theme's folder
+    # beside it, which nothing reads (bwmilby, openxtalk.org p=25582)
+    'Toolset/resources/supporting_files/themes/com.livecode.theme.linux.tar.xz',
 )
+# Files left out by name pattern (paths relative to the layout): the
+# Script Editor's font, Source Code Pro, whose files the web engine cannot
+# load ("can't load font file", every one of them, in the web IDE of
+# 0.2.7-rc.6.9), so the web IDE shows code in Droid Sans Mono, which the
+# Dictionary carries (OpenXTalkPaul, p=25579; seth's decision 13,
+# 2026-10-31). The IDE's other two fonts, FontAwesome and its icons
+# (lcideicons), load and are used, and stay; so does the fonts' licence.
+LEAVE_OUT_PATTERN = re.compile(
+    r'^Toolset/resources/supporting_files/fonts/SourceCodePro-[A-Za-z]+\.ttf$')
 # Files that are never wanted: native libraries, and what the desktop's
 # file managers leave behind
 NATIVE = re.compile(r'\.(so|dll|dylib|bundle|exe|lib|a)$', re.I)
@@ -146,6 +160,8 @@ def leave_out(rel):
         return True
     # An extension's native libraries
     if parts[0] == 'Extensions' and 'code' in parts[1:-1]:
+        return True
+    if LEAVE_OUT_PATTERN.match(rel):
         return True
     return any(rel == x or rel.startswith(x + '/') for x in LEAVE_OUT)
 

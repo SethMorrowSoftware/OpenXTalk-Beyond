@@ -742,6 +742,31 @@ constant kIconHeight is 10
 --
 --------------------------------------------------------------------------------
 
+-- OXT-Beyond: the light defaults of the colours, as the metadata gives
+-- them to a new widget, and what each is drawn as in the dark appearance
+-- (paintFor)
+constant kForeLight is [50, 50, 50]
+constant kForeDark is [220, 220, 220]
+constant kBackLight is [244, 244, 244]
+constant kBackDark is [64, 64, 64]
+constant kBorderLight is [109, 109, 109]
+constant kBorderDark is [120, 120, 120]
+
+-- OXT-Beyond: my paint pType (0 foreground, 1 background, 3 border, as
+-- 'my ... paint' numbers them), except that in the dark appearance a colour
+-- of the widget's own that is still its light default pLight is drawn as
+-- pDark: so a widget whose colours nobody set by hand follows light and
+-- dark, a colour set by hand to anything else stays, and in the light
+-- appearance it is drawn as before (seth's choice 2A of 2026-10-31;
+-- MCWidgetGetMyPaintForAppearance in the engine's widget-syntax.cpp)
+private handler paintFor(in pType as Integer, in pLight as List, in pDark as List) returns Paint
+	variable tPaint as Paint
+	MCWidgetGetMyPaintForAppearance(pType, \
+		color [pLight[1] / 255, pLight[2] / 255, pLight[3] / 255], \
+		color [pDark[1] / 255, pDark[2] / 255, pDark[3] / 255], tPaint)
+	return tPaint
+end handler
+
 public handler OnCreate() returns nothing
 	put 21 into mRowHeight
 	put kIconHeight into mIconHeight
@@ -995,7 +1020,7 @@ end handler
 // Utility for painting the separator
 private handler paintSeparator()
 	set the stroke width of this canvas to kStrokeWidth
-	set the paint of this canvas to my border paint
+	set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 
 	variable tPath as Path
 	
@@ -1668,9 +1693,9 @@ end handler
 constant kOverlayOpacity is 0.1
 private handler paintIcon(in pPath as Path, in pHover as Boolean, in pSelected as Boolean)
 	if pSelected is pHover then
-		set the paint of this canvas to my foreground paint	
+		set the paint of this canvas to paintFor(0, kForeLight, kForeDark)	
 	else if pSelected then
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 	else if pHover then
 		set the paint of this canvas to my highlight paint
 	end if
@@ -1679,13 +1704,13 @@ private handler paintIcon(in pPath as Path, in pHover as Boolean, in pSelected a
 end handler
 
 private handler paintBackground(in pPath as Path)
-	set the paint of this canvas to my background paint
+	set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 	fill pPath on this canvas
 end handler
 
 private handler paintBorder(in pPath as Path)
 	set the stroke width of this canvas to kStrokeWidth
-	set the paint of this canvas to my border paint
+	set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 	stroke pPath on this canvas
 end handler
 
@@ -1694,12 +1719,12 @@ private handler paintRow(in pPath as Path, in pHover as Boolean, in pSelected as
 	if pSelected then
 		set the paint of this canvas to my highlight paint
 	else
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 	end if
 	fill pPath on this canvas
 	
 	if pHover and pSelected then			
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 		set the opacity of this canvas to kOverlayOpacity
 		fill pPath on this canvas
 	else
@@ -1710,7 +1735,7 @@ private handler paintRow(in pPath as Path, in pHover as Boolean, in pSelected as
 		end if
 		
 		if pAlternate then
-			set the paint of this canvas to my foreground paint
+			set the paint of this canvas to paintFor(0, kForeLight, kForeDark)
 			set the opacity of this canvas to kOverlayOpacity
 			fill pPath on this canvas
 		end if
@@ -1725,9 +1750,9 @@ private handler paintText(in pText as String, in pAlignment as String, in pRect 
 	end if
 
 	if pSelected then
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 	else
-		set the paint of this canvas to my foreground paint
+		set the paint of this canvas to paintFor(0, kForeLight, kForeDark)
 	end if
 	if pAlignment is "left" then
 		fill text pText at left of pRect on this canvas
@@ -2802,7 +2827,7 @@ end handler
 public handler paintScrollbar(in pCanvas as Canvas)
 	// Draw scrollbar if there is any need
 	if mScrollbarHeight > 0 then
-		set the paint of pCanvas to my border paint
+		set the paint of pCanvas to paintFor(3, kBorderLight, kBorderDark)
 		fill mScrollbarPath on pCanvas	
 	end if
 end handler

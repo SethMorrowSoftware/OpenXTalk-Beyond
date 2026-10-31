@@ -1165,6 +1165,56 @@ IO_stat MCDispatch::savestack(MCStack *sptr, const MCStringRef p_fname, uint32_t
 	return stat;
 }
 
+// OXT-Beyond: the whole of a file, through the engine's own file calls,
+// none of which sets the result; false when it cannot all be read
+static bool MCDispatchReadWholeFile(MCStringRef p_path, MCDataRef& r_data)
+{
+	IO_handle t_stream;
+	t_stream = MCS_open(p_path, kMCOpenFileModeRead, False, False, 0);
+	if (t_stream == NULL)
+		return false;
+
+	int64_t t_size;
+	t_size = MCS_fsize(t_stream);
+	bool t_success;
+	t_success = t_size >= 0 && t_size <= UINT32_MAX;
+	if (t_success && t_size == 0)
+	{
+		MCS_close(t_stream);
+		r_data = MCValueRetain(kMCEmptyData);
+		return true;
+	}
+
+	MCAutoByteArray t_buffer;
+	if (t_success)
+		t_success = t_buffer . New((uindex_t)t_size);
+	if (t_success)
+		t_success = MCS_readfixed(t_buffer . Bytes(), (uint32_t)t_size, t_stream) == IO_NORMAL;
+	MCS_close(t_stream);
+	if (t_success)
+		t_success = t_buffer . CreateData(r_data);
+	return t_success;
+}
+
+// OXT-Beyond: p_data as the whole of a file, flushed; false when any of
+// it could not be written
+static bool MCDispatchWriteWholeFile(MCStringRef p_path, MCDataRef p_data)
+{
+	IO_handle t_stream;
+	t_stream = MCS_open(p_path, kMCOpenFileModeWrite, False, False, 0);
+	if (t_stream == NULL)
+		return false;
+
+	bool t_success;
+	t_success = true;
+	if (MCDataGetLength(p_data) > 0)
+		t_success = IO_write(MCDataGetBytePtr(p_data), 1, MCDataGetLength(p_data), t_stream) == IO_NORMAL;
+	if (t_success)
+		t_success = MCS_flush(t_stream) == IO_NORMAL;
+	MCS_close(t_stream);
+	return t_success;
+}
+
 // MW-2014-09-30: [[ ScriptOnlyStack ]] Script only stacks get saved as a text file.
 //   Everything but the stack script is lost.
 IO_stat MCDispatch::dosavescriptonlystack(MCStack *sptr, const MCStringRef p_fname)
@@ -1230,10 +1280,38 @@ IO_stat MCDispatch::dosavescriptonlystack(MCStack *sptr, const MCStringRef p_fna
                                      nullptr);
 	}
     
+    // OXT-Beyond: the file is written in place, which keeps its links, its
+    // permissions and its owner; so a write that stopped part way (a full
+    // disk, a crash, a power cut) left it cut short, the script lost (seth's
+    // decision 6A, 2026-10-31). A copy of the file as it was is made first,
+    // at "<file>~" as a binary stack's save keeps one: it is put back over
+    // the file when the write fails, and deleted once the new text is
+    // written, so after a crash or a power cut it is still there. A "~" file
+    // that is there already (an editor's backup, perhaps) is left alone, and
+    // then, as when no copy can be made (a folder no file can be made in),
+    // the save goes on without one, as it always did.
+    MCAutoStringRef t_backup;
+    MCAutoDataRef t_old_contents;
+    bool t_have_backup;
+    t_have_backup = false;
+    if (MCStringFormat(&t_backup, "%@~", *linkname) &&
+        MCS_exists(*linkname, True) &&
+        !MCS_exists(*t_backup, True) && !MCS_exists(*t_backup, False) &&
+        MCDispatchReadWholeFile(*linkname, &t_old_contents))
+    {
+        if (MCDispatchWriteWholeFile(*t_backup, *t_old_contents))
+            t_have_backup = true;
+        else
+            MCS_unlink(*t_backup);
+    }
+
     // Open the output stream.
 	IO_handle stream;
     if ((stream = MCS_open(*linkname, kMCOpenFileModeWrite, True, False, 0)) == NULL)
 	{
+        // (the file is as it was)
+        if (t_have_backup)
+            MCS_unlink(*t_backup);
 		MCresult->sets("can't open stack script file");
         return IO_ERROR;
     }
@@ -1243,17 +1321,29 @@ IO_stat MCDispatch::dosavescriptonlystack(MCStack *sptr, const MCStringRef p_fna
     t_utf8_script .Lock(*t_converted);
 
     // Write out the byte-order mark, followed by the script body.
+    // OXT-Beyond: and flush it, so that a write the system had held back
+    // and then could not make is an error here too, not a file cut short
+    // while the save said it had worked
     if (IO_write("\xEF\xBB\xBF", 1, 3, stream) != IO_NORMAL ||
-        IO_write(*t_utf8_script, 1, t_utf8_script . Size(), stream) != IO_NORMAL)
+        IO_write(*t_utf8_script, 1, t_utf8_script . Size(), stream) != IO_NORMAL ||
+        MCS_flush(stream) != IO_NORMAL)
     {
         MCresult -> sets("error writing stack script file");
         MCS_close(stream);
+        // OXT-Beyond: the file as it was is put back, and its copy deleted;
+        // when it cannot be put back, the copy stays
+        if (t_have_backup && MCDispatchWriteWholeFile(*linkname, *t_old_contents))
+            MCS_unlink(*t_backup);
         return IO_ERROR;
     }
-    
+
     // Close the stream.
     MCS_close(stream);
-    
+
+    // OXT-Beyond: the new text is written: the copy goes
+    if (t_have_backup)
+        MCS_unlink(*t_backup);
+
     // Set the filename.
     sptr->setfilename(*linkname);
     

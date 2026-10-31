@@ -295,6 +295,36 @@ mergeInto(LibraryManager.library, {
 		// this page has written to it, so that they read it in
 		_channel: null,
 
+		// Why the home folder is not being kept, empty while it is: the
+		// last write to the browser's storage failed (a full disk, the
+		// storage refused or deleted), or the folder could not be loaded
+		// from it. The page is told each time it changes (_report).
+		_error: '',
+
+		// Tells the page whether the home folder is kept: <error> is why
+		// not, or empty (or null) when it is. Module.livecodeStorageError
+		// is that text, and the window gets an "oxtstoragestate" event
+		// whose detail is {kept, error}, only when it changes. The engine
+		// and its scripts see nothing of it, and a page that does not
+		// listen (a standalone's) shows nothing, as before; the web IDE's
+		// page shows a bar (tools/web-ide/index.html). Before, a failed
+		// write was only a warning in the browser's console: a stack saved
+		// in the web IDE looked saved, and was lost when the tab closed.
+		_report: function(error) {
+			var text = error ? String(error) : '';
+			Module['livecodeStorageError'] = text;
+			if (text === LiveCodeStorage._error) {
+				return;
+			}
+			LiveCodeStorage._error = text;
+			try {
+				window.dispatchEvent(new CustomEvent('oxtstoragestate',
+					{detail: {kept: text === '', error: text}}));
+			} catch (e) {
+				// a page without CustomEvent has Module.livecodeStorageError
+			}
+		},
+
 		// The folder is loaded before the engine starts
 		install: function() {
 			var preRun = Module['preRun'] || [];
@@ -423,15 +453,20 @@ mergeInto(LibraryManager.library, {
 				// the page made it
 			}
 			var idbfs = FS.filesystems && FS.filesystems['IDBFS'];
-			if (Module['livecodePersistent'] === false || !idbfs ||
-				typeof indexedDB == 'undefined') {
+			if (Module['livecodePersistent'] === false) {
 				LiveCodeStorage._alias();
+				return;
+			}
+			if (!idbfs || typeof indexedDB == 'undefined') {
+				LiveCodeStorage._alias();
+				LiveCodeStorage._report('the browser has no storage for it');
 				return;
 			}
 			try {
 				FS.mount(idbfs, {}, folder);
 			} catch (e) {
 				LiveCodeStorage._alias();
+				LiveCodeStorage._report(e);
 				return;
 			}
 
@@ -447,6 +482,7 @@ mergeInto(LibraryManager.library, {
 				LiveCodeStorage._alias();
 				if (error) {
 					console.warn('The home folder will not be kept: ' + error);
+					LiveCodeStorage._report(error);
 				} else {
 					LiveCodeStorage._loaded = true;
 					LiveCodeStorage._remember();
@@ -526,6 +562,7 @@ mergeInto(LibraryManager.library, {
 						// the other pages read it on their next write
 					}
 				}
+				LiveCodeStorage._report(error);
 				if (LiveCodeStorage._again) {
 					LiveCodeStorage._again = false;
 					LiveCodeStorage.flush();

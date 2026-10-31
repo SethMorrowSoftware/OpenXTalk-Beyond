@@ -28,6 +28,11 @@ given.
   DIR/ide/           OXT-Beyond-<version>-web-ide.zip's site (tools/web-ide)
   DIR/player/        OXT-Beyond-<version>-web-player.zip's site
                      (tools/web-player)
+  DIR/dictionary/    the Dictionary that the IDE's Help > Dictionary Online
+                     opens, made from the web IDE's own html_viewer and
+                     dictionary data (tools/pages/build_dictionary.py), so
+                     it is the IDE's of the same release; left out, with a
+                     note, when the web IDE has none (one before 0.2.7)
   DIR/map/           the codebase map: the one self-contained page that
                      tools/codebase-map/build_map.py writes (index.html),
                      and beside it, when build_map.py wrote them next to
@@ -56,6 +61,12 @@ import tempfile
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import build_dictionary  # noqa: E402
+
+# The parts of the site, each with its card on the front page
+PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'MAP')
 LIMIT = 100 * 1000 * 1000
 LOCAL_ONLY = {'serve.py', 'Start Web IDE.bat', 'README.txt'}
 
@@ -101,7 +112,7 @@ def check_sizes(folder):
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
-    for key in ('IDE', 'PLAYER', 'MAP'):
+    for key in PARTS:
         start, end = '<!-- @%s@ -->' % key, '<!-- /@%s@ -->' % key
         if start not in page or end not in page:
             raise BuildError('tools/pages/index.html has no %s ... %s' % (start, end))
@@ -110,7 +121,7 @@ def front_page(out, parts):
             page = page[:page.index(start)] + page[page.index(end) + len(end):]
         else:
             page = page.replace('@%s_VERSION@' % key, html.escape(version))
-    for key in ('IDE', 'PLAYER', 'MAP'):
+    for key in PARTS:
         page = page.replace('<!-- @%s@ -->' % key, '').replace('<!-- /@%s@ -->' % key, '')
     with open(os.path.join(out, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(page)
@@ -129,6 +140,15 @@ def build(args):
     if args.ide:
         unpack(args.ide, os.path.join(out, 'ide'), drop=LOCAL_ONLY)
         parts['IDE'] = args.ide_version or ''
+        try:
+            counts = build_dictionary.build_from_ide_site(os.path.join(out, 'ide'), os.path.join(out, 'dictionary'),
+                                                          args.ide_version)
+            parts['DICTIONARY'] = args.ide_version or ''
+            print('dictionary entries: %s' % ', '.join('%s %d' % (t, counts[t]) for t, _ in build_dictionary.APIS))
+        except build_dictionary.NoViewer as e:
+            print('no dictionary: %s' % e)
+        except build_dictionary.DictionaryError as e:
+            raise BuildError('the dictionary: %s' % e)
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''

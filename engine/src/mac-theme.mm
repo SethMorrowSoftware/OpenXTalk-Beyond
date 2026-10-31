@@ -190,6 +190,53 @@ static NSColor *MCMacResolveWindowBackgroundColor(void)
     return t_resolved;
 }
 
+// (mac-core.mm: NSApp's effectiveAppearance is dark.) The server engine
+// compiles this file too but has no app, nor mac-core.mm: its stacks are
+// never in the dark appearance
+#ifdef _SERVER
+static bool MCPlatformGetSystemAppearanceIsDark(void)
+{
+    return false;
+}
+#else
+extern bool MCPlatformGetSystemAppearanceIsDark(void);
+#endif
+
+// OXT-Beyond: p_color, a system colour, as calibrated RGB as the app's
+// appearance (light or dark) shows it now, or nil. A system colour is
+// dynamic: converted outside a drawing appearance it took whichever
+// appearance the main thread last drew in, so a script reading the
+// effective colours of a stack or card after a switch between light and
+// dark got the old ones, or some of each (bwmilby, openxtalk.org p=25665,
+// p=25668). NSApp's effectiveAppearance is the system's, set afresh on
+// every switch (MCMacPlatformUpdateAllWindowAppearances) before the stacks
+// are drawn again and systemAppearanceChanged is sent; every window is set
+// to it too, so a colour is drawn as it is read.
+// With p_light, as the light appearance shows it (a stack or card printed
+// in the dark appearance: kMCPlatformControlStateLightAppearance).
+static NSColor *MCMacThemeResolveColor(NSColor *p_color, bool p_light)
+{
+    __block NSColor *t_resolved = nil;
+    if (@available(macOS 11.0, *))
+    {
+        NSAppearance *t_appearance = p_light ? [NSAppearance appearanceNamed: NSAppearanceNameAqua] : [NSApp effectiveAppearance];
+        [t_appearance performAsCurrentDrawingAppearance:^{
+            t_resolved = [[p_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace] retain];
+        }];
+        [t_resolved autorelease];
+    }
+    else if (@available(macOS 10.14, *))
+    {
+        NSAppearance *t_old = [NSAppearance currentAppearance];
+        [NSAppearance setCurrentAppearance:p_light ? [NSAppearance appearanceNamed: NSAppearanceNameAqua] : [NSApp effectiveAppearance]];
+        t_resolved = [p_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+        [NSAppearance setCurrentAppearance:t_old];
+    }
+    else
+        t_resolved = [p_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+    return t_resolved;
+}
+
 bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
 {
     bool t_found;
@@ -328,10 +375,22 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
                         // OXT-Beyond: with the useSystemWindowColor true, the
                         // system's window colour itself (light grey, or dark
                         // in dark mode), resolved in the app's appearance;
-                        // otherwise white, as below, as stacks always were
-                        if (MCusesystemwindowcolor)
+                        // otherwise white, as below, as stacks always were.
+                        // In the dark appearance it is the system's window
+                        // colour whatever the useSystemWindowColor (seth's
+                        // choice 1A of 2026-10-31: a stack's and card's
+                        // colours follow the Mac's own, live), where the
+                        // pattern's stand-in below is a light grey; stacks
+                        // and cards are drawn in it (MCObject::getforecolor)
+                        // (not when the light appearance's colours are
+                        // asked for: a stack or card printed)
+                        if (MCusesystemwindowcolor ||
+                            ((p_state & kMCPlatformControlStateLightAppearance) == 0 && MCPlatformGetSystemAppearanceIsDark()))
                         {
-                            t_color = MCMacResolveWindowBackgroundColor();
+                            if ((p_state & kMCPlatformControlStateLightAppearance) != 0)
+                                t_color = MCMacThemeResolveColor([NSColor windowBackgroundColor], true);
+                            else
+                                t_color = MCMacResolveWindowBackgroundColor();
                             if (t_color != nil)
                                 break;
                         }
@@ -399,14 +458,17 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
     
     if (t_found && t_color != nil)
     {
+        // OXT-Beyond: converted in the app's appearance, as it is now
+        // (MCMacThemeResolveColor), not in the one last drawn in
+        bool t_light = (p_state & kMCPlatformControlStateLightAppearance) != 0;
         if (t_is_pattern)
         {
             // Patterns not supported at the moment
-            t_color = [[NSColor controlHighlightColor] colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+            t_color = MCMacThemeResolveColor([NSColor controlHighlightColor], t_light);
         }
         else
         {
-            t_color = [t_color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
+            t_color = MCMacThemeResolveColor(t_color, t_light);
         }
         
         r_color.red = [t_color redComponent] * 65535;

@@ -1839,6 +1839,45 @@ void MCField::fnop(Field_translations function, MCStringRef p_string, KeySym key
 
 // MW-2012-02-13: [[ Block Unicode ]] New implementation of finsert which understands
 //   unicode text.
+// Record p_length chars typed at p_index for Undo: they extend the
+// record of the typing just before them, or of a selection the typing
+// replaced, or start a record of their own. (Moved here from finsertnew,
+// as it was, for freturn too.)
+void MCField::recordtyping(findex_t p_index, findex_t p_length)
+{
+	Ustruct *us = MCundos->getstate();
+	
+	// MW-UNDO-FIX: Make sure we only append to a previous record if it
+	//   is immediately after the last one.
+	if (us != NULL &&
+	    (us->type == UT_DELETE_TEXT || us->type == UT_TYPE_TEXT) &&
+	    MCundos->getobject() == this &&
+	    (findex_t) (us->ud.text.index+us->ud.text.newchars) == p_index)
+	{
+		if (us->type == UT_DELETE_TEXT)
+		{
+			us->type = UT_TYPE_TEXT;
+			us->ud.text.newchars = p_length;
+		}
+		else
+			us->ud.text.newchars += p_length;
+	}
+	else
+	{
+		MCundos->freestate();
+		us = new (nothrow) Ustruct;
+		us->type = UT_TYPE_TEXT;
+		
+		// MW-UNDO-FIX: Store the index this record starts at
+		us->ud.text.index=p_index;
+
+		us->ud.text.newchars = p_length;
+		us->ud.text.data = NULL;
+		us->ud.text.newline = False;
+		MCundos->savestate(this, us);
+	}
+}
+
 void MCField::finsertnew(Field_translations function, MCStringRef p_string, KeySym p_key)
 {
 	// If there is nothing to insert, do nothing.
@@ -1889,37 +1928,7 @@ void MCField::finsertnew(Field_translations function, MCStringRef p_string, KeyS
 	if (!composing)
 	{
 		// Add an undo record.
-		Ustruct *us = MCundos->getstate();
-		
-		// MW-UNDO-FIX: Make sure we only append to a previous record if it
-		//   is immediately after the last one.
-		if (us != NULL &&
-		    (us->type == UT_DELETE_TEXT || us->type == UT_TYPE_TEXT) &&
-		    MCundos->getobject() == this &&
-		    (findex_t) (us->ud.text.index+us->ud.text.newchars) == si)
-		{
-			if (us->type == UT_DELETE_TEXT)
-			{
-				us->type = UT_TYPE_TEXT;
-				us->ud.text.newchars = slen;
-			}
-			else
-				us->ud.text.newchars += slen;
-		}
-		else
-		{
-			MCundos->freestate();
-			us = new (nothrow) Ustruct;
-			us->type = UT_TYPE_TEXT;
-			
-			// MW-UNDO-FIX: Store the index this record starts at
-			us->ud.text.index=si;
-
-			us->ud.text.newchars = slen;
-			us->ud.text.data = NULL;
-			us->ud.text.newline = False;
-			MCundos->savestate(this, us);
-		}
+		recordtyping(si, slen);
 	}
 	
 	// MW-2012-02-16: [[ Bug ]] Bracket any actions that result in
@@ -2201,6 +2210,11 @@ void MCField::freturn(Field_translations function, MCStringRef p_string, KeySym 
 		removecursor();
 		if (!deleteselection(False))
 			focusedparagraph->clearzeros();
+
+		// OXT-Beyond: where the return goes, for its undo record below
+		findex_t t_return_index, t_selection_end;
+		selectedmark(False, t_return_index, t_selection_end, False);
+
 		textheight -= focusedparagraph->getheight(fixedheight);
 		focusedparagraph->split();
 		focusedparagraph->setselectionindex(PARAGRAPH_MAX_LEN, PARAGRAPH_MAX_LEN, False, False);
@@ -2211,6 +2225,14 @@ void MCField::freturn(Field_translations function, MCStringRef p_string, KeySym 
 		updateparagraph(True, False);
 		replacecursor(True, True);
 		state |= CS_CHANGED;
+
+		// OXT-Beyond: a typed return is typed text, so Undo takes it out (it
+		// made no undo record, so Undo undid whatever was recorded before
+		// it: text typed earlier, at an index the return had moved, or
+		// nothing at all). It joins the typing it follows, as a typed char
+		// does (finsertnew).
+		if (!composing)
+			recordtyping(t_return_index, 1);
 
 		// MW-2012-02-16: [[ Bug ]] Bracket any actions that result in
 		//   textChanged message by a lock screen pair.
