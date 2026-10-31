@@ -482,13 +482,28 @@ command sePrefInit
    # The colorization settings need to be loaded
    -- OXT-Beyond: keep the light scheme preference intact when appearance
    -- changes, and honor the formerly ignored schemedark preference.
-   local tScheme
+   -- A dark scheme saved by an early build (0.2.1 to 0.2.3 kept a second
+   -- one, defaulting to One Dark Pro, since removed) counts only while it
+   -- names a scheme this editor has; otherwise it would overrule the
+   -- scheme chosen now and load no colours (tperry2x, openxtalk.org
+   -- p=25776). The saved names are kept, for older builds.
+   local tScheme, tDarkScheme
    put tPrefs["colorization,scheme"] into tScheme
+   put revIDEGetPreference("cScriptEditor,colorization,schemedark") into tDarkScheme
+   if not seColorizationSchemeExists(tDarkScheme) then put empty into tDarkScheme
    if revIDEAppearanceIsDark() and \
-         (tPrefs["editor,backgroundcolor"] is "default" or \
-         revIDEGetPreference("cScriptEditor,colorization,schemedark") is not empty) then
-      put tPrefs["colorization,schemedark"] into tScheme
+         (tPrefs["editor,backgroundcolor"] is "default" or tDarkScheme is not empty) then
+      put tDarkScheme into tScheme
       if tScheme is empty then put "dark mode" into tScheme
+   end if
+   -- A scheme name the editor does not know would leave every word black,
+   -- whatever the background: load the scheme that suits it instead.
+   if not seColorizationSchemeExists(tScheme) then
+      if seBackgroundIsDark(tPrefs["editor,backgroundcolor"]) then
+         put "dark mode" into tScheme
+      else
+         put "default" into tScheme
+      end if
    end if
    seColorizationLoadScheme tScheme, tPrefs
    
@@ -742,6 +757,32 @@ local sColorizationKeywords
 command seColorizationInit
   colorizationBuildSettings sePrefGet("colorization,config"), sColorizationClasses, sColorizationKeywords
 end seColorizationInit
+
+# Parameters
+#   pScheme : a colorization scheme name, as saved in the preferences
+# Returns
+#   Whether seColorizationLoadScheme has colours for that scheme. Custom
+#   counts whether or not its colours file has been written yet.
+private function seColorizationSchemeExists pScheme
+   if pScheme is "Custom" then return true
+   local tTry
+   seColorizationLoadScheme pScheme, tTry
+   return tTry["colorization,config"] is not empty
+end seColorizationSchemeExists
+
+# Parameters
+#   pBackground : the editor,backgroundcolor preference ("default" follows the appearance)
+# Returns
+#   Whether light text is the readable choice on that background.
+private function seBackgroundIsDark pBackground
+   if pBackground is empty or pBackground is "default" then
+      return revIDEAppearanceIsDark()
+   end if
+   if the number of items of pBackground is 3 and pBackground is a color then
+      return item 1 of pBackground * 299 + item 2 of pBackground * 587 + item 3 of pBackground * 114 < 128000
+   end if
+   return false
+end seBackgroundIsDark
 
 # Parameters
 #   pScheme : the name of the colorization scheme to load

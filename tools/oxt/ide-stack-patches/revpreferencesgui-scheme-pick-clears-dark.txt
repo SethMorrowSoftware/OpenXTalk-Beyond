@@ -1,0 +1,16 @@
+# OXT-Beyond: a scheme picked here is the one shown in light and dark.
+# Early Beyond builds (0.2.1 to 0.2.3) kept a second, dark scheme, which the
+# editor still used in dark mode over this pick, so Vibrant seemed to do
+# nothing (tperry2x, openxtalk.org p=25776). Follow System Appearance
+# already clears it; now every scheme picked here does.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Colorization Scheme" of card "Script Editor"
+replace:
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName|
+|   set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|
+with:
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName|
+|   -- OXT-Beyond: the scheme picked shows in light and dark; drop the|
+|   -- second, dark scheme early Beyond builds kept.|
+|   revIDESetPreference "cScriptEditor,colorization,schemedark", empty|
+|   set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor|

@@ -53,6 +53,9 @@ on menuPick pItemName
    
    
    revIDESetPreference "cScriptEditor," & "colorization,scheme", pItemName
+   -- OXT-Beyond: the scheme picked shows in light and dark; drop the
+   -- second, dark scheme early Beyond builds kept.
+   revIDESetPreference "cScriptEditor,colorization,schemedark", empty
    set the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
    set the cColor of button "Debug Background Color" of card "Script Editor" of stack "revPreferencesGUI" to tCustColor
    

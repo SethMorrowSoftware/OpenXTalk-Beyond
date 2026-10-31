@@ -45,6 +45,43 @@ on startup
    sePrefSave
    check sPrefs["cScriptEditor,editor,backgroundcolor"], "12,34,56", "save explicit RGB unchanged"
 
+   -- Early Beyond builds (0.2.1 to 0.2.3) saved a second, dark scheme
+   -- whose default, One Dark Pro, no longer exists. A name the editor
+   -- does not know loaded no colours, and the engine drew every word
+   -- black: black on black in dark mode, with Vibrant ignored
+   -- (tperry2x, openxtalk.org p=25776).
+   local tVibrant, tDarkMode
+   seColorizationLoadScheme "vibrant", tVibrant
+   seColorizationLoadScheme "dark mode", tDarkMode
+   put true into sDark
+   put "vibrant" into sPrefs["cScriptEditor,colorization,scheme"]
+   put "0,0,0" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   put "one dark pro" into sPrefs["cScriptEditor,colorization,schemedark"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tVibrant["colorization,config"], "a removed dark scheme does not overrule vibrant"
+   put empty into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "a removed dark scheme falls back to dark mode"
+   -- A scheme name the editor does not know loads readable colours for
+   -- the background it is on, and the saved name is kept.
+   put "one dark pro" into sPrefs["cScriptEditor,colorization,scheme"]
+   put empty into sPrefs["cScriptEditor,colorization,schemedark"]
+   put "0,0,0" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "an unknown scheme on a dark background"
+   put false into sDark
+   put "255,255,255" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check (sePrefGet("colorization,config") contains "class identifier none 0,0,0"), true, "an unknown scheme on a light background"
+   check sePrefGet("colorization,scheme"), "one dark pro", "keep an unknown scheme's saved name"
+   put true into sDark
+   put empty into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "an unknown scheme following a dark appearance"
+   put "default" into sPrefs["cScriptEditor,colorization,scheme"]
+   put "12,34,56" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   put false into sDark
+
    -- Model the real message path: utilities are the editor's behavior,
    -- never a global library for Preferences. A fresh Preferences card and
    -- the Follow menu must work without access to sePrefInit/sePrefGet.
@@ -70,6 +107,27 @@ on startup
    revIDESetPreference "cScriptEditor,editor,backgroundcolor", "12,34,56"
    dispatch "update" to group "Script Editor" of card "Script Editor" of stack "revPreferencesGUI"
    check the cColor of button "Background Color" of card "Script Editor" of stack "revPreferencesGUI", "12,34,56", "Preferences preserves explicit RGB"
+   -- A scheme picked from the menu is the one shown in light and dark, so
+   -- picking it clears the dark scheme an early build saved (p=25776).
+   revIDESetPreference "cScriptEditor,colorization,schemedark", "dark mode"
+   put true into sDark
+   dispatch "menuPick" to button "Colorization Scheme" of card "Script Editor" of stack "revPreferencesGUI" with "vibrant"
+   check sPrefs["cScriptEditor,colorization,scheme"], "vibrant", "menu picks vibrant"
+   check sPrefs["cScriptEditor,colorization,schemedark"], empty, "picking a scheme clears the old dark scheme"
+   check sPrefs["cScriptEditor,editor,backgroundcolor"], "0,0,0", "vibrant's background"
+   dispatch "sePrefInit" to stack "revNewScriptEditor"
+   dispatch function "sePrefGet" to stack "revNewScriptEditor" with "colorization,config"
+   check the result, tVibrant["colorization,config"], "the editor shows vibrant in dark mode after the pick"
+   -- The Custom popup makes Custom the scheme the same way.
+   revIDESetPreference "cScriptEditor,colorization,schemedark", "dark mode"
+   dispatch "defaultAll" to graphic id 1012 of card id 1002 of stack "CustomScriptCol"
+   check it, "handled", "Custom popup's defaultAll"
+   check sPrefs["cScriptEditor,colorization,scheme"], "Custom", "Custom popup makes Custom the scheme"
+   check sPrefs["cScriptEditor,colorization,schemedark"], empty, "Custom clears the old dark scheme"
+   put false into sDark
+   revIDESetPreference "cScriptEditor,colorization,scheme", "default"
+   revIDESetPreference "cScriptEditor,editor,backgroundcolor", "12,34,56"
+   revIDESetPreference "cScriptEditor,editor,debugBackgroundcolor", "12,34,56"
    -- Suppress only the popup's UI in memory; exercise its real menuPick.
    local tMenu, tScript, tStart
    put the long id of button "Colorization Scheme" of card "Script Editor" of stack "revPreferencesGUI" into tMenu

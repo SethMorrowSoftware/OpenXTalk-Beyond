@@ -1,0 +1,17 @@
+# OXT-Beyond: the Custom colours popup makes Custom the scheme in light and
+# dark, as a scheme picked from the menu does (tperry2x, openxtalk.org
+# p=25776): defaultAll also drops the second, dark scheme early Beyond
+# builds (0.2.1 to 0.2.3) kept.
+file: Toolset/palettes/revpreferencesgui.rev
+object: graphic id 1012 of card id 1002 of stack "CustomScriptCol"
+replace:
+|on defaultAll|
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"|
+|   updateOpenScriptEditors|
+with:
+|on defaultAll|
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"|
+|   -- OXT-Beyond: Custom shows in light and dark; drop the second, dark|
+|   -- scheme early Beyond builds kept.|
+|   revIDESetPreference "cScriptEditor,colorization,schemedark", empty|
+|   updateOpenScriptEditors|

@@ -1,0 +1,13 @@
+# OXT-Beyond: a colour picked in the Custom popup makes Custom the scheme
+# through defaultAll, which does what these two lines did and also drops
+# the second, dark scheme early Beyond builds kept (tperry2x,
+# openxtalk.org p=25776).
+file: Toolset/palettes/revpreferencesgui.rev
+object: graphic id 1012 of card id 1002 of stack "CustomScriptCol"
+replace:
+|   -- now make it 'stick' (hopefully!)|
+|   revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"|
+|   updateOpenScriptEditors|
+with:
+|   -- now make it 'stick' (hopefully!)|
+|   defaultAll|
