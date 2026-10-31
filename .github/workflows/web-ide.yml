@@ -84,6 +84,7 @@ on:
       - tools/pages/build_pages.py
       - tools/pages/build_dictionary.py
       - tools/pages/check_dictionary.py
+      - tools/pages/check_front_page.py
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json
@@ -110,6 +111,7 @@ on:
       - tools/pages/build_pages.py
       - tools/pages/build_dictionary.py
       - tools/pages/check_dictionary.py
+      - tools/pages/check_front_page.py
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json
@@ -850,6 +852,17 @@ jobs:
           fi
           "$RUNNER_TEMP/playwright/bin/python" tools/pages/check_dictionary.py \
             --site "$RUNNER_TEMP/pages/dictionary" --out "$RUNNER_TEMP/dictionary-shots"
+
+      # The site's front page, made in the step above with this zip's two
+      # parts (the web IDE and its Dictionary), read in a browser wide and
+      # narrow, light and dark: its links answer, it asks no other host for
+      # anything, and nothing is wider than a phone
+      # (tools/pages/check_front_page.py; tools/ci/tests/test_pages_front.py
+      # holds every other set of parts without a browser)
+      - name: The site's front page
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/pages/check_front_page.py \
+            --site "$RUNNER_TEMP/pages" --out "$RUNNER_TEMP/dictionary-shots"
 
       - name: Upload the Dictionary's screenshots
         if: always()

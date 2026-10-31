@@ -12,6 +12,18 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../player/` | the Stack Player |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
+The front page is one self-contained file: its look (a night sky over an
+orange horizon, a small stack whose button answers as its script says,
+and a card for each part) is drawn with its own CSS and SVG, and it asks
+no other host for anything. `build_pages.py` drops every block of a part
+it was not given (a part can have more than one: its card, and its
+button in the header). [test_pages_front.py](../ci/tests/test_pages_front.py)
+builds it with every set of parts and holds its links to the folders
+that are there, its own anchors and the project on GitHub;
+[check_front_page.py](check_front_page.py) reads it in a browser, wide
+and narrow, light and dark (the Web IDE workflow runs it beside the
+Dictionary's check).
+
 The workflow [pages.yml](../../.github/workflows/pages.yml) builds no
 part of the IDE or the player: it takes the two sites as a release ships them
 (`OXT-Beyond-<version>-web-ide.zip` and `OXT-Beyond-<version>-web-player.zip`),

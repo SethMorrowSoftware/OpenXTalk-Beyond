@@ -118,7 +118,13 @@ def front_page(out, parts):
             raise BuildError('tools/pages/index.html has no %s ... %s' % (start, end))
         version = parts.get(key)
         if version is None:
-            page = page[:page.index(start)] + page[page.index(end) + len(end):]
+            # Every block of the part: a part may have more than one (its
+            # card, and its button in the page's header)
+            while start in page:
+                at = page.index(start)
+                if end not in page[at:]:
+                    raise BuildError('tools/pages/index.html has a %s with no %s after it' % (start, end))
+                page = page[:at] + page[page.index(end, at) + len(end):]
         else:
             page = page.replace('@%s_VERSION@' % key, html.escape(version))
     for key in PARTS:

@@ -1,92 +1,441 @@
 <!DOCTYPE html>
-<!-- The front page of OXT-Beyond's GitHub Pages site (tools/pages/build_pages.py
-     fills in the versions and leaves out the card of a part it was not given) -->
+<!-- The front page of OXT-Beyond's GitHub Pages site. tools/pages/build_pages.py
+     fills in the versions and leaves out every block of a part it was not
+     given: each pair of part markers (a part may have several, such as
+     its card and its button in the header). Everything the page draws is in
+     this file, so the site asks no other host for anything; the links are
+     held by tools/ci/tests/test_pages_front.py and, in a browser, by
+     tools/pages/check_front_page.py. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OXT-Beyond on the Web</title>
 <meta name="description" content="The OXT-Beyond IDE and the Stack Player, running in your browser with nothing to install.">
+<meta name="theme-color" content="#0a0f1a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23243447'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='700' fill='%23f39c12' text-anchor='middle'%3EX%3C/text%3E%3C/svg%3E">
 <style>
+  /* The night sky over the horizon is the page's one idea: the header is
+     always night, with the orange of the OXT-Beyond wordmark rising over a
+     planet's rim, and the rest follows the reader's light or dark setting. */
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2733; --muted: #5b6878;
-    --line: #dde2e8; --accent: #e08a0b; --accent-text: #ffffff;
+    --night: #0a0f1a; --night-2: #111a2b; --slate: #243447;
+    --ember: #ff7a00; --amber: #ffb347; --teal: #4fd1c5; --star: #eef3ff;
+    --bg: #fbf7f1; --panel: #ffffff; --text: #18212e; --muted: #556275;
+    --line: #e7dfd3; --chip: #f3ece2; --shadow: 0 1px 2px rgba(24,33,46,.06), 0 12px 32px rgba(24,33,46,.08);
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141a21; --card: #1d2530; --text: #e8edf2; --muted: #9aa7b6;
-      --line: #2c3744; --accent: #f39c12; --accent-text: #1d2733;
+      --bg: #0d1420; --panel: #141d2c; --text: #e8edf4; --muted: #9aa8ba;
+      --line: #223047; --chip: #1b2638; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px rgba(0,0,0,.35);
     }
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 880px; margin: 0 auto; padding: 48px 16px; }
-  h1 { font-size: 2rem; margin: 0 0 8px; }
-  .lead { color: var(--muted); margin: 0 0 32px; font-size: 1.1rem; }
-  .cards { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .skip { position: absolute; left: -999px; top: 8px; z-index: 10; background: var(--amber); color: #18212e; padding: 8px 14px; border-radius: 8px; }
+  .skip:focus { left: 8px; }
+
+  /* ---- The sky ---- */
+  .sky {
+    position: relative; overflow: hidden; color: var(--star); isolation: isolate;
+    background:
+      radial-gradient(1200px 520px at 78% -10%, rgba(79,209,197,.16), transparent 60%),
+      radial-gradient(900px 600px at 10% 10%, rgba(83,104,180,.22), transparent 65%),
+      linear-gradient(180deg, var(--night) 0%, var(--night-2) 70%, #17223a 100%);
+  }
+  .stars, .stars::before, .stars::after {
+    position: absolute; inset: 0; z-index: -2; content: ""; pointer-events: none;
+    background-repeat: repeat;
+  }
+  .stars {
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+      radial-gradient(1px 1px at 140px 80px, rgba(255,255,255,.8), transparent),
+      radial-gradient(1.5px 1.5px at 90px 150px, #fff, transparent),
+      radial-gradient(1px 1px at 190px 190px, rgba(255,255,255,.7), transparent),
+      radial-gradient(1px 1px at 60px 210px, rgba(255,255,255,.6), transparent);
+    background-size: 230px 240px;
+  }
+  .stars::before {
+    background-image:
+      radial-gradient(1.5px 1.5px at 50px 60px, rgba(255,214,170,.95), transparent),
+      radial-gradient(1px 1px at 260px 140px, #fff, transparent),
+      radial-gradient(2px 2px at 330px 40px, rgba(190,240,235,.9), transparent);
+    background-size: 380px 300px;
+    animation: twinkle 5s ease-in-out infinite alternate;
+  }
+  .stars::after {
+    background-image:
+      radial-gradient(2px 2px at 120px 90px, #fff, transparent),
+      radial-gradient(1px 1px at 420px 260px, rgba(255,255,255,.8), transparent);
+    background-size: 520px 360px;
+    animation: twinkle 7s ease-in-out 1.5s infinite alternate;
+  }
+  @keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
+
+  /* The planet: a huge circle whose top edge is the horizon, lit orange,
+     and whose surface is the rest of the page */
+  .horizon {
+    position: absolute; z-index: -1; left: 50%; bottom: -1180px; width: 2600px; height: 1300px;
+    transform: translateX(-50%); border-radius: 50%;
+    /* its surface is the page below: no seam where the header ends */
+    background: var(--bg);
+    box-shadow:
+      inset 0 22px 50px -18px rgba(255,140,40,.32),
+      0 -1px 0 1px rgba(255,190,120,.95),
+      0 -6px 24px 2px rgba(255,140,40,.65),
+      0 -30px 90px 10px rgba(255,122,0,.35),
+      0 -90px 200px 40px rgba(255,90,0,.18);
+  }
+
+  nav.top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.01em; text-decoration: none; font-size: 1.05rem; }
+  .brand-mark {
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+    background: linear-gradient(145deg, #2c3e56, var(--slate)); color: #f39c12;
+    font-weight: 900; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 4px 14px rgba(255,122,0,.25);
+  }
+  .brand b { color: var(--ember); font-weight: 800; }
+  .nav-links { display: flex; gap: 22px; font-size: .95rem; }
+  .nav-links a { text-decoration: none; opacity: .82; }
+  .nav-links a:hover { opacity: 1; color: var(--amber); }
+
+  .hero {
+    display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center;
+    padding: 56px 0 210px;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0 0 22px;
+    font: 600 .78rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--teal);
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: currentColor; }
+  h1 {
+    margin: 0 0 22px; font-size: clamp(2.6rem, 6.2vw, 4.7rem); line-height: 1.02;
+    letter-spacing: -.035em; font-weight: 850;
+  }
+  h1 .beyond {
+    background: linear-gradient(100deg, #ffd08a 0%, var(--amber) 25%, var(--ember) 70%, #ff5a1f 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 .on-web { display: block; color: rgba(238,243,255,.92); }
+  .lead { margin: 0 0 34px; font-size: 1.18rem; max-width: 34em; color: rgba(222,230,244,.82); }
+  .ctas { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px;
+    font-weight: 700; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease, background .15s;
+  }
+  .cta.primary {
+    color: #1a1206; background: linear-gradient(180deg, #ffb75e, var(--ember));
+    box-shadow: 0 0 0 1px rgba(255,190,120,.6) inset, 0 10px 30px rgba(255,122,0,.35);
+  }
+  .cta.ghost { color: var(--star); background: rgba(255,255,255,.06); box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset; }
+  .cta:hover { transform: translateY(-2px); }
+  .cta.primary:hover { box-shadow: 0 0 0 1px rgba(255,210,150,.8) inset, 0 14px 38px rgba(255,122,0,.5); }
+  .cta.ghost:hover { background: rgba(255,255,255,.11); }
+  .cta svg { width: 18px; height: 18px; }
+  .note { margin: 20px 0 0; font-size: .9rem; color: rgba(200,212,230,.62); }
+
+  /* A stack window, in orbit: an xTalk card with its script under it */
+  .scene { position: relative; display: grid; place-items: center; min-height: 380px; }
+  .orbit {
+    position: absolute; width: 118%; aspect-ratio: 1.9; border-radius: 50%;
+    border: 1px dashed rgba(79,209,197,.42); transform: rotate(-12deg);
+  }
+  .orbit::after {
+    content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%; top: 50%; left: 50%;
+    background: var(--teal); box-shadow: 0 0 14px 3px rgba(79,209,197,.7);
+    offset-path: ellipse(50% 50% at 50% 50%); animation: orbit 14s linear infinite;
+  }
+  @keyframes orbit { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+  .window {
+    position: relative; width: min(100%, 440px); border-radius: 14px; overflow: hidden;
+    background: #1a2436; box-shadow: 0 0 0 1px rgba(255,255,255,.09), 0 30px 80px rgba(0,0,0,.55), 0 0 60px rgba(255,122,0,.12);
+    transform: perspective(1200px) rotateY(-7deg) rotateX(3deg);
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 7px; padding: 11px 14px;
+    background: linear-gradient(180deg, #263349, #202b3e); font: 500 .8rem/1 var(--mono); color: rgba(220,228,240,.7);
+  }
+  .titlebar i { width: 11px; height: 11px; border-radius: 50%; background: #3a4760; }
+  .titlebar i:nth-child(1) { background: #ff6b57; } .titlebar i:nth-child(2) { background: #ffbd3a; } .titlebar i:nth-child(3) { background: #3fcf6e; }
+  .titlebar span { margin-left: 10px; }
+  .card-face {
+    position: relative; height: 170px; margin: 14px; border-radius: 8px;
+    background: linear-gradient(180deg, #fffdf8, #f4efe6); color: #222;
+    display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  .card-face::before {
+    content: ""; position: absolute; inset: 0; border-radius: 8px; opacity: .5;
+    background-image: radial-gradient(rgba(0,0,0,.09) 1px, transparent 1px); background-size: 12px 12px;
+  }
+  .stack-button {
+    position: relative; font: 600 .95rem/1 system-ui, sans-serif; padding: 11px 22px; border-radius: 8px; cursor: pointer;
+    color: #1d2733; background: linear-gradient(180deg, #ffffff, #e9e4da); border: 1px solid #b9b1a3;
+    box-shadow: 0 2px 0 #b9b1a3;
+  }
+  .stack-button:active { transform: translateY(1px); box-shadow: 0 1px 0 #b9b1a3; }
+  .answer {
+    position: absolute; inset: auto 18px 18px; padding: 12px 14px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px; background: #fff; color: #1d2733; font-size: .92rem;
+    box-shadow: 0 10px 28px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.08);
+    opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s ease;
+  }
+  .answer.shown { opacity: 1; transform: none; pointer-events: auto; }
+  .answer button { font: 600 .82rem/1 system-ui, sans-serif; padding: 7px 14px; border-radius: 6px; border: 0; background: var(--ember); color: #1a1206; cursor: pointer; }
+  pre.script {
+    margin: 0 14px 14px; padding: 14px 16px; border-radius: 8px; background: #0f1624; color: #d9e2f0;
+    font: .9rem/1.65 var(--mono); overflow-x: auto; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .k { color: #ff9b42; font-weight: 600; } .s { color: var(--teal); } .h { color: #b7c6ff; }
+
+  /* ---- Below the horizon ---- */
+  .explore { position: relative; padding: 24px 0 72px; }
+  .section-head { text-align: center; margin: 0 auto 44px; max-width: 640px; }
+  .section-head .eyebrow { color: var(--ember); }
+  .section-head h2 { margin: 0 0 10px; font-size: clamp(1.8rem, 3.4vw, 2.5rem); letter-spacing: -.025em; line-height: 1.15; }
+  .section-head p { margin: 0; color: var(--muted); font-size: 1.08rem; }
+  .cards { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); counter-reset: part; }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 24px; display: flex; flex-direction: column;
+    counter-increment: part; position: relative; display: flex; flex-direction: column; padding: 30px 30px 28px;
+    border-radius: 18px; border: 1px solid transparent;
+    background: linear-gradient(var(--panel), var(--panel)) padding-box,
+                linear-gradient(160deg, var(--line), var(--line)) border-box;
+    box-shadow: var(--shadow); transition: transform .2s ease, box-shadow .2s ease, background .2s;
   }
-  .card h2 { margin: 0 0 4px; font-size: 1.3rem; }
-  .version { color: var(--muted); font-size: .9rem; margin: 0 0 12px; }
-  .card p { margin: 0 0 20px; flex: 1; }
+  .card:hover, .card:focus-within {
+    transform: translateY(-4px);
+    background: linear-gradient(var(--panel), var(--panel)) padding-box,
+                linear-gradient(160deg, var(--amber), var(--ember) 45%, var(--teal)) border-box;
+    box-shadow: var(--shadow), 0 18px 50px rgba(255,122,0,.16);
+  }
+  .card::after {
+    content: "0" counter(part); position: absolute; top: 28px; right: 30px;
+    font: 600 .8rem/1 var(--mono); letter-spacing: .1em; color: var(--muted); opacity: .7;
+  }
+  .icon {
+    flex: none; width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center;
+    color: #fff; background: radial-gradient(circle at 30% 25%, #ffc27a, var(--ember) 60%, #d9480f);
+    box-shadow: 0 8px 22px rgba(255,122,0,.3), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .icon.teal { background: radial-gradient(circle at 30% 25%, #9ff3ea, var(--teal) 55%, #1f9c90); box-shadow: 0 8px 22px rgba(79,209,197,.3), inset 0 1px 0 rgba(255,255,255,.35); }
+  .icon.slate { background: radial-gradient(circle at 30% 25%, #6c84a8, #3a5072 60%, var(--slate)); box-shadow: 0 8px 22px rgba(36,52,71,.35), inset 0 1px 0 rgba(255,255,255,.25); }
+  .icon svg { width: 28px; height: 28px; }
+  .card-head { display: flex; align-items: center; gap: 18px; margin: 0 0 18px; padding-right: 32px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.35rem; line-height: 1.2; letter-spacing: -.015em; }
+  .version {
+    display: inline-block; margin: 0; padding: 4px 10px; border-radius: 999px;
+    font: 500 .76rem/1.4 var(--mono); color: var(--muted); background: var(--chip);
+  }
+  .version:empty { display: none; }
+  .card p.text { margin: 0 0 24px; flex: 1; color: var(--muted); font-size: 1rem; }
   .button {
-    display: inline-block; align-self: flex-start; background: var(--accent);
-    color: var(--accent-text); text-decoration: none; font-weight: 600;
-    padding: 10px 18px; border-radius: 8px;
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: .95rem; white-space: nowrap;
+    color: #1a1206; background: linear-gradient(180deg, #ffb75e, var(--ember));
+    box-shadow: 0 6px 18px rgba(255,122,0,.25); transition: gap .15s ease, box-shadow .15s ease;
   }
-  .button:focus-visible, a:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
-  footer { margin-top: 40px; color: var(--muted); font-size: .9rem; }
-  footer a { color: inherit; }
+  .button::after { content: "\2192"; transition: transform .15s ease; }
+  .button:hover { box-shadow: 0 8px 24px rgba(255,122,0,.4); }
+  .button:hover::after { transform: translateX(3px); }
+
+  .facts { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 64px; }
+  .fact { display: flex; gap: 16px; align-items: flex-start; padding: 6px 4px; }
+  .fact .dot {
+    flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    color: var(--ember); background: var(--chip); box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .fact .dot svg { width: 20px; height: 20px; }
+  .fact h4 { margin: 2px 0 4px; font-size: 1rem; }
+  .fact p { margin: 0; color: var(--muted); font-size: .94rem; }
+
+  footer { border-top: 1px solid var(--line); padding: 34px 0 44px; color: var(--muted); font-size: .92rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; justify-content: space-between; }
+  footer .brand { color: var(--text); }
+  footer .links { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  footer .links a { text-underline-offset: 3px; }
+  footer .links a:hover { color: var(--ember); }
+
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; gap: 40px; padding: 28px 0 150px; }
+    .scene { min-height: 0; }
+    .orbit { width: 104%; }
+    .window { transform: none; }
+    .nav-links a.optional { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>OXT-Beyond on the Web</h1>
-  <p class="lead">Build and play xTalk stacks in your browser, with nothing to download or install.</p>
-  <div class="cards">
-    <!-- @IDE@ -->
-    <section class="card">
-      <h2>Web IDE</h2>
-      <p class="version">@IDE_VERSION@</p>
-      <p>The OXT-Beyond IDE itself: make stacks with the Tools palette, the Property Inspector and the Script Editor, try the lessons and the xTalk Academy, and read the Dictionary. Your stacks are kept in this browser between visits, and File &gt; Download Stack saves a copy. The first visit downloads about 60 MB.</p>
-      <a class="button" href="ide/">Open the Web IDE</a>
-    </section>
-    <!-- /@IDE@ -->
-    <!-- @DICTIONARY@ -->
-    <section class="card">
-      <h2>Dictionary</h2>
-      <p class="version">@DICTIONARY_VERSION@</p>
-      <p>The OXT-Beyond IDE's Dictionary of xTalk Script and xTalk Builder: every command, function, property and message, with its syntax and examples, to search and read in the browser. The IDE's Help &gt; Dictionary Online opens it.</p>
-      <a class="button" href="dictionary/">Open the Dictionary</a>
-    </section>
-    <!-- /@DICTIONARY@ -->
-    <!-- @PLAYER@ -->
-    <section class="card">
-      <h2>Stack Player</h2>
-      <p class="version">@PLAYER_VERSION@</p>
-      <p>Open any stack from your computer, or a .zip with a stack and its files, and run it in the page. It comes with whole stacks to play, small samples and games, and a plain account of what works on the web.</p>
-      <a class="button" href="player/">Open the Stack Player</a>
-    </section>
-    <!-- /@PLAYER@ -->
-    <!-- @MAP@ -->
-    <section class="card">
-      <h2>Codebase map</h2>
-      <p class="version">@MAP_VERSION@</p>
-      <p>For contributors: how the engine, the IDE's stacks and libraries, the extensions and the build fit together, the order the IDE searches its scripts in, what each change could break, and the project's history. Rebuilt from the source each time this site is.</p>
-      <a class="button" href="map/">Open the codebase map</a>
-    </section>
-    <!-- /@MAP@ -->
+<a class="skip" href="#explore">Skip to the tools</a>
+<header class="sky">
+  <div class="stars" aria-hidden="true"></div>
+  <div class="horizon" aria-hidden="true"></div>
+  <div class="wrap">
+    <nav class="top" aria-label="Site">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">X</span><span>OXT-<b>Beyond</b></span></a>
+      <div class="nav-links">
+        <a class="optional" href="#explore">On this site</a>
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">xTalk, in your browser</p>
+        <h1>OXT-<span class="beyond">Beyond</span> <span class="on-web">on the Web</span></h1>
+        <p class="lead">Build and play xTalk stacks in your browser, with nothing to download or install. Cards, buttons and scripts in plain English, the way HyperCard taught a generation to program.</p>
+        <div class="ctas">
+          <!-- @IDE@ -->
+          <a class="cta primary" href="ide/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Launch the Web IDE</a>
+          <!-- /@IDE@ -->
+          <!-- @PLAYER@ -->
+          <a class="cta ghost" href="player/"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Play a stack</a>
+          <!-- /@PLAYER@ -->
+        </div>
+        <p class="note">Free and open source (GPLv3). Open it and start.</p>
+      </div>
+      <div class="scene">
+        <div class="orbit" aria-hidden="true"></div>
+        <figure class="window" aria-label="An xTalk stack: a card with a button, and the button's script">
+          <div class="titlebar" aria-hidden="true"><i></i><i></i><i></i><span>Hello Beyond.oxtstack</span></div>
+          <div class="card-face">
+            <button class="stack-button" type="button" id="hello">Say hello</button>
+            <div class="answer" id="answer" role="status" aria-live="polite"><span id="answer-text"></span><button type="button" id="answer-ok">OK</button></div>
+          </div>
+          <pre class="script" aria-label="The button's script"><span class="k">on</span> <span class="h">mouseUp</span>
+  <span class="k">answer</span> <span class="s">"Hello from Beyond!"</span>
+<span class="k">end</span> <span class="h">mouseUp</span></pre>
+        </figure>
+      </div>
+    </div>
   </div>
-  <footer>
-    OXT-Beyond is free and open source (GPLv3).
-    <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">Source and desktop downloads on GitHub</a>.
-  </footer>
+</header>
+
+<main id="explore" class="explore">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">On this site</p>
+      <h2>Where would you like to go?</h2>
+      <p>Everything here runs in the page. Pick a way in.</p>
+    </div>
+    <div class="cards">
+      <!-- @IDE@ -->
+      <section class="card">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M8 13l-2 2 2 2M12.5 17h4"/></svg></div>
+          <div>
+            <h3>Web IDE</h3>
+            <p class="version">@IDE_VERSION@</p>
+          </div>
+        </div>
+        <p class="text">The OXT-Beyond IDE itself: make stacks with the Tools palette, the Property Inspector and the Script Editor, try the lessons and the xTalk Academy, and read the Dictionary. Your stacks are kept in this browser between visits, and File &gt; Download Stack saves a copy. The first visit downloads about 60 MB.</p>
+        <a class="button" href="ide/">Open the Web IDE</a>
+      </section>
+      <!-- /@IDE@ -->
+      <!-- @DICTIONARY@ -->
+      <section class="card">
+        <div class="card-head">
+          <div class="icon teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5M9 8h7M9 11.5h5"/></svg></div>
+          <div>
+            <h3>Dictionary</h3>
+            <p class="version">@DICTIONARY_VERSION@</p>
+          </div>
+        </div>
+        <p class="text">The OXT-Beyond IDE's Dictionary of xTalk Script and xTalk Builder: every command, function, property and message, with its syntax and examples, to search and read in the browser. The IDE's Help &gt; Dictionary Online opens it.</p>
+        <a class="button" href="dictionary/">Open the Dictionary</a>
+      </section>
+      <!-- /@DICTIONARY@ -->
+      <!-- @PLAYER@ -->
+      <section class="card">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="14" height="17" rx="2"/><path d="M4 6v13.5A2.5 2.5 0 0 0 6.5 22H16"/><path d="M11 8v7l5-3.5z" fill="currentColor"/></svg></div>
+          <div>
+            <h3>Stack Player</h3>
+            <p class="version">@PLAYER_VERSION@</p>
+          </div>
+        </div>
+        <p class="text">Open any stack from your computer, or a .zip with a stack and its files, and run it in the page. It comes with whole stacks to play, small samples and games, and a plain account of what works on the web.</p>
+        <a class="button" href="player/">Open the Stack Player</a>
+      </section>
+      <!-- /@PLAYER@ -->
+      <!-- @MAP@ -->
+      <section class="card">
+        <div class="card-head">
+          <div class="icon slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="18" cy="5" r="2.2"/><circle cx="12" cy="13" r="2.4"/><circle cx="6" cy="19" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M6.8 7.3l3.6 4M16.4 6.5l-3 4.6M10.3 14.6l-2.8 2.8M14 14.2l3.3 2.6"/></svg></div>
+          <div>
+            <h3>Codebase map</h3>
+            <p class="version">@MAP_VERSION@</p>
+          </div>
+        </div>
+        <p class="text">For contributors: how the engine, the IDE's stacks and libraries, the extensions and the build fit together, the order the IDE searches its scripts in, what each change could break, and the project's history. Rebuilt from the source each time this site is.</p>
+        <a class="button" href="map/">Open the codebase map</a>
+      </section>
+      <!-- /@MAP@ -->
+    </div>
+
+    <div class="facts">
+      <div class="fact">
+        <span class="dot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+        <div><h4>Nothing to install</h4><p>Everything on this site runs in a modern browser, on whatever computer you are using.</p></div>
+      </div>
+      <!-- @IDE@ -->
+      <div class="fact">
+        <span class="dot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span>
+        <div><h4>Your stacks stay yours</h4><p>The Web IDE keeps your stacks in this browser between visits, and File &gt; Download Stack saves a copy.</p></div>
+      </div>
+      <!-- /@IDE@ -->
+      <div class="fact">
+        <span class="dot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9-9.2C1.6 8.4 3.8 5 7.2 5c2 0 3.4 1.1 4.8 2.8C13.4 6.1 14.8 5 16.8 5c3.4 0 5.6 3.4 4.2 6.8-2 4.8-9 9.2-9 9.2z"/></svg></span>
+        <div><h4>Free and open source</h4><p>OXT-Beyond is GPLv3, and the desktop IDE for Windows, macOS and Linux is on GitHub.</p></div>
+      </div>
+    </div>
+  </div>
 </main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">X</span><span>OXT-<b>Beyond</b></span></a>
+    <div>
+      OXT-Beyond is free and open source (GPLv3).
+      <span class="links">
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">Source and desktop downloads on GitHub</a>
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases">Releases</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // The stack in the header answers its button, as its script says. The
+  // page works without this: it is the only script, and it loads nothing.
+  (function () {
+    var hello = document.getElementById('hello');
+    var answer = document.getElementById('answer');
+    var text = document.getElementById('answer-text');
+    var ok = document.getElementById('answer-ok');
+    if (!hello || !answer || !text || !ok) return;
+    hello.addEventListener('click', function () {
+      text.textContent = 'Hello from Beyond!';
+      answer.classList.add('shown');
+      ok.focus();
+    });
+    ok.addEventListener('click', function () {
+      answer.classList.remove('shown');
+      text.textContent = '';
+      hello.focus();
+    });
+  })();
+</script>
 </body>
 </html>
