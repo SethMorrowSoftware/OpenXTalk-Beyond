@@ -205,6 +205,8 @@ public:
 	virtual void uniconifywindow(Window window);
 	virtual void setname(Window window, MCStringRef newname);
 	virtual void setcmap(MCStack *sptr);
+	// OXT-Beyond: "dark" only while the useDesktopAppearance is true
+	virtual void getsystemappearance(MCSystemAppearance &r_appearance);
 	virtual void sync(Window w);
 	virtual void flush(Window w);
 	virtual void beep();

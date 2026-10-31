@@ -1,3 +1,4 @@
 - Standalone Settings: on Linux and Windows, looking at the OS X card no longer turns off every Mac target of the stack; the targets are shown as they are and kept, and are changed only on a Mac (#PR)
 - Databases: revRollBackDatabase and revdb_rollback roll a PostgreSQL, SQLite or ODBC transaction back, as their dictionary entries say; they committed it (#PR)
 - Databases: the MySQL driver's encrypted connections work again, over TLS 1.2 or 1.3; it asked for TLS 1.0 alone, which OpenSSL 3 and current MySQL and MariaDB servers refuse (#PR)
+- Linux: a new global property, the useDesktopAppearance (false by default), lets the systemAppearance follow the desktop's light or dark setting (GNOME's color-scheme, or a GTK theme named "dark"), with systemAppearanceChanged when it switches; Preferences > Appearance has "Follow the desktop's light or dark setting" for the IDE. The engine still draws in the GTK theme's colours (#PR)

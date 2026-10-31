@@ -408,6 +408,10 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
 	
 	// OXT-Beyond: stacks on macOS in the system's window colour
 	DEFINE_RW_PROPERTY(P_USE_SYSTEM_WINDOW_COLOR, Bool, Interface, UseSystemWindowColor)
+	
+	// OXT-Beyond: the systemAppearance on Linux follows the desktop's light
+	// or dark setting
+	DEFINE_RW_PROPERTY(P_USE_DESKTOP_APPEARANCE, Bool, Interface, UseDesktopAppearance)
 };
 
 static bool MCPropertyInfoTableLookup(Properties p_which, Boolean p_effective, const MCPropertyInfo*& r_info, bool p_is_array_prop)
@@ -984,6 +988,7 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
     case P_LOADED_EXTENSIONS:
 	case P_SYSTEM_APPEARANCE:
 	case P_USE_SYSTEM_WINDOW_COLOR:
+	case P_USE_DESKTOP_APPEARANCE:
         break;
     
     case P_REV_LIBRARY_MAPPING:

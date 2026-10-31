@@ -755,6 +755,19 @@ void MCScreenDC::setcmap(MCStack *sptr)
 	//gdk_drawable_set_colormap(sptr->getw(), getcmap());
 }
 
+// OXT-Beyond: the systemAppearance on Linux. "light", as it always was,
+// unless a script has set the useDesktopAppearance to true: then the
+// desktop's light or dark setting (MCLinuxDesktopPrefersDark in
+// lnxgtktheme.cpp), which needs GTK
+extern bool MCLinuxDesktopPrefersDark(void);
+void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
+{
+	if (MCusedesktopappearance && m_has_gtk && MCLinuxDesktopPrefersDark())
+		r_appearance = kMCSystemAppearanceDark;
+	else
+		r_appearance = kMCSystemAppearanceLight;
+}
+
 void MCScreenDC::sync(Window w)
 {
 	gdk_display_sync(dpy);

@@ -37,6 +37,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
+#include <strings.h>
 
 #define FIXED_THUMB_SIZE 17
 
@@ -258,6 +259,108 @@ static bool theme_name_changed(void)
 	return t_changed;
 }
 
+// OXT-Beyond: the desktop's light or dark setting, for the systemAppearance
+// while a script follows it (the useDesktopAppearance; seth's decision,
+// 2026-10-31). GNOME 42 and later (and the desktops built on its settings)
+// switch with org.gnome.desktop.interface's color-scheme, which a GTK 2
+// theme never sees; elsewhere, and with "default", a theme whose name says
+// "dark" (Adwaita-dark, Yaru-dark, ...) is a dark desktop. GIO is weakly
+// linked, and the schema is looked up first, as g_settings_new aborts on one
+// that is not installed. Only ever read: nothing here changes how the
+// engine draws, which follows the GTK theme as before.
+
+extern "C" int initialise_weak_link_gio(void);
+
+static bool s_desktop_settings_tried = false;
+static GSettings *s_desktop_settings = NULL;
+// Whether the desktop was dark when last looked at (-1: not yet)
+static int s_desktop_dark = -1;
+
+static void desktop_color_scheme_changed(GSettings *p_settings, gchar *p_key, gpointer p_data);
+
+static GSettings *desktop_interface_settings(void)
+{
+	if (s_desktop_settings_tried)
+		return s_desktop_settings;
+	s_desktop_settings_tried = true;
+	if (initialise_weak_link_gio() == 0)
+		return NULL;
+	GSettingsSchemaSource *t_source = g_settings_schema_source_get_default();
+	if (t_source == NULL)
+		return NULL;
+	GSettingsSchema *t_schema = g_settings_schema_source_lookup(t_source, "org.gnome.desktop.interface", TRUE);
+	if (t_schema == NULL)
+		return NULL;
+	bool t_has_key = g_settings_schema_has_key(t_schema, "color-scheme");
+	g_settings_schema_unref(t_schema);
+	if (!t_has_key)
+		return NULL;
+	s_desktop_settings = g_settings_new("org.gnome.desktop.interface");
+	if (s_desktop_settings != NULL)
+		g_signal_connect_data(s_desktop_settings, "changed::color-scheme", G_CALLBACK(desktop_color_scheme_changed), NULL, NULL, (GConnectFlags)0);
+	return s_desktop_settings;
+}
+
+// Whether the GTK theme's name has "dark" in it, in any case
+static bool theme_name_says_dark(void)
+{
+	GtkSettings *t_settings = gtk_settings_get_default();
+	if (t_settings == NULL)
+		return false;
+	gchar *t_name = NULL;
+	g_object_get_ptr(t_settings, "gtk-theme-name", &t_name, NULL);
+	bool t_dark = false;
+	if (t_name != NULL)
+	{
+		for (const gchar *t_char = t_name; *t_char != '\0' && !t_dark; t_char++)
+			t_dark = strncasecmp(t_char, "dark", 4) == 0;
+		g_free(t_name);
+	}
+	return t_dark;
+}
+
+// Whether the desktop is set to dark (and remember it)
+bool MCLinuxDesktopPrefersDark(void)
+{
+	int t_dark = -1;
+	GSettings *t_settings = desktop_interface_settings();
+	if (t_settings != NULL)
+	{
+		gchar *t_scheme = g_settings_get_string(t_settings, "color-scheme");
+		if (t_scheme != NULL)
+		{
+			if (strcmp(t_scheme, "prefer-dark") == 0)
+				t_dark = 1;
+			else if (strcmp(t_scheme, "prefer-light") == 0)
+				t_dark = 0;
+			g_free(t_scheme);
+		}
+	}
+	if (t_dark < 0)
+		t_dark = theme_name_says_dark() ? 1 : 0;
+	s_desktop_dark = t_dark;
+	return t_dark == 1;
+}
+
+// systemAppearanceChanged to the defaultStack's card, once: a switch that
+// changes both the color-scheme and the theme comes in twice
+static void send_system_appearance_changed(void)
+{
+	if (!MCdefaultstackptr . IsValid())
+		return;
+	MCObject *t_card = MCdefaultstackptr -> getcurcard();
+	MCscreen -> cancelmessageobject(t_card, MCM_system_appearance_changed);
+	MCscreen -> delaymessage(t_card, MCM_system_appearance_changed);
+}
+
+static void desktop_color_scheme_changed(GSettings *p_settings, gchar *p_key, gpointer p_data)
+{
+	int t_was = s_desktop_dark;
+	bool t_dark = MCLinuxDesktopPrefersDark();
+	if (MCusedesktopappearance && t_was != (t_dark ? 1 : 0))
+		send_system_appearance_changed();
+}
+
 static gboolean reload_theme(void)
 {
 	Boolean reload = True;
@@ -281,8 +384,12 @@ static gboolean reload_theme(void)
 		// systemAppearance itself still reports "light" on Linux.) The
 		// message goes only when the theme's name has changed, not for a
 		// notification that names the theme already in use.
-		if (theme_name_changed() && MCdefaultstackptr . IsValid())
-			MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
+		// (With the useDesktopAppearance, a theme whose name says "dark" is
+		// a dark desktop: the setting is looked at again.)
+		if (theme_name_changed())
+			send_system_appearance_changed();
+		if (s_desktop_dark >= 0)
+			MCLinuxDesktopPrefersDark();
 	}
 	return (TRUE);
 }

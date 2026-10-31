@@ -1759,6 +1759,34 @@ void MCInterfaceSetUseSystemWindowColor(MCExecContext& ctxt, bool p_value)
 	}
 }
 
+// OXT-Beyond: the useDesktopAppearance (seth's decision, 2026-10-31). On
+// Linux the systemAppearance has always been "light", whatever the desktop
+// shows; while this is true it follows the desktop's light or dark setting
+// (GNOME's color-scheme, else a GTK theme whose name says "dark": lnxdc.cpp),
+// and systemAppearanceChanged is sent when that changes. False by default,
+// so that existing stacks read what they always did. macOS and Windows
+// follow their systems already, so it changes nothing there. When setting
+// it changes the systemAppearance, scripts are told as for a switch.
+void MCInterfaceGetUseDesktopAppearance(MCExecContext& ctxt, bool& r_value)
+{
+	r_value = MCusedesktopappearance == True;
+}
+
+void MCInterfaceSetUseDesktopAppearance(MCExecContext& ctxt, bool p_value)
+{
+	Boolean t_value = p_value ? True : False;
+	if (t_value == MCusedesktopappearance)
+		return;
+	
+	MCSystemAppearance t_before, t_after;
+	MCscreen->getsystemappearance(t_before);
+	MCusedesktopappearance = t_value;
+	MCscreen->getsystemappearance(t_after);
+	
+	if (t_before != t_after && MCdefaultstackptr . IsValid())
+		MCscreen -> delaymessage(MCdefaultstackptr -> getcurcard(), MCM_system_appearance_changed);
+}
+
 void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color)
 {
 	get_interface_color(MCselectioncolor, MCselectioncolorname, r_color);

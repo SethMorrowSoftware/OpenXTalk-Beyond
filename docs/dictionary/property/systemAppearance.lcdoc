@@ -26,7 +26,9 @@ Description:
 The <systemAppearance> property returns either "dark" or "light" depending on
 whether the application is running in a dark mode context or not. On
 Windows it follows the "app mode" of Windows' colour settings. On Linux the
-property returns "light".
+property returns "light", unless the <useDesktopAppearance> is true: then it
+follows the desktop's light or dark setting (GNOME's "color-scheme", or a GTK
+theme whose name says "dark").
 
 In an HTML5 standalone it returns "light" unless the page was built with
 **Appearance** set to **Follow the browser** in the Web pane of the
@@ -34,4 +36,5 @@ Standalone Application Settings: then it follows the browser's colour scheme
 (the CSS prefers-color-scheme), and the <systemAppearanceChanged> message is
 sent when that changes.
 
-References: systemAppearanceChanged (message)
+References: systemAppearanceChanged (message),
+useDesktopAppearance (property)

@@ -356,6 +356,9 @@ Boolean MCsystemPS = True;
 Boolean MChidewindows;
 // OXT-Beyond: the useSystemWindowColor (mac-theme.mm, the window background)
 Boolean MCusesystemwindowcolor;
+// OXT-Beyond: the useDesktopAppearance (Linux: the systemAppearance follows
+// the desktop's light or dark setting; lnxdc.cpp)
+Boolean MCusedesktopappearance;
 Boolean MCbufferimages;
 MCStringRef MCserialcontrolsettings;
 MCStringRef MCshellcmd;
@@ -744,6 +747,7 @@ void X_clear_globals(void)
 	MCsystemPS = True;
 	MChidewindows = False;
 	MCusesystemwindowcolor = False;
+	MCusedesktopappearance = False;
 	MCbufferimages = False;
 	MCserialcontrolsettings = MCValueRetain(kMCEmptyString);
 	MCshellcmd = MCValueRetain(kMCEmptyString);
