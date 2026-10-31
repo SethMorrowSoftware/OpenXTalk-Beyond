@@ -2678,6 +2678,7 @@ on tour_svg_paths
       dispatch "revMenubarObjectMenuPick" to stack "revMenuBar" with "Copy Graphics as SVG Paths"
       revIDEDeselectAll
       put tourSvgChecks(the clipboardData["text"]) into tFails
+      put tourSvgRawChecks(the clipboardData["text"]) after tFails
       tourShotStack tName, "04g-svg-paths"
    catch tError
       put tourJoin(tError) & return after tFails
@@ -2689,6 +2690,37 @@ on tour_svg_paths
    unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_svg_paths
+
+-- The same document under the clipboard types Adobe Illustrator reads
+-- (revidelibrary's kSVGClipboardTypes), in UTF-8, beside the text: what
+-- pastes as vector paths into Illustrator or VectorCraft (OpenXTalkPaul,
+-- openxtalk.org p=25820). Trailing NULs are dropped, because Windows can
+-- hand back a format's data rounded up to its allocation's size; empty
+-- when all is as it should be, else a line for each thing wrong
+function tourSvgRawChecks pSVG
+   local tKeys, tType, tText, tFails, tError
+   lock the clipboard
+   try
+      put the keys of the rawClipboardData into tKeys
+      repeat for each item tType in "com.adobe.illustrator.svg,com.adobe.illustrator.svgm,com.adobe.svg"
+         if tType is not among the lines of tKeys then
+            put "the clipboard has no" && tType && "(it has:" && tourJoin(tKeys) & ")" & return after tFails
+            next repeat
+         end if
+         put textDecode(the rawClipboardData[tType], "UTF-8") into tText
+         repeat while tText is not empty and the last char of tText is numToCodepoint(0)
+            delete the last char of tText
+         end repeat
+         if tText is not pSVG then
+            put tType && "is not the SVG text:" && tourJoin(line 1 to 2 of tText) & return after tFails
+         end if
+      end repeat
+   catch tError
+      put "reading the raw clipboard:" && tourJoin(tError) & return after tFails
+   end try
+   unlock the clipboard
+   return tFails
+end tourSvgRawChecks
 
 -- A graphic pName of the style pStyle made on the default stack's card,
 -- at pRect or through pPoints, filled in pFill unless it is empty, its

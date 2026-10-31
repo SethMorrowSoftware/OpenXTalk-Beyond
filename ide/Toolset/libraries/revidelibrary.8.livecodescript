@@ -12806,15 +12806,35 @@ end revIDERGBToNamedColor
 
 -- The Object menu's Copy Graphics as SVG Paths: the clipboard's text
 -- becomes an SVG document with a path for each graphic of pObjects (an
--- object a line, as the selObj gives them). OpenXTalk Lite 1.01 added the
--- item and its call to this command, never the command, so the item did
--- nothing (OpenXTalkPaul, openxtalk.org p=25819)
+-- object a line, as the selObj gives them). The item is from
+-- OpenXTalkPaul's DPE IDE and came to OXT-Beyond with OpenXTalk Lite 1.01,
+-- which added the item and its call to this command, never the command,
+-- so the item did nothing (OpenXTalkPaul, openxtalk.org p=25819).
+--
+-- The same document also goes on the clipboard, in UTF-8, under the types
+-- Adobe Illustrator reads (kSVGClipboardTypes), so it pastes as vector
+-- paths into Illustrator or VectorCraft, as DPE's does (p=25820). The text
+-- is set first, which clears the clipboard, so the types join it as one
+-- item. Should the engine refuse a type, the text is still copied: the
+-- try keeps the clipboard from staying locked
+constant kSVGClipboardTypes = "com.adobe.illustrator.svg,com.adobe.illustrator.svgm,com.adobe.svg"
+
 command revOXTIDEGraphicPointsToSVGPath pObjects
-   local tSVG
+   local tSVG, tData, tType, tError
    put revOXTIDEGraphicsToSVG(pObjects) into tSVG
-   if tSVG is not empty then
-      set the clipboardData["text"] to tSVG
+   if tSVG is empty then
+      exit revOXTIDEGraphicPointsToSVGPath
    end if
+   put textEncode(tSVG, "UTF-8") into tData
+   lock the clipboard
+   set the clipboardData["text"] to tSVG
+   try
+      repeat for each item tType in kSVGClipboardTypes
+         set the rawClipboardData[tType] to tData
+      end repeat
+   catch tError
+   end try
+   unlock the clipboard
 end revOXTIDEGraphicPointsToSVGPath
 
 -- An SVG document with a path for each graphic of pObjects (an object a
