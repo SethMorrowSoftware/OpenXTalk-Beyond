@@ -70,6 +70,19 @@ class ChangelogTest(unittest.TestCase):
     def test_the_repository_passes_its_own_check(self):
         self.assertEqual(changelog.check(changelog.REPO), [])
 
+    def test_the_newest_release_section_is_the_version_being_released(self):
+        # BUILDING.md section 10: the version change makes the folded
+        # section the version's, so the first release heading of
+        # CHANGELOG.md names ide/.version (a version bumped without its
+        # section, or a section left as "Unreleased", fails here)
+        import re
+        with open(os.path.join(changelog.REPO, 'ide', '.version'), encoding='utf-8') as f:
+            version = f.read().strip()
+        with open(os.path.join(changelog.REPO, 'CHANGELOG.md'), encoding='utf-8') as f:
+            headings = [m.group(1) for m in re.finditer(r'^## (\S+)', f.read(), re.M)]
+        released = [h for h in headings if h != 'Unreleased']
+        self.assertEqual(released[0], version)
+
     def test_check_refuses_what_is_not_a_line(self):
         self.changelog(HEAD + RELEASED)
         self.fragment('a.md', '- Good (#2)\n\n')

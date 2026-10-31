@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12299](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12299) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12332](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12332) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -320,20 +320,20 @@ Work left for later. 428 notes, by part of the repository:
 - [engine/src/lnxstack.cpp:449](engine/src/lnxstack.cpp#L449) TODO: test if this comment is still true
 - [engine/src/mac-av-player.mm:1552](engine/src/mac-av-player.mm#L1552) TODO: Add more types??
 - [engine/src/mac-av-player.mm:1601](engine/src/mac-av-player.mm#L1601) TODO
-- [engine/src/mac-core.mm:1657](engine/src/mac-core.mm#L1657) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
-- [engine/src/mac-core.mm:1724](engine/src/mac-core.mm#L1724) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
-- [engine/src/mac-core.mm:1797](engine/src/mac-core.mm#L1797) COCOA-TODO: Clean up this external dependency.
-- [engine/src/mac-core.mm:2319](engine/src/mac-core.mm#L2319) COCOA-TODO: Abstract Command/Control switching.
-- [engine/src/mac-core.mm:2394](engine/src/mac-core.mm#L2394) COCOA-TODO: Make this is a little more discerning (only need to reset if
+- [engine/src/mac-core.mm:1683](engine/src/mac-core.mm#L1683) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
+- [engine/src/mac-core.mm:1750](engine/src/mac-core.mm#L1750) PLATFORM-TODO: Shifted keysym handling should be in the engine rather than
+- [engine/src/mac-core.mm:1823](engine/src/mac-core.mm#L1823) COCOA-TODO: Clean up this external dependency.
+- [engine/src/mac-core.mm:2345](engine/src/mac-core.mm#L2345) COCOA-TODO: Abstract Command/Control switching.
+- [engine/src/mac-core.mm:2420](engine/src/mac-core.mm#L2420) COCOA-TODO: Make this is a little more discerning (only need to reset if
 - [engine/src/mac-menu.mm:1886](engine/src/mac-menu.mm#L1886) COCOA-TODO: Abstract Command/Control switching.
 - [engine/src/mac-surface.mm:34](engine/src/mac-surface.mm#L34) COCOA-TODO: Clean up external linkage for surface.
 - [engine/src/mac-surface.mm:219](engine/src/mac-surface.mm#L219) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-surface.mm:261](engine/src/mac-surface.mm#L261) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-surface.mm:294](engine/src/mac-surface.mm#L294) COCOA-TODO: Getting the height to flip round is dependent on a friend.
-- [engine/src/mac-window.mm:569](engine/src/mac-window.mm#L569) COCOA-TODO: Make sure this is necessary, apparantly things should
-- [engine/src/mac-window.mm:2008](engine/src/mac-window.mm#L2008) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
-- [engine/src/mac-window.mm:2045](engine/src/mac-window.mm#L2045) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
-- [engine/src/mac-window.mm:2335](engine/src/mac-window.mm#L2335) COCOA-TODO: Make display update more specific.
+- [engine/src/mac-window.mm:572](engine/src/mac-window.mm#L572) COCOA-TODO: Make sure this is necessary, apparantly things should
+- [engine/src/mac-window.mm:2007](engine/src/mac-window.mm#L2007) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
+- [engine/src/mac-window.mm:2044](engine/src/mac-window.mm#L2044) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
+- [engine/src/mac-window.mm:2334](engine/src/mac-window.mm#L2334) COCOA-TODO: Make display update more specific.
 - [engine/src/mblandroidad.cpp:171](engine/src/mblandroidad.cpp#L171) TODO - Should probably improve this to use a similar method to native controls.
 - [engine/src/mblandroidcalendar.cpp:79](engine/src/mblandroidcalendar.cpp#L79) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
 - [engine/src/mblandroidcalendar.cpp:92](engine/src/mblandroidcalendar.cpp#L92) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
