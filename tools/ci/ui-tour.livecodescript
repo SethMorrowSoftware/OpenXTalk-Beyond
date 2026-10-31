@@ -1,4 +1,4 @@
-script "oxt_ui_tour"
+﻿script "oxt_ui_tour"
 -- Screenshots of the IDE's own windows, run inside the real IDE by
 -- tools/ci/ui_tour.py, which names this file on the command line: the
 -- engine opens it once the IDE has started (home.livecodescript,
@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -2652,6 +2652,101 @@ function tourSegmentsProperties pWidget, pWhat
    end if
    return empty
 end tourSegmentsProperties
+
+-- The Object menu's Copy Graphics as SVG Paths puts the graphics selected
+-- on the clipboard as an SVG document, a path for each (OpenXTalkPaul,
+-- openxtalk.org p=25819: OpenXTalk Lite 1.01 added the item and its call,
+-- never the command it calls, so it did nothing). A filled rectangle, a
+-- polygon that ends where it starts and a line, selected as a user selects
+-- them, each with colours of its own
+on tour_svg_paths
+   local tArea, tName, tDefault, tRect, tPolygon, tLine, tFails, tError
+   put "oxt_svg_paths" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to tName
+      put tourSvgGraphic("rect", "rectangle", "10,10,110,60", empty, "255,0,0", "0,0,255", 2) into tRect
+      put tourSvgGraphic("polygon", "polygon", empty, "130,10" & return & "180,60" & return & "130,60" & return & "130,10", \
+            empty, "0,128,0", 1) into tPolygon
+      put tourSvgGraphic("line", "line", empty, "200,10" & return & "280,60", empty, "0,0,0", 1) into tLine
+      set the clipboardData["text"] to "nothing copied"
+      revIDESelectObjects tRect & return & tPolygon & return & tLine
+      dispatch "revMenubarObjectMenuPick" to stack "revMenuBar" with "Copy Graphics as SVG Paths"
+      revIDEDeselectAll
+      put tourSvgChecks(the clipboardData["text"]) into tFails
+      tourShotStack tName, "04g-svg-paths"
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   revIDEDeselectAll
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_svg_paths
+
+-- A graphic pName of the style pStyle made on the default stack's card,
+-- at pRect or through pPoints, filled in pFill unless it is empty, its
+-- line pLineSize wide in pStroke; its long id
+function tourSvgGraphic pName, pStyle, pRect, pPoints, pFill, pStroke, pLineSize
+   local tGraphic
+   create graphic pName
+   put it into tGraphic
+   set the style of tGraphic to pStyle
+   if pRect is not empty then set the rect of tGraphic to pRect
+   if pPoints is not empty then set the points of tGraphic to pPoints
+   set the filled of tGraphic to pFill is not empty
+   if pFill is not empty then set the backgroundColor of tGraphic to pFill
+   set the foregroundColor of tGraphic to pStroke
+   set the lineSize of tGraphic to pLineSize
+   return the long id of tGraphic
+end tourSvgGraphic
+
+-- A line for each way the SVG pSVG (the clipboard's text after Copy
+-- Graphics as SVG Paths) is not the document of tour_svg_paths' graphics:
+-- an svg element around a path each, the rectangle and the polygon that
+-- ends where it starts closed, the line open, a box that holds them all
+function tourSvgChecks pSVG
+   local tPath, tBox, tFails
+   tourRecord "INFO svg-paths the clipboard:" && tourJoin(pSVG)
+   if pSVG is empty or pSVG is "nothing copied" then
+      return "nothing was copied (the clipboard's text is" && quote & pSVG & quote & ")" & return
+   end if
+   if not (line 1 of pSVG begins with "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote) then
+      put "its first line is not an svg element:" && line 1 of pSVG & return after tFails
+   end if
+   if line -1 of pSVG is not "</svg>" or the number of lines of pSVG is not 5 then
+      put "it is not an svg element around three lines:" && the number of lines of pSVG && "lines" & return after tFails
+   end if
+   repeat for each line tPath in \
+         "<path d=" & quote & "M10,10 L110,10 L110,60 L10,60 Z" & quote && "fill=" & quote & "rgb(255,0,0)" & quote && \
+         "stroke=" & quote & "rgb(0,0,255)" & quote && "stroke-width=" & quote & "2" & quote & "/>" & return & \
+         "<path d=" & quote & "M130,10 L180,60 L130,60 Z" & quote && "fill=" & quote & "none" & quote && \
+         "stroke=" & quote & "rgb(0,128,0)" & quote && "stroke-width=" & quote & "1" & quote & "/>" & return & \
+         "<path d=" & quote & "M200,10 L280,60" & quote && "fill=" & quote & "none" & quote && \
+         "stroke=" & quote & "rgb(0,0,0)" & quote && "stroke-width=" & quote & "1" & quote & "/>"
+      if tPath is not among the lines of pSVG then put "it has no line" && tPath & return after tFails
+   end repeat
+   -- the viewBox holds every line: the rectangle's, 2 wide, from 9,9 to
+   -- 111,61, and the line's to 280.5
+   put offset("viewBox=" & quote, line 1 of pSVG) into tBox
+   if tBox is 0 then
+      put "its svg element has no viewBox" & return after tFails
+   else
+      put char tBox + 9 to -1 of line 1 of pSVG into tBox
+      put char 1 to offset(quote, tBox) - 1 of tBox into tBox
+      if the number of words of tBox is not 4 or word 1 of tBox > 9 or word 2 of tBox > 9 or \
+            word 1 of tBox + word 3 of tBox < 281 or word 2 of tBox + word 4 of tBox < 61 then
+         put "its viewBox" && tBox && "does not hold 9,9 to 281,61" & return after tFails
+      end if
+   end if
+   return tFails
+end tourSvgChecks
 
 on tour_inspector
    local tPI, tSection, tShown, tIndex, tError

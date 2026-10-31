@@ -12798,6 +12798,132 @@ function revIDERGBToNamedColor pColor
    return sColorsToNamesA[pColor]
 end revIDERGBToNamedColor
 
+##################################################
+#
+#          GRAPHICS AS SVG
+#
+##################################################
+
+-- The Object menu's Copy Graphics as SVG Paths: the clipboard's text
+-- becomes an SVG document with a path for each graphic of pObjects (an
+-- object a line, as the selObj gives them). OpenXTalk Lite 1.01 added the
+-- item and its call to this command, never the command, so the item did
+-- nothing (OpenXTalkPaul, openxtalk.org p=25819)
+command revOXTIDEGraphicPointsToSVGPath pObjects
+   local tSVG
+   put revOXTIDEGraphicsToSVG(pObjects) into tSVG
+   if tSVG is not empty then
+      set the clipboardData["text"] to tSVG
+   end if
+end revOXTIDEGraphicPointsToSVGPath
+
+-- An SVG document with a path for each graphic of pObjects (an object a
+-- line; any other object is left out), in card coordinates: its outline
+-- is the graphic's effective points, so an oval or a rounded rectangle is
+-- the polygon the engine gives for it. Its box holds every graphic's rect
+-- and half its line beyond, where SVG draws the line of a rectangle's
+-- edge. Empty when there is no graphic
+function revOXTIDEGraphicsToSVG pObjects
+   local tObject, tPaths, tRect, tPad, tLeft, tTop, tRight, tBottom
+   repeat for each line tObject in pObjects
+      if tObject is empty or not exists(tObject) then next repeat
+      put the long id of tObject into tObject
+      if word 1 of tObject is not "graphic" then next repeat
+      put __revOXTIDEGraphicToSVGPath(tObject) & return after tPaths
+      put the rect of tObject into tRect
+      put (the lineSize of tObject + 1) div 2 into tPad
+      put item 1 of tRect - tPad, item 2 of tRect - tPad, item 3 of tRect + tPad, item 4 of tRect + tPad into tRect
+      if tLeft is empty then
+         put item 1 of tRect into tLeft
+         put item 2 of tRect into tTop
+         put item 3 of tRect into tRight
+         put item 4 of tRect into tBottom
+      else
+         put min(tLeft, item 1 of tRect) into tLeft
+         put min(tTop, item 2 of tRect) into tTop
+         put max(tRight, item 3 of tRect) into tRight
+         put max(tBottom, item 4 of tRect) into tBottom
+      end if
+   end repeat
+   if tPaths is empty then return empty
+   return "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote && \
+         "width=" & quote & tRight - tLeft & quote && "height=" & quote & tBottom - tTop & quote && \
+         "viewBox=" & quote & tLeft && tTop && tRight - tLeft && tBottom - tTop & quote & ">" & return & \
+         tPaths & "</svg>" & return
+end revOXTIDEGraphicsToSVG
+
+-- A path element for the graphic pGraphic (its long id). A rectangle,
+-- rounded rectangle, regular polygon, oval, or filled arc is closed; a
+-- polygon, line or curve is open, as the engine draws it, except for each
+-- run of its points (an empty line between runs) that ends where it starts
+private function __revOXTIDEGraphicToSVGPath pGraphic
+   local tStyle, tClosed, tData, tRun, tPoint, tAttributes
+   put the style of pGraphic into tStyle
+   put tStyle is among the items of "rectangle,roundrect,regular" or \
+         (tStyle is "oval" and (the arcAngle of pGraphic >= 360 or the filled of pGraphic)) into tClosed
+   repeat for each line tPoint in the effective points of pGraphic
+      if tPoint is empty then
+         put __revOXTIDESVGRun(tRun, tClosed) after tData
+         put empty into tRun
+      else
+         put tPoint & return after tRun
+      end if
+   end repeat
+   put __revOXTIDESVGRun(tRun, tClosed) after tData
+   if the filled of pGraphic then
+      put "fill=" & quote & __revOXTIDESVGColor(the effective backgroundColor of pGraphic, "255,255,255") & quote into tAttributes
+      if the fillRule of pGraphic is "evenodd" then
+         put " fill-rule=" & quote & "evenodd" & quote after tAttributes
+      end if
+   else
+      put "fill=" & quote & "none" & quote into tAttributes
+   end if
+   if the lineSize of pGraphic > 0 then
+      put " stroke=" & quote & __revOXTIDESVGColor(the effective foregroundColor of pGraphic, "0,0,0") & quote & \
+            " stroke-width=" & quote & the lineSize of pGraphic & quote after tAttributes
+   else
+      put " stroke=" & quote & "none" & quote after tAttributes
+   end if
+   if the blendLevel of pGraphic > 0 then
+      put " opacity=" & quote & (100 - the blendLevel of pGraphic) / 100 & quote after tAttributes
+   end if
+   return "<path d=" & quote & word 1 to -1 of tData & quote && tAttributes & "/>"
+end __revOXTIDEGraphicToSVGPath
+
+-- The path data of the points pRun (a point a line): from the first to
+-- each in turn, and closed (Z) when pClosed or when the last is the first
+-- again, which is then left out
+private function __revOXTIDESVGRun pRun, pClosed
+   local tCount, tData, i
+   put the number of lines of pRun into tCount
+   if tCount is 0 then return empty
+   if tCount > 1 and line tCount of pRun is line 1 of pRun then
+      put true into pClosed
+      subtract 1 from tCount
+   end if
+   repeat with i = 1 to tCount
+      if i is 1 then
+         put " M" & line i of pRun after tData
+      else
+         put " L" & line i of pRun after tData
+      end if
+   end repeat
+   if pClosed then put " Z" after tData
+   return tData
+end __revOXTIDESVGRun
+
+-- A colour of an object (as r,g,b, #rrggbb or a name) as SVG writes it;
+-- pDefault (r,g,b) when it is empty
+private function __revOXTIDESVGColor pColor, pDefault
+   local tRGB
+   if pColor is empty then put pDefault into pColor
+   if char 1 of pColor is "#" then return pColor
+   if the number of items of pColor >= 3 then return "rgb(" & item 1 to 3 of pColor & ")"
+   put revIDENamedColorToRGB(pColor) into tRGB
+   if the number of items of tRGB >= 3 then return "rgb(" & item 1 to 3 of tRGB & ")"
+   return pColor
+end __revOXTIDESVGColor
+
 on ideCorePropertyInspectorRefreshPropertyLabels
    revIDESetPreference "idePropertyInspector_labels", the cLanguageNames of cd 1 of stack "revPreferences"
 end ideCorePropertyInspectorRefreshPropertyLabels
