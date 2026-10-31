@@ -314,8 +314,67 @@ end menuPick
 
 constant kFudge = 2
 
+-- OXT-Beyond: the script's selection when the handler list opened, as
+-- "<field's long id>|<first char>|<last char>". The list takes the focus
+-- so that its keys work, and a field that takes the focus clears the
+-- selection of the field that had it (the engine's MCField::kfocus), so
+-- the script's selection went, and stayed gone when the list closed with
+-- no handler picked (tperry2x, openxtalk.org p=25787). It is put back
+-- then (oxtPutBackScriptSelection), unless a field took the focus.
+local sScriptSelection
+
+private command oxtKeepScriptSelection
+   local tField, tChunk, tError
+   put empty into sScriptSelection
+   try
+      put the long id of field "Script" of group "Editor" of the owner of me into tField
+      -- the selection of the field that has one, if it is the script
+      put the selectedChunk into tChunk
+      if tChunk is empty or the selectedChunk of tField is not tChunk then
+         exit oxtKeepScriptSelection
+      end if
+      if word 1 of tChunk is not "char" or word 2 of tChunk is not an integer \
+            or word 4 of tChunk is not an integer then exit oxtKeepScriptSelection
+      put tField & "|" & word 2 of tChunk & "|" & word 4 of tChunk into sScriptSelection
+   catch tError
+      put empty into sScriptSelection
+   end try
+end oxtKeepScriptSelection
+
+on oxtPutBackScriptSelection
+   local tField, tFrom, tTo, tFocused, tError
+   if sScriptSelection is empty then exit oxtPutBackScriptSelection
+   set the itemDelimiter to "|"
+   put item 1 of sScriptSelection into tField
+   put item 2 of sScriptSelection into tFrom
+   put item 3 of sScriptSelection into tTo
+   put empty into sScriptSelection
+   if seHandlerListIsShowing() then exit oxtPutBackScriptSelection
+   -- not if the user clicked into a field (the script's, too: the click
+   -- has put the caret where the user wants it); the list's own field
+   -- keeps the focus when Escape closes the list, and that is no choice
+   -- of the user's
+   put the focusedObject into tFocused
+   if tFocused is not empty and word 1 of tFocused is "field" then
+      try
+         if tFocused is not the long id of field "Handlers" of seHandlerListObject() then
+            exit oxtPutBackScriptSelection
+         end if
+      catch tError
+         exit oxtPutBackScriptSelection
+      end try
+   end if
+   try
+      if there is a tField and tTo <= the number of chars of tField then
+         select char tFrom to tTo of tField
+      end if
+   catch tError
+   end try
+end oxtPutBackScriptSelection
+
 command showHandlerList
    lock screen
+   oxtKeepScriptSelection
    # OK-2008-08-18 : Bug 6916 - The handler list object should always be at the top layer
    set the layer of seHandlerListObject() to top
    
@@ -351,6 +410,12 @@ end showHandlerList
 
 command hideHandlerList
    set the right of seHandlerListObject() to the left of this card - 20
+   -- OXT-Beyond: the list closed with no handler picked (its field lost
+   -- the focus, or Escape): the script's selection comes back once the
+   -- focus has gone where it is going
+   if sScriptSelection is not empty then
+      send "oxtPutBackScriptSelection" to me in 0 milliseconds
+   end if
 end hideHandlerList
 
 # Description
@@ -365,6 +430,9 @@ on handlerSelected
    if tLine is empty then
       exit handlerSelected
    end if
+   -- OXT-Beyond: a handler was picked, and the editor goes to it, so the
+   -- selection the list kept is not put back (hideHandlerList)
+   put empty into sScriptSelection
    
    # OK-2009-03-04 : Bug 7450 - If the script is invalid (i.e. doesn't compile) then the line number returned by the handler
    # list may be wrong because its the last known location of the handler when the script was compiled. To try and locate

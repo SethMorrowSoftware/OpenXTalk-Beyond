@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3381,6 +3381,59 @@ on tour_script_editor_search
    tourShotStack tSE, "10-script-editor-search"
    close stack tSE
 end tour_script_editor_search
+
+-- The Handlers button above the script opens the list of its handlers,
+-- which takes the focus, and so took the script's selection away; closed
+-- with no handler picked, the list puts the selection back (tperry2x,
+-- openxtalk.org p=25787). The list is closed twice: as a click elsewhere
+-- closes it (its field loses the focus), and with Escape, which leaves
+-- the focus in the hidden list's field.
+on tour_script_editor_handlers
+   local tSE, tField, tList, tBefore, tAfter, tShowing, tEscBefore, tEscAfter, tEscShowing, tProblems
+   revIDEEditScriptOfObject tourSample("Push")
+   tourWait 2000
+   put tourStackNamed("revNewScriptEditor") into tSE
+   if tSE is empty then throw "no script editor opened:" && tourJoin(the openStacks)
+   put the long id of field "Script" of group "Editor" of card "Main" of stack tSE into tField
+   put the long id of field "Handlers" of group "Handler List" of card "Main" of stack tSE into tList
+   if the number of chars of tField < 12 then throw "the sample's script is too short:" && the text of tField
+   -- closed by the focus going elsewhere
+   focus on tField
+   select char 4 to 11 of tField
+   put the selectedChunk into tBefore
+   send "mouseUp" to button "Handlers" of group "Toolbar" of card "Main" of stack tSE
+   tourWait 800
+   tourShotStack tSE, "10-script-editor-handlers"
+   dispatch function "seHandlerListIsShowing" to stack tSE
+   put the result into tShowing
+   focus on nothing
+   tourWait 800
+   put the selectedChunk into tAfter
+   -- closed with Escape
+   focus on tField
+   select char 2 to 6 of tField
+   put the selectedChunk into tEscBefore
+   send "mouseUp" to button "Handlers" of group "Toolbar" of card "Main" of stack tSE
+   tourWait 800
+   dispatch function "seHandlerListIsShowing" to stack tSE
+   put the result into tEscShowing
+   send "escapeKey" to tList
+   tourWait 800
+   put the selectedChunk into tEscAfter
+   close stack tSE
+   if tShowing is not true or tEscShowing is not true then
+      throw "the Handlers button did not open the list of handlers"
+   end if
+   -- both cases are told, so a run shows which of them fails
+   if tAfter is not tBefore then
+      put "the script's selection was" && quote & tBefore & quote && "and is" && quote & tAfter & quote && "after the list of handlers lost the focus" into tProblems
+   end if
+   if tEscAfter is not tEscBefore then
+      if tProblems is not empty then put "; " after tProblems
+      put "the script's selection was" && quote & tEscBefore & quote && "and is" && quote & tEscAfter & quote && "after Escape closed the list of handlers" after tProblems
+   end if
+   if tProblems is not empty then throw tProblems
+end tour_script_editor_handlers
 
 on tour_message_box
    revIDEOpenPalette "message box"
