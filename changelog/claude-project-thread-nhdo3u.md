@@ -1,0 +1,2 @@
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.10's engine: the asset `oxt-runtimes-0.2.7-rc.6.10` replaces `oxt-runtimes-0.2.5-rc.2`, which was 152 engine-source commits behind, so a standalone built for another platform now has every engine fix since 0.2.5-rc.2 (#289)
+- Releases: "Tag a release" refuses to tag while the runtimes asset is older than the engine's source, and BUILDING.md's release steps rebuild and pin it first, so every release carries the other platforms' runtimes of its own engine (#289)

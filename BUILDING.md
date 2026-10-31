@@ -981,17 +981,17 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.5-rc.2`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.7-rc.6.10`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, with the Android runtime and its time zone library code carried
 over unchanged from the earlier asset `oxt-runtimes-1.15` (OpenXTalk
 Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.5-rc.2.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.7-rc.6.10.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.5-rc.2.zip` of this repository's release
-`runtimes-0.2.5-rc.2`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.7-rc.6.10.zip` of this repository's release
+`runtimes-0.2.7-rc.6.10`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1033,12 +1033,14 @@ It makes the archive with
 shows the manifest entry in its summary and, with `publish` and a
 commit on `main`, publishes the pre-release `runtimes-<label>`. Then pin
 that entry in `tools/oxt/external-assets.json` in a pull request. Make
-a new asset whenever the engine or the externals change, so that the
-other platforms' runtimes in the packages stay those of the release.
+a new asset for every release whose engine or externals changed, so that
+the other platforms' runtimes in the packages are those of the release
+(step 1 of [Making a release](#10-making-a-release)).
 [`tools/ci/runtimes_provenance.py`](tools/ci/runtimes_provenance.py)
 lists the commits since the pinned asset's that change the engine's
 source; the CI checks workflow shows the list in its summary with a
-warning (with `--fail-on-stale` it fails instead).
+warning, and "Tag a release" runs it with `--fail-on-stale`, so a
+release is not tagged until a current asset is pinned.
 
 `oxt-runtimes-1.15` was made differently, from an extracted OpenXTalk
 Lite release, taking only files that `layout.py` classes "external" (not
@@ -2005,8 +2007,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.5-rc.2.zip`). The download comes from this
-repository's `runtimes-0.2.5-rc.2` release (also in a fork, which needs
+(`oxt-runtimes-0.2.7-rc.6.10.zip`). The download comes from this
+repository's `runtimes-0.2.7-rc.6.10` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -2287,7 +2289,17 @@ it.
 
 1. Make sure the external assets in `tools/oxt/external-assets.json`
    are published (see [External assets](#external-assets)); packaging
-   fails without them. Decide whether the xTalk Suite extensions should
+   fails without them. Rebuild the runtimes asset whenever a commit
+   since the pinned one changed the engine's source
+   (`python3 tools/ci/runtimes_provenance.py` lists them; the CI checks
+   show the same list): run the "Runtimes asset" workflow with
+   `publish` on the latest commit of `main` whose Windows and Linux
+   builds passed, labelled with the version being released, pin the
+   entry its summary shows in a pull request and merge it (see
+   [Making the runtimes asset](#external-assets)). Every release then
+   carries the other platforms' runtimes of its own engine; "Tag a
+   release" refuses to tag while the pinned asset is older than the
+   engine's source. Decide whether the xTalk Suite extensions should
    move to newer commits of their repositories; if so, pin them (see
    [xTalk Suite extensions](#xtalk-suite-extensions)) and merge that
    first.
@@ -2331,7 +2343,8 @@ it.
    commit and run the "Tag a release" workflow
    ([`.github/workflows/tag-release.yml`](.github/workflows/tag-release.yml))
    on `main` instead: it tags that commit `v<ide/.version>`, refuses a
-   tag that exists already or a commit whose builds did not pass, and
+   tag that exists already, a runtimes asset older than the engine's
+   source (step 1) or a commit whose builds did not pass, and
    starts `release.yml` on the new tag, which then does what step 6 says.
    (When the commit's push started no build, because it changed nothing
    a build uses, it starts the builds on `main` instead; run it again once

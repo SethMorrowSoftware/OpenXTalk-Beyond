@@ -31,9 +31,11 @@ the changes those runtimes do not have.
 
 By default it only reports: the list goes to standard output and, under
 GitHub Actions, to the job summary with a warning, and the exit status is 0
-however many commits there are (rebuilding the runtimes is seth's
-decision, the plan's MOD-D1; failing would make every build red until
-then). --fail-on-stale makes it exit 1 when there is any. Exit status 2
+however many commits there are (the CI checks run it so: failing there
+would turn every pull request red after an engine change). --fail-on-stale
+makes it exit 1 when there is any; the "Tag a release" workflow runs it so
+(seth's decision MOD-D1, 2026-10-31: every release rebuilds the asset),
+and a release is not tagged until a new asset is pinned. Exit status 2
 when the asset or its commit cannot be found, or the history does not
 reach the commit (a shallow clone: check out with fetch-depth 0).
 
@@ -105,8 +107,9 @@ def report(asset_id, commit, commits, limit):
                      % ', '.join(SOURCE_PATHS))
     else:
         lines.append('**%d commits since then change the engine\'s source** (%s). The Windows and Linux '
-                     'runtimes that packages carry for the other platforms do not have them; rebuilding '
-                     'the asset is seth\'s decision (plan MOD-D1). Some may change only another platform\'s code '
+                     'runtimes that packages carry for the other platforms do not have them. Every release '
+                     'rebuilds the asset from main\'s green builds and pins it before it is tagged '
+                     '(BUILDING.md section 10, step 1); "Tag a release" refuses until then. Some may change only another platform\'s code '
                      '(the web\'s or the Mac\'s): the list says what changed, not what each runtime '
                      'lacks.' % (len(commits), ', '.join(SOURCE_PATHS)))
         lines.append('')
