@@ -24,6 +24,14 @@ that are there, its own anchors and the project on GitHub;
 and narrow, light and dark (the Web IDE workflow runs it beside the
 Dictionary's check).
 
+With a release (`--release TAG --release-assets FILE`, which pages.yml
+gives: the release on the site, or the newest when the site has a test
+build), the front page also has a Downloads section, as the forum posts
+have: the Windows, macOS and Linux packages, the web zips and the
+plugins, each linked straight to its file, with links to the release's
+page, earlier releases and a bug report. A file the release does not
+have gets no link.
+
 The workflow [pages.yml](../../.github/workflows/pages.yml) builds no
 part of the IDE or the player: it takes the two sites as a release ships them
 (`OXT-Beyond-<version>-web-ide.zip` and `OXT-Beyond-<version>-web-player.zip`),

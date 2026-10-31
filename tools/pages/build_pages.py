@@ -23,6 +23,7 @@ given.
   python3 tools/pages/build_pages.py --out DIR
       [--ide ZIP --ide-version V] [--player ZIP --player-version V]
       [--map HTML --map-version V]
+      [--release TAG --release-assets FILE]
 
   DIR/index.html     the front page (tools/pages/index.html)
   DIR/ide/           OXT-Beyond-<version>-web-ide.zip's site (tools/web-ide)
@@ -38,6 +39,14 @@ given.
                      and beside it, when build_map.py wrote them next to
                      the page, the binary stacks' scripts as files
                      (stack-scripts/ and stack-scripts.zip)
+
+With --release, the front page has a Downloads section: the desktop
+packages, the web zips and the plugins of that release, each linked
+straight to its file on GitHub, as the forum posts link them. FILE lists
+the release's file names, one a line (gh release view TAG --json assets
+--jq '.assets[].name'), and a file the release does not have gets no
+link, so no link on the page leads to a missing file; a platform with
+none of its files is left out, and the section too when it has none.
 
 Each zip holds its site in one folder (StackPlayer/, or the web IDE's
 folder named after its zip); the folder with index.html is the one taken.
@@ -55,9 +64,11 @@ build here, where the message says which file it is.
 import argparse
 import html
 import os
+import re
 import shutil
 import sys
 import tempfile
+import urllib.parse
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -65,14 +76,51 @@ sys.path.insert(0, HERE)
 
 import build_dictionary  # noqa: E402
 
-# The parts of the site, each with its card on the front page
-PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'MAP')
+# The parts of the site, each with its card on the front page, and the
+# Downloads section (from a release's files, not a folder of the site)
+PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'MAP', 'DOWNLOADS')
+REPOSITORY = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
+# The Downloads section: (platform, what it needs, [(link, file suffix)]);
+# a file is OXT-Beyond-<version>-<suffix>, as release.yml names them
+DOWNLOADS = (
+    ('Windows', '64-bit Windows 10 or later',
+     (('Installer', 'win-x86_64-setup.exe'), ('Portable zip', 'win-x86_64-portable.zip'))),
+    ('macOS', 'Apple Silicon and Intel, one universal app',
+     (('Disk image', 'mac-universal.dmg'), ('Zip', 'mac-universal.zip'))),
+    ('Linux', 'x86-64 and 64-bit ARM, glibc 2.31 or later',
+     (('x86-64', 'linux-x86_64.tar.xz'), ('64-bit ARM', 'linux-arm64.tar.xz'))),
+    ('Web, on your own server', 'The web IDE and the Stack Player as folders to serve',
+     (('Web IDE zip', 'web-ide.zip'), ('Stack Player zip', 'web-player.zip'))),
+    ('Plugins for other xTalks', 'For LiveCode Community 9, HyperXTalk and OpenXTalk',
+     (('xTalk Assistant', 'xtalk-assistant-plugin.lce'), ('MCP Bridge', 'mcp-bridge-plugin.lce'))),
+)
 LIMIT = 100 * 1000 * 1000
 LOCAL_ONLY = {'serve.py', 'Start Web IDE.bat', 'README.txt'}
 
 
 class BuildError(Exception):
     pass
+
+
+def downloads_html(tag, assets):
+    """The Downloads section's platforms, for the release tag whose files
+    are assets (their names): a link for each file it has."""
+    if not re.match(r'^v[0-9][0-9A-Za-z.+-]*$', tag):
+        raise BuildError('--release %r is not a release tag (v<version>)' % tag)
+    version = tag[1:]
+    base = '%s/releases/download/%s/' % (REPOSITORY, urllib.parse.quote(tag))
+    out = []
+    for platform, needs, files in DOWNLOADS:
+        links = []
+        for label, suffix in files:
+            name = 'OXT-Beyond-%s-%s' % (version, suffix)
+            if name in assets:
+                links.append('<a class="file" href="%s%s">%s</a>'
+                             % (base, urllib.parse.quote(name), html.escape(label)))
+        if links:
+            out.append('<div class="platform"><h3>%s</h3><p>%s</p><div class="files">%s</div></div>'
+                       % (html.escape(platform), html.escape(needs), ''.join(links)))
+    return '\n'.join(out)
 
 
 def site_root(folder):
@@ -127,6 +175,10 @@ def front_page(out, parts):
                 page = page[:at] + page[page.index(end, at) + len(end):]
         else:
             page = page.replace('@%s_VERSION@' % key, html.escape(version))
+            if key == 'DOWNLOADS':
+                page = page.replace('@DOWNLOADS_URL@', '%s/releases/tag/%s'
+                                    % (REPOSITORY, urllib.parse.quote(version)))
+                page = page.replace('@DOWNLOADS_LIST@', parts['DOWNLOADS_LIST'])
     for key in PARTS:
         page = page.replace('<!-- @%s@ -->' % key, '').replace('<!-- /@%s@ -->' % key, '')
     with open(os.path.join(out, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
@@ -167,9 +219,23 @@ def build(args):
         if os.path.isfile(os.path.join(here, 'stack-scripts.zip')):
             shutil.copyfile(os.path.join(here, 'stack-scripts.zip'), os.path.join(out, 'map', 'stack-scripts.zip'))
         parts['MAP'] = args.map_version or ''
+    # (getattr: callers that build an argparse.Namespace by hand, such as
+    # the tests, may not give these)
+    release, release_assets = getattr(args, 'release', None), getattr(args, 'release_assets', None)
+    if release:
+        if not release_assets:
+            raise BuildError('--release needs --release-assets')
+        with open(release_assets, encoding='utf-8') as f:
+            assets = {line.strip() for line in f if line.strip()}
+        listed = downloads_html(release, assets)
+        if listed:
+            parts['DOWNLOADS'] = release
+            parts['DOWNLOADS_LIST'] = listed
+        else:
+            print('no downloads: %s has none of the files the page links' % release)
     front_page(out, parts)
     check_sizes(out)
-    for key, version in sorted(parts.items()):
+    for key, version in sorted((k, v) for k, v in parts.items() if k in PARTS):
         print('%s: %s' % (key.lower(), version or '(no version given)'))
     print('Site: %s' % out)
 
@@ -183,6 +249,8 @@ def main():
     ap.add_argument('--player-version', metavar='V', help='shown on the front page')
     ap.add_argument('--map', metavar='HTML', help="the codebase map's index.html (tools/codebase-map)")
     ap.add_argument('--map-version', metavar='V', help='shown on the front page')
+    ap.add_argument('--release', metavar='TAG', help='the release whose files the Downloads section links')
+    ap.add_argument('--release-assets', metavar='FILE', help="that release's file names, one a line")
     args = ap.parse_args()
     try:
         build(args)

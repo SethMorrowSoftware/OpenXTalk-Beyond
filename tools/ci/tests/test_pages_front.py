@@ -17,7 +17,8 @@
 """The front page of the GitHub Pages site (tools/pages/index.html, filled
 in by tools/pages/build_pages.py). Whatever parts a run puts on the site,
 the page it writes links only to folders that are there, to its own
-anchors and to the project on GitHub; it leaves no marker or placeholder
+anchors, to the project on GitHub and to the files its release has (the
+Downloads section); it leaves no marker or placeholder
 behind; and it asks no other host for anything (no script, style, font or
 image from elsewhere). tools/pages/check_front_page.py reads the same page
 in a browser.
@@ -48,7 +49,18 @@ FOLDERS = {'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP
 EXTERNAL = {
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond',
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases',
+    'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new?template=bug_report.yml',
 }
+TAG = 'v0.2.7-rc.6.11'
+# rc.6.11's files, as gh release view lists them
+ASSETS = ['OXT-Beyond-0.2.7-rc.6.11-%s' % s for s in (
+    'linux-arm64-binaries.tar.xz', 'linux-arm64-symbols.tar.xz', 'linux-arm64.tar.xz',
+    'linux-x86_64-binaries.tar.xz', 'linux-x86_64-symbols.tar.xz', 'linux-x86_64.tar.xz',
+    'mac-universal-binaries.tar.xz', 'mac-universal-symbols.zip', 'mac-universal.dmg', 'mac-universal.zip',
+    'mcp-bridge-plugin.lce', 'web-ide.zip', 'web-player.zip', 'win-x86_64-binaries.zip',
+    'win-x86_64-portable.zip', 'win-x86_64-setup.exe', 'win-x86_64-symbols.zip',
+    'xtalk-assistant-plugin.lce', 'xtalk-sources.zip')] + ['SHA256SUMS']
+RELEASE = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/'
 # Elements that void HTML does not close
 VOID = {'meta', 'link', 'br', 'img', 'input', 'hr', 'source', 'path', 'circle', 'rect'}
 
@@ -141,17 +153,20 @@ class TheBuiltPage(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.work, ignore_errors=True)
 
-    def build(self, parts):
+    def build(self, parts, assets=ASSETS):
         out = os.path.join(self.work, '-'.join(sorted(parts)) or 'none')
         os.makedirs(out)
         for key in parts:
-            os.makedirs(os.path.join(out, FOLDERS[key]))
+            if key in FOLDERS:
+                os.makedirs(os.path.join(out, FOLDERS[key]))
+        if 'DOWNLOADS' in parts:
+            parts = dict(parts, DOWNLOADS=TAG, DOWNLOADS_LIST=build_pages.downloads_html(TAG, set(assets)))
         build_pages.front_page(out, parts)
         with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
             return out, f.read()
 
-    def check(self, parts):
-        out, text = self.build(parts)
+    def check(self, parts, assets=ASSETS):
+        out, text = self.build(parts, assets)
         where = 'parts %s' % sorted(parts)
         self.assertNotIn('<!-- @', text, where)
         self.assertNotIn('<!-- /@', text, where)
@@ -162,19 +177,30 @@ class TheBuiltPage(unittest.TestCase):
             self.assertTrue(href, where)
             if href.startswith('#'):
                 self.assertIn(href[1:], page.ids, '%s: %s' % (where, href))
+            elif href.startswith(RELEASE + 'download/'):
+                self.assertIn('DOWNLOADS', parts, where)
+                tag, name = href[len(RELEASE + 'download/'):].split('/')
+                self.assertEqual(tag, TAG, where)
+                self.assertIn(name, assets, where)
+            elif href.startswith(RELEASE + 'tag/'):
+                self.assertEqual(href, RELEASE + 'tag/' + TAG, where)
             elif href.startswith('https://'):
                 self.assertIn(href, EXTERNAL, where)
             elif href == './':
                 pass
+            elif href == '#downloads':
+                pass
             else:
-                self.assertIn(href, [FOLDERS[k] for k in parts], '%s: %s' % (where, href))
+                self.assertIn(href, [FOLDERS[k] for k in parts if k in FOLDERS], '%s: %s' % (where, href))
                 self.assertTrue(os.path.isdir(os.path.join(out, href)), href)
         for key, folder in FOLDERS.items():
             self.assertEqual(('href="%s"' % folder) in text, key in parts, '%s: %s' % (where, key))
+        self.assertEqual('href="#downloads"' in text, 'DOWNLOADS' in parts, where)
+        self.assertEqual('id="downloads"' in text, 'DOWNLOADS' in parts, where)
         return text
 
     def test_every_set_of_parts(self):
-        keys = list(FOLDERS)
+        keys = list(FOLDERS) + ['DOWNLOADS']
         for n in range(len(keys) + 1):
             for combo in itertools.combinations(keys, n):
                 self.check({k: '1.%d' % i for i, k in enumerate(combo)})
@@ -189,6 +215,33 @@ class TheBuiltPage(unittest.TestCase):
         for label, folder in (('Open the Web IDE', 'ide/'), ('Open the Dictionary', 'dictionary/'),
                               ('Open the Stack Player', 'player/'), ('Open the codebase map', 'map/')):
             self.assertIn('<a class="button" href="%s">%s</a>' % (folder, label), text)
+
+    def test_the_downloads(self):
+        text = self.check({'IDE': '9', 'DOWNLOADS': TAG})
+        for name in ('win-x86_64-setup.exe', 'win-x86_64-portable.zip', 'mac-universal.dmg', 'mac-universal.zip',
+                     'linux-x86_64.tar.xz', 'linux-arm64.tar.xz', 'web-ide.zip', 'web-player.zip',
+                     'xtalk-assistant-plugin.lce', 'mcp-bridge-plugin.lce'):
+            self.assertIn('href="%sdownload/%s/OXT-Beyond-0.2.7-rc.6.11-%s"' % (RELEASE, TAG, name), text)
+        # (debug symbols and build output are for the release page)
+        self.assertNotIn('symbols', text)
+        self.assertIn('href="%stag/%s"' % (RELEASE, TAG), text)
+        self.assertIn('<span class="release">%s</span>' % TAG, text)
+
+    def test_only_the_files_the_release_has(self):
+        assets = [a for a in ASSETS if 'mac-' not in a and not a.endswith('-portable.zip')]
+        text = self.check({'DOWNLOADS': TAG}, assets)
+        self.assertNotIn('<h3>macOS</h3>', text)
+        self.assertNotIn('portable', text)
+        self.assertIn('<h3>Windows</h3>', text)
+
+    def test_a_release_with_none_of_them(self):
+        self.assertEqual(build_pages.downloads_html(TAG, {'SHA256SUMS'}), '')
+        self.assertEqual(build_pages.downloads_html('v1.0', set(ASSETS)), '')
+
+    def test_a_tag_that_is_not_one(self):
+        for tag in ('0.2.7', 'v0.2.7"><script>', 'run 123 (not released)', ''):
+            with self.assertRaises(build_pages.BuildError):
+                build_pages.downloads_html(tag, set(ASSETS))
 
     def test_a_part_with_more_than_one_block(self):
         # every block of a missing part goes, not just the first
@@ -228,6 +281,24 @@ class TheBuiltPage(unittest.TestCase):
         self.assertIn('href="player/"', text)
         self.assertNotIn('href="ide/"', text)
         self.assertNotIn('Launch the Web IDE', text)
+        self.assertNotIn('id="downloads"', text)
+
+        # and with a release, as pages.yml gives it
+        listing = os.path.join(self.work, 'assets.txt')
+        with open(listing, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(ASSETS) + '\n')
+        shutil.rmtree(out)
+        args.release, args.release_assets = TAG, listing
+        with redirect_stdout(io.StringIO()):
+            build_pages.build(args)
+        with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
+            text = f.read()
+        self.assertIn('id="downloads"', text)
+        self.assertIn('OXT-Beyond-0.2.7-rc.6.11-win-x86_64-setup.exe', text)
+        shutil.rmtree(out)
+        args.release_assets = None
+        with self.assertRaisesRegex(build_pages.BuildError, 'release-assets'):
+            build_pages.build(args)
 
 
 if __name__ == '__main__':
