@@ -976,6 +976,13 @@
 	var link_placeholder_regex;
 	link_placeholder_regex = /<([^`>]*)>/igm;
 
+	// Whether the text between "<" and ">" is an HTML tag (an opening or
+	// closing tag, or a comment) rather than a link to an entry
+	var html_tag_regex = /^(?:!--[\s\S]*--|\/?(?:a|abbr|b|big|blockquote|br|caption|center|cite|code|col|dd|del|div|dl|dt|em|font|h[1-6]|hr|i|img|ins|kbd|li|ol|p|pre|q|s|samp|small|span|strike|strong|sub|sup|table|tbody|td|tfoot|th|thead|tr|tt|u|ul|var)(?:\s[^>]*)?\/?)$/i;
+	function link_placeholder_is_html_tag(pText){
+		return html_tag_regex.test(pText);
+	}
+
 	function replace_link_placeholders_with_param(pText){
 		if(pText){
 			var pText = pText.replace(link_placeholder_regex, function(matched_whole, matched_text) {
@@ -1032,7 +1039,13 @@
              			return_text = resolved[0];
              	}
 
-				if(return_text == matched_text){
+				// OXT-Beyond: a placeholder that resolves to no entry is shown
+				// as its text, as the label of one with a "|" always was.
+				// Put back as "<text>" it was taken for an HTML tag and
+				// hidden ("<effective>" and "<current card>" left words
+				// out of systemAppearanceChanged, openxtalk.org p=25668);
+				// only real HTML tags in a description stay tags
+				if(return_text == matched_text && link_placeholder_is_html_tag(matched_text)){
 					return matched_whole;
                 }
              	return return_text;
