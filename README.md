@@ -155,7 +155,11 @@ Player, and stops more imported HyperCard stacks from hanging (see
 shows the docs of externals you add in the Dictionary, lets a web
 standalone follow the browser's dark mode, and keeps web standalones
 that use none of the xTalk Suite's libraries as small as before (see
-[0.2.7-rc.6.9](#027-rc69-the-bug-hunt-round-nine));
+[0.2.7-rc.6.9](#027-rc69-the-bug-hunt-round-nine)), and 0.2.7-rc.6.10
+follows every switch between light and dark on the Mac, lets the web
+IDE follow the browser's dark mode, and fixes a hilite on Linux, the
+Dictionary's links and the Inspector's colours (see
+[0.2.7-rc.6.10](#027-rc610-the-bug-hunt-round-ten));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1625,6 +1629,53 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.10: the Bug Hunt, round ten
+
+OXT-Beyond 0.2.7-rc.6.10 has everything in 0.2.7-rc.6.9. In the spirit of
+the Bug Hunt, here is every change since then, each listed as the bug it
+squashes:
+
+- **A Mac that switched to dark and an IDE that stayed light.** When
+  macOS announced a switch between light and dark, the engine could
+  still read the old setting, so the windows, `the systemAppearance`
+  and the colours stayed on the appearance being left, and the next
+  switch seemed to do nothing. The engine now reads the setting afresh
+  each time, and CI switches a Mac there and back and checks every
+  switch (bwmilby) (#287).
+- **Dictionary links that vanished.** A link to an entry the Dictionary
+  does not have showed nothing, because the browser took words such as
+  `<effective>` for HTML; it now shows its words. The
+  systemAppearanceChanged entry's links all lead somewhere (bwmilby)
+  (#287).
+- **A cut-off colour scheme menu.** Preferences > Script Editor's
+  colour scheme menu is wide enough for "Follow System Appearance"
+  (bwmilby) (#287).
+- **Unreadable hilited rows on Linux.** The Project Browser's hilited
+  row text was the accent colour, unreadable on Ubuntu's yellow and
+  purple; it is black or white, whichever stands out from the theme's
+  selection colour. macOS and Windows are unchanged (bwmilby) (#287).
+- **A widget colour that could not be cleared.** In the Property
+  Inspector, a widget colour whose default is a colour of its own can be
+  cleared with Clear in its editor's right-click menu, so the widget
+  takes its colour from its owner again (OpenXTalkPaul) (#287).
+- **A web IDE that stayed light in a dark browser.** The web IDE follows
+  the browser between light and dark: `the systemAppearance` is the
+  browser's, `systemAppearanceChanged` arrives when it changes, and the
+  menu bar, toolbar, Home and title bars go dark too. A light browser
+  shows the web IDE as before, and a web standalone stays light unless
+  its page asks (OpenXTalkPaul) (#287).
+- **Invisible ticks in the web engine's dark appearance.** On a page
+  that follows a dark browser, a check box's tick is black in its white
+  box, arrows on dark backgrounds are white, and the light edge of a 3-D
+  border is dark grey, so disabled labels no longer show twice. The
+  light appearance draws as before (#287).
+
+Behind the scenes, CI now opens the web IDE in small windows, checks
+every binary against the oldest macOS and glibc the README promises,
+runs the MySQL and PostgreSQL drivers against real servers, asks each
+standalone about engine features, and runs its own scripts' tests on
+Windows and macOS (#287).
 
 #### 0.2.7-rc.6.9: the Bug Hunt, round nine
 
