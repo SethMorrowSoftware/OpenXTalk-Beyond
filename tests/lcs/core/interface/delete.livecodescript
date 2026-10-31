@@ -128,3 +128,56 @@ on TestDeleteUndoChanged
 
 	TestAssert "undoChanged sent to current card", the cCardReceived of this stack
 end TestDeleteUndoChanged
+-- OXT-Beyond: a script that deletes the group of the control its message
+-- was sent to, while that message is still being handled, freed the
+-- control under the message (the engine went on to use it, and crashed:
+-- mwieder and tperry2x, openxtalk.org, the Script Editor's Breakpoints
+-- pane, whose click rebuilds the pane). The control now lives until its
+-- message is done, as a control whose own deletion a script asks for
+-- always has.
+on TestDeleteGroupOfTarget
+	create stack
+	set the defaultStack to the short name of it
+	
+	create group "G"
+	create button "B" in group "G"
+	set the script of this card to \
+		"on mouseUp" & return & \
+		"   if the short name of the target is not " & quote & "B" & quote & " then exit mouseUp" & return & \
+		"   delete group " & quote & "G" & quote & return & \
+		"   set the cTargetAfterDelete of this stack to the short name of the target" & return & \
+		"end mouseUp"
+	
+	send "mouseUp" to button "B"
+	
+	TestAssert "delete the group of the target: the group is gone", there is not a group "G"
+	TestAssert "delete the group of the target: its controls are gone", the number of controls of this card is 0
+	TestAssert "delete the group of the target: the target is there until its message is done", \
+		the cTargetAfterDelete of this stack is "B"
+end TestDeleteGroupOfTarget
+
+-- The same for a stack deleted by a library while its card is the target:
+-- the card was freed with its stack, and "the target" then threw "no
+-- target" (and the engine wrote into the freed card).
+on TestDeleteStackOfTarget
+	local tStack, tLibrary
+	create stack
+	put the short name of it into tStack
+	
+	create stack
+	put the short name of it into tLibrary
+	set the script of stack tLibrary to \
+		"on mouseUp" & return & \
+		"   if the short name of the owner of the target is not " & quote & tStack & quote & " then pass mouseUp" & return & \
+		"   delete stack " & quote & tStack & quote & return & \
+		"   set the cTargetAfterDelete of stack " & quote & tLibrary & quote & " to the short name of the target" & return & \
+		"end mouseUp"
+	start using stack tLibrary
+	
+	send "mouseUp" to card 1 of stack tStack
+	stop using stack tLibrary
+	
+	TestAssert "delete the stack of the target: the stack is gone", there is not a stack tStack
+	TestAssert "delete the stack of the target: the target is there until its message is done", \
+		the cTargetAfterDelete of stack tLibrary is not empty
+end TestDeleteStackOfTarget
