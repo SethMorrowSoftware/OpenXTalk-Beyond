@@ -271,6 +271,25 @@ static bool theme_name_changed(void)
 
 extern "C" int initialise_weak_link_gio(void);
 
+// The GLib headers the engine builds with (thirdparty/headers/linux) are
+// older than GSettings, so the few GIO calls used here are declared as GIO
+// declares them (linux.stubs binds them); with a GIO header already in,
+// its own declarations stand.
+#ifndef __G_SETTINGS_H__
+extern "C"
+{
+	typedef struct _GSettings GSettings;
+	typedef struct _GSettingsSchema GSettingsSchema;
+	typedef struct _GSettingsSchemaSource GSettingsSchemaSource;
+	GSettingsSchemaSource *g_settings_schema_source_get_default(void);
+	GSettingsSchema *g_settings_schema_source_lookup(GSettingsSchemaSource *source, const gchar *schema_id, gboolean recursive);
+	gboolean g_settings_schema_has_key(GSettingsSchema *schema, const gchar *name);
+	void g_settings_schema_unref(GSettingsSchema *schema);
+	GSettings *g_settings_new(const gchar *schema_id);
+	gchar *g_settings_get_string(GSettings *settings, const gchar *key);
+}
+#endif
+
 static bool s_desktop_settings_tried = false;
 static GSettings *s_desktop_settings = NULL;
 // Whether the desktop was dark when last looked at (-1: not yet)
