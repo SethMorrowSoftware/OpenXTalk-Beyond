@@ -59,6 +59,10 @@ jobs:
     steps:
       - name: Check out main
         uses: actions/checkout@v7
+        with:
+          # The runtimes check below walks the history back to the commit
+          # the runtimes asset was built from
+          fetch-depth: 0
 
       - name: Check the version, the tag and the builds
         id: check
@@ -76,6 +80,12 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
             fail "The tag $tag exists already; tags are never moved. Set ide/.version to a new version first."
           fi
+          # Every release carries the other platforms' runtimes of its own
+          # engine (seth's decision MOD-D1, 2026-10-31): the runtimes asset
+          # must have been rebuilt since the last commit that changed the
+          # engine's source, and pinned (BUILDING.md section 10, step 1)
+          python3 tools/ci/runtimes_provenance.py --fail-on-stale ||
+            fail "The runtimes asset in tools/oxt/external-assets.json is older than the engine's source (the list is above and in the summary). Run the \"Runtimes asset\" workflow on main's latest green builds with publish, pin its entry in a pull request, merge it and run this again (BUILDING.md section 10, step 1)."
           # The newest run of each build on main for this commit: its push,
           # or a run by hand on main (a push that changed nothing the build
           # uses, such as documentation alone, starts no build, so one is

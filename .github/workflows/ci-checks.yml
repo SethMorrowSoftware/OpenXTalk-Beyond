@@ -102,8 +102,10 @@ jobs:
       - name: Check the changelog fragments
         run: python3 tools/ci/changelog.py check
 
-      # A warning in the summary, never a failure: rebuilding the runtimes
-      # is seth's decision (--fail-on-stale is there for when it is made)
+      # A warning in the summary, never a failure here: an engine change
+      # must not turn every pull request red. The release is where it fails:
+      # "Tag a release" runs this with --fail-on-stale (BUILDING.md section
+      # 10, step 1), so every release carries runtimes of its own engine
       - name: Runtimes asset provenance
         run: python3 tools/ci/runtimes_provenance.py
 

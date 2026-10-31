@@ -19,7 +19,9 @@ since the runtimes asset's that change the engine's source are listed and
 the others are not; the report is a warning (exit 0) unless
 --fail-on-stale, which fails a stale record and passes a current one; and
 an asset record it cannot read, or a commit not in the history, is an
-error (exit 2).
+error (exit 2). And "Tag a release" runs it with --fail-on-stale over a
+full history before it tags (seth's decision MOD-D1: every release
+rebuilds the asset), while the CI checks only report.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -129,6 +131,66 @@ class Provenance(unittest.TestCase):
         ident, commit = runtimes_provenance.runtimes_asset(runtimes_provenance.ASSETS)
         self.assertTrue(ident.startswith('oxt-runtimes-'))
         self.assertRegex(commit, r'^[0-9a-f]{12,40}$')
+
+
+REPO = os.path.dirname(os.path.dirname(CI))
+WORKFLOWS = os.path.join(REPO, '.github', 'workflows')
+
+
+def workflow(name):
+    import yaml
+    with open(os.path.join(WORKFLOWS, name), encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+
+class ReleaseRefusesStaleRuntimes(unittest.TestCase):
+    """Every release rebuilds the runtimes asset: the tag is refused while
+    the pinned asset is older than the engine's source."""
+
+    def setUp(self):
+        self.steps = workflow('tag-release.yml')['jobs']['tag']['steps']
+
+    def step(self, name):
+        found = [s for s in self.steps if s.get('name') == name]
+        self.assertEqual(len(found), 1, name)
+        return found[0]
+
+    def test_check_step_fails_on_stale_runtimes(self):
+        run = self.step('Check the version, the tag and the builds')['run']
+        lines = [l.strip() for l in run.splitlines()]
+        call = [i for i, l in enumerate(lines) if 'tools/ci/runtimes_provenance.py' in l]
+        self.assertEqual(len(call), 1, run)
+        line = lines[call[0]]
+        self.assertIn('--fail-on-stale', line)
+        # Its failure stops the step: the call is followed by "|| fail"
+        # (a bare call would be ignored after "fail()" is defined, since
+        # the step's shell carries on unless told otherwise)
+        self.assertTrue(line.endswith('||'), line)
+        self.assertTrue(lines[call[0] + 1].startswith('fail '), lines[call[0] + 1])
+        self.assertIn('Runtimes asset', lines[call[0] + 1])
+        # Before the tag is made, and before any build is started
+        self.assertLess(call[0], next(i for i, l in enumerate(lines) if 'gh workflow run' in l))
+
+    def test_checkout_has_the_whole_history(self):
+        # A shallow clone cannot reach the asset's commit: exit 2, refused
+        # for the wrong reason
+        checkout = self.step('Check out main')
+        self.assertTrue(checkout['uses'].startswith('actions/checkout@'))
+        self.assertEqual(checkout.get('with', {}).get('fetch-depth'), 0)
+
+    def test_check_runs_before_the_tag_is_pushed(self):
+        names = [s.get('name') for s in self.steps]
+        self.assertLess(names.index('Check the version, the tag and the builds'),
+                        names.index('Make and push the tag'))
+
+    def test_ci_checks_only_report(self):
+        # The pull request checks warn and never fail on it: an engine
+        # change must not turn every pull request red
+        steps = [s for job in workflow('ci-checks.yml')['jobs'].values() for s in job.get('steps', [])
+                 if 'runtimes_provenance.py' in str(s.get('run', ''))]
+        self.assertTrue(steps)
+        for s in steps:
+            self.assertNotIn('--fail-on-stale', s['run'])
 
 
 if __name__ == '__main__':
