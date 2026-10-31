@@ -117,9 +117,13 @@ jobs:
         os: [windows-latest, macos-15]
     steps:
       # The files as they are in git, LF line endings and all, as the
-      # Linux job sees them (Windows' git would make them CRLF)
+      # Linux job sees them (Windows' git would make them CRLF).
+      # .gitattributes marks the sources "text", which checks them out
+      # with core.eol whatever core.autocrlf says, so both are set
       - name: Keep LF line endings
-        run: git config --global core.autocrlf false
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
 
       - name: Check out
         uses: actions/checkout@v7
