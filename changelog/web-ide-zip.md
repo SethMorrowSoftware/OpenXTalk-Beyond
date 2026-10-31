@@ -1,0 +1,1 @@
+- Web IDE: the zip leaves out the files of Source Code Pro, which the web engine cannot load (it showed code in Droid Sans Mono already), and an unused archive of the Linux theme, 1.3 MB of the zip (2.2 MB unpacked) (bwmilby, OpenXTalkPaul) (#PR)
