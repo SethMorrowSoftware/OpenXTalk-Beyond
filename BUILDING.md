@@ -928,10 +928,24 @@ neutral folder on an Apple Silicon and an Intel runner and run:
 ```sh
 codesign --verify --deep --strict --verbose=2 <folder>/OXT-Beyond.app
 python3 tools/ci/run_livecode_check.py smoke --install <folder> --platform mac-universal
-python3 tools/ci/check_native_deps.py --root <folder>/OXT-Beyond.app/Contents/Tools --platform mac --max-macos 15.0
+python3 tools/ci/check_native_deps.py --root <folder>/OXT-Beyond.app/Contents/Tools --platform mac --matrix mac-universal/extensions
+python3 tools/ci/check_macho_floor.py <folder>/OXT-Beyond.app --matrix mac-universal --arch arm64
 python3 tools/ci/run_livecode_check.py compile --install <folder> --platform mac-universal
 python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
 ```
+
+The two floor checks read the platform matrix,
+[`tools/ci/platform-matrix.json`](tools/ci/platform-matrix.json): the
+oldest system each part of a package must run on, as this file and
+README.md state them (macOS 10.13 on Intel and 11 on Apple Silicon; the
+bundled extensions' Intel slices 10.15; glibc 2.31 on Linux, with the
+32-bit extension libraries' higher floors as named exceptions). Each
+slice of a universal file is held to its own architecture's floor, and
+the Linux package (Build (Linux), "Check the package against the
+platform matrix") gets the same check over every ELF file it ships with
+`check_elf_floor.py --matrix linux-<arch>`. A floor changes in the
+matrix and README.md together; `tools/ci/tests/test_platform_matrix.py`
+fails when README.md no longer states one.
 
 `standalone_check.py` builds a Mac standalone from the packaged runtime
 with the engine's deploy command, signs it as the IDE does and runs it

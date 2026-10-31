@@ -1390,6 +1390,18 @@ jobs:
           URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
         run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH" --summary --url="$URL"
 
+      # The oldest Linux the package as shipped needs, against the platform
+      # matrix (tools/ci/platform-matrix.json, the floors README.md
+      # states): every ELF file of the extracted package, the runtimes of
+      # the other platforms and the extension libraries included, not only
+      # this build's output (checked above), with the 32-bit x86 extension
+      # libraries' known higher floors as named exceptions. A file over its
+      # floor fails with its path and the version it needs.
+      - name: Check the package against the platform matrix
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          python3 tools/ci/check_elf_floor.py "$OXT_ROOT" --matrix "linux-$ARCH" --exclude '*.dbg'
+
       # ldd over every ELF file of the package (engine, externals,
       # CEF and its helpers on x86_64, toolchain, extension libraries):
       # nothing "not found" now that the list's packages are installed, and every

@@ -31,6 +31,7 @@ AppKit's compatibility behaviour, so every file must record the same one.
     check_macho_floor.py ROOT --minos arm64=11.0 --minos x86_64=10.13
                          [--sdk 11.0] [--arch arm64] [--allow PATH=REASON]
                          [--only-arch PATH=ARCH] [--file-minos PATH=ARCH:VERSION]
+    check_macho_floor.py APP --matrix mac-universal [--arch arm64]
 
 --minos ARCH=VERSION  every slice of ARCH must record exactly this minos;
                       a slice of an architecture with no --minos fails
@@ -52,6 +53,11 @@ AppKit's compatibility behaviour, so every file must record the same one.
                       --only-arch and --file-minos, which excuse one
                       known difference and keep every other check
 --exclude PATTERN     skip matching paths altogether
+--matrix PLATFORM     take --minos from the platform matrix
+                      (tools/ci/platform-matrix.json, or --matrix-file),
+                      and a --file-minos for each of the platform's parts
+                      that names its files (mac-universal: the bundled
+                      extensions, x86_64 10.15), for a final package
 
 PATH and PATTERN are relative to ROOT, with / separators, and are
 fnmatch patterns. An --only-arch or --file-minos PATH that matches no
@@ -358,11 +364,31 @@ def main(argv=None):
                    help='ARCH slices of files matching PATH must record VERSION (instead of --minos)')
     p.add_argument('--exclude', action='append', default=[], metavar='PATTERN',
                    help='skip paths matching PATTERN (relative to root)')
+    p.add_argument('--matrix', metavar='PLATFORM',
+                   help='take --minos from the platform matrix, and a --file-minos for each of its parts '
+                        '(for a final package, such as mac-universal: the bundled extensions)')
+    p.add_argument('--matrix-file', metavar='FILE', help='the platform matrix (default: tools/ci/platform-matrix.json)')
     args = p.parse_args(argv)
 
     if not os.path.isdir(args.root):
         sys.stderr.write('error: %s is not a folder\n' % args.root)
         return 2
+    if args.matrix:
+        import platform_matrix
+        try:
+            matrix = platform_matrix.load(args.matrix_file)
+            limits = platform_matrix.macos_limits(matrix, args.matrix)
+            parts = matrix['platforms'][args.matrix].get('parts', {})
+        except (OSError, ValueError, platform_matrix.MatrixError) as e:
+            sys.stderr.write('error: --matrix %s: %s\n' % (args.matrix, e))
+            return 2
+        args.minos = sorted(limits.items()) + list(args.minos)
+        for name, part in sorted(parts.items()):
+            if 'files' in part:
+                for a, v in sorted(part.get('macos', {}).items()):
+                    if v != limits.get(a):
+                        args.file_minos.insert(0, (part['files'], '%s:%s' % (a, v)))
+                        print('part %s: %s slices of %s record minos %s' % (name, a, part['files'], v))
     try:
         minos = {a: parse_version(v) for a, v in args.minos}
         sdk = parse_version(args.sdk) if args.sdk else None

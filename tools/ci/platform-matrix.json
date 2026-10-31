@@ -1,0 +1,114 @@
+{
+  "comment": "The oldest systems each part of an OXT-Beyond package must run on, as README.md documents them. platform_matrix.py reads it for the package checks of the build workflows (the ELF and Mach-O floor checks and the extension library check, with --matrix), and tests/test_platform_matrix.py checks that README.md still states every floor here. Change a floor here and in README.md together. An exception is a part that is known to need more than its platform's floor; it names the files, the floor they need instead, and why, so it shows in every log and fails once those files are gone.",
+  "platforms": {
+    "win-x86_64": {
+      "description": "Windows IDE, 64-bit",
+      "readme": [
+        "Windows 10 or later, 64-bit (x64)"
+      ],
+      "os": "Windows 10"
+    },
+    "mac-universal": {
+      "description": "macOS IDE, one app for Apple Silicon and Intel",
+      "readme": [
+        "macOS 11 or later on Apple Silicon, 10.13 or later on Intel"
+      ],
+      "macos": {
+        "x86_64": "10.13",
+        "arm64": "11.0"
+      },
+      "parts": {
+        "extensions": {
+          "description": "native libraries of the bundled xTalk Suite extensions (Contents/Tools/Extensions/*/code/universal-mac)",
+          "readme": [
+            "native libraries built for macOS 10.15 Catalina on Intel and macOS 11 on Apple Silicon"
+          ],
+          "macos": {
+            "x86_64": "10.15",
+            "arm64": "11.0"
+          },
+          "files": "Contents/Tools/Extensions/*/code/universal-mac/*"
+        }
+      }
+    },
+    "linux-x86_64": {
+      "description": "Linux IDE, 64-bit x86",
+      "readme": [
+        "Linux x86-64 with glibc 2.31 or later"
+      ],
+      "elf": {
+        "GLIBC": "2.31",
+        "GLIBCXX": "3.4.28",
+        "CXXABI": "1.3.12",
+        "GCC": "7.0.0"
+      }
+    },
+    "linux-arm64": {
+      "description": "Linux IDE, 64-bit ARM, without the browser widget",
+      "readme": [
+        "64-bit ARM Linux with glibc 2.31 or later"
+      ],
+      "elf": {
+        "GLIBC": "2.31",
+        "GLIBCXX": "3.4.28",
+        "CXXABI": "1.3.12",
+        "GCC": "7.0.0"
+      }
+    },
+    "linux-x86": {
+      "description": "Linux 32-bit x86 standalones (the runtime every Linux and Windows package carries)",
+      "elf": {
+        "GLIBC": "2.31",
+        "GLIBCXX": "3.4.28",
+        "CXXABI": "1.3.12",
+        "GCC": "7.0.0"
+      }
+    },
+    "web": {
+      "description": "Web engine and web IDE: Chromium, Firefox and WebKit, with the capability differences BUILDING.md lists"
+    },
+    "android": {
+      "description": "Android standalone runtime: carried over unchanged from oxt-runtimes-1.15, not built or checked here"
+    },
+    "ios": {
+      "description": "Not supported"
+    }
+  },
+  "linux_exceptions": {
+    "comment": "Parts every Linux package carries (the 32-bit x86 extension libraries that x86 standalones get) that need more than the package's own floor. Each applies to every linux-* platform; a pattern that matches no file in the package fails the check, since the exception no longer describes anything.",
+    "exceptions": [
+      {
+        "files": "Extensions/*/code/x86-linux/sodiumxt.so",
+        "elf": {
+          "GLIBC": "2.33"
+        },
+        "readme": "still need glibc 2.33 (SodiumXT)",
+        "reason": "SodiumXT's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/box2dxt.so",
+        "elf": {
+          "GLIBC": "2.34"
+        },
+        "readme": "2.34 (Box2Dxt)",
+        "reason": "Box2Dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/torrentxt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 and OpenSSL 3 (TorrentXT and DataChannelXT)",
+        "reason": "TorrentXT's 32-bit library needs glibc 2.38 and OpenSSL 3 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/datachannelxt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 and OpenSSL 3 (TorrentXT and DataChannelXT)",
+        "reason": "DataChannelXT's 32-bit library needs glibc 2.38 and OpenSSL 3 (README.md, Linux)"
+      }
+    ]
+  }
+}
