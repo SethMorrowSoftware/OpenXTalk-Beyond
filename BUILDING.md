@@ -602,7 +602,7 @@ from `thirdparty/libsqlite/include/sqlite3.h` (SQLite 3.51.1), and that
 The same checks by hand:
 
 ```bat
-findstr /M /C:"9.7.1-OXT" win-x86_64-bin\LiveCode-Community.exe
+findstr /M /C:"9.7.1-BeyondEngine" win-x86_64-bin\LiveCode-Community.exe
 findstr /M /C:"2025-11-28 17:28:25" win-x86_64-bin\dbsqlite.dll
 ```
 
@@ -1494,7 +1494,16 @@ microseconds`, `matches wildcard` and `matches regex`, literal arrays).
 The layout's own runtime must have them all; a runtime from the runtimes
 asset (Windows' on a Linux or Mac layout, for one) is listed with its
 answers and does not fail the check, since rebuilding the asset is a
-decision of its own. Before that, the runtime's folder is
+decision of its own. Such a runtime may likewise report the version that
+the asset's `PROVENANCE-oxt-runtimes-<label>.md` in the layout records for
+it instead of the engine's, which is listed and does not fail: the asset's
+runtimes keep the version text of the commit they were built from, as
+Windows x86-32's said `9.7.1-OXT` after the engine's became
+`9.7.1-BeyondEngine` (0.2.7-rc.6.12). Any other version fails, and without
+that file every runtime must report the engine's. "Tag a release" refuses
+an asset older than the engine's source or the `version` file
+(`tools/ci/runtimes_provenance.py --fail-on-stale`), so a release never
+carries one. Before that, the runtime's folder is
 checked: its engine, its Support files and every external, database
 driver and (for the browser) CEF library that its lists name must be
 there, built for that runtime's architecture.
@@ -2282,7 +2291,8 @@ Releases are built by CI from a tag: the workflow
 tagged commit and publishes one GitHub Release with the files of all
 three. The product version is the content of `ide/.version` (for
 example `0.1.0`); the tag is `v` followed by it (`v0.1.0`). The engine
-version in the `version` file (9.7.1-OXT, build 25923) is separate:
+version in the `version` file (9.7.1-BeyondEngine, build 25923; 9.7.1-OXT
+until 0.2.7-rc.6.12) is separate:
 change it only when the engine changes, and then also check
 `tools/ci/verify-build.ps1` and the smoke test, which compare against
 it.
@@ -2806,7 +2816,7 @@ Emscripten (3.10). These are its steps:
 
    | File | Contents |
    | --- | --- |
-   | `standalone-community-<version>.js`, `.wasm` | The engine. `<version>` is `BUILD_SHORT_VERSION` in the file `version` (`9.7.1-OXT`), which is how the IDE's web builder asks for it. |
+   | `standalone-community-<version>.js`, `.wasm` | The engine. `<version>` is `BUILD_SHORT_VERSION` in the file `version` (`9.7.1-BeyondEngine`), which is how the IDE's web builder asks for it. |
    | `standalone-community-<version>.html` | The page of a standalone, from `engine/rsrc/emscripten-html-template.html`. |
    | `emscripten-standalone-template/` | The files every standalone gets: the font it draws text with. |
    | `emscripten-startup-template.livecodescript` | The template of a standalone's startup script. |

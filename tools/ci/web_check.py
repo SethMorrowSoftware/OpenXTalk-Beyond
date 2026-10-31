@@ -798,6 +798,17 @@ def fields_page_name():
 COLORS_AS_BUILT = '200x100:255,255,255:240,240,240'
 COLORS_FIELDS_LIKE_CARD = '200x100:240,240,240:240,240,240'
 
+# What the probe reports of the boxes of two check boxes that set no colour,
+# in the same stack (probeReport("checks")): its size, a point in the middle
+# of the unticked box, one in a corner of the ticked box clear of its tick,
+# and one on its tick. A white box with a black tick in the light
+# appearance, as on every page before; in the dark appearance (a page that
+# follows a browser set to dark) the dark face (kMCWebThemeDarkFace) with a
+# white tick. Until 0.2.7-rc.6.12 the box was white there too, so an
+# unticked check box looked ticked on a dark card (engine/src/buttondraw.cpp)
+CHECKS_LIGHT = '200x100:255,255,255:255,255,255:0,0,0'
+CHECKS_DARK = '200x100:32,32,32:32,32,32:255,255,255'
+
 
 def write_fields_page(page):
     """Writes the probe's page with FIELDS_META beside it."""
@@ -2050,14 +2061,18 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             # page as built, as on every page before 0.2.7-rc.6.9; "dark"
             # on the page that follows the browser's colour scheme, and
             # "light" again, with a systemAppearanceChanged message, when
-            # the browser's scheme turns light. With ?tab=, the probe runs
-            # no checks.
+            # the browser's scheme turns light. On each page, the boxes of
+            # check boxes that set no colour: white with a black tick on
+            # the page as built, dark with a white tick on the page that
+            # follows the browser. With ?tab=, the probe runs no checks.
             try:
                 browser_waiting[0] = 'the systemAppearance'
                 del extra_events[:]
                 dark = browser.new_context(color_scheme='dark')
                 report_js = "document.liveCode.findStackWithName('%s').probeReport('appearance')" % STACK_NAME
+                checks_js = "document.liveCode.findStackWithName('%s').probeReport('checks')" % STACK_NAME
                 seen = {}
+                boxes = {}
                 for name, page_url in (('as built', url),
                                        ('following the browser',
                                         urllib.parse.urljoin(url, appearance_page_name()))):
@@ -2069,6 +2084,24 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                           "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
                                           timeout=timeout * 1000)
                     seen[name] = tab.evaluate(report_js)
+                    want_boxes = CHECKS_DARK if name == 'following the browser' else CHECKS_LIGHT
+                    opened = tab.evaluate(checks_js.replace("'checks'", "'colors-open'"))
+                    if opened != 'opened':
+                        problems.append('in a browser set to dark, the page %s could not open a stack for its '
+                                        'check boxes: %r' % (name, opened))
+                    else:
+                        boxes[name] = None
+
+                        def boxes_drawn(name=name, want=want_boxes):
+                            boxes[name] = tab.evaluate(checks_js)
+                            return boxes[name] == want
+                        if not wait_for(boxes_drawn, 'the check boxes of the page %s' % name, 10):
+                            problems.append('in a browser set to dark, the page %s draws check boxes that set no '
+                                            'colour as %r (size:unticked box:ticked box:its tick), expected %r%s'
+                                            % (name, boxes[name], want_boxes,
+                                               '; a white box on a dark card looks ticked'
+                                               if want_boxes == CHECKS_DARK else ''))
+                        tab.evaluate(checks_js.replace("'checks'", "'colors-close'"))
                     if name == 'following the browser' and seen[name] == 'dark,0':
                         # the page's own count of the browser's change
                         # events, which says on a failure whether the
@@ -2097,6 +2130,10 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 elif seen.get('as built') == 'light,0':
                     lines.append('the systemAppearance: light on the page as built, the browser\'s on the page '
                                  'that follows it, with systemAppearanceChanged')
+                if (boxes.get('as built') == CHECKS_LIGHT
+                        and boxes.get('following the browser') == CHECKS_DARK):
+                    lines.append('check boxes without colours, in a browser set to dark: white with a black tick '
+                                 'on the page as built, dark with a white tick on the page that follows it')
                 del extra_events[:]
                 dark.close()
             except (PlaywrightError, PlaywrightTimeoutError) as e:

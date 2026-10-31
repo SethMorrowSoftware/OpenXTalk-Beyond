@@ -6757,6 +6757,59 @@ command revIDESetScrollbarWidthProperty pObject, pProperty, pValue
    end if
 end revIDESetScrollbarWidthProperty
 
+-- The Inspector's Orientation of a scrollbar (a slider and a progress bar
+-- are scrollbars too). The engine has no setter for it: a scrollbar is
+-- horizontal when it is wider than it is tall, and vertical otherwise, as
+-- it reads its rect when it is drawn (scrollbardraw.cpp). So the Inspector
+-- showed it read only, and the only way to turn a scrollbar round was to
+-- drag its handles (TerryL, openxtalk.org p=25821). Choosing the other
+-- orientation swaps its width and height about its centre; a square one,
+-- which is vertical, is made a pixel wider to turn horizontal. Choosing the
+-- orientation it has changes nothing, and so does a value that is neither.
+-- An object that is not a scrollbar has its orientation set as a script
+-- sets it.
+--
+-- The Inspector reads the orientation through
+-- revIDEGetScrollbarOrientationProperty, from the rect as the engine works
+-- it out, because the orientation property catches up only when the
+-- scrollbar is next drawn: on macOS that is after the script has finished,
+-- so straight after a change the Inspector would show the old one.
+function revIDEGetScrollbarOrientationProperty pObject, pProperty
+   if word 1 of the name of pObject is not "scrollbar" then
+      return the pProperty of pObject
+   end if
+   if the width of pObject > the height of pObject then
+      return "horizontal"
+   end if
+   return "vertical"
+end revIDEGetScrollbarOrientationProperty
+
+command revIDESetScrollbarOrientationProperty pObject, pProperty, pValue
+   local tWidth, tHeight, tLoc
+   if word 1 of the name of pObject is not "scrollbar" then
+      set the pProperty of pObject to pValue
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   if pValue is not among the items of "horizontal,vertical" then
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   put the width of pObject into tWidth
+   put the height of pObject into tHeight
+   if (pValue is "horizontal") is (tWidth > tHeight) then
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   put the loc of pObject into tLoc
+   lock screen
+   if tWidth = tHeight then
+      set the width of pObject to tWidth + 1
+   else
+      set the width of pObject to tHeight
+      set the height of pObject to tWidth
+   end if
+   set the loc of pObject to tLoc
+   unlock screen
+end revIDESetScrollbarOrientationProperty
+
 command revIDESetImageFilename pObjectID, pProperty, pFilename
    if revIDEGetPreference("cImageFileRelative") is not false then
       local tStackPath, tFilePath
@@ -12806,15 +12859,35 @@ end revIDERGBToNamedColor
 
 -- The Object menu's Copy Graphics as SVG Paths: the clipboard's text
 -- becomes an SVG document with a path for each graphic of pObjects (an
--- object a line, as the selObj gives them). OpenXTalk Lite 1.01 added the
--- item and its call to this command, never the command, so the item did
--- nothing (OpenXTalkPaul, openxtalk.org p=25819)
+-- object a line, as the selObj gives them). The item is from
+-- OpenXTalkPaul's DPE IDE and came to OXT-Beyond with OpenXTalk Lite 1.01,
+-- which added the item and its call to this command, never the command,
+-- so the item did nothing (OpenXTalkPaul, openxtalk.org p=25819).
+--
+-- The same document also goes on the clipboard, in UTF-8, under the types
+-- Adobe Illustrator reads (kSVGClipboardTypes), so it pastes as vector
+-- paths into Illustrator or VectorCraft, as DPE's does (p=25820). The text
+-- is set first, which clears the clipboard, so the types join it as one
+-- item. Should the engine refuse a type, the text is still copied: the
+-- try keeps the clipboard from staying locked
+constant kSVGClipboardTypes = "com.adobe.illustrator.svg,com.adobe.illustrator.svgm,com.adobe.svg"
+
 command revOXTIDEGraphicPointsToSVGPath pObjects
-   local tSVG
+   local tSVG, tData, tType, tError
    put revOXTIDEGraphicsToSVG(pObjects) into tSVG
-   if tSVG is not empty then
-      set the clipboardData["text"] to tSVG
+   if tSVG is empty then
+      exit revOXTIDEGraphicPointsToSVGPath
    end if
+   put textEncode(tSVG, "UTF-8") into tData
+   lock the clipboard
+   set the clipboardData["text"] to tSVG
+   try
+      repeat for each item tType in kSVGClipboardTypes
+         set the rawClipboardData[tType] to tData
+      end repeat
+   catch tError
+   end try
+   unlock the clipboard
 end revOXTIDEGraphicPointsToSVGPath
 
 -- An SVG document with a path for each graphic of pObjects (an object a

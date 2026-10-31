@@ -279,9 +279,12 @@ put item 3 of the version into tItem3
 set the itemDelimiter to "-"
 TestAssert "Third element is a number", item 1 of tItem3 is an integer
 
--- The OpenXTalk engine is 9.7.1-OXT: a release, marked as OpenXTalk's
--- rather than as a LiveCode developer preview or release candidate
-if the number of items of tItem3 is 2 and item 2 of tItem3 is "OXT" then
+-- OXT-Beyond's engine is 9.7.1-BeyondEngine: a release, named as
+-- OXT-Beyond's rather than as a LiveCode developer preview or release
+-- candidate. Until 0.2.7-rc.6.12 it read 9.7.1-OXT, the tag of Tom
+-- Perry's OpenXTalk Lite engine it grew from (tperry2x, openxtalk.org
+-- p=25816)
+if the number of items of tItem3 is 2 and item 2 of tItem3 is "BeyondEngine" then
 testSkip
 testSkip
 else if the number of items of tItem3 > 1 then
