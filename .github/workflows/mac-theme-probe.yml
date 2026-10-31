@@ -1,0 +1,41 @@
+# For a probe only, and removed before its pull request merges: does the
+# IDE tour's system-switch post reach an observer on a CI Mac?
+name: Theme probe (macOS)
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/mac-theme-probe.yml
+      - tools/ci/probe/**
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Swift observers
+        run: |
+          sw_vers
+          swiftc -O tools/ci/probe/theme-observer.swift -o "$RUNNER_TEMP/obs"
+          "$RUNNER_TEMP/obs" foundation || true
+          "$RUNNER_TEMP/obs" appkit || true
+      - name: The released engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt"
+          gh release download v0.2.7-rc.6.9 --repo "$REPO" --pattern "*-mac-universal.zip" --dir "$RUNNER_TEMP/dist"
+          ditto -x -k "$RUNNER_TEMP"/dist/*-mac-universal.zip "$RUNNER_TEMP/oxt"
+          app=$(ls -d "$RUNNER_TEMP"/oxt/*.app | head -1)
+          "$app/Contents/MacOS/OXT-Beyond" -ui "$PWD/tools/ci/probe/theme-probe.livecodescript" || echo "exit $?"
