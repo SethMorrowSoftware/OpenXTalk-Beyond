@@ -602,7 +602,7 @@ from `thirdparty/libsqlite/include/sqlite3.h` (SQLite 3.51.1), and that
 The same checks by hand:
 
 ```bat
-findstr /M /C:"9.7.1-OXT" win-x86_64-bin\LiveCode-Community.exe
+findstr /M /C:"9.7.1-BeyondEngine" win-x86_64-bin\LiveCode-Community.exe
 findstr /M /C:"2025-11-28 17:28:25" win-x86_64-bin\dbsqlite.dll
 ```
 
@@ -2282,7 +2282,8 @@ Releases are built by CI from a tag: the workflow
 tagged commit and publishes one GitHub Release with the files of all
 three. The product version is the content of `ide/.version` (for
 example `0.1.0`); the tag is `v` followed by it (`v0.1.0`). The engine
-version in the `version` file (9.7.1-OXT, build 25923) is separate:
+version in the `version` file (9.7.1-BeyondEngine, build 25923; 9.7.1-OXT
+until 0.2.7-rc.6.12) is separate:
 change it only when the engine changes, and then also check
 `tools/ci/verify-build.ps1` and the smoke test, which compare against
 it.
@@ -2806,7 +2807,7 @@ Emscripten (3.10). These are its steps:
 
    | File | Contents |
    | --- | --- |
-   | `standalone-community-<version>.js`, `.wasm` | The engine. `<version>` is `BUILD_SHORT_VERSION` in the file `version` (`9.7.1-OXT`), which is how the IDE's web builder asks for it. |
+   | `standalone-community-<version>.js`, `.wasm` | The engine. `<version>` is `BUILD_SHORT_VERSION` in the file `version` (`9.7.1-BeyondEngine`), which is how the IDE's web builder asks for it. |
    | `standalone-community-<version>.html` | The page of a standalone, from `engine/rsrc/emscripten-html-template.html`. |
    | `emscripten-standalone-template/` | The files every standalone gets: the font it draws text with. |
    | `emscripten-startup-template.livecodescript` | The template of a standalone's startup script. |

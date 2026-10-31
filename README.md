@@ -675,7 +675,7 @@ locations; macOS and Linux use their own equivalents:
 | Dictionary favourites and notes | `%APPDATA%\xtalk\xTalkDictionary` | OpenXTalk Lite |
 | Custom script editor colours | `%APPDATA%\xtalk\Preferences\customScriptColours.dat`, once you customize them | OpenXTalk Lite |
 | Thumbnails of recent stacks | `Documents\OXTRecentStacks` | OpenXTalk Lite |
-| The engine's Community licence file, written by the engine when it starts | `%APPDATA%\RunRev\Licenses\livecode-community-9_7_1-OXT-25923.lclk` | LiveCode's folder; OpenXTalk Lite 1.15 writes the same file (same engine version) |
+| The engine's Community licence file, written by the engine when it starts | `%APPDATA%\RunRev\Licenses\livecode-community-9_7_1-BeyondEngine-25923.lclk` (`...-9_7_1-OXT-25923.lclk` before 0.2.7-rc.6.12) | LiveCode's folder; OpenXTalk Lite 1.15 writes the `-OXT-` file, which OXT-Beyond used until 0.2.7-rc.6.12 |
 
 A change made in one of these programs, such as a dictionary favourite,
 shows up in the others. Moving them to OXT-Beyond's own folders is
@@ -3288,8 +3288,8 @@ for macOS (his Apple Silicon working copy, as merged in
   OneCore voices.
 - **No first-run licence dialog** in the development environment.
 - **SQLite 3.51.1** (was 3.34.0) for the SQLite database driver.
-- **Version 9.7.1-OXT**, build 25923 (see the `version` file). The
-  engine version is separate from the OXT-Beyond product version in
+- **Version 9.7.1-BeyondEngine**, build 25923 (see the `version` file;
+  9.7.1-OXT until 0.2.7-rc.6.12). The engine version is separate from the OXT-Beyond product version in
   `ide/.version`.
 
 **macOS dark mode and more.** On macOS the engine follows the Mac's

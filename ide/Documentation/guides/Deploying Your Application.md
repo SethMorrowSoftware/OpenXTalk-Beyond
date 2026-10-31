@@ -705,7 +705,7 @@ Here's a complete page for an HTML5 standalone:
         <script>
           var Module = { canvas: document.getElementById('canvas') };
         </script>
-        <script async src="standalone-community-9.7.1-OXT.js"></script>
+        <script async src="standalone-community-9.7.1-BeyondEngine.js"></script>
       </body>
     </html>
 

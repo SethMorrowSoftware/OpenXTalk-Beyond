@@ -151,7 +151,9 @@ INCLUDE = (
     ('Extensions/com.livecode.library.timezone/resources/', 'timezone library: zoneinfo data'),
 )
 
-VERSION_RX = re.compile(rb'(?<![0-9.])(?:9\.[0-9]\.[0-9](?:-(?:dp|rc|gm)-[0-9]+|-OXT)?)(?![0-9.])')
+# A tagged engine version: LiveCode's dp/rc/gm builds, Tom Perry's 9.7.1-OXT
+# and, from 0.2.7-rc.6.12, OXT-Beyond's own 9.7.1-BeyondEngine
+VERSION_RX = re.compile(rb'(?<![0-9.])(?:9\.[0-9]\.[0-9](?:-(?:dp|rc|gm)-[0-9]+|-OXT|-BeyondEngine)?)(?![0-9.])')
 
 
 # ---------------------------------------------------------------------------
@@ -294,8 +296,8 @@ def file_info(root, path):
 
 
 def version_strings(root, path):
-    """Engine version strings in a file: the tagged ones (9.7.1-OXT,
-    9.6.3-rc-3) if there are any, else plain 9.x.y strings."""
+    """Engine version strings in a file: the tagged ones (9.7.1-BeyondEngine,
+    9.7.1-OXT, 9.6.3-rc-3) if there are any, else plain 9.x.y strings."""
     with open(layout.native(root, path), 'rb') as f:
         data = f.read()
     found = {m.group(0).decode('ascii') for m in VERSION_RX.finditer(data)}
