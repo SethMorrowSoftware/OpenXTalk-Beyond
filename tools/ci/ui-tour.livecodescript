@@ -4712,19 +4712,44 @@ on tour_system_switch
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_system_switch
 
--- Sets the Mac to pAppearance (light or dark) as System Settings does
+-- Sets the Mac to pAppearance (light or dark) as System Settings does.
+-- The notification is posted by a small native program that stays alive
+-- until it has gone: one posted through osascript (JavaScript for
+-- Automation) never reached an observer on a CI Mac, an engine's or a
+-- plain Swift program's, while the same post from a Swift program did
+-- (probe on macos-15, 15.8.2, 2026-10-31)
 command tourSystemSet pAppearance
+   local tPoster
    if pAppearance is "dark" then
       get shell("defaults write -g AppleInterfaceStyle Dark")
    else
       get shell("defaults delete -g AppleInterfaceStyle 2>/dev/null; true")
    end if
-   get shell("osascript -l JavaScript -e " & quote & \
-         "ObjC.import('Foundation'); $.NSDistributedNotificationCenter.defaultCenter" & \
-         ".postNotificationNameObjectUserInfoDeliverImmediately('AppleInterfaceThemeChangedNotification'," & \
-         " null, null, true)" & quote)
-   if it is not empty then tourRecord "INFO system-switch osascript:" && tourJoin(it)
+   put tourThemePoster() into tPoster
+   get shell(quote & tPoster & quote & " 2>&1")
+   if it is not empty then tourRecord "INFO system-switch poster:" && tourJoin(it)
 end tourSystemSet
+
+-- The path of the program that posts AppleInterfaceThemeChangedNotification,
+-- compiled with swiftc the first time it is wanted; throws when it cannot
+-- be built, so that the step fails rather than checks nothing
+local sThemePoster
+function tourThemePoster
+   local tSource, tBinary, tOut
+   if sThemePoster is not empty and there is a file sThemePoster then return sThemePoster
+   put specialFolderPath("temporary") & "/oxt_tour_theme_post.swift" into tSource
+   put specialFolderPath("temporary") & "/oxt_tour_theme_post" into tBinary
+   put "import Foundation" & return & \
+         "DistributedNotificationCenter.default().postNotificationName(" & \
+         "NSNotification.Name(" & quote & "AppleInterfaceThemeChangedNotification" & quote & ")," & \
+         " object: nil, userInfo: nil, deliverImmediately: true)" & return & \
+         "RunLoop.main.run(until: Date().addingTimeInterval(0.5))" & return into URL ("file:" & tSource)
+   if there is a file tBinary then delete file tBinary
+   put shell("xcrun swiftc -O -o " & quote & tBinary & quote && quote & tSource & quote & " 2>&1") into tOut
+   if there is not a file tBinary then throw "could not build the theme poster:" && tourJoin(tOut)
+   put tBinary into sThemePoster
+   return sThemePoster
+end tourThemePoster
 
 on tour_screen_end
    tourShotScreen "99-screen-end"
