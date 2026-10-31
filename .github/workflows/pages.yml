@@ -56,6 +56,13 @@
 # its source (Settings > Pages); until then the deploy job fails and
 # nothing else is touched. It changes no release, package or build.
 #
+# The front page's Downloads section links the desktop packages, the web
+# zips and the plugins of a release straight to their files, as the forum
+# posts do: those of the release put on the site, or of the newest one
+# when the site has a build that is not released. Only the files the
+# release has are linked (tools/pages/build_pages.py --release-assets);
+# a release that cannot be listed leaves the section out, with a warning.
+#
 # The codebase map is the one part made here, and it is made from the
 # source of the commit this run checks out (main's, for the release's run),
 # so it is as new as the site. tools/codebase-map/build_map.py reads the
@@ -235,6 +242,27 @@ jobs:
           echo "MAP_HTML=$work/out/index.html" >> "$GITHUB_ENV"
           echo "MAP_VERSION=$GITHUB_REF_NAME @ $(git rev-parse --short=8 HEAD), $(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
 
+      - name: List the release's downloads
+        # The page goes up without the Downloads section rather than not
+        # at all
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$TAG
+          if [ -n "${UNRELEASED:-}" ] || ! [[ "$tag" =~ ^v[0-9] ]]; then
+            tag=$(gh release list --repo "$REPO" --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          if [ -n "$tag" ] &&
+             gh release view "$tag" --repo "$REPO" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/release-assets.txt" &&
+             [ -s "$RUNNER_TEMP/release-assets.txt" ]; then
+            echo "DOWNLOADS_TAG=$tag" >> "$GITHUB_ENV"
+            wc -l < "$RUNNER_TEMP/release-assets.txt"
+          else
+            echo "::warning::could not list the files of ${tag:-the newest release}; the front page has no Downloads section"
+          fi
+
       - name: Build the site
         run: |
           args=()
@@ -254,6 +282,9 @@ jobs:
           if [ -n "${MAP_HTML:-}" ] && [ -f "$MAP_HTML" ]; then
             args+=(--map "$MAP_HTML" --map-version "$MAP_VERSION")
           fi
+          if [ -n "${DOWNLOADS_TAG:-}" ]; then
+            args+=(--release "$DOWNLOADS_TAG" --release-assets "$RUNNER_TEMP/release-assets.txt")
+          fi
           python3 tools/pages/build_pages.py --out "$RUNNER_TEMP/site" "${args[@]}"
           describe() { if [ -n "$1" ]; then basename "$1"; else echo "not on the site"; fi; }
           {
@@ -266,6 +297,11 @@ jobs:
               echo "- Dictionary: not on the site (no web IDE, or one without the dictionary's files)"
             fi
             echo "- Stack Player: $(describe "$player")"
+            if grep -q 'id="downloads"' "$RUNNER_TEMP/site/index.html"; then
+              echo "- Downloads: the files of $DOWNLOADS_TAG"
+            else
+              echo "- Downloads: not on the front page"
+            fi
             if [ -n "${MAP_HTML:-}" ]; then
               echo "- Codebase map: $MAP_VERSION${MAP_ENGINE:+, binary stacks read with the engine of $MAP_ENGINE}"
             else
