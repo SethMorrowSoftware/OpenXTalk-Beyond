@@ -49,6 +49,8 @@ printf 'INFO\\tdone\\ttrue\\n' >> "$out/speed.txt"
 '''
 
 
+# (the stand-in engine is a shell script, which Windows cannot run)
+@unittest.skipIf(os.name == 'nt', 'the stand-in engine is a shell script')
 class FieldSpeedTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()

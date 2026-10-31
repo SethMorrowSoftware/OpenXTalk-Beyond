@@ -116,6 +116,11 @@ jobs:
       matrix:
         os: [windows-latest, macos-15]
     steps:
+      # The files as they are in git, LF line endings and all, as the
+      # Linux job sees them (Windows' git would make them CRLF)
+      - name: Keep LF line endings
+        run: git config --global core.autocrlf false
+
       - name: Check out
         uses: actions/checkout@v7
         with:

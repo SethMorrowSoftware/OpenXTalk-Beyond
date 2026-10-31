@@ -23,6 +23,7 @@ repositories (and the check on this one).
 
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -43,7 +44,12 @@ class ChangelogTest(unittest.TestCase):
         self.fragment('README.md', '# Not a fragment\n\nProse.\n')
 
     def tearDown(self):
-        shutil.rmtree(self.repo)
+        # (git's objects are read-only, which Windows will not delete
+        # until they are made writable)
+        def writable(func, path, info):
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+        shutil.rmtree(self.repo, onerror=writable)
 
     def changelog(self, text=None):
         path = os.path.join(self.repo, changelog.CHANGELOG)

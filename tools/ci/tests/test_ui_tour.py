@@ -27,6 +27,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import sys
 import tempfile
 import time
@@ -69,6 +70,9 @@ REPORT = {
 }
 
 
+# (macOS's crash reports, read on the Mac only: they reason about POSIX
+# signals, which Windows' signal module does not have)
+@unittest.skipUnless(hasattr(signal, 'SIGKILL'), 'no POSIX signals here (macOS crash reports)')
 class CrashReports(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
