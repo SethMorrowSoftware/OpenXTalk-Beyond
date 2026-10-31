@@ -6757,6 +6757,59 @@ command revIDESetScrollbarWidthProperty pObject, pProperty, pValue
    end if
 end revIDESetScrollbarWidthProperty
 
+-- The Inspector's Orientation of a scrollbar (a slider and a progress bar
+-- are scrollbars too). The engine has no setter for it: a scrollbar is
+-- horizontal when it is wider than it is tall, and vertical otherwise, as
+-- it reads its rect when it is drawn (scrollbardraw.cpp). So the Inspector
+-- showed it read only, and the only way to turn a scrollbar round was to
+-- drag its handles (TerryL, openxtalk.org p=25821). Choosing the other
+-- orientation swaps its width and height about its centre; a square one,
+-- which is vertical, is made a pixel wider to turn horizontal. Choosing the
+-- orientation it has changes nothing, and so does a value that is neither.
+-- An object that is not a scrollbar has its orientation set as a script
+-- sets it.
+--
+-- The Inspector reads the orientation through
+-- revIDEGetScrollbarOrientationProperty, from the rect as the engine works
+-- it out, because the orientation property catches up only when the
+-- scrollbar is next drawn: on macOS that is after the script has finished,
+-- so straight after a change the Inspector would show the old one.
+function revIDEGetScrollbarOrientationProperty pObject, pProperty
+   if word 1 of the name of pObject is not "scrollbar" then
+      return the pProperty of pObject
+   end if
+   if the width of pObject > the height of pObject then
+      return "horizontal"
+   end if
+   return "vertical"
+end revIDEGetScrollbarOrientationProperty
+
+command revIDESetScrollbarOrientationProperty pObject, pProperty, pValue
+   local tWidth, tHeight, tLoc
+   if word 1 of the name of pObject is not "scrollbar" then
+      set the pProperty of pObject to pValue
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   if pValue is not among the items of "horizontal,vertical" then
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   put the width of pObject into tWidth
+   put the height of pObject into tHeight
+   if (pValue is "horizontal") is (tWidth > tHeight) then
+      exit revIDESetScrollbarOrientationProperty
+   end if
+   put the loc of pObject into tLoc
+   lock screen
+   if tWidth = tHeight then
+      set the width of pObject to tWidth + 1
+   else
+      set the width of pObject to tHeight
+      set the height of pObject to tWidth
+   end if
+   set the loc of pObject to tLoc
+   unlock screen
+end revIDESetScrollbarOrientationProperty
+
 command revIDESetImageFilename pObjectID, pProperty, pFilename
    if revIDEGetPreference("cImageFileRelative") is not false then
       local tStackPath, tFilePath

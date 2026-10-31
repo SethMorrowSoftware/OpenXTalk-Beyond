@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -2690,6 +2690,84 @@ on tour_svg_paths
    unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_svg_paths
+
+-- The Inspector sets a scrollbar's Orientation (TerryL, openxtalk.org
+-- p=25821): through revIDEPropertySet, the call the Inspector makes when
+-- its Orientation menu is changed, a horizontal scrollbar turns vertical
+-- about its centre and back again, a square one (vertical) turns
+-- horizontal by a pixel, and choosing the orientation a scrollbar has
+-- leaves it alone. Each check reads the orientation as the Inspector shows
+-- it and as a script reads it (tourSbCheck)
+on tour_scrollbar_orientation
+   local tArea, tName, tDefault, tBar, tSquare, tFails, tError
+   put "oxt_scrollbar_orientation" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to tName
+      create scrollbar "bar"
+      put the long id of it into tBar
+      set the rect of tBar to "40,92,240,108"
+      create scrollbar "square"
+      put the long id of it into tSquare
+      set the rect of tSquare to "260,40,300,80"
+      put tourSbCheck("as made", tBar, "horizontal", "40,92,240,108") after tFails
+      revIDEPropertySet tBar, "orientation", "Vertical"
+      put tourSbCheck("set to Vertical", tBar, "vertical", "132,0,148,200") after tFails
+      tourShotStack tName, "04h-scrollbar-orientation"
+      revIDEPropertySet tBar, "orientation", "Vertical"
+      put tourSbCheck("set to Vertical again", tBar, "vertical", "132,0,148,200") after tFails
+      revIDEPropertySet tBar, "orientation", "Horizontal"
+      put tourSbCheck("set back to Horizontal", tBar, "horizontal", "40,92,240,108") after tFails
+      put tourSbCheck("square, as made", tSquare, "vertical", "260,40,300,80") after tFails
+      revIDEPropertySet tSquare, "orientation", "Horizontal"
+      put tourSbCheck("square, set to Horizontal", tSquare, "horizontal", "260,40,301,80") after tFails
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_scrollbar_orientation
+
+-- A line saying what is wrong when the scrollbar pBar (pWhen) does not
+-- have the rect pRect, or does not show pOrientation in the Inspector at
+-- once (revIDEPropertiesOfSection, the Inspector's read) or read it as a
+-- script does once it has been drawn; empty when all is right. On macOS
+-- the engine draws, and so works the orientation out, after the script
+-- has finished, so that last read waits for a redraw, up to a second
+function tourSbCheck pWhen, pBar, pOrientation, pRect
+   local tShown, tPropsA, tGroup, tWait, tFails
+   put "(not in the Inspector's Basic section)" into tShown
+   put revIDEPropertiesOfSection(the long id of pBar, "Basic") into tPropsA
+   repeat for each key tGroup in tPropsA
+      if tPropsA[tGroup]["orientation"] is an array then
+         put tPropsA[tGroup]["orientation"]["value"][the long id of pBar] into tShown
+      end if
+   end repeat
+   repeat with tWait = 1 to 20
+      if the orientation of pBar is pOrientation then exit repeat
+      wait 50 milliseconds with messages
+   end repeat
+   tourRecord "INFO scrollbar-orientation" && pWhen & ":" && the short name of pBar && \
+         "the Inspector shows" && tShown & ", the engine reads" && the orientation of pBar && \
+         "at" && the rect of pBar
+   if the rect of pBar is not pRect then
+      put the short name of pBar && pWhen & ": at" && the rect of pBar & ", not" && pRect & return after tFails
+   end if
+   if tShown is not pOrientation then
+      put the short name of pBar && pWhen & ": the Inspector shows" && quote & tShown & quote & ", not" && pOrientation & return after tFails
+   end if
+   if the orientation of pBar is not pOrientation then
+      put the short name of pBar && pWhen & ": the engine reads" && the orientation of pBar & ", not" && pOrientation & return after tFails
+   end if
+   return tFails
+end tourSbCheck
 
 -- The same document under the clipboard types Adobe Illustrator reads
 -- (revidelibrary's kSVGClipboardTypes), in UTF-8, beside the text: what
