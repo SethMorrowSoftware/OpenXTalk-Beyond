@@ -159,7 +159,12 @@ that use none of the xTalk Suite's libraries as small as before (see
 follows every switch between light and dark on the Mac, lets the web
 IDE follow the browser's dark mode, and fixes a hilite on Linux, the
 Dictionary's links and the Inspector's colours (see
-[0.2.7-rc.6.10](#027-rc610-the-bug-hunt-round-ten));
+[0.2.7-rc.6.10](#027-rc610-the-bug-hunt-round-ten)), and 0.2.7-rc.6.11
+lets the Mac's colours and the IDE's widgets follow light and dark,
+ends a crash in the Script Editor's Breakpoints pane, makes saves
+safer, and fixes rolling back PostgreSQL and MySQL's encrypted
+connections (see
+[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -176,7 +181,7 @@ Dictionary's links and the Inspector's colours (see
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.10.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.11.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -312,8 +317,8 @@ OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15`, `runtimes-0.2.5-rc.2` and
-`runtimes-0.2.7-rc.6.10`, are not programs. They hold
+`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.10` and
+`runtimes-0.2.7-rc.6.11`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1630,6 +1635,72 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.11: the Bug Hunt, round eleven
+
+OXT-Beyond 0.2.7-rc.6.11 has everything in 0.2.7-rc.6.10. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **Mac colours that never followed a switch.** A stack or card with no
+  colours of its own takes the Mac's own colours and changes the moment
+  the Mac switches between light and dark. The dark appearance was a
+  fixed 61,61,61 that no script could read, and the effective colours
+  kept those of the appearance the IDE started in. The light appearance
+  looks and reads as before, and a stack printed in the dark appearance
+  prints in the light one's colours (bwmilby) (#291).
+- **Widgets stuck in light mode.** A header bar, navigation bar,
+  segmented control, switch button or tree view whose colours nobody set
+  by hand goes dark in the dark appearance; the IDE gave it its light
+  defaults as colours of its own, so it stayed light grey on a dark card.
+  Colours set by hand are drawn as set, and the properties read what
+  they did (bwmilby, OpenXTalkPaul) (#291).
+- **Dark mode on Linux, if you want it.** A new setting, `the
+  useDesktopAppearance`, lets `the systemAppearance` follow GNOME's
+  light or dark setting, with `systemAppearanceChanged` when it switches;
+  Preferences > Appearance has a box for it. It is off unless you turn
+  it on (bwmilby) (#290).
+- **Black text on black in the Script Editor.** A dark colour scheme
+  saved by an early Beyond build (0.2.1 to 0.2.3) overruled the one
+  picked in Preferences, so every word was black on the dark background
+  (tperry2x) (#290).
+- **Unticking a breakpoint crashed the IDE.** An old engine bug from
+  LiveCode: a script that deleted the group holding its own control
+  freed that control while it was still running. It now lives until its
+  handler is done, and Linux CI runs those tests under valgrind
+  (mwieder, tperry2x) (#290).
+- **Mac targets that vanished.** On Linux or Windows, opening the OS X
+  card of Standalone Settings no longer unticks a stack's Mac targets
+  (#290).
+- **Saves that could leave a cut-short file.** Saving a script-only
+  stack keeps a `stack~` copy until the new text is written and puts it
+  back if the save fails; a failed write is reported in `the result`.
+  The web IDE shows a "Not saved" bar, with the browser's reason, when
+  the browser stops keeping your files (#291).
+- **A rollback that committed.** `revRollBackDatabase` rolls a
+  PostgreSQL, SQLite or ODBC transaction back; it committed it. The
+  MySQL driver connects over TLS 1.2 or 1.3 again, where it offered only
+  TLS 1.0, which current servers refuse (#290).
+- **Two different greys on the web.** A new Fields setting in Standalone
+  Settings > HTML5 gives fields the card's grey; existing web apps look
+  the same unless you turn it on (bwmilby). The web IDE zip is 1.3 MB
+  smaller (bwmilby, OpenXTalkPaul) (#291).
+- **"LiveCode Dictionary".** Help > Dictionary Online opens
+  OXT-Beyond's own Dictionary (richmond62) (#291).
+- **A lost selection.** The Script Editor's Handlers button keeps your
+  selection, and puts it back when you close the list without picking a
+  handler (tperry2x) (#291).
+- **Undo that skipped a Return.** In a field, Undo takes out a Return
+  you typed, as it does typed text (#291).
+- **Copy Graphics as SVG Paths that did nothing.** Object > Copy
+  Graphics as SVG Paths puts the selected graphics on the clipboard as
+  an SVG document, a path for each; the menu item always called a
+  command that was never written (OpenXTalkPaul) (#292).
+
+Behind the scenes, the runtimes that every package carries for the
+other platforms are rebuilt from this release's engine (#292), and CI
+reads the widgets' and the Mac's colours off the screen in light and
+dark (#291).
 
 #### 0.2.7-rc.6.10: the Bug Hunt, round ten
 
