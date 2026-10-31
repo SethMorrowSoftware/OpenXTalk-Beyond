@@ -1,1 +1,0 @@
-- Fields: Undo takes out a typed Return, as it takes out typed text, and a Return typed with text is undone with it; it made no undo record, so Undo left it there, or undid text typed before it, at a place the Return had moved (#PR)

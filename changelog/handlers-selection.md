@@ -1,1 +1,0 @@
-- Script Editor: the Handlers button above the script keeps the script's selection: the list of handlers takes the focus, which cleared it, and when the list closes with no handler picked (a click elsewhere, or Escape) the selection comes back, unless the click went into a field (tperry2x, openxtalk.org p=25787) (#PR)
