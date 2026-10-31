@@ -262,9 +262,44 @@
         font-size: 14px;
         cursor: pointer;
       }
-      #note button:hover {
+      #note button:hover,
+      #storage button:hover {
         background: rgba(255, 255, 255, 0.1);
         color: #ffffff;
+      }
+
+      /* Shown while the browser is not keeping the home folder, where the
+         IDE saves stacks (LiveCodeStorage in engine/src/em-system.js) */
+      #storage {
+        position: fixed;
+        left: 14px;
+        bottom: 14px;
+        z-index: 50001;
+        max-width: min(560px, calc(100vw - 28px));
+        padding: 10px 40px 10px 14px;
+        border-radius: 8px;
+        background: rgba(110, 30, 20, 0.95);
+        border: 1px solid #ff8b00;
+        color: #ffffff;
+        font-size: 13px;
+        line-height: 1.45;
+        display: none;
+      }
+      #storage b {
+        font-weight: 600;
+      }
+      #storage button {
+        position: absolute;
+        right: 6px;
+        top: 6px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 5px;
+        background: none;
+        color: #ffd8c2;
+        font-size: 14px;
+        cursor: pointer;
       }
     </style>
   </head>
@@ -302,6 +337,13 @@
     <div id="note">
       Your stacks are kept in this browser. Use <b>File &gt; Download Stack</b> to keep
       a copy on your computer, and <b>File &gt; Open Stack</b> to open one from it.
+      <button title="Close" aria-label="Close">&#x2715;</button>
+    </div>
+
+    <div id="storage" role="alert">
+      <b>Not saved:</b> this browser is not keeping your stacks
+      (<span id="storage-error"></span>). Use <b>File &gt; Download Stack</b> to keep
+      a copy on your computer.
       <button title="Close" aria-label="Close">&#x2715;</button>
     </div>
 
@@ -710,6 +752,7 @@
             document.getElementById('fullscreen').style.display = 'block';
           }
           showNote();
+          showStorage();
           // Ask the browser to keep the stacks the IDE keeps in its storage
           // (IndexedDB) when it runs short of space
           if (navigator.storage && navigator.storage.persist) {
@@ -770,6 +813,26 @@
             }
           });
         }
+
+        // While the browser is not keeping the home folder (a write to its
+        // storage failed, or the folder could not be loaded from it), a
+        // bar says so: the engine's storage tells the page each time that
+        // changes (an "oxtstoragestate" event; Module.livecodeStorageError,
+        // empty while it is kept). A write that works again hides it; the
+        // close button hides it until that changes again.
+        var storage = document.getElementById('storage');
+        function showStorage() {
+          var error = window.Module && Module.livecodeStorageError || '';
+          if (!started || failed) {
+            return;
+          }
+          document.getElementById('storage-error').textContent = error;
+          storage.style.display = error ? 'block' : 'none';
+        }
+        window.addEventListener('oxtstoragestate', showStorage);
+        storage.querySelector('button').addEventListener('click', function() {
+          storage.style.display = 'none';
+        });
       })();
     </script>
   </body>

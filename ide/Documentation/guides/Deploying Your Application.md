@@ -664,6 +664,19 @@ engine starts once it has arrived.
 * `livecodePersistent`: `false` to start the home folder afresh on every
 visit, instead of keeping it in the browser.
 
+The engine sets `Module.livecodeStorageError` when the browser is not
+keeping the home folder: the browser's reason, such as a full disk or
+storage refused (a private window can refuse it), when a write to its
+storage failed or the folder could not be loaded from it, and empty
+again once a write works. Each time that changes, the window gets an
+`oxtstoragestate` event whose `detail` is `{kept, error}`. The engine
+does nothing else with it, and a page that does not look shows nothing
+(the web IDE shows a "Not saved" bar). To tell the user:
+
+    window.addEventListener('oxtstoragestate', function(e) {
+      document.getElementById('not-saved').hidden = e.detail.kept;
+    });
+
 See also Emscripten's
 [Module object documentation](https://emscripten.org/docs/api_reference/module.html).
 

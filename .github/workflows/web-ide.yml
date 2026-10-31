@@ -434,6 +434,9 @@ jobs:
   # web IDE on its loading screen now and then (openxtalk.org p=25583).
   # The tour's start step fails unless the IDE opens and its menu bar and
   # Home are on the page, and its sample step unless it still answers.
+  # At 800x500 each browser also opens it with its storage refused
+  # (web_ide_tour.py --refuse-storage): the storage-open step fails unless
+  # the page's not-saved bar says so.
   small:
     name: Web IDE small window (${{ matrix.browser }}, ${{ matrix.size }})
     needs: engine
@@ -499,12 +502,35 @@ jobs:
             --out "$RUNNER_TEMP/web-ide-small" --browser "$BROWSER" --size "$SIZE" \
             --only start,sample --timeout 480
 
+      # The browser's storage refusing the page from the start (a private
+      # window, a site's blocked storage): the IDE still opens, and the
+      # page's not-saved bar says the stacks are not being kept (seth's
+      # choice 6A of 2026-10-31). Once for each browser.
+      - name: Web IDE with the browser's storage refused
+        if: ${{ matrix.size == '800x500' }}
+        timeout-minutes: 10
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+            --out "$RUNNER_TEMP/web-ide-refused" --browser "$BROWSER" --refuse-storage \
+            --only storage-open --timeout 480
+
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: web-ide-small-${{ matrix.browser }}-${{ matrix.size }}
           path: ${{ runner.temp }}/web-ide-small
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the storage-refused screenshots
+        if: ${{ always() && matrix.size == '800x500' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-ide-refused-${{ matrix.browser }}
+          path: ${{ runner.temp }}/web-ide-refused
           if-no-files-found: ignore
           retention-days: 14
 

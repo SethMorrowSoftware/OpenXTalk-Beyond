@@ -21,7 +21,7 @@ made in headless Chromium and walks through the IDE's windows.
   python3 tools/ci/web_ide_tour.py --site DIR --out DIR [--browser NAME]
       [--timeout SECONDS] [--only STEPS] [--keep-serving]
       [--tour FILE] [--add FILE]... [--replace PATH=FILE]... [--relay]
-      [--size WIDTHxHEIGHT] [--color-scheme light|dark]
+      [--size WIDTHxHEIGHT] [--color-scheme light|dark] [--refuse-storage]
 
 --site is the web IDE's site (index.html, the engine and ide.zip). The
 script copies it into <out>/site, adds tools/ci/web-ide-tour.livecodescript
@@ -61,6 +61,13 @@ extension of the release replaced by the one under test). --relay runs a
 Nostr relay of tools/ci/nostr_test_relay.py on 127.0.0.1 for the tour,
 whose ws:// address the page gives it as window.oxtTour.relay.
 
+--refuse-storage makes the browser's storage (IndexedDB) refuse the page
+from the start, as a private window or a site's blocked storage can: the
+engine cannot load the home folder, where the IDE saves stacks, and the
+page's not-saved bar says so. The page gives the tour
+window.oxtTour.refused, true; web-ide.yml runs the tour's storage-open
+step alone with it.
+
 Exit status 0 when the tour passes, 1 otherwise. Needs Python 3.8 or later
 and the Python package playwright with its Chromium
 (python3 -m playwright install chromium).
@@ -99,10 +106,20 @@ window.oxtTour = {
   go: false,
   only: '',
   relay: '',
+  refused: false,
   done: 0,
   lines: [],
   record: function(line) { this.lines.push(String(line)); },
   take: function() { var lines = this.lines; this.lines = []; return lines; }
+};
+'''
+
+# --refuse-storage: the browser's storage refuses to open a database, as
+# a private window or a site's blocked storage can (the engine's IDBFS
+# opens one to load the home folder, engine/src/em-system.js)
+REFUSE_STORAGE = '''
+IDBFactory.prototype.open = function() {
+  throw new DOMException('refused by the tour', 'SecurityError');
 };
 '''
 
@@ -243,6 +260,8 @@ def main(argv=None):
                     help='the colour scheme the browser asks pages for (default light)')
     ap.add_argument('--size', type=page_size, default=(WIDTH, HEIGHT), metavar='WIDTHxHEIGHT',
                     help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
+    ap.add_argument('--refuse-storage', action='store_true',
+                    help='the browser\'s storage (IndexedDB) refuses the page from the start')
     args = ap.parse_args(argv)
     replace = []
     for item in args.replace:
@@ -291,6 +310,9 @@ def main(argv=None):
             problems.append('page error: %s' % error)
         page.on('pageerror', page_error)
         page.add_init_script(PAGE_SCRIPT)
+        if args.refuse_storage:
+            page.add_init_script(REFUSE_STORAGE)
+            log('Storage: refused from the start')
         try:
             page.goto(url)
             page.wait_for_function('%s || %s' % (OPENED, FAILED), timeout=args.timeout * 1000 / 2)
@@ -308,7 +330,8 @@ def main(argv=None):
             if note.is_visible():
                 note.click()
             page.evaluate('a => { window.oxtTour.only = a[0]; window.oxtTour.relay = a[1]; '
-                          'window.oxtTour.go = true; }', [args.only, relay_url])
+                          'window.oxtTour.refused = a[2]; window.oxtTour.go = true; }',
+                          [args.only, relay_url, args.refuse_storage])
 
             while time.time() - started < args.timeout:
                 new = page.evaluate('window.oxtTour.take()')
