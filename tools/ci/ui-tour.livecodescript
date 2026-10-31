@@ -3612,7 +3612,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed
    put revIDEPaletteToStackName("preferences") into tStack
    revIDEOpenPalette "preferences"
    tourWait 1500
@@ -3626,6 +3626,21 @@ on tour_preferences
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
    end repeat
+   -- The Script Editor pane's colour scheme menu shows its longest choice,
+   -- "Follow System Appearance", whole (bwmilby, openxtalk.org p=25582: it
+   -- was cut off in 146 pixels): the text, measured in the button's own
+   -- font, and 16 pixels for the menu's arrow and margins
+   put the long id of button "Colorization Scheme" of card "Script Editor" of stack tStack into tMenu
+   put 0 into tNeed
+   repeat for each line tItem in the text of tMenu
+      put max(tNeed, measureText(tItem, tMenu) + 16) into tNeed
+   end repeat
+   tourRecord "INFO preferences colour scheme menu: width" && the width of tMenu & ", needs" && tNeed
+   if the width of tMenu < tNeed then
+      close stack tStack
+      throw "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
+            "pixels wide; its longest choice needs" && tNeed
+   end if
    close stack tStack
 end tour_preferences
 
