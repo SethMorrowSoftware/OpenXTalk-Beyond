@@ -222,6 +222,29 @@ constant kDisabledOpacity is 0.5
 
 --
 
+-- OXT-Beyond: the light defaults of the colours, as the metadata gives
+-- them to a new widget, and what each is drawn as in the dark appearance
+-- (paintFor)
+constant kBackLight is [244, 244, 244]
+constant kBackDark is [64, 64, 64]
+constant kBorderLight is [109, 109, 109]
+constant kBorderDark is [120, 120, 120]
+
+-- OXT-Beyond: my paint pType (0 foreground, 1 background, 3 border, as
+-- 'my ... paint' numbers them), except that in the dark appearance a colour
+-- of the widget's own that is still its light default pLight is drawn as
+-- pDark: so a widget whose colours nobody set by hand follows light and
+-- dark, a colour set by hand to anything else stays, and in the light
+-- appearance it is drawn as before (seth's choice 2A of 2026-10-31;
+-- MCWidgetGetMyPaintForAppearance in the engine's widget-syntax.cpp)
+private handler paintFor(in pType as Integer, in pLight as List, in pDark as List) returns Paint
+	variable tPaint as Paint
+	MCWidgetGetMyPaintForAppearance(pType, \
+		color [pLight[1] / 255, pLight[2] / 255, pLight[3] / 255], \
+		color [pDark[1] / 255, pDark[2] / 255, pDark[3] / 255], tPaint)
+	return tPaint
+end handler
+
 public handler OnSave(out rProperties as Array)
 	put the empty array into rProperties
 
@@ -352,9 +375,9 @@ private handler paintGetPaint(in pComponent as String, in pType as String) \
 	variable tPaintInfo as List
 	repeat for each element tPaintInfo in tRaw
 		if tPaintInfo[1] is "background" then
-			put my background paint into tPaintInfo[1]
+			put paintFor(1, kBackLight, kBackDark) into tPaintInfo[1]
 		else if tPaintInfo[1] is "border" then
-			put my border paint into tPaintInfo[1]
+			put paintFor(3, kBorderLight, kBorderDark) into tPaintInfo[1]
 		else if tPaintInfo[1] is "highlight" then
 			put my highlight paint into tPaintInfo[1]
 		end if
@@ -387,7 +410,7 @@ private handler paintDrawComponent(in pComponent as String)
 	-- paint, then paint the control over the top with reduced opacity
 	-- FIXME This is ugly!
 	if my disabled then
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 		if tFillPaints is not empty then
 			fill tPath on this canvas
 		end if

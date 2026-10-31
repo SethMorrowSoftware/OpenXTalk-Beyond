@@ -510,6 +510,29 @@ constant kGeometry is { \
 	"title-left-offset":		{"iOS": 0, 		"android": 72 } \
 }
 
+-- OXT-Beyond: the light defaults of the colours, as the metadata gives
+-- them to a new widget, and what each is drawn as in the dark appearance
+-- (paintFor)
+constant kForeLight is [0, 0, 0]
+constant kForeDark is [235, 235, 235]
+constant kBackLight is [244, 244, 244]
+constant kBackDark is [64, 64, 64]
+
+-- OXT-Beyond: my paint pType (0 foreground, 1 background, as
+-- 'my ... paint' numbers them), except that in the dark appearance a colour
+-- of the widget's own that is still its light default pLight is drawn as
+-- pDark: so a widget whose colours nobody set by hand follows light and
+-- dark, a colour set by hand to anything else stays, and in the light
+-- appearance it is drawn as before (seth's choice 2A of 2026-10-31;
+-- MCWidgetGetMyPaintForAppearance in the engine's widget-syntax.cpp)
+private handler paintFor(in pType as Integer, in pLight as List, in pDark as List) returns Paint
+	variable tPaint as Paint
+	MCWidgetGetMyPaintForAppearance(pType, \
+		color [pLight[1] / 255, pLight[2] / 255, pLight[3] / 255], \
+		color [pDark[1] / 255, pDark[2] / 255, pDark[3] / 255], tPaint)
+	return tPaint
+end handler
+
 public handler OnSave(out rProperties as Array)
    put the empty array into rProperties
    
@@ -765,23 +788,23 @@ private handler fetchPaint(in pObject as String) returns Paint
    variable tPaint as Paint
 
    if pObject is "background" then
-      put my background paint into tPaint
+      put paintFor(1, kBackLight, kBackDark) into tPaint
 
    else if pObject is "line" then
       put solid paint with color [0, 0, 0, 0.2] into tPaint
 
    else if pObject is "title" then
-      put my foreground paint into tPaint
+      put paintFor(0, kForeLight, kForeDark) into tPaint
 
    else if pObject is "backButton" then
       if mSelectedAction is 1 then
          put my highlight paint into tPaint
       else
-         put my foreground paint into tPaint
+         put paintFor(0, kForeLight, kForeDark) into tPaint
       end if
 
    else if pObject is "pushedIcon" then
-      put my foreground paint into tPaint
+      put paintFor(0, kForeLight, kForeDark) into tPaint
 
    else if pObject is "icon" then
       put my highlight paint into tPaint

@@ -321,6 +321,89 @@ extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyPaint(uinteger_t p_type, MCCanvasP
     MCCanvasSolidPaintMakeWithColor(kMCCanvasColorBlack, (MCCanvasSolidPaintRef&)r_paint);
 }
 
+// OXT-Beyond: whether the widget p_host is drawn in the dark appearance:
+// the systemAppearance is dark and what is behind the widget, its owner's
+// background as the engine draws it, is dark (as the web's arrows decide
+// it: MCControlArrowIsWhite in control.cpp). A light card in the dark
+// appearance, and every card in the light one, give false, so nothing
+// drawn in the light appearance changes.
+static bool MCWidgetIsInDarkAppearance(MCWidget *p_host)
+{
+    if (MCscreen == nil || p_host == nil)
+        return false;
+    
+    MCSystemAppearance t_appearance;
+    MCscreen -> getsystemappearance(t_appearance);
+    if (t_appearance != kMCSystemAppearanceDark)
+        return false;
+    
+    MCObject *t_back;
+    t_back = p_host -> getparent();
+    if (t_back == nil || t_back == MCdispatcher)
+        return false;
+    
+    // (a pattern behind it counts as light)
+    MCColor t_color;
+    MCPatternRef t_pattern = nil;
+    int2 t_x, t_y;
+    if (!t_back -> getforecolor(DI_BACK, False, False, t_color, t_pattern, t_x, t_y, CONTEXT_TYPE_SCREEN, t_back, False))
+        return false;
+    
+    // Rec. 601 luma, out of 65535
+    uint32_t t_luma;
+    t_luma = (299 * uint32_t(t_color . red) + 587 * uint32_t(t_color . green) + 114 * uint32_t(t_color . blue)) / 1000;
+    return t_luma < 32768;
+}
+
+// OXT-Beyond: whether the engine colour p_color is the canvas colour
+// p_canvas_color, to the nearest of 255 steps (its alpha aside)
+static bool MCWidgetColorIsCanvasColor(const MCColor& p_color, MCCanvasColorRef p_canvas_color)
+{
+    MCCanvasFloat t_red, t_green, t_blue;
+    MCCanvasColorGetRed(p_canvas_color, t_red);
+    MCCanvasColorGetGreen(p_canvas_color, t_green);
+    MCCanvasColorGetBlue(p_canvas_color, t_blue);
+    const MCCanvasFloat t_step = 0.5f / 255.0f + 0.0001f;
+    return fabs(p_color . red / 65535.0f - t_red) <= t_step &&
+           fabs(p_color . green / 65535.0f - t_green) <= t_step &&
+           fabs(p_color . blue / 65535.0f - t_blue) <= t_step;
+}
+
+// OXT-Beyond: the widget's paint p_type, as 'my ... paint' gives it
+// (MCWidgetGetMyPaint), except that in the dark appearance a colour of the
+// widget's own that is still p_light, the light default the widget gives
+// it (its metadata's default, which the IDE sets on a new widget), is drawn
+// as p_dark. So a widget whose colours nobody set by hand follows light
+// and dark, and a colour set by hand to anything else stays as it is
+// (seth's choice 2A of 2026-10-31; bwmilby, openxtalk.org p=25665,
+// p=25680). A colour the widget inherits is the appearance's already. The
+// widget's properties read what they did; in the light appearance it is
+// drawn as before.
+extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyPaintForAppearance(uinteger_t p_type, MCCanvasColorRef p_light, MCCanvasColorRef p_dark, MCCanvasPaintRef& r_paint)
+{
+    if (!MCWidgetEnsureCurrentWidget())
+        return;
+    
+    MCWidget *t_host;
+    t_host = MCWidgetGetHost(MCcurrentwidget);
+    
+    uint2 t_index;
+    if (t_host != nil && t_host -> getcindex((uint2)p_type, t_index) && MCWidgetIsInDarkAppearance(t_host))
+    {
+        MCColor t_color;
+        MCPatternRef t_pattern = nil;
+        int2 x, y;
+        if (t_host -> getforecolor((uint2)p_type, False, False, t_color, t_pattern, x, y, CONTEXT_TYPE_SCREEN, t_host, False) &&
+            MCWidgetColorIsCanvasColor(t_color, p_light))
+        {
+            MCCanvasSolidPaintMakeWithColor(p_dark, (MCCanvasSolidPaintRef&)r_paint);
+            return;
+        }
+    }
+    
+    MCWidgetGetMyPaint(p_type, r_paint);
+}
+
 extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyPixelScale(MCCanvasFloat& r_pixel_scale)
 {
     if (!MCWidgetEnsureCurrentWidget())

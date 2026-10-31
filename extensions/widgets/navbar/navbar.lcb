@@ -509,6 +509,31 @@ constant kDefaultNavName is "new item"
 constant kDefaultNavLabel is "New Item"
 constant kDefaultNavIconName is "circle"
 
+-- OXT-Beyond: the light defaults of the colours, as the metadata gives
+-- them to a new widget, and what each is drawn as in the dark appearance
+-- (paintFor)
+constant kForeLight is [128, 128, 128]
+constant kForeDark is [160, 160, 160]
+constant kBackLight is [244, 244, 244]
+constant kBackDark is [64, 64, 64]
+constant kBorderLight is [166, 166, 166]
+constant kBorderDark is [90, 90, 90]
+
+-- OXT-Beyond: my paint pType (0 foreground, 1 background, 3 border, as
+-- 'my ... paint' numbers them), except that in the dark appearance a colour
+-- of the widget's own that is still its light default pLight is drawn as
+-- pDark: so a widget whose colours nobody set by hand follows light and
+-- dark, a colour set by hand to anything else stays, and in the light
+-- appearance it is drawn as before (seth's choice 2A of 2026-10-31;
+-- MCWidgetGetMyPaintForAppearance in the engine's widget-syntax.cpp)
+private handler paintFor(in pType as Integer, in pLight as List, in pDark as List) returns Paint
+	variable tPaint as Paint
+	MCWidgetGetMyPaintForAppearance(pType, \
+		color [pLight[1] / 255, pLight[2] / 255, pLight[3] / 255], \
+		color [pDark[1] / 255, pDark[2] / 255, pDark[3] / 255], tPaint)
+	return tPaint
+end handler
+
 public handler OnSave(out rProperties as Array)
 	put the empty array into rProperties
 
@@ -624,7 +649,7 @@ end handler
 private handler drawNavBar() returns nothing
 	-- background
 	if mShowBackground then
-		set the paint of this canvas to my background paint
+		set the paint of this canvas to paintFor(1, kBackLight, kBackDark)
 		fill getPath("background") on this canvas
 	end if
 
@@ -634,7 +659,7 @@ private handler drawNavBar() returns nothing
 
 	-- Draw the top line
 	if mShowDivide then
-		set the paint of this canvas to my border paint
+		set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 		set the stroke width of this canvas to 0
 		stroke getPath("line") on this canvas
 	end if
@@ -744,7 +769,7 @@ private handler drawEditModeDivide(in pNumber as Number) returns nothing
 	end if
 	variable tPath as Path
 	put line path from point [1, kEditModeLineHeight * pNumber] to point [mWidth - 1, kEditModeLineHeight * pNumber + 1] into tPath
-	set the paint of this canvas to my border paint
+	set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
 	set the stroke width of this canvas to 0
 	stroke tPath on this canvas
 end handler
@@ -753,7 +778,7 @@ private handler drawIcon(in pIconPath as Path, in pSelected as Boolean)
 	if pSelected then
 		set the paint of this canvas to my highlight paint
 	else
-		set the paint of this canvas to my foreground paint
+		set the paint of this canvas to paintFor(0, kForeLight, kForeDark)
 	end if
 
 	fill pIconPath on this canvas
@@ -763,7 +788,7 @@ private handler drawLabel(in pLabel as String, in pRect as Rectangle, in pSelect
 	if pSelected then
 		set the paint of this canvas to my highlight paint
 	else
-		set the paint of this canvas to my foreground paint
+		set the paint of this canvas to paintFor(0, kForeLight, kForeDark)
 	end if
 
 	set the font of this canvas to getFont("label")

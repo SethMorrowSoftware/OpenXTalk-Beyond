@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -2035,12 +2035,18 @@ end tourCbNames
 -- card of the stack pStack, at its middle: the middle point of a snapshot
 -- 5 points square, so a point of the screen on a Retina display too
 function tourCbPixel pStack, pX
-   local tRect, tX, tY, tData, tW, tH, tAt
+   local tRect
    tourUnlockScreen "card-border"
    put the rect of stack pStack into tRect
-   put item 1 of tRect + pX into tX
-   put (item 2 of tRect + item 4 of tRect) div 2 into tY
-   export snapshot from rect (tX - 2, tY - 2, tX + 3, tY + 3) to tData as PNG
+   return tourPixelAt(item 1 of tRect + pX, (item 2 of tRect + item 4 of tRect) div 2)
+end tourCbPixel
+
+-- The red, green and blue of the screen at the point pX, pY of the
+-- screen: the middle point of a snapshot 5 points square, so a point of
+-- the screen on a Retina display too
+function tourPixelAt pX, pY
+   local tData, tW, tH, tAt
+   export snapshot from rect (pX - 2, pY - 2, pX + 3, pY + 3) to tData as PNG
    lock messages
    create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
    set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
@@ -2051,7 +2057,7 @@ function tourCbPixel pStack, pX
    unlock messages
    put ((tH div 2) * tW + tW div 2) * 4 into tAt
    return byteToNum(byte tAt + 2 of tData) & comma & byteToNum(byte tAt + 3 of tData) & comma & byteToNum(byte tAt + 4 of tData)
-end tourCbPixel
+end tourPixelAt
 
 -- The nearest to the colour pRGB of the four the card is given
 function tourCbName pRGB
@@ -2533,6 +2539,119 @@ on tourFramesAnswer pButton
       tourCloseDialogs
    end if
 end tourFramesAnswer
+
+-- A widget whose colours nobody set by hand follows light and dark (seth's
+-- choice 2A of 2026-10-31; bwmilby, openxtalk.org p=25665, p=25680). The
+-- IDE gives a new segmented control its light defaults as colours of its
+-- own (244,244,244 behind its labels): in the dark appearance, on a dark
+-- card, it now draws them in the dark (64,64,64), while its properties
+-- read what they did; one whose colour was set by hand draws that colour
+-- in both. The screen is read in the first segment, left of its label.
+-- The Mac's switch between the two while the IDE runs is checked as well
+-- (system-switch)
+local sSegmentsDark
+
+on tour_widget_appearance
+   local tArea, tName, tDefault, tMade, tHand, tFails, tError
+   put "oxt_widget_appearance" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      put tourSegmentsMake(tName, "Made", "10,10,310,50") into tMade
+      put tourSegmentsMake(tName, "Hand", "10,70,310,110") into tHand
+      set the backgroundColor of tHand to "200,120,40"
+      tourWait 500
+      put tourSegmentsCheck(tName, tMade, "244,244,244", "64,64,64", "the segmented control the IDE made") after tFails
+      put tourSegmentsCheck(tName, tHand, "200,120,40", "200,120,40", "a segmented control with its backgroundColor set") after tFails
+      put tourSegmentsProperties(tMade, "the segmented control the IDE made") after tFails
+      -- on the Mac in the dark tour the card is dark (system-switch checks
+      -- it), so a pass there is a pass of the dark appearance's colours
+      if the platform is "MacOS" and $OXT_TOUR_APPEARANCE is "dark" and not sSegmentsDark then
+         put "in the dark tour the segmented control was checked against the light colours" && \
+               "(the systemAppearance" && the systemAppearance & ")" & return after tFails
+      end if
+      tourShotStack tName, "04f-widget-appearance"
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_widget_appearance
+
+-- A segmented control made as the IDE makes one (revIDECreateObject, which
+-- gives it its light defaults as colours of its own), named pName, at
+-- pRect of the card of the stack pStack, none of its segments hilited;
+-- its long id
+function tourSegmentsMake pStack, pName, pRect
+   local tResult, tError
+   try
+      revIDECreateObject "com.livecode.widget.segmented", the long id of card 1 of stack pStack, "160,30"
+      put the result into tResult
+   catch tError
+      put tourJoin(tError) into tResult
+   end try
+   -- (revIDECreateObject leaves messages and the screen locked when it
+   -- fails)
+   unlock messages
+   tourUnlockScreen "widget-appearance"
+   if word 1 of tResult is not "widget" or not exists(tResult) then
+      throw "the IDE made no segmented control (" & tResult & ")"
+   end if
+   set the name of tResult to pName
+   put the long id of widget pName of card 1 of stack pStack into tResult
+   set the rect of tResult to pRect
+   set the hilitedItems of tResult to empty
+   tourCloseInspectors
+   return tResult
+end tourSegmentsMake
+
+-- Empty if the screen shows pLight in the first segment of the segmented
+-- control pWidget of the stack pStack, or pDark when the systemAppearance
+-- is dark and the card is drawn dark (read below the controls), within 16
+-- of each of red, green and blue (the screen's colour profile); else a
+-- line that says what it shows. sSegmentsDark: whether it wanted pDark
+function tourSegmentsCheck pStack, pWidget, pLight, pDark, pWhat
+   local tStack, tRect, tShown, tCard, tWant, i
+   tourUnlockScreen "widget-appearance"
+   put the rect of stack pStack into tStack
+   put the rect of pWidget into tRect
+   put tourPixelAt(item 1 of tStack + item 1 of tRect + 10, \
+         item 2 of tStack + (item 2 of tRect + item 4 of tRect) div 2) into tShown
+   put tourPixelAt(item 1 of tStack + (item 3 of tStack - item 1 of tStack) div 2, item 4 of tStack - 20) into tCard
+   put the systemAppearance is "dark" and tourSystemLight(tCard) is false into sSegmentsDark
+   if sSegmentsDark then put pDark into tWant
+   else put pLight into tWant
+   tourRecord "INFO widget-appearance:" && pWhat & ": the systemAppearance" && the systemAppearance & \
+         ", the card" && tCard & ", the screen" && tShown & ", wanted" && tWant
+   if the number of items of tShown is not 3 or the number of items of tCard is not 3 then
+      return pWhat & ": no colours from the screen (" & tShown & "; the card" && tCard & ")" & return
+   end if
+   repeat with i = 1 to 3
+      if abs(item i of tShown - item i of tWant) > 16 then
+         return pWhat & ": the screen shows" && tShown & ", not" && tWant && \
+               "(the systemAppearance" && the systemAppearance & ", the card" && tCard & ")" & return
+      end if
+   end repeat
+   return empty
+end tourSegmentsCheck
+
+-- Empty if the segmented control pWidget's colours read the light
+-- defaults the IDE gave it, whatever it is drawn in; else a line
+function tourSegmentsProperties pWidget, pWhat
+   local tRead
+   put the foregroundColor of pWidget & "/" & the backgroundColor of pWidget & "/" & \
+         the borderColor of pWidget into tRead
+   if tRead is not "0,0,0/244,244,244/109,109,109" then
+      return pWhat & ": its colours read" && tRead & ", not 0,0,0/244,244,244/109,109,109" & return
+   end if
+   return empty
+end tourSegmentsProperties
 
 on tour_inspector
    local tPI, tSection, tShown, tIndex, tError
@@ -4849,7 +4968,7 @@ end tour_icon_chooser
 on tour_system_switch
    global gTourSystemSeen
    local tStart, tOther, tTarget, tSeen, tFails, tWaited, tError
-   local tArea, tColorsStack, tBacks
+   local tArea, tColorsStack, tBacks, tSegments
    if the platform is not "MacOS" then
       tourRecord "INFO system-switch: macOS only"
       exit tour_system_switch
@@ -4871,6 +4990,9 @@ on tour_system_switch
    go stack tColorsStack
    tourOnScreen tColorsStack
    try
+      -- a widget the IDE made follows the switch as well (2A), at the top
+      -- of the card, clear of the point tourSystemColors reads
+      put tourSegmentsMake(tColorsStack, "Segments", "10,10,310,50") into tSegments
       repeat for each item tTarget in tOther & comma & tStart
          put empty into gTourSystemSeen
          tourSystemSet tTarget
@@ -4895,6 +5017,14 @@ on tour_system_switch
             put "after the switch to" && tTarget && "the systemAppearance is" && the systemAppearance & return after tFails
          end if
          put tourSystemColors(tColorsStack, tTarget) after tFails
+         put tourSegmentsCheck(tColorsStack, tSegments, "244,244,244", "64,64,64", \
+               "after the switch to" && tTarget && "a segmented control the IDE made") after tFails
+         -- the card is the appearance's (tourSystemColors), so the switch
+         -- to the dark is checked against the dark colours
+         if sSegmentsDark is not (tTarget is "dark") then
+            put "after the switch to" && tTarget && "the segmented control was checked against the" && \
+                  "other appearance's colours" & return after tFails
+         end if
          put the effective backgroundColor of card 1 of stack tColorsStack into tBacks[tTarget]
       end repeat
       if tBacks[tOther] is tBacks[tStart] then
