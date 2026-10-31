@@ -1,0 +1,473 @@
+STARTED
+INFO platform Linux Linux 7.0.0-1017-azure arm64
+INFO version 9.7.1-OXT 25923
+INFO screenRect 0,0,1440,900
+INFO openStacks revTools | oxt_ui_tour | revMenuBar
+INFO tools look at start ""
+INFO systemAppearance light
+STEP appearance ok
+SHOT 00-screen-start.png 0,0,1440,900
+STEP screen ok
+INFO 01-tools stack revTools rect 13,125,108,667 effective 13,125,108,667 title "Tools"
+SHOT 01-tools.png 13,125,108,667
+STEP tools ok
+INFO tooltip com.livecode.tool.Pointer: Pointer Tool - Select and edit objects
+SHOT 02-tooltip-tools.png 41,122,501,282
+STEP tooltip-tools ok
+INFO hover com.livecode.interface.classic.RectangleGraphic: 0,0,0
+SHOT 02-hover-tools.png 0,439,449,599
+STEP hover-tools ok
+INFO tools-modern rect 13,125,133,892 resizable true
+INFO 01-tools-modern stack revTools rect 13,125,133,892 effective 13,125,133,892 title "Tools"
+SHOT 01-tools-modern.png 13,125,133,892
+STEP tools-modern ok
+INFO tools-modern rect 10,125,350,892 resizable true
+INFO 01-tools-modern-wide stack revTools rect 10,125,350,892 effective 10,125,350,892 title "Tools"
+SHOT 01-tools-modern-wide.png 10,125,350,892
+STEP tools-modern-wide ok
+INFO tools-modern rect 10,125,390,892 resizable true
+INFO 01-tools-modern-names stack revTools rect 10,125,390,892 effective 10,125,390,892 title "Tools"
+SHOT 01-tools-modern-names.png 10,125,390,892
+INFO 01-tools-modern-names-tools stack revTools rect 10,125,390,892 effective 10,125,390,892 title "Tools"
+SHOT 01-tools-modern-names-tools.png 10,125,390,892
+STEP tools-modern-names ok
+INFO tools-modern rect 10,125,130,892 resizable true
+INFO tools-modern-large true rect 10,125,178,892
+INFO 01-tools-modern-large stack revTools rect 10,125,178,892 effective 10,125,178,892 title "Tools"
+SHOT 01-tools-modern-large.png 10,125,178,892
+STEP tools-modern-large ok
+INFO tools-modern rect 10,125,130,892 resizable true
+INFO tools-modern-check: 120 checks, 0 failed
+STEP tools-modern-check ok
+INFO tools-modern rect 10,125,130,892 resizable true
+INFO tools-modern-sizes: 43 checks, 0 failed
+STEP tools-modern-sizes ok
+INFO tools-modern rect 10,120,270,892 resizable true
+INFO tools-modern-use: a section shown in 324 ms
+INFO tools-modern-use: 32 checks, 0 failed
+STEP tools-modern-use ok
+INFO tools-modern rect 10,206,270,892 resizable true
+INFO 01-tools-modern-pictures stack revTools rect 10,206,270,892 effective 10,206,270,892 title "Tools"
+SHOT 01-tools-modern-pictures.png 10,206,270,892
+INFO 01-tools-modern-drawn stack revTools rect 10,206,270,892 effective 10,206,270,892 title "Tools"
+SHOT 01-tools-modern-drawn.png 10,206,270,892
+INFO tools-modern-drawn: 54 checks, 0 failed
+STEP tools-modern-drawn ok
+INFO tools-modern rect 10,206,130,892 resizable true
+INFO tools-modern-switch: 10 checks, 0 failed
+STEP tools-modern-switch ok
+INFO 03-menubar stack revMenuBar rect 0,0,922,75 effective 0,0,922,75 title "OXT-Beyond 0.2.7-rc.6.11"
+SHOT 03-menubar.png 0,0,922,75
+STEP menubar ok
+INFO 03-menubar-modern stack revMenuBar rect 0,0,922,75 effective 0,0,922,75 title "OXT-Beyond 0.2.7-rc.6.11"
+SHOT 03-menubar-modern.png 0,0,922,75
+INFO 03-menubar-modern-on stack revMenuBar rect 0,0,922,75 effective 0,0,922,75 title "OXT-Beyond 0.2.7-rc.6.11"
+SHOT 03-menubar-modern-on.png 0,0,922,75
+INFO 03-menubar-classic stack revMenuBar rect 0,0,922,75 effective 0,0,922,75 title "OXT-Beyond 0.2.7-rc.6.11"
+SHOT 03-menubar-classic.png 0,0,922,75
+INFO menubar-modern: 110 checks, 0 failed
+STEP menubar-modern ok
+INFO menubar-mac: the IDE keeps stacks from under its menu bar on macOS only
+STEP menubar-mac ok
+SHOT 03b-menu-marks.png 600,400,900,640
+SHOT 03c-menu-no-marks.png 600,400,900,640
+INFO menu-marks: a mark at 62,110,123,120, 435 pixels, which differ from the menu by 181 in luma
+INFO menu-marks: a mark at 47,71,53,77, 21 pixels, which differ from the menu by 232 in luma
+INFO menu-marks: a mark at 193,111,196,118, 20 pixels, which differ from the menu by 232 in luma
+INFO menu-marks: a mark at 49,92,52,95, 12 pixels, which differ from the menu by 232 in luma
+STEP menu-marks ok
+INFO 04-sample-stack stack OXT Tour Sample rect 220,140,700,520 effective 220,140,700,520 title ""
+SHOT 04-sample-stack.png 220,140,700,520
+STEP sample ok
+INFO tools-modern rect 10,206,130,892 resizable true
+INFO appearance-switch: 13 checks, 0 failed
+STEP appearance-switch ok
+INFO 04b-controls stack OXT Tour Controls rect 240,160,700,500 effective 240,160,700,500 title ""
+SHOT 04b-controls.png 240,160,700,500
+INFO controls: the card is 232 (the luminance of its pixels, 0 to 255)
+INFO controls: Slider differs by 109 and is drawn in rows 0,25 of 0 to 29
+INFO controls: SliderOff differs by 109 and is drawn in rows 0,25 of 0 to 29
+INFO 04c-controls-window-color stack OXT Tour Controls rect 240,160,700,500 effective 240,160,700,500 title ""
+SHOT 04c-controls-window-color.png 240,160,700,500
+INFO controls: the card with the useSystemWindowColor: 232, without: 232
+INFO controls: 9 checks, 0 failed
+STEP controls ok
+INFO title-bar oxt_tb_above: rect 40,32,360,232, effective rect 40,32,360,232, working screenRect 0,0,1440,900
+INFO title-bar oxt_tb_script: rect 0,32,320,232, effective rect 0,32,320,232, working screenRect 0,0,1440,900
+INFO title-bar oxt_tb_fine: rect 120,140,440,340, effective rect 120,140,440,340, working screenRect 0,0,1440,900
+INFO title-bar oxt_tb_plain: rect 160,-100,480,100, effective rect 160,-100,480,100, working screenRect 0,0,1440,900
+SHOT 04b-title-bar.png 0,0,1440,900
+STEP title-bar ok
+INFO card-border opened: white 255 255 255,white 255 255 255
+INFO card-border showBorder true: blue 0 0 255,blue 0 0 255
+INFO card-border threeD true: green 0 255 0,green 0 255 0
+INFO 04c-card-border stack oxt_card_border rect 360,160,680,360 effective 360,160,680,360 title ""
+SHOT 04c-card-border.png 360,160,680,360
+INFO card-border threeD false: blue 0 0 255,blue 0 0 255
+INFO card-border borderWidth 4: blue 0 0 255,white 255 255 255
+INFO card-border showBorder false: white 255 255 255,white 255 255 255
+STEP card-border ok
+INFO field-scroll 2000 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 2 down to 410 by the system's mouse wheel: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by the system's mouse wheel: the same as before
+INFO field-scroll 100 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 100 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 0 down to 420 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 0 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 0 across to 50 by its hScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 0 back at the left by its hScroll: the same as before
+INFO field-scroll still running after 20 s; open stacks: oxt_field_scroll | OXT Tour Sample | revMenuBar | revTools | oxt_ui_tour
+SHOT zz-field-scroll-1.png 0,0,1440,900
+INFO field-scroll 2000 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 2 across to 50 by its hScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the left by its hScroll: the same as before
+INFO 04d-field-scroll stack oxt_field_scroll rect 360,120,880,420 effective 360,120,880,420 title ""
+SHOT 04d-field-scroll.png 360,120,880,420
+STEP field-scroll ok
+INFO 04e-image-frames-question stack Answer Dialog rect 520,159,920,300 effective 520,159,920,300 title " "
+SHOT 04e-image-frames-question.png 520,159,920,300
+INFO image-frames Flip Image|Horizontal of animated: asked | Flipping an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Rotate Image|90 of animated: asked | Rotating an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Flip Image|Horizontal of animated: asked | Flipping an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Flip Image|Horizontal of still: 
+INFO image-frames Flip Image|Horizontal of referenced: 
+INFO 04e-image-frames stack oxt_image_frames rect 360,120,680,320 effective 360,120,680,320 title ""
+SHOT 04e-image-frames.png 360,120,680,320
+STEP image-frames ok
+INFO widget-appearance: the segmented control the IDE made: the systemAppearance light, the card 232,232,231, the screen 244,244,244, wanted 244,244,244
+INFO widget-appearance: a segmented control with its backgroundColor set: the systemAppearance light, the card 232,232,231, the screen 200,120,40, wanted 200,120,40
+INFO 04f-widget-appearance stack oxt_widget_appearance rect 360,160,680,360 effective 360,160,680,360 title ""
+SHOT 04f-widget-appearance.png 360,160,680,360
+STEP widget-appearance ok
+INFO svg-paths the clipboard: <svg xmlns="http://www.w3.org/2000/svg" width="273" height="54" viewBox="9 8 273 54"> | <path d="M10,10 L110,10 L110,60 L10,60 Z" fill="rgb(255,0,0)" stroke="rgb(0,0,255)" stroke-width="2"/> | <path d="M130,10 L180,60 L130,60 Z" fill="none" stroke="rgb(0,128,0)" stroke-width="1"/> | <path d="M200,10 L280,60" fill="none" stroke="rgb(0,0,0)" stroke-width="1"/> | </svg> | 
+INFO 04g-svg-paths stack oxt_svg_paths rect 360,160,680,360 effective 360,160,680,360 title ""
+SHOT 04g-svg-paths.png 360,160,680,360
+STEP svg-paths ok
+INFO revPropertyInspector 1 header: 9 section tabs
+INFO revPropertyInspector 1 section Basic
+INFO 05-inspector-button-1-basic stack revPropertyInspector 1 rect 125,128,398,521 effective 125,128,398,521 title "button "Push" (id 1003)"
+SHOT 05-inspector-button-1-basic.png 125,128,398,521
+INFO revPropertyInspector 1 section Icons
+INFO 05-inspector-button-2-icons stack revPropertyInspector 1 rect 125,128,398,455 effective 125,128,398,455 title "button "Push" (id 1003)"
+INFO 05-inspector-button-2-icons: the screen was locked
+SHOT 05-inspector-button-2-icons.png 125,128,398,455
+INFO revPropertyInspector 1 section Colors
+INFO 05-inspector-button-3-colors stack revPropertyInspector 1 rect 125,128,466,497 effective 125,128,466,497 title "button "Push" (id 1003)"
+INFO 05-inspector-button-3-colors: the screen was locked
+SHOT 05-inspector-button-3-colors.png 125,128,466,497
+INFO revPropertyInspector 1 section Text
+INFO 05-inspector-button-4-text stack revPropertyInspector 1 rect 125,128,466,301 effective 125,128,466,301 title "button "Push" (id 1003)"
+INFO 05-inspector-button-4-text: the screen was locked
+SHOT 05-inspector-button-4-text.png 125,128,466,301
+INFO inspector inherited textFont: "Sans" textColor 100,100,100 italic true backgroundColor "" effective 232,232,231
+INFO inspector inherited textSize: "13" textColor 100,100,100 italic true backgroundColor "" effective 255,255,255
+INFO revPropertyInspector 1 section Position
+INFO 05-inspector-button-5-position stack revPropertyInspector 1 rect 125,128,466,455 effective 125,128,466,455 title "button "Push" (id 1003)"
+INFO 05-inspector-button-5-position: the screen was locked
+SHOT 05-inspector-button-5-position.png 125,128,466,455
+INFO revPropertyInspector 1 section Effects
+INFO 05-inspector-button-6-effects stack revPropertyInspector 1 rect 125,128,466,301 effective 125,128,466,301 title "button "Push" (id 1003)"
+INFO 05-inspector-button-6-effects: the screen was locked
+SHOT 05-inspector-button-6-effects.png 125,128,466,301
+INFO revPropertyInspector 1 section Custom
+INFO 05-inspector-button-7-custom stack revPropertyInspector 1 rect 125,128,466,532 effective 125,128,466,532 title "button "Push" (id 1003)"
+INFO 05-inspector-button-7-custom: the screen was locked
+SHOT 05-inspector-button-7-custom.png 125,128,466,532
+INFO revPropertyInspector 1 section Advanced
+INFO 05-inspector-button-8-advanced stack revPropertyInspector 1 rect 125,128,466,272 effective 125,128,466,272 title "button "Push" (id 1003)"
+INFO 05-inspector-button-8-advanced: the screen was locked
+SHOT 05-inspector-button-8-advanced.png 125,128,466,272
+INFO revPropertyInspector 1 section Text
+INFO inspector inherited values on the window colour 40,40,40
+INFO inspector inherited textFont: "Sans" textColor 100,100,100 italic true backgroundColor "" effective 40,40,40
+INFO inspector inherited textSize: "13" textColor 100,100,100 italic true backgroundColor "" effective 40,40,40
+STEP inspector ok
+INFO click a button: the screen was locked
+INFO revPropertyInspector 1 header: 9 section tabs
+INFO inspector-tabs header 0,0,341,21 of revPropertyInspector 1 at 125,128,466,521; 9 tabs, icons true
+INFO inspector-tabs clicked Custom at 161,140: shows Custom
+INFO inspector-tabs clicked Colors at 182,140: shows Colors
+INFO inspector-tabs clicked Effects at 203,140: shows Effects
+INFO inspector-tabs clicked Icons at 224,140: shows Icons
+INFO 05-inspector-tabs stack revPropertyInspector 1 rect 125,128,466,455 effective 125,128,466,455 title "button "Push" (id 1003)"
+SHOT 05-inspector-tabs.png 125,128,466,455
+STEP inspector-tabs ok
+INFO revPropertyInspector 1 section Text
+INFO 06-inspector-field-text stack revPropertyInspector 1 rect 125,128,466,349 effective 125,128,466,349 title "field "Text" (id 1009)"
+INFO 06-inspector-field-text: the screen was locked
+SHOT 06-inspector-field-text.png 125,128,466,349
+STEP inspector-text ok
+INFO inspector-scrollbar the list field opened with 13 in the look Appearance Manager
+INFO revPropertyInspector 1 section Basic
+INFO inspector-scrollbar menu 12 | Standard
+INFO inspector-scrollbar 12: 12 (shown 12)
+INFO inspector-scrollbar Standard from 12: 13 (shown 13)
+INFO inspector-scrollbar Standard from 16: 13 (shown Standard)
+INFO inspector-scrollbar Standard from 20: 13 (shown Standard)
+INFO 06b-inspector-field-scrollbar stack revPropertyInspector 1 rect 125,128,466,681 effective 125,128,466,681 title "field "List" (id 1010)"
+SHOT 06b-inspector-field-scrollbar.png 125,128,466,681
+INFO revPropertyInspector 1 section Basic
+INFO inspector-scrollbar 12, no scrollbar: 12 (shown 12)
+INFO inspector-scrollbar Standard, no scrollbar: 16 (shown 16)
+STEP inspector-scrollbar ok
+INFO revPropertyInspector 1 section Basic
+INFO inspector-image-id the row shows "1017" for the image's ID 1017; an icon chooser: false
+INFO 06c-inspector-image-id stack revPropertyInspector 1 rect 125,128,466,619 effective 125,128,466,619 title "image "Picture" (id 1017)"
+SHOT 06c-inspector-image-id.png 125,128,466,619
+STEP inspector-image-id ok
+INFO revPropertyInspector 1 section Icons
+INFO inspector-gravity menu "Default | left | top | right | bottom | topLeft | topRight | bottomLeft | bottomRight | center | resize" showing "Default" for the empty iconGravity
+INFO 06d-inspector-button-gravity stack revPropertyInspector 1 rect 125,128,466,455 effective 125,128,466,455 title "button "Push" (id 1003)"
+INFO 06d-inspector-button-gravity: the screen was locked
+SHOT 06d-inspector-button-gravity.png 125,128,466,455
+INFO inspector-gravity topLeft: iconGravity "topLeft" (shown "topLeft")
+INFO inspector-gravity Default: iconGravity "" (shown "Default")
+INFO revPropertyInspector 1 section Icons
+INFO inspector-gravity two buttons, left and top: showing ""
+STEP inspector-gravity ok
+INFO inspector-hypercard button: card button id 1003 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card button id 1003 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | (Send Message | - | Show In Project Browser | - | (Clear"
+INFO inspector-hypercard field: card field id 1004 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card field id 1004 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | (Paste Text | - | !nLock Text | !cCan Receive Keyboard Focus | - | (Send Message"
+INFO inspector-hypercard image: card image id 1005 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card image id 1005 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | Launch Editor | !nMagnify | - | !nLock Location | Make Original Size"
+INFO inspector-hypercard image: bkgnd image id 1006 of group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard bkgnd image id 1006 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | Launch Editor | !nMagnify | - | !nLock Location | Make Original Size"
+INFO inspector-hypercard field: bkgnd field id 1007 of group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard bkgnd field id 1007 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | (Paste Text | - | !nLock Text | !cCan Receive Keyboard Focus | - | (Send Message"
+INFO inspector-hypercard group: group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card: card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard stack: stack "OXT Tour HyperCard"
+INFO revPropertyInspector 1 section Icons
+INFO 06e-inspector-hypercard-button stack revPropertyInspector 1 rect 125,128,466,455 effective 125,128,466,455 title "card button "B" (id 1003)"
+INFO 06e-inspector-hypercard-button: the screen was locked
+SHOT 06e-inspector-hypercard-button.png 125,128,466,455
+STEP inspector-hypercard ok
+INFO revPropertyInspector 1 section Colors
+INFO 07-inspector-graphic-colors stack revPropertyInspector 1 rect 125,128,466,413 effective 125,128,466,413 title "graphic "Box" (id 1015)"
+INFO 07-inspector-graphic-colors: the screen was locked
+SHOT 07-inspector-graphic-colors.png 125,128,466,413
+STEP inspector-graphic ok
+INFO revPropertyInspector 1 section Colors
+INFO inspector-gradient popup 471,40,806,362 inspector 125,40,466,325 graphic 1190,270,1390,370 screen 0,0,1440,900 room off the graphic: right | below
+SHOT 07-inspector-gradient.png 0,0,1440,900
+INFO inspector-gradient over the graphic: popup 60,40,395,362 inspector 400,40,741,325 room off the graphic: 
+STEP inspector-gradient ok
+INFO revPropertyInspector 1 section Colors
+INFO inspector-clear-colour the header bar's foregroundColor after Clear: ""
+STEP inspector-clear-colour ok
+INFO revPropertyInspector 1 section Colors
+INFO 08-inspector-multiple-colors stack revPropertyInspector 1 rect 400,40,856,234 effective 400,40,856,234 title "Multiple objects"
+INFO 08-inspector-multiple-colors: the screen was locked
+SHOT 08-inspector-multiple-colors.png 400,40,856,234
+STEP inspector-multiple ok
+INFO revPropertyInspector 1 section Colors
+INFO tooltip rowlabel: foregroundColor | foregroundPattern
+INFO hover over rowlabel: the screen was locked
+SHOT 09-tooltip-inspector.png 458,39,918,199
+STEP tooltip-inspector ok
+INFO player: the Player tool was turned off as the IDE started: false
+INFO 09b-player-inspector stack revPropertyInspector 1 rect 400,40,856,525 effective 400,40,856,525 title "player id 1003 (id 1003)"
+SHOT 09b-player-inspector.png 400,40,856,525
+INFO after click 2 on the check box: the screen was locked
+INFO player: the screen was locked
+STEP player ok
+INFO 10-script-editor stack revNewScriptEditor 1 rect 432,180,1008,720 effective 432,180,1008,720 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+SHOT 10-script-editor.png 432,180,1008,720
+STEP script-editor ok
+INFO 10-script-editor-search stack revNewScriptEditor 1 rect 432,180,1008,720 effective 432,180,1008,720 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+SHOT 10-script-editor-search.png 432,180,1008,720
+STEP script-editor-search ok
+INFO 10-script-editor-handlers stack revNewScriptEditor 1 rect 432,180,1008,720 effective 432,180,1008,720 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+SHOT 10-script-editor-handlers.png 432,180,1008,720
+STEP script-editor-handlers ok
+INFO 11-message-box stack Message Box rect 125,675,557,900 effective 125,675,557,900 title "Message Box (Single Line)"
+SHOT 11-message-box.png 125,675,557,900
+STEP message-box ok
+INFO 12-project-browser stack revIDEProjectBrowser rect 152,161,638,668 effective 152,161,638,668 title "Project Browser"
+SHOT 12-project-browser.png 152,161,638,668
+INFO the Project Browser's rows 255,255,255 under the ink srcCopy
+INFO the Project Browser's hilited text on 74,144,217: 0,0,0 (contrast 6.28)
+INFO the Project Browser's hilited text on 255,221,0: 0,0,0 (contrast 15.59)
+INFO the Project Browser's hilited text on 119,33,111: 255,255,255 (contrast 9.41)
+INFO the Project Browser's hilited text on 233,84,32: 0,0,0 (contrast 5.75)
+STEP project-browser ok
+INFO LiveCode's Dictionary opens in the system's browser: /home/runner/.oxt-beyond/documentationcache/9_7_1_OXT_open-source/api.html (data 7171985 bytes)
+STEP dictionary ok
+INFO the guides are not checked: no browser widget shows LiveCode's Dictionary
+STEP guides ok
+INFO dictionary entry try control structure.txt
+INFO 13-dictionary-text stack OpenXTalk Lite Dictionary rect 118,117,1013,694 effective 118,117,1013,694 title "OpenXTalk Lite Dictionary"
+SHOT 13-dictionary-text.png 118,117,1013,694
+STEP text-dictionary ok
+INFO 14-preferences-01-general stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-01-general.png 370,200,1070,700
+INFO 14-preferences-02-files-memory stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-02-files-memory.png 370,200,1070,700
+INFO 14-preferences-03-appearance stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-03-appearance.png 370,200,1070,700
+INFO 14-preferences-04-ui-tweaks stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-04-ui-tweaks.png 370,200,1070,700
+INFO 14-preferences-05-extras stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-05-extras.png 370,200,1070,700
+INFO 14-preferences-06-object-sizes stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-06-object-sizes.png 370,200,1070,700
+INFO 14-preferences-07-script-editor stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-07-script-editor.png 370,200,1070,700
+INFO 14-preferences-08-property-profiles stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-08-property-profiles.png 370,200,1070,700
+INFO 14-preferences-09-app-browser stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-09-app-browser.png 370,200,1070,700
+INFO 14-preferences-10-dictionary stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-10-dictionary.png 370,200,1070,700
+INFO 14-preferences-11-mobile-support stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-11-mobile-support.png 370,200,1070,700
+INFO 14-preferences-12-project-browser stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-12-project-browser.png 370,200,1070,700
+INFO 14-preferences-13-compatibility stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-13-compatibility.png 370,200,1070,700
+INFO 14-preferences-14-automatic-updates stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-14-automatic-updates.png 370,200,1070,700
+INFO 14-preferences-15-troubleshooting stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-15-troubleshooting.png 370,200,1070,700
+INFO 14-preferences-16-debug-properties stack revPreferencesGUI rect 370,200,1070,700 effective 370,200,1070,700 title "Preferences"
+SHOT 14-preferences-16-debug-properties.png 370,200,1070,700
+INFO preferences colour scheme menu: width 195, needs 192
+STEP preferences ok
+INFO web runtime check true installed true runtime /home/runner/work/_temp/oxt-test/OXT-Beyond-0.2.7-rc.6.11/Runtime user runtime /home/runner/OXT-Beyond_extensions/Runtime folder true
+INFO 15-standalone-01-general stack revStandaloneSettings rect 538,340,1292,800 effective 538,340,1292,800 title "Standalone Application Settings for OXT Tour Sample - General"
+SHOT 15-standalone-01-general.png 538,340,1292,800
+INFO 15-standalone-02-stacks stack revStandaloneSettings rect 538,340,1292,827 effective 538,340,1292,827 title "Standalone Application Settings for OXT Tour Sample - Stacks"
+SHOT 15-standalone-02-stacks.png 538,340,1292,827
+INFO 15-standalone-03-os-x stack revStandaloneSettings rect 538,300,1292,900 effective 538,300,1292,900 title "Standalone Application Settings for OXT Tour Sample - Mac"
+SHOT 15-standalone-03-os-x.png 538,300,1292,900
+INFO 15-standalone-04-unix stack revStandaloneSettings rect 538,300,1292,600 effective 538,300,1292,600 title "Standalone Application Settings for OXT Tour Sample - Linux"
+SHOT 15-standalone-04-unix.png 538,300,1292,600
+INFO 15-standalone-05-copy-files stack revStandaloneSettings rect 538,300,1292,660 effective 538,300,1292,660 title "Standalone Application Settings for OXT Tour Sample - Copy Files"
+SHOT 15-standalone-05-copy-files.png 538,300,1292,660
+INFO 15-standalone-06-windows stack revStandaloneSettings rect 538,300,1292,860 effective 538,300,1292,860 title "Standalone Application Settings for OXT Tour Sample - Windows"
+SHOT 15-standalone-06-windows.png 538,300,1292,860
+INFO 15-standalone-07-android stack revStandaloneSettings rect 538,200,1292,900 effective 538,200,1292,900 title "Standalone Application Settings for OXT Tour Sample - Android"
+SHOT 15-standalone-07-android.png 538,200,1292,900
+INFO 15-standalone-08-bug-reports stack revStandaloneSettings rect 538,200,1292,571 effective 538,200,1292,571 title "Standalone Application Settings for OXT Tour Sample - Bug Reports"
+SHOT 15-standalone-08-bug-reports.png 538,200,1292,571
+INFO 15-standalone-09-emscripten stack revStandaloneSettings rect 538,200,1292,630 effective 538,200,1292,630 title "Standalone Application Settings for OXT Tour Sample - Web"
+SHOT 15-standalone-09-emscripten.png 538,200,1292,630
+INFO 15-standalone-10-inclusions stack revStandaloneSettings rect 538,200,1292,752 effective 538,200,1292,752 title "Standalone Application Settings for OXT Tour Sample - Inclusions"
+SHOT 15-standalone-10-inclusions.png 538,200,1292,752
+INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards: false,true,true
+STEP standalone-settings ok
+INFO ext-mergjson /home/runner/work/_temp/oxt-test/OXT-Beyond-0.2.7-rc.6.11/Ext/mergJSON/mergJSON-arm64.so target Linux arm64 files LICENSE-jansson.txt | LICENSE.txt | mergJSON-arm64.so | mergJSONLibrary.livecodescript | ..
+STEP ext-mergjson ok
+INFO 16-menu-builder stack revMenuManager rect 472,215,968,686 effective 472,215,968,686 title "Menu Builder: Menubar 1 (Stack: "OXT Tour Menus")"
+SHOT 16-menu-builder.png 472,215,968,686
+STEP menu-builder ok
+INFO 17-extension-manager stack revIDEExtensionManager rect 125,43,1194,900 effective 125,43,1194,900 title "Extension Manager"
+SHOT 17-extension-manager.png 125,43,1194,900
+INFO the Extension Manager's first row's name in 0,0,0
+INFO 17-extension-manager-redrawn stack revIDEExtensionManager rect 125,43,1194,900 effective 125,43,1194,900 title "Extension Manager"
+SHOT 17-extension-manager-redrawn.png 125,43,1194,900
+STEP extension-manager ok
+INFO 18-extension-builder stack revExtensionBuilder rect 194,126,688,736 effective 194,126,688,736 title "Extension Builder"
+SHOT 18-extension-builder.png 194,126,688,736
+STEP extension-builder ok
+INFO 19-message-watcher stack revMessageWatcher rect 457,430,853,680 effective 457,430,853,680 title "Message Watcher"
+SHOT 19-message-watcher.png 457,430,853,680
+STEP message-watcher ok
+INFO the error window's text in 0,0,0 (0,0,0)
+INFO 19b-error-display stack revErrorDisplay rect 464,312,976,589 effective 464,312,976,589 title ""
+SHOT 19b-error-display.png 464,312,976,589
+STEP error-display ok
+INFO 20-search stack revSearch rect 285,154,735,695 effective 285,154,735,695 title "Find and Replace"
+SHOT 20-search.png 285,154,735,695
+STEP search ok
+INFO 22-object-library stack revImageLibrary rect 108,186,708,690 effective 108,186,708,690 title "Library"
+SHOT 22-object-library.png 108,186,708,690
+STEP object-library ok
+INFO 23-navigator stack Card Navigator rect 125,684,651,748 effective 125,684,651,748 title "Card Navigator"
+SHOT 23-navigator.png 125,684,651,748
+STEP navigator ok
+INFO 24-about stack revAbout rect 400,180,1040,680 effective 400,180,1040,680 title "About OXT-Beyond"
+SHOT 24-about.png 400,180,1040,680
+INFO 24-about-redrawn: 25 controls, were 25
+INFO 24-about-redrawn stack revAbout rect 400,180,1040,680 effective 400,180,1040,680 title "About OXT-Beyond"
+SHOT 24-about-redrawn.png 400,180,1040,680
+STEP about ok
+INFO Help > Dictionary Online opens https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/
+STEP dictionary-online ok
+INFO 24b-release-notes stack revReleaseNotes rect 260,110,1180,750 effective 260,110,1180,750 title "Release Notes"
+SHOT 24b-release-notes.png 260,110,1180,750
+INFO 24b-release-notes-search stack revReleaseNotes rect 260,110,1180,750 effective 260,110,1180,750 title "Release Notes"
+SHOT 24b-release-notes-search.png 260,110,1180,750
+INFO 24b-release-notes-redrawn: 32 controls, were 32
+INFO 24b-release-notes-redrawn stack revReleaseNotes rect 260,110,1180,750 effective 260,110,1180,750 title "Release Notes"
+SHOT 24b-release-notes-redrawn.png 260,110,1180,750
+STEP release-notes ok
+INFO 24a-home stack revWebHome rect 208,119,1232,759 effective 208,119,1232,759 title "Welcome to OXT-Beyond"
+SHOT 24a-home.png 208,119,1232,759
+INFO 24a-home-resized stack revWebHome rect 208,119,1408,879 effective 208,119,1408,879 title "Welcome to OXT-Beyond"
+SHOT 24a-home-resized.png 208,119,1408,879
+INFO 24a-home-redrawn: 550 controls, were 550
+INFO 24a-home-redrawn stack revWebHome rect 208,119,1408,879 effective 208,119,1408,879 title "Welcome to OXT-Beyond"
+SHOT 24a-home-redrawn.png 208,119,1408,879
+STEP home ok
+INFO 24c-kit-dialog stack revKitDialog rect 420,155,1020,685 effective 420,155,1020,685 title "OXT-Beyond Updates"
+SHOT 24c-kit-dialog.png 420,155,1020,685
+STEP kit-dialog ok
+INFO 24d-learn stack revLearn rect 130,119,1310,879 effective 130,119,1310,879 title "Learn OXT-Beyond"
+SHOT 24d-learn.png 130,119,1310,879
+INFO Learn's Academy button: "New to coding? Try the Academy" rect 723,188,1007,226
+INFO 24d-learn-redrawn: 455 controls, were 455
+INFO 24d-learn-redrawn stack revLearn rect 130,119,1310,879 effective 130,119,1310,879 title "Learn OXT-Beyond"
+SHOT 24d-learn-redrawn.png 130,119,1310,879
+STEP learn ok
+INFO 24f-example stack Animate a Letter rect 120,96,1144,736 effective 120,96,1144,736 title "Animate a Letter"
+SHOT 24f-example.png 120,96,1144,736
+INFO the example's page 241,245,249 ()
+INFO 24f-example-program stack Animate a Letter rect 120,96,1144,736 effective 120,96,1144,736 title "Animate a Letter"
+SHOT 24f-example-program.png 120,96,1144,736
+STEP example ok
+INFO 24e-academy stack revAcademy rect 125,119,1405,880 effective 125,119,1405,880 title "xTalk Academy"
+SHOT 24e-academy.png 125,119,1405,880
+INFO the Academy's courses: 3
+INFO the Academy's output: "Ran in under 1 ms" | Hello, world!
+INFO 24e-academy-lesson stack revAcademy rect 125,119,1405,880 effective 125,119,1405,880 title "xTalk Academy"
+SHOT 24e-academy-lesson.png 125,119,1405,880
+INFO 24e-academy-redrawn: 213 controls, were 213
+INFO 24e-academy-redrawn stack revAcademy rect 125,119,1405,880 effective 125,119,1405,880 title "xTalk Academy"
+SHOT 24e-academy-redrawn.png 125,119,1405,880
+STEP academy ok
+INFO 24f-xtalk-assistant-settings stack revXTalkAssistantSettings rect 400,131,1040,770 effective 400,131,1040,770 title "xTalk Assistant Settings"
+SHOT 24f-xtalk-assistant-settings.png 400,131,1040,770
+INFO xTalk Assistant status: Anthropic · no API key yet (More > Settings...) · claude-opus-5-5
+INFO 24f-xtalk-assistant stack revXTalkAssistant rect 440,130,1000,770 effective 440,130,1000,770 title "xTalk Assistant"
+SHOT 24f-xtalk-assistant.png 440,130,1000,770
+INFO 24f-xtalk-assistant-memory stack revXTalkAssistantMemory rect 480,196,960,705 effective 480,196,960,705 title "xTalk Assistant Memory"
+SHOT 24f-xtalk-assistant-memory.png 480,196,960,705
+STEP xtalk-assistant ok
+INFO xTalk Chat: online false; relays ""
+INFO 24g-xtalk-chat stack revXTalkChat rect 160,119,1280,839 effective 160,119,1280,839 title "xTalk Chat"
+SHOT 24g-xtalk-chat.png 160,119,1280,839
+INFO 24g-xtalk-chat-redrawn: 191 controls, were 191
+INFO 24g-xtalk-chat-redrawn stack revXTalkChat rect 160,119,1280,839 effective 160,119,1280,839 title "xTalk Chat"
+SHOT 24g-xtalk-chat-redrawn.png 160,119,1280,839
+STEP xtalk-chat ok
+INFO 25-answer stack Answer Dialog rect 520,187,920,283 effective 520,187,920,283 title " "
+SHOT 25-answer.png 520,187,920,283
+INFO closing Answer Dialog
+STEP answer ok
+INFO 26-ask stack Ask Dialog rect 125,168,575,281 effective 125,168,575,281 title " "
+SHOT 26-ask.png 125,168,575,281
+INFO closing Ask Dialog
+STEP ask ok
+INFO 27-icon-chooser stack revIconChooser rect 454,408,914,737 effective 454,408,914,737 title "Image Chooser"
+SHOT 27-icon-chooser.png 454,408,914,737
+STEP icon-chooser ok
+INFO system-switch: macOS only
+STEP system-switch ok
+SHOT 99-screen-end.png 0,0,1440,900
+STEP screen-end ok
+INFO openStacks at the end OXT Tour Sample | revInspector | revMenuBar | revTools | oxt_ui_tour
+DONE
