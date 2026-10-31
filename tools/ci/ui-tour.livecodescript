@@ -1710,6 +1710,19 @@ on tour_controls
       end if
    end repeat
    
+   -- A standard button taller than the Mac's push button (50 points to
+   -- its 21) is drawn its whole height, as Windows and Linux draw it: on
+   -- the Mac the push button's rounded bezel stayed 21 points high in the
+   -- middle of it, the rest of its rect the card (Skids, openxtalk.org
+   -- p=25824; engine/src/osxtheme.mm, kMCMacFlexiblePushHeight). The rows
+   -- where it differs from the card, its edges included, span four fifths
+   -- of its height or more
+   tourGrab "Tall"
+   put tourRowsDrawn(tBack, 12) into tExtent
+   tourRecord "INFO controls: the tall standard button is drawn in rows" && tExtent && "of 0 to" && sPixHeight - 1
+   tourCtlCheck tExtent is not empty and item 2 of tExtent - item 1 of tExtent + 1 >= sPixHeight * 4 div 5, \
+         "the tall standard button is drawn its whole height (rows" && tExtent && "of 0 to" && sPixHeight - 1 & ")"
+
    -- The window colour: on the Mac in light mode the card turns the
    -- system's window colour and back; in dark mode it is that colour
    -- already, and elsewhere nothing changes
@@ -1792,6 +1805,7 @@ function tourControlsStack
    set the endValue of it to 100
    set the thumbPosition of it to 70
    set the enabled of it to false
+   -- a standard button taller than the Mac's push button
    create button "Tall"
    set the rect of it to "280,210,440,260"
    unlock messages
