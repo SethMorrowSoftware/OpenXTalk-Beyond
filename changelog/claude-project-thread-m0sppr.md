@@ -1,1 +1,1 @@
-- GitHub Pages: a new front page, a night sky over an orange horizon with a stack that answers its button, a card for each part of the site, and a check of its links in a browser
+- GitHub Pages: a new front page, a night sky over an orange horizon with a stack that answers its button, a card for each part of the site, and a check of its links in a browser (#295)
