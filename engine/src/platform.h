@@ -1293,6 +1293,10 @@ enum
     kMCPlatformControlStateSelected         = (1<<8),   // Control is selected
     kMCPlatformControlStateWindowActive     = (1<<9),   // Control is in focused window
     
+    // OXT-Beyond: the colours of the light appearance, whatever the
+    // system's (macOS: a stack or card printed in the dark appearance)
+    kMCPlatformControlStateLightAppearance  = (1<<10),
+    
     kMCPlatformControlStateCompatibility    = (1<<31),   // Use backwards-compatible theming
     
     kMCPlatformControlStateNormal           = 0

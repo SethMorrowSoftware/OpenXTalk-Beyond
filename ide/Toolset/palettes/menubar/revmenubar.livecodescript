@@ -75,9 +75,12 @@ on menubarFollowAppearance
       mbApplyColors
       exit menubarFollowAppearance
    end if
+   -- (OXT-Beyond: on macOS the engine draws a stack with no colour of its
+   -- own in the Mac's window colour, light or dark, since seth's choice
+   -- 1A of 2026-10-31; before, 61,61,61 in the dark, which this set to
+   -- match. Empty follows the engine, as every other palette does)
    if the platform contains "mac" then  --tp 26-4, ensure toolbar follows systemappearance 
-      if the systemappearance is "dark" then set the backgroundColor of me to "61,61,61"
-      else set the backgroundColor of me to ""
+      set the backgroundColor of me to ""
    end if
 end menubarFollowAppearance
 
@@ -1123,8 +1126,8 @@ end mbDrawImages
 -- background, and the colour of its ticks and arrows, from the first
 -- object above its button that has one (the tour's menu-marks), so the
 -- menus and their row keep the theme's look. In the classic look none of
--- these are set, as the classic look always had them (on macOS, its dark
--- grey for the window)
+-- these are set, as the classic look always had them (on macOS, the
+-- window's own colour, light or dark, as the engine draws it)
 command mbApplyColors
    local tModern, tTop, tBack, tLocked, tCantModify
    put revMenubarIsModern() into tModern
@@ -1163,7 +1166,8 @@ command mbApplyColors
       if there is a graphic "mbBackground" of card 1 of me then
          delete graphic "mbBackground" of card 1 of me
       end if
-      if the platform contains "mac" and the systemappearance is "dark" then put "61,61,61" into tBack
+      -- (empty: on macOS too the window's own colour, light or dark,
+      -- as menubarFollowAppearance leaves it)
       set the backgroundColor of me to tBack
    end if
    if there is a group "toolbar" of me then

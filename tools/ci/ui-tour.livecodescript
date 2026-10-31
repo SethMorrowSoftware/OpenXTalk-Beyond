@@ -4839,9 +4839,17 @@ end tour_icon_chooser
 -- appearance it left (bwmilby, openxtalk.org p=25665, p=25668). Other
 -- platforms: skipped (Linux draws light; Windows is switched through the
 -- registry by ui_tour.py only before the start)
+-- After each switch a stack with no colours of its own must read and show
+-- the Mac's own colours for that appearance (seth's choice 1A of
+-- 2026-10-31): the effective backgroundColor and foregroundColor of its
+-- card dark and light in the dark, light and dark in the light, and the
+-- screen in the card's colour (tourSystemColors). Before, they never
+-- changed after a switch, and the dark appearance drew a 61,61,61 the
+-- effective backgroundColor did not give (bwmilby, the same posts)
 on tour_system_switch
    global gTourSystemSeen
    local tStart, tOther, tTarget, tSeen, tFails, tWaited, tError
+   local tArea, tColorsStack, tBacks
    if the platform is not "MacOS" then
       tourRecord "INFO system-switch: macOS only"
       exit tour_system_switch
@@ -4857,6 +4865,11 @@ on tour_system_switch
          "put the systemAppearance & comma after gTourSystemSeen" & return & \
          "pass systemAppearanceChanged" & return & "end systemAppearanceChanged"
    insert the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" into front
+   put "oxt_system_colors" into tColorsStack
+   put line 1 of the working screenRects into tArea
+   tourTbMake tColorsStack, item 1 of tArea + 380, item 2 of tArea + 180, empty
+   go stack tColorsStack
+   tourOnScreen tColorsStack
    try
       repeat for each item tTarget in tOther & comma & tStart
          put empty into gTourSystemSeen
@@ -4881,14 +4894,78 @@ on tour_system_switch
          if the systemAppearance is not tTarget then
             put "after the switch to" && tTarget && "the systemAppearance is" && the systemAppearance & return after tFails
          end if
+         put tourSystemColors(tColorsStack, tTarget) after tFails
+         put the effective backgroundColor of card 1 of stack tColorsStack into tBacks[tTarget]
       end repeat
+      if tBacks[tOther] is tBacks[tStart] then
+         put "the effective backgroundColor of a card was" && tBacks[tStart] && "in the light and the dark" & return after tFails
+      end if
    catch tError
       put tError & return after tFails
    end try
    remove the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" from front
    delete button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour"
+   lock messages
+   if there is a stack tColorsStack then delete stack tColorsStack
+   unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_system_switch
+
+-- The Mac's own colours in a stack with none of its own, pStack, after a
+-- switch to pAppearance (light or dark): empty if its card's effective
+-- backgroundColor is dark in the dark and light in the light, its
+-- effective foregroundColor the other way round, the stack's own the
+-- card's, and the screen shows the card's backgroundColor (within 8 of
+-- each of red, green and blue, for the screen's colour profile) at the
+-- card's middle; else a line for each that is not. (1A: before, the dark
+-- appearance drew 61,61,61 and the effective colours stayed as they were
+-- when the IDE started)
+function tourSystemColors pStack, pAppearance
+   local tCard, tBack, tFore, tShown, tFails, i
+   put the long id of card 1 of stack pStack into tCard
+   if the backgroundColor of tCard is not empty or the backgroundColor of stack pStack is not empty \
+         or the foregroundColor of stack pStack is not empty then
+      return "the stack" && pStack && "has colours of its own" & return
+   end if
+   put the effective backgroundColor of tCard into tBack
+   put the effective foregroundColor of tCard into tFore
+   put tourCbPixel(pStack, (item 3 of the rect of stack pStack - item 1 of the rect of stack pStack) div 2) into tShown
+   tourRecord "INFO system-switch to" && pAppearance & ": a card's effective backgroundColor" && tBack & \
+         ", foregroundColor" && tFore & ", on the screen" && tShown
+   if tourSystemLight(tBack) is (pAppearance is "dark") then
+      put "in the" && pAppearance && "a card's effective backgroundColor is" && tBack & return after tFails
+   end if
+   if tourSystemLight(tFore) is not (pAppearance is "dark") then
+      put "in the" && pAppearance && "a card's effective foregroundColor is" && tFore & return after tFails
+   end if
+   if the effective backgroundColor of stack pStack is not tBack then
+      put "in the" && pAppearance && "the stack's effective backgroundColor is" && \
+            the effective backgroundColor of stack pStack & ", its card's" && tBack & return after tFails
+   end if
+   if the effective foregroundColor of stack pStack is not tFore then
+      put "in the" && pAppearance && "the stack's effective foregroundColor is" && \
+            the effective foregroundColor of stack pStack & ", its card's" && tFore & return after tFails
+   end if
+   if the number of items of tBack is not 3 or the number of items of tShown is not 3 then
+      put "in the" && pAppearance && "no colours to compare: the card's" && tBack & ", the screen's" && tShown & return after tFails
+   else
+      repeat with i = 1 to 3
+         if abs(item i of tShown - item i of tBack) > 8 then
+            put "in the" && pAppearance && "the screen shows" && tShown && "where a card's effective backgroundColor is" && \
+                  tBack & return after tFails
+            exit repeat
+         end if
+      end repeat
+   end if
+   return tFails
+end tourSystemColors
+
+-- Whether the colour pRGB ("r,g,b") is light: the mean of the three 128
+-- or more
+function tourSystemLight pRGB
+   if the number of items of pRGB is not 3 then return empty
+   return (item 1 of pRGB + item 2 of pRGB + item 3 of pRGB) / 3 >= 128
+end tourSystemLight
 
 -- Sets the Mac to pAppearance (light or dark) as System Settings does.
 -- The notification is posted by a small native program that stays alive
