@@ -945,12 +945,44 @@ jobs:
             --log "$LOGS/smoke-test.log"
 
       # Every native library of the bundled extensions finds what it needs
-      # on a user's Mac and holds both architectures. The xTalk Suite
-      # libraries need macOS 15 (the floor printed per library); nothing
-      # may need more.
+      # on a user's Mac and holds both architectures, and each slice needs
+      # no newer macOS than the platform matrix allows the extensions
+      # (tools/ci/platform-matrix.json: x86_64 10.15, arm64 11.0, as
+      # README.md states; up to 0.2.6 this allowed macOS 15).
       - name: Check the extension libraries
         run: |
-          python3 tools/ci/check_native_deps.py --root "$APP/Contents/Tools" --platform mac --max-macos 15.0
+          python3 tools/ci/check_native_deps.py --root "$APP/Contents/Tools" --platform mac \
+            --matrix mac-universal/extensions
+
+      # Every Mach-O file of the app as shipped (engine, externals, the
+      # standalone runtimes, the extensions), every slice of it, records
+      # the minimum macOS of the platform matrix (arm64 11.0, x86_64
+      # 10.13; the bundled extensions' x86_64 slices 10.15) and holds both
+      # architectures: the build output is checked the same way above, but
+      # this is what users get.
+      - name: Check the app against the platform matrix
+        run: |
+          for arch in arm64 x86_64; do
+            python3 tools/ci/check_macho_floor.py "$APP" --matrix mac-universal --arch "$arch" --exclude '*.dSYM'
+          done
+
+      # Where every binary of the app came from, as a CI artifact only
+      # (tools/ci/release_inventory.py; never a release asset)
+      - name: Release inventory
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/inventory"
+          python3 tools/ci/release_inventory.py "$APP" --platform mac-universal --commit "$COMMIT" \
+            --out "$RUNNER_TEMP/inventory/release-inventory-mac-universal.json"
+
+      - name: Upload the release inventory
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-inventory-mac-universal
+          path: ${{ runner.temp }}/inventory
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: IDE compile check
         timeout-minutes: 20

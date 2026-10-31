@@ -92,6 +92,14 @@ Android SDK and are not checked here.
    (what a standalone reports without a user interface; the development
    engine says "development command line").
 
+   It then answers, in FEATURE lines, whether its engine has a few
+   changes made since the runtimes asset was built that a script can see
+   without a user interface (standalone-deploy.livecodescript
+   featureProbes). The layout's own runtime, built from this commit, must
+   have them all; a runtime of another platform, from the runtimes asset,
+   is reported and not failed (the modernization plan's MOD-03, the
+   evidence for rebuilding the asset, MOD-D1).
+
 What this does not do is run the IDE's builder itself
 (revSaveAsStandalone), which also copies the externals and database
 drivers the stack needs from the runtime's Externals folder and warns when
@@ -310,10 +318,33 @@ def check_runtime_folder(tools, tp):
     return problems, ['%s: %d binaries checked (%s)' % (r['folder'], len(checked), describe(fmt, [t.arch]))]
 
 
-def deploy_and_run(engine, runtime, tp, work, timeout, expect_version):
+FEATURE_RE = re.compile(r'^FEATURE ([a-z0-9-]+)=(yes|no|error)$')
+
+
+def check_features(tp, out, own):
+    """(problems, lines) for the FEATURE lines of a standalone's output
+    (standalone-deploy.livecodescript featureProbes: changes made since
+    the runtimes asset was built). A runtime built from this commit (own)
+    must have every feature; another one, from the runtimes asset, is only
+    reported (the modernization plan's MOD-03: rebuilding the asset is
+    seth's decision, MOD-D1)."""
+    found = [m.groups() for m in (FEATURE_RE.match(x.strip()) for x in out) if m]
+    if not found:
+        return ['%s: the standalone wrote no FEATURE lines' % tp], []
+    missing = ['%s=%s' % (name, answer) for name, answer in found if answer != 'yes']
+    line = '%s: features %s' % (tp, ', '.join('%s=%s' % f for f in found))
+    if not missing:
+        return [], [line]
+    if own:
+        return ['%s: the standalone, built from this commit, lacks %s' % (tp, ', '.join(missing))], [line]
+    return [], [line + ' (a runtime from the runtimes asset: reported, not failed; MOD-D1)']
+
+
+def deploy_and_run(engine, runtime, tp, work, timeout, expect_version, own=True):
     """Build the probe standalone for package.py platform tp from runtime
-    with engine, check it and run it when this machine can. Returns
-    (problems, lines)."""
+    with engine, check it and run it when this machine can. own: the
+    runtime was built from this commit, not taken from the runtimes asset
+    (see check_features). Returns (problems, lines)."""
     t = package.PLATFORMS[tp]
     family = t.family
     problems, lines = [], []
@@ -402,6 +433,9 @@ def deploy_and_run(engine, runtime, tp, work, timeout, expect_version):
             problems.append('%s: the standalone exited with status %s' % (tp, code))
         lines.append('%s: ran it (%s; the processor it reports: %s): %s' % (tp, ' '.join(archs), got,
                                                                           probe.group(0)))
+        found, what = check_features(tp, out, own)
+        problems += found
+        lines += what
     return problems, lines
 
 
@@ -478,7 +512,8 @@ def main(argv=None):
         log('Engine  : %s' % engine)
         for tp, runtime in jobs:
             log('Target  : %s (%s)' % (tp, runtime))
-            found, what = deploy_and_run(engine, runtime, tp, work, args.timeout, expect_version)
+            found, what = deploy_and_run(engine, runtime, tp, work, args.timeout, expect_version,
+                                         own=tp == own_target(p))
             problems += found
             lines += what
     except (rlc.CheckError, OSError, binfmt.FormatError) as e:

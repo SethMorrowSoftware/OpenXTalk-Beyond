@@ -30,6 +30,9 @@
 #include "mac-clipboard.h"
 #include "mac-internal.h"
 
+// mac-core.mm: whether the system is set to Dark, read afresh
+extern bool MCMacPlatformSystemStyleIsDark(void);
+
 #include <objc/objc-runtime.h>
 
 #include "graphics_util.h"
@@ -1940,15 +1943,11 @@ void MCMacPlatformWindow::DoRealize(void)
 	//-- tperry 11th October 2025
 	// Apply system appearance to window on creation
 	if (@available(macOS 10.14, *)) {
-		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-		
 		NSAppearanceName t_appearance_name;
-		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+		if (MCMacPlatformSystemStyleIsDark())
 			t_appearance_name = NSAppearanceNameDarkAqua;
-		} else {
+		else
 			t_appearance_name = NSAppearanceNameAqua;
-		}
 		
 		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
 		// Use m_handle (the union base) which works for both NSWindow and NSPanel
@@ -2788,15 +2787,11 @@ void MCMacPlatformWindowUpdateAppearance(MCMacPlatformWindow *p_window)
 		return;
 		
 	if (@available(macOS 10.14, *)) {
-		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-		
 		NSAppearanceName t_appearance_name;
-		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+		if (MCMacPlatformSystemStyleIsDark())
 			t_appearance_name = NSAppearanceNameDarkAqua;
-		} else {
+		else
 			t_appearance_name = NSAppearanceNameAqua;
-		}
 		
 		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
 		[t_window setAppearance:t_appearance];
@@ -2809,15 +2804,11 @@ void MCMacPlatformUpdateAllWindowAppearances(void)
 {
 	// Iterate through all NSWindows in the application
 	if (@available(macOS 10.14, *)) {
-		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-		
 		NSAppearanceName t_appearance_name;
-		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+		if (MCMacPlatformSystemStyleIsDark())
 			t_appearance_name = NSAppearanceNameDarkAqua;
-		} else {
+		else
 			t_appearance_name = NSAppearanceNameAqua;
-		}
 		
 		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
 		

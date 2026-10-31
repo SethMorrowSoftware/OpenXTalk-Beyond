@@ -18,8 +18,9 @@ script "oxtwebidetour"
 -- browse mode that opens an answer dialog, the Dictionary, Preferences,
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
--- phone in portrait, and File's items with a submenu tapped on a touch
--- screen. For each it asks for a
+-- phone in portrait, File's items with a submenu tapped on a touch
+-- screen, and the browser switched between light and dark and back (the
+-- page follows it: index.html's oxt-appearance). For each it asks for a
 -- screenshot of the page. A step still running after 30 seconds (a
 -- dialog it waits on) has its modal dialogs closed. Script errors in the
 -- IDE's windows are recorded instead of shown.
@@ -34,6 +35,7 @@ script "oxtwebidetour"
 --    ACT <id> tap <x> <y>          a finger's tap at a point of the page
 --    ACT <id> key <key>            a key (Playwright's name, "Escape")
 --    ACT <id> size <width> <height>  the page's size
+--    ACT <id> scheme light|dark    the browser's colour scheme
 --    ACT <id> dialog               a click on the default button of the
 --                                  page's dialog (answer, ask, ...)
 --    STEP <name> ok | STEP <name> FAILED <error>
@@ -49,7 +51,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sample,inspector,inspector-tabs,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu"
+constant kSteps = "start,sample,inspector,inspector-tabs,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance"
 constant kSample = "Web Tour Sample"
 -- The classic controls of Object > New Control (revMenubar), by the last
 -- part of their kind
@@ -148,8 +150,30 @@ end tourScriptError
 
 -- The IDE as it opens: the menu bar and toolbar across the page, and the
 -- Tools palette
+-- The IDE as it opened: on a page smaller than Home (web_ide_tour.py
+-- --size 640x480, openxtalk.org p=25583) the menu bar still spans the
+-- page and Home's title bar is on it, below the menu bar, where a user
+-- can take it
 on tour_start
+   local tScreen, tBar, tHome
    tourShot "01-ide"
+   put the screenRect into tScreen
+   if there is not a stack "revMenubar" or not the visible of stack "revMenubar" then
+      throw "no menu bar:" && tourJoin(the openStacks)
+   end if
+   put the rect of stack "revMenubar" into tBar
+   if item 1 of tBar is not item 1 of tScreen or item 3 of tBar is not item 3 of tScreen then
+      throw "the menu bar" && tBar && "does not span the page" && tScreen
+   end if
+   if "revWebHome" is among the lines of the openStacks then
+      put the rect of stack "revWebHome" into tHome
+      -- (31: the page's title bar above a window, revWebIDEKeepOnPage)
+      if item 1 of tHome < item 1 of tScreen or item 2 of tHome - 31 < item 4 of tBar \
+            or item 2 of tHome > item 4 of tScreen - 31 then
+         throw "Home" && tHome && "is not on the page" && tScreen && "below the menu bar" && tBar
+      end if
+      tourRecord "INFO Home" && tHome
+   end if
 end tour_start
 
 on tour_sample
@@ -607,6 +631,60 @@ function tourMenuButton pName
    end if
    return empty
 end tourMenuButton
+
+-- The page follows the browser between light and dark (index.html's
+-- oxt-appearance, seth's choice for item 8 of 2026-10-30): the
+-- systemAppearance is the browser's colour scheme (web_ide_tour.py
+-- --color-scheme), and when the browser switches, the IDE hears
+-- systemAppearanceChanged and the menu bar takes the new appearance's
+-- colours (revWebIDELibrary's styleMenubar). The browser is switched to
+-- the other scheme and back; each switch must reach the IDE within 5
+-- seconds
+on tour_appearance
+   local tStart, tOther
+   if tourJS("window.matchMedia('(prefers-color-scheme: dark)').matches") is "true" then
+      put "dark" into tStart
+      put "light" into tOther
+   else
+      put "light" into tStart
+      put "dark" into tOther
+   end if
+   tourCheckAppearance tStart, 0
+   tourAct "scheme" && tOther
+   tourCheckAppearance tOther, 5000
+   tourShot "15-appearance-" & tOther
+   tourAct "scheme" && tStart
+   tourCheckAppearance tStart, 5000
+end tour_appearance
+
+-- The systemAppearance, the menu bar's colours and the toolbar's pictures
+-- all say pAppearance (within pMilliseconds): in dark the pictures are
+-- drawn (revMenubar's mbDrawImages), in light they are images-web's files
+command tourCheckAppearance pAppearance, pMilliseconds
+   local tDeadline, tHeader, tWant, tIcon, tDrawn
+   put the milliseconds + pMilliseconds into tDeadline
+   if pAppearance is "dark" then
+      put "40,45,52" into tWant
+   else
+      put "244,246,248" into tWant
+   end if
+   put the long id of image "Tools" of group "icons" of stack "revMenubar" into tIcon
+   repeat
+      put the backColor of stack "revMenubar" into tHeader
+      put the filename of tIcon is empty into tDrawn
+      if the systemAppearance is pAppearance and tHeader is tWant and tDrawn is (pAppearance is "dark") then
+         exit repeat
+      end if
+      if the milliseconds > tDeadline then
+         throw "after" && pMilliseconds && "ms the systemAppearance is" && the systemAppearance & \
+               ", the menu bar's backColor" && tHeader & ", the Tools picture's file" && the filename of tIcon & \
+               "; want" && pAppearance && "and" && tWant
+      end if
+      wait 100 milliseconds with messages
+   end repeat
+   tourRecord "INFO appearance" && pAppearance & ": menu bar" && tHeader & ", Tools picture" && \
+         the filename of tIcon && the width of tIcon & "x" & the height of tIcon
+end tourCheckAppearance
 
 command tourWait pMilliseconds
    wait pMilliseconds milliseconds with messages

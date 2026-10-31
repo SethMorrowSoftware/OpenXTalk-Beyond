@@ -811,6 +811,11 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 	trect.y = srect.y + ((srect.height - CHECK_SIZE) >> 1) + 1;
 	trect.width = trect.height = CHECK_SIZE;
 	uint2 index;
+#if defined(__EMSCRIPTEN__)
+	// True when the check box's box is filled white (or grey), its own
+	// colours having none (LF_WIN95, below)
+	bool t_white_box = false;
+#endif
 	if (!(flags & F_AUTO_ARM) && MCcurtheme &&
 	        MCcurtheme->iswidgetsupported(WTHEME_TYPE_CHECKBOX))
 	{
@@ -910,6 +915,9 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 				setforeground(dc, DI_BACK, False);
 			else
 			{
+#if defined(__EMSCRIPTEN__)
+				t_white_box = true;
+#endif
 				if (state & CS_MFOCUSED && !(state & CS_SELECTED)
 				        && MCU_point_in_rect(rect, mx, my))
 					dc->setforeground(dc->getgray());
@@ -955,6 +963,15 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 				// black on its white box
 				if (MCButtonMenuItemIsOnDarkTheme(this, dc))
 					t_appearance = kMCSystemAppearanceDark;
+#elif defined(__EMSCRIPTEN__)
+				// OXT-Beyond: on the web a check box's box is white in the
+				// dark appearance too (a page that follows a dark browser:
+				// em-dc.cpp), so its tick, white there, could not be seen
+				// (the web IDE's Property Inspector showed every check box
+				// unticked). A tick in a white box is black; a menu item's
+				// tick and one in a box of a colour of its own are as before
+				if (t_white_box)
+					t_appearance = kMCSystemAppearanceLight;
 #endif
 				if (t_appearance == kMCSystemAppearanceDark)
 					dc->setforeground(dc->getwhite());

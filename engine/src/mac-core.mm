@@ -24,6 +24,9 @@
 
 #include "mac-internal.h"
 
+// Below: whether the system is set to Dark, read afresh
+bool MCMacPlatformSystemStyleIsDark(void);
+
 #include "graphics_util.h"
 
 #include "libscript/script.h"
@@ -373,15 +376,11 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 										     name:NSSystemColorsDidChangeNotification object:nil];
 		
 		// Set initial application appearance for system dialogs
-		NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-		NSString *t_appearance_style = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-		
 		NSAppearanceName t_appearance_name;
-		if (t_appearance_style != nil && [t_appearance_style isEqualToString:@"Dark"]) {
+		if (MCMacPlatformSystemStyleIsDark())
 			t_appearance_name = NSAppearanceNameDarkAqua;
-		} else {
+		else
 			t_appearance_name = NSAppearanceNameAqua;
-		}
 		
 		NSAppearance *t_appearance = [NSAppearance appearanceNamed:t_appearance_name];
 		[NSApp setAppearance:t_appearance];
@@ -719,9 +718,7 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 			// so the systemAppearance could come back empty, and the
 			// Tools palette's modern look took its light colours in the
 			// dark appearance (CI's IDE tour on Apple silicon)
-			NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-			NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-			if (t_appearance == nil || ![t_appearance isEqualToString:@"Dark"])
+			if (!MCMacPlatformSystemStyleIsDark())
 			{
 				*(int32_t *)r_value = kMCPlatformSystemAppearanceLight;
 			}
@@ -765,9 +762,38 @@ bool MCPlatformGetSystemAppearanceIsDark(void)
 	}
 	
 	// Fallback for older macOS versions
-	NSUserDefaults *t_defaults = [NSUserDefaults standardUserDefaults];
-	NSString *t_appearance = [t_defaults stringForKey:@"AppleInterfaceStyle"];
-	return (t_appearance != nil && [t_appearance isEqualToString:@"Dark"]);
+	return MCMacPlatformSystemStyleIsDark();
+}
+
+// OXT-Beyond: whether the system is set to Dark (System Settings >
+// Appearance), read afresh each time. NSUserDefaults keeps the global
+// domain's AppleInterfaceStyle in a cache that cfprefsd updates some time
+// after the switch, so when AppleInterfaceThemeChangedNotification arrived
+// the cache could still hold the old style: the windows and NSApp were set
+// to the appearance being left, NSApp's effectiveAppearance (pinned by
+// that) and the systemAppearance stayed on it, and the next switch
+// seemed to do nothing (bwmilby, openxtalk.org p=25665, p=25668). The
+// argument domain (a launch with -AppleInterfaceStyle Dark) still wins, as
+// it did through NSUserDefaults.
+bool MCMacPlatformSystemStyleIsDark(void)
+{
+	NSString *t_style = nil;
+	NSDictionary *t_arguments = [[NSUserDefaults standardUserDefaults] volatileDomainForName: NSArgumentDomain];
+	id t_argument = [t_arguments objectForKey: @"AppleInterfaceStyle"];
+	if ([t_argument isKindOfClass: [NSString class]])
+		t_style = t_argument;
+	CFPropertyListRef t_value = NULL;
+	if (t_style == nil)
+	{
+		CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+		t_value = CFPreferencesCopyAppValue(CFSTR("AppleInterfaceStyle"), kCFPreferencesAnyApplication);
+		if (t_value != NULL && CFGetTypeID(t_value) == CFStringGetTypeID())
+			t_style = (NSString *)t_value;
+	}
+	bool t_dark = (t_style != nil && [t_style isEqualToString: @"Dark"]);
+	if (t_value != NULL)
+		CFRelease(t_value);
+	return t_dark;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

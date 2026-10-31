@@ -118,6 +118,13 @@ em_theme_color(uint32_t p_rgb, MCColor& r_color)
 #define kMCWebThemeDarkText         0xFFFFFF
 #define kMCWebThemeDarkFace         0x202020
 
+/* OXT-Beyond: and the light edge of a 3-D border, a little lighter than
+ * the dark face: white there drew a bright line around every field, scroll
+ * bar and arrow box, and a disabled label's white emboss under its grey
+ * text read as a second, brighter copy of the label (the web IDE's toolbar
+ * and Preferences in a dark browser) */
+#define kMCWebThemeDarkHilightEdge  0x3A3A3A
+
 static bool
 em_theme_is_dark(void)
 {
@@ -177,7 +184,7 @@ MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
 
 	case kMCPlatformThemePropertyTopEdgeColor:
 	case kMCPlatformThemePropertyLeftEdgeColor:
-		return em_theme_color(kMCWebThemeHilightEdge, r_color);
+		return em_theme_color(t_dark ? kMCWebThemeDarkHilightEdge : kMCWebThemeHilightEdge, r_color);
 
 	case kMCPlatformThemePropertyBottomEdgeColor:
 	case kMCPlatformThemePropertyRightEdgeColor:

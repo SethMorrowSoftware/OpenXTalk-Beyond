@@ -61,7 +61,13 @@ end preOpenStack
 -- opened, so a switch left it in the other appearance's colour)
 on menubarFollowAppearance
    -- OXT-Beyond: the modern look has colours of its own, light or dark
-   -- (mbRefreshLook, below layoutMenu)
+   -- (mbRefreshLook, below layoutMenu). The web IDE's toolbar has its own
+   -- pictures, which are drawn for the dark appearance (mbDrawImages);
+   -- revWebIDELibrary colours the rest of it
+   if revEnvironmentIsWeb() then
+      mbDrawImages
+      exit menubarFollowAppearance
+   end if
    if revMenubarIsModern() then
       mbDrawImages
       mbApplyColors
@@ -1074,6 +1080,15 @@ command mbDrawImages
    local tModern, tID, tName, tItem, tStyle, tOffset
    put revMenubarIsModern() into tModern
    if tModern then mbReadAppearance
+   -- OXT-Beyond: the web IDE's pictures (images-web) are drawn in dark
+   -- ink for its light header, which a dark browser makes dark too
+   -- (revWebIDELibrary's styleMenubar): there the toolbar's pictures are
+   -- the modern look's, in its dark colours, and in light the web's own
+   -- again, as before
+   if revEnvironmentIsWeb() then
+      mbReadAppearance
+      put sMbDark is true into tModern
+   end if
    if there is a group "icons" of me then
       repeat for each line tID in the childControlIDs of group "icons" of me
          if word 1 of the name of control id tID of me is not "image" then next repeat

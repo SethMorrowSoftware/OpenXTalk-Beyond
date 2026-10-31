@@ -30,7 +30,8 @@ files (CEF, extension libraries) and a change of build image.
 
     check_elf_floor.py ROOT --max GLIBC=2.31 --max GLIBCXX=3.4.28
                        [--machine x86_64] [--exclude '*.dbg']
-                       [--allow PATH=REASON]
+                       [--allow PATH=REASON] [--file-max PATH=NAME:VERSION]
+    check_elf_floor.py ROOT --matrix linux-x86_64 [--matrix-file FILE]
 
 --max NAME=VERSION    no file may need a version NAME_x newer than VERSION
                       (GLIBC for libc, libm, libpthread, libdl and the
@@ -50,6 +51,17 @@ files (CEF, extension libraries) and a change of build image.
                       off is ELF too, but holds no code
 --allow PATH=REASON   report PATH (pattern as for --exclude) but never
                       fail on it; the reason is printed with it
+--file-max PATH=NAME:VERSION
+                      files matching PATH may need NAME up to VERSION
+                      instead of --max's; every other limit still applies
+                      to them. A PATH that matches no file is an error:
+                      the exception it describes no longer exists
+--matrix PLATFORM     take --max and --file-max from the platform matrix
+                      (tools/ci/platform-matrix.json, or --matrix-file):
+                      the platform's floors and, for a linux-* platform,
+                      the files every Linux package carries that are known
+                      to need more (the 32-bit x86 extension libraries).
+                      --max and --file-max given as well take precedence
 
 The version needs are read from the section table, or, when a file has
 none (sstrip), from the dynamic segment, so neither readelf nor objdump is
@@ -320,14 +332,17 @@ def highest_per_name(needs):
     return result, private
 
 
-def check(root, maxima, machine=None, exclude=(), allow=None):
-    """Check every ELF file under root. maxima: {name: version text}.
-    Returns (rows, problems, allowed, highest): rows are (path, machine,
-    type, {name: version name}) for the report, problems and allowed are
-    lists of (path, message), highest maps each name to (version, path)."""
+def check(root, maxima, machine=None, exclude=(), allow=None, file_max=()):
+    """Check every ELF file under root. maxima: {name: version text};
+    file_max: [(pattern, name, version text)], higher limits for the files
+    that match. Returns (rows, problems, allowed, highest): rows are (path,
+    machine, type, {name: version name}) for the report, problems and
+    allowed are lists of (path, message), highest maps each name to
+    (version, path)."""
     allow = allow or {}
     rows, problems, allowed = [], [], []
     highest = {}
+    used = set()
     for rel in walk(root, exclude):
         try:
             info = read_elf(os.path.join(root, rel))
@@ -340,6 +355,11 @@ def check(root, maxima, machine=None, exclude=(), allow=None):
         found = []
         if machine and info['machine'] != machine:
             found.append('is for %s, not %s' % (info['machine'], machine))
+        limits = dict(maxima)
+        for i, (pattern, name, version) in enumerate(file_max):
+            if fnmatch.fnmatchcase(rel, pattern):
+                limits[name] = version
+                used.add(i)
         per_name, private = highest_per_name(info['needs'])
         rows.append((rel, info['machine'], info['type'],
                      dict([(n, v[1]) for n, v in per_name.items()] +
@@ -347,16 +367,22 @@ def check(root, maxima, machine=None, exclude=(), allow=None):
         for name, (version, vname) in per_name.items():
             if name not in highest or version_key(version) > version_key(highest[name][0]):
                 highest[name] = (version, rel)
-            if name in maxima and version_key(version) > version_key(maxima[name]):
+            if name in limits and version_key(version) > version_key(limits[name]):
                 libs = sorted(set(lib for lib, v in info['needs'] if v == vname))
-                found.append('needs %s (from %s), newer than %s_%s' % (vname, ', '.join(libs), name, maxima[name]))
+                found.append('needs %s (from %s), newer than %s_%s%s'
+                             % (vname, ', '.join(libs), name, limits[name],
+                                '' if limits[name] == maxima.get(name) else ' (its own limit)'))
         for name, vnames in private.items():
-            if name in maxima:
+            if name in limits:
                 for vname in vnames:
                     found.append('needs %s, which only one build of the library has' % vname)
         for message in found:
             (allowed if reason is not None else problems).append(
                 (rel, message + (' (allowed: %s)' % reason if reason is not None else '')))
+    for i, (pattern, name, version) in enumerate(file_max):
+        if i not in used:
+            problems.append((pattern, '--file-max %s=%s:%s matches no file: the exception it describes '
+                                      'no longer exists' % (pattern, name, version)))
     return rows, problems, allowed, highest
 
 
@@ -392,19 +418,43 @@ def main(argv=None):
     p.add_argument('--allow', action='append', default=[], metavar='PATH=REASON',
                    type=lambda s: _pair(s, 'PATH=REASON'),
                    help='report PATH (fnmatch pattern, relative to root) but do not fail on it')
+    p.add_argument('--file-max', action='append', default=[], metavar='PATH=NAME:VERSION',
+                   type=lambda s: _pair(s, 'PATH=NAME:VERSION'),
+                   help='files matching PATH may need NAME up to VERSION (repeat per exception)')
+    p.add_argument('--matrix', metavar='PLATFORM', help='take the limits from the platform matrix')
+    p.add_argument('--matrix-file', metavar='FILE', help='the platform matrix (default: tools/ci/platform-matrix.json)')
     args = p.parse_args(argv)
 
     if not os.path.isdir(args.root):
         sys.stderr.write('error: %s is not a folder\n' % args.root)
         return 2
-    maxima = dict(args.max)
+    maxima, file_max = {}, []
+    if args.matrix:
+        import platform_matrix
+        try:
+            maxima, exceptions = platform_matrix.elf_limits(platform_matrix.load(args.matrix_file), args.matrix)
+        except (OSError, ValueError, platform_matrix.MatrixError) as e:
+            sys.stderr.write('error: --matrix %s: %s\n' % (args.matrix, e))
+            return 2
+        for pattern, limits, reason in exceptions:
+            print('exception: %s may need %s: %s' % (pattern, ', '.join('%s_%s' % kv for kv in sorted(limits.items())),
+                                                    reason))
+            file_max.extend((pattern, n, v) for n, v in sorted(limits.items()))
+    maxima.update(dict(args.max))
+    for text in args.file_max:
+        pattern, spec = text
+        name, sep, version = spec.partition(':')
+        if not sep or not name or not re.match(r'^[0-9]+(?:[._][0-9]+)*$', version):
+            sys.stderr.write('error: --file-max %s=%s: expected PATH=NAME:VERSION\n' % (pattern, spec))
+            return 2
+        file_max = [f for f in file_max if not (f[0] == pattern and f[1] == name)] + [(pattern, name, version)]
     for name, version in maxima.items():
         if not re.match(r'^[0-9]+(?:[._][0-9]+)*$', version):
             sys.stderr.write('error: --max %s=%s: not a version\n' % (name, version))
             return 2
     machine = MACHINE_ALIASES.get(args.machine, args.machine) if args.machine else None
 
-    rows, problems, allowed, highest = check(args.root, maxima, machine, args.exclude, dict(args.allow))
+    rows, problems, allowed, highest = check(args.root, maxima, machine, args.exclude, dict(args.allow), file_max)
 
     names = sorted(set(n for r in rows for n in r[3]), key=lambda n: (n not in maxima, n))
     width = max([len('path')] + [len(r[0]) for r in rows])
@@ -426,9 +476,11 @@ def main(argv=None):
     report_problems(problems, 'ELF floor')
     if problems:
         return 1
-    print('OK: no file%s needs more than %s' % (
+    print('OK: no file%s needs more than %s%s' % (
         ' but the %d allowed above' % len(set(rel for rel, _ in allowed)) if allowed else '',
-        ', '.join('%s_%s' % (n, v) for n, v in sorted(maxima.items())) or '(no limits given)'))
+        ', '.join('%s_%s' % (n, v) for n, v in sorted(maxima.items())) or '(no limits given)',
+        ' (%d exception%s above)' % (len(set(f[0] for f in file_max)), '' if len(set(f[0] for f in file_max)) == 1
+                                     else 's') if file_max else ''))
     return 0
 
 

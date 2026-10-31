@@ -5,7 +5,7 @@ Type: message
 Syntax: systemAppearanceChanged
 
 Summary:
-Sent to the <current card> of the <defaultStack> when the <system appearance|systemAppearance>
+Sent to the <current card> of the <defaultStack> when the <systemAppearance>
 changes.
 
 Associations: card
@@ -41,5 +41,6 @@ In an HTML5 standalone the message is sent when the browser's colour scheme
 changes, on a page built with **Appearance** set to **Follow the browser**
 in the Web pane of the Standalone Application Settings.
 
-References: systemAppearance (property), message (glossary), defaultStack (property)
+References: systemAppearance (property), message (glossary), defaultStack (property),
+current card (glossary), effective (keyword), backgroundColor (property)
 

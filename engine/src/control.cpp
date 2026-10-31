@@ -48,6 +48,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "exec.h"
 
+#if defined(__EMSCRIPTEN__)
+#include "uidc.h"
+#endif
+
 MCControlHandle MCControl::focused;
 int2 MCControl::defaultmargin = 4;
 int2 MCControl::xoffset;
@@ -909,6 +913,35 @@ void MCControl::drawselection(MCDC *dc, const MCRectangle& p_dirty)
     dc->setquality(QUALITY_DEFAULT);
 }
 
+#if defined(__EMSCRIPTEN__)
+// OXT-Beyond: on the web, in the dark appearance (a page that follows the
+// browser's colour scheme: em-dc.cpp, MCScreenDC::getsystemappearance), an
+// arrow was drawn black on the theme's dark face (kMCWebThemeDarkFace,
+// em-theme.cpp), where it could not be seen: the scroll bars' and the
+// option menus' arrows of the web IDE in a dark browser. There an arrow on
+// a dark background is white, as the theme's text is; one on a light
+// background stays black. The light appearance draws as before.
+static bool MCControlArrowIsWhite(MCObject *p_back, MCDC *p_dc)
+{
+	MCSystemAppearance t_appearance;
+	MCscreen -> getsystemappearance(t_appearance);
+	if (t_appearance != kMCSystemAppearanceDark)
+		return false;
+
+	// The colour the arrow's box is filled with (a pattern keeps black)
+	MCColor t_color;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (!p_back -> getforecolor(DI_BACK, False, False, t_color, t_pattern, t_x, t_y, p_dc -> gettype(), p_back))
+		return false;
+
+	// Rec. 601 luma, out of 65535
+	uint32_t t_luma;
+	t_luma = (299 * uint32_t(t_color . red) + 587 * uint32_t(t_color . green) + 114 * uint32_t(t_color . blue)) / 1000;
+	return t_luma < 32768;
+}
+#endif
+
 void MCControl::drawarrow(MCDC *dc, int2 x, int2 y, uint2 size,
                           Arrow_direction dir, Boolean border, Boolean hilite)
 {
@@ -1074,6 +1107,12 @@ void MCControl::drawarrow(MCDC *dc, int2 x, int2 y, uint2 size,
 				else
 					if (flags & F_DISABLED && MClook != LF_MOTIF)
 						dc->setforeground(dc->getgray());
+#if defined(__EMSCRIPTEN__)
+					// (the object whose colour the box is filled with, above)
+					else if (MCControlArrowIsWhite(gettype() == CT_SCROLLBAR && parent->gettype() == CT_FIELD
+					                               ? parent->getparent() : this, dc))
+						dc->setforeground(dc->getwhite());
+#endif
 					else
 						dc->setforeground(dc->getblack());
 			else

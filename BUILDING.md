@@ -928,10 +928,35 @@ neutral folder on an Apple Silicon and an Intel runner and run:
 ```sh
 codesign --verify --deep --strict --verbose=2 <folder>/OXT-Beyond.app
 python3 tools/ci/run_livecode_check.py smoke --install <folder> --platform mac-universal
-python3 tools/ci/check_native_deps.py --root <folder>/OXT-Beyond.app/Contents/Tools --platform mac --max-macos 15.0
+python3 tools/ci/check_native_deps.py --root <folder>/OXT-Beyond.app/Contents/Tools --platform mac --matrix mac-universal/extensions
+python3 tools/ci/check_macho_floor.py <folder>/OXT-Beyond.app --matrix mac-universal --arch arm64
 python3 tools/ci/run_livecode_check.py compile --install <folder> --platform mac-universal
 python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
 ```
+
+The two floor checks read the platform matrix,
+[`tools/ci/platform-matrix.json`](tools/ci/platform-matrix.json): the
+oldest system each part of a package must run on, as this file and
+README.md state them (macOS 10.13 on Intel and 11 on Apple Silicon; the
+bundled extensions' Intel slices 10.15; glibc 2.31 on Linux, with the
+32-bit extension libraries' higher floors as named exceptions). Each
+slice of a universal file is held to its own architecture's floor, and
+the Linux package (Build (Linux), "Check the package against the
+platform matrix") gets the same check over every ELF file it ships with
+`check_elf_floor.py --matrix linux-<arch>`. A floor changes in the
+matrix and README.md together; `tools/ci/tests/test_platform_matrix.py`
+fails when README.md no longer states one.
+
+Each platform's build also records where every binary of its package
+came from, with
+[`tools/ci/release_inventory.py`](tools/ci/release_inventory.py): path,
+size, SHA-256, format, architectures, floors and origin (built from the
+commit, the runtimes asset and the commit it was built from, the Android
+runtime carried over from 1.15, an xTalk Suite library and whether it
+is the pinned file, or CEF). The JSON is the artifact
+`release-inventory-<platform>` of the run; it is not a release asset.
+A binary of unknown origin is a warning (`--fail-on-unknown` makes it
+an error).
 
 `standalone_check.py` builds a Mac standalone from the packaged runtime
 with the engine's deploy command, signs it as the IDE does and runs it
@@ -1010,6 +1035,10 @@ commit on `main`, publishes the pre-release `runtimes-<label>`. Then pin
 that entry in `tools/oxt/external-assets.json` in a pull request. Make
 a new asset whenever the engine or the externals change, so that the
 other platforms' runtimes in the packages stay those of the release.
+[`tools/ci/runtimes_provenance.py`](tools/ci/runtimes_provenance.py)
+lists the commits since the pinned asset's that change the engine's
+source; the CI checks workflow shows the list in its summary with a
+warning (with `--fail-on-stale` it fails instead).
 
 `oxt-runtimes-1.15` was made differently, from an extracted OpenXTalk
 Lite release, taking only files that `layout.py` classes "external" (not
@@ -1422,6 +1451,21 @@ is `true`) and are skipped elsewhere unless you pass `--desktop-tests`.
 On Windows the tests run with `the hideConsoleWindows` set, so the
 commands they run open no console windows.
 
+The MySQL and PostgreSQL tests of `tests/lcs/core/database`
+(`server_databases.livecodescript` and `db_getters`) need servers, which
+they read from the environment: `OXT_TEST_MYSQL_HOST` (`host:port`),
+`OXT_TEST_MYSQL_DATABASE`, `OXT_TEST_MYSQL_USER`,
+`OXT_TEST_MYSQL_PASSWORD` and `OXT_TEST_MYSQL_TLS` (`true` when the
+server offers TLS), and the same with `POSTGRESQL`. Without them they are
+skipped, as they are in the build jobs. The Linux build's job "Databases
+linux-x86_64" starts MySQL 8.0 and PostgreSQL 16 containers with TLS and
+runs them with `--filter '^lcs: core/database/'`; its comment says how the
+servers are set up for the bundled client libraries. They pin what the
+drivers do today, including two things a script might not expect, each
+asserted as broken in the test: PostgreSQL's `revRollBackDatabase`
+commits (revdb's `REVDB_Rollback` calls `transCommit`), and the MySQL
+client speaks TLS 1.0 only, which current servers refuse.
+
 Every CI build runs the five suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
 (Apple Silicon and Intel). The job summary lists new failures, flaky
@@ -1441,7 +1485,14 @@ saves a one-handler stack and attaches it to a copy of a runtime with
 The standalone must be a file of the runtime's format and architecture;
 where this computer can run it, it is run without a user interface and
 must report the engine's version, its processor, its platform and the
-environment `command line`. Before that, the runtime's folder is
+environment `command line`, and then whether its engine has a few changes
+made since the runtimes asset was built that a script can see without a
+user interface (`featureProbes` in the deploy script: `the
+microseconds`, `matches wildcard` and `matches regex`, literal arrays).
+The layout's own runtime must have them all; a runtime from the runtimes
+asset (Windows' on a Linux or Mac layout, for one) is listed with its
+answers and does not fail the check, since rebuilding the asset is a
+decision of its own. Before that, the runtime's folder is
 checked: its engine, its Support files and every external, database
 driver and (for the browser) CEF library that its lists name must be
 there, built for that runtime's architecture.
@@ -1740,7 +1791,13 @@ own files, and by hand. It builds the web IDE's engine from the checkout
 IDE's scripts alone builds nothing), makes the site from the Linux
 x86_64 package of the newest release (or the tag it is given) with the
 checkout's script-only IDE stacks over it, and uploads the screenshots
-as the artifact `web-ide-screenshots`, which its job summary links.
+as the artifact `web-ide-screenshots`, which its job summary links. It
+runs the tour twice, in a light browser and a dark one
+(`--color-scheme dark`, the artifact `web-ide-screenshots-dark`): the web
+IDE's page follows the browser's colour scheme, and the tour's last step
+switches it to the other scheme and back. The job Web IDE small window
+opens the IDE on pages smaller than Home (`--size 800x500` and
+`640x480`) in Chromium and Firefox and runs the tour's first two steps.
 
 ### Installer
 

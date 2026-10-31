@@ -20,8 +20,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- core (revStandaloneDeployWithParams in ide-support/
 -- revsaveasstandalone.livecodescript): a stack file is saved and then
 -- "_internal deploy" attaches it to a packaged standalone engine. The
--- standalone it makes writes one line (PROBE ...) to stdout and quits, so
--- that tools/ci/standalone_check.py can run it and check what it reports.
+-- standalone it makes writes a line (PROBE ...) and then one FEATURE line
+-- for each of featureProbes() to stdout and quits, so that
+-- tools/ci/standalone_check.py can run it and check what it reports.
 --
 -- Run with a development engine, without a user interface:
 --    <engine> -ui tools/ci/standalone-deploy.livecodescript
@@ -37,13 +38,53 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- Writes "DEPLOY OK <output>" or "DEPLOY FAILED <reason>" and exits with 0
 -- or 1.
 
+-- The features a standalone engine is asked about (FEATURE lines): each
+-- is a change made since the runtimes asset was built (ffc75ba5b,
+-- 2026-10-11) that a script can see without a user interface. Each is
+-- worked out by value() in a try, so that the probe stack compiles on
+-- every engine, and an engine without the feature answers "no" or
+-- "error" rather than failing: standalone_check.py fails only a runtime
+-- built from this commit for a "no", and reports the others (the
+-- modernization plan's MOD-03, evidence for MOD-D1).
+--    microseconds     the microseconds (#215)
+--    matches          matches wildcard and matches regex (#215)
+--    literal-arrays   [1, 2] and {"key": value} where an expression goes
+private function featureProbes
+   local tProbes
+   put "microseconds" & tab & "the microseconds is a number and the microseconds > 0" & return after tProbes
+   put "matches" & tab & "(" & quote & "a.txt" & quote & " matches wildcard " & quote & "*.txt" & quote & ") and (" \
+         & quote & "2026" & quote & " matches regex " & quote & "^[0-9]+$" & quote & ")" & return after tProbes
+   put "literal-arrays" & tab & "the number of elements of [10, 20, 30] is 3 and " \
+         & "the number of elements of {" & quote & "k" & quote & ": 7, " & quote & "j" & quote & ": 8} is 2" after tProbes
+   return tProbes
+end featureProbes
+
 private function probeScript
-   local tScript
+   local tScript, tProbe
    put "on startup" & return into tScript
    put "   write " & quote & "PROBE version=" & quote & " & the version & " & quote & " processor=" & quote \
          & " & the processor & " & quote & " platform=" & quote & " & the platform & " & quote \
          & " environment=" & quote & " & the environment & return to stdout" & return after tScript
+   set the itemDelimiter to tab
+   repeat for each line tProbe in featureProbes()
+      put "   probeFeature " & quote & item 1 of tProbe & quote & ", " & quote \
+            & replaceText(item 2 of tProbe, quote, quote & " & quote & " & quote) & quote & return after tScript
+   end repeat
    put "   quit 0" & return & "end startup" & return after tScript
+   put "on probeFeature pName, pExpression" & return after tScript
+   put "   local tAnswer" & return after tScript
+   put "   try" & return after tScript
+   put "      if value(pExpression) is true then" & return after tScript
+   put "         put " & quote & "yes" & quote & " into tAnswer" & return after tScript
+   put "      else" & return after tScript
+   put "         put " & quote & "no" & quote & " into tAnswer" & return after tScript
+   put "      end if" & return after tScript
+   put "   catch tError" & return after tScript
+   put "      put " & quote & "error" & quote & " into tAnswer" & return after tScript
+   put "   end try" & return after tScript
+   put "   write " & quote & "FEATURE " & quote & " & pName & " & quote & "=" & quote & " & tAnswer & return to stdout" \
+         & return after tScript
+   put "end probeFeature" & return after tScript
    return tScript
 end probeScript
 

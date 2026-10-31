@@ -17,7 +17,8 @@
 """tools/ci/ui_tour.py's macOS crash reports, with made-up ones: which it
 finds, when it waits for one, and what it logs of one (a .ips as macOS 12
 and later write it, and a .crash); and the crash dialog it keeps off CI's
-screen.
+screen. And the tour's macOS system-switch step, read from the tour
+script: how it posts the switch, and that it still checks the message.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -27,6 +28,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import sys
 import tempfile
 import time
@@ -69,6 +71,9 @@ REPORT = {
 }
 
 
+# (macOS's crash reports, read on the Mac only: they reason about POSIX
+# signals, which Windows' signal module does not have)
+@unittest.skipUnless(hasattr(signal, 'SIGKILL'), 'no POSIX signals here (macOS crash reports)')
 class CrashReports(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -197,6 +202,49 @@ class CrashDialog(unittest.TestCase):
         _, ran, lines = self.run_it(1)
         self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
         self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)'])
+
+
+TOUR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ui-tour.livecodescript')
+
+
+def handler(script, kind, name):
+    start = script.index('\n%s %s' % (kind, name))
+    return script[start:script.index('\nend %s\n' % name, start)]
+
+
+class SystemSwitch(unittest.TestCase):
+    """A post through osascript never reached an observer on a CI Mac
+    (probe, macos-15, 2026-10-31), so the step saw no
+    systemAppearanceChanged whatever the engine did: the switch is posted
+    by a compiled Swift program, and the step still fails without the
+    message."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.script = f.read()
+
+    def test_posts_with_a_native_program(self):
+        set_ = handler(self.script, 'command', 'tourSystemSet')
+        self.assertNotIn('osascript', set_)
+        self.assertIn('tourThemePoster()', set_)
+        self.assertIn('defaults write -g AppleInterfaceStyle Dark', set_)
+        self.assertIn('defaults delete -g AppleInterfaceStyle', set_)
+
+    def test_the_poster_posts_the_notification_and_stays_for_it(self):
+        poster = handler(self.script, 'function', 'tourThemePoster')
+        self.assertIn('xcrun swiftc', poster)
+        self.assertIn('DistributedNotificationCenter.default().postNotificationName(', poster)
+        self.assertIn('"AppleInterfaceThemeChangedNotification"', poster)
+        self.assertIn('deliverImmediately: true', poster)
+        self.assertIn('RunLoop.main.run(until:', poster)
+        # cannot build it: the step fails, it does not pass having posted nothing
+        self.assertIn('throw "could not build the theme poster:"', poster)
+
+    def test_the_step_still_needs_the_message(self):
+        step = handler(self.script, 'on', 'tour_system_switch')
+        self.assertIn('"no systemAppearanceChanged for the switch to"', step)
+        self.assertIn('if tFails is not empty then throw', step)
+        self.assertIn('item 1 of tSeen is not tTarget', step)
 
 
 if __name__ == '__main__':

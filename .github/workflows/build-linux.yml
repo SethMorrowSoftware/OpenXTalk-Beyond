@@ -850,6 +850,120 @@ jobs:
       artifact: OXT-Beyond-web-linux
       check: true
 
+  # The MySQL and PostgreSQL drivers of revdb against real servers: the
+  # database tests of tests/lcs/core/database (server_databases and
+  # db_getters, which the build's engine tests skip, as they have no
+  # server) run by the x86_64 build's standalone engine
+  # (tools/ci/run_engine_tests.py, with its baselines) against MySQL 8.0
+  # and PostgreSQL 16 containers that this job starts, each with TLS. They
+  # pin what the drivers do today, so that a later change of the client
+  # libraries has a baseline (modernization plan MOD-06); a test that
+  # fails today on purpose is asserted as broken, with the reason, in the
+  # test. The servers are set up for what the bundled clients can do:
+  # Connector/C 6.0 knows MySQL's mysql_native_password, not 8.0's
+  # default caching_sha2_password, and libpq 9.4 knows md5, not SCRAM.
+  # The images come from Google's mirror of Docker Hub, as the build's
+  # does. On the runner itself, as the package job (the engine loads the
+  # drivers there as a package would).
+  databases:
+    name: Databases linux-x86_64
+    needs: build
+    if: ${{ !cancelled() && needs.build.outputs.built-x86_64 == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OXT_TEST_MYSQL_HOST: 127.0.0.1:3306
+      OXT_TEST_MYSQL_DATABASE: oxt_test
+      OXT_TEST_MYSQL_USER: oxt
+      OXT_TEST_MYSQL_PASSWORD: oxt-test-password
+      OXT_TEST_MYSQL_TLS: 'true'
+      OXT_TEST_POSTGRESQL_HOST: 127.0.0.1:5432
+      OXT_TEST_POSTGRESQL_DATABASE: oxt_test
+      OXT_TEST_POSTGRESQL_USER: oxt
+      OXT_TEST_POSTGRESQL_PASSWORD: oxt-test-password
+      OXT_TEST_POSTGRESQL_TLS: 'true'
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # MySQL makes its own certificates and offers TLS; PostgreSQL uses
+      # the image's snakeoil certificate. initdb stores the user's
+      # password with SCRAM whatever the server's password_encryption, so
+      # it is set again, as md5, once the server is up.
+      - name: Start the database servers
+        timeout-minutes: 10
+        run: |
+          for image in mysql:8.0 postgres:16; do
+            for i in 1 2 3; do
+              if docker pull "mirror.gcr.io/library/$image"; then break; fi
+              if [ "$i" = 3 ]; then echo "::error::could not pull $image"; exit 1; fi
+              sleep 20
+            done
+          done
+          docker run -d --name oxt-mysql -p 127.0.0.1:3306:3306 \
+            -e MYSQL_ROOT_PASSWORD="$OXT_TEST_MYSQL_PASSWORD" -e MYSQL_DATABASE="$OXT_TEST_MYSQL_DATABASE" \
+            -e MYSQL_USER="$OXT_TEST_MYSQL_USER" -e MYSQL_PASSWORD="$OXT_TEST_MYSQL_PASSWORD" \
+            mirror.gcr.io/library/mysql:8.0 --default-authentication-plugin=mysql_native_password
+          docker run -d --name oxt-postgres -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER="$OXT_TEST_POSTGRESQL_USER" -e POSTGRES_PASSWORD="$OXT_TEST_POSTGRESQL_PASSWORD" \
+            -e POSTGRES_DB="$OXT_TEST_POSTGRESQL_DATABASE" -e POSTGRES_HOST_AUTH_METHOD=md5 \
+            mirror.gcr.io/library/postgres:16 -c password_encryption=md5 -c ssl=on \
+            -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem \
+            -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+          # Both images start a server of their own to initialise the
+          # database first, without TCP: the TCP answers are the real ones
+          for i in $(seq 1 90); do
+            if docker exec oxt-mysql mysqladmin ping -h 127.0.0.1 --silent -p"$OXT_TEST_MYSQL_PASSWORD" 2>/dev/null &&
+               docker exec oxt-postgres pg_isready -h 127.0.0.1 -q; then
+              docker exec oxt-mysql mysql -h 127.0.0.1 -uroot -p"$OXT_TEST_MYSQL_PASSWORD" -e "SELECT VERSION(); SHOW VARIABLES LIKE 'tls_version'" 2>/dev/null
+              docker exec -e PGPASSWORD="$OXT_TEST_POSTGRESQL_PASSWORD" oxt-postgres \
+                psql -v ON_ERROR_STOP=1 -U "$OXT_TEST_POSTGRESQL_USER" -d "$OXT_TEST_POSTGRESQL_DATABASE" \
+                -c "ALTER USER $OXT_TEST_POSTGRESQL_USER PASSWORD '$OXT_TEST_POSTGRESQL_PASSWORD'" \
+                -c 'SHOW server_version' -c 'SHOW ssl' -c 'SHOW password_encryption'
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs oxt-mysql 2>&1 | tail -30
+          docker logs oxt-postgres 2>&1 | tail -30
+          echo "::error::the database servers did not start"
+          exit 1
+
+      - name: Download the build
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-x86_64-bin
+          path: ${{ runner.temp }}/ci-build
+
+      - name: Extract the build
+        run: tar -xJf "$RUNNER_TEMP/ci-build/OXT-Beyond-linux-x86_64-bin.tar.xz"
+
+      - name: Database tests
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/run_engine_tests.py --bin linux-x86_64-bin --suite lcs \
+            --filter '^lcs: core/database/' --log database-tests.log
+
+      - name: Server logs
+        if: always()
+        run: |
+          docker logs oxt-mysql > mysql.log 2>&1 || true
+          docker logs oxt-postgres > postgres.log 2>&1 || true
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: database-tests-linux-x86_64
+          path: |
+            database-tests.log
+            mysql.log
+            postgres.log
+          if-no-files-found: ignore
+          retention-days: 14
+
   # The Linux packages, x86_64 and arm64, each from its build's artifacts
   # (see the header) and the documentation data, on a runner of its own
   # architecture. It waits for both build legs (a job cannot need one leg
@@ -1389,6 +1503,38 @@ jobs:
         env:
           URL: ${{ steps.ui_tour_upload.outputs.artifact-url }}
         run: python3 tools/ci/ui_tour_page.py "$RUNNER_TEMP/logs/ui-tour" --title "Linux $ARCH" --summary --url="$URL"
+
+      # The oldest Linux the package as shipped needs, against the platform
+      # matrix (tools/ci/platform-matrix.json, the floors README.md
+      # states): every ELF file of the extracted package, the runtimes of
+      # the other platforms and the extension libraries included, not only
+      # this build's output (checked above), with the 32-bit x86 extension
+      # libraries' known higher floors as named exceptions. A file over its
+      # floor fails with its path and the version it needs.
+      - name: Check the package against the platform matrix
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          python3 tools/ci/check_elf_floor.py "$OXT_ROOT" --matrix "linux-$ARCH" --exclude '*.dbg'
+
+      # Where every binary of the package came from, as a CI artifact
+      # only (tools/ci/release_inventory.py; never a release asset)
+      - name: Release inventory
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/inventory"
+          python3 tools/ci/release_inventory.py "$OXT_ROOT" --platform "linux-$ARCH" --commit "$COMMIT" \
+            --out "$RUNNER_TEMP/inventory/release-inventory-linux-$ARCH.json"
+
+      - name: Upload the release inventory
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-inventory-linux-${{ matrix.arch }}
+          path: ${{ runner.temp }}/inventory
+          if-no-files-found: ignore
+          retention-days: 30
 
       # ldd over every ELF file of the package (engine, externals,
       # CEF and its helpers on x86_64, toolchain, extension libraries):

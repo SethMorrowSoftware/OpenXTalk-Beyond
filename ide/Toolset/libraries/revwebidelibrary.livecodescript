@@ -86,6 +86,7 @@ on extensionInitialize
    end if
    revIDESubscribe "ideDesktopChanged"
    revIDESubscribe "ideOpenStack"
+   revIDESubscribe "ideSystemAppearanceChanged"
 end extensionInitialize
 
 on extensionFinalize
@@ -94,6 +95,7 @@ on extensionFinalize
    end if
    revIDEUnsubscribe "ideDesktopChanged"
    revIDEUnsubscribe "ideOpenStack"
+   revIDEUnsubscribe "ideSystemAppearanceChanged"
    remove the script of me from back
 end extensionFinalize
 
@@ -370,6 +372,12 @@ end revWebIDEDownloadStack
 constant kHeaderColor = "244,246,248"
 constant kMenuTextColor = "23,32,42"
 constant kToolbarTextColor = "59,69,84"
+-- The same in the dark appearance (the page follows a dark browser:
+-- index.html's oxt-appearance): the active window's title bar in dark
+-- (index.html), with light text
+constant kHeaderColorDark = "40,45,52"
+constant kMenuTextColorDark = "236,239,243"
+constant kToolbarTextColorDark = "200,207,216"
 
 -- The room the page's full screen button takes at the right end of the
 -- header (index.html's #fullscreen: 34 pixels wide, 14 from the edge)
@@ -547,20 +555,29 @@ end __webToolbarRight
 -- bar off after Sample Stacks (tMenuBar_AdjustWDSize). Each property is
 -- set only when it differs, as this runs on every layout.
 private command styleMenubar
-   local tStack, tToolbar, tRight, tControl
+   local tStack, tToolbar, tRight, tControl, tHeader, tMenuText, tToolbarText
    put the long id of stack "revMenubar" into tStack
-   if the backColor of tStack is not kHeaderColor then
-      set the backColor of tStack to kHeaderColor
+   if revIDEAppearanceIsDark() then
+      put kHeaderColorDark into tHeader
+      put kMenuTextColorDark into tMenuText
+      put kToolbarTextColorDark into tToolbarText
+   else
+      put kHeaderColor into tHeader
+      put kMenuTextColor into tMenuText
+      put kToolbarTextColor into tToolbarText
    end if
-   if the textColor of group "revMenuBar" of card 1 of tStack is not kMenuTextColor then
-      set the textColor of group "revMenuBar" of card 1 of tStack to kMenuTextColor
+   if the backColor of tStack is not tHeader then
+      set the backColor of tStack to tHeader
+   end if
+   if the textColor of group "revMenuBar" of card 1 of tStack is not tMenuText then
+      set the textColor of group "revMenuBar" of card 1 of tStack to tMenuText
    end if
    if there is not a group "toolbar" of card 1 of tStack then
       exit styleMenubar
    end if
    put the long id of group "toolbar" of card 1 of tStack into tToolbar
-   if the textColor of tToolbar is not kToolbarTextColor then
-      set the textColor of tToolbar to kToolbarTextColor
+   if the textColor of tToolbar is not tToolbarText then
+      set the textColor of tToolbar to tToolbarText
    end if
    if there is a group "upgrade" of card 1 of tStack then
       hide group "upgrade" of card 1 of tStack
@@ -708,6 +725,13 @@ end revWebIDEKeepWindowsOnPage
 -- palettes keep themselves on it (revPaletteBehavior); the windows that do
 -- not, a stack of the user's or a dialog, are kept once they have, and
 -- once the windowBoundingRect follows the menu bar (revIDELibrary).
+-- The page went between light and dark (only a page that follows the
+-- browser: the menu bar in the colours of the new appearance)
+on ideSystemAppearanceChanged
+   revWebIDEFitMenubar
+   pass ideSystemAppearanceChanged
+end ideSystemAppearanceChanged
+
 on ideDesktopChanged
    revWebIDEFitMenubar
    send "revWebIDEKeepWindowsOnPage" to me in 0 milliseconds

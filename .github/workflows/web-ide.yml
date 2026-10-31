@@ -21,7 +21,10 @@
 # Message Box, an answer dialog in browse mode, the Dictionary, ...). A
 # script error in the IDE, a step that fails, or a page that does not open
 # fails the check. The screenshots are uploaded with a page that shows them
-# (the artifact web-ide-screenshots, which the job summary links).
+# (the artifact web-ide-screenshots, which the job summary links). The job
+# Web IDE small window opens the IDE again on pages smaller than Home
+# (800x500 and 640x480) in Chromium and Firefox and runs the tour's first
+# steps there.
 #
 # The site is built as tools/ci/build-web-ide.sh builds it, from:
 #   - the web IDE's engine (engine.gyp's javascriptify-development), built
@@ -336,12 +339,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # In a light browser and a dark one: the page follows the browser
+  # (tools/web-ide/index.html's oxt-appearance), and the tour's last step
+  # switches it to the other scheme and back
   tour:
-    name: Web IDE screenshots
+    name: Web IDE screenshots (${{ matrix.scheme }})
     needs: engine
     if: ${{ !inputs.release }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [light, dark]
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -391,16 +401,19 @@ jobs:
 
       - name: Web IDE screenshots
         timeout-minutes: 15
+        env:
+          SCHEME: ${{ matrix.scheme }}
         run: |
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
-            --out "$RUNNER_TEMP/web-ide-tour"
+            --out "$RUNNER_TEMP/web-ide-tour" --color-scheme "$SCHEME"
 
+      # (light keeps the artifact's old name)
       - name: Upload the screenshots
         id: upload
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: web-ide-screenshots
+          name: web-ide-screenshots${{ matrix.scheme == 'dark' && '-dark' || '' }}
           path: ${{ runner.temp }}/web-ide-tour
           if-no-files-found: ignore
           retention-days: 14
@@ -415,6 +428,85 @@ jobs:
             echo
             echo "[Download the screenshots]($URL) (index.html shows them)."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # The IDE opened on a page smaller than Home, in Chromium and Firefox:
+  # OpenXTalkPaul's Firefox window on a Mac, too small for Home, kept the
+  # web IDE on its loading screen now and then (openxtalk.org p=25583).
+  # The tour's start step fails unless the IDE opens and its menu bar and
+  # Home are on the page, and its sample step unless it still answers.
+  small:
+    name: Web IDE small window (${{ matrix.browser }}, ${{ matrix.size }})
+    needs: engine
+    if: ${{ !inputs.release }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        size: [800x500, 640x480]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the engine
+        uses: actions/download-artifact@v8
+        with:
+          name: web-ide-engine
+          path: ${{ runner.temp }}/web-ide-engine
+
+      # As the screenshots' job
+      - name: Download the release's Linux package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-linux-x86_64.tar.xz" --dir "$RUNNER_TEMP/dist"
+          tar -xJf "$RUNNER_TEMP"/dist/*-linux-x86_64.tar.xz -C "$RUNNER_TEMP/oxt"
+          home=$(find "$RUNNER_TEMP/oxt" -maxdepth 4 -path '*/Toolset/home.livecodescript' | head -n 1)
+          if [ -z "$home" ]; then echo "::error::the package has no Toolset/home.livecodescript"; exit 1; fi
+          echo "OXT_ROOT=$(dirname "$(dirname "$home")")" >> "$GITHUB_ENV"
+
+      - name: Build the site
+        run: |
+          python3 tools/web-ide/build_site.py --install "$OXT_ROOT" \
+            --engine "$RUNNER_TEMP/web-ide-engine" --out "$RUNNER_TEMP/site" --repo .
+
+      - name: Install Playwright and ${{ matrix.browser }}
+        env:
+          PLAYWRIGHT_VERSION: 1.56.0
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/playwright"
+          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+
+      - name: Web IDE in a small window
+        timeout-minutes: 10
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SIZE: ${{ matrix.size }}
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+            --out "$RUNNER_TEMP/web-ide-small" --browser "$BROWSER" --size "$SIZE" \
+            --only start,sample --timeout 480
+
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-ide-small-${{ matrix.browser }}-${{ matrix.size }}
+          path: ${{ runner.temp }}/web-ide-small
+          if-no-files-found: ignore
+          retention-days: 14
 
   soak:
     name: Web IDE soak (${{ matrix.browser }})

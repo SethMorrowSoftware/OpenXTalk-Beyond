@@ -21,12 +21,16 @@ made in headless Chromium and walks through the IDE's windows.
   python3 tools/ci/web_ide_tour.py --site DIR --out DIR [--browser NAME]
       [--timeout SECONDS] [--only STEPS] [--keep-serving]
       [--tour FILE] [--add FILE]... [--replace PATH=FILE]... [--relay]
+      [--size WIDTHxHEIGHT] [--color-scheme light|dark]
 
 --site is the web IDE's site (index.html, the engine and ide.zip). The
 script copies it into <out>/site, adds tools/ci/web-ide-tour.livecodescript
 to the copy's ide.zip as the script library extension oxtwebidetour (the
 IDE loads it as it starts, as every extension), serves the copy on
-127.0.0.1 and opens it at 1400 x 900. The site itself is not changed.
+127.0.0.1 and opens it at 1400 x 900 (or the --size given: a page
+smaller than Home, 800x500 or 640x480, is how OpenXTalkPaul's Firefox
+window once kept the IDE on its loading screen, openxtalk.org p=25583).
+The site itself is not changed.
 
 Once the IDE has opened (the page hides its loading screen), the script
 takes a screenshot of the page as a first visit shows it (00-first-visit,
@@ -103,6 +107,14 @@ window.oxtTour = {
 '''
 
 WIDTH, HEIGHT = 1400, 900
+
+
+def page_size(text):
+    """(width, height) of --size's WIDTHxHEIGHT."""
+    width, sep, height = text.lower().partition('x')
+    if not (sep and width.isdigit() and height.isdigit() and int(width) >= 200 and int(height) >= 200):
+        raise argparse.ArgumentTypeError('%r is not WIDTHxHEIGHT, each 200 or more' % text)
+    return int(width), int(height)
 
 # What the page shows while the IDE loads, and when it fails
 # (tools/web-ide/index.html)
@@ -211,7 +223,7 @@ def summary(problems, shots, finished):
             f.write('\n')
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--site', required=True, help='the web IDE site (build_site.py --out)')
     ap.add_argument('--out', required=True, help='the folder for the screenshots and logs (replaced)')
@@ -227,7 +239,11 @@ def main():
     ap.add_argument('--replace', action='append', default=[], metavar='PATH=FILE',
                     help='a file of the copy\'s ide.zip to replace')
     ap.add_argument('--relay', action='store_true', help='run a local Nostr relay for the tour')
-    args = ap.parse_args()
+    ap.add_argument('--color-scheme', default='light', choices=['light', 'dark'],
+                    help='the colour scheme the browser asks pages for (default light)')
+    ap.add_argument('--size', type=page_size, default=(WIDTH, HEIGHT), metavar='WIDTHxHEIGHT',
+                    help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
+    args = ap.parse_args(argv)
     replace = []
     for item in args.replace:
         path, sep, src = item.partition('=')
@@ -247,7 +263,7 @@ def main():
     server = serve(site)
     url = 'http://127.0.0.1:%d/' % server.server_address[1]
     log('Site  : %s (a copy of %s, with the tour)' % (site, args.site))
-    log('Page  : %s' % url)
+    log('Page  : %s at %dx%d, %s' % (url, args.size[0], args.size[1], args.color_scheme))
     relay_url = ''
     if args.relay:
         sys.path.insert(0, HERE)
@@ -266,7 +282,8 @@ def main():
 
     with sync_playwright() as p:
         browser = getattr(p, args.browser).launch()
-        page = browser.new_page(viewport={'width': WIDTH, 'height': HEIGHT})
+        page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
+                                color_scheme=args.color_scheme)
         page.on('console', lambda m: console.write('%s %s %s\n' % (stamp(), m.type, m.text)))
 
         def page_error(error):
@@ -381,6 +398,8 @@ def act(page, words, shots_dir, shots, problems):
             page.click('.oxt-dialog-default', timeout=5000)
         elif verb == 'size' and len(rest) == 2:
             page.set_viewport_size({'width': int(rest[0]), 'height': int(rest[1])})
+        elif verb == 'scheme' and len(rest) == 1 and rest[0] in ('light', 'dark'):
+            page.emulate_media(color_scheme=rest[0])
         else:
             problems.append('the tour asked for what the page cannot do: %s' % ' '.join(words))
     except Exception as e:  # noqa: BLE001

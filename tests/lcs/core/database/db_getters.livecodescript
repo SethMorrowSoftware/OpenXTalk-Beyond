@@ -38,19 +38,36 @@ command createTables pConnection, pStrings
    end repeat
 end createTables
 
+-- OXT-Beyond: run against the MySQL server that the environment names
+-- (OXT_TEST_MYSQL_HOST and the rest, as server_databases.livecodescript
+-- says), and skipped when there is none; LiveCode's skipped always. The
+-- tables are dropped afterwards, and only they are counted, since the
+-- other database tests share the database.
 on TestDBTableGettersMySQL
-   TestSkip "skipping DB test", "cannot use mysql in database tests"
-   exit TestDBTableGettersMySQL
-   
    TestSkipIfNot "database", "mysql"
+   if $OXT_TEST_MYSQL_HOST is empty then
+      TestSkip "skipping DB test", "no mysql server: OXT_TEST_MYSQL_HOST is not set"
+      exit TestDBTableGettersMySQL
+   end if
 
    TestLoadExternal "revdb"
    
    local tArray
    put generateStrings() into tArray
    local tDatabaseID, tNames
-   put revOpenDatabase("mysql","localhost","t2","root","test_password",false,"/tmp/mysql.sock",10,true) into tDatabaseID
-   createTables(tDatabaseID, tArray)
+   put revOpenDatabase("mysql",$OXT_TEST_MYSQL_HOST,$OXT_TEST_MYSQL_DATABASE,$OXT_TEST_MYSQL_USER,$OXT_TEST_MYSQL_PASSWORD,false) into tDatabaseID
+   TestAssert "connect", tDatabaseID is an integer
+   dropTables tDatabaseID, tArray
+   createTables tDatabaseID, tArray
    put revDatabaseTableNames(tDatabaseID) into tNames
+   filter tNames with regex pattern "^Table[0-9]+$"
    TestAssert "check the correct things are returned", the number of lines in tNames is 1800
+   dropTables tDatabaseID, tArray
+   revCloseDatabase tDatabaseID
 end TestDBTableGettersMySQL
+
+command dropTables pConnection, pStrings
+   repeat with tCounter = 1 to 1800
+      revExecuteSQL pConnection, "DROP TABLE IF EXISTS" && pStrings[tCounter]
+   end repeat
+end dropTables

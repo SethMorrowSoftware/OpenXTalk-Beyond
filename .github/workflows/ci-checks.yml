@@ -29,7 +29,15 @@
 #     publishes them (tools/ci/release_assets.py, release_notes.py), and
 #     the text dictionary's generator (tools/oxt/text_dictionary.py);
 #   - tools/ci/changelog.py check: the changelog fragments of changelog
-#     are CHANGELOG.md's "- " lines, ready to fold into it.
+#     are CHANGELOG.md's "- " lines, ready to fold into it;
+#   - tools/ci/runtimes_provenance.py: how many commits that change the
+#     engine's source the runtimes asset (the other platforms' standalone
+#     runtimes) is behind, as a warning in the job summary.
+#
+# The job CI scripts on Windows and macOS runs the same unit tests on
+# windows-latest and macos-15 (modernization report MOD-06): the build
+# workflows run these scripts there too, so a script that only works on
+# Linux shows here.
 #
 # A change to this workflow or to the tests alone starts no build (the build
 # workflows' paths-ignore lists have them).
@@ -60,10 +68,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # (the whole history: the runtimes' provenance step looks back to
+      # the commit the runtimes asset was built from)
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # A pinned release, checked against its published SHA-256
       - name: Lint the workflows (actionlint)
@@ -90,3 +101,41 @@ jobs:
 
       - name: Check the changelog fragments
         run: python3 tools/ci/changelog.py check
+
+      # A warning in the summary, never a failure: rebuilding the runtimes
+      # is seth's decision (--fail-on-stale is there for when it is made)
+      - name: Runtimes asset provenance
+        run: python3 tools/ci/runtimes_provenance.py
+
+  other-os:
+    name: CI scripts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    steps:
+      # The files as they are in git, LF line endings and all, as the
+      # Linux job sees them (Windows' git would make them CRLF).
+      # .gitattributes marks the sources "text", which checks them out
+      # with core.eol whatever core.autocrlf says, so both are set
+      - name: Keep LF line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the CI scripts
+        run: |
+          python --version
+          python -m pip install --quiet pyyaml
+          python -m unittest discover -s tools/ci/tests -v

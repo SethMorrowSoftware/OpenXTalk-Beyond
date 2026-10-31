@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3152,6 +3152,49 @@ function tourRoomBeside pBeside, pWindow, pAvoid, pScreen
    return line 1 to -1 of tRoom
 end tourRoomBeside
 
+-- A widget colour whose default is a colour of its own (the header bar's
+-- text colour, 0,0,0) can be cleared in the inspector, so that the widget
+-- inherits its colour again, as a script can do (OpenXTalkPaul,
+-- openxtalk.org p=25683): its editor offers Clear while it has a colour,
+-- and Clear sets the property to empty. A colour editor whose default is
+-- empty offers no Clear (Reset to default does it)
+on tour_inspector_clear_colour
+   local tWidget, tPI, tEditor, tFails, tError
+   get tourSampleStack()
+   go stack kSample
+   set the defaultStack to kSample
+   create widget "oxtTourHeader" as "com.livecode.widget.headerbar"
+   put it into tWidget
+   set the foregroundColor of tWidget to "200,0,0"
+   try
+      put tourInspect(tWidget) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "foregroundColor") into tEditor
+      if tEditor is empty then throw "the header bar's inspector has no Text color"
+      repeat 30 times
+         if the editorValue of tEditor is "200,0,0" then exit repeat
+         tourWait 100
+      end repeat
+      if the editorCanClear of tEditor is not true then
+         put "Text color (200,0,0, default 0,0,0) offers no Clear" & return after tFails
+      end if
+      -- as a pick of Clear in the editor's menu (editorPopupMenu's button)
+      if there is not a button "inspectMenu" of tEditor then create button "inspectMenu" in tEditor
+      dispatch "menuPick" to button "inspectMenu" of tEditor with "Clear (no colour of its own)"
+      tourWait 500
+      tourRecord "INFO inspector-clear-colour the header bar's foregroundColor after Clear:" && \
+            quote & the foregroundColor of tWidget & quote
+      if the foregroundColor of tWidget is not empty then
+         put "Clear left the foregroundColor" && the foregroundColor of tWidget & return after tFails
+      end if
+   catch tError
+      put tError & return after tFails
+   end try
+   tourCloseInspectors
+   if exists(tWidget) then delete tWidget
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_clear_colour
+
 on tour_inspector_multiple
    local tPI
    put tourInspect(tourSample("Push") & return & tourSample("Text") & return & tourSample("Box")) into tPI
@@ -3370,8 +3413,50 @@ on tour_project_browser
    if tInk is "blendExclusion" and tRows is not "255,255,255" then
       throw "the Project Browser inverts rows that are dark already (" & tRows & "), so they show light"
    end if
+   -- Linux: a hilited row's text stands out from the hilite, the GTK
+   -- theme's selection colour, whatever it is (bwmilby, openxtalk.org
+   -- p=25550: Ubuntu's yellow and purple): this desktop's, and those two
+   local tHilite, tText, tRatio, tHilites
+   if the platform is "Linux" then
+      put "255,221,0;119,33,111;233,84,32" into tHilites
+      if the number of items of the hiliteColor is 3 then put the hiliteColor & ";" before tHilites
+      set the itemDelimiter to ";"
+      repeat for each item tHilite in tHilites
+         set the itemDelimiter to comma
+         put revIDEHilitedTextColor(tHilite) into tText
+         put tourContrast(tHilite, tText) into tRatio
+         tourRecord "INFO the Project Browser's hilited text on" && tHilite & ":" && tText && "(contrast" && tRatio & ")"
+         if tRatio < 4.5 then
+            close stack tStack
+            throw "a hilited Project Browser row's text" && tText && "is unreadable on its hilite" && tHilite && \
+                  "(contrast" && tRatio & ")"
+         end if
+         set the itemDelimiter to ";"
+      end repeat
+      set the itemDelimiter to comma
+   end if
    close stack tStack
 end tour_project_browser
+
+-- The WCAG contrast ratio of two RGB colours
+function tourContrast pOne, pTwo
+   local tL1, tL2
+   put tourLuminance(pOne) into tL1
+   put tourLuminance(pTwo) into tL2
+   return round((max(tL1, tL2) + 0.05) / (min(tL1, tL2) + 0.05), 2)
+end tourContrast
+
+function tourLuminance pColour
+   local tL, i, tV
+   put 0 into tL
+   repeat with i = 1 to 3
+      put item i of pColour / 255 into tV
+      if tV <= 0.03928 then put tV / 12.92 into tV
+      else put ((tV + 0.055) / 1.055) ^ 2.4 into tV
+      add tV * item i of "0.2126,0.7152,0.0722" to tL
+   end repeat
+   return tL
+end tourLuminance
 
 -- As Help > Dictionary does: LiveCode's Dictionary, the default, in a
 -- palette with a browser widget, or in the system's browser where there is
@@ -3612,7 +3697,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed
    put revIDEPaletteToStackName("preferences") into tStack
    revIDEOpenPalette "preferences"
    tourWait 1500
@@ -3626,6 +3711,21 @@ on tour_preferences
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
    end repeat
+   -- The Script Editor pane's colour scheme menu shows its longest choice,
+   -- "Follow System Appearance", whole (bwmilby, openxtalk.org p=25582: it
+   -- was cut off in 146 pixels): the text, measured in the button's own
+   -- font, and 16 pixels for the menu's arrow and margins
+   put the long id of button "Colorization Scheme" of card "Script Editor" of stack tStack into tMenu
+   put 0 into tNeed
+   repeat for each line tItem in the text of tMenu
+      put max(tNeed, measureText(tItem, tMenu) + 16) into tNeed
+   end repeat
+   tourRecord "INFO preferences colour scheme menu: width" && the width of tMenu & ", needs" && tNeed
+   if the width of tMenu < tNeed then
+      close stack tStack
+      throw "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
+            "pixels wide; its longest choice needs" && tNeed
+   end if
    close stack tStack
 end tour_preferences
 
@@ -4551,6 +4651,105 @@ on tour_icon_chooser
    tourShotStack "revIconChooser", "27-icon-chooser"
    close stack "revIconChooser"
 end tour_icon_chooser
+
+-- macOS: the system switched between light and dark while the IDE runs,
+-- as System Settings does it (the global AppleInterfaceStyle written, then
+-- AppleInterfaceThemeChangedNotification posted), there and back. Each
+-- switch must send systemAppearanceChanged, and the systemAppearance read
+-- in its handler must already be the new one: NSUserDefaults' cached copy
+-- of the setting once gave the old one, so the IDE stayed on the
+-- appearance it left (bwmilby, openxtalk.org p=25665, p=25668). Other
+-- platforms: skipped (Linux draws light; Windows is switched through the
+-- registry by ui_tour.py only before the start)
+on tour_system_switch
+   global gTourSystemSeen
+   local tStart, tOther, tTarget, tSeen, tFails, tWaited, tError
+   if the platform is not "MacOS" then
+      tourRecord "INFO system-switch: macOS only"
+      exit tour_system_switch
+   end if
+   put the systemAppearance into tStart
+   if tStart is "dark" then put "light" into tOther
+   else put "dark" into tOther
+   if there is a button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" then \
+         delete button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour"
+   create button "oxtTourSystemWatch" in card 1 of stack "oxt_ui_tour"
+   set the script of it to "on systemAppearanceChanged" & return & \
+         "global gTourSystemSeen" & return & \
+         "put the systemAppearance & comma after gTourSystemSeen" & return & \
+         "pass systemAppearanceChanged" & return & "end systemAppearanceChanged"
+   insert the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" into front
+   try
+      repeat for each item tTarget in tOther & comma & tStart
+         put empty into gTourSystemSeen
+         tourSystemSet tTarget
+         put 0 into tWaited
+         repeat while gTourSystemSeen is empty and tWaited < 5000
+            tourWait 250
+            add 250 to tWaited
+         end repeat
+         -- a second notification for one switch (NSSystemColorsDidChange)
+         tourWait 750
+         put gTourSystemSeen into tSeen
+         if char -1 of tSeen is comma then delete char -1 of tSeen
+         tourRecord "INFO system-switch to" && tTarget & ": systemAppearanceChanged with" && \
+               quote & tSeen & quote & ", the systemAppearance now" && the systemAppearance
+         if tSeen is empty then
+            put "no systemAppearanceChanged for the switch to" && tTarget & return after tFails
+         else if item 1 of tSeen is not tTarget then
+            put "the switch to" && tTarget && "gave systemAppearanceChanged with the systemAppearance" && \
+                  item 1 of tSeen & return after tFails
+         end if
+         if the systemAppearance is not tTarget then
+            put "after the switch to" && tTarget && "the systemAppearance is" && the systemAppearance & return after tFails
+         end if
+      end repeat
+   catch tError
+      put tError & return after tFails
+   end try
+   remove the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" from front
+   delete button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_system_switch
+
+-- Sets the Mac to pAppearance (light or dark) as System Settings does.
+-- The notification is posted by a small native program that stays alive
+-- until it has gone: one posted through osascript (JavaScript for
+-- Automation) never reached an observer on a CI Mac, an engine's or a
+-- plain Swift program's, while the same post from a Swift program did
+-- (probe on macos-15, 15.8.2, 2026-10-31)
+command tourSystemSet pAppearance
+   local tPoster
+   if pAppearance is "dark" then
+      get shell("defaults write -g AppleInterfaceStyle Dark")
+   else
+      get shell("defaults delete -g AppleInterfaceStyle 2>/dev/null; true")
+   end if
+   put tourThemePoster() into tPoster
+   get shell(quote & tPoster & quote & " 2>&1")
+   if it is not empty then tourRecord "INFO system-switch poster:" && tourJoin(it)
+end tourSystemSet
+
+-- The path of the program that posts AppleInterfaceThemeChangedNotification,
+-- compiled with swiftc the first time it is wanted; throws when it cannot
+-- be built, so that the step fails rather than checks nothing
+local sThemePoster
+function tourThemePoster
+   local tSource, tBinary, tOut
+   if sThemePoster is not empty and there is a file sThemePoster then return sThemePoster
+   put specialFolderPath("temporary") & "/oxt_tour_theme_post.swift" into tSource
+   put specialFolderPath("temporary") & "/oxt_tour_theme_post" into tBinary
+   put "import Foundation" & return & \
+         "DistributedNotificationCenter.default().postNotificationName(" & \
+         "NSNotification.Name(" & quote & "AppleInterfaceThemeChangedNotification" & quote & ")," & \
+         " object: nil, userInfo: nil, deliverImmediately: true)" & return & \
+         "RunLoop.main.run(until: Date().addingTimeInterval(0.5))" & return into URL ("file:" & tSource)
+   if there is a file tBinary then delete file tBinary
+   put shell("xcrun swiftc -O -o " & quote & tBinary & quote && quote & tSource & quote & " 2>&1") into tOut
+   if there is not a file tBinary then throw "could not build the theme poster:" && tourJoin(tOut)
+   put tBinary into sThemePoster
+   return sThemePoster
+end tourThemePoster
 
 on tour_screen_end
    tourShotScreen "99-screen-end"

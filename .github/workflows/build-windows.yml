@@ -697,6 +697,24 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: ./tools/ci/ide-compile-check.ps1 -Root "dist/stage/OXT-Beyond-$env:VERSION" -LogFile "$env:RUNNER_TEMP\build-logs\ide-compile-check.log"
 
+      # Where every binary of the package came from, as a CI artifact
+      # only (tools/ci/release_inventory.py; never a release asset)
+      - name: Release inventory
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\inventory" | Out-Null
+          python tools/ci/release_inventory.py "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --commit $env:COMMIT --out "$env:RUNNER_TEMP\inventory\release-inventory-win-x86_64.json"
+
+      - name: Upload the release inventory
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-inventory-win-x86_64
+          path: ${{ runner.temp }}/inventory
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Editor theme preferences and downgrade compatibility
         timeout-minutes: 5
         run: |
