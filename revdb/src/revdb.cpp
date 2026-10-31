@@ -939,13 +939,16 @@ void REVDB_Commit(char *args[], int nargs, char **retstring, Bool *pass, Bool *e
 /// @par MySQL
 /// Has no affect.
 /// @par ODBC
-/// Has no affect.
+/// Rolls back with SQLEndTran(..., SQL_ROLLBACK), which only matters when
+/// the connection's autocommit is off.
 /// @par Oracle
 /// Rolls back the last transaction using orol().
 /// @par Postgresql
 /// Rolls back the last trasaction using PQExec(..., "ROLLBACK").
 /// @par SQLite
 /// Rolls back the last transaction using basicExec("rollback").
+/// (Until OXT-Beyond 0.2.7-rc.6.10, transCommit was called here instead, so
+/// PostgreSQL, SQLite and ODBC committed.)
 /// \return Empty if successful, an error string otherwise.
 void REVDB_Rollback(char *args[], int nargs, char **retstring, Bool *pass, Bool *error)
 {
@@ -958,8 +961,13 @@ void REVDB_Rollback(char *args[], int nargs, char **retstring, Bool *pass, Bool 
 		int connectionid = atoi(*args);
 		DBConnection *theconnection = (DBConnection *)connectionlist.find(connectionid);
 
+		// OXT-Beyond: transRollback, as the command's name and its
+		// dictionary entry say; it called transCommit, so a "rolled back"
+		// PostgreSQL or SQLite transaction was committed (seth's decision,
+		// 2026-10-31). MySQL's transRollback does nothing, as its
+		// transCommit does, so MySQL is unchanged
 		if (theconnection)
-			theconnection->transCommit();
+			theconnection->transRollback();
 		else 
 		{
 			result = istrdup(errors[REVDBERR_BADCONNECTION]);

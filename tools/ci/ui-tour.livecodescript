@@ -3730,9 +3730,16 @@ on tour_preferences
 end tour_preferences
 
 on tour_standalone_settings
-   local tStack, tFile, tCards, tCard, tIndex, tDefault, i
+   local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow
    -- the settings are for a saved stack
    go stack kSample
+   -- set up on a Mac to build for Apple Silicon and Intel, the stack keeps
+   -- those targets when its OS X card is looked at on Linux or Windows,
+   -- where they cannot be changed (it turned them all off)
+   put tourMacTargets() into tMacWas
+   set the cRevStandaloneSettings["MacOSX x86-32"] of stack kSample to false
+   set the cRevStandaloneSettings["MacOSX x86-64"] of stack kSample to true
+   set the cRevStandaloneSettings["MacOSX x64-ARM64"] of stack kSample to true
    put specialFolderPath("temporary") & "/oxt_tour_sample.oxtstack" into tFile
    save stack kSample as tFile
    revIDEStandaloneSettingsForStack the long id of stack kSample
@@ -3776,7 +3783,39 @@ on tour_standalone_settings
       end if
    end repeat
    close stack tStack
+   put tourMacTargets() into tMacNow
+   tourRecord "INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards:" && tMacNow
+   tourSetMacTargets tMacWas
+   if the platform is not "MacOS" then
+      if "OS X" is not among the lines of tCards then
+         throw "the OS X card is not shown, so its keeping the Mac targets was not checked"
+      end if
+      if tMacNow is not "false,true,true" then
+         throw "the OS X card changed the stack's Mac targets (x86-32, x86-64, ARM64) from false,true,true to" && tMacNow
+      end if
+   end if
 end tour_standalone_settings
+
+-- The sample stack's three Mac targets, x86-32, x86-64 and ARM64, as one
+-- line of what each setting holds
+private function tourMacTargets
+   local tLine, tKey
+   repeat for each item tKey in "MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64"
+      put the cRevStandaloneSettings[tKey] of stack kSample & comma after tLine
+   end repeat
+   delete char -1 of tLine
+   return tLine
+end tourMacTargets
+
+-- Put back what tourMacTargets read
+private command tourSetMacTargets pLine
+   local i, tKey
+   put 0 into i
+   repeat for each item tKey in "MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64"
+      add 1 to i
+      set the cRevStandaloneSettings[tKey] of stack kSample to item i of pLine
+   end repeat
+end tourSetMacTargets
 
 -- mergJSON, built from its source into Ext/mergJSON (tools/oxt/package.py
 -- EXT_FILES), as LiveCode's installer put its mergExt collection there:

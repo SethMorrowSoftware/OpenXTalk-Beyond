@@ -287,6 +287,15 @@ on revInternal__openStack
    catch tError
       -- an engine without the property
    end try
+   -- OXT-Beyond: on Linux, the systemAppearance following the desktop's
+   -- light or dark setting (Preferences > Appearance, which sets the global
+   -- useDesktopAppearance as well), off unless the user turns it on
+   if the cUseDesktopAppearance of stack "revPreferences" is not true then set the cUseDesktopAppearance of stack "revPreferences" to false
+   try
+      do "set the useDesktopAppearance to" && (the cUseDesktopAppearance of stack "revPreferences" is true)
+   catch tError
+      -- an engine without the property
+   end try
    -- added as of 13-4-24 (tperry)
    if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
    -- (cDisableBrowserWidget and cDisablePlayerTool: revInternal__InitialiseMediaTools)

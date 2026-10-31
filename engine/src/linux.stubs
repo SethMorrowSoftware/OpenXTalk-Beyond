@@ -672,6 +672,16 @@ glib libglib-2.0.so.0
 	g_slist_free: (pointer) -> ()
 	g_get_user_special_dir: (integer) -> (pointer)
 
+# OXT-Beyond: the desktop's light or dark setting, for the
+# useDesktopAppearance (lnxgtktheme.cpp)
+gio libgio-2.0.so.0
+	g_settings_schema_source_get_default: () -> (pointer)
+	g_settings_schema_source_lookup: (pointer, pointer, integer) -> (pointer)
+	g_settings_schema_has_key: (pointer, pointer) -> (integer)
+	g_settings_schema_unref: (pointer) -> ()
+	g_settings_new: (pointer) -> (pointer)
+	g_settings_get_string: (pointer, pointer) -> (pointer)
+
 esd libesd.so.0
 	esd_close: (integer) -> (integer)
 	esd_play_stream: (integer, integer, pointer, pointer) -> (integer)

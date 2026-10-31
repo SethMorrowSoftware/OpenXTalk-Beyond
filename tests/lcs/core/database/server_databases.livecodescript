@@ -21,8 +21,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- they do today, so that a later change of the client libraries (the
 -- plan's MOD-D3) has a baseline to be compared with. These tests pin the
 -- drivers' current behaviour, including where it is surprising (MySQL's
--- revCommitDatabase and revRollBackDatabase do nothing), and change no
--- driver.
+-- revCommitDatabase and revRollBackDatabase do nothing).
 --
 -- A server is used only when the environment names it, so everywhere
 -- else (the build jobs' engine tests, a developer's machine) every test
@@ -174,13 +173,24 @@ private command __TestTLS pDriver, pCheckSQL, pColumn, pBrokenReason
 end __TestTLS
 
 on TestMySQLTLS
-   -- The client library (thirdparty/libmysql, Connector/C 6.0) asks for
+   -- The client library (thirdparty/libmysql, Connector/C 6.0) asked for
    -- TLS 1.0 alone (TLSv1_client_method in viosslfactories.c), which
-   -- MySQL 8.0.28 and later and current MariaDB refuse: "SSL connection
-   -- error" (found 2026-10-31, for seth: the plan's MOD-D3). Ssl_cipher
-   -- is empty in a session without TLS.
-   __TestTLS "mysql", "SHOW SESSION STATUS LIKE 'Ssl_cipher'", 2, \
-         "the MySQL client library speaks TLS 1.0 only, which current servers refuse"
+   -- OpenSSL 3 at its default security level, MySQL 8.0.28 and later and
+   -- current MariaDB refuse: "SSL connection error" (found 2026-10-31).
+   -- It asks for any version both ends share now (TLS_method; seth's
+   -- decision the same day), and the session must say which.
+   -- Ssl_cipher is empty in a session without TLS.
+   __TestTLS "mysql", "SHOW SESSION STATUS LIKE 'Ssl_cipher'", 2
+   -- (__TestTLS skips the test without a TLS server, and disconnects)
+   put __Open("mysql", true) into lDatabaseID
+   if lDatabaseID is an integer then
+      local tVersion
+      put revDataFromQuery(tab, return, lDatabaseID, "SHOW SESSION STATUS LIKE 'Ssl_version'") into tVersion
+      TestDiagnostic "mysql TLS version: " & tVersion
+      TestAssert "mysql: the session uses TLS 1.2 or later (" & tVersion & ")", \
+            __Field(tVersion, 2) is among the items of "TLSv1.2,TLSv1.3"
+   end if
+   __Disconnect
 end TestMySQLTLS
 
 on TestPostgreSQLTLS
@@ -283,12 +293,12 @@ end TestPostgreSQLBinary
 -- - MySQL's revRollBackDatabase and revCommitDatabase do nothing
 --   (dbmysql's transCommit and transRollback are empty, as revdb.cpp's
 --   comments say), and the script ends the transaction with SQL.
--- - PostgreSQL's revCommitDatabase commits it, and so does its
---   revRollBackDatabase: REVDB_Rollback (revdb.cpp) calls transCommit,
---   not transRollback, so a "rolled back" transaction is kept. That is
---   asserted as broken, not fixed here: a fix changes what scripts see
---   (found 2026-10-31, for seth). SQLite's revRollBackDatabase goes
---   through the same REVDB_Rollback.
+-- - PostgreSQL's revCommitDatabase commits it, and its
+--   revRollBackDatabase rolls it back. Until 0.2.7-rc.6.10 REVDB_Rollback
+--   (revdb.cpp) called transCommit, not transRollback, so a "rolled back"
+--   transaction was kept (found 2026-10-31; fixed on seth's decision the
+--   same day). SQLite's revRollBackDatabase goes through the same
+--   REVDB_Rollback (sqlite_rollback.livecodescript).
 
 private command __TestTransactions pDriver, pBegin
    __SkipUnlessServer pDriver
@@ -322,10 +332,7 @@ private command __TestTransactions pDriver, pBegin
       __Exec "ROLLBACK"
       TestAssert pDriver & ": then SQL ROLLBACK undoes it", __Count("oxt_trans") is 1
    else
-      TestAssertBroken pDriver & ": revRollBackDatabase undoes the transaction", __Count("oxt_trans") is 1, \
-            "REVDB_Rollback calls transCommit, so the transaction is committed"
-      -- Whatever it did, no transaction is open now
-      __Exec "ROLLBACK"
+      TestAssert pDriver & ": revRollBackDatabase undoes the transaction", __Count("oxt_trans") is 1
    end if
    put __Count("oxt_trans") into tKept
 

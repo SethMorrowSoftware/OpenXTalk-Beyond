@@ -4,7 +4,46 @@ script "stack_revPreferencesGUI_card_id_1008"
 -- Made from the stack by tools/oxt/stack-scripts.sh; the stack holds
 -- the script that runs, so change it there, not here.
 
+-- OXT-Beyond: makes the check box for the preference cUseDesktopAppearance
+-- on Linux (once; the stack file is not saved), where the Mac's check box
+-- would be, and shows its setting. While it is ticked the systemAppearance
+-- follows the desktop's light or dark setting (GNOME's color-scheme), so
+-- the IDE's palettes go dark with the desktop
+on oxtPrefsDesktopAppearanceBox
+   local tBox, tRect
+   if the platform is not "Linux" then exit oxtPrefsDesktopAppearanceBox
+   if there is not a button "useDesktopAppearance" of me then
+      lock messages
+      copy button "gridCheckAtStartup" of me to group "Appearance" of me
+      put it into tBox
+      set the name of tBox to "useDesktopAppearance"
+      set the label of button "useDesktopAppearance" of me to "Follow the desktop's light or dark setting"
+      set the toolTip of button "useDesktopAppearance" of me to "The IDE goes dark when the desktop is set to dark (GNOME's colour scheme), and light again with it"
+      put the rect of button "gridCheckAtStartup" of me into tRect
+      put item 2 of tRect - 33 into item 2 of tRect
+      put item 4 of tRect - 33 into item 4 of tRect
+      put item 1 of tRect + 300 into item 3 of tRect
+      set the rect of button "useDesktopAppearance" of me to tRect
+      set the script of button "useDesktopAppearance" of me to "on mouseUp" & return & "   oxtPrefsSetDesktopAppearance the hilite of me" & return & "end mouseUp"
+      unlock messages
+   end if
+   set the hilite of button "useDesktopAppearance" of me to (the cUseDesktopAppearance of stack "revPreferences" is true)
+end oxtPrefsDesktopAppearanceBox
+
+on oxtPrefsSetDesktopAppearance pValue
+   local tError
+   revIDESetPreference "cUseDesktopAppearance", (pValue is true)
+   try
+      do "set the useDesktopAppearance to" && (pValue is true)
+   catch tError
+      -- an engine without the property
+   end try
+end oxtPrefsSetDesktopAppearance
+
 on preOpenCard
+   -- OXT-Beyond: on Linux, the desktop's light or dark setting (the
+   -- global useDesktopAppearance)
+   oxtPrefsDesktopAppearanceBox
    set the label of button "rulers" to the cREVRulerMeasurement of stack "revPreferences"
    put the cGridSize of stack "revPreferences" into field "gridSize"
    

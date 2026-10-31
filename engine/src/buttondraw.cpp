@@ -960,9 +960,11 @@ void MCButton::drawcheck(MCDC *dc, MCRectangle &srect, Boolean white)
 #if defined(TARGET_PLATFORM_LINUX)
 				// OXT-Beyond: a menu item's tick, on Linux by the theme's
 				// menu (MCButtonMenuItemIsOnDarkTheme); a check box's stays
-				// black on its white box
-				if (MCButtonMenuItemIsOnDarkTheme(this, dc))
-					t_appearance = kMCSystemAppearanceDark;
+				// black on its white box. The theme alone decides, not the
+				// systemAppearance, which can say "dark" on a light GTK
+				// theme when a script follows the desktop's setting (the
+				// useDesktopAppearance)
+				t_appearance = MCButtonMenuItemIsOnDarkTheme(this, dc) ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
 #elif defined(__EMSCRIPTEN__)
 				// OXT-Beyond: on the web a check box's box is white in the
 				// dark appearance too (a page that follows a dark browser:
@@ -1406,10 +1408,9 @@ void MCButton::drawcascade(MCDC *dc, MCRectangle &srect)
 		MCSystemAppearance t_appearance;
 		MCscreen->getsystemappearance(t_appearance);
 #if defined(TARGET_PLATFORM_LINUX)
-		// OXT-Beyond: a submenu's arrow, on Linux by the theme's menu, as
-		// the tick in drawcheck (MCButtonMenuItemIsOnDarkTheme)
-		if (MCButtonMenuItemIsOnDarkTheme(this, dc))
-			t_appearance = kMCSystemAppearanceDark;
+		// OXT-Beyond: a submenu's arrow, on Linux by the theme's menu alone,
+		// as the tick in drawcheck (MCButtonMenuItemIsOnDarkTheme)
+		t_appearance = MCButtonMenuItemIsOnDarkTheme(this, dc) ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
 #endif
 		if (t_appearance == kMCSystemAppearanceDark)
 			dc->setforeground(dc->getwhite());

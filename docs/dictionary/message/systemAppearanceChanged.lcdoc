@@ -35,12 +35,16 @@ On Linux the message is sent when the desktop's GTK theme changes, which is
 how a desktop switches between light and dark there; the <systemAppearance>
 itself reports "light" on Linux, so a handler can compare the
 <effective> <backgroundColor> of a stack to tell a dark theme from a light
-one.
+one. While the <useDesktopAppearance> is true, the <systemAppearance>
+follows the desktop's light or dark setting instead, and the message is
+also sent when GNOME's "color-scheme" setting switches it, and when setting
+the <useDesktopAppearance> changes it.
 
 In an HTML5 standalone the message is sent when the browser's colour scheme
 changes, on a page built with **Appearance** set to **Follow the browser**
 in the Web pane of the Standalone Application Settings.
 
 References: systemAppearance (property), message (glossary), defaultStack (property),
-current card (glossary), effective (keyword), backgroundColor (property)
+current card (glossary), effective (keyword), backgroundColor (property),
+useDesktopAppearance (property)
 

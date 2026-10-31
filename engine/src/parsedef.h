@@ -1784,6 +1784,9 @@ enum Properties {
     // OXT-Beyond: the global useSystemWindowColor
     P_USE_SYSTEM_WINDOW_COLOR,
     
+    // OXT-Beyond: the global useDesktopAppearance
+    P_USE_DESKTOP_APPEARANCE,
+    
     __P_LAST,
 };
 

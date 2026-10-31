@@ -596,6 +596,21 @@ jobs:
         timeout-minutes: 45
         run: python3 tools/ci/run_engine_tests.py --bin "linux-$ARCH-bin" --jobs 4 --log engine-tests.log
 
+      # The tests of a fix of a use of freed memory, again under valgrind's
+      # memcheck (tools/ci/memcheck_tests.py): such a use need not crash,
+      # so its test can pass while the engine is still wrong. On
+      # 0.2.7-rc.6.9 memcheck reports an invalid read and an invalid write
+      # in each of these (the Script Editor's Breakpoints pane's crash).
+      - name: Memory check (valgrind)
+        if: matrix.arch == 'x86_64'
+        timeout-minutes: 30
+        run: |
+          apt-get install -y --no-install-recommends valgrind > /dev/null 2>&1 || {
+            apt-get update > /dev/null && apt-get install -y --no-install-recommends valgrind > /dev/null; }
+          python3 tools/ci/memcheck_tests.py --bin "linux-$ARCH-bin" --log memcheck.log \
+            core/interface/delete.livecodescript:TestDeleteGroupOfTarget \
+            core/interface/delete.livecodescript:TestDeleteStackOfTarget
+
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
       - name: Record the finished build
@@ -614,6 +629,7 @@ jobs:
             prebuilt/build/**/*.log
             ide-compile-check.log
             engine-tests.log
+            memcheck.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -1099,11 +1115,13 @@ jobs:
           # and ImageMagick: the browser window manager check; the Adwaita GTK 2 themes, light
           # and dark, as a desktop has them: the IDE screenshots; python3-xlib:
           # the clipboard check's clipboard manager; xsettingsd and the
-          # DejaVu fonts: the HiDPI check's settings manager and its text
+          # DejaVu fonts: the HiDPI check's settings manager and its text;
+          # gsettings-desktop-schemas (GNOME's color-scheme key): the
+          # desktop appearance check
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
-                xsettingsd fonts-dejavu-core)
+                xsettingsd fonts-dejavu-core gsettings-desktop-schemas)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -1328,6 +1346,20 @@ jobs:
           case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
           /usr/bin/python3 tools/ci/clipboard_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/clipboard-check.log"
+
+      # The systemAppearance follows the desktop's light or dark setting
+      # (GNOME's color-scheme) only while a script has set the
+      # useDesktopAppearance, and systemAppearanceChanged comes once for
+      # each switch: a standalone on its own X server with GSettings'
+      # keyfile backend, whose setting the check switches
+      # (tools/ci/appearance_check.py)
+      - name: Desktop appearance check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          /usr/bin/python3 tools/ci/appearance_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/appearance-check.log"
 
       # The standalone engine on an Xvfb screen at 1x (nothing changes) and
       # at a desktop scale of 2 (GDK_SCALE, then an XSETTINGS manager

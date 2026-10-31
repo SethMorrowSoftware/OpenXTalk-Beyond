@@ -279,6 +279,8 @@ extern Boolean MCsystemCS;
 extern Boolean MCsystemPS;
 extern Boolean MChidewindows;
 extern Boolean MCusesystemwindowcolor;
+// OXT-Beyond: the useDesktopAppearance (Linux: lnxdc.cpp)
+extern Boolean MCusedesktopappearance;
 extern Boolean MCbufferimages;
 extern MCStringRef MCserialcontrolsettings;
 extern MCStringRef MCshellcmd;

@@ -50,8 +50,7 @@ on mouseup
    --
    set the itemdelimiter to ","
    -- now make it 'stick' (hopefully!)
-   revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"
-   updateOpenScriptEditors
+   defaultAll
    
    -- change the appearance of my clicked item
    set the backgroundColor of me to myColor
@@ -64,5 +63,8 @@ end mouseup
 
 on defaultAll
    revIDESetPreference "cScriptEditor," & "colorization,scheme", "Custom"
+   -- OXT-Beyond: Custom shows in light and dark; drop the second, dark
+   -- scheme early Beyond builds kept.
+   revIDESetPreference "cScriptEditor,colorization,schemedark", empty
    updateOpenScriptEditors
 end defaultAll

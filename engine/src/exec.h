@@ -2657,6 +2657,8 @@ void MCInterfaceSetSelectionMode(MCExecContext& ctxt, intenum_t p_value);
 void MCInterfaceGetSystemAppearance(MCExecContext& ctxt, intenum_t& r_value);
 void MCInterfaceGetUseSystemWindowColor(MCExecContext& ctxt, bool& r_value);
 void MCInterfaceSetUseSystemWindowColor(MCExecContext& ctxt, bool p_value);
+void MCInterfaceGetUseDesktopAppearance(MCExecContext& ctxt, bool& r_value);
+void MCInterfaceSetUseDesktopAppearance(MCExecContext& ctxt, bool p_value);
 void MCInterfaceGetSelectionHandleColor(MCExecContext& ctxt, MCInterfaceNamedColor& r_color);
 void MCInterfaceSetSelectionHandleColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color);
 void MCInterfaceGetWindowBoundingRect(MCExecContext& ctxt, MCRectangle& r_value);

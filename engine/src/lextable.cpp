@@ -1828,6 +1828,9 @@ const LT factor_table[] =
 		{"urlresponse", TT_PROPERTY, P_URL_RESPONSE},
         {"urlstatus", TT_FUNCTION, F_URL_STATUS},
 		// IM-2014-01-24: [[ HiDPI ]] The "usePixelScaling" token
+        // OXT-Beyond: the systemAppearance on Linux follows the desktop's
+        // light or dark setting
+        {"usedesktopappearance", TT_PROPERTY, P_USE_DESKTOP_APPEARANCE},
 		{"usepixelscaling", TT_PROPERTY, P_USE_PIXEL_SCALING},
         {"userlevel", TT_PROPERTY, P_USER_LEVEL},
         {"usermodify", TT_PROPERTY, P_USER_MODIFY},

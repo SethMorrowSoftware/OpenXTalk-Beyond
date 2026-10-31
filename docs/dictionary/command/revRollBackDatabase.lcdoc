@@ -48,6 +48,11 @@ Use the <revRollBackDatabase> <command> to discard changes to a
 > "Database" library checkbox and those of the database drivers you are 
 > using are checked.
 
+Changes:
+Until OXT-Beyond 0.2.7-rc.6.10, <revRollBackDatabase> committed the
+changes on PostgreSQL, SQLite and ODBC connections instead of discarding
+them. It discards them now, as this entry has always said.
+
 References: revert (command), revCommitDatabase (command),
 revCloseDatabase (command), function (control structure),
 revdb_rollback (function), revdb_commit (function),

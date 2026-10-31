@@ -69,12 +69,22 @@ on preOpenCard
       disable btn "MacOSX x86-32"
       set the tooltip of btn "MacOSX x86-32" to "Disabled, as OXT-Beyond has no 32-bit Mac engine to build with."
       disable btn "MacOSX x86-64"
-      set the hilite of btn "MacOS-IntelArmUniversal" to false
-      set the hilite of btn "MacOSX x86-64" to false
-      set the hilite of btn "MacOSX x86-32" to false
+      -- OXT-Beyond: the stack's Mac targets are shown as they are, and kept.
+      -- The boxes cannot be changed here, and the group "Flavors" is not
+      -- sent mouseUp, which stores the boxes as the stack's targets: it was,
+      -- with every box off, so a stack set up on a Mac lost all its Mac
+      -- targets when this card was only looked at on Linux or Windows
+      if tStandaloneSettingsA["MacOSX x64-ARM64"] is true then
+         set the hilite of btn "MacOS-IntelArmUniversal" to true
+         set the hilite of btn "MacOSX x86-64" to false
+         set the hilite of btn "MacOSX x86-32" to false
+      else
+         set the hilite of btn "MacOS-IntelArmUniversal" to false
+         set the hilite of btn "MacOSX x86-64" to (tStandaloneSettingsA["MacOSX x86-64"] is true)
+         set the hilite of btn "MacOSX x86-32" to (tStandaloneSettingsA["MacOSX x86-32"] is true)
+      end if
       set the enabled of group "OSX" to false
       
-      send mouseup to group "Flavors" of card "OS X" of this stack
       -- OXT-Beyond: on to the stack's preOpenCard, which names this card in
       -- the window's title, as on a Mac (exit left the previous card's name)
       pass preOpenCard

@@ -1,0 +1,57 @@
+Name: useDesktopAppearance
+
+Type: property
+
+Syntax: set the useDesktopAppearance to {true | false}
+
+Syntax: get the useDesktopAppearance
+
+Summary:
+Specifies whether the <systemAppearance> on Linux follows the desktop's
+light or dark setting.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, html5
+
+Platforms: desktop
+
+Example:
+set the useDesktopAppearance to true
+
+Example:
+if the platform is "Linux" then set the useDesktopAppearance to true
+
+Value (bool):
+The <useDesktopAppearance> is true or false. By default, it is false.
+
+Description:
+Use the <useDesktopAppearance> property to let an application on Linux
+see the desktop's dark mode in the <systemAppearance>.
+
+On Linux the <systemAppearance> is "light" by default, whatever the
+desktop shows, as it always has been. When the <useDesktopAppearance> is
+true, it is "dark" while the desktop is set to dark: GNOME's
+"color-scheme" setting (GNOME 42 and later, and the desktops that use its
+settings) set to "prefer-dark", or, where there is no such setting or it
+is "default", a GTK theme whose name has "dark" in it, such as
+"Adwaita-dark". The <systemAppearanceChanged> message is then also sent
+when the "color-scheme" setting switches the <systemAppearance>, and when
+setting the <useDesktopAppearance> changes it.
+
+The <useDesktopAppearance> changes only what the <systemAppearance>
+reports: the engine draws controls in the colours of the desktop's GTK
+theme either way. It is a global property: it is not saved with a
+<stack>, so an application that wants it sets it when it starts, for
+example in its <openStack> <handler>. The development environment sets
+it from the "Follow the desktop's light or dark setting" setting in the
+Appearance pane of its Preferences on Linux.
+
+On macOS and Windows the <systemAppearance> follows the system already,
+and the <useDesktopAppearance> changes nothing there.
+
+References: systemAppearance (property),
+systemAppearanceChanged (message), openStack (message),
+useSystemWindowColor (property)
+
+Tags: ui
