@@ -1024,6 +1024,10 @@ commit on `main`, publishes the pre-release `runtimes-<label>`. Then pin
 that entry in `tools/oxt/external-assets.json` in a pull request. Make
 a new asset whenever the engine or the externals change, so that the
 other platforms' runtimes in the packages stay those of the release.
+[`tools/ci/runtimes_provenance.py`](tools/ci/runtimes_provenance.py)
+lists the commits since the pinned asset's that change the engine's
+source; the CI checks workflow shows the list in its summary with a
+warning (with `--fail-on-stale` it fails instead).
 
 `oxt-runtimes-1.15` was made differently, from an extracted OpenXTalk
 Lite release, taking only files that `layout.py` classes "external" (not

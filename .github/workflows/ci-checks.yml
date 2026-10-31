@@ -29,7 +29,10 @@
 #     publishes them (tools/ci/release_assets.py, release_notes.py), and
 #     the text dictionary's generator (tools/oxt/text_dictionary.py);
 #   - tools/ci/changelog.py check: the changelog fragments of changelog
-#     are CHANGELOG.md's "- " lines, ready to fold into it.
+#     are CHANGELOG.md's "- " lines, ready to fold into it;
+#   - tools/ci/runtimes_provenance.py: how many commits that change the
+#     engine's source the runtimes asset (the other platforms' standalone
+#     runtimes) is behind, as a warning in the job summary.
 #
 # The job CI scripts on Windows and macOS runs the same unit tests on
 # windows-latest and macos-15 (modernization report MOD-06): the build
@@ -65,10 +68,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # (the whole history: the runtimes' provenance step looks back to
+      # the commit the runtimes asset was built from)
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # A pinned release, checked against its published SHA-256
       - name: Lint the workflows (actionlint)
@@ -95,6 +101,11 @@ jobs:
 
       - name: Check the changelog fragments
         run: python3 tools/ci/changelog.py check
+
+      # A warning in the summary, never a failure: rebuilding the runtimes
+      # is seth's decision (--fail-on-stale is there for when it is made)
+      - name: Runtimes asset provenance
+        run: python3 tools/ci/runtimes_provenance.py
 
   other-os:
     name: CI scripts on ${{ matrix.os }}
