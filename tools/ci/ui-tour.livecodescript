@@ -899,6 +899,14 @@ on tour_appearance_message
       if gTourAppearanceSeen is not (tStack & comma) then
          put "sent to the Tools palette, the stack's handler got" && quote & gTourAppearanceSeen & quote & return after tFails
       end if
+      -- a handler written "command systemAppearanceChanged": also sent on
+      set the script of stack tStack to "command systemAppearanceChanged" & return & line 2 to -1 of tHandler
+      put empty into gTourAppearanceSeen
+      send "systemAppearanceChanged" to card 1 of stack "revTools"
+      tourWait 500
+      if gTourAppearanceSeen is not (tStack & comma) then
+         put "sent to the Tools palette, a command handler got" && quote & gTourAppearanceSeen & quote & return after tFails
+      end if
       -- no handler of the user's: nothing is sent on
       set the script of stack tStack to empty
       put empty into gTourAppearanceSeen

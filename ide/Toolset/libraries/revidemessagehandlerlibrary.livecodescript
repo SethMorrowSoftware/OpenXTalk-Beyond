@@ -479,14 +479,18 @@ end desktopChanged
 -- (or one of their behaviors) handles it: a handler in a library or
 -- backscript has already had this one
 on systemAppearanceChanged
-   local tCard
+   local tCard, tError
    send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
-   if revIDEObjectIsOnIDEStack(the long id of the target) then
-      put ideUserCardForSystemAppearance() into tCard
-      if tCard is not empty then
-         send "systemAppearanceChanged" to tCard in 0 milliseconds
+   -- (whatever goes wrong here, the IDE still passes the message on)
+   try
+      if revIDEObjectIsOnIDEStack(the long id of the target) then
+         put ideUserCardForSystemAppearance() into tCard
+         if tCard is not empty then
+            send "systemAppearanceChanged" to tCard in 0 milliseconds
+         end if
       end if
-   end if
+   catch tError
+   end try
    pass systemAppearanceChanged
 end systemAppearanceChanged
 
@@ -520,8 +524,10 @@ private function ideUserCardForSystemAppearance
    return empty
 end ideUserCardForSystemAppearance
 
--- Whether the script of pObject, or of its behavior (and theirs, in turn),
--- has an "on systemAppearanceChanged" handler
+-- Whether pObject, or its behavior (and theirs, in turn), has a public
+-- systemAppearanceChanged message handler ("on" or "command"), from its
+-- compiled handlers: the revAvailableHandlers needs no password, where the
+-- script of a password-protected stack's object cannot be read
 private function ideHandlesSystemAppearance pObject
    local tDepth
    put 0 into tDepth
@@ -529,7 +535,7 @@ private function ideHandlesSystemAppearance pObject
       if not exists(pObject) then
          exit repeat
       end if
-      if ideScriptHandlesSystemAppearance(the script of pObject) then
+      if ideHandlersHaveSystemAppearance(the revAvailableHandlers of pObject) then
          return true
       end if
       put the behavior of pObject into pObject
@@ -538,12 +544,15 @@ private function ideHandlesSystemAppearance pObject
    return false
 end ideHandlesSystemAppearance
 
-private function ideScriptHandlesSystemAppearance pScript
+-- pHandlers: the revAvailableHandlers of an object, one handler a line,
+-- its type ("M" for a message handler, "PM" for a private one) and name
+-- first
+private function ideHandlersHaveSystemAppearance pHandlers
    local tLine
-   repeat for each line tLine in pScript
-      if word 1 of tLine is "on" and word 2 of tLine is "systemAppearanceChanged" then
+   repeat for each line tLine in pHandlers
+      if word 1 of tLine is "M" and word 2 of tLine is "systemAppearanceChanged" then
          return true
       end if
    end repeat
    return false
-end ideScriptHandlesSystemAppearance
+end ideHandlersHaveSystemAppearance
