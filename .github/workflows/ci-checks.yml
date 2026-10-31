@@ -31,6 +31,11 @@
 #   - tools/ci/changelog.py check: the changelog fragments of changelog
 #     are CHANGELOG.md's "- " lines, ready to fold into it.
 #
+# The job CI scripts on Windows and macOS runs the same unit tests on
+# windows-latest and macos-15 (modernization report MOD-06): the build
+# workflows run these scripts there too, so a script that only works on
+# Linux shows here.
+#
 # A change to this workflow or to the tests alone starts no build (the build
 # workflows' paths-ignore lists have them).
 
@@ -90,3 +95,27 @@ jobs:
 
       - name: Check the changelog fragments
         run: python3 tools/ci/changelog.py check
+
+  other-os:
+    name: CI scripts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the CI scripts
+        run: |
+          python --version
+          python -m pip install --quiet pyyaml
+          python -m unittest discover -s tools/ci/tests -v
