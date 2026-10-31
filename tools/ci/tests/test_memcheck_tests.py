@@ -114,5 +114,76 @@ class TestFailed(unittest.TestCase):
         self.assertTrue(memcheck_tests.test_failed(0, ''))
 
 
+class Running(unittest.TestCase):
+    """How main() starts valgrind, without valgrind or an engine: a
+    relative --bin, as build-linux.yml passes (linux-x86_64-bin), names
+    the engine by its absolute path, since the tests run in tests/. On
+    the first CI run valgrind was given linux-x86_64-bin/standalone-community
+    from tests/ and stopped at once."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        self.top = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.top)
+        bin_dir = os.path.join(self.top, 'linux-x86_64-bin')
+        os.makedirs(os.path.join(bin_dir, 'modules', 'lci'))
+        for name in ('standalone-community', 'lc-compile', 'lc-run'):
+            open(os.path.join(bin_dir, name), 'w').close()
+        self.bin_dir = bin_dir
+        self.calls = []
+        saved = (memcheck_tests.shutil.which, memcheck_tests.run_engine_tests.run_process, os.getcwd())
+
+        def restore():
+            memcheck_tests.shutil.which = saved[0]
+            memcheck_tests.run_engine_tests.run_process = saved[1]
+            os.chdir(saved[2])
+        self.addCleanup(restore)
+        memcheck_tests.shutil.which = lambda name: '/usr/bin/valgrind'
+
+        def run_process(cmd, cwd, env, timeout):
+            self.calls.append((cmd, cwd))
+            log = [a for a in cmd if a.startswith('--log-file=')][0][len('--log-file='):]
+            with open(log, 'w') as f:
+                f.write(self.vg_log)
+            return self.status, self.out, self.err
+        memcheck_tests.run_engine_tests.run_process = run_process
+        self.vg_log, self.status, self.out, self.err = '', 0, 'ok - script compiles\n', ''
+
+    def run_main(self, *extra):
+        import contextlib
+        import io
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            code = memcheck_tests.main(['--bin', 'linux-x86_64-bin'] + list(extra) +
+                                       ['core/interface/delete.livecodescript:TestDeleteGroupOfTarget'])
+        return code, printed.getvalue()
+
+    def test_a_relative_bin_names_the_engine_absolutely(self):
+        os.chdir(self.top)
+        code, printed = self.run_main()
+        self.assertEqual(code, 0, printed)
+        cmd, cwd = self.calls[0]
+        engine = cmd[cmd.index('-ui') - 1]
+        self.assertTrue(os.path.isabs(engine), engine)
+        self.assertEqual(os.path.realpath(engine),
+                         os.path.realpath(os.path.join(self.bin_dir, 'standalone-community')))
+        self.assertTrue(os.path.isabs(cmd[cmd.index('-ui') + 1]))
+
+    def test_a_test_that_never_ran_says_why(self):
+        os.chdir(self.top)
+        self.status, self.out = 1, ''
+        self.vg_log = 'valgrind: linux-x86_64-bin/standalone-community: No such file or directory\n'
+        self.err = 'something on stderr\n'
+        code, printed = self.run_main()
+        self.assertEqual(code, 1)
+        self.assertIn('no test output; exit status 1', printed)
+        self.assertIn('No such file or directory', printed)
+        self.assertIn('something on stderr', printed)
+
+    def test_why_not_run_leaves_out_reports(self):
+        self.assertEqual(memcheck_tests.why_not_run(LOG, ''), [])
+
+
 if __name__ == '__main__':
     unittest.main()

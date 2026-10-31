@@ -97,6 +97,15 @@ def test_failed(status, out):
     return any(l.startswith('not ok') and '# TODO' not in l for l in lines)
 
 
+def why_not_run(vg_text, err, count=12):
+    """The lines that say why a test gave no output: valgrind's own (its
+    log's lines that are not part of a report, such as "valgrind: ... No
+    such file or directory") and the last of the engine's stderr."""
+    lines = [l for l in vg_text.splitlines() if l.strip() and not re.match(r'^==\d+==', l)]
+    lines += [l for l in err.splitlines() if l.strip()][-count:]
+    return lines[:count * 2]
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0],
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -111,7 +120,10 @@ def main(argv=None):
         print('memcheck: valgrind is not installed')
         return 2
     try:
-        tools = run_engine_tests.tools_in(args.bin, 'linux')
+        # (absolute, as run_engine_tests.py makes it: the tests run in
+        # tests/, where a relative path such as CI's linux-x86_64-bin
+        # names nothing, and valgrind stopped at once)
+        tools = run_engine_tests.tools_in(os.path.abspath(args.bin), 'linux')
     except run_engine_tests.SuiteError as e:
         print('memcheck: %s' % e)
         return 2
@@ -158,6 +170,11 @@ def main(argv=None):
         if failed:
             for line in out.splitlines():
                 if line.startswith('not ok') or line.startswith('#'):
+                    print('      ' + line)
+            if not any(l.startswith('ok') or l.startswith('not ok') for l in out.splitlines()):
+                # the test never ran: why, from valgrind and the engine
+                print('      no test output; exit status %s' % status)
+                for line in why_not_run(vg_text, err):
                     print('      ' + line)
         log_lines += ['== %s:%s (exit status %s)' % (path, name, status), out, err,
                       '-- memcheck', vg_text]
