@@ -80,10 +80,12 @@ getProp dvAcceptsDrop
 end dvAcceptsDrop
 
 setProp dvHilite[pHiliteColor] pBoolean
+   -- OXT-Beyond: the hilited text contrasts with the hilite on Linux
+   -- (revIDEHilitedTextColor)
    # Override basic hilite feature...
    if pBoolean then
-      set the foregroundColor of field "type" of me to revIDEColor("dataView_TextHiliteColor")
-      set the colorOverlay["color"] of button "typeIcon" of me to revIDEColor("dataView_TextHiliteColor")
+      set the foregroundColor of field "type" of me to revIDEHilitedTextColor(pHiliteColor)
+      set the colorOverlay["color"] of button "typeIcon" of me to revIDEHilitedTextColor(pHiliteColor)
       set the foregroundColor of me to revIDEColor("dataView_disclosureIconHiliteColor")
    else
       set the foregroundColor of field "type" of me to revIDEColor("text_1")

@@ -3370,8 +3370,50 @@ on tour_project_browser
    if tInk is "blendExclusion" and tRows is not "255,255,255" then
       throw "the Project Browser inverts rows that are dark already (" & tRows & "), so they show light"
    end if
+   -- Linux: a hilited row's text stands out from the hilite, the GTK
+   -- theme's selection colour, whatever it is (bwmilby, openxtalk.org
+   -- p=25550: Ubuntu's yellow and purple): this desktop's, and those two
+   local tHilite, tText, tRatio, tHilites
+   if the platform is "Linux" then
+      put "255,221,0;119,33,111;233,84,32" into tHilites
+      if the number of items of the hiliteColor is 3 then put the hiliteColor & ";" before tHilites
+      set the itemDelimiter to ";"
+      repeat for each item tHilite in tHilites
+         set the itemDelimiter to comma
+         put revIDEHilitedTextColor(tHilite) into tText
+         put tourContrast(tHilite, tText) into tRatio
+         tourRecord "INFO the Project Browser's hilited text on" && tHilite & ":" && tText && "(contrast" && tRatio & ")"
+         if tRatio < 4.5 then
+            close stack tStack
+            throw "a hilited Project Browser row's text" && tText && "is unreadable on its hilite" && tHilite && \
+                  "(contrast" && tRatio & ")"
+         end if
+         set the itemDelimiter to ";"
+      end repeat
+      set the itemDelimiter to comma
+   end if
    close stack tStack
 end tour_project_browser
+
+-- The WCAG contrast ratio of two RGB colours
+function tourContrast pOne, pTwo
+   local tL1, tL2
+   put tourLuminance(pOne) into tL1
+   put tourLuminance(pTwo) into tL2
+   return round((max(tL1, tL2) + 0.05) / (min(tL1, tL2) + 0.05), 2)
+end tourContrast
+
+function tourLuminance pColour
+   local tL, i, tV
+   put 0 into tL
+   repeat with i = 1 to 3
+      put item i of pColour / 255 into tV
+      if tV <= 0.03928 then put tV / 12.92 into tV
+      else put ((tV + 0.055) / 1.055) ^ 2.4 into tV
+      add tV * item i of "0.2126,0.7152,0.0722" to tL
+   end repeat
+   return tL
+end tourLuminance
 
 -- As Help > Dictionary does: LiveCode's Dictionary, the default, in a
 -- palette with a browser widget, or in the system's browser where there is

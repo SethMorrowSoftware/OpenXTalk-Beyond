@@ -100,14 +100,16 @@ getProp dvRowControl
 end dvRowControl
 
 setProp dvHilite[pHiliteColor] pBoolean
+   -- OXT-Beyond: the hilited text contrasts with the hilite on Linux
+   -- (revIDEHilitedTextColor)
    # Override basic hilite feature...
    -- OXT-Beyond: script badges use a contrast-safe pair in both themes.
    if pBoolean then
-      set the foregroundColor of field "type" of me to revIDEColor("dataView_TextHiliteColor")
-      set the foregroundColor of field "name" of me to  revIDEColor("dataView_TextHiliteColor")
+      set the foregroundColor of field "type" of me to revIDEHilitedTextColor(pHiliteColor)
+      set the foregroundColor of field "name" of me to  revIDEHilitedTextColor(pHiliteColor)
       set the foregroundColor of field "scriptLines" of me to  revIDEColor("dataView_scriptBadgeTextColor")
       set the backgroundColor of field "scriptLines" of me to  revIDEColor("dataView_scriptBadgeBackgroundColor")
-      set the colorOverlay["color"] of button "typeIcon" of me to revIDEColor("dataView_TextHiliteColor")
+      set the colorOverlay["color"] of button "typeIcon" of me to revIDEHilitedTextColor(pHiliteColor)
       set the foregroundColor of me to revIDEColor("dataView_disclosureIconHiliteColor")
    else
       set the foregroundColor of field "type" of me to revIDEColor("text_2")

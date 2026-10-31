@@ -2620,6 +2620,39 @@ function revIDEPlatformVersion
    return tSystemVersion
 end revIDEPlatformVersion
 
+-- OXT-Beyond: the colour for the text of a list row that is hilited in
+-- pHiliteColor (the row's background), for the Project Browser's rows. On
+-- Linux the hilite is the GTK theme's selection colour, which can be
+-- light or dark whatever the desktop (Ubuntu's yellow in its dark theme,
+-- its purple in the light one), and the accentColor as the text was
+-- unreadable on it (bwmilby, openxtalk.org p=25550): black or white,
+-- whichever stands out more (the WCAG relative luminance of the hilite).
+-- macOS and Windows keep revIDEColor("dataView_TextHiliteColor"), as do
+-- colours given by name.
+function revIDEHilitedTextColor pHiliteColor
+   local tLuminance, tChannel, tValue
+   if the platform is not "Linux" or the number of items of pHiliteColor is not 3 then
+      return revIDEColor("dataView_TextHiliteColor")
+   end if
+   put 0 into tLuminance
+   repeat with tChannel = 1 to 3
+      put item tChannel of pHiliteColor into tValue
+      if tValue is not an integer or tValue < 0 or tValue > 255 then
+         return revIDEColor("dataView_TextHiliteColor")
+      end if
+      put tValue / 255 into tValue
+      if tValue <= 0.03928 then
+         put tValue / 12.92 into tValue
+      else
+         put ((tValue + 0.055) / 1.055) ^ 2.4 into tValue
+      end if
+      add tValue * item tChannel of "0.2126,0.7152,0.0722" to tLuminance
+   end repeat
+   -- black on it, (L + 0.05) / 0.05, against white on it, 1.05 / (L + 0.05)
+   if tLuminance > 0.179 then return "0,0,0"
+   return "255,255,255"
+end revIDEHilitedTextColor
+
 -- OXT-Beyond: true when the desktop is dark, as the Tools palette and
 -- Learn's kit read it (revTools' tmGenerate, revLearnKit's
 -- lkReadAppearance): the systemAppearance on macOS and Windows, and on
