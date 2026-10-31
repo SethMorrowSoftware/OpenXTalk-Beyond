@@ -148,8 +148,30 @@ end tourScriptError
 
 -- The IDE as it opens: the menu bar and toolbar across the page, and the
 -- Tools palette
+-- The IDE as it opened: on a page smaller than Home (web_ide_tour.py
+-- --size 640x480, openxtalk.org p=25583) the menu bar still spans the
+-- page and Home's title bar is on it, below the menu bar, where a user
+-- can take it
 on tour_start
+   local tScreen, tBar, tHome
    tourShot "01-ide"
+   put the screenRect into tScreen
+   if there is not a stack "revMenubar" or not the visible of stack "revMenubar" then
+      throw "no menu bar:" && tourJoin(the openStacks)
+   end if
+   put the rect of stack "revMenubar" into tBar
+   if item 1 of tBar is not item 1 of tScreen or item 3 of tBar is not item 3 of tScreen then
+      throw "the menu bar" && tBar && "does not span the page" && tScreen
+   end if
+   if "revWebHome" is among the lines of the openStacks then
+      put the rect of stack "revWebHome" into tHome
+      -- (31: the page's title bar above a window, revWebIDEKeepOnPage)
+      if item 1 of tHome < item 1 of tScreen or item 2 of tHome - 31 < item 4 of tBar \
+            or item 2 of tHome > item 4 of tScreen - 31 then
+         throw "Home" && tHome && "is not on the page" && tScreen && "below the menu bar" && tBar
+      end if
+      tourRecord "INFO Home" && tHome
+   end if
 end tour_start
 
 on tour_sample
