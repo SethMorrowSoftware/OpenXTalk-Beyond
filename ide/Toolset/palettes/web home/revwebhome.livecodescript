@@ -315,7 +315,10 @@ end hmCheckPage
 -- Reads the desktop's appearance, as the Tools palette reads it (revTools'
 -- tmGenerate): macOS's and Windows' systemAppearance, and on Linux, where
 -- the systemAppearance is always light, how dark the GTK theme's window
--- colour is. True when it changed. The stack's own colour is put back.
+-- colour is. In the web IDE, the systemAppearance too: the browser's colour
+-- scheme, since the web IDE's page follows it (index.html's
+-- oxt-appearance); a page that does not is light, as Home always was
+-- there. True when it changed. The stack's own colour is put back.
 private function hmReadAppearance
    local tDark, tSaved, tSum, tError
    put false into tDark
@@ -330,7 +333,7 @@ private function hmReadAppearance
          if item 1 of tSum is a number and item 3 of tSum is a number then
             put item 1 of tSum + item 2 of tSum + item 3 of tSum < 234 into tDark
          end if
-      else if the platform is not "HTML5" then
+      else
          put the systemAppearance is "dark" into tDark
       end if
    catch tError

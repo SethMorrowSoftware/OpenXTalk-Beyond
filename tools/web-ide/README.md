@@ -5,6 +5,12 @@ download or install. It is the real IDE, the same scripts and stacks as the
 desktop's, run by the IDE's own engine (development mode) built for the web
 with Emscripten. The page fills the browser window, with the menu bar and
 toolbar across the top. A button at the top right makes it full screen.
+The IDE follows the browser between light and dark: its page asks for
+the browser's colour scheme (`<meta name="oxt-appearance" content="system">`
+in [index.html](index.html)), so `the systemAppearance` is the browser's
+and the IDE hears `systemAppearanceChanged` when it changes. A web
+standalone stays light unless its page asks the same (the HTML5 pane's
+Appearance in the Standalone Settings).
 
 What works in it:
 

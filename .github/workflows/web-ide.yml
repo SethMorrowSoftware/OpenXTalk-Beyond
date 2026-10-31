@@ -339,12 +339,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # In a light browser and a dark one: the page follows the browser
+  # (tools/web-ide/index.html's oxt-appearance), and the tour's last step
+  # switches it to the other scheme and back
   tour:
-    name: Web IDE screenshots
+    name: Web IDE screenshots (${{ matrix.scheme }})
     needs: engine
     if: ${{ !inputs.release }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [light, dark]
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -394,16 +401,19 @@ jobs:
 
       - name: Web IDE screenshots
         timeout-minutes: 15
+        env:
+          SCHEME: ${{ matrix.scheme }}
         run: |
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
-            --out "$RUNNER_TEMP/web-ide-tour"
+            --out "$RUNNER_TEMP/web-ide-tour" --color-scheme "$SCHEME"
 
+      # (light keeps the artifact's old name)
       - name: Upload the screenshots
         id: upload
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: web-ide-screenshots
+          name: web-ide-screenshots${{ matrix.scheme == 'dark' && '-dark' || '' }}
           path: ${{ runner.temp }}/web-ide-tour
           if-no-files-found: ignore
           retention-days: 14

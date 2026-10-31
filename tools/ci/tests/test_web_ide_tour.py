@@ -16,7 +16,11 @@
 
 """web_ide_tour.py's --size, the page's size as the IDE opens: the web IDE
 check opens it on pages smaller than Home (web-ide.yml's Web IDE small
-window, openxtalk.org p=25583). Playwright is not needed.
+window, openxtalk.org p=25583). Its --color-scheme, and the web IDE's page
+following the browser between light and dark (seth's choice of
+2026-10-30): the page asks for it, its title bars have dark colours, the
+check runs the tour in both and its appearance step switches the page.
+Playwright is not needed.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -51,6 +55,30 @@ class PageSize(unittest.TestCase):
             text = f.read()
         self.assertIn('browser: [chromium, firefox]\n        size: [800x500, 640x480]', text)
         self.assertIn('--size "$SIZE"', text)
+
+
+
+class FollowsTheBrowser(unittest.TestCase):
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_page_asks_for_the_browser_scheme(self):
+        page = self.read('tools', 'web-ide', 'index.html')
+        self.assertIn('<meta name="oxt-appearance" content="system">', page)
+        self.assertIn('@media (prefers-color-scheme: dark)', page)
+
+    def test_the_check_runs_light_and_dark(self):
+        text = self.read('.github', 'workflows', 'web-ide.yml')
+        self.assertIn('scheme: [light, dark]', text)
+        self.assertIn('--color-scheme "$SCHEME"', text)
+
+    def test_the_tour_switches_the_scheme(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        self.assertIn('appearance', steps.split('"')[1].split(','))
+        self.assertIn('tourAct "scheme"', tour)
+        self.assertIn("verb == 'scheme'", self.read('tools', 'ci', 'web_ide_tour.py'))
 
 
 if __name__ == '__main__':

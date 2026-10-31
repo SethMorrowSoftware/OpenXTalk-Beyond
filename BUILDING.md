@@ -1754,7 +1754,13 @@ own files, and by hand. It builds the web IDE's engine from the checkout
 IDE's scripts alone builds nothing), makes the site from the Linux
 x86_64 package of the newest release (or the tag it is given) with the
 checkout's script-only IDE stacks over it, and uploads the screenshots
-as the artifact `web-ide-screenshots`, which its job summary links.
+as the artifact `web-ide-screenshots`, which its job summary links. It
+runs the tour twice, in a light browser and a dark one
+(`--color-scheme dark`, the artifact `web-ide-screenshots-dark`): the web
+IDE's page follows the browser's colour scheme, and the tour's last step
+switches it to the other scheme and back. The job Web IDE small window
+opens the IDE on pages smaller than Home (`--size 800x500` and
+`640x480`) in Chromium and Firefox and runs the tour's first two steps.
 
 ### Installer
 

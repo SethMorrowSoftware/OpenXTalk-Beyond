@@ -21,7 +21,7 @@ made in headless Chromium and walks through the IDE's windows.
   python3 tools/ci/web_ide_tour.py --site DIR --out DIR [--browser NAME]
       [--timeout SECONDS] [--only STEPS] [--keep-serving]
       [--tour FILE] [--add FILE]... [--replace PATH=FILE]... [--relay]
-      [--size WIDTHxHEIGHT]
+      [--size WIDTHxHEIGHT] [--color-scheme light|dark]
 
 --site is the web IDE's site (index.html, the engine and ide.zip). The
 script copies it into <out>/site, adds tools/ci/web-ide-tour.livecodescript
@@ -239,6 +239,8 @@ def main(argv=None):
     ap.add_argument('--replace', action='append', default=[], metavar='PATH=FILE',
                     help='a file of the copy\'s ide.zip to replace')
     ap.add_argument('--relay', action='store_true', help='run a local Nostr relay for the tour')
+    ap.add_argument('--color-scheme', default='light', choices=['light', 'dark'],
+                    help='the colour scheme the browser asks pages for (default light)')
     ap.add_argument('--size', type=page_size, default=(WIDTH, HEIGHT), metavar='WIDTHxHEIGHT',
                     help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
     args = ap.parse_args(argv)
@@ -261,7 +263,7 @@ def main(argv=None):
     server = serve(site)
     url = 'http://127.0.0.1:%d/' % server.server_address[1]
     log('Site  : %s (a copy of %s, with the tour)' % (site, args.site))
-    log('Page  : %s at %dx%d' % (url, args.size[0], args.size[1]))
+    log('Page  : %s at %dx%d, %s' % (url, args.size[0], args.size[1], args.color_scheme))
     relay_url = ''
     if args.relay:
         sys.path.insert(0, HERE)
@@ -280,7 +282,8 @@ def main(argv=None):
 
     with sync_playwright() as p:
         browser = getattr(p, args.browser).launch()
-        page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]})
+        page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
+                                color_scheme=args.color_scheme)
         page.on('console', lambda m: console.write('%s %s %s\n' % (stamp(), m.type, m.text)))
 
         def page_error(error):
@@ -395,6 +398,8 @@ def act(page, words, shots_dir, shots, problems):
             page.click('.oxt-dialog-default', timeout=5000)
         elif verb == 'size' and len(rest) == 2:
             page.set_viewport_size({'width': int(rest[0]), 'height': int(rest[1])})
+        elif verb == 'scheme' and len(rest) == 1 and rest[0] in ('light', 'dark'):
+            page.emulate_media(color_scheme=rest[0])
         else:
             problems.append('the tour asked for what the page cannot do: %s' % ' '.join(words))
     except Exception as e:  # noqa: BLE001

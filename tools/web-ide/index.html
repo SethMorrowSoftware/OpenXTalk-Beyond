@@ -14,6 +14,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
+    <!-- The IDE follows the browser between light and dark: the
+         systemAppearance is the browser's colour scheme, and the IDE
+         hears systemAppearanceChanged when it changes (engine/src/em-dc.js).
+         A web standalone does only when its page asks, as this one does -->
+    <meta name="oxt-appearance" content="system">
     <title>OXT-Beyond Web IDE</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23243447'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='700' fill='%23f39c12' text-anchor='middle'%3EX%3C/text%3E%3C/svg%3E">
     <style>
@@ -94,6 +99,22 @@
       }
       html body .oxt-window-close {
         border-radius: 0 6px 0 0;
+      }
+      /* The title bars in a dark browser, where the IDE's windows are dark
+         (the oxt-appearance meta above) */
+      @media (prefers-color-scheme: dark) {
+        html body .oxt-window-border {
+          border-color: rgba(0, 0, 0, 0.8);
+        }
+        html body .oxt-window-title {
+          background: linear-gradient(#2a2f36, #23272d);
+          color: #8b95a3;
+          border-bottom-color: #14171b;
+        }
+        html body .oxt-window-active > .oxt-window-title {
+          background: linear-gradient(#323840, #282d34);
+          color: #eceff3;
+        }
       }
 
       /* Loading */
