@@ -143,6 +143,21 @@ em_theme_is_dark(void)
 	return t_appearance == kMCSystemAppearanceDark;
 }
 
+/* OXT-Beyond: the box of a check box that sets no colour of its own
+ * (MCButton::drawcheck, buttondraw.cpp), in the dark appearance: the dark
+ * face, as Windows' dark mode draws one, and the light edge's grey while
+ * the mouse is down in it. It was white there, as in the light appearance,
+ * so an unticked box looked like a ticked one on a dark card (found in the
+ * web IDE, 2026-10-29). False in the light appearance, where the box stays
+ * white (grey while the mouse is down in it), as before. */
+bool
+MCEmscriptenThemeGetCheckBoxColor(bool p_pressed, MCColor& r_color)
+{
+	if (!em_theme_is_dark())
+		return false;
+	return em_theme_color(p_pressed ? kMCWebThemeDarkHilightEdge : kMCWebThemeDarkFace, r_color);
+}
+
 bool
 MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
                                    MCPlatformControlPart p_part,

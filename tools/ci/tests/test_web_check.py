@@ -238,5 +238,75 @@ class TheColours(unittest.TestCase):
         self.assertLess(probe.index('local sColorsBack'), probe.index('private function probeColorsOpen'))
 
 
+class TheCheckBoxes(unittest.TestCase):
+    """A check box that sets no colour, on a page that follows a browser set
+    to dark: its box was white, as in the light appearance, so an unticked
+    one looked ticked on the dark card (found in the web IDE on 2026-10-29;
+    promised in the rc.6.11 post for rc.6.12). It is the dark face there,
+    with a white tick; on the page as built, which stays light, it is white
+    with a black tick, as before. web_check.py reads both in the browser;
+    these tests hold what it expects to the engine's colours and the
+    probe's report."""
+
+    def parts(self, report):
+        size, plain, ticked, tick = report.split(':')
+        return size, plain, ticked, tick
+
+    def test_light_is_as_before(self):
+        self.assertEqual(self.parts(web_check.CHECKS_LIGHT),
+                         ('200x100', '255,255,255', '255,255,255', '0,0,0'))
+
+    def test_dark_is_the_dark_face_with_a_white_tick(self):
+        size, plain, ticked, tick = self.parts(web_check.CHECKS_DARK)
+        self.assertEqual(size, '200x100')
+        # (kMCWebThemeDarkFace, 0x202020), the dark card's colour too
+        self.assertEqual(plain, '32,32,32')
+        self.assertEqual(ticked, '32,32,32')
+        self.assertEqual(tick, '255,255,255')
+        self.assertIn('#define kMCWebThemeDarkFace         0x202020', read('engine', 'src', 'em-theme.cpp'))
+
+    def test_the_theme_gives_the_box_its_colour(self):
+        theme = read('engine', 'src', 'em-theme.cpp')
+        helper = theme.split('MCEmscriptenThemeGetCheckBoxColor(bool p_pressed, MCColor& r_color)\n{', 1)[1]
+        helper = helper.split('\n}', 1)[0]
+        # only in the dark appearance; the light one keeps its white box
+        self.assertIn('if (!em_theme_is_dark())\n\t\treturn false;', helper)
+        self.assertIn('p_pressed ? kMCWebThemeDarkHilightEdge : kMCWebThemeDarkFace', helper)
+
+    def test_the_box_takes_it(self):
+        draw = read('engine', 'src', 'buttondraw.cpp')
+        check = draw.split('void MCButton::drawcheck(', 1)[1].split('\nvoid MCButton::drawradio(', 1)[0]
+        win95 = check.split('case LF_WIN95:', 1)[1]
+        # a box with no colour of its own asks the web theme first, and is
+        # white (grey while pressed) only when the theme has none for it
+        asked = win95.index('if (MCEmscriptenThemeGetCheckBoxColor(t_pressed, t_box_color))')
+        self.assertLess(asked, win95.index('t_white_box = true;'))
+        self.assertLess(win95.index('t_white_box = true;'), win95.index('dc->setforeground(dc->getwhite());'))
+        # and a tick in a white box stays black
+        self.assertIn('if (t_white_box)\n\t\t\t\t\tt_appearance = kMCSystemAppearanceLight;', win95)
+
+    def test_the_probe_reports_them(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        report = probe.split('function probeReport pWhat', 1)[1]
+        self.assertIn('if pWhat is "checks" then\n      return probeCheckBoxColors()', report)
+        opened = probe.split('private function probeColorsOpen', 1)[1].split('end probeColorsOpen', 1)[0]
+        self.assertIn('probeColorsCheckBox "Plain Check", "10,55,90,75", false', opened)
+        self.assertIn('probeColorsCheckBox "Ticked Check", "110,55,190,75", true', opened)
+        # the box: CHECK_SIZE points square, as drawcheck places it
+        self.assertIn('#define CHECK_SIZE 13', read('engine', 'src', 'button.h'))
+        inside = probe.split('private function probeCheckBoxInside pName', 1)[1]
+        self.assertIn('((the height of button pName - 13) div 2) + 1 + 2', inside)
+
+    def test_the_check_reads_them_in_a_dark_browser(self):
+        check = read('tools', 'ci', 'web_check.py')
+        block = check.split("browser_waiting[0] = 'the systemAppearance'", 1)[1].split(
+            "browser_waiting[0] = 'the default colours'", 1)[0]
+        self.assertIn("dark = browser.new_context(color_scheme='dark')", block)
+        self.assertIn("want_boxes = CHECKS_DARK if name == 'following the browser' else CHECKS_LIGHT", block)
+        self.assertIn('if not wait_for(boxes_drawn,', block)
+        # read before the browser turns light
+        self.assertLess(block.index('boxes_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
+
+
 if __name__ == '__main__':
     unittest.main()
