@@ -340,6 +340,12 @@ class FilesTest(unittest.TestCase):
         with open(os.path.join(td.REPO, 'tools', 'ci', 'build_docs.sh'), encoding='utf-8') as f:
             script = f.read()
         self.assertIn('text_dictionary.py" --extensions "$work/ext" --export-extensions', script)
+        # the docs job uploads it, and packaging stops without it, so the
+        # packages (and the web IDE's ide.zip) carry it
+        with open(os.path.join(td.REPO, '.github', 'workflows', 'docs.yml'), encoding='utf-8') as f:
+            self.assertIn('ide/Documentation/html_viewer/resources/data/%s/\n' % td.EXPORT_FOLDER, f.read())
+        import package
+        self.assertTrue(any(f.startswith(td.EXPORT_FOLDER + '/') for f in package.DOCS_FILES))
         # (and git keeps none of it)
         with open(os.path.join(td.REPO, 'ide', '.gitignore'), encoding='utf-8') as f:
             self.assertIn('Documentation/html_viewer/resources/data/%s/' % td.EXPORT_FOLDER, f.read())

@@ -104,6 +104,7 @@ jobs:
             ide/Documentation/html_viewer/resources/data/api/exports/*/substitutions.txt
             ide/Documentation/html_viewer/resources/data/api_livecode_script/
             ide/Documentation/html_viewer/resources/data/api_livecode_builder/
+            ide/Documentation/html_viewer/resources/data/api_extensions/
             ide/Documentation/html_viewer/resources/data/guide/
           if-no-files-found: error
           # As long as the build artifacts it is packaged with, for a
