@@ -80,6 +80,19 @@ class TheTheme(unittest.TestCase):
         # otherwise (the light appearance) the white stacks always were
         self.assertIn('t_is_pattern = true;\n                        t_color = [NSColor windowBackgroundColor];', window)
 
+    def test_the_server_engine_links(self):
+        # mac-theme.mm is one of the engine's common files, so the server
+        # engine compiles it too, without mac-core.mm, which defines the
+        # desktop's MCPlatformGetSystemAppearanceIsDark: its link failed
+        # ("Undefined symbols ... MCPlatformGetSystemAppearanceIsDark()")
+        guard = between(self.theme, '#ifdef _SERVER\nstatic bool MCPlatformGetSystemAppearanceIsDark(void)\n',
+                        '#endif')
+        self.assertIn('return false;', guard)
+        self.assertIn('#else\nextern bool MCPlatformGetSystemAppearanceIsDark(void);\n', guard)
+        self.assertEqual(self.theme.count('extern bool MCPlatformGetSystemAppearanceIsDark'), 1)
+        self.assertIn("'src/mac-theme.mm'", between(read('engine', 'engine-sources.gypi'),
+                                                   "'engine_common_source_files':", "\n\t\t],"))
+
     def test_the_light_state_is_a_bit_of_its_own(self):
         platform = read('engine', 'src', 'platform.h')
         states = dict((m.group(1), int(m.group(2))) for m in

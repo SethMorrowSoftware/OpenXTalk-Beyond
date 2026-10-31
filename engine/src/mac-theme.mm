@@ -190,8 +190,17 @@ static NSColor *MCMacResolveWindowBackgroundColor(void)
     return t_resolved;
 }
 
-// (mac-core.mm: NSApp's effectiveAppearance is dark)
+// (mac-core.mm: NSApp's effectiveAppearance is dark.) The server engine
+// compiles this file too but has no app, nor mac-core.mm: its stacks are
+// never in the dark appearance
+#ifdef _SERVER
+static bool MCPlatformGetSystemAppearanceIsDark(void)
+{
+    return false;
+}
+#else
 extern bool MCPlatformGetSystemAppearanceIsDark(void);
+#endif
 
 // OXT-Beyond: p_color, a system colour, as calibrated RGB as the app's
 // appearance (light or dark) shows it now, or nil. A system colour is
