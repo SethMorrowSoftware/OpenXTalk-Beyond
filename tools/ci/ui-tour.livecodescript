@@ -3833,6 +3833,37 @@ on tour_standalone_settings
          if there is not a field "emscriptenTitle" of card "Emscripten" of stack tStack then
             throw "the Web card has no settings for its page"
          end if
+         -- the Fields setting (seth's choice 9A): white, or the card's grey
+         if there is not a button "emscriptenFields" of card "Emscripten" of stack tStack then
+            throw "the Web card has no Fields setting"
+         end if
+         if the text of button "emscriptenFields" of card "Emscripten" of stack tStack is not \
+               ("White" & return & "The card's grey") then
+            throw "the Fields setting offers" && tourJoin(the text of button "emscriptenFields" of card "Emscripten" of stack tStack)
+         end if
+         if not the visible of button "emscriptenFields" of card "Emscripten" of stack tStack or \
+               item 4 of the rect of button "emscriptenFields" of card "Emscripten" of stack tStack > \
+               item 2 of the rect of field "emscriptenDeploymentInfoLabel" of card "Emscripten" of stack tStack then
+            throw "the Fields setting is hidden or under the pane's text:" && \
+                  the rect of button "emscriptenFields" of card "Emscripten" of stack tStack
+         end if
+         -- a pick is the setting that the web builder reads (the menu
+         -- sends menuPick when its choice changes, as a click does)
+         if the label of button "emscriptenFields" of card "Emscripten" of stack tStack is not "White" or \
+               the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not empty then
+            throw "the Fields setting of a stack that has none is not White:" && \
+                  the label of button "emscriptenFields" of card "Emscripten" of stack tStack
+         end if
+         set the menuHistory of button "emscriptenFields" of card "Emscripten" of stack tStack to 2
+         if the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not "card" then
+            throw "picking The card's grey set the Fields setting to" && \
+                  quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
+         end if
+         set the menuHistory of button "emscriptenFields" of card "Emscripten" of stack tStack to 1
+         if the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not empty then
+            throw "picking White left the Fields setting at" && \
+                  quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
+         end if
       end if
    end repeat
    close stack tStack

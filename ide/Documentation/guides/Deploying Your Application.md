@@ -319,6 +319,7 @@ Figure 9 – Standalone Settings – Web (HTML5)
 | **Background**                  | The colour of the page around the main stack: click the swatch or **Choose...** to change it. **Use White** puts back the page's own white                                                                                                            |
 | **Position**                    | Where the main stack is in the page: **Centered at the top** (the page's own place), **Centered in the window** of the browser, or **At the top left**                                                                                                |
 | **Appearance**                  | **Light**: the stacks keep the light colours whatever the browser's colour scheme, as before. **Follow the browser**: the `systemAppearance` is the browser's scheme, controls without colours of their own are drawn dark in a dark scheme, the card gets `systemAppearanceChanged` when the scheme changes, and so does a page without its own background |
+| **Fields**                      | **White**: fields, list fields and combo boxes without colours of their own are white in the light colours, as before. **The card's grey**: they are the light grey of a card without its own colour, as both are dark grey in the dark colours. The page gets `<meta name="oxt-field-background" content="card">` |
 
 Almost every Internet-connected device has a web browser.  If your application
 can run in a browser, your app can be used anywhere and by anyone, without any

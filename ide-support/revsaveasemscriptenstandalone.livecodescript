@@ -407,6 +407,11 @@ end createHtmlPage
 --                     none, follow it (MCScreenDC::getsystemappearance in
 --                     engine/src/em-dc.cpp), and so does the page's colour
 --                     when it has none of its own
+--    fieldBackground  empty for white fields (as every page had), "card"
+--                     for fields, list fields and combo boxes that set no
+--                     colour drawn in the light appearance in the grey of a
+--                     card that sets none, as in the dark appearance
+--                     (engine/src/em-theme.cpp)
 -- A setting that cannot be used is left out, with a warning.
 private function getPageHead pSettings, pBaseFolder, pBuildFolder
    local tHead, tStyle, tIcon, tExtension, tColor, tLuminance
@@ -464,6 +469,17 @@ private function getPageHead pSettings, pBaseFolder, pBuildFolder
          break
       default
          revStandaloneAddWarning "HTML5: unknown appearance of the page:" && pSettings["emscripten,appearance"]
+         break
+   end switch
+
+   switch pSettings["emscripten,fieldBackground"]
+      case empty
+         break
+      case "card"
+         put "<meta name=" & quote & "oxt-field-background" & quote && "content=" & quote & "card" & quote & ">" after tHead
+         break
+      default
+         revStandaloneAddWarning "HTML5: unknown background of the page's fields:" && pSettings["emscripten,fieldBackground"]
          break
    end switch
 

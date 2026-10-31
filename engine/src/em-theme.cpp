@@ -125,6 +125,16 @@ em_theme_color(uint32_t p_rgb, MCColor& r_color)
  * and Preferences in a dark browser) */
 #define kMCWebThemeDarkHilightEdge  0x3A3A3A
 
+/* OXT-Beyond: on a page that asks for it, with
+ * <meta name="oxt-field-background" content="card"> (em-dc.js), a field,
+ * list field or combo box that sets no colour is drawn in the light
+ * appearance in the grey of a card that sets none (kMCWebThemeFace), as
+ * both are in the dark appearance (kMCWebThemeDarkFace), instead of white
+ * (bwmilby, openxtalk.org p=25615; seth's choice 9A of 2026-10-31). A page
+ * without it, which every page was, keeps white fields. Menus keep their
+ * white. */
+extern "C" int32_t MCEmscriptenGetFieldsLikeCard(void);
+
 static bool
 em_theme_is_dark(void)
 {
@@ -171,6 +181,9 @@ MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
 		case kMCPlatformControlTypeInputField:
 		case kMCPlatformControlTypeList:
 		case kMCPlatformControlTypeComboBox:
+			if (!t_dark && MCEmscriptenGetFieldsLikeCard() != 0)
+				return em_theme_color(kMCWebThemeFace, r_color);
+			return em_theme_color(t_dark ? kMCWebThemeDarkFace : kMCWebThemeWindow, r_color);
 		case kMCPlatformControlTypeOptionMenu:
 		case kMCPlatformControlTypePulldownMenu:
 		case kMCPlatformControlTypePopupMenu:

@@ -781,6 +781,65 @@ def appearance_page_name():
     return STACK_NAME + '-appearance.html'
 
 
+# The probe's page as a page that asks for its fields in the card's grey,
+# as the web builder writes it with the HTML5 pane's Fields set to "The
+# card's grey" (getPageHead; engine/src/em-theme.cpp)
+FIELDS_META = '<meta name="oxt-field-background" content="card">'
+
+
+def fields_page_name():
+    return STACK_NAME + '-fields.html'
+
+
+# What the probe's snapshot of a stack whose colours are all unset reports
+# (probeReport("colors")): its size, a point in its field, a point on its
+# card. White fields on a light grey card (Windows 10's colours) on the
+# page as built; the card's grey for both on the page that asks for it.
+COLORS_AS_BUILT = '200x100:255,255,255:240,240,240'
+COLORS_FIELDS_LIKE_CARD = '200x100:240,240,240:240,240,240'
+
+
+def write_fields_page(page):
+    """Writes the probe's page with FIELDS_META beside it."""
+    with open(page, 'r', encoding='utf-8') as f:
+        text = f.read()
+    if '</head>' not in text:
+        raise CheckError('%s has no </head>' % page)
+    text = text.replace('</head>', FIELDS_META + '</head>', 1)
+    with open(os.path.join(os.path.dirname(page), fields_page_name()), 'w', encoding='utf-8') as f:
+        f.write(text)
+
+
+def fields_page_from_ide(site, fields_site):
+    """Puts the page of the standalone that the IDE's builder made with the
+    HTML5 pane's Fields setting at "The card's grey" (web-deploy.livecodescript,
+    in <fields_site>) beside the page as built in <site>, as
+    fields_page_name(), after checking that it is that page with FIELDS_META
+    and nothing else changed: the setting's whole way from the Standalone
+    Settings to the page. Returns a line for the summary; CheckError if it is
+    not so."""
+    page = os.path.join(site, STACK_NAME + '.html')
+    fields_page = os.path.join(fields_site, STACK_NAME + '.html')
+    if not os.path.isfile(fields_page):
+        raise CheckError('the IDE\'s builder wrote no page with the Fields setting at "The card\'s grey" (%s)'
+                         % fields_page)
+    with open(page, 'r', encoding='utf-8') as f:
+        built = f.read()
+    with open(fields_page, 'r', encoding='utf-8') as f:
+        text = f.read()
+    head = text.split('</head>', 1)[0]
+    if text.count(FIELDS_META) != 1 or FIELDS_META not in head:
+        raise CheckError('the page that the IDE\'s builder wrote with the Fields setting at "The card\'s grey" '
+                         'has not one %s in its head' % FIELDS_META)
+    if text.replace(FIELDS_META, '', 1) != built:
+        raise CheckError('the page that the IDE\'s builder wrote with the Fields setting at "The card\'s grey" '
+                         'differs from the page as built by more than %s' % FIELDS_META)
+    with open(os.path.join(site, fields_page_name()), 'w', encoding='utf-8') as f:
+        f.write(text)
+    return ('the IDE\'s builder wrote the Fields setting ("The card\'s grey") into the page as %s'
+            % FIELDS_META)
+
+
 def write_appearance_page(page):
     """Writes the probe's page with APPEARANCE_META beside it."""
     with open(page, 'r', encoding='utf-8') as f:
@@ -825,6 +884,9 @@ def build_with_ide(args, work, timeout):
     p = package.PLATFORMS[args.platform or rlc.default_platform()]
     site = os.path.join(work, 'site')
     shutil.rmtree(site, ignore_errors=True)
+    # (the standalone with the Fields setting: see fields_page_from_ide)
+    fields_site = site + '-fields'
+    shutil.rmtree(fields_site, ignore_errors=True)
     results = os.path.join(work, 'ide-build.txt')
     if os.path.exists(results):
         os.remove(results)
@@ -904,6 +966,10 @@ def build_with_ide(args, work, timeout):
                 log('  ide output: %s' % line)
         else:
             lines.append('the IDE built the standalone in %.0f s' % (time.time() - started))
+            try:
+                lines.append(fields_page_from_ide(site, fields_site))
+            except CheckError as e:
+                problems.append(str(e))
             # The probe uses none of the xTalk Suite's libraries, so the
             # builder gives it the lean engine of the runtime's lean/
             # (getEngineFiles in revsaveasemscriptenstandalone), when the
@@ -2036,6 +2102,53 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             except (PlaywrightError, PlaywrightTimeoutError) as e:
                 problems.append('the check of the systemAppearance failed: %s%s' % (e, extra_said()))
                 del extra_events[:]
+        if 'ready' in probes:
+            # the colours of a field and a card that set none, in a light
+            # browser: white fields on the page as built, as on every page
+            # before; the card's grey on the page that asks for it (seth's
+            # choice 9A of 2026-10-31)
+            try:
+                browser_waiting[0] = 'the default colours'
+                del extra_events[:]
+                light = browser.new_context(color_scheme='light')
+                report_js = "document.liveCode.findStackWithName('%s').probeReport('colors')" % STACK_NAME
+                seen = {}
+                for name, page_url, want in (('as built', url, COLORS_AS_BUILT),
+                                             ('with its fields in the card\'s grey',
+                                              urllib.parse.urljoin(url, fields_page_name()),
+                                              COLORS_FIELDS_LIKE_CARD)):
+                    tab = light.new_page()
+                    tab.on('dialog', on_dialog)
+                    watch_extra(tab, 'the page %s' % name)
+                    tab.goto(page_url + ('&' if '?' in page_url else '?') + 'tab=colors')
+                    tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
+                                          "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
+                                          timeout=timeout * 1000)
+                    opened = tab.evaluate(report_js.replace("'colors'", "'colors-open'"))
+                    if opened != 'opened':
+                        problems.append('the page %s could not open a stack for its colours: %r' % (name, opened))
+                        tab.close()
+                        continue
+                    seen[name] = None
+
+                    def drawn():
+                        seen[name] = tab.evaluate(report_js)
+                        return seen[name] == want
+                    if not wait_for(drawn, 'the default colours of the page %s' % name, 10):
+                        problems.append('the page %s draws a field and a card that set no colour as %r '
+                                        '(size:field:card), expected %r' % (name, seen[name], want))
+                    tab.evaluate(report_js.replace("'colors'", "'colors-close'"))
+                    tab.close()
+                if all(seen.get(n) == w for n, w in (('as built', COLORS_AS_BUILT),
+                                                    ('with its fields in the card\'s grey',
+                                                     COLORS_FIELDS_LIKE_CARD))):
+                    lines.append('fields without colours: white on the page as built, the card\'s grey on the '
+                                 'page that asks for it')
+                del extra_events[:]
+                light.close()
+            except (PlaywrightError, PlaywrightTimeoutError) as e:
+                problems.append('the check of the default colours failed: %s%s' % (e, extra_said()))
+                del extra_events[:]
         browser_waiting[0] = 'the browser to close'
         browser.close()
 
@@ -2158,6 +2271,9 @@ def main(argv=None):
             version, os.path.getsize(wasm) / 1e6, os.path.getsize(js) / 1e3))
         lines.append('standalone.zip %.1f kB' % (os.path.getsize(os.path.join(site, 'standalone.zip')) / 1e3))
         write_appearance_page(page)
+        # (the IDE's builder wrote its own, from the Fields setting)
+        if mode != 'ide':
+            write_fields_page(page)
         server = make_server(site, PROBE_PAGE_DEFERRED if args.browser == 'webkit' else PROBE_PAGE)
         url = 'http://127.0.0.1:%d/%s' % (server.server_address[1], os.path.basename(page))
         log('Opening %s' % url)
