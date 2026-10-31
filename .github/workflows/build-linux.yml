@@ -1402,6 +1402,26 @@ jobs:
         run: |
           python3 tools/ci/check_elf_floor.py "$OXT_ROOT" --matrix "linux-$ARCH" --exclude '*.dbg'
 
+      # Where every binary of the package came from, as a CI artifact
+      # only (tools/ci/release_inventory.py; never a release asset)
+      - name: Release inventory
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/inventory"
+          python3 tools/ci/release_inventory.py "$OXT_ROOT" --platform "linux-$ARCH" --commit "$COMMIT" \
+            --out "$RUNNER_TEMP/inventory/release-inventory-linux-$ARCH.json"
+
+      - name: Upload the release inventory
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-inventory-linux-${{ matrix.arch }}
+          path: ${{ runner.temp }}/inventory
+          if-no-files-found: ignore
+          retention-days: 30
+
       # ldd over every ELF file of the package (engine, externals,
       # CEF and its helpers on x86_64, toolchain, extension libraries):
       # nothing "not found" now that the list's packages are installed, and every

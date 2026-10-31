@@ -966,6 +966,24 @@ jobs:
             python3 tools/ci/check_macho_floor.py "$APP" --matrix mac-universal --arch "$arch" --exclude '*.dSYM'
           done
 
+      # Where every binary of the app came from, as a CI artifact only
+      # (tools/ci/release_inventory.py; never a release asset)
+      - name: Release inventory
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/inventory"
+          python3 tools/ci/release_inventory.py "$APP" --platform mac-universal --commit "$COMMIT" \
+            --out "$RUNNER_TEMP/inventory/release-inventory-mac-universal.json"
+
+      - name: Upload the release inventory
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-inventory-mac-universal
+          path: ${{ runner.temp }}/inventory
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: IDE compile check
         timeout-minutes: 20
         run: |

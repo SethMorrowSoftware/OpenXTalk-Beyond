@@ -947,6 +947,17 @@ platform matrix") gets the same check over every ELF file it ships with
 matrix and README.md together; `tools/ci/tests/test_platform_matrix.py`
 fails when README.md no longer states one.
 
+Each platform's build also records where every binary of its package
+came from, with
+[`tools/ci/release_inventory.py`](tools/ci/release_inventory.py): path,
+size, SHA-256, format, architectures, floors and origin (built from the
+commit, the runtimes asset and the commit it was built from, the Android
+runtime carried over from 1.15, an xTalk Suite library and whether it
+is the pinned file, or CEF). The JSON is the artifact
+`release-inventory-<platform>` of the run; it is not a release asset.
+A binary of unknown origin is a warning (`--fail-on-unknown` makes it
+an error).
+
 `standalone_check.py` builds a Mac standalone from the packaged runtime
 with the engine's deploy command, signs it as the IDE does and runs it
 (see [Standalone check](#standalone-check)).
