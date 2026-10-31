@@ -1485,7 +1485,14 @@ saves a one-handler stack and attaches it to a copy of a runtime with
 The standalone must be a file of the runtime's format and architecture;
 where this computer can run it, it is run without a user interface and
 must report the engine's version, its processor, its platform and the
-environment `command line`. Before that, the runtime's folder is
+environment `command line`, and then whether its engine has a few changes
+made since the runtimes asset was built that a script can see without a
+user interface (`featureProbes` in the deploy script: `the
+microseconds`, `matches wildcard` and `matches regex`, literal arrays).
+The layout's own runtime must have them all; a runtime from the runtimes
+asset (Windows' on a Linux or Mac layout, for one) is listed with its
+answers and does not fail the check, since rebuilding the asset is a
+decision of its own. Before that, the runtime's folder is
 checked: its engine, its Support files and every external, database
 driver and (for the browser) CEF library that its lists name must be
 there, built for that runtime's architecture.
