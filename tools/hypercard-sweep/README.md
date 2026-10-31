@@ -62,6 +62,14 @@ There are two modes:
   sent the messages of a handler that had gone to another stack to that
   stack in place of its own (pull request 252 changed that).
 
+  A button that is hidden or disabled when its turn comes is not
+  clicked: a person cannot click a button they cannot see, and
+  HyperCard sends a disabled button no mouse messages. The log has a
+  `SKIP` line for it. Runs from before then clicked those buttons too,
+  and their scripts, which never run in HyperCard, raised errors and
+  waited where a stack works (a hidden "coverhide" button showing a field
+  that is not there), so they are not comparable with runs after.
+
 The IDE keeps its stack revIcons in memory, and its substacks hold
 HyperCard's brushes and patterns, so a stack's `set the pattern to 12`
 or `reset paint` finds them there. The sweep loads that stack too
@@ -79,6 +87,17 @@ person are not representative. Count them, but don't fix them because a
 headless run reported them. A modal window, which would wait for a person
 until the stack timed out, is closed a quarter of a second after it opens,
 as its Cancel button would close it, and counted in the report.
+
+`answer` and `ask` are answered as a person most often answers them, with
+the default button: an `answer`'s last button (OK if it has none), as in
+HyperCard, and an `ask`'s OK with the reply it offers. The log has a
+`DIALOG` line for each. The engine shows them with the stacks "Answer
+Dialog" and "Ask Dialog", which the IDE has; the sweep makes its own.
+Runs from before then had none, and there `it` was the engine's request
+to the dialog (its kind, title, prompt and buttons in one) rather than a
+reply, so a script that asked until it was told 1, 2 or 3 asked until the
+stack timed out, and one that asked for a year did sums with that text.
+They are not comparable with runs after.
 
 A script's `exit to top` ends every handler that is running, the sweep's
 own too, so before the sweep went on after one, the tour stopped at the
@@ -175,6 +194,8 @@ following lines are written:
 | `ERR` or `THROW` | phase, error, the script line that failed (in a repeat or an if, the line inside it) and its object |
 | `ABORT` | phase: a step a script ended with `exit to top`, after which the tour went on |
 | `MODAL` | phase, the name of a modal window the sweep closed |
+| `SKIP` | phase: a click left out, the button hidden or disabled |
+| `DIALOG` | phase, the dialog's kind (`answer plain`, `ask password`, ...), the reply the sweep gave (base64) |
 | `DONE` | none |
 | `EXIT` | the engine's exit code, or `timeout` |
 
