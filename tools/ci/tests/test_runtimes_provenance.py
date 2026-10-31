@@ -106,6 +106,17 @@ class Provenance(unittest.TestCase):
         code, out = self.run_main('--fail-on-stale')
         self.assertEqual(code, 1, out)
 
+    def test_a_change_to_the_version_file_alone_is_stale(self):
+        # every runtime reports its BUILD_SHORT_VERSION: after a change to
+        # it (9.7.1-OXT to 9.7.1-BeyondEngine, 0.2.7-rc.6.12) the asset's
+        # runtimes report the old text, which standalone_check.py lets pass
+        # only because the release refuses the asset here
+        self.commit('version', 'BUILD_SHORT_VERSION = 9.9.9-New')
+        self.record(self.built)
+        code, out = self.run_main('--fail-on-stale')
+        self.assertEqual(code, 1, out)
+        self.assertIn('BUILD_SHORT_VERSION = 9.9.9-New', out)
+
     def test_short_commit_and_list_limit(self):
         for n in range(3):
             self.commit('engine/src/n%d.cpp' % n, 'change %d' % n)

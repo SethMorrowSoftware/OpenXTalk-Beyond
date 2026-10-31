@@ -1494,7 +1494,16 @@ microseconds`, `matches wildcard` and `matches regex`, literal arrays).
 The layout's own runtime must have them all; a runtime from the runtimes
 asset (Windows' on a Linux or Mac layout, for one) is listed with its
 answers and does not fail the check, since rebuilding the asset is a
-decision of its own. Before that, the runtime's folder is
+decision of its own. Such a runtime may likewise report the version that
+the asset's `PROVENANCE-oxt-runtimes-<label>.md` in the layout records for
+it instead of the engine's, which is listed and does not fail: the asset's
+runtimes keep the version text of the commit they were built from, as
+Windows x86-32's said `9.7.1-OXT` after the engine's became
+`9.7.1-BeyondEngine` (0.2.7-rc.6.12). Any other version fails, and without
+that file every runtime must report the engine's. "Tag a release" refuses
+an asset older than the engine's source or the `version` file
+(`tools/ci/runtimes_provenance.py --fail-on-stale`), so a release never
+carries one. Before that, the runtime's folder is
 checked: its engine, its Support files and every external, database
 driver and (for the browser) CEF library that its lists name must be
 there, built for that runtime's architecture.
