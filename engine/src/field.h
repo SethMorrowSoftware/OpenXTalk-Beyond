@@ -401,6 +401,8 @@ public:
 	void joinparagraphs();
 	void fnop(Field_translations function, MCStringRef p_string, KeySym key);
 	void finsertnew(Field_translations function, MCStringRef p_string, KeySym key);
+	// OXT-Beyond: the undo record of typed text (finsertnew and freturn)
+	void recordtyping(findex_t p_index, findex_t p_length);
 	void fdel(Field_translations function, MCStringRef p_string, KeySym key);
 	void fhelp(Field_translations function, MCStringRef p_string, KeySym key);
 	void fundo(Field_translations function, MCStringRef p_string, KeySym key);
