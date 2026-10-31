@@ -596,6 +596,21 @@ jobs:
         timeout-minutes: 45
         run: python3 tools/ci/run_engine_tests.py --bin "linux-$ARCH-bin" --jobs 4 --log engine-tests.log
 
+      # The tests of a fix of a use of freed memory, again under valgrind's
+      # memcheck (tools/ci/memcheck_tests.py): such a use need not crash,
+      # so its test can pass while the engine is still wrong. On
+      # 0.2.7-rc.6.9 memcheck reports an invalid read and an invalid write
+      # in each of these (the Script Editor's Breakpoints pane's crash).
+      - name: Memory check (valgrind)
+        if: matrix.arch == 'x86_64'
+        timeout-minutes: 30
+        run: |
+          apt-get install -y --no-install-recommends valgrind > /dev/null 2>&1 || {
+            apt-get update > /dev/null && apt-get install -y --no-install-recommends valgrind > /dev/null; }
+          python3 tools/ci/memcheck_tests.py --bin "linux-$ARCH-bin" --log memcheck.log \
+            core/interface/delete.livecodescript:TestDeleteGroupOfTarget \
+            core/interface/delete.livecodescript:TestDeleteStackOfTarget
+
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
       - name: Record the finished build
@@ -614,6 +629,7 @@ jobs:
             prebuilt/build/**/*.log
             ide-compile-check.log
             engine-tests.log
+            memcheck.log
           if-no-files-found: ignore
           retention-days: 14
 
