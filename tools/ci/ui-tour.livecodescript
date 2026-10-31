@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -4551,6 +4551,80 @@ on tour_icon_chooser
    tourShotStack "revIconChooser", "27-icon-chooser"
    close stack "revIconChooser"
 end tour_icon_chooser
+
+-- macOS: the system switched between light and dark while the IDE runs,
+-- as System Settings does it (the global AppleInterfaceStyle written, then
+-- AppleInterfaceThemeChangedNotification posted), there and back. Each
+-- switch must send systemAppearanceChanged, and the systemAppearance read
+-- in its handler must already be the new one: NSUserDefaults' cached copy
+-- of the setting once gave the old one, so the IDE stayed on the
+-- appearance it left (bwmilby, openxtalk.org p=25665, p=25668). Other
+-- platforms: skipped (Linux draws light; Windows is switched through the
+-- registry by ui_tour.py only before the start)
+on tour_system_switch
+   global gTourSystemSeen
+   local tStart, tOther, tTarget, tSeen, tFails, tWaited, tError
+   if the platform is not "MacOS" then
+      tourRecord "INFO system-switch: macOS only"
+      exit tour_system_switch
+   end if
+   put the systemAppearance into tStart
+   if tStart is "dark" then put "light" into tOther
+   else put "dark" into tOther
+   if there is a button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" then \
+         delete button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour"
+   create button "oxtTourSystemWatch" in card 1 of stack "oxt_ui_tour"
+   set the script of it to "on systemAppearanceChanged" & return & \
+         "global gTourSystemSeen" & return & \
+         "put the systemAppearance & comma after gTourSystemSeen" & return & \
+         "pass systemAppearanceChanged" & return & "end systemAppearanceChanged"
+   insert the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" into front
+   try
+      repeat for each item tTarget in tOther & comma & tStart
+         put empty into gTourSystemSeen
+         tourSystemSet tTarget
+         put 0 into tWaited
+         repeat while gTourSystemSeen is empty and tWaited < 5000
+            tourWait 250
+            add 250 to tWaited
+         end repeat
+         -- a second notification for one switch (NSSystemColorsDidChange)
+         tourWait 750
+         put gTourSystemSeen into tSeen
+         if char -1 of tSeen is comma then delete char -1 of tSeen
+         tourRecord "INFO system-switch to" && tTarget & ": systemAppearanceChanged with" && \
+               quote & tSeen & quote & ", the systemAppearance now" && the systemAppearance
+         if tSeen is empty then
+            put "no systemAppearanceChanged for the switch to" && tTarget & return after tFails
+         else if item 1 of tSeen is not tTarget then
+            put "the switch to" && tTarget && "gave systemAppearanceChanged with the systemAppearance" && \
+                  item 1 of tSeen & return after tFails
+         end if
+         if the systemAppearance is not tTarget then
+            put "after the switch to" && tTarget && "the systemAppearance is" && the systemAppearance & return after tFails
+         end if
+      end repeat
+   catch tError
+      put tError & return after tFails
+   end try
+   remove the script of button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour" from front
+   delete button "oxtTourSystemWatch" of card 1 of stack "oxt_ui_tour"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_system_switch
+
+-- Sets the Mac to pAppearance (light or dark) as System Settings does
+command tourSystemSet pAppearance
+   if pAppearance is "dark" then
+      get shell("defaults write -g AppleInterfaceStyle Dark")
+   else
+      get shell("defaults delete -g AppleInterfaceStyle 2>/dev/null; true")
+   end if
+   get shell("osascript -l JavaScript -e " & quote & \
+         "ObjC.import('Foundation'); $.NSDistributedNotificationCenter.defaultCenter" & \
+         ".postNotificationNameObjectUserInfoDeliverImmediately('AppleInterfaceThemeChangedNotification'," & \
+         " null, null, true)" & quote)
+   if it is not empty then tourRecord "INFO system-switch osascript:" && tourJoin(it)
+end tourSystemSet
 
 on tour_screen_end
    tourShotScreen "99-screen-end"
