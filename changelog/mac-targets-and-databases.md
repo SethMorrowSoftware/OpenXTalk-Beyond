@@ -1,0 +1,3 @@
+- Standalone Settings: on Linux and Windows, looking at the OS X card no longer turns off every Mac target of the stack; the targets are shown as they are and kept, and are changed only on a Mac (#PR)
+- Databases: revRollBackDatabase and revdb_rollback roll a PostgreSQL, SQLite or ODBC transaction back, as their dictionary entries say; they committed it (#PR)
+- Databases: the MySQL driver's encrypted connections work again, over TLS 1.2 or 1.3; it asked for TLS 1.0 alone, which OpenSSL 3 and current MySQL and MariaDB servers refuse (#PR)

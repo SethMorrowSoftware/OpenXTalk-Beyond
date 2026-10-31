@@ -324,8 +324,16 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
   if (ca_file == 0 && ca_path == 0)
     verify= SSL_VERIFY_NONE;
 
+  /*
+    OXT-Beyond: any version of TLS that OpenSSL and the server share, not
+    TLS 1.0 alone (TLSv1_client_method), which OpenSSL 3 refuses at its
+    default security level and MySQL 8.0.28 and later and current MariaDB
+    refuse too, so no encrypted connection could be made (seth's decision,
+    2026-10-31). TLS_method is the version-flexible method; SSL_connect
+    makes it the client end.
+  */
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_client_method())))
+                             ca_path, cipher, (SSL_METHOD *) TLS_method())))
   {
     return 0;
   }
