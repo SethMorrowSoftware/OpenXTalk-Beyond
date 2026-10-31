@@ -81,6 +81,9 @@ on:
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
       - tools/web-ide/**
+      - tools/pages/build_pages.py
+      - tools/pages/build_dictionary.py
+      - tools/pages/check_dictionary.py
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json
@@ -104,6 +107,9 @@ on:
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
       - tools/web-ide/**
+      - tools/pages/build_pages.py
+      - tools/pages/build_dictionary.py
+      - tools/pages/check_dictionary.py
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json
@@ -819,6 +825,40 @@ jobs:
           sha256sum "$zip" > SHA256SUMS
           ls -l
           cat SHA256SUMS
+
+      # The Dictionary that Help > Dictionary Online opens (seth's choice
+      # 12A): the GitHub Pages site makes it from the release's web IDE zip
+      # (pages.yml, tools/pages/build_pages.py), so it is made here from
+      # this zip the same way and read in a browser
+      # (tools/pages/check_dictionary.py), before the zip goes anywhere
+      - name: Install Playwright and Chromium
+        env:
+          PLAYWRIGHT_VERSION: 1.56.0
+        run: |
+          python3 -m venv "$RUNNER_TEMP/playwright"
+          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+
+      - name: The online Dictionary
+        run: |
+          zip=$(compgen -G "$RUNNER_TEMP/download/*-web-ide.zip" | head -n 1)
+          version=$(basename "$zip" -web-ide.zip); version=${version#OXT-Beyond-}
+          python3 tools/pages/build_pages.py --out "$RUNNER_TEMP/pages" --ide "$zip" --ide-version "$version"
+          if [ ! -f "$RUNNER_TEMP/pages/dictionary/index.html" ]; then
+            echo "::error::the site made from $(basename "$zip") has no Dictionary"
+            exit 1
+          fi
+          "$RUNNER_TEMP/playwright/bin/python" tools/pages/check_dictionary.py \
+            --site "$RUNNER_TEMP/pages/dictionary" --out "$RUNNER_TEMP/dictionary-shots"
+
+      - name: Upload the Dictionary's screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dictionary-screenshots
+          path: ${{ runner.temp }}/dictionary-shots/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload the zip
         id: upload

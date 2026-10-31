@@ -82,7 +82,7 @@ script "oxt_ui_tour"
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3847,19 +3847,27 @@ on tour_standalone_settings
             throw "the Fields setting is hidden or under the pane's text:" && \
                   the rect of button "emscriptenFields" of card "Emscripten" of stack tStack
          end if
-         -- a pick is the setting that the web builder reads (the menu
-         -- sends menuPick when its choice changes, as a click does)
+         -- a pick is the setting that the web builder reads: as a click
+         -- on the menu does, its choice changes and it gets menuPick (sent
+         -- here, since the pane's settings are disabled while the stack is
+         -- not built for HTML5, and a disabled menu sends none)
          if the label of button "emscriptenFields" of card "Emscripten" of stack tStack is not "White" or \
                the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not empty then
             throw "the Fields setting of a stack that has none is not White:" && \
                   the label of button "emscriptenFields" of card "Emscripten" of stack tStack
          end if
+         lock messages
          set the menuHistory of button "emscriptenFields" of card "Emscripten" of stack tStack to 2
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFields" of card "Emscripten" of stack tStack with "The card's grey"
          if the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not "card" then
             throw "picking The card's grey set the Fields setting to" && \
                   quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
          end if
+         lock messages
          set the menuHistory of button "emscriptenFields" of card "Emscripten" of stack tStack to 1
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFields" of card "Emscripten" of stack tStack with "White"
          if the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not empty then
             throw "picking White left the Fields setting at" && \
                   quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
@@ -4225,6 +4233,53 @@ on tour_about
    tourRedrawCheck tNew, "lkAppearanceChanged", "24-about-redrawn"
    close stack tNew
 end tour_about
+
+-- Help > Dictionary Online (seth's choice 12A of 2026-10-31): the Help
+-- menu has the item, and picking it, as the menu bar's Help button does,
+-- asks revGoURL for OXT-Beyond's own Dictionary on the project's web pages
+-- (tools/pages/build_dictionary.py makes it from each release's web IDE,
+-- and check_dictionary.py checks it in a browser), not the classic one
+-- that calls itself the LiveCode Dictionary. A frontscript catches the
+-- address, so no browser opens.
+constant kTourOnlineDictionary = "https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/"
+
+on tour_dictionary_online
+   local tHelp, tDefault, tURL, tError
+   put the text of button "Help" of group "revMenuBar" of stack "revMenuBar" into tHelp
+   if "Dictionary Online" is not among the lines of tHelp then
+      throw "the Help menu has no Dictionary Online:" && tourJoin(tHelp)
+   end if
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   create invisible button "oxt_ui_tour_url"
+   set the script of it to "on revGoURL pURL" & return & \
+         "   set the cTourURL of stack " & quote & "oxt_ui_tour" & quote & " to pURL" & return & \
+         "end revGoURL"
+   unlock messages
+   set the defaultStack to tDefault
+   set the cTourURL of stack "oxt_ui_tour" to empty
+   insert the script of button "oxt_ui_tour_url" of stack "oxt_ui_tour" into front
+   -- (a click on the menu makes the menu bar's stack the default one, and
+   -- its pick sends to "this stack")
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to "revMenuBar"
+      dispatch "menuPick" to button "Help" of group "revMenuBar" of stack "revMenuBar" with "Dictionary Online"
+   catch tError
+   end try
+   set the defaultStack to tDefault
+   remove the script of button "oxt_ui_tour_url" of stack "oxt_ui_tour" from front
+   put the cTourURL of stack "oxt_ui_tour" into tURL
+   delete button "oxt_ui_tour_url" of stack "oxt_ui_tour"
+   if tError is not empty then
+      throw "Help > Dictionary Online failed:" && tourJoin(tError)
+   end if
+   tourRecord "INFO Help > Dictionary Online opens" && tURL
+   if tURL is not kTourOnlineDictionary then
+      throw "Help > Dictionary Online opens" && quote & tURL & quote & ", not" && kTourOnlineDictionary
+   end if
+end tour_dictionary_online
 
 on tour_release_notes
    local tBefore, tNew

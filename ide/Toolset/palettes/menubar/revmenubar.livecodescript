@@ -4,6 +4,8 @@
 local sMenuTarget, tPaletteList  --script locals
 -- OXT-Beyond: the toolbar's modern look (mbRefreshLook)
 local sMbAppearanceMsg, sMbAppearanceTries
+-- OXT-Beyond: what Help > Dictionary Online opens (tOpenOnlineDict)
+constant kOnlineDictionaryURL = "https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/"
 
 on preOpenStack
    if the cREVLaunching of stack "Home" is true then set the blendlevel of this stack to 99  --tp 24-1
@@ -3899,7 +3901,13 @@ end revMenubarOpenAbout
 on tOpenOnlineDict  --tp 24-1, open online dictionary in default browser
    -- revGoURL "https://openxtalk-org.github.io/OpenXTalk_Syntax_Dictionary/" -- relocated to not use github.io
    -- (.io domains are commonly blocked as nuisance domains by various ISPs)
-   revGoURL "https://www.openxtalk.net/oxt/classic-dictionary/api.html"
+   -- revGoURL "https://www.openxtalk.net/oxt/classic-dictionary/api.html"
+   -- OXT-Beyond: this IDE's own Dictionary, xTalk Script and xTalk Builder,
+   -- on the project's web pages beside the web IDE (tools/pages/
+   -- build_dictionary.py makes it from each release's web IDE), instead of
+   -- the classic one, which calls itself the LiveCode Dictionary
+   -- (richmond62; seth's choice 12A of 2026-10-31)
+   revGoURL kOnlineDictionaryURL
 end tOpenOnlineDict
 
 on tOpenUnlock  --tp 07-06-2026, 'Unlock and Remove FX'
