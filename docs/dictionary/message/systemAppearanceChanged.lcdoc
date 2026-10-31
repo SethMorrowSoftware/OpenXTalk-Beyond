@@ -40,6 +40,14 @@ follows the desktop's light or dark setting instead, and the message is
 also sent when GNOME's "color-scheme" setting switches it, and when setting
 the <useDesktopAppearance> changes it.
 
+The message is sent once, to the <current card> of the <defaultStack>.
+In the development environment the <defaultStack> is often one of its own
+stacks; then the message is also sent to the <current card> of the
+frontmost open stack that is not part of the development environment, when
+that card, its stack or its main stack (or one of their behaviors) has a
+<systemAppearanceChanged> handler. A handler in a library or a backscript
+gets the message wherever it is sent.
+
 In an HTML5 standalone the message is sent when the browser's colour scheme
 changes, on a page built with **Appearance** set to **Follow the browser**
 in the Web pane of the Standalone Application Settings.
