@@ -1451,6 +1451,21 @@ is `true`) and are skipped elsewhere unless you pass `--desktop-tests`.
 On Windows the tests run with `the hideConsoleWindows` set, so the
 commands they run open no console windows.
 
+The MySQL and PostgreSQL tests of `tests/lcs/core/database`
+(`server_databases.livecodescript` and `db_getters`) need servers, which
+they read from the environment: `OXT_TEST_MYSQL_HOST` (`host:port`),
+`OXT_TEST_MYSQL_DATABASE`, `OXT_TEST_MYSQL_USER`,
+`OXT_TEST_MYSQL_PASSWORD` and `OXT_TEST_MYSQL_TLS` (`true` when the
+server offers TLS), and the same with `POSTGRESQL`. Without them they are
+skipped, as they are in the build jobs. The Linux build's job "Databases
+linux-x86_64" starts MySQL 8.0 and PostgreSQL 16 containers with TLS and
+runs them with `--filter '^lcs: core/database/'`; its comment says how the
+servers are set up for the bundled client libraries. They pin what the
+drivers do today, including two things a script might not expect, each
+asserted as broken in the test: PostgreSQL's `revRollBackDatabase`
+commits (revdb's `REVDB_Rollback` calls `transCommit`), and the MySQL
+client speaks TLS 1.0 only, which current servers refuse.
+
 Every CI build runs the five suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
 (Apple Silicon and Intel). The job summary lists new failures, flaky
