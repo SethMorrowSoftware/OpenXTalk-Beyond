@@ -467,7 +467,83 @@ end desktopChanged
 -- Windows, and on Linux a change of GTK theme): the palettes that chose
 -- their colours when they were drawn (the Tools palette, the Project
 -- Browser, the menu bar) subscribe to ideSystemAppearanceChanged
+--
+-- The engine sends the message once, to the current card of
+-- the defaultStack, and in the IDE that is often one of the IDE's own
+-- stacks (the palettes and editors set it as they work), so a handler in
+-- the user's card or stack only ran when the switch came while that stack
+-- happened to be the default (bwmilby, openxtalk.org p=25665). When the
+-- message comes to an IDE stack, it is also sent to the current card of
+-- the frontmost open stack that is not the IDE's, as a standalone sends it
+-- to its own stack, but only when that card, its stack or its mainstack
+-- (or one of their behaviors) handles it: a handler in a library or
+-- backscript has already had this one
 on systemAppearanceChanged
+   local tCard
    send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
+   if revIDEObjectIsOnIDEStack(the long id of the target) then
+      put ideUserCardForSystemAppearance() into tCard
+      if tCard is not empty then
+         send "systemAppearanceChanged" to tCard in 0 milliseconds
+      end if
+   end if
    pass systemAppearanceChanged
 end systemAppearanceChanged
+
+-- The current card of the frontmost open stack that is not the IDE's, if
+-- it, its stack or its mainstack handles systemAppearanceChanged
+private function ideUserCardForSystemAppearance
+   local tStack, tCard, tKind, tObject
+   repeat for each line tStack in the openStacks
+      if revIDEStackNameIsIDEStack(tStack) or there is not a stack tStack then
+         next repeat
+      end if
+      put the long id of this card of stack tStack into tCard
+      repeat for each item tKind in "card,stack,mainstack"
+         switch tKind
+            case "card"
+               put tCard into tObject
+               break
+            case "stack"
+               put the long id of stack tStack into tObject
+               break
+            default
+               put the long id of stack (the mainStack of stack tStack) into tObject
+               break
+         end switch
+         if ideHandlesSystemAppearance(tObject) then
+            return tCard
+         end if
+      end repeat
+      return empty
+   end repeat
+   return empty
+end ideUserCardForSystemAppearance
+
+-- Whether the script of pObject, or of its behavior (and theirs, in turn),
+-- has an "on systemAppearanceChanged" handler
+private function ideHandlesSystemAppearance pObject
+   local tDepth
+   put 0 into tDepth
+   repeat while pObject is not empty and tDepth < 10
+      if not exists(pObject) then
+         exit repeat
+      end if
+      if ideScriptHandlesSystemAppearance(the script of pObject) then
+         return true
+      end if
+      put the behavior of pObject into pObject
+      add 1 to tDepth
+   end repeat
+   return false
+end ideHandlesSystemAppearance
+
+private function ideScriptHandlesSystemAppearance pScript
+   local tLine
+   repeat for each line tLine in pScript
+      if word 1 of tLine is "on" and word 2 of tLine is "systemAppearanceChanged" then
+         return true
+      end if
+   end repeat
+   return false
+end ideScriptHandlesSystemAppearance

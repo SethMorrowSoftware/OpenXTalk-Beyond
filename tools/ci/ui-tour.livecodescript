@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,appearance-message,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -847,6 +847,75 @@ on tour_appearance_switch
    close stack tMB
    tourTmFinish "appearance-switch"
 end tour_appearance_switch
+
+-- systemAppearanceChanged reaches a handler in the user's card or stack
+-- when the engine sends it to an IDE stack, the defaultStack the palettes
+-- and editors often leave: the IDE's message handler frontscript sends it
+-- on to the current card of the frontmost stack that is not the IDE's, if
+-- that card or its stack handles it, once (bwmilby, openxtalk.org p=25665).
+-- Before, the user's handler ran only when the switch came while the
+-- user's stack happened to be the default. Sent here as the engine sends
+-- it, to the card of an IDE stack, and to the user's own card
+on tour_appearance_message
+   global gTourAppearanceSeen
+   local tStack, tHandler, tFails, tError
+   put "oxt_appearance_message" into tStack
+   put "on systemAppearanceChanged" & return & \
+         "global gTourAppearanceSeen" & return & \
+         "put the short name of this stack & comma after gTourAppearanceSeen" & return & \
+         "end systemAppearanceChanged" into tHandler
+   revIDEOpenPalette "tools"
+   tourWait 200
+   lock messages
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of it to "240,160,560,400"
+   unlock messages
+   go stack tStack
+   tourWait 300
+   try
+      -- a handler in the card: one message, for a switch sent to the IDE
+      set the script of card 1 of stack tStack to tHandler
+      put empty into gTourAppearanceSeen
+      send "systemAppearanceChanged" to card 1 of stack "revTools"
+      tourWait 500
+      if gTourAppearanceSeen is not (tStack & comma) then
+         put "sent to the Tools palette, the card's handler got" && quote & gTourAppearanceSeen & quote && \
+               "(the openStacks" && tourJoin(the openStacks) & ")" & return after tFails
+      end if
+      -- sent to the user's own card: once, as before
+      put empty into gTourAppearanceSeen
+      send "systemAppearanceChanged" to card 1 of stack tStack
+      tourWait 500
+      if gTourAppearanceSeen is not (tStack & comma) then
+         put "sent to the user's card, its handler got" && quote & gTourAppearanceSeen & quote & return after tFails
+      end if
+      -- a handler in the stack script: also sent on
+      set the script of card 1 of stack tStack to empty
+      set the script of stack tStack to tHandler
+      put empty into gTourAppearanceSeen
+      send "systemAppearanceChanged" to card 1 of stack "revTools"
+      tourWait 500
+      if gTourAppearanceSeen is not (tStack & comma) then
+         put "sent to the Tools palette, the stack's handler got" && quote & gTourAppearanceSeen & quote & return after tFails
+      end if
+      -- no handler of the user's: nothing is sent on
+      set the script of stack tStack to empty
+      put empty into gTourAppearanceSeen
+      send "systemAppearanceChanged" to card 1 of stack "revTools"
+      tourWait 500
+      if gTourAppearanceSeen is not empty then
+         put "with no handler, something got" && quote & gTourAppearanceSeen & quote & return after tFails
+      end if
+   catch tError
+      put tError & return after tFails
+   end try
+   lock messages
+   if there is a stack tStack then delete stack tStack
+   unlock messages
+   tourRecord "INFO appearance-message:" && the number of lines of tFails && "failed"
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_appearance_message
 
 -- Whether the stack pStack, or a card or control of it, subscribes to the
 -- IDE's message pMessage
