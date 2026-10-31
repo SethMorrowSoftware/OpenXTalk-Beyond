@@ -19,7 +19,7 @@
 that LiveCode's docs builder makes.
 
   python3 tools/oxt/text_dictionary.py [--data DIR] [--out DIR]
-                                       [--extensions DIR]
+                                       [--extensions DIR [--export-extensions]]
   python3 tools/oxt/text_dictionary.py --list-extensions DIR
 
 The text dictionary (Documentation/html_viewer/resources/data/api/
@@ -46,7 +46,12 @@ tabs; tools/ci/extension_docs.livecodescript then writes the JSON files. For
 each section it replaces every file of resaved/ and writes index.txt (the
 entry files, one per line; the dictionary no longer reads it) and
 substitutions.txt. The plugins folders hold entries written by hand and are
-left alone.
+left alone. With --export-extensions it also copies those JSON files into
+<data>/api_extensions/<api>/ (livecode_script, livecode_builder), which the
+IDE packages and never reads, so that the Dictionary on the web site
+(tools/pages/build_dictionary.py) has every entry the IDE's dictionaries
+have: the extensions OXT-Beyond installs, the xTalk Suite's among them,
+which the IDE adds to LiveCode's Dictionary only when it loads them.
 
 An entry file is named "<name> <type>.txt". A name that is not a file name on
 every system becomes a word of substitutions.txt (tab separated: the name, the
@@ -103,6 +108,7 @@ import collections
 import json
 import os
 import re
+import shutil
 import sys
 import xml.etree.ElementTree as ET
 
@@ -513,26 +519,66 @@ def collect(data, extensions=None):
                 section = 'datagrid' if (folder == script and name == 'dg.js') else default
                 sources.append((os.path.join(folder, name), section))
     if extensions:
-        listing = os.path.join(extensions, EXTENSION_LIST)
-        if not os.path.isfile(listing):
-            raise TextDictionaryError('no %s' % listing)
-        with open(listing, 'r', encoding='utf-8') as f:
-            for line in f.read().splitlines():
-                if not line.strip():
-                    continue
-                ident, kind = line.split('\t')[:2]
-                path = os.path.join(extensions, ident + '.js')
-                if os.path.isfile(path):
-                    # as in the IDE (__TypeToAPI): a module documents
-                    # LiveCode Builder, the others (and the IDE library)
-                    # LiveCode Script
-                    sources.append((path, 'builder' if kind == 'module' else 'xtalk'))
+        # as in the IDE (__TypeToAPI): a module documents LiveCode Builder,
+        # the others (and the IDE library) LiveCode Script
+        for path, api in extension_files(extensions):
+            sources.append((path, 'builder' if api == 'livecode_builder' else 'xtalk'))
     for path, section in sources:
         sections[section].extend(load_json(path))
     for section in ('xtalk', 'builder'):
         if not sections[section]:
             raise TextDictionaryError('no %s entries in %s' % (section, data))
     return sections
+
+
+# Where --export-extensions puts the extensions' JSON files for the
+# Dictionary on the web site (tools/pages/build_dictionary.py), in the data
+# folder that the IDE packages (and the web IDE's ide.zip with it): one
+# folder per API, named as the IDE names the APIs. The IDE reads only
+# api_<api> itself (revIDESpecialFolderPath "api"), so it never sees these,
+# and makes its own of the extensions it loads, as before.
+EXPORT_FOLDER = 'api_extensions'
+
+
+def extension_files(extensions):
+    """[(path, api)] of the extensions' JSON files of the folder (<id>.js of
+    what extensions.txt lists, in its order), each with the API that shows
+    it: livecode_builder for a module, livecode_script for the others (the
+    IDE library and the plugins too), as collect() puts them in the text
+    dictionary's sections, so the two dictionaries have the same entries."""
+    listing = os.path.join(extensions, EXTENSION_LIST)
+    if not os.path.isfile(listing):
+        raise TextDictionaryError('no %s' % listing)
+    out = []
+    with open(listing, 'r', encoding='utf-8') as f:
+        for line in f.read().splitlines():
+            if not line.strip():
+                continue
+            ident, kind = line.split('\t')[:2]
+            path = os.path.join(extensions, ident + '.js')
+            if os.path.isfile(path):
+                out.append((path, 'livecode_builder' if kind == 'module' else 'livecode_script'))
+    return out
+
+
+def export_extensions(extensions, data):
+    """Copy the extensions' JSON files into <data>/api_extensions/<api>/,
+    replacing what was there, for the Dictionary on the web site. Each is
+    read first, so a file the Dictionary could not read stops the build
+    here. Returns {api: [(id, entries)]}."""
+    target = os.path.join(data, EXPORT_FOLDER)
+    if os.path.isdir(target):
+        shutil.rmtree(target)
+    out = collections.OrderedDict()
+    for path, api in extension_files(extensions):
+        entries = load_json(path)
+        if not entries:
+            continue
+        folder = os.path.join(target, api)
+        os.makedirs(folder, exist_ok=True)
+        shutil.copyfile(path, os.path.join(folder, os.path.basename(path)))
+        out.setdefault(api, []).append((os.path.basename(path)[:-3], len(entries)))
+    return out
 
 
 def write_section(folder, entries):
@@ -563,6 +609,9 @@ def main(argv=None):
     ap.add_argument('--out', help='the exports folder (default: <data>/api/exports)')
     ap.add_argument('--extensions', metavar='DIR',
                     help='add the extensions\' JSON files of DIR (tools/ci/extension_docs.livecodescript)')
+    ap.add_argument('--export-extensions', action='store_true',
+                    help='with --extensions: also copy their JSON files into <data>/%s/<api>/ '
+                         'for the Dictionary on the web site' % EXPORT_FOLDER)
     ap.add_argument('--list-extensions', metavar='DIR',
                     help='only write DIR/extensions.txt, the extensions whose docs to add')
     ap.add_argument('--no-xtalk-suite', action='store_true',
@@ -588,6 +637,12 @@ def main(argv=None):
         for section, entries in sections.items():
             names = write_section(os.path.join(out, section), entries)
             print('%s: %d entries, %d files' % (section, len(entries), len(names)))
+        if args.export_extensions:
+            if not args.extensions:
+                raise TextDictionaryError('--export-extensions needs --extensions')
+            for api, files in export_extensions(args.extensions, args.data).items():
+                print('%s/%s: %d extensions, %d entries'
+                      % (EXPORT_FOLDER, api, len(files), sum(n for _, n in files)))
     except (TextDictionaryError, OSError, ValueError, SyntaxError, ET.ParseError) as err:
         print('text_dictionary.py: %s' % err, file=sys.stderr)
         return 1

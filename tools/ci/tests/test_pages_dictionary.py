@@ -83,6 +83,32 @@ def make_viewer(folder, script=SCRIPT, builder=BUILDER):
     return folder
 
 
+# An extension's data, as tools/ci/build_docs.sh puts it beside LiveCode's
+# (text_dictionary.py --export-extensions): its entries with the library's
+EXTENSION = [
+    {'id': 'org.openxtalk.library.sodium-1', 'name': 'org.openxtalk.library.sodium',
+     'display name': 'SodiumXT', 'library': 'sodiumxt', 'type': 'library'},
+    {'id': 'org.openxtalk.library.sodium-2', 'name': 'sodiumRandomBytes', 'display name': 'sodiumRandomBytes',
+     'library': 'sodiumxt', 'type': 'handler', 'syntax': ['sodiumRandomBytes(<pCount>)']},
+]
+MODULE = [
+    {'id': 'com.x.module-1', 'name': 'com.x.module', 'display name': 'X', 'library': 'x', 'type': 'module'},
+]
+
+
+def add_extensions(viewer, script=EXTENSION, builder=MODULE, bom=False):
+    """The extensions' files in resources/data/api_extensions/<api>/, with a
+    trailing comma as the docs parser may leave one."""
+    for name, entries, ident in (('livecode_script', script, 'org.openxtalk.library.sodium'),
+                                 ('livecode_builder', builder, 'com.x.module')):
+        if entries is None:
+            continue
+        folder = os.path.join(viewer, 'resources', 'data', build_dictionary.EXTENSIONS_FOLDER, name)
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, ident + '.js'), 'w', encoding='utf-8') as f:
+            f.write(('\ufeff' if bom else '') + entries_js(entries) + ',\n')
+
+
 def make_ide_zip(path, viewer=None):
     """ide.zip as the web IDE has it: the IDE under boot/, the viewer under
     boot/Documentation/html_viewer."""
@@ -149,6 +175,46 @@ class Build(unittest.TestCase):
         self.assertEqual(counts['xTalk Script'], 3)
         data = json.loads(self.out_text('built_api.js')[len('var dictionary_data ='):])
         self.assertEqual([e['name'] for e in data['docs'][0]['doc']], ['datagrid', 'answer', 'ask'])
+
+    def test_the_extensions(self):
+        # the extensions' entries follow LiveCode's in their API, as the IDE
+        # adds those of the extensions it loads (revIDEGetDocsAPIData)
+        make_viewer(self.viewer)
+        add_extensions(self.viewer, bom=True)
+        counts = build_dictionary.build(self.viewer, self.out)
+        self.assertEqual(counts, {'xTalk Script': 4, 'xTalk Builder': 2})
+        data = json.loads(self.out_text('built_api.js')[len('var dictionary_data ='):])
+        self.assertEqual(data['docs'][0]['doc'], SCRIPT + EXTENSION)
+        self.assertEqual(data['docs'][1]['doc'], BUILDER + MODULE)
+        # (the folder is not copied beside the page: its data is in built_api.js)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'resources', 'data')))
+
+    def test_extensions_for_one_api(self):
+        make_viewer(self.viewer)
+        add_extensions(self.viewer, builder=None)
+        self.assertEqual(build_dictionary.build(self.viewer, self.out), {'xTalk Script': 4, 'xTalk Builder': 1})
+
+    def test_extensions_alone_are_not_enough(self):
+        # LiveCode's entries are still needed: an API with only extensions'
+        # entries means the docs were not made
+        make_viewer(self.viewer, builder=None)
+        add_extensions(self.viewer)
+        with self.assertRaisesRegex(build_dictionary.DictionaryError, 'no entries'):
+            build_dictionary.build(self.viewer, self.out)
+
+    def test_an_extension_that_is_not_json(self):
+        make_viewer(self.viewer)
+        add_extensions(self.viewer)
+        with open(os.path.join(self.viewer, 'resources', 'data', build_dictionary.EXTENSIONS_FOLDER,
+                               'livecode_script', 'org.openxtalk.library.sodium.js'), 'a', encoding='utf-8') as f:
+            f.write('{')
+        with self.assertRaisesRegex(build_dictionary.DictionaryError, 'not JSON'):
+            build_dictionary.build(self.viewer, self.out)
+
+    def test_the_folder_is_the_one_the_docs_build_writes(self):
+        sys.path.insert(0, os.path.join(REPO, 'tools', 'oxt'))
+        import text_dictionary
+        self.assertEqual(build_dictionary.EXTENSIONS_FOLDER, text_dictionary.EXPORT_FOLDER)
 
     def test_no_missing_images(self):
         # lcdoc.css's edition badges name LiveCode's commercial skins, which
@@ -231,6 +297,16 @@ class FromTheWebIde(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.out, 'index.html')))
         # (the data is in built_api.js; the IDE's database is not copied)
         self.assertFalse(os.path.exists(os.path.join(self.out, 'resources', 'data')))
+
+    def test_the_ide_zip_with_extensions(self):
+        add_extensions(self.viewer)
+        make_ide_zip(os.path.join(self.site, 'ide.zip'), self.viewer)
+        counts = build_dictionary.build_from_ide_site(self.site, self.out)
+        self.assertEqual(counts, {'xTalk Script': 4, 'xTalk Builder': 2})
+        with open(os.path.join(self.out, 'built_api.js'), encoding='utf-8') as f:
+            data = json.loads(f.read()[len('var dictionary_data ='):])
+        self.assertEqual([e['name'] for e in data['docs'][0]['doc']],
+                         ['answer', 'ask', 'org.openxtalk.library.sodium', 'sodiumRandomBytes'])
 
     def test_an_ide_without_the_viewer(self):
         make_ide_zip(os.path.join(self.site, 'ide.zip'))
