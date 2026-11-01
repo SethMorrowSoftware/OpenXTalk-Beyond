@@ -100,6 +100,7 @@ on:
       - '.github/workflows/field-speed.yml'
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
+      - '.github/workflows/window-frame-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -688,6 +689,16 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/media_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --log "$env:RUNNER_TEMP\build-logs\media-check.log"
 
+      # A click on a stack's minimize button minimizes it, also for a stack
+      # opened the way the IDE opens its menubar (translucent, then opaque),
+      # with the runner's desktop (tools/ci/window_frame_check.py)
+      - name: Window frame check
+        id: window_frame_check
+        timeout-minutes: 5
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/window_frame_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --log "$env:RUNNER_TEMP\build-logs\window-frame-check.log"
+
       # Compile every IDE script of the staged installed layout with its
       # engine; fails on compile errors that are not in the baseline.
       - name: IDE compile check
@@ -939,6 +950,7 @@ jobs:
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           STANDALONE_OUTCOME: ${{ steps.standalone.outcome }}
           MEDIA_CHECK_OUTCOME: ${{ steps.media_check.outcome }}
+          WINDOW_FRAME_CHECK_OUTCOME: ${{ steps.window_frame_check.outcome }}
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
           TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
@@ -959,6 +971,7 @@ jobs:
             'Smoke test' = $env:SMOKE_OUTCOME
             'Standalone check' = $env:STANDALONE_OUTCOME
             'Browser and player check' = $env:MEDIA_CHECK_OUTCOME
+            'Window frame check' = $env:WINDOW_FRAME_CHECK_OUTCOME
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
             'Test installer' = $env:TEST_INSTALLER_OUTCOME
@@ -1035,6 +1048,51 @@ jobs:
           $lines += '- build-logs-win-x86_64: msbuild.log and the packaging, smoke test, standalone check, IDE compile check and installer logs'
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
+
+  # The window frame check again on Windows Server 2025, whose title bars
+  # are Windows 11's (the build's own runner, windows-2022, draws Windows
+  # 10's): the portable zip of the job above, from its artifact
+  # (tools/ci/window_frame_check.py). Up to 0.2.7-rc.6.11 a stack opened the
+  # way the IDE opens its menubar ignored a click on its minimize button on
+  # Windows 11.
+  window-frame-win11:
+    name: Window frame check (Windows 11 title bars)
+    needs: [build]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-win-x86_64
+          path: ${{ runner.temp }}/dist
+
+      # Windows Server leaves the Themes service off, so windows have the
+      # classic frame; start it, so that the check sees visual styles as
+      # people do (it reports whether they are on)
+      - name: Turn on visual styles
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Set-Service -Name Themes -StartupType Automatic
+          Start-Service -Name Themes
+          Get-Service -Name Themes
+
+      - name: Window frame check
+        run: |
+          cd "$RUNNER_TEMP/dist"
+          package="$(pwd -W)/$(ls *-win-x86_64-portable.zip)"
+          cd "$GITHUB_WORKSPACE"
+          python tools/ci/window_frame_check.py --package "$package" --platform win-x86_64 \
+            --log "$RUNNER_TEMP/window-frame-check.log"
 
   # The 32-bit Windows build, for the standalone runtime
   # Runtime/Windows/x86-32 (the IDE's "Windows" target), which the runtimes
