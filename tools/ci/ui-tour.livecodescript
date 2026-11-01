@@ -4696,7 +4696,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown
    put revIDEPaletteToStackName("preferences") into tStack
    revIDEOpenPalette "preferences"
    tourWait 1500
@@ -4746,6 +4746,32 @@ on tour_preferences
       put "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
             "pixels wide; its longest choice needs" && tNeed & return after tFails
    end if
+   -- The line under every pane that says where the preferences are saved
+   -- (field "prefloc", filled by updPrefPath in field "Menu") shows a path
+   -- too long for it with "..." for folders in its middle, and the whole
+   -- path in its tooltip. On Windows, where the user's name is part of
+   -- the path, it ran off the window's edge (the build of adc572e45 on
+   -- GitHub's Windows machine: its words needed 473 pixels of 423). A
+   -- long path is tried on every platform (prefPathFit), then updPrefPath
+   -- puts the real one back
+   put "/a-folder-with-a-long-name/another-folder-with-a-long-name/a-third-folder/preferences/oxt-beyond7.rev" \
+         into tPath
+   dispatch "prefPathFit" to field "Menu" of group "Navigation" of stack tStack with tPath
+   put line 2 of field "prefloc" of group "Navigation" of stack tStack into tShown
+   put the formattedWidth of line 2 of field "prefloc" of group "Navigation" of stack tStack into tNeed
+   tourRecord "INFO preferences path: a long one is shown as" && tShown & "," && tNeed && "wide in" && \
+         the width of field "prefloc" of group "Navigation" of stack tStack & ", tooltip" && \
+         the tooltip of field "prefloc" of group "Navigation" of stack tStack
+   if the tooltip of field "prefloc" of group "Navigation" of stack tStack is not tPath or \
+         "/.../" is not in tShown or not (tShown ends with "/preferences/oxt-beyond7.rev") or \
+         tNeed + 2 * item 1 of the margins of field "prefloc" of group "Navigation" of stack tStack > \
+         the width of field "prefloc" of group "Navigation" of stack tStack then
+      put "the line that says where the preferences are saved does not fit a long path:" && tShown && \
+            "is" && tNeed && "pixels wide in" && the width of field "prefloc" of group "Navigation" of stack tStack & \
+            ", its tooltip is" && quote & the tooltip of field "prefloc" of group "Navigation" of stack tStack & \
+            quote & return after tFails
+   end if
+   dispatch "updPrefPath" to field "Menu" of group "Navigation" of stack tStack
    close stack tStack
    -- each that failed, the words of each pane's buttons and labels among
    -- them, together

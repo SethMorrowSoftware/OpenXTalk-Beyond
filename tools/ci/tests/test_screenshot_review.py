@@ -81,6 +81,13 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   one point clear of the next box, or "Required" over "Used", are not
   taken for words cut off; a field with a border is a box that shows a
   value, such as a path, and is left out.
+- On Windows the line under each Preferences pane that says where the
+  preferences are saved ran off the window's edge: the path has the
+  user's name in it (on GitHub's Windows machine its words needed 473
+  pixels of 423). Folders in its middle give way to "..." until it fits,
+  and its tooltip holds the whole path
+  (revpreferencesgui-prefs-path-fits.txt); the step preferences tries a
+  long path on every platform.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -579,6 +586,47 @@ class TheStandaloneSettings(unittest.TestCase):
         self.assertIn('      put tourButtonsWhole(tStack) after tFails\n'
                       '      put tourFieldsWhole(tStack) after tFails\n', step)
         self.assertLess(step.index('tourShotStack tStack, "15-standalone-"'), step.index('put tourButtonsWhole(tStack)'))
+
+
+class ThePreferencesPath(unittest.TestCase):
+    """The line under each Preferences pane that says where the preferences
+    are saved fits a long path: folders in its middle give way to "...",
+    and its tooltip holds the whole path."""
+
+    SCRIPT = ('stack-scripts', 'ide', 'Toolset', 'palettes', 'revpreferencesgui.rev.bst', 'scripts',
+              'stack_revPreferencesGUI_field_id_1349.livecodescript')
+
+    def test_the_patch(self):
+        patch = read(PATCHES + ('revpreferencesgui-prefs-path-fits.txt',))
+        self.assertIn('file: Toolset/palettes/revpreferencesgui.rev\nobject: field "Menu" of card "General"\n', patch)
+        self.assertIn('|   prefPathFit myPrefsLoc|\n|end updPrefPath|\n', patch)
+
+    def test_the_stack_has_it(self):
+        # the stack's own script, as tools/oxt/stack-scripts.sh dumps it (the
+        # Linux build checks the dump against the stack)
+        script = read(self.SCRIPT)
+        update = handler(script, 'on', 'updPrefPath')
+        self.assertLess(update.index('into field "prefloc" of group "Navigation"'), update.index('prefPathFit myPrefsLoc'))
+        fit = handler(script, 'on', 'prefPathFit')
+        self.assertIn('set the tooltip of field "prefloc" of group "Navigation" of stack "revPreferencesGUI" to pPath', fit)
+        # the room is measured before the item delimiter changes (the
+        # margins are a list of numbers)
+        self.assertLess(fit.index('item 1 of the margins'), fit.index('set the itemDelimiter to "/"'))
+        self.assertIn('repeat while the formattedWidth of line 2 of field "prefloc" of group "Navigation" of stack '
+                      '"revPreferencesGUI" > tRoom and the number of items of tShown > 3', fit)
+        # the path it is given is the one it measures, whatever the field held
+        self.assertLess(fit.index('put tShown into line 2 of field "prefloc"'), fit.index('repeat while'))
+        self.assertIn('put "..." into item 2 of tShown', fit)
+        self.assertIn('delete item 3 of tShown', fit)
+
+    def test_the_tour_tries_a_long_path(self):
+        step = handler(read(TOUR), 'on', 'tour_preferences')
+        self.assertIn('dispatch "prefPathFit" to field "Menu" of group "Navigation" of stack tStack with tPath', step)
+        self.assertIn('"/.../" is not in tShown or not (tShown ends with "/preferences/oxt-beyond7.rev")', step)
+        # the real path is put back before the window closes
+        self.assertLess(step.index('dispatch "prefPathFit"'),
+                        step.index('dispatch "updPrefPath" to field "Menu" of group "Navigation" of stack tStack'))
+        self.assertLess(step.index('dispatch "updPrefPath"'), step.index('close stack tStack'))
 
 
 if __name__ == '__main__':

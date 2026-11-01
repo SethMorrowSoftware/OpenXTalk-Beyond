@@ -1694,6 +1694,10 @@ it squashes:
   the Standalone Application Settings every check box, button and label
   shows whole in Linux's wider font; more than 40 were cut off or ran
   into the next control (#305).
+- **A path off the edge.** On Windows, the line under each Preferences
+  pane that says where the preferences are saved ran off the window, as
+  the path has the user's name in it. Folders in its middle give way to
+  "...", and its tooltip shows the whole path (#305).
 - **Somebody else's update notes.** Preferences' Automatic Updates pane
   no longer shows OpenXTalk Lite's notes of its own last update as the
   "Summary of last update"; Release Notes has what each release changes
