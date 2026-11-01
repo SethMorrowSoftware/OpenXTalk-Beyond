@@ -4686,7 +4686,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex, tMenu, tItem, tNeed
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails
    put revIDEPaletteToStackName("preferences") into tStack
    revIDEOpenPalette "preferences"
    tourWait 1500
@@ -4699,6 +4699,8 @@ on tour_preferences
       dispatch "revPrefsGoSection" to stack tStack with tPane
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
+      put tourButtonsWhole(tStack) after tFails
+      put tourFieldsWhole(tStack) after tFails
    end repeat
    -- The Automatic Updates pane shows no "Summary of last update": the one
    -- it showed, from Toolset/palettes/updates/whatsnew.txt, was OpenXTalk
@@ -4714,19 +4716,30 @@ on tour_preferences
    -- The Script Editor pane's colour scheme menu shows its longest choice,
    -- "Follow System Appearance", whole (bwmilby, openxtalk.org p=25582: it
    -- was cut off in 146 pixels): the text, measured in the button's own
-   -- font, and 16 pixels for the menu's arrow and margins
+   -- font, and what the engine adds for the menu's margins and its arrow
+   -- (its formattedWidth less its label's text; on Linux the arrow takes
+   -- more than the 16 pixels this step allowed before, and it ran over the
+   -- last letter)
+   -- (the formatted properties are of a control that is open: on the
+   -- pane that shows)
+   dispatch "revPrefsGoSection" to stack tStack with "Script Editor"
+   tourWait 300
    put the long id of button "Colorization Scheme" of card "Script Editor" of stack tStack into tMenu
+   put the formattedWidth of tMenu - measureText(the label of tMenu, tMenu) into tItem
    put 0 into tNeed
-   repeat for each line tItem in the text of tMenu
-      put max(tNeed, measureText(tItem, tMenu) + 16) into tNeed
+   repeat for each line tPane in the text of tMenu
+      put max(tNeed, measureText(tPane, tMenu) + tItem) into tNeed
    end repeat
-   tourRecord "INFO preferences colour scheme menu: width" && the width of tMenu & ", needs" && tNeed
+   tourRecord "INFO preferences colour scheme menu: width" && the width of tMenu & ", needs" && tNeed && \
+         "(margins and arrow" && tItem & ")"
    if the width of tMenu < tNeed then
       close stack tStack
       throw "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
             "pixels wide; its longest choice needs" && tNeed
    end if
    close stack tStack
+   -- every button and label of each pane shows its words whole
+   if tFails is not empty then throw line 1 to -1 of tFails
 end tour_preferences
 
 on tour_standalone_settings
@@ -5161,7 +5174,8 @@ on tour_search
    if tStack is empty or there is not a stack tStack then throw "no stack for the palette search"
    if not the visible of stack tStack then throw "the palette search (" & tStack & ") is not visible"
    tourShotStack tStack, "20-search"
-   put tourCheckBoxesWhole(tStack) into tFails
+   put tourButtonsWhole(tStack) into tFails
+   put tourFieldsWhole(tStack) after tFails
    -- the group "Options" now reaches over the right of the group
    -- "Properties": a click on one of its check boxes there still ticks it
    -- (and a second one unticks it)
@@ -5183,36 +5197,181 @@ on tour_search
    if tFails is not empty then throw line 1 to -1 of tFails
 end tour_search
 
--- The check boxes of the card of the stack pStack whose words do not fit
--- in their own rect or in their group's: each one's left and its
--- formattedWidth (its box, its words and its margins) less its right
--- margin, against the right of the two. Empty, or what is cut off
-function tourCheckBoxesWhole pStack
-   local tDefault, tFails, tRight, tNeed, tOwner, tMargin, i
+-- The buttons of the card of the stack pStack whose words do not show
+-- whole. A check box's or a radio button's words must fit in what shows
+-- them: its own rect, each group it is in, the window, and the room left
+-- by a button or a field to its right on the same line; they end at its
+-- left and its formattedWidth (its box, its words and its margins) less its
+-- right margin. A push button's words, or an option menu's with its arrow,
+-- are in the middle of it and must fit in its width: its formattedWidth
+-- (an icon button is left out). One in a group that is hidden is not
+-- looked at. Empty, or what is cut off
+function tourButtonsWhole pStack
+   local tDefault, tFails, tRight, tNeed, tOwner, tMargin, tKind, tNext, i
    put the defaultStack into tDefault
    set the defaultStack to pStack
    repeat with i = 1 to the number of buttons of this card
-      if the style of button i of this card is not "checkbox" or not the visible of button i of this card then next repeat
-      put the right of button i of this card into tRight
-      put the long owner of button i of this card into tOwner
-      if word 1 of tOwner is "group" then
-         put min(tRight, item 3 of the rect of group id (the id of tOwner) of this card) into tRight
+      if the style of button i of this card is "checkbox" then
+         put "check box" into tKind
+      else if the style of button i of this card is "radioButton" then
+         put "radio button" into tKind
+      else if the style of button i of this card is among the items of "standard,default" then
+         put "button" into tKind
+      else if the style of button i of this card is "menu" and the menuMode of button i of this card is "option" then
+         put "option menu" into tKind
+      else
+         next repeat
       end if
+      if not tourControlShown(the long id of button i of this card) then next repeat
+      if tKind is among the items of "button,option menu" then
+         if not the showName of button i of this card then next repeat
+         if the showIcon of button i of this card and the icon of button i of this card is not 0 then next repeat
+         put the formattedWidth of button i of this card into tNeed
+         tourRecord "INFO" && pStack & ":" && tKind && the short name of button i of this card && "needs" && tNeed && \
+               "wide, is" && the width of button i of this card
+         if tNeed > the width of button i of this card + 2 then
+            put "the" && tKind && the short name of button i of this card && "of" && pStack && "on its card" && \
+                  the short name of this card && "is cut off: it is" && the width of button i of this card && \
+                  "wide, its words need" && tNeed & return after tFails
+         end if
+         next repeat
+      end if
+      put min(the right of button i of this card, the width of this stack) into tRight
+      put the long owner of button i of this card into tOwner
+      repeat while word 1 of tOwner is "group"
+         put min(tRight, item 3 of the rect of group id (the id of tOwner) of this card) into tRight
+         put the long owner of group id (the id of tOwner) of this card into tOwner
+      end repeat
+      put tourNextOnLine(the long id of button i of this card, false) into tNext
+      if tNext is not empty then put min(tRight, item 1 of tNext) into tRight
       put the margins of button i of this card into tMargin
       if the number of items of tMargin is 4 then put item 3 of tMargin into tMargin
       put the left of button i of this card + the formattedWidth of button i of this card - tMargin into tNeed
-      tourRecord "INFO" && pStack & ": check box" && the short name of button i of this card && "needs to" && tNeed & \
+      tourRecord "INFO" && pStack & ":" && tKind && the short name of button i of this card && "needs to" && tNeed & \
             ", shows to" && tRight && "(margins" && the margins of button i of this card & ")"
-      -- (4 points to spare: a font's measure and its drawing can differ by
-      -- a little, and a cut-off word is more than that)
-      if tNeed > tRight + 4 then
-         put "the check box" && the short name of button i of this card && "of" && pStack && "is cut off at" && tRight && "(it needs to" && tNeed & ")" & return after tFails
+      -- (2 points to spare: the words end at tNeed less 1, and a letter's
+      -- ink stops short of its advance)
+      if tNeed > tRight + 2 then
+         put "the" && tKind && the short name of button i of this card && "of" && pStack && "on its card" && \
+               the short name of this card && "is cut off at" && tRight && "(it needs to" && tNeed & ")" into tNeed
+         if tNext is not empty and item 1 of tNext is tRight then put "," && item 5 to -1 of tNext && "is there" after tNeed
+         put tNeed & return after tFails
       end if
    end repeat
    set the defaultStack to tDefault
    if tFails is empty then return empty
    return tFails
-end tourCheckBoxesWhole
+end tourButtonsWhole
+
+-- Whether the control pControl shows: it is visible, and so is each group
+-- it is in, and it is in the window of the defaultStack (some palettes keep
+-- controls out to the side, off the window)
+function tourControlShown pControl
+   local tOwner
+   if not the visible of pControl then return false
+   if the right of pControl <= 0 or the left of pControl >= the width of this stack or \
+         the bottom of pControl <= 0 or the top of pControl >= the height of this stack then return false
+   put the long owner of pControl into tOwner
+   repeat while word 1 of tOwner is "group"
+      if not the visible of tOwner then return false
+      put the long owner of tOwner into tOwner
+   end repeat
+   return true
+end tourControlShown
+
+-- The rect and the name of the nearest button or field that shows to the
+-- right of the control pControl on its card, on the same line (they share
+-- more than half the height of the lower of the two), or empty. With
+-- pWithin false, one that lies within pControl's width is left out: a
+-- check box may hold a menu in a gap of its words on purpose (Search and
+-- Replace's "Search [Marked] cards only")
+function tourNextOnLine pControl, pWithin
+   local tCard, tBest, tLeft, tTop, tBottom, j
+   put the long owner of pControl into tCard
+   repeat while word 1 of tCard is "group"
+      put the long owner of tCard into tCard
+   end repeat
+   put the left of pControl into tLeft
+   put the top of pControl into tTop
+   put the bottom of pControl into tBottom
+   repeat with j = 1 to the number of controls of tCard
+      if word 1 of the name of control j of tCard is not among the items of "button,field" then next repeat
+      if the long id of control j of tCard is the long id of pControl then next repeat
+      if the left of control j of tCard <= tLeft + 8 then next repeat
+      if not pWithin and the right of control j of tCard <= the right of pControl then next repeat
+      if min(tBottom, the bottom of control j of tCard) - max(tTop, the top of control j of tCard) <= \
+            min(tBottom - tTop, the height of control j of tCard) / 2 then next repeat
+      if not tourControlShown(the long id of control j of tCard) then next repeat
+      if tBest is empty or the left of control j of tCard < item 1 of tBest then
+         put the rect of control j of tCard & comma & the name of control j of tCard into tBest
+      end if
+   end repeat
+   return tBest
+end tourNextOnLine
+
+-- The label fields of the card of the stack pStack whose words do not show
+-- whole: a field without scrollbars, locked or never focused, whose words
+-- are wider than it (it does not wrap) or taller than it (it wraps), or,
+-- in one that does not wrap, reach a button or a field to their right on
+-- the same line. Its words are as wide as its formattedWidth less its
+-- margins, from its left, its right or its middle as it aligns them. A
+-- field in a group that is hidden is not looked at. Empty, or what is cut
+-- off
+function tourFieldsWhole pStack
+   local tDefault, tFails, tWidth, tNeed, tFrom, tTo, tAlign, tWhat, tNext, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat with i = 1 to the number of fields of this card
+      -- (a label: locked, or never takes the focus)
+      if (not the lockText of field i of this card and the traversalOn of field i of this card) or \
+            the vScrollbar of field i of this card or the hScrollbar of field i of this card or \
+            the listBehavior of field i of this card then next repeat
+      if field i of this card is empty then next repeat
+      if not tourControlShown(the long id of field i of this card) then next repeat
+      put the short name of field i of this card && "(" & line 1 of field i of this card & ")" into tWhat
+      if the dontWrap of field i of this card then
+         -- the words end at the right margin of what they need
+         put the formattedWidth of field i of this card - the rightMargin of field i of this card into tNeed
+         tourRecord "INFO" && pStack & ": field" && tWhat && "needs" && tNeed && "wide, is" && the width of field i of this card
+         if tNeed > the width of field i of this card + 2 then
+            put "the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
+                  "is cut off: it is" && the width of field i of this card && "wide, its words need" && tNeed & return after tFails
+         end if
+         put the formattedWidth of field i of this card - the leftMargin of field i of this card - \
+               the rightMargin of field i of this card into tWidth
+         put the effective textAlign of field i of this card into tAlign
+         if tAlign is "right" then
+            put the right of field i of this card - the rightMargin of field i of this card - tWidth into tFrom
+         else if tAlign is "center" then
+            put round((the left of field i of this card + the right of field i of this card - tWidth) / 2) into tFrom
+         else
+            put the left of field i of this card + the leftMargin of field i of this card into tFrom
+         end if
+         put min(tFrom + tWidth, the right of field i of this card) into tTo
+         -- a button or a field to their right on the line, at least 3
+         -- points from them
+         put tourNextOnLine(the long id of field i of this card, true) into tNext
+         if tNext is not empty and item 1 of tNext < tTo + 3 then
+            put "the words of the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
+                  "end at" && tTo & ", at" && item 5 to -1 of tNext && "(" & item 1 to 4 of tNext & ")" & return after tFails
+         end if
+      else
+         -- the words end at the bottom margin of what they need, and 2
+         -- points lower (formattedHeight takes 2 off each margin), and the
+         -- field cuts them off inside its border: a field one line too
+         -- short showed its second line without its descenders
+         put the formattedHeight of field i of this card - the bottomMargin of field i of this card + 2 into tNeed
+         tourRecord "INFO" && pStack & ": field" && tWhat && "needs" && tNeed && "high, is" && the height of field i of this card
+         if tNeed > the height of field i of this card then
+            put "the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
+                  "is cut off: it is" && the height of field i of this card && "high, its words need" && tNeed & return after tFails
+         end if
+      end if
+   end repeat
+   set the defaultStack to tDefault
+   if tFails is empty then return empty
+   return tFails
+end tourFieldsWhole
 
 on tour_object_library
    -- with Development > Object Library, which also selects the Objects tab

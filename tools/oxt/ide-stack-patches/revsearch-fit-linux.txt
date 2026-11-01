@@ -1,0 +1,31 @@
+# OXT-Beyond: on Linux, in the desktop's sans font (DejaVu Sans on Ubuntu,
+# 13 pixels), Search and Replace's "Remove from List" button was cut off
+# ("Remove from Lis"), its "Replace with:" label ran into the field after
+# it, the check box "Custom" ran past its own rect to the next one's, and
+# "Obey dontSearch properties" filled its rect to the last pixel (the IDE
+# tour's step search measures every button and label of the palette). The
+# button is wider, the label and the field start further right (the field
+# is 23 pixels narrower), and the two check boxes reach as far as their
+# words need, "Custom" to the next check box on its line. (The group
+# "Options" is widened by revsearch-cards-only-width.txt.)
+file: Toolset/palettes/revsearch.rev
+object: button "Remove from List" of card 1
+property: rect
+from: 2,508,119,531
+to: 2,508,130,531
+object: field "replace label" of card 1
+property: rect
+from: 112,509,213,528
+to: 128,509,230,528
+object: field "Replace" of card 1
+property: rect
+from: 205,509,351,530
+to: 230,509,351,530
+object: button "Custom Properties" of card 1
+property: rect
+from: 267,156,335,172
+to: 267,156,342,172
+object: button "Obey dontSearch properties" of card 1
+property: rect
+from: 21,156,221,172
+to: 21,156,240,172

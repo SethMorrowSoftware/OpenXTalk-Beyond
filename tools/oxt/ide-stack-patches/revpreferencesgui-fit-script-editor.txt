@@ -1,0 +1,36 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the Script
+# Editor pane two check boxes and a label were cut off ("Variable
+# Preservatio", "Hide Message Bo", "When editing scrip"). The Hide Message
+# Box check box reaches into the empty left of the "Debug background:"
+# label, whose words are at its right, and that label starts further right.
+# (The colour scheme menu's rect is in
+# revpreferencesgui-follow-appearance-width.txt; the "Horizontal scroll"
+# check box beside it now ends where the menu starts.)
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Variable Preservation" of card "Script Editor"
+property: rect
+from: 186,74,341,97
+to: 186,74,370,97
+object: button "Hide Message Box" of card "Script Editor"
+property: rect
+from: 322,221,458,244
+to: 322,221,490,244
+object: field id 1171 of card "Script Editor"
+property: rect
+from: 467,232,656,252
+to: 500,232,656,252
+object: field id 1164 of card "Script Editor"
+property: rect
+from: 182,201,311,221
+to: 182,201,345,221
+object: button "Horizontal scroll" of card "Script Editor"
+property: rect
+from: 322,146,458,169
+to: 322,146,452,169

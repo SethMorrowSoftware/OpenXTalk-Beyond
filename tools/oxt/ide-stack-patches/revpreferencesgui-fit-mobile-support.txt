@@ -1,0 +1,15 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the Mobile Support pane
+# the iOS SDKs' "Remove entry" button was cut off ("Remove entr"; the IDE
+# tour's step preferences measures every button of each pane). It and "Add
+# entry" above it start 8 pixels further left, nearer the list.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "Add entry" of card "Mobile Support"
+property: rect
+from: 536,84,630,106
+to: 528,84,630,106
+object: button "Remove entry" of card "Mobile Support"
+property: rect
+from: 536,114,630,136
+to: 528,114,630,136

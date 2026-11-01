@@ -53,6 +53,22 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   (revsearch-cards-only-width.txt); the step search measures every check
   box against its rect and its group's, and clicks one under the widened
   group.
+- On Linux the IDE is drawn in the desktop's sans font, DejaVu Sans on
+  Ubuntu (13 pixels), wider than the fonts of the Mac and Windows the
+  windows were laid out in. In Preferences 31 check boxes, buttons and
+  labels were cut off or ran into the next control ("...click edits
+  scrip", "Display tool tips after" under its field, "Sort controls" for
+  "Sort controls by:"), and the colour scheme menu's arrow ran over
+  "Follow System Appearance"; in Search and Replace "Remove from Lis" and
+  three more. Property patches of the binary stacks
+  (revpreferencesgui-fit-*.txt, revsearch-fit-linux.txt, and the colour
+  scheme menu's rect in revpreferencesgui-follow-appearance-width.txt)
+  give each the room its words need in DejaVu Sans. The steps preferences
+  (each pane) and search measure every check box, radio button, push
+  button, option menu and label: against its rect, its groups and the
+  window, and the next control on its line. Run on the released rc.6.11
+  IDE with DejaVu Sans they fail on all of these (31 in Preferences); with
+  the patched stacks they pass, light and dark.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -271,13 +287,205 @@ class TheSearchOptions(unittest.TestCase):
     def test_the_tour_measures_it(self):
         tour = read(TOUR)
         step = handler(tour, 'on', 'tour_search')
-        self.assertIn('put tourCheckBoxesWhole(tStack) into tFails', step)
+        self.assertIn('put tourButtonsWhole(tStack) into tFails\n   put tourFieldsWhole(tStack) after tFails', step)
         self.assertIn('click at the loc of button "Custom Properties" of group "Properties" of card 1 of stack tStack',
                       step)
-        check = handler(tour, 'function', 'tourCheckBoxesWhole')
+        check = handler(tour, 'function', 'tourButtonsWhole')
         self.assertIn('put min(tRight, item 3 of the rect of group id (the id of tOwner) of this card) into tRight',
                       check)
-        self.assertIn('if tNeed > tRight + 4 then', check)
+        self.assertIn('if tNeed > tRight + 2 then', check)
+
+
+def patches_of(name):
+    """The object/property/from/to entries of a property patch, in order."""
+    entries = []
+    obj = None
+    for line in read(PATCHES + (name,)).splitlines():
+        if line.startswith('object: '):
+            obj = line[len('object: '):]
+        elif line.startswith('property: '):
+            entries.append([obj, line[len('property: '):], None, None])
+        elif line.startswith('from: '):
+            entries[-1][2] = line[len('from: '):]
+        elif line.startswith('to: '):
+            entries[-1][3] = line[len('to: '):]
+    return entries
+
+
+def rects(name):
+    """{object: (from rect, to rect)} of the rect patches of a file."""
+    out = {}
+    for obj, prop, frm, to in patches_of(name):
+        if prop == 'rect':
+            out[obj] = (tuple(int(n) for n in frm.split(',')), tuple(int(n) for n in to.split(',')))
+    return out
+
+
+class TheLinuxFonts(unittest.TestCase):
+    """Every control the tour found cut off in DejaVu Sans, on the released
+    rc.6.11 IDE, has the room it needs. NEEDS holds what the tour measured
+    there: the right edge a check box's words reach, or the width or height
+    a push button, an option menu or a label needs; NEXT, where a control's
+    words end and the control they reached, which now starts at least 3
+    points after them."""
+
+    NEEDS = {
+        'revpreferencesgui-fit-general.txt': [
+            ('button "opt edit script shortcut" of card "General"', 'right', 521),
+            ('button "ReloadStartCenter" of card "General"', 'right', 518),
+        ],
+        'revpreferencesgui-fit-files-memory.txt': [
+            ('button "destroyStack" of card "Files & Memory"', 'right', 390),
+            ('field id 1045 of card "Files & Memory"', 'width', 361),
+            ('button "Preserve Stack Creator" of card "Files & Memory"', 'right', 385),
+            ('button "Preserve Stack Version" of card "Files & Memory"', 'right', 598),
+            ('group "Stack File Property Preservation" of card "Files & Memory"', 'right', 598),
+            ('button "absoluteImagePaths" of card "Files & Memory"', 'right', 478),
+        ],
+        'revpreferencesgui-fit-appearance.txt': [
+            # the check box revpreferencesgui-desktop-appearance.txt makes
+            ('group "Appearance" of card "Appearance"', 'right', 691),
+            ('field id 1082 of card "Appearance"', 'width', 152),
+            ('field id 1078 of card "Appearance"', 'height', 36),
+        ],
+        'revpreferencesgui-fit-object-sizes.txt': [
+            ('field id 1109 of card "Object Sizes"', 'width', 139),
+            ('field id 1112 of card "Object Sizes"', 'width', 127),
+            ('field id 1113 of card "Object Sizes"', 'width', 151),
+            ('field id 1114 of card "Object Sizes"', 'width', 176),
+        ],
+        'revpreferencesgui-fit-script-editor.txt': [
+            ('button "Variable Preservation" of card "Script Editor"', 'right', 346),
+            ('button "Hide Message Box" of card "Script Editor"', 'right', 463),
+            ('field id 1164 of card "Script Editor"', 'width', 145),
+        ],
+        'revpreferencesgui-fit-ui-tweaks.txt': [
+            ('field id 1517 of card "UI Tweaks"', 'width', 220),
+        ],
+        'revpreferencesgui-fit-extras-dictionary.txt': [
+            ('button "tidyUpStacks" of card "Extras"', 'right', 577),
+            ('button "ScreenSharedMemory" of card "Extras"', 'right', 652),
+            ('button "inExtBrowser" of card "Dictionary"', 'right', 537),
+        ],
+        'revpreferencesgui-fit-project-browser.txt': [
+            # "Sort controls by:" on one line: its words and two margins
+            ('field "sortControlsLabel" of card "Project Browser"', 'width', 122),
+        ],
+        'revpreferencesgui-fit-compatibility.txt': [
+            ('button "cMenuBarOffset" of card "Compatibility"', 'right', 661),
+            ('field id 1457 of card "Compatibility"', 'width', 503),
+        ],
+        'revpreferencesgui-fit-mobile-support.txt': [
+            ('button "Remove entry" of card "Mobile Support"', 'width', 99),
+        ],
+        'revpreferencesgui-follow-appearance-width.txt': [
+            ('button "Colorization Scheme" of card "Script Editor"', 'width', 202),
+        ],
+        'revsearch-fit-linux.txt': [
+            ('button "Remove from List" of card 1', 'width', 123),
+            ('button "Custom Properties" of card 1', 'right', 338),
+        ],
+    }
+
+    # (patch file, where the words end, the control they reached)
+    NEXT = [
+        ('revpreferencesgui-fit-files-memory.txt', 396, 'field "Num Recent Files" of card "Files & Memory"'),
+        ('revpreferencesgui-fit-appearance.txt', 334, 'field "tooltip delay" of card "Appearance"'),
+        ('revpreferencesgui-fit-appearance.txt', 415, 'button "tHandBtn" of card "Appearance"'),
+        ('revpreferencesgui-fit-appearance.txt', 509, 'button "middleButtonToggle" of card "Appearance"'),
+        ('revpreferencesgui-fit-appearance.txt', 309, 'button "selectionhandle color" of card "Appearance"'),
+        ('revpreferencesgui-fit-ui-tweaks.txt', 402, 'button "labelsections size" of card "UI Tweaks"'),
+        ('revpreferencesgui-fit-project-browser.txt', 307, 'button "controlSortType" of card "Project Browser"'),
+        ('revsearch-fit-linux.txt', 222, 'field "Replace" of card 1'),
+    ]
+
+    @staticmethod
+    def measure(rect, kind):
+        return {'right': rect[2], 'width': rect[2] - rect[0], 'height': rect[3] - rect[1]}[kind]
+
+    def test_each_has_room(self):
+        for name, needs in self.NEEDS.items():
+            patched = rects(name)
+            for obj, kind, need in needs:
+                self.assertIn(obj, patched, name)
+                frm, to = patched[obj]
+                # cut off before (beyond the tour's 2 points), whole now
+                self.assertLess(self.measure(frm, kind) + 2, need, (name, obj))
+                self.assertGreaterEqual(self.measure(to, kind), need, (name, obj))
+        # "Obey dontSearch properties" needed 223 of its 221: whole in the
+        # tour's 2 points, with room now for a font a little wider
+        self.assertGreaterEqual(rects('revsearch-fit-linux.txt')['button "Obey dontSearch properties" of card 1'][1][2],
+                                233)
+
+    def test_the_words_end_before_the_next(self):
+        for name, end, after in self.NEXT:
+            frm, to = rects(name)[after]
+            self.assertLess(frm[0], end + 3, (name, after))
+            self.assertGreaterEqual(to[0], end + 3, (name, after))
+        # the "Horizontal scroll" check box (it needs to 449) ends where the
+        # colour scheme menu starts
+        box = rects('revpreferencesgui-fit-script-editor.txt')['button "Horizontal scroll" of card "Script Editor"'][1]
+        menu = rects('revpreferencesgui-follow-appearance-width.txt')[
+            'button "Colorization Scheme" of card "Script Editor"'][1]
+        self.assertGreaterEqual(box[2], 449)
+        self.assertGreaterEqual(menu[0], box[2])
+        # a widened control stays within its group, and clear of the next
+        general = rects('revpreferencesgui-fit-general.txt')
+        self.assertGreaterEqual(general['group "Shortcuts" of card "General"'][1][2],
+                                general['button "opt edit script shortcut" of card "General"'][1][2])
+        editor = rects('revpreferencesgui-fit-script-editor.txt')
+        self.assertGreaterEqual(editor['field id 1171 of card "Script Editor"'][1][0],
+                                editor['button "Hide Message Box" of card "Script Editor"'][1][2])
+        files = rects('revpreferencesgui-fit-files-memory.txt')
+        self.assertGreaterEqual(files['group "Stack File Property Preservation" of card "Files & Memory"'][1][2],
+                                files['button "Preserve Stack Version" of card "Files & Memory"'][1][2])
+
+    def test_moved_controls_keep_their_size(self):
+        # what moves right keeps its width and height, and the Project
+        # Browser's column moves together
+        for name in ('revpreferencesgui-fit-appearance.txt', 'revpreferencesgui-fit-ui-tweaks.txt',
+                     'revpreferencesgui-fit-project-browser.txt'):
+            for obj, (frm, to) in rects(name).items():
+                if obj.startswith(('button', 'graphic')) and frm[0] != to[0]:
+                    self.assertEqual((frm[2] - frm[0], frm[1], frm[3]), (to[2] - to[0], to[1], to[3]), (name, obj))
+        moved = {to[0] - frm[0] for obj, (frm, to) in rects('revpreferencesgui-fit-project-browser.txt').items()
+                 if obj.startswith('button')}
+        self.assertEqual(moved, {18})
+
+    def test_the_tour_measures_each_pane(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_preferences')
+        self.assertIn('      put tourButtonsWhole(tStack) after tFails\n'
+                      '      put tourFieldsWhole(tStack) after tFails\n'
+                      '   end repeat', step)
+        self.assertIn('if tFails is not empty then throw line 1 to -1 of tFails\nend tour_preferences', step)
+        # the colour scheme menu: its formattedWidth less its label, on the
+        # pane that shows (a closed control's formattedWidth is 0)
+        self.assertIn('dispatch "revPrefsGoSection" to stack tStack with "Script Editor"', step)
+        self.assertIn('put the formattedWidth of tMenu - measureText(the label of tMenu, tMenu) into tItem', step)
+        self.assertNotIn('measureText(tItem, tMenu) + 16', step)
+
+    def test_the_checks(self):
+        tour = read(TOUR)
+        buttons = handler(tour, 'function', 'tourButtonsWhole')
+        self.assertIn('else if the style of button i of this card is among the items of "standard,default" then',
+                      buttons)
+        self.assertIn('the style of button i of this card is "menu" and the menuMode of button i of this card is '
+                      '"option"', buttons)
+        self.assertIn('if tNeed > the width of button i of this card + 2 then', buttons)
+        self.assertIn('put tourNextOnLine(the long id of button i of this card, false) into tNext', buttons)
+        fields = handler(tour, 'function', 'tourFieldsWhole')
+        self.assertIn('(not the lockText of field i of this card and the traversalOn of field i of this card)', fields)
+        self.assertIn('put the formattedWidth of field i of this card - the rightMargin of field i of this card '
+                      'into tNeed', fields)
+        self.assertIn('put the formattedHeight of field i of this card - the bottomMargin of field i of this card + 2 '
+                      'into tNeed', fields)
+        self.assertIn('if tNext is not empty and item 1 of tNext < tTo + 3 then', fields)
+        shown = handler(tour, 'function', 'tourControlShown')
+        self.assertIn('the left of pControl >= the width of this stack', shown)
+        nxt = handler(tour, 'function', 'tourNextOnLine')
+        self.assertIn('if not pWithin and the right of control j of tCard <= the right of pControl then next repeat',
+                      nxt)
 
 
 if __name__ == '__main__':

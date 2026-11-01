@@ -1,0 +1,24 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the General
+# pane two check boxes were cut off: "...click edits scrip" and "...when
+# last user stack is close". The first is in the group "Shortcuts", which
+# is widened with it
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "opt edit script shortcut" of card "General"
+property: rect
+from: 185,95,517,125
+to: 185,95,545,125
+object: group "Shortcuts" of card "General"
+property: rect
+from: 162,72,520,199
+to: 162,72,545,199
+object: button "ReloadStartCenter" of card "General"
+property: rect
+from: 185,343,513,373
+to: 185,343,545,373
