@@ -123,6 +123,21 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   button's labels bold, in both looks. On the released rc.6.11 IDE it
   fails on all eight; with the change it passes, and the toolbar is 999
   pixels wide on Linux, where it was 922.
+- On Linux the colour scheme menu of Preferences' Script Editor pane
+  still had its arrow over the last "e" of "Follow System Appearance" in
+  its 204 pixels (the same review): the engine puts an option menu's words
+  in its middle, as a push button's, and GTK draws the arrow over the right
+  of the menu, from 22 to 13 pixels before its right on Ubuntu's theme.
+  The tour's check took the engine's own allowance for the arrow, 202 in
+  all, which assumes the words leave the arrow's room free. The menu is 212
+  pixels wide with its words at its left
+  (revpreferencesgui-follow-appearance-width.txt). On Linux the step
+  preferences measures where the words of every option menu end, by their
+  advance, against the arrow (tourMenuWordsClear, 20 pixels: the arrow's 22
+  less the 2 by which the words' ink stops short of their advance), and
+  each of the colour scheme menu's choices. On the released rc.6.11 IDE
+  with the rc.6.12 stack it fails on this menu alone (its words end at 644,
+  the arrow's room starts at 638); with the change it passes (635 of 646).
 - The whole tour ran past its 600 seconds on the Intel Mac (the light
   appearance, 141 snapshots) and came within a minute of it on Windows
   and the Apple silicon Mac, as the review's checks were added. It has
@@ -840,6 +855,50 @@ class TheToolbarLabels(unittest.TestCase):
         # each button as it was, for the snapshots and tourMbPrint
         self.assertIn('set the textStyle of tBtn to tStyle', check)
         self.assertIn('set the label of tBtn to tLabel', check)
+
+
+class TheOptionMenuArrows(unittest.TestCase):
+    """On Linux an option menu's words end clear of the arrow GTK draws over
+    its right."""
+
+    MENU = 'button "Colorization Scheme" of card "Script Editor"'
+    # "Follow System Appearance" in DejaVu Sans, 13 pixels (the tour's
+    # measureText on GitHub's Ubuntu machine and here), the menu's margins,
+    # and the tour's room for the arrow
+    WORDS, MARGIN, ROOM = 176, 4, 20
+
+    def test_the_colour_scheme_menu(self):
+        entries = {(obj, prop): (frm, to) for obj, prop, frm, to in
+                   patches_of('revpreferencesgui-follow-appearance-width.txt')}
+        self.assertEqual(entries[(self.MENU, 'textAlign')], ('center', 'left'))
+        left, top, right, bottom = (int(n) for n in entries[(self.MENU, 'rect')][1].split(','))
+        self.assertEqual((left, top, bottom), (454, 145, 167))
+        # whole, as the engine measures it (its words, margins and arrow)
+        self.assertGreaterEqual(right - left, self.WORDS + 2 * self.MARGIN + 18)
+        # at its left the words end clear of the arrow
+        self.assertLessEqual(left + self.MARGIN + 1 + self.WORDS, right - self.ROOM)
+        # in the middle of rc.6.12's 204 pixels they did not
+        self.assertGreater(454 + round((204 + self.WORDS) / 2), 658 - self.ROOM)
+        # its right stays inside its group (182,4,725,402) and the window (700)
+        self.assertLessEqual(right, 700)
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        whole = handler(tour, 'function', 'tourButtonsWhole')
+        self.assertIn('if tKind is "option menu" and the platform is "Linux" then\n'
+                      '            get tourMenuWordsClear(the long id of button i of this card, the label of button i of this card)',
+                      whole)
+        check = handler(tour, 'function', 'tourMenuWordsClear')
+        self.assertIn('constant kTourMenuArrowRoom = 20\nfunction tourMenuWordsClear pMenu, pWords', tour)
+        self.assertIn('put measureText(pWords, pMenu) into tWords', check)
+        self.assertIn('put the left of pMenu + tMargin + 1 + tWords into tEnd', check)
+        self.assertIn('put the left of pMenu + round((the width of pMenu + tWords) / 2) into tEnd', check)
+        self.assertIn('if tEnd > the right of pMenu - kTourMenuArrowRoom then', check)
+        # and every choice of the colour scheme menu, as it shows
+        step = handler(tour, 'on', 'tour_preferences')
+        self.assertIn('repeat for each line tPane in the text of tMenu\n'
+                      '         if tPane is empty or tPane begins with "-" then next repeat\n'
+                      '         get tourMenuWordsClear(tMenu, tPane)', step)
 
 
 class TheTourBudget(unittest.TestCase):

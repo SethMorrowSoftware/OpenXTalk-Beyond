@@ -4957,6 +4957,14 @@ on tour_preferences
       put "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
             "pixels wide; its longest choice needs" && tNeed & return after tFails
    end if
+   -- and on Linux each choice ends clear of the menu's arrow, as it shows
+   if the platform is "Linux" then
+      repeat for each line tPane in the text of tMenu
+         if tPane is empty or tPane begins with "-" then next repeat
+         get tourMenuWordsClear(tMenu, tPane)
+         if it is not empty then put "the Script Editor pane's colour scheme menu" && it & return after tFails
+      end repeat
+   end if
    -- The line under every pane that says where the preferences are saved
    -- (field "prefloc", filled by updPrefPath in field "Menu") shows a path
    -- too long for it with "..." for folders in its middle, and the whole
@@ -5492,6 +5500,13 @@ function tourButtonsWhole pStack
                   the short name of this card && "is cut off: it is" && the width of button i of this card && \
                   "wide, its words need" && tNeed & return after tFails
          end if
+         if tKind is "option menu" and the platform is "Linux" then
+            get tourMenuWordsClear(the long id of button i of this card, the label of button i of this card)
+            if it is not empty then
+               put "the option menu" && the short name of button i of this card && "of" && pStack && "on its card" && \
+                     the short name of this card && it & return after tFails
+            end if
+         end if
          next repeat
       end if
       put min(the right of button i of this card, the width of this stack) into tRight
@@ -5520,6 +5535,44 @@ function tourButtonsWhole pStack
    if tFails is empty then return empty
    return tFails
 end tourButtonsWhole
+
+-- On Linux the engine puts an option menu's words where it puts a push
+-- button's, in the middle of the menu when its text is centred or at its
+-- left margin, and GTK draws the menu's arrow over the right of the menu:
+-- on Ubuntu's theme from 22 to 13 pixels before its right. Where the words
+-- pWords of the menu pMenu (its label when empty) end, by their advance,
+-- against the arrow's room (kTourMenuArrowRoom: the arrow's 22 pixels less
+-- the 2 by which a word's ink stops short of its advance): empty when they
+-- end before it. The colour scheme menu's "Follow System Appearance" ran 6
+-- pixels into the arrow in 204 pixels (the screenshots of the rc.6.12 pull
+-- request: its advance ended 14 pixels before the menu's right); the sort
+-- order menus' "Ascending" and Indents' "3", 4 pixels clear of it, end 22
+-- and 23 before. A right-aligned menu is left out
+constant kTourMenuArrowRoom = 20
+function tourMenuWordsClear pMenu, pWords
+   local tWords, tMargin, tEnd
+   if pWords is empty then put the short name of pMenu into pWords
+   put measureText(pWords, pMenu) into tWords
+   put the margins of pMenu into tMargin
+   if the number of items of tMargin is 4 then put item 1 of tMargin into tMargin
+   switch the textAlign of pMenu
+      case "left"
+         put the left of pMenu + tMargin + 1 + tWords into tEnd
+         break
+      case "center"
+         put the left of pMenu + round((the width of pMenu + tWords) / 2) into tEnd
+         break
+      default
+         return empty
+   end switch
+   tourRecord "INFO menu words:" && the short name of pMenu && quote & pWords & quote && "end at" && tEnd & \
+         ", the arrow's room starts at" && the right of pMenu - kTourMenuArrowRoom && "(" & the textAlign of pMenu & ")"
+   if tEnd > the right of pMenu - kTourMenuArrowRoom then
+      return "has its words" && quote & pWords & quote && "end at" && tEnd & ", into its arrow (" & \
+            the right of pMenu - kTourMenuArrowRoom && "on, the menu is" && the textAlign of pMenu & ")"
+   end if
+   return empty
+end tourMenuWordsClear
 
 -- Whether the control pControl shows: it is visible, and so is each group
 -- it is in, and it is in the window of the defaultStack (some palettes keep
