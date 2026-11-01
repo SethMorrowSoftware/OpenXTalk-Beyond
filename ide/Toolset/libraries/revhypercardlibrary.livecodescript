@@ -3524,6 +3524,578 @@ function FileExists pPath
    return there is a file pPath or there is a folder pPath
 end FileExists
 
+/*
+Files([folder[, types[, what]]]) (6 stacks), Guy de Picciotto's XFCN: the
+names of the files in a folder, one a line, with types (a list of file
+types, "STAK,TEXT") only the files of those types. Called as hcX_Files:
+this engine reads "files(" as its function (rule T13). The folder is an
+HFS path ("Old Disk:Stacks"; ":Data", from the stack's folder; a name
+alone, in it), or a path here; where it is empty or there is no such
+folder, the "default directory": the stack's folder, which is on the
+disk image it came from where it came from one, else the folder of its
+file. The external's card ("Files 1.1") gives what as 1 files only,
+the default, 2 files and folders and 3 folders only; but its own List
+script asks with 0 for the files and 2 for the folders it goes into,
+and the Star Trek guides ask with "STAK" and 3 for the stacks beside
+them, which work only as 2 folders only and 3 files and folders, so
+that is what they are here (a folder's name has no colon after it).
+A file on a disk image has its type; a file here, the type in its
+MacBinary header, else STAK for a HyperCard stack and TEXT for a .txt
+file. Folders, then files, each in the order of the disk's catalog (by
+name, here). Empty if there is no folder to list, as the external gave
+on an error
+*/
+function hcX_Files pPath, pTypes, pWhat
+   local tWhere, tList, tLine, tOut, tFolders, tFiles, tType, tName
+   put _HCFilesFolder(pPath) into tWhere
+   if tWhere is empty then return empty
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageFolder(item 2 of tWhere, item 3 of tWhere) into tList
+      catch tError
+         -- (the disk image library is the IDE's, and the Stack Player's)
+         return empty
+      end try
+   else
+      put _HCLocalFolder(item 2 of tWhere) into tList
+   end if
+   if pWhat is 2 then
+      put true into tFolders
+   else if pWhat is 3 then
+      put true into tFolders
+      put true into tFiles
+   else
+      put true into tFiles
+   end if
+   repeat for each line tLine in tList
+      set the itemDelimiter to tab
+      put item 1 of tLine into tName
+      if item 2 of tLine is "folder" then
+         if tFolders then put tName & return after tOut
+         next repeat
+      end if
+      if not tFiles then next repeat
+      put item 3 of tLine into tType
+      if word 1 to -1 of pTypes is not empty then
+         if not _HCTypeAmong(tType, pTypes) then next repeat
+      end if
+      put tName & return after tOut
+   end repeat
+   delete the last char of tOut
+   return tOut
+end hcX_Files
+
+-- Whether the file type pType is one of the list pTypes, each four
+-- characters, the case significant, as Mac file types were ("STAK,TXT"
+-- names "TXT ")
+private function _HCTypeAmong pType, pTypes
+   local tEach
+   set the caseSensitive to true
+   set the itemDelimiter to comma
+   repeat for each item tEach in pTypes
+      put char 1 to 4 of (tEach & "    ") into tEach
+      if tEach is pType then return true
+   end repeat
+   return false
+end _HCTypeAmong
+
+-- The folder an external of Files' kind lists: "image", a tab, the disk
+-- image and a tab and the folder's HFS path on it; or "local" and a tab
+-- and its path here; or empty if there is none (Files above)
+private function _HCFilesFolder pPath
+   local tSet, tImage, tHFS, tUp, tRelative, tFolder, tLocal, tAbsolute
+   put the customProperties["uHyperCard"] of me into tSet
+   if tSet["image"] is not empty and there is a file tSet["image"] and tSet["imagepath"] is not empty then
+      put tSet["image"] into tImage
+      set the itemDelimiter to colon
+      put item 1 to -2 of tSet["imagepath"] into tHFS
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -2 of (the effective filename of me) into tLocal
+   if tLocal is empty then put item 1 to -2 of tSet["file"] into tLocal
+   put word 1 to -1 of pPath into pPath
+   if pPath is not empty then
+      if slash is in pPath or backslash is in pPath then
+         if there is a folder pPath then
+            return "local" & tab & pPath
+         end if
+      else
+         -- from the stack's folder: ":Data", "::Stacks" (each colon more
+         -- a folder up), or a name alone
+         put 0 into tUp
+         -- (from the disk: "Old Disk:Stacks", and "Old Disk:" a disk)
+         put char 1 of pPath is not colon and colon is in pPath into tAbsolute
+         if not tAbsolute then
+            put pPath into tRelative
+            if char 1 of tRelative is colon then delete char 1 of tRelative
+            repeat while char 1 of tRelative is colon
+               add 1 to tUp
+               delete char 1 of tRelative
+            end repeat
+            if char -1 of tRelative is colon then
+               delete char -1 of tRelative
+            end if
+         else if char -1 of pPath is colon then
+            delete char -1 of pPath
+         end if
+         set the itemDelimiter to colon
+         if tImage is not empty then
+            if tAbsolute then
+               put pPath into tFolder
+            else
+               put item 1 to -(tUp + 1) of tHFS into tFolder
+               if tRelative is not empty then put colon & tRelative after tFolder
+            end if
+            if tFolder is not empty and _HCImageHasFolder(tImage, tFolder) then
+               return "image" & tab & tImage & tab & tFolder
+            end if
+         end if
+         if tLocal is not empty then
+            if tAbsolute then
+               -- "Users:me:Stacks", the path here with colons, as the
+               -- long name of HyperCard gives one (hcHyperCardName)
+               put pPath into tFolder
+               replace colon with slash in tFolder
+               -- (a drive's, "C::Users:me", is "C:/Users/me")
+               if the platform is not "Win32" then
+                  put slash before tFolder
+               else if char 2 to 3 of pPath is "::" then
+                  put char 1 of pPath & ":/" & char 4 to -1 of tFolder into tFolder
+               end if
+            else
+               set the itemDelimiter to slash
+               put item 1 to -(tUp + 1) of tLocal into tFolder
+               if tRelative is not empty then
+                  replace colon with slash in tRelative
+                  put slash & tRelative after tFolder
+               end if
+            end if
+            if there is a folder tFolder then return "local" & tab & tFolder
+         end if
+      end if
+   end if
+   if tImage is not empty and tHFS is not empty then return "image" & tab & tImage & tab & tHFS
+   if tLocal is not empty and there is a folder tLocal then return "local" & tab & tLocal
+   return empty
+end _HCFilesFolder
+
+-- Whether a disk image has the folder at the HFS path pFolder
+private function _HCImageHasFolder pImage, pFolder
+   try
+      get revHyperCardImageFolder(pImage, pFolder)
+   catch tError
+      return false
+   end try
+   return the result is empty
+end _HCImageHasFolder
+
+-- A folder here, listed as revHyperCardImageFolder lists one on a disk
+-- image: a line per folder, then per file, by name; a file's type the
+-- one in its MacBinary header, else STAK for a HyperCard stack and TEXT
+-- for a .txt file. What a Mac would not have shown is left out: names
+-- that begin with a dot (the "._" copies of resource forks, "..") and a
+-- resource fork copied out beside its file (".rsrc")
+private function _HCLocalFolder pFolder
+   local tList, tEach, tOut, tNames
+   put folders(pFolder) into tNames
+   sort lines of tNames
+   repeat for each line tEach in tNames
+      if char 1 of tEach is "." then next repeat
+      put tEach & tab & "folder" & return after tOut
+   end repeat
+   put files(pFolder) into tNames
+   sort lines of tNames
+   repeat for each line tEach in tNames
+      if char 1 of tEach is "." or tEach ends with ".rsrc" then next repeat
+      put tEach & tab & "file" & tab & _HCLocalType(pFolder & slash & tEach) & return after tOut
+   end repeat
+   delete the last char of tOut
+   return tOut
+end _HCLocalFolder
+
+-- A file's Mac type here (_HCLocalFolder): "????" where it has none
+private function _HCLocalType pFile
+   local tHeader
+   open file pFile for binary read
+   if the result is not empty then return "????"
+   read from file pFile for 128
+   put it into tHeader
+   close file pFile
+   if _HCIsMacBinary(tHeader) then return byte 66 to 69 of tHeader
+   if byte 5 to 8 of tHeader is "STAK" then return "STAK"
+   set the itemDelimiter to "."
+   if the number of items of pFile > 1 and item -1 of pFile is among the items of "txt.text" then return "TEXT"
+   return "????"
+end _HCLocalType
+
+-- Whether pHeader, a file's first 128 bytes, is a MacBinary header: a
+-- zero byte, the length of the name (1 to 63), zero bytes at 74 and 82,
+-- and forks no longer than a resource fork's offsets reach
+private function _HCIsMacBinary pHeader
+   local tData, tRsrc
+   if the number of bytes of pHeader < 128 then return false
+   -- (a stack's data fork begins with a zero byte too, then its STAK
+   -- block's size and name)
+   if byte 5 to 8 of pHeader is "STAK" then return false
+   if byteToNum(byte 1 of pHeader) is not 0 or byteToNum(byte 75 of pHeader) is not 0 or byteToNum(byte 83 of pHeader) is not 0 then return false
+   if byteToNum(byte 2 of pHeader) < 1 or byteToNum(byte 2 of pHeader) > 63 then return false
+   get binaryDecode("NN", byte 84 to 91 of pHeader, tData, tRsrc)
+   return tData < 2^31 and tRsrc < 2^24
+end _HCIsMacBinary
+
+/*
+ResText(type, id or name[, ...]) (4 stacks), Frederic Rinaldi's XFCN:
+the text of one of the stack's resources (SonnetFolio's sonnets, each a
+TEXT resource "Sn 1" to "Sn 154"), as its card ("ResText 2.3")
+describes it. The parameters after the first two can come in any order
+(the order was <fileName>, <stripCtrl> before 2.0): "#n", the nth
+string of an STR# resource; "hex", the bytes in hexadecimal; true or
+false, whether to replace control characters with "[<code>]", which it
+does unless told not to; "DontResolveAlias", which changes nothing
+here; and any other, the file whose resource fork is read: a name alone
+in the stack's folder, an HFS path, or a path here ("all", the whole
+chain from the stack to the System file: the stack's own here). A name
+is found as the Resource Manager found one, case aside. The text is
+read as Mac text (MacRoman), its returns as returns; with false the
+bytes are given as they are, each a character whose charToNum is the
+byte (SeqSimPresenter's tables of numbers from 1 to 255). An STR#
+resource gives its strings one a line, an STR its string and the bytes
+after it on a second line. The stack's resource fork is the one it was
+imported with: on the disk image it came from, else in its MacBinary
+or AppleSingle file, or beside it as Name.rsrc, ._Name (AppleDouble)
+or Name/..namedfork/rsrc (macOS). Errors are the external's, given as
+its value: "Error : Resource not found", "Error : No resource fork"...
+*/
+function ResText pType, pResource
+   local tStrip, tHex, tItem, tFile, tParam, tFork, tData, i, tCount, tAt, tOut, tLength
+   put true into tStrip
+   repeat with i = 3 to the paramCount
+      put word 1 to -1 of param(i) into tParam
+      if tParam is empty or tParam is "DontResolveAlias" then next repeat
+      if tParam is "hex" then
+         put true into tHex
+      else if tParam is among the items of "true,false" then
+         put tParam into tStrip
+      else if char 1 of tParam is "#" then
+         put char 2 to -1 of tParam into tItem
+         if tItem is not an integer or tItem < 1 then
+            return "Error : Incorrect STR# item number"
+         end if
+      else if tParam is not "all" then
+         put tParam into tFile
+      end if
+   end repeat
+   if pType is empty or pResource is empty then return "Error : Missing or empty parameter(s)"
+   if the number of chars of pType > 4 then return "Error : Bad resource type"
+   put char 1 to 4 of (pType & "    ") into pType
+   put _HCResourceFork(tFile) into tFork
+   if tFork begins with "Error :" then return tFork
+   put _HCResource(tFork, pType, pResource) into tData
+   if tData is false then return "Error : Resource not found"
+   if tHex then return _HCHex(tData)
+   if pType is "STR#" then
+      if the number of bytes of tData < 2 then return empty
+      put byteToNum(byte 1 of tData) * 256 + byteToNum(byte 2 of tData) into tCount
+      if tItem is not empty and tItem > tCount then return "Error : Index is out of range"
+      put 3 into tAt
+      repeat with i = 1 to tCount
+         if tAt > the number of bytes of tData then exit repeat
+         put byteToNum(byte tAt of tData) into tLength
+         if tItem is empty or tItem is i then
+            put _HCResText(byte tAt + 1 to tAt + tLength of tData, tStrip) & return after tOut
+         end if
+         add tLength + 1 to tAt
+      end repeat
+      delete the last char of tOut
+      return tOut
+   end if
+   if pType is "STR " then
+      if the number of bytes of tData < 1 then return empty
+      put byteToNum(byte 1 of tData) into tLength
+      return _HCResText(byte 2 to tLength + 1 of tData, tStrip) & return & _HCResText(byte tLength + 2 to -1 of tData, tStrip)
+   end if
+   return _HCResText(tData, tStrip)
+end ResText
+
+-- Bytes in hexadecimal, two capital digits each (ResText's "hex")
+private function _HCHex pData
+   local tHex
+   get binaryDecode("H*", pData, tHex)
+   return toUpper(tHex)
+end _HCHex
+
+-- A resource's bytes as ResText gives them: Mac text with its returns as
+-- returns, the other characters before space but tab as "[<code>]"
+-- with pStrip; else the bytes as they are
+private function _HCResText pData, pStrip
+   local tText, tOut, tChar, tCode
+   if pStrip is false then return pData
+   put _HCFromMacRoman(pData) into tText
+   replace numToCodepoint(13) & numToCodepoint(10) with return in tText
+   replace numToCodepoint(13) with return in tText
+   repeat for each char tChar in tText
+      put codepointToNum(tChar) into tCode
+      if tCode < 32 and tChar is not return and tChar is not tab then
+         put "[" & tCode & "]" after tOut
+      else
+         put tChar after tOut
+      end if
+   end repeat
+   return tOut
+end _HCResText
+
+-- Mac text (MacRoman bytes) as text here (this engine has no MacRoman
+-- for textDecode)
+private function _HCFromMacRoman pData
+   local tText, tByte, tCode
+   repeat for each byte tByte in pData
+      put byteToNum(tByte) into tCode
+      if tCode < 128 then
+         put numToCodepoint(tCode) after tText
+      else
+         put numToCodepoint(word tCode - 127 of kHCMacRoman) after tText
+      end if
+   end repeat
+   return tText
+end _HCFromMacRoman
+
+-- The data of the resource of type pType and id or name pResource in the
+-- resource fork pFork, or false. A fork's numbers are big-endian: its
+-- header gives where its data and map begin; the map, where its type
+-- list and name list begin (at 24 and 26); the type list, a count less
+-- one, then per type its four characters, its count less one and where
+-- its references begin, from the type list; a reference (12 bytes), the
+-- id, where its name is in the name list (-1 for none), and the
+-- resource's place in the data (3 bytes after a byte of attributes),
+-- where its length (4 bytes) comes before it. Inside Macintosh: More
+-- Macintosh Toolbox (1993), "Resource Manager", "Resource File Format"
+private function _HCResource pFork, pType, pResource
+   local tData, tMap, tTypes, tNames, tCount, i, j, tAt, tRefs, tRef, tN, tID, tName, tNameAt, tOffset, tLength
+   if the number of bytes of pFork < 16 then return false
+   get binaryDecode("NN", byte 1 to 8 of pFork, tData, tMap)
+   if tMap + 30 > the number of bytes of pFork then return false
+   get binaryDecode("nn", byte tMap + 25 to tMap + 28 of pFork, tTypes, tNames)
+   add tMap to tTypes
+   add tMap to tNames
+   get binaryDecode("n", byte tTypes + 1 to tTypes + 2 of pFork, tCount)
+   if tCount is 65535 then return false
+   set the caseSensitive to true
+   repeat with i = 0 to tCount
+      put tTypes + 2 + i * 8 into tAt
+      if byte tAt + 1 to tAt + 4 of pFork is not pType then next repeat
+      get binaryDecode("nn", byte tAt + 5 to tAt + 8 of pFork, tN, tRefs)
+      set the caseSensitive to false
+      repeat with j = 0 to tN
+         put tTypes + tRefs + j * 12 into tRef
+         get binaryDecode("nn", byte tRef + 1 to tRef + 4 of pFork, tID, tNameAt)
+         if tID > 32767 then subtract 65536 from tID
+         if pResource is an integer then
+            if tID is not pResource then
+               next repeat
+            end if
+         else
+            if tNameAt is 65535 then next repeat
+            put byte tNames + tNameAt + 2 to tNames + tNameAt + 1 + byteToNum(byte tNames + tNameAt + 1 of pFork) of pFork into tName
+            if _HCFromMacRoman(tName) is not pResource then next repeat
+         end if
+         put byteToNum(byte tRef + 6 of pFork) * 65536 + byteToNum(byte tRef + 7 of pFork) * 256 + byteToNum(byte tRef + 8 of pFork) into tOffset
+         add tData to tOffset
+         get binaryDecode("N", byte tOffset + 1 to tOffset + 4 of pFork, tLength)
+         return byte tOffset + 5 to tOffset + 4 + tLength of pFork
+      end repeat
+      return false
+   end repeat
+   return false
+end _HCResource
+
+-- The resource fork ResText reads: the stack's (pFile empty), or that of
+-- the file pFile, a name alone in the stack's folder, an HFS path or a
+-- path here; else the external's error. The last one read is kept, as
+-- a script reads many resources of one fork (SonnetFolio, its sonnets)
+local sHCForkSource, sHCFork
+
+private function _HCResourceFork pFile
+   local tSet, tSource, tFork, tFolder, tWhere
+   put the customProperties["uHyperCard"] of me into tSet
+   if pFile is empty then
+      if tSet["image"] is not empty and tSet["imagepath"] is not empty then
+         put "image" & tab & tSet["image"] & tab & tSet["imagepath"] into tSource
+      else if tSet["file"] is not empty then
+         put "local" & tab & tSet["file"] into tSource
+      else if the effective filename of me is not empty then
+         put "local" & tab & the effective filename of me into tSource
+      else
+         return "Error : No resource fork"
+      end if
+   else if slash is in pFile or backslash is in pFile then
+      put "local" & tab & pFile into tSource
+   else
+      -- the folder Files lists for it, and the file's name in it
+      set the itemDelimiter to colon
+      if colon is in pFile then
+         put _HCFilesFolder(item 1 to -2 of pFile & colon) into tWhere
+      else
+         put _HCFilesFolder(empty) into tWhere
+      end if
+      put the last item of pFile into pFile
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "image" then
+         put "image" & tab & item 2 of tWhere & tab & item 3 of tWhere & colon & pFile into tSource
+      else if item 1 of tWhere is "local" then
+         put "local" & tab & item 2 of tWhere & slash & pFile into tSource
+      else
+         return "Error : File not found"
+      end if
+   end if
+   if tSource is sHCForkSource then return sHCFork
+   set the itemDelimiter to tab
+   if item 1 of tSource is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tSource, item 3 of tSource, "resource") into tFork
+      catch tError
+         return "Error : File not found"
+      end try
+      if the result is not empty then
+         return "Error : File not found"
+      end if
+   else
+      if there is not a file item 2 of tSource then return "Error : File not found"
+      put _HCLocalFork(item 2 of tSource) into tFork
+   end if
+   if tFork is empty then return "Error : No resource fork"
+   put tSource into sHCForkSource
+   put tFork into sHCFork
+   return tFork
+end _HCResourceFork
+
+-- The resource fork of the file pFile here, where it was kept (the
+-- import reads the same places: MCHcstak::readresourcefile), or empty
+private function _HCLocalFork pFile
+   local tData, tFolder, tName, tLength, tFork, tEach
+   put url ("binfile:" & pFile) into tData
+   if _HCIsMacBinary(byte 1 to 128 of tData) then
+      get binaryDecode("NN", byte 84 to 91 of tData, tLength, tFork)
+      if tFork is 0 then return empty
+      return byte 129 + ((tLength + 127) div 128) * 128 to 128 + ((tLength + 127) div 128) * 128 + tFork of tData
+   end if
+   put _HCAppleFork(tData) into tFork
+   if tFork is not empty then return tFork
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   put item -1 of pFile into tName
+   set the itemDelimiter to comma
+   repeat for each item tEach in "rsrc,._,namedfork"
+      switch tEach
+         case "rsrc"
+            put url ("binfile:" & pFile & ".rsrc") into tData
+            break
+         case "._"
+            put url ("binfile:" & tFolder & slash & "._" & tName) into tData
+            break
+         case "namedfork"
+            if the platform is not "MacOS" then next repeat
+            put url ("binfile:" & pFile & "/..namedfork/rsrc") into tData
+            break
+      end switch
+      if tData is empty then next repeat
+      put _HCAppleFork(tData) into tFork
+      if tFork is empty then put tData into tFork
+      if _HCIsFork(tFork) then return tFork
+   end repeat
+   return empty
+end _HCLocalFork
+
+-- Whether pData can be a resource fork: its header's data and map within
+-- it, the map long enough for its type and name lists' offsets
+private function _HCIsFork pData
+   local tData, tMap, tDataLength, tMapLength
+   if the number of bytes of pData < 16 then return false
+   get binaryDecode("NNNN", byte 1 to 16 of pData, tData, tMap, tDataLength, tMapLength)
+   return tMapLength >= 30 and tData + tDataLength <= the number of bytes of pData and tMap + tMapLength <= the number of bytes of pData
+end _HCIsFork
+
+-- The resource fork (entry 2) of an AppleSingle (magic 0x00051600) or
+-- AppleDouble (0x00051607) file: after the magic and the version, 16
+-- bytes, then the count of entries, each an id, an offset and a
+-- length; else empty
+private function _HCAppleFork pData
+   local tMagic, tCount, i, tID, tOffset, tLength
+   if the number of bytes of pData < 26 then return empty
+   get binaryDecode("N", byte 1 to 4 of pData, tMagic)
+   if tMagic is not 333312 and tMagic is not 333319 then return empty
+   get binaryDecode("n", byte 25 to 26 of pData, tCount)
+   repeat with i = 0 to tCount - 1
+      get binaryDecode("NNN", byte 27 + i * 12 to 38 + i * 12 of pData, tID, tOffset, tLength)
+      if tID is 2 then return byte tOffset + 1 to tOffset + tLength of pData
+   end repeat
+   return empty
+end _HCAppleFork
+
+/*
+SystemPath("noDialog:" & errorGlobal) (4 stacks), the XFCN of Apple's
+Support Tools Development Group (Eric Carlson, 1990): the path of the
+System Folder, a Mac path with a colon at its end, on the disk that the
+long name of HyperCard names (hcHyperCardName), as SysEnvirons puts
+the systemFolder. BGC's stacks add "Extensions:QuickTime" and a trademark sign to it, and
+find no QuickTime there, which is so: its XCMDs are not here
+*/
+function SystemPath
+   set the itemDelimiter to colon
+   return item 1 of hcHyperCardName("long") & ":System Folder:"
+end SystemPath
+
+/*
+FindFolder([folder[, create]]) (3 stacks), Frederic Rinaldi's XFCN: the
+path of the System Folder, or of one of the folders the System kept
+(its card, "FindFolder 1.3"), on the disk SystemPath names, a colon at
+its end: a letter (A Apple Menu Items, C Control Panels, D the desktop,
+E Extensions, F Fonts, I Startup Items, M PrintMonitor Documents, N and
+T the Trash, P Preferences, S the System Folder, the default, U
+Shutdown Items, Y Temporary Items), or its type ("amnu", "ctrl",
+"desk", "extn", "font", "strt", "prnt", "empt", "trsh", "pref",
+"macs", "shdf", "temp", and "apps", "docs" and "root" at the top of the
+disk); anything longer, by its first letter ("system folder"). Nothing
+is made: the folders are named, as a Mac had them. Another gives
+"Error : Folder not found"
+*/
+function FindFolder pFolder
+   local tDisk, tTypes, tNames
+   set the itemDelimiter to colon
+   put item 1 of hcHyperCardName("long") into tDisk
+   set the itemDelimiter to comma
+   put word 1 to -1 of pFolder into pFolder
+   if pFolder is empty then put "S" into pFolder
+   if the number of chars of pFolder is not 4 then put char 1 of pFolder into pFolder
+   put "A,C,D,E,F,I,M,N,P,S,T,U,Y" into tTypes
+   if the number of chars of pFolder is 1 and pFolder is among the items of tTypes then
+      put item itemOffset(pFolder, tTypes) of "amnu,ctrl,desk,extn,font,strt,prnt,empt,pref,macs,trsh,shdf,temp" into pFolder
+   end if
+   switch pFolder
+      case "macs"
+         return tDisk & ":System Folder:"
+      case "desk"
+         return tDisk & ":Desktop Folder:"
+      case "trsh"
+      case "empt"
+         return tDisk & ":Trash:"
+      case "temp"
+         return tDisk & ":Temporary Items:"
+      case "apps"
+         return tDisk & ":Applications:"
+      case "docs"
+         return tDisk & ":Documents:"
+      case "root"
+         return tDisk & ":"
+   end switch
+   put "amnu,ctrl,extn,font,strt,prnt,pref,shdf" into tTypes
+   put "Apple Menu Items,Control Panels,Extensions,Fonts,Startup Items,PrintMonitor Documents,Preferences,Shutdown Items" into tNames
+   if pFolder is among the items of tTypes then
+      return tDisk & ":System Folder:" & item itemOffset(pFolder, tTypes) of tNames & ":"
+   end if
+   return "Error : Folder not found"
+end FindFolder
+
 -- inKey(), the XFCN: the character of a key being held down, or empty if
 -- none, which scripts read in a loop ("if inKey() is space then exit
 -- repeat")
