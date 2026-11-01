@@ -1,0 +1,238 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# A virtual Raspberry Pi for the Linux arm64 package: no real Pi has run
+# it, and Build (Linux) tests it only on GitHub's ARM runners, an Ubuntu
+# 24.04 on Neoverse CPUs. This workflow installs a finished package as a Pi
+# owner does (tools/ci/pi_os_check.sh: the install instructions, the IDE
+# started through the launcher, install.sh and its uninstall script) on
+#
+#   - Raspberry Pi OS-like systems: Debian bookworm and trixie arm64 with
+#     the Raspberry Pi archive added and upgraded from, natively on an ARM
+#     runner (a container per release);
+#   - the Pi's own CPUs: bookworm with the Pi archive under QEMU on an
+#     x86_64 runner, as the Cortex-A53 (Pi 3, Zero 2 W), Cortex-A72 (Pi 4,
+#     400) and Cortex-A76 (Pi 5). The runners' Neoverse CPUs have
+#     instructions those cores lack (the LSE atomics of Armv8.1 and later,
+#     which the A53 and A72 do not have), so a build that uses one runs on
+#     the runner and stops on a Pi with SIGILL; QEMU refuses an instruction
+#     its CPU model does not have, as the Pi would.
+#
+# What it cannot do: the Pi's GPU, its memory size, or the Wayland desktop
+# Raspberry Pi OS starts by default on a Pi 4 and 5 (the IDE runs there
+# under Xwayland; here on Xvfb, as on the Pi's X11 option).
+#
+# It is started by hand (Run workflow), with the run ID of a Build (Linux)
+# run whose OXT-Beyond-linux-arm64 package to test, or none for the newest
+# such package in the repository; and by a pull request that changes this
+# workflow or its scripts, on that newest package. Each job uploads its
+# output and screenshots as pi-os-check-<name>, and prints its last
+# screenshot into the log too (scaled down, base64 between BEGIN and END
+# lines), for readers who can see logs but not download artifacts.
+#
+# Permissions: actions: read for the package of another run.
+
+name: Raspberry Pi OS check
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Build (Linux) run ID whose arm64 package to test (empty for the newest package)
+        required: false
+        default: ''
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/pi-os-check.yml
+      - tools/ci/pi_os_check.sh
+      - tools/ci/linux_ide_start.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-os-check-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  find:
+    name: Find the arm64 package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - name: Find the run
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh api "repos/$GH_REPO/actions/artifacts?name=OXT-Beyond-linux-arm64&per_page=20" \
+              --jq '[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | last | .workflow_run.id // empty')
+          fi
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::there is no OXT-Beyond-linux-arm64 package that has not expired"
+            exit 1
+          fi
+          url="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$RUN_ID"
+          echo "Testing the arm64 package of [run $RUN_ID]($url)." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+  pi-os:
+    name: Pi OS ${{ matrix.release }} (native arm64)
+    needs: find
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    permissions:
+      actions: read
+    container: debian:${{ matrix.release }}
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [ bookworm, trixie ]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-arm64
+          run-id: ${{ needs.find.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/package
+
+      - name: Install and start it as on a Pi
+        run: |
+          package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
+          [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
+          bash tools/ci/pi_os_check.sh "$package" "$RUNNER_TEMP/out" 90
+
+      - name: Print the last screenshot into the log
+        if: ${{ !cancelled() }}
+        run: bash tools/ci/pi_os_check.sh --print-screenshot "$RUNNER_TEMP/out/ide-start/ide-end.png" || true
+
+      - name: Upload the output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pi-os-check-${{ matrix.release }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+          retention-days: 14
+
+  pi-cpu:
+    name: ${{ matrix.board }} CPU (${{ matrix.cpu }}, QEMU)
+    needs: find
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: Pi 3
+            cpu: cortex-a53
+          - board: Pi 4
+            cpu: cortex-a72
+          - board: Pi 5
+            cpu: cortex-a76
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-arm64
+          run-id: ${{ needs.find.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/package
+
+      # Ubuntu's QEMU registers itself for arm64 programs with the F flag,
+      # so it also runs them in a container; it reads the CPU model from
+      # QEMU_CPU in each program's environment
+      - name: Install QEMU
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y -q qemu-user-static
+          grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
+
+      # The CPU model applies: an Armv8.1 instruction (LSE ldadd) has to
+      # stop a program on a Cortex-A53 or A72 and run on an A76
+      - name: Check that QEMU emulates the CPU model
+        env:
+          CPU: ${{ matrix.cpu }}
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q gcc-aarch64-linux-gnu > /dev/null
+          printf '%s\n' 'int main(void){long v=1,r;__asm__ volatile("ldadd %1,%0,[%2]":"=r"(r):"r"(2L),"r"(&v):"memory");return v==3?0:1;}' > lse.c
+          aarch64-linux-gnu-gcc -static -march=armv8.1-a -o "$RUNNER_TEMP/lse" lse.c
+          ulimit -c 0
+          set +e
+          QEMU_CPU=$CPU "$RUNNER_TEMP/lse" 2> /dev/null
+          status=$?
+          set -e
+          case $CPU in
+            cortex-a76) want=0 ;;
+            *) want=132 ;;
+          esac
+          echo "Armv8.1 ldadd on $CPU: exit status $status (expected $want)"
+          [ "$status" = "$want" ]
+
+      - name: Install and start it as on a ${{ matrix.board }}
+        env:
+          CPU: ${{ matrix.cpu }}
+        run: |
+          package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
+          [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/out"
+          docker run --rm --platform linux/arm64 --ulimit core=0 \
+            -e QEMU_CPU="$CPU" \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$(dirname "$package"):/package:ro" -v "$RUNNER_TEMP/out:/out" \
+            debian:bookworm \
+            bash /src/tools/ci/pi_os_check.sh "/package/$(basename "$package")" /out 360
+
+      - name: Print the last screenshot into the log
+        if: ${{ !cancelled() }}
+        run: |
+          sudo apt-get install -y -q imagemagick > /dev/null 2>&1 || true
+          sudo chmod -R a+rX "$RUNNER_TEMP/out" || true
+          bash tools/ci/pi_os_check.sh --print-screenshot "$RUNNER_TEMP/out/ide-start/ide-end.png" || true
+
+      - name: Upload the output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pi-os-check-${{ matrix.cpu }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+          retention-days: 14
