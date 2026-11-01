@@ -1372,6 +1372,10 @@ on tour_menubar_modern
             put "modern: the toggle" && tToggle && "is not on" & return after tFails
          end if
       end repeat
+      -- every button's labels whole in it, bold as a lit button draws them
+      add 1 to tChecks
+      get tourMbLabelsCut()
+      if it is not empty then put "modern: a label is cut off:" && it & return after tFails
       tourShotStack tMb, "03-menubar-modern-on"
       tourMbToggles false
       -- the View menu's item turns the classic look on
@@ -1392,6 +1396,9 @@ on tour_menubar_modern
       if the textColor of group "toolbar" of stack tMb is not empty or there is a graphic "mbBackground" of card 1 of stack tMb then
          put "classic: the labels have a colour, or the modern look's background is still there" & return after tFails
       end if
+      add 1 to tChecks
+      get tourMbLabelsCut()
+      if it is not empty then put "classic: a label is cut off:" && it & return after tFails
       tourShotStack tMb, "03-menubar-classic"
       dispatch "revMenubarViewMenuPick" to stack tMb with "Modern Toolbar"
       tourWait 300
@@ -1437,6 +1444,46 @@ function tourMbPrint
    end repeat
    return tOut
 end tourMbPrint
+
+-- The toolbar's buttons whose words are wider than the button, as the
+-- button can show them: its label now and both of revMenubarButtonText's
+-- (lit and not), each bold, as setButtonHilite draws a lit button's and
+-- any button's while it is pressed. Each is measured as the button lays
+-- it out (its formattedWidth) and put back as it was. The toolbar measured
+-- only the plain labels, and on Linux (DejaVu Sans) cut a lit "Select
+-- Grouped" off at its first letter
+function tourMbLabelsCut
+   local tMb, tCut, tN, tBtn, tName, tLabel, tStyle, tLabels, tHilite, tText, tNeed
+   put "revMenuBar" into tMb
+   lock screen
+   lock messages
+   repeat with tN = 1 to the number of buttons of group "toolbar" of stack tMb
+      put the long id of button tN of group "toolbar" of stack tMb into tBtn
+      if not the visible of tBtn or not the showName of tBtn then next repeat
+      put the short name of tBtn into tName
+      put the label of tBtn into tLabel
+      put the textStyle of tBtn into tStyle
+      put tLabel into tLabels
+      repeat for each item tHilite in "true,false"
+         dispatch function "revMenubarButtonText" to stack tMb with tName, tHilite
+         if it is "handled" and the result is not among the lines of tLabels then put return & the result after tLabels
+      end repeat
+      repeat for each line tText in tLabels
+         if tText is empty then next repeat
+         set the label of tBtn to tText
+         set the textStyle of tBtn to "bold"
+         put the formattedWidth of tBtn into tNeed
+         if tNeed > the width of tBtn then
+            put tName && "is" && the width of tBtn && "wide," && quote & tText & quote && "bold needs" && tNeed & "; " after tCut
+         end if
+      end repeat
+      set the textStyle of tBtn to tStyle
+      set the label of tBtn to tLabel
+   end repeat
+   unlock messages
+   unlock screen
+   return tCut
+end tourMbLabelsCut
 
 -- Messages, Errors and Select Grouped on (pOn) or off, as the toolbar
 -- reads them (updateButtonState)

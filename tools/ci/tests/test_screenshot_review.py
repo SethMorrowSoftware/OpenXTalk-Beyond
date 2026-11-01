@@ -113,6 +113,16 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   the palette while it does when the palette is over what it reads
   (tourToolsAside, tourToolsBack): the selected index line and the words
   of the check boxes. The snapshots a person looks through keep it.
+- On Linux the toolbar cut "Select Grouped" off at its "S" when it was
+  on (the review of the rc.6.12 pull request's tour, the dark appearance):
+  a lit button's label is bold (setButtonHilite, and any button's while it
+  is pressed), and revMenubarButtonFormattedWidth measured the labels
+  plain. Eight of the eleven buttons were narrower than their bold words
+  in DejaVu Sans ("Select Grouped" 107 of 120, "Messages" 72 of 81). Each
+  label is measured plain and bold; the step menubar-modern measures every
+  button's labels bold, in both looks. On the released rc.6.11 IDE it
+  fails on all eight; with the change it passes, and the toolbar is 999
+  pixels wide on Linux, where it was 922.
 - The whole tour ran past its 600 seconds on the Intel Mac (the light
   appearance, 141 snapshots) and came within a minute of it on Windows
   and the Apple silicon Mac, as the review's checks were added. It has
@@ -139,6 +149,7 @@ SE_COPIES = ('stack_revSETemplate_group_id_53759.livecodescript',
 PATCHES = ('tools', 'oxt', 'ide-stack-patches')
 INCLUSIONS_ROW = ('ide', 'Toolset', 'palettes', 'standalone settings',
                   'revstandalonesettingsinclusionsrowbehavior.livecodescript')
+MENUBAR = ('ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript')
 
 
 def read(parts):
@@ -781,6 +792,54 @@ class TheToolsPalette(unittest.TestCase):
         skip = body[check:body.index('import snapshot from rect tRect')]
         self.assertIn('"is not whole in the working screenRect"', skip)
         self.assertIn('next repeat', skip)
+
+
+class TheToolbarLabels(unittest.TestCase):
+    """A toolbar button is as wide as its words bold, as a lit one shows
+    them."""
+
+    def test_a_lit_button_is_bold(self):
+        # what the width has to hold
+        lit = handler(read(MENUBAR), 'on', 'setButtonHilite')
+        self.assertIn('set the textStyle of pLongID to "bold"', lit)
+
+    def test_each_label_measured_plain_and_bold(self):
+        body = handler(read(MENUBAR), 'function', '__buttonMaxFormattedWidth')
+        labels = body.index('repeat for each item tHilite in "true,false"')
+        styles = body.index('repeat for each item tStyle in "plain,bold"')
+        style = body.index('set the textStyle of button pName of group "toolbar" of me to tStyle')
+        measure = body.index('put max(tWidth, the formattedwidth of button pName of group "toolbar" of me) into tWidth')
+        self.assertLess(labels, styles)
+        self.assertLess(styles, style)
+        self.assertLess(style, measure)
+        # and the button is left as it was
+        self.assertLess(body.index('put the textStyle of button pName of group "toolbar" of me into tOldStyle'), labels)
+        self.assertLess(measure, body.index('set the textStyle of button pName of group "toolbar" of me to tOldStyle'))
+        self.assertLess(measure, body.index('set the label of button pName of group "toolbar" of me to tOldLabel'))
+        # the layout sizes every button by it
+        layout = handler(read(MENUBAR), 'on', 'layoutMenu')
+        self.assertIn('put revMenubarButtonFormattedWidth(tItem) into tWidth', layout)
+        self.assertIn('return max(__buttonMaxFormattedWidth(pName), kMinimumMenuButtonWidth)',
+                      handler(read(MENUBAR), 'function', 'revMenubarButtonFormattedWidth'))
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_menubar_modern')
+        for look, shot in (('modern', '03-menubar-modern-on'), ('classic', '03-menubar-classic')):
+            check = 'if it is not empty then put "%s: a label is cut off:" && it & return after tFails' % look
+            self.assertIn(check, step)
+            # before the snapshot of that look
+            self.assertLess(step.index(check), step.index('tourShotStack tMb, "%s"' % shot))
+        # with the toggles on: Select Grouped was the one cut off
+        self.assertLess(step.index('tourMbToggles true'), step.index('a label is cut off'))
+        check = handler(tour, 'function', 'tourMbLabelsCut')
+        self.assertIn('dispatch function "revMenubarButtonText" to stack tMb with tName, tHilite', check)
+        self.assertIn('set the textStyle of tBtn to "bold"', check)
+        self.assertIn('if tNeed > the width of tBtn then', check)
+        self.assertLess(check.index('put the formattedWidth of tBtn into tNeed'), check.index('if tNeed > the width of tBtn then'))
+        # each button as it was, for the snapshots and tourMbPrint
+        self.assertIn('set the textStyle of tBtn to tStyle', check)
+        self.assertIn('set the label of tBtn to tLabel', check)
 
 
 class TheTourBudget(unittest.TestCase):

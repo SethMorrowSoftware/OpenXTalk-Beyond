@@ -1382,15 +1382,26 @@ function revMenubarButtonText pName, pHilited
    end switch
 end revMenubarButtonText
 
+-- OXT-Beyond: each label is measured plain and bold. setButtonHilite
+-- draws a lit button's label bold (a toggle that is on, such as Select
+-- Grouped, and any button while it is pressed), and a width measured from
+-- the plain label alone cut the bold one off where it was wider than the
+-- 64 pixels every button has: "Select Grouped" on Linux, in DejaVu Sans.
+-- The IDE tour's step menubar-modern measures every button's labels, bold.
 function __buttonMaxFormattedWidth pName
    lock screen
    lock messages
-   local tWidth, tOldLabel
+   local tWidth, tOldLabel, tOldStyle
    put the label of button pName of group "toolbar" of me into tOldLabel
+   put the textStyle of button pName of group "toolbar" of me into tOldStyle
    repeat for each item tHilite in "true,false"
       set the label of button pName of group "toolbar" of me to revMenubarButtonText(pName, tHilite)
-      put max(tWidth, the formattedwidth of button pName of group "toolbar" of me) into tWidth
+      repeat for each item tStyle in "plain,bold"
+         set the textStyle of button pName of group "toolbar" of me to tStyle
+         put max(tWidth, the formattedwidth of button pName of group "toolbar" of me) into tWidth
+      end repeat
    end repeat
+   set the textStyle of button pName of group "toolbar" of me to tOldStyle
    set the label of button pName of group "toolbar" of me to tOldLabel
    unlock messages
    unlock screen
