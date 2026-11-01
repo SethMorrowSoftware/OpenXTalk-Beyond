@@ -1715,6 +1715,10 @@ it squashes:
 - **Sparkles on the words.** The sparkles of a How-to or Academy page's
   banner keep off its words and buttons; in a narrow window they landed
   on the title (#305).
+- **Half a dictionary online.** Help > Dictionary Online has every
+  entry the IDE's dictionaries have: the xTalk Suite libraries, the
+  bundled widgets and libraries and the IDE library, 4421 entries where
+  it had LiveCode's 2763 (#294).
 - **An option cut short.** On Linux and the Mac, Search and Replace
   shows "Search [Marked] cards only" whole; "only" was cut off (#305).
 - **Labels cut short on Linux.** In Preferences, Search and Replace and
@@ -1767,10 +1771,12 @@ it squashes:
 Behind the scenes, the project's web pages have a new front page with a
 Downloads section (#295) and a Web Games section with Pixel Platformer
 Maker, a platformer and level maker written in xTalk with Box2Dxt
-physics, whose menus are now readable (#301, #303, #306); the HyperCard sweep in CI answers dialogs as a
-person would and skips hidden buttons (#296); and the runtimes that
-every package carries for the other platforms are rebuilt from this
-release's engine (#305).
+physics, whose menus are now readable (#301, #303, #306); the HyperCard
+sweep in CI answers dialogs as a person would and skips hidden buttons
+(#296); the revZip test stacks check every revZip command and find
+revzip wherever OXT-Beyond is (mwieder, from HyperXTalk) (#299); and the
+runtimes that every package carries for the other platforms are rebuilt
+from this release's engine (#305).
 
 #### 0.2.7-rc.6.11: the Bug Hunt, round eleven
 

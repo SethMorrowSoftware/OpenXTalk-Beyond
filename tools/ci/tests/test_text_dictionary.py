@@ -282,6 +282,74 @@ class FilesTest(unittest.TestCase):
         self.assertEqual(sorted(os.listdir(pages)), ['try control structure.txt'])
         self.assertEqual(os.listdir(os.path.join(out, 'xtalk', 'plugins')), ['mine.txt'])
 
+    def test_export_for_the_web_dictionary(self):
+        """--export-extensions copies the extensions' files into
+        <data>/api_extensions/<api>/ for the Dictionary on the web site, in
+        the same API as the text dictionary's section: a module in
+        livecode_builder, the others in livecode_script; an extension
+        without a file (com.x.empty) has none there."""
+        data, ext = self.data()
+        out = os.path.join(self.tmp, 'exports')
+        export = os.path.join(data, td.EXPORT_FOLDER)
+        os.makedirs(os.path.join(export, 'livecode_script'))
+        open(os.path.join(export, 'livecode_script', 'stale.js'), 'w').close()
+        self.assertEqual(run(['--data', data, '--out', out, '--extensions', ext, '--export-extensions']), 0)
+        self.assertEqual(sorted(os.listdir(export)), ['livecode_builder', 'livecode_script'])
+        self.assertEqual(os.listdir(os.path.join(export, 'livecode_script')), ['com.x.widget.js'])
+        self.assertEqual(os.listdir(os.path.join(export, 'livecode_builder')), ['com.x.module.js'])
+        for api, ident in (('livecode_script', 'com.x.widget'), ('livecode_builder', 'com.x.module')):
+            with open(os.path.join(ext, ident + '.js'), 'rb') as a, \
+                    open(os.path.join(export, api, ident + '.js'), 'rb') as b:
+                self.assertEqual(a.read(), b.read())
+        # the same entries as the text dictionary's sections
+        sections = td.collect(data, ext)
+        for api, section in (('livecode_script', 'xtalk'), ('livecode_builder', 'builder')):
+            exported = []
+            for name in sorted(os.listdir(os.path.join(export, api))):
+                exported += td.load_json(os.path.join(export, api, name))
+            self.assertEqual(exported, sections[section][-len(exported):])
+        # the text dictionary is the same with or without it
+        self.assertEqual(sorted(os.listdir(os.path.join(out, 'xtalk', 'resaved'))),
+                         ['X widget.txt', 'hilite property.txt', 'try control structure.txt'])
+        # without the flag nothing is exported, and it needs --extensions
+        shutil.rmtree(export)
+        self.assertEqual(run(['--data', data, '--out', out, '--extensions', ext]), 0)
+        self.assertFalse(os.path.exists(export))
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(run(['--data', data, '--out', out, '--export-extensions']), 1)
+
+    def test_export_refuses_a_bad_file(self):
+        data, ext = self.data()
+        with open(os.path.join(ext, 'com.x.widget.js'), 'a', encoding='utf-8') as f:
+            f.write('}')
+        with self.assertRaises(td.TextDictionaryError):
+            td.export_extensions(ext, data)
+
+    def test_the_ide_does_not_read_the_export(self):
+        # the IDE reads api_<api> (revIDESpecialFolderPath "api"), so the
+        # export's folder must never be an API's name, nor the IDE name it
+        self.assertFalse(td.EXPORT_FOLDER.startswith('api_livecode'))
+        for folder in ('ide', 'ide-support'):
+            for root, _, names in os.walk(os.path.join(td.REPO, folder)):
+                for name in names:
+                    if name.endswith('.livecodescript'):
+                        with open(os.path.join(root, name), encoding='utf-8', errors='replace') as f:
+                            self.assertNotIn(td.EXPORT_FOLDER, f.read(), os.path.join(root, name))
+
+    def test_the_docs_build_exports(self):
+        with open(os.path.join(td.REPO, 'tools', 'ci', 'build_docs.sh'), encoding='utf-8') as f:
+            script = f.read()
+        self.assertIn('text_dictionary.py" --extensions "$work/ext" --export-extensions', script)
+        # the docs job uploads it, and packaging stops without it, so the
+        # packages (and the web IDE's ide.zip) carry it
+        with open(os.path.join(td.REPO, '.github', 'workflows', 'docs.yml'), encoding='utf-8') as f:
+            self.assertIn('ide/Documentation/html_viewer/resources/data/%s/\n' % td.EXPORT_FOLDER, f.read())
+        import package
+        self.assertTrue(any(f.startswith(td.EXPORT_FOLDER + '/') for f in package.DOCS_FILES))
+        # (and git keeps none of it)
+        with open(os.path.join(td.REPO, 'ide', '.gitignore'), encoding='utf-8') as f:
+            self.assertIn('Documentation/html_viewer/resources/data/%s/' % td.EXPORT_FOLDER, f.read())
+
     def test_bad_data(self):
         data = os.path.join(self.tmp, 'data')
         write_json(os.path.join(data, 'api_livecode_script', 'script.js'), [{'type': 'command'}])

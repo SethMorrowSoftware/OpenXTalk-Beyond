@@ -82,6 +82,9 @@ COPIED = ('css', 'js', 'fonts', os.path.join('resources', 'media'))
 
 IDE_ZIP_PREFIX = 'boot/Documentation/html_viewer/'
 
+# The extensions' data beside LiveCode's (text_dictionary.EXPORT_FOLDER)
+EXTENSIONS_FOLDER = 'api_extensions'
+
 
 class DictionaryError(Exception):
     pass
@@ -107,22 +110,43 @@ def page_text(template):
     return text
 
 
-def api_entries(viewer, name):
-    """The text of an API's entries: its .js files in resources/data/
-    api_<name>/, in name order, joined with commas, as
-    revIDEGetBaseDocsData joins them."""
-    folder = os.path.join(viewer, 'resources', 'data', 'api_' + name)
-    if not os.path.isdir(folder):
-        raise DictionaryError('%s is not there: make the docs first (tools/ci/build_docs.sh)' % folder)
+def _js_texts(folder):
+    """The texts of the folder's .js files, in name order, those with
+    nothing in them left out."""
     texts = []
     for file in sorted(os.listdir(folder)):
         if file.endswith('.js'):
             with open(os.path.join(folder, file), encoding='utf-8') as f:
                 text = f.read().strip()
+            if text.startswith('\ufeff'):
+                text = text[1:].strip()
+            if text.endswith(','):
+                text = text[:-1].rstrip()
             if text:
                 texts.append(text)
+    return texts
+
+
+def api_entries(viewer, name):
+    """The text of an API's entries: its .js files in resources/data/
+    api_<name>/, in name order, joined with commas, as
+    revIDEGetBaseDocsData joins them; then, as revIDEGetDocsAPIData adds
+    the docs of the extensions the IDE loads (revIDEGetExtensionDocsData),
+    the extensions' files in resources/data/api_extensions/<name>/, which
+    tools/ci/build_docs.sh puts there (text_dictionary.py
+    --export-extensions), so that the page has every entry the IDE's
+    dictionaries have, the xTalk Suite's among them. An IDE made before
+    that folder has none, and its page has LiveCode's entries alone, as
+    before."""
+    folder = os.path.join(viewer, 'resources', 'data', 'api_' + name)
+    if not os.path.isdir(folder):
+        raise DictionaryError('%s is not there: make the docs first (tools/ci/build_docs.sh)' % folder)
+    texts = _js_texts(folder)
     if not texts:
         raise DictionaryError('%s has no entries' % folder)
+    extensions = os.path.join(viewer, 'resources', 'data', EXTENSIONS_FOLDER, name)
+    if os.path.isdir(extensions):
+        texts += _js_texts(extensions)
     return ','.join(texts)
 
 
@@ -248,7 +272,9 @@ def viewer_from_ide_site(site, work):
             if rel.startswith('/') or '..' in rel.split('/'):
                 raise DictionaryError('ide.zip: unsafe name %r' % name)
             # the data the page needs, not the IDE's database and stacks
-            if rel.startswith('resources/data/') and not rel.startswith('resources/data/api_livecode_'):
+            if rel.startswith('resources/data/') and not (
+                    rel.startswith('resources/data/api_livecode_') or
+                    rel.startswith('resources/data/%s/' % EXTENSIONS_FOLDER)):
                 continue
             target = os.path.join(work, *rel.split('/'))
             os.makedirs(os.path.dirname(target), exist_ok=True)

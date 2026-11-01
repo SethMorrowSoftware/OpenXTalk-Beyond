@@ -249,6 +249,10 @@ DOCS_FILES = (
     'api_livecode_script/dg.js',
     'api_livecode_builder/builder.js',
     'guide/distributed_guide.js',
+    # the extensions' data for the Dictionary on the web site
+    # (text_dictionary.py --export-extensions): without it the site's
+    # Dictionary would quietly lose every extension's entries
+    'api_extensions/livecode_script/org.openxtalk.library.sodium.js',
 ) + tuple('api/exports/%s/%s' % (section, name)
           for section in ('xtalk', 'builder', 'datagrid')
           for name in ('index.txt', 'substitutions.txt'))
