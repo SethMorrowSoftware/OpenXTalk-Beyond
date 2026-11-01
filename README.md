@@ -1678,6 +1678,16 @@ it squashes:
 - **A Line tool that kept its light.** In the Tools palette, choosing
   another vector tool after the Line tool lights the one you chose; the
   light stayed on Line (micmac) (#305).
+- **Search results you could not read.** In the dark appearance the
+  Script Editor's Search Results are light grey and near white; they
+  were the light appearance's dark greys, on a dark pane (#305).
+- **A selected line dark on its hilite.** On Linux and Windows, in the
+  dark appearance, the line selected in the lists of Release Notes,
+  How-to, Guides, Examples and the Academy is white on its hilite; it
+  read dark on violet (#305).
+- **Sparkles on the words.** The sparkles of a How-to or Academy page's
+  banner keep off its words and buttons; in a narrow window they landed
+  on the title (#305).
 - **A scrollbar you could not turn.** The Inspector sets a scrollbar's
   Orientation, Horizontal or Vertical, swapping its width and height
   about its centre; it was read only (TerryL) (#293).

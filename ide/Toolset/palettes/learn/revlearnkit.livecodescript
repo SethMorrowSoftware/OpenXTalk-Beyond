@@ -624,8 +624,21 @@ function lkInput pName, pRect, pText, pSize, pGroup
    set the autoHilite of tObj to true
    set the dontWrap of tObj to true
    set the autoTab of tObj to false
+   lkSelectedInk tObj, "255,255,255"
    return tObj
 end lkInput
+
+-- The colour of the text selected in the field pObj: pRGB. On Linux and
+-- Windows the engine draws a field's selected text in the field's
+-- background colour (engine/src/block.cpp, setcolorforselectedtext); a
+-- kit field sets none, so it took the window's, dark in the dark
+-- appearance, and a selected line or word read dark on its hilite (the
+-- violet line of an index, a word picked in a dark search box or code
+-- panel). The field is not opaque, so the colour paints nothing else; a
+-- Mac draws selected text in the text's own colour.
+command lkSelectedInk pObj, pRGB
+   set the backgroundColor of pObj to pRGB
+end lkSelectedInk
 
 -- A code panel's text: the code font, a fixed line height
 function lkCodeField pName, pRect, pSize, pLineHeight, pGroup
@@ -636,6 +649,7 @@ function lkCodeField pName, pRect, pSize, pLineHeight, pGroup
    end if
    set the fixedLineHeight of tObj to true
    set the textHeight of tObj to pLineHeight
+   lkSelectedInk tObj, "255,255,255"
    return tObj
 end lkCodeField
 
@@ -816,6 +830,46 @@ function lkPastEdge pX, pY, pEdgeX, pSx, pSy
    end if
    return pX & "," & (pY + 2 * pSy)
 end lkPastEdge
+
+-- Where a hero's words and buttons are, one rect a line, from the top left
+-- of its background pBg (so the rects hold while the page scrolls): its
+-- fields of pFields as far as their text reaches, and its button groups
+-- of pGroups, each with a few points round it. A sparkle the hero's lights
+-- would put on one is not drawn (lkInZones): at fixed parts of the hero's
+-- width, they landed on its words in a narrow window, a stray mark in
+-- "idea at a time", "very first" or "Tom Perry".
+function lkTextZones pBg, pFields, pGroups
+   local tLeft, tTop, tName, tZones
+   put the left of pBg into tLeft
+   put the top of pBg into tTop
+   repeat for each item tName in pFields
+      if there is a field tName and the text of field tName is not empty then
+         put (the left of field tName - tLeft - 6) & comma & (the top of field tName - tTop - 4) & comma & \
+               (the left of field tName + the formattedWidth of field tName - tLeft + 6) & comma & \
+               (the top of field tName + the formattedHeight of field tName - tTop + 4) & return after tZones
+      end if
+   end repeat
+   repeat for each item tName in pGroups
+      if there is a group tName and the visible of group tName then
+         put (the left of group tName - tLeft - 6) & comma & (the top of group tName - tTop - 6) & comma & \
+               (the right of group tName - tLeft + 6) & comma & (the bottom of group tName - tTop + 6) & return after tZones
+      end if
+   end repeat
+   return line 1 to -1 of tZones
+end lkTextZones
+
+-- Whether the point pX, pY (from the hero's top left) is within pPad points
+-- of a rect of pZones (lkTextZones)
+function lkInZones pZones, pX, pY, pPad
+   local tZone
+   repeat for each line tZone in pZones
+      if pX >= item 1 of tZone - pPad and pX <= item 3 of tZone + pPad and \
+            pY >= item 2 of tZone - pPad and pY <= item 4 of tZone + pPad then
+         return true
+      end if
+   end repeat
+   return false
+end lkInZones
 
 -- A four-pointed sparkle
 function lkSparklePoints pX, pY, pSize

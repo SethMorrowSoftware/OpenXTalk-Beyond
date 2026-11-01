@@ -4039,8 +4039,151 @@ on tour_script_editor_search
    send "revSEFindAll" && quote & "mouse" & quote & ", false, false, false, true," && quote & "card" & quote to stack tSE
    tourWait 2000
    tourShotStack tSE, "10-script-editor-search"
+   local tFails
+   put tourSearchResultsInk(tSE) into tFails
    close stack tSE
+   if tFails is not empty then throw tFails
 end tour_script_editor_search
+
+-- The Search Results pane's first result is readable on the pane, in the
+-- light and the dark: its object and its line, in the colours the pane
+-- wrote into its htmlText, against the pane's own colour just left of the
+-- line (they were #505050 and #101010 on the dark pane too, all but
+-- invisible). Empty, or why not.
+function tourSearchResultsInk pSE
+   local tLine, tRect, tBack, tInk, tRatio, tFails, tWhich, tDefault
+   put the defaultStack into tDefault
+   set the defaultStack to pSE
+   if the number of lines of the text of field 1 of group "Search Results" of group "Panes" of card "Main" < 3 then
+      put "the Search Results pane has no result:" && the text of field 1 of group "Search Results" of group "Panes" of card "Main" into tFails
+      set the defaultStack to tDefault
+      return tFails
+   end if
+   put the formattedRect of line 2 of field 1 of group "Search Results" of group "Panes" of card "Main" into tLine
+   put the rect of stack pSE into tRect
+   tourUnlockScreen "script-editor-search"
+   put tourPixelAt(item 1 of tRect + item 1 of tLine - 3, item 2 of tRect + (item 2 of tLine + item 4 of tLine) div 2) into tBack
+   repeat for each item tWhich in "object,line"
+      if tWhich is "object" then
+         put the textColor of char 1 of line 2 of field 1 of group "Search Results" of group "Panes" of card "Main" into tInk
+      else
+         put the textColor of char -2 of line 2 of field 1 of group "Search Results" of group "Panes" of card "Main" into tInk
+      end if
+      put tourRGB(tInk) into tInk
+      put tourContrast(tInk, tBack) into tRatio
+      tourRecord "INFO Search Results: the" && tWhich && "in" && tInk && "on" && tBack && "(contrast" && tRatio & ")"
+      if tRatio < 4.5 then
+         put "the Search Results pane's" && tWhich && "is" && tInk && "on" && tBack & ", contrast" && tRatio & "; " after tFails
+      end if
+   end repeat
+   set the defaultStack to tDefault
+   return char 1 to -3 of tFails
+end tourSearchResultsInk
+
+-- A colour as red, green and blue: from "#RRGGBB" or as it is
+function tourRGB pColour
+   if char 1 of pColour is "#" and the number of chars of pColour is 7 then
+      return baseConvert(char 2 to 3 of pColour, 16, 10) & comma & baseConvert(char 4 to 5 of pColour, 16, 10) & \
+            comma & baseConvert(char 6 to 7 of pColour, 16, 10)
+   end if
+   return pColour
+end tourRGB
+
+-- No sparkle of the banner at the top of the page of the window pStack is
+-- drawn on its words: each shown sparkle (graphic p_heroStar1 to 6) is
+-- clear of the text of each of its fields (p_hero... as far as their text
+-- reaches), looked at five times as the sparkles drift. At fixed parts of
+-- the banner's width they sat on words in a narrow window ("idea at a
+-- time", "Tom Perry"). Empty, or why not; pWhat names the window.
+function tourHeroSparklesClear pStack, pWhat
+   local tDefault, tPass, tStar, tName, tS, tF, tFails, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat with tPass = 1 to 5
+      repeat with tStar = 1 to 6
+         if there is not a graphic ("p_heroStar" & tStar) of this card then next repeat
+         if not the visible of graphic ("p_heroStar" & tStar) of this card then next repeat
+         put the rect of graphic ("p_heroStar" & tStar) of this card into tS
+         repeat for each item tName in "p_heroEyebrow,p_heroTitle,p_heroText,p_heroCredit,p_heroStats"
+            if there is not a field tName of this card or the text of field tName of this card is empty then next repeat
+            put the left of field tName of this card, the top of field tName of this card, \
+                  the left of field tName of this card + the formattedWidth of field tName of this card, \
+                  the top of field tName of this card + the formattedHeight of field tName of this card into tF
+            if item 1 of tS < item 3 of tF and item 3 of tS > item 1 of tF and item 2 of tS < item 4 of tF and item 4 of tS > item 2 of tF then
+               put pWhat & "'s banner draws the sparkle p_heroStar" & tStar && "(" & tS & ") on its words" && quote & \
+                     line 1 of field tName of this card & quote && "(" & tF & ")" into tFails
+               exit repeat
+            end if
+         end repeat
+         if tFails is not empty then exit repeat
+      end repeat
+      if tFails is not empty then exit repeat
+      tourWait 300
+   end repeat
+   set the defaultStack to tDefault
+   if tFails is empty then tourRecord "INFO" && pWhat & "'s banner: no sparkle on its words"
+   return tFails
+end tourHeroSparklesClear
+
+-- The selected line of the sidebar's index (field "idx") of the window
+-- pStack is readable on its hilite: the brightest point of its words (from
+-- its first tab stop to the next, or to the field's right) against the
+-- hilite. On Linux and Windows the engine draws selected text in the
+-- field's background colour, and the index, with none, took the dark
+-- window's in the dark appearance (dark words on violet). Empty, or why
+-- not; pWhat names the window.
+function tourSelectedLineInk pStack, pWhat
+   local tDefault, tLine, tTabs, tLeft, tRight, tRect, tHilite, tData, tW, tH, tAt, tBest, tBestRGB, tRGB, tLum, i, tRatio
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   if there is not a field "idx" of this card then
+      set the defaultStack to tDefault
+      return pWhat && "has no index"
+   end if
+   put the hilitedLine of field "idx" of this card into tLine
+   if tLine is empty then
+      set the defaultStack to tDefault
+      return pWhat & "'s index has no line selected"
+   end if
+   put the tabStops of field "idx" of this card into tTabs
+   put the formattedRect of line tLine of field "idx" of this card into tRect
+   put the left of field "idx" of this card + item 1 of the margins of field "idx" of this card + item 1 of tTabs + 2 into tLeft
+   if the number of items of tTabs > 1 then
+      put the left of field "idx" of this card + item 1 of the margins of field "idx" of this card + item 2 of tTabs - 4 into tRight
+   else
+      put the right of field "idx" of this card - 16 into tRight
+   end if
+   put tourRGB(the hiliteColor of field "idx" of this card) into tHilite
+   put item 1 of the rect of stack pStack + tLeft, item 2 of the rect of stack pStack + item 2 of tRect + 2, \
+         item 1 of the rect of stack pStack + tRight, item 2 of the rect of stack pStack + item 4 of tRect - 2 into tRect
+   set the defaultStack to tDefault
+   tourUnlockScreen "the selected line of" && pWhat
+   export snapshot from rect tRect to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the width of image "oxt_tour_probe" of stack "oxt_ui_tour" into tW
+   put the height of image "oxt_tour_probe" of stack "oxt_ui_tour" into tH
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put -1 into tBest
+   repeat with i = 0 to tW * tH - 1
+      put i * 4 into tAt
+      put byteToNum(byte tAt + 2 of tData) & comma & byteToNum(byte tAt + 3 of tData) & comma & byteToNum(byte tAt + 4 of tData) into tRGB
+      put tourLuminance(tRGB) into tLum
+      if tLum > tBest then
+         put tLum into tBest
+         put tRGB into tBestRGB
+      end if
+   end repeat
+   put tourContrast(tBestRGB, tHilite) into tRatio
+   tourRecord "INFO" && pWhat & "'s selected index line (" & tLine & "): brightest" && tBestRGB && "on the hilite" && tHilite && "(contrast" && tRatio & ")"
+   if tRatio < 3 then
+      return pWhat & "'s selected index line is unreadable: its brightest point" && tBestRGB && "on the hilite" && tHilite & ", contrast" && tRatio
+   end if
+   return empty
+end tourSelectedLineInk
 
 -- The Handlers button above the script opens the list of its handlers,
 -- which takes the focus, and so took the script's selection away; closed
@@ -4950,6 +5093,12 @@ on tour_release_notes
    put tourNewStack(tBefore) into tNew
    if tNew is empty then throw "no Release Notes window opened"
    tourShotStack tNew, "24b-release-notes"
+   local tFails
+   put tourSelectedLineInk(tNew, "Release Notes") into tFails
+   if tFails is not empty then
+      close stack tNew
+      throw tFails
+   end if
    tourReleaseNotesSearch tNew
    close stack tNew
 end tour_release_notes
@@ -5080,6 +5229,10 @@ on tour_learn
       dispatch "leShowSection" to stack tWin with "lessons", 1
       tourWait 1500
       tourShotStack tWin, "24d-learn"
+      get tourSelectedLineInk(tWin, "the How-to")
+      if it is not empty then throw it
+      get tourHeroSparklesClear(tWin, "the How-to")
+      if it is not empty then throw it
       if there is not a group "p_heroB3" of this card of stack tWin then
          throw "Learn's first page of the lessons has no third button (New to coding? Try the Academy)"
       end if
@@ -5179,6 +5332,10 @@ on tour_academy
       dispatch "acGoTo" to stack tWin with "basics", 0
       tourWait 1500
       tourShotStack tWin, "24e-academy"
+      get tourSelectedLineInk(tWin, "the Academy")
+      if it is not empty then throw it
+      get tourHeroSparklesClear(tWin, "the Academy")
+      if it is not empty then throw it
       -- the courses in the sidebar, one each
       dispatch function "revAcademyCourses" to stack tWin
       put the result into tCourses
