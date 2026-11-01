@@ -19,9 +19,11 @@
 # IDE opens its menubar) with the Windows portable zip of a published
 # release, on Windows Server 2022 and 2025 (the 2025 image has Windows 11's
 # title bars). The Windows build runs the same check on the package it
-# makes; this one shows what a release does, without a build, by hand. (It
-# runs on no pull request: a release's known faults would make every one
-# red.)
+# makes; this one shows what a release does, without a build: by hand, and
+# on a pull request that changes the check itself, where the release's
+# result is reported without failing the pull request (a release's known
+# fault would make it red), so that the check is seen to catch the fault
+# it was written for.
 
 name: Window frame check (release)
 
@@ -32,6 +34,12 @@ on:
         description: The release to check (for example v0.2.7-rc.6.11); empty for the latest one
         type: string
         default: ''
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/window-frame-check.yml'
+      - 'tools/ci/window_frame_check.py'
+      - 'tools/ci/window-frame-check.livecodescript'
 
 permissions:
   contents: read
@@ -49,6 +57,7 @@ jobs:
         runner: [windows-2022, windows-2025]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     defaults:
       run:
         shell: bash

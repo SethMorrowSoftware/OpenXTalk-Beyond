@@ -1049,6 +1049,40 @@ jobs:
           $lines += ''
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") -Encoding utf8
 
+  # The window frame check again on Windows Server 2025, whose title bars
+  # are Windows 11's (the build's own runner, windows-2022, draws Windows
+  # 10's): the portable zip of the job above, from its artifact
+  # (tools/ci/window_frame_check.py). Up to 0.2.7-rc.6.11 a stack opened the
+  # way the IDE opens its menubar ignored a click on its minimize button on
+  # Windows 11.
+  window-frame-win11:
+    name: Window frame check (Windows 11 title bars)
+    needs: [build]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-win-x86_64
+          path: ${{ runner.temp }}/dist
+
+      - name: Window frame check
+        run: |
+          cd "$RUNNER_TEMP/dist"
+          package="$(pwd -W)/$(ls *-win-x86_64-portable.zip)"
+          cd "$GITHUB_WORKSPACE"
+          python tools/ci/window_frame_check.py --package "$package" --platform win-x86_64 \
+            --log "$RUNNER_TEMP/window-frame-check.log"
+
   # The 32-bit Windows build, for the standalone runtime
   # Runtime/Windows/x86-32 (the IDE's "Windows" target), which the runtimes
   # asset carries for every package (tools/oxt/make_runtimes_asset.py
