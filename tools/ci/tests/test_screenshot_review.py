@@ -47,6 +47,12 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   updater"). The package no longer carries the file, so the pane shows no
   summary, as it already did on the Mac; the step preferences looks for
   one.
+- Search and Replace cut off "cards only" ("card" on Linux, "cards o" on
+  the Mac): its check box reached past its group "Options", which ended
+  at 253. A patch of the binary stack widens the group to 318
+  (revsearch-cards-only-width.txt); the step search measures every check
+  box against its rect and its group's, and clicks one under the widened
+  group.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -249,6 +255,29 @@ class TheUpdateSummary(unittest.TestCase):
                       '         field "updNote" of card "Automatic Updates" of stack tStack is not empty then', step)
         self.assertIn('throw "the Automatic Updates pane shows a summary of an update that is not this release\'s:"',
                       step)
+
+
+class TheSearchOptions(unittest.TestCase):
+    """Search and Replace shows "cards only" whole."""
+
+    def test_the_patch(self):
+        patch = read(PATCHES + ('revsearch-cards-only-width.txt',))
+        self.assertIn('file: Toolset/palettes/revsearch.rev\n'
+                      'object: group "Options" of card 1\n'
+                      'property: rect\n'
+                      'from: 18,97,253,208\n'
+                      'to: 18,97,318,208\n', patch)
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_search')
+        self.assertIn('put tourCheckBoxesWhole(tStack) into tFails', step)
+        self.assertIn('click at the loc of button "Custom Properties" of group "Properties" of card 1 of stack tStack',
+                      step)
+        check = handler(tour, 'function', 'tourCheckBoxesWhole')
+        self.assertIn('put min(tRight, item 3 of the rect of group id (the id of tOwner) of this card) into tRight',
+                      check)
+        self.assertIn('if tNeed > tRight + 4 then', check)
 
 
 if __name__ == '__main__':

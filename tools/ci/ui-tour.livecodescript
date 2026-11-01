@@ -5148,9 +5148,71 @@ on tour_error_display
    end if
 end tour_error_display
 
+-- Search and Replace. Each check box shows its words whole, inside its
+-- own rect and its group's: the "Search [Marked] cards only" row's words
+-- after the menu lay beyond its group "Options", which cut them off on
+-- Linux and the Mac ("card", "cards o"; ide-stack-patches,
+-- revsearch-cards-only-width.txt)
 on tour_search
-   tourPalette "search", "20-search", 1500
+   local tStack, tFails, tWas, tNow, tDefault
+   put revIDEPaletteToStackName("search") into tStack
+   revIDEOpenPalette "search"
+   tourWait 1500
+   if tStack is empty or there is not a stack tStack then throw "no stack for the palette search"
+   if not the visible of stack tStack then throw "the palette search (" & tStack & ") is not visible"
+   tourShotStack tStack, "20-search"
+   put tourCheckBoxesWhole(tStack) into tFails
+   -- the group "Options" now reaches over the right of the group
+   -- "Properties": a click on one of its check boxes there still ticks it
+   -- (and a second one unticks it)
+   put the hilite of button "Custom Properties" of group "Properties" of card 1 of stack tStack into tWas
+   put the defaultStack into tDefault
+   set the defaultStack to tStack
+   click at the loc of button "Custom Properties" of group "Properties" of card 1 of stack tStack
+   tourWait 300
+   put the hilite of button "Custom Properties" of group "Properties" of card 1 of stack tStack into tNow
+   click at the loc of button "Custom Properties" of group "Properties" of card 1 of stack tStack
+   tourWait 300
+   tourRecord "INFO search: Custom was" && tWas & ", clicked" && tNow & ", clicked again" && \
+         the hilite of button "Custom Properties" of group "Properties" of card 1 of stack tStack
+   if tNow is tWas or the hilite of button "Custom Properties" of group "Properties" of card 1 of stack tStack is not tWas then
+      put "a click on the check box Custom, under the group Options, did not tick and untick it" & return after tFails
+   end if
+   set the defaultStack to tDefault
+   close stack tStack
+   if tFails is not empty then throw line 1 to -1 of tFails
 end tour_search
+
+-- The check boxes of the card of the stack pStack whose words do not fit
+-- in their own rect or in their group's: each one's left and its
+-- formattedWidth (its box, its words and its margins) less its right
+-- margin, against the right of the two. Empty, or what is cut off
+function tourCheckBoxesWhole pStack
+   local tDefault, tFails, tRight, tNeed, tOwner, tMargin, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat with i = 1 to the number of buttons of this card
+      if the style of button i of this card is not "checkbox" or not the visible of button i of this card then next repeat
+      put the right of button i of this card into tRight
+      put the long owner of button i of this card into tOwner
+      if word 1 of tOwner is "group" then
+         put min(tRight, item 3 of the rect of group id (the id of tOwner) of this card) into tRight
+      end if
+      put the margins of button i of this card into tMargin
+      if the number of items of tMargin is 4 then put item 3 of tMargin into tMargin
+      put the left of button i of this card + the formattedWidth of button i of this card - tMargin into tNeed
+      tourRecord "INFO" && pStack & ": check box" && the short name of button i of this card && "needs to" && tNeed & \
+            ", shows to" && tRight && "(margins" && the margins of button i of this card & ")"
+      -- (4 points to spare: a font's measure and its drawing can differ by
+      -- a little, and a cut-off word is more than that)
+      if tNeed > tRight + 4 then
+         put "the check box" && the short name of button i of this card && "of" && pStack && "is cut off at" && tRight && "(it needs to" && tNeed & ")" & return after tFails
+      end if
+   end repeat
+   set the defaultStack to tDefault
+   if tFails is empty then return empty
+   return tFails
+end tourCheckBoxesWhole
 
 on tour_object_library
    -- with Development > Object Library, which also selects the Objects tab

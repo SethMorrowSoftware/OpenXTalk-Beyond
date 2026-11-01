@@ -1688,6 +1688,8 @@ it squashes:
 - **Sparkles on the words.** The sparkles of a How-to or Academy page's
   banner keep off its words and buttons; in a narrow window they landed
   on the title (#305).
+- **An option cut short.** On Linux and the Mac, Search and Replace
+  shows "Search [Marked] cards only" whole; "only" was cut off (#305).
 - **Somebody else's update notes.** Preferences' Automatic Updates pane
   no longer shows OpenXTalk Lite's notes of its own last update as the
   "Summary of last update"; Release Notes has what each release changes
