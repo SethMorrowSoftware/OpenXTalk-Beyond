@@ -779,14 +779,22 @@ public:
     }
     
     /* Count attempts to read an non-negative integer from the opcode stream.
-     * Non-negative integers are encoded as a sequence of bytes, most
-     * significant byte first. The top bit of each byte is used to indicate
-     * whether there is another following. */
+     * Non-negative integers are encoded as the drawing library's compiler
+     * writes them (_svgEncodeIndex): seven bits a byte, the least significant
+     * first, with the top bit of every byte but the last set.
+     *
+     * OXT-Beyond: this used to take the first byte as the most significant,
+     * shift by eight bits, and go on while bit 6 (0x40) was set, so any count
+     * of 64 or more (a polygon or polyline of 32 points, read as a count of
+     * scalars) was misread: the shape drew nothing, or garbage, and the rest
+     * of the drawing was lost. Every count below 64 is one byte under both
+     * readings, so a drawing that drew correctly before draws the same. */
     bool Count(ssize_t& r_count)
     {
         /* Start the read count at zero, each byte will be accumulated into it
          */
         ssize_t t_count = 0;
+        unsigned int t_shift = 0;
     
         /* Opcode bytes are processed until we reach a termination condition. */
         for(;;)
@@ -799,16 +807,25 @@ public:
                 return false;
             }
             
+            /* A count wider than 28 bits is more than any drawing can hold:
+             * treat it as running off the end of the stream. */
+            if (t_shift > 21)
+            {
+                m_status = kMCGDrawingStatusOpcodeOverflow;
+                return false;
+            }
+            
             /* Fetch the next limb of the integer and increment the pc. */
             uint8_t t_next_limb = m_opcodes[m_pc++];
             
             /* Accumulate the limb into the current count, making sure to mask
              * out the top bit of the limb. */
-            t_count = (t_count << 8) | (t_next_limb & 0x7f);
+            t_count |= ssize_t(t_next_limb & 0x7f) << t_shift;
+            t_shift += 7;
             
             /* If the top bit of the limb is zero, then the integer is complete.
              */
-            if ((t_next_limb & 0x40) == 0)
+            if ((t_next_limb & 0x80) == 0)
             {
                 break;
             }

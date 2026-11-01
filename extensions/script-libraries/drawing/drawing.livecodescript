@@ -142,14 +142,14 @@ An error string if an error occurred.
 
 References: drawingSvgCompile (function), XML library (library)
 */
-function drawingSvgCompileFile pXmlFile
+function drawingSvgCompileFile pXmlFile, pOptions
 	/* Convert the XML file to the LiveCode array structure. */
 	local tArray
 
 	try
 		lock screen
 		put xmlImportFromFile(pXmlFile) into tArray
-		return svgImportFromArray(tArray) for value
+		return svgImportFromArray(tArray, pOptions) for value
 	catch tError
 		return tError for error
 	finally
@@ -240,14 +240,14 @@ An error string if an error occurred.
 
 References: drawingSvgCompileFile (function)
 */
-function drawingSvgCompile pXmlText
+function drawingSvgCompile pXmlText, pOptions
 	/* Convert the XML file to the LiveCode array structure. */
 	local tArray
 
 	try
 		lock screen
 		put xmlImportFromText(pXmlText) into tArray
-		return svgImportFromArray(tArray) for value
+		return svgImportFromArray(tArray, pOptions) for value
 	catch tError
 		return tError for error
 	finally
@@ -255,9 +255,29 @@ function drawingSvgCompile pXmlText
 	end try
 end drawingSvgCompile
 
-private function svgImportFromArray pXmlArray
+private function svgImportFromArray pXmlArray, pOptions
 	local tArray
 	put pXmlArray into tArray
+
+	/* The options the caller asked for (OXT-Beyond): with none, the
+	 * compiler does exactly what it always did. */
+	local tOptions
+	put _drawingParseOptions(pOptions) into tOptions
+
+	/* Style sheets: the rules of every <style> element become the start of
+	 * the style attribute of each element they select, so they go through
+	 * the same parsing as an inline style, which still wins over them. This
+	 * must run before the trim, which removes the <style> elements. */
+	if tOptions["styles"] then
+		_svgApplyStyleSheets tArray
+	end if
+
+	/* Opacity: each element's opacity attribute (or style property) is kept
+	 * aside, as the trim and parse would drop it, and multiplied into the
+	 * fill and stroke opacity of the shapes below it after the cascade. */
+	if tOptions["opacity"] then
+		_svgCollectOpacity tArray
+	end if
 
 	/* Processing of the input documents runs using a 'context' array. This
 	 * is threaded through all the recursive processing functions, holding
@@ -294,6 +314,10 @@ private function svgImportFromArray pXmlArray
 		get _svgParseFeatureValue(tContext, "", tPropertyName, tPropertyDefaults[tPropertyName])
 	end repeat
 	_svgCascade tContext, tPropertyDefaults, tArray
+
+	if tOptions["opacity"] then
+		_svgApplyOpacity tArray, 1
+	end if
 
 	/* Remap as the previous two phases will have mutated the tree */
 	put empty into tContext["ids"]
@@ -1450,10 +1474,23 @@ private command _svgEncode @xContext, @rDrawing
 			_svgEncodeOp xContext, kMCGDrawingOpcodeLine, tArgument[1], tArgument[2], tArgument[3], tArgument[4]
 			break
 		case "polyline"
-			_svgEncodeOp xContext, kMCGDrawingOpcodePolyline, tArgument
-			break
 		case "polygon"
-			_svgEncodeOp xContext, kMCGDrawingOpcodePolygon, tArgument
+			/* A point list is preceded by its number of scalars, and the
+			 * engine's reader takes a count of 64 or more (32 points) as
+			 * the start of a longer number than the one written, so a
+			 * longer polygon or polyline drew nothing and stopped the rest
+			 * of the drawing (OXT-Beyond). Written as the path it is, it
+			 * has no count and draws the same, in every engine. */
+			if the number of elements in tArgument < 64 then
+				if tOperation[1] is "polyline" then
+					_svgEncodeOp xContext, kMCGDrawingOpcodePolyline, tArgument
+				else
+					_svgEncodeOp xContext, kMCGDrawingOpcodePolygon, tArgument
+				end if
+			else
+				_svgEncodeOp xContext, kMCGDrawingOpcodePath
+				_svgEncodePointsAsPath xContext, tArgument, tOperation[1] is "polygon"
+			end if
 			break
 		case "path"
 			_svgEncodeOp xContext, kMCGDrawingOpcodePath
@@ -1476,6 +1513,25 @@ private command _svgEncode @xContext, @rDrawing
 	put xContext["opcodes"] after tDrawing
 	put tDrawing into rDrawing
 end _svgEncode
+
+/* _svgEncodePointsAsPath writes the point list pScalars (x1, y1, x2, y2, ...)
+ * as a path: a move to the first point, a line to each of the others, and a
+ * close when pClosed. */
+private command _svgEncodePointsAsPath @xContext, pScalars, pClosed
+	local tCount, tIndex
+	put the number of elements in pScalars into tCount
+	repeat with tIndex = 1 to tCount - 1 step 2
+		if tIndex is 1 then
+			_svgEncodeOp xContext, kMCGDrawingPathOpcodeMoveTo, pScalars[tIndex], pScalars[tIndex + 1]
+		else
+			_svgEncodeOp xContext, kMCGDrawingPathOpcodeLineTo, pScalars[tIndex], pScalars[tIndex + 1]
+		end if
+	end repeat
+	if pClosed then
+		_svgEncodeOp xContext, kMCGDrawingPathOpcodeCloseSubpath
+	end if
+	_svgEncodeOp xContext, kMCGDrawingPathOpcodeEnd
+end _svgEncodePointsAsPath
 
 private function _svgEncodeIndex pIndex
 	local tValue
@@ -3353,5 +3409,1225 @@ private command _Log pMessage
 		--put pMessage & return after msg
 	end if
 end _Log
+
+/*******************************************************************************
+ *
+ *  COMPILE OPTIONS (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/* _drawingParseOptions turns the options a caller passes to drawingSvgCompile
+ * or drawingSvgCompileFile into an array of flags. pOptions is a list of
+ * option names separated by commas (or an array whose keys are the names and
+ * whose values are true). An unknown name is ignored, so a script written for
+ * a later version still compiles. */
+private function _drawingParseOptions pOptions
+	local tFlags, tName
+	put false into tFlags["styles"]
+	put false into tFlags["opacity"]
+	if pOptions is an array then
+		repeat for each key tName in pOptions
+			if pOptions[tName] is true then
+				put word 1 to -1 of tName into tName
+				if tName is among the keys of tFlags then
+					put true into tFlags[tName]
+				end if
+			end if
+		end repeat
+	else
+		repeat for each item tName in pOptions
+			put word 1 to -1 of tName into tName
+			if tName is "all" then
+				put true into tFlags["styles"]
+				put true into tFlags["opacity"]
+			else if tName is among the keys of tFlags then
+				put true into tFlags[tName]
+			end if
+		end repeat
+	end if
+	return tFlags
+end _drawingParseOptions
+
+/*******************************************************************************
+ *
+ *  STYLE SHEETS (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/* _svgApplyStyleSheets applies the CSS of the document's <style> elements.
+ * Selectors made of a type, classes and an id (rect, .cls-1, #a, path.b, *)
+ * are understood; a rule with any other selector (descendants, children,
+ * attributes, pseudo-classes) is left out, as are @-rules. Each element's
+ * matching declarations, least specific first and in document order, are put
+ * before its own style attribute, so that the inline style wins, as CSS
+ * says, and a presentation attribute loses. */
+private command _svgApplyStyleSheets @xRoot
+	local tCss
+	_svgCollectStyleText xRoot, tCss, false
+	if tCss is empty then
+		exit _svgApplyStyleSheets
+	end if
+
+	local tRules
+	put _svgParseStyleSheet(tCss) into tRules
+	if the number of elements in tRules is 0 then
+		exit _svgApplyStyleSheets
+	end if
+
+	_svgApplyStyleRules xRoot, tRules
+end _svgApplyStyleSheets
+
+/* _svgCollectStyleText appends the text of every <style> element below
+ * xElement to xCss. */
+private command _svgCollectStyleText @xElement, @xCss, pInStyle
+	local tIndex
+	if xElement["type"] is "style" then
+		put true into pInStyle
+	end if
+	if xElement["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in xElement["content"]
+			_svgCollectStyleText xElement["content"][tIndex], xCss, pInStyle
+		end repeat
+	else if pInStyle is true then
+		/* The text of a <style> element (revXML gives it as a child node of
+		 * its own, a CDATA section as another). */
+		put xElement["content"] & return after xCss
+	end if
+end _svgCollectStyleText
+
+/* _svgParseStyleSheet returns the rules of the CSS pCss as a sequence, each
+ * an array with "type" (empty for any type), "classes" (a sequence), "id",
+ * "specificity" and "declarations" (the text between the braces). A rule
+ * with several selectors gives one entry for each. */
+private function _svgParseStyleSheet pCss
+	local tRules, tStart, tEnd
+
+	/* Comments go first, so a brace inside one is not taken for a block. */
+	repeat while matchChunk(pCss, "(?s)(/\*.*?\*/)", tStart, tEnd)
+		delete char tStart to tEnd of pCss
+	end repeat
+	replace "<![CDATA[" with empty in pCss
+	replace "]]>" with empty in pCss
+
+	/* Walk the text: a selector runs up to a {, its block to the matching }.
+	 * A block inside a block (an @media rule) is skipped with its rule. */
+	local tChar, tDepth, tSelector, tBody, tIsAtRule
+	put 0 into tDepth
+	repeat for each char tChar in pCss
+		if tDepth is 0 then
+			if tChar is "{" then
+				put 1 into tDepth
+				put empty into tBody
+				put (word 1 of tSelector begins with "@") into tIsAtRule
+			else if tChar is ";" and word 1 of tSelector begins with "@" then
+				/* A statement at-rule, such as @import, has no block. */
+				put empty into tSelector
+			else
+				put tChar after tSelector
+			end if
+		else if tChar is "{" then
+			add 1 to tDepth
+			put tChar after tBody
+		else if tChar is "}" then
+			subtract 1 from tDepth
+			if tDepth is 0 then
+				if not tIsAtRule then
+					_svgAddStyleRules tRules, tSelector, tBody
+				end if
+				put empty into tSelector
+			else
+				put tChar after tBody
+			end if
+		else
+			put tChar after tBody
+		end if
+	end repeat
+	return tRules
+end _svgParseStyleSheet
+
+private command _svgAddStyleRules @xRules, pSelectors, pBody
+	local tSelector, tRule, tPart, tSpecificity
+	replace "!important" with empty in pBody
+	repeat for each item tSelector in pSelectors
+		put word 1 to -1 of tSelector into tSelector
+		if tSelector is empty then
+			next repeat
+		end if
+		if not matchText(tSelector, "^(\*|[A-Za-z][A-Za-z0-9_:-]*)?([.#][A-Za-z_-][A-Za-z0-9_-]*)*$") then
+			next repeat
+		end if
+		put empty into tRule
+		put 0 into tSpecificity
+		put empty into tRule["classes"]
+		if char 1 of tSelector is "*" then
+			delete char 1 of tSelector
+		else if char 1 of tSelector is not among the chars of ".#" then
+			get offset(".", tSelector)
+			if offset("#", tSelector) > 0 and (it is 0 or offset("#", tSelector) < it) then
+				get offset("#", tSelector)
+			end if
+			if it is 0 then
+				put tSelector into tRule["type"]
+				put empty into tSelector
+			else
+				put char 1 to it - 1 of tSelector into tRule["type"]
+				delete char 1 to it - 1 of tSelector
+			end if
+			add 1 to tSpecificity
+		end if
+		/* What is left is a run of .class and #id parts. */
+		replace "." with return & "." in tSelector
+		replace "#" with return & "#" in tSelector
+		repeat for each line tPart in tSelector
+			if char 1 of tPart is "." then
+				seqPushOntoBack tRule["classes"], char 2 to -1 of tPart
+				add 10 to tSpecificity
+			else if char 1 of tPart is "#" then
+				put char 2 to -1 of tPart into tRule["id"]
+				add 100 to tSpecificity
+			end if
+		end repeat
+		put tSpecificity into tRule["specificity"]
+		put pBody into tRule["declarations"]
+		seqPushOntoBack xRules, tRule
+	end repeat
+end _svgAddStyleRules
+
+private command _svgApplyStyleRules @xElement, pRules
+	local tClasses, tId, tMatches, tIndex, tRule, tClass, tMatched, tStyle, tLine
+	if xElement["type"] is not empty and xElement["type"] is not "style" then
+		put xElement["features"]["class"] into tClasses
+		replace tab with space in tClasses
+		replace return with space in tClasses
+		put xElement["features"]["id"] into tId
+		if tId is empty then
+			put xElement["features"]["xml:id"] into tId
+		end if
+
+		repeat with tIndex = 1 to the number of elements in pRules
+			put pRules[tIndex] into tRule
+			if tRule["type"] is not empty and tRule["type"] is not xElement["type"] then
+				next repeat
+			end if
+			if tRule["id"] is not empty and tRule["id"] is not tId then
+				next repeat
+			end if
+			put true into tMatched
+			repeat for each element tClass in tRule["classes"]
+				if not (tClass is among the words of tClasses) then
+					put false into tMatched
+					exit repeat
+				end if
+			end repeat
+			if tMatched then
+				put format("%05d,%05d", tRule["specificity"], tIndex) & return after tMatches
+			end if
+		end repeat
+
+		if tMatches is not empty then
+			sort lines of tMatches ascending text
+			put empty into tStyle
+			repeat for each line tLine in tMatches
+				put pRules[item 2 of tLine + 0]["declarations"] & ";" after tStyle
+			end repeat
+			put tStyle & xElement["features"]["style"] into xElement["features"]["style"]
+		end if
+
+		/* The class attribute has done its work; the compiler does not know
+		 * it, and would only log it. */
+		delete variable xElement["features"]["class"]
+	end if
+
+	if xElement["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in xElement["content"]
+			_svgApplyStyleRules xElement["content"][tIndex], pRules
+		end repeat
+	end if
+end _svgApplyStyleRules
+
+/*******************************************************************************
+ *
+ *  OPACITY (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/* _svgCollectOpacity moves each element's opacity, from its attribute or its
+ * style attribute (which wins), into the element's "opacity" key, outside the
+ * features the later phases check against the specification. */
+private command _svgCollectOpacity @xElement
+	local tOpacity, tDecl, tIndex
+	put empty into tOpacity
+	if "opacity" is among the keys of xElement["features"] then
+		put word 1 to -1 of xElement["features"]["opacity"] into tOpacity
+		delete variable xElement["features"]["opacity"]
+	end if
+	if xElement["features"]["style"] is not empty then
+		set the itemDelimiter to ";"
+		repeat for each item tDecl in xElement["features"]["style"]
+			if word 1 to -1 of (char 1 to offset(":", tDecl) - 1 of tDecl) is "opacity" then
+				put word 1 to -1 of (char offset(":", tDecl) + 1 to -1 of tDecl) into tOpacity
+			end if
+		end repeat
+		set the itemDelimiter to comma
+	end if
+	if tOpacity is not empty then
+		if char -1 of tOpacity is "%" and char 1 to -2 of tOpacity is a number then
+			put (char 1 to -2 of tOpacity) / 100 into tOpacity
+		end if
+		if tOpacity is a number then
+			put max(0, min(1, tOpacity)) into xElement["opacity"]
+		end if
+	end if
+	if xElement["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in xElement["content"]
+			_svgCollectOpacity xElement["content"][tIndex]
+		end repeat
+	end if
+end _svgCollectOpacity
+
+/* _svgApplyOpacity multiplies the opacity of each element and its ancestors
+ * (pFactor) into the fill and stroke opacity the cascade gave it. A group is
+ * drawn as its shapes, each with that opacity, which is exact unless shapes
+ * inside a translucent group overlap. */
+private command _svgApplyOpacity @xElement, pFactor
+	local tIndex
+	if xElement["opacity"] is a number then
+		multiply pFactor by xElement["opacity"]
+	end if
+	if pFactor < 1 then
+		if xElement["features"]["fill-opacity"] is a number then
+			multiply xElement["features"]["fill-opacity"] by pFactor
+		end if
+		if xElement["features"]["stroke-opacity"] is a number then
+			multiply xElement["features"]["stroke-opacity"] by pFactor
+		end if
+	end if
+	if xElement["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in xElement["content"]
+			_svgApplyOpacity xElement["content"][tIndex], pFactor
+		end repeat
+	end if
+end _svgApplyOpacity
+
+/*******************************************************************************
+ *
+ *  DRAWING DECODE AND FLATTEN (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/**
+Read a drawing back into its shapes.
+
+Example:
+local tDrawing
+put drawingDecode(the text of image "logo") into tDrawing
+answer the number of elements in tDrawing["shapes"] && "shapes"
+
+Description:
+Use <drawingDecode> to read a drawing, the binary string that
+<drawingSvgCompile> and <drawingSvgCompileFile> make and that an image shows
+as its text, back into an array of the shapes it draws. It reads drawings made
+by any version, including those saved in old stacks.
+
+The array has these keys:
+
+  - width, height: the size of the drawing
+  - shapes: one element for each shape, in the order they are drawn
+
+Each shape has the key "type", one of rect, circle, ellipse, line, polyline,
+polygon and path, and the geometry of that type: x, y, width, height, rx and ry
+for a rect; cx, cy and r for a circle; cx, cy, rx and ry for an ellipse; x1, y1,
+x2 and y2 for a line; points (x,y pairs separated by spaces) for a polyline or
+polygon; and d (SVG path data, every command absolute) for a path.
+
+Each shape also has the state it is drawn with: transform (six numbers a,b,c,d,e,f
+as SVG's matrix(), empty when there is none), fill and stroke (paints, below),
+fill-opacity, fill-rule, stroke-opacity, stroke-width, stroke-linejoin,
+stroke-linecap, stroke-dasharray, stroke-dashoffset and stroke-miterlimit.
+
+A paint is an array whose "type" is none, current (the current color), color,
+linear, radial or conical. A color has "color", the red, green, blue and alpha as
+numbers from 0 to 1 separated by commas. A gradient has "spread" (pad, reflect or
+repeat), "transform" (its unit gradient, from 0,0 to 1,0 or about 0,0 with radius
+1, mapped by six numbers as above) and "stops", one line for each stop: its offset
+then its red, green, blue and alpha, from 0 to 1. A conical gradient also has fx,
+fy and fr, its focal point and radius.
+
+Parameters:
+
+pDrawing (data):
+A drawing, such as the text of an image made from an SVG.
+
+Returns (array):
+The drawing's size and shapes, or empty if pDrawing is not a drawing.
+
+The result:
+An error string if pDrawing is not a drawing or is damaged.
+
+References: drawingFlatten (function), drawingSvgCompile (function)
+*/
+function drawingDecode pDrawing
+	try
+		return _drawingDecode(pDrawing) for value
+	catch tError
+		return tError for error
+	end try
+end drawingDecode
+
+/**
+Turn the shapes of a drawing into lists of points.
+
+Example:
+local tFlat
+put drawingFlatten(the text of image "logo", 0.25) into tFlat
+repeat for each element tShape in tFlat["shapes"]
+   create graphic
+   set the style of it to "polygon"
+   set the points of it to tShape["points"]
+end repeat
+
+Description:
+Use <drawingFlatten> to get each shape of a drawing as the points of a polygon,
+in the drawing's own coordinates, the way a graphic holds them. Curves, arcs,
+circles, ellipses and rounded corners become runs of short straight lines, no
+further than pTolerance from the true curve, and each shape's transform is
+applied to its points. The IDE's Convert to Graphics uses it.
+
+The array has the keys width and height, the size of the drawing, and shapes,
+one element for each shape, with the keys:
+
+  - points: one x,y pair a line; an empty line between the runs of a shape
+    with more than one, and a run that is closed ends at the point it starts at
+  - fill, fill-opacity, fill-rule, stroke, stroke-opacity, stroke-linejoin,
+    stroke-linecap and stroke-miterlimit, as <drawingDecode> gives them
+  - stroke-width, stroke-dasharray and stroke-dashoffset, scaled by the
+    shape's transform
+  - a gradient paint's transform is in the drawing's coordinates too
+
+Parameters:
+
+pDrawing (data):
+A drawing, such as the text of an image made from an SVG.
+
+pTolerance (number):
+How far, in the drawing's units, a line may stray from the curve it stands
+for. Smaller gives more points. The default is 0.25.
+
+Returns (array):
+The drawing's size and flattened shapes, or empty if pDrawing is not a drawing.
+
+The result:
+An error string if pDrawing is not a drawing or is damaged.
+
+References: drawingDecode (function)
+*/
+function drawingFlatten pDrawing, pTolerance
+	if pTolerance is not a number or pTolerance <= 0 then
+		put 0.25 into pTolerance
+	end if
+	try
+		local tDecoded, tResult, tIndex
+		put _drawingDecode(pDrawing) into tDecoded
+		put tDecoded["width"] into tResult["width"]
+		put tDecoded["height"] into tResult["height"]
+		repeat with tIndex = 1 to the number of elements in tDecoded["shapes"]
+			put _drawingFlattenShape(tDecoded["shapes"][tIndex], pTolerance) into tResult["shapes"][tIndex]
+		end repeat
+		return tResult for value
+	catch tError
+		return tError for error
+	end try
+end drawingFlatten
+
+/* _drawingDecode reads the drawing pDrawing (see _svgEncode for the layout)
+ * into the array drawingDecode documents. It throws on a damaged drawing. */
+private function _drawingDecode pDrawing
+	local tReader, tResult, tCount, tWidth, tHeight
+	if the number of bytes in pDrawing < 20 or byte 1 to 3 of pDrawing is not "LCD" then
+		throw "not a drawing"
+	end if
+	if byteToNum(byte 4 of pDrawing) is not kMCGDrawingVersion then
+		throw "unknown drawing version" && byteToNum(byte 4 of pDrawing)
+	end if
+
+	get binaryDecode("ffI", byte 5 to 16 of pDrawing, tWidth, tHeight, tCount)
+	put _drawingNumber(tWidth) into tResult["width"]
+	put _drawingNumber(tHeight) into tResult["height"]
+	if the number of bytes in pDrawing < 16 + tCount * 4 + 4 then
+		throw "damaged drawing: scalars overflow"
+	end if
+	put byte 17 to 16 + tCount * 4 of pDrawing into tReader["scalars"]
+	put 1 into tReader["scalar"]
+	put tCount into tReader["scalar-count"]
+
+	local tOpcodeCount, tOffset
+	put 17 + tCount * 4 into tOffset
+	get binaryDecode("I", byte tOffset to tOffset + 3 of pDrawing, tOpcodeCount)
+	put byte tOffset + 4 to tOffset + 3 + tOpcodeCount of pDrawing into tReader["opcodes"]
+	if the number of bytes in tReader["opcodes"] is not tOpcodeCount then
+		throw "damaged drawing: opcodes overflow"
+	end if
+	put 1 into tReader["pc"]
+
+	/* The state the drawing starts with is SVG's initial state; the
+	 * compiler sets every attribute before its first shape anyway. */
+	local tState
+	put empty into tState["transform"]
+	put "color" into tState["fill"]["type"]
+	put "0,0,0,1" into tState["fill"]["color"]
+	put 1 into tState["fill-opacity"]
+	put "nonzero" into tState["fill-rule"]
+	put "none" into tState["stroke"]["type"]
+	put 1 into tState["stroke-opacity"]
+	put 1 into tState["stroke-width"]
+	put "miter" into tState["stroke-linejoin"]
+	put "butt" into tState["stroke-linecap"]
+	put empty into tState["stroke-dasharray"]
+	put 0 into tState["stroke-dashoffset"]
+	put 4 into tState["stroke-miterlimit"]
+
+	local tOpcode, tShape, tShapes
+	repeat forever
+		put _drawingReadOp(tReader) into tOpcode
+		if tOpcode is kMCGDrawingOpcodeEnd then
+			exit repeat
+		end if
+		put empty into tShape
+		switch tOpcode
+		case kMCGDrawingOpcodeTransform
+			put _drawingReadTransform(tReader) into tState["transform"]
+			break
+		case kMCGDrawingOpcodeFillPaint
+			put _drawingReadPaint(tReader) into tState["fill"]
+			break
+		case kMCGDrawingOpcodeFillOpacity
+			put _drawingReadScalar(tReader) into tState["fill-opacity"]
+			break
+		case kMCGDrawingOpcodeFillRule
+			if _drawingReadOp(tReader) is kMCGDrawingFillRuleOpcodeEvenOdd then
+				put "evenodd" into tState["fill-rule"]
+			else
+				put "nonzero" into tState["fill-rule"]
+			end if
+			break
+		case kMCGDrawingOpcodeStrokePaint
+			put _drawingReadPaint(tReader) into tState["stroke"]
+			break
+		case kMCGDrawingOpcodeStrokeOpacity
+			put _drawingReadScalar(tReader) into tState["stroke-opacity"]
+			break
+		case kMCGDrawingOpcodeStrokeWidth
+			put _drawingReadScalar(tReader) into tState["stroke-width"]
+			break
+		case kMCGDrawingOpcodeStrokeLineJoin
+			get _drawingReadOp(tReader)
+			if it is kMCGDrawingStrokeLineJoinOpcodeBevel then
+				put "bevel" into tState["stroke-linejoin"]
+			else if it is kMCGDrawingStrokeLineJoinOpcodeRound then
+				put "round" into tState["stroke-linejoin"]
+			else
+				put "miter" into tState["stroke-linejoin"]
+			end if
+			break
+		case kMCGDrawingOpcodeStrokeLineCap
+			get _drawingReadOp(tReader)
+			if it is kMCGDrawingStrokeLineCapOpcodeRound then
+				put "round" into tState["stroke-linecap"]
+			else if it is kMCGDrawingStrokeLineCapOpcodeSquare then
+				put "square" into tState["stroke-linecap"]
+			else
+				put "butt" into tState["stroke-linecap"]
+			end if
+			break
+		case kMCGDrawingOpcodeStrokeDashArray
+			put _drawingReadList(tReader) into tState["stroke-dasharray"]
+			break
+		case kMCGDrawingOpcodeStrokeDashOffset
+			put _drawingReadScalar(tReader) into tState["stroke-dashoffset"]
+			break
+		case kMCGDrawingOpcodeStrokeMiterLimit
+			put _drawingReadScalar(tReader) into tState["stroke-miterlimit"]
+			break
+		case kMCGDrawingOpcodeRectangle
+		case kMCGDrawingOpcodeRoundedRectangle
+			put "rect" into tShape["type"]
+			put _drawingReadScalar(tReader) into tShape["x"]
+			put _drawingReadScalar(tReader) into tShape["y"]
+			put _drawingReadScalar(tReader) into tShape["width"]
+			put _drawingReadScalar(tReader) into tShape["height"]
+			if tOpcode is kMCGDrawingOpcodeRoundedRectangle then
+				put _drawingReadScalar(tReader) into tShape["rx"]
+				put _drawingReadScalar(tReader) into tShape["ry"]
+			else
+				put 0 into tShape["rx"]
+				put 0 into tShape["ry"]
+			end if
+			break
+		case kMCGDrawingOpcodeCircle
+			put "circle" into tShape["type"]
+			put _drawingReadScalar(tReader) into tShape["cx"]
+			put _drawingReadScalar(tReader) into tShape["cy"]
+			put _drawingReadScalar(tReader) into tShape["r"]
+			break
+		case kMCGDrawingOpcodeEllipse
+			put "ellipse" into tShape["type"]
+			put _drawingReadScalar(tReader) into tShape["cx"]
+			put _drawingReadScalar(tReader) into tShape["cy"]
+			put _drawingReadScalar(tReader) into tShape["rx"]
+			put _drawingReadScalar(tReader) into tShape["ry"]
+			break
+		case kMCGDrawingOpcodeLine
+			put "line" into tShape["type"]
+			put _drawingReadScalar(tReader) into tShape["x1"]
+			put _drawingReadScalar(tReader) into tShape["y1"]
+			put _drawingReadScalar(tReader) into tShape["x2"]
+			put _drawingReadScalar(tReader) into tShape["y2"]
+			break
+		case kMCGDrawingOpcodePolyline
+		case kMCGDrawingOpcodePolygon
+			if tOpcode is kMCGDrawingOpcodePolyline then
+				put "polyline" into tShape["type"]
+			else
+				put "polygon" into tShape["type"]
+			end if
+			get _drawingReadList(tReader)
+			replace comma with space in it
+			put empty into tShape["points"]
+			repeat with tCount = 1 to the number of words in it - 1 step 2
+				put word tCount of it & comma & word tCount + 1 of it & space after tShape["points"]
+			end repeat
+			delete the last char of tShape["points"]
+			break
+		case kMCGDrawingOpcodePath
+			put "path" into tShape["type"]
+			_drawingReadPath tReader, tShape
+			break
+		default
+			throw "damaged drawing: unknown opcode" && tOpcode
+		end switch
+
+		if tShape is an array then
+			union tShape with tState
+			put tShape into tShapes[the number of elements in tShapes + 1]
+		end if
+	end repeat
+
+	put tShapes into tResult["shapes"]
+	return tResult
+end _drawingDecode
+
+private function _drawingReadOp @xReader
+	if xReader["pc"] > the number of bytes in xReader["opcodes"] then
+		throw "damaged drawing: opcodes overflow"
+	end if
+	add 1 to xReader["pc"]
+	return byteToNum(byte xReader["pc"] - 1 of xReader["opcodes"])
+end _drawingReadOp
+
+/* _drawingReadCount reads a count as the compiler writes it: seven bits a
+ * byte, the low ones first, the top bit set on every byte but the last. */
+private function _drawingReadCount @xReader
+	local tCount, tScale, tByte
+	put 0 into tCount
+	put 1 into tScale
+	repeat forever
+		put _drawingReadOp(xReader) into tByte
+		add (tByte mod 128) * tScale to tCount
+		if tByte < 128 then
+			exit repeat
+		end if
+		multiply tScale by 128
+	end repeat
+	return tCount
+end _drawingReadCount
+
+private function _drawingReadScalar @xReader
+	local tValue
+	if xReader["scalar"] > xReader["scalar-count"] then
+		throw "damaged drawing: scalars overflow"
+	end if
+	get binaryDecode("f", byte xReader["scalar"] * 4 - 3 to xReader["scalar"] * 4 of xReader["scalars"], tValue)
+	add 1 to xReader["scalar"]
+	return _drawingNumber(tValue)
+end _drawingReadScalar
+
+/* _drawingReadList reads a counted list of scalars, as a list separated by
+ * commas. */
+private function _drawingReadList @xReader
+	local tCount, tList, tIndex
+	put _drawingReadCount(xReader) into tCount
+	repeat with tIndex = 1 to tCount
+		put _drawingReadScalar(xReader) & comma after tList
+	end repeat
+	delete the last char of tList
+	return tList
+end _drawingReadList
+
+private function _drawingReadTransform @xReader
+	local tTransform, tIndex
+	if _drawingReadOp(xReader) is kMCGDrawingTransformOpcodeIdentity then
+		return empty
+	end if
+	repeat with tIndex = 1 to 6
+		put _drawingReadScalar(xReader) & comma after tTransform
+	end repeat
+	delete the last char of tTransform
+	if tTransform is "1,0,0,1,0,0" then
+		return empty
+	end if
+	return tTransform
+end _drawingReadTransform
+
+private function _drawingReadPaint @xReader
+	local tPaint, tOpcode, tCount, tColors, tIndex, tStop
+	put _drawingReadOp(xReader) into tOpcode
+	switch tOpcode
+	case kMCGDrawingPaintOpcodeNone
+		put "none" into tPaint["type"]
+		break
+	case kMCGDrawingPaintOpcodeCurrentColor
+		put "current" into tPaint["type"]
+		break
+	case kMCGDrawingPaintOpcodeSolidColor
+		put "color" into tPaint["type"]
+		put _drawingReadScalar(xReader) & comma & _drawingReadScalar(xReader) & comma & \
+				_drawingReadScalar(xReader) & comma & _drawingReadScalar(xReader) into tPaint["color"]
+		break
+	case kMCGDrawingPaintOpcodeLinearGradient
+	case kMCGDrawingPaintOpcodeRadialGradient
+	case kMCGDrawingPaintOpcodeConicalGradient
+		if tOpcode is kMCGDrawingPaintOpcodeLinearGradient then
+			put "linear" into tPaint["type"]
+		else if tOpcode is kMCGDrawingPaintOpcodeRadialGradient then
+			put "radial" into tPaint["type"]
+		else
+			put "conical" into tPaint["type"]
+		end if
+		get _drawingReadOp(xReader)
+		if it is kMCGDrawingSpreadMethodOpcodeReflect then
+			put "reflect" into tPaint["spread"]
+		else if it is kMCGDrawingSpreadMethodOpcodeRepeat then
+			put "repeat" into tPaint["spread"]
+		else
+			put "pad" into tPaint["spread"]
+		end if
+		put _drawingReadTransform(xReader) into tPaint["transform"]
+		if tPaint["transform"] is empty then
+			put "1,0,0,1,0,0" into tPaint["transform"]
+		end if
+		/* The ramp: its count, then every stop's color, then every offset. */
+		put _drawingReadCount(xReader) into tCount
+		repeat with tIndex = 1 to tCount
+			put _drawingReadScalar(xReader) & comma & _drawingReadScalar(xReader) & comma & \
+					_drawingReadScalar(xReader) & comma & _drawingReadScalar(xReader) into tColors[tIndex]
+		end repeat
+		repeat with tIndex = 1 to tCount
+			put _drawingReadScalar(xReader) & comma & tColors[tIndex] & return after tStop
+		end repeat
+		delete the last char of tStop
+		put tStop into tPaint["stops"]
+		if tOpcode is kMCGDrawingPaintOpcodeConicalGradient then
+			put _drawingReadScalar(xReader) into tPaint["fx"]
+			put _drawingReadScalar(xReader) into tPaint["fy"]
+			put _drawingReadScalar(xReader) into tPaint["fr"]
+		end if
+		break
+	default
+		throw "damaged drawing: unknown paint" && tOpcode
+	end switch
+	return tPaint
+end _drawingReadPaint
+
+/* _drawingReadPath reads a path's opcodes into xShape["d"], SVG path data with
+ * every command absolute, and xShape["commands"], a sequence of the same
+ * commands, each a sequence of its letter and its numbers. */
+private command _drawingReadPath @xReader, @xShape
+	local tOpcode, tCommand, tCommands, tData, tLetter, tCount, tIndex, tLarge, tSweep
+	repeat forever
+		put _drawingReadOp(xReader) into tOpcode
+		if tOpcode is kMCGDrawingPathOpcodeEnd then
+			exit repeat
+		end if
+		put empty into tCommand
+		put empty into tLarge
+		switch tOpcode
+		case kMCGDrawingPathOpcodeMoveTo
+			put "M" into tLetter
+			put 2 into tCount
+			break
+		case kMCGDrawingPathOpcodeLineTo
+			put "L" into tLetter
+			put 2 into tCount
+			break
+		case kMCGDrawingPathOpcodeHorizontalTo
+			put "H" into tLetter
+			put 1 into tCount
+			break
+		case kMCGDrawingPathOpcodeVerticalTo
+			put "V" into tLetter
+			put 1 into tCount
+			break
+		case kMCGDrawingPathOpcodeCubicTo
+			put "C" into tLetter
+			put 6 into tCount
+			break
+		case kMCGDrawingPathOpcodeSmoothCubicTo
+			put "S" into tLetter
+			put 4 into tCount
+			break
+		case kMCGDrawingPathOpcodeQuadraticTo
+			put "Q" into tLetter
+			put 4 into tCount
+			break
+		case kMCGDrawingPathOpcodeSmoothQuadraticTo
+			put "T" into tLetter
+			put 2 into tCount
+			break
+		case kMCGDrawingPathOpcodeArcTo
+		case kMCGDrawingPathOpcodeReflexArcTo
+		case kMCGDrawingPathOpcodeReverseArcTo
+		case kMCGDrawingPathOpcodeReverseReflexArcTo
+			put "A" into tLetter
+			put 5 into tCount
+			if tOpcode is kMCGDrawingPathOpcodeReflexArcTo or tOpcode is kMCGDrawingPathOpcodeReverseReflexArcTo then
+				put 1 into tLarge
+			else
+				put 0 into tLarge
+			end if
+			if tOpcode is kMCGDrawingPathOpcodeReverseArcTo or tOpcode is kMCGDrawingPathOpcodeReverseReflexArcTo then
+				put 1 into tSweep
+			else
+				put 0 into tSweep
+			end if
+			break
+		case kMCGDrawingPathOpcodeCloseSubpath
+			put "Z" into tLetter
+			put 0 into tCount
+			break
+		default
+			throw "damaged drawing: unknown path opcode" && tOpcode
+		end switch
+
+		put tLetter into tCommand[1]
+		repeat with tIndex = 1 to tCount
+			put _drawingReadScalar(xReader) into tCommand[tIndex + 1]
+		end repeat
+		/* An arc's numbers are rx, ry and its rotation, then its flags, then
+		 * its end point, as SVG writes them. */
+		if tLetter is "A" then
+			put tCommand[5] into tCommand[8]
+			put tCommand[6] into tCommand[9]
+			put tLarge into tCommand[5]
+			put tSweep into tCommand[6]
+			put tCommand[8] into tCommand[7]
+			put tCommand[9] into tCommand[8]
+			delete variable tCommand[9]
+		end if
+		put tCommand into tCommands[the number of elements in tCommands + 1]
+
+		put tLetter after tData
+		repeat with tIndex = 2 to the number of elements in tCommand
+			if tIndex > 2 then
+				put space after tData
+			end if
+			put tCommand[tIndex] after tData
+		end repeat
+		put space after tData
+	end repeat
+	delete the last char of tData
+	put tData into xShape["d"]
+	put tCommands into xShape["commands"]
+end _drawingReadPath
+
+/* _drawingNumber rounds a float read from a drawing to the precision it was
+ * written with, so 0.1 does not come back as 0.100000001490116. */
+private function _drawingNumber pValue
+	local tValue
+	put round(pValue, 4) into tValue
+	if abs(tValue) < 0.00005 then
+		return 0
+	end if
+	return tValue
+end _drawingNumber
+
+/* _drawingFlattenShape returns the shape pShape (as _drawingDecode gives it)
+ * as points, as drawingFlatten documents. */
+private function _drawingFlattenShape pShape, pTolerance
+	local tResult, tKey, tMatrix, tScale, tTolerance, tRuns, tRun, tPoints, tDash, tValue
+	repeat for each item tKey in "fill,fill-opacity,fill-rule,stroke,stroke-opacity,stroke-linejoin,stroke-linecap,stroke-miterlimit"
+		put pShape[tKey] into tResult[tKey]
+	end repeat
+
+	put _drawingMatrix(pShape["transform"]) into tMatrix
+	/* The transform scales lengths by about the root of its determinant. */
+	put sqrt(abs(tMatrix[1] * tMatrix[4] - tMatrix[2] * tMatrix[3])) into tScale
+	if tScale is 0 then
+		put 1 into tScale
+	end if
+	put pTolerance / tScale into tTolerance
+
+	put pShape["stroke-width"] * tScale into tResult["stroke-width"]
+	put pShape["stroke-dashoffset"] * tScale into tResult["stroke-dashoffset"]
+	repeat for each item tValue in pShape["stroke-dasharray"]
+		put tValue * tScale & comma after tDash
+	end repeat
+	delete the last char of tDash
+	put tDash into tResult["stroke-dasharray"]
+
+	/* A gradient's transform is relative to the shape's coordinates. */
+	repeat for each item tKey in "fill,stroke"
+		if tResult[tKey]["type"] is among the items of "linear,radial,conical" then
+			put _drawingMatrixString(_drawingMatrixConcat(tMatrix, _drawingMatrix(tResult[tKey]["transform"]))) \
+					into tResult[tKey]["transform"]
+		end if
+	end repeat
+
+	put _drawingShapeRuns(pShape, tTolerance) into tRuns
+	repeat for each element tRun in tRuns
+		if tPoints is not empty then
+			put return & return after tPoints
+		end if
+		put _drawingTransformPoints(tRun, tMatrix) after tPoints
+	end repeat
+	put tPoints into tResult["points"]
+	return tResult
+end _drawingFlattenShape
+
+/* _drawingShapeRuns returns the runs of points (each a list of x,y lines) of
+ * the shape pShape, in its own coordinates. A closed run ends with its first
+ * point again. */
+private function _drawingShapeRuns pShape, pTolerance
+	local tRuns, tRun, tRx, tRy, tX, tY, tW, tH, tIndex, tPoints
+	switch pShape["type"]
+	case "rect"
+		put pShape["x"] into tX
+		put pShape["y"] into tY
+		put pShape["width"] into tW
+		put pShape["height"] into tH
+		put min(pShape["rx"], tW / 2) into tRx
+		put min(pShape["ry"], tH / 2) into tRy
+		if tRx <= 0 or tRy <= 0 then
+			put tX & comma & tY & return & tX + tW & comma & tY & return & \
+					tX + tW & comma & tY + tH & return & tX & comma & tY + tH & return & \
+					tX & comma & tY into tRun
+		else
+			/* Each corner is a quarter of an ellipse, clockwise from the top
+			 * left. */
+			put _drawingArcPoints(tX + tW - tRx, tY + tRy, tRx, tRy, 0, -pi / 2, pi / 2, pTolerance, false) into tRun
+			put return & _drawingArcPoints(tX + tW - tRx, tY + tH - tRy, tRx, tRy, 0, 0, pi / 2, pTolerance, false) after tRun
+			put return & _drawingArcPoints(tX + tRx, tY + tH - tRy, tRx, tRy, 0, pi / 2, pi / 2, pTolerance, false) after tRun
+			put return & _drawingArcPoints(tX + tRx, tY + tRy, tRx, tRy, 0, pi, pi / 2, pTolerance, false) after tRun
+			put return & line 1 of tRun after tRun
+		end if
+		put tRun into tRuns[1]
+		break
+	case "circle"
+	case "ellipse"
+		if pShape["type"] is "circle" then
+			put pShape["r"] into tRx
+			put pShape["r"] into tRy
+		else
+			put pShape["rx"] into tRx
+			put pShape["ry"] into tRy
+		end if
+		put _drawingArcPoints(pShape["cx"], pShape["cy"], tRx, tRy, 0, 0, 2 * pi, pTolerance, false) into tRun
+		put return & line 1 of tRun after tRun
+		put tRun into tRuns[1]
+		break
+	case "line"
+		put pShape["x1"] & comma & pShape["y1"] & return & pShape["x2"] & comma & pShape["y2"] into tRuns[1]
+		break
+	case "polyline"
+	case "polygon"
+		put pShape["points"] into tPoints
+		replace space with return in tPoints
+		if pShape["type"] is "polygon" and tPoints is not empty then
+			put return & line 1 of tPoints after tPoints
+		end if
+		put tPoints into tRuns[1]
+		break
+	case "path"
+		put _drawingPathRuns(pShape["commands"], pTolerance) into tRuns
+		break
+	end switch
+	return tRuns
+end _drawingShapeRuns
+
+/* _drawingPathRuns follows the commands of a path (all absolute, as
+ * _drawingReadPath makes them) and returns its runs of points. */
+private function _drawingPathRuns pCommands, pTolerance
+	local tRuns, tRun, tCommand, tX, tY, tStartX, tStartY, tLastLetter, tCx, tCy, tC1x, tC1y
+	put 0 into tX
+	put 0 into tY
+	put 0 into tStartX
+	put 0 into tStartY
+	repeat for each element tCommand in pCommands
+		switch tCommand[1]
+		case "M"
+			if the number of lines in tRun > 1 then
+				put tRun into tRuns[the number of elements in tRuns + 1]
+			end if
+			put tCommand[2] into tX
+			put tCommand[3] into tY
+			put tX into tStartX
+			put tY into tStartY
+			put tX & comma & tY into tRun
+			break
+		case "L"
+		case "H"
+		case "V"
+			if tCommand[1] is "L" then
+				put tCommand[2] into tX
+				put tCommand[3] into tY
+			else if tCommand[1] is "H" then
+				put tCommand[2] into tX
+			else
+				put tCommand[2] into tY
+			end if
+			_drawingRunAdd tRun, tX, tY
+			break
+		case "C"
+		case "S"
+			if tCommand[1] is "C" then
+				put tCommand[2] into tC1x
+				put tCommand[3] into tC1y
+				put tCommand[4] into tCx
+				put tCommand[5] into tCy
+				put tCommand[6] into tCommand[8]
+				put tCommand[7] into tCommand[9]
+			else
+				/* The first control point reflects the last one of a curve
+				 * just before, or is the current point. */
+				if tLastLetter is "C" or tLastLetter is "S" then
+					put 2 * tX - tCx into tC1x
+					put 2 * tY - tCy into tC1y
+				else
+					put tX into tC1x
+					put tY into tC1y
+				end if
+				put tCommand[2] into tCx
+				put tCommand[3] into tCy
+				put tCommand[4] into tCommand[8]
+				put tCommand[5] into tCommand[9]
+			end if
+			_drawingCubicPoints tRun, tX, tY, tC1x, tC1y, tCx, tCy, tCommand[8], tCommand[9], pTolerance
+			put tCommand[8] into tX
+			put tCommand[9] into tY
+			break
+		case "Q"
+		case "T"
+			if tCommand[1] is "Q" then
+				put tCommand[2] into tCx
+				put tCommand[3] into tCy
+				put tCommand[4] into tCommand[8]
+				put tCommand[5] into tCommand[9]
+			else
+				if tLastLetter is "Q" or tLastLetter is "T" then
+					put 2 * tX - tCx into tCx
+					put 2 * tY - tCy into tCy
+				else
+					put tX into tCx
+					put tY into tCy
+				end if
+				put tCommand[2] into tCommand[8]
+				put tCommand[3] into tCommand[9]
+			end if
+			/* A quadratic is the cubic with its controls two thirds of the
+			 * way to its one. */
+			_drawingCubicPoints tRun, tX, tY, \
+					tX + 2 * (tCx - tX) / 3, tY + 2 * (tCy - tY) / 3, \
+					tCommand[8] + 2 * (tCx - tCommand[8]) / 3, tCommand[9] + 2 * (tCy - tCommand[9]) / 3, \
+					tCommand[8], tCommand[9], pTolerance
+			put tCommand[8] into tX
+			put tCommand[9] into tY
+			break
+		case "A"
+			_drawingEndpointArc tRun, tX, tY, tCommand[2], tCommand[3], tCommand[4], tCommand[5], tCommand[6], tCommand[7], tCommand[8], pTolerance
+			put tCommand[7] into tX
+			put tCommand[8] into tY
+			break
+		case "Z"
+			_drawingRunAdd tRun, tStartX, tStartY
+			if line -1 of tRun is not line 1 of tRun then
+				put return & line 1 of tRun after tRun
+			end if
+			if the number of lines in tRun > 1 then
+				put tRun into tRuns[the number of elements in tRuns + 1]
+			end if
+			put tStartX into tX
+			put tStartY into tY
+			put tX & comma & tY into tRun
+			break
+		end switch
+		put tCommand[1] into tLastLetter
+	end repeat
+	if the number of lines in tRun > 1 then
+		put tRun into tRuns[the number of elements in tRuns + 1]
+	end if
+	return tRuns
+end _drawingPathRuns
+
+/* _drawingRunAdd adds the point pX,pY to the run xRun, unless it is the last
+ * point already. */
+private command _drawingRunAdd @xRun, pX, pY
+	if xRun is empty then
+		put pX & comma & pY into xRun
+	else if line -1 of xRun is not (pX & comma & pY) then
+		put return & pX & comma & pY after xRun
+	end if
+end _drawingRunAdd
+
+/* _drawingCubicPoints adds the points of the cubic curve from x0,y0 through the
+ * controls x1,y1 and x2,y2 to x3,y3 (the first point is the run's last). The
+ * number of lines is Wang's bound, so none strays more than pTolerance. */
+private command _drawingCubicPoints @xRun, pX0, pY0, pX1, pY1, pX2, pY2, pX3, pY3, pTolerance
+	local tM, tSteps, tIndex, tT, tU
+	put max(sqrt((pX0 - 2 * pX1 + pX2) ^ 2 + (pY0 - 2 * pY1 + pY2) ^ 2), \
+			sqrt((pX1 - 2 * pX2 + pX3) ^ 2 + (pY1 - 2 * pY2 + pY3) ^ 2)) into tM
+	put max(1, min(256, ceiling(sqrt(0.75 * tM / pTolerance)))) into tSteps
+	repeat with tIndex = 1 to tSteps
+		put tIndex / tSteps into tT
+		put 1 - tT into tU
+		_drawingRunAdd xRun, \
+				_drawingNumber(tU ^ 3 * pX0 + 3 * tU ^ 2 * tT * pX1 + 3 * tU * tT ^ 2 * pX2 + tT ^ 3 * pX3), \
+				_drawingNumber(tU ^ 3 * pY0 + 3 * tU ^ 2 * tT * pY1 + 3 * tU * tT ^ 2 * pY2 + tT ^ 3 * pY3)
+	end repeat
+end _drawingCubicPoints
+
+/* _drawingArcPoints returns the points of the elliptical arc about pCx,pCy
+ * with radii pRx,pRy turned by pPhi (radians), from the angle pStart through
+ * pSweep (radians, negative for anticlockwise), one a line, the first
+ * included unless pSkipFirst. */
+private function _drawingArcPoints pCx, pCy, pRx, pRy, pPhi, pStart, pSweep, pTolerance, pSkipFirst
+	local tR, tStep, tSteps, tIndex, tTheta, tCos, tSin, tPoints, tX, tY
+	put max(abs(pRx), abs(pRy)) into tR
+	if tR <= pTolerance then
+		put abs(pSweep) / (pi / 2) into tSteps
+	else
+		put 2 * acos(1 - pTolerance / tR) into tStep
+		put abs(pSweep) / tStep into tSteps
+	end if
+	put max(1, min(720, ceiling(tSteps))) into tSteps
+	put cos(pPhi) into tCos
+	put sin(pPhi) into tSin
+	repeat with tIndex = 0 to tSteps
+		if tIndex is 0 and pSkipFirst then
+			next repeat
+		end if
+		put pStart + pSweep * tIndex / tSteps into tTheta
+		put pCx + pRx * tCos * cos(tTheta) - pRy * tSin * sin(tTheta) into tX
+		put pCy + pRx * tSin * cos(tTheta) + pRy * tCos * sin(tTheta) into tY
+		put _drawingNumber(tX) & comma & _drawingNumber(tY) & return after tPoints
+	end repeat
+	delete the last char of tPoints
+	return tPoints
+end _drawingArcPoints
+
+/* _drawingEndpointArc adds SVG's arc from pX1,pY1 to pX2,pY2 (radii pRx,pRy,
+ * rotation pAngle in degrees, its large-arc and sweep flags) to xRun, by the
+ * conversion to a centre that SVG's implementation notes give. */
+private command _drawingEndpointArc @xRun, pX1, pY1, pRx, pRy, pAngle, pLarge, pSweep, pX2, pY2, pTolerance
+	local tPhi, tCos, tSin, tDx, tDy, tX1p, tY1p, tLambda, tNum, tDen, tCoef
+	local tCxp, tCyp, tCx, tCy, tTheta1, tDelta, tUx, tUy, tVx, tVy, tLine
+	put abs(pRx) into pRx
+	put abs(pRy) into pRy
+	if pRx is 0 or pRy is 0 or (pX1 is pX2 and pY1 is pY2) then
+		_drawingRunAdd xRun, pX2, pY2
+		exit _drawingEndpointArc
+	end if
+	put pAngle * pi / 180 into tPhi
+	put cos(tPhi) into tCos
+	put sin(tPhi) into tSin
+	put (pX1 - pX2) / 2 into tDx
+	put (pY1 - pY2) / 2 into tDy
+	put tCos * tDx + tSin * tDy into tX1p
+	put -tSin * tDx + tCos * tDy into tY1p
+	put tX1p ^ 2 / pRx ^ 2 + tY1p ^ 2 / pRy ^ 2 into tLambda
+	if tLambda > 1 then
+		multiply pRx by sqrt(tLambda)
+		multiply pRy by sqrt(tLambda)
+	end if
+	put pRx ^ 2 * pRy ^ 2 - pRx ^ 2 * tY1p ^ 2 - pRy ^ 2 * tX1p ^ 2 into tNum
+	put pRx ^ 2 * tY1p ^ 2 + pRy ^ 2 * tX1p ^ 2 into tDen
+	if tDen is 0 then
+		put 0 into tCoef
+	else
+		put sqrt(max(0, tNum / tDen)) into tCoef
+	end if
+	if (pLarge is not 0) is (pSweep is not 0) then
+		put -tCoef into tCoef
+	end if
+	put tCoef * pRx * tY1p / pRy into tCxp
+	put -tCoef * pRy * tX1p / pRx into tCyp
+	put tCos * tCxp - tSin * tCyp + (pX1 + pX2) / 2 into tCx
+	put tSin * tCxp + tCos * tCyp + (pY1 + pY2) / 2 into tCy
+	put (tX1p - tCxp) / pRx into tUx
+	put (tY1p - tCyp) / pRy into tUy
+	put (-tX1p - tCxp) / pRx into tVx
+	put (-tY1p - tCyp) / pRy into tVy
+	put atan2(tUy, tUx) into tTheta1
+	put atan2(tUx * tVy - tUy * tVx, tUx * tVx + tUy * tVy) into tDelta
+	if pSweep is 0 and tDelta > 0 then
+		subtract 2 * pi from tDelta
+	else if pSweep is not 0 and tDelta < 0 then
+		add 2 * pi to tDelta
+	end if
+	repeat for each line tLine in _drawingArcPoints(tCx, tCy, pRx, pRy, tPhi, tTheta1, tDelta, pTolerance, true)
+		_drawingRunAdd xRun, item 1 of tLine, item 2 of tLine
+	end repeat
+	/* The last point is the end point exactly. */
+	delete line -1 of xRun
+	_drawingRunAdd xRun, pX2, pY2
+end _drawingEndpointArc
+
+/* A transform as a sequence of its six numbers a, b, c, d, e, f, from the list
+ * pTransform (the identity when it is empty). */
+private function _drawingMatrix pTransform
+	local tMatrix, tIndex
+	if pTransform is empty then
+		put "1,0,0,1,0,0" into pTransform
+	end if
+	repeat with tIndex = 1 to 6
+		put item tIndex of pTransform into tMatrix[tIndex]
+	end repeat
+	return tMatrix
+end _drawingMatrix
+
+private function _drawingMatrixString pMatrix
+	local tIndex, tString
+	repeat with tIndex = 1 to 6
+		put _drawingNumber(pMatrix[tIndex]) & comma after tString
+	end repeat
+	delete the last char of tString
+	return tString
+end _drawingMatrixString
+
+/* The transform that applies pSecond, then pFirst. */
+private function _drawingMatrixConcat pFirst, pSecond
+	local tResult
+	put pFirst[1] * pSecond[1] + pFirst[3] * pSecond[2] into tResult[1]
+	put pFirst[2] * pSecond[1] + pFirst[4] * pSecond[2] into tResult[2]
+	put pFirst[1] * pSecond[3] + pFirst[3] * pSecond[4] into tResult[3]
+	put pFirst[2] * pSecond[3] + pFirst[4] * pSecond[4] into tResult[4]
+	put pFirst[1] * pSecond[5] + pFirst[3] * pSecond[6] + pFirst[5] into tResult[5]
+	put pFirst[2] * pSecond[5] + pFirst[4] * pSecond[6] + pFirst[6] into tResult[6]
+	return tResult
+end _drawingMatrixConcat
+
+private function _drawingTransformPoints pRun, pMatrix
+	local tLine, tX, tY, tPoints
+	if pMatrix[1] is 1 and pMatrix[2] is 0 and pMatrix[3] is 0 and pMatrix[4] is 1 \
+			and pMatrix[5] is 0 and pMatrix[6] is 0 then
+		return pRun
+	end if
+	repeat for each line tLine in pRun
+		put item 1 of tLine into tX
+		put item 2 of tLine into tY
+		put _drawingNumber(pMatrix[1] * tX + pMatrix[3] * tY + pMatrix[5]) & comma & \
+				_drawingNumber(pMatrix[2] * tX + pMatrix[4] * tY + pMatrix[6]) & return after tPoints
+	end repeat
+	delete the last char of tPoints
+	return tPoints
+end _drawingTransformPoints
 
 /******************************************************************************/

@@ -2592,6 +2592,12 @@ function revMenubarContextMenu pType, pTarget
          put toggleMenuItem("Lock Location", the lockLoc of pTarget) & return after tText
          put enableMenuItem("Make Original Size", the formattedWidth of pTarget is not the width of pTarget \
                or the formattedHeight of pTarget is not the height of pTarget) & return after tText
+         -- an image made from an SVG can become graphics (revidelibrary's
+         -- revIDEConvertDrawingToGraphics); the item is only there for one
+         if revIDEImageIsDrawing(pTarget) then
+            put "-" & return after tText
+            put enableMenuItem("Convert to Graphics", tSelectable) & return after tText
+         end if
          break
       case "polygon"
          put "-" & return after tText
@@ -2891,6 +2897,15 @@ on revMenubarContextMenuPickTarget pWhich, pTarget
          break
       case "Make Original Size"
          revIDEMakeImageOriginalSize pTarget
+         break
+      case "Convert to Graphics"
+         local tGraphics
+         put revIDEConvertDrawingToGraphics(pTarget) into tGraphics
+         if the result is not empty then
+            answer error "Could not convert the image to graphics:" && the result
+         else if tGraphics is not empty then
+            select tGraphics
+         end if
          break
          ######## FIELD SPECIFIC #########
       case "Paste Text"
