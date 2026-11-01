@@ -161,7 +161,7 @@ def games(source, target, player):
     """Copies tools/pages/games, each page told the engine's file in the player."""
     if not os.path.isdir(source):
         return False
-    engines = sorted(n for n in os.listdir(player) if re.fullmatch(r'standalone-community-.*\.js', n))
+    engines = sorted(n for n in os.listdir(player) if re.fullmatch(r'standalone-.*\.js', n))
     if not engines:
         print('no games: the Stack Player has no engine for them')
         return False
