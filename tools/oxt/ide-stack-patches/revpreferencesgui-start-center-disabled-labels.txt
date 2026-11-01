@@ -1,0 +1,23 @@
+# Preferences > General, "Load Start Center when last user stack is
+# closed" and "Show classic Start Center": both are disabled while the
+# Start Center is not loaded at start-up, and in Windows' dark mode their
+# labels were drawn as if enabled, bold and white, while "Load Start
+# Center on start-up" beside them showed grey (the screenshots of the
+# rc.6.12 release pull request). Both buttons had a white background
+# colour saved on them. They are not opaque, so it was never painted, but
+# it made the engine keep the etched label of the Windows look (a point
+# down and right in the theme's white, then in its grey), which it keeps
+# only for a button with a background of its own
+# (engine/src/buttondraw.cpp, MCButtonDisabledInkOnDarkTheme). Without the
+# colour they draw like every other disabled check box: grey on a dark
+# theme, etched on a light one, as before. Nothing else in their look
+# changes, since the colour was never painted.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "ReloadStartCenter" of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 
+object: button "StartCenterClassicPref" of card "General"
+property: backgroundColor
+from: 255,255,255
+to: 

@@ -88,6 +88,23 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   and its tooltip holds the whole path
   (revpreferencesgui-prefs-path-fits.txt); the step preferences tries a
   long path on every platform.
+- On Windows' dark mode three disabled check boxes were drawn as if
+  enabled, bold and white, beside disabled ones drawn grey: Preferences'
+  "Show classic Start Center" and "Load Start Center when last user stack
+  is closed" (both 223 from the window, as the enabled ones, where "Load
+  Start Center on start-up" was 112) and Standalone Settings' "Rename
+  stackfiles generically". Each had a background colour or pattern saved
+  on it, never painted as it is not opaque, which made the engine keep
+  the etched label of the Windows look for it
+  (MCButtonDisabledInkOnDarkTheme keeps it for a button with a background
+  of its own). Property patches clear them
+  (revpreferencesgui-start-center-disabled-labels.txt,
+  revstandalonesettings-rename-files-disabled-label.txt); the steps
+  preferences and standalone-settings measure the words of every check
+  box and radio button that shows (tourLabelInks): a disabled one's are
+  no more than 0.7 of the enabled ones' median, and 24 or more. On the
+  released rc.6.11 IDE with a dark Linux theme every disabled one fails
+  (17, the engine's etched label then), light passes.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -627,6 +644,68 @@ class ThePreferencesPath(unittest.TestCase):
         self.assertLess(step.index('dispatch "prefPathFit"'),
                         step.index('dispatch "updPrefPath" to field "Menu" of group "Navigation" of stack tStack'))
         self.assertLess(step.index('dispatch "updPrefPath"'), step.index('close stack tStack'))
+
+
+class TheDisabledLabels(unittest.TestCase):
+    """A disabled check box's words are drawn like every other disabled
+    one's: none has a background colour or pattern saved on it that is
+    never painted, and the tour measures each one's words against the
+    enabled ones'."""
+
+    PATCHES = {
+        'revpreferencesgui-start-center-disabled-labels.txt': (
+            'file: Toolset/palettes/revpreferencesgui.rev\n',
+            ['object: button "ReloadStartCenter" of card "General"\nproperty: backgroundColor\n'
+             'from: 255,255,255\nto: \n',
+             'object: button "StartCenterClassicPref" of card "General"\nproperty: backgroundColor\n'
+             'from: 255,255,255\nto: \n']),
+        'revstandalonesettings-rename-files-disabled-label.txt': (
+            'file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev\n',
+            ['object: button "renameFiles" of group "moveSubstacks" of group "Advanced Options" of card "Stacks"\n'
+             'property: backgroundPattern\nfrom: 200921\nto: \n']),
+    }
+
+    def test_the_patches(self):
+        for name, (stack, objects) in self.PATCHES.items():
+            patch = read(PATCHES + (name,))
+            self.assertIn(stack, patch, name)
+            for obj in objects:
+                self.assertIn(obj, patch, name)
+
+    def test_the_tour_measures_each_window(self):
+        tour = read(TOUR)
+        for step, what in (('tour_preferences', 'Preferences'), ('tour_standalone_settings', 'Standalone Settings')):
+            body = handler(tour, 'on', step)
+            # none kept from a step before, each pane or card measured as it
+            # shows, and compared once all are
+            self.assertLess(body.index('tourLabelInksReset'), body.index('tourLabelInks tStack'), step)
+            self.assertLess(body.index('tourLabelInks tStack'),
+                            body.index('put tourDisabledLabels("%s") after tFails' % what), step)
+            self.assertLess(body.index('put tourDisabledLabels("%s") after tFails' % what),
+                            body.rindex('if tFails is not empty then throw'), step)
+        # in the preferences, each pane in the loop over them
+        prefs = handler(tour, 'on', 'tour_preferences')
+        loop = prefs[prefs.index('repeat for each line tPane'):prefs.index('end repeat')]
+        self.assertIn('tourLabelInks tStack', loop)
+
+    def test_the_measure(self):
+        tour = read(TOUR)
+        inks = handler(tour, 'command', 'tourLabelInks')
+        # check boxes and radio buttons that are not opaque, whose words show
+        self.assertIn('is not among the items of "checkbox,radioButton"', inks)
+        self.assertIn('if the opaque of tControl or not the showName of tControl then next repeat', inks)
+        self.assertIn('if not tourControlShown(tControl) then next repeat', inks)
+        # its words, clear of its box, against the window behind it
+        self.assertIn('put tourLum(1, 1) into tBack', inks)
+        self.assertIn('tourMaxDiff(26, 3, tRight, sPixHeight - 3, tBack)', inks)
+        check = handler(tour, 'function', 'tourDisabledLabels')
+        self.assertIn('item 2 of tLine > tMedian * 0.7', check)
+        self.assertIn('item 2 of tLine < 24', check)
+        self.assertIn('put empty into sLabelInks', check)
+        # declared before the handlers that use it
+        self.assertLess(tour.index('\nlocal sLabelInks\n'), tour.index('\ncommand tourLabelInks pStack\n'))
+        self.assertLess(tour.index('\nlocal sCtlChecks, sCtlFails, sPixWidth, sPixHeight, sPixData\n'),
+                        tour.index('\ncommand tourLabelInks pStack\n'))
 
 
 if __name__ == '__main__':

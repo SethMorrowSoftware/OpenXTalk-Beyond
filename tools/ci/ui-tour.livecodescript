@@ -4850,6 +4850,7 @@ end tourDictionaryEntry
 on tour_preferences
    local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown
    put revIDEPaletteToStackName("preferences") into tStack
+   tourLabelInksReset
    revIDEOpenPalette "preferences"
    tourWait 1500
    if there is not a stack tStack or not the visible of stack tStack then throw "Preferences did not open"
@@ -4861,9 +4862,13 @@ on tour_preferences
       dispatch "revPrefsGoSection" to stack tStack with tPane
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
+      tourLabelInks tStack
       put tourButtonsWhole(tStack) after tFails
       put tourFieldsWhole(tStack) after tFails
    end repeat
+   -- each disabled check box's and radio button's words fainter than an
+   -- enabled one's, and seen (tourDisabledLabels)
+   put tourDisabledLabels("Preferences") after tFails
    -- The Automatic Updates pane shows no "Summary of last update": the one
    -- it showed, from Toolset/palettes/updates/whatsnew.txt, was OpenXTalk
    -- Lite's notes of its own update ("respring implemented for updater"),
@@ -4932,6 +4937,7 @@ end tour_preferences
 
 on tour_standalone_settings
    local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow, tFails
+   tourLabelInksReset
    -- the settings are for a saved stack
    go stack kSample
    -- set up on a Mac to build for Apple Silicon and Intel, the stack keeps
@@ -4975,6 +4981,7 @@ on tour_standalone_settings
       -- every label, check box, radio button, push button and option
       -- menu of the card shows whole (in Linux's DejaVu Sans, "the
       -- profile librar", "Write External Storag", "save report to fil")
+      tourLabelInks tStack
       put tourButtonsWhole(tStack) after tFails
       put tourFieldsWhole(tStack) after tFails
       -- each row's icon is seen on its row
@@ -5032,6 +5039,9 @@ on tour_standalone_settings
          end if
       end if
    end repeat
+   -- each disabled check box's and radio button's words fainter than an
+   -- enabled one's, and seen (tourDisabledLabels)
+   put tourDisabledLabels("Standalone Settings") after tFails
    close stack tStack
    put tourMacTargets() into tMacNow
    tourRecord "INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards:" && tMacNow
@@ -5472,6 +5482,126 @@ function tourControlShown pControl
    end repeat
    return true
 end tourControlShown
+
+-- A disabled check box's or radio button's words are fainter than an
+-- enabled one's on the same window, and still seen. Preferences' "Show
+-- classic Start Center" and "Load Start Center when last user stack is
+-- closed", and Standalone Settings' "Rename stackfiles generically", were
+-- drawn on Windows' dark mode as if enabled, bold and white, beside
+-- disabled ones drawn grey (the screenshots of the rc.6.12 release pull
+-- request): each had a background colour or pattern saved on it, never
+-- painted as it is not opaque, which made the engine keep the etched label
+-- of the Windows look (engine/src/buttondraw.cpp,
+-- MCButtonDisabledInkOnDarkTheme). tourLabelInks measures the words of the
+-- check boxes and radio buttons that show on the card of the stack pStack
+-- (those that are not opaque, so that what is behind them is the window's,
+-- with words, whole in the window and in each group they are in), and
+-- keeps them in sLabelInks until tourDisabledLabels compares them
+local sLabelInks
+
+-- A step that measures starts with none kept (one that stopped on an
+-- error may have left some)
+command tourLabelInksReset
+   put empty into sLabelInks
+end tourLabelInksReset
+
+command tourLabelInks pStack
+   local tDefault, tControl, tWords, tOwner, tRect, tTopLeft, tImage, tBack, tRight, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat with i = 1 to the number of buttons of this card
+      if the style of button i of this card is not among the items of "checkbox,radioButton" then next repeat
+      put the long id of button i of this card into tControl
+      if the opaque of tControl or not the showName of tControl then next repeat
+      if not tourControlShown(tControl) then next repeat
+      put the label of tControl into tWords
+      if tWords is empty then put the short name of tControl into tWords
+      if the number of chars of tWords < 3 then next repeat
+      -- whole in the window and in each group it is in (a scrolling
+      -- group's controls may be partly out of it)
+      put the rect of tControl into tRect
+      if item 1 of tRect < 0 or item 2 of tRect < 0 or item 3 of tRect > the width of this stack or \
+            item 4 of tRect > the height of this stack then next repeat
+      put the long owner of tControl into tOwner
+      repeat while word 1 of tOwner is "group"
+         if item 1 of tRect < item 1 of the rect of tOwner or item 2 of tRect < item 2 of the rect of tOwner or \
+               item 3 of tRect > item 3 of the rect of tOwner or item 4 of tRect > item 4 of the rect of tOwner then
+            put empty into tRect
+            exit repeat
+         end if
+         put the long owner of tOwner into tOwner
+      end repeat
+      if tRect is empty or item 4 of tRect - item 2 of tRect < 12 then next repeat
+      put globalLoc(item 1 to 2 of tRect) into tTopLeft
+      put item 1 of tTopLeft, item 2 of tTopLeft, item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
+            item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+      tourUnlockScreen "labels"
+      set the defaultStack to "oxt_ui_tour"
+      lock messages
+      import snapshot from rect tRect
+      put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+      put the width of tImage into sPixWidth
+      put the height of tImage into sPixHeight
+      put the imageData of tImage into sPixData
+      delete tImage
+      unlock messages
+      set the defaultStack to pStack
+      if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then next repeat
+      -- the window behind it at its top left corner; its words from 26
+      -- points in (clear of the box), as far as they reach, 3 points in
+      -- from its top and bottom
+      put tourLum(1, 1) into tBack
+      put min(sPixWidth, 26 + measureText(tWords, tControl) - 6) into tRight
+      if tRight < 36 then next repeat
+      put (not the enabled of tControl) & tab & tourMaxDiff(26, 3, tRight, sPixHeight - 3, tBack) & tab & \
+            the short name of this card & tab & the short name of tControl & return after sLabelInks
+   end repeat
+   set the defaultStack to tDefault
+end tourLabelInks
+
+-- The disabled check boxes and radio buttons that tourLabelInks measured
+-- whose words are not fainter than the enabled ones' (no more than 0.7 of
+-- their median), or are hardly seen (less than 24 from the window behind
+-- them), one line for each, and empties sLabelInks. Each measured is in
+-- the log. Windows' dark: 223 to 223 (etched), grey ones half; its light,
+-- etched, 51 or so to 225
+function tourDisabledLabels pWhat
+   local tOn, tCount, tMedian, tFails, tLine, tState
+   set the itemDelimiter to tab
+   repeat for each line tLine in sLabelInks
+      if item 1 of tLine is true then
+         put "disabled" into tState
+      else
+         put "enabled" into tState
+         put item 2 of tLine & comma after tOn
+      end if
+      tourRecord "INFO" && pWhat & ": the words of" && item 4 of tLine && "on" && item 3 of tLine && \
+            "(" & tState & ") differ from the window by" && item 2 of tLine
+   end repeat
+   set the itemDelimiter to comma
+   delete the last char of tOn
+   put the number of items of tOn into tCount
+   if tCount > 0 then
+      sort items of tOn numeric
+      put item (tCount + 1) div 2 of tOn into tMedian
+   end if
+   tourRecord "INFO" && pWhat & ": the median of" && tCount && "enabled check boxes' and radio buttons' words" && tMedian
+   set the itemDelimiter to tab
+   repeat for each line tLine in sLabelInks
+      if item 1 of tLine is not true then next repeat
+      if tMedian is not empty and item 2 of tLine > tMedian * 0.7 then
+         put "the disabled" && item 4 of tLine && "on" && item 3 of tLine && "of" && pWhat && \
+               "is drawn as if enabled: its words differ from the window by" && item 2 of tLine & \
+               ", the enabled ones' by" && tMedian & return after tFails
+      else if item 2 of tLine < 24 then
+         put "the disabled" && item 4 of tLine && "on" && item 3 of tLine && "of" && pWhat && \
+               "is hardly seen: its words differ from the window by" && item 2 of tLine & return after tFails
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   put empty into sLabelInks
+   return tFails
+end tourDisabledLabels
 
 -- The rect and the name of the nearest button or field that shows to the
 -- right of the control pControl on its card, on the same line (they share
