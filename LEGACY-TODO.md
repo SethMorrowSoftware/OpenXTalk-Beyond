@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12419](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12419) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12732](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12732) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -733,7 +733,7 @@ Work left for later. 428 notes, by part of the repository:
 
 ### TODO: extensions (1)
 
-- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
+- [extensions/script-libraries/drawing/drawing.livecodescript:2256](extensions/script-libraries/drawing/drawing.livecodescript#L2256) TODO: Handle unit in an appropriate way.
 
 <a id="todo-lcidlc"></a>
 

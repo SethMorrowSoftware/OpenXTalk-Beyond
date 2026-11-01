@@ -166,8 +166,10 @@ safer, and fixes rolling back PostgreSQL and MySQL's encrypted
 connections (see
 [0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven)), and
 0.2.7-rc.6.12 calls the engine BeyondEngine, brings the welcome, the
-Academy and Learn into one Home window, opens more HyperCard stacks, and
-pastes Copy Graphics as SVG Paths into Illustrator as curves (see
+Academy and Learn into one Home window, opens more HyperCard stacks,
+imports SVGs with their colours and clip paths and turns them into
+graphics, and pastes Copy Graphics as SVG Paths into Illustrator as
+curves (see
 [0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve));
 0.2.6 stays the main download until it has held up.
 
@@ -1675,6 +1677,31 @@ it squashes:
   it holds none; with a field or a button selected beside a graphic it
   was greyed out, though it copies the graphics alone (OpenXTalkPaul)
   (#305).
+- **SVGs that came in black.** An imported SVG keeps its style sheet's
+  colours, its opacity, its gradients and the clip paths it draws
+  through, and a radial gradient with no focal point is centred; such
+  SVGs came in black, opaque, unclipped or lopsided. The IDE's import
+  does all of this; a script asks `drawingSvgCompile` for it with a new
+  list of options, and with none gets the same drawing as before. A
+  drawing with a clip path needs an rc.6.12 or later engine (#307).
+- **One SVG that broke the next.** An SVG that writes an arc's flags
+  together, as minifiers do, imports; it failed, and so did every SVG
+  after it in the same session (#307).
+- **Shapes that vanished.** A drawing with a polygon of 32 points or
+  more draws it and every shape after it; the engine drew nothing from
+  there on (#307).
+- **Half circles drawn as slivers, and curves drawn straight.** An arc
+  whose ends are a diameter apart, as in the Korean flag, draws in full,
+  and a run of smooth quadratic curves (SVG's T) bends as it should
+  (#307).
+- **Imported art you could not edit.** An image made from an SVG has
+  Convert to Graphics on its right-click menu, which makes a group of
+  graphics with the shapes' colours, gradients, line styles and opacity
+  (richmond62) (#307).
+- **No way back out.** The drawing library's `drawingDecode` reads a
+  drawing back as its shapes, `drawingFlatten` turns it into polygon
+  points, and `drawingSvgDecompile` writes it back out as SVG
+  (OpenXTalkPaul) (#307).
 - **A Line tool that kept its light.** In the Tools palette, choosing
   another vector tool after the Line tool lights the one you chose; the
   light stayed on Line (micmac) (#305).
@@ -1740,7 +1767,7 @@ it squashes:
 Behind the scenes, the project's web pages have a new front page with a
 Downloads section (#295) and a Web Games section with Pixel Platformer
 Maker, a platformer and level maker written in xTalk with Box2Dxt
-physics (#301, #303); the HyperCard sweep in CI answers dialogs as a
+physics, whose menus are now readable (#301, #303, #306); the HyperCard sweep in CI answers dialogs as a
 person would and skips hidden buttons (#296); and the runtimes that
 every package carries for the other platforms are rebuilt from this
 release's engine (#305).

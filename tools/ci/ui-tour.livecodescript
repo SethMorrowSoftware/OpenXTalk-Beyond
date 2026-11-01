@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -3066,6 +3066,158 @@ function tourSvgMenuCopied pData
    end if
    return empty
 end tourSvgMenuCopied
+
+-- An SVG imported as the IDE imports one, and its Convert to Graphics
+-- (richmond62, openxtalk.org p=25843). The SVG has what the compiler left
+-- out before: a style sheet's colour by class, an opacity, a gradient
+-- whose id has a hyphen, and a clip path (rectangular, so the graphics
+-- match the image exactly). The import must keep each one (read back
+-- with drawingDecode, and the clip seen on screen), the image's right-click
+-- menu must have Convert to Graphics and a plain picture's must not, and
+-- the graphics must look like the image: fewer than 4% of their pixels
+-- more than 64 apart in any channel, which antialiasing alone stays under
+on tour_svg_import
+   local tArea, tName, tDefault, tFile, tImage, tPicture, tDecoded, tMenuBar, tMenu, tGroup, tFails, tError
+   local tRect, tImageShot, tGroupShot, tStats
+   put "oxt_svg_import" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   put revIDEPaletteToStackName("menubar") into tMenuBar
+   put specialFolderPath("temporary") & "/oxt-tour-import.svg" into tFile
+   put "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120' viewBox='0 0 200 120'>" & \
+         "<style>.leaf { fill: #2e8b57 }</style>" & \
+         "<defs><linearGradient id='sky-1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#4682b4'/>" & \
+         "<stop offset='1' stop-color='#87ceeb'/></linearGradient>" & \
+         "<clipPath id='frame-1'><rect x='10' y='10' width='180' height='100'/></clipPath></defs>" & \
+         "<g clip-path='url(#frame-1)'><rect width='200' height='120' fill='url(#sky-1)'/>" & \
+         "<circle class='leaf' cx='60' cy='110' r='50'/>" & \
+         "<path d='M120 110 L150 40 L180 110 Z' fill='#8b4513' opacity='0.5'/></g>" & \
+         "<rect width='10' height='10' fill='#ff0000'/></svg>" into url ("file:" & tFile)
+   try
+      set the defaultStack to tName
+      revIDEImportControl "image", tFile, false
+      put the long id of last image of card 1 of stack tName into tImage
+      set the rect of tImage to "20,20,220,140"
+      put drawingDecode(the text of tImage) into tDecoded
+      if the result is not empty then
+         put "the imported image is not a drawing:" && the result & return after tFails
+      else
+         if the number of elements in tDecoded["shapes"] is not 4 then
+            put "the import has" && the number of elements in tDecoded["shapes"] && "shapes, not 4" & return after tFails
+         end if
+         if tDecoded["shapes"][1]["fill"]["type"] is not "linear" then
+            put "the gradient with a hyphen in its id is" && tDecoded["shapes"][1]["fill"]["type"] & return after tFails
+         end if
+         if abs(item 1 of tDecoded["shapes"][2]["fill"]["color"] - 46 / 255) > 0.01 then
+            put "the style sheet's colour is" && tDecoded["shapes"][2]["fill"]["color"] & return after tFails
+         end if
+         if abs(tDecoded["shapes"][3]["fill-opacity"] - 0.5) > 0.01 then
+            put "the opacity is" && tDecoded["shapes"][3]["fill-opacity"] & return after tFails
+         end if
+         if the number of elements in tDecoded["clips"] is not 1 or tDecoded["shapes"][1]["clip"] is not 1 \
+               or tDecoded["shapes"][4]["clip"] is not empty then
+            put "the clip path is not kept:" && the number of elements in tDecoded["clips"] && "clips" & return after tFails
+         end if
+      end if
+      -- drawn, the clip shows: the sky is inside the frame, not outside it
+      put tourSvgPixel(20 + 100, 20 + 15) into tStats
+      if not (item 3 of tStats > item 1 of tStats + 40) then
+         put "inside the clip is not the sky:" && tStats & return after tFails
+      end if
+      put tourSvgPixel(20 + 100, 20 + 4) into tStats
+      if item 3 of tStats > item 1 of tStats + 40 then
+         put "outside the clip is the sky (the clip is not drawn):" && tStats & return after tFails
+      end if
+      -- the menus
+      dispatch "revMenubarSetContextMenu" to stack tMenuBar with "image", tImage
+      put the text of button "context" of stack tMenuBar into tMenu
+      if lineOffset("Convert to Graphics", tMenu) is 0 then
+         put "an SVG image's menu has no Convert to Graphics" & return after tFails
+      end if
+      create image "picture"
+      put the long id of it into tPicture
+      set the rect of tPicture to "240,20,260,40"
+      dispatch "revMenubarSetContextMenu" to stack tMenuBar with "image", tPicture
+      put the text of button "context" of stack tMenuBar into tMenu
+      if lineOffset("Convert to Graphics", tMenu) is not 0 then
+         put "a picture's menu has Convert to Graphics" & return after tFails
+      end if
+      delete tPicture
+      tourShotStack tName, "04g2-svg-import"
+      -- converted
+      put revIDEConvertDrawingToGraphics(tImage) into tGroup
+      if the result is not empty or tGroup is empty or there is not a tGroup then
+         put "Convert to Graphics failed:" && the result & return after tFails
+      else
+         if the number of graphics of tGroup < 4 then
+            put "Convert to Graphics made" && the number of graphics of tGroup && "graphics" & return after tFails
+         end if
+         put the rect of tImage into tRect
+         hide tGroup
+         put tourSvgShot(tRect) into tImageShot
+         show tGroup
+         hide tImage
+         put tourSvgShot(tRect) into tGroupShot
+         put tourSvgCompare(tImageShot, tGroupShot) into tStats
+         tourRecord "INFO svg-import graphics against image: mean" && item 1 of tStats && "far" && item 2 of tStats
+         if item 2 of tStats >= 0.04 then
+            put "the graphics differ from the image:" && tStats & return after tFails
+         end if
+         tourShotStack tName, "04g3-svg-convert"
+      end if
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   delete file tFile
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_svg_import
+
+-- The imageData of the card of the default stack in pRect
+function tourSvgShot pRect
+   local tData
+   import snapshot from rect pRect of this card
+   put the imageData of it into tData
+   delete it
+   return tData
+end tourSvgShot
+
+-- The colour (r,g,b) on the card of the default stack at pX,pY
+function tourSvgPixel pX, pY
+   local tData
+   put tourSvgShot(pX & comma & pY & comma & pX + 1 & comma & pY + 1) into tData
+   return byteToNum(byte 2 of tData) & comma & byteToNum(byte 3 of tData) & comma & byteToNum(byte 4 of tData)
+end tourSvgPixel
+
+-- The mean difference of two imageDatas of a size, and the share of their
+-- pixels more than 64 apart in some channel
+function tourSvgCompare pA, pB
+   local tPixel, tCount, tFar, tSum, tChannel, tDiff, tMax
+   put 0 into tFar
+   put 0 into tSum
+   put the number of bytes of pA div 4 into tCount
+   if tCount is 0 or the number of bytes of pB is not the number of bytes of pA then
+      return "255,1"
+   end if
+   repeat with tPixel = 0 to tCount - 1
+      put 0 into tMax
+      repeat with tChannel = 2 to 4
+         put abs(byteToNum(byte tPixel * 4 + tChannel of pA) - byteToNum(byte tPixel * 4 + tChannel of pB)) into tDiff
+         add tDiff to tSum
+         put max(tMax, tDiff) into tMax
+      end repeat
+      if tMax > 64 then
+         add 1 to tFar
+      end if
+   end repeat
+   return round(tSum / (tCount * 3), 2) & comma & round(tFar / tCount, 4)
+end tourSvgCompare
 
 -- The Inspector sets a scrollbar's Orientation (TerryL, openxtalk.org
 -- p=25821): through revIDEPropertySet, the call the Inspector makes when
