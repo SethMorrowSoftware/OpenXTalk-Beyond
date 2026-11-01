@@ -306,12 +306,15 @@ on TestDrawHalfCircleArcs
    local tDrawing
    -- the Korean flag's taegeuk: arcs whose ends are a diameter apart. The
    -- engine's arc lost its centre to rounding (sqrt of a tiny negative)
-   -- and drew a sliver; the right half of the big circle is blue
+   -- and drew a sliver. With SVG's sweep flags the big half is on the
+   -- LEFT, with a small bulge into the right below the centre and a small
+   -- bite out of the left above it (the points checked against cairosvg)
    put drawingSvgCompile("<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='-25 -25 50 50'>" & \
          "<path fill='#0000ff' d='M0-12A6 6 0 000 0a6 6 0 010 12 12 12 0 010-24z'/></svg>") into tDrawing
-   TestAssert "half circle arcs: the big half drawn", _IsColor(_PixelAt(tDrawing, 70, 50), 0, 0, 255)
-   TestAssert "half circle arcs: the small bulge drawn", _IsColor(_PixelAt(tDrawing, 45, 38), 0, 0, 255)
-   TestAssert "half circle arcs: outside left empty", not _IsColor(_PixelAt(tDrawing, 30, 50), 0, 0, 255)
+   TestAssert "half circle arcs: the big half drawn", _IsColor(_PixelAt(tDrawing, 30, 50), 0, 0, 255)
+   TestAssert "half circle arcs: the small bulge drawn", _IsColor(_PixelAt(tDrawing, 55, 62), 0, 0, 255)
+   TestAssert "half circle arcs: the right half empty", not _IsColor(_PixelAt(tDrawing, 70, 50), 0, 0, 255)
+   TestAssert "half circle arcs: the small bite empty", not _IsColor(_PixelAt(tDrawing, 55, 38), 0, 0, 255)
 end TestDrawHalfCircleArcs
 
 on TestDrawGradientById
