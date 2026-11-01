@@ -1,0 +1,79 @@
+# OXT-Beyond: on Linux, in the desktop's sans font (DejaVu Sans on Ubuntu,
+# 13 pixels), seven options of the Standalone Settings were cut off or ran
+# into what is next to them (the IDE tour's step standalone-settings
+# measures every button and label of each card): on the General card
+# "Include profiles on objects and the profile librar" and "Only include
+# profiles selected" (on the Mac too), on the Android card "Android armv",
+# "Visibl" before "Hidden", "Write External Storag" before "Fine Location",
+# and "In App Purchasing" run into its check box, and on the Bug Reports
+# card "Allow user to save report to fil". Each reaches as far as its words
+# need; "Hidden", the check box of "In App Purchasing" and the right column
+# of the Android permissions move right to make the room (keeping their
+# size, but for the permissions, which keep their right edges, all wide
+# enough for their words), and the groups round the moved radio buttons
+# grow with them.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button id 1267 of card "General"
+property: rect
+from: 95,262,420,282
+to: 95,262,440,282
+object: button id 1210 of card "General"
+property: rect
+from: 295,286,509,306
+to: 295,286,556,306
+object: group id 1220 of card "General"
+property: rect
+from: 111,282,513,310
+to: 111,282,560,310
+object: button id 2064 of card "Android"
+property: rect
+from: 115,75,229,95
+to: 115,75,236,95
+object: button id 2248 of card "Android"
+property: rect
+from: 189,561,260,584
+to: 195,561,266,584
+object: button id 2247 of card "Android"
+property: rect
+from: 122,561,184,584
+to: 122,561,190,584
+object: group id 2246 of card "Android"
+property: rect
+from: 118,557,264,588
+to: 118,557,270,588
+object: button id 2820 of card "Android"
+property: rect
+from: 579,552,703,575
+to: 589,552,713,575
+object: button id 2821 of card "Android"
+property: rect
+from: 579,570,703,593
+to: 589,570,713,593
+object: button id 2831 of card "Android"
+property: rect
+from: 579,588,703,611
+to: 589,588,713,611
+object: button id 2833 of card "Android"
+property: rect
+from: 579,606,703,629
+to: 589,606,713,629
+object: button id 2854 of card "Android"
+property: rect
+from: 579,624,728,647
+to: 589,624,728,647
+object: button id 2403 of card "Android"
+property: rect
+from: 418,552,577,575
+to: 418,552,587,575
+object: button id 3193 of card "Android"
+property: rect
+from: 140,593,222,616
+to: 152,593,234,616
+object: button id 1189 of card "Bug Reports"
+property: rect
+from: 148,252,364,275
+to: 148,252,376,275
+object: button id 1187 of card "Bug Reports"
+property: rect
+from: 148,278,364,301
+to: 148,278,376,301

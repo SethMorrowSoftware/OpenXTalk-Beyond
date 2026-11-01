@@ -1,0 +1,48 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the Files &
+# Memory pane four check boxes and a label were cut off ("...stacks saved
+# in legacy form", "...creator typ", "...paths for image", "destroyStack for
+# new stack", "...when closing last stack in fil"), and the number of recent
+# files was written over the end of its label. The first check box is in
+# the group "Stack File Property Preservation", whose rect follows it (and
+# is declared with the rect it gets);
+# two check boxes stop where the next one on their line starts
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "destroyStack" of card "Files & Memory"
+property: rect
+from: 185,58,387,88
+to: 185,58,396,88
+object: field id 1045 of card "Files & Memory"
+property: rect
+from: 182,11,535,31
+to: 182,11,575,31
+object: field id 1050 of card "Files & Memory"
+property: rect
+from: 185,210,396,230
+to: 185,210,404,230
+object: field "Num Recent Files" of card "Files & Memory"
+property: rect
+from: 396,210,426,232
+to: 406,210,436,232
+object: button "Preserve Stack Creator" of card "Files & Memory"
+property: rect
+from: 185,263,380,293
+to: 185,263,390,293
+object: button "Preserve Stack Version" of card "Files & Memory"
+property: rect
+from: 185,293,582,323
+to: 185,293,640,323
+object: group "Stack File Property Preservation" of card "Files & Memory"
+property: rect
+from: 181,259,586,327
+to: 181,259,644,327
+object: button "absoluteImagePaths" of card "Files & Memory"
+property: rect
+from: 185,323,468,353
+to: 185,323,520,353

@@ -1,0 +1,28 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the Object
+# Sizes pane four labels were cut off: "Menu or menu ite", "Scrollbar
+# (MacOS", "Progress bar (Mac" and "Scrollbar (Unix/Windows". Each reaches
+# nearer the number fields on its line
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: field id 1109 of card "Object Sizes"
+property: rect
+from: 182,95,306,116
+to: 182,95,336,116
+object: field id 1112 of card "Object Sizes"
+property: rect
+from: 182,268,306,289
+to: 182,268,400,289
+object: field id 1113 of card "Object Sizes"
+property: rect
+from: 182,288,306,309
+to: 182,288,400,309
+object: field id 1114 of card "Object Sizes"
+property: rect
+from: 182,309,350,330
+to: 182,309,400,330

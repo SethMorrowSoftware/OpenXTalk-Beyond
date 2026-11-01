@@ -1,0 +1,42 @@
+# Preferences, the line under every pane that says where the preferences
+# are saved (field "prefloc", which updPrefPath in field "Menu" fills when
+# the window opens and on each pane): a path wider than the field ran off
+# the window's right edge. Most do on Windows, where the user's name is
+# part of it ("C:/Users/<name>/AppData/..."): on GitHub's Windows machine
+# its words needed 473 pixels of the field's 423 (the IDE tour's step
+# preferences, on the build of adc572e45). Folders in the middle of the
+# path now give way to "..." until it fits, and the field's tooltip holds
+# the whole path. A path that fits is shown as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revpreferencesgui.rev
+object: field "Menu" of card "General"
+replace:
+|   put "preferences are saved in:" & return & myPrefsLoc into field "prefloc" of group "Navigation" of stack "revPreferencesGUI"|
+|   |
+|end updPrefPath|
+with:
+|   put "preferences are saved in:" & return & myPrefsLoc into field "prefloc" of group "Navigation" of stack "revPreferencesGUI"|
+|   -- OXT-Beyond: a path wider than the field (most on Windows, where|
+|   -- the user's name is part of it) ran off the window's edge|
+|   prefPathFit myPrefsLoc|
+|end updPrefPath|
+||
+|-- OXT-Beyond: folders in the middle of the path give way to "..." until|
+|-- it fits in the field, and the tooltip holds the whole path|
+|on prefPathFit pPath|
+|   local tRoom, tShown|
+|   set the tooltip of field "prefloc" of group "Navigation" of stack "revPreferencesGUI" to pPath|
+|   put the width of field "prefloc" of group "Navigation" of stack "revPreferencesGUI" into tRoom|
+|   subtract 2 * item 1 of the margins of field "prefloc" of group "Navigation" of stack "revPreferencesGUI" + 4 from tRoom|
+|   put pPath into tShown|
+|   put tShown into line 2 of field "prefloc" of group "Navigation" of stack "revPreferencesGUI"|
+|   set the itemDelimiter to "/"|
+|   repeat while the formattedWidth of line 2 of field "prefloc" of group "Navigation" of stack "revPreferencesGUI" > tRoom and the number of items of tShown > 3|
+|      if item 2 of tShown is "..." then|
+|         delete item 3 of tShown|
+|      else|
+|         put "..." into item 2 of tShown|
+|      end if|
+|      put tShown into line 2 of field "prefloc" of group "Navigation" of stack "revPreferencesGUI"|
+|   end repeat|
+|end prefPathFit|

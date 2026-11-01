@@ -158,9 +158,18 @@ void MCGCacheTableCompact(MCGCacheTableRef self)
 {
 	if (self == NULL)
 		return;
-	
+
+	// OXT-Beyond: discard the pairs that hold a key, and only those.
+	// MCGCacheTableDiscardPair counts one bucket fewer in use for each call,
+	// so calling it on every bucket, as this did, took used_buckets below
+	// zero (it wraps to its largest value). The next MCGCacheTableSet then
+	// found the table over its occupancy and looked for a pair to discard
+	// in a table that had none: it never returned. Nothing called this until
+	// MCDispatch::flushfonts empties the text measure cache with it.
+	// tools/ci/tests/test_fontfile_check.py (TheMeasureCache) runs it.
 	for (uindex_t i = 0; i < self -> total_buckets; i++)
-		MCGCacheTableDiscardPair(self, i);	
+		if (self -> pairs[i] . key != NULL)
+			MCGCacheTableDiscardPair(self, i);
 }
 
 void MCGCacheTableSet(MCGCacheTableRef self, void *p_key, uint32_t p_key_length, void *p_value, uint32_t p_value_length)

@@ -1,0 +1,60 @@
+# Script Editor, the Search Results pane of the editor saved in the
+# file: each result was written into the pane's htmlText with its
+# object in #505050 and its line in #101010, made for the light
+# appearance; on the dark one the pane is dark and both were all but
+# invisible. The colours now follow the appearance
+# (revIDEAppearanceIsDark), and the light ones are as they were.
+file: Toolset/palettes/script editor/revscripteditor.8.rev
+object: group "Search Results" of group "Panes" of card "Main" of stack "revNewScriptEditor 1"
+replace:
+|   local tResultNumber|
+|   put 1 into tResultNumber|
+|   |
+|   local tResults|
+|   repeat for each line tMatch in line 3 to -1 of pResultsString|
+|      local tObjectString|
+|      put formatObjectReference(item 1 of tMatch) into tObjectString|
+|      |
+|      # As the context may contains html characters if its a quoted string in the script,|
+|      # we have to escape these to prevent the formatting of results getting messed up.|
+|      local tContext|
+|      put item 5 of tMatch into tContext|
+|      |
+|      replace "&" with "&amp;" in tContext|
+|      replace "<" with "&lt;" in tContext|
+|      # Strictly this should be done, but it may ommited for speed reasons.|
+|      #replace ">" with "&gt;" in tContext|
+|      |
+|      put "<p><font color=" & quote & "#505050" & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & "#101010" & quote & ">" & tContext & "</font></p>" & return after tHtml|
+with:
+|   local tResultNumber|
+|   put 1 into tResultNumber|
+|   |
+|   -- OXT-Beyond: the object in grey and its line in near black on the|
+|   -- light appearance, as before; on the dark one those were all but|
+|   -- invisible on the dark pane, so they are light grey and near white|
+|   local tObjectInk, tLineInk|
+|   if revIDEAppearanceIsDark() then|
+|      put "#AAAAAA" into tObjectInk|
+|      put "#E6E6E6" into tLineInk|
+|   else|
+|      put "#505050" into tObjectInk|
+|      put "#101010" into tLineInk|
+|   end if|
+|   |
+|   local tResults|
+|   repeat for each line tMatch in line 3 to -1 of pResultsString|
+|      local tObjectString|
+|      put formatObjectReference(item 1 of tMatch) into tObjectString|
+|      |
+|      # As the context may contains html characters if its a quoted string in the script,|
+|      # we have to escape these to prevent the formatting of results getting messed up.|
+|      local tContext|
+|      put item 5 of tMatch into tContext|
+|      |
+|      replace "&" with "&amp;" in tContext|
+|      replace "<" with "&lt;" in tContext|
+|      # Strictly this should be done, but it may ommited for speed reasons.|
+|      #replace ">" with "&gt;" in tContext|
+|      |
+|      put "<p><font color=" & quote & tObjectInk & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & tLineInk & quote & ">" & tContext & "</font></p>" & return after tHtml|

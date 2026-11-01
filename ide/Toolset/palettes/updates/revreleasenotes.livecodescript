@@ -546,6 +546,8 @@ private command rnBuildSide
    put lkLabel("idx", lkR(8, 126, kSide - 8, kHeight - 54), empty, 13, lkColor("sideInk"), empty) into tObj
    set the listBehavior of tObj to true
    set the autoHilite of tObj to true
+   -- (its selected line white on the hilite, in the dark appearance too)
+   lkSelectedInk tObj, "255,255,255"
    set the dontWrap of tObj to true
    set the fixedLineHeight of tObj to true
    set the textHeight of tObj to kIndexLine

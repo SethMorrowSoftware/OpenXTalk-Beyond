@@ -975,8 +975,16 @@ on mouseDown pButton
          revIDESetTool the cToolName of the target
          break
       case "graphic tool"
+         -- OXT-Beyond: every vector tile chooses the graphic tool, with the
+         -- template graphic's style for its shape, so going from one to
+         -- another changes no tool and the engine sends no newTool, and so
+         -- no ideToolChanged: the tile chosen is lit here, or the light
+         -- stayed on the one before (micmac, openxtalk.org p=25846)
+         local tWasTool
+         put the tool into tWasTool
          revToolsConfigureTemplateGraphic the cStyle of the target, the cName of the target
          revIDESetTool the cToolName of the target
+         if tWasTool is the cToolName of the target then ideToolChanged
          break
       case "paint tool"
          local tTool

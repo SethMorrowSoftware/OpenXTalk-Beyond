@@ -819,7 +819,7 @@ jobs:
       - name: IDE screenshots, light
         id: ui_tour_light
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\light"
@@ -827,7 +827,7 @@ jobs:
       - name: IDE screenshots, dark
         id: ui_tour_dark
         if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"

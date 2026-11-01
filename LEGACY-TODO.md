@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12385](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12385) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12732](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12732) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -461,8 +461,8 @@ Work left for later. 428 notes, by part of the repository:
 - [engine/src/w32dcw32.cpp:1076](engine/src/w32dcw32.cpp#L1076) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
 - [engine/src/w32dcw32.cpp:1458](engine/src/w32dcw32.cpp#L1458) TODO - look in to this further:
 - [engine/src/w32printer.cpp:539](engine/src/w32printer.cpp#L539) TODO - fix half pixels lost when insetting by odd integers
-- [engine/src/w32stack.cpp:471](engine/src/w32stack.cpp#L471) TODO - Windows 8 implementation will require getting the appropriate per-window value
-- [engine/src/w32stack.cpp:1152](engine/src/w32stack.cpp#L1152) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
+- [engine/src/w32stack.cpp:503](engine/src/w32stack.cpp#L503) TODO - Windows 8 implementation will require getting the appropriate per-window value
+- [engine/src/w32stack.cpp:1184](engine/src/w32stack.cpp#L1184) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
 - [engine/src/widget-events.cpp:190](engine/src/widget-events.cpp#L190) WIDGET-TODO: Reinstate FocusEnter
 - [engine/src/widget-events.cpp:202](engine/src/widget-events.cpp#L202) WIDGET-TODO: Reinstate FocusLeave
 - [engine/src/widget-events.cpp:206](engine/src/widget-events.cpp#L206) TODO: does the unfocus *always* happen before the next focus?
@@ -733,7 +733,7 @@ Work left for later. 428 notes, by part of the repository:
 
 ### TODO: extensions (1)
 
-- [extensions/script-libraries/drawing/drawing.livecodescript:2070](extensions/script-libraries/drawing/drawing.livecodescript#L2070) TODO: Handle unit in an appropriate way.
+- [extensions/script-libraries/drawing/drawing.livecodescript:2256](extensions/script-libraries/drawing/drawing.livecodescript#L2256) TODO: Handle unit in an appropriate way.
 
 <a id="todo-lcidlc"></a>
 

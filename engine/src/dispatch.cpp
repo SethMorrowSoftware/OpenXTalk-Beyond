@@ -2782,6 +2782,17 @@ void MCDispatch::flushfonts(void)
 {
 	delete fonts;
 	fonts = nil;
+
+	// OXT-Beyond: the text measure cache (libgraphics/src/context.cpp) keeps
+	// each width under the font's handle (a PangoFontDescription's address
+	// on Linux, an HFONT on Windows, a CTFontRef on macOS). Deleting the font
+	// list frees them all, and MCFontRemap then makes new ones, often at
+	// freed addresses of other fonts: a font found widths measured in
+	// another, and bold text measured as plain had its words drawn against
+	// each other. `start using font file` and `stop using font file` come
+	// here, and the IDE loads a font file as Home and Learn open. Emptying
+	// the cache costs only measuring again. tools/ci/fontfile_check.py
+	MCGraphicsCompact();
 }
 
 MCFontlist *MCFontlistGetCurrent(void)

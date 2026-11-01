@@ -291,6 +291,8 @@ private command acBuildHostedSide
    put lkLabel("idx", lkR(8, tY, kSide - 8, kHeight - 116), empty, 13, lkColor("sideInk"), empty) into tObj
    set the listBehavior of tObj to true
    set the autoHilite of tObj to true
+   -- (its selected line white on the hilite, in the dark appearance too)
+   lkSelectedInk tObj, "255,255,255"
    set the dontWrap of tObj to true
    set the fixedLineHeight of tObj to true
    set the textHeight of tObj to kIndexLine
@@ -1078,6 +1080,8 @@ private command acBuildSide
    put lkLabel("idx", lkR(8, tY, kSide - 8, kHeight - 116), empty, 13, lkColor("sideInk"), empty) into tObj
    set the listBehavior of tObj to true
    set the autoHilite of tObj to true
+   -- (its selected line white on the hilite, in the dark appearance too)
+   lkSelectedInk tObj, "255,255,255"
    set the dontWrap of tObj to true
    set the fixedLineHeight of tObj to true
    set the textHeight of tObj to kIndexLine
@@ -2218,6 +2222,8 @@ private command acHero pEyebrow, pTitle, pText, pStats, pColors, pButton1, pButt
    set the rect of group "p_hero" to sX, tTop, sX + sColW, tBottom
    set the rect of tBg to sX, tTop, sX + sColW, tBottom
    lkGradient tBg, pColors, sX & "," & tTop, (sX + sColW) & "," & tBottom
+   -- (its words and buttons, which its sparkles keep off)
+   put lkTextZones(tBg, "p_heroEyebrow,p_heroTitle,p_heroText,p_heroStats", "p_heroB1,p_heroB2") into sHero["zones"]
    put lkNow() into sHero["start"]
    put tBottom + 30 into sY
    acHeroFrame
@@ -2245,6 +2251,8 @@ private command acHeroFrame
       put item 2 of tRect + tH * (item tIndex of "0.22,0.62,0.3,0.7,0.18,0.86") + 6 * sin(tT * 1.3 + tIndex) into tY
       set the loc of graphic tObj to round(tX), round(tY)
       set the blendLevel of graphic tObj to round(30 + 45 * (0.5 + 0.5 * sin(tT * 2.2 + tIndex * 1.9)))
+      -- (none on the hero's words or buttons)
+      set the visible of graphic tObj to not lkInZones(sHero["zones"], round(tX) - item 1 of tRect, round(tY) - item 2 of tRect, 8)
    end repeat
 end acHeroFrame
 

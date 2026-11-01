@@ -1,0 +1,16 @@
+# Standalone Settings > Stacks, "Rename stackfiles generically": disabled
+# until "Move substacks into individual stackfiles" is chosen, and in
+# Windows' dark mode its label was drawn as if enabled, bold and white,
+# while "Create folder for stackfiles:" below it showed grey (the
+# screenshots of the rc.6.12 release pull request). The button had a
+# background pattern saved on it. It is not opaque, so the pattern was
+# never painted, but it made the engine keep the etched label of the
+# Windows look, which it keeps only for a button with a background of its
+# own (engine/src/buttondraw.cpp, MCButtonDisabledInkOnDarkTheme). Without
+# it the label draws like every other disabled check box: grey on a dark
+# theme, etched on a light one, as before.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "renameFiles" of group "moveSubstacks" of group "Advanced Options" of card "Stacks"
+property: backgroundPattern
+from: 200921
+to: 

@@ -51,6 +51,18 @@ private command setResults pResultsString
    local tResultNumber
    put 1 into tResultNumber
    
+   -- OXT-Beyond: the object in grey and its line in near black on the
+   -- light appearance, as before; on the dark one those were all but
+   -- invisible on the dark pane, so they are light grey and near white
+   local tObjectInk, tLineInk
+   if revIDEAppearanceIsDark() then
+      put "#AAAAAA" into tObjectInk
+      put "#E6E6E6" into tLineInk
+   else
+      put "#505050" into tObjectInk
+      put "#101010" into tLineInk
+   end if
+   
    local tResults
    repeat for each line tMatch in line 3 to -1 of pResultsString
       local tObjectString
@@ -66,7 +78,7 @@ private command setResults pResultsString
       # Strictly this should be done, but it may ommited for speed reasons.
       #replace ">" with "&gt;" in tContext
       
-      put "<p><font color=" & quote & "#505050" & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & "#101010" & quote & ">" & tContext & "</font></p>" & return after tHtml
+      put "<p><font color=" & quote & tObjectInk & quote & ">" & tObjectString & "(" & item 2 of tMatch &  "): " & "</font><font color=" & quote & tLineInk & quote & ">" & tContext & "</font></p>" & return after tHtml
       put tMatch & return after tResults
       add 1 to tResultNumber
    end repeat

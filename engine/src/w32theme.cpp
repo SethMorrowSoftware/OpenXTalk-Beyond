@@ -846,8 +846,196 @@ uint2 MCNativeTheme::getthemefamilyid()
 	return LF_WIN95; //however it belongs to the win32 theme family
 }
 
+// OXT-Beyond: the parts of a scrollbar in Windows' dark mode. The theme's
+// Scrollbar and Spin classes are light whatever the appearance, so in dark
+// mode a scrollbar, a field's own among them, was a light grey track with
+// white arrows on the dark window (the Script Editor, the Message Box, a
+// user's scrolling field). In dark mode they are drawn as Windows' own
+// dark scrollbars are: the track a little darker than the window, the
+// thumb grey, lighter under the mouse and when dragged, and each arrow a
+// grey triangle on the track, lighter under the mouse. A short scrollbar's
+// spin arrows are boxes as the dark push buttons are. Light mode still
+// draws the theme's. Returns false for a part that is not a scrollbar's
+static void MCWin32DarkGrey(MCColor &r_colour, uint2 p_level)
+{
+	r_colour.red = r_colour.green = r_colour.blue = (p_level << 8) | p_level;
+}
+
+static void MCWin32DarkArrow(MCDC *dc, const MCRectangle &p_rect, int p_direction, uint2 p_level)
+{
+	// p_direction: 0 up, 1 down, 2 left, 3 right. The triangle is at most
+	// 8 points across and 4 deep, smaller in a smaller box
+	int4 t_half = MCMin(4, (MCMin(p_rect.width, p_rect.height) - 4) / 2);
+	if (t_half < 2)
+		return;
+	int4 t_depth = t_half / 2;
+	int2 t_cx = p_rect.x + p_rect.width / 2;
+	int2 t_cy = p_rect.y + p_rect.height / 2;
+	MCPoint t_arrow[3];
+	switch (p_direction)
+	{
+	case 0:
+		t_arrow[0].x = t_cx - t_half; t_arrow[0].y = t_cy + t_depth;
+		t_arrow[1].x = t_cx + t_half; t_arrow[1].y = t_cy + t_depth;
+		t_arrow[2].x = t_cx; t_arrow[2].y = t_cy - t_depth;
+		break;
+	case 1:
+		t_arrow[0].x = t_cx - t_half; t_arrow[0].y = t_cy - t_depth;
+		t_arrow[1].x = t_cx + t_half; t_arrow[1].y = t_cy - t_depth;
+		t_arrow[2].x = t_cx; t_arrow[2].y = t_cy + t_depth;
+		break;
+	case 2:
+		t_arrow[0].x = t_cx + t_depth; t_arrow[0].y = t_cy - t_half;
+		t_arrow[1].x = t_cx + t_depth; t_arrow[1].y = t_cy + t_half;
+		t_arrow[2].x = t_cx - t_depth; t_arrow[2].y = t_cy;
+		break;
+	default:
+		t_arrow[0].x = t_cx - t_depth; t_arrow[0].y = t_cy - t_half;
+		t_arrow[1].x = t_cx - t_depth; t_arrow[1].y = t_cy + t_half;
+		t_arrow[2].x = t_cx + t_depth; t_arrow[2].y = t_cy;
+		break;
+	}
+	MCColor t_ink;
+	MCWin32DarkGrey(t_ink, p_level);
+	dc->setforeground(t_ink);
+	dc->setfillstyle(FillSolid, nil, 0, 0);
+	dc->fillpolygon(t_arrow, 3);
+}
+
+static bool MCWin32DrawDarkScrollPart(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
+{
+	const uint2 kTrack = 0x17;
+	bool t_disabled = (winfo.state & WTHEME_STATE_DISABLED) != 0;
+	bool t_pressed = (winfo.state & WTHEME_STATE_PRESSED) != 0;
+	bool t_hover = (winfo.state & WTHEME_STATE_HOVER) != 0;
+	MCColor t_fill;
+	switch (winfo.type)
+	{
+	case WTHEME_TYPE_SCROLLBAR_TRACK_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_TRACK_HORIZONTAL:
+		MCWin32DarkGrey(t_fill, kTrack);
+		dc->setforeground(t_fill);
+		dc->fillrect(drect);
+		return true;
+
+	case WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_THUMB_HORIZONTAL:
+	{
+		// The track shows round the thumb, one point each side across it
+		MCWin32DarkGrey(t_fill, kTrack);
+		dc->setforeground(t_fill);
+		dc->fillrect(drect);
+		MCRectangle t_thumb = drect;
+		if (winfo.type == WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL && t_thumb.width > 4)
+		{
+			t_thumb.x += 1;
+			t_thumb.width -= 2;
+		}
+		else if (winfo.type == WTHEME_TYPE_SCROLLBAR_THUMB_HORIZONTAL && t_thumb.height > 4)
+		{
+			t_thumb.y += 1;
+			t_thumb.height -= 2;
+		}
+		uint2 t_level;
+		if (t_disabled)
+			t_level = 0x30;
+		else if (t_pressed)
+			t_level = 0x9E;
+		else if (t_hover)
+			t_level = 0x7A;
+		else
+			t_level = 0x4D;
+		MCWin32DarkGrey(t_fill, t_level);
+		dc->setforeground(t_fill);
+		dc->fillrect(t_thumb);
+		return true;
+	}
+
+	case WTHEME_TYPE_SCROLLBAR_GRIPPER_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL:
+		// Windows' dark thumbs have no gripper
+		return true;
+
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_RIGHT:
+	{
+		uint2 t_back = kTrack;
+		if (!t_disabled && t_pressed && t_hover)
+			t_back = 0x4D;
+		else if (!t_disabled && t_hover)
+			t_back = 0x2D;
+		MCWin32DarkGrey(t_fill, t_back);
+		dc->setforeground(t_fill);
+		dc->fillrect(drect);
+		uint2 t_level;
+		if (t_disabled)
+			t_level = 0x50;
+		else if (t_hover)
+			t_level = 0xD0;
+		else
+			t_level = 0xA0;
+		MCWin32DarkArrow(dc, drect, winfo.type - WTHEME_TYPE_SCROLLBAR_BUTTON_UP, t_level);
+		return true;
+	}
+
+	case WTHEME_TYPE_SPIN:
+	{
+		uint2 t_back = 0x2D;
+		if (!t_disabled && t_pressed && t_hover)
+			t_back = 0x4D;
+		else if (!t_disabled && t_hover)
+			t_back = 0x3C;
+		MCWin32DarkGrey(t_fill, t_back);
+		dc->setforeground(t_fill);
+		dc->fillrect(drect);
+		dc->setforeground(dc->getgray());
+		dc->drawrect(drect);
+		int t_direction;
+		switch (winfo.part)
+		{
+		case WTHEME_PART_SPIN_ARROW_UP: t_direction = 0; break;
+		case WTHEME_PART_SPIN_ARROW_DOWN: t_direction = 1; break;
+		case WTHEME_PART_SPIN_ARROW_LEFT: t_direction = 2; break;
+		default: t_direction = 3; break;
+		}
+		MCWin32DarkArrow(dc, drect, t_direction, t_disabled ? 0x50 : (t_hover ? 0xD0 : 0xA0));
+		return true;
+	}
+
+	default:
+		return false;
+	}
+}
+
 Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCRectangle &drect)
 {
+	// OXT-Beyond: a scrollbar's parts in dark mode (MCWin32DrawDarkScrollPart)
+	switch (winfo.type)
+	{
+	case WTHEME_TYPE_SCROLLBAR_TRACK_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_TRACK_HORIZONTAL:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT:
+	case WTHEME_TYPE_SCROLLBAR_BUTTON_RIGHT:
+	case WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_THUMB_HORIZONTAL:
+	case WTHEME_TYPE_SCROLLBAR_GRIPPER_VERTICAL:
+	case WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL:
+	case WTHEME_TYPE_SPIN:
+		{
+			MCSystemAppearance t_appearance;
+			MCscreen->getsystemappearance(t_appearance);
+			if (t_appearance == kMCSystemAppearanceDark && MCWin32DrawDarkScrollPart(dc, winfo, drect))
+				return True;
+			break;
+		}
+	default:
+		break;
+	}
+
 	//-- tperry 18th November 2025: Custom draw widgets in dark mode
 	if (winfo.type == WTHEME_TYPE_PUSHBUTTON || 
 	    winfo.type == WTHEME_TYPE_OPTIONBUTTON ||
@@ -865,7 +1053,40 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 			// Draw a simple border
 			dc->setforeground(dc->getgray()); // Use gray for border
 			dc->drawrect(drect);
-			
+
+			// OXT-Beyond: an option menu and a combo box show their arrow,
+			// as the theme draws one in light mode: a light grey triangle
+			// pointing down, in the middle of the part the label is kept
+			// out of (an option menu's right WTHEME_METRIC_OPTIONBUTTONARROWSIZE
+			// points, a combo box's button, square and as tall as it less
+			// its frame: getwidgetrect). They were plain boxes that did not
+			// say they open a menu. Greyer when disabled
+			if (winfo.type == WTHEME_TYPE_OPTIONBUTTON || winfo.type == WTHEME_TYPE_COMBO)
+			{
+				int4 t_part;
+				if (winfo.type == WTHEME_TYPE_COMBO)
+					t_part = MCMax(drect.height - 2, 0);
+				else
+					t_part = getmetric(WTHEME_METRIC_OPTIONBUTTONARROWSIZE);
+				int2 t_cx = drect.x + drect.width - 1 - t_part / 2;
+				int2 t_cy = drect.y + drect.height / 2;
+				MCPoint t_arrow[3];
+				t_arrow[0].x = t_cx - 4;
+				t_arrow[0].y = t_cy - 2;
+				t_arrow[1].x = t_cx + 4;
+				t_arrow[1].y = t_cy - 2;
+				t_arrow[2].x = t_cx;
+				t_arrow[2].y = t_cy + 2;
+				MCColor t_ink;
+				if (winfo.state & WTHEME_STATE_DISABLED)
+					t_ink.red = t_ink.green = t_ink.blue = 0x7070;
+				else
+					t_ink.red = t_ink.green = t_ink.blue = 0xC8C8;
+				dc->setforeground(t_ink);
+				dc->setfillstyle(FillSolid, nil, 0, 0);
+				dc->fillpolygon(t_arrow, 3);
+			}
+
 			return True; // Skip Windows native theme drawing
 		}
 	}
