@@ -75,6 +75,14 @@ class SvgLabPage(unittest.TestCase):
         self.assertRegex(text, r'a8 8 0 1116 0')
         self.assertRegex(text, r' t[\d.]+ 0 t[\d.]+ 0')
 
+    def test_the_logo_is_paths_with_the_labs_features(self):
+        text = read(LAB, 'beyond-logo.svg')
+        ElementTree.fromstring(text)
+        self.assertNotIn('<text', text)
+        self.assertIn('<style>', text)
+        self.assertIn('url(#bolt.gold)', text)
+        self.assertIn('clip-path=', text)
+
 
 if __name__ == '__main__':
     unittest.main()
