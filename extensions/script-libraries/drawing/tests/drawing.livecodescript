@@ -448,3 +448,42 @@ on TestFlattenCurves
    end repeat
    TestAssert "flatten: arc on its circle, above its chord", tOk
 end TestFlattenCurves
+
+-------------------------------------------------------------------------------
+-- drawingSvgDecompile
+-------------------------------------------------------------------------------
+
+on TestDecompileRoundTrip
+   local tSvg, tDrawing, tBack, tA, tB, tIndex, tKey, tSame
+   put _Svg("<style>.a{fill:#ff0000}</style><g opacity='0.5'><rect class='a' x='1' y='2' width='30' height='20' rx='3' stroke='blue' stroke-dasharray='2 1'/></g>" & \
+         "<linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient>" & \
+         "<ellipse cx='50' cy='50' rx='20' ry='10' fill='url(#g)' transform='rotate(30)'/>" & \
+         "<path d='M10 10 C20 0 30 20 40 10 S60 0 70 10 Q80 20 90 10 T95 30 A10 5 30 1 0 50 50 Z' fill='green' fill-rule='evenodd'/>" & \
+         "<polygon points='" & _CirclePoints(40) & "' fill='none' stroke='black' stroke-linejoin='round'/>", 200) into tSvg
+   put drawingSvgCompile(tSvg, "styles,opacity") into tDrawing
+   put drawingSvgDecompile(tDrawing) into tBack
+   TestAssert "decompile: no error", the result is empty
+   TestAssert "decompile: an SVG", tBack begins with "<svg" and tBack contains "</svg>"
+   put drawingDecode(tDrawing) into tA
+   put drawingDecode(drawingSvgCompile(tBack)) into tB
+   TestAssert "decompile: compiles to as many shapes", the number of elements in tA["shapes"] is the number of elements in tB["shapes"]
+   put true into tSame
+   repeat with tIndex = 1 to the number of elements in tA["shapes"]
+      repeat for each item tKey in "type,fill-opacity,fill-rule,stroke-opacity,stroke-width,stroke-linejoin,stroke-dasharray,d,points"
+         if tA["shapes"][tIndex][tKey] is not tB["shapes"][tIndex][tKey] then
+            TestDiagnostic "shape" && tIndex && tKey & ":" && tA["shapes"][tIndex][tKey] && "/" && tB["shapes"][tIndex][tKey]
+            put false into tSame
+         end if
+      end repeat
+      if tA["shapes"][tIndex]["fill"]["color"] is not tB["shapes"][tIndex]["fill"]["color"] then
+         TestDiagnostic "shape" && tIndex && "fill:" && tA["shapes"][tIndex]["fill"]["color"] && "/" && tB["shapes"][tIndex]["fill"]["color"]
+         put false into tSame
+      end if
+   end repeat
+   TestAssert "decompile: compiles to the same shapes", tSame
+end TestDecompileRoundTrip
+
+on TestDecompileNotADrawing
+   get drawingSvgDecompile("nonsense")
+   TestAssert "decompile: not a drawing is an error", it is empty and the result is not empty
+end TestDecompileNotADrawing

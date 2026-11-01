@@ -4781,7 +4781,7 @@ function drawingSvgDecompile pDrawing
 		put "  <defs>" & return & tDefs & "  </defs>" & return after tSvg
 	end if
 	put tBody & "</svg>" & return after tSvg
-	return tSvg
+	return tSvg for value
 end drawingSvgDecompile
 
 private function _drawingSvgAttribute pName, pValue
