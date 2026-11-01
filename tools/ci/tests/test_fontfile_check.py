@@ -171,6 +171,108 @@ class TheEngine(unittest.TestCase):
         self.assertLess(body.index('flushfonts'), body.index('loadfont'))
 
 
+class TheMeasureCache(unittest.TestCase):
+    """libgraphics/src/cachetable.cpp compiled as it is and run: emptied, the
+    table must take and give back new widths. Until MCDispatch::flushfonts
+    nothing called MCGCacheTableCompact, which counted every bucket it
+    passed, empty or not, as one fewer in use: the count wrapped, and the
+    next width put in the table looked for ever for a pair to discard. The
+    web IDE hung as it opened, on the first font file it loaded."""
+
+    # What cachetable.cpp takes from libfoundation, as plain C; its own
+    # declarations come from graphics-internal.h, so the test follows them
+    FOUNDATION = r'''
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+typedef uint32_t uindex_t;
+typedef uint32_t hash_t;
+#define MCAssert(x) assert(x)
+template <typename T> inline bool MCMemoryNew(T *&r) { r = (T *) calloc(1, sizeof(T)); return r != NULL; }
+template <typename T> inline bool MCMemoryNewArray(uindex_t n, T *&r) { r = (T *) calloc(n, sizeof(T)); return r != NULL; }
+inline void MCMemoryDelete(void *p) { free(p); }
+inline void MCMemoryDeleteArray(void *p) { free(p); }
+inline bool MCMemoryEqual(const void *a, const void *b, size_t n) { return memcmp(a, b, n) == 0; }
+inline void MCMemoryCopy(void *d, const void *s, size_t n) { memcpy(d, s, n); }
+'''
+
+    # The sizes context.cpp gives the text measure cache (the desktop's)
+    HARNESS = r'''
+#include <cstdio>
+#include "graphics-internal.h"
+
+static void *key(unsigned n) { unsigned *k = (unsigned *) malloc(sizeof n); *k = n; return k; }
+
+static bool put(MCGCacheTableRef t, unsigned n, float w)
+{
+	MCGCacheTableSet(t, key(n), sizeof n, &w, sizeof w);
+	float *got = (float *) MCGCacheTableGet(t, &n, sizeof n);
+	return got != NULL && *got == w;
+}
+
+int main(void)
+{
+	MCGCacheTableRef t = NULL;
+	if (!MCGCacheTableCreate(16384, 8192, 16384 * 256, t)) { puts("no table"); return 1; }
+	for (unsigned n = 1; n <= 100; n++)
+		if (!put(t, n, n)) { printf("width %u not kept\n", n); return 1; }
+	MCGCacheTableCompact(t);
+	for (unsigned n = 1; n <= 100; n++)
+		if (MCGCacheTableGet(t, &n, sizeof n) != NULL) { printf("width %u kept after emptying\n", n); return 1; }
+	puts("emptied");
+	fflush(stdout);
+	// More than the table holds, so it discards pairs of its own, then
+	// emptied twice over
+	for (unsigned n = 1; n <= 20000; n++)
+		put(t, n, n + 0.5f);
+	MCGCacheTableCompact(t);
+	MCGCacheTableCompact(t);
+	if (!put(t, 7, 3.25f)) { puts("width lost after emptying a full table"); return 1; }
+	unsigned m = 8;
+	if (MCGCacheTableGet(t, &m, sizeof m) != NULL) { puts("width kept after emptying a full table"); return 1; }
+	MCGCacheTableDestroy(t);
+	puts("OK");
+	return 0;
+}
+'''
+
+    def test_emptied_it_takes_new_widths(self):
+        import shutil
+        import subprocess
+        import tempfile
+        cxx = shutil.which('c++') or shutil.which('g++') or shutil.which('clang++')
+        if not cxx:
+            self.skipTest('no C++ compiler')
+        src = os.path.join(REPO, 'libgraphics', 'src')
+        with open(os.path.join(src, 'graphics-internal.h'), encoding='utf-8') as f:
+            internal = f.read()
+        start = internal.index('typedef struct __MCGCacheTable *MCGCacheTableRef;')
+        decls = internal[start:internal.index('\n', internal.index('MCGCacheTableGet(', start))]
+        with tempfile.TemporaryDirectory() as work:
+            # The copy, so that its #include "graphics-internal.h" finds
+            # this one and not libgraphics' own (Skia's headers)
+            shutil.copy(os.path.join(src, 'cachetable.cpp'), work)
+            with open(os.path.join(work, 'graphics.h'), 'w') as f:
+                f.write('')
+            with open(os.path.join(work, 'graphics-internal.h'), 'w') as f:
+                f.write(self.FOUNDATION + decls + '\n')
+            with open(os.path.join(work, 'harness.cpp'), 'w') as f:
+                f.write(self.HARNESS)
+            exe = os.path.join(work, 'harness.exe' if os.name == 'nt' else 'harness')
+            built = subprocess.run([cxx, '-std=c++11', '-O1', '-w', '-I', work, '-o', exe,
+                                    os.path.join(work, 'cachetable.cpp'), os.path.join(work, 'harness.cpp')],
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.assertEqual(built.returncode, 0, built.stdout.decode('utf-8', 'replace'))
+            try:
+                ran = subprocess.run([exe], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30)
+            except subprocess.TimeoutExpired as e:
+                self.fail('the table never returned after it was emptied (%s)'
+                          % (e.stdout or b'').decode('utf-8', 'replace').strip())
+            out = ran.stdout.decode('utf-8', 'replace')
+            self.assertEqual((ran.returncode, out.split()[-1:]), (0, ['OK']), out)
+
+
 class TheWorkflow(unittest.TestCase):
     def test_the_linux_package_job_runs_it(self):
         with open(os.path.join(REPO, '.github', 'workflows', 'build-linux.yml'), encoding='utf-8') as f:
