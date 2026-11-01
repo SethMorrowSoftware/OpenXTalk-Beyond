@@ -1,0 +1,24 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and three check
+# boxes were cut off: on the Extras pane "...after the IDE start" and
+# "...to improve performanc", and on the Dictionary pane "...instead of a
+# browser instanc"
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "tidyUpStacks" of card "Extras"
+property: rect
+from: 185,45,571,75
+to: 185,45,610,75
+object: button "ScreenSharedMemory" of card "Extras"
+property: rect
+from: 185,75,649,105
+to: 185,75,675,105
+object: button "inExtBrowser" of card "Dictionary"
+property: rect
+from: 185,8,527,38
+to: 185,8,580,38

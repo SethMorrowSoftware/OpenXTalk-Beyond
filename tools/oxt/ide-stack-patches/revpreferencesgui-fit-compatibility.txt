@@ -1,0 +1,20 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the
+# Compatibility pane a check box and a label were cut off ("...with x and y
+# value", "...a restart of the IDE to take e"). Both reach nearer the
+# window's right
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "cMenuBarOffset" of card "Compatibility"
+property: rect
+from: 185,7,649,37
+to: 185,7,690,37
+object: field id 1457 of card "Compatibility"
+property: rect
+from: 182,73,646,103
+to: 182,73,692,103

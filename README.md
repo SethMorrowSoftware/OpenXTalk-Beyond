@@ -164,7 +164,13 @@ lets the Mac's colours and the IDE's widgets follow light and dark,
 ends a crash in the Script Editor's Breakpoints pane, makes saves
 safer, and fixes rolling back PostgreSQL and MySQL's encrypted
 connections (see
-[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven));
+[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven)), and
+0.2.7-rc.6.12 calls the engine BeyondEngine, brings the welcome, the
+Academy and Learn into one Home window, opens more HyperCard stacks,
+imports SVGs with their colours and clip paths and turns them into
+graphics, and pastes Copy Graphics as SVG Paths into Illustrator as
+curves (see
+[0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -181,7 +187,7 @@ connections (see
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.11.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.12b.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -317,8 +323,8 @@ OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.10` and
-`runtimes-0.2.7-rc.6.11`, are not programs. They hold
+`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.12` and
+`runtimes-0.2.7-rc.6.12b`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1635,6 +1641,152 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.12: the Bug Hunt, round twelve
+
+OXT-Beyond 0.2.7-rc.6.12 has everything in 0.2.7-rc.6.11. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **An engine that still said OXT.** `the version` reads
+  9.7.1-BeyondEngine where it read 9.7.1-OXT, and so do the About box
+  and `-v`; the long version ends "(BeyondEngine)". 9.7.1 and build
+  25923 are unchanged, so a script that takes the part before the "-"
+  (`set the itemDelimiter to "-"`) or reads `the buildNumber` gets what
+  it did; one that looks for "OXT" in the version no longer finds it
+  (tperry2x) (#293).
+- **Three windows for one welcome.** OXT-Beyond Home is one window for
+  the welcome, the xTalk Academy and Learn, with a sidebar of five
+  places: Home, Academy, How-to, Guides and Examples. Help's Lessons and
+  Demos are now How-to and Examples, and a script that opens them by
+  their old names still gets them. Startup is as before. The package
+  leaves out the classic windows Home replaces, about 13 MB (#298).
+- **SVG that Illustrator would not paste.** Object > Copy Graphics as SVG
+  Paths also puts the SVG on the clipboard in Illustrator's formats, so
+  it pastes as vector paths into Illustrator or VectorCraft; the plain
+  text is as before (OpenXTalkPaul) (#293).
+- **Ovals pasted as a few hundred corners.** Copy Graphics as SVG Paths
+  copies an oval, an arc of one and a rounded rectangle as the curves
+  the engine draws, so they paste as smooth shapes you can edit; they
+  were the polygon of their points, a corner for every degree or so. A
+  filled arc is a wedge, and a rounded rectangle's corners are the size
+  drawn. Rectangles, polygons and lines copy as before (OpenXTalkPaul)
+  (#305).
+- **A copy you could not ask for.** Copy Graphics as SVG Paths is
+  enabled whenever the selection holds a graphic, and greyed out when
+  it holds none; with a field or a button selected beside a graphic it
+  was greyed out, though it copies the graphics alone (OpenXTalkPaul)
+  (#305).
+- **SVGs that came in black.** An imported SVG keeps its style sheet's
+  colours, its opacity, its gradients and the clip paths it draws
+  through, and a radial gradient with no focal point is centred; such
+  SVGs came in black, opaque, unclipped or lopsided. The IDE's import
+  does all of this; a script asks `drawingSvgCompile` for it with a new
+  list of options, and with none gets the same drawing as before. A
+  drawing with a clip path needs an rc.6.12 or later engine (#307).
+- **One SVG that broke the next.** An SVG that writes an arc's flags
+  together, as minifiers do, imports; it failed, and so did every SVG
+  after it in the same session (#307).
+- **Shapes that vanished.** A drawing with a polygon of 32 points or
+  more draws it and every shape after it; the engine drew nothing from
+  there on (#307).
+- **Half circles drawn as slivers, and curves drawn straight.** An arc
+  whose ends are a diameter apart, as in the Korean flag, draws in full,
+  and a run of smooth quadratic curves (SVG's T) bends as it should
+  (#307).
+- **Imported art you could not edit.** An image made from an SVG has
+  Convert to Graphics on its right-click menu, which makes a group of
+  graphics with the shapes' colours, gradients, line styles and opacity
+  (richmond62) (#307).
+- **No way back out.** The drawing library's `drawingDecode` reads a
+  drawing back as its shapes, `drawingFlatten` turns it into polygon
+  points, and `drawingSvgDecompile` writes it back out as SVG
+  (OpenXTalkPaul) (#307).
+- **A Line tool that kept its light.** In the Tools palette, choosing
+  another vector tool after the Line tool lights the one you chose; the
+  light stayed on Line (micmac) (#305).
+- **Search results you could not read.** In the dark appearance the
+  Script Editor's Search Results are light grey and near white; they
+  were the light appearance's dark greys, on a dark pane (#305).
+- **A selected line dark on its hilite.** On Linux and Windows, in the
+  dark appearance, the line selected in the lists of Release Notes,
+  How-to, Guides, Examples and the Academy is white on its hilite; it
+  read dark on violet (#305).
+- **Sparkles on the words.** The sparkles of a How-to or Academy page's
+  banner keep off its words and buttons; in a narrow window they landed
+  on the title (#305).
+- **Half a dictionary online.** Help > Dictionary Online has every
+  entry the IDE's dictionaries have: the xTalk Suite libraries, the
+  bundled widgets and libraries and the IDE library, 4421 entries where
+  it had LiveCode's 2763 (#294).
+- **An option cut short.** On Linux and the Mac, Search and Replace
+  shows "Search [Marked] cards only" whole; "only" was cut off (#305).
+- **Labels cut short on Linux.** In Preferences, Search and Replace and
+  the Standalone Application Settings every check box, button and label
+  shows whole in Linux's wider font; more than 40 were cut off or ran
+  into the next control (#305).
+- **A path off the edge.** On Windows, the line under each Preferences
+  pane that says where the preferences are saved ran off the window, as
+  the path has the user's name in it. Folders in its middle give way to
+  "...", and its tooltip shows the whole path (#305).
+- **Somebody else's update notes.** Preferences' Automatic Updates pane
+  no longer shows OpenXTalk Lite's notes of its own last update as the
+  "Summary of last update"; Release Notes has what each release changes
+  (#305).
+- **Icons you could not see.** On Linux with a dark theme, the icons of
+  the Standalone Settings' Inclusions card are dark on its light rows;
+  they were white (#305).
+- **Disabled buttons that looked enabled.** On a dark Windows or Linux
+  theme a disabled button's label is a dim grey; on Windows' dark mode it
+  was etched in white and read as enabled, and on a dark GTK theme it all
+  but vanished (#305).
+- **Three check boxes that kept their etching.** Preferences' "Show
+  classic Start Center" and "Load Start Center when last user stack is
+  closed", and the Standalone Settings' "Rename stackfiles generically",
+  are grey when disabled like the rest; a colour saved on each that is
+  never painted kept them white on Windows' dark mode (#305).
+- **Bold words run together.** On Linux the words of bold text could be
+  drawn against each other ("Threewindowsforonewelcome" in the release
+  notes): after a font file was loaded, as the IDE does when Home opens,
+  a font could be measured with another font's widths. Text measures as
+  it did before the font file (#305).
+- **Menus with no arrow.** In Windows' dark mode, option menus and combo
+  boxes show their arrow; they were plain boxes (#305).
+- **Light scrollbars in the dark.** In Windows' dark mode scrollbars are
+  dark, a field's own too; they were light grey with white arrows (#305).
+- **A white label on light grey.** On macOS 11 and later a hilited
+  standard button's label keeps its own colour in the light appearance;
+  it was white on the light grey the Mac draws it in (#305).
+- **A scrollbar you could not turn.** The Inspector sets a scrollbar's
+  Orientation, Horizontal or Vertical, swapping its width and height
+  about its centre; it was read only (TerryL) (#293).
+- **Check boxes that looked ticked.** On a web page that follows a dark
+  browser, an unticked check box is a dark box; it was a white one, which
+  looked ticked (#293).
+- **Tall Mac buttons with a short bezel.** On macOS 11 and later a
+  standard button taller than 30 points draws its rounded bezel its
+  whole height; the bezel stayed 21 points high (Skids) (#293).
+- **A message the IDE kept for itself.** `systemAppearanceChanged`
+  reaches a handler in your card or stack even when the IDE holds the
+  defaultStack (#297).
+- **An IDE window that would not minimize.** On Windows 11 the IDE's
+  main window minimizes again, and a stack that goes from translucent to
+  opaque gets its frame back (#302).
+- **HyperCard stacks that stopped as they opened.** Stacks that call the
+  externals Files, ResText, SystemPath or FindFolder open: the HyperCard
+  Library stands in for them (the Star Trek guides, SonnetFolio and BGC's
+  stacks among them), and `card it-1` is the card before the last, as in
+  HyperCard (#300).
+
+Behind the scenes, the project's web pages have a new front page with a
+Downloads section (#295) and a Web Games section with Pixel Platformer
+Maker, a platformer and level maker written in xTalk with Box2Dxt
+physics, whose menus are now readable (#301, #303, #306); the HyperCard
+sweep in CI answers dialogs as a person would and skips hidden buttons
+(#296); the revZip test stacks check every revZip command and find
+revzip wherever OXT-Beyond is (mwieder, from HyperXTalk) (#299); and the
+runtimes that every package carries for the other platforms are rebuilt
+from this release's engine (#305).
 
 #### 0.2.7-rc.6.11: the Bug Hunt, round eleven
 

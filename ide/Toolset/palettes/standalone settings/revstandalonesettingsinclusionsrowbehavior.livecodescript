@@ -68,6 +68,12 @@ on LayoutControl pControlRect
    
    set the textColor of line 1 of field "description" of me to revIDEColor("text_1")
    set the textColor of line 2 of field "description" of me to revIDEColor("text_2")
+   -- OXT-Beyond: the icon in the colour of the row's name. It took the
+   -- engine's, which on Linux is the GTK theme's: with a dark theme it was
+   -- white, on the rows that the IDE draws light and white, where it could
+   -- not be seen (Clock, Tile, Mac Native Button, ...); elsewhere it is the
+   -- same colour as before
+   set the foregroundColor of widget "icon" of me to revIDEColor("text_1")
    
    local tRight
    put the right of me into tRight

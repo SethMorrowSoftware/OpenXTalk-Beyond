@@ -213,7 +213,9 @@ Name: "{app}\Documentation\html_viewer\resources\data\api\exports"; Permissions:
 Source: "{#StageDir}\*"; DestDir: "{app}"; Excludes: "\Toolset\palettes\updates\whatsnew.txt,\Toolset\palettes\updates\updatehistory\*.txt"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Opened in update mode by the Preferences window (readLastUpd in
 ; revpreferencesgui.rev) and by Help > Release Notes
-; (Toolset/palettes/updates/ReleaseNotes.oxtstack).
+; (Toolset/palettes/updates/ReleaseNotes.oxtstack). whatsnew.txt, OpenXTalk
+; Lite's notes of its own last update, is no longer in the package (since
+; 0.2.7-rc.6.12); its entry stays for a package that has one.
 Source: "{#StageDir}\Toolset\palettes\updates\whatsnew.txt"; DestDir: "{app}\Toolset\palettes\updates"; Flags: ignoreversion skipifsourcedoesntexist; Permissions: users-modify
 Source: "{#StageDir}\Toolset\palettes\updates\updatehistory\*.txt"; DestDir: "{app}\Toolset\palettes\updates\updatehistory"; Flags: ignoreversion skipifsourcedoesntexist; Permissions: users-modify
 

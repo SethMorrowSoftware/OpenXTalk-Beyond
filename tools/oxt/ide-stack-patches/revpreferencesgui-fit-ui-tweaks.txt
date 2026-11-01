@@ -1,0 +1,44 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the UI Tweaks
+# pane "Label field text size of inspector:" was cut off ("...of
+# inspecto"). The three labels are wider, and the menus and swatches beside
+# them move right
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: field id 1514 of card "UI Tweaks"
+property: rect
+from: 182,12,395,33
+to: 182,12,412,33
+object: button "labelsections color" of card "UI Tweaks"
+property: rect
+from: 400,11,520,33
+to: 417,11,537,33
+object: graphic "Inspector Sections Swatch" of card "UI Tweaks"
+property: rect
+from: 530,12,562,32
+to: 547,12,579,32
+object: field id 1517 of card "UI Tweaks"
+property: rect
+from: 182,63,395,84
+to: 182,63,412,84
+object: button "labelsections size" of card "UI Tweaks"
+property: rect
+from: 400,62,520,84
+to: 417,62,537,84
+object: field id 1519 of card "UI Tweaks"
+property: rect
+from: 182,90,395,111
+to: 182,90,412,111
+object: button "inspectorBkgnd" of card "UI Tweaks"
+property: rect
+from: 400,89,520,111
+to: 417,89,537,111
+object: graphic "InspectorBkgnd Swatch" of card "UI Tweaks"
+property: rect
+from: 530,90,562,110
+to: 547,90,579,110

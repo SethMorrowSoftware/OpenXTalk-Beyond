@@ -13238,11 +13238,11 @@ command revOXTIDEGraphicPointsToSVGPath pObjects
 end revOXTIDEGraphicPointsToSVGPath
 
 -- An SVG document with a path for each graphic of pObjects (an object a
--- line; any other object is left out), in card coordinates: its outline
--- is the graphic's effective points, so an oval or a rounded rectangle is
--- the polygon the engine gives for it. Its box holds every graphic's rect
--- and half its line beyond, where SVG draws the line of a rectangle's
--- edge. Empty when there is no graphic
+-- line; any other object is left out), in card coordinates: an oval, an
+-- arc of one or a rounded rectangle is the curves the engine draws for it
+-- (__revOXTIDESVGCurves), any other graphic its effective points. Its box
+-- holds every graphic's rect and half its line beyond, where SVG draws the
+-- line of a rectangle's edge. Empty when there is no graphic
 function revOXTIDEGraphicsToSVG pObjects
    local tObject, tPaths, tRect, tPad, tLeft, tTop, tRight, tBottom
    repeat for each line tObject in pObjects
@@ -13275,21 +13275,25 @@ end revOXTIDEGraphicsToSVG
 -- A path element for the graphic pGraphic (its long id). A rectangle,
 -- rounded rectangle, regular polygon, oval, or filled arc is closed; a
 -- polygon, line or curve is open, as the engine draws it, except for each
--- run of its points (an empty line between runs) that ends where it starts
+-- run of its points (an empty line between runs) that ends where it starts.
+-- An oval, an arc or a rounded rectangle is its curves when it has them
 private function __revOXTIDEGraphicToSVGPath pGraphic
    local tStyle, tClosed, tData, tRun, tPoint, tAttributes
-   put the style of pGraphic into tStyle
-   put tStyle is among the items of "rectangle,roundrect,regular" or \
-         (tStyle is "oval" and (the arcAngle of pGraphic >= 360 or the filled of pGraphic)) into tClosed
-   repeat for each line tPoint in the effective points of pGraphic
-      if tPoint is empty then
-         put __revOXTIDESVGRun(tRun, tClosed) after tData
-         put empty into tRun
-      else
-         put tPoint & return after tRun
-      end if
-   end repeat
-   put __revOXTIDESVGRun(tRun, tClosed) after tData
+   put __revOXTIDESVGCurves(pGraphic) into tData
+   if tData is empty then
+      put the style of pGraphic into tStyle
+      put tStyle is among the items of "rectangle,roundrect,regular" or \
+            (tStyle is "oval" and (the arcAngle of pGraphic >= 360 or the filled of pGraphic)) into tClosed
+      repeat for each line tPoint in the effective points of pGraphic
+         if tPoint is empty then
+            put __revOXTIDESVGRun(tRun, tClosed) after tData
+            put empty into tRun
+         else
+            put tPoint & return after tRun
+         end if
+      end repeat
+      put __revOXTIDESVGRun(tRun, tClosed) after tData
+   end if
    if the filled of pGraphic then
       put "fill=" & quote & __revOXTIDESVGColor(the effective backgroundColor of pGraphic, "255,255,255") & quote into tAttributes
       if the fillRule of pGraphic is "evenodd" then
@@ -13309,6 +13313,110 @@ private function __revOXTIDEGraphicToSVGPath pGraphic
    end if
    return "<path d=" & quote & word 1 to -1 of tData & quote && tAttributes & "/>"
 end __revOXTIDEGraphicToSVGPath
+
+-- The path data of the graphic pGraphic (its long id) as the curves the
+-- engine draws (engine/src/graphicscontext.cpp), so that it pastes as an
+-- oval, an arc or a rounded rectangle and not as the polygon of its
+-- effective points (OpenXTalkPaul, openxtalk.org p=25837): cubic Beziers
+-- (C) in its rect, the box a rectangle's path has. An oval with an
+-- arcAngle under 360 is the arc from its startAngle, counterclockwise from
+-- 3 o'clock, closed through its centre when it is filled (a wedge, as the
+-- engine fills and draws it) and open when not. A rounded rectangle's
+-- corners are quarters of half its roundRadius, at most half its width
+-- and height, as the engine draws them (its effective points take the
+-- whole roundRadius). Empty for any other graphic, an oval whose arcAngle
+-- is 0, which the engine does not draw, a rounded rectangle whose
+-- roundRadius is 0, or an empty rect: their path is the effective points,
+-- as it was before 0.2.7-rc.6.12
+private function __revOXTIDESVGCurves pGraphic
+   local tStyle, tRect, tWidth, tHeight, tRadius, tRX, tRY, tK, tHK, tVK
+   local tLeft, tTop, tRight, tBottom, tL, tR, tT, tB, tCX, tCY, tArc, tData
+   put the style of pGraphic into tStyle
+   if tStyle is not among the items of "oval,roundrect" then return empty
+   put the rect of pGraphic into tRect
+   put item 3 of tRect - item 1 of tRect into tWidth
+   put item 4 of tRect - item 2 of tRect into tHeight
+   if tWidth <= 0 or tHeight <= 0 then return empty
+   put item 1 of tRect into tLeft
+   put item 2 of tRect into tTop
+   put item 3 of tRect into tRight
+   put item 4 of tRect into tBottom
+   if tStyle is "roundrect" then
+      put the roundRadius of pGraphic into tRadius
+      if tRadius <= 0 then return empty
+      put min(tWidth, tRadius) / 2 into tRX
+      put min(tHeight, tRadius) / 2 into tRY
+      put 4 / 3 * tan(pi / 8) into tK
+      put tRX * tK into tHK
+      put tRY * tK into tVK
+      -- the corners' centres; an edge between two is left out when they
+      -- meet, as when the roundRadius is the width or more
+      put tLeft + tRX into tL
+      put tRight - tRX into tR
+      put tTop + tRY into tT
+      put tBottom - tRY into tB
+      put " M" & __revOXTIDESVGPoint(tR, tTop) & " C" & __revOXTIDESVGPoint(tR + tHK, tTop) && \
+            __revOXTIDESVGPoint(tRight, tT - tVK) && __revOXTIDESVGPoint(tRight, tT) into tData
+      if tB > tT then put " L" & __revOXTIDESVGPoint(tRight, tB) after tData
+      put " C" & __revOXTIDESVGPoint(tRight, tB + tVK) && __revOXTIDESVGPoint(tR + tHK, tBottom) && \
+            __revOXTIDESVGPoint(tR, tBottom) after tData
+      if tL < tR then put " L" & __revOXTIDESVGPoint(tL, tBottom) after tData
+      put " C" & __revOXTIDESVGPoint(tL - tHK, tBottom) && __revOXTIDESVGPoint(tLeft, tB + tVK) && \
+            __revOXTIDESVGPoint(tLeft, tB) after tData
+      if tB > tT then put " L" & __revOXTIDESVGPoint(tLeft, tT) after tData
+      put " C" & __revOXTIDESVGPoint(tLeft, tT - tVK) && __revOXTIDESVGPoint(tL - tHK, tTop) && \
+            __revOXTIDESVGPoint(tL, tTop) & " Z" after tData
+      return tData
+   end if
+   put the arcAngle of pGraphic into tArc
+   if tArc <= 0 then return empty
+   put tWidth / 2 into tRX
+   put tHeight / 2 into tRY
+   put tLeft + tRX into tCX
+   put tTop + tRY into tCY
+   put __revOXTIDESVGArc(tCX, tCY, tRX, tRY, the startAngle of pGraphic, min(tArc, 360)) into tData
+   if tArc >= 360 then
+      put " Z" after tData
+   else if the filled of pGraphic then
+      put " L" & __revOXTIDESVGPoint(tCX, tCY) & " Z" after tData
+   end if
+   return tData
+end __revOXTIDESVGCurves
+
+-- The path data of the arc of pAngle degrees (1 to 360) of the ellipse
+-- centred on pCX,pCY with the radii pRX and pRY, from pStart degrees,
+-- counterclockwise from 3 o'clock, as the engine draws it
+-- (add_legacy_arc): a move to its first point, then a cubic for each part
+-- up to the next multiple of 90 degrees, with its control points along
+-- the tangents 4/3 tan(a/4) of the radius from its ends for a part of a
+-- degrees
+private function __revOXTIDESVGArc pCX, pCY, pRX, pRY, pStart, pAngle
+   local tFrom, tTo, tDelta, tK, tHK, tVK, tCA, tSA, tCB, tSB, tData
+   put pStart mod 360 into tFrom
+   put " M" & __revOXTIDESVGPoint(pCX + pRX * cos(pi * tFrom / 180), pCY - pRY * sin(pi * tFrom / 180)) into tData
+   repeat while pAngle > 0
+      put min(90 - tFrom mod 90, pAngle) into tDelta
+      put tFrom + tDelta into tTo
+      put 4 / 3 * tan(pi * tDelta / 720) into tK
+      put pRX * tK into tHK
+      put pRY * tK into tVK
+      put cos(pi * tFrom / 180) into tCA
+      put sin(pi * tFrom / 180) into tSA
+      put cos(pi * tTo / 180) into tCB
+      put sin(pi * tTo / 180) into tSB
+      put " C" & __revOXTIDESVGPoint(pCX + pRX * tCA - tHK * tSA, pCY - pRY * tSA - tVK * tCA) && \
+            __revOXTIDESVGPoint(pCX + pRX * tCB + tHK * tSB, pCY - pRY * tSB + tVK * tCB) && \
+            __revOXTIDESVGPoint(pCX + pRX * tCB, pCY - pRY * tSB) after tData
+      subtract tDelta from pAngle
+      put tTo into tFrom
+   end repeat
+   return tData
+end __revOXTIDESVGArc
+
+-- A point of a path's data: pX,pY to the hundredth
+private function __revOXTIDESVGPoint pX, pY
+   return round(pX, 2) & "," & round(pY, 2)
+end __revOXTIDESVGPoint
 
 -- The path data of the points pRun (a point a line): from the first to
 -- each in turn, and closed (Z) when pClosed or when the last is the first

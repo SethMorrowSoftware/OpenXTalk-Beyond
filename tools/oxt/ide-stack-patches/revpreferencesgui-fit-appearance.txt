@@ -1,0 +1,82 @@
+# OXT-Beyond: on Linux the IDE's Preferences are drawn in the desktop's
+# sans font (DejaVu Sans on Ubuntu, 13 pixels), wider than the Mac's and
+# Windows' fonts the window was laid out in, and on the Appearance
+# pane "Follow the desktop's light or dark setting" (made by
+# revpreferencesgui-desktop-appearance.txt in the group "Appearance") was
+# cut off by the group, "Documentation Hypertext:" showed as
+# "Documentation" (on every platform: it wraps in a field one line high),
+# and four labels ran into what follows them: "Display tool tips after" under
+# its field, "default:Hand", "using:[x]Middle button" and "Selection
+# handles:Red". The group reaches the window's right, the Documentation label
+# is two lines high, and the field, the Hand and Arrow buttons, the Middle
+# button check box and the four colour menus with their swatches move right
+# (seen in the screenshots of 0.2.7-rc.6.11; the IDE tour's step preferences
+# measures every check box, radio button and label of each pane). The rects
+# below give each one room for its words in DejaVu Sans with some to spare;
+# on the Mac and Windows only empty space grows, or a control moves a few
+# pixels right.
+file: Toolset/palettes/revpreferencesgui.rev
+object: group "Appearance" of card "Appearance"
+property: rect
+from: 156,0,670,397
+to: 156,0,698,397
+object: field id 1082 of card "Appearance"
+property: rect
+from: 182,12,328,33
+to: 182,12,345,33
+object: field "tooltip delay" of card "Appearance"
+property: rect
+from: 328,12,380,33
+to: 345,12,397,33
+object: button "tHandBtn" of card "Appearance"
+property: rect
+from: 412,195,501,233
+to: 426,195,515,233
+object: button "tArrowBtn" of card "Appearance"
+property: rect
+from: 507,192,583,222
+to: 521,192,597,222
+object: field "middlebtn-text" of card "Appearance"
+property: rect
+from: 182,234,529,255
+to: 182,234,515,255
+object: button "middleButtonToggle" of card "Appearance"
+property: rect
+from: 510,234,630,264
+to: 520,234,640,264
+object: button "selectionhandle color" of card "Appearance"
+property: rect
+from: 308,275,428,297
+to: 318,275,438,297
+object: graphic "Selection Handle Swatch" of card "Appearance"
+property: rect
+from: 434,276,466,296
+to: 444,276,476,296
+object: button "toolselector color" of card "Appearance"
+property: rect
+from: 308,305,428,327
+to: 318,305,438,327
+object: graphic "Tool Selector Swatch" of card "Appearance"
+property: rect
+from: 434,306,466,326
+to: 444,306,476,326
+object: field id 1078 of card "Appearance"
+property: rect
+from: 182,337,309,357
+to: 182,325,312,367
+object: button "hypertext color" of card "Appearance"
+property: rect
+from: 308,335,428,357
+to: 318,335,438,357
+object: graphic "Help Hilite Swatch" of card "Appearance"
+property: rect
+from: 434,336,466,355
+to: 444,336,476,355
+object: button "backdrop color" of card "Appearance"
+property: rect
+from: 308,365,428,387
+to: 318,365,438,387
+object: graphic "Backdrop Swatch" of card "Appearance"
+property: rect
+from: 434,366,466,386
+to: 444,366,476,386

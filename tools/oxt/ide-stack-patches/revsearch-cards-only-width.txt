@@ -1,0 +1,14 @@
+# Search and Replace: the "Search [Marked] cards only" row's check box is
+# 293 pixels wide (21 to 314), its words after the menu held there by
+# blanks, but its group "Options" ended at 253 and cut off what lay
+# beyond: with the wider blanks and letters of Linux's and the Mac's
+# fonts, "cards only" read "card" and "cards o" (the IDE tour's
+# screenshots, 20-search). The group reaches 318, past the check box. It
+# is not opaque and a click where none of its controls is goes on to the
+# controls under it (MCGroup::mfocus), so the "Properties" group that it
+# now covers at its right, from 264, is drawn and clicked as before.
+file: Toolset/palettes/revsearch.rev
+object: group "Options" of card 1
+property: rect
+from: 18,97,253,208
+to: 18,97,318,208
