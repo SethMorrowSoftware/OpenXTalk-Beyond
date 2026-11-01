@@ -268,8 +268,24 @@ enum MCGDrawingOpcode : uint8_t
      */
     kMCGDrawingOpcodePath = 20,
     
+    /* ClipBegin saves the drawing's state (its attributes and its clip),
+     * then the shapes up to the next ClipEnd are not drawn: together they
+     * make a clip path, each under its own transform (OXT-Beyond, SVG's
+     * clip-path). An engine before these opcodes stops at one, so the
+     * drawing library writes them only when a compile asks for clipping. */
+    kMCGDrawingOpcodeClipBegin = 21,
+    
+    /* ClipEnd ends the clip path's shapes, and the clip becomes what it was
+     * intersected with the clip path. */
+    kMCGDrawingOpcodeClipEnd = 22,
+    
+    /* ClipRestore restores the state ClipBegin saved: the clip, and every
+     * attribute (the transform, paints, opacities and so on) as it was
+     * before ClipBegin. */
+    kMCGDrawingOpcodeClipRestore = 23,
+    
     /* _Last is used for range checking on the main opcodes. */
-    kMCGDrawingOpcode_Last = kMCGDrawingOpcodePath,
+    kMCGDrawingOpcode_Last = kMCGDrawingOpcodeClipRestore,
 };
 
 /* TRANSFORM OPCODES */
@@ -497,6 +513,12 @@ struct MCGDrawingVisitor
     void Line(MCGPoint p_from, MCGPoint p_to);
     void Polyline(MCSpan<const MCGPoint> p_points);
     void Polygon(MCSpan<const MCGPoint> p_points);
+    
+    /* Clip Operations */
+    
+    void ClipBegin(void);
+    void ClipEnd(void);
+    void ClipRestore(void);
     
     /* Lifecycle Operations */
 
@@ -779,14 +801,22 @@ public:
     }
     
     /* Count attempts to read an non-negative integer from the opcode stream.
-     * Non-negative integers are encoded as a sequence of bytes, most
-     * significant byte first. The top bit of each byte is used to indicate
-     * whether there is another following. */
+     * Non-negative integers are encoded as the drawing library's compiler
+     * writes them (_svgEncodeIndex): seven bits a byte, the least significant
+     * first, with the top bit of every byte but the last set.
+     *
+     * OXT-Beyond: this used to take the first byte as the most significant,
+     * shift by eight bits, and go on while bit 6 (0x40) was set, so any count
+     * of 64 or more (a polygon or polyline of 32 points, read as a count of
+     * scalars) was misread: the shape drew nothing, or garbage, and the rest
+     * of the drawing was lost. Every count below 64 is one byte under both
+     * readings, so a drawing that drew correctly before draws the same. */
     bool Count(ssize_t& r_count)
     {
         /* Start the read count at zero, each byte will be accumulated into it
          */
         ssize_t t_count = 0;
+        unsigned int t_shift = 0;
     
         /* Opcode bytes are processed until we reach a termination condition. */
         for(;;)
@@ -799,16 +829,25 @@ public:
                 return false;
             }
             
+            /* A count wider than 28 bits is more than any drawing can hold:
+             * treat it as running off the end of the stream. */
+            if (t_shift > 21)
+            {
+                m_status = kMCGDrawingStatusOpcodeOverflow;
+                return false;
+            }
+            
             /* Fetch the next limb of the integer and increment the pc. */
             uint8_t t_next_limb = m_opcodes[m_pc++];
             
             /* Accumulate the limb into the current count, making sure to mask
              * out the top bit of the limb. */
-            t_count = (t_count << 8) | (t_next_limb & 0x7f);
+            t_count |= ssize_t(t_next_limb & 0x7f) << t_shift;
+            t_shift += 7;
             
             /* If the top bit of the limb is zero, then the integer is complete.
              */
-            if ((t_next_limb & 0x40) == 0)
+            if ((t_next_limb & 0x80) == 0)
             {
                 break;
             }
@@ -1633,6 +1672,19 @@ void MCGDrawingContext::Execute(VisitorT& p_visitor, MCGRectangle p_src_rect, MC
                 ExecutePath(p_visitor);
             }
             break;
+            
+            /* The clip opcodes have no operands. */
+            case kMCGDrawingOpcodeClipBegin:
+                p_visitor.ClipBegin();
+                break;
+                
+            case kMCGDrawingOpcodeClipEnd:
+                p_visitor.ClipEnd();
+                break;
+                
+            case kMCGDrawingOpcodeClipRestore:
+                p_visitor.ClipRestore();
+                break;
         }
     }
     
@@ -1815,6 +1867,16 @@ struct MCGDrawingRenderVisitor
     MCGPoint last_control_point = {0, 0};
     MCGDrawingPathOpcode last_curve_opcode = kMCGDrawingPathOpcodeEnd;
     
+    /* Clipping (OXT-Beyond). transform is the drawing's transform as last
+     * set; clip_path, between ClipBegin and ClipEnd, gathers the clip's
+     * shapes, each built in shape_path and moved into clip_path under its
+     * transform when it ends; clip_depth counts the states ClipBegin saved
+     * that ClipRestore has not restored, so Finish can restore them. */
+    MCGAffineTransform transform = MCGAffineTransformMakeIdentity();
+    MCGPathRef clip_path = nullptr;
+    MCGPathRef shape_path = nullptr;
+    uindex_t clip_depth = 0;
+    
     /**/
 
     MCGPoint HorizontalPoint(MCGFloat p_x)
@@ -1831,7 +1893,10 @@ struct MCGDrawingRenderVisitor
     
     void PathBegin(void)
     {
-        MCGContextBeginPath(gcontext);
+        if (clip_path == nullptr)
+        {
+            MCGContextBeginPath(gcontext);
+        }
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         first_point = last_point = MCGPointMake(0.0, 0.0);
@@ -1839,7 +1904,10 @@ struct MCGDrawingRenderVisitor
     
     void PathMoveTo(MCGPoint p_point)
     {
-        MCGContextMoveTo(gcontext, p_point);
+        if (Clipping())
+            MCGPathMoveTo(shape_path, p_point);
+        else
+            MCGContextMoveTo(gcontext, p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         first_point = last_point = p_point;
@@ -1847,7 +1915,7 @@ struct MCGDrawingRenderVisitor
     
     void PathLineTo(MCGPoint p_point)
     {
-        MCGContextLineTo(gcontext, p_point);
+        AddLineTo(p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         last_point = p_point;
@@ -1856,7 +1924,7 @@ struct MCGDrawingRenderVisitor
     void PathHorizontalTo(MCGFloat p_x)
     {
         MCGPoint t_point = HorizontalPoint(p_x);
-        MCGContextLineTo(gcontext, t_point);
+        AddLineTo(t_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         last_point = t_point;
@@ -1865,7 +1933,7 @@ struct MCGDrawingRenderVisitor
     void PathVerticalTo(MCGFloat p_y)
     {
         MCGPoint t_point = VerticalPoint(p_y);
-        MCGContextLineTo(gcontext, t_point);
+        AddLineTo(t_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         last_point = t_point;
@@ -1873,7 +1941,7 @@ struct MCGDrawingRenderVisitor
     
     void PathCubicTo(MCGPoint p_a, MCGPoint p_b, MCGPoint p_point)
     {
-        MCGContextCubicTo(gcontext, p_a, p_b, p_point);
+        AddCubicTo(p_a, p_b, p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeCubicTo;
         last_control_point = p_b;
@@ -1892,7 +1960,7 @@ struct MCGDrawingRenderVisitor
             t_a = last_point;
         }
         
-        MCGContextCubicTo(gcontext, t_a, p_b, p_point);
+        AddCubicTo(t_a, p_b, p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeCubicTo;
         last_control_point = p_b;
@@ -1901,7 +1969,7 @@ struct MCGDrawingRenderVisitor
     
     void PathQuadraticTo(MCGPoint p_a, MCGPoint p_point)
     {
-        MCGContextQuadraticTo(gcontext, p_a, p_point);
+        AddQuadraticTo(p_a, p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeQuadraticTo;
         last_control_point = p_a;
@@ -1920,16 +1988,21 @@ struct MCGDrawingRenderVisitor
             t_a = last_point;
         }
         
-        MCGContextQuadraticTo(gcontext, t_a, p_point);
+        AddQuadraticTo(t_a, p_point);
         
-        last_curve_opcode = kMCGDrawingPathOpcodeCubicTo;
+        /* A quadratic, so that a T after it reflects this one's control
+         * point; it said cubic, and the next T lost it (OXT-Beyond). */
+        last_curve_opcode = kMCGDrawingPathOpcodeQuadraticTo;
         last_control_point = t_a;
         last_point = p_point;
     }
     
     void PathArcTo(bool p_is_reflex, bool p_is_reverse, MCGSize p_radii, MCGFloat p_rotation, MCGPoint p_point)
     {
-        MCGContextArcTo(gcontext, p_radii, p_rotation, p_is_reflex, p_is_reverse, p_point);
+        if (Clipping())
+            MCGPathArcTo(shape_path, p_radii, p_rotation, p_is_reflex, p_is_reverse, p_point);
+        else
+            MCGContextArcTo(gcontext, p_radii, p_rotation, p_is_reflex, p_is_reverse, p_point);
         
         last_curve_opcode = kMCGDrawingPathOpcodeEnd;
         last_point = p_point;
@@ -1937,13 +2010,16 @@ struct MCGDrawingRenderVisitor
     
     void PathCloseSubpath(void)
     {
-        MCGContextCloseSubpath(gcontext);
+        if (Clipping())
+            MCGPathCloseSubpath(shape_path);
+        else
+            MCGContextCloseSubpath(gcontext);
         last_point = first_point;
     }
     
     void PathEnd(void)
     {
-        MCGContextFillAndStroke(gcontext);
+        Paint();
     }
     
     /**/
@@ -1960,12 +2036,31 @@ struct MCGDrawingRenderVisitor
     
     void Finish(bool p_error)
     {
+        /* A clip left open, or states left saved, by a drawing that ended
+         * early or is malformed. */
+        if (clip_path != nullptr)
+        {
+            MCGPathRelease(clip_path);
+            clip_path = nullptr;
+        }
+        if (shape_path != nullptr)
+        {
+            MCGPathRelease(shape_path);
+            shape_path = nullptr;
+        }
+        while (clip_depth > 0)
+        {
+            MCGContextRestore(gcontext);
+            clip_depth -= 1;
+        }
+        
         MCGContextRestore(gcontext);
         MCGContextRestore(gcontext);
     }
     
     void Transform(MCGAffineTransform p_transform)
     {
+        transform = p_transform;
         MCGContextSetTransform(gcontext, p_transform);
     }
     
@@ -2026,47 +2121,185 @@ struct MCGDrawingRenderVisitor
     
     void Rectangle(MCGRectangle p_rect)
     {
-        MCGContextAddRectangle(gcontext, p_rect);
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddRectangle(shape_path, p_rect);
+        else
+            MCGContextAddRectangle(gcontext, p_rect);
+        Paint();
     }
     
     void RoundedRectangle(MCGRectangle p_rect, MCGSize p_radii)
     {
-        MCGContextAddRoundedRectangle(gcontext, p_rect, p_radii);
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddRoundedRectangle(shape_path, p_rect, p_radii);
+        else
+            MCGContextAddRoundedRectangle(gcontext, p_rect, p_radii);
+        Paint();
     }
 
     void Circle(MCGPoint p_center, MCGFloat p_r)
     {
-        MCGContextAddEllipse(gcontext, p_center, MCGSizeMake(p_r, p_r), 0.0);
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddEllipse(shape_path, p_center, MCGSizeMake(p_r, p_r), 0.0);
+        else
+            MCGContextAddEllipse(gcontext, p_center, MCGSizeMake(p_r, p_r), 0.0);
+        Paint();
     }
     
     void Ellipse(MCGPoint p_center, MCGSize p_radii)
     {
-        MCGContextAddEllipse(gcontext, p_center, p_radii, 0.0);
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddEllipse(shape_path, p_center, p_radii, 0.0);
+        else
+            MCGContextAddEllipse(gcontext, p_center, p_radii, 0.0);
+        Paint();
     }
     
     void Line(MCGPoint p_from, MCGPoint p_to)
     {
-        MCGContextAddLine(gcontext, p_from, p_to);
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddLine(shape_path, p_from, p_to);
+        else
+            MCGContextAddLine(gcontext, p_from, p_to);
+        Paint();
     }
     
     void Polyline(MCSpan<const MCGPoint> p_points)
     {
-        MCGContextAddPolyline(gcontext, p_points.data(), uindex_t(p_points.size()));
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddPolyline(shape_path, p_points.data(), uindex_t(p_points.size()));
+        else
+            MCGContextAddPolyline(gcontext, p_points.data(), uindex_t(p_points.size()));
+        Paint();
     }
     
     void Polygon(MCSpan<const MCGPoint> p_points)
     {
-        MCGContextAddPolygon(gcontext, p_points.data(), uindex_t(p_points.size()));
-        MCGContextFillAndStroke(gcontext);
+        if (Clipping())
+            MCGPathAddPolygon(shape_path, p_points.data(), uindex_t(p_points.size()));
+        else
+            MCGContextAddPolygon(gcontext, p_points.data(), uindex_t(p_points.size()));
+        Paint();
+    }
+    
+    void ClipBegin(void)
+    {
+        /* A clip path's shapes cannot themselves be clipped: a ClipBegin
+         * among them is ignored. */
+        if (clip_path != nullptr)
+        {
+            return;
+        }
+        
+        /* The state is saved under the drawing's own transform (its base
+         * is then the drawing's frame, which the Transform opcodes after it
+         * are relative to). Restore brings back the identity, which the
+         * library sets again after a ClipRestore if it is not. */
+        MCGContextSetTransform(gcontext, MCGAffineTransformMakeIdentity());
+        transform = MCGAffineTransformMakeIdentity();
+        MCGContextSave(gcontext);
+        clip_depth += 1;
+        
+        if (!MCGPathCreateMutable(clip_path))
+        {
+            clip_path = nullptr;
+        }
+    }
+    
+    void ClipEnd(void)
+    {
+        if (clip_path == nullptr)
+        {
+            return;
+        }
+        
+        /* The clip's shapes are in the drawing's frame already. */
+        MCGContextSetTransform(gcontext, MCGAffineTransformMakeIdentity());
+        MCGContextClipToPath(gcontext, clip_path);
+        MCGContextSetTransform(gcontext, transform);
+        
+        MCGPathRelease(clip_path);
+        clip_path = nullptr;
+    }
+    
+    void ClipRestore(void)
+    {
+        /* A ClipRestore with no ClipBegin to match is ignored. */
+        if (clip_depth == 0)
+        {
+            return;
+        }
+        if (clip_path != nullptr)
+        {
+            MCGPathRelease(clip_path);
+            clip_path = nullptr;
+        }
+        MCGContextRestore(gcontext);
+        clip_depth -= 1;
+        transform = MCGAffineTransformMakeIdentity();
     }
     
 private:
+    /* Whether a shape goes into the clip path, not onto the context; the
+     * shape's own path is made on first use. */
+    bool Clipping(void)
+    {
+        if (clip_path == nullptr)
+        {
+            return false;
+        }
+        if (shape_path == nullptr &&
+            !MCGPathCreateMutable(shape_path))
+        {
+            shape_path = nullptr;
+            return false;
+        }
+        return true;
+    }
+    
+    void AddLineTo(MCGPoint p_point)
+    {
+        if (Clipping())
+            MCGPathLineTo(shape_path, p_point);
+        else
+            MCGContextLineTo(gcontext, p_point);
+    }
+    
+    void AddCubicTo(MCGPoint p_a, MCGPoint p_b, MCGPoint p_point)
+    {
+        if (Clipping())
+            MCGPathCubicTo(shape_path, p_a, p_b, p_point);
+        else
+            MCGContextCubicTo(gcontext, p_a, p_b, p_point);
+    }
+    
+    void AddQuadraticTo(MCGPoint p_a, MCGPoint p_point)
+    {
+        if (Clipping())
+            MCGPathQuadraticTo(shape_path, p_a, p_point);
+        else
+            MCGContextQuadraticTo(gcontext, p_a, p_point);
+    }
+    
+    /* The end of a shape: it is filled and stroked, or, while a clip path
+     * is being made, its path is added to the clip path under the shape's
+     * transform. */
+    void Paint(void)
+    {
+        if (clip_path == nullptr)
+        {
+            MCGContextFillAndStroke(gcontext);
+            return;
+        }
+        if (shape_path != nullptr)
+        {
+            MCGPathTransform(shape_path, transform);
+            MCGPathAddPath(clip_path, shape_path);
+            MCGPathRelease(shape_path);
+            shape_path = nullptr;
+        }
+    }
+    
     void ApplyPaint(bool p_is_stroke, const MCGDrawingPaint& p_paint)
     {
         switch(p_paint.type)

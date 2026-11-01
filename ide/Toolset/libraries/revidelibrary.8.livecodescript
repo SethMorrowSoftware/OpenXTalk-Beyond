@@ -8321,10 +8321,14 @@ on revIDEImportControl pType, pFileName, pReferenced
    switch pType
       case "image"
          if pFileName ends with ".svg" then
-            -- SVG files can't be referenced
+            -- SVG files can't be referenced. "all": every compile option
+            -- (the colours of the SVG's style sheet, its opacity, and ids
+            -- such as "grad-1"), which the compiler leaves out unless
+            -- asked, so an SVG saved by Illustrator, Inkscape or a minifier
+            -- does not come in black or opaque
             revIDECreateObject "com.livecode.interface.classic.image", tTargetStack, tCreatedControlLocation
             put the long id of the last control into tCreatedControlID
-            set the text of tCreatedControlID to drawingSvgCompileFile(pFileName)
+            set the text of tCreatedControlID to drawingSvgCompileFile(pFileName, "all")
          else if pReferenced is true then
             ## Create a classic image control with default properties
             ## Set the filename of the new image control to the referenced image
@@ -8377,6 +8381,315 @@ on revIDEImportControl pType, pFileName, pReferenced
    unlock screen
    return tCreatedControlID
 end revIDEImportControl
+
+##################################################
+#
+#          SVG IMAGES AS GRAPHICS
+#
+##################################################
+
+-- Whether the image pImage (any reference) shows a drawing, an SVG compiled
+-- by the drawing library, rather than a picture: its text then begins with
+-- the drawing's mark, LCD
+function revIDEImageIsDrawing pImage
+   if pImage is empty or not exists(pImage) then return false
+   if word 1 of the name of pImage is not "image" then return false
+   if the fileName of pImage is not empty then return false
+   return byte 1 to 3 of the text of pImage is "LCD"
+end revIDEImageIsDrawing
+
+-- Convert to Graphics, on the context menu of an image made from an SVG
+-- (richmond62, openxtalk.org p=25843): a group of polygon graphics, one for
+-- each shape of the image's drawing, over the image and the same size, with
+-- the shapes' colours, gradients, line widths, line styles and opacity.
+-- Curves, arcs and circles become polygons with a point every pixel or so
+-- (the drawing library's drawingFlatten), which can then be reshaped like
+-- any polygon. A shape whose fill and line have different opacities becomes
+-- two graphics, its fill under its line, since a graphic has one blendLevel.
+-- The image is left as it was, under the group. Returns the long id of the
+-- group, or empty with the result set to what went wrong
+function revIDEConvertDrawingToGraphics pImage
+   local tFlat, tRect, tScaleX, tScaleY, tScale, tShape, tGroup, tCount, tName
+   if not revIDEImageIsDrawing(pImage) then
+      return "not an image made from an SVG" for error
+   end if
+   put the long id of pImage into pImage
+   put the rect of pImage into tRect
+   put drawingFlatten(the text of pImage, 0.5) into tFlat
+   if the result is not empty then return the result for error
+   if tFlat["width"] <= 0 or tFlat["height"] <= 0 then return "the drawing has no size" for error
+   put (item 3 of tRect - item 1 of tRect) / tFlat["width"] into tScaleX
+   put (item 4 of tRect - item 2 of tRect) / tFlat["height"] into tScaleY
+   put sqrt(abs(tScaleX * tScaleY)) into tScale
+   -- a point every half drawing unit at the image's size is too fine for a
+   -- large image and too coarse for a small one: flatten again for about
+   -- half a pixel
+   if tScale > 0 and abs(tScale - 1) > 0.01 then
+      put drawingFlatten(the text of pImage, 0.5 / tScale) into tFlat
+   end if
+
+   put the short name of pImage into tName
+   local tDefault, tOwner
+   put the defaultStack into tDefault
+   put the long id of the owner of pImage into tOwner
+   lock screen
+   lock messages
+   try
+      -- made where the image is: in its group, or on its card, which is
+      -- the card on show when its context menu is
+      set the defaultStack to revTargetStack(pImage)
+      if word 1 of tOwner is "group" then
+         create group (tName && "graphics") in tOwner
+      else
+         create group (tName && "graphics")
+      end if
+      put the long id of it into tGroup
+      put 0 into tCount
+      -- a shape under a clip path goes in a group with lockLoc set, which
+      -- shows only what is inside its rect: the clip path's bounds, which
+      -- is the clip itself for a rectangle (a flag's edges) and the box
+      -- about it for any other shape
+      local tIndex, tClipKey, tClipGroup, tTarget
+      repeat with tIndex = 1 to the number of elements in tFlat["shapes"]
+         put tFlat["shapes"][tIndex] into tShape
+         put tGroup into tTarget
+         if tShape["clip"] is not empty then
+            if tShape["clip"] is not tClipKey then
+               put tShape["clip"] into tClipKey
+               put __revIDEDrawingClipGroup(tFlat, tClipKey, tGroup, item 1 of tRect, item 2 of tRect, tScaleX, tScaleY) into tClipGroup
+            end if
+            -- a clip with nothing in it hides the shape
+            if tClipGroup is empty then
+               next repeat
+            end if
+            put tClipGroup into tTarget
+         else
+            put empty into tClipKey
+         end if
+         __revIDEDrawingShapeToGraphics tShape, tTarget, item 1 of tRect, item 2 of tRect, tScaleX, tScaleY, pImage, tCount
+      end repeat
+   catch tError
+      if tGroup is not empty and exists(tGroup) then delete tGroup
+      set the defaultStack to tDefault
+      unlock messages
+      unlock screen
+      return "could not make the graphics:" && line 1 of tError for error
+   end try
+   set the defaultStack to tDefault
+   unlock messages
+   unlock screen
+   return tGroup for value
+end revIDEConvertDrawingToGraphics
+
+-- The graphics of the flattened shape pShape (drawingFlatten's) in the
+-- group pGroup, its points mapped from the drawing to the image's rect by
+-- pLeft, pTop, pScaleX and pScaleY. xCount counts the graphics made
+private command __revIDEDrawingShapeToGraphics pShape, pGroup, pLeft, pTop, pScaleX, pScaleY, pImage, @xCount
+   local tPoints, tLine, tFillOpacity, tStrokeOpacity, tHasFill, tHasStroke, tGraphic
+   repeat for each line tLine in pShape["points"]
+      if tLine is empty then
+         put return after tPoints
+      else
+         put round(pLeft + item 1 of tLine * pScaleX, 2) & comma & round(pTop + item 2 of tLine * pScaleY, 2) & return after tPoints
+      end if
+   end repeat
+   delete the last char of tPoints
+   if tPoints is empty then exit __revIDEDrawingShapeToGraphics
+
+   put pShape["fill"]["type"] is not "none" into tHasFill
+   put pShape["stroke"]["type"] is not "none" and pShape["stroke-width"] > 0 into tHasStroke
+   put __revIDEDrawingOpacity(pShape["fill"], pShape["fill-opacity"]) into tFillOpacity
+   put __revIDEDrawingOpacity(pShape["stroke"], pShape["stroke-opacity"]) into tStrokeOpacity
+   if tHasFill and tFillOpacity <= 0 then put false into tHasFill
+   if tHasStroke and tStrokeOpacity <= 0 then put false into tHasStroke
+   if not tHasFill and not tHasStroke then exit __revIDEDrawingShapeToGraphics
+
+   if tHasFill and tHasStroke and abs(tFillOpacity - tStrokeOpacity) > 0.004 then
+      -- the fill, then the line over it
+      __revIDEDrawingGraphic pShape, tPoints, pGroup, pScaleX, pScaleY, pImage, true, false, tFillOpacity, xCount
+      __revIDEDrawingGraphic pShape, tPoints, pGroup, pScaleX, pScaleY, pImage, false, true, tStrokeOpacity, xCount
+   else if tHasFill then
+      __revIDEDrawingGraphic pShape, tPoints, pGroup, pScaleX, pScaleY, pImage, true, tHasStroke, tFillOpacity, xCount
+   else
+      __revIDEDrawingGraphic pShape, tPoints, pGroup, pScaleX, pScaleY, pImage, false, true, tStrokeOpacity, xCount
+   end if
+end __revIDEDrawingShapeToGraphics
+
+-- A group in pGroup with lockLoc set and the rect of the clip paths pClips
+-- (drawingFlatten's clip numbers, a comma list, each inside the one before)
+-- on the card, or empty when they leave nothing to show
+private function __revIDEDrawingClipGroup pFlat, pClips, pGroup, pLeft, pTop, pScaleX, pScaleY
+   local tClip, tShape, tLine, tLeft, tTop, tRight, tBottom, tBox, tGroup
+   put empty into tBox
+   repeat for each item tClip in pClips
+      put empty into tLeft
+      repeat for each element tShape in pFlat["clips"][tClip]["shapes"]
+         repeat for each line tLine in tShape["points"]
+            if tLine is empty then
+               next repeat
+            end if
+            if tLeft is empty then
+               put item 1 of tLine into tLeft
+               put item 1 of tLine into tRight
+               put item 2 of tLine into tTop
+               put item 2 of tLine into tBottom
+            else
+               put min(tLeft, item 1 of tLine) into tLeft
+               put max(tRight, item 1 of tLine) into tRight
+               put min(tTop, item 2 of tLine) into tTop
+               put max(tBottom, item 2 of tLine) into tBottom
+            end if
+         end repeat
+      end repeat
+      if tLeft is empty then
+         return empty
+      end if
+      if tBox is empty then
+         put tLeft & comma & tTop & comma & tRight & comma & tBottom into tBox
+      else
+         put max(item 1 of tBox, tLeft) & comma & max(item 2 of tBox, tTop) & comma & \
+               min(item 3 of tBox, tRight) & comma & min(item 4 of tBox, tBottom) into tBox
+      end if
+   end repeat
+   put round(pLeft + item 1 of tBox * pScaleX) & comma & round(pTop + item 2 of tBox * pScaleY) & comma & \
+         round(pLeft + item 3 of tBox * pScaleX) & comma & round(pTop + item 4 of tBox * pScaleY) into tBox
+   if item 3 of tBox <= item 1 of tBox or item 4 of tBox <= item 2 of tBox then
+      return empty
+   end if
+   create group "clip" in pGroup
+   put the long id of it into tGroup
+   set the lockLoc of tGroup to true
+   set the margins of tGroup to 0
+   set the showBorder of tGroup to false
+   set the rect of tGroup to tBox
+   return tGroup
+end __revIDEDrawingClipGroup
+
+-- The opacity of a paint pPaint with the opacity pOpacity: a colour's own
+-- alpha is part of it
+private function __revIDEDrawingOpacity pPaint, pOpacity
+   if pOpacity is not a number then put 1 into pOpacity
+   if pPaint["type"] is "color" and item 4 of pPaint["color"] is a number then
+      multiply pOpacity by item 4 of pPaint["color"]
+   end if
+   return max(0, min(1, pOpacity))
+end __revIDEDrawingOpacity
+
+private command __revIDEDrawingGraphic pShape, pPoints, pGroup, pScaleX, pScaleY, pImage, pFill, pStroke, pOpacity, @xCount
+   local tGraphic, tScale, tWidth, tDash, tValue, tDashes
+   add 1 to xCount
+   create graphic ("shape" && xCount) in pGroup
+   put the long id of it into tGraphic
+   set the style of tGraphic to "polygon"
+   set the antialiased of tGraphic to true
+   set the points of tGraphic to pPoints
+   set the blendLevel of tGraphic to round((1 - pOpacity) * 100)
+   if pShape["fill-rule"] is "evenodd" then
+      set the fillRule of tGraphic to "evenodd"
+   else
+      set the fillRule of tGraphic to "nonzero"
+   end if
+   put sqrt(abs(pScaleX * pScaleY)) into tScale
+   if pFill then
+      set the filled of tGraphic to true
+      __revIDEDrawingPaint tGraphic, "fill", pShape["fill"], pScaleX, pScaleY, pImage
+   else
+      set the filled of tGraphic to false
+   end if
+   if pStroke then
+      put max(1, round(pShape["stroke-width"] * tScale)) into tWidth
+      set the lineSize of tGraphic to tWidth
+      __revIDEDrawingPaint tGraphic, "stroke", pShape["stroke"], pScaleX, pScaleY, pImage
+      if pShape["stroke-linejoin"] is among the items of "round,bevel,miter" then
+         set the joinStyle of tGraphic to pShape["stroke-linejoin"]
+      end if
+      if pShape["stroke-linecap"] is "square" then
+         set the capStyle of tGraphic to "square"
+      else if pShape["stroke-linecap"] is "round" then
+         set the capStyle of tGraphic to "round"
+      else
+         set the capStyle of tGraphic to "butt"
+      end if
+      if pShape["stroke-miterlimit"] is a number then
+         set the miterLimit of tGraphic to pShape["stroke-miterlimit"]
+      end if
+      if pShape["stroke-dasharray"] is not empty then
+         repeat for each item tValue in pShape["stroke-dasharray"]
+            put max(1, round(tValue * tScale)) & comma after tDashes
+         end repeat
+         delete the last char of tDashes
+         set the dashes of tGraphic to tDashes
+      end if
+   else
+      set the lineSize of tGraphic to 0
+   end if
+end __revIDEDrawingGraphic
+
+-- Sets the fill or the line (pWhich) of pGraphic to the paint pPaint: a
+-- colour, the image's foreground colour for SVG's currentColor, or a
+-- gradient, whose unit line (or circle) is mapped to the card
+private command __revIDEDrawingPaint pGraphic, pWhich, pPaint, pScaleX, pScaleY, pImage
+   local tColor, tGradient, tMatrix, tStop, tRamp, tLeft, tTop
+   switch pPaint["type"]
+      case "color"
+         put round(item 1 of pPaint["color"] * 255) & comma & round(item 2 of pPaint["color"] * 255) & comma & \
+               round(item 3 of pPaint["color"] * 255) into tColor
+         break
+      case "current"
+         put the effective foregroundColor of pImage into tColor
+         break
+      case "linear"
+      case "radial"
+      case "conical"
+         put pPaint["transform"] into tMatrix
+         put item 1 of the rect of pImage into tLeft
+         put item 2 of the rect of pImage into tTop
+         if pPaint["type"] is "linear" then
+            put "linear" into tGradient["type"]
+         else
+            put "radial" into tGradient["type"]
+         end if
+         put __revIDEDrawingPoint(tMatrix, 0, 0, tLeft, tTop, pScaleX, pScaleY) into tGradient["from"]
+         put __revIDEDrawingPoint(tMatrix, 1, 0, tLeft, tTop, pScaleX, pScaleY) into tGradient["to"]
+         put __revIDEDrawingPoint(tMatrix, 0, 1, tLeft, tTop, pScaleX, pScaleY) into tGradient["via"]
+         repeat for each line tStop in pPaint["stops"]
+            put item 1 of tStop & comma & round(item 2 of tStop * 255) & comma & round(item 3 of tStop * 255) & comma & \
+                  round(item 4 of tStop * 255) & comma & round(item 5 of tStop * 255) & return after tRamp
+         end repeat
+         delete the last char of tRamp
+         put tRamp into tGradient["ramp"]
+         put "good" into tGradient["quality"]
+         put pPaint["spread"] is not "pad" into tGradient["wrap"]
+         put pPaint["spread"] is "reflect" into tGradient["mirror"]
+         put 1 into tGradient["repeat"]
+         -- the first stop's colour, for anything that cannot show a gradient
+         put item 2 to 4 of line 1 of tRamp into tColor
+         break
+   end switch
+   if tColor is not empty then
+      if pWhich is "fill" then
+         set the backgroundColor of pGraphic to tColor
+      else
+         set the foregroundColor of pGraphic to tColor
+      end if
+   end if
+   if tGradient is an array then
+      if pWhich is "fill" then
+         set the fillGradient of pGraphic to tGradient
+      else
+         set the strokeGradient of pGraphic to tGradient
+      end if
+   end if
+end __revIDEDrawingPaint
+
+-- The card point of the drawing point pX,pY under the gradient transform
+-- pMatrix (a,b,c,d,e,f)
+private function __revIDEDrawingPoint pMatrix, pX, pY, pLeft, pTop, pScaleX, pScaleY
+   local tX, tY
+   put item 1 of pMatrix * pX + item 3 of pMatrix * pY + item 5 of pMatrix into tX
+   put item 2 of pMatrix * pX + item 4 of pMatrix * pY + item 6 of pMatrix into tY
+   return round(pLeft + tX * pScaleX) & comma & round(pTop + tY * pScaleY)
+end __revIDEDrawingPoint
 
 on revIDEImportSnapshot pScope, pObjectID
    if pScope is not among the items of "screen,object" then put "screen" into pScope
