@@ -94,6 +94,22 @@ function revHubPlace pName
    end switch
 end revHubPlace
 
+-- A place that the stack pModule draws: pPlace if it draws it, else its
+-- first
+private function hbPlaceOf pModule, pPlace
+   local tLine
+   if hbModule(pPlace) is pModule then
+      return pPlace
+   end if
+   set the itemDelimiter to "|"
+   repeat for each line tLine in hbPlaces()
+      if hbModule(item 1 of tLine) is pModule then
+         return item 1 of tLine
+      end if
+   end repeat
+   return "home"
+end hbPlaceOf
+
 -- The stack that draws a place, and its file in the Toolset
 private function hbModule pPlace
    switch pPlace
@@ -225,8 +241,19 @@ on closeStack
       put empty into sPending
    end if
    dispatch "revHubDetach" to me
+   -- (and whatever the place left waiting: closed, nothing runs here)
+   hbCancelMessages
+   -- (and, once the handler that closed it is done, no place: the stack
+   -- that drew the last one may be running it)
+   send "hbClearClosed" to me in 0 milliseconds
    -- (not passed, as preOpenStack is not)
 end closeStack
+
+on hbClearClosed
+   if the mode of me is 0 then
+      hbClear
+   end if
+end hbClearClosed
 
 -- The swap revHubGo asked for
 on hbSwap pPlace
@@ -256,28 +283,49 @@ end hbSwap
 
 -- No place: no controls, no behavior, and no message waiting for one
 private command hbClear
+   local tError
    hbCancelMessages
    lock messages
    repeat while the number of controls of this card of me > 0
       delete control 1 of this card of me
    end repeat
    unlock messages
-   set the behavior of me to empty
+   -- (a behavior whose script is running cannot be changed: when the
+   -- stack that drew the last place opens this window again, from one of
+   -- its own handlers (revLearnShow), it stays, and hbAttach keeps it if
+   -- it draws the new place too)
+   try
+      set the behavior of me to empty
+   catch tError
+   end try
    put empty into sModule
 end hbClear
 
 -- Puts in the stack that draws pPlace, as this stack's behavior, and has
 -- it build the window
 private command hbAttach pPlace, pPage
-   local tModule
+   local tModule, tPlace, tError
    put hbModule(pPlace) into tModule
    hbLoad tModule
    if tModule is not "revWebHome" and the behavior of stack tModule is empty then
       hbLoad "revLearnKit"
       set the behavior of stack tModule to the long id of stack "revLearnKit"
    end if
+   if the behavior of me is not the long id of stack tModule then
+      try
+         set the behavior of me to the long id of stack tModule
+      catch tError
+         -- (the old one is running, as hbClear says: it draws its own
+         -- place for now, and the swap waits for it to finish)
+         put the short name of the behavior of me into tModule
+         put hbPlaceOf(tModule, pPlace) into tPlace
+         send "hbSwap" && quote & pPlace & quote to me in 0 milliseconds
+         put the result into sPending
+         put tPlace into pPlace
+         put pPlace into sPlace
+      end try
+   end if
    set the cHubPlace of me to pPlace
-   set the behavior of me to the long id of stack tModule
    put tModule into sModule
    dispatch "revHubAttach" to me with pPlace, pPage
 end hbAttach

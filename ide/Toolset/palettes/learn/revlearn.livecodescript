@@ -2241,8 +2241,10 @@ end leChapterIcon
 -- script's first lines) and THIRD-PARTY-NOTICES.md; where neither names
 -- anyone, the card says so. Then, for an example remade in Learn's look
 -- (tools/examples), the remaster's file and its title: the gallery opens
--- the remaster, and lists the original under Classic. Two originals remade
--- as one remaster both name it, and after its title say what it does.
+-- the remaster, and lists the original under Classic when it is there
+-- (the originals are not installed since 0.2.7-rc.6.12: tools/examples/
+-- originals keeps them for the builders). Two originals remade as one
+-- remaster both name it, and after its title say what it does.
 private function leExampleTable
    local tTable
    put "Resources/Examples/Quick Start.oxtstack|Quick Start|Six first lessons, read aloud by a narrator: the Tools palette, " & \
@@ -2309,7 +2311,13 @@ private function leShowcaseTable
    put files(leRoot() & "/" & tFolder) into tFiles
    filter tFiles with "*.oxtstack"
    sort lines of tFiles
-   repeat for each item tName in "OXT-Beyond on the Web,Learn xTalk,xTalk Primer,Fireworks,Live Weather," & \
+   -- (the player's own course and its tour of the web are Home's Academy
+   -- and Home's tour, so the gallery leaves them out, as packaging does:
+   -- tools/oxt/package.py SHOWCASE_LEFT_OUT)
+   repeat for each item tName in "OXT-Beyond on the Web,Learn xTalk"
+      filter tFiles without (tName & ".oxtstack")
+   end repeat
+   repeat for each item tName in "xTalk Primer,Fireworks,Live Weather," & \
          "Web Audio Piano,Neon Snake,QR Studio,Talking Robot,2048,Quake Map,Beat Box,Kanban Board," & \
          "Markdown Notes,UI Gallery,Photo Lab"
       if (tName & ".oxtstack") is among the lines of tFiles then

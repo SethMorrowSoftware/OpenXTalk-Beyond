@@ -1,8 +1,8 @@
 script "OXTExampleZipArchives"
 -- OXT-Beyond: builds "Zip Archives", the remaster of two of OpenXTalk
 -- Lite's demos, Zip Build Demo and Zip Extract Demo, which are in
--- ide/Resources/Examples/Zip Build Demo.oxtstack and
--- ide/Resources/Examples/Zip Extract Demo.oxtstack and stay there as their
+-- tools/examples/originals/Zip Build Demo.oxtstack and
+-- tools/examples/originals/Zip Extract Demo.oxtstack and stay there as their
 -- author made them. Who made them is not recorded: their standalone
 -- settings name them Zip Build Sampler and Zip Extract Sampler, version
 -- 1.0.0.0, "2006  All rights reserved worldwide", the year the zip library

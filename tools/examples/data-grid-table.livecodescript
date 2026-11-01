@@ -1,7 +1,7 @@
 script "OXTExampleDataGridTable"
 -- OXT-Beyond: builds "Data Grid Tables", the remaster of Terry Little's
 -- DataGrid Table v1.0 (2022, GPL 3 or later), which is in
--- ide/Resources/Examples/DataGrid Table.oxtstack and stays there as he
+-- tools/examples/originals/DataGrid Table.oxtstack and stays there as he
 -- made it.
 --
 -- His stack teaches the data grid table in five lessons on four cards: a
@@ -121,7 +121,7 @@ private command readOriginal
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Examples/DataGrid Table.oxtstack" into tOriginal
+   put tRepo & "/tools/examples/originals/DataGrid Table.oxtstack" into tOriginal
    if there is no file tOriginal then
       throw "cannot find Terry Little's stack at " & tOriginal
    end if

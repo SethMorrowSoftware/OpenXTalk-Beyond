@@ -13945,7 +13945,10 @@ on revIDEFindMoreWidgets
 end revIDEFindMoreWidgets
 
 command ideShowUpgradeOptions
-   if ideCanShowUpgradeOptions() then
+   -- OXT-Beyond: the Start Center, which showed the upgrade's page, is not
+   -- installed since 0.2.7-rc.6.12, so without it the page opens in the
+   -- browser, as it does when it cannot be shown in the IDE
+   if ideCanShowUpgradeOptions() and there is a stack revIDEPaletteToStackName("start center") then
       lock screen
       if the mode of stack revIDEPaletteToStackName("start center") is 0 then
          revIDEOpenPalette "start center"

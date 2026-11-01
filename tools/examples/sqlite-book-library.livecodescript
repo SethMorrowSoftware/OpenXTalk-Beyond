@@ -1,7 +1,7 @@
 script "OXTExampleSqliteBookLibrary"
 -- OXT-Beyond: builds "SQLite Books", the remaster of SQLite Book Library,
 -- one of OpenXTalk Lite's demos (its author is not recorded), which is in
--- ide/Resources/Examples/SQLite Book Library.oxtstack and stays there as
+-- tools/examples/originals/SQLite Book Library.oxtstack and stays there as
 -- its author made it.
 --
 -- The demo keeps a little library in an SQLite database: a field that

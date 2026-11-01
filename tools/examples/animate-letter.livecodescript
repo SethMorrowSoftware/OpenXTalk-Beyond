@@ -1,7 +1,7 @@
 script "OXTExampleAnimateLetter"
 -- OXT-Beyond: builds "Animate a Letter", the remaster of Terry Little's
 -- Animate Letter v1.2 (2022, GPL 3 or later), which is in
--- ide/Resources/Examples/Animate Letter.oxtstack and stays there as he
+-- tools/examples/originals/Animate Letter.oxtstack and stays there as he
 -- made it.
 --
 -- His stack teaches animation in twelve small programs, a card each: a

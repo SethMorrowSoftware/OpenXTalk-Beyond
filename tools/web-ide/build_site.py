@@ -114,13 +114,18 @@ FILES = ('.version', '.buildnumber', '.codename', 'about.dat', 'edition.txt',
 LEAVE_OUT = (
     # Help > Guides, 23 MB (revWebIDEMenu leaves the item out)
     'Toolset/palettes/userguides/allguides.oxtstack',
-    # The Resource Center and the tutorials, which the menu bar hides
+    # The Resource Center and the tutorials, which the menu bar hides (the
+    # tutorials are not installed since 0.2.7-rc.6.12: an older layout's)
     'Toolset/palettes/revresourcecenter.rev',
     'Toolset/palettes/tutorial',
     # A copy, carried from OpenXTalk Lite 1.15, of the Linux theme's folder
     # beside it, which nothing reads (bwmilby, openxtalk.org p=25582)
     'Toolset/resources/supporting_files/themes/com.livecode.theme.linux.tar.xz',
 )
+# The Stack Player's stacks that Learn's gallery leaves out (the player's
+# own course and its tour, which are Home's Academy and Home's tour):
+# the same as tools/oxt/package.py SHOWCASE_LEFT_OUT, which a test holds
+SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack')
 # Files left out by name pattern (paths relative to the layout): the
 # Script Editor's font, Source Code Pro, whose files the web engine cannot
 # load ("can't load font file", every one of them, in the web IDE of
@@ -228,7 +233,8 @@ def repo_scripts(repo, install):
     # The Stack Player's stacks, for Learn's examples gallery, where
     # tools/oxt/package.py installs them (SHOWCASE)
     showcase = os.path.join(repo, 'tools', 'web-player', 'stacks')
-    stacks = sorted(glob.glob(os.path.join(showcase, '*.oxtstack')))
+    stacks = sorted(path for path in glob.glob(os.path.join(showcase, '*.oxtstack'))
+                    if os.path.basename(path) not in SHOWCASE_LEFT_OUT)
     for path in stacks:
         scripts['Resources/Examples/Showcase/' + os.path.basename(path)] = path
     if stacks:

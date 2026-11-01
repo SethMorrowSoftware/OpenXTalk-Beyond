@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -4923,6 +4923,316 @@ on tour_academy
    set the customProperties["cAcademy"] of stack "revPreferences" to tSaved
    if tError is not empty then throw tError
 end tour_academy
+
+-- OXT-Beyond Home (palettes/home/revhub.livecodescript): the one window
+-- of Home's welcome, the xTalk Academy and Learn's how-to lessons, guides
+-- and examples (0.2.7-rc.6.12). Each of the IDE's ways in, the names it
+-- used before Home included, must bring up that one window at its place,
+-- and never a window of the stacks it hosts; half of them find it closed
+-- and half open, at another place. An IDE without Home (a release before
+-- it) skips both steps.
+on tour_home_ways_in
+   local tWays, tWay, tWant, tIndex, tPlace, tError, tFile
+   put tourHubFile() into tFile
+   if tFile is empty then
+      tourRecord "INFO home-ways-in: this IDE has no Home window"
+      exit tour_home_ways_in
+   end if
+   -- kind|what|the place it must open
+   put "help|Welcome to OXT-Beyond|home" & return & \
+         "help|xTalk Academy|academy" & return & \
+         "help|How-to|howto" & return & \
+         "help|Guides|guides" & return & \
+         "help|Examples|examples" & return & \
+         "help|Lessons|howto" & return & \
+         "help|Demos|examples" & return & \
+         "toolbar|Tutorials|academy" & return & \
+         "toolbar|Sample Stacks|examples" & return & \
+         "menubar|tOpenHome|home" & return & \
+         "menubar|tOpenAcademy|academy" & return & \
+         "menubar|tOpenNewGuides|howto" & return & \
+         "menubar|tOpenAllGuides|guides" & return & \
+         "menubar|tOpenDemos|examples" & return & \
+         "stack|revLearnShow guides|guides" & return & \
+         "stack|revLearnShow examples|examples" & return & \
+         "stack|revAcademyShow|academy" & return & \
+         "palette|welcome|home" & return & \
+         "palette|start center|home" & return & \
+         "ide|revIDEOpenHome academy|academy" & return & \
+         "web|revWebIDEShowHome|home" into tWays
+   tourHubClose
+   put 0 into tIndex
+   set the itemDelimiter to "|"
+   repeat for each line tWay in tWays
+      add 1 to tIndex
+      put item 3 of tWay into tWant
+      -- every other one finds the window closed
+      if tIndex mod 2 is 0 then
+         tourHubClose
+      end if
+      try
+         switch item 1 of tWay
+            case "help"
+               dispatch "revMenubarHelpMenuPick" to stack "revMenuBar" with item 2 of tWay
+               break
+            case "toolbar"
+               dispatch "revMenubarMenuButtonClicked" to stack "revMenuBar" with item 2 of tWay
+               break
+            case "menubar"
+               send item 2 of tWay to stack "revMenuBar"
+               break
+            case "stack"
+               if word 1 of item 2 of tWay is "revLearnShow" then
+                  dispatch "revLearnShow" to stack tourToolsetFile("palettes/learn/revlearn.livecodescript") with word 2 of item 2 of tWay
+               else
+                  dispatch "revAcademyShow" to stack tourToolsetFile("palettes/academy/revacademy.livecodescript")
+               end if
+               break
+            case "palette"
+               revIDEOpenPalette item 2 of tWay
+               break
+            case "ide"
+               get revIDEOpenHome(word 2 of item 2 of tWay)
+               break
+            case "web"
+               if there is not a stack "revWebIDELibrary" then
+                  tourRecord "INFO home-ways-in: no revWebIDELibrary here, revWebIDEShowHome not tried"
+                  next repeat
+               end if
+               dispatch "revWebIDEShowHome" to stack "revWebIDELibrary"
+               break
+         end switch
+      catch tError
+         set the itemDelimiter to comma
+         throw item 1 to 2 of tWay & ":" && tourJoin(tError)
+      end try
+      put tourHubWait(tWant, 8000) into tPlace
+      set the itemDelimiter to comma
+      tourRecord "INFO home-ways-in:" && item 1 of tWay & "|" & item 2 of tWay && "->" && tPlace
+      set the itemDelimiter to "|"
+      if tPlace is not tWant then
+         throw item 1 to 2 of tWay && "opened" && quote & tPlace & quote & ", not" && tWant
+      end if
+      tourHubOnly item 1 to 2 of tWay
+   end repeat
+   set the itemDelimiter to comma
+   -- Closed by a handler that goes on to open it again (no wait between:
+   -- Learn's stack, still Home's behavior, is the one running), at a
+   -- place Learn draws and at one it does not
+   repeat for each item tWant in "guides,academy"
+      tourHubClose
+      if not tourHubOpen("howto") or tourHubWait("howto", 8000) is not "howto" then
+         throw "Home did not open at How-to"
+      end if
+      tourWait 500
+      close stack kHub
+      if tWant is "guides" then
+         dispatch "revLearnShow" to stack tourToolsetFile("palettes/learn/revlearn.livecodescript") with "guides"
+      else
+         -- (Learn's "New to coding? Try the Academy")
+         dispatch "lkAction" to stack tourToolsetFile("palettes/learn/revlearn.livecodescript") with "academy"
+      end if
+      put tourHubWait(tWant, 8000) into tPlace
+      tourRecord "INFO home-ways-in: closed and opened again by Learn ->" && tPlace
+      if tPlace is not tWant then
+         throw "Home closed and opened again by Learn is at" && quote & tPlace & quote & ", not" && tWant
+      end if
+      tourHubOnly "Home closed and opened again by Learn at" && tWant
+      tourWait 800
+      tourHubPendingCheck tWant
+   end repeat
+   tourHubClose
+end tour_home_ways_in
+
+-- Each of the five places, from Home's own sidebar (as a click on it
+-- sends): each is drawn whole and only once (as many controls on a second
+-- visit as on the first, a swap leaving nothing behind), leaves no
+-- message waiting that the place in front cannot handle, is drawn again
+-- whole as a switch of light and dark draws it, and fits the smallest
+-- window. Closed, Home leaves nothing waiting, and opens again afresh.
+on tour_home_places
+   local tPlace, tCounts, tCount, tPass, tError, tRect, tWant, tPending
+   if tourHubFile() is empty then
+      tourRecord "INFO home-places: this IDE has no Home window"
+      exit tour_home_places
+   end if
+   tourHubClose
+   try
+      if not tourHubOpen("home") then throw "Home did not open"
+      if tourHubWait("home", 8000) is not "home" then throw "Home did not open at its welcome"
+      if the label of stack kHub is not "OXT-Beyond Home" then
+         throw "Home's window is titled" && quote & the label of stack kHub & quote
+      end if
+      tourWait 800
+      repeat with tPass = 1 to 2
+         repeat for each item tPlace in "home,academy,howto,guides,examples,guides,home,examples,academy,howto"
+            dispatch "lkAction" to stack kHub with "hub" && tPlace
+            if tourHubWait(tPlace, 8000) is not tPlace then
+               throw "Home's sidebar did not go to" && tPlace && "(" & tourHubWait(empty, 0) & ")"
+            end if
+            tourWait 700
+            tourHubOnly tPlace
+            tourHubPendingCheck tPlace
+            put the number of controls of this card of stack kHub into tCount
+            if there is not a control ("hub_" & tPlace) of this card of stack kHub then
+               throw "Home's sidebar at" && tPlace && "has no item hub_" & tPlace
+            end if
+            if tCounts[tPlace] is empty then
+               put tCount into tCounts[tPlace]
+               tourRecord "INFO home-places:" && tPlace && tCount && "controls"
+               if tPass is 1 then
+                  tourShotStack kHub, "24g-hub-" & tPlace
+               end if
+            else if tCount is not tCounts[tPlace] then
+               throw "Home at" && tPlace && "has" && tCount && "controls, not" && tCounts[tPlace] && "as the first time"
+            end if
+         end repeat
+      end repeat
+      -- drawn again as a switch of light and dark draws it
+      repeat for each item tPlace in "home,academy,howto,guides,examples"
+         dispatch "lkAction" to stack kHub with "hub" && tPlace
+         if tourHubWait(tPlace, 8000) is not tPlace then throw "Home did not go to" && tPlace
+         tourWait 700
+         if tPlace is "home" then
+            tourRedrawCheck kHub, "hmAppearanceChanged", "24g-hub-" & tPlace & "-redrawn"
+         else
+            tourRedrawCheck kHub, "lkAppearanceChanged", "24g-hub-" & tPlace & "-redrawn"
+         end if
+      end repeat
+      -- the smallest window: every place's sidebar whole in it
+      put the rect of stack kHub into tRect
+      set the rect of stack kHub to item 1 of tRect, item 2 of tRect, \
+            item 1 of tRect + the minWidth of stack kHub, item 2 of tRect + the minHeight of stack kHub
+      tourWait 800
+      tourRecord "INFO home-places: smallest" && the width of stack kHub & "x" & the height of stack kHub
+      repeat for each item tPlace in "home,academy,howto,guides,examples"
+         dispatch "lkAction" to stack kHub with "hub" && tPlace
+         if tourHubWait(tPlace, 8000) is not tPlace then throw "Home did not go to" && tPlace && "(smallest)"
+         tourWait 700
+         tourHubFits tPlace
+         if tPlace is among the items of "home,academy" then tourShotStack kHub, "24g-hub-" & tPlace & "-smallest"
+      end repeat
+      set the rect of stack kHub to tRect
+      tourWait 500
+   catch tError
+   end try
+   tourHubClose
+   if tError is not empty then throw tError
+   -- closed: nothing left waiting for it, and nothing in front
+   put tourHubPending() into tPending
+   if tPending is not empty then throw "Home, closed, still has messages waiting:" && tourJoin(tPending)
+   if tourHubWait(empty, 0) is not empty then throw "Home, closed, says it is at" && tourHubWait(empty, 0)
+   -- opened again, at a place it was not closed at: afresh
+   put "examples" into tWant
+   if not tourHubOpen(tWant) then throw "Home did not open again"
+   if tourHubWait(tWant, 8000) is not tWant then throw "Home did not open again at" && tWant
+   tourWait 800
+   put the number of controls of this card of stack kHub into tCount
+   tourHubClose
+   if tCount is not tCounts[tWant] then
+      throw "Home opened again at" && tWant && "has" && tCount && "controls, not" && tCounts[tWant]
+   end if
+end tour_home_places
+
+-- Opens Home at pPlace as the IDE's menus do (revMenubarOpenHub)
+function tourHubOpen pPlace
+   dispatch function "revMenubarOpenHub" to stack "revMenuBar" with pPlace
+   return the result is true
+end tourHubOpen
+
+-- Home's file, if this IDE has Home
+function tourHubFile
+   local tFile
+   put tourToolsetFile("palettes/home/revhub.livecodescript") into tFile
+   if there is a file tFile then return tFile
+   return empty
+end tourHubFile
+
+function tourToolsetFile pPath
+   return revEnvironmentToolsetPath() & slash & pPath
+end tourToolsetFile
+
+-- Waits, at most pMilliseconds, for Home to be open at the place pWant;
+-- returns the place it is at (empty when closed)
+function tourHubWait pWant, pMilliseconds
+   local tPlace
+   repeat (pMilliseconds div 250) + 1 times
+      put empty into tPlace
+      if there is a stack kHub and the mode of stack kHub is not 0 and the visible of stack kHub then
+         dispatch function "revHubCurrent" to stack kHub
+         put item 1 of the result into tPlace
+      end if
+      if tPlace is pWant or pMilliseconds <= 0 then exit repeat
+      tourWait 250
+   end repeat
+   return tPlace
+end tourHubWait
+
+command tourHubClose
+   if there is a stack kHub and the mode of stack kHub is not 0 then
+      close stack kHub
+      tourWait 300
+   end if
+end tourHubClose
+
+-- Home is the only window of the stacks it hosts that is open
+command tourHubOnly pWhat
+   local tName
+   repeat for each item tName in "revWebHome,revAcademy,revLearn"
+      if there is a stack tName and the mode of stack tName is not 0 then
+         close stack tName
+         throw pWhat && "opened" && tName && "in a window of its own"
+      end if
+   end repeat
+end tourHubOnly
+
+-- The messages waiting for Home
+function tourHubPending
+   local tLine, tLines, tId
+   if there is not a stack kHub then return empty
+   put the long id of stack kHub into tId
+   repeat for each line tLine in the pendingMessages
+      if item 4 to -1 of tLine is tId then put tLine & return after tLines
+   end repeat
+   delete the last char of tLines
+   return tLines
+end tourHubPending
+
+-- Every message waiting for Home is one the place in front handles: a
+-- timer of a place it left (hmTick, leKeepPlace) would run in the
+-- wrong stack
+command tourHubPendingCheck pPlace
+   local tScripts, tLine, tName, tModule
+   put the script of stack kHub into tScripts
+   put the short name of the behavior of stack kHub into tModule
+   if tModule is empty then throw "Home at" && pPlace && "has no behavior"
+   put return & the script of stack tModule after tScripts
+   if the behavior of stack tModule is not empty then
+      put return & the script of the behavior of stack tModule after tScripts
+   end if
+   repeat for each line tLine in tourHubPending()
+      put item 3 of tLine into tName
+      if not matchText(tScripts, "(?m)^\s*(private\s+)?(on|command|function)\s+" & tName & "\b") then
+         throw "Home at" && pPlace && "(" & tModule & ") has a message waiting that it does not handle:" && tName
+      end if
+   end repeat
+end tourHubPendingCheck
+
+-- At the smallest window, the sidebar's five places are whole in it
+command tourHubFits pPlace
+   local tPlace, tRect
+   repeat for each item tPlace in "home,academy,howto,guides,examples"
+      if there is not a control ("hub_" & tPlace) of this card of stack kHub then
+         throw "Home at" && pPlace && "has no sidebar item for" && tPlace
+      end if
+      put the rect of control ("hub_" & tPlace) of this card of stack kHub into tRect
+      if not the visible of control ("hub_" & tPlace) of this card of stack kHub \
+            or item 1 of tRect < 0 or item 2 of tRect < 0 \
+            or item 3 of tRect > the width of stack kHub or item 4 of tRect > the height of stack kHub then
+         throw "Home at" && pPlace && "in its smallest window cuts off its sidebar item" && tPlace && "(" & tRect & ")"
+      end if
+   end repeat
+end tourHubFits
 
 -- The xTalk Assistant (ide/Extensions/org.openxtalk.plugin.xtalkassistant):
 -- its window, its Settings dialog and its Memory window, in Learn's look.
