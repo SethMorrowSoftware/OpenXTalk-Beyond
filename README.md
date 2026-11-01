@@ -167,7 +167,7 @@ connections (see
 [0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven)), and
 0.2.7-rc.6.12 calls the engine BeyondEngine, brings the welcome, the
 Academy and Learn into one Home window, opens more HyperCard stacks, and
-pastes Copy Graphics as SVG Paths into Illustrator (see
+pastes Copy Graphics as SVG Paths into Illustrator as curves (see
 [0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve));
 0.2.6 stays the main download until it has held up.
 
@@ -1663,6 +1663,13 @@ it squashes:
   Paths also puts the SVG on the clipboard in Illustrator's formats, so
   it pastes as vector paths into Illustrator or VectorCraft; the plain
   text is as before (OpenXTalkPaul) (#293).
+- **Ovals pasted as a few hundred corners.** Copy Graphics as SVG Paths
+  copies an oval, an arc of one and a rounded rectangle as the curves
+  the engine draws, so they paste as smooth shapes you can edit; they
+  were the polygon of their points, a corner for every degree or so. A
+  filled arc is a wedge, and a rounded rectangle's corners are the size
+  drawn. Rectangles, polygons and lines copy as before (OpenXTalkPaul)
+  (#305).
 - **A scrollbar you could not turn.** The Inspector sets a scrollbar's
   Orientation, Horizontal or Vertical, swapping its width and height
   about its centre; it was read only (TerryL) (#293).
@@ -1675,6 +1682,9 @@ it squashes:
 - **A message the IDE kept for itself.** `systemAppearanceChanged`
   reaches a handler in your card or stack even when the IDE holds the
   defaultStack (#297).
+- **An IDE window that would not minimize.** On Windows 11 the IDE's
+  main window minimizes again, and a stack that goes from translucent to
+  opaque gets its frame back (#302).
 - **HyperCard stacks that stopped as they opened.** Stacks that call the
   externals Files, ResText, SystemPath or FindFolder open: the HyperCard
   Library stands in for them (the Star Trek guides, SonnetFolio and BGC's
