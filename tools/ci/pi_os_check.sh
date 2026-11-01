@@ -51,9 +51,45 @@ gtk_package() {
   esac
 }
 
-# The apt source of the Raspberry Pi archive for a Debian release
+# The apt source of the Raspberry Pi archive for a Debian release, signed
+# by a keyring file
 pi_repo_line() {
-  echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.asc] http://archive.raspberrypi.com/debian/ $1 main"
+  echo "deb [signed-by=$2] http://archive.raspberrypi.com/debian/ $1 main"
+}
+
+# The field of one package's stanza in a Packages file (stdin)
+packages_field() {
+  awk -v pkg="$1" -v field="$2" '
+    /^Package: / { p = ($2 == pkg) }
+    p && index($0, field ": ") == 1 { print substr($0, length(field) + 3); exit }'
+}
+
+# Install the archive's own keyring package, raspberrypi-archive-keyring,
+# as Raspberry Pi OS has it, and print the keyring file apt should use.
+# The key the archive publishes (raspberrypi.gpg.key) has SHA-1 bindings,
+# which trixie's apt (sqv) refuses since 2026-02-01, so it is used only
+# through gpgv, to verify InRelease; InRelease's SHA256 then verifies the
+# Packages index, and that the package. Nothing is installed unverified.
+pi_archive_keyring() {
+  local release=$1 dir=$2 base=http://archive.raspberrypi.com/debian
+  local arch file sum sumgot packages
+  arch=$(dpkg --print-architecture)
+  mkdir -p "$dir"
+  curl -fsSL --retry 5 "$base/raspberrypi.gpg.key" | gpg --dearmor > "$dir/key.gpg" || return 1
+  curl -fsSL --retry 5 "$base/dists/$release/InRelease" -o "$dir/InRelease" || return 1
+  gpgv --keyring "$dir/key.gpg" --output "$dir/Release" "$dir/InRelease" 2> "$dir/gpgv.txt" || { cat "$dir/gpgv.txt" >&2; return 1; }
+  packages=main/binary-$arch/Packages.xz
+  sum=$(awk -v f="$packages" '/^SHA256:/ { s = 1; next } /^[^ ]/ { s = 0 } s && $3 == f { print $1 }' "$dir/Release")
+  [ -n "$sum" ] || { echo "no $packages in InRelease" >&2; return 1; }
+  curl -fsSL --retry 5 "$base/dists/$release/$packages" -o "$dir/Packages.xz" || return 1
+  echo "$sum  $dir/Packages.xz" | sha256sum -c --quiet - >&2 || return 1
+  file=$(xz -dc "$dir/Packages.xz" | packages_field raspberrypi-archive-keyring Filename)
+  sum=$(xz -dc "$dir/Packages.xz" | packages_field raspberrypi-archive-keyring SHA256)
+  [ -n "$file" ] && [ -n "$sum" ] || { echo "no raspberrypi-archive-keyring in $packages" >&2; return 1; }
+  curl -fsSL --retry 5 "$base/$file" -o "$dir/keyring.deb" || return 1
+  echo "$sum  $dir/keyring.deb" | sha256sum -c --quiet - >&2 || return 1
+  dpkg -i "$dir/keyring.deb" > "$dir/dpkg.txt" 2>&1 || { cat "$dir/dpkg.txt" >&2; return 1; }
+  dpkg -L raspberrypi-archive-keyring | grep -E '^/usr/share/keyrings/[^/]+\.(gpg|pgp|asc)$' | head -n 1 | grep . || return 1
 }
 
 # Whether the launcher's output says a library is missing (its message
@@ -100,17 +136,16 @@ main() {
   # 1. The Raspberry Pi archive, as on Raspberry Pi OS
   "${apt[@]}" update > "$out/apt.txt" 2>&1
   if [ "${PI_REPO:-1}" = 1 ]; then
-    "${apt[@]}" install ca-certificates curl >> "$out/apt.txt" 2>&1
-    curl -fsSL --retry 5 https://archive.raspberrypi.com/debian/raspberrypi.gpg.key \
-      -o /usr/share/keyrings/raspberrypi-archive-keyring.asc || { echo "::error::cannot download the Raspberry Pi archive key"; exit 1; }
-    pi_repo_line "$release" > /etc/apt/sources.list.d/raspi.list
+    "${apt[@]}" install ca-certificates curl gpgv gnupg xz-utils >> "$out/apt.txt" 2>&1
+    keyring=$(pi_archive_keyring "$release" "$out/keyring") || { echo "::error::cannot install the Raspberry Pi archive keyring"; exit 1; }
+    pi_repo_line "$release" "$keyring" > /etc/apt/sources.list.d/raspi.list
     if ! "${apt[@]}" update >> "$out/apt.txt" 2>&1; then
       echo "::error::apt cannot read the Raspberry Pi archive for $release"
       tail -n 20 "$out/apt.txt"
       exit 1
     fi
     "${apt[@]}" dist-upgrade >> "$out/apt.txt" 2>&1
-    echo "Raspberry Pi archive: $(pi_repo_line "$release")"
+    echo "Raspberry Pi archive: $(pi_repo_line "$release" "$keyring")"
   fi
 
   # 2. The install instructions, and nothing else, as user "pi"

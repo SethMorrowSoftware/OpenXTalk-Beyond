@@ -17,7 +17,7 @@
 """tools/ci/pi_os_check.sh and .github/workflows/pi-os-check.yml, the
 virtual Raspberry Pi of the Linux arm64 package: the GTK 2 package each
 Debian release names (the install instructions'), the Raspberry Pi
-archive's apt line, the launcher message that means a library is missing
+archive's apt line and the reading of its Packages index, the launcher message that means a library is missing
 (it must be the launcher's own text, or the check could never fail), the
 screenshot printed into the log, and the workflow's CPU models and
 triggers.
@@ -60,9 +60,24 @@ class Functions(unittest.TestCase):
             self.assertEqual(result.stdout.strip(), package, release)
 
     def test_pi_repo_line(self):
-        line = call('pi_repo_line', 'trixie').stdout.strip()
-        self.assertEqual(line, 'deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.asc] '
+        line = call('pi_repo_line', 'trixie', '/usr/share/keyrings/raspberrypi-archive-keyring.pgp').stdout.strip()
+        self.assertEqual(line, 'deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] '
                                'http://archive.raspberrypi.com/debian/ trixie main')
+
+    def test_packages_field(self):
+        # one package's field from a Packages index, not a neighbour's
+        index = ('Package: raspberrypi-archive-keyring-extra\nFilename: pool/x/extra.deb\nSHA256: 11\n\n'
+                 'Package: raspberrypi-archive-keyring\nVersion: 2025.1\n'
+                 'Filename: pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1_all.deb\n'
+                 'SHA256: abcd\n\nPackage: other\nSHA256: ff\n')
+        def field(name):
+            command = 'source "$1"; packages_field raspberrypi-archive-keyring "$2"'
+            return subprocess.run(['bash', '-c', command, 'test', SCRIPT, name], input=index,
+                                  capture_output=True, text=True).stdout.strip()
+        self.assertEqual(field('Filename'),
+                         'pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1_all.deb')
+        self.assertEqual(field('SHA256'), 'abcd')
+        self.assertEqual(field('Depends'), '')
 
     def test_package_tarball_is_the_program_folders(self):
         # the package artifact holds the -binaries and -symbols tar.xz too,
