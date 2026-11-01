@@ -1,7 +1,7 @@
 script "OXTExampleBouncingBalls"
 -- OXT-Beyond: builds "Bouncing Balls", the remaster of LiveCode Ltd's Balls
 -- (2011), the first sample of LiveCode Community's Start Center, which is
--- in ide/Resources/Start Center/samples/sample_1/Balls.livecode and stays
+-- in tools/examples/originals/sample_1/Balls.livecode and stays
 -- there as its authors made it. LiveCode Community, and so the sample, is
 -- free software under the GNU General Public License, version 3.
 --

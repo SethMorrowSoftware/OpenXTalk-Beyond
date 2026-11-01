@@ -2,8 +2,11 @@ script "revAcademy"
 -- OXT-Beyond: the xTalk Academy, a course in coding that is taught in
 -- xTalk and run in the IDE.
 --
--- Help > xTalk Academy opens it, and so do Learn's lessons and the web
--- IDE's Home. It teaches what every programmer learns first (values and
+-- It is a place of OXT-Beyond Home (palettes/home/revhub.livecodescript):
+-- Help > xTalk Academy and the toolbar's Tutorials open Home there, and
+-- Home hosts this stack as its window's behavior (see "Hosted in Home"
+-- below). Opened on its own, as its file can be, it is its own window as
+-- before. It teaches what every programmer learns first (values and
 -- variables, decisions, loops, handlers, lists and arrays, events, objects,
 -- debugging and a few classic algorithms) in plain xTalk, the way the
 -- language's own books and courses did: Danny Goodman's HyperCard
@@ -117,6 +120,12 @@ local sPicked
 -- id, or 0 for the course's first page), or brings it to the front there.
 -- With neither, it opens where the learner left it.
 command revAcademyShow pCourse, pLesson
+   -- (OXT-Beyond Home, when the IDE has it, is where the Academy opens
+   -- now. The property is read, not lkHosted: the kit may not be this
+   -- stack's behavior yet.)
+   if the cHubPlaces of me is empty and acOpenInHome(pCourse, pLesson) then
+      exit revAcademyShow
+   end if
    if the mode of me is 0 then
       if pCourse is not empty then
          put pCourse & "|" & pLesson into sCourse
@@ -164,6 +173,147 @@ on preOpenStack
    end try
    acRestore tSaved
 end preOpenStack
+
+################################################################################
+#
+# Hosted in Home
+#
+-- OXT-Beyond Home (palettes/home/revhub.livecodescript) uses this stack as
+-- its window's behavior for its Academy place. It sends these four
+-- messages, and the window's own preOpenStack, openStack and closeStack
+-- never reach this script (Home keeps them), so these do what those do
+-- here, but for the window's place and size, which are Home's. A page is
+-- "course" or "course,lesson" (an id or a number, as revAcademyShow
+-- takes them).
+
+-- Opens Home at the Academy, if the IDE has Home; false when it does
+-- not, or it failed
+private function acOpenInHome pCourse, pLesson
+   local tPath, tError, tPage
+   put acToolset() & "/palettes/home/revhub.livecodescript" into tPath
+   if there is no file tPath then
+      return false
+   end if
+   if pCourse is not empty then
+      put pCourse & comma & pLesson into tPage
+   end if
+   try
+      dispatch "revHubShow" to stack tPath with "academy", tPage
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end acOpenInHome
+
+on revHubAttach pPlace, pPage
+   local tSaved, tError
+   put the defaultStack into tSaved
+   set the defaultStack to the short name of me
+   try
+      acUseKit
+      get lkReadAppearance()
+      acLoadCourses
+      acLoadProgress
+      acBuild
+      acLayout
+   catch tError
+      acRestore tSaved
+      throw tError
+   end try
+   acRestore tSaved
+end revHubAttach
+
+on revHubStart pPlace, pPage
+   local tWant
+   if pPage is empty then
+      put acPref("place") into tWant
+   else
+      put pPage into tWant
+   end if
+   replace "|" with comma in tWant
+   acGoTo item 1 of tWant, item 2 of tWant, true
+   lkStartTicking
+   lkEnter "side"
+   lkFollowAppearance
+end revHubStart
+
+on revHubNavigate pPlace, pPage
+   if pPage is empty then
+      exit revHubNavigate
+   end if
+   replace "|" with comma in pPage
+   acGoTo item 1 of pPage, item 2 of pPage
+end revHubNavigate
+
+on revHubDetach
+   lkStopTicking
+   acKeepDraft
+   acSaveProgress
+   if sRecolor is not empty then
+      cancel sRecolor
+      put empty into sRecolor
+   end if
+   if sRelayout is not empty then
+      cancel sRelayout
+      put empty into sRelayout
+   end if
+   acCloseStage true
+end revHubDetach
+
+-- The sidebar in Home: Home's mark and places, then the courses, each
+-- with how many of its lessons are done, then the index. (The progress
+-- card's controls are made too, out of sight, so that acSyncProgress
+-- finds them.)
+private command acBuildHostedSide
+   local tObj, tY, tIndex
+   put lkHubHead(kSide) into tY
+   put 84 into sNavY
+   add 8 to tY
+   lkHubHeading "coursesWord", tY, "Courses", kSide
+   add 18 to tY
+   repeat with tIndex = 1 to sCourses["count"]
+      lkNavItem "nav_" & tIndex, tY, 28, sCourses[tIndex]["title"], sCourses[tIndex]["icon"], "course" && tIndex, 13, kSide - 10
+      put lkLabel("navDone_" & tIndex, lkR(kSide - 70, tY + 7, kSide - 18, tY + 23), empty, 11, lkColor("sideMuted"), "nav_" & tIndex, "right") into tObj
+      set the dontWrap of tObj to true
+      add 30 to tY
+   end repeat
+   get lkLabel("progWord", lkR(28, -100, kSide - 28, -84), "YOUR PROGRESS", 10, lkColor("sideMuted"), empty)
+   get lkLabel("progText", lkR(28, -100, kSide - 28, -84), empty, 12, lkColor("sideInk"), empty, "right")
+   get lkBox("progTrack", lkR(28, -100, kSide - 28, -92), lkColor("sideLine"), 4, empty)
+   get lkBox("progFill", lkR(28, -100, 36, -92), lkColor("emerald"), 4, empty)
+   hide field "progWord"
+   hide field "progText"
+   hide graphic "progTrack"
+   hide graphic "progFill"
+
+   -- The index
+   add 8 to tY
+   put lkLabel("idx", lkR(8, tY, kSide - 8, kHeight - 116), empty, 13, lkColor("sideInk"), empty) into tObj
+   set the listBehavior of tObj to true
+   set the autoHilite of tObj to true
+   set the dontWrap of tObj to true
+   set the fixedLineHeight of tObj to true
+   set the textHeight of tObj to kIndexLine
+   set the margins of tObj to "8,2,2,2"
+   set the threeDHilite of tObj to false
+   set the tabStops of tObj to 30
+
+   -- Back, Next, and where you are
+   get lkButton("back", 14, kHeight - 104, 32, "Back", "chevron-left", "dark", empty, empty, "go prev", 106)
+   get lkButton("next", kSide - 120, kHeight - 104, 32, "Next", "chevron-right", "dark", empty, empty, "go next", 106)
+   get lkLabel("navCount", lkR(0, kHeight - 60, kSide, kHeight - 44), empty, 12, lkColor("sideMuted"), empty, "center")
+   get lkLabel("navKeys", lkR(0, kHeight - 43, kSide, kHeight - 27), "or use the arrow keys", 11, lkColor("sideMuted"), empty, "center")
+end acBuildHostedSide
+
+-- Each course's lessons done, beside its name in Home's sidebar
+private command acSyncCourseCounts
+   local tIndex
+   repeat with tIndex = 1 to sCourses["count"]
+      if there is a field ("navDone_" & tIndex) then
+         put acDoneCount(tIndex) & "/" & sCourses[tIndex]["lessons"] into field ("navDone_" & tIndex)
+      end if
+   end repeat
+end acSyncCourseCounts
 
 -- Whether a stack message is about this stack. (One that is using it as
 -- a library, as a test does, hears every stack's: the stage's closeStack
@@ -297,14 +447,16 @@ end acUseKit
 
 -- This stack's folder and the IDE's Toolset folder, from this stack's
 -- file: the same in a source tree, an installed IDE and the web IDE
+-- (hosted in Home, "me" is Home's window, whose file is elsewhere: the
+-- file is this script's own stack's, revAcademy)
 private function acFolder
    set the itemDelimiter to slash
-   return item 1 to -2 of the filename of me
+   return item 1 to -2 of the filename of stack "revAcademy"
 end acFolder
 
 private function acToolset
    set the itemDelimiter to slash
-   return item 1 to -4 of the filename of me
+   return item 1 to -4 of the filename of stack "revAcademy"
 end acToolset
 
 -- Below the menu bar, as large as the screen allows
@@ -852,12 +1004,15 @@ private command acBuild
    set the defaultStack to the short name of me
    lock screen
    lock messages
-   set the label of me to "xTalk Academy"
-   set the resizable of me to true
-   set the minWidth of me to kMinWidth
-   set the minHeight of me to kMinHeight
-   set the destroyStack of me to true
-   set the rect of me to 0, 0, kWidth, kHeight
+   -- (hosted in Home, the window's title and size are Home's)
+   if not lkHosted() then
+      set the label of me to "xTalk Academy"
+      set the resizable of me to true
+      set the minWidth of me to kMinWidth
+      set the minHeight of me to kMinHeight
+      set the destroyStack of me to true
+      set the rect of me to 0, 0, kWidth, kHeight
+   end if
    set the backgroundColor of me to lkColor("bg")
    acBuildSide
    acBuildHeader
@@ -881,6 +1036,12 @@ end acBuild
 private command acBuildSide
    local tObj, tY, tIndex
    put lkBox("sideBg", lkR(0, 0, kSide, kHeight), lkColor("side"), 0, empty) into tObj
+   if lkHosted() then
+      -- (Home's sidebar is one colour in every place)
+      lkGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", "0," & kHeight
+      acBuildHostedSide
+      exit acBuildSide
+   end if
    lkGradient tObj, "15,23,42|17,32,52|19,46,62", "0,0", "0," & kHeight
    -- The mark
    put lkBox("sideMark", "20,22,56,58", lkColor("emerald"), 22, empty) into tObj
@@ -1134,12 +1295,23 @@ end acColumn
 private command acSyncSide
    local tAccent, tIndex, tName
    put acAccent() into tAccent
+   if lkHosted() then
+      -- (Home's places, the Academy's lit; the course in front is lit in
+      -- the list of courses below them, but the highlight stays on the
+      -- Academy)
+      put lkHubSync(tAccent) into sNavTarget
+   end if
    repeat with tIndex = 1 to sCourses["count"]
       put "nav_" & tIndex into tName
+      if there is not a group tName then
+         next repeat
+      end if
       if tIndex is sCourse then
          lkSetLook tName, "ink0", "255,255,255"
          lkIconInk the long id of image (tName & "_icon"), sCourses[tIndex]["icon"], lkMix(tAccent, "255,255,255", 0.35)
-         put the top of group tName into sNavTarget
+         if not lkHosted() then
+            put the top of group tName into sNavTarget
+         end if
       else
          lkSetLook tName, "ink0", lkColor("sideInk")
          lkIconInk the long id of image (tName & "_icon"), sCourses[tIndex]["icon"], lkColor("sideInk")
@@ -1171,6 +1343,9 @@ private command acSyncProgress
    end if
    put acDoneCount(sCourse) into tDone
    put sCourses[sCourse]["lessons"] into tCount
+   if lkHosted() then
+      acSyncCourseCounts
+   end if
    put tDone && "of" && tCount && "done" into field "progText"
    put the width of graphic "progTrack" into tWidth
    if tDone is 0 then
@@ -3490,11 +3665,21 @@ private function acHelperScript
          "   if sAcademyCount > 0 then put return after sAcademyOut" & return & \
          "   put msg after sAcademyOut" & return & \
          "   add 1 to sAcademyCount" & return & \
-         "   dispatch " & quote & "revAcademyOutput" & quote & " to stack " & quote & "revAcademy" & quote & " with msg" & return & \
+         "   local tAcademyHost" & return & \
+         "   put academyHost() into tAcademyHost" & return & \
+         "   dispatch " & quote & "revAcademyOutput" & quote & " to tAcademyHost with msg" & return & \
          "end msgChanged" & return & \
          "on errorDialog pError" & return & \
-         "   dispatch " & quote & "revAcademyError" & quote & " to stack " & quote & "revAcademy" & quote & " with pError" & return & \
+         "   local tAcademyHost" & return & \
+         "   put academyHost() into tAcademyHost" & return & \
+         "   dispatch " & quote & "revAcademyError" & quote & " to tAcademyHost with pError" & return & \
          "end errorDialog" & return & \
+         "function academyHost" & return & \
+         "   if the cAcademyHost of me is not empty then" & return & \
+         "      if exists(the cAcademyHost of me) then return the cAcademyHost of me" & return & \
+         "   end if" & return & \
+         "   return the long id of stack " & quote & "revAcademy" & quote & return & \
+         "end academyHost" & return & \
          "function academyOutput" & return & \
          "   return sAcademyOut" & return & \
          "end academyOutput" & return & \
@@ -3871,6 +4056,8 @@ private command acMakeStage
    set the _ideoverride of stack kStage to true
    set the destroyStack of stack kStage to true
    set the title of stack kStage to "Stage: what your code made"
+   -- (where its output goes: the Academy's window, or Home's that hosts it)
+   set the cAcademyHost of stack kStage to the long id of me
    set the width of stack kStage to 480
    set the height of stack kStage to 360
    set the backgroundColor of stack kStage to "#F8FAFC"

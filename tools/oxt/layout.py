@@ -97,7 +97,9 @@ class (a) rules (ide/Toolset, ide/Plugins, ide/Resources, ide/Documentation,
 ide/Extensions, the listed ide/ root files and the 9 ide-support files),
 except names starting with "." (upstream never packages them) and
 ide/Resources/Mobile Examples (installed on macOS only, so a Windows install
-says nothing about them). Nothing outside that set is ever written or
+says nothing about them; OXT-Beyond no longer keeps them since
+0.2.7-rc.6.12, and the exclusion keeps an import from a LiveCode macOS
+install from bringing them back). Nothing outside that set is ever written or
 deleted.
 
 Text files (see TEXT_EXTENSIONS) are compared with line endings normalised,
@@ -404,7 +406,7 @@ RULES = _rules()
 # never deleted by import nor written by assemble for a Windows layout.
 MANAGED_EXCLUDE = (
     ('ide/Resources/Mobile Examples/',
-     'package.txt Mobile.MacOSX: installed on macOS only'),
+     'package.txt Mobile.MacOSX: installed on macOS only (not kept since 0.2.7-rc.6.12)'),
 )
 
 # Differences that are expected when a stock LiveCode install is verified
@@ -819,9 +821,9 @@ def plan_assemble(repo_root, include=()):
     """Return (list of (installed path, repo path), problems).
 
     include lists MANAGED_EXCLUDE prefixes to assemble all the same: a
-    Windows layout has none of them, but package.py stages the macOS
-    layout with ide/Resources/Mobile Examples/ (package.txt
-    Mobile.MacOSX)."""
+    Windows layout has none of them (package.py staged the macOS layout
+    with ide/Resources/Mobile Examples/, package.txt Mobile.MacOSX, until
+    0.2.7-rc.6.12)."""
     pairs, problems = [], []
     for prefix in include:
         if prefix not in [p for p, _ in MANAGED_EXCLUDE]:

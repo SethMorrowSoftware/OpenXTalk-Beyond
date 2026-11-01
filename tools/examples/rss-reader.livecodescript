@@ -1,6 +1,6 @@
 script "OXTExampleRssReader"
 -- OXT-Beyond: builds "RSS Reader", the remaster of the RSS Demo of
--- OpenXTalk Lite's demos (ide/Resources/Examples/RSS Demo.oxtstack), which
+-- OpenXTalk Lite's demos (tools/examples/originals/RSS Demo.oxtstack), which
 -- stays there as it was made. Its author is not recorded: the script of
 -- its Import button begins "via theotherbassist, April 2016", and the
 -- stack names no licence.
