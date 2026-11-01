@@ -1739,6 +1739,20 @@ function buildMenuContext  --returns array to build menus
       end switch
    end repeat
    
+   -- OXT-Beyond: Copy Graphics as SVG Paths copies the graphics of the
+   -- selection and leaves anything else out, so it is enabled when the
+   -- selection holds a graphic, whatever else it holds (OpenXTalkPaul,
+   -- openxtalk.org p=25841). The scan above stops at the first object
+   -- that is neither a graphic nor an image, so this one looks at all
+   local tAnyGraphic = false
+   repeat for each line l in tSelectedObject
+      if word 1 of l is "graphic" then
+         put true into tAnyGraphic
+         exit repeat
+      end if
+   end repeat
+   put tAnyGraphic into tContext["anyGraphic"]
+   
    --build array used to build appropriate menus for the current selection(s)
    put tEnableFlipandRotate into tContext["enableFlipAndRotate"]
    put tSelectedObject into tContext["selectedObject"]
@@ -2117,30 +2131,30 @@ private function revMenubarObjectMenu pContext
       put "(Flip" into tFlipText
       put "(Rotate" into tRotateText
       put "(Reshape Graphic" into tReshapeText
-      put "(Copy Graphics as SVG Paths" into tCopySVGPathText
-      --revoxtIDEGraphicPointsToSVGPath
    else
       if pContext["allImages"] then
          put "Flip Image" into tFlipText
          put "Rotate Image" into tRotateText
          put "(Reshape Graphic" into tReshapeText
-         put "(Copy Graphics as SVG Paths" into tCopySVGPathText
       else if pContext["allGraphics"] then
          put "Flip Graphic" into tFlipText
          put "Rotate Graphic" into tRotateText
          if "revReshapeLibrary" is in revInternal__ListLoadedLibraries() then
             put "!cReshape Graphic" into tReshapeText
-            put "Copy Graphics as SVG Paths" into tCopySVGPathText
          else
             put "Reshape Graphic" into tReshapeText
-            put "Copy Graphics as SVG Paths" into tCopySVGPathText
          end if
       else
          put "(Flip Selected" into tFlipText
          put "(Rotate Selected" into tRotateText
          put "(Reshape Graphic" into tReshapeText
-         put "(Copy Graphics as SVG Paths" into tCopySVGPathText
       end if
+   end if
+   -- OXT-Beyond: enabled when the selection holds a graphic (buildMenuContext)
+   if pContext["anyGraphic"] is true then
+      put "Copy Graphics as SVG Paths" into tCopySVGPathText
+   else
+      put "(Copy Graphics as SVG Paths" into tCopySVGPathText
    end if
    --Flip with submenu, Rotate with submenu, Reshape graphic
    put tFlipText & return after tObject

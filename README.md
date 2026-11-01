@@ -1670,6 +1670,11 @@ it squashes:
   filled arc is a wedge, and a rounded rectangle's corners are the size
   drawn. Rectangles, polygons and lines copy as before (OpenXTalkPaul)
   (#305).
+- **A copy you could not ask for.** Copy Graphics as SVG Paths is
+  enabled whenever the selection holds a graphic, and greyed out when
+  it holds none; with a field or a button selected beside a graphic it
+  was greyed out, though it copies the graphics alone (OpenXTalkPaul)
+  (#305).
 - **A Line tool that kept its light.** In the Tools palette, choosing
   another vector tool after the Line tool lights the one you chose; the
   light stayed on Line (micmac) (#305).

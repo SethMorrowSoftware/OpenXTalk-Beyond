@@ -29,7 +29,10 @@ Since 0.2.7-rc.6.12 an oval, an arc of one and a rounded rectangle are
 copied as the curves the engine draws for them, not as the polygon of
 their effective points (OpenXTalkPaul, p=25837; seth, 2026-11-01). The
 reference below draws them as engine/src/graphicscontext.cpp does, and the
-tour's step svg-curves expects its paths.
+tour's step svg-curves expects its paths. The item is enabled when the
+selection holds a graphic, whatever else it holds, and greyed out when it
+holds none (OpenXTalkPaul, p=25841), which the tour's step svg-menu reads
+from the menu bar's Object menu.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -182,6 +185,38 @@ class TheMenuBar(unittest.TestCase):
         pick = handler(read(*MENUBAR), 'on', 'revMenubarObjectMenuPick')
         self.assertIn('case "Copy Graphics as SVG Paths"\n         revOXTIDEGraphicPointsToSVGPath the selobjs', pick)
 
+    def test_the_item_is_enabled_by_any_graphic(self):
+        # Enabled when the selection holds a graphic, whatever else it
+        # holds, and greyed out when it holds none (OpenXTalkPaul, p=25841;
+        # seth, 2026-11-01). buildMenuContext's own scan stops at the first
+        # object that is neither a graphic nor an image, so allGraphics
+        # was false for a field and a graphic and the item was greyed out
+        menubar = read(*MENUBAR)
+        context = handler(menubar, 'function', 'buildMenuContext')
+        scan = ('   local tAnyGraphic = false\n'
+                '   repeat for each line l in tSelectedObject\n'
+                '      if word 1 of l is "graphic" then\n'
+                '         put true into tAnyGraphic\n'
+                '         exit repeat\n'
+                '      end if\n'
+                '   end repeat\n'
+                '   put tAnyGraphic into tContext["anyGraphic"]\n')
+        self.assertIn(scan, context)
+        # after the selection is read whole, and before the array is built
+        self.assertLess(context.index('put the selobj into tSelectedObject'), context.index(scan))
+        self.assertLess(context.index(scan), context.index('put tSelectedObject into tContext["selectedObject"]'))
+        menu = handler(menubar, 'private function', 'revMenubarObjectMenu')
+        item = ('   if pContext["anyGraphic"] is true then\n'
+                '      put "Copy Graphics as SVG Paths" into tCopySVGPathText\n'
+                '   else\n'
+                '      put "(Copy Graphics as SVG Paths" into tCopySVGPathText\n'
+                '   end if\n')
+        self.assertIn(item, menu)
+        # set there and nowhere else, so the Flip and Rotate branches no
+        # longer decide it
+        self.assertEqual(menu.count('into tCopySVGPathText'), 2)
+        self.assertLess(menu.index(item), menu.index('put tCopySVGPathText & return after tObject'))
+
 
 class TheCommand(unittest.TestCase):
     def setUp(self):
@@ -332,6 +367,36 @@ class TheTour(unittest.TestCase):
             self.assertIn('tourSvgPathLine("%s"' % path, joined)
         self.assertIn('the number of lines of pSVG is not 6', checks)
         self.assertIn('"viewBox=" & quote & "9 9 222 122" & quote', checks)
+
+    def test_the_menu_step(self):
+        steps = re.search(r'^constant kSteps = "([^"]+)"', self.tour, re.M).group(1).split(',')
+        self.assertEqual(steps[steps.index('svg-curves') + 1], 'svg-menu')
+        step = handler(self.tour, 'on', 'tour_svg_menu')
+        for what, objects, enabled in (('nothing', 'empty', 'false'),
+                                       ('an image', 'tImage', 'false'),
+                                       ('a field', 'tField', 'false'),
+                                       ('an image and a field', 'tImage & return & tField', 'false'),
+                                       ('a graphic', 'tGraphic', 'true'),
+                                       ('a graphic and an image', 'tGraphic & return & tImage', 'true'),
+                                       ('a field and a graphic', 'tField & return & tGraphic', 'true')):
+            with self.subTest(selected=what):
+                self.assertIn('tourSvgMenuCheck("%s", %s, %s)' % (what, objects, enabled), step)
+        self.assertIn('create image "picture"', step)
+        self.assertIn('create field "words"', step)
+        self.assertIn('if tFails is not empty then throw', step)
+        # the menu as the menu bar builds it, an item in parentheses greyed out
+        check = handler(self.tour, 'function', 'tourSvgMenuCheck')
+        self.assertIn('dispatch "revMenubarBuildMenus" to stack "revMenuBar"', check)
+        self.assertIn('the text of button "Object" of group "revMenuBar" of stack "revMenuBar"', check)
+        self.assertIn('if (char 1 of tItem is not "(") is not pEnabled then', check)
+        # with the field and the graphic selected it copies the graphic alone
+        self.assertIn('revIDESelectObjects tField & return & tGraphic\n'
+                      '      dispatch "revMenubarObjectMenuPick" to stack "revMenuBar" with "Copy Graphics as SVG Paths"', step)
+        self.assertIn('put tourSvgMenuCopied(the clipboardData["text"]) after tFails', step)
+        copied = re.sub(r'"\s*&\s*\\\n\s*"', '', handler(self.tour, 'function', 'tourSvgMenuCopied'))
+        self.assertIn('M10,10 L110,10 L110,60 L10,60 Z', copied)
+        self.assertIn('the number of lines in pData is not 3', copied)
+        self.assertIn('"viewBox=" & quote & "9 9 102 52" & quote', copied)
 
     def test_it_reads_illustrators_types_back(self):
         step = handler(self.tour, 'on', 'tour_svg_paths')

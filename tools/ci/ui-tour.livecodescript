@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -2900,6 +2900,91 @@ on tour_svg_curves
    unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_svg_curves
+
+-- Object > Copy Graphics as SVG Paths is enabled only when the selection
+-- holds a graphic, the only thing it copies (OpenXTalkPaul, openxtalk.org
+-- p=25841; seth, 2026-11-01): greyed out with nothing selected, an image,
+-- a field, or both; enabled with a graphic alone or beside an image or a
+-- field, of which it copies the graphic
+on tour_svg_menu
+   local tArea, tName, tDefault, tGraphic, tImage, tField, tFails, tError
+   put "oxt_svg_menu" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to tName
+      put tourSvgGraphic("rect", "rectangle", "10,10,110,60", empty, "255,0,0", "0,0,255", 2) into tGraphic
+      create image "picture"
+      put it into tImage
+      set the rect of tImage to "130,10,180,60"
+      create field "words"
+      put it into tField
+      set the rect of tField to "200,10,300,40"
+      put tourSvgMenuCheck("nothing", empty, false) into tFails
+      put tourSvgMenuCheck("an image", tImage, false) after tFails
+      put tourSvgMenuCheck("a field", tField, false) after tFails
+      put tourSvgMenuCheck("an image and a field", tImage & return & tField, false) after tFails
+      put tourSvgMenuCheck("a graphic", tGraphic, true) after tFails
+      put tourSvgMenuCheck("a graphic and an image", tGraphic & return & tImage, true) after tFails
+      put tourSvgMenuCheck("a field and a graphic", tField & return & tGraphic, true) after tFails
+      -- and with the field and the graphic selected it copies the graphic alone
+      set the clipboardData["text"] to "nothing copied"
+      revIDESelectObjects tField & return & tGraphic
+      dispatch "revMenubarObjectMenuPick" to stack "revMenuBar" with "Copy Graphics as SVG Paths"
+      revIDEDeselectAll
+      put tourSvgMenuCopied(the clipboardData["text"]) after tFails
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   revIDEDeselectAll
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_svg_menu
+
+-- A line when the menu bar's Object menu, with the objects pObjects
+-- selected (pWhat), does not show Copy Graphics as SVG Paths enabled when
+-- pEnabled is true, or greyed out when it is false; else empty
+function tourSvgMenuCheck pWhat, pObjects, pEnabled
+   local tLine, tItem
+   if pObjects is empty then
+      revIDEDeselectAll
+   else
+      revIDESelectObjects pObjects
+   end if
+   tourWait 200
+   dispatch "revMenubarBuildMenus" to stack "revMenuBar"
+   repeat for each line tLine in the text of button "Object" of group "revMenuBar" of stack "revMenuBar"
+      if tLine contains "Copy Graphics as SVG Paths" then put word 1 to -1 of tLine into tItem
+   end repeat
+   tourRecord "INFO svg-menu with" && pWhat && "selected:" && tItem
+   if tItem is empty then return "with" && pWhat && "selected, the Object menu has no Copy Graphics as SVG Paths" & return
+   if (char 1 of tItem is not "(") is not pEnabled then
+      return "with" && pWhat && "selected, the Object menu has" && quote & tItem & quote & return
+   end if
+   return empty
+end tourSvgMenuCheck
+
+-- A line when pData, what Copy Graphics as SVG Paths put on the clipboard
+-- with a field and a graphic selected, is not the graphic's one path in
+-- its own box; else empty
+function tourSvgMenuCopied pData
+   local tPath
+   tourRecord "INFO svg-menu the clipboard:" && tourJoin(pData)
+   put "<path d=" & quote & "M10,10 L110,10 L110,60 L10,60 Z" & quote && \
+         "fill=" & quote & "rgb(255,0,0)" & quote && "stroke=" & quote & "rgb(0,0,255)" & quote && \
+         "stroke-width=" & quote & "2" & quote & "/>" into tPath
+   if the number of lines in pData is not 3 or line 2 of pData is not tPath or \
+         not (line 1 of pData contains "viewBox=" & quote & "9 9 102 52" & quote) then
+      return "with a field and a graphic selected, Copy Graphics as SVG Paths copied" && quote & tourJoin(pData) & quote & return
+   end if
+   return empty
+end tourSvgMenuCopied
 
 -- The Inspector sets a scrollbar's Orientation (TerryL, openxtalk.org
 -- p=25821): through revIDEPropertySet, the call the Inspector makes when
