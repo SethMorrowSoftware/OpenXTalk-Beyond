@@ -10,7 +10,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../ide/` | the web IDE |
 | `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
 | `.../player/` | the Stack Player |
-| `.../games/` | web games, such as Pixel Maker: each page runs its `standalone.zip` on the Stack Player's engine |
+| `.../games/` | web games, such as Pixel Platformer Maker: each page runs its `standalone.zip` on the Stack Player's engine |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
 The front page is one self-contained file: its look (a night sky over an
