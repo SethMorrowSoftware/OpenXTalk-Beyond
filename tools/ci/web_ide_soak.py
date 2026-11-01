@@ -317,7 +317,11 @@ def main():
                     # Home's title bar is the page's own element
                     # (engine/src/em-dc.js): a click there brings Home to
                     # the front and does nothing else
-                    title = page.locator('.oxt-window-title', has_text='Welcome to OXT-Beyond')
+                    # (OXT-Beyond Home, from 0.2.7-rc.6.12; Home's own
+                    # window, titled Welcome to OXT-Beyond, before it)
+                    title = page.locator('.oxt-window-title', has_text='OXT-Beyond Home')
+                    if title.count() == 0:
+                        title = page.locator('.oxt-window-title', has_text='Welcome to OXT-Beyond')
                     if title.count() > 0 and title.first.is_visible():
                         title.first.click()
                         page.keyboard.press('ArrowRight')

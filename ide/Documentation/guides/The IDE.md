@@ -222,12 +222,15 @@ using the IDE and XTalk.
 | Menu Item | Action |
 |-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Dictionary (API)**    | Opens the main documentation window, where you can get information about all aspects of developing.                                                                                                                                       |
-| **Start Center**        | Opens the Start Center.                                                      																																										           |
+| **Welcome to OXT-Beyond** | Opens OXT-Beyond Home at its welcome: a tour of what the IDE does, and the way to the Academy, the how-tos, the guides and the examples |
 | **Sample Stacks**       | Launches revOnline in an external browser                                                     																																								   |
 | **Sample Scripts**      | Opens the Resource Center, which contains many sample scripts, including tutorials on text processing and using databases.                                                      																			   |
 | **Beginner's Guide**    | Opens the beginner's guide in an external browser                                                                    	                                                      	    																		   |
 | **All Guides**          | Opens the main documentation window, which contains all of the user guides	                                                         																												   |
-| **xTalk Academy**      | Opens the xTalk Academy: courses that teach programming in xTalk, with a playground that runs and checks your code |
+| **xTalk Academy**      | Opens the xTalk Academy in OXT-Beyond Home: courses that teach programming in xTalk, with a playground that runs and checks your code |
+| **How-to**             | Opens the how-to lessons in OXT-Beyond Home: everyday tasks, one idea at a time |
+| **Guides**             | Opens the guides in OXT-Beyond Home |
+| **Examples**           | Opens the examples in OXT-Beyond Home: stacks to open, run and take apart |
 | **Tutorials**           | Launches the online lessons portal in an external browser                                                      																																	   |
 | **User Guide**          | Opens the old user guide in an external PDF viewer                                                   																			                                                         					   |
 | **Forums**              | Navigates to the discussion forums in an external browser                                                  																			                                                         	   |

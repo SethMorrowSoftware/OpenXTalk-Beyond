@@ -78,7 +78,7 @@ import build_dictionary  # noqa: E402
 
 # The parts of the site, each with its card on the front page, and the
 # Downloads section (from a release's files, not a folder of the site)
-PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'MAP', 'DOWNLOADS')
+PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'GAMES', 'MAP', 'DOWNLOADS')
 REPOSITORY = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 # The Downloads section: (platform, what it needs, [(link, file suffix)]);
 # a file is OXT-Beyond-<version>-<suffix>, as release.yml names them
@@ -157,6 +157,26 @@ def check_sizes(folder):
                                  % (os.path.relpath(path, folder), os.path.getsize(path)))
 
 
+def games(source, target, player):
+    """Copies tools/pages/games, each page told the engine's file in the player."""
+    if not os.path.isdir(source):
+        return False
+    engines = sorted(n for n in os.listdir(player) if re.fullmatch(r'standalone-.*\.js', n))
+    if not engines:
+        print('no games: the Stack Player has no engine for them')
+        return False
+    shutil.copytree(source, target)
+    for root, _, names in os.walk(target):
+        for name in names:
+            if name == 'index.html':
+                path = os.path.join(root, name)
+                with open(path, encoding='utf-8') as f:
+                    page = f.read()
+                with open(path, 'w', encoding='utf-8', newline='\n') as f:
+                    f.write(page.replace('@ENGINE_JS@', engines[0]))
+    return True
+
+
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
@@ -210,6 +230,9 @@ def build(args):
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''
+        # The games run on the Stack Player's engine, so they go up with it
+        if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player')):
+            parts['GAMES'] = ''
     if args.map:
         os.makedirs(os.path.join(out, 'map'))
         shutil.copyfile(args.map, os.path.join(out, 'map', 'index.html'))
