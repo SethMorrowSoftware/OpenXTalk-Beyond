@@ -32,6 +32,7 @@ words, is in the [README](README.md#the-ide) and on the
 - IDE: systemAppearanceChanged also reaches a handler in the user's card or stack when the IDE holds the defaultStack (#297)
 - Windows 11: the IDE's main window minimizes again; a stack that goes from translucent to opaque gets its frame back (#302)
 - Object menu: Copy Graphics as SVG Paths copies an oval, an arc of one and a rounded rectangle as the curves the engine draws (cubic Beziers, in the graphic's rect), where it copied the polygon of their effective points; a filled arc is a wedge to its centre, and a rounded rectangle's corners are half its roundRadius, as drawn. The clipboard's text for those graphics changes; rectangles, polygons, lines, an oval whose arcAngle is 0 and a rounded rectangle whose roundRadius is 0 copy as before (OpenXTalkPaul, openxtalk.org p=25837). The IDE tour checks the paths, which a test computes from the engine's drawing (#305)
+- Tools palette: choosing one vector tool after another (Line, then Polygon or Curve) lights the tile chosen; the light stayed on the first, because every vector tile is the graphic tool and the engine sends no newTool when the tool stays the same (micmac, openxtalk.org p=25846). In both looks; the IDE tour checks it (#305)
 - Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.12's engine, so they read 9.7.1-BeyondEngine too: the asset `oxt-runtimes-0.2.7-rc.6.12` replaces `oxt-runtimes-0.2.7-rc.6.11` (#305)
 
 ## 0.2.7-rc.6.11 (2026-10-31, pre-release)

@@ -1670,6 +1670,9 @@ it squashes:
   filled arc is a wedge, and a rounded rectangle's corners are the size
   drawn. Rectangles, polygons and lines copy as before (OpenXTalkPaul)
   (#305).
+- **A Line tool that kept its light.** In the Tools palette, choosing
+  another vector tool after the Line tool lights the one you chose; the
+  light stayed on Line (micmac) (#305).
 - **A scrollbar you could not turn.** The Inspector sets a scrollbar's
   Orientation, Horizontal or Vertical, swapping its width and height
   about its centre; it was read only (TerryL) (#293).

@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -283,6 +283,60 @@ on tour_hover_tools
    tourShotAround tButton, "revTools", "02-hover-tools"
    tourMouseAway
 end tour_hover_tools
+
+-- Choosing one vector tool after another lights the one chosen (micmac,
+-- openxtalk.org p=25846: the Line tile kept its light). Every vector tile
+-- chooses the graphic tool, with the template graphic's style for its
+-- shape, so going from one to another changes no tool and the engine
+-- sends no newTool for the palette to follow. Line, Polygon, Curve and
+-- Line again, by the palette's own mouseDown, in the classic look and in
+-- the modern one
+on tour_tools_vector
+   local tFails, tShown
+   revIDEOpenPalette "tools"
+   tourToolsClassic
+   tourWait 300
+   put tourToolsVectorCheck("classic") into tFails
+   dispatch function "tmIsModern" to stack "revTools"
+   if it is "handled" then
+      if tourToolsModern(260, false) is true then
+         -- (the modern look shows the vector tools from its menu)
+         put tourTmGroup("graphictools") is empty into tShown
+         if tShown then dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+         put tourToolsVectorCheck("modern") after tFails
+         if tShown then dispatch "tmMenuPick" to stack "revTools" with "Vector Tools"
+      end if
+      tourToolsClassic
+   end if
+   choose pointer tool
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_tools_vector
+
+-- A line for each vector tile of the Tools palette, in the look pLook,
+-- that does not choose its shape or is not lit once chosen after another
+function tourToolsVectorCheck pLook
+   local tName, tTile, tLight, tFails
+   repeat for each item tName in "Line,Polygon,Curve,Line"
+      put tourTmNamed("com.livecode.interface.classic." & tName & "Graphic") into tTile
+      if tTile is empty or not the visible of tTile then
+         put pLook & ": no" && tName && "tile shows" & return after tFails
+         next repeat
+      end if
+      tourTmClick tTile
+      tourWait 200
+      put tourTmNamed("tool_hilite") into tLight
+      tourRecord "INFO tools-vector" && pLook & ":" && tName && "chose the" && the tool && "with a" && \
+            the style of the templateGraphic && "template; the light at" && the rect of tLight && "and the tile at" && the rect of tTile
+      if the tool is not "graphic tool" or the style of the templateGraphic is not the cStyle of tTile then
+         put pLook & ":" && tName && "chose the" && the tool && "with a" && the style of the templateGraphic && "template" & return after tFails
+      end if
+      if tLight is empty or not the visible of tLight or the rect of tLight is not the rect of tTile then
+         put pLook & ":" && tName && "is not lit (the light is at" && the rect of tLight & ", the tile at" && the rect of tTile & ")" & return after tFails
+      end if
+   end repeat
+   tourShotStack "revTools", "01b-tools-vector-" & pLook
+   return tFails
+end tourToolsVectorCheck
 
 -- The Tools palette in its modern look (Tools > Modern Tools Palette):
 -- at the size it first opens at, made wide, and wide with the names of
