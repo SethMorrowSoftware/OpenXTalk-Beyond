@@ -1,0 +1,1 @@
+- Engine (macOS): typing in the script editor with the Accessibility Keyboard and pressing Apply no longer crashes; the system's text input services could call a window's view after the window was gone (tperry2x, macOS 14)

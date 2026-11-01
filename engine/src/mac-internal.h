@@ -239,6 +239,10 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 
 - (id)initWithPlatformWindow:(MCMacPlatformWindow *)window;
 
+// Forget the platform window: its destructor calls this, since the view can
+// outlive it (see MCMacPlatformWindow::~MCMacPlatformWindow).
+- (void)detachPlatformWindow;
+
 - (void)setFrameSize: (NSSize)size;
 
 @end
@@ -261,6 +265,12 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 
 - (id)initWithPlatformWindow:(MCMacPlatformWindow *)window;
 - (void)dealloc;
+
+// Forget the platform window: its destructor calls this, since the view can
+// outlive it (see MCMacPlatformWindow::~MCMacPlatformWindow). Every method
+// then does nothing, and the view stops being a text input client.
+- (void)detachPlatformWindow;
+- (NSTextInputContext *)inputContext;
 
 - (void)updateTrackingAreas;
 
