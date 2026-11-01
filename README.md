@@ -164,7 +164,11 @@ lets the Mac's colours and the IDE's widgets follow light and dark,
 ends a crash in the Script Editor's Breakpoints pane, makes saves
 safer, and fixes rolling back PostgreSQL and MySQL's encrypted
 connections (see
-[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven));
+[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven)), and
+0.2.7-rc.6.12 calls the engine BeyondEngine, brings the welcome, the
+Academy and Learn into one Home window, opens more HyperCard stacks, and
+pastes Copy Graphics as SVG Paths into Illustrator (see
+[0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -181,7 +185,7 @@ connections (see
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.11.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.12.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -317,8 +321,8 @@ OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.10` and
-`runtimes-0.2.7-rc.6.11`, are not programs. They hold
+`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.11` and
+`runtimes-0.2.7-rc.6.12`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1635,6 +1639,55 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.12: the Bug Hunt, round twelve
+
+OXT-Beyond 0.2.7-rc.6.12 has everything in 0.2.7-rc.6.11. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **An engine that still said OXT.** `the version` reads
+  9.7.1-BeyondEngine where it read 9.7.1-OXT, and so do the About box
+  and `-v`; the long version ends "(BeyondEngine)". 9.7.1 and build
+  25923 are unchanged, so a script that takes the part before the "-"
+  (`set the itemDelimiter to "-"`) or reads `the buildNumber` gets what
+  it did; one that looks for "OXT" in the version no longer finds it
+  (tperry2x) (#293).
+- **Three windows for one welcome.** OXT-Beyond Home is one window for
+  the welcome, the xTalk Academy and Learn, with a sidebar of five
+  places: Home, Academy, How-to, Guides and Examples. Help's Lessons and
+  Demos are now How-to and Examples, and a script that opens them by
+  their old names still gets them. Startup is as before. The package
+  leaves out the classic windows Home replaces, about 13 MB (#298).
+- **SVG that Illustrator would not paste.** Object > Copy Graphics as SVG
+  Paths also puts the SVG on the clipboard in Illustrator's formats, so
+  it pastes as vector paths into Illustrator or VectorCraft; the plain
+  text is as before (OpenXTalkPaul) (#293).
+- **A scrollbar you could not turn.** The Inspector sets a scrollbar's
+  Orientation, Horizontal or Vertical, swapping its width and height
+  about its centre; it was read only (TerryL) (#293).
+- **Check boxes that looked ticked.** On a web page that follows a dark
+  browser, an unticked check box is a dark box; it was a white one, which
+  looked ticked (#293).
+- **Tall Mac buttons with a short bezel.** On macOS 11 and later a
+  standard button taller than 30 points draws its rounded bezel its
+  whole height; the bezel stayed 21 points high (Skids) (#293).
+- **A message the IDE kept for itself.** `systemAppearanceChanged`
+  reaches a handler in your card or stack even when the IDE holds the
+  defaultStack (#297).
+- **HyperCard stacks that stopped as they opened.** Stacks that call the
+  externals Files, ResText, SystemPath or FindFolder open: the HyperCard
+  Library stands in for them (the Star Trek guides, SonnetFolio and BGC's
+  stacks among them), and `card it-1` is the card before the last, as in
+  HyperCard (#300).
+
+Behind the scenes, the project's web pages have a new front page with a
+Downloads section (#295) and a Web Games section with Pixel Platformer
+Maker, a platformer and level maker written in xTalk with Box2Dxt
+physics (#301, #303); the HyperCard sweep in CI answers dialogs as a
+person would and skips hidden buttons (#296); and the runtimes that
+every package carries for the other platforms are rebuilt from this
+release's engine (#305).
 
 #### 0.2.7-rc.6.11: the Bug Hunt, round eleven
 

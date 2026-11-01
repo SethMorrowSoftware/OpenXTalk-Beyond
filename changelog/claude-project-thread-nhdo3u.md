@@ -1,1 +1,0 @@
-- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.12's engine, so they read 9.7.1-BeyondEngine too: the asset `oxt-runtimes-0.2.7-rc.6.12` replaces `oxt-runtimes-0.2.7-rc.6.11` (#305)
