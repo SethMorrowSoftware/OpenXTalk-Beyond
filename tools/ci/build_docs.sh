@@ -34,7 +34,9 @@
 #    xTalk Suite extensions of tools/oxt/xtalk-extensions.json into
 #    <work folder>/xtalk; their doc comments are their docs).
 # 3. tools/oxt/text_dictionary.py makes the entries of the text dictionary
-#    (Preferences > Dictionary) from both.
+#    (Preferences > Dictionary) from both, and puts the extensions' data
+#    beside LiveCode's for the Dictionary on the web site
+#    (tools/pages/build_dictionary.py), which has no IDE to add them.
 #
 # It writes, in ide/Documentation/html_viewer/resources/data:
 #
@@ -45,6 +47,10 @@
 #   guide/distributed_guide.js       the guides
 #   api/exports/<section>/resaved/,
 #   index.txt, substitutions.txt     the text dictionary's entries
+#   api_extensions/<api>/*.js        the extensions' data, which the IDE
+#                                    does not read (it makes its own when it
+#                                    loads them) and the web site's
+#                                    Dictionary adds to LiveCode's
 #
 # and nothing else outside <work folder>.
 #
@@ -139,19 +145,20 @@ OXT_EXTENSION_DOCS=$work/ext "$engine" -ui "$repo/tools/ci/extension_docs.liveco
 
 # 3. The text dictionary
 echo "The text dictionary"
-python3 "$repo/tools/oxt/text_dictionary.py" --extensions "$work/ext"
+python3 "$repo/tools/oxt/text_dictionary.py" --extensions "$work/ext" --export-extensions
 
 status=0
 for f in api/api.sqlite api_livecode_script/script.js api_livecode_script/dg.js \
   api_livecode_builder/builder.js guide/distributed_guide.js \
-  api/exports/{xtalk,builder,datagrid}/{index,substitutions}.txt; do
+  api/exports/{xtalk,builder,datagrid}/{index,substitutions}.txt \
+  api_extensions/livecode_script/org.openxtalk.library.sodium.js; do
   if [ ! -s "$data/$f" ]; then
     echo "$0: no $f was written" >&2
     status=1
   fi
 done
 echo "Written in $data:"
-for d in api api_livecode_script api_livecode_builder guide; do
+for d in api api_livecode_script api_livecode_builder api_extensions guide; do
   echo "  $d: $(find "$data/$d" -type f | wc -l | tr -d ' ') files, $(du -sk "$data/$d" | cut -f1) KB"
 done
 exit $status
