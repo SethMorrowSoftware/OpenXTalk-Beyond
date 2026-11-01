@@ -368,13 +368,15 @@ private command hbPlace
    end if
    set the rect of me to 0, 0, tWidth, tHeight
    set the topLeft of me to max(item 1 of tScreen, (item 1 of tScreen + item 3 of tScreen - tWidth) div 2), tTop
-   put the rect of me into sPlaced
    if there is a stack "revWebIDELibrary" then
       try
          revWebIDEKeepOnPage the long id of me, empty, true
       catch tError
       end try
    end if
+   -- (where it is now: on the web, the page may have moved it below the
+   -- menu bar, and hbKeepPlace must not put it back over it)
+   put the rect of me into sPlaced
 end hbPlace
 
 ################################################################################
