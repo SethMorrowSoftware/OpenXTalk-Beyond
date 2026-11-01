@@ -1,4 +1,4 @@
-script "TestDrawingLibrary"
+﻿script "TestDrawingLibrary"
 /*
 Copyright (C) 2026 OXT-Beyond contributors.
 
@@ -254,6 +254,24 @@ on TestIdReferences
    TestAssert "ids: all includes ids", _ShapeKey(drawingSvgCompile(tSvg, "all"), 1, "fill", "type") is "linear"
    TestAssert "ids: without the option, as before", _ShapeKey(drawingSvgCompile(tSvg), 1, "fill", "type") is not "linear"
 end TestIdReferences
+
+on TestGradientFocalDefault
+   local tSvg, tShape
+   -- a radial gradient centred off 50% with no fx or fy: SVG puts the focal
+   -- point at the centre, a plain radial gradient (Noto's emoji hair)
+   put _Svg("<defs><radialGradient id='r' cx='20' cy='70' r='30' gradientUnits='userSpaceOnUse'>" & \
+         "<stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></radialGradient></defs>" & \
+         "<rect width='100' height='100' fill='url(#r)'/>") into tSvg
+   TestAssert "gradients: the focal point defaults to the centre", _ShapeKey(drawingSvgCompile(tSvg, "gradients"), 1, "fill", "type") is "radial"
+   TestAssert "gradients: all includes it", _ShapeKey(drawingSvgCompile(tSvg, "all"), 1, "fill", "type") is "radial"
+   TestAssert "gradients: without the option, as before", _ShapeKey(drawingSvgCompile(tSvg), 1, "fill", "type") is "conical"
+   -- an fx given is kept, and one given on the gradient an href names is inherited
+   put _Svg("<defs><radialGradient id='b' fx='30'/><radialGradient id='r' href='#b' cx='20' cy='70' r='30' gradientUnits='userSpaceOnUse'>" & \
+         "<stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></radialGradient></defs>" & \
+         "<rect width='100' height='100' fill='url(#r)'/>") into tSvg
+   put _Shape(drawingSvgCompile(tSvg, "gradients"), 1) into tShape
+   TestAssert "gradients: an inherited fx is kept", tShape["fill"]["type"] is "conical" and _Near(tShape["fill"]["fx"], 1/3) and _Near(tShape["fill"]["fy"], 0)
+end TestGradientFocalDefault
 
 on TestMinifiedArcFlags
    local tDrawing

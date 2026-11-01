@@ -144,6 +144,9 @@ drawing is compiled as it always was. Unknown options are ignored.
   - opacity: the opacity attribute and property, of shapes and of groups
   - ids: references to ids with - _ . or a leading digit, such as
     url(#grad-1), and quoted ones; without it such a gradient draws black
+  - gradients: a radial gradient with no fx or fy has its focal point at its
+    centre (cx, cy), as SVG says; without it the focal point is at 50%, so a
+    gradient centred elsewhere draws lopsided
   - clip: clip-path and clipPath elements (in user space; clip-rule, and
     clipPathUnits="objectBoundingBox", are not supported). A drawing with a
     clip draws only on OXT-Beyond 0.2.7-rc.6.12 and later: an older engine stops
@@ -259,6 +262,9 @@ drawing is compiled as it always was. Unknown options are ignored.
   - opacity: the opacity attribute and property, of shapes and of groups
   - ids: references to ids with - _ . or a leading digit, such as
     url(#grad-1), and quoted ones; without it such a gradient draws black
+  - gradients: a radial gradient with no fx or fy has its focal point at its
+    centre (cx, cy), as SVG says; without it the focal point is at 50%, so a
+    gradient centred elsewhere draws lopsided
   - clip: clip-path and clipPath elements (in user space; clip-rule, and
     clipPathUnits="objectBoundingBox", are not supported). A drawing with a
     clip draws only on OXT-Beyond 0.2.7-rc.6.12 and later: an older engine stops
@@ -977,6 +983,18 @@ private command _svgCompilePaintServer @xContext, pId, pFallback, @rCompiledPain
 		case "radialGradient"
 			local tGradient
 			_svgCompileResolveGradient xContext, tServerElement, tGradient
+			/* SVG gives a radial gradient that sets no fx (fy) a focal point
+			 * at its cx (cy), wherever along its href chain those are set:
+			 * the "gradients" option. Without it they stay at 50%, as the
+			 * library always compiled them. */
+			if sDrawingOptions["gradients"] then
+				if tGradient["fx-set"] is not true then
+					put tGradient["cx"] into tGradient["fx"]
+				end if
+				if tGradient["fy-set"] is not true then
+					put tGradient["cy"] into tGradient["fy"]
+				end if
+			end if
 			if tServerElement["type"] is "linearGradient" then
 				put "linear" into rCompiledPaint[1]
 			else
@@ -1103,6 +1121,9 @@ private command _svgCompileResolveGradient @xContext, pElement, @rGradient
 	repeat for each item tProp in "x1,y1,x2,y2,cx,cy,r,fx,fy,fr,gradientUnits,gradientTransform,spreadMethod"
 		if tProp is among the keys of pElement["features"] then
 			put pElement["features"][tProp] into rGradient[tProp]
+			if tProp is "fx" or tProp is "fy" then
+				put true into rGradient[tProp & "-set"]
+			end if
 		end if
 	end repeat
 
@@ -3552,6 +3573,7 @@ private function _drawingParseOptions pOptions
 	put false into tFlags["opacity"]
 	put false into tFlags["ids"]
 	put false into tFlags["clip"]
+	put false into tFlags["gradients"]
 	if pOptions is an array then
 		repeat for each key tName in pOptions
 			if pOptions[tName] is true then
